@@ -20,11 +20,14 @@ function cfg(provider: string, model: string, baseUrl?: string): Config {
   } as Config;
 }
 
-describe("LLM — new provider construction + pricing guard", () => {
-  // Construction must not throw for any new provider, including the providers
+describe("LLM — API-key provider construction + pricing guard", () => {
+  // Construction must not throw for any provider, including the providers
   // (deepseek/qwen/kimi/minimax) deliberately absent from the vendored price
   // catalog — they resolve to an unpriced LLM (cost: undefined on the ledger).
   it.each([
+    ["anthropic", "claude-sonnet-4-6", undefined],
+    ["openai", "gpt-5.4", undefined],
+    ["google", "gemini-3-flash-preview", undefined],
     ["deepseek", "deepseek-v4-flash", "https://api.deepseek.com/v1"],
     ["qwen", "qwen-plus", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"],
     ["minimax", "MiniMax-M2-Stable", "https://api.minimax.io/v1"],

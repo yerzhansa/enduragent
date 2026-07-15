@@ -133,12 +133,13 @@ describe("runBinary CLI routing", () => {
   it("`version` command prints `${binary.binaryName} v<version>` and returns without exit", async () => {
     process.argv = ["node", "running-coach", "version"];
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.doMock("../src/updater.js", () => ({ getCurrentVersion: () => "2026.7.2" }));
 
     const { runBinary } = await import("../src/run-binary.js");
     await runBinary(stubRunningSport, stubRunningBinary);
 
     const printed = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(printed).toMatch(/^running-coach v/);
+    expect(printed).toBe("running-coach v2026.7.2");
     expect(exitSpy).not.toHaveBeenCalled();
   });
 

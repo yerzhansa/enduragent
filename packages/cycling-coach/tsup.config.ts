@@ -13,16 +13,17 @@ export default defineConfig({
   metafile: true,
   esbuildOptions(options) {
     options.absWorkingDir = repoRoot;
+    options.alias = {
+      ...options.alias,
+      encoding: resolve(packageRoot, "build/optional-encoding-shim.ts"),
+    };
     options.entryPoints = [resolve(packageRoot, "src/index.ts")];
     options.outdir = resolve(packageRoot, "dist");
     options.legalComments = "eof";
   },
   clean: true,
   splitting: false,
-  // Bundle @enduragent/* into the binary. The libs are private workspace
-  // packages (not published to npm) — bundling makes the published tarball
-  // self-contained. See ADR-0010.
-  noExternal: [/^@enduragent\//],
+  noExternal: [/.*/],
   // Shebang for the bin field — npm preserves bin permissions on publish.
   // createRequire shim: bundling @enduragent/* pulls transitive CJS deps
   // (e.g. @grammyjs/auto-retry → debug) inline, and their `require()` of Node

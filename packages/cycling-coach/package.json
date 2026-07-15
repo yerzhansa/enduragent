@@ -25,26 +25,14 @@
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.69",
-    "@ai-sdk/google": "^3.0.63",
-    "@ai-sdk/openai": "^3.0.52",
-    "@ai-sdk/provider": "^3.0.9",
-    "@ai-sdk/provider-utils": "^4.0.24",
-    "@clack/prompts": "^1.2.0",
-    "ai": "^6.0.158",
-    "grammy": "^1.42.0",
-    "intervals-icu-api": "^0.1.2",
-    "yaml": "^2.8.3",
-    "zod": "^4.3.6"
-  },
   "devDependencies": {
     "@enduragent/core": "workspace:*",
     "@enduragent/sport-cycling": "workspace:*",
     "@types/node": "^25.6.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "yaml": "^2.8.3"
   },
   "engines": {
     "node": ">=22"

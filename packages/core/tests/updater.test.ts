@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   buildCheckUrl,
   buildSelfUpdateCommand,
@@ -10,7 +11,87 @@ import {
   getInstanceId,
   isManagedDeploy,
   isUpdateAvailable,
+  readBinaryPackageJson,
 } from "../src/updater.js";
+
+describe("readBinaryPackageJson", () => {
+  const roots: string[] = [];
+  const root = () => {
+    const path = mkdtempSync(join(tmpdir(), "cc-package-identity-"));
+    roots.push(path);
+    return path;
+  };
+  const manifest = (path: string, name: string, version: string) => {
+    mkdirSync(path, { recursive: true });
+    writeFileSync(join(path, "package.json"), JSON.stringify({ name, version }));
+  };
+
+  afterEach(() => {
+    for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
+  });
+
+  it("reads a direct-extracted module-adjacent manifest", () => {
+    const base = root();
+    manifest(join(base, "package"), "direct-cli", "1.2.3");
+
+    expect(
+      readBinaryPackageJson("direct-cli", {
+        moduleUrl: pathToFileURL(join(base, "package/dist/index.js")).href,
+        cwd: join(base, "clean-cwd"),
+      })?.version,
+    ).toBe("1.2.3");
+  });
+
+  it("falls back to installed package resolution", () => {
+    const base = root();
+    manifest(join(base, "app/node_modules/installed-cli"), "installed-cli", "2.3.4");
+
+    expect(
+      readBinaryPackageJson("installed-cli", {
+        moduleUrl: pathToFileURL(join(base, "app/dist/index.js")).href,
+        cwd: join(base, "clean-cwd"),
+      })?.version,
+    ).toBe("2.3.4");
+  });
+
+  it("accepts a matching development cwd manifest", () => {
+    const base = root();
+    manifest(join(base, "dev"), "development-cli", "3.4.5");
+
+    expect(
+      readBinaryPackageJson("development-cli", {
+        moduleUrl: pathToFileURL(join(base, "source/updater.js")).href,
+        cwd: join(base, "dev"),
+      })?.version,
+    ).toBe("3.4.5");
+  });
+
+  it("rejects wrong names and empty versions", () => {
+    const base = root();
+    manifest(join(base, "package"), "wrong-name", "9.9.9");
+    manifest(join(base, "cwd"), "expected-cli", "");
+
+    expect(
+      readBinaryPackageJson("expected-cli", {
+        moduleUrl: pathToFileURL(join(base, "package/dist/index.js")).href,
+        cwd: join(base, "cwd"),
+      }),
+    ).toBeNull();
+  });
+
+  it("prefers the adjacent packed manifest over a bogus ambient package", () => {
+    const base = root();
+    manifest(join(base, "package"), "packed-cli", "4.5.6");
+    manifest(join(base, "node_modules/packed-cli"), "packed-cli", "99.99.99");
+
+    expect(
+      readBinaryPackageJson("packed-cli", {
+        moduleUrl: pathToFileURL(join(base, "package/dist/index.js")).href,
+        cwd: join(base, "clean-cwd"),
+      })?.version,
+    ).toBe("4.5.6");
+  });
+});
 
 // Regression: the original `data.version !== current` returned true for ANY
 // inequality, including the case where the running bot is ahead of npm — a

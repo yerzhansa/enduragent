@@ -1,7 +1,6 @@
 # Multi-stage Dockerfile for the cycling-coach binary. Builds Core + sport-cycling
-# + cycling-coach via pnpm workspace, then ships only the runtime bundle via
-# `pnpm deploy --prod` (pnpm-canonical: rewrites workspace:* to real paths,
-# strips dev deps, produces a self-contained directory).
+# + cycling-coach via pnpm workspace, then stages the dependency-hermetic CLI
+# package with `pnpm deploy --prod`.
 
 # ── builder ────────────────────────────────────────────────────────────────
 FROM node:24-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a AS builder
@@ -33,8 +32,7 @@ COPY LICENSE NOTICE.md ./
 # topo order). Stubs aren't even copied into the image.
 RUN pnpm --filter cycling-coach... build
 
-# pnpm deploy: produces a self-contained dir with prod-only deps,
-# resolves workspace:* to actual files, the pnpm-canonical Docker pattern.
+# pnpm deploy stages the package manifest, README, and bundled dist artifacts.
 # --legacy: pnpm 10 made `inject-workspace-packages=true` required for
 # `deploy` by default; without that workspace setting, deploy errors with
 # ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE. We don't need the injection model

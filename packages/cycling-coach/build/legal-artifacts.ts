@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, parse, resolve } from "node:path";
+import { isBuiltin } from "node:module";
 import { fileURLToPath } from "node:url";
 
 export const REVIEWED_LICENSE_EXPRESSIONS = ["Apache-2.0", "BSD-2-Clause", "ISC", "MIT"] as const;
@@ -18,6 +19,7 @@ const packageEndMarker = "----- END PACKAGE -----";
 
 interface MetafileOutput {
   inputs?: Record<string, unknown>;
+  imports?: Array<{ path: string; kind: string; external?: boolean }>;
 }
 
 export interface BuildMetafile {
@@ -120,14 +122,38 @@ function packageIdentity(dependencyRoot: string): { name: string; version: strin
   };
 }
 
-export function contributingInputs(metafile: BuildMetafile, output = "dist/index.js"): string[] {
+function requiredOutput(metafile: BuildMetafile, output: string): MetafileOutput {
   const matchedOutputs = Object.entries(metafile.outputs).filter(([path]) => {
     const normalized = path.replaceAll("\\", "/");
     return normalized === output || normalized.endsWith(`/${output}`);
   });
   const matchedOutput = matchedOutputs.length === 1 ? matchedOutputs[0][1] : undefined;
-  if (!matchedOutput?.inputs) {
+  if (!matchedOutput) {
     throw new Error(`Metafile does not describe the required ${output} output`);
+  }
+  return matchedOutput;
+}
+
+export function assertOnlyNodeBuiltinExternals(
+  metafile: BuildMetafile,
+  output = "dist/index.js",
+): string[] {
+  const externals = (requiredOutput(metafile, output).imports ?? []).filter(
+    (entry) => entry.external === true,
+  );
+  const unexpected = externals
+    .filter((entry) => !isBuiltin(entry.path))
+    .map((entry) => `${entry.path} (${entry.kind})`);
+  if (unexpected.length > 0) {
+    throw new Error(`Bundle contains non-Node external imports: ${unexpected.join(", ")}`);
+  }
+  return [...new Set(externals.map((entry) => `${entry.path} (${entry.kind})`))].sort();
+}
+
+export function contributingInputs(metafile: BuildMetafile, output = "dist/index.js"): string[] {
+  const matchedOutput = requiredOutput(metafile, output);
+  if (!matchedOutput.inputs) {
+    throw new Error(`Metafile does not describe the required ${output} inputs`);
   }
   return Object.keys(matchedOutput.inputs).sort();
 }
@@ -409,6 +435,8 @@ export async function generateLegalArtifacts(
   }
 
   const metafile = JSON.parse(readFileSync(paths.metafilePath, "utf8")) as BuildMetafile;
+  const externals = assertOnlyNodeBuiltinExternals(metafile);
+  console.log(`Bundle externals (Node built-ins): ${externals.join(", ") || "(none)"}`);
   const graphIds = contributingThirdPartyPackageIds(metafile, paths.inputRoot);
   const packages = collectThirdPartyPackages(metafile, paths);
   if (packages.length === 0) {

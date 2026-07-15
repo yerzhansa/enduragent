@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -42,5 +43,39 @@ describe("Docker image supply-chain guards", () => {
           entry["package-ecosystem"] === "docker" && entry.directory === "/packages/cycling-coach",
       ),
     ).toBe(true);
+  });
+
+  it("configures one root npm update stream with reviewed grouping", () => {
+    const dependabot = YAML.parse(
+      readFileSync(resolve(repoRoot, ".github/dependabot.yml"), "utf8"),
+    ) as { updates?: Array<Record<string, unknown>> };
+    const npmUpdates =
+      dependabot.updates?.filter((entry) => entry["package-ecosystem"] === "npm") ?? [];
+
+    expect(npmUpdates).toHaveLength(1);
+    expect(npmUpdates[0].directory).toBe("/");
+    expect(npmUpdates[0].schedule).toEqual({ interval: "weekly" });
+    expect(npmUpdates[0].groups).toEqual({
+      "minor-and-patch": { patterns: ["*"], "update-types": ["minor", "patch"] },
+    });
+    expect(npmUpdates[0].ignore).toContainEqual({
+      "dependency-name": "pyodide",
+      "update-types": ["version-update:semver-major"],
+    });
+  });
+
+  it("keeps stale build allowlisting and second lockfiles out of the workspace", () => {
+    const rootManifest = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8")) as {
+      pnpm?: { onlyBuiltDependencies?: string[] };
+    };
+    expect(rootManifest.pnpm?.onlyBuiltDependencies).not.toContain("@google/genai");
+    expect(rootManifest.pnpm?.onlyBuiltDependencies).not.toContain("protobufjs");
+
+    const forbiddenTrackedFiles = execFileSync(
+      "git",
+      ["ls-files", "*npm-shrinkwrap.json", "*package-lock.json", "patches/**"],
+      { cwd: repoRoot, encoding: "utf8" },
+    ).trim();
+    expect(forbiddenTrackedFiles).toBe("");
   });
 });

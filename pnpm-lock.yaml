@@ -122,40 +122,6 @@ importers:
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.8(vitest@4.1.5))(msw@2.14.2(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/cycling-coach:
-    dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^3.0.69
-        version: 3.0.72(zod@4.4.1)
-      '@ai-sdk/google':
-        specifier: ^3.0.63
-        version: 3.0.65(zod@4.4.1)
-      '@ai-sdk/openai':
-        specifier: ^3.0.52
-        version: 3.0.54(zod@4.4.1)
-      '@ai-sdk/provider':
-        specifier: ^3.0.9
-        version: 3.0.9
-      '@ai-sdk/provider-utils':
-        specifier: ^4.0.24
-        version: 4.0.24(zod@4.4.1)
-      '@clack/prompts':
-        specifier: ^1.2.0
-        version: 1.3.0
-      ai:
-        specifier: ^6.0.158
-        version: 6.0.170(zod@4.4.1)
-      grammy:
-        specifier: ^1.42.0
-        version: 1.42.0
-      intervals-icu-api:
-        specifier: ^0.1.2
-        version: 0.1.2(typescript@6.0.3)
-      yaml:
-        specifier: ^2.8.3
-        version: 2.8.3
-      zod:
-        specifier: ^4.3.6
-        version: 4.4.1
     devDependencies:
       '@enduragent/core':
         specifier: workspace:*
@@ -175,6 +141,9 @@ importers:
       vitest:
         specifier: ^4.1.4
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.8(vitest@4.1.5))(msw@2.14.2(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
+      yaml:
+        specifier: ^2.8.3
+        version: 2.8.3
 
   packages/duathlon-coach:
     dependencies:

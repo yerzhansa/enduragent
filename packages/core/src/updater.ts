@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { enumerateTelegramSessions } from "./channels/telegram-sessions.js";
 
 export interface UpdateInfo {
@@ -55,33 +56,42 @@ export function isUpdateAvailable(latest: string, current: string): boolean {
 }
 
 /**
- * Read the binary's package.json — installed path first (via Node's module
- * resolution), cwd fallback for dev. Memoized: package.json doesn't change
- * mid-process, and `/update` exits the process before installing a new
- * version, so the cache is naturally invalidated by restart.
+ * Read the binary's package.json from the bundle-adjacent package first, then
+ * installed resolution, then a matching development cwd. Memoized for normal
+ * production calls because `/update` restarts the process after installation.
  */
 const pkgCache = new Map<string, Record<string, unknown> | null>();
-export function readBinaryPackageJson(binaryName: string): Record<string, unknown> | null {
-  if (pkgCache.has(binaryName)) return pkgCache.get(binaryName) ?? null;
+export function readBinaryPackageJson(
+  binaryName: string,
+  lookup: { moduleUrl?: string; cwd?: string } = {},
+): Record<string, unknown> | null {
+  const cacheable = lookup.moduleUrl === undefined && lookup.cwd === undefined;
+  if (cacheable && pkgCache.has(binaryName)) return pkgCache.get(binaryName) ?? null;
 
   const tryRead = (path: string): Record<string, unknown> | null => {
     try {
-      return JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>;
+      const candidate = JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>;
+      return candidate.name === binaryName &&
+        typeof candidate.version === "string" &&
+        candidate.version.trim().length > 0
+        ? candidate
+        : null;
     } catch {
       return null;
     }
   };
 
-  let pkg: Record<string, unknown> | null = null;
+  const moduleUrl = lookup.moduleUrl ?? import.meta.url;
+  let pkg = tryRead(fileURLToPath(new URL("../package.json", moduleUrl)));
   try {
-    const requireFn = createRequire(import.meta.url);
-    pkg = tryRead(requireFn.resolve(`${binaryName}/package.json`));
+    const requireFn = createRequire(moduleUrl);
+    if (!pkg) pkg = tryRead(requireFn.resolve(`${binaryName}/package.json`));
   } catch {
     // resolve() threw (binary not installed via npm) — fall through
   }
-  if (!pkg) pkg = tryRead(join(process.cwd(), "package.json"));
+  if (!pkg) pkg = tryRead(join(lookup.cwd ?? process.cwd(), "package.json"));
 
-  pkgCache.set(binaryName, pkg);
+  if (cacheable) pkgCache.set(binaryName, pkg);
   return pkg;
 }
 

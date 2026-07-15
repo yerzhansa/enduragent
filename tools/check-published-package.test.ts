@@ -1,8 +1,12 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { verifyTarEntries } from "./check-published-package.js";
+import {
+  assertOnlyCliGloballyInstalled,
+  extractPackage,
+  verifyTarEntries,
+} from "./check-published-package.js";
 
 function validFixture(): { entries: Map<string, Buffer>; repoRoot: string } {
   const repoRoot = mkdtempSync(resolve(tmpdir(), "packed-package-"));
@@ -44,7 +48,11 @@ function validFixture(): { entries: Map<string, Buffer>; repoRoot: string } {
         "package/dist/NOTICE.md": "project notice\n",
         "package/dist/THIRD_PARTY_LICENSES.txt": aggregate,
         "package/README.md": "readme",
-        "package/package.json": "{}",
+        "package/package.json": JSON.stringify({
+          name: "cycling-coach",
+          version: "1.0.0",
+          bin: { "cycling-coach": "dist/index.js" },
+        }),
       }).map(([path, contents]) => [path, Buffer.from(contents)]),
     ),
   };
@@ -114,6 +122,60 @@ describe("published package verifier", () => {
     );
   });
 
+  it("rejects bundled node_modules paths", () => {
+    const target = validFixture();
+    target.entries.set("package/node_modules/unexpected/index.js", Buffer.from("export {};"));
+    expect(() => verifyTarEntries(target.entries, target.repoRoot)).toThrow("build-only path");
+  });
+
+  it.each(["package/../../escape", "package/D:\\escape", "package/\\\\server\\share\\escape"])(
+    "rejects unsafe extraction path %s",
+    (path) => {
+      const destination = mkdtempSync(resolve(tmpdir(), "packed-package-extract-"));
+      try {
+        expect(() => extractPackage(new Map([[path, Buffer.from("escape")]]), destination)).toThrow(
+          "Unsafe tar entry path",
+        );
+      } finally {
+        rmSync(destination, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(["dependencies", "optionalDependencies", "peerDependencies"])(
+    "rejects a packed %s field even when empty",
+    (field) => {
+      const target = validFixture();
+      const manifest = JSON.parse(
+        target.entries.get("package/package.json")!.toString("utf8"),
+      ) as Record<string, unknown>;
+      manifest[field] = {};
+      target.entries.set("package/package.json", Buffer.from(JSON.stringify(manifest)));
+
+      expect(() => verifyTarEntries(target.entries, target.repoRoot)).toThrow(
+        `runtime field: ${field}`,
+      );
+    },
+  );
+
+  it("accepts only one dependency-free global CLI package", () => {
+    expect(
+      assertOnlyCliGloballyInstalled({ dependencies: { "cycling-coach": {} } }, "cycling-coach"),
+    ).toBe(1);
+    expect(() =>
+      assertOnlyCliGloballyInstalled(
+        { dependencies: { "cycling-coach": {}, encoding: {} } },
+        "cycling-coach",
+      ),
+    ).toThrow("unexpected packages");
+    expect(() =>
+      assertOnlyCliGloballyInstalled(
+        { dependencies: { "cycling-coach": { dependencies: { yaml: {} } } } },
+        "cycling-coach",
+      ),
+    ).toThrow("runtime dependencies");
+  });
+
   it("rejects build paths in runtime artifacts and incomplete aggregate entries", () => {
     const runtimePath = validFixture();
     runtimePath.entries.set(
@@ -138,6 +200,21 @@ describe("published package verifier", () => {
     expect(() => verifyTarEntries(incomplete.entries, incomplete.repoRoot)).toThrow(
       "nested third-party package entry",
     );
+  });
+
+  it("allows absolute path examples in third-party source content", () => {
+    const target = validFixture();
+    target.entries.set(
+      "package/dist/index.js.map",
+      Buffer.from(
+        JSON.stringify({
+          version: 3,
+          sources: ["../../../node_modules/example/index.js"],
+          sourcesContent: ["const example = '/tmp/example.jpg';"],
+        }),
+      ),
+    );
+    expect(() => verifyTarEntries(target.entries, target.repoRoot)).not.toThrow();
   });
 
   it.each([

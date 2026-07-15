@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
+  assertOnlyNodeBuiltinExternals,
   assertAggregateMatchesGraph,
   collectThirdPartyPackages,
   contributingThirdPartyPackageIds,
@@ -89,6 +90,49 @@ function metafile(target: Fixture): BuildMetafile {
 }
 
 describe("legal artifact generation", () => {
+  it("accepts built-in static and require imports", () => {
+    const graph: BuildMetafile = {
+      outputs: {
+        "dist/index.js": {
+          inputs: {},
+          imports: [
+            { path: "node:fs", kind: "import-statement", external: true },
+            { path: "path", kind: "require-call", external: true },
+            { path: "node:test", kind: "dynamic-import", external: true },
+          ],
+        },
+      },
+    };
+
+    expect(assertOnlyNodeBuiltinExternals(graph)).toEqual([
+      "node:fs (import-statement)",
+      "node:test (dynamic-import)",
+      "path (require-call)",
+    ]);
+  });
+
+  it.each([
+    ["encoding", "require-call"],
+    ["unexpected-package", "import-statement"],
+  ])("rejects external %s imports", (path, kind) => {
+    const graph: BuildMetafile = {
+      outputs: {
+        "dist/index.js": {
+          inputs: {},
+          imports: [{ path, kind, external: true }],
+        },
+      },
+    };
+
+    expect(() => assertOnlyNodeBuiltinExternals(graph)).toThrow(`${path} (${kind})`);
+  });
+
+  it("accepts a bundle with no external imports", () => {
+    expect(() =>
+      assertOnlyNodeBuiltinExternals({ outputs: { "dist/index.js": { inputs: {} } } }),
+    ).not.toThrow();
+  });
+
   it("decodes scoped and unscoped pnpm roots, de-duplicates exact versions, and sorts", () => {
     const target = fixture();
     addPackage(target, "zeta", "1.0.0", "MIT", {

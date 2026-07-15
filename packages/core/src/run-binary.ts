@@ -320,8 +320,8 @@ export async function runBinary(
   if (command === "setup") {
     const { runSetup } = await import("./setup.js");
     await runSetup(binary);
-    // pi-ai's OAuth callback server may leave socket/timer handles alive;
-    // exit explicitly so the wizard returns the shell.
+    // The OAuth callback server may leave socket or timer handles alive, so
+    // exit explicitly after setup returns control to the wizard.
     process.exit(0);
   }
 

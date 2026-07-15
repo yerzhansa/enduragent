@@ -110,9 +110,8 @@ async function refreshWithRetry(name: string, cred: OAuthCredential, signal?: Ab
     // and propagate it so the surfaced error is not a misleading "re-run setup".
     if (signal?.aborted) throw err;
     if (!isRefreshDenied(err)) throw err;
-    // pi-ai reports invalid_grant, 5xx, and network failures with one generic
-    // message; retry once with the on-disk token before declaring the
-    // credential dead.
+    // Another process may have refreshed the credential after this attempt
+    // started, so reread disk and retry once before declaring it denied.
     await delay(REFRESH_RETRY_DELAY_MS);
     const onDisk = loadProfile(name) ?? cred;
     try {

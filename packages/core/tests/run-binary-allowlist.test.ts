@@ -198,7 +198,7 @@ describe("startup-capture predicate (T3)", () => {
         resolveConfigSecrets: async (c: unknown) => c,
       };
     });
-    // Skip CoachAgent construction (relies on pi-ai) — replace with a stub.
+    // Stub CoachAgent to isolate startup capture and allowlist behavior.
     vi.doMock("../src/agent/coach-agent.js", () => ({
       CoachAgent: class {
         constructor() {}

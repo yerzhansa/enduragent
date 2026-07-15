@@ -136,11 +136,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - name: Pack and smoke ${{ needs.parse-tag.outputs.package }}
-        # Install the packed tarball as a dependency of a fresh consumer
-        # project — what end users actually do. Installing in-place via
-        # `npm install --omit=dev` doesn't work: npm resolves the full
-        # dep graph (incl. devDeps) before applying --omit, hits 404 on
-        # private workspace devDeps.
         run: |
           set -euo pipefail
           PACKAGE="${{ needs.parse-tag.outputs.package }}"
@@ -149,11 +144,6 @@ jobs:
           pnpm --dir "packages/$PACKAGE" pack --pack-destination "$PACK_DIR"
           TARBALL=$(find "$PACK_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
           pnpm check:published-package -- "$TARBALL"
-          mkdir -p "/tmp/smoke-consumer-$PACKAGE"
-          cd "/tmp/smoke-consumer-$PACKAGE"
-          npm init -y > /dev/null
-          npm install "$TARBALL"
-          timeout 30 node "node_modules/$PACKAGE/dist/index.js" --help
 
   publish:
     runs-on: ubuntu-latest
