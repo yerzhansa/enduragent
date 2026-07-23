@@ -18,6 +18,8 @@ import { appendUsageLine, cacheTokenDetails, usageFieldsFromResult } from "./usa
 
 export type { GenerateOpts, GenerateResult } from "./llm-types.js";
 export const LLM_CALL_DEADLINE_MS = 300_000;
+// Chat calls clip this by the turn's remaining wall-clock (TURN_WALL_CLOCK_MS
+// in ./agent/turn-budget.ts), so any value above it never binds — keep <= it.
 export const CHAT_LLM_CALL_DEADLINE_MS = 600_000;
 
 // ============================================================================
