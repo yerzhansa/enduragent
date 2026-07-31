@@ -29,6 +29,7 @@
     "check-parity": "tsx tools/check-metric-parity.ts",
     "fuzz-parity": "tsx tools/fuzz-parity.ts",
     "s8a": "tsx tools/s8a/run.ts",
+    "probe:composition": "tsx tools/composition-probe/run.ts",
     "coverage:reference": "tsx tools/measure-reference-coverage.ts",
     "usage:baseline": "tsx tools/usage-baseline.ts",
     "usage:cache-band": "tsx tools/usage-cache-band.ts",
