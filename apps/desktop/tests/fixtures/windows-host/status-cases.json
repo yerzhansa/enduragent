@@ -1,0 +1,18 @@
+[
+  {
+    "name": "probe-pass-selects-mechanism",
+    "status": "PASS",
+    "stopConditionTriggered": false,
+    "selectedMechanism": "synthetic-probe-mechanism"
+  },
+  {
+    "name": "failure-triggers-stop",
+    "status": "FAIL",
+    "stopConditionTriggered": true
+  },
+  {
+    "name": "inconclusive-triggers-stop",
+    "status": "INCONCLUSIVE",
+    "stopConditionTriggered": true
+  }
+]

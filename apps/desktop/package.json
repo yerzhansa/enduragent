@@ -19,6 +19,8 @@
     "verify:package-layout": "node scripts/verify-package-layout.mjs",
     "verify:mac-release": "node scripts/verify-macos-release.mjs",
     "verify:mac-genesis-release": "node scripts/verify-macos-genesis-release.mjs",
+    "probe:windows-host-falsifier": "node scripts/windows-host-falsifier.mjs",
+    "test:windows-host-falsifier": "vitest run tests/windows-host-falsifier.test.ts",
     "smoke:runtime": "node scripts/electron-smoke.mjs runtime",
     "smoke:security": "node scripts/electron-smoke.mjs security",
     "accept:residency": "node ./scripts/accept-residency.mjs",
