@@ -376,7 +376,7 @@ describe("Windows host probe controller file spool", () => {
       }),
     });
 
-    const exchange = client().exchange({
+    const exchange = client({ monotonicNow: () => 0 }).exchange({
       request: requestValue,
       payloadBytes: encodedRequest.bytes,
     });
