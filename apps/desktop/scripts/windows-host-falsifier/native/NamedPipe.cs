@@ -392,7 +392,7 @@ namespace Enduragent.WindowsHostFalsifier
 
         internal static string RequirePipeName(Dictionary<string, object> request)
         {
-            string name = Protocol.RequireString(request, "pipeName", 100, 200);
+            string name = Protocol.RequireString(request, "pipeName", 95, 95);
             if (!PipeNamePattern.IsMatch(name))
             {
                 throw new NativeFailure("PIPE_NAME", "pipe name does not match the frozen grammar");

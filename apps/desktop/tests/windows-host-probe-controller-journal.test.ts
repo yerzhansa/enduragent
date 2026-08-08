@@ -360,8 +360,8 @@ describe("Windows host probe external controller protocol and journal", () => {
     ).toBeTruthy();
   });
 
-  it("durably gates every work operation on the issued coordinate claim", async () => {
-    let journal = await openUnclaimedJournal();
+  it("gates every work coordinate on the issued authorization claim", async () => {
+    const journal = await openUnclaimedJournal();
     await journal.retainBlob(requestPayloadBytes);
     await expect(journal.beginOperation(request())).rejects.toMatchObject({
       code: "CONTROLLER_JOURNAL_AUTHORIZATION_CLAIM",
@@ -416,7 +416,11 @@ describe("Windows host probe external controller protocol and journal", () => {
         }),
       ),
     ).rejects.toMatchObject({ code: "CONTROLLER_JOURNAL_AUTHORIZATION_CLAIM" });
+  });
 
+  it("retains issued authorization authority across journal reopen", async () => {
+    let journal = await openJournal();
+    await journal.retainBlob(requestPayloadBytes);
     const firstAuthorizedWork = request({
       operation: { operationId: "operation-authorized-before-reopen", sequence: 4 },
     });

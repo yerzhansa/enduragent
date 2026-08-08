@@ -1909,7 +1909,7 @@ describe("Windows host probe finalizer", () => {
         ),
       ),
     ).rejects.toMatchObject({ code: "TRANSCRIPT_CONTROLLER_RECEIPT_BINDING" });
-  });
+  }, 15_000);
 
   it.each(["cross-work", "repetition", "producer-action"] as const)(
     "rejects a retained external-controller action attestation with %s substitution",

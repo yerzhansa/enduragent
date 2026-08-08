@@ -1947,6 +1947,7 @@ describe("Windows host native falsifier client", () => {
             "\\\\.\\pipe\\Enduragent-upgrade-v1-ae2b85ba30dee3e6422838e25c209a38d3d8f45b0dcff2e3753fa72181427736",
         },
       });
+      expect(derivedPipe.result.pipeName).toHaveLength(95);
       await expect(
         channel.execute(
           "pipe-name-derive",
