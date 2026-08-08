@@ -384,6 +384,79 @@ async function ensureDirectory(store: EvidenceStore, path: string) {
   }
 }
 
+function createMemoryEvidenceStore(root: string): EvidenceStore {
+  const artifacts = new Map<string, Buffer>();
+  const directories = new Set([""]);
+  const missing = () => Object.assign(new Error("evidence artifact is absent"), { code: "ENOENT" });
+  const existing = () =>
+    Object.assign(new Error("evidence artifact already exists"), { code: "EEXIST" });
+  const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+
+  return {
+    root,
+    createDirectory: async (path) => {
+      if (directories.has(path)) throw existing();
+      directories.add(path);
+      return path;
+    },
+    writeBytes: async (path, value) => {
+      if (artifacts.has(path)) throw existing();
+      const bytes = Buffer.from(value);
+      artifacts.set(path, bytes);
+      return { path, sha256: digest(bytes) };
+    },
+    writeCanonicalJson: async (path, value) => {
+      if (artifacts.has(path)) throw existing();
+      const bytes = Buffer.from(canonicalProbeJson(value), "utf8");
+      artifacts.set(path, bytes);
+      return { path, sha256: digest(bytes) };
+    },
+    readArtifact: async (path) => {
+      const retained = artifacts.get(path);
+      if (retained === undefined) throw missing();
+      const bytes = Buffer.from(retained);
+      return { path, bytes, size: bytes.length, sha256: digest(bytes) };
+    },
+    verifyArtifactSet: async (declarations) => {
+      for (const declaration of declarations) {
+        const retained = artifacts.get(declaration.path);
+        if (retained === undefined || digest(retained) !== declaration.sha256) throw missing();
+      }
+      return declarations;
+    },
+    scan: async () => {
+      const retained = [...artifacts.entries()]
+        .sort(([left], [right]) => left.localeCompare(right, "en-US"))
+        .map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: digest(bytes) }));
+      return {
+        files: retained.length,
+        totalBytes: retained.reduce((total, artifact) => total + artifact.bytes, 0),
+        artifacts: retained,
+      };
+    },
+    list: async (path) => {
+      if (!directories.has(path)) throw missing();
+      const prefix = path.length === 0 ? "" : `${path}/`;
+      const entries = new Map<string, "directory" | "file">();
+      for (const directory of directories) {
+        if (!directory.startsWith(prefix) || directory === path) continue;
+        const name = directory.slice(prefix.length).split("/")[0];
+        entries.set(name, "directory");
+      }
+      for (const artifact of artifacts.keys()) {
+        if (!artifact.startsWith(prefix)) continue;
+        const remainder = artifact.slice(prefix.length);
+        const [name, ...descendants] = remainder.split("/");
+        entries.set(name, descendants.length === 0 ? "file" : "directory");
+      }
+      return [...entries]
+        .sort(([left], [right]) => left.localeCompare(right, "en-US"))
+        .map(([name, kind]) => ({ name, kind }));
+    },
+    assertRootStable: async () => undefined,
+  };
+}
+
 function preparedContext(
   identity: ProbeCandidateIdentity,
   floor: ProbeLabAttestation,
@@ -625,6 +698,7 @@ async function createHarness({
   transcriptNativeManifestSha256 = nativeManifestSha256,
   retainedNativeTranscriptSha256 = nativeTranscriptSha256,
   primaryObserverTranscriptSha256sByAction = {},
+  memoryEvidenceStore = false,
   configureRuntime,
 }: {
   controllerState?: SignedControllerState;
@@ -640,11 +714,14 @@ async function createHarness({
   transcriptNativeManifestSha256?: string;
   retainedNativeTranscriptSha256?: string;
   primaryObserverTranscriptSha256sByAction?: Readonly<Record<string, readonly string[]>>;
+  memoryEvidenceStore?: boolean;
   configureRuntime?: (config: ProbeAuthoritativeRuntimeConfig) => void;
 } = {}): Promise<Harness> {
   const root = await mkdtemp(join(tmpdir(), "probe-authoritative-runtime-"));
   roots.push(root);
-  const evidenceStore = await openEvidenceStore({ root });
+  const evidenceStore = memoryEvidenceStore
+    ? createMemoryEvidenceStore(root)
+    : await openEvidenceStore({ root });
   let rejectActionCapture = failActionCaptureWriteOnce;
   let rejectActionCaptureForAction = failActionCaptureForActionOnce;
   let rejectHardCutRequest = failHardCutRequestWriteOnce;
@@ -1923,7 +2000,7 @@ describe("authoritative probe runtime composition", () => {
   );
 
   it("hands hard cuts outward and resumes only from retained signed receipts", async () => {
-    const harness = await createHarness();
+    const harness = await createHarness({ memoryEvidenceStore: true });
     await harness.runtime.prepare({ command: prepareCommand(), plan: PROBE_RUN_PLAN });
     const segment = segmentCommand("F-07", "f07-hard-cut-after-file-flush");
     const item = workItem(segment);
