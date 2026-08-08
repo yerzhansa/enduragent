@@ -115,7 +115,7 @@ $compilerParameters.WarningLevel = 4
 foreach ($referencePath in $referencePaths) {
   [void]$compilerParameters.ReferencedAssemblies.Add($referencePath)
 }
-Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop
+$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop
 
 if (-not (Test-Path -LiteralPath $resolvedOutput -PathType Leaf)) {
   throw 'Add-Type did not produce the expected assembly'
@@ -164,7 +164,7 @@ try {
 } finally {
   $provider.Dispose()
 }
-[ordered]@{
+$metadata = [ordered]@{
   schemaVersion = 1
   powerShellVersion = $PSVersionTable.PSVersion.ToString()
   powerShellEdition = [string]$PSVersionTable.PSEdition
@@ -189,4 +189,6 @@ try {
   sourceSha256Before = $sourceHashesBefore
   sourceSha256After = $sourceHashesAfter
   assemblySha256 = (Get-FileHash -LiteralPath $resolvedOutput -Algorithm SHA256).Hash.ToLowerInvariant()
-} | ConvertTo-Json -Compress -Depth 5
+}
+$metadataJson = ConvertTo-Json -InputObject $metadata -Compress -Depth 5
+[Console]::Out.WriteLine([string]$metadataJson)

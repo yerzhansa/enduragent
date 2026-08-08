@@ -949,6 +949,23 @@ describe("Windows host native falsifier client", () => {
     ).toBeNull();
   });
 
+  it("pins native compiler stdout to one explicit console JSON record", async () => {
+    const source = await readFile(
+      new URL("../scripts/windows-host-falsifier/native/compile.ps1", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop",
+    );
+    expect(source).toContain("$metadata = [ordered]@{");
+    expect(source).toContain(
+      "$metadataJson = ConvertTo-Json -InputObject $metadata -Compress -Depth 5",
+    );
+    expect(source.trimEnd()).toMatch(/\[Console\]::Out\.WriteLine\(\[string\]\$metadataJson\)$/u);
+    expect(source).not.toContain("} | ConvertTo-Json -Compress -Depth 5");
+  });
+
   it("rejects ambiguous or noncanonical Windows system roots", () => {
     for (const environment of [
       { WINDIR: "C:\\Windows" },
