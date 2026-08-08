@@ -15,7 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   NATIVE_COMMANDS,
@@ -48,6 +48,8 @@ import type {
 
 const candidateSha256 = "a".repeat(64);
 const roots: string[] = [];
+let sharedWindowsBuildRoot: string | undefined;
+let sharedWindowsBuild: NativeBuild | undefined;
 const syntheticWindowsSystemLibraries = [
   "C:\\Windows\\System32\\KERNEL32.DLL",
   "C:\\Windows\\System32\\ntdll.dll",
@@ -619,8 +621,25 @@ async function observeNativeRunRootIdentity(
 }
 
 describe("Windows host native falsifier client", () => {
+  beforeAll(async () => {
+    if (process.platform !== "win32") return;
+    sharedWindowsBuildRoot = await mkdtemp(join(tmpdir(), "enduragent-native-build-"));
+    sharedWindowsBuild = await buildNativeHelper({
+      runRoot: sharedWindowsBuildRoot,
+      timeoutMs: 90_000,
+    });
+  }, 180_000);
+
   afterEach(async () => {
     await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  });
+
+  afterAll(async () => {
+    if (sharedWindowsBuildRoot !== undefined) {
+      await rm(sharedWindowsBuildRoot, { recursive: true, force: true });
+    }
+    sharedWindowsBuildRoot = undefined;
+    sharedWindowsBuild = undefined;
   });
 
   it("exposes a unique bounded command allowlist and refuses execution off Windows", async () => {
@@ -1314,7 +1333,8 @@ describe("Windows host native falsifier client", () => {
       await expect(
         buildNativeHelper({ runRoot: `\\\\?\\${buildRoot}`, timeoutMs: 90_000 }),
       ).rejects.toMatchObject({ code: "NATIVE_RUN_ROOT" });
-      const built = await buildNativeHelper({ runRoot: buildRoot, timeoutMs: 90_000 });
+      const built = sharedWindowsBuild;
+      if (built === undefined) throw new Error("expected shared Windows native build");
       await cp(built.buildDirectory, candidateDirectoryPath, {
         recursive: true,
         force: false,
@@ -1785,7 +1805,8 @@ describe("Windows host native falsifier client", () => {
     "enforces strict line framing and duplicate request identities in the compiled helper",
     async () => {
       const root = await testRoot();
-      const built = await buildNativeHelper({ runRoot: root, timeoutMs: 90_000 });
+      const built = sharedWindowsBuild;
+      if (built === undefined) throw new Error("expected shared Windows native build");
       const runRootIdentity = await observeNativeRunRootIdentity(built.assemblyPath, root, built);
       const evidenceRootObjectIdentitySha256 = createHash("sha256")
         .update(runRootIdentity, "utf8")
