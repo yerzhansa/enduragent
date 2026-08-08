@@ -1533,6 +1533,7 @@ namespace Enduragent.WindowsHostFalsifier
                 string ownerSid = raw.Owner == null ? "" : raw.Owner.Value;
                 bool protectedAcl = (raw.ControlFlags & ControlFlags.DiscretionaryAclProtected) != 0;
                 HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+                HashSet<string> canonicalPrincipals = new HashSet<string>(StringComparer.Ordinal);
                 List<object> principals = new List<object>();
                 int unexpected = 0;
                 if (!protectedAcl)
@@ -1559,7 +1560,13 @@ namespace Enduragent.WindowsHostFalsifier
                             : AceFlags.None;
                         bool correctInheritance = (genericAce.AceFlags & ~AceFlags.Inherited) == expectedInheritance;
                         bool firstOccurrence = token != null && seen.Add(token);
-                        if (token == null || inherited || !correctQualifier || !correctType || !correctMask || !correctInheritance || !firstOccurrence)
+                        bool canonical = token != null &&
+                            !inherited &&
+                            correctQualifier &&
+                            correctType &&
+                            correctMask &&
+                            correctInheritance;
+                        if (!canonical || !canonicalPrincipals.Add(token))
                         {
                             unexpected += 1;
                         }
