@@ -36,7 +36,7 @@
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { ext, collectFiles, makeSkipCheck, nonFlagArgs, runGateCli } from "./lint-fs.js";
 
 export interface ChangesetHit {
@@ -72,11 +72,6 @@ const USER_FACING_RE = /user-facing:/i;
 // one the tool emits and the only one we read.
 const FRONTMATTER_PKG_RE = /^[ \t]*"([^"]+)"[ \t]*:[ \t]*\S/;
 
-function basenameOf(file: string): string {
-  const i = Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"));
-  return i === -1 ? file : file.slice(i + 1);
-}
-
 /**
  * Split a changeset's raw text into its frontmatter block and body. The
  * frontmatter is the content between the first `---` fence and the next `---`
@@ -89,9 +84,9 @@ function splitFrontmatter(source: string): {
   bodyStartLine: number;
 } {
   const lines = source.split("\n");
-  if (lines[0]?.trim() !== "---") {
-    return { frontmatter: "", body: source, bodyStartLine: 1 };
-  }
+  // No opening fence, or no closing fence found: the whole source is body.
+  const noFrontmatter = { frontmatter: "", body: source, bodyStartLine: 1 };
+  if (lines[0]?.trim() !== "---") return noFrontmatter;
   for (let i = 1; i < lines.length; i++) {
     if (lines[i].trim() === "---") {
       return {
@@ -102,7 +97,7 @@ function splitFrontmatter(source: string): {
       };
     }
   }
-  return { frontmatter: "", body: source, bodyStartLine: 1 };
+  return noFrontmatter;
 }
 
 /** Package names from a changeset's frontmatter package list. */
@@ -169,7 +164,7 @@ export function discoverPublishedBinaries(packagesDir: string): Set<string> {
  * routing requirement.
  */
 function findHitsInChangesetFile(file: string, published: ReadonlySet<string>): ChangesetHit[] {
-  if (NON_CHANGESET_BASENAMES.has(basenameOf(file))) return [];
+  if (NON_CHANGESET_BASENAMES.has(basename(file))) return [];
   const source = readFileSync(file, "utf-8");
   if (isSkippedFile(source)) return [];
 
@@ -204,13 +199,14 @@ function findHitsInChangesetFile(file: string, published: ReadonlySet<string>): 
 /**
  * Lint the given files. Non-`.md`/`.mdx` files are skipped silently so the
  * aggregator tolerates `git diff --name-only` output. The published-binary set
- * is computed once from `packagesDir`.
+ * is computed once from `packagesDir`, or reused when a caller (e.g. `main`,
+ * which prints the set too) has already discovered it.
  */
 export function findChangesetHits(
   files: readonly string[],
   packagesDir = "packages",
+  published: ReadonlySet<string> = discoverPublishedBinaries(packagesDir),
 ): ChangesetHit[] {
-  const published = discoverPublishedBinaries(packagesDir);
   const out: ChangesetHit[] = [];
   for (const file of files) {
     if (MD_EXTS.has(ext(file))) {
@@ -248,7 +244,7 @@ export function main(argv: readonly string[]): number {
   }
 
   const published = discoverPublishedBinaries(DEFAULT_PACKAGES_DIR);
-  const hits = findChangesetHits(changesetFiles, DEFAULT_PACKAGES_DIR);
+  const hits = findChangesetHits(changesetFiles, DEFAULT_PACKAGES_DIR, published);
   if (hits.length === 0) {
     console.log(
       `check-changeset-userfacing: ${changesetFiles.length} changeset(s) clean ` +
