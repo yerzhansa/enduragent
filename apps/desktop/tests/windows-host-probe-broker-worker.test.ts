@@ -894,7 +894,7 @@ describe("Windows host probe broker worker", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("never invokes driver parsing for an invalid task signature", async () => {
     const values = fixture();

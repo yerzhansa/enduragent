@@ -809,7 +809,7 @@ describe("Windows host probe external controller protocol and journal", () => {
     });
   });
 
-  it("prevents split-brain authority when a live owner's lease path is recreated", async () => {
+  it("prevents split-brain authority when live lease replacement is attempted", async () => {
     const owner = await openJournal();
     const requestValue = request({
       operation: { operationId: "operation-live-lease-replacement", sequence: 5 },
@@ -818,6 +818,28 @@ describe("Windows host probe external controller protocol and journal", () => {
     const executionLeasePath = join(root, "journal-execution-lease.sqlite");
     const replacementSeedPath = join(root, "replacement-live-execution-lease.sqlite");
     await writeFile(replacementSeedPath, Buffer.alloc(0), { mode: 0o600 });
+
+    if (process.platform === "win32") {
+      await expect(unlink(executionLeasePath)).rejects.toMatchObject({
+        code: expect.stringMatching(/^(?:EACCES|EBUSY|EPERM)$/u),
+      });
+      await unlink(replacementSeedPath);
+      await expect(lstat(executionLeasePath)).resolves.toBeDefined();
+
+      const observer = await openUnclaimedJournal();
+      await expect(observer.claimOperation(requestValue)).rejects.toMatchObject({
+        code: "CONTROLLER_JOURNAL_EXECUTION_BUSY",
+      });
+      const terminal = await completeDefaultOperation(owner, requestValue, response(requestValue));
+      await expect(observer.claimOperation(requestValue)).resolves.toEqual({
+        created: false,
+        record: terminal,
+      });
+      await expect(owner.close()).resolves.toBeUndefined();
+      await expect(observer.close()).resolves.toBeUndefined();
+      return;
+    }
+
     await unlink(executionLeasePath);
     await link(replacementSeedPath, executionLeasePath);
     await unlink(replacementSeedPath);
