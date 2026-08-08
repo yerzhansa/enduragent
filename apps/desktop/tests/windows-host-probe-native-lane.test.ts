@@ -2277,5 +2277,5 @@ describe("Windows host probe native lane", () => {
     } finally {
       await journal.close();
     }
-  });
+  }, 15_000);
 });

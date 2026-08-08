@@ -1654,6 +1654,7 @@ describe("authoritative probe runtime composition", () => {
 
   it("rejects a malformed expanded controller acknowledgment", async () => {
     const harness = await createHarness({
+      memoryEvidenceStore: true,
       configureRuntime: (config) => {
         const invoke = config.controllerTransport.invokeScenarioAction;
         Object.defineProperty(config.controllerTransport, "invokeScenarioAction", {

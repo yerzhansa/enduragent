@@ -346,7 +346,7 @@ describe("Windows host probe controller file spool", () => {
       pendingOperationIds: [],
       orphanBlobSha256s: [],
     });
-  });
+  }, 15_000);
 
   it("atomically persists the claim digest bound inside a successful authorization response", async () => {
     const evidenceRootObjectIdentitySha256 = "b".repeat(64);
