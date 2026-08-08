@@ -925,12 +925,20 @@ describe("Windows host native falsifier client", () => {
     ).toBe("PowerShell observed an inexact owner-only Full Control ACE");
     expect(
       describePrivateDirectoryCreationFailure({
-        code: 0,
+        code: 1,
         signal: null,
         stderrBytes: 371,
         stdoutMatchesNonce: true,
       }),
-    ).toBe("PowerShell emitted 371 stderr bytes (exit 0, nonce matched)");
+    ).toBe("PowerShell emitted 371 stderr bytes (exit 1, nonce matched)");
+    expect(
+      describePrivateDirectoryCreationFailure({
+        code: 0,
+        signal: null,
+        stderrBytes: 392,
+        stdoutMatchesNonce: true,
+      }),
+    ).toBeNull();
     expect(
       describePrivateDirectoryCreationFailure({
         code: 0,

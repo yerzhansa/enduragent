@@ -995,6 +995,7 @@ export function describePrivateDirectoryCreationFailure({
   stdoutMatchesNonce,
 }) {
   if (signal !== null) return "PowerShell terminated before proving the directory ACL";
+  if (code === 0 && stdoutMatchesNonce) return null;
   if (stderrBytes !== 0) {
     return `PowerShell emitted ${String(stderrBytes)} stderr bytes (exit ${String(code)}, nonce ${stdoutMatchesNonce ? "matched" : "mismatched"})`;
   }
@@ -1003,8 +1004,7 @@ export function describePrivateDirectoryCreationFailure({
     return "PowerShell observed a mismatched owner, DACL protection flag, or explicit ACE count";
   if (code === 44) return "PowerShell observed an inexact owner-only Full Control ACE";
   if (code !== 0) return `PowerShell exited with code ${String(code)}`;
-  if (!stdoutMatchesNonce) return "PowerShell did not return the private-directory nonce";
-  return null;
+  return "PowerShell did not return the private-directory nonce";
 }
 
 async function createOwnedWindowsDirectory({
