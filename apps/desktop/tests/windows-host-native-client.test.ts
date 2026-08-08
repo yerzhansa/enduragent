@@ -388,6 +388,10 @@ const callbackPrivateDirectoryAclPowerShellInput = Buffer.from(
   callbackPrivateDirectoryAclPowerShell,
   "ascii",
 );
+const callbackPrivateDirectoryAclPowerShellLauncher = Buffer.from(
+  "$source = [Console]::In.ReadToEnd(); & ([ScriptBlock]::Create($source))",
+  "utf16le",
+).toString("base64");
 if (
   callbackPrivateDirectoryAclPowerShellInput.toString("ascii") !==
   callbackPrivateDirectoryAclPowerShell
@@ -799,7 +803,7 @@ function runRawProcess(
         clearTimeout(timer);
         rejectPromise(error);
       });
-      child.once("exit", (code) => {
+      child.once("close", (code) => {
         clearTimeout(timer);
         resolvePromise({ code, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
       });
@@ -1336,6 +1340,38 @@ describe("Windows host native falsifier client", () => {
     }
   });
 
+  it.runIf(process.platform === "win32")(
+    "executes the encoded PowerShell stdin launcher without prompt output",
+    async () => {
+      const root = await testRoot();
+      const windowsTools = resolveNativeWindowsToolPaths(
+        process.env,
+        runtimeWindowsSystemLibraries(),
+      );
+      const observed = await runRawProcess(
+        windowsTools.powerShellExecutable,
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          callbackPrivateDirectoryAclPowerShellLauncher,
+        ],
+        root,
+        {},
+        Buffer.from("exit 73", "ascii"),
+      );
+      const facts = describeRawProcessResult(observed);
+      expect(callbackPrivateDirectoryAclPowerShellLauncher.length).toBeLessThan(8191);
+      expect(facts).toMatchObject({
+        code: 73,
+        stdoutBytes: 0,
+        stdoutClassification: "empty",
+      });
+      expect(["empty", "powershell-startup-progress"]).toContain(facts.stderrClassification);
+    },
+  );
+
   it("pins native compiler stdout to one explicit console JSON record", async () => {
     const [source, programSource] = await Promise.all([
       readFile(
@@ -1822,7 +1858,13 @@ describe("Windows host native falsifier client", () => {
       });
       const callbackAclMutation = await runRawProcess(
         windowsTools.powerShellExecutable,
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", "-"],
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          callbackPrivateDirectoryAclPowerShellLauncher,
+        ],
         runRoot,
         { ENDURAGENT_NATIVE_ACL_TEST_PATH: join(runRoot, "private-directory") },
         callbackPrivateDirectoryAclPowerShellInput,
