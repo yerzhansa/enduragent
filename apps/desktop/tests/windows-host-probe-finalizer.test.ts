@@ -1949,11 +1949,18 @@ describe("Windows host probe finalizer", () => {
     20_000,
   );
 
-  it("rejects retained native transcripts from another native build identity", async () => {
-    for (const override of [
-      { nativeCandidateDigestOverride: labeledDigest("another-native-candidate") },
-      { nativeManifestSha256Override: labeledDigest("another-native-manifest") },
-    ]) {
+  it.each([
+    {
+      binding: "candidate digest",
+      override: { nativeCandidateDigestOverride: labeledDigest("another-native-candidate") },
+    },
+    {
+      binding: "manifest digest",
+      override: { nativeManifestSha256Override: labeledDigest("another-native-manifest") },
+    },
+  ])(
+    "rejects retained native transcripts from another native build identity via its $binding",
+    async ({ override }) => {
       const fixture = await setupFinalization(override);
       await expect(
         finalizeProbeSegment(
@@ -1967,8 +1974,8 @@ describe("Windows host probe finalizer", () => {
           ),
         ),
       ).rejects.toMatchObject({ code: "FINALIZER_NATIVE_TRANSCRIPT_BINDING" });
-    }
-  });
+    },
+  );
 
   it("rejects a signed seal from another row or another evidence root", async () => {
     const fixture = await setupFinalization();
