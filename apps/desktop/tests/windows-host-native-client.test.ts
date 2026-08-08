@@ -74,47 +74,326 @@ foreach ($ace in $actualRaw.DiscretionaryAcl) {
 }
 if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 4 -or $currentUserCount -ne 2) { exit 45 }`;
 const callbackPrivateDirectoryAclPowerShell = String.raw`$ErrorActionPreference = 'Stop'
+$WarningPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-$path = [Environment]::GetEnvironmentVariable('ENDURAGENT_NATIVE_ACL_TEST_PATH')
-$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(XA;OICI;FA;;;' + $sid + ';(@User.Title=="synthetic"))(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
+$nativeSource = @'
+using System;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+
+public static class CallbackAclNative
+{
+    private const int SDDL_REVISION_1 = 1;
+    private const int SE_FILE_OBJECT = 1;
+    private const uint OWNER_SECURITY_INFORMATION = 0x00000001;
+    private const uint DACL_SECURITY_INFORMATION = 0x00000004;
+    private const uint PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000;
+    private const int FULL_CONTROL_ACCESS_MASK = 0x001F01FF;
+    private const uint MAX_SECURITY_DESCRIPTOR_BYTES = 65536;
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(
+        string stringSecurityDescriptor,
+        uint stringSecurityDescriptorRevision,
+        out IntPtr securityDescriptor,
+        out uint securityDescriptorSize);
+
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetSecurityDescriptorDacl(
+        IntPtr securityDescriptor,
+        [MarshalAs(UnmanagedType.Bool)] out bool daclPresent,
+        out IntPtr dacl,
+        [MarshalAs(UnmanagedType.Bool)] out bool daclDefaulted);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern uint SetNamedSecurityInfoW(
+        string objectName,
+        int objectType,
+        uint securityInformation,
+        IntPtr owner,
+        IntPtr group,
+        IntPtr dacl,
+        IntPtr sacl);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern uint GetNamedSecurityInfoW(
+        string objectName,
+        int objectType,
+        uint securityInformation,
+        out IntPtr owner,
+        out IntPtr group,
+        out IntPtr dacl,
+        out IntPtr sacl,
+        out IntPtr securityDescriptor);
+
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern uint GetSecurityDescriptorLength(IntPtr securityDescriptor);
+
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern IntPtr LocalFree(IntPtr memory);
+
+    private static bool HasExactPersistedAcl(
+        RawSecurityDescriptor descriptor,
+        string currentSidValue)
+    {
+        SecurityIdentifier currentSid = new SecurityIdentifier(currentSidValue);
+        SecurityIdentifier localSystemSid = new SecurityIdentifier("S-1-5-18");
+        SecurityIdentifier builtinAdministratorsSid = new SecurityIdentifier("S-1-5-32-544");
+        RawAcl dacl = descriptor.DiscretionaryAcl;
+        if (descriptor.Owner == null ||
+            !descriptor.Owner.Equals(currentSid) ||
+            (descriptor.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0 ||
+            dacl == null ||
+            dacl.Count != 4)
+        {
+            return false;
+        }
+
+        AceFlags expectedFlags = AceFlags.ObjectInherit | AceFlags.ContainerInherit;
+        int currentUserCount = 0;
+        int localSystemCount = 0;
+        int builtinAdministratorsCount = 0;
+        int callbackCount = 0;
+        for (int index = 0; index < dacl.Count; index += 1)
+        {
+            CommonAce ace = dacl[index] as CommonAce;
+            if (ace == null ||
+                ace.AceFlags != expectedFlags ||
+                ace.AccessMask != FULL_CONTROL_ACCESS_MASK ||
+                ace.AceQualifier != AceQualifier.AccessAllowed)
+            {
+                return false;
+            }
+
+            if (ace.AceType == AceType.AccessAllowed && !ace.IsCallback)
+            {
+                if (ace.SecurityIdentifier.Equals(currentSid))
+                {
+                    currentUserCount += 1;
+                }
+                else if (ace.SecurityIdentifier.Equals(localSystemSid))
+                {
+                    localSystemCount += 1;
+                }
+                else if (ace.SecurityIdentifier.Equals(builtinAdministratorsSid))
+                {
+                    builtinAdministratorsCount += 1;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else if (ace.AceType == AceType.AccessAllowedCallback &&
+                     ace.IsCallback &&
+                     ace.SecurityIdentifier.Equals(currentSid))
+            {
+                byte[] opaque = ace.GetOpaque();
+                if (opaque == null ||
+                    opaque.Length < 4 ||
+                    opaque[0] != 0x61 ||
+                    opaque[1] != 0x72 ||
+                    opaque[2] != 0x74 ||
+                    opaque[3] != 0x78)
+                {
+                    return false;
+                }
+                callbackCount += 1;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return currentUserCount == 1 &&
+               localSystemCount == 1 &&
+               builtinAdministratorsCount == 1 &&
+               callbackCount == 1;
+    }
+
+    private static int ValidatePersistedAcl(
+        string path,
+        string currentSidValue,
+        out IntPtr securityDescriptor)
+    {
+        securityDescriptor = IntPtr.Zero;
+        IntPtr owner;
+        IntPtr group;
+        IntPtr dacl;
+        IntPtr sacl;
+        try
+        {
+            uint getResult = GetNamedSecurityInfoW(
+                path,
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+                out owner,
+                out group,
+                out dacl,
+                out sacl,
+                out securityDescriptor);
+            if (getResult != 0 ||
+                securityDescriptor == IntPtr.Zero ||
+                owner == IntPtr.Zero ||
+                group != IntPtr.Zero ||
+                dacl == IntPtr.Zero ||
+                sacl != IntPtr.Zero)
+            {
+                return 76;
+            }
+        }
+        catch
+        {
+            return 76;
+        }
+
+        RawSecurityDescriptor persisted;
+        try
+        {
+            uint descriptorLength = GetSecurityDescriptorLength(securityDescriptor);
+            if (descriptorLength == 0 || descriptorLength > MAX_SECURITY_DESCRIPTOR_BYTES)
+            {
+                return 77;
+            }
+            byte[] binary = new byte[(int)descriptorLength];
+            Marshal.Copy(securityDescriptor, binary, 0, binary.Length);
+            persisted = new RawSecurityDescriptor(binary, 0);
+        }
+        catch
+        {
+            return 77;
+        }
+
+        try
+        {
+            return HasExactPersistedAcl(persisted, currentSidValue) ? 0 : 78;
+        }
+        catch
+        {
+            return 78;
+        }
+    }
+
+    private static bool TryLocalFree(IntPtr descriptor)
+    {
+        if (descriptor == IntPtr.Zero)
+        {
+            return true;
+        }
+        try
+        {
+            return LocalFree(descriptor) == IntPtr.Zero;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static int ApplyProtectedDacl(string path, string sddl, string currentSidValue)
+    {
+        IntPtr descriptor = IntPtr.Zero;
+        IntPtr persistedDescriptor = IntPtr.Zero;
+        int status = 75;
+        try
+        {
+            uint descriptorSize;
+            if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                    sddl,
+                    SDDL_REVISION_1,
+                    out descriptor,
+                    out descriptorSize) ||
+                descriptor == IntPtr.Zero ||
+                descriptorSize == 0)
+            {
+                status = 71;
+            }
+            else
+            {
+                bool daclPresent;
+                bool daclDefaulted;
+                IntPtr dacl;
+                if (!GetSecurityDescriptorDacl(
+                        descriptor,
+                        out daclPresent,
+                        out dacl,
+                        out daclDefaulted) ||
+                    !daclPresent ||
+                    dacl == IntPtr.Zero ||
+                    daclDefaulted)
+                {
+                    status = 72;
+                }
+                else if (SetNamedSecurityInfoW(
+                             path,
+                             SE_FILE_OBJECT,
+                             DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                             IntPtr.Zero,
+                             IntPtr.Zero,
+                             dacl,
+                             IntPtr.Zero) != 0)
+                {
+                    status = 73;
+                }
+                else
+                {
+                    status = ValidatePersistedAcl(
+                        path,
+                        currentSidValue,
+                        out persistedDescriptor);
+                }
+            }
+        }
+        catch
+        {
+            status = 75;
+        }
+        finally
+        {
+            bool descriptorFreed = TryLocalFree(descriptor);
+            bool persistedDescriptorFreed = TryLocalFree(persistedDescriptor);
+            if (!descriptorFreed || !persistedDescriptorFreed)
+            {
+                status = 74;
+            }
+        }
+        return status;
+    }
+}
+'@
 try {
-  $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($sddl)
-  $binary = [byte[]]::new($descriptor.BinaryLength)
-  $descriptor.GetBinaryForm($binary, 0)
+  $null = Add-Type -TypeDefinition $nativeSource -Language CSharp -ErrorAction Stop -WarningAction Stop
 } catch { exit 61 }
-$callback = $null
-foreach ($genericAce in $descriptor.DiscretionaryAcl) {
-  $commonAce = $genericAce -as [Security.AccessControl.CommonAce]
-  if ($null -ne $commonAce -and $commonAce.IsCallback) {
-    if ($null -ne $callback) { exit 62 }
-    $callback = $commonAce
-  }
-}
-$opaque = if ($null -eq $callback) { $null } else { $callback.GetOpaque() }
-if ($null -eq $callback -or !$callback.IsCallback -or $callback.AceType -ne [Security.AccessControl.AceType]::AccessAllowedCallback -or $null -eq $opaque -or $opaque.Length -lt 4) { exit 62 }
-if ($opaque[0] -ne 0x61 -or $opaque[1] -ne 0x72 -or $opaque[2] -ne 0x74 -or $opaque[3] -ne 0x78) { exit 63 }
 try {
-  $security = New-Object Security.AccessControl.DirectorySecurity
-  $security.SetSecurityDescriptorBinaryForm($binary)
+  $path = [Environment]::GetEnvironmentVariable('ENDURAGENT_NATIVE_ACL_TEST_PATH')
+  if ([string]::IsNullOrWhiteSpace($path)) { exit 62 }
+} catch { exit 62 }
+try {
+  $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+  if ([string]::IsNullOrWhiteSpace($sid)) { exit 63 }
+} catch { exit 63 }
+try {
+  $sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(XA;OICI;FA;;;' + $sid + ';(@User.Title=="synthetic"))(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
 } catch { exit 64 }
-$directory = [IO.DirectoryInfo]::new($path)
-try { $directory.SetAccessControl($security) } catch { exit 65 }
 try {
-  $actual = $directory.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access)
-  $actualRaw = [Security.AccessControl.RawSecurityDescriptor]::new($actual.GetSecurityDescriptorBinaryForm(), 0)
-} catch { exit 66 }
-$callbackCount = 0
-$ordinaryCurrentUserCount = 0
-foreach ($genericAce in $actualRaw.DiscretionaryAcl) {
-  $commonAce = $genericAce -as [Security.AccessControl.CommonAce]
-  if ($null -ne $commonAce -and $commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowedCallback -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) {
-    $actualOpaque = $commonAce.GetOpaque()
-    if ($null -ne $actualOpaque -and $actualOpaque.Length -ge 4 -and $actualOpaque[0] -eq 0x61 -and $actualOpaque[1] -eq 0x72 -and $actualOpaque[2] -eq 0x74 -and $actualOpaque[3] -eq 0x78) { $callbackCount += 1 }
-  }
-  if ($null -ne $commonAce -and !$commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowed -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) { $ordinaryCurrentUserCount += 1 }
+  [int]$status = [CallbackAclNative]::ApplyProtectedDacl($path, $sddl, $sid)
+} catch { exit 65 }
+if ($status -notin @(0, 71, 72, 73, 74, 75, 76, 77, 78)) { exit 66 }
+exit $status`;
+const callbackPrivateDirectoryAclPowerShellInput = Buffer.from(
+  callbackPrivateDirectoryAclPowerShell,
+  "ascii",
+);
+if (
+  callbackPrivateDirectoryAclPowerShellInput.toString("ascii") !==
+  callbackPrivateDirectoryAclPowerShell
+) {
+  throw new Error("callback ACL PowerShell fixture must be ASCII");
 }
-if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 4 -or $callbackCount -ne 1 -or $ordinaryCurrentUserCount -ne 1) { exit 46 }`;
 const powerShellStartupProgressCliXml = [
   "#< CLIXML",
   '<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>',
@@ -1543,16 +1822,10 @@ describe("Windows host native falsifier client", () => {
       });
       const callbackAclMutation = await runRawProcess(
         windowsTools.powerShellExecutable,
-        [
-          "-NoLogo",
-          "-NoProfile",
-          "-NonInteractive",
-          "-EncodedCommand",
-          Buffer.from(callbackPrivateDirectoryAclPowerShell, "utf16le").toString("base64"),
-        ],
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", "-"],
         runRoot,
         { ENDURAGENT_NATIVE_ACL_TEST_PATH: join(runRoot, "private-directory") },
-        Buffer.alloc(0),
+        callbackPrivateDirectoryAclPowerShellInput,
       );
       expectRawAclMutationSuccess(callbackAclMutation);
       const callbackInspection = await channel.execute("private-directory-inspect", {
