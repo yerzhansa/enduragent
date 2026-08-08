@@ -71,8 +71,8 @@ describe("retained Windows probe verifier isolate", () => {
 
     const registrySource = retained.registrySourceBytes.toString("utf8");
     const alteredFactSource = registrySource.replace(
-      '  "credentialReadAttempted",\n  "canonicalIdentitySha256",',
-      '  "credentialReadAttemptedFromRetainedSource",\n  "canonicalIdentitySha256",',
+      '"credentialReadAttempted"',
+      '"credentialReadAttemptedFromRetainedSource"',
     );
     expect(alteredFactSource).not.toBe(registrySource);
     const alteredFacts = await loadRetainedProbeVerifier({
