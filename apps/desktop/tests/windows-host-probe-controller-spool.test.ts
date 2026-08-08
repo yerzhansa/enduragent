@@ -62,6 +62,7 @@ const authorizationResponsePayloadBytes = Buffer.from(
   canonicalProbeJson({ result: "authorized-floor-ascii" }),
   "utf8",
 );
+const testResponseTimeoutMs = 2000;
 
 function sha256(value: Uint8Array | string) {
   return createHash("sha256").update(value).digest("hex");
@@ -295,7 +296,7 @@ describe("Windows host probe controller file spool", () => {
       controllerVersion: "1.0.0",
       controllerPublicKeyBytes,
       pollIntervalMs: 2,
-      responseTimeoutMs: 2000,
+      responseTimeoutMs: testResponseTimeoutMs,
       ...overrides,
     });
   }
@@ -619,6 +620,20 @@ describe("Windows host probe controller file spool", () => {
     await expect(substitutedExchange).rejects.toMatchObject({
       code: "CONTROLLER_SPOOL_ARTIFACT",
     });
+  });
+
+  it("enforces the response deadline against an injected monotonic clock", async () => {
+    const payloadBytes = Buffer.from(canonicalProbeJson({ operation: "response-timeout" }), "utf8");
+    const requestValue = request(payloadBytes, { operationId: "operation-response-timeout" });
+    const samples = [0, testResponseTimeoutMs];
+
+    await expect(
+      client({ monotonicNow: () => samples.shift() ?? testResponseTimeoutMs }).exchange({
+        request: requestValue,
+        payloadBytes,
+      }),
+    ).rejects.toMatchObject({ code: "CONTROLLER_SPOOL_TIMEOUT" });
+    expect(samples).toEqual([]);
   });
 
   it("refuses private material, pre-aborted publication, and a regressing clock", async () => {
