@@ -34,6 +34,10 @@ const maxScanBytes = 16 * 1024 * 1024;
 const maxScanFiles = 256;
 const maxScanDepth = 8;
 const exactVersionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u;
+const nsisVersionPattern = /^\d+\.\d+(?:\.\d+){0,2}$/u;
+const falsifierSourceExtensions = Object.freeze([".cs", ".d.mts", ".mjs", ".ps1"]);
+const maxFalsifierSourceFiles = 128;
+const maxFalsifierSourceBytes = 4 * 1024 * 1024;
 const knownFoundationPolicyExceptions = Object.freeze([
   "DEFENDER_REALTIME_DISABLED_ON_GITHUB_HOSTED_RUNNER",
   "DEVELOPER_MODE_ENABLED_ON_GITHUB_HOSTED_RUNNER",
@@ -198,11 +202,16 @@ function validateCommonToolchainIdentity(value) {
 
 function validateAuthoritativeToolchainIdentity(value) {
   validateCommonToolchainIdentity(value);
-  assertExactKeys(value.nsis, ["state", "version"]);
+  assertExactKeys(value.nsis, ["state", "version", "executableSha256"]);
   if (value.nsis.state !== "observed") {
     fail("SCHEMA_NSIS", "authoritative NSIS state must be observed");
   }
-  assertString(value.nsis.version, "environment.toolchain.nsis.version");
+  if (typeof value.nsis.version !== "string" || !nsisVersionPattern.test(value.nsis.version)) {
+    fail("SCHEMA_NSIS", "authoritative NSIS version must be exact");
+  }
+  if (!lowercaseSha256.test(value.nsis.executableSha256)) {
+    fail("SCHEMA_NSIS", "authoritative NSIS executable hash must be lowercase SHA-256");
+  }
 }
 
 function validateFoundationToolchainIdentity(value) {
@@ -851,8 +860,8 @@ export async function runWithDeadline(operation, { timeoutMs, quiescenceMs = 250
   return { state: "timed-out", quiesced: quiescence.settled };
 }
 
-async function repositoryIdentity() {
-  const [{ stdout: commitOutput }, { stdout: statusOutput }, scriptBytes] = await Promise.all([
+export async function collectFalsifierRepositoryIdentity() {
+  const [{ stdout: commitOutput }, { stdout: statusOutput }, sourceSet] = await Promise.all([
     execFileAsync("git", ["rev-parse", "HEAD"], {
       cwd: repositoryRoot,
       encoding: "utf8",
@@ -865,7 +874,7 @@ async function repositoryIdentity() {
       timeout: 10_000,
       maxBuffer: 256 * 1024,
     }),
-    readFile(scriptPath),
+    hashFalsifierSourceSet(),
   ]);
   const repositoryCommit = commitOutput.trim().toLowerCase();
   if (!repositoryCommitPattern.test(repositoryCommit))
@@ -873,8 +882,67 @@ async function repositoryIdentity() {
   return {
     repositoryCommit,
     repositoryDirty: statusOutput.trim().length > 0,
-    scriptSha256: createHash("sha256").update(scriptBytes).digest("hex"),
+    scriptSha256: sourceSet.digest,
   };
+}
+
+async function collectFalsifierSourceFiles(root, relativePrefix = "") {
+  const entries = await readdir(root, { withFileTypes: true });
+  entries.sort((left, right) => compareBytes(left.name, right.name));
+  const files = [];
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) {
+      fail("SOURCE_SET_REPARSE", "falsifier source set contains a symbolic link");
+    }
+    const relativePath =
+      relativePrefix.length === 0 ? entry.name : `${relativePrefix}/${entry.name}`;
+    const absolutePath = join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectFalsifierSourceFiles(absolutePath, relativePath)));
+    } else if (
+      entry.isFile() &&
+      falsifierSourceExtensions.some((extension) => relativePath.endsWith(extension))
+    ) {
+      files.push({ relativePath: `windows-host-falsifier/${relativePath}`, absolutePath });
+    }
+  }
+  return files;
+}
+
+export async function hashFalsifierSourceSet() {
+  const sourceDirectory = join(scriptDirectory, "windows-host-falsifier");
+  const sources = [{ relativePath: "windows-host-falsifier.mjs", absolutePath: scriptPath }];
+  try {
+    sources.push(...(await collectFalsifierSourceFiles(sourceDirectory)));
+  } catch (error) {
+    if (!(error && typeof error === "object" && error.code === "ENOENT")) throw error;
+  }
+  sources.sort((left, right) => compareBytes(left.relativePath, right.relativePath));
+  if (sources.length > maxFalsifierSourceFiles) {
+    fail("SOURCE_SET_COUNT", "falsifier source set exceeds the file-count bound");
+  }
+  const digest = createHash("sha256");
+  const files = [];
+  let totalBytes = 0;
+  for (const source of sources) {
+    const bytes = await readFile(source.absolutePath);
+    totalBytes += bytes.length;
+    if (totalBytes > maxFalsifierSourceBytes) {
+      fail("SOURCE_SET_SIZE", "falsifier source set exceeds the byte bound");
+    }
+    const pathBytes = Buffer.from(source.relativePath, "utf8");
+    const pathLength = Buffer.alloc(4);
+    pathLength.writeUInt32BE(pathBytes.length);
+    const contentLength = Buffer.alloc(8);
+    contentLength.writeBigUInt64BE(BigInt(bytes.length));
+    digest.update(pathLength).update(pathBytes).update(contentLength).update(bytes);
+    files.push({
+      path: source.relativePath,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+  }
+  return { digest: digest.digest("hex"), files };
 }
 
 async function readInstalledPackageVersion(packageName) {
@@ -914,6 +982,56 @@ export async function resolveFoundationToolchainIdentity({ nodeVersion = process
     electronBuilderVersion,
     updaterVersion,
     nsis: { state: "not-invoked", version: null },
+  };
+}
+
+export async function resolveAuthoritativeToolchainIdentity({
+  nodeVersion = process.version,
+  nsisExecutable,
+  execFileFn = execFileAsync,
+  readFileFn = readFile,
+} = {}) {
+  assertString(nodeVersion, "toolchain.nodeVersion");
+  const normalizedExecutable =
+    typeof nsisExecutable === "string" ? win32.normalize(nsisExecutable) : "";
+  if (
+    !win32.isAbsolute(normalizedExecutable) ||
+    normalizedExecutable.startsWith("\\\\") ||
+    win32.extname(normalizedExecutable).toLowerCase() !== ".exe"
+  ) {
+    fail("TOOLCHAIN_NSIS_PATH", "authoritative NSIS must be an absolute local executable path");
+  }
+  const common = await resolveFoundationToolchainIdentity({ nodeVersion });
+  const executableBefore = Buffer.from(await readFileFn(normalizedExecutable));
+  if (executableBefore.length === 0) {
+    fail("TOOLCHAIN_NSIS_FILE", "authoritative NSIS executable is empty");
+  }
+  const versionResult = await execFileFn(normalizedExecutable, ["/VERSION"], {
+    encoding: "utf8",
+    timeout: 10_000,
+    maxBuffer: 64 * 1024,
+    windowsHide: true,
+  });
+  const executableAfter = Buffer.from(await readFileFn(normalizedExecutable));
+  const executableSha256 = createHash("sha256").update(executableBefore).digest("hex");
+  if (
+    executableAfter.length !== executableBefore.length ||
+    createHash("sha256").update(executableAfter).digest("hex") !== executableSha256
+  ) {
+    fail("TOOLCHAIN_NSIS_MUTATED", "authoritative NSIS executable changed while observed");
+  }
+  const versionText = `${versionResult.stdout ?? ""}${versionResult.stderr ?? ""}`.trim();
+  const versionMatch = /^v?(\d+\.\d+(?:\.\d+){0,2})$/u.exec(versionText);
+  if (versionMatch === null) {
+    fail("TOOLCHAIN_NSIS_VERSION", "authoritative NSIS did not report one exact version");
+  }
+  return {
+    ...common,
+    nsis: {
+      state: "observed",
+      version: versionMatch[1],
+      executableSha256,
+    },
   };
 }
 
@@ -1008,6 +1126,17 @@ export async function observeWindowsHost({ localAppData = process.env.LOCALAPPDA
       typeof native.developerModeEnabled === "boolean" ? native.developerModeEnabled : null,
     toolchain,
     localAppData,
+  };
+}
+
+export async function observeAuthoritativeWindowsHost({
+  localAppData = process.env.LOCALAPPDATA,
+  nsisExecutable,
+} = {}) {
+  const observed = await observeWindowsHost({ localAppData });
+  return {
+    ...observed,
+    toolchain: await resolveAuthoritativeToolchainIdentity({ nsisExecutable }),
   };
 }
 
@@ -1138,7 +1267,7 @@ export async function runCiFoundation({
   }
   const startedAt = wallNow().toISOString();
   const startedMonotonic = monotonicNow();
-  const identity = await repositoryIdentity();
+  const identity = await collectFalsifierRepositoryIdentity();
   const owned = await createOwnedRunRoot({
     localAppData: observed.localAppData,
     runId,
@@ -1308,14 +1437,96 @@ function parseArguments(argv) {
   return values;
 }
 
-async function main() {
-  const argumentsMap = parseArguments(process.argv.slice(2));
+function parseAuthoritativeBootstrapArguments(argv, { required }) {
+  const runnerArguments = [];
+  const bootstrapArguments = new Map();
+  for (const argument of argv) {
+    if (typeof argument !== "string") fail("ARGUMENT", "arguments must contain only strings");
+    if (!argument.startsWith("--bootstrap-")) {
+      runnerArguments.push(argument);
+      continue;
+    }
+    const match = /^--([a-z0-9-]+)=(.*)$/u.exec(argument);
+    if (!match) fail("ARGUMENT", `invalid argument: ${argument}`);
+    const key = match[1];
+    if (key !== "bootstrap-root" && key !== "bootstrap-sha256") {
+      fail("ARGUMENT_UNKNOWN", `unknown argument: --${key}`);
+    }
+    if (bootstrapArguments.has(key)) {
+      fail("ARGUMENT_DUPLICATE", `duplicate argument: --${key}`);
+    }
+    bootstrapArguments.set(key, match[2]);
+  }
+
+  const bootstrapRoot = bootstrapArguments.get("bootstrap-root");
+  const bootstrapSha256 = bootstrapArguments.get("bootstrap-sha256");
+  const supplied = bootstrapRoot !== undefined || bootstrapSha256 !== undefined;
+  if ((required || supplied) && bootstrapRoot === undefined) {
+    fail("ARGUMENT_REQUIRED", "missing argument: --bootstrap-root");
+  }
+  if ((required || supplied) && bootstrapSha256 === undefined) {
+    fail("ARGUMENT_REQUIRED", "missing argument: --bootstrap-sha256");
+  }
+  if (bootstrapRoot !== undefined && (bootstrapRoot.length === 0 || bootstrapRoot.includes("\0"))) {
+    fail("ARGUMENT_VALUE", "bootstrap-root must be a non-empty path without NUL bytes");
+  }
+  if (bootstrapSha256 !== undefined && !lowercaseSha256.test(bootstrapSha256)) {
+    fail("ARGUMENT_SHA256", "bootstrap-sha256 must be lowercase 64-hex");
+  }
+  return Object.freeze({
+    runnerArguments: Object.freeze(runnerArguments),
+    bootstrapRoot,
+    bootstrapSha256,
+  });
+}
+
+async function defaultCreateAuthoritativeComposition(options) {
+  const { createAuthoritativeProbeComposition } =
+    await import("./windows-host-falsifier/probe-production-composition.mjs");
+  return createAuthoritativeProbeComposition(options);
+}
+
+export async function dispatchWindowsHostFalsifierCommand(
+  argv,
+  {
+    authoritativeDispatchers,
+    createAuthoritativeComposition = defaultCreateAuthoritativeComposition,
+    ciFoundationRunner = runCiFoundation,
+  } = {},
+) {
+  if (!Array.isArray(argv)) fail("ARGUMENT", "arguments must be an array");
+  if (argv.includes("--mode=authoritative")) {
+    const { dispatchAuthoritativeProbeCommand, parseAuthoritativeProbeCommand } =
+      await import("./windows-host-falsifier/probe-runner.mjs");
+    const bootstrap = parseAuthoritativeBootstrapArguments(argv, {
+      required: authoritativeDispatchers === undefined,
+    });
+    const command = parseAuthoritativeProbeCommand(bootstrap.runnerArguments);
+    let dispatchers = authoritativeDispatchers;
+    if (dispatchers === undefined) {
+      if (typeof createAuthoritativeComposition !== "function") {
+        fail("AUTHORITATIVE_COMPOSITION", "authoritative composition factory is not installed");
+      }
+      const composition = await createAuthoritativeComposition({
+        bootstrapRoot: bootstrap.bootstrapRoot,
+        bootstrapSha256: bootstrap.bootstrapSha256,
+      });
+      if (!exactObject(composition) || !exactObject(composition.dispatchers)) {
+        fail(
+          "AUTHORITATIVE_COMPOSITION",
+          "authoritative composition must provide a plain dispatchers object",
+        );
+      }
+      dispatchers = composition.dispatchers;
+    }
+    const result = await dispatchAuthoritativeProbeCommand(command, dispatchers);
+    return Object.freeze({ mode: "authoritative", command, result });
+  }
+
+  const argumentsMap = parseArguments(argv);
   const mode = argumentsMap.get("mode");
   if (mode !== "ci-foundation") {
-    fail(
-      "MODE",
-      "PR-01a exposes only --mode=ci-foundation; authoritative F-row probes arrive in PR-01b",
-    );
+    fail("MODE", "mode must be ci-foundation or authoritative");
   }
   const runId = argumentsMap.get("run-id");
   const runnerImage = argumentsMap.get("runner-image");
@@ -1323,7 +1534,32 @@ async function main() {
   validateRunId(runId);
   assertString(runnerImage, "runner-image");
   assertString(runnerImageVersion, "runner-image-version");
-  const { record } = await runCiFoundation({ runId, runnerImage, runnerImageVersion });
+  const { record, evidenceDirectory } = await ciFoundationRunner({
+    runId,
+    runnerImage,
+    runnerImageVersion,
+  });
+  return Object.freeze({ mode: "ci-foundation", record, evidenceDirectory });
+}
+
+async function main() {
+  const dispatched = await dispatchWindowsHostFalsifierCommand(process.argv.slice(2));
+  if (dispatched.mode === "authoritative") {
+    const resultBytes = canonicalJson(dispatched.result);
+    process.stdout.write(
+      canonicalJson({
+        kind: "windows-host-probe-runner-result",
+        mode: dispatched.mode,
+        command: dispatched.command.command,
+        campaignRunId: dispatched.command.campaignRunId,
+        planSha256: dispatched.command.planSha256,
+        resultBytes: Buffer.byteLength(resultBytes, "utf8"),
+        resultSha256: createHash("sha256").update(resultBytes, "utf8").digest("hex"),
+      }),
+    );
+    return;
+  }
+  const { record } = dispatched;
   process.stdout.write(
     canonicalJson({
       kind: record.kind,

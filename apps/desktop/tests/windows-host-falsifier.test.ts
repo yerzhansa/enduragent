@@ -12,12 +12,15 @@ import {
   bufferContainsSentinel,
   canonicalJson,
   classifyFoundationFinalizationError,
+  dispatchWindowsHostFalsifierCommand,
+  hashFalsifierSourceSet,
   hashStableArtifact,
   redactText,
   resolveFoundationToolchainIdentity,
   resolveWindowsChild,
   retainedAuthoritativeEnvironment,
   retainedFoundationEnvironment,
+  resolveAuthoritativeToolchainIdentity,
   runCiFoundation,
   runWithDeadline,
   scanTreeForSentinel,
@@ -26,6 +29,7 @@ import {
   validateLocalAppDataPath,
   validateRunId,
 } from "../scripts/windows-host-falsifier.mjs";
+import { PROBE_RUN_PLAN_SHA256 } from "../scripts/windows-host-falsifier/probe-runner.mjs";
 
 const temporaryDirectories: string[] = [];
 const sha = "a".repeat(64);
@@ -71,7 +75,7 @@ const authoritativeObservedHost = {
   ...observedHost,
   toolchain: {
     ...observedHost.toolchain,
-    nsis: { state: "observed", version: "3.0.4.1" },
+    nsis: { state: "observed", version: "3.0.4.1", executableSha256: sha },
   },
 } as const;
 
@@ -171,6 +175,171 @@ afterEach(async () => {
       .splice(0)
       .map((directory) => rm(directory, { recursive: true, force: true })),
   );
+});
+
+describe("Windows host falsifier command routing", () => {
+  it("routes authoritative commands only through an injected runner dispatcher", async () => {
+    const argv = [
+      "--mode=authoritative",
+      "--command=segment",
+      "--campaign-run-id=campaign-run-one",
+      `--plan-sha256=${PROBE_RUN_PLAN_SHA256}`,
+      "--attempt-id=attempt-one",
+      "--environment-id=win11-floor",
+      "--path-profile-id=ascii",
+      "--row-id=F-01",
+      "--variant-id=f01-ordinary-absolute-path",
+    ];
+    const dispatched = await dispatchWindowsHostFalsifierCommand(argv, {
+      authoritativeDispatchers: {
+        segment: async ({ command, workItem }) => ({
+          scheduledCommand: command.command,
+          scheduledWorkId: workItem.workId,
+        }),
+      },
+    });
+    expect(dispatched).toMatchObject({
+      mode: "authoritative",
+      command: { command: "segment", rowId: "F-01" },
+      result: {
+        scheduledCommand: "segment",
+        scheduledWorkId: expect.stringMatching(/^work-\d{4}$/u),
+      },
+    });
+    expect(Object.isFrozen(dispatched)).toBe(true);
+  });
+
+  it("constructs the authoritative composition from an explicit bootstrap trust anchor", async () => {
+    const argv = [
+      "--mode=authoritative",
+      "--command=segment",
+      "--campaign-run-id=campaign-run-one",
+      `--plan-sha256=${PROBE_RUN_PLAN_SHA256}`,
+      "--attempt-id=attempt-one",
+      "--environment-id=win11-floor",
+      "--path-profile-id=ascii",
+      "--row-id=F-01",
+      "--variant-id=f01-ordinary-absolute-path",
+      "--bootstrap-root=C:\\Trusted Probe Root\\Базовая версия",
+      `--bootstrap-sha256=${"b".repeat(64)}`,
+    ];
+    const compositionCalls: unknown[] = [];
+    const dispatcherCalls: unknown[] = [];
+    const dispatched = await dispatchWindowsHostFalsifierCommand(argv, {
+      createAuthoritativeComposition: async (options) => {
+        compositionCalls.push(options);
+        return {
+          dispatchers: {
+            segment: async ({ command, workItem }) => {
+              dispatcherCalls.push({ command, workItem });
+              return {
+                outcome: "segment-completed",
+                workId: workItem.workId,
+              };
+            },
+          },
+        };
+      },
+    });
+
+    expect(compositionCalls).toEqual([
+      {
+        bootstrapRoot: "C:\\Trusted Probe Root\\Базовая версия",
+        bootstrapSha256: "b".repeat(64),
+      },
+    ]);
+    expect(dispatcherCalls).toHaveLength(1);
+    expect(dispatched).toMatchObject({
+      mode: "authoritative",
+      command: { command: "segment", rowId: "F-01" },
+      result: {
+        outcome: "segment-completed",
+        workId: expect.stringMatching(/^work-\d{4}$/u),
+      },
+    });
+  });
+
+  it("fails closed when an authoritative bootstrap trust anchor is missing or invalid", async () => {
+    const argv = [
+      "--mode=authoritative",
+      "--command=segment",
+      "--campaign-run-id=campaign-run-one",
+      `--plan-sha256=${PROBE_RUN_PLAN_SHA256}`,
+      "--attempt-id=attempt-one",
+      "--environment-id=win11-floor",
+      "--path-profile-id=ascii",
+      "--row-id=F-01",
+      "--variant-id=f01-ordinary-absolute-path",
+    ];
+    const createAuthoritativeComposition = async () => ({
+      dispatchers: {
+        segment: async () => ({ outcome: "must-not-run" }),
+      },
+    });
+
+    await expect(
+      dispatchWindowsHostFalsifierCommand(argv, { createAuthoritativeComposition }),
+    ).rejects.toMatchObject({ code: "ARGUMENT_REQUIRED" });
+    await expect(
+      dispatchWindowsHostFalsifierCommand(
+        [...argv, "--bootstrap-root=C:\\trusted", "--bootstrap-sha256=ABC"],
+        { createAuthoritativeComposition },
+      ),
+    ).rejects.toMatchObject({ code: "ARGUMENT_SHA256" });
+    await expect(
+      dispatchWindowsHostFalsifierCommand(
+        [
+          ...argv,
+          "--bootstrap-root=C:\\trusted",
+          "--bootstrap-root=C:\\other",
+          `--bootstrap-sha256=${"b".repeat(64)}`,
+        ],
+        { createAuthoritativeComposition },
+      ),
+    ).rejects.toMatchObject({ code: "ARGUMENT_DUPLICATE" });
+    await expect(
+      dispatchWindowsHostFalsifierCommand(
+        [
+          ...argv,
+          "--bootstrap-root=C:\\trusted",
+          `--bootstrap-sha256=${"b".repeat(64)}`,
+          "--bootstrap-key-id=untrusted",
+        ],
+        { createAuthoritativeComposition },
+      ),
+    ).rejects.toMatchObject({ code: "ARGUMENT_UNKNOWN" });
+  });
+
+  it("preserves the ci-foundation argument and runner path", async () => {
+    const record = validateFoundationRecord(foundation());
+    const calls: unknown[] = [];
+    const dispatched = await dispatchWindowsHostFalsifierCommand(
+      [
+        "--mode=ci-foundation",
+        "--run-id=foundation-run-one",
+        "--runner-image=windows-2025",
+        "--runner-image-version=synthetic-image-version",
+      ],
+      {
+        ciFoundationRunner: async (input) => {
+          calls.push(input);
+          return { record, evidenceDirectory: "C:\\synthetic\\evidence" };
+        },
+      },
+    );
+    expect(calls).toEqual([
+      {
+        runId: "foundation-run-one",
+        runnerImage: "windows-2025",
+        runnerImageVersion: "synthetic-image-version",
+      },
+    ]);
+    expect(dispatched).toEqual({
+      mode: "ci-foundation",
+      record,
+      evidenceDirectory: "C:\\synthetic\\evidence",
+    });
+  });
 });
 
 describe("Windows host falsifier result contracts", () => {
@@ -295,7 +464,10 @@ describe("Windows host falsifier result contracts", () => {
         experiment({
           environment: {
             ...authoritativeEnvironment(),
-            toolchain: observedHost.toolchain,
+            toolchain: {
+              ...observedHost.toolchain,
+              nsis: { ...observedHost.toolchain.nsis, executableSha256: sha },
+            },
           },
         }),
       ),
@@ -304,6 +476,43 @@ describe("Windows host falsifier result contracts", () => {
       state: "not-invoked",
       version: null,
     });
+  });
+
+  it("observes an exact authoritative NSIS compiler version and executable hash", async () => {
+    const executableBytes = Buffer.from("synthetic makensis executable");
+    await expect(
+      resolveAuthoritativeToolchainIdentity({
+        nsisExecutable: "C:\\Tools\\NSIS\\makensis.exe",
+        execFileFn: async () => ({ stdout: "v3.11\n", stderr: "" }),
+        readFileFn: async () => executableBytes,
+      }),
+    ).resolves.toMatchObject({
+      nsis: {
+        state: "observed",
+        version: "3.11",
+        executableSha256: createHash("sha256").update(executableBytes).digest("hex"),
+      },
+    });
+    await expect(
+      resolveAuthoritativeToolchainIdentity({
+        nsisExecutable: "\\\\server\\share\\makensis.exe",
+      }),
+    ).rejects.toMatchObject({ code: "TOOLCHAIN_NSIS_PATH" });
+    await expect(
+      resolveAuthoritativeToolchainIdentity({
+        nsisExecutable: "C:\\Tools\\NSIS\\makensis.exe",
+        execFileFn: async () => ({ stdout: "NSIS unknown", stderr: "" }),
+        readFileFn: async () => executableBytes,
+      }),
+    ).rejects.toMatchObject({ code: "TOOLCHAIN_NSIS_VERSION" });
+    let readCount = 0;
+    await expect(
+      resolveAuthoritativeToolchainIdentity({
+        nsisExecutable: "C:\\Tools\\NSIS\\makensis.exe",
+        execFileFn: async () => ({ stdout: "v3.11", stderr: "" }),
+        readFileFn: async () => Buffer.from(readCount++ === 0 ? "before" : "after"),
+      }),
+    ).rejects.toMatchObject({ code: "TOOLCHAIN_NSIS_MUTATED" });
   });
 
   it("retains failed and inconclusive foundation outcomes without F-row status", () => {
@@ -363,6 +572,17 @@ describe("Windows host falsifier result contracts", () => {
     expect(() => canonicalJson({ value: Number.NaN })).toThrow(/non-finite/u);
     expect(() => canonicalJson({ value: undefined })).toThrow(/undefined/u);
     expect(() => canonicalJson({ value: new Date("2026-08-06T00:00:00.000Z") })).toThrow(/exotic/u);
+  });
+
+  it("binds the retained script identity to the complete sorted falsifier source set", async () => {
+    const sourceSet = await hashFalsifierSourceSet();
+    expect(sourceSet.digest).toMatch(/^[a-f0-9]{64}$/u);
+    expect(sourceSet.files.at(0)?.path).toBe("windows-host-falsifier.mjs");
+    expect(sourceSet.files.map((file) => file.path)).toEqual(
+      sourceSet.files.map((file) => file.path).sort(),
+    );
+    expect(new Set(sourceSet.files.map((file) => file.path)).size).toBe(sourceSet.files.length);
+    expect(sourceSet.files.every((file) => /^[a-f0-9]{64}$/u.test(file.sha256))).toBe(true);
   });
 });
 
@@ -536,7 +756,7 @@ describe("bounded Windows paths and identifiers", () => {
 
   it("keeps the hosted CI invocation explicitly non-authoritative and pnpm-compatible", async () => {
     const workflow = await readFile(
-      new URL("../../../.github/workflows/ci.yml", import.meta.url),
+      new URL("../../../.github/workflows/windows-host-falsifier.yml", import.meta.url),
       "utf8",
     );
     expect(workflow).toContain("Windows host falsifier foundation (non-authoritative)");

@@ -1,3 +1,8 @@
+import type {
+  AuthoritativeProbeRunnerCommand,
+  AuthoritativeProbeRunnerDispatchers,
+} from "./windows-host-falsifier/probe-runner.mjs";
+
 export const RESULT_SCHEMA_VERSION: 1;
 export const EXPERIMENT_PHASES: readonly ["probe", "implementation", "package", "release"];
 export const EXPERIMENT_STATUSES: readonly ["PASS", "FAIL", "INCONCLUSIVE"];
@@ -45,7 +50,11 @@ export interface FoundationWindowsToolchainIdentity extends CommonWindowsToolcha
 }
 
 export interface AuthoritativeWindowsToolchainIdentity extends CommonWindowsToolchainIdentity {
-  readonly nsis: { readonly state: "observed"; readonly version: string };
+  readonly nsis: {
+    readonly state: "observed";
+    readonly version: string;
+    readonly executableSha256: string;
+  };
 }
 
 export type WindowsToolchainIdentity =
@@ -138,6 +147,22 @@ export interface FoundationRecord {
   readonly artifactHashes: readonly ArtifactHash[];
 }
 
+export interface AuthoritativeWindowsHostDispatchResult {
+  readonly mode: "authoritative";
+  readonly command: AuthoritativeProbeRunnerCommand;
+  readonly result: unknown;
+}
+
+export interface FoundationWindowsHostDispatchResult {
+  readonly mode: "ci-foundation";
+  readonly record: FoundationRecord;
+  readonly evidenceDirectory: string;
+}
+
+export type WindowsHostFalsifierDispatchResult =
+  | AuthoritativeWindowsHostDispatchResult
+  | FoundationWindowsHostDispatchResult;
+
 export class FalsifierError extends Error {
   readonly code: string;
   constructor(code: string, message: string);
@@ -176,6 +201,19 @@ export function classifyFoundationFinalizationError(error: unknown): {
   readonly outcome: "foundation-failed" | "foundation-inconclusive";
   readonly failureCode: string;
 };
+export function collectFalsifierRepositoryIdentity(): Promise<{
+  readonly repositoryCommit: string;
+  readonly repositoryDirty: boolean;
+  readonly scriptSha256: string;
+}>;
+export function hashFalsifierSourceSet(): Promise<{
+  readonly digest: string;
+  readonly files: readonly {
+    readonly path: string;
+    readonly bytes: number;
+    readonly sha256: string;
+  }[];
+}>;
 export function runWithDeadline<T>(
   operation: (signal: AbortSignal) => Promise<T> | T,
   options: { readonly timeoutMs: number; readonly quiescenceMs?: number },
@@ -187,9 +225,23 @@ export function runWithDeadline<T>(
 export function resolveFoundationToolchainIdentity(options?: {
   readonly nodeVersion?: string;
 }): Promise<FoundationWindowsToolchainIdentity>;
+export function resolveAuthoritativeToolchainIdentity(options: {
+  readonly nodeVersion?: string;
+  readonly nsisExecutable: string;
+  readonly execFileFn?: (
+    executable: string,
+    arguments_: readonly string[],
+    options: Readonly<Record<string, unknown>>,
+  ) => Promise<{ readonly stdout?: string; readonly stderr?: string }>;
+  readonly readFileFn?: (path: string) => Promise<Uint8Array>;
+}): Promise<AuthoritativeWindowsToolchainIdentity>;
 export function observeWindowsHost(options?: {
   readonly localAppData?: string;
 }): Promise<ObservedWindowsHost & { readonly toolchain: FoundationWindowsToolchainIdentity }>;
+export function observeAuthoritativeWindowsHost(options: {
+  readonly localAppData?: string;
+  readonly nsisExecutable: string;
+}): Promise<ObservedWindowsHost & { readonly toolchain: AuthoritativeWindowsToolchainIdentity }>;
 export function retainedFoundationEnvironment(
   observed: ObservedWindowsHost & { readonly toolchain: FoundationWindowsToolchainIdentity },
   provenance: {
@@ -226,3 +278,24 @@ export function runCiFoundation(options: {
     readonly sentinel: string;
   }) => Promise<unknown> | unknown;
 }): Promise<{ readonly record: FoundationRecord; readonly evidenceDirectory: string }>;
+export function dispatchWindowsHostFalsifierCommand(
+  argv: readonly string[],
+  options?: {
+    readonly authoritativeDispatchers?: AuthoritativeProbeRunnerDispatchers;
+    readonly createAuthoritativeComposition?: (options: {
+      readonly bootstrapRoot: string;
+      readonly bootstrapSha256: string;
+    }) =>
+      | {
+          readonly dispatchers: AuthoritativeProbeRunnerDispatchers;
+        }
+      | Promise<{
+          readonly dispatchers: AuthoritativeProbeRunnerDispatchers;
+        }>;
+    readonly ciFoundationRunner?: (input: {
+      readonly runId: string;
+      readonly runnerImage: string;
+      readonly runnerImageVersion: string;
+    }) => Promise<{ readonly record: FoundationRecord; readonly evidenceDirectory: string }>;
+  },
+): Promise<WindowsHostFalsifierDispatchResult>;
