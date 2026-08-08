@@ -284,7 +284,7 @@ describe("Windows host probe controller file spool", () => {
   });
 
   afterEach(async () => {
-    await journal?.close().catch(() => undefined);
+    await journal?.close();
     await rm(root, { recursive: true, force: true });
   });
 
@@ -405,16 +405,25 @@ describe("Windows host probe controller file spool", () => {
       canonicalProbeJson({ operation: "authorized-unicode-profile" }),
       "utf8",
     );
+    const workRequest = request(workPayloadBytes, {
+      operationId: "operation-authorized-unicode-profile",
+      pathProfileId: "spaces-unicode",
+      runAuthorizationClaimSha256: receipt.receiptSha256,
+    });
     await journal.retainBlob(workPayloadBytes);
+    await expect(journal.beginOperation(workRequest)).resolves.toMatchObject({ state: "pending" });
+
+    const workResponsePayloadBytes = Buffer.from(
+      canonicalProbeJson({ result: "authorized-unicode-profile-complete" }),
+      "utf8",
+    );
+    await journal.retainBlob(workResponsePayloadBytes);
     await expect(
-      journal.beginOperation(
-        request(workPayloadBytes, {
-          operationId: "operation-authorized-unicode-profile",
-          pathProfileId: "spaces-unicode",
-          runAuthorizationClaimSha256: receipt.receiptSha256,
-        }),
-      ),
-    ).resolves.toMatchObject({ state: "pending" });
+      journal.completeOperation({
+        request: workRequest,
+        response: controllerResponse(workRequest, workResponsePayloadBytes),
+      }),
+    ).resolves.toMatchObject({ state: "complete" });
   });
 
   it("marks a retained pending operation as recovery-required before repeating its driver", async () => {
