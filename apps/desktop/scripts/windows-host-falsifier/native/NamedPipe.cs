@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,8 +13,31 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Enduragent.WindowsHostFalsifier
 {
+    internal sealed class PipeIoDeadline
+    {
+        private readonly Stopwatch elapsed;
+        private readonly int deadlineMs;
+
+        internal PipeIoDeadline(int deadlineMs)
+        {
+            this.deadlineMs = deadlineMs;
+            elapsed = Stopwatch.StartNew();
+        }
+
+        internal int RemainingMilliseconds()
+        {
+            long remaining = deadlineMs - elapsed.ElapsedMilliseconds;
+            if (remaining <= 0)
+            {
+                throw new NativeFailure("PIPE_TIMEOUT", "named pipe operation timed out");
+            }
+            return (int)remaining;
+        }
+    }
+
     internal sealed class PipeOwnerSession : NativeSession
     {
+        private const int StopCompletionDeadlineMs = 6000;
         private readonly string pipeName;
         private readonly byte[] capability;
         private readonly byte[] binding;
@@ -21,6 +46,7 @@ namespace Enduragent.WindowsHostFalsifier
         private readonly int readDeadlineMs;
         private readonly string currentSid;
         private readonly Thread worker;
+        private readonly NamedPipeProbe.OperationCancellation operationCancellation;
         private readonly object stateLock = new object();
         private SafeFileHandle pipe;
         private bool capabilityConsumed;
@@ -47,6 +73,7 @@ namespace Enduragent.WindowsHostFalsifier
             readDeadlineMs = Protocol.RequireInt(request, "readDeadlineMs", 1, 120000);
             currentSid = NamedPipeProbe.CurrentSid();
             pipe = NamedPipeProbe.CreateSecurePipe(pipeName, maximumFrameBytes, true);
+            operationCancellation = new NamedPipeProbe.OperationCancellation();
             worker = new Thread(Run);
             worker.IsBackground = true;
             worker.Name = "EnduragentFalsifierPipeOwner";
@@ -78,20 +105,29 @@ namespace Enduragent.WindowsHostFalsifier
 
                 try
                 {
-                    bool connected = NamedPipeProbe.Connect(pipe, connectDeadlineMs);
+                    bool connected = NamedPipeProbe.Connect(
+                        pipe,
+                        connectDeadlineMs,
+                        operationCancellation);
                     if (!connected)
                     {
                         continue;
                     }
 
+                    PipeIoDeadline ioDeadline = new PipeIoDeadline(readDeadlineMs);
+                    byte[] payload = NamedPipeProbe.ReadFrame(
+                        pipe,
+                        maximumFrameBytes,
+                        ioDeadline,
+                        operationCancellation);
                     string clientSid = NamedPipeProbe.ImpersonatedClientSid(pipe);
-                    byte[] payload = NamedPipeProbe.ReadFrame(pipe, maximumFrameBytes, readDeadlineMs);
                     Dictionary<string, object> frame = NamedPipeProbe.ParseClientFrame(payload);
                     string role = Protocol.RequireString(frame, "role", 1, 16);
                     string frameBinding = Protocol.RequireLowerHex64(frame, "bindingHex");
                     string frameCapability = Protocol.RequireLowerHex64(frame, "capabilityHex");
                     string decision = "reserved";
                     string reason = "ORDINARY_OR_UNAUTHORIZED";
+                    bool offerCanConsumeCapability = false;
                     if (!String.Equals(clientSid, currentSid, StringComparison.Ordinal))
                     {
                         decision = "refused";
@@ -109,9 +145,9 @@ namespace Enduragent.WindowsHostFalsifier
                         {
                             if (!capabilityConsumed)
                             {
-                                capabilityConsumed = true;
                                 decision = "designated";
-                                reason = "CAPABILITY_CONSUMED";
+                                reason = "CAPABILITY_AVAILABLE";
+                                offerCanConsumeCapability = true;
                             }
                             else
                             {
@@ -120,11 +156,67 @@ namespace Enduragent.WindowsHostFalsifier
                         }
                     }
 
+                    byte[] offerBytes = NamedPipeProbe.SerializeOfferFrame(
+                        decision,
+                        NamedPipeProbe.FreshChallengeHex());
+                    string offerSha256 = Protocol.Sha256(offerBytes);
                     NamedPipeProbe.WriteFrame(
                         pipe,
-                        NamedPipeProbe.SerializeServerFrame(decision),
+                        offerBytes,
                         maximumFrameBytes,
-                        readDeadlineMs);
+                        ioDeadline,
+                        operationCancellation);
+                    NamedPipeProbe.ValidateAcknowledgment(
+                        NamedPipeProbe.ReadFrame(
+                            pipe,
+                            maximumFrameBytes,
+                            ioDeadline,
+                            operationCancellation),
+                        "offer-ack",
+                        "offerSha256",
+                        offerSha256);
+
+                    lock (stateLock)
+                    {
+                        if (stopping)
+                        {
+                            throw new NativeFailure("SESSION_STOPPING", "named pipe owner is stopping");
+                        }
+                        if (offerCanConsumeCapability)
+                        {
+                            if (!capabilityConsumed)
+                            {
+                                capabilityConsumed = true;
+                                decision = "designated";
+                                reason = "CAPABILITY_CONSUMED";
+                            }
+                            else
+                            {
+                                decision = "reserved";
+                                reason = "CAPABILITY_ALREADY_CONSUMED";
+                            }
+                        }
+                    }
+
+                    byte[] receiptBytes = NamedPipeProbe.SerializeCommitReceipt(
+                        decision,
+                        offerSha256,
+                        NamedPipeProbe.FreshChallengeHex());
+                    NamedPipeProbe.WriteFrame(
+                        pipe,
+                        receiptBytes,
+                        maximumFrameBytes,
+                        ioDeadline,
+                        operationCancellation);
+                    NamedPipeProbe.ValidateAcknowledgment(
+                        NamedPipeProbe.ReadFrame(
+                            pipe,
+                            maximumFrameBytes,
+                            ioDeadline,
+                            operationCancellation),
+                        "commit-ack",
+                        "receiptSha256",
+                        Protocol.Sha256(receiptBytes));
                     Emit(
                         "client-decision",
                         Protocol.Object(
@@ -134,6 +226,13 @@ namespace Enduragent.WindowsHostFalsifier
                 }
                 catch (NativeFailure failure)
                 {
+                    bool expectedStopFailure;
+                    lock (stateLock)
+                    {
+                        expectedStopFailure = stopping &&
+                            NamedPipeProbe.IsExpectedStopFailure(failure);
+                    }
+                    if (expectedStopFailure) return;
                     Emit(
                         "client-error",
                         Protocol.Object(
@@ -176,20 +275,28 @@ namespace Enduragent.WindowsHostFalsifier
         {
             lock (stateLock)
             {
-                if (stopping) return;
                 stopping = true;
             }
 
-            SafeFileHandle current = pipe;
-            pipe = null;
+            operationCancellation.Stop();
+            if (Thread.CurrentThread == worker)
+            {
+                Environment.FailFast("named pipe owner cannot dispose its own worker");
+            }
+            if (worker.IsAlive && !worker.Join(StopCompletionDeadlineMs))
+            {
+                Environment.FailFast("named pipe owner did not stop within its cancellation deadline");
+            }
+
+            SafeFileHandle current;
+            lock (stateLock)
+            {
+                current = pipe;
+                pipe = null;
+            }
             if (current != null)
             {
                 current.Dispose();
-            }
-
-            if (Thread.CurrentThread != worker && worker.IsAlive)
-            {
-                worker.Join(Math.Min(connectDeadlineMs + readDeadlineMs, 5000));
             }
         }
     }
@@ -255,10 +362,13 @@ namespace Enduragent.WindowsHostFalsifier
         private const uint GenericWrite = 0x40000000;
         private const uint OpenExisting = 3;
         private const int ErrorIoPending = 997;
+        private const int ErrorIoIncomplete = 996;
+        private const int ErrorOperationAborted = 995;
         private const int ErrorPipeConnected = 535;
         private const int ErrorBrokenPipe = 109;
         private const int WaitObject0 = 0;
         private const int WaitTimeout = 258;
+        private const uint CancellationCompletionDeadlineMs = 5000;
         private const uint SecurityDescriptorRevision = 1;
 
         private static readonly Regex PipeNamePattern = new Regex(
@@ -266,6 +376,71 @@ namespace Enduragent.WindowsHostFalsifier
             RegexOptions.CultureInvariant);
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
         private static readonly JavaScriptSerializer Json = CreateSerializer();
+
+        internal sealed class OperationCancellation
+        {
+            private readonly object stateLock = new object();
+            private bool stopping;
+            private IntPtr activeFile;
+            private IntPtr activeOverlapped;
+
+            internal bool Start(
+                IntPtr file,
+                IntPtr overlapped,
+                OverlappedOperation operation,
+                out int error)
+            {
+                lock (stateLock)
+                {
+                    if (stopping)
+                    {
+                        throw new NativeFailure("SESSION_STOPPING", "named pipe owner is stopping");
+                    }
+                    if (activeOverlapped != IntPtr.Zero)
+                    {
+                        Environment.FailFast("named pipe owner registered concurrent I/O");
+                    }
+                    activeFile = file;
+                    activeOverlapped = overlapped;
+                    try
+                    {
+                        bool completed = operation(file, overlapped);
+                        error = completed ? 0 : Marshal.GetLastWin32Error();
+                        return completed;
+                    }
+                    catch
+                    {
+                        Environment.FailFast("named pipe operation failed during registered initiation");
+                        throw;
+                    }
+                }
+            }
+
+            internal void Complete(IntPtr overlapped)
+            {
+                lock (stateLock)
+                {
+                    if (activeOverlapped != overlapped)
+                    {
+                        Environment.FailFast("named pipe owner completed an unregistered I/O operation");
+                    }
+                    activeFile = IntPtr.Zero;
+                    activeOverlapped = IntPtr.Zero;
+                }
+            }
+
+            internal void Stop()
+            {
+                lock (stateLock)
+                {
+                    stopping = true;
+                    if (activeOverlapped != IntPtr.Zero)
+                    {
+                        CancelIoEx(activeFile, activeOverlapped);
+                    }
+                }
+            }
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct SECURITY_ATTRIBUTES
@@ -299,7 +474,7 @@ namespace Enduragent.WindowsHostFalsifier
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool ConnectNamedPipe(SafeFileHandle pipe, ref OVERLAPPED overlapped);
+        private static extern bool ConnectNamedPipe(IntPtr pipe, IntPtr overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -322,20 +497,20 @@ namespace Enduragent.WindowsHostFalsifier
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ReadFile(
-            SafeFileHandle file,
-            byte[] buffer,
+            IntPtr file,
+            IntPtr buffer,
             uint bytesToRead,
-            out uint bytesRead,
-            ref OVERLAPPED overlapped);
+            IntPtr bytesRead,
+            IntPtr overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool WriteFile(
-            SafeFileHandle file,
-            byte[] buffer,
+            IntPtr file,
+            IntPtr buffer,
             uint bytesToWrite,
-            out uint bytesWritten,
-            ref OVERLAPPED overlapped);
+            IntPtr bytesWritten,
+            IntPtr overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr CreateEventW(
@@ -350,14 +525,14 @@ namespace Enduragent.WindowsHostFalsifier
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetOverlappedResult(
-            SafeFileHandle file,
-            ref OVERLAPPED overlapped,
+            IntPtr file,
+            IntPtr overlapped,
             out uint transferred,
             [MarshalAs(UnmanagedType.Bool)] bool wait);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool CancelIoEx(SafeFileHandle file, ref OVERLAPPED overlapped);
+        private static extern bool CancelIoEx(IntPtr file, IntPtr overlapped);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -462,20 +637,22 @@ namespace Enduragent.WindowsHostFalsifier
             }
         }
 
-        internal static bool Connect(SafeFileHandle pipe, int deadlineMs)
+        internal static bool Connect(
+            SafeFileHandle pipe,
+            int deadlineMs,
+            OperationCancellation cancellation)
         {
             return RunOverlapped(
                 pipe,
-                delegate(ref OVERLAPPED overlapped, out uint immediate)
+                delegate(IntPtr file, IntPtr overlapped)
                 {
-                    immediate = 0;
-                    bool result = ConnectNamedPipe(pipe, ref overlapped);
-                    if (!result && Marshal.GetLastWin32Error() == ErrorPipeConnected) return true;
-                    return result;
+                    return ConnectNamedPipe(file, overlapped);
                 },
                 deadlineMs,
                 "PIPE_CONNECT_FAILED",
-                true) >= 0;
+                true,
+                true,
+                cancellation) >= 0;
         }
 
         internal static void Disconnect(SafeFileHandle pipe)
@@ -508,23 +685,45 @@ namespace Enduragent.WindowsHostFalsifier
             }
             finally
             {
-                RevertToSelf();
+                if (!RevertToSelf())
+                {
+                    Environment.FailFast("named pipe client impersonation could not be reverted");
+                }
             }
         }
 
-        internal static byte[] ReadFrame(SafeFileHandle pipe, int maximumBytes, int deadlineMs)
+        internal static bool IsExpectedStopFailure(NativeFailure failure)
         {
-            byte[] header = ReadExact(pipe, 4, deadlineMs);
+            if (failure.Code == "SESSION_STOPPING") return true;
+            if (!failure.NativeCode.HasValue || failure.NativeCode.Value != ErrorOperationAborted)
+                return false;
+            return failure.Code == "PIPE_CONNECT_FAILED" ||
+                failure.Code == "PIPE_READ_FAILED" ||
+                failure.Code == "PIPE_WRITE_FAILED";
+        }
+
+        internal static byte[] ReadFrame(
+            SafeFileHandle pipe,
+            int maximumBytes,
+            PipeIoDeadline deadline,
+            OperationCancellation cancellation)
+        {
+            byte[] header = ReadExact(pipe, 4, deadline, cancellation);
             int length = (header[0] << 24) | (header[1] << 16) | (header[2] << 8) | header[3];
             if (length <= 0 || length > maximumBytes)
             {
                 throw new NativeFailure("PIPE_FRAME_SIZE", "named pipe frame length is invalid");
             }
 
-            return ReadExact(pipe, length, deadlineMs);
+            return ReadExact(pipe, length, deadline, cancellation);
         }
 
-        internal static void WriteFrame(SafeFileHandle pipe, byte[] payload, int maximumBytes, int deadlineMs)
+        internal static void WriteFrame(
+            SafeFileHandle pipe,
+            byte[] payload,
+            int maximumBytes,
+            PipeIoDeadline deadline,
+            OperationCancellation cancellation)
         {
             if (payload.Length <= 0 || payload.Length > maximumBytes)
             {
@@ -542,36 +741,72 @@ namespace Enduragent.WindowsHostFalsifier
             {
                 byte[] remaining = new byte[framed.Length - offset];
                 Buffer.BlockCopy(framed, offset, remaining, 0, remaining.Length);
-                int transferred = RunOverlapped(
-                    pipe,
-                    delegate(ref OVERLAPPED overlapped, out uint immediate)
-                    {
-                        return WriteFile(pipe, remaining, (uint)remaining.Length, out immediate, ref overlapped);
-                    },
-                    deadlineMs,
-                    "PIPE_WRITE_FAILED",
-                    false);
+                GCHandle pinned = GCHandle.Alloc(remaining, GCHandleType.Pinned);
+                int transferred;
+                try
+                {
+                    transferred = RunOverlapped(
+                        pipe,
+                        delegate(IntPtr file, IntPtr overlapped)
+                        {
+                            return WriteFile(
+                                file,
+                                pinned.AddrOfPinnedObject(),
+                                (uint)remaining.Length,
+                                IntPtr.Zero,
+                                overlapped);
+                        },
+                        deadline.RemainingMilliseconds(),
+                        "PIPE_WRITE_FAILED",
+                        false,
+                        false,
+                        cancellation);
+                }
+                finally
+                {
+                    pinned.Free();
+                }
                 if (transferred <= 0) throw new NativeFailure("PIPE_WRITE_SHORT", "named pipe write made no progress");
                 offset += transferred;
             }
         }
 
-        private static byte[] ReadExact(SafeFileHandle pipe, int length, int deadlineMs)
+        private static byte[] ReadExact(
+            SafeFileHandle pipe,
+            int length,
+            PipeIoDeadline deadline,
+            OperationCancellation cancellation)
         {
             byte[] result = new byte[length];
             int offset = 0;
             while (offset < length)
             {
                 byte[] chunk = new byte[length - offset];
-                int transferred = RunOverlapped(
-                    pipe,
-                    delegate(ref OVERLAPPED overlapped, out uint immediate)
-                    {
-                        return ReadFile(pipe, chunk, (uint)chunk.Length, out immediate, ref overlapped);
-                    },
-                    deadlineMs,
-                    "PIPE_READ_FAILED",
-                    false);
+                GCHandle pinned = GCHandle.Alloc(chunk, GCHandleType.Pinned);
+                int transferred;
+                try
+                {
+                    transferred = RunOverlapped(
+                        pipe,
+                        delegate(IntPtr file, IntPtr overlapped)
+                        {
+                            return ReadFile(
+                                file,
+                                pinned.AddrOfPinnedObject(),
+                                (uint)chunk.Length,
+                                IntPtr.Zero,
+                                overlapped);
+                        },
+                        deadline.RemainingMilliseconds(),
+                        "PIPE_READ_FAILED",
+                        false,
+                        false,
+                        cancellation);
+                }
+                finally
+                {
+                    pinned.Free();
+                }
                 if (transferred <= 0) throw new NativeFailure("PIPE_READ_SHORT", "named pipe read ended early");
                 Buffer.BlockCopy(chunk, 0, result, offset, transferred);
                 offset += transferred;
@@ -580,54 +815,163 @@ namespace Enduragent.WindowsHostFalsifier
             return result;
         }
 
-        private delegate bool OverlappedOperation(ref OVERLAPPED overlapped, out uint immediate);
+        internal delegate bool OverlappedOperation(IntPtr file, IntPtr overlapped);
 
         private static int RunOverlapped(
             SafeFileHandle file,
             OverlappedOperation operation,
             int deadlineMs,
             string failureCode,
-            bool timeoutIsIdle)
+            bool timeoutIsIdle,
+            bool pipeConnectedIsSuccess,
+            OperationCancellation cancellation)
         {
             IntPtr eventHandle = CreateEventW(IntPtr.Zero, true, false, null);
             if (eventHandle == IntPtr.Zero) ThrowWin32(failureCode, "overlapped event creation failed");
+            IntPtr overlappedPointer = IntPtr.Zero;
+            bool fileReferenceAdded = false;
+            bool operationRegistered = false;
+            bool operationStarted = false;
+            bool operationTerminal = false;
             try
             {
-                OVERLAPPED overlapped = new OVERLAPPED { Event = eventHandle };
-                uint immediate;
-                bool completed = operation(ref overlapped, out immediate);
-                if (completed) return (int)immediate;
-                int error = Marshal.GetLastWin32Error();
+                overlappedPointer = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(OVERLAPPED)));
+                Marshal.StructureToPtr(new OVERLAPPED { Event = eventHandle }, overlappedPointer, false);
+                file.DangerousAddRef(ref fileReferenceAdded);
+                IntPtr fileHandle = file.DangerousGetHandle();
+                int error;
+                bool completed;
+                if (cancellation == null)
+                {
+                    try
+                    {
+                        completed = operation(fileHandle, overlappedPointer);
+                        error = completed ? 0 : Marshal.GetLastWin32Error();
+                        operationStarted = true;
+                    }
+                    catch
+                    {
+                        Environment.FailFast("named pipe operation failed during initiation");
+                        throw;
+                    }
+                }
+                else
+                {
+                    completed = cancellation.Start(
+                        fileHandle,
+                        overlappedPointer,
+                        operation,
+                        out error);
+                    operationRegistered = true;
+                    operationStarted = true;
+                }
+                if (completed)
+                {
+                    if (pipeConnectedIsSuccess)
+                    {
+                        operationTerminal = true;
+                        return 0;
+                    }
+                    uint synchronousTransferred;
+                    if (!GetOverlappedResult(
+                        fileHandle,
+                        overlappedPointer,
+                        out synchronousTransferred,
+                        false))
+                    {
+                        int completionError = Marshal.GetLastWin32Error();
+                        if (completionError == ErrorIoIncomplete)
+                        {
+                            Environment.FailFast("synchronous named pipe I/O was not terminal");
+                        }
+                        operationTerminal = true;
+                        throw new NativeFailure(
+                            failureCode,
+                            "overlapped pipe completion failed",
+                            completionError);
+                    }
+                    operationTerminal = true;
+                    return (int)synchronousTransferred;
+                }
+                if (pipeConnectedIsSuccess && error == ErrorPipeConnected)
+                {
+                    operationTerminal = true;
+                    return 0;
+                }
                 if (error != ErrorIoPending)
                 {
+                    operationTerminal = true;
                     throw new NativeFailure(failureCode, "overlapped pipe operation failed", error);
                 }
 
                 uint wait = WaitForSingleObject(eventHandle, (uint)deadlineMs);
                 if (wait == WaitTimeout)
                 {
-                    CancelIoEx(file, ref overlapped);
-                    WaitForSingleObject(eventHandle, 5000);
+                    CancelAndAwaitCompletion(fileHandle, overlappedPointer, eventHandle);
+                    operationTerminal = true;
                     if (timeoutIsIdle) return -1;
                     throw new NativeFailure("PIPE_TIMEOUT", "named pipe operation timed out");
                 }
 
                 if (wait != WaitObject0)
                 {
-                    throw new NativeFailure(failureCode, "overlapped pipe wait failed", Marshal.GetLastWin32Error());
+                    int waitError = Marshal.GetLastWin32Error();
+                    CancelAndAwaitCompletion(fileHandle, overlappedPointer, eventHandle);
+                    operationTerminal = true;
+                    throw new NativeFailure(failureCode, "overlapped pipe wait failed", waitError);
                 }
 
                 uint transferred;
-                if (!GetOverlappedResult(file, ref overlapped, out transferred, false))
+                if (!GetOverlappedResult(fileHandle, overlappedPointer, out transferred, false))
                 {
-                    throw new NativeFailure(failureCode, "overlapped pipe completion failed", Marshal.GetLastWin32Error());
+                    int completionError = Marshal.GetLastWin32Error();
+                    if (completionError == ErrorIoIncomplete)
+                    {
+                        Environment.FailFast("signaled named pipe I/O was not terminal");
+                    }
+                    operationTerminal = true;
+                    throw new NativeFailure(
+                        failureCode,
+                        "overlapped pipe completion failed",
+                        completionError);
                 }
 
+                operationTerminal = true;
                 return (int)transferred;
             }
             finally
             {
+                if (operationStarted && !operationTerminal)
+                {
+                    Environment.FailFast("named pipe I/O escaped before completion");
+                }
+                if (operationRegistered)
+                {
+                    cancellation.Complete(overlappedPointer);
+                }
+                if (fileReferenceAdded) file.DangerousRelease();
+                if (overlappedPointer != IntPtr.Zero) Marshal.FreeHGlobal(overlappedPointer);
                 CloseHandle(eventHandle);
+            }
+        }
+
+        private static void CancelAndAwaitCompletion(
+            IntPtr file,
+            IntPtr overlapped,
+            IntPtr eventHandle)
+        {
+            CancelIoEx(file, overlapped);
+            uint cancellationWait = WaitForSingleObject(eventHandle, CancellationCompletionDeadlineMs);
+            if (cancellationWait != WaitObject0)
+            {
+                Environment.FailFast("named pipe cancellation did not reach a terminal state");
+            }
+
+            uint ignored;
+            if (!GetOverlappedResult(file, overlapped, out ignored, false) &&
+                Marshal.GetLastWin32Error() == ErrorIoIncomplete)
+            {
+                Environment.FailFast("named pipe cancellation completion was not observable");
             }
         }
 
@@ -664,11 +1008,182 @@ namespace Enduragent.WindowsHostFalsifier
             return frame;
         }
 
-        internal static byte[] SerializeServerFrame(string decision)
+        internal static string FreshChallengeHex()
+        {
+            byte[] challenge = new byte[32];
+            try
+            {
+                using (RandomNumberGenerator generator = RandomNumberGenerator.Create())
+                {
+                    generator.GetBytes(challenge);
+                }
+            }
+            catch
+            {
+                throw new NativeFailure("PIPE_CHALLENGE", "named pipe challenge generation failed");
+            }
+            return Protocol.Hex(challenge);
+        }
+
+        internal static byte[] SerializeOfferFrame(string decision, string challengeHex)
         {
             return StrictUtf8.GetBytes(Json.Serialize(Protocol.Object(
                 "protocolVersion", Protocol.Version,
-                "decision", decision)));
+                "phase", "offer",
+                "decision", decision,
+                "challengeHex", challengeHex)));
+        }
+
+        internal static Dictionary<string, object> ParseOfferFrame(byte[] payload)
+        {
+            Dictionary<string, object> offer = ParsePipeObject(
+                payload,
+                "PIPE_OFFER_JSON",
+                "named pipe offer");
+            Protocol.RequireExactKeys(
+                offer,
+                new string[] { "protocolVersion", "phase", "decision", "challengeHex" },
+                "named pipe offer");
+            ValidateProtocolVersion(offer, "PIPE_OFFER_VERSION", "named pipe offer version is invalid");
+            if (Protocol.RequireString(offer, "phase", 1, 16) != "offer")
+                throw new NativeFailure("PIPE_OFFER_PHASE", "named pipe offer phase is invalid");
+            ValidateDecision(Protocol.RequireString(offer, "decision", 1, 32), "PIPE_OFFER_DECISION");
+            Protocol.RequireLowerHex64(offer, "challengeHex");
+            return offer;
+        }
+
+        internal static byte[] SerializeAcknowledgment(
+            string phase,
+            string digestKey,
+            string digest)
+        {
+            return StrictUtf8.GetBytes(Json.Serialize(Protocol.Object(
+                "protocolVersion", Protocol.Version,
+                "phase", phase,
+                digestKey, digest)));
+        }
+
+        internal static void ValidateAcknowledgment(
+            byte[] payload,
+            string expectedPhase,
+            string digestKey,
+            string expectedDigest)
+        {
+            Dictionary<string, object> acknowledgment = ParsePipeObject(
+                payload,
+                "PIPE_ACK_JSON",
+                "named pipe acknowledgment");
+            Protocol.RequireExactKeys(
+                acknowledgment,
+                new string[] { "protocolVersion", "phase", digestKey },
+                "named pipe acknowledgment");
+            ValidateProtocolVersion(
+                acknowledgment,
+                "PIPE_ACK_VERSION",
+                "named pipe acknowledgment version is invalid");
+            if (Protocol.RequireString(acknowledgment, "phase", 1, 16) != expectedPhase)
+                throw new NativeFailure("PIPE_ACK_PHASE", "named pipe acknowledgment phase is invalid");
+            string actualDigest = Protocol.RequireLowerHex64(acknowledgment, digestKey);
+            if (!Protocol.FixedTimeEquals(
+                Protocol.ParseHex(actualDigest),
+                Protocol.ParseHex(expectedDigest)))
+            {
+                throw new NativeFailure("PIPE_ACK_DIGEST", "named pipe acknowledgment digest is invalid");
+            }
+        }
+
+        internal static byte[] SerializeCommitReceipt(
+            string decision,
+            string offerSha256,
+            string challengeHex)
+        {
+            return StrictUtf8.GetBytes(Json.Serialize(Protocol.Object(
+                "protocolVersion", Protocol.Version,
+                "phase", "commit",
+                "decision", decision,
+                "offerSha256", offerSha256,
+                "challengeHex", challengeHex)));
+        }
+
+        internal static Dictionary<string, object> ParseCommitReceipt(
+            byte[] payload,
+            string expectedOfferSha256,
+            string offeredDecision)
+        {
+            Dictionary<string, object> receipt = ParsePipeObject(
+                payload,
+                "PIPE_RECEIPT_JSON",
+                "named pipe commit receipt");
+            Protocol.RequireExactKeys(
+                receipt,
+                new string[] {
+                    "protocolVersion", "phase", "decision", "offerSha256", "challengeHex"
+                },
+                "named pipe commit receipt");
+            ValidateProtocolVersion(
+                receipt,
+                "PIPE_RECEIPT_VERSION",
+                "named pipe commit receipt version is invalid");
+            if (Protocol.RequireString(receipt, "phase", 1, 16) != "commit")
+                throw new NativeFailure("PIPE_RECEIPT_PHASE", "named pipe commit receipt phase is invalid");
+            string decision = Protocol.RequireString(receipt, "decision", 1, 32);
+            ValidateDecision(decision, "PIPE_RECEIPT_DECISION");
+            string actualOfferSha256 = Protocol.RequireLowerHex64(receipt, "offerSha256");
+            Protocol.RequireLowerHex64(receipt, "challengeHex");
+            if (!Protocol.FixedTimeEquals(
+                Protocol.ParseHex(actualOfferSha256),
+                Protocol.ParseHex(expectedOfferSha256)))
+            {
+                throw new NativeFailure("PIPE_RECEIPT_OFFER", "named pipe commit receipt offer is invalid");
+            }
+            if (offeredDecision == "designated")
+            {
+                if (decision != "designated" && decision != "reserved")
+                    throw new NativeFailure("PIPE_RECEIPT_DECISION", "named pipe commit decision transition is invalid");
+            }
+            else if (decision != offeredDecision)
+            {
+                throw new NativeFailure("PIPE_RECEIPT_DECISION", "named pipe commit decision transition is invalid");
+            }
+            return receipt;
+        }
+
+        private static Dictionary<string, object> ParsePipeObject(
+            byte[] payload,
+            string failureCode,
+            string label)
+        {
+            Dictionary<string, object> value;
+            try
+            {
+                value = Json.DeserializeObject(StrictUtf8.GetString(payload)) as Dictionary<string, object>;
+            }
+            catch
+            {
+                throw new NativeFailure(failureCode, label + " is invalid");
+            }
+            if (value == null) throw new NativeFailure(failureCode, label + " must be an object");
+            return value;
+        }
+
+        private static void ValidateProtocolVersion(
+            Dictionary<string, object> value,
+            string failureCode,
+            string message)
+        {
+            if (Protocol.RequireInt(value, "protocolVersion", 1, 1) != Protocol.Version)
+                throw new NativeFailure(failureCode, message);
+        }
+
+        private static void ValidateDecision(string decision, string failureCode)
+        {
+            if (decision != "designated" &&
+                decision != "reserved" &&
+                decision != "collision-refused" &&
+                decision != "refused")
+            {
+                throw new NativeFailure(failureCode, "named pipe decision is invalid");
+            }
         }
 
         internal static Dictionary<string, object> PipeClient(Dictionary<string, object> request)
@@ -714,28 +1229,34 @@ namespace Enduragent.WindowsHostFalsifier
                     "role", role,
                     "bindingHex", binding,
                     "capabilityHex", capability)));
-                WriteFrame(pipe, payload, maximumFrame, readDeadline);
-                byte[] responseBytes = ReadFrame(pipe, maximumFrame, readDeadline);
-                Dictionary<string, object> response;
-                try
-                {
-                    response = Json.DeserializeObject(StrictUtf8.GetString(responseBytes)) as Dictionary<string, object>;
-                }
-                catch
-                {
-                    throw new NativeFailure("PIPE_RESPONSE_JSON", "named pipe response is invalid");
-                }
-
-                if (response == null) throw new NativeFailure("PIPE_RESPONSE_JSON", "named pipe response must be an object");
-                Protocol.RequireExactKeys(response, new string[] { "protocolVersion", "decision" }, "named pipe response");
-                if (Protocol.RequireInt(response, "protocolVersion", 1, 1) != Protocol.Version)
-                    throw new NativeFailure("PIPE_RESPONSE_VERSION", "named pipe response version is invalid");
-                string decision = Protocol.RequireString(response, "decision", 1, 32);
-                if (decision != "designated" && decision != "reserved" && decision != "collision-refused" && decision != "refused")
-                    throw new NativeFailure("PIPE_RESPONSE_DECISION", "named pipe decision is invalid");
+                PipeIoDeadline ioDeadline = new PipeIoDeadline(readDeadline);
+                WriteFrame(pipe, payload, maximumFrame, ioDeadline, null);
+                byte[] offerBytes = ReadFrame(pipe, maximumFrame, ioDeadline, null);
+                Dictionary<string, object> offer = ParseOfferFrame(offerBytes);
+                string offeredDecision = Protocol.RequireString(offer, "decision", 1, 32);
+                string offerSha256 = Protocol.Sha256(offerBytes);
+                WriteFrame(
+                    pipe,
+                    SerializeAcknowledgment("offer-ack", "offerSha256", offerSha256),
+                    maximumFrame,
+                    ioDeadline,
+                    null);
+                byte[] receiptBytes = ReadFrame(pipe, maximumFrame, ioDeadline, null);
+                Dictionary<string, object> receipt = ParseCommitReceipt(
+                    receiptBytes,
+                    offerSha256,
+                    offeredDecision);
+                string decision = Protocol.RequireString(receipt, "decision", 1, 32);
+                string responseSha256 = Protocol.Sha256(receiptBytes);
+                WriteFrame(
+                    pipe,
+                    SerializeAcknowledgment("commit-ack", "receiptSha256", responseSha256),
+                    maximumFrame,
+                    ioDeadline,
+                    null);
                 return Protocol.Object(
                     "decision", decision,
-                    "responseSha256", Protocol.Sha256(responseBytes));
+                    "responseSha256", responseSha256);
             }
         }
 

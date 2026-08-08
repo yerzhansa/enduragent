@@ -14,6 +14,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createConnection, type Socket } from "node:net";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -490,6 +491,84 @@ function framedDigest(...fields: readonly string[]) {
     hash.update(bytes);
   }
   return hash.digest("hex");
+}
+
+function encodePipeFrame(value: unknown) {
+  const payload = Buffer.from(JSON.stringify(value), "utf8");
+  const frame = Buffer.allocUnsafe(payload.length + 4);
+  frame.writeUInt32BE(payload.length);
+  payload.copy(frame, 4);
+  return frame;
+}
+
+async function connectRawPipe(pipeName: string) {
+  const socket = createConnection(pipeName);
+  await new Promise<void>((resolve, reject) => {
+    const onConnect = () => {
+      socket.off("error", onError);
+      resolve();
+    };
+    const onError = (error: Error) => {
+      socket.off("connect", onConnect);
+      reject(error);
+    };
+    socket.once("connect", onConnect);
+    socket.once("error", onError);
+  });
+  socket.on("error", () => undefined);
+  return socket;
+}
+
+async function writePipeFrame(socket: Socket, value: unknown) {
+  await new Promise<void>((resolve, reject) => {
+    socket.write(encodePipeFrame(value), (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+async function readPipeBytes(socket: Socket, length: number) {
+  const chunks: Buffer[] = [];
+  let received = 0;
+  while (received < length) {
+    const chunk = socket.read(length - received) as Buffer | null;
+    if (chunk !== null) {
+      chunks.push(chunk);
+      received += chunk.length;
+      continue;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        socket.off("readable", onReadable);
+        socket.off("end", onEnd);
+        socket.off("error", onError);
+      };
+      const onReadable = () => {
+        cleanup();
+        resolve();
+      };
+      const onEnd = () => {
+        cleanup();
+        reject(new Error("named pipe ended before the test frame was complete"));
+      };
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      socket.once("readable", onReadable);
+      socket.once("end", onEnd);
+      socket.once("error", onError);
+    });
+  }
+  return Buffer.concat(chunks, length);
+}
+
+async function readPipeFrame(socket: Socket, maximumBytes: number) {
+  const header = await readPipeBytes(socket, 4);
+  const length = header.readUInt32BE();
+  if (length === 0 || length > maximumBytes) throw new Error("invalid named pipe test frame size");
+  return readPipeBytes(socket, length);
 }
 
 function canonicalJson(value: unknown): unknown {
@@ -1408,6 +1487,24 @@ describe("Windows host native falsifier client", () => {
     expect(programSource).toContain("public static int Main(string[] args)");
   });
 
+  it("binds pipe impersonation to a completed request read and fails closed on reversion", async () => {
+    const source = await readFile(
+      new URL("../scripts/windows-host-falsifier/native/NamedPipe.cs", import.meta.url),
+      "utf8",
+    );
+    const readIndex = source.indexOf("byte[] payload = NamedPipeProbe.ReadFrame(");
+    const impersonationIndex = source.indexOf(
+      "string clientSid = NamedPipeProbe.ImpersonatedClientSid(pipe);",
+    );
+
+    expect(readIndex).toBeGreaterThan(-1);
+    expect(impersonationIndex).toBeGreaterThan(readIndex);
+    expect(source).toContain("if (!RevertToSelf())");
+    expect(source).toContain(
+      'Environment.FailFast("named pipe client impersonation could not be reverted")',
+    );
+  });
+
   it("describes compiler frame encoding without retaining stdout content", () => {
     const utf16Le = Buffer.concat([
       Buffer.from([0xff, 0xfe]),
@@ -1958,17 +2055,26 @@ describe("Windows host native falsifier client", () => {
           { operationId: "native-step-signed-plan-01" },
         ),
       ).rejects.toMatchObject({ code: "NATIVE_OPERATION_ID_REUSE" });
-      await expect(
-        channel.execute("pipe-name-derive", {
-          appId: "icu.enduragent.desktop",
-          canonicalHomeId: "home-B",
-        }),
-      ).resolves.toMatchObject({
+      const noAcknowledgmentPipe = await channel.execute("pipe-name-derive", {
+        appId: "icu.enduragent.desktop",
+        canonicalHomeId: "home-B",
+      });
+      expect(noAcknowledgmentPipe).toMatchObject({
         result: {
           pipeName:
             "\\\\.\\pipe\\Enduragent-upgrade-v1-e5bd25ef024958a42053b684b05b3bd185e0642985aebcb863af6ea312678112",
         },
       });
+      const noFinalAcknowledgmentPipe = await channel.execute("pipe-name-derive", {
+        appId: "icu.enduragent.desktop",
+        canonicalHomeId: "home-C",
+      });
+      expect(noFinalAcknowledgmentPipe.result.pipeName).toHaveLength(95);
+      const cancelledOwnerPipe = await channel.execute("pipe-name-derive", {
+        appId: "icu.enduragent.desktop",
+        canonicalHomeId: "home-D",
+      });
+      expect(cancelledOwnerPipe.result.pipeName).toHaveLength(95);
       const capabilityHex = "ab".repeat(32);
       const pipeBindingHex = "cd".repeat(32);
       const pipeRequest = {
@@ -1995,6 +2101,139 @@ describe("Windows host native falsifier client", () => {
       await expect(channel.control(pipeOwner.result.sessionId, "close")).resolves.toMatchObject({
         result: { state: "closed" },
       });
+
+      const cancelledOwner = await channel.execute("pipe-owner", {
+        ...pipeRequest,
+        pipeName: cancelledOwnerPipe.result.pipeName,
+      });
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "ready",
+        sessionId: cancelledOwner.result.sessionId,
+      });
+      await expect(
+        channel.control(cancelledOwner.result.sessionId, "close"),
+      ).resolves.toMatchObject({
+        result: { state: "closed" },
+      });
+
+      const noAcknowledgmentRequest = {
+        ...pipeRequest,
+        pipeName: noAcknowledgmentPipe.result.pipeName,
+        readDeadlineMs: 1000,
+      };
+      const noAcknowledgmentOwner = await channel.execute("pipe-owner", noAcknowledgmentRequest);
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "ready",
+        sessionId: noAcknowledgmentOwner.result.sessionId,
+      });
+      const noAcknowledgmentClient = await connectRawPipe(noAcknowledgmentRequest.pipeName);
+      await writePipeFrame(noAcknowledgmentClient, {
+        protocolVersion: NATIVE_PROTOCOL_VERSION,
+        role: "successor",
+        bindingHex: pipeBindingHex,
+        capabilityHex,
+      });
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "client-error",
+        sessionId: noAcknowledgmentOwner.result.sessionId,
+        data: { code: "PIPE_TIMEOUT" },
+      });
+      await expect(
+        channel.control(noAcknowledgmentOwner.result.sessionId, "query"),
+      ).resolves.toMatchObject({ result: { capabilityConsumed: false } });
+      noAcknowledgmentClient.destroy();
+      await expect(
+        channel.execute("pipe-client", { ...noAcknowledgmentRequest, role: "successor" }),
+      ).resolves.toMatchObject({ result: { decision: "designated" } });
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "client-decision",
+        sessionId: noAcknowledgmentOwner.result.sessionId,
+        data: { decision: "designated", reasonCode: "CAPABILITY_CONSUMED" },
+      });
+      await expect(
+        channel.control(noAcknowledgmentOwner.result.sessionId, "close"),
+      ).resolves.toMatchObject({ result: { state: "closed" } });
+
+      const noFinalAcknowledgmentRequest = {
+        ...pipeRequest,
+        pipeName: noFinalAcknowledgmentPipe.result.pipeName,
+        readDeadlineMs: 1000,
+      };
+      const noFinalAcknowledgmentOwner = await channel.execute(
+        "pipe-owner",
+        noFinalAcknowledgmentRequest,
+      );
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "ready",
+        sessionId: noFinalAcknowledgmentOwner.result.sessionId,
+      });
+      const noFinalAcknowledgmentClient = await connectRawPipe(
+        noFinalAcknowledgmentRequest.pipeName,
+      );
+      await writePipeFrame(noFinalAcknowledgmentClient, {
+        protocolVersion: NATIVE_PROTOCOL_VERSION,
+        role: "successor",
+        bindingHex: pipeBindingHex,
+        capabilityHex,
+      });
+      const offerBytes = await readPipeFrame(
+        noFinalAcknowledgmentClient,
+        noFinalAcknowledgmentRequest.maxFrameBytes,
+      );
+      const offer = JSON.parse(offerBytes.toString("utf8")) as Record<string, unknown>;
+      const offerSha256 = createHash("sha256").update(offerBytes).digest("hex");
+      await writePipeFrame(noFinalAcknowledgmentClient, {
+        protocolVersion: NATIVE_PROTOCOL_VERSION,
+        phase: "offer-ack",
+        offerSha256,
+      });
+      expect(Object.keys(offer).sort()).toEqual(
+        ["challengeHex", "decision", "phase", "protocolVersion"].sort(),
+      );
+      expect(offer).toMatchObject({
+        protocolVersion: NATIVE_PROTOCOL_VERSION,
+        phase: "offer",
+        decision: "designated",
+        challengeHex: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      });
+      const receiptBytes = await readPipeFrame(
+        noFinalAcknowledgmentClient,
+        noFinalAcknowledgmentRequest.maxFrameBytes,
+      );
+      const receipt = JSON.parse(receiptBytes.toString("utf8")) as Record<string, unknown>;
+      expect(Object.keys(receipt).sort()).toEqual(
+        ["challengeHex", "decision", "offerSha256", "phase", "protocolVersion"].sort(),
+      );
+      expect(receipt).toMatchObject({
+        protocolVersion: NATIVE_PROTOCOL_VERSION,
+        phase: "commit",
+        decision: "designated",
+        offerSha256,
+        challengeHex: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      });
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "client-error",
+        sessionId: noFinalAcknowledgmentOwner.result.sessionId,
+        data: { code: "PIPE_TIMEOUT" },
+      });
+      await expect(
+        channel.control(noFinalAcknowledgmentOwner.result.sessionId, "query"),
+      ).resolves.toMatchObject({ result: { capabilityConsumed: true } });
+      noFinalAcknowledgmentClient.destroy();
+      await expect(
+        channel.execute("pipe-client", {
+          ...noFinalAcknowledgmentRequest,
+          role: "successor",
+        }),
+      ).resolves.toMatchObject({ result: { decision: "reserved" } });
+      await expect(channel.nextEvent()).resolves.toMatchObject({
+        event: "client-decision",
+        sessionId: noFinalAcknowledgmentOwner.result.sessionId,
+        data: { decision: "reserved", reasonCode: "CAPABILITY_ALREADY_CONSUMED" },
+      });
+      await expect(
+        channel.control(noFinalAcknowledgmentOwner.result.sessionId, "close"),
+      ).resolves.toMatchObject({ result: { state: "closed" } });
 
       let writableImageHandle;
       let writeOpenError;
@@ -2094,7 +2333,7 @@ describe("Windows host native falsifier client", () => {
           record.kind === "command" &&
           (record.command === "pipe-owner" || record.command === "pipe-client"),
       );
-      expect(pipeRecords).toHaveLength(2);
+      expect(pipeRecords).toHaveLength(7);
       for (const record of pipeRecords) {
         if (record.kind !== "command") throw new Error("expected pipe command record");
         expect(record.requestFrameVerification).toBe("native-receipt");
