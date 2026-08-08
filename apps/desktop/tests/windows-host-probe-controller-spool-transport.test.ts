@@ -923,6 +923,8 @@ async function interruptedNativePlanFixture(failBeforeWriteIndex: number) {
   return { ...fixture, failure };
 }
 
+const nativePlanRetentionBoundaryIndexes = Array.from({ length: 14 }, (_, index) => index);
+
 function hardCutInputs(loaded: LoadedProbeBootstrap, evidenceRoot: string, repetition = 3) {
   const workItem = PROBE_RUN_PLAN.work.find(
     ({ rowId, variantId, environmentId, pathProfileId }) =>
@@ -2102,17 +2104,19 @@ describe("probe controller spool transport", () => {
     ).resolves.toMatchObject({ plan: fixture.inputs.plan });
   });
 
-  it("publishes the action commit last and repairs every interrupted boundary by exact replay", async () => {
-    const baseline = await retainedNativePlanFixture();
-    const commitPath = probeControllerActionCommitMarkerPath({
-      campaignRunId: baseline.inputs.command.campaignRunId,
-      attemptId: baseline.inputs.command.attemptId,
-      workId: baseline.inputs.command.workId,
-      producerActionId: baseline.inputs.producer.actionId,
-    });
-    expect(baseline.evidence.writes.at(-1)).toBe(commitPath);
+  it.each(nativePlanRetentionBoundaryIndexes)(
+    "publishes the action commit last and repairs interrupted boundary %i by exact replay",
+    async (index) => {
+      const baseline = await retainedNativePlanFixture();
+      const commitPath = probeControllerActionCommitMarkerPath({
+        campaignRunId: baseline.inputs.command.campaignRunId,
+        attemptId: baseline.inputs.command.attemptId,
+        workId: baseline.inputs.command.workId,
+        producerActionId: baseline.inputs.producer.actionId,
+      });
+      expect(baseline.evidence.writes).toHaveLength(nativePlanRetentionBoundaryIndexes.length);
+      expect(baseline.evidence.writes.at(-1)).toBe(commitPath);
 
-    for (let index = 0; index < baseline.evidence.writes.length; index += 1) {
       const interrupted = await interruptedNativePlanFixture(index);
       expect(interrupted.evidence.files.has(commitPath)).toBe(false);
       await expect(
@@ -2129,8 +2133,8 @@ describe("probe controller spool transport", () => {
       expect(interrupted.exchange).toHaveBeenCalledTimes(2);
       expect(interrupted.evidence.files.has(commitPath)).toBe(true);
       expect(interrupted.evidence.writes.at(-1)).toBe(commitPath);
-    }
-  });
+    },
+  );
 
   it("rejects a native plan with a noncanonical consumer operation before action commit", async () => {
     const fixture = await nativePlanFixtureHarness();
