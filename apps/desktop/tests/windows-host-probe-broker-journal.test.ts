@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   deriveProbeBrokerJournalRecoverySha256,
   deriveProbeBrokerJournalTransitionSha256,
+  openProbeBrokerJournal,
   openProbeBrokerJournalStorageForTest,
   validateProbeBrokerJournalRecovery,
   validateProbeBrokerJournalTransition,
@@ -23,6 +24,12 @@ import type {
   ProbeBrokerJournalAuthority,
   ProbeBrokerJournalState,
 } from "../scripts/windows-host-falsifier/broker/journal.mjs";
+import {
+  createProbeBrokerEnrollment,
+  createProbePreparedBrokerEnrollment,
+  deriveProbePreparedBrokerEnrollmentDigest,
+} from "../scripts/windows-host-falsifier/broker/mailbox-protocol.mjs";
+import type { ProbePreparedBrokerEnrollment } from "../scripts/windows-host-falsifier/broker/mailbox-protocol.mjs";
 import {
   createProbeBrokerDriverValidationReceipt,
   createProbeBrokerResult,
@@ -71,7 +78,78 @@ function artifact(label: string, bytes = 128) {
   };
 }
 
-function createTask(options: TaskOptions = {}) {
+const preparedEnrollmentByTask = new WeakMap<ProbeBrokerTask, ProbePreparedBrokerEnrollment>();
+type JournalLeaseCallbacks = {
+  revalidate: () =>
+    | ReturnType<typeof executionAuthoritySnapshot>
+    | Promise<ReturnType<typeof executionAuthoritySnapshot>>;
+  release: () => void | Promise<void>;
+};
+const activeJournalLeaseByEnrollment = new Map<string, ProbeBrokerExecutionAuthorityLease>();
+
+function createPreparedJournalEnrollment(root: string) {
+  const enrollmentRoot = `${root[0]?.toUpperCase()}${root.slice(1)}`;
+  const brokerInstanceId = "journal-primary-broker";
+  const processSidSha256 = sha256("journal-primary-user-sid");
+  const volumeIdentity = sha256(`journal-volume:${enrollmentRoot.slice(0, 2).toUpperCase()}`);
+  const enrollment = createProbeBrokerEnrollment({
+    environmentId: "win11-current",
+    brokerRole: "primary-standard-user",
+    brokerInstanceId,
+    mailboxRoot: `${enrollmentRoot}-mailbox`,
+    mailboxAclSha256: sha256("journal-mailbox-acl"),
+    journalRoot: enrollmentRoot,
+    journalRootAclSha256: sha256(`${brokerInstanceId}-journal-root-acl`),
+    journalDatabaseAclSha256: sha256(`${brokerInstanceId}-journal-database-acl`),
+    processSidSha256,
+    peerAuthoritySha256: null,
+  });
+  return createProbePreparedBrokerEnrollment(enrollment, {
+    schemaVersion: 1,
+    kind: "windows-host-probe-broker-mailbox-observation",
+    brokerEnrollmentSha256: enrollment.brokerEnrollmentSha256,
+    environmentId: enrollment.environmentId,
+    brokerRole: enrollment.brokerRole,
+    brokerInstanceId: enrollment.brokerInstanceId,
+    mailboxRoot: enrollment.mailboxRoot,
+    mailboxSecurityProfile: enrollment.mailboxSecurityProfile,
+    mailboxAclSha256: enrollment.mailboxAclSha256,
+    mailboxOwnerSidSha256: processSidSha256,
+    processSidSha256,
+    peerAuthoritySha256: null,
+    mailboxRootObjectIdentitySha256: sha256(`journal-mailbox-object:${enrollmentRoot}`),
+    mailboxVolumeIdSha256: volumeIdentity,
+    mailboxTransportIdentitySha256: sha256(`journal-mailbox-transport:${enrollmentRoot}`),
+    mailboxFileSystem: "NTFS",
+    mailboxDriveType: "fixed",
+    mailboxLocalAbsolute: true,
+    mailboxNetworkPath: false,
+    mailboxReparsePoint: false,
+    journalRoot: enrollment.journalRoot,
+    journalSecurityProfile: enrollment.journalSecurityProfile,
+    journalRootPathSha256: sha256(`journal-root-path:${enrollmentRoot}`),
+    journalRootObjectIdentitySha256: sha256(`journal-root-object:${enrollmentRoot}`),
+    journalVolumeIdSha256: volumeIdentity,
+    journalRootOwnerSidSha256: processSidSha256,
+    journalRootAclSha256: enrollment.journalRootAclSha256,
+    journalDatabasePathSha256: sha256(`journal-database-path:${enrollmentRoot}`),
+    journalDatabaseObjectIdentitySha256: sha256(`journal-database-object:${enrollmentRoot}`),
+    journalDatabaseOwnerSidSha256: processSidSha256,
+    journalDatabaseAclSha256: enrollment.journalDatabaseAclSha256,
+    journalTransportIdentitySha256: sha256(`journal-transport:${enrollmentRoot}`),
+    journalFileSystem: "NTFS",
+    journalDriveType: "fixed",
+    journalLocalAbsolute: true,
+    journalNetworkPath: false,
+    journalReparsePoint: false,
+    bootIdSha256: sha256("journal-boot"),
+    runnerSessionIdSha256: sha256("journal-runner-session"),
+    nativeHelperSha256: sha256("journal-native-helper"),
+    nativeObservationSha256: sha256(`journal-native-observation:${enrollmentRoot}`),
+  });
+}
+
+function createTask(options: TaskOptions = {}, preparedEnrollment?: ProbePreparedBrokerEnrollment) {
   const definition = getProbeScenarioDefinition(
     options.rowId ?? "F-01",
     options.variantId ?? "f01-ordinary-absolute-path",
@@ -132,7 +210,7 @@ function createTask(options: TaskOptions = {}) {
   });
   const requestArtifact = artifact(`journal-driver-request:${attemptId}:${plannedAction.actionId}`);
 
-  return createProbeBrokerTask(
+  const task = createProbeBrokerTask(
     {
       taskId: options.taskId ?? `journal-task-${attemptId}`,
       controllerIdentitySha256: sha256("journal-controller-identity"),
@@ -160,7 +238,8 @@ function createTask(options: TaskOptions = {}) {
       execution,
       actorSelectorInput: null,
       expectedActor,
-      brokerEnrollmentSha256: sha256("journal-broker-enrollment"),
+      brokerEnrollmentSha256:
+        preparedEnrollment?.brokerEnrollmentSha256 ?? sha256("journal-broker-enrollment"),
       brokerInstanceId: "journal-primary-broker",
       brokerRole: "primary-standard-user",
       mailboxAclSha256: sha256("journal-mailbox-acl"),
@@ -180,6 +259,14 @@ function createTask(options: TaskOptions = {}) {
     },
     (digest) => sign(null, digest, controllerKeys.privateKey),
   );
+  if (preparedEnrollment !== undefined) preparedEnrollmentByTask.set(task, preparedEnrollment);
+  return task;
+}
+
+function createJournalTask(root: string, options: TaskOptions = {}) {
+  return process.platform === "win32"
+    ? createTask(options, createPreparedJournalEnrollment(root))
+    : createTask(options);
 }
 
 function authorityFor(task: ProbeBrokerTask): ProbeBrokerJournalAuthority {
@@ -217,8 +304,9 @@ function authorityFor(task: ProbeBrokerTask): ProbeBrokerJournalAuthority {
 
 function executionAuthoritySnapshot(
   task: ProbeBrokerTask,
-  journalRoot = "/tmp/journal-placeholder",
+  journalRoot = preparedEnrollmentByTask.get(task)?.journalRoot ?? "/tmp/journal-placeholder",
 ) {
+  const preparedEnrollment = preparedEnrollmentByTask.get(task);
   return {
     schemaVersion: 1 as const,
     kind: "windows-host-probe-broker-execution-authority" as const,
@@ -235,31 +323,61 @@ function executionAuthoritySnapshot(
     producerActionId: task.action.producerActionId,
     driverId: task.driverRequest.driverId,
     brokerEnrollmentSha256: task.brokerEnrollmentSha256,
-    preparedBrokerEnrollmentSha256: sha256(`prepared:${task.brokerEnrollmentSha256}`),
+    preparedBrokerEnrollmentSha256:
+      preparedEnrollment?.preparedBrokerEnrollmentSha256 ??
+      sha256(`prepared:${task.brokerEnrollmentSha256}`),
     brokerInstanceId: task.brokerInstanceId,
     brokerRole: task.brokerRole,
-    mailboxRootObjectIdentitySha256: sha256(`${task.brokerInstanceId}-mailbox-object`),
-    mailboxVolumeIdSha256: sha256(`${task.brokerInstanceId}-mailbox-volume`),
-    mailboxTransportIdentitySha256: sha256(`${task.brokerInstanceId}-mailbox-transport`),
+    mailboxRootObjectIdentitySha256:
+      preparedEnrollment?.mailboxRootObjectIdentitySha256 ??
+      sha256(`${task.brokerInstanceId}-mailbox-object`),
+    mailboxVolumeIdSha256:
+      preparedEnrollment?.mailboxVolumeIdSha256 ??
+      sha256(`${task.brokerInstanceId}-mailbox-volume`),
+    mailboxTransportIdentitySha256:
+      preparedEnrollment?.mailboxTransportIdentitySha256 ??
+      sha256(`${task.brokerInstanceId}-mailbox-transport`),
     mailboxAclSha256: task.mailboxAclSha256,
-    mailboxOwnerSidSha256: task.processSidSha256,
+    mailboxOwnerSidSha256: preparedEnrollment?.mailboxOwnerSidSha256 ?? task.processSidSha256,
     journalRoot,
     journalSecurityProfile: "role-separated-append-only-journal-v1" as const,
-    journalRootPathSha256: sha256(`${task.brokerInstanceId}-journal-root-path`),
-    journalRootObjectIdentitySha256: sha256(`${task.brokerInstanceId}-journal-root-object`),
-    journalVolumeIdSha256: sha256(`${task.brokerInstanceId}-journal-volume`),
-    journalRootOwnerSidSha256: sha256(`${task.brokerInstanceId}-journal-root-owner`),
-    journalRootAclSha256: sha256(`${task.brokerInstanceId}-journal-root-acl`),
-    journalDatabasePathSha256: sha256(`${task.brokerInstanceId}-journal-database-path`),
-    journalDatabaseObjectIdentitySha256: sha256(`${task.brokerInstanceId}-journal-database-object`),
-    journalDatabaseOwnerSidSha256: sha256(`${task.brokerInstanceId}-journal-database-owner`),
-    journalDatabaseAclSha256: sha256(`${task.brokerInstanceId}-journal-database-acl`),
-    journalTransportIdentitySha256: sha256(`${task.brokerInstanceId}-journal-transport`),
+    journalRootPathSha256:
+      preparedEnrollment?.journalRootPathSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-root-path`),
+    journalRootObjectIdentitySha256:
+      preparedEnrollment?.journalRootObjectIdentitySha256 ??
+      sha256(`${task.brokerInstanceId}-journal-root-object`),
+    journalVolumeIdSha256:
+      preparedEnrollment?.journalVolumeIdSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-volume`),
+    journalRootOwnerSidSha256:
+      preparedEnrollment?.journalRootOwnerSidSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-root-owner`),
+    journalRootAclSha256:
+      preparedEnrollment?.journalRootAclSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-root-acl`),
+    journalDatabasePathSha256:
+      preparedEnrollment?.journalDatabasePathSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-database-path`),
+    journalDatabaseObjectIdentitySha256:
+      preparedEnrollment?.journalDatabaseObjectIdentitySha256 ??
+      sha256(`${task.brokerInstanceId}-journal-database-object`),
+    journalDatabaseOwnerSidSha256:
+      preparedEnrollment?.journalDatabaseOwnerSidSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-database-owner`),
+    journalDatabaseAclSha256:
+      preparedEnrollment?.journalDatabaseAclSha256 ??
+      sha256(`${task.brokerInstanceId}-journal-database-acl`),
+    journalTransportIdentitySha256:
+      preparedEnrollment?.journalTransportIdentitySha256 ??
+      sha256(`${task.brokerInstanceId}-journal-transport`),
     processSidSha256: task.processSidSha256,
     bootIdSha256: task.bootIdSha256,
     runnerSessionIdSha256: task.runnerSessionIdSha256,
-    nativeObservationSha256: sha256(`${task.brokerInstanceId}-native-observation`),
-    peerAuthoritySha256: null,
+    nativeObservationSha256:
+      preparedEnrollment?.nativeObservationSha256 ??
+      sha256(`${task.brokerInstanceId}-native-observation`),
+    peerAuthoritySha256: preparedEnrollment?.peerAuthoritySha256 ?? null,
   };
 }
 
@@ -267,6 +385,7 @@ async function acceptanceOptions(
   task: ProbeBrokerTask,
   verificationInstant = new Date("2098-12-31T23:59:59.000Z"),
   overrides: {
+    readonly authority?: ReturnType<typeof executionAuthoritySnapshot>;
     readonly revalidate?: () =>
       | ReturnType<typeof executionAuthoritySnapshot>
       | Promise<ReturnType<typeof executionAuthoritySnapshot>>;
@@ -278,12 +397,24 @@ async function acceptanceOptions(
       | Promise<ReturnType<typeof createProbeBrokerDriverValidationReceipt>>;
   } = {},
 ) {
-  const authority = executionAuthoritySnapshot(task);
-  const executionAuthorityLease = await acquireProbeBrokerExecutionAuthorityLease({
-    acquire: async () => authority,
-    revalidate: overrides.revalidate ?? (async () => authority),
-    release: overrides.release ?? (async () => {}),
-  });
+  const authority = overrides.authority ?? executionAuthoritySnapshot(task);
+  let executionAuthorityLease: ProbeBrokerExecutionAuthorityLease;
+  if (process.platform === "win32") {
+    const capturedLease = activeJournalLeaseByEnrollment.get(task.brokerEnrollmentSha256);
+    if (capturedLease === undefined) {
+      throw new Error("a prepared Windows journal must be open before accepting a task");
+    }
+    if (overrides.revalidate !== undefined || overrides.release !== undefined) {
+      throw new Error("Windows journal lease callbacks must be installed before opening storage");
+    }
+    executionAuthorityLease = capturedLease;
+  } else {
+    executionAuthorityLease = await acquireProbeBrokerExecutionAuthorityLease({
+      acquire: async () => authority,
+      revalidate: overrides.revalidate ?? (async () => authority),
+      release: overrides.release ?? (async () => {}),
+    });
+  }
   return {
     controllerPublicKeyBytes,
     executionAuthorityLease,
@@ -343,19 +474,39 @@ async function createRoot() {
 async function openJournalWithSnapshot(
   root: string,
   snapshot: ReturnType<typeof executionAuthoritySnapshot>,
+  preparedEnrollment?: ProbePreparedBrokerEnrollment,
+  leaseCallbacks: Partial<JournalLeaseCallbacks> = {},
 ) {
   const executionAuthorityLease = await acquireProbeBrokerExecutionAuthorityLease({
     acquire: async () => snapshot,
-    revalidate: async () => snapshot,
-    release: async () => {},
+    revalidate: leaseCallbacks.revalidate ?? (async () => snapshot),
+    release: leaseCallbacks.release ?? (async () => {}),
   });
   try {
-    const journal = await openProbeBrokerJournalStorageForTest({
-      root,
-      executionAuthorityLease,
-    });
+    let journal: ProbeBrokerJournal;
+    if (process.platform === "win32") {
+      if (preparedEnrollment === undefined) {
+        throw new Error("Windows journal tests require a prepared enrollment");
+      }
+      journal = await openProbeBrokerJournal({
+        root,
+        preparedBrokerEnrollment: preparedEnrollment,
+        executionAuthorityLease,
+      });
+    } else {
+      journal = await openProbeBrokerJournalStorageForTest({
+        root,
+        executionAuthorityLease,
+      });
+    }
     journals.push(journal);
     journalAuthorityLeases.push(executionAuthorityLease);
+    if (preparedEnrollment !== undefined) {
+      activeJournalLeaseByEnrollment.set(
+        preparedEnrollment.brokerEnrollmentSha256,
+        executionAuthorityLease,
+      );
+    }
     return journal;
   } catch (error) {
     await releaseProbeBrokerExecutionAuthorityLease(executionAuthorityLease);
@@ -363,8 +514,17 @@ async function openJournalWithSnapshot(
   }
 }
 
-async function openJournal(root: string, task: ProbeBrokerTask) {
-  return openJournalWithSnapshot(root, executionAuthoritySnapshot(task, root));
+async function openJournal(
+  root: string,
+  task: ProbeBrokerTask,
+  leaseCallbacks: Partial<JournalLeaseCallbacks> = {},
+) {
+  return openJournalWithSnapshot(
+    root,
+    executionAuthoritySnapshot(task, root),
+    preparedEnrollmentByTask.get(task),
+    leaseCallbacks,
+  );
 }
 
 async function reopenJournalForTest(root: string, task: ProbeBrokerTask) {
@@ -379,12 +539,89 @@ afterEach(async () => {
       .map((lease) => releaseProbeBrokerExecutionAuthorityLease(lease)),
   );
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  activeJournalLeaseByEnrollment.clear();
+});
+
+describe("Windows host probe broker journal test storage", () => {
+  it.runIf(process.platform === "win32")(
+    "refuses the ACL-unprepared storage harness on Windows",
+    async () => {
+      const task = createTask();
+      const root = await createRoot();
+      const snapshot = executionAuthoritySnapshot(task, root);
+      const executionAuthorityLease = await acquireProbeBrokerExecutionAuthorityLease({
+        acquire: async () => snapshot,
+        revalidate: async () => snapshot,
+        release: async () => {},
+      });
+
+      try {
+        await expect(
+          openProbeBrokerJournalStorageForTest({ root, executionAuthorityLease }),
+        ).rejects.toMatchObject({ code: "BROKER_JOURNAL_TEST_ONLY" });
+      } finally {
+        await releaseProbeBrokerExecutionAuthorityLease(executionAuthorityLease);
+      }
+    },
+  );
 });
 
 describe("Windows host probe broker journal", () => {
-  it("pins WAL/FULL storage and every authority field in closed metadata", async () => {
-    const task = createTask();
+  it.runIf(process.platform === "win32")(
+    "rejects prepared authority drift and another acceptance lease",
+    async () => {
+      const root = await createRoot();
+      const task = createJournalTask(root);
+      const preparedEnrollment = preparedEnrollmentByTask.get(task)!;
+      const snapshot = executionAuthoritySnapshot(task, root);
+      const driftFields = {
+        ...preparedEnrollment,
+        nativeObservationSha256: sha256("drifted-prepared-native-observation"),
+      };
+      const driftedEnrollment = {
+        ...driftFields,
+        preparedBrokerEnrollmentSha256: deriveProbePreparedBrokerEnrollmentDigest(driftFields),
+      };
+      const driftLease = await acquireProbeBrokerExecutionAuthorityLease({
+        acquire: async () => snapshot,
+        revalidate: async () => snapshot,
+        release: async () => {},
+      });
+      try {
+        await expect(
+          openProbeBrokerJournal({
+            root,
+            preparedBrokerEnrollment: driftedEnrollment,
+            executionAuthorityLease: driftLease,
+          }),
+        ).rejects.toMatchObject({ code: "BROKER_JOURNAL_LIVE_AUTHORITY" });
+      } finally {
+        await releaseProbeBrokerExecutionAuthorityLease(driftLease);
+      }
+
+      const journal = await openJournal(root, task);
+      const anotherLease = await acquireProbeBrokerExecutionAuthorityLease({
+        acquire: async () => snapshot,
+        revalidate: async () => snapshot,
+        release: async () => {},
+      });
+      const options = await acceptanceOptions(task);
+      try {
+        await expect(
+          journal.acceptTask(task, {
+            ...options,
+            executionAuthorityLease: anotherLease,
+          }),
+        ).rejects.toMatchObject({ code: "BROKER_JOURNAL_LIVE_AUTHORITY" });
+      } finally {
+        await releaseProbeBrokerExecutionAuthorityLease(anotherLease);
+      }
+    },
+  );
+
+  it("pins WAL/FULL storage and rejects copied authority metadata", async () => {
     const root = await createRoot();
+    const task = createJournalTask(root);
     const journal = await openJournal(root, task);
 
     expect(await journal.scan()).toMatchObject({
@@ -397,37 +634,45 @@ describe("Windows host probe broker journal", () => {
     });
     await journal.close();
 
-    const authority = authorityFor(task);
-    const snapshot = executionAuthoritySnapshot(task, root);
-    for (const key of Object.keys(authority) as (keyof ProbeBrokerJournalAuthority)[]) {
-      const changedSnapshot = {
-        ...snapshot,
-        [key]:
-          key === "brokerRole"
-            ? "second-user"
-            : key === "brokerInstanceId"
-              ? "another-broker-instance"
-              : sha256(`changed:${key}`),
-      } as ReturnType<typeof executionAuthoritySnapshot>;
-      await expect(openJournalWithSnapshot(root, changedSnapshot)).rejects.toMatchObject({
-        code: "BROKER_JOURNAL_AUTHORITY",
-      });
+    if (process.platform !== "win32") {
+      const authority = authorityFor(task);
+      const snapshot = executionAuthoritySnapshot(task, root);
+      for (const key of Object.keys(authority) as (keyof ProbeBrokerJournalAuthority)[]) {
+        const changedSnapshot = {
+          ...snapshot,
+          [key]:
+            key === "brokerRole"
+              ? "second-user"
+              : key === "brokerInstanceId"
+                ? "another-broker-instance"
+                : sha256(`changed:${key}`),
+        } as ReturnType<typeof executionAuthoritySnapshot>;
+        await expect(openJournalWithSnapshot(root, changedSnapshot)).rejects.toMatchObject({
+          code: "BROKER_JOURNAL_AUTHORITY",
+        });
+      }
     }
 
     const copiedRoot = await createRoot();
     await copyFile(join(root, "broker-journal.sqlite"), join(copiedRoot, "broker-journal.sqlite"));
-    await expect(
-      openJournalWithSnapshot(copiedRoot, {
-        ...executionAuthoritySnapshot(task, copiedRoot),
-        runnerSessionIdSha256: sha256("copied-under-another-session"),
-      }),
-    ).rejects.toMatchObject({ code: "BROKER_JOURNAL_AUTHORITY" });
+    if (process.platform === "win32") {
+      await expect(openJournal(copiedRoot, createJournalTask(copiedRoot))).rejects.toMatchObject({
+        code: "BROKER_JOURNAL_AUTHORITY",
+      });
+    } else {
+      await expect(
+        openJournalWithSnapshot(copiedRoot, {
+          ...executionAuthoritySnapshot(task, copiedRoot),
+          runnerSessionIdSha256: sha256("copied-under-another-session"),
+        }),
+      ).rejects.toMatchObject({ code: "BROKER_JOURNAL_AUTHORITY" });
+    }
   });
 
   it("accepts an exact envelope once and rejects equivocation and global identity reuse", async () => {
-    const task = createTask();
     const root = await createRoot();
-    const journal = await openJournal(root, task);
+    const task = createJournalTask(root);
+    let journal = await openJournal(root, task);
 
     const fresh = await journal.acceptTask(task, await acceptanceOptions(task));
     const retained = await journal.acceptTask(task, await acceptanceOptions(task));
@@ -438,25 +683,34 @@ describe("Windows host probe broker journal", () => {
     );
     expect((await journal.scan()).tasks).toHaveLength(1);
 
-    const equivocation = createTask({ taskId: "equivocating-envelope", nonceByte: 8 });
+    await journal.close();
+    const equivocation = createJournalTask(root, {
+      taskId: "equivocating-envelope",
+      nonceByte: 8,
+    });
+    journal = await openJournal(root, equivocation);
     await expect(
       journal.acceptTask(equivocation, await acceptanceOptions(equivocation)),
     ).rejects.toMatchObject({ code: "BROKER_PROTOCOL_EQUIVOCATION" });
 
-    const reusedTaskId = createTask({
+    await journal.close();
+    const reusedTaskId = createJournalTask(root, {
       taskId: task.taskId,
       nonceByte: 9,
       attemptId: "journal-attempt-reused-task-id",
     });
+    journal = await openJournal(root, reusedTaskId);
     await expect(
       journal.acceptTask(reusedTaskId, await acceptanceOptions(reusedTaskId)),
     ).rejects.toMatchObject({ code: "BROKER_JOURNAL_IDENTITY_REUSE" });
 
-    const reusedNonce = createTask({
+    await journal.close();
+    const reusedNonce = createJournalTask(root, {
       taskId: "journal-task-reused-nonce",
       nonceByte: 7,
       attemptId: "journal-attempt-reused-nonce",
     });
+    journal = await openJournal(root, reusedNonce);
     await expect(
       journal.acceptTask(reusedNonce, await acceptanceOptions(reusedNonce)),
     ).rejects.toMatchObject({ code: "BROKER_JOURNAL_IDENTITY_REUSE" });
@@ -464,12 +718,13 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("deduplicates a physical operation across execution authority generations", async () => {
-    const first = createTask({
+    const root = await createRoot();
+    const first = createJournalTask(root, {
       taskId: "journal-physical-operation-a",
       nonceByte: 40,
       executionRunId: "journal-execution-run-a",
     });
-    const renewedAuthority = createTask({
+    const renewedAuthority = createJournalTask(root, {
       taskId: "journal-physical-operation-b",
       nonceByte: 41,
       executionRunId: "journal-execution-run-b",
@@ -481,11 +736,12 @@ describe("Windows host probe broker journal", () => {
       deriveProbeBrokerTaskPhysicalOperationKeySha256(renewedAuthority),
     );
 
-    const root = await createRoot();
-    const journal = await openJournal(root, first);
+    let journal = await openJournal(root, first);
     const accepted = await journal.acceptTask(first, await acceptanceOptions(first));
     expect((await journal.authorizeEffect(accepted)).authorized).toBe(true);
 
+    await journal.close();
+    journal = await openJournal(root, renewedAuthority);
     await expect(
       journal.acceptTask(renewedAuthority, await acceptanceOptions(renewedAuthority)),
     ).rejects.toMatchObject({ code: "BROKER_PROTOCOL_EQUIVOCATION" });
@@ -498,13 +754,13 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("returns absent for expired unretained work but permits exact retained replay", async () => {
-    const expired = createTask({
+    const root = await createRoot();
+    const expired = createJournalTask(root, {
       taskId: "journal-expired-task",
       nonceByte: 10,
       attemptId: "journal-attempt-expired",
     });
-    const root = await createRoot();
-    const journal = await openJournal(root, expired);
+    let journal = await openJournal(root, expired);
 
     await expect(
       journal.acceptTask(
@@ -514,11 +770,13 @@ describe("Windows host probe broker journal", () => {
     ).rejects.toMatchObject({ code: "BROKER_PROTOCOL_DEADLINE" });
     expect((await journal.scan()).tasks).toHaveLength(0);
 
-    const retainedTask = createTask({
+    await journal.close();
+    const retainedTask = createJournalTask(root, {
       taskId: "journal-retained-expired-task",
       nonceByte: 11,
       attemptId: "journal-attempt-retained-expired",
     });
+    journal = await openJournal(root, retainedTask);
     await journal.acceptTask(retainedTask, await acceptanceOptions(retainedTask));
     const afterDeadline = await journal.acceptTask(
       retainedTask,
@@ -537,12 +795,12 @@ describe("Windows host probe broker journal", () => {
     ];
 
     for (const [index, boundary] of boundaries.entries()) {
-      const task = createTask({
+      const root = await createRoot();
+      const task = createJournalTask(root, {
         taskId: `journal-crash-${boundary}`,
         nonceByte: 20 + index,
         attemptId: `journal-attempt-crash-${boundary}`,
       });
-      const root = await createRoot();
       const beforeCrash = await openJournal(root, task);
       const accepted = await beforeCrash.acceptTask(task, await acceptanceOptions(task));
       const effectSha256 = sha256(`journal-effect:${boundary}`);
@@ -598,12 +856,12 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("serializes competing journal handles until the active handle closes", async () => {
-    const task = createTask({
+    const root = await createRoot();
+    const task = createJournalTask(root, {
       taskId: "journal-concurrent-task",
       nonceByte: 30,
       attemptId: "journal-attempt-concurrent",
     });
-    const root = await createRoot();
     const left = await openJournal(root, task);
     const leftOptions = await acceptanceOptions(task);
     await left.acceptTask(task, leftOptions);
@@ -623,14 +881,15 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("requires a fresh live lease for a later physical operation", async () => {
-    const first = createTask({
+    const root = await createRoot();
+    const first = createJournalTask(root, {
       taskId: "journal-single-lease-sequential-first",
       nonceByte: 51,
       rowId: "F-03",
       variantId: "f03-port-inspect-create-swap",
       actionId: "prepare-private-file-target",
     });
-    const second = createTask({
+    const second = createJournalTask(root, {
       taskId: "journal-single-lease-sequential-second",
       nonceByte: 52,
       rowId: "F-03",
@@ -640,8 +899,7 @@ describe("Windows host probe broker journal", () => {
     expect(deriveProbeBrokerTaskPhysicalOperationKeySha256(first)).not.toBe(
       deriveProbeBrokerTaskPhysicalOperationKeySha256(second),
     );
-    const root = await createRoot();
-    const journal = await openJournal(root, first);
+    let journal = await openJournal(root, first);
     const options = await acceptanceOptions(first);
     const context = await journal.acceptTask(first, options);
     expect((await journal.authorizeEffect(context)).authorized).toBe(true);
@@ -655,24 +913,40 @@ describe("Windows host probe broker journal", () => {
       code: "BROKER_EXECUTION_AUTHORITY_OPERATION_BINDING",
     });
     await releaseProbeBrokerExecutionAuthorityLease(options.executionAuthorityLease);
+
+    await journal.close();
+    journal = await openJournal(root, second);
+    const secondOptions = await acceptanceOptions(second);
+    const secondContext = await journal.acceptTask(second, secondOptions);
+    expect(secondContext.capability.replayJournalDisposition).toBe("accepted");
+    expect((await journal.authorizeEffect(secondContext)).authorized).toBe(true);
+    await journal.recordEffectCommitted({
+      acceptedContext: secondContext,
+      effectSha256: sha256("journal-single-lease-second-effect"),
+    });
+    await journal.recordResultRetained({
+      acceptedContext: secondContext,
+      result: createResult(second),
+    });
+    await releaseProbeBrokerExecutionAuthorityLease(secondOptions.executionAuthorityLease);
   });
 
   it("cannot overlap two physical operations on one live lease", async () => {
-    const first = createTask({
+    const root = await createRoot();
+    const first = createJournalTask(root, {
       taskId: "journal-single-lease-overlap-first",
       nonceByte: 53,
       rowId: "F-03",
       variantId: "f03-port-inspect-create-swap",
       actionId: "prepare-private-file-target",
     });
-    const second = createTask({
+    const second = createJournalTask(root, {
       taskId: "journal-single-lease-overlap-second",
       nonceByte: 54,
       rowId: "F-03",
       variantId: "f03-port-inspect-create-swap",
       actionId: "arm-inspect-create-swap",
     });
-    const root = await createRoot();
     const journal = await openJournal(root, first);
     const options = await acceptanceOptions(first);
     await journal.acceptTask(first, options);
@@ -684,12 +958,12 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("enforces ordered idempotent transitions and exact retained results", async () => {
-    const task = createTask({
+    const root = await createRoot();
+    const task = createJournalTask(root, {
       taskId: "journal-transition-task",
       nonceByte: 31,
       attemptId: "journal-attempt-transitions",
     });
-    const root = await createRoot();
     const journal = await openJournal(root, task);
     const context = await journal.acceptTask(task, await acceptanceOptions(task));
     const effectSha256 = sha256("journal-effect-commitment");
@@ -744,12 +1018,14 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("rejects authority drift before journal consumption without retaining the task", async () => {
-    const task = createTask({ attemptId: "drift-before-consumption" });
     const root = await createRoot();
-    const journal = await openJournal(root, task);
-    let current = executionAuthoritySnapshot(task);
+    const task = createJournalTask(root, { attemptId: "drift-before-consumption" });
+    let current = executionAuthoritySnapshot(task, root);
+    const revalidate = () => current;
+    const journal = await openJournal(root, task, { revalidate });
     const options = await acceptanceOptions(task, undefined, {
-      revalidate: () => current,
+      authority: current,
+      ...(process.platform === "win32" ? {} : { revalidate }),
       validateDriverRequest: async (request) => {
         current = {
           ...current,
@@ -774,13 +1050,15 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("keeps post-effect authority loss conservative and never authorizes a second effect", async () => {
-    const task = createTask({ attemptId: "post-effect-authority-loss" });
     const root = await createRoot();
-    let journal = await openJournal(root, task);
-    const original = executionAuthoritySnapshot(task);
+    const task = createJournalTask(root, { attemptId: "post-effect-authority-loss" });
+    const original = executionAuthoritySnapshot(task, root);
     let current = original;
+    const revalidate = () => current;
+    let journal = await openJournal(root, task, { revalidate });
     const firstOptions = await acceptanceOptions(task, undefined, {
-      revalidate: () => current,
+      authority: original,
+      ...(process.platform === "win32" ? {} : { revalidate }),
     });
     const context = await journal.acceptTask(task, firstOptions);
     expect((await journal.authorizeEffect(context)).authorized).toBe(true);
@@ -799,9 +1077,10 @@ describe("Windows host probe broker journal", () => {
     await journal.close();
 
     current = original;
-    journal = await openJournal(root, task);
+    journal = await openJournal(root, task, { revalidate });
     const replacementOptions = await acceptanceOptions(task, undefined, {
-      revalidate: () => current,
+      authority: original,
+      ...(process.platform === "win32" ? {} : { revalidate }),
     });
     const replayed = await journal.acceptTask(task, replacementOptions);
     expect(replayed.capability.replayJournalDisposition).toBe("idempotent-replay");
@@ -827,8 +1106,8 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("requires the bound live lease for transitions and retained-result reads", async () => {
-    const task = createTask({ attemptId: "released-authority-lease" });
     const root = await createRoot();
+    const task = createJournalTask(root, { attemptId: "released-authority-lease" });
     const journal = await openJournal(root, task);
     const options = await acceptanceOptions(task);
     const context = await journal.acceptTask(task, options);
@@ -844,12 +1123,12 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("validates closed canonical transition and recovery schemas with domain hashes", async () => {
-    const task = createTask({
+    const root = await createRoot();
+    const task = createJournalTask(root, {
       taskId: "journal-schema-task",
       nonceByte: 32,
       attemptId: "journal-attempt-schema",
     });
-    const root = await createRoot();
     const journal = await openJournal(root, task);
     const context = await journal.acceptTask(task, await acceptanceOptions(task));
     const transition = (await journal.scan()).tasks[0]!.transitions[0]!;
@@ -882,12 +1161,12 @@ describe("Windows host probe broker journal", () => {
   });
 
   it("rejects append-only writes and any noncanonical database object", async () => {
-    const task = createTask({
+    const root = await createRoot();
+    const task = createJournalTask(root, {
       taskId: "journal-database-schema-task",
       nonceByte: 33,
       attemptId: "journal-attempt-database-schema",
     });
-    const root = await createRoot();
     const journal = await openJournal(root, task);
     await journal.acceptTask(task, await acceptanceOptions(task));
     await journal.close();
@@ -911,12 +1190,12 @@ describe("Windows host probe broker journal", () => {
     "rejects an orphan row injected into %s with foreign-key enforcement disabled",
     async (table) => {
       const tableId = table.replaceAll("_", "-");
-      const task = createTask({
+      const root = await createRoot();
+      const task = createJournalTask(root, {
         taskId: `journal-orphan-${tableId}`,
         nonceByte: table === "broker_transitions" ? 34 : 35,
         attemptId: `journal-attempt-orphan-${tableId}`,
       });
-      const root = await createRoot();
       const journal = await openJournal(root, task);
       await journal.close();
 

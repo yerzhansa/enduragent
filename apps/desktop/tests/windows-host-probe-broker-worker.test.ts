@@ -86,9 +86,16 @@ const controllerPublicKeyBytes = controllerKeys.publicKey.export({
   type: "spki",
 });
 
-function fixture() {
-  const mailboxRoot = "E:\\Broker\\worker\\primary-mailbox";
-  const journalRoot = "E:\\Broker\\worker\\primary-journal";
+function fixture(
+  roots: {
+    readonly mailboxRoot?: string;
+    readonly journalRoot?: string;
+  } = {},
+) {
+  const mailboxRoot = roots.mailboxRoot ?? "E:\\Broker\\worker\\primary-mailbox";
+  const journalRoot = roots.journalRoot ?? "E:\\Broker\\worker\\primary-journal";
+  const mailboxVolumeIdentity = sha256(`worker-volume:${mailboxRoot.slice(0, 2).toUpperCase()}`);
+  const journalVolumeIdentity = sha256(`worker-volume:${journalRoot.slice(0, 2).toUpperCase()}`);
   const processSidSha256 = sha256("worker-primary-sid");
   const enrollment = createProbeBrokerEnrollment({
     environmentId: "win11-current",
@@ -115,9 +122,9 @@ function fixture() {
     mailboxOwnerSidSha256: processSidSha256,
     processSidSha256,
     peerAuthoritySha256: null,
-    mailboxRootObjectIdentitySha256: sha256("worker-mailbox-object"),
-    mailboxVolumeIdSha256: sha256("worker-mailbox-volume"),
-    mailboxTransportIdentitySha256: sha256("worker-mailbox-transport"),
+    mailboxRootObjectIdentitySha256: sha256(`worker-mailbox-object:${mailboxRoot}`),
+    mailboxVolumeIdSha256: mailboxVolumeIdentity,
+    mailboxTransportIdentitySha256: sha256(`worker-mailbox-transport:${mailboxRoot}`),
     mailboxFileSystem: "NTFS",
     mailboxDriveType: "fixed",
     mailboxLocalAbsolute: true,
@@ -125,16 +132,16 @@ function fixture() {
     mailboxReparsePoint: false,
     journalRoot,
     journalSecurityProfile: enrollment.journalSecurityProfile,
-    journalRootPathSha256: sha256("worker-journal-root-path"),
-    journalRootObjectIdentitySha256: sha256("worker-journal-root-object"),
-    journalVolumeIdSha256: sha256("worker-journal-volume"),
+    journalRootPathSha256: sha256(`worker-journal-root-path:${journalRoot}`),
+    journalRootObjectIdentitySha256: sha256(`worker-journal-root-object:${journalRoot}`),
+    journalVolumeIdSha256: journalVolumeIdentity,
     journalRootOwnerSidSha256: processSidSha256,
     journalRootAclSha256: enrollment.journalRootAclSha256,
-    journalDatabasePathSha256: sha256("worker-journal-database-path"),
-    journalDatabaseObjectIdentitySha256: sha256("worker-journal-database-object"),
+    journalDatabasePathSha256: sha256(`worker-journal-database-path:${journalRoot}`),
+    journalDatabaseObjectIdentitySha256: sha256(`worker-journal-database-object:${journalRoot}`),
     journalDatabaseOwnerSidSha256: processSidSha256,
     journalDatabaseAclSha256: enrollment.journalDatabaseAclSha256,
-    journalTransportIdentitySha256: sha256("worker-journal-transport"),
+    journalTransportIdentitySha256: sha256(`worker-journal-transport:${journalRoot}`),
     journalFileSystem: "NTFS",
     journalDriveType: "fixed",
     journalLocalAbsolute: true,
@@ -143,7 +150,7 @@ function fixture() {
     bootIdSha256: sha256("worker-boot"),
     runnerSessionIdSha256: sha256("worker-runner-session"),
     nativeHelperSha256: sha256("worker-native-helper"),
-    nativeObservationSha256: sha256("worker-native-observation"),
+    nativeObservationSha256: sha256(`worker-native-observation:${mailboxRoot}:${journalRoot}`),
   });
   const requestBytes = Buffer.from("worker signed driver request", "utf8");
   const definition = getProbeScenarioDefinition("F-01", "f01-ordinary-absolute-path");
@@ -761,9 +768,15 @@ describe("Windows host probe broker worker", () => {
       await mkdtemp(join(tmpdir(), "enduragent-broker-worker-integration-")),
     );
     try {
-      const values = fixture();
       const physicalMailboxRoot = join(root, "mailbox");
       const physicalJournalRoot = join(root, "journal");
+      const values =
+        process.platform === "win32"
+          ? fixture({
+              mailboxRoot: `${physicalMailboxRoot[0]?.toUpperCase()}${physicalMailboxRoot.slice(1)}`,
+              journalRoot: `${physicalJournalRoot[0]?.toUpperCase()}${physicalJournalRoot.slice(1)}`,
+            })
+          : fixture();
       await mkdir(physicalMailboxRoot, { mode: 0o700 });
       await mkdir(physicalJournalRoot, { mode: 0o700 });
       const physicalStore = await openEvidenceStore({ root: physicalMailboxRoot });
@@ -775,6 +788,9 @@ describe("Windows host probe broker worker", () => {
       const mailboxModule = await vi.importActual<
         typeof import("../scripts/windows-host-falsifier/broker/mailbox.mjs")
       >("../scripts/windows-host-falsifier/broker/mailbox.mjs");
+      const journalModule = await vi.importActual<
+        typeof import("../scripts/windows-host-falsifier/broker/journal.mjs")
+      >("../scripts/windows-host-falsifier/broker/journal.mjs");
       const liveObservation = observationFromBinding(values.preparedBrokerEnrollment);
       const controllerMailbox = mailboxModule.openProbeBrokerMailbox({
         store: mailboxStore,
@@ -795,11 +811,18 @@ describe("Windows host probe broker worker", () => {
       dependencyMocks.openMailbox.mockImplementation((options) =>
         mailboxModule.openProbeBrokerMailbox(options),
       );
-      dependencyMocks.openJournal.mockImplementation(async ({ executionAuthorityLease }) =>
-        openProbeBrokerJournalStorageForTest({
-          root: physicalJournalRoot,
-          executionAuthorityLease,
-        }),
+      dependencyMocks.openJournal.mockImplementation(
+        async ({ preparedBrokerEnrollment, executionAuthorityLease }) =>
+          process.platform === "win32"
+            ? journalModule.openProbeBrokerJournal({
+                root: physicalJournalRoot,
+                preparedBrokerEnrollment,
+                executionAuthorityLease,
+              })
+            : openProbeBrokerJournalStorageForTest({
+                root: physicalJournalRoot,
+                executionAuthorityLease,
+              }),
       );
       dependencyMocks.openNativeAuthoritySession.mockImplementation(async () => {
         const executionAuthorityLease = await acquireProbeBrokerExecutionAuthorityLease({
