@@ -77,26 +77,44 @@ const callbackPrivateDirectoryAclPowerShell = String.raw`$ErrorActionPreference 
 $ProgressPreference = 'SilentlyContinue'
 $path = [Environment]::GetEnvironmentVariable('ENDURAGENT_NATIVE_ACL_TEST_PATH')
 $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
-$descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($sddl)
-$ordinary = $descriptor.DiscretionaryAcl[0] -as [Security.AccessControl.CommonAce]
-$callback = [Security.AccessControl.CommonAce]::new($ordinary.AceFlags, $ordinary.AceQualifier, $ordinary.AccessMask, $ordinary.SecurityIdentifier, $true, [byte[]]::new(0))
-$descriptor.DiscretionaryAcl.RemoveAce(0)
-$descriptor.DiscretionaryAcl.InsertAce(0, $callback)
-$binary = [byte[]]::new($descriptor.BinaryLength)
-$descriptor.GetBinaryForm($binary, 0)
-$security = New-Object Security.AccessControl.DirectorySecurity
-$security.SetSecurityDescriptorBinaryForm($binary)
+$sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(XA;OICI;FA;;;' + $sid + ';(@User.Title=="synthetic"))(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
+try {
+  $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($sddl)
+  $binary = [byte[]]::new($descriptor.BinaryLength)
+  $descriptor.GetBinaryForm($binary, 0)
+} catch { exit 61 }
+$callback = $null
+foreach ($genericAce in $descriptor.DiscretionaryAcl) {
+  $commonAce = $genericAce -as [Security.AccessControl.CommonAce]
+  if ($null -ne $commonAce -and $commonAce.IsCallback) {
+    if ($null -ne $callback) { exit 62 }
+    $callback = $commonAce
+  }
+}
+$opaque = if ($null -eq $callback) { $null } else { $callback.GetOpaque() }
+if ($null -eq $callback -or !$callback.IsCallback -or $callback.AceType -ne [Security.AccessControl.AceType]::AccessAllowedCallback -or $null -eq $opaque -or $opaque.Length -lt 4) { exit 62 }
+if ($opaque[0] -ne 0x61 -or $opaque[1] -ne 0x72 -or $opaque[2] -ne 0x74 -or $opaque[3] -ne 0x78) { exit 63 }
+try {
+  $security = New-Object Security.AccessControl.DirectorySecurity
+  $security.SetSecurityDescriptorBinaryForm($binary)
+} catch { exit 64 }
 $directory = [IO.DirectoryInfo]::new($path)
-$directory.SetAccessControl($security)
-$actual = $directory.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access)
-$actualRaw = [Security.AccessControl.RawSecurityDescriptor]::new($actual.GetSecurityDescriptorBinaryForm(), 0)
+try { $directory.SetAccessControl($security) } catch { exit 65 }
+try {
+  $actual = $directory.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access)
+  $actualRaw = [Security.AccessControl.RawSecurityDescriptor]::new($actual.GetSecurityDescriptorBinaryForm(), 0)
+} catch { exit 66 }
 $callbackCount = 0
+$ordinaryCurrentUserCount = 0
 foreach ($genericAce in $actualRaw.DiscretionaryAcl) {
   $commonAce = $genericAce -as [Security.AccessControl.CommonAce]
-  if ($null -ne $commonAce -and $commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowedCallback -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) { $callbackCount += 1 }
+  if ($null -ne $commonAce -and $commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowedCallback -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) {
+    $actualOpaque = $commonAce.GetOpaque()
+    if ($null -ne $actualOpaque -and $actualOpaque.Length -ge 4 -and $actualOpaque[0] -eq 0x61 -and $actualOpaque[1] -eq 0x72 -and $actualOpaque[2] -eq 0x74 -and $actualOpaque[3] -eq 0x78) { $callbackCount += 1 }
+  }
+  if ($null -ne $commonAce -and !$commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowed -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) { $ordinaryCurrentUserCount += 1 }
 }
-if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 3 -or $callbackCount -ne 1) { exit 46 }`;
+if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 4 -or $callbackCount -ne 1 -or $ordinaryCurrentUserCount -ne 1) { exit 46 }`;
 const powerShellStartupProgressCliXml = [
   "#< CLIXML",
   '<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>',
