@@ -786,19 +786,18 @@ describe("Windows host probe broker journal", () => {
     expect(afterDeadline.recoveryDirective).toBe("reconcile");
   });
 
-  it("recovers every durable boundary without authorizing a second unsafe effect", async () => {
-    const boundaries: readonly ProbeBrokerJournalState[] = [
-      "accepted",
-      "effect-started",
-      "effect-committed",
-      "result-retained",
-    ];
-
-    for (const [index, boundary] of boundaries.entries()) {
+  it.each([
+    { boundary: "accepted", nonceByte: 20 },
+    { boundary: "effect-started", nonceByte: 21 },
+    { boundary: "effect-committed", nonceByte: 22 },
+    { boundary: "result-retained", nonceByte: 23 },
+  ] satisfies readonly { boundary: ProbeBrokerJournalState; nonceByte: number }[])(
+    "recovers the $boundary durable boundary without authorizing a second unsafe effect",
+    async ({ boundary, nonceByte }) => {
       const root = await createRoot();
       const task = createJournalTask(root, {
         taskId: `journal-crash-${boundary}`,
-        nonceByte: 20 + index,
+        nonceByte,
         attemptId: `journal-attempt-crash-${boundary}`,
       });
       const beforeCrash = await openJournal(root, task);
@@ -852,8 +851,8 @@ describe("Windows host probe broker journal", () => {
         expect(await afterCrash.readRetainedResult(replayed)).toBeNull();
         expect(await afterCrash.readRetainedCompletion(replayed)).toBeNull();
       }
-    }
-  });
+    },
+  );
 
   it("serializes competing journal handles until the active handle closes", async () => {
     const root = await createRoot();
