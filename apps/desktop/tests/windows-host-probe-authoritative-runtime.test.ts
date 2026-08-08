@@ -1763,26 +1763,32 @@ describe("authoritative probe runtime composition", () => {
     ).rejects.toMatchObject({ code: "RUNTIME_NATIVE_TRANSCRIPT" });
   });
 
-  it("rejects recomputed native transcripts that substitute either build identity", async () => {
-    const substitutions = [
+  it.each([
+    [
+      "native candidate digest",
       {
         transcriptNativeCandidateDigest: sha("b"),
         retainedNativeTranscriptSha256: sha("c"),
       },
+    ],
+    [
+      "native manifest digest",
       {
         transcriptNativeManifestSha256: sha("b"),
         retainedNativeTranscriptSha256: sha("d"),
       },
-    ];
-    for (const substitution of substitutions) {
+    ],
+  ] as const)(
+    "rejects recomputed native transcripts that substitute the %s build identity",
+    async (_identity, substitution) => {
       const harness = await createHarness(substitution);
       await harness.runtime.prepare({ command: prepareCommand(), plan: PROBE_RUN_PLAN });
       const command = segmentCommand("F-01", "f01-ordinary-absolute-path");
       await expect(
         harness.runtime.segment({ command, plan: PROBE_RUN_PLAN, workItem: workItem(command) }),
       ).rejects.toMatchObject({ code: "RUNTIME_NATIVE_TRANSCRIPT" });
-    }
-  });
+    },
+  );
 
   it("retains ordinary transcripts and continuations exactly across retries", async () => {
     const harness = await createHarness();
