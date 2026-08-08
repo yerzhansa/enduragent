@@ -900,92 +900,104 @@ describe("Windows host probe external controller protocol and journal", () => {
     ).resolves.toBeNull();
   });
 
-  it("requires an exact retained response payload before terminal commit", async () => {
-    const journal = await openJournal();
-    const requestValue = request({
-      operation: { operationId: "operation-response-payload", sequence: 5 },
-    });
-    await beginDefaultOperation(journal, requestValue);
-    const missingPayloadResponse = response(requestValue);
-    await expect(
-      journal.completeOperation({ request: requestValue, response: missingPayloadResponse }),
-    ).rejects.toMatchObject({ code: "CONTROLLER_JOURNAL_ARTIFACT" });
+  it.each([{ failure: "missing" }, { failure: "mismatched" }] as const)(
+    "requires an exact retained response payload after rejecting a $failure reference",
+    async ({ failure }) => {
+      const journal = await openJournal();
+      const requestValue = request({
+        operation: { operationId: `operation-response-payload-${failure}`, sequence: 5 },
+      });
+      await beginDefaultOperation(journal, requestValue);
+      const exactResponse = response(requestValue);
 
-    await journal.retainBlob(responsePayloadBytes);
-    const mismatchedPayloadResponse = response(requestValue, [], {
-      payload: { ...responsePayload, bytes: responsePayload.bytes + 1 },
-    });
-    await expect(
-      journal.completeOperation({ request: requestValue, response: mismatchedPayloadResponse }),
-    ).rejects.toMatchObject({ code: "CONTROLLER_JOURNAL_ARTIFACT" });
-    await expect(
-      journal.completeOperation({ request: requestValue, response: missingPayloadResponse }),
-    ).resolves.toMatchObject({ state: "complete", response: missingPayloadResponse });
+      if (failure === "mismatched") await journal.retainBlob(responsePayloadBytes);
+      const rejectedResponse =
+        failure === "missing"
+          ? exactResponse
+          : response(requestValue, [], {
+              payload: { ...responsePayload, bytes: responsePayload.bytes + 1 },
+            });
+      await expect(
+        journal.completeOperation({ request: requestValue, response: rejectedResponse }),
+      ).rejects.toMatchObject({ code: "CONTROLLER_JOURNAL_ARTIFACT" });
+      await expect(
+        journal.readOperation(requestValue.operation.operationId),
+      ).resolves.toMatchObject({ state: "pending", response: null });
 
+      if (failure === "missing") await journal.retainBlob(responsePayloadBytes);
+      await expect(
+        journal.completeOperation({ request: requestValue, response: exactResponse }),
+      ).resolves.toMatchObject({ state: "complete", response: exactResponse });
+      await journal.close();
+    },
+  );
+
+  it("rejects a response payload duplicated in its artifact list", () => {
+    const requestValue = request();
     expect(() => response(requestValue, [responsePayload])).toThrowError(
       expect.objectContaining({ code: "CONTROLLER_PROTOCOL_ARTIFACT" }),
     );
   });
 
-  it("recovers pre-link, partial, and post-link blob publications after reopen", async () => {
-    let journal = await openJournal();
-    const partialBytes = Buffer.from("partial controller artifact\n", "utf8");
-    const partialSha256 = digest(partialBytes);
-    const partialPublication = join(
-      root,
-      "blobs",
-      "sha256",
-      `.enduragent-controller-blob-${partialSha256}-${"a".repeat(24)}.tmp`,
-    );
-    await writeFile(partialPublication, partialBytes.subarray(0, 11), { mode: 0o600 });
-    await journal.close();
+  it.each([
+    {
+      boundary: "partial pre-link",
+      bytes: Buffer.from("partial controller artifact\n", "utf8"),
+      stagedBytes: 11,
+      publicationSuffix: "a",
+      linkBeforeClose: false,
+      expectFinal: false,
+    },
+    {
+      boundary: "complete pre-link",
+      bytes: Buffer.from("complete before link controller artifact\n", "utf8"),
+      stagedBytes: null,
+      publicationSuffix: "b",
+      linkBeforeClose: false,
+      expectFinal: true,
+    },
+    {
+      boundary: "post-link",
+      bytes: Buffer.from("linked before controller crash\n", "utf8"),
+      stagedBytes: null,
+      publicationSuffix: "c",
+      linkBeforeClose: true,
+      expectFinal: true,
+    },
+  ] as const)(
+    "recovers a $boundary blob publication after reopen",
+    async ({ bytes, stagedBytes, publicationSuffix, linkBeforeClose, expectFinal }) => {
+      let journal = await openUnclaimedJournal();
+      const sha256 = digest(bytes);
+      const publication = join(
+        root,
+        "blobs",
+        "sha256",
+        `.enduragent-controller-blob-${sha256}-${publicationSuffix.repeat(24)}.tmp`,
+      );
+      const final = join(root, "blobs", "sha256", sha256);
+      await writeFile(publication, stagedBytes === null ? bytes : bytes.subarray(0, stagedBytes), {
+        mode: 0o600,
+      });
+      if (linkBeforeClose) await link(publication, final);
+      await journal.close();
 
-    journal = await openJournal();
-    await expect(lstat(partialPublication)).rejects.toMatchObject({ code: "ENOENT" });
-    await expect(lstat(join(root, "blobs", "sha256", partialSha256))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
-
-    const secondBytes = Buffer.from("complete before link controller artifact\n", "utf8");
-    const secondSha256 = digest(secondBytes);
-    const secondPublication = join(
-      root,
-      "blobs",
-      "sha256",
-      `.enduragent-controller-blob-${secondSha256}-${"b".repeat(24)}.tmp`,
-    );
-    const secondFinal = join(root, "blobs", "sha256", secondSha256);
-    await writeFile(secondPublication, secondBytes, { mode: 0o600 });
-    await journal.close();
-
-    journal = await openJournal();
-    await expect(lstat(secondPublication)).rejects.toMatchObject({ code: "ENOENT" });
-    expect((await lstat(secondFinal)).nlink).toBe(1);
-    await expect(readFile(secondFinal)).resolves.toEqual(secondBytes);
-
-    const thirdBytes = Buffer.from("linked before controller crash\n", "utf8");
-    const thirdSha256 = digest(thirdBytes);
-    const thirdPublication = join(
-      root,
-      "blobs",
-      "sha256",
-      `.enduragent-controller-blob-${thirdSha256}-${"c".repeat(24)}.tmp`,
-    );
-    const thirdFinal = join(root, "blobs", "sha256", thirdSha256);
-    await writeFile(thirdPublication, thirdBytes, { mode: 0o600 });
-    await link(thirdPublication, thirdFinal);
-    await journal.close();
-
-    journal = await openJournal();
-    await expect(lstat(thirdPublication)).rejects.toMatchObject({ code: "ENOENT" });
-    expect((await lstat(thirdFinal)).nlink).toBe(1);
-    await expect(readFile(thirdFinal)).resolves.toEqual(thirdBytes);
-    const scan = await journal.scan();
-    expect(scan.orphanBlobSha256s).toEqual([secondSha256, thirdSha256].sort());
-  });
+      journal = await openUnclaimedJournal();
+      await expect(lstat(publication)).rejects.toMatchObject({ code: "ENOENT" });
+      if (!expectFinal) {
+        await expect(lstat(final)).rejects.toMatchObject({ code: "ENOENT" });
+        await expect(journal.scan()).resolves.toMatchObject({ orphanBlobSha256s: [] });
+      } else {
+        expect((await lstat(final)).nlink).toBe(1);
+        await expect(readFile(final)).resolves.toEqual(bytes);
+        await expect(journal.scan()).resolves.toMatchObject({ orphanBlobSha256s: [sha256] });
+      }
+      await journal.close();
+    },
+  );
 
   it("fails closed on a content-address collision", async () => {
-    const journal = await openJournal();
+    const journal = await openUnclaimedJournal();
     const expected = Buffer.from("expected controller evidence", "utf8");
     const expectedSha256 = digest(expected);
     await writeFile(join(root, "blobs", "sha256", expectedSha256), "conflicting bytes", {
@@ -995,6 +1007,7 @@ describe("Windows host probe external controller protocol and journal", () => {
     await expect(journal.retainBlob(expected)).rejects.toMatchObject({
       code: "CONTROLLER_JOURNAL_BLOB_COLLISION",
     });
+    await journal.close();
   });
 
   it("enforces operation and blob limits before durable growth", async () => {
