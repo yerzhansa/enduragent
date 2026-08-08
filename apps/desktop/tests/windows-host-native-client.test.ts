@@ -976,6 +976,14 @@ describe("Windows host native falsifier client", () => {
     expect(describeSingleJsonFrameShape(utf16Le)).toEqual({
       stdoutBytes: utf16Le.length,
       utf8NonemptyLines: 2,
+      utf8LineBytes: [46, 1],
+      jsonLines: 0,
+      metadataJsonLines: 0,
+      warningPrefixedLines: 0,
+      csharpWarningLines: 0,
+      csharpErrorLines: 0,
+      typeNameLikeLines: 0,
+      cliXmlPrefixedLines: 0,
       utf8Bom: false,
       utf16LeBom: true,
       utf16BeBom: false,
@@ -983,9 +991,20 @@ describe("Windows host native falsifier client", () => {
       utf16BeJsonSignature: false,
       nulBytes: 21,
     });
-    expect(describeSingleJsonFrameShape(Buffer.from("one\ntwo\n", "utf8"))).toEqual({
-      stdoutBytes: 8,
+    const compilerWarning = "C:\\owned\\File.cs(1,2): warning CS1234: bounded";
+    const metadata = '{"schemaVersion":1,"assemblySha256":"digest"}';
+    const mixed = Buffer.from(`${compilerWarning}\n${metadata}\n`, "utf8");
+    expect(describeSingleJsonFrameShape(mixed)).toEqual({
+      stdoutBytes: mixed.length,
       utf8NonemptyLines: 2,
+      utf8LineBytes: [Buffer.byteLength(compilerWarning), Buffer.byteLength(metadata)],
+      jsonLines: 1,
+      metadataJsonLines: 1,
+      warningPrefixedLines: 0,
+      csharpWarningLines: 1,
+      csharpErrorLines: 0,
+      typeNameLikeLines: 0,
+      cliXmlPrefixedLines: 0,
       utf8Bom: false,
       utf16LeBom: false,
       utf16BeBom: false,

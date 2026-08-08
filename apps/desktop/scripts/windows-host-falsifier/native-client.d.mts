@@ -95,6 +95,14 @@ export function describePrivateDirectoryCreationFailure(result: {
 export function describeSingleJsonFrameShape(stdout: Uint8Array): Readonly<{
   stdoutBytes: number;
   utf8NonemptyLines: number;
+  utf8LineBytes: readonly number[];
+  jsonLines: number;
+  metadataJsonLines: number;
+  warningPrefixedLines: number;
+  csharpWarningLines: number;
+  csharpErrorLines: number;
+  typeNameLikeLines: number;
+  cliXmlPrefixedLines: number;
   utf8Bom: boolean;
   utf16LeBom: boolean;
   utf16BeBom: boolean;

@@ -862,14 +862,37 @@ async function snapshotSources(buildDirectory) {
 
 export function describeSingleJsonFrameShape(stdout) {
   const bytes = Buffer.from(stdout);
+  const utf8Lines = bytes
+    .toString("utf8")
+    .split(/\r?\n/u)
+    .filter((line) => line.length > 0);
+  const parsedLines = utf8Lines.map((line) => {
+    try {
+      return JSON.parse(line);
+    } catch {
+      return undefined;
+    }
+  });
   const startsWith = (...signature) =>
     bytes.length >= signature.length && signature.every((byte, index) => bytes[index] === byte);
   return Object.freeze({
     stdoutBytes: bytes.length,
-    utf8NonemptyLines: bytes
-      .toString("utf8")
-      .split(/\r?\n/u)
-      .filter((line) => line.length > 0).length,
+    utf8NonemptyLines: utf8Lines.length,
+    utf8LineBytes: Object.freeze(utf8Lines.map((line) => Buffer.byteLength(line, "utf8"))),
+    jsonLines: parsedLines.filter((value) => value !== undefined).length,
+    metadataJsonLines: parsedLines.filter(
+      (value) =>
+        exactObject(value) && value.schemaVersion === 1 && typeof value.assemblySha256 === "string",
+    ).length,
+    warningPrefixedLines: utf8Lines.filter((line) => /^WARNING:/iu.test(line)).length,
+    csharpWarningLines: utf8Lines.filter((line) => /\bwarning CS\d{4}\b/iu.test(line)).length,
+    csharpErrorLines: utf8Lines.filter((line) => /\berror CS\d{4}\b/iu.test(line)).length,
+    typeNameLikeLines: utf8Lines.filter((line) =>
+      /^(?:[A-Za-z_][A-Za-z0-9_]*\.)*[A-Za-z_][A-Za-z0-9_]*(?:\[\])?$/u.test(line),
+    ).length,
+    cliXmlPrefixedLines: utf8Lines.filter(
+      (line) => line.startsWith("#< CLIXML") || line.startsWith("<Objs "),
+    ).length,
     utf8Bom: startsWith(0xef, 0xbb, 0xbf),
     utf16LeBom: startsWith(0xff, 0xfe),
     utf16BeBom: startsWith(0xfe, 0xff),
@@ -885,7 +908,7 @@ function singleJsonFrameShapeDetail(stdout, processFacts) {
     processFacts === undefined
       ? "process=unavailable"
       : `exit=${String(processFacts.code)},signal=${processFacts.signal ?? "none"},stderrBytes=${String(processFacts.stderrBytes)}`;
-  return `stdoutBytes=${String(shape.stdoutBytes)},utf8NonemptyLines=${String(shape.utf8NonemptyLines)},utf8Bom=${String(shape.utf8Bom)},utf16LeBom=${String(shape.utf16LeBom)},utf16BeBom=${String(shape.utf16BeBom)},utf16LeJsonSignature=${String(shape.utf16LeJsonSignature)},utf16BeJsonSignature=${String(shape.utf16BeJsonSignature)},nulBytes=${String(shape.nulBytes)},${processDetail}`;
+  return `stdoutBytes=${String(shape.stdoutBytes)},utf8NonemptyLines=${String(shape.utf8NonemptyLines)},utf8LineBytes=${shape.utf8LineBytes.join(":")},jsonLines=${String(shape.jsonLines)},metadataJsonLines=${String(shape.metadataJsonLines)},warningPrefixedLines=${String(shape.warningPrefixedLines)},csharpWarningLines=${String(shape.csharpWarningLines)},csharpErrorLines=${String(shape.csharpErrorLines)},typeNameLikeLines=${String(shape.typeNameLikeLines)},cliXmlPrefixedLines=${String(shape.cliXmlPrefixedLines)},utf8Bom=${String(shape.utf8Bom)},utf16LeBom=${String(shape.utf16LeBom)},utf16BeBom=${String(shape.utf16BeBom)},utf16LeJsonSignature=${String(shape.utf16LeJsonSignature)},utf16BeJsonSignature=${String(shape.utf16BeJsonSignature)},nulBytes=${String(shape.nulBytes)},${processDetail}`;
 }
 
 function parseSingleJsonLine(stdout, label, processFacts) {
