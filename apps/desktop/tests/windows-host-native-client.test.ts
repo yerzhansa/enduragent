@@ -2316,8 +2316,10 @@ describe("Windows host native falsifier client", () => {
           maxTotalBytes: 16_384,
         }),
       ).resolves.toMatchObject({
-        mode: "exact-paths",
-        entries: [{ path: "fact.txt", type: "file" }],
+        result: {
+          mode: "exact-paths",
+          entries: [{ path: "fact.txt", type: "file" }],
+        },
       });
       const liveTranscript = channel.transcript();
       expect(liveTranscript).toMatchObject({
