@@ -83,6 +83,54 @@ jobs:
           npm install "$TARBALL"
           timeout 30 node "node_modules/$PACKAGE/dist/index.js" --help
 
+  windows-host-falsifier-foundation:
+    name: Windows host falsifier foundation (non-authoritative)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          architecture: x64
+          cache: pnpm
+      - id: install
+        run: pnpm install --frozen-lockfile
+      - name: Focused falsifier unit tests
+        run: pnpm --filter @enduragent/desktop test:windows-host-falsifier
+      - name: CI foundation self-test (non-authoritative; closes no F-row)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $runId = "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+          $runRoot = Join-Path $env:LOCALAPPDATA "Enduragent-Falsifier\$runId"
+          $evidenceRoot = Join-Path $runRoot "evidence"
+          $uploadRoot = Join-Path $env:RUNNER_TEMP "windows-host-falsifier-evidence"
+          New-Item -ItemType Directory -Path $uploadRoot -Force | Out-Null
+          $harnessExitCode = 1
+          try {
+            & pnpm --filter @enduragent/desktop probe:windows-host-falsifier "--mode=ci-foundation" "--run-id=$runId" "--runner-image=$env:ImageOS" "--runner-image-version=$env:ImageVersion"
+            $harnessExitCode = $LASTEXITCODE
+          } finally {
+            Set-Content -LiteralPath (Join-Path $uploadRoot "invocation.txt") -Value "exit-code=$harnessExitCode`nmode=ci-foundation`nauthority=non-authoritative"
+            if (Test-Path -LiteralPath $evidenceRoot -PathType Container) {
+              Get-ChildItem -LiteralPath $evidenceRoot -Force |
+                Copy-Item -Destination $uploadRoot -Recurse -Force
+            }
+          }
+          exit $harnessExitCode
+      - name: Upload CI foundation evidence (non-authoritative)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-host-falsifier-ci-foundation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/windows-host-falsifier-evidence/
+          if-no-files-found: error
+          retention-days: 7
+
   secrets-macos:
     runs-on: macos-latest
     env:

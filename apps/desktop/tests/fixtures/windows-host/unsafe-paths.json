@@ -1,0 +1,13 @@
+[
+  "..\\escape.txt",
+  "nested/../../escape.txt",
+  "C:\\absolute.txt",
+  "C:drive-relative.txt",
+  "\\\\server\\share\\file.txt",
+  "\\\\?\\C:\\device.txt",
+  "safe\\file.txt:stream",
+  "safe\\trailing-dot.",
+  "safe\\trailing-space ",
+  "safe\\CON.txt",
+  "safe//empty.txt"
+]
