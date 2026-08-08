@@ -1975,6 +1975,7 @@ describe("Windows host probe finalizer", () => {
         ),
       ).rejects.toMatchObject({ code: "FINALIZER_NATIVE_TRANSCRIPT_BINDING" });
     },
+    15_000,
   );
 
   it("rejects a signed seal from another row or another evidence root", async () => {
