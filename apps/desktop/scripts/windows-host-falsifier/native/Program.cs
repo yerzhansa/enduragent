@@ -562,14 +562,14 @@ namespace Enduragent.WindowsHostFalsifier
         }
     }
 
-    internal static class Program
+    public static class Program
     {
         private static readonly Dictionary<string, NativeSession> Sessions =
             new Dictionary<string, NativeSession>(StringComparer.Ordinal);
         private static readonly HashSet<string> RequestIds =
             new HashSet<string>(StringComparer.Ordinal);
 
-        private static int Main(string[] args)
+        public static int Main(string[] args)
         {
             if (args.Length == 1 && args[0].StartsWith("--job-child=", StringComparison.Ordinal))
                 return RunJobChild(args[0].Substring("--job-child=".Length));

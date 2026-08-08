@@ -112,10 +112,11 @@ $compilerParameters.IncludeDebugInformation = $false
 $compilerParameters.OutputAssembly = $resolvedOutput
 $compilerParameters.CompilerOptions = $compilerOptions
 $compilerParameters.WarningLevel = 4
+$compilerParameters.TreatWarningsAsErrors = $true
 foreach ($referencePath in $referencePaths) {
   [void]$compilerParameters.ReferencedAssemblies.Add($referencePath)
 }
-$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop
+$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop -WarningAction Stop
 
 if (-not (Test-Path -LiteralPath $resolvedOutput -PathType Leaf)) {
   throw 'Add-Type did not produce the expected assembly'
@@ -185,7 +186,7 @@ $metadata = [ordered]@{
   referencedAssemblies = $references
   referenceSha256Before = $referenceHashesBefore
   referenceSha256After = $referenceHashesAfter
-  addTypeInvocation = 'Add-Type -Path Program.cs,Protocol.cs,FileSystem.cs,NamedPipe.cs,JobObject.cs,BrokerContext.cs -CompilerParameters <GenerateExecutable=true;GenerateInMemory=false;OutputAssembly=<owned-build-root>;CompilerOptions="/target:exe /platform:x64 /checked+ /optimize+ /warn:4 /nologo";References=allowlisted-framework-paths>'
+  addTypeInvocation = 'Add-Type -Path Program.cs,Protocol.cs,FileSystem.cs,NamedPipe.cs,JobObject.cs,BrokerContext.cs -CompilerParameters <GenerateExecutable=true;GenerateInMemory=false;TreatWarningsAsErrors=true;OutputAssembly=<owned-build-root>;CompilerOptions="/target:exe /platform:x64 /checked+ /optimize+ /warn:4 /nologo";References=allowlisted-framework-paths> -ErrorAction Stop -WarningAction Stop'
   sourceSha256Before = $sourceHashesBefore
   sourceSha256After = $sourceHashesAfter
   assemblySha256 = (Get-FileHash -LiteralPath $resolvedOutput -Algorithm SHA256).Hash.ToLowerInvariant()

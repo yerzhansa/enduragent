@@ -101,7 +101,7 @@ const maxStderrBytes = 64 * 1024;
 const maxContentBytes = 4 * 1024 * 1024;
 const requiredCompilerOptions = "/target:exe /platform:x64 /checked+ /optimize+ /warn:4 /nologo";
 const requiredAddTypeInvocation =
-  'Add-Type -Path Program.cs,Protocol.cs,FileSystem.cs,NamedPipe.cs,JobObject.cs,BrokerContext.cs -CompilerParameters <GenerateExecutable=true;GenerateInMemory=false;OutputAssembly=<owned-build-root>;CompilerOptions="/target:exe /platform:x64 /checked+ /optimize+ /warn:4 /nologo";References=allowlisted-framework-paths>';
+  'Add-Type -Path Program.cs,Protocol.cs,FileSystem.cs,NamedPipe.cs,JobObject.cs,BrokerContext.cs -CompilerParameters <GenerateExecutable=true;GenerateInMemory=false;TreatWarningsAsErrors=true;OutputAssembly=<owned-build-root>;CompilerOptions="/target:exe /platform:x64 /checked+ /optimize+ /warn:4 /nologo";References=allowlisted-framework-paths> -ErrorAction Stop -WarningAction Stop';
 const nativeTranscriptDomain = "enduragent.windows-host-native-command-transcript.v1";
 const buildAssemblyObjectIdentities = new WeakMap();
 const buildCandidateBindings = new WeakMap();

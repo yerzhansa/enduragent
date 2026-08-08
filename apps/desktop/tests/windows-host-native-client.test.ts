@@ -951,20 +951,29 @@ describe("Windows host native falsifier client", () => {
   });
 
   it("pins native compiler stdout to one explicit console JSON record", async () => {
-    const source = await readFile(
-      new URL("../scripts/windows-host-falsifier/native/compile.ps1", import.meta.url),
-      "utf8",
-    );
+    const [source, programSource] = await Promise.all([
+      readFile(
+        new URL("../scripts/windows-host-falsifier/native/compile.ps1", import.meta.url),
+        "utf8",
+      ),
+      readFile(
+        new URL("../scripts/windows-host-falsifier/native/Program.cs", import.meta.url),
+        "utf8",
+      ),
+    ]);
 
     expect(source).toContain(
-      "$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop",
+      "$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop -WarningAction Stop",
     );
+    expect(source).toContain("$compilerParameters.TreatWarningsAsErrors = $true");
     expect(source).toContain("$metadata = [ordered]@{");
     expect(source).toContain(
       "$metadataJson = ConvertTo-Json -InputObject $metadata -Compress -Depth 5",
     );
     expect(source.trimEnd()).toMatch(/\[Console\]::Out\.WriteLine\(\[string\]\$metadataJson\)$/u);
     expect(source).not.toContain("} | ConvertTo-Json -Compress -Depth 5");
+    expect(programSource).toContain("public static class Program");
+    expect(programSource).toContain("public static int Main(string[] args)");
   });
 
   it("describes compiler frame encoding without retaining stdout content", () => {
