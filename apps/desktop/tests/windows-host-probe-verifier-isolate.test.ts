@@ -155,6 +155,26 @@ describe("retained Windows probe verifier isolate", () => {
     });
   });
 
+  it("gives the retained native validator a drive-qualified Windows file URL", async () => {
+    const retained = await nativeClosureSources();
+    const expectedWindowsPath = String.raw`C:\retained\native-client.mjs`;
+    const nativeClientSourceBytes = Buffer.concat([
+      retained.nativeClientSourceBytes,
+      Buffer.from(
+        `\nif (fileURLToPath(import.meta.url, { windows: true }) !== ${JSON.stringify(expectedWindowsPath)}) throw new Error("retained native validator URL is not Windows-absolute");\n`,
+        "utf8",
+      ),
+    ]);
+    const verifier = await loadRetainedProbeVerifier({
+      ...retained,
+      nativeClientSourceBytes,
+    });
+
+    await expect(
+      verifier.getDefinition("F-01", "f01-ordinary-absolute-path"),
+    ).resolves.toMatchObject({ mechanismId: "win32-file-identity-home-key-v1" });
+  });
+
   it("rejects an unallowlisted import in the retained native manifest digest helper", async () => {
     const retained = await nativeClosureSources();
     const verifier = await loadRetainedProbeVerifier({

@@ -97,7 +97,7 @@ let nativeManifestDigest = null;
 if (request.nativeManifestDigestSource !== null) {
   nativeManifestDigest = new vm.SourceTextModule(request.nativeManifestDigestSource, {
     context,
-    identifier: "file:///retained/native-manifest-digest.mjs",
+    identifier: "file:///C:/retained/native-manifest-digest.mjs",
   });
   await nativeManifestDigest.link(async (specifier) => {
     if (specifier === "node:buffer" || specifier === "node:crypto") return builtin(specifier);
@@ -110,8 +110,8 @@ let nativeClient = null;
 if (request.nativeClientSource !== null) {
   nativeClient = new vm.SourceTextModule(request.nativeClientSource, {
     context,
-    identifier: "file:///retained/native-client.mjs",
-    initializeImportMeta(meta) { meta.url = "file:///retained/native-client.mjs"; },
+    identifier: "file:///C:/retained/native-client.mjs",
+    initializeImportMeta(meta) { meta.url = "file:///C:/retained/native-client.mjs"; },
   });
   await nativeClient.link(async (specifier) => {
     if (specifier === "./native-manifest-digest.mjs" && nativeManifestDigest !== null) {
