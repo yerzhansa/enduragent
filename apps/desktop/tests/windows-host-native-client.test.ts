@@ -53,9 +53,10 @@ const syntheticWindowsSystemLibraries = [
   "C:\\Windows\\System32\\ntdll.dll",
 ] as const;
 const duplicatePrivateDirectoryAclPowerShell = String.raw`$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $path = [Environment]::GetEnvironmentVariable('ENDURAGENT_NATIVE_ACL_TEST_PATH')
 $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(A;OICI;FA;;;' + $sid + ')(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
+$sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(A;;GR;;;' + $sid + ')(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
 $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($sddl)
 $binary = [byte[]]::new($descriptor.BinaryLength)
 $descriptor.GetBinaryForm($binary, 0)
@@ -71,6 +72,7 @@ foreach ($ace in $actualRaw.DiscretionaryAcl) {
 }
 if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 4 -or $currentUserCount -ne 2) { exit 45 }`;
 const callbackPrivateDirectoryAclPowerShell = String.raw`$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $path = [Environment]::GetEnvironmentVariable('ENDURAGENT_NATIVE_ACL_TEST_PATH')
 $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $sddl = 'O:' + $sid + 'D:P(A;OICI;FA;;;' + $sid + ')(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
@@ -93,6 +95,10 @@ foreach ($genericAce in $actualRaw.DiscretionaryAcl) {
   if ($null -ne $commonAce -and $commonAce.IsCallback -and $commonAce.AceType -eq [Security.AccessControl.AceType]::AccessAllowedCallback -and $commonAce.SecurityIdentifier.Value -ceq $sid -and $commonAce.AccessMask -eq 0x001F01FF -and $commonAce.AceFlags -eq ([Security.AccessControl.AceFlags]::ContainerInherit -bor [Security.AccessControl.AceFlags]::ObjectInherit)) { $callbackCount += 1 }
 }
 if (!$actual.AreAccessRulesProtected -or $actualRaw.DiscretionaryAcl.Count -ne 3 -or $callbackCount -ne 1) { exit 46 }`;
+const powerShellStartupProgressCliXml = [
+  "#< CLIXML",
+  '<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>',
+].join("\r\n");
 
 function preflightBinding(
   nativeHelperSha256: string,
@@ -501,6 +507,40 @@ function runRawProcess(
       child.stdin.end(input);
     },
   );
+}
+
+function describeRawProcessResult(result: {
+  readonly code: number | null;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+}) {
+  const expectedStartupProgress = Buffer.from(powerShellStartupProgressCliXml, "utf8");
+  return {
+    code: result.code,
+    stdoutBytes: result.stdout.length,
+    stderrBytes: result.stderr.length,
+    stdoutClassification: result.stdout.length === 0 ? "empty" : "unexpected",
+    stderrClassification:
+      result.stderr.length === 0
+        ? "empty"
+        : result.stderr.equals(expectedStartupProgress)
+          ? "powershell-startup-progress"
+          : "unexpected",
+  };
+}
+
+function expectRawAclMutationSuccess(result: {
+  readonly code: number | null;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+}) {
+  const facts = describeRawProcessResult(result);
+  expect(facts).toMatchObject({
+    code: 0,
+    stdoutBytes: 0,
+    stdoutClassification: "empty",
+  });
+  expect(["empty", "powershell-startup-progress"]).toContain(facts.stderrClassification);
 }
 
 function runRawNative(
@@ -950,6 +990,36 @@ describe("Windows host native falsifier client", () => {
     ).toBeNull();
   });
 
+  it("classifies only the exact PowerShell startup progress record", () => {
+    const exactProgress = Buffer.from(powerShellStartupProgressCliXml, "utf8");
+    expect(
+      describeRawProcessResult({ code: 45, stdout: Buffer.alloc(0), stderr: exactProgress }),
+    ).toEqual({
+      code: 45,
+      stdoutBytes: 0,
+      stderrBytes: exactProgress.length,
+      stdoutClassification: "empty",
+      stderrClassification: "powershell-startup-progress",
+    });
+
+    const rejectedStderr = [
+      Buffer.concat([exactProgress, Buffer.from('<S S="Error">synthetic</S>', "utf8")]),
+      Buffer.concat([exactProgress, Buffer.from('<S S="Warning">synthetic</S>', "utf8")]),
+      Buffer.from("#< CLIXML\r\n<Objs />", "utf8"),
+      Buffer.concat([exactProgress, Buffer.from("\r\n", "utf8")]),
+      Buffer.alloc(exactProgress.length + 1, 0x20),
+    ];
+    for (const stderr of rejectedStderr) {
+      expect(describeRawProcessResult({ code: 0, stdout: Buffer.alloc(0), stderr })).toEqual({
+        code: 0,
+        stdoutBytes: 0,
+        stderrBytes: stderr.length,
+        stdoutClassification: "empty",
+        stderrClassification: "unexpected",
+      });
+    }
+  });
+
   it("pins native compiler stdout to one explicit console JSON record", async () => {
     const [source, programSource] = await Promise.all([
       readFile(
@@ -966,6 +1036,16 @@ describe("Windows host native falsifier client", () => {
       "$null = Add-Type -Path $sourcePaths -CompilerParameters $compilerParameters -ErrorAction Stop -WarningAction Stop",
     );
     expect(source).toContain("$compilerParameters.TreatWarningsAsErrors = $true");
+    expect(source).toContain(
+      "$cscVersionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($cscPath)",
+    );
+    for (const component of ["Major", "Minor", "Build", "Private"]) {
+      expect(source).toContain(
+        `$cscVersionInfo.File${component}Part.ToString([Globalization.CultureInfo]::InvariantCulture)`,
+      );
+    }
+    expect(source).toContain("cscFileVersion = $cscFileVersion");
+    expect(source).not.toContain(".GetVersionInfo($cscPath).FileVersion");
     expect(source).toContain("$metadata = [ordered]@{");
     expect(source).toContain(
       "$metadataJson = ConvertTo-Json -InputObject $metadata -Compress -Depth 5",
@@ -1266,6 +1346,7 @@ describe("Windows host native falsifier client", () => {
         powerShellExecutableSha256Before: powerShellSha256,
         powerShellExecutableSha256After: powerShellSha256,
       });
+      expect(loaded.toolchain.cscFileVersion).toMatch(/^\d+\.\d+\.\d+\.\d+$/u);
       const runRootIdentity = await observeNativeRunRootIdentity(
         loaded.assemblyPath,
         runRoot,
@@ -1399,7 +1480,7 @@ describe("Windows host native falsifier client", () => {
         { ENDURAGENT_NATIVE_ACL_TEST_PATH: join(runRoot, "private-directory") },
         Buffer.alloc(0),
       );
-      expect(duplicateAclMutation).toMatchObject({ code: 0, stderr: Buffer.alloc(0) });
+      expectRawAclMutationSuccess(duplicateAclMutation);
       const duplicateInspection = await channel.execute("private-directory-inspect", {
         relativePath: "private-directory",
       });
@@ -1435,7 +1516,7 @@ describe("Windows host native falsifier client", () => {
         { ENDURAGENT_NATIVE_ACL_TEST_PATH: join(runRoot, "private-directory") },
         Buffer.alloc(0),
       );
-      expect(callbackAclMutation).toMatchObject({ code: 0, stderr: Buffer.alloc(0) });
+      expectRawAclMutationSuccess(callbackAclMutation);
       const callbackInspection = await channel.execute("private-directory-inspect", {
         relativePath: "private-directory",
       });

@@ -93,6 +93,7 @@ const sourceAllowlist = Object.freeze([
 ]);
 const csharpSourceAllowlist = sourceAllowlist.filter((name) => name.endsWith(".cs"));
 const lowerHex64 = /^[a-f0-9]{64}$/u;
+const exactFourPartVersion = /^\d+\.\d+\.\d+\.\d+$/u;
 const frozenPipeName = /^\\\\\.\\pipe\\Enduragent-upgrade-v1-[a-f0-9]{64}$/u;
 const maxInputFrameBytes = 64 * 1024;
 const maxOutputFrameBytes = 256 * 1024;
@@ -1442,6 +1443,7 @@ function validateBuildMetadata(value, sources) {
     value.codeDomProvider !== "Microsoft.CSharp.CSharpCodeProvider" ||
     !(value.powerShellVersion === "5.1" || value.powerShellVersion.startsWith("5.1.")) ||
     !value.clrVersion.startsWith("4.") ||
+    !exactFourPartVersion.test(value.cscFileVersion) ||
     value.compilerOptions !== requiredCompilerOptions ||
     value.addTypeInvocation !== requiredAddTypeInvocation
   ) {

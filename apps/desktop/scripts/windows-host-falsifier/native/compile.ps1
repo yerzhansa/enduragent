@@ -165,6 +165,13 @@ try {
 } finally {
   $provider.Dispose()
 }
+$cscVersionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($cscPath)
+$cscFileVersion = @(
+  $cscVersionInfo.FileMajorPart.ToString([Globalization.CultureInfo]::InvariantCulture)
+  $cscVersionInfo.FileMinorPart.ToString([Globalization.CultureInfo]::InvariantCulture)
+  $cscVersionInfo.FileBuildPart.ToString([Globalization.CultureInfo]::InvariantCulture)
+  $cscVersionInfo.FilePrivatePart.ToString([Globalization.CultureInfo]::InvariantCulture)
+) -join '.'
 $metadata = [ordered]@{
   schemaVersion = 1
   powerShellVersion = $PSVersionTable.PSVersion.ToString()
@@ -172,7 +179,7 @@ $metadata = [ordered]@{
   clrVersion = [Environment]::Version.ToString()
   codeDomProvider = $providerType
   codeDomProviderAssemblyVersion = $providerAssemblyVersion
-  cscFileVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($cscPath).FileVersion
+  cscFileVersion = $cscFileVersion
   cscSha256Before = $cscSha256Before
   cscSha256After = $cscSha256After
   powerShellExecutableSha256Before = $powerShellSha256Before

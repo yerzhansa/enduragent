@@ -72,6 +72,7 @@ interface BootstrapFixture {
   readonly root: string;
   readonly expectedSha256: string;
   readonly bootstrap: ProbeBootstrapDocument;
+  readonly candidate: ProbeCandidateIdentity;
   readonly nativeManifest: ProbeNativeCandidateManifest;
 }
 
@@ -474,6 +475,7 @@ async function createBootstrapFixture(
     root,
     expectedSha256: sha256(bootstrapBytes),
     bootstrap,
+    candidate: identity,
     nativeManifest,
   };
 }
@@ -770,6 +772,18 @@ describe("Windows host unmocked production composition", () => {
         build.nativeHelperArtifactPath,
       );
       expect(fixture.bootstrap.nativeCandidateManifest.sha256).toBe(build.manifestSha256);
+      expect(fixture.candidate.compiler).toMatchObject({
+        codeDomProviderAssemblyVersion: nativeManifest.toolchain.codeDomProviderAssemblyVersion,
+        cscFileVersion: nativeManifest.toolchain.cscFileVersion,
+        cscSha256: nativeManifest.toolchain.cscSha256Before,
+      });
+      expect(fixture.candidate.toolchain).toMatchObject({
+        powerShellVersion: nativeManifest.toolchain.powerShellVersion,
+        powerShellExecutableSha256: nativeManifest.toolchain.powerShellExecutableSha256Before,
+        clrVersion: nativeManifest.toolchain.clrVersion,
+        runtimeDirectorySha256Before: nativeManifest.toolchain.runtimeDirectorySha256Before,
+        runtimeDirectorySha256After: nativeManifest.toolchain.runtimeDirectorySha256After,
+      });
 
       await expect(
         dispatchWindowsHostFalsifierCommand(authoritativeCampaignArguments(fixture)),
