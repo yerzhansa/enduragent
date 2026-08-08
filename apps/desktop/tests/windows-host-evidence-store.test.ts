@@ -35,6 +35,13 @@ const fixedTimes = [
   "2026-08-06T00:00:01.000Z",
   "2026-08-06T00:00:02.000Z",
 ];
+const receiptRecoveryBoundaries = [
+  "transaction",
+  "nonce-index",
+  "request-index",
+  "receipt-index",
+  "closure",
+].map((boundary, index) => ({ boundary, index }));
 const { privateKey: controllerPrivateKey, publicKey: controllerPublicKey } =
   generateKeyPairSync("ed25519");
 const controllerPublicKeyBytes = controllerPublicKey.export({ format: "der", type: "spki" });
@@ -683,14 +690,9 @@ describe("Windows host falsifier evidence store", () => {
     ).rejects.toMatchObject({ code: "CONTINUATION_RECEIPT" });
   });
 
-  it("recovers exact external-receipt consumption after every durable write boundary", async () => {
-    for (const [index, boundary] of [
-      "transaction",
-      "nonce-index",
-      "request-index",
-      "receipt-index",
-      "closure",
-    ].entries()) {
+  it.each(receiptRecoveryBoundaries)(
+    "recovers exact external-receipt consumption after the $boundary durable write boundary",
+    async ({ boundary, index }) => {
       const caseRoot = await mkdtemp(join(root, `receipt-recovery-${index}-`));
       const store = await openEvidenceStore({ root: caseRoot, sentinel });
       const chainId = `floor-ascii-f07-recovery-${index + 1}`;
@@ -768,8 +770,8 @@ describe("Windows host falsifier evidence store", () => {
         checkpointEvidence,
         consumedAt: "2026-08-06T00:00:01.000Z",
       });
-    }
-  });
+    },
+  );
 
   it("rejects a different external receipt after a durable transaction claim", async () => {
     const store = await openEvidenceStore({ root, sentinel });
