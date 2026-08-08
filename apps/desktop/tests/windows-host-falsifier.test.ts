@@ -71,6 +71,14 @@ const hostedObservedHost = {
   developerModeEnabled: true,
 } as const;
 
+function hostedObservedHostForCurrentRunner() {
+  const localAppData = process.env.LOCALAPPDATA;
+  if (localAppData === undefined) {
+    throw new Error("LOCALAPPDATA is required for Windows foundation persistence tests");
+  }
+  return { ...hostedObservedHost, localAppData };
+}
+
 const authoritativeObservedHost = {
   ...observedHost,
   toolchain: {
@@ -919,6 +927,7 @@ describe("redaction, scanning, hashing, and deadlines", () => {
         runId: `test-failure-${process.pid}`,
         runnerImage: process.env.ImageOS ?? "local-windows",
         runnerImageVersion: process.env.ImageVersion ?? "local-test",
+        observedHost: hostedObservedHostForCurrentRunner(),
         selfTestOperation: async () => {
           throw new FalsifierError("SYNTHETIC_OPERATION_FAILURE", "synthetic failure");
         },
@@ -944,6 +953,7 @@ describe("redaction, scanning, hashing, and deadlines", () => {
         runId: `test-timeout-${process.pid}`,
         runnerImage: process.env.ImageOS ?? "local-windows",
         runnerImageVersion: process.env.ImageVersion ?? "local-test",
+        observedHost: hostedObservedHostForCurrentRunner(),
         timeoutMs: 5,
         quiescenceMs: 5,
         selfTestOperation: async () => new Promise<never>(() => undefined),
