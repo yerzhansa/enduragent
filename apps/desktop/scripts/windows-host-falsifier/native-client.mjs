@@ -995,7 +995,9 @@ export function describePrivateDirectoryCreationFailure({
   stdoutMatchesNonce,
 }) {
   if (signal !== null) return "PowerShell terminated before proving the directory ACL";
-  if (stderrBytes !== 0) return "PowerShell emitted stderr while creating the directory";
+  if (stderrBytes !== 0) {
+    return `PowerShell emitted ${String(stderrBytes)} stderr bytes (exit ${String(code)}, nonce ${stdoutMatchesNonce ? "matched" : "mismatched"})`;
+  }
   if (code === 42) return "PowerShell observed a reparse point after directory creation";
   if (code === 43)
     return "PowerShell observed a mismatched owner, DACL protection flag, or explicit ACE count";

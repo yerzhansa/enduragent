@@ -927,6 +927,14 @@ describe("Windows host native falsifier client", () => {
       describePrivateDirectoryCreationFailure({
         code: 0,
         signal: null,
+        stderrBytes: 371,
+        stdoutMatchesNonce: true,
+      }),
+    ).toBe("PowerShell emitted 371 stderr bytes (exit 0, nonce matched)");
+    expect(
+      describePrivateDirectoryCreationFailure({
+        code: 0,
+        signal: null,
         stderrBytes: 0,
         stdoutMatchesNonce: true,
       }),
