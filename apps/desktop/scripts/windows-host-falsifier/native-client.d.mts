@@ -92,6 +92,17 @@ export function describePrivateDirectoryCreationFailure(result: {
   readonly stdoutMatchesNonce: boolean;
 }): string | null;
 
+export function describeSingleJsonFrameShape(stdout: Uint8Array): Readonly<{
+  stdoutBytes: number;
+  utf8NonemptyLines: number;
+  utf8Bom: boolean;
+  utf16LeBom: boolean;
+  utf16BeBom: boolean;
+  utf16LeJsonSignature: boolean;
+  utf16BeJsonSignature: boolean;
+  nulBytes: number;
+}>;
+
 export interface NativePreflightObservationFields {
   readonly schemaVersion: 1;
   readonly kind: "windows-host-native-preflight-observation";

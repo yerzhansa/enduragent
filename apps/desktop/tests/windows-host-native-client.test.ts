@@ -27,6 +27,7 @@ import {
   buildNativeHelper,
   createNativeChannelApi,
   describePrivateDirectoryCreationFailure,
+  describeSingleJsonFrameShape,
   invokeNative,
   loadNativeHelper,
   openNativeChannel,
@@ -964,6 +965,34 @@ describe("Windows host native falsifier client", () => {
     );
     expect(source.trimEnd()).toMatch(/\[Console\]::Out\.WriteLine\(\[string\]\$metadataJson\)$/u);
     expect(source).not.toContain("} | ConvertTo-Json -Compress -Depth 5");
+  });
+
+  it("describes compiler frame encoding without retaining stdout content", () => {
+    const utf16Le = Buffer.concat([
+      Buffer.from([0xff, 0xfe]),
+      Buffer.from('{"schemaVersion":1}\r\n', "utf16le"),
+    ]);
+
+    expect(describeSingleJsonFrameShape(utf16Le)).toEqual({
+      stdoutBytes: utf16Le.length,
+      utf8NonemptyLines: 2,
+      utf8Bom: false,
+      utf16LeBom: true,
+      utf16BeBom: false,
+      utf16LeJsonSignature: true,
+      utf16BeJsonSignature: false,
+      nulBytes: 21,
+    });
+    expect(describeSingleJsonFrameShape(Buffer.from("one\ntwo\n", "utf8"))).toEqual({
+      stdoutBytes: 8,
+      utf8NonemptyLines: 2,
+      utf8Bom: false,
+      utf16LeBom: false,
+      utf16BeBom: false,
+      utf16LeJsonSignature: false,
+      utf16BeJsonSignature: false,
+      nulBytes: 0,
+    });
   });
 
   it("rejects ambiguous or noncanonical Windows system roots", () => {

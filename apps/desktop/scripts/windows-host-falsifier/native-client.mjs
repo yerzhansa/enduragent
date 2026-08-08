@@ -860,15 +860,49 @@ async function snapshotSources(buildDirectory) {
   return { snapshotDirectory, sources };
 }
 
-function parseSingleJsonLine(stdout, label) {
+export function describeSingleJsonFrameShape(stdout) {
+  const bytes = Buffer.from(stdout);
+  const startsWith = (...signature) =>
+    bytes.length >= signature.length && signature.every((byte, index) => bytes[index] === byte);
+  return Object.freeze({
+    stdoutBytes: bytes.length,
+    utf8NonemptyLines: bytes
+      .toString("utf8")
+      .split(/\r?\n/u)
+      .filter((line) => line.length > 0).length,
+    utf8Bom: startsWith(0xef, 0xbb, 0xbf),
+    utf16LeBom: startsWith(0xff, 0xfe),
+    utf16BeBom: startsWith(0xfe, 0xff),
+    utf16LeJsonSignature: startsWith(0x7b, 0x00) || startsWith(0xff, 0xfe, 0x7b, 0x00),
+    utf16BeJsonSignature: startsWith(0x00, 0x7b) || startsWith(0xfe, 0xff, 0x00, 0x7b),
+    nulBytes: bytes.reduce((count, byte) => count + (byte === 0 ? 1 : 0), 0),
+  });
+}
+
+function singleJsonFrameShapeDetail(stdout, processFacts) {
+  const shape = describeSingleJsonFrameShape(stdout);
+  const processDetail =
+    processFacts === undefined
+      ? "process=unavailable"
+      : `exit=${String(processFacts.code)},signal=${processFacts.signal ?? "none"},stderrBytes=${String(processFacts.stderrBytes)}`;
+  return `stdoutBytes=${String(shape.stdoutBytes)},utf8NonemptyLines=${String(shape.utf8NonemptyLines)},utf8Bom=${String(shape.utf8Bom)},utf16LeBom=${String(shape.utf16LeBom)},utf16BeBom=${String(shape.utf16BeBom)},utf16LeJsonSignature=${String(shape.utf16LeJsonSignature)},utf16BeJsonSignature=${String(shape.utf16BeJsonSignature)},nulBytes=${String(shape.nulBytes)},${processDetail}`;
+}
+
+function parseSingleJsonLine(stdout, label, processFacts) {
   const text = stdout.toString("utf8");
   const lines = text.split(/\r?\n/u).filter((line) => line.length > 0);
   if (lines.length !== 1)
-    fail("NATIVE_PROCESS_PROTOCOL", `${label} did not emit exactly one JSON line`);
+    fail(
+      "NATIVE_PROCESS_PROTOCOL",
+      `${label} did not emit exactly one JSON line (${singleJsonFrameShapeDetail(stdout, processFacts)})`,
+    );
   try {
     return JSON.parse(lines[0]);
   } catch {
-    fail("NATIVE_PROCESS_PROTOCOL", `${label} did not emit valid JSON`);
+    fail(
+      "NATIVE_PROCESS_PROTOCOL",
+      `${label} did not emit valid JSON (${singleJsonFrameShapeDetail(stdout, processFacts)})`,
+    );
   }
 }
 
@@ -1593,7 +1627,11 @@ export async function buildNativeHelper({ runRoot, timeoutMs = 60_000, signal } 
     fail("NATIVE_BUILD_FAILED", "Windows PowerShell Add-Type compilation failed");
   }
   const metadata = validateBuildMetadata(
-    parseSingleJsonLine(compiled.stdout, "native compiler"),
+    parseSingleJsonLine(compiled.stdout, "native compiler", {
+      code: compiled.code,
+      signal: compiled.signal,
+      stderrBytes: compiled.stderr.length,
+    }),
     sources,
   );
   if (
