@@ -85,6 +85,13 @@ export interface NativeBuild extends NativeBuildIdentity {
   readonly manifestPath: string;
 }
 
+export function describePrivateDirectoryCreationFailure(result: {
+  readonly code: number | null;
+  readonly signal: NodeJS.Signals | null;
+  readonly stderrBytes: number;
+  readonly stdoutMatchesNonce: boolean;
+}): string | null;
+
 export interface NativePreflightObservationFields {
   readonly schemaVersion: 1;
   readonly kind: "windows-host-native-preflight-observation";

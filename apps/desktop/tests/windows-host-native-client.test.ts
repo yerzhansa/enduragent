@@ -26,6 +26,7 @@ import {
   buildNativeChildEnvironment,
   buildNativeHelper,
   createNativeChannelApi,
+  describePrivateDirectoryCreationFailure,
   invokeNative,
   loadNativeHelper,
   openNativeChannel,
@@ -903,6 +904,33 @@ describe("Windows host native falsifier client", () => {
     expect(Object.isFrozen(environment)).toBe(true);
     expect(environment).not.toHaveProperty("ComSpec");
     expect(environment).not.toHaveProperty("PATHEXT");
+  });
+
+  it("classifies private-directory creation failures without disclosing child output", () => {
+    expect(
+      describePrivateDirectoryCreationFailure({
+        code: 43,
+        signal: null,
+        stderrBytes: 0,
+        stdoutMatchesNonce: false,
+      }),
+    ).toBe("PowerShell observed a mismatched owner, DACL protection flag, or explicit ACE count");
+    expect(
+      describePrivateDirectoryCreationFailure({
+        code: 44,
+        signal: null,
+        stderrBytes: 0,
+        stdoutMatchesNonce: false,
+      }),
+    ).toBe("PowerShell observed an inexact owner-only Full Control ACE");
+    expect(
+      describePrivateDirectoryCreationFailure({
+        code: 0,
+        signal: null,
+        stderrBytes: 0,
+        stdoutMatchesNonce: true,
+      }),
+    ).toBeNull();
   });
 
   it("rejects ambiguous or noncanonical Windows system roots", () => {

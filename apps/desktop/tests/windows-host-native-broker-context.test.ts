@@ -217,10 +217,12 @@ describe("native broker-context protocol", () => {
   });
 
   it("allows only observation mode to create the journal database", async () => {
-    const source = await readFile(
-      new URL("../scripts/windows-host-falsifier/native/BrokerContext.cs", import.meta.url),
-      "utf8",
-    );
+    const source = (
+      await readFile(
+        new URL("../scripts/windows-host-falsifier/native/BrokerContext.cs", import.meta.url),
+        "utf8",
+      )
+    ).replaceAll("\r\n", "\n");
     const constructorStart = source.indexOf("internal ChannelState(");
     const constructorEnd = source.indexOf(
       "internal Dictionary<string, object> Observed",

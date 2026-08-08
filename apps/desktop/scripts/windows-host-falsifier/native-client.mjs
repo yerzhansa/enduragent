@@ -988,6 +988,23 @@ if (
 ) { exit 44 }
 [Console]::Out.WriteLine($nonce)`;
 
+export function describePrivateDirectoryCreationFailure({
+  code,
+  signal,
+  stderrBytes,
+  stdoutMatchesNonce,
+}) {
+  if (signal !== null) return "PowerShell terminated before proving the directory ACL";
+  if (stderrBytes !== 0) return "PowerShell emitted stderr while creating the directory";
+  if (code === 42) return "PowerShell observed a reparse point after directory creation";
+  if (code === 43)
+    return "PowerShell observed a mismatched owner, DACL protection flag, or explicit ACE count";
+  if (code === 44) return "PowerShell observed an inexact owner-only Full Control ACE";
+  if (code !== 0) return `PowerShell exited with code ${String(code)}`;
+  if (!stdoutMatchesNonce) return "PowerShell did not return the private-directory nonce";
+  return null;
+}
+
 async function createOwnedWindowsDirectory({
   parentDirectory,
   leaf,
@@ -1022,13 +1039,17 @@ async function createOwnedWindowsDirectory({
       maxStderr: maxStderrBytes,
     },
   );
-  if (
-    created.code !== 0 ||
-    created.signal !== null ||
-    created.stderr.length !== 0 ||
-    created.stdout.toString("utf8").replace(/\r?\n$/u, "") !== nonce
-  ) {
-    fail("NATIVE_PRIVATE_DIRECTORY", `${label} could not be created with a protected owner ACL`);
+  const failureReason = describePrivateDirectoryCreationFailure({
+    code: created.code,
+    signal: created.signal,
+    stderrBytes: created.stderr.length,
+    stdoutMatchesNonce: created.stdout.toString("utf8").replace(/\r?\n$/u, "") === nonce,
+  });
+  if (failureReason !== null) {
+    fail(
+      "NATIVE_PRIVATE_DIRECTORY",
+      `${label} could not be created with a protected owner ACL: ${failureReason}`,
+    );
   }
   const owned = await validateRunRoot(directoryPath);
   await assertRunRootUnchanged(parent);
