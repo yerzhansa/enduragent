@@ -37,13 +37,13 @@
   "dependencies": {
     "@xmldom/xmldom": "0.9.10",
     "fflate": "0.8.3",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "fast-check": "^4.7.0",
+    "fast-check": "^4.9.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "license": "MIT"
 }

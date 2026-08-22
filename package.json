@@ -45,20 +45,20 @@
     "@enduragent/sport-cycling": "workspace:*",
     "@sinonjs/fake-timers": "^15.4.0",
     "@types/node": "^25.6.0",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.11",
     "@xmldom/xmldom": "0.9.10",
     "ai": "^6.0.158",
     "intervals-icu-api": "0.4.0",
-    "msw": "^2.13.3",
-    "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0",
+    "msw": "^2.15.0",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
     "pyodide": "^0.29.4",
     "sigstore": "4.0.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.12",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4",
-    "yaml": "^2.8.3",
-    "zod": "^4.3.6"
+    "vitest": "^4.1.11",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "engines": {
     "node": ">=22"
