@@ -27,6 +27,7 @@ import {
   verifyMacosApplication,
   verifyMacosBaselineApplication,
   verifyMacosIdentityContinuity,
+  verifyMacosKeychainBinding,
   verifyMacosReleaseApplicationContents,
   verifyMacosReleaseArtifacts,
   verifyMacosReleaseEnvelope,
@@ -61,6 +62,42 @@ function dmgSigningIdentityResult(
       "Authority=Apple Root CA",
       `TeamIdentifier=${teamIdentifier}`,
     ].join("\n"),
+  };
+}
+
+const keychainBindingIdentifier = "keychain-binding.node-a1b2c3";
+const machoBundleFileType = 0x8;
+const keychainBindingDesignatedRequirement = [
+  `identifier "${keychainBindingIdentifier}" and anchor apple generic and certificate`,
+  "1[field.1.2.840.113635.100.6.2.6] exists and certificate",
+  "leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = FA494ACVTF",
+].join(" ");
+const keychainBindingImageIdentity = Object.freeze({
+  cpuType: 0x0100000c,
+  cpuSubtype: 0,
+  fileType: machoBundleFileType,
+  uuid: "a1".repeat(16),
+  contentSha256: "b2".repeat(32),
+});
+
+function keychainBindingIdentityResult(teamIdentifier = "FA494ACVTF", flags = "runtime") {
+  return {
+    stdout: "",
+    stderr: [
+      `Identifier=${keychainBindingIdentifier}`,
+      `CodeDirectory v=20500 size=402 flags=0x10000(${flags}) hashes=6+2 location=embedded`,
+      `Authority=Developer ID Application: Enduragent Test (${teamIdentifier})`,
+      "Authority=Developer ID Certification Authority",
+      "Authority=Apple Root CA",
+      `TeamIdentifier=${teamIdentifier}`,
+    ].join("\n"),
+  };
+}
+
+function keychainBindingRequirementResult(teamIdentifier = "FA494ACVTF") {
+  return {
+    stdout: `designated => ${keychainBindingDesignatedRequirement.replace("FA494ACVTF", teamIdentifier)}\n`,
+    stderr: "",
   };
 }
 
@@ -2060,6 +2097,93 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
       ["/usr/bin/xcrun", ["stapler", "validate", "-v", application]],
       ["/usr/sbin/spctl", ["--assess", "--type", "execute", "--verbose=4", application]],
     ]);
+  });
+
+  it("verifies the packaged keychain binding image, identity, and designated requirement", async () => {
+    const application = "/synthetic/Enduragent.app";
+    const binding = `${application}/Contents/Resources/app.asar.unpacked/native/keychain-binding.node`;
+    const inspectBindingImage = vi.fn(async () => keychainBindingImageIdentity);
+    const executeFile = vi.fn(async (executable: string, arguments_: readonly string[]) => {
+      if (arguments_.includes("--requirements")) return keychainBindingRequirementResult();
+      if (arguments_.includes("--verbose=4")) return keychainBindingIdentityResult();
+      return { stdout: "", stderr: "" };
+    });
+
+    await expect(
+      verifyMacosKeychainBinding(application, { executeFile, inspectBindingImage }),
+    ).resolves.toEqual({
+      binding,
+      identifier: keychainBindingIdentifier,
+      teamIdentifier: "FA494ACVTF",
+      designatedRequirement: keychainBindingDesignatedRequirement,
+      imageIdentity: keychainBindingImageIdentity,
+    });
+    expect(inspectBindingImage).toHaveBeenCalledWith(binding);
+    expect(keychainBindingImageIdentity.fileType).toBe(machoBundleFileType);
+    expect(executeFile.mock.calls).toEqual([
+      ["/usr/bin/codesign", ["--verify", "--strict", "--verbose=2", binding]],
+      ["/usr/bin/codesign", ["--display", "--verbose=4", binding]],
+      ["/usr/bin/codesign", ["--display", "--requirements", "-", binding]],
+    ]);
+  });
+
+  it.each([
+    [
+      "an unverifiable signature",
+      () => ({ verifies: false }),
+      "macOS keychain binding signature verification failed",
+    ],
+    [
+      "a foreign team identifier",
+      () => ({ teamIdentifier: "ZZZZZZZZZZ" }),
+      "macOS keychain binding signing identity is invalid",
+    ],
+    [
+      "a binding without the hardened runtime",
+      () => ({ flags: "adhoc" }),
+      "macOS keychain binding signing identity is invalid",
+    ],
+    [
+      "a designated requirement naming another team",
+      () => ({ requirementTeamIdentifier: "ZZZZZZZZZZ" }),
+      "macOS keychain binding designated requirement is invalid",
+    ],
+    [
+      "a native image that is not MH_BUNDLE",
+      () => ({ imageValid: false }),
+      "macOS keychain binding image is invalid",
+    ],
+  ])("rejects %s", async (_label, overrides, message) => {
+    const options = overrides() as {
+      verifies?: boolean;
+      teamIdentifier?: string;
+      flags?: string;
+      requirementTeamIdentifier?: string;
+      imageValid?: boolean;
+    };
+    const inspectBindingImage = vi.fn(async () => {
+      if (options.imageValid === false) throw new Error("synthetic non-MH_BUNDLE image");
+      return keychainBindingImageIdentity;
+    });
+    const executeFile = vi.fn(async (_executable: string, arguments_: readonly string[]) => {
+      if (arguments_.includes("--verify") && options.verifies === false) {
+        throw new Error("synthetic native verification failure");
+      }
+      if (arguments_.includes("--requirements")) {
+        return keychainBindingRequirementResult(options.requirementTeamIdentifier);
+      }
+      if (arguments_.includes("--verbose=4")) {
+        return keychainBindingIdentityResult(options.teamIdentifier, options.flags);
+      }
+      return { stdout: "", stderr: "" };
+    });
+
+    await expect(
+      verifyMacosKeychainBinding("/synthetic/Enduragent.app", {
+        executeFile,
+        inspectBindingImage,
+      }),
+    ).rejects.toThrow(message);
   });
 
   it("fails closed without invoking later application verification commands", async () => {

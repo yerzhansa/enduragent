@@ -313,7 +313,7 @@ describe("Telegram settings controller", () => {
         feedback: {
           tone: "error",
           message:
-            "Secure token storage is unavailable. Quit and reopen Enduragent, unlock or approve Keychain access, copy the bot token again, then retry.",
+            "Secure token storage is unavailable. Quit and reopen Enduragent, unlock your login keychain, copy the bot token again, then retry.",
         },
       }),
     );
@@ -611,7 +611,7 @@ describe("Telegram settings controller", () => {
     ],
     [
       "encryption-unavailable",
-      "The current Telegram bot is unchanged because secure token storage is unavailable. Quit and reopen Enduragent, unlock or approve Keychain access, copy the bot token again, then retry.",
+      "The current Telegram bot is unchanged because secure token storage is unavailable. Quit and reopen Enduragent, unlock your login keychain, copy the bot token again, then retry.",
     ],
     [
       "unsafe-backend",
@@ -671,7 +671,7 @@ describe("Telegram settings controller", () => {
     [
       "reconcile" as const,
       "encryption-unavailable" as const,
-      "Secure token storage is unavailable. Quit and reopen Enduragent, unlock or approve Keychain access, then choose Check again.",
+      "Secure token storage is unavailable. Quit and reopen Enduragent, unlock your login keychain, then choose Check again.",
     ],
     [
       "remove-webhook" as const,

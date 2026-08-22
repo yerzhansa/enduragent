@@ -8,6 +8,17 @@ import { contained } from "./package-plan.mjs";
 
 export { contained } from "./package-plan.mjs";
 
+export const KEYCHAIN_BINDING_ASAR_PATH = "native/keychain-binding.node";
+export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN =
+  `dist/self-test-asar/${KEYCHAIN_BINDING_ASAR_PATH}`;
+export const KEYCHAIN_BINDING_FUSE_CONFIGURATION = Object.freeze({
+  runAsNode: false,
+  enableNodeOptionsEnvironmentVariable: false,
+  enableNodeCliInspectArguments: false,
+  enableEmbeddedAsarIntegrityValidation: true,
+  onlyLoadAppFromAsar: true,
+});
+
 const requiredAsarFiles = [
   "out/main/index.js",
   "out/main/daemon-utility.js",
@@ -74,6 +85,21 @@ const acceptanceOnlyMarkers = [
   "enduragent-desktop-telegram-acceptance",
   "enduragentdesktoptelegramacceptance",
 ];
+const MACH_O_HEADER_BYTES = 32;
+const MACH_O_64_LITTLE_ENDIAN_MAGIC = 0xfeed_facf;
+const MACH_O_ARM64_CPU_TYPE = 0x0100_000c;
+const MACH_O_EXECUTE_FILE_TYPE = 0x2;
+const MACH_O_BUNDLE_FILE_TYPE = 0x8;
+const MACH_O_UUID_COMMAND = 0x1b;
+const MACH_O_UUID_COMMAND_BYTES = 24;
+const MACH_O_SEGMENT_64_COMMAND = 0x19;
+const MACH_O_SEGMENT_64_COMMAND_BYTES = 72;
+const MACH_O_CODE_SIGNATURE_COMMAND = 0x1d;
+const MACH_O_CODE_SIGNATURE_COMMAND_BYTES = 16;
+const MACH_O_LINK_EDIT_SEGMENT = "__LINKEDIT";
+const MACH_O_MAXIMUM_LOAD_COMMANDS = 1_024;
+const MINIMUM_MACH_O_EXECUTABLE_BYTES = 4_096;
+const MAXIMUM_MACH_O_EXECUTABLE_BYTES = 8_388_608;
 const removedMainManifestKeys = new Set([
   "dist",
   "gitHead",
@@ -172,6 +198,9 @@ export function forbiddenPathReason(path) {
   const lower = path.toLowerCase();
   const segments = lower.split("/");
   const base = segments.at(-1) ?? "";
+  if (base === "keychain-helper" || segments.includes("keychain-helper")) {
+    return "retired keychain helper";
+  }
   if (vendoredAgentCliPatterns.some((pattern) => pattern.test(lower))) return "vendored agent CLI";
   if (base.endsWith(".map")) return "source map";
   if (base.startsWith(".env")) return "environment file";
@@ -201,6 +230,101 @@ export function inspectContents(bytes, label) {
   ) {
     fail("known plaintext secret marker", label);
   }
+}
+
+function machoIdentity(bytes, label, expectedFileType, kind) {
+  if (
+    !Buffer.isBuffer(bytes) ||
+    bytes.length < MINIMUM_MACH_O_EXECUTABLE_BYTES ||
+    bytes.length > MAXIMUM_MACH_O_EXECUTABLE_BYTES ||
+    bytes.readUInt32LE(0) !== MACH_O_64_LITTLE_ENDIAN_MAGIC
+  ) {
+    fail(`expected a 64-bit little-endian Mach-O ${kind}`, label);
+  }
+  const cpuType = bytes.readUInt32LE(4);
+  const cpuSubtype = bytes.readUInt32LE(8);
+  const fileType = bytes.readUInt32LE(12);
+  const commandCount = bytes.readUInt32LE(16);
+  const commandBytes = bytes.readUInt32LE(20);
+  const commandEnd = MACH_O_HEADER_BYTES + commandBytes;
+  if (cpuType !== MACH_O_ARM64_CPU_TYPE || fileType !== expectedFileType) {
+    fail(`unsupported Mach-O ${kind} architecture`, label);
+  }
+  if (
+    commandCount === 0 ||
+    commandCount > MACH_O_MAXIMUM_LOAD_COMMANDS ||
+    commandBytes < 8 ||
+    commandEnd > bytes.length
+  ) {
+    fail("invalid Mach-O load commands", label);
+  }
+  let offset = MACH_O_HEADER_BYTES;
+  let uuid;
+  let linkEditCommand;
+  let signatureCommand;
+  for (let index = 0; index < commandCount; index += 1) {
+    if (offset + 8 > commandEnd) fail("invalid Mach-O load commands", label);
+    const command = bytes.readUInt32LE(offset);
+    const size = bytes.readUInt32LE(offset + 4);
+    if (size < 8 || size % 8 !== 0 || offset + size > commandEnd) {
+      fail("invalid Mach-O load commands", label);
+    }
+    if (command === MACH_O_UUID_COMMAND) {
+      if (size !== MACH_O_UUID_COMMAND_BYTES || uuid !== undefined) {
+        fail("invalid Mach-O image identifier", label);
+      }
+      uuid = bytes.subarray(offset + 8, offset + MACH_O_UUID_COMMAND_BYTES).toString("hex");
+    }
+    if (
+      command === MACH_O_SEGMENT_64_COMMAND &&
+      size === MACH_O_SEGMENT_64_COMMAND_BYTES &&
+      bytes.subarray(offset + 8, offset + 24).toString("latin1").replace(/\0+$/u, "") ===
+        MACH_O_LINK_EDIT_SEGMENT
+    ) {
+      if (linkEditCommand !== undefined) fail("invalid Mach-O link edit segment", label);
+      linkEditCommand = offset;
+    }
+    if (command === MACH_O_CODE_SIGNATURE_COMMAND) {
+      if (size !== MACH_O_CODE_SIGNATURE_COMMAND_BYTES || signatureCommand !== undefined) {
+        fail("invalid Mach-O code signature", label);
+      }
+      signatureCommand = offset;
+    }
+    offset += size;
+  }
+  if (offset !== commandEnd || uuid === undefined) {
+    fail("invalid Mach-O image identifier", label);
+  }
+  if (linkEditCommand === undefined) fail("invalid Mach-O link edit segment", label);
+  if (signatureCommand === undefined) fail("invalid Mach-O code signature", label);
+  const signatureOffset = bytes.readUInt32LE(signatureCommand + 8);
+  const signatureBytes = bytes.readUInt32LE(signatureCommand + 12);
+  if (
+    signatureOffset < commandEnd ||
+    signatureBytes === 0 ||
+    signatureOffset + signatureBytes !== bytes.length
+  ) {
+    fail("invalid Mach-O code signature", label);
+  }
+  const content = Buffer.from(bytes.subarray(0, signatureOffset));
+  content.fill(0, linkEditCommand + 32, linkEditCommand + 40);
+  content.fill(0, linkEditCommand + 48, linkEditCommand + 56);
+  content.fill(0, signatureCommand + 8, signatureCommand + MACH_O_CODE_SIGNATURE_COMMAND_BYTES);
+  return {
+    cpuType,
+    cpuSubtype,
+    fileType,
+    uuid,
+    contentSha256: createHash("sha256").update(content).digest("hex"),
+  };
+}
+
+export function machoExecutableIdentity(bytes, label) {
+  return machoIdentity(bytes, label, MACH_O_EXECUTE_FILE_TYPE, "executable");
+}
+
+export function machoBundleIdentity(bytes, label) {
+  return machoIdentity(bytes, label, MACH_O_BUNDLE_FILE_TYPE, "bundle");
 }
 
 function fileSet(value) {
@@ -245,6 +369,10 @@ export function validateBuilderInventoryAuthority(config, desktopRoot, options =
     config.directories.output !== "dist" ||
     !Array.isArray(config.files) ||
     !Array.isArray(config.extraResources) ||
+    !Array.isArray(config.asarUnpack) ||
+    config.asarUnpack.length !== 1 ||
+    config.asarUnpack[0] !== KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN ||
+    !isDeepStrictEqual(config.electronFuses, KEYCHAIN_BINDING_FUSE_CONFIGURATION) ||
     validateEnvelopeAuthority(config) !== true
   ) {
     fail("invalid builder packaging authority", "electron-builder.yml");
@@ -431,7 +559,8 @@ export async function validateUnpackedTree(unpackedRoot, asar, present, labels) 
   }
 }
 
-export function compareStagedTree(expected, actual, actualRoot) {
+export function compareStagedTree(expected, actual, actualRoot, options = {}) {
+  const signedExecutables = new Set(options.signedExecutables ?? []);
   const expectedPaths = [...expected.keys()].sort();
   const actualPaths = [...actual.keys()].sort();
   if (
@@ -446,7 +575,22 @@ export function compareStagedTree(expected, actual, actualRoot) {
     if (expectedEntry.type !== actualEntry.type) {
       fail("packaged external resource type differs from staging", `${actualRoot}/${path}`);
     }
-    if (expectedEntry.type === "file" && !expectedEntry.bytes.equals(actualEntry.bytes)) {
+    if (expectedEntry.type !== "file") continue;
+    if (signedExecutables.has(path)) {
+      const staged = machoExecutableIdentity(expectedEntry.bytes, `${actualRoot}/${path}`);
+      const packaged = machoExecutableIdentity(actualEntry.bytes, `${actualRoot}/${path}`);
+      if (
+        staged.uuid !== packaged.uuid ||
+        staged.contentSha256 !== packaged.contentSha256 ||
+        staged.cpuType !== packaged.cpuType ||
+        staged.cpuSubtype !== packaged.cpuSubtype ||
+        staged.fileType !== packaged.fileType
+      ) {
+        fail("packaged external executable differs from staging", `${actualRoot}/${path}`);
+      }
+      continue;
+    }
+    if (!expectedEntry.bytes.equals(actualEntry.bytes)) {
       fail("packaged external resource bytes differ from staging", `${actualRoot}/${path}`);
     }
   }
@@ -458,11 +602,13 @@ export function compareAsarStaging(expected, asar) {
     if (
       actualEntry === undefined ||
       actualEntry.type !== expectedEntry.type ||
-      actualEntry.unpacked === true
+      (expectedEntry.type === "file" &&
+        actualEntry.unpacked !== (path === KEYCHAIN_BINDING_ASAR_PATH))
     ) {
       fail("ASAR staging entry is missing or unpacked", `app.asar/${path}`);
     }
     if (
+      path !== KEYCHAIN_BINDING_ASAR_PATH &&
       expectedEntry.type === "file" &&
       (!Buffer.isBuffer(actualEntry.bytes) || !expectedEntry.bytes.equals(actualEntry.bytes))
     ) {
@@ -626,6 +772,20 @@ export function validateRequiredAsarFiles(asar, sourceManifest, options = {}) {
     if (path.split("/").at(-1) === "self-test-runner.cjs") {
       fail("self-test runner must remain external", `app.asar/${path}`);
     }
+  }
+  const binding = asar.get(KEYCHAIN_BINDING_ASAR_PATH);
+  if (options.macos === true) {
+    if (binding === undefined || binding.type !== "file" || binding.unpacked !== true) {
+      fail(
+        "declared keychain binding is missing or packed",
+        `app.asar/${KEYCHAIN_BINDING_ASAR_PATH}`,
+      );
+    }
+  } else if (binding !== undefined) {
+    fail(
+      "macOS keychain binding is forbidden on this platform",
+      `app.asar/${KEYCHAIN_BINDING_ASAR_PATH}`,
+    );
   }
 
   validateManifest(asar, sourceManifest, options);

@@ -15,6 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createCredentialMutationLock } from "../src/main/credential-envelope-lock.js";
 import {
   CREDENTIAL_DIRECTORY_MODE,
   CREDENTIAL_FILE_MODE,
@@ -137,6 +138,44 @@ afterEach(async () => {
 });
 
 describe("desktop credential vault", () => {
+  it("finishes an active credential write before a shared reset mutation can run", async () => {
+    const root = await temporaryRoot();
+    const trace: string[] = [];
+    let finishApply: (() => void) | undefined;
+    let markStarted: (() => void) | undefined;
+    const applyStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const applyFinished = new Promise<void>((resolve) => {
+      finishApply = resolve;
+    });
+    const serializeCredentialMutation = createCredentialMutationLock();
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      serializeCredentialMutation,
+      async applyCredential() {
+        trace.push("write-started");
+        markStarted?.();
+        await applyFinished;
+        trace.push("write-finished");
+      },
+    });
+
+    const write = vault.writeCredential({ slot: "anthropic", value: "synthetic-secret" });
+    await applyStarted;
+    const reset = serializeCredentialMutation(async () => {
+      trace.push("reset");
+    });
+    await Promise.resolve();
+    expect(trace).toEqual(["write-started"]);
+
+    finishApply?.();
+    await write;
+    await reset;
+    expect(trace).toEqual(["write-started", "write-finished", "reset"]);
+  });
+
   it("refuses unavailable encryption and invalid input before filesystem work", async () => {
     const root = await temporaryRoot();
     const encryptString = vi.fn(() => Buffer.from("unused"));
@@ -725,6 +764,30 @@ describe("desktop credential vault", () => {
       state: "missing",
       runtimeState: null,
     });
+  });
+
+  posixIt("deletes an unverified envelope only after the athlete requests that slot", async () => {
+    const root = await temporaryRoot();
+    await mkdir(root, { mode: CREDENTIAL_DIRECTORY_MODE });
+    const path = join(root, "anthropic.bin");
+    await writeFile(path, Buffer.from("unverified-envelope"), { mode: CREDENTIAL_FILE_MODE });
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => undefined),
+    });
+
+    await expect(vault.credentialStatuses()).resolves.toContainEqual({
+      slot: "anthropic",
+      state: "re-prompt",
+      runtimeState: null,
+    });
+    await expect(vault.deleteCredential("anthropic")).resolves.toEqual({
+      slot: "anthropic",
+      status: "deleted",
+      cleanupPending: false,
+    });
+    await expect(lstat(path)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("deletes a stored-inactive credential without replacing the active runtime", async () => {

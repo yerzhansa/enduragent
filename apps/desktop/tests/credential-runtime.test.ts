@@ -196,6 +196,9 @@ async function pollCredentialStatuses(vault: CredentialVault): Promise<void> {
     },
     getRuntimeConfig: async () => runtimeSnapshot("anthropic"),
     applyExistingLlmSelection: async () => false,
+    credentialRecoveryStatus: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
+    retryCredentialRecovery: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
+    resetAllCredentials: async () => ({ status: "reset", keyCleanupPending: false }),
     isTrusted: () => true,
     checkIntervalsCredentialOwner,
   });
@@ -343,9 +346,9 @@ describe("desktop credential runtime precedence", () => {
 
   it("falls back only for method absence or a lifecycle that cannot attempt preflight", async () => {
     const lifecycle = { status: "ready", generation: 1 };
-    const verifyIntervalsCredential = vi.fn(
-      async (_apiKey: string, _signal?: AbortSignal) => ({ approval: VERIFICATION_APPROVAL }),
-    );
+    const verifyIntervalsCredential = vi.fn(async (_apiKey: string, _signal?: AbortSignal) => ({
+      approval: VERIFICATION_APPROVAL,
+    }));
     const binding = { authority: { verifyIntervalsCredential } };
     const preflight = createActiveIntervalsCredentialPreflight({
       currentBinding: () => binding,

@@ -40,6 +40,11 @@ export const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credenti
 export const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry" as const;
 export const DESKTOP_CREDENTIAL_WRITE_CHANNEL = "enduragent:onboarding:credential-write" as const;
 export const DESKTOP_CREDENTIAL_DELETE_CHANNEL = "enduragent:settings:credential-delete" as const;
+export const DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL =
+  "enduragent:settings:credential-recovery-status" as const;
+export const DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL =
+  "enduragent:settings:credential-recovery-retry" as const;
+export const DESKTOP_CREDENTIAL_RESET_CHANNEL = "enduragent:settings:credential-reset" as const;
 export const DESKTOP_LLM_CONFIGURATION_CHANNEL = "enduragent:onboarding:llm-configuration" as const;
 export const DESKTOP_LLM_SELECTION_APPLY_CHANNEL =
   "enduragent:onboarding:llm-selection-apply" as const;
@@ -79,7 +84,18 @@ interface RegisterOnboardingIpcOptions {
   readonly checkIntervalsCredentialOwner: (
     value: string,
   ) => Promise<"unowned" | "matched" | "mismatch" | "unresolved" | "store-unavailable">;
+  readonly credentialRecoveryStatus: () => Promise<DesktopCredentialRecoveryStatus>;
+  readonly retryCredentialRecovery: () => Promise<DesktopCredentialRecoveryStatus>;
+  readonly resetAllCredentials: () => Promise<DesktopCredentialResetResult>;
 }
+
+export type DesktopCredentialRecoveryStatus =
+  | Readonly<{ state: "ready"; unverifiedEnvelopes: number }>
+  | Readonly<{ state: "locked" | "missing" | "unavailable" }>;
+
+export type DesktopCredentialResetResult =
+  | Readonly<{ status: "reset"; keyCleanupPending: boolean }>
+  | Readonly<{ status: "refused"; reason: "runtime-unavailable" | "storage-failed" }>;
 
 const SUPPORTED_EXTENSIONS = new Set([".fit", ".tcx", ".gpx"]);
 
@@ -411,6 +427,21 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     }
     return minimizeDelete(credential, await options.vault.deleteCredential(credential));
   });
+  options.ipcMain.handle(DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL, async (event, ...args) => {
+    requireTrusted(event);
+    if (args.length !== 0) throw new TypeError();
+    return await options.credentialRecoveryStatus();
+  });
+  options.ipcMain.handle(DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL, async (event, ...args) => {
+    requireTrusted(event);
+    if (args.length !== 0) throw new TypeError();
+    return await options.retryCredentialRecovery();
+  });
+  options.ipcMain.handle(DESKTOP_CREDENTIAL_RESET_CHANNEL, async (event, ...args) => {
+    requireTrusted(event);
+    if (args.length !== 0) throw new TypeError();
+    return await options.resetAllCredentials();
+  });
   options.ipcMain.handle(DESKTOP_LLM_CONFIGURATION_CHANNEL, async (event, ...args) => {
     requireTrusted(event);
     if (args.length !== 0) throw new TypeError();
@@ -530,6 +561,9 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RETRY_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_WRITE_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_DELETE_CHANNEL);
+    options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL);
+    options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL);
+    options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RESET_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_LLM_CONFIGURATION_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_LLM_SELECTION_APPLY_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CHATGPT_STATUS_CHANNEL);

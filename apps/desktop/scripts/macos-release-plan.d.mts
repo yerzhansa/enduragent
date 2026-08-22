@@ -102,10 +102,14 @@ export type MacosReleaseStage =
   | "release-plan"
   | "notarization-credentials"
   | "baseline-verification"
+  | "keychain-binding-preparation"
   | "electron-builder"
   | "package-layout"
+  | "keychain-binding"
+  | "electron-fuses"
   | "candidate-verification"
   | "identity-continuity"
+  | "backend-selection"
   | "dmg-notarization"
   | "dmg-verification"
   | "metadata-sealing"
@@ -116,6 +120,7 @@ export interface MacosReleaseDependencies {
   readonly readFile?: (path: string, encoding: "utf8") => Promise<string>;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly build?: (options: MacosReleaseBuilderOptions) => Promise<readonly string[]>;
+  readonly prepareKeychainBinding?: (desktopRoot: string) => Promise<unknown>;
   readonly executeFile?: (executable: string, arguments_: readonly string[]) => Promise<unknown>;
   readonly notarize?: (options: NotarizeOptions) => Promise<void>;
   readonly sealReleaseMetadata?: (plan: MacosReleasePlan) => Promise<void>;
@@ -133,6 +138,9 @@ export interface MacosReleaseDependencies {
     baselineApplication: string,
     options: { readonly candidateVersion: string },
   ) => Promise<VerifiedMacosBaselineApplication>;
+  readonly verifyKeychainBinding?: (candidateApplication: string) => Promise<unknown>;
+  readonly verifyElectronFuses?: (executable: string) => Promise<unknown>;
+  readonly verifyBackendSelection?: (candidateApplication: string) => Promise<unknown>;
   readonly verifyIdentityContinuity?: (
     baselineApplication: string,
     candidateApplication: string,
@@ -207,6 +215,12 @@ export function notarizeMacosDmg(
   credentials: NotarizationCredentialSelection,
   dependencies?: Pick<MacosReleaseDependencies, "notarize">,
 ): Promise<void>;
+export function prepareMacosReleaseKeychainBinding(
+  desktopRoot: string,
+): Promise<{
+  readonly built: string;
+  readonly staged: string;
+}>;
 export function runMacosRelease(
   input: MacosReleaseInput,
   dependencies?: MacosReleaseDependencies,

@@ -377,7 +377,7 @@ describe("Telegram settings surface", () => {
   it.each([
     [
       "telegram-credential-encryption-unavailable" as const,
-      /quit and reopen Enduragent, unlock or approve Keychain access, then choose Check again/iu,
+      /quit and reopen Enduragent, unlock your login keychain, then choose Check again/iu,
       /without encryption/iu,
     ],
     [
@@ -509,7 +509,7 @@ describe("Telegram settings surface", () => {
   it.each([
     [
       "telegram-credential-encryption-unavailable" as const,
-      /quit and reopen Enduragent, unlock or approve Keychain access, then choose Check again/iu,
+      /quit and reopen Enduragent, unlock your login keychain, then choose Check again/iu,
     ],
     [
       "telegram-credential-unsafe-backend" as const,

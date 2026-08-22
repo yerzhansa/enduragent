@@ -60,6 +60,9 @@ interface AuthBridge {
   listArchivedConversations(): Promise<unknown>;
   getArchivedTranscriptPage(input: unknown): Promise<unknown>;
   credentialStatuses(): Promise<unknown>;
+  credentialRecoveryStatus(): Promise<unknown>;
+  retryCredentialRecovery(): Promise<unknown>;
+  resetAllCredentials(): Promise<unknown>;
   deleteCredential(input: unknown): Promise<unknown>;
   retryFailedCredentials(): Promise<unknown>;
   writeCredential(input: unknown): Promise<unknown>;
@@ -331,6 +334,7 @@ describe("desktop preload ChatGPT auth", () => {
         "claudeCliRecheck",
         "claudeCliStatus",
         "credentialStatuses",
+        "credentialRecoveryStatus",
         "deleteCredential",
         "disableTelegram",
         "enableTelegram",
@@ -355,6 +359,8 @@ describe("desktop preload ChatGPT auth", () => {
         "removeTelegramAllowedSender",
         "removeTelegramWebhook",
         "restartToUpdate",
+        "resetAllCredentials",
+        "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
         "telegramStatus",
@@ -1236,6 +1242,49 @@ describe("desktop preload ChatGPT auth", () => {
       "enduragent:onboarding:credential-status",
       "enduragent:onboarding:credential-retry",
     ]);
+  });
+
+  it("validates credential recovery status, retry, and reset results", async () => {
+    mocks.invoke
+      .mockResolvedValueOnce({ state: "ready", unverifiedEnvelopes: 2 })
+      .mockResolvedValueOnce({ state: "locked" })
+      .mockResolvedValueOnce({ status: "reset", keyCleanupPending: false });
+
+    await expect(bridge.credentialRecoveryStatus()).resolves.toEqual({
+      state: "ready",
+      unverifiedEnvelopes: 2,
+    });
+    await expect(bridge.retryCredentialRecovery()).resolves.toEqual({ state: "locked" });
+    await expect(bridge.resetAllCredentials()).resolves.toEqual({
+      status: "reset",
+      keyCleanupPending: false,
+    });
+    expect(mocks.invoke.mock.calls.map(([channel]) => channel)).toEqual([
+      "enduragent:settings:credential-recovery-status",
+      "enduragent:settings:credential-recovery-retry",
+      "enduragent:settings:credential-reset",
+    ]);
+  });
+
+  it("rejects widened or malformed credential recovery and reset results", async () => {
+    for (const malformed of [
+      { state: "ready", unverifiedEnvelopes: -1 },
+      { state: "ready", unverifiedEnvelopes: 0, extra: true },
+      { state: "locked", unverifiedEnvelopes: 1 },
+      { state: "unknown" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(malformed);
+      await expect(bridge.credentialRecoveryStatus()).rejects.toBeInstanceOf(TypeError);
+    }
+
+    for (const malformed of [
+      { status: "reset", keyCleanupPending: false, extra: true },
+      { status: "reset", keyCleanupPending: "false" },
+      { status: "refused", reason: "unknown" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(malformed);
+      await expect(bridge.resetAllCredentials()).rejects.toBeInstanceOf(TypeError);
+    }
   });
 
   it("validates and copies deletion metadata without accepting widened shapes", async () => {

@@ -12,7 +12,7 @@ describe("desktop platform projection", () => {
         operatingSystem: "macOS",
         credentialEncryptionUnavailable:
           "macOS encryption is unavailable. Make sure Keychain is available, then try again.",
-        credentialRecoveryAction: "unlock or approve Keychain access",
+        credentialRecoveryAction: "unlock your login keychain",
         restartComputer: "restart your Mac",
         rideImportDescription:
           "Add FIT, TCX or GPX files from this Mac. You can also drop them onto the window.",

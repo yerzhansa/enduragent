@@ -22,6 +22,7 @@ import type {
   TelegramProfileRePromptReason,
   TelegramProfileStatus,
 } from "./telegram-credential-vault.js";
+import type { SerializeCredentialMutation } from "./credential-envelope-lock.js";
 import {
   emitTelegramSecureStorageFailure,
   type TelegramSecureStorageObserver,
@@ -136,6 +137,7 @@ export interface TelegramControlCoordinator {
   stopPolling(): Promise<DesktopTelegramSnapshot>;
   resumePolling(): Promise<DesktopTelegramSnapshot>;
   remove(): Promise<DesktopTelegramMutationResult>;
+  resetRuntimeForCredentialReset(): Promise<boolean>;
   removeWebhook(): Promise<DesktopTelegramMutationResult>;
   status(): Promise<DesktopTelegramSnapshot>;
   reconcile(): Promise<DesktopTelegramMutationResult>;
@@ -164,6 +166,7 @@ export interface CreateTelegramControlCoordinatorInput {
   >;
   readonly daemon: TelegramDaemonAuthorityPort;
   readonly observeSecureStorageFailure?: TelegramSecureStorageObserver;
+  readonly serializeCredentialMutation?: SerializeCredentialMutation;
   readonly pairingLease?: {
     readonly now: () => number;
     readonly schedule: (callback: () => void, delayMs: number) => unknown;
@@ -341,6 +344,8 @@ function reconciliationFailureSnapshot(
 export function createTelegramControlCoordinator(
   input: CreateTelegramControlCoordinatorInput,
 ): TelegramControlCoordinator {
+  const serializeCredentialMutation: SerializeCredentialMutation =
+    input.serializeCredentialMutation ?? ((operation) => operation());
   let pending: Promise<void> = Promise.resolve();
   let accepting = true;
   let closePromise: Promise<void> | undefined;
@@ -563,15 +568,17 @@ export function createTelegramControlCoordinator(
   const runMutation = (
     operation: () => Promise<DesktopTelegramMutationResult>,
   ): Promise<DesktopTelegramMutationResult> =>
-    serialize(async () => {
-      try {
-        const result = await operation();
-        if (result.outcome === "applied") reconciliationFailure = undefined;
-        return result;
-      } catch {
-        return uncertain("control-uncertain");
-      }
-    });
+    serializeCredentialMutation(() =>
+      serialize(async () => {
+        try {
+          const result = await operation();
+          if (result.outcome === "applied") reconciliationFailure = undefined;
+          return result;
+        } catch {
+          return uncertain("control-uncertain");
+        }
+      }),
+    );
 
   const rememberReconciliation = (
     result: DesktopTelegramMutationResult,
@@ -1668,6 +1675,29 @@ export function createTelegramControlCoordinator(
         }
         return applied(await project(forgotten, checked.active));
       });
+    },
+
+    resetRuntimeForCredentialReset() {
+      return serialize(async () => {
+        const active = binding();
+        if (active !== undefined) {
+          const disabled = await guardedSnapshotCall(active, () => active.disableTelegram({}));
+          if (disabled?.channel.state !== "disabled") return false;
+          const reset = await guardedSnapshotCall(active, () => active.resetTelegramAccess({}));
+          if (reset?.channel.state !== "disabled" || reset.pairing.state !== "unpaired") {
+            return false;
+          }
+          const forgotten = await guardedSnapshotCall(active, () =>
+            active.forgetTelegramCredential({}),
+          );
+          if (forgotten?.channel.state !== "disabled" || forgotten.bot.state !== "unconfigured") {
+            return false;
+          }
+        }
+        if ((await persistDesired(false)) !== "applied") return false;
+        clearPairingLease();
+        return true;
+      }).catch(() => false);
     },
 
     removeWebhook() {

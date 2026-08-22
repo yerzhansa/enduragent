@@ -41,7 +41,8 @@ describe("Desktop development package plan", () => {
             enduragentDesktopDevelopment: true,
           },
           mac: {
-            identity: null,
+            identity: "-",
+            hardenedRuntime: false,
             target: [{ target: "dir", arch: ["arm64"] }],
           },
         },

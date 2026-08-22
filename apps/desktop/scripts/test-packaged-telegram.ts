@@ -88,6 +88,9 @@ type AcceptancePhase =
   | "disabled-relaunch"
   | "removal"
   | "final-quit"
+  | "post-removal-relaunch"
+  | "post-removal-ready"
+  | "post-removal-quit"
   | "cleanup"
   | "cleanup-processes"
   | "cleanup-storage"
@@ -1119,6 +1122,7 @@ async function main(): Promise<void> {
       ...process.env,
       HOME: operatorHome,
       ENDURAGENT_HOME: athleteHome,
+      ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "file",
       ENDURAGENT_ACCEPTANCE_TELEGRAM_BOT_API_ORIGIN: telegram.origin,
       ENDURAGENT_ACCEPTANCE_HIDDEN: "1",
       FORCE_COLOR: undefined,
@@ -1508,6 +1512,8 @@ async function main(): Promise<void> {
     await waitForButton(page, "Paste token from clipboard");
     await waitUntil("Telegram polling stop after removal", () => telegram?.activePollCount() === 0);
     assert(!existsSync(profilePath), "Telegram profile remained after removal");
+    const acceptanceKeyPath = join(userData, ".enduragent-acceptance-key");
+    assert(!existsSync(acceptanceKeyPath), "acceptance encryption key remained after removal");
     const desired = JSON.parse(
       await readFile(join(userData, TELEGRAM_VAULT_DIRECTORY, TELEGRAM_DESIRED_STATE_FILE), "utf8"),
     ) as { readonly enabled?: unknown };
@@ -1569,6 +1575,34 @@ async function main(): Promise<void> {
     );
     reportPhase("final-quit");
     await gracefulQuit(primary, page, relaunchPort);
+    primary = undefined;
+    page = undefined;
+    reportPhase("post-removal-relaunch");
+    const postRemovalPort = await reservePort();
+    primary = await launchTrackedApplication(
+      environment,
+      postRemovalPort,
+      userData,
+      runningApplications,
+      debuggerAuthorities,
+    );
+    page = await cdpPage(
+      postRemovalPort,
+      requireDebuggerAuthority(debuggerAuthorities, postRemovalPort),
+    );
+    await waitForSettledAppShell(page);
+    await waitForButton(page, "Settings");
+    await page.clickButton("Settings");
+    await waitForButton(page, "Paste token from clipboard");
+    assert(!existsSync(profilePath), "Telegram profile returned after removal relaunch");
+    assert(
+      !existsSync(acceptanceKeyPath),
+      "acceptance encryption key returned after removal relaunch",
+    );
+    assert(!(await page.domHtml()).includes(token), "Telegram credential returned after relaunch");
+    reportPhase("post-removal-ready");
+    reportPhase("post-removal-quit");
+    await gracefulQuit(primary, page, postRemovalPort);
     primary = undefined;
     page = undefined;
     successResult = {

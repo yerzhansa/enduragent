@@ -107,6 +107,9 @@ importers:
       '@electron/asar':
         specifier: 3.4.1
         version: 3.4.1
+      '@electron/fuses':
+        specifier: 1.8.0
+        version: 1.8.0
       '@electron/notarize':
         specifier: 2.5.0
         version: 2.5.0

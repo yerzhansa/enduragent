@@ -30,6 +30,7 @@ export interface CoachSettingsPort {
 export interface CredentialSettingsPort {
   retry(): void;
   requestDelete(credential: DesktopCredentialId): void;
+  requestReset?(): void;
   cancelDelete(): void;
   confirmDelete(): void;
   setupOpened(): void;

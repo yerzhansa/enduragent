@@ -19,6 +19,11 @@ import {
   type OnboardingLlmSelectionResult,
 } from "./llm-selection.js";
 import { durablyReplaceReversible } from "./durable-atomic-replace.js";
+import type {
+  CredentialEnvelopeLockProof,
+  SerializeCredentialEnvelopeMutation,
+  SerializeCredentialMutation,
+} from "./credential-envelope-lock.js";
 import {
   assertWindowsPrivateFileAtPath,
   MAX_WINDOWS_DESKTOP_VAULT_FILE_BYTES,
@@ -165,6 +170,10 @@ interface CredentialVaultOptions {
   readonly clearCredential?: (
     slot: DesktopCredentialSlot,
   ) => Promise<"cleared" | "not-active" | "managed-by-environment">;
+  readonly serializeCredentialMutation?: SerializeCredentialMutation;
+  readonly serializeEnvelopeMutation?: SerializeCredentialEnvelopeMutation;
+  readonly prepareEnvelopeWrite?: (proof: CredentialEnvelopeLockProof) => Promise<void>;
+  readonly observeEnvelopeRemoved?: (proof: CredentialEnvelopeLockProof) => Promise<void>;
   readonly renameCredentialFile?: typeof rename;
   readonly removeCredentialFile?: typeof rm;
   readonly readCredentialFile?: typeof readFile;
@@ -329,7 +338,15 @@ async function validTarget(
 }
 
 export function createCredentialVault(options: CredentialVaultOptions): CredentialVault {
+  if (
+    options.serializeEnvelopeMutation === undefined &&
+    (options.prepareEnvelopeWrite !== undefined || options.observeEnvelopeRemoved !== undefined)
+  ) {
+    throw new TypeError();
+  }
   const platform = options.platform ?? process.platform;
+  const serializeCredentialMutation: SerializeCredentialMutation =
+    options.serializeCredentialMutation ?? ((operation) => operation());
   const runtimeState =
     options.runtimeState ?? new Map<DesktopCredentialSlot, CredentialRuntimeState>();
   const setRuntimeState = (slot: DesktopCredentialSlot, state: CredentialRuntimeState): void => {
@@ -406,6 +423,12 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
 
   const exclusive = <T>(operation: () => Promise<T>): Promise<T> =>
     serializeCredentialRoot(options.root, operation);
+  const envelopeExclusive = <T>(
+    operation: (proof: CredentialEnvelopeLockProof | undefined) => Promise<T>,
+  ): Promise<T> =>
+    options.serializeEnvelopeMutation === undefined
+      ? exclusive(() => operation(undefined))
+      : options.serializeEnvelopeMutation((proof) => exclusive(() => operation(proof)));
 
   const reconcileDurability = (): Promise<CredentialVaultDurabilityState> => {
     if (durabilityState !== "pending") return Promise.resolve(durabilityState);
@@ -818,63 +841,73 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
 
   return {
     writeCredential(input, behavior): Promise<CredentialWriteResult> {
-      return exclusive(() => writeCredential(input, behavior));
+      return serializeCredentialMutation(() =>
+        envelopeExclusive(async (proof) => {
+          if (proof !== undefined) await options.prepareEnvelopeWrite?.(proof);
+          return await writeCredential(input, behavior);
+        }),
+      );
     },
 
     runExclusiveMutation<T>(
       operation: (current: CredentialVaultMutation) => Promise<T>,
     ): Promise<T> {
-      return exclusive(async () => {
-        let active = true;
-        const mutation = Object.freeze({
-          writeCredential(
-            input: CredentialWriteInput,
-            behavior?: CredentialWriteBehavior,
-          ): Promise<CredentialWriteResult> {
-            if (!active) throw new TypeError();
-            return writeCredential(input, behavior);
-          },
-          credentialStatuses(): Promise<readonly CredentialSlotStatus[]> {
-            if (!active) throw new TypeError();
-            return credentialStatuses();
-          },
-        }) satisfies CredentialVaultMutation;
-        try {
-          return await operation(mutation);
-        } finally {
-          active = false;
-        }
-      });
+      return serializeCredentialMutation(() =>
+        envelopeExclusive(async (proof) => {
+          if (proof !== undefined) await options.prepareEnvelopeWrite?.(proof);
+          let active = true;
+          const mutation = Object.freeze({
+            writeCredential(
+              input: CredentialWriteInput,
+              behavior?: CredentialWriteBehavior,
+            ): Promise<CredentialWriteResult> {
+              if (!active) throw new TypeError();
+              return writeCredential(input, behavior);
+            },
+            credentialStatuses(): Promise<readonly CredentialSlotStatus[]> {
+              if (!active) throw new TypeError();
+              return credentialStatuses();
+            },
+          }) satisfies CredentialVaultMutation;
+          try {
+            return await operation(mutation);
+          } finally {
+            active = false;
+          }
+        }),
+      );
     },
 
     applyLlmSelection(input): Promise<OnboardingLlmSelectionResult> {
-      return exclusive(async () => {
-        let selection: OnboardingLlmSelection;
-        let slot: DesktopCredentialSlot;
-        try {
-          selection = parseOnboardingLlmSelection(input);
-          if (isKeylessProvider(selection.provider)) {
-            throw new TypeError();
+      return serializeCredentialMutation(() =>
+        exclusive(async () => {
+          let selection: OnboardingLlmSelection;
+          let slot: DesktopCredentialSlot;
+          try {
+            selection = parseOnboardingLlmSelection(input);
+            if (isKeylessProvider(selection.provider)) {
+              throw new TypeError();
+            }
+            slot = selection.provider;
+          } catch {
+            return { status: "refused", reason: "invalid-input" };
           }
-          slot = selection.provider;
-        } catch {
-          return { status: "refused", reason: "invalid-input" };
-        }
-        const credential = await readSlot(slot);
-        if (credential.state !== "configured" || credential.value === undefined) {
-          return { status: "refused", reason: "credential-required" };
-        }
-        try {
-          const canPublish = options.createRuntimePublicationGuard?.(slot);
-          await options.applyCredential(slot, credential.value, selection);
-          if (canPublish !== undefined && !canPublish()) throw new TypeError();
-          setRuntimeState(slot, "active");
-          return { status: "configured", runtimeReady: true };
-        } catch {
-          setRuntimeState(slot, "failed");
-          return { status: "refused", reason: "runtime-unavailable" };
-        }
-      });
+          const credential = await readSlot(slot);
+          if (credential.state !== "configured" || credential.value === undefined) {
+            return { status: "refused", reason: "credential-required" };
+          }
+          try {
+            const canPublish = options.createRuntimePublicationGuard?.(slot);
+            await options.applyCredential(slot, credential.value, selection);
+            if (canPublish !== undefined && !canPublish()) throw new TypeError();
+            setRuntimeState(slot, "active");
+            return { status: "configured", runtimeReady: true };
+          } catch {
+            setRuntimeState(slot, "failed");
+            return { status: "refused", reason: "runtime-unavailable" };
+          }
+        }),
+      );
     },
 
     credentialStatuses(): Promise<readonly CredentialSlotStatus[]> {
@@ -882,69 +915,73 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     },
 
     deleteCredential(slot): Promise<CredentialDeleteResult> {
-      return exclusive(async () => {
-        if (!isCredentialSlot(slot)) {
-          return { slot: "anthropic", status: "refused", reason: "not-found" };
-        }
-        const credential = await readSlot(slot);
-        if (credential.state === "missing") {
-          return { slot, status: "refused", reason: "not-found" };
-        }
-        if (credential.state === "re-prompt") {
-          return { slot, status: "refused", reason: "storage-failed" };
-        }
-        const runtimeStatus = runtimeState.get(slot);
-        const shouldClearRuntime = runtimeStatus === "active" || runtimeStatus === "failed";
-        let runtimeCleared = false;
-        if (shouldClearRuntime) {
-          if (options.clearCredential === undefined) {
-            return { slot, status: "refused", reason: "runtime-unavailable" };
+      return serializeCredentialMutation(() =>
+        envelopeExclusive(async (proof) => {
+          if (!isCredentialSlot(slot)) {
+            return { slot: "anthropic", status: "refused", reason: "not-found" };
           }
-          try {
-            const cleared = await options.clearCredential(slot);
-            if (cleared === "managed-by-environment") {
-              return { slot, status: "refused", reason: "managed-by-environment" };
+          const credential = await readSlot(slot);
+          if (credential.state === "missing") {
+            return { slot, status: "refused", reason: "not-found" };
+          }
+          const runtimeStatus = runtimeState.get(slot);
+          const shouldClearRuntime = runtimeStatus === "active" || runtimeStatus === "failed";
+          let runtimeCleared = false;
+          if (shouldClearRuntime) {
+            if (options.clearCredential === undefined) {
+              return { slot, status: "refused", reason: "runtime-unavailable" };
             }
-            if (cleared !== "cleared" && cleared !== "not-active") throw new TypeError();
-            runtimeCleared = cleared === "cleared";
-          } catch {
+            try {
+              const cleared = await options.clearCredential(slot);
+              if (cleared === "managed-by-environment") {
+                return { slot, status: "refused", reason: "managed-by-environment" };
+              }
+              if (cleared !== "cleared" && cleared !== "not-active") throw new TypeError();
+              runtimeCleared = cleared === "cleared";
+            } catch {
+              setRuntimeState(slot, "failed");
+              return { slot, status: "refused", reason: "runtime-state-diverged" };
+            }
+          }
+          const removed = await removeStoredCredential(slot);
+          if (removed === "uncertain") {
+            uncertainSlots.add(slot);
+            setRuntimeState(slot, "failed");
+            return { slot, status: "uncertain", reason: "storage-uncertain" };
+          }
+          if (removed === "deleted" || removed === "cleanup-pending") {
+            clearRuntimeState(slot);
+            if (proof !== undefined) {
+              try {
+                await options.observeEnvelopeRemoved?.(proof);
+              } catch {}
+            }
+            return {
+              slot,
+              status: "deleted",
+              cleanupPending: removed === "cleanup-pending",
+            };
+          }
+          if (runtimeCleared && credential.value !== undefined && removed === "retained") {
+            try {
+              await options.applyCredential(slot, credential.value);
+              setRuntimeState(slot, "active");
+              return { slot, status: "refused", reason: "storage-failed" };
+            } catch {
+              setRuntimeState(slot, "failed");
+              return { slot, status: "refused", reason: "runtime-state-diverged" };
+            }
+          }
+          if (runtimeCleared) {
             setRuntimeState(slot, "failed");
             return { slot, status: "refused", reason: "runtime-state-diverged" };
           }
-        }
-        const removed = await removeStoredCredential(slot);
-        if (removed === "uncertain") {
-          uncertainSlots.add(slot);
-          setRuntimeState(slot, "failed");
-          return { slot, status: "uncertain", reason: "storage-uncertain" };
-        }
-        if (removed === "deleted" || removed === "cleanup-pending") {
-          clearRuntimeState(slot);
-          return {
-            slot,
-            status: "deleted",
-            cleanupPending: removed === "cleanup-pending",
-          };
-        }
-        if (runtimeCleared && credential.value !== undefined && removed === "retained") {
-          try {
-            await options.applyCredential(slot, credential.value);
-            setRuntimeState(slot, "active");
-            return { slot, status: "refused", reason: "storage-failed" };
-          } catch {
-            setRuntimeState(slot, "failed");
-            return { slot, status: "refused", reason: "runtime-state-diverged" };
-          }
-        }
-        if (runtimeCleared) {
-          setRuntimeState(slot, "failed");
-          return { slot, status: "refused", reason: "runtime-state-diverged" };
-        }
-        return { slot, status: "refused", reason: "storage-failed" };
-      });
+          return { slot, status: "refused", reason: "storage-failed" };
+        }),
+      );
     },
 
-    reapplyConfigured: () => exclusive(reapplyConfigured),
-    retryFailed: () => exclusive(retryFailed),
+    reapplyConfigured: () => serializeCredentialMutation(() => exclusive(reapplyConfigured)),
+    retryFailed: () => serializeCredentialMutation(() => exclusive(retryFailed)),
   };
 }

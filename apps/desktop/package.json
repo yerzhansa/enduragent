@@ -13,6 +13,7 @@
     "package:win": "pnpm build:self-test-resources && electron-vite build && node scripts/windows-package-plan.mjs",
     "package:mac": "pnpm build:self-test-resources && electron-vite build && node scripts/macos-release-plan.mjs",
     "package:telegram-acceptance": "pnpm --filter '@enduragent/desktop^...' build && pnpm build:self-test-resources && electron-vite build --config electron.telegram-acceptance.vite.config.ts && node scripts/package-telegram-acceptance.mjs",
+    "build:keychain-binding": "node scripts/build-keychain-binding.mjs",
     "build:self-test-resources": "tsx scripts/build-self-test-resources.ts",
     "stage:extra-resources": "node scripts/stage-extra-resources.mjs",
     "test:self-test-resources": "vitest run tests/self-test-resources.test.ts",
@@ -22,6 +23,7 @@
     "verify:package-layout": "node scripts/verify-package-layout.mjs",
     "verify:win-package": "node scripts/verify-windows-package.mjs",
     "verify:mac-release": "node scripts/verify-macos-release.mjs",
+    "verify:mac-backend-selection": "node scripts/verify-macos-backend-selection.mjs",
     "smoke:runtime": "node scripts/electron-smoke.mjs runtime",
     "smoke:security": "node scripts/electron-smoke.mjs security",
     "accept:residency": "node ./scripts/accept-residency.mjs",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
+    "@electron/fuses": "1.8.0",
     "@electron/notarize": "2.5.0",
     "@enduragent/desktop-renderer": "workspace:*",
     "@enduragent/kernel": "workspace:*",

@@ -5,6 +5,7 @@ import { finished } from "node:stream/promises";
 import { createPackage, createPackageWithOptions } from "@electron/asar";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  KEYCHAIN_BINDING_ASAR_PATH,
   assertExactResourceNames,
   assertNoReservedResourceNames,
   collectAsar,
@@ -15,6 +16,8 @@ import {
   forbiddenPathReason,
   inspectContents,
   inspectPath,
+  machoBundleIdentity,
+  machoExecutableIdentity,
   outputChild,
   parseManifest,
   validateManifest,
@@ -63,6 +66,53 @@ async function makeAsar(
 
 function packageFile(bytes: string): PackageTreeEntry {
   return { type: "file", bytes: Buffer.from(bytes) };
+}
+
+const syntheticUuid = "0123456789abcdeffedcba9876543210";
+
+function machoExecutable(
+  options: {
+    readonly fileType?: number;
+    readonly uuid?: string;
+    readonly signatureBytes?: number;
+    readonly payload?: string;
+  } = {},
+): Buffer {
+  const signature = options.signatureBytes ?? 512;
+  const signatureOffset = 8_192;
+  const bytes = Buffer.alloc(signatureOffset + signature);
+  bytes.writeUInt32LE(0xfeed_facf, 0);
+  bytes.writeUInt32LE(0x0100_000c, 4);
+  bytes.writeUInt32LE(0, 8);
+  bytes.writeUInt32LE(options.fileType ?? 2, 12);
+  bytes.writeUInt32LE(3, 16);
+  bytes.writeUInt32LE(112, 20);
+  bytes.writeUInt32LE(0x1b, 32);
+  bytes.writeUInt32LE(24, 36);
+  Buffer.from(options.uuid ?? syntheticUuid, "hex").copy(bytes, 40);
+  bytes.writeUInt32LE(0x19, 56);
+  bytes.writeUInt32LE(72, 60);
+  bytes.write("__LINKEDIT", 64, "latin1");
+  bytes.writeBigUInt64LE(BigInt(4_096 + signature), 88);
+  bytes.writeBigUInt64LE(BigInt(4_096), 96);
+  bytes.writeBigUInt64LE(BigInt(4_096 + signature), 104);
+  bytes.writeUInt32LE(0x1d, 128);
+  bytes.writeUInt32LE(16, 132);
+  bytes.writeUInt32LE(signatureOffset, 136);
+  bytes.writeUInt32LE(signature, 140);
+  bytes.write(options.payload ?? "synthetic image", 1_024, "latin1");
+  bytes.fill(0x5a, signatureOffset);
+  return bytes;
+}
+
+function machoBundle(
+  options: {
+    readonly uuid?: string;
+    readonly signatureBytes?: number;
+    readonly payload?: string;
+  } = {},
+): Buffer {
+  return machoExecutable({ ...options, fileType: 8 });
 }
 
 function asarFile(bytes: string, unpacked = false): AsarTreeEntry {
@@ -184,6 +234,7 @@ describe("shared package path and content policy", () => {
   );
 
   it.each([
+    ["keychain/keychain-helper", "retired keychain helper"],
     ["node_modules/@anthropic-ai/claude-agent-sdk-runtime/launcher", "vendored agent CLI"],
     ["out/runtime.js.map", "source map"],
     ["out/.ENV.production", "environment file"],
@@ -302,6 +353,150 @@ describe("shared package trees", () => {
       "packaged external resource bytes differ from staging: packaged-tree/assets/runtime.bin",
     );
   });
+
+  it("compares a declared signed executable by image identifier instead of bytes", () => {
+    const staged = new Map<string, PackageTreeEntry>([
+      ["signed", { type: "directory" }],
+      ["signed/signed-tool", { type: "file", bytes: machoExecutable() }],
+    ]);
+    const options = { signedExecutables: ["signed/signed-tool"] };
+    const resigned = new Map<string, PackageTreeEntry>([
+      ["signed", { type: "directory" }],
+      [
+        "signed/signed-tool",
+        { type: "file", bytes: machoExecutable({ signatureBytes: 4_096 }) },
+      ],
+    ]);
+    expect(() => compareStagedTree(staged, resigned, "packaged-tree", options)).not.toThrow();
+    expect(() => compareStagedTree(staged, resigned, "packaged-tree")).toThrow(
+      "packaged external resource bytes differ from staging: packaged-tree/signed/signed-tool",
+    );
+
+    const rebuilt = new Map<string, PackageTreeEntry>([
+      ["signed", { type: "directory" }],
+      [
+        "signed/signed-tool",
+        { type: "file", bytes: machoExecutable({ uuid: "ffffffffffffffffffffffffffffffff" }) },
+      ],
+    ]);
+    expect(() => compareStagedTree(staged, rebuilt, "packaged-tree", options)).toThrow(
+      "packaged external executable differs from staging: packaged-tree/signed/signed-tool",
+    );
+
+    const foreign = new Map<string, PackageTreeEntry>([
+      ["signed", { type: "directory" }],
+      ["signed/signed-tool", { type: "file", bytes: Buffer.alloc(8_192, 0x61) }],
+    ]);
+    expect(() => compareStagedTree(staged, foreign, "packaged-tree", options)).toThrow(
+      "expected a 64-bit little-endian Mach-O executable: packaged-tree/signed/signed-tool",
+    );
+  });
+});
+
+describe("shared Mach-O executable identity", () => {
+  it("reads the architecture and image identifier of a 64-bit executable", () => {
+    expect(machoExecutableIdentity(machoExecutable(), "helper")).toEqual({
+      cpuType: 0x0100_000c,
+      cpuSubtype: 0,
+      fileType: 2,
+      uuid: syntheticUuid,
+      contentSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
+  });
+
+  it("digests the same content across a replaced code signature", () => {
+    const staged = machoExecutableIdentity(machoExecutable(), "helper");
+    const resigned = machoExecutableIdentity(machoExecutable({ signatureBytes: 4_096 }), "helper");
+    expect(resigned.contentSha256).toBe(staged.contentSha256);
+    expect(resigned.uuid).toBe(staged.uuid);
+  });
+
+  it("digests a changed image differently", () => {
+    const staged = machoExecutableIdentity(machoExecutable(), "helper");
+    const tampered = machoExecutableIdentity(
+      machoExecutable({ signatureBytes: 4_096, payload: "tampered image" }),
+      "helper",
+    );
+    expect(tampered.uuid).toBe(staged.uuid);
+    expect(tampered.contentSha256).not.toBe(staged.contentSha256);
+  });
+
+  it.each([
+    ["a short file", () => machoExecutable().subarray(0, 2_048)],
+    [
+      "a foreign magic",
+      () => {
+        const bytes = machoExecutable();
+        bytes.writeUInt32LE(0xfeed_face, 0);
+        return bytes;
+      },
+    ],
+  ])("rejects %s", (_label, build) => {
+    expect(() => machoExecutableIdentity(build(), "helper")).toThrow(
+      "expected a 64-bit little-endian Mach-O executable: helper",
+    );
+  });
+
+  it.each([
+    ["a foreign architecture", 4, 0x0100_0007],
+    ["a non-executable file type", 12, 6],
+  ])("rejects %s", (_label, offset, value) => {
+    const bytes = machoExecutable();
+    bytes.writeUInt32LE(value, offset);
+    expect(() => machoExecutableIdentity(bytes, "helper")).toThrow(
+      "unsupported Mach-O executable architecture: helper",
+    );
+  });
+
+  it("rejects load commands that overflow the declared region", () => {
+    const bytes = machoExecutable();
+    bytes.writeUInt32LE(40, 132);
+    expect(() => machoExecutableIdentity(bytes, "helper")).toThrow(
+      "invalid Mach-O load commands: helper",
+    );
+  });
+
+  it("rejects an executable that declares no image identifier", () => {
+    const bytes = machoExecutable();
+    bytes.writeUInt32LE(0x19, 32);
+    expect(() => machoExecutableIdentity(bytes, "helper")).toThrow(
+      "invalid Mach-O image identifier: helper",
+    );
+  });
+
+  it("rejects an executable without a link edit segment", () => {
+    const bytes = machoExecutable();
+    bytes.write("__TEXTPAD\0", 64, "latin1");
+    expect(() => machoExecutableIdentity(bytes, "helper")).toThrow(
+      "invalid Mach-O link edit segment: helper",
+    );
+  });
+
+  it.each([
+    ["declares no code signature", 128, 0x1c],
+    ["places its code signature inside the load commands", 136, 64],
+  ])("rejects an executable that %s", (_label, offset, value) => {
+    const bytes = machoExecutable();
+    bytes.writeUInt32LE(value, offset);
+    expect(() => machoExecutableIdentity(bytes, "helper")).toThrow(
+      "invalid Mach-O code signature: helper",
+    );
+  });
+});
+
+describe("shared Mach-O bundle identity", () => {
+  it("requires the keychain binding to use the MH_BUNDLE file type", () => {
+    expect(machoBundleIdentity(machoBundle(), KEYCHAIN_BINDING_ASAR_PATH)).toEqual({
+      cpuType: 0x0100_000c,
+      cpuSubtype: 0,
+      fileType: 8,
+      uuid: syntheticUuid,
+      contentSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
+    expect(() => machoBundleIdentity(machoExecutable(), KEYCHAIN_BINDING_ASAR_PATH)).toThrow(
+      `unsupported Mach-O bundle architecture: ${KEYCHAIN_BINDING_ASAR_PATH}`,
+    );
+  });
 });
 
 describe("shared ASAR inventory", () => {
@@ -385,10 +580,14 @@ describe("shared ASAR inventory", () => {
 
   it("compares staged entries while allowing unrelated archive inventory", () => {
     const expected = new Map<string, PackageTreeEntry>([
+      ["native", { type: "directory" }],
+      [KEYCHAIN_BINDING_ASAR_PATH, packageFile("binding")],
       ["runtime", { type: "directory" }],
       ["runtime/data.bin", packageFile("expected")],
     ]);
     const exact = new Map<string, AsarTreeEntry>([
+      ["native", { type: "directory", unpacked: true }],
+      [KEYCHAIN_BINDING_ASAR_PATH, asarFile("binding", true)],
       ["runtime", { type: "directory", unpacked: false }],
       ["runtime/data.bin", asarFile("expected")],
       ["unrelated.bin", asarFile("extra")],
@@ -405,6 +604,12 @@ describe("shared ASAR inventory", () => {
     unpacked.set("runtime/data.bin", asarFile("expected", true));
     expect(() => compareAsarStaging(expected, unpacked)).toThrow(
       "ASAR staging entry is missing or unpacked: app.asar/runtime/data.bin",
+    );
+
+    const packedBinding = new Map(exact);
+    packedBinding.set(KEYCHAIN_BINDING_ASAR_PATH, asarFile("binding"));
+    expect(() => compareAsarStaging(expected, packedBinding)).toThrow(
+      `ASAR staging entry is missing or unpacked: app.asar/${KEYCHAIN_BINDING_ASAR_PATH}`,
     );
 
     const stale = new Map(exact);

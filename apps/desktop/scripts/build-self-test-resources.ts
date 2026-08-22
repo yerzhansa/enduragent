@@ -8,6 +8,10 @@ import { METRIC_REGISTRY } from "@enduragent/kernel/reference/registry";
 import { FixtureSchema } from "@enduragent/kernel/reference/schemas";
 import * as statistics from "@enduragent/kernel/reference/metrics";
 import { deviationMap } from "./self-test-deviations.js";
+import {
+  buildKeychainBinding,
+  copyKeychainBindingToAsarStaging,
+} from "./build-keychain-binding.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "../../..");
@@ -245,6 +249,8 @@ async function main(): Promise<void> {
   ]);
   await Promise.all([rename(temporaryAsar, asarOutput), rename(temporaryRunner, runnerOutput)]);
   try {
+    await buildKeychainBinding(desktopRoot);
+    await copyKeychainBindingToAsarStaging(desktopRoot, asarOutput);
     await runStage();
   } catch (error) {
     await Promise.all([

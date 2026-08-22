@@ -1114,6 +1114,23 @@ describe("Telegram main-process control coordinator", () => {
     expect(runtime.profile()).toBeUndefined();
   });
 
+  it("stops Telegram for a global reset without decrypting or deleting the profile itself", async () => {
+    const runtime = harness();
+    runtime.trace.length = 0;
+
+    await expect(runtime.coordinator.resetRuntimeForCredentialReset()).resolves.toBe(true);
+
+    expect(runtime.trace).toEqual([
+      "daemon:disable",
+      "daemon:reset-access",
+      "daemon:forget",
+      "vault:desired:false",
+    ]);
+    expect(runtime.vault.applyStoredProfile).not.toHaveBeenCalled();
+    expect(runtime.vault.deleteProfile).not.toHaveBeenCalled();
+    expect(runtime.profile()).toMatchObject({ token: TOKEN });
+  });
+
   it("keeps durable profile A and reports uncertainty when daemon forget lacks release proof", async () => {
     const runtime = harness();
     const before = runtime.profile();

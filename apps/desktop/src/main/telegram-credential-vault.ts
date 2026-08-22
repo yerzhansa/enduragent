@@ -19,6 +19,10 @@ import {
   type WindowsPrivateDirectoryBinding,
 } from "@enduragent/core";
 import type { CredentialEncryptionPort } from "./credential-vault.js";
+import type {
+  CredentialEnvelopeLockProof,
+  SerializeCredentialEnvelopeMutation,
+} from "./credential-envelope-lock.js";
 import {
   durablyReplaceReversible,
   type ReversibleDurableReplaceOutcome,
@@ -148,6 +152,9 @@ export interface TelegramCredentialVaultOptions {
   readonly syncDirectory?: (root: string) => Promise<void>;
   readonly syncParentDirectory?: (root: string) => Promise<void>;
   readonly observeSecureStorageFailure?: TelegramSecureStorageObserver;
+  readonly serializeEnvelopeMutation?: SerializeCredentialEnvelopeMutation;
+  readonly prepareEnvelopeWrite?: (proof: CredentialEnvelopeLockProof) => Promise<void>;
+  readonly observeEnvelopeRemoved?: (proof: CredentialEnvelopeLockProof) => Promise<void>;
   readonly platform?: NodeJS.Platform;
   readonly openFile?: typeof open;
 }
@@ -371,6 +378,12 @@ async function syncDirectory(root: string): Promise<void> {
 export function createTelegramCredentialVault(
   options: TelegramCredentialVaultOptions,
 ): TelegramCredentialVault {
+  if (
+    options.serializeEnvelopeMutation === undefined &&
+    (options.prepareEnvelopeWrite !== undefined || options.observeEnvelopeRemoved !== undefined)
+  ) {
+    throw new TypeError();
+  }
   if (typeof options.root !== "string" || options.root.length === 0) {
     throw new TypeError("invalid Telegram credential vault root");
   }
@@ -438,6 +451,12 @@ export function createTelegramCredentialVault(
     );
     return result;
   };
+  const envelopeExclusive = <T>(
+    operation: (proof: CredentialEnvelopeLockProof | undefined) => Promise<T>,
+  ): Promise<T> =>
+    options.serializeEnvelopeMutation === undefined
+      ? exclusive(() => operation(undefined))
+      : options.serializeEnvelopeMutation((proof) => exclusive(() => operation(proof)));
 
   const reconcileOwnedTransients = async (forceSync: boolean): Promise<boolean> => {
     const directory = await secureDirectoryState(options.root, platform, bindCredentialDirectory);
@@ -748,7 +767,8 @@ export function createTelegramCredentialVault(
     },
 
     replaceProfile(input): Promise<TelegramProfileReplaceResult> {
-      return exclusive(async () => {
+      return envelopeExclusive(async (proof) => {
+        if (proof !== undefined) await options.prepareEnvelopeWrite?.(proof);
         const authenticatedAthleteHome = parseAthleteHome(input?.authenticatedAthleteHome);
         if (authenticatedAthleteHome === undefined || authenticatedAthleteHome !== athleteHome) {
           return { outcome: "refused", reason: "wrong-home" };
@@ -874,7 +894,7 @@ export function createTelegramCredentialVault(
     },
 
     deleteProfile(): Promise<TelegramProfileDeleteResult> {
-      return exclusive(async () => {
+      return envelopeExclusive(async (proof) => {
         if (!(await prepareNamespace())) {
           return { outcome: "uncertain", reason: "storage-uncertain" };
         }
@@ -892,6 +912,11 @@ export function createTelegramCredentialVault(
         }
         const removed = await removeStoredProfile();
         if (removed === "deleted" || removed === "cleanup-pending") {
+          if (proof !== undefined) {
+            try {
+              await options.observeEnvelopeRemoved?.(proof);
+            } catch {}
+          }
           return { outcome: "applied", cleanupPending: removed === "cleanup-pending" };
         }
         if (removed === "uncertain") profileUncertain = true;

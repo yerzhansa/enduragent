@@ -32,7 +32,8 @@ export function createDevelopmentPackagePlan(input = {}) {
         enduragentDesktopDevelopment: true,
       },
       mac: {
-        identity: null,
+        identity: "-",
+        hardenedRuntime: false,
         target: [{ target: "dir", arch: ["arm64"] }],
       },
     },

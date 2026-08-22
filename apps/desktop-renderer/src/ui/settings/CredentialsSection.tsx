@@ -217,7 +217,7 @@ export function AdditionalCredentialRows(props: {
                   aria-label={`Change the ${entry.provider} credential`}
                   onClick={() => openCredentialEditor(entry.credential)}
                 >
-                  Change
+                  {entry.runtimeState === "failed" ? "Enter again" : "Change"}
                 </Button>
                 <CredentialDeleteButton credential={entry.credential} />
               </div>
@@ -263,6 +263,13 @@ export function CredentialSettingsFeedback(): ReactElement | null {
   const loading =
     state.status === "loading" || (state.status === "closed" && repairRequired === null);
   const loadError = state.status === "error" && state.kind === "load";
+  const current = content(state);
+  const recovery = current?.recovery;
+  const resetConfirmation = current?.confirmation === "all";
+  const canRetryRecovery = recovery?.state === "locked" || recovery?.state === "unavailable";
+  const canReset =
+    recovery !== undefined &&
+    (repairRequired !== null || recovery.state !== "ready" || recovery.unverifiedEnvelopes > 0);
   const announcement =
     "announcement" in state && state.announcement.length > 0
       ? state.announcement
@@ -287,31 +294,73 @@ export function CredentialSettingsFeedback(): ReactElement | null {
     else document.querySelector<HTMLElement>("#setup-panel-title")?.focus();
   }, [target]);
 
-  if (announcement.length === 0 && !loadError && repairRequired === null) return null;
+  if (announcement.length === 0 && !loadError && repairRequired === null && !resetConfirmation) {
+    return null;
+  }
   return (
-    <div
-      ref={feedback}
-      tabIndex={-1}
-      className="w-full bg-sunk px-[15px] py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
-      data-credential-feedback=""
-    >
-      {announcement.length === 0 ? null : (
-        <p className="m-0 text-xs text-ink-2" role="status" aria-live="polite" aria-atomic="true">
-          {announcement}
-        </p>
-      )}
-      {loadError || repairRequired !== null ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-2"
-          disabled={mutating || loading}
-          onClick={() => port?.retry()}
-        >
-          {repairRequired === null ? "Reconnect & reload" : "Reload credential status"}
-        </Button>
+    <>
+      <div
+        ref={feedback}
+        tabIndex={-1}
+        className="w-full bg-sunk px-[15px] py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+        data-credential-feedback=""
+      >
+        {announcement.length === 0 ? null : (
+          <p className="m-0 text-xs text-ink-2" role="status" aria-live="polite" aria-atomic="true">
+            {announcement}
+          </p>
+        )}
+        {loadError || repairRequired !== null || canRetryRecovery || canReset ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {loadError || repairRequired !== null || canRetryRecovery ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={mutating || loading}
+                onClick={() => port?.retry()}
+              >
+                {canRetryRecovery
+                  ? "Retry"
+                  : repairRequired === null
+                    ? "Reconnect & reload"
+                    : "Reload credential status"}
+              </Button>
+            ) : null}
+            {canReset ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={mutating || loading || resetConfirmation}
+                onClick={() => port?.requestReset?.()}
+              >
+                Remove all credentials
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {resetConfirmation ? (
+        <InlineConfirmation
+          name="remove-all-credentials"
+          title="Remove all credentials?"
+          copy={`This removes every saved AI credential, ChatGPT profile, Intervals.icu key, Telegram token, and the shared encryption key from ${PLATFORM_COPY.computer}. Accounts and imported data remain unchanged.`}
+          confirmLabel="Remove all credentials"
+          focusTarget={
+            target?.target === "confirmation-cancel"
+              ? "cancel"
+              : target?.target === "confirmation-delete"
+                ? "confirm"
+                : null
+          }
+          cancelDisabled={mutating}
+          confirmDisabled={mutating}
+          confirmBusy={state.status === "deleting"}
+          onCancel={() => port?.cancelDelete()}
+          onConfirm={() => port?.confirmDelete()}
+        />
       ) : null}
-    </div>
+    </>
   );
 }

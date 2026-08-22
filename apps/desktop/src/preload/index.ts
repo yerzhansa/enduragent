@@ -38,6 +38,9 @@ const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-stat
 const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry";
 const DESKTOP_CREDENTIAL_WRITE_CHANNEL = "enduragent:onboarding:credential-write";
 const DESKTOP_CREDENTIAL_DELETE_CHANNEL = "enduragent:settings:credential-delete";
+const DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL = "enduragent:settings:credential-recovery-status";
+const DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL = "enduragent:settings:credential-recovery-retry";
+const DESKTOP_CREDENTIAL_RESET_CHANNEL = "enduragent:settings:credential-reset";
 const DESKTOP_LLM_CONFIGURATION_CHANNEL = "enduragent:onboarding:llm-configuration";
 const DESKTOP_LLM_SELECTION_APPLY_CHANNEL = "enduragent:onboarding:llm-selection-apply";
 const DESKTOP_CHATGPT_STATUS_CHANNEL = "enduragent:onboarding:chatgpt-status";
@@ -769,6 +772,44 @@ function parseDeleteResult(value: unknown): unknown {
   throw new TypeError();
 }
 
+function parseCredentialRecoveryStatus(value: unknown): unknown {
+  if (!record(value) || typeof value.state !== "string") throw new TypeError();
+  if (
+    value.state === "ready" &&
+    exactKeys(value, ["state", "unverifiedEnvelopes"]) &&
+    Number.isSafeInteger(value.unverifiedEnvelopes) &&
+    (value.unverifiedEnvelopes as number) >= 0
+  ) {
+    return { state: "ready", unverifiedEnvelopes: value.unverifiedEnvelopes };
+  }
+  if (
+    (value.state === "locked" || value.state === "missing" || value.state === "unavailable") &&
+    exactKeys(value, ["state"])
+  ) {
+    return { state: value.state };
+  }
+  throw new TypeError();
+}
+
+function parseCredentialResetResult(value: unknown): unknown {
+  if (!record(value) || typeof value.status !== "string") throw new TypeError();
+  if (
+    value.status === "reset" &&
+    exactKeys(value, ["status", "keyCleanupPending"]) &&
+    typeof value.keyCleanupPending === "boolean"
+  ) {
+    return { status: "reset", keyCleanupPending: value.keyCleanupPending };
+  }
+  if (
+    value.status === "refused" &&
+    exactKeys(value, ["status", "reason"]) &&
+    (value.reason === "runtime-unavailable" || value.reason === "storage-failed")
+  ) {
+    return { status: "refused", reason: value.reason };
+  }
+  throw new TypeError();
+}
+
 function parseLlmConfiguration(value: unknown): unknown {
   if (
     !record(value) ||
@@ -1433,6 +1474,16 @@ contextBridge.exposeInMainWorld(
       const parsed = parseCredentialDeleteInput(input);
       return parseDeleteResult(await ipcRenderer.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, parsed));
     },
+    credentialRecoveryStatus: async () =>
+      parseCredentialRecoveryStatus(
+        await ipcRenderer.invoke(DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL),
+      ),
+    retryCredentialRecovery: async () =>
+      parseCredentialRecoveryStatus(
+        await ipcRenderer.invoke(DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL),
+      ),
+    resetAllCredentials: async () =>
+      parseCredentialResetResult(await ipcRenderer.invoke(DESKTOP_CREDENTIAL_RESET_CHANNEL)),
     llmConfiguration: async () =>
       parseLlmConfiguration(await ipcRenderer.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL)),
     applyLlmSelection: async (input: unknown) => {

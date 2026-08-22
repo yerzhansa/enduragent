@@ -16,6 +16,7 @@ import {
   type OnboardingLlmSelection,
   type OnboardingLlmSelectionResult,
 } from "./llm-selection.js";
+import type { SerializeCredentialMutation } from "./credential-envelope-lock.js";
 
 export const CHATGPT_PROFILE_NAME = "openai-codex" as const;
 export const CHATGPT_ACTIVATION_TIMEOUT_MS = 10_000;
@@ -97,6 +98,7 @@ interface CreateChatGptAuthOptions {
   readonly authorizationTimeoutMs?: number;
   readonly tokenExchangeTimeoutMs?: number;
   readonly activationTimeoutMs?: number;
+  readonly serializeCredentialMutation?: SerializeCredentialMutation;
   readonly dependencies?: ChatGptAuthDependencies;
 }
 
@@ -217,6 +219,8 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
   const runLogin = options.dependencies?.loginCodex ?? loginCodex;
   const storeProfile = options.dependencies?.writeProfile ?? writeChatGptProfile;
   const removeProfile = options.dependencies?.deleteProfile ?? deleteChatGptProfile;
+  const serializeCredentialMutation: SerializeCredentialMutation =
+    options.serializeCredentialMutation ?? ((operation) => operation());
   let activeLogin:
     | {
         readonly operationId: string;
@@ -326,8 +330,8 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
         return { status: "refused", operationId, reason: "already-in-progress" };
       }
       const controller = new AbortController();
-      const pending = Promise.resolve().then(() =>
-        performLogin(operationId, controller, onProgress),
+      const pending = serializeCredentialMutation(() =>
+        Promise.resolve().then(() => performLogin(operationId, controller, onProgress)),
       );
       activeLogin = { operationId, controller, promise: pending };
       try {
@@ -345,43 +349,46 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
       active.controller.abort(new DOMException("Cancelled", "AbortError"));
       return { status: "cancelling", operationId };
     },
-    activate: applySelection,
-    async deleteCredential() {
-      const stored = await hasChatGptProfile(options.configDir);
-      const runtimeReady = await configuredRuntime(options.getRuntimeConfig);
-      if (!stored) {
-        return runtimeReady === true
-          ? { status: "refused", reason: "runtime-state-diverged" }
-          : { status: "refused", reason: "not-found" };
-      }
-      if (runtimeReady === undefined) {
-        return { status: "refused", reason: "runtime-unavailable" };
-      }
-      if (runtimeReady) {
-        if (options.clearRuntimeCredential === undefined) {
+    activate: (selection, signal) =>
+      serializeCredentialMutation(() => applySelection(selection, signal)),
+    deleteCredential() {
+      return serializeCredentialMutation(async () => {
+        const stored = await hasChatGptProfile(options.configDir);
+        const runtimeReady = await configuredRuntime(options.getRuntimeConfig);
+        if (!stored) {
+          return runtimeReady === true
+            ? { status: "refused", reason: "runtime-state-diverged" }
+            : { status: "refused", reason: "not-found" };
+        }
+        if (runtimeReady === undefined) {
           return { status: "refused", reason: "runtime-unavailable" };
         }
-        try {
-          const cleared = await options.clearRuntimeCredential();
-          if (cleared === "not-active") {
-            removeProfile(options.configDir);
-          } else if (cleared !== "cleared") {
-            throw new TypeError();
+        if (runtimeReady) {
+          if (options.clearRuntimeCredential === undefined) {
+            return { status: "refused", reason: "runtime-unavailable" };
           }
-        } catch {
+          try {
+            const cleared = await options.clearRuntimeCredential();
+            if (cleared === "not-active") {
+              removeProfile(options.configDir);
+            } else if (cleared !== "cleared") {
+              throw new TypeError();
+            }
+          } catch {
+            return { status: "refused", reason: "runtime-state-diverged" };
+          }
+        } else {
+          try {
+            removeProfile(options.configDir);
+          } catch {
+            return { status: "refused", reason: "storage-failed" };
+          }
+        }
+        if (await hasChatGptProfile(options.configDir)) {
           return { status: "refused", reason: "runtime-state-diverged" };
         }
-      } else {
-        try {
-          removeProfile(options.configDir);
-        } catch {
-          return { status: "refused", reason: "storage-failed" };
-        }
-      }
-      if (await hasChatGptProfile(options.configDir)) {
-        return { status: "refused", reason: "runtime-state-diverged" };
-      }
-      return { status: "deleted", cleanupPending: false };
+        return { status: "deleted", cleanupPending: false };
+      });
     },
   };
 }

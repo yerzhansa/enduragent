@@ -361,6 +361,7 @@ export async function launchDesktopFixture(input: {
         ...input.extraEnv,
         ENDURAGENT_HOME: athleteHome,
         ENDURAGENT_ACCEPTANCE_HIDDEN: "1",
+        ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
         FORCE_COLOR: undefined,
         NO_COLOR: undefined,
         CLICOLOR_FORCE: undefined,
@@ -456,6 +457,13 @@ export async function launchDesktopFixture(input: {
         awaitPromise: true,
         returnByValue: true,
       });
+      const exception = response.exceptionDetails as
+        | { readonly text?: unknown; readonly exception?: { readonly description?: unknown } }
+        | undefined;
+      if (exception !== undefined) {
+        await refreshSurfaces();
+        throw new Error(String(exception.exception?.description ?? exception.text ?? "evaluation failed"));
+      }
       const remote = response.result as
         | { readonly value?: unknown; readonly description?: unknown }
         | undefined;

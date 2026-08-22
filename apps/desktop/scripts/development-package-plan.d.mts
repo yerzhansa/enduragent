@@ -18,7 +18,8 @@ export interface DevelopmentPackageBuilderOptions {
       readonly enduragentDesktopDevelopment: true;
     };
     readonly mac: {
-      readonly identity: null;
+      readonly identity: "-";
+      readonly hardenedRuntime: false;
       readonly target: readonly [{ readonly target: "dir"; readonly arch: readonly ["arm64"] }];
     };
   };

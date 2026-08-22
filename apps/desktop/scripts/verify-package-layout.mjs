@@ -10,6 +10,7 @@ import {
   createDevelopmentPackagePlan,
 } from "./development-package-plan.mjs";
 import {
+  KEYCHAIN_BINDING_ASAR_PATH,
   PackageLayoutError,
   assertDirectory,
   assertExactResourceNames,
@@ -22,6 +23,7 @@ import {
   exactObject,
   fail,
   inspectContents,
+  machoBundleIdentity,
   readBuilderConfiguration,
   safeLstat,
   safeReadDirectory,
@@ -43,7 +45,6 @@ const reservedResourceNames = new Set([
   "icon.icns",
   "en.lproj",
 ]);
-
 export async function readBuilderAuthority(desktopRoot = canonicalDesktopRoot) {
   const config = await readBuilderConfiguration(desktopRoot);
   return validateBuilderInventoryAuthority(config, desktopRoot, {
@@ -149,6 +150,7 @@ export async function verifyPackageLayout(application, options = {}) {
       entryLabelRoot: "app.asar",
     });
     validateRequiredAsarFiles(asar, sourceManifest, {
+      macos: true,
       release,
       development,
       developmentPackageName: DEVELOPMENT_PACKAGE_NAME,
@@ -175,7 +177,6 @@ export async function verifyPackageLayout(application, options = {}) {
         "Contents/Resources/self-test/self-test-runner.cjs",
       );
     }
-
     const unpackedPresent = (await safeReadDirectory(resourcesRoot, "Contents/Resources")).includes(
       "app.asar.unpacked",
     );
@@ -183,6 +184,31 @@ export async function verifyPackageLayout(application, options = {}) {
       root: "Contents/Resources/app.asar.unpacked",
       entries: "app.asar.unpacked",
     });
+    const stagedBinding = asarStaging.get(KEYCHAIN_BINDING_ASAR_PATH);
+    if (stagedBinding === undefined || stagedBinding.type !== "file") {
+      fail(
+        "keychain binding staging source is missing",
+        `dist/ASAR-staging/${KEYCHAIN_BINDING_ASAR_PATH}`,
+      );
+    }
+    const bindingPath = join(resourcesRoot, "app.asar.unpacked", KEYCHAIN_BINDING_ASAR_PATH);
+    const bindingLabel = `Contents/Resources/app.asar.unpacked/${KEYCHAIN_BINDING_ASAR_PATH}`;
+    const bindingStat = await safeLstat(bindingPath, bindingLabel);
+    assertRegularFile(bindingStat, bindingLabel);
+    const stagedIdentity = machoBundleIdentity(stagedBinding.bytes, bindingLabel);
+    const packagedIdentity = machoBundleIdentity(
+      await safeReadFile(bindingPath, bindingLabel),
+      bindingLabel,
+    );
+    if (
+      stagedIdentity.uuid !== packagedIdentity.uuid ||
+      stagedIdentity.contentSha256 !== packagedIdentity.contentSha256 ||
+      stagedIdentity.cpuType !== packagedIdentity.cpuType ||
+      stagedIdentity.cpuSubtype !== packagedIdentity.cpuSubtype ||
+      stagedIdentity.fileType !== packagedIdentity.fileType
+    ) {
+      fail("packaged keychain binding differs from staging", bindingLabel);
+    }
   } catch (error) {
     if (error instanceof PackageLayoutError) throw error;
     fail("package layout verification failed");

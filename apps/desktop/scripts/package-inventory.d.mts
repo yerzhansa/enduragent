@@ -2,6 +2,16 @@ import type { Stats } from "node:fs";
 
 export { contained } from "./package-plan.mjs";
 
+export const KEYCHAIN_BINDING_ASAR_PATH: "native/keychain-binding.node";
+export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN: "dist/self-test-asar/native/keychain-binding.node";
+export const KEYCHAIN_BINDING_FUSE_CONFIGURATION: Readonly<{
+  readonly runAsNode: false;
+  readonly enableNodeOptionsEnvironmentVariable: false;
+  readonly enableNodeCliInspectArguments: false;
+  readonly enableEmbeddedAsarIntegrityValidation: true;
+  readonly onlyLoadAppFromAsar: true;
+}>;
+
 export interface BuilderAuthority {
   readonly asarSourceRoot: string;
   readonly externalSourceRoot: string;
@@ -49,11 +59,24 @@ export interface UnpackedTreeLabels {
 }
 
 export interface ManifestValidationOptions {
+  readonly macos?: boolean;
   readonly development?: boolean;
   readonly developmentPackageName?: string;
   readonly release?: {
     readonly version: string;
   };
+}
+
+export interface MachoExecutableIdentity {
+  readonly cpuType: number;
+  readonly cpuSubtype: number;
+  readonly fileType: number;
+  readonly uuid: string;
+  readonly contentSha256: string;
+}
+
+export interface StagedTreeComparisonOptions {
+  readonly signedExecutables?: readonly string[];
 }
 
 export class PackageLayoutError extends Error {}
@@ -110,10 +133,14 @@ export function validateUnpackedTree(
   labels: UnpackedTreeLabels,
 ): Promise<void>;
 
+export function machoExecutableIdentity(bytes: Buffer, label: string): MachoExecutableIdentity;
+export function machoBundleIdentity(bytes: Buffer, label: string): MachoExecutableIdentity;
+
 export function compareStagedTree(
   expected: ReadonlyMap<string, PackageTreeEntry>,
   actual: ReadonlyMap<string, PackageTreeEntry>,
   actualRoot: string,
+  options?: StagedTreeComparisonOptions,
 ): void;
 
 export function compareAsarStaging(

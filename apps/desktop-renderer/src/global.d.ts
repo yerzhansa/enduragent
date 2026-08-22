@@ -27,6 +27,9 @@ interface EnduragentAuth {
   deleteCredential(input: {
     readonly credential: DesktopCredentialId;
   }): Promise<CredentialDeleteResult>;
+  credentialRecoveryStatus(): Promise<CredentialRecoveryStatus>;
+  retryCredentialRecovery(): Promise<CredentialRecoveryStatus>;
+  resetAllCredentials(): Promise<CredentialResetResult>;
   llmConfiguration(): Promise<OnboardingLlmConfiguration>;
   applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
   chatgptStatus(): Promise<ChatGptStatus>;
@@ -63,6 +66,8 @@ interface EnduragentAuth {
 }
 
 type DesktopPlatformProjection = import("./platform-copy").DesktopPlatformProjection;
+type CredentialRecoveryStatus = import("./onboarding/bridge").CredentialRecoveryStatus;
+type CredentialResetResult = import("./onboarding/bridge").CredentialResetResult;
 
 type DesktopTrainingExportRequest =
   | {

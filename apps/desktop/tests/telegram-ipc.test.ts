@@ -107,6 +107,7 @@ function setup(
       configured = false;
       return applied(snapshot(false));
     }),
+    resetRuntimeForCredentialReset: vi.fn(async () => true),
     reconcile: vi.fn(async () => applied(snapshot(configured))),
     removeWebhook: vi.fn(async () => applied(snapshot(configured))),
     beginPairing: vi.fn(

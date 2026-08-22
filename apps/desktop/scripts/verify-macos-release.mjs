@@ -25,6 +25,7 @@ import {
   releaseArtifactNames,
   requireStableSemVer,
 } from "./macos-release-plan.mjs";
+import { KEYCHAIN_BINDING_ASAR_PATH, machoBundleIdentity } from "./package-inventory.mjs";
 
 const localRequire = createRequire(import.meta.url);
 const supportedElectronBuilderVersion = "26.15.3";
@@ -42,6 +43,9 @@ const canonicalDesignatedRequirementSha256 = createHash("sha256")
   .digest("hex");
 const canonicalDesignatedRequirementPattern =
   /^identifier "icu\.enduragent\.desktop" and anchor apple generic and certificate 1\[field\.1\.2\.840\.113635\.100\.6\.2\.6\] (?:exists|\/\* exists \*\/) and certificate leaf\[field\.1\.2\.840\.113635\.100\.6\.1\.13\] (?:exists|\/\* exists \*\/) and certificate leaf\[subject\.OU\] = (?:FA494ACVTF|"FA494ACVTF")$/u;
+const canonicalBindingIdentifierPattern = /^keychain-binding(?:\.node)?(?:-[0-9a-f]{1,64})?$/u;
+const canonicalBindingDesignatedRequirementPattern =
+  /^identifier "keychain-binding(?:\.node)?(?:-[0-9a-f]{1,64})?" and anchor apple generic and certificate 1\[field\.1\.2\.840\.113635\.100\.6\.2\.6\] (?:exists|\/\* exists \*\/) and certificate leaf\[field\.1\.2\.840\.113635\.100\.6\.1\.13\] (?:exists|\/\* exists \*\/) and certificate leaf\[subject\.OU\] = (?:FA494ACVTF|"FA494ACVTF")$/u;
 
 class MacosReleaseVerificationError extends Error {
   constructor(message) {
@@ -1498,6 +1502,76 @@ async function verifyMacosDmgNotarization(dmgPath, executeFile) {
     ],
     "macOS DMG Gatekeeper verification failed",
   );
+}
+
+export async function verifyMacosKeychainBinding(application, overrides = {}) {
+  if (!isAbsolute(application)) fail("application path must be absolute");
+  const executeFile = overrides.executeFile ?? executeSystemFile;
+  const binding = join(
+    application,
+    "Contents/Resources/app.asar.unpacked",
+    KEYCHAIN_BINDING_ASAR_PATH,
+  );
+  let imageIdentity;
+  try {
+    imageIdentity = await (
+      overrides.inspectBindingImage ??
+      (async (path) => machoBundleIdentity(await readFile(path), KEYCHAIN_BINDING_ASAR_PATH))
+    )(binding);
+  } catch {
+    fail("macOS keychain binding image is invalid");
+  }
+  await runSystemVerification(
+    executeFile,
+    "/usr/bin/codesign",
+    ["--verify", "--strict", "--verbose=2", binding],
+    "macOS keychain binding signature verification failed",
+  );
+  let signatureResult;
+  let requirementResult;
+  try {
+    [signatureResult, requirementResult] = await Promise.all([
+      executeFile("/usr/bin/codesign", ["--display", "--verbose=4", binding]),
+      executeFile("/usr/bin/codesign", ["--display", "--requirements", "-", binding]),
+    ]);
+  } catch {
+    fail("macOS keychain binding identity inspection failed");
+  }
+  const output = allCommandOutput(signatureResult);
+  const identifier = exactLine(output, /^Identifier=([^\r\n]+)$/gmu);
+  const teamIdentifier = exactLine(output, /^TeamIdentifier=([^\r\n]+)$/gmu);
+  const authorities = Array.from(output.matchAll(/^Authority=([^\r\n]+)$/gmu), (match) => match[1]);
+  const flags = exactLine(output, /^CodeDirectory [^\r\n]* flags=0x[0-9a-f]+\(([^\r\n)]*)\)/gimu);
+  if (
+    identifier === undefined ||
+    !canonicalBindingIdentifierPattern.test(identifier) ||
+    !hasCanonicalDeveloperIdApplicationIdentity(teamIdentifier, authorities) ||
+    flags === undefined ||
+    !flags
+      .split(",")
+      .map((flag) => flag.trim())
+      .includes("runtime")
+  ) {
+    fail("macOS keychain binding signing identity is invalid");
+  }
+  const requirement = exactLine(allCommandOutput(requirementResult), /^designated => ([^\r\n]+)$/gmu)
+    ?.replaceAll(/\s+/gu, " ")
+    .trim();
+  if (
+    requirement === undefined ||
+    requirement.length === 0 ||
+    requirement.length > 16_384 ||
+    !canonicalBindingDesignatedRequirementPattern.test(requirement)
+  ) {
+    fail("macOS keychain binding designated requirement is invalid");
+  }
+  return Object.freeze({
+    binding,
+    identifier,
+    teamIdentifier,
+    designatedRequirement: requirement,
+    imageIdentity,
+  });
 }
 
 export async function verifyMacosApplication(application, overrides = {}) {

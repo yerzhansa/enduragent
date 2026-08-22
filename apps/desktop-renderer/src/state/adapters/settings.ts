@@ -94,6 +94,7 @@ export function createCredentialSettingsAdapter(input: {
     port: {
       retry: () => handlers?.onRetry(),
       requestDelete: (credential) => handlers?.onRequestDelete(credential),
+      requestReset: () => handlers?.onRequestReset(),
       cancelDelete: () => handlers?.onCancelDelete(),
       confirmDelete: () => handlers?.onConfirmDelete(),
       setupOpened: () => handlers?.onSetupOpened(),

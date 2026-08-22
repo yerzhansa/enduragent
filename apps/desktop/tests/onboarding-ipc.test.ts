@@ -12,6 +12,9 @@ import {
   DESKTOP_CLAUDE_CLI_STATUS_CHANNEL,
   DESKTOP_CREDENTIAL_RETRY_CHANNEL,
   DESKTOP_CREDENTIAL_DELETE_CHANNEL,
+  DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL,
+  DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL,
+  DESKTOP_CREDENTIAL_RESET_CHANNEL,
   DESKTOP_CREDENTIAL_STATUS_CHANNEL,
   DESKTOP_CREDENTIAL_WRITE_CHANNEL,
   DESKTOP_LLM_CONFIGURATION_CHANNEL,
@@ -161,6 +164,17 @@ function harness(
   const applyExistingLlmSelection = vi.fn(
     async (_selection: OnboardingLlmSelection, _signal?: AbortSignal) => false,
   );
+  const credentialRecoveryStatus = vi.fn(async () => ({
+    state: "locked" as const,
+  }));
+  const retryCredentialRecovery = vi.fn(async () => ({
+    state: "ready" as const,
+    unverifiedEnvelopes: 2,
+  }));
+  const resetAllCredentials = vi.fn(async () => ({
+    status: "reset" as const,
+    keyCleanupPending: false,
+  }));
   const progressSend = vi.fn();
   const trustedEvent = {
     sender: {
@@ -181,6 +195,9 @@ function harness(
     ...(chatGptActivationTimeoutMs === undefined ? {} : { chatGptActivationTimeoutMs }),
     isTrusted: (event) => event === trustedEvent,
     checkIntervalsCredentialOwner,
+    credentialRecoveryStatus,
+    retryCredentialRecovery,
+    resetAllCredentials,
   });
   const invoke = (channel: string, event: IpcMainInvokeEvent, ...args: unknown[]) =>
     handlers.get(channel)!(event, ...args);
@@ -195,6 +212,9 @@ function harness(
     dialog,
     checkIntervalsCredentialOwner,
     progressSend,
+    credentialRecoveryStatus,
+    retryCredentialRecovery,
+    resetAllCredentials,
     trustedEvent,
     dispose,
     invoke,
@@ -202,6 +222,23 @@ function harness(
 }
 
 describe("desktop onboarding IPC", () => {
+  it("exposes trusted recovery, retry, and explicit reset operations", async () => {
+    const subject = harness();
+
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL, subject.trustedEvent),
+    ).resolves.toEqual({ state: "locked" });
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL, subject.trustedEvent),
+    ).resolves.toEqual({ state: "ready", unverifiedEnvelopes: 2 });
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_RESET_CHANNEL, subject.trustedEvent),
+    ).resolves.toEqual({ status: "reset", keyCleanupPending: false });
+    expect(subject.credentialRecoveryStatus).toHaveBeenCalledOnce();
+    expect(subject.retryCredentialRecovery).toHaveBeenCalledOnce();
+    expect(subject.resetAllCredentials).toHaveBeenCalledOnce();
+  });
+
   it("refuses an intervals.icu credential for a different training account", async () => {
     const subject = harness(vi.fn(async () => "mismatch" as const));
 
@@ -345,6 +382,9 @@ describe("desktop onboarding IPC", () => {
         DESKTOP_CREDENTIAL_RETRY_CHANNEL,
         DESKTOP_CREDENTIAL_WRITE_CHANNEL,
         DESKTOP_CREDENTIAL_DELETE_CHANNEL,
+        DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL,
+        DESKTOP_CREDENTIAL_RECOVERY_RETRY_CHANNEL,
+        DESKTOP_CREDENTIAL_RESET_CHANNEL,
         DESKTOP_LLM_CONFIGURATION_CHANNEL,
         DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
         DESKTOP_CHATGPT_STATUS_CHANNEL,
@@ -1173,10 +1213,10 @@ describe("desktop onboarding IPC", () => {
     ).resolves.toEqual([]);
   });
 
-  it("disposes only its twelve handlers", () => {
+  it("disposes only its fifteen handlers", () => {
     const subject = harness();
     subject.dispose();
     expect(subject.handlers.size).toBe(0);
-    expect(subject.ipcMain.removeHandler).toHaveBeenCalledTimes(12);
+    expect(subject.ipcMain.removeHandler).toHaveBeenCalledTimes(15);
   });
 });

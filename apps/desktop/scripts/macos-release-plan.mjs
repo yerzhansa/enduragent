@@ -722,6 +722,21 @@ export async function notarizeMacosDmg(dmgPath, credentials, dependencies = {}) 
   }
 }
 
+export async function prepareMacosReleaseKeychainBinding(desktopRoot) {
+  const [{ buildKeychainBinding, copyKeychainBindingToAsarStaging }, { readBuilderAuthority }] =
+    await Promise.all([
+      import("./build-keychain-binding.mjs"),
+      import("./verify-package-layout.mjs"),
+    ]);
+  const authority = await readBuilderAuthority(desktopRoot);
+  const built = await buildKeychainBinding(desktopRoot);
+  const staged = await copyKeychainBindingToAsarStaging(desktopRoot, authority.asarSourceRoot);
+  if (built === undefined || staged === undefined) {
+    throw new TypeError("macOS keychain binding preparation is unavailable");
+  }
+  return Object.freeze({ built, staged });
+}
+
 export async function runMacosRelease(input, dependencies = {}) {
   dependencies.reportStage?.("release-plan");
   const plan = await createMacosReleasePlan(input, dependencies);
@@ -740,6 +755,10 @@ export async function runMacosRelease(input, dependencies = {}) {
   await verifyBaselineApplication(plan.baselineApplication, {
     candidateVersion: plan.version,
   });
+  const prepareKeychainBinding =
+    dependencies.prepareKeychainBinding ?? prepareMacosReleaseKeychainBinding;
+  dependencies.reportStage?.("keychain-binding-preparation");
+  await prepareKeychainBinding(plan.builderOptions.projectDir);
   const build = dependencies.build ?? (await import("electron-builder")).build;
   dependencies.reportStage?.("electron-builder");
   const artifacts = await build(plan.builderOptions);
@@ -755,6 +774,19 @@ export async function runMacosRelease(input, dependencies = {}) {
       feedUrl: plan.feedUrl,
     },
   });
+  const verifyKeychainBinding =
+    dependencies.verifyKeychainBinding ??
+    ((candidate) =>
+      verification.verifyMacosKeychainBinding(candidate, {
+        executeFile: dependencies.executeFile,
+      }));
+  dependencies.reportStage?.("keychain-binding");
+  await verifyKeychainBinding(application);
+  const verifyElectronFuses =
+    dependencies.verifyElectronFuses ??
+    (await import("./verify-electron-fuses.mjs")).verifyElectronFuses;
+  dependencies.reportStage?.("electron-fuses");
+  await verifyElectronFuses(join(application, "Contents/MacOS/Enduragent"));
   const verifyIdentityContinuity =
     dependencies.verifyIdentityContinuity ??
     ((baseline, candidate, options) =>
@@ -771,6 +803,14 @@ export async function runMacosRelease(input, dependencies = {}) {
   await verifyIdentityContinuity(plan.baselineApplication, application, {
     candidateVersion: plan.version,
   });
+  const verifyBackendSelection =
+    dependencies.verifyBackendSelection ??
+    (async (candidate) =>
+      (await import("./verify-macos-backend-selection.mjs")).verifyMacosBackendSelection(candidate, {
+        executeFile: dependencies.executeFile,
+      }));
+  dependencies.reportStage?.("backend-selection");
+  await verifyBackendSelection(application);
   const dmgPath = join(plan.builderOptions.projectDir, "dist", plan.artifactNames.dmg);
   dependencies.reportStage?.("dmg-notarization");
   await notarizeMacosDmg(dmgPath, notarizationCredentials, {

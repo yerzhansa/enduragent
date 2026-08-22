@@ -28,6 +28,7 @@ const REPAIR_REQUIRED_CREDENTIALS: CredentialSettingsState = {
   providerStatuses: [],
   confirmation: null,
   announcement: "That saved key could not be used. Enter it again to continue.",
+  recovery: { state: "ready", unverifiedEnvelopes: 0 },
   repairCredential: "anthropic",
   recoveryAvailable: false,
   focus: null,
