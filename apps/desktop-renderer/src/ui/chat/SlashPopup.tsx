@@ -6,6 +6,7 @@ import { cn } from "../../lib/utils.js";
 export function SlashPopup(props: {
   readonly open: boolean;
   readonly anchor: RefObject<Element | null>;
+  readonly listboxId: string;
   readonly matches: readonly SlashCommand[];
   readonly selected: number;
   readonly onHighlight: (index: number) => void;
@@ -18,7 +19,6 @@ export function SlashPopup(props: {
     <Popover
       open={props.open}
       modal={false}
-      triggerId="message"
       onOpenChange={(open) => {
         if (!open) props.onDismiss();
       }}
@@ -29,6 +29,7 @@ export function SlashPopup(props: {
         sideOffset={8}
         align="start"
         className="block w-(--anchor-width) overflow-hidden p-0"
+        id={props.listboxId}
         role="listbox"
         aria-label="Commands"
         initialFocus={false}
@@ -41,6 +42,7 @@ export function SlashPopup(props: {
           {props.matches.map((match, index) => (
             <li
               key={match.command}
+              id={`${props.listboxId}-option-${index}`}
               role="option"
               aria-selected={index === props.selected}
               className={cn(

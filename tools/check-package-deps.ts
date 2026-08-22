@@ -158,7 +158,6 @@ export const RULES: readonly PackageDepRule[] = [
       "class-variance-authority",
       "clsx",
       "lucide-react",
-      "shadcn",
       "tailwind-merge",
       "tw-animate-css",
     ],

@@ -1,5 +1,6 @@
 import {
   useImperativeHandle,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -26,6 +27,7 @@ export function Composer(props: {
   const [draft, setDraft] = useState("");
   const [selected, setSelected] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  const listboxId = useId();
   const sendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const inputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
   const actions = useEnduragentStore((state) => state.chatActions);
@@ -118,6 +120,7 @@ export function Composer(props: {
       <SlashPopup
         open={open}
         anchor={form}
+        listboxId={listboxId}
         matches={matches}
         selected={active}
         onHighlight={setSelected}
@@ -139,6 +142,11 @@ export function Composer(props: {
           className="min-h-10 max-h-[140px] resize-none border-0 bg-transparent py-2 text-ink outline-0 placeholder:text-[color-mix(in_srgb,var(--ink-2)_72%,transparent)] focus-visible:outline-0"
           rows={2}
           disabled={inputDisabled || !canChat}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          aria-activedescendant={open ? `${listboxId}-option-${active}` : undefined}
           onChange={(event) => {
             setDraft(event.currentTarget.value);
             setSelected(0);

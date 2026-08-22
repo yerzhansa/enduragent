@@ -695,6 +695,7 @@ describe("setup card", () => {
     const title = setupRow("ai").querySelector("[data-setup-row-title]");
     const trigger = title?.querySelector<HTMLElement>("[data-info-tip]");
     expect(trigger).not.toBeNull();
+    expect(trigger).toHaveClass("size-6");
 
     await user.hover(trigger as HTMLElement);
 
@@ -703,6 +704,27 @@ describe("setup card", () => {
     });
     const popup = document.querySelector("[data-info-tip-popup]") as HTMLElement;
     expect(setupCard().contains(popup)).toBe(false);
+    wizard.controller.dispose();
+  });
+
+  it("opens info details from the keyboard without moving focus", async () => {
+    const user = userEvent.setup();
+    const wizard = mountWizard({ bridge: coldBridge() });
+    await wizard.open();
+    const trigger = setupRow("ai").querySelector<HTMLElement>("[data-info-tip]");
+    if (trigger === null) throw new TypeError("info trigger missing");
+
+    trigger.focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => {
+      expect(document.querySelector("[data-info-tip-popup]")).not.toBeNull();
+    });
+    const popup = document.querySelector<HTMLElement>("[data-info-tip-popup]");
+    if (popup === null) throw new TypeError("info popup missing");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAttribute("aria-controls", popup.id);
+    expect(document.activeElement).toBe(trigger);
     wizard.controller.dispose();
   });
 

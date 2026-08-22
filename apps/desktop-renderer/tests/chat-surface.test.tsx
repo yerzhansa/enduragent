@@ -103,6 +103,41 @@ describe("chat surface", () => {
       expect(screen.queryByRole("listbox")).toBeNull();
     });
 
+    it("exposes the command list as the composer's active suggestion list", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      const input = composer();
+
+      expect(input).toHaveAttribute("role", "combobox");
+      expect(input).toHaveAttribute("aria-autocomplete", "list");
+      expect(input).toHaveAttribute("aria-expanded", "false");
+      expect(input).not.toHaveAttribute("aria-controls");
+      expect(input).not.toHaveAttribute("aria-activedescendant");
+
+      await user.click(input);
+      await user.keyboard("/st");
+
+      const listbox = screen.getByRole("listbox", { name: "Commands" });
+      const options = screen.getAllByRole("option");
+      const first = options.at(0);
+      const second = options.at(1);
+      if (first === undefined || second === undefined) {
+        throw new TypeError("command options missing");
+      }
+      expect(input).toHaveAttribute("aria-expanded", "true");
+      expect(input).toHaveAttribute("aria-controls", listbox.id);
+      expect(input).toHaveAttribute("aria-activedescendant", first.id);
+
+      await user.keyboard("{ArrowDown}");
+      expect(input).toHaveAttribute("aria-activedescendant", second.id);
+
+      await user.keyboard("{Escape}");
+      expect(input).toHaveAttribute("aria-expanded", "false");
+      expect(input).not.toHaveAttribute("aria-controls");
+      expect(input).not.toHaveAttribute("aria-activedescendant");
+      expect(document.activeElement).toBe(input);
+    });
+
     it("moves the selection with the arrow keys and accepts with Enter", async () => {
       const user = userEvent.setup();
       render(<Harness />);
@@ -768,7 +803,7 @@ describe("chat surface", () => {
       expect(source).toContain("chat-markdown\\\\_\\\\_table-scroll");
     });
 
-    it("keeps chat support cards and dialogs on shadcn primitives", async () => {
+    it("keeps chat support cards and dialogs on local UI primitives", async () => {
       const sourceRoot = resolve(import.meta.dirname, "..", "src", "ui", "chat");
       const sources = await Promise.all(
         [

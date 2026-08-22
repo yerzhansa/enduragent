@@ -3,8 +3,27 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../lib/utils.js";
 
+const buttonBaseClasses =
+  "group/button inline-flex shrink-0 items-center justify-center rounded-ctl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-colors outline-none select-none";
+const buttonFocusClasses =
+  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20";
+const buttonDisabledClasses =
+  "disabled:pointer-events-none disabled:opacity-64 aria-disabled:pointer-events-none aria-disabled:cursor-default aria-disabled:opacity-64";
+const buttonInvalidClasses =
+  "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
+const buttonMotionClasses = "motion-reduce:transition-none";
+const buttonIconClasses =
+  "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-ctl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 disabled:pointer-events-none disabled:opacity-64 aria-disabled:pointer-events-none aria-disabled:cursor-default aria-disabled:opacity-64 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  cn(
+    buttonBaseClasses,
+    buttonFocusClasses,
+    buttonDisabledClasses,
+    buttonInvalidClasses,
+    buttonMotionClasses,
+    buttonIconClasses,
+  ),
   {
     variants: {
       variant: {

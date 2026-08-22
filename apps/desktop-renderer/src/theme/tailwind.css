@@ -4,9 +4,26 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @source "../";
+
+@custom-variant data-open {
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
 
 @custom-variant dark {
   &:where([data-theme="dark"], [data-theme="dark"] *) {

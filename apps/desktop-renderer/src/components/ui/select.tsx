@@ -4,6 +4,33 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "../../lib/utils.js";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 
+const selectTriggerBaseClasses =
+  "flex w-fit items-center justify-between gap-1.5 rounded-ctl border border-input bg-background px-ctl-px text-sm whitespace-nowrap transition-colors outline-none select-none";
+const selectTriggerStateClasses =
+  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-64 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground";
+const selectTriggerSizeClasses =
+  "data-[size=default]:h-ctl data-[size=sm]:h-ctl-sm data-[size=sm]:px-ctl-px-sm";
+const selectTriggerValueClasses =
+  "*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5";
+const selectTriggerMotionClasses = "motion-reduce:transition-none";
+const selectTriggerIconClasses =
+  "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+const selectContentBaseClasses =
+  "relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-card border border-line-2 bg-popover p-1 text-popover-foreground shadow-elev-3 duration-100";
+const selectContentStateClasses = "data-[align-trigger=true]:animate-none";
+const selectContentPlacementClasses =
+  "data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2";
+const selectContentMotionClasses =
+  "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95";
+const selectItemBaseClasses =
+  "relative flex min-h-ctl-sm w-full cursor-default items-center gap-1.5 rounded-ctl py-1 pr-8 pl-inset text-sm outline-hidden select-none";
+const selectItemStateClasses =
+  "focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-64";
+const selectItemIconClasses =
+  "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+const selectItemContentClasses =
+  "*:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2";
+
 const Select = SelectPrimitive.Root;
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
@@ -39,7 +66,12 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-1.5 rounded-ctl border border-input bg-background px-ctl-px text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-64 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-ctl data-[size=sm]:h-ctl-sm data-[size=sm]:px-ctl-px-sm *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        selectTriggerBaseClasses,
+        selectTriggerStateClasses,
+        selectTriggerSizeClasses,
+        selectTriggerValueClasses,
+        selectTriggerMotionClasses,
+        selectTriggerIconClasses,
         className,
       )}
       {...props}
@@ -80,7 +112,10 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            "relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-card border border-line-2 bg-popover p-1 text-popover-foreground shadow-elev-3 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            selectContentBaseClasses,
+            selectContentStateClasses,
+            selectContentPlacementClasses,
+            selectContentMotionClasses,
             className,
           )}
           {...props}
@@ -109,7 +144,10 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-ctl-sm w-full cursor-default items-center gap-1.5 rounded-ctl py-1 pr-8 pl-inset text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        selectItemBaseClasses,
+        selectItemStateClasses,
+        selectItemIconClasses,
+        selectItemContentClasses,
         className,
       )}
       {...props}

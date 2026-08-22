@@ -311,7 +311,7 @@ describe("R6 desktop renderer", () => {
     expect(violationsFor(rRenderer)).toBe(2);
   });
 
-  it("R6 passes the shadcn foundation dependencies", () => {
+  it("R6 passes the local UI foundation dependencies", () => {
     write(
       "apps/desktop-renderer/src/lib/utils.ts",
       `import { clsx } from "clsx";\nimport { twMerge } from "tailwind-merge";\nexport const value = twMerge(clsx("base"));\n`,
@@ -322,7 +322,6 @@ describe("R6 desktop renderer", () => {
       dependencies: {
         "class-variance-authority": "^0.7.1",
         clsx: "^2.1.1",
-        shadcn: "4.18.0",
         "tailwind-merge": "^3.6.0",
         "tw-animate-css": "^1.4.0",
       },

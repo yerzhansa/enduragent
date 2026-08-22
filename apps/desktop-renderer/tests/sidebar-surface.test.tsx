@@ -248,7 +248,7 @@ describe("sidebar information hierarchy", () => {
 });
 
 describe("sidebar styling", () => {
-  it("uses shadcn buttons and Tailwind without the legacy module or mono copy", async () => {
+  it("uses local UI buttons and Tailwind without the legacy module or mono copy", async () => {
     const sources = await Promise.all(
       ["Sidebar.tsx", "SyncChip.tsx", "UpdateAvailableButton.tsx"].map((name) =>
         readFile(resolve(import.meta.dirname, "..", "src", "ui", "sidebar", name), "utf8"),
