@@ -1,5 +1,25 @@
 # cycling-coach
 
+## 2026.8.22
+
+### Patch Changes
+
+- 6589ea7: Carry balanced activity visibility summaries from the current intervals.icu reference fetch to sync consumers.
+
+  `SyncRpcResult` now reports `overall` and `recent7Days` windows. Each window includes its raw total, visible count, other malformed rows, and sorted per-source restrictions with the `source-restricted` reason. Both windows must balance, and recent counts cannot exceed their overall counterparts. Detection still uses exact `source === "STRAVA"`; the contract supports additional providers without collapsing them into one source. Counts stay in memory, come from the same fetch that supplies training context, and no longer come from historical backfill. Mid-page capture resumes report a page's dropped rows once. `PROTOCOL_VERSION` moves from 18 to 19. No athlete-facing copy changes.
+
+- 1151bf1: User-facing: Explained when Strava API restrictions hide activities, with separate recovery steps for future and past rides.
+
+  Show the restricted count after sync on the Training page, in the sidebar, and in Telegram. Direct athletes to connect their recording source to intervals.icu for future rides or use Import All Strava Data with an intervals.icu supporter subscription for history.
+
+- 529cbf8: User-facing: Coaching panels now say when hidden source data makes an answer unreliable.
+
+  Refuse adherence after any restricted recent activity, and refuse load, performance, and recent-ride panels when half their activity window is restricted.
+
+- 66f0532: User-facing: Your training history now syncs even when most of your rides came from Strava — the sessions intervals.icu can share are saved instead of the whole sync failing with no data at all.
+
+  intervals.icu cannot expose activity detail for Strava-sourced rows under the Strava API Agreement, so it returns a five-key placeholder with no `type`, `moving_time`, `elapsed_time` or streams. The activity index treated a missing `type` as a fatal transport error and aborted the entire pull, so a single placeholder wiped out every other activity in the same window. Placeholder rows are now dropped from the index; rows that do carry a `type` keep the identical strict validation. The `intervals-icu-api` bump to 0.4.0 makes `Activity.type` nullish so the response array parses at all, and the reference sport-adapter dispatcher guards `null` as well as `undefined`.
+
 ## 2026.8.18
 
 ### Patch Changes

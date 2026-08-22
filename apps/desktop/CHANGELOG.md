@@ -1,5 +1,31 @@
 # @enduragent/desktop
 
+## 0.1.6
+
+### Patch Changes
+
+- b60e591: User-facing: Removed the What’s new window from Desktop settings.
+- 11950d6: User-facing: Updated the conversation archive list and reader to the new interface system.
+- 93cc0a6: User-facing: Updated chat cards, shortcuts, queued messages, and confirmation dialogs to the new interface system.
+- 12d09bf: User-facing: Updated the coaching conversation, composer, history controls, and slash-command menu to the new consistent component system.
+- 20144c2: User-facing: The desktop app now uses the Inter typeface, with real tabular figures so numbers in tables and metrics align at every weight; monospace surfaces use Geist Mono.
+- 2f94075: User-facing: Fixed overlapping and clipped desktop controls in compact layouts.
+
+  Restored palette swatch sizing, archive row flow, release-note centering, and opaque chat controls.
+
+- 04f52c2: User-facing: Completed the new interface migration and standardized all desktop controls.
+- c30e606: User-facing: Updated setup menus, labels, and status controls to the new interface system.
+- daf701b: User-facing: The desktop interface now uses a consistent Primer-based type, spacing, control, radius, and contrast system.
+- 131343b: User-facing: Updated settings controls, palettes, forms, and status panels to the new interface system.
+- 424a57f: User-facing: Added a consistent accessible component foundation for desktop buttons, cards, dialogs, selects, popovers, tooltips, and menus.
+- fb656ce: Added the shadcn component foundation while preserving the existing runtime palette system and Tailwind migration boundary.
+- a6b5a20: User-facing: Updated the desktop shell, page headers, and shared confirmation controls to the new consistent component system.
+- 795ec2a: User-facing: Updated the desktop sidebar, navigation, sync status, and update action to the new consistent component system.
+- 4afb4b2: User-facing: Updated training summaries, progress tables, wellness trends, and export controls to the new interface system.
+- e5ee01b: User-facing: Updated ride distributions and power-to-heart-rate analysis to the new interface system.
+- b7af11c: User-facing: Updated ride lists, ride summaries, intervals, and best-effort analysis to the new interface system.
+- 5691c18: User-facing: Updated the menu-bar status window to the new interface system.
+
 ## 0.1.5
 
 ### Patch Changes
