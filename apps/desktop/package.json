@@ -34,8 +34,8 @@
     "@enduragent/coach-client": "workspace:*",
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/core": "workspace:*",
-    "electron-updater": "6.6.2",
-    "yaml": "^2.8.3"
+    "electron-updater": "6.8.9",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
@@ -46,15 +46,15 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-react": "5.2.0",
-    "electron": "43.1.1",
+    "electron": "43.4.1",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "esbuild": "0.27.7",
+    "esbuild": "0.28.2",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.12",
     "typescript": "^6.0.2",
     "vite": "7.3.6",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"
