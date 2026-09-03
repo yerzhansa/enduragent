@@ -36,10 +36,26 @@ export interface CoachEngineAdapterInput {
   readonly backend: CoachEngine;
   readonly getAthleteState: () => Promise<AthleteState>;
   readonly cyclingFtpAnchorResolver: CyclingFtpAnchorResolver;
+  readonly planCreationDrainGate: { hasOpenQuestion(): Promise<boolean> };
   readonly now: () => number;
 }
 
 export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachEngine {
+  const blocked = async (chatId: string): Promise<boolean> => {
+    if (chatId !== "desktop") return false;
+    try {
+      return await input.planCreationDrainGate.hasOpenQuestion();
+    } catch {
+      return false;
+    }
+  };
+  const currentQueue = async (chatId: string): Promise<ChatQueueRunResult> => {
+    if (input.backend.getChatQueue === undefined)
+      throw new Error("Durable chat queue is unavailable.");
+    return ChatQueueRunResultSchema.parse({
+      snapshot: await input.backend.getChatQueue({ chatId }),
+    });
+  };
   const queueStream = async (
     operation: (onEvent: (event: TurnEvent) => void) => Promise<ChatQueueRunResult>,
     onEvent?: (event: TurnEvent) => void,
@@ -62,6 +78,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
   return {
     async chat(request, onEvent) {
       const parsed = ChatRequestSchema.parse(request);
+      if (await blocked(parsed.chatId)) return ChatResponseSchema.parse({ text: "" });
       const callEpochS = Math.floor(input.now() / 1_000);
       const resolvedCs = await input.cyclingFtpAnchorResolver.resolve({
         effectiveAtEpochS: callEpochS,
@@ -115,18 +132,21 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
     },
     async resumeChatQueue(request, onEvent) {
       const parsed = ResumeChatQueueRequestSchema.parse(request);
+      if (await blocked(parsed.chatId)) return currentQueue(parsed.chatId);
       if (input.backend.resumeChatQueue === undefined)
         throw new Error("Durable chat queue is unavailable.");
       return queueStream((emit) => input.backend.resumeChatQueue!(parsed, emit), onEvent);
     },
     async runQueuedCommand(request, onEvent) {
       const parsed = RunQueuedCommandRequestSchema.parse(request);
+      if (await blocked(parsed.chatId)) return currentQueue(parsed.chatId);
       if (input.backend.runQueuedCommand === undefined)
         throw new Error("Durable chat queue is unavailable.");
       return queueStream((emit) => input.backend.runQueuedCommand!(parsed, emit), onEvent);
     },
     async retryQueuedTurn(request, onEvent) {
       const parsed = RetryQueuedTurnRequestSchema.parse(request);
+      if (await blocked(parsed.chatId)) return currentQueue(parsed.chatId);
       if (input.backend.retryQueuedTurn === undefined)
         throw new Error("Durable chat queue is unavailable.");
       return queueStream((emit) => input.backend.retryQueuedTurn!(parsed, emit), onEvent);

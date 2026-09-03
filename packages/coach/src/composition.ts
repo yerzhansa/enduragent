@@ -111,6 +111,7 @@ import {
   type GetRuntimeConfigRpcResult,
   type PlanningReadOperations,
   type CreatePlanningRequestPayload,
+  type PlanCreationOperations,
   type PlanningRequestOperations,
   type PlanningOperations,
   type VerifyIntervalsCredentialRpcParams,
@@ -143,6 +144,7 @@ import {
   normalizeIntervalsAthleteSelector,
 } from "./intervals-credential-approval.js";
 import { createCoachEngineAdapter } from "./coach-engine-adapter.js";
+import { createPlanCreationOperations } from "./plan-creation-operations.js";
 import {
   createStoreRuntime,
   type StoreRuntime,
@@ -201,6 +203,7 @@ import { createPlanningRequestDeliveryService } from "./planning-request-deliver
 import { createPlanningRequestSourceCleanup } from "./planning-request-source-cleanup.js";
 import {
   createPlanConversationRepository,
+  createPlanCreationRepository,
   createPlanningRequestIntakeRepository,
   createPlanningRequestRepository,
   createPlanRepository,
@@ -224,6 +227,7 @@ export interface LocalCoachComposition {
   readonly operations: CoachOperations &
     PlanningReadOperations &
     PlanningRequestOperations &
+    PlanCreationOperations &
     PlanningOperations;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -866,6 +870,12 @@ export async function createLocalCoachComposition(
   const now = dependencies.now ?? Date.now;
   const logger = createSubsystemLogger("agent", input.home.root);
   const planningIdentity = createAuthoredIdentity(input.home.configDir, { now });
+  const planCreationOperations = createPlanCreationOperations({
+    repository: createPlanCreationRepository(input.context.store),
+    identity: planningIdentity,
+    crypto: globalThis.crypto,
+    eventCandidates: { read: async () => [] },
+  });
   const planningRepository = createLegacyPlanRepository(input.context.store);
   const planningTimezone = resolveUserTimezone(input.config.session.timezone);
   const planningDateKey = (): number =>
@@ -1445,6 +1455,7 @@ export async function createLocalCoachComposition(
           backend,
           getAthleteState: () => stateReader.getAthleteState(),
           cyclingFtpAnchorResolver,
+          planCreationDrainGate: planCreationOperations,
           now,
         }),
       };
@@ -2096,6 +2107,7 @@ export async function createLocalCoachComposition(
         outbox: chatPlanOutboxRepository,
         requests: planningRequestRepository,
         identity: planningIdentity,
+        readPlanCreationCard: planCreationOperations.readCard,
         async resolveTarget() {
           const latest = await planRepository.readLatest();
           if (latest?.status === "active") return "active_plan";
@@ -2233,10 +2245,13 @@ export async function createLocalCoachComposition(
         activityAnalysis.getActivityAnalysis(request, signal),
       exportTrainingFile: (request, signal) => trainingExport.export(request, signal),
       ...planningRequestOperations,
+      "plan_creation.start": planCreationOperations["plan_creation.start"],
+      "plan_creation.answer": planCreationOperations["plan_creation.answer"],
       ...planningOperations,
     } satisfies CoachOperations &
       PlanningReadOperations &
       PlanningRequestOperations &
+      PlanCreationOperations &
       PlanningOperations;
     return {
       engine: reconfigurable.engine,

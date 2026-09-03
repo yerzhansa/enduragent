@@ -41,6 +41,8 @@ function stubActions(): ChatActions {
     retryPlanningRequest: vi.fn(),
     retryPlanningRequestLoad: vi.fn(),
     clearPlanningRequestFocus: vi.fn(),
+    startPlanCreation: vi.fn(),
+    answerPlanCreation: vi.fn(),
     stop: vi.fn(),
     removeQueued: vi.fn(),
     runQueuedCommand: vi.fn(),
@@ -1811,6 +1813,202 @@ describe("chat surface", () => {
       setChat({ messages: [message({ id: "c1" })] });
       expect(document.querySelector('[data-message-id="c1"]')).toBe(row);
       expect(row?.className).toBe(streamingClassName);
+    });
+
+    it("renders Plan Creation in the dock and submits the Fitness Goal", async () => {
+      const actions = stubActions();
+      useEnduragentStore.getState().bindChatActions(actions);
+      render(<Harness />);
+      setChat({ planCreationLoaded: true, decision: unansweredDecision() });
+      const startButton = screen.getByRole("button", { name: "Start a Plan" });
+      expect(startButton).toBeDisabled();
+      await userEvent.click(startButton);
+      expect(actions.startPlanCreation).not.toHaveBeenCalled();
+      setChat({ decision: null });
+      expect(startButton).toBeEnabled();
+      await userEvent.click(startButton);
+      expect(actions.startPlanCreation).toHaveBeenCalledOnce();
+      setChat({
+        planCreation: {
+          creationId: "01J00000000000000000000000",
+          version: 1,
+          status: "in-progress",
+          answeredSummaries: [],
+          openQuestion: {
+            kind: "goal-question",
+            prompt: "What are you preparing for?",
+            candidates: [],
+          },
+        },
+      });
+      const heading = screen.getByRole("heading", { name: "What are you preparing for?" });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(screen.getByRole("button", { name: "Event not listed" })).toBeEnabled();
+      await userEvent.click(screen.getByRole("button", { name: "Improve without an event" }));
+      const goalOutcome = screen.getByRole("textbox", { name: "Goal outcome" });
+      expect(goalOutcome).toHaveAttribute(
+        "class",
+        "min-h-[calc(var(--ctl-h-lg)+var(--inset))] resize-y rounded-ctl border border-line-2 bg-sunk px-3 py-2 text-sm leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20",
+      );
+      await userEvent.type(goalOutcome, "Build steady power");
+      await userEvent.click(screen.getByRole("button", { name: "Confirm goal" }));
+      expect(actions.answerPlanCreation).toHaveBeenCalledWith({
+        kind: "goal",
+        goal: { kind: "fitness", outcome: "Build steady power" },
+      });
+      expect(
+        heading.compareDocumentPosition(composer()) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).not.toBe(0);
+      expect(heading.closest('[data-slot="card"]')).toHaveClass("min-w-0");
+      setChat({
+        planCreation: {
+          creationId: "01J00000000000000000000000",
+          version: 2,
+          status: "in-progress",
+          answeredSummaries: [{ answerKey: "goal", title: "Goal", detail: "Build steady power" }],
+          openQuestion: {
+            kind: "success-question",
+            prompt: "What would success mean?",
+            input: { kind: "authored", placeholder: "Describe success" },
+          },
+        },
+      });
+      expect(screen.getByRole("textbox", { name: "Success meaning" })).toHaveValue("");
+    });
+
+    it("submits a manually entered Event Goal", async () => {
+      const actions = stubActions();
+      useEnduragentStore.getState().bindChatActions(actions);
+      render(<Harness />);
+      setChat({
+        planCreationLoaded: true,
+        planCreation: {
+          creationId: "01J00000000000000000000000",
+          version: 1,
+          status: "in-progress",
+          answeredSummaries: [],
+          openQuestion: {
+            kind: "goal-question",
+            prompt: "What are you preparing for?",
+            candidates: [],
+          },
+        },
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Event not listed" }));
+      const eventName = screen.getByRole("textbox", { name: "Event name" });
+      const eventDate = screen.getByLabelText("Event date");
+      const fieldRecipe =
+        "min-h-[calc(var(--ctl-h-lg)+var(--inset))] resize-y rounded-ctl border border-line-2 bg-sunk px-3 py-2 text-sm leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20";
+      expect(eventName).toHaveAttribute("class", fieldRecipe);
+      expect(eventDate).toHaveAttribute("class", fieldRecipe);
+      await userEvent.type(eventName, "Highland Tour");
+      fireEvent.change(eventDate, { target: { value: "1998-10-18" } });
+      await userEvent.click(screen.getByRole("button", { name: "Confirm goal" }));
+      expect(actions.answerPlanCreation).toHaveBeenCalledWith({
+        kind: "goal",
+        goal: { kind: "event-manual", name: "Highland Tour", date: "1998-10-18" },
+      });
+    });
+
+    it("submits each Event Goal finish option", async () => {
+      const actions = stubActions();
+      useEnduragentStore.getState().bindChatActions(actions);
+      render(<Harness />);
+      setChat({
+        planCreationLoaded: true,
+        planCreation: {
+          creationId: "01J00000000000000000000000",
+          version: 2,
+          status: "in-progress",
+          answeredSummaries: [
+            { answerKey: "goal", title: "Goal", detail: "Highland Tour · 1998-10-18" },
+          ],
+          openQuestion: {
+            kind: "success-question",
+            prompt: "What would success mean?",
+            input: {
+              kind: "event-finish",
+              options: [
+                { choice: "finish-comfortably", label: "Finish comfortably" },
+                { choice: "finish-fast", label: "Finish fast" },
+                { choice: "race-for-result", label: "Race for a result" },
+              ],
+            },
+          },
+        },
+      });
+      const options = [
+        ["Finish comfortably", "finish-comfortably"],
+        ["Finish fast", "finish-fast"],
+        ["Race for a result", "race-for-result"],
+      ] as const;
+      for (const [label, choice] of options) {
+        const button = screen.getByRole("button", { name: label });
+        expect(button).toBeEnabled();
+        await userEvent.click(button);
+        expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
+          kind: "success",
+          success: { kind: "event-finish", choice },
+        });
+      }
+    });
+
+    it("keeps summaries in the conversation and submits authored success", async () => {
+      const actions = stubActions();
+      useEnduragentStore.getState().bindChatActions(actions);
+      render(<Harness />);
+      const model = {
+        creationId: "01J00000000000000000000000",
+        version: 2,
+        status: "in-progress" as const,
+        answeredSummaries: [
+          { answerKey: "goal" as const, title: "Goal", detail: "Build steady power" },
+        ],
+        openQuestion: {
+          kind: "success-question" as const,
+          prompt: "What would success mean?",
+          input: { kind: "authored" as const, placeholder: "Describe success" },
+        },
+      };
+      setChat({
+        planCreation: model,
+        planCreationLoaded: true,
+        sendDisabled: true,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      await waitFor(() =>
+        expect(screen.getByRole("heading", { name: "What would success mean?" })).toHaveFocus(),
+      );
+      expect(screen.getByText("Build steady power")).toBeVisible();
+      expect(screen.getByText("1 answer confirmed")).toBeVisible();
+      expect(composer()).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+      await userEvent.type(
+        screen.getByRole("textbox", { name: "Success meaning" }),
+        "Ride four steady hours",
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Confirm success" }));
+      expect(actions.answerPlanCreation).toHaveBeenCalledWith({
+        kind: "success",
+        success: { kind: "authored", text: "Ride four steady hours" },
+      });
+      const complete = {
+        ...model,
+        version: 3,
+        answeredSummaries: [
+          ...model.answeredSummaries,
+          { answerKey: "success" as const, title: "Success", detail: "Ride four steady hours" },
+        ],
+        openQuestion: null,
+      };
+      setChat({
+        planCreation: complete,
+        sendDisabled: false,
+        timeline: [{ kind: "plan-creation", model: complete }],
+      });
+      expect(screen.queryByRole("heading", { name: "What would success mean?" })).toBeNull();
+      expect(screen.getByText("2 answers confirmed")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled();
     });
 
     it("declares the Inter and Geist font foundation", async () => {

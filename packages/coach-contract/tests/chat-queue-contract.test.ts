@@ -8,7 +8,7 @@ import {
 
 describe("chat queue contract", () => {
   it("ships protocol 33 and rejects a blank enqueue without attachments", () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+    expect(PROTOCOL_VERSION).toBe(34);
     expect(() =>
       EnqueueChatMessageRequestSchema.parse({
         chatId: "desktop",

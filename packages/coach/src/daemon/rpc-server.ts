@@ -36,6 +36,7 @@ import {
   type CoachEngine,
   type CoachOperations,
   type PlanningReadOperations,
+  type PlanCreationOperations,
   type PlanningRequestOperations,
   type CoachRpcMethodName,
   type CoachSelfTestOperations,
@@ -300,6 +301,7 @@ export interface CoachRpcServerInput {
   readonly operations: CoachOperations &
     PlanningReadOperations &
     PlanningRequestOperations &
+    PlanCreationOperations &
     PlanningOperations;
   readonly spend: SpendRpcHandlers;
   readonly selfTestOperations: CoachSelfTestOperations;
@@ -545,6 +547,8 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
+  "plan_creation.start",
+  "plan_creation.answer",
 ]);
 
 const PLAN_CHAT_RENDERER_METHODS = new Set<CoachRpcMethodName>([
@@ -1813,6 +1817,28 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               }
               result = await input.operations.listPlanningRequests(
                 COACH_RPC_METHOD_REGISTRY.listPlanningRequests.requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.start":
+            try {
+              result = await input.operations["plan_creation.start"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.start"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.answer":
+            try {
+              result = await input.operations["plan_creation.answer"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.answer"].requestSchema.parse(
                   generic.data.params,
                 ),
               );

@@ -1,6 +1,7 @@
 import type {
   CoachEngine,
   CoachOperations,
+  PlanCreationOperations,
   PlanningReadOperations,
   PlanningRequestOperations,
 } from "@enduragent/coach-contract";
@@ -15,7 +16,10 @@ import { withCoachStoreWriter } from "./runtime.js";
 export interface LocalCoachLifecycle {
   readonly home: AthleteHome;
   readonly engine: CoachEngine;
-  readonly operations: CoachOperations & PlanningReadOperations & PlanningRequestOperations;
+  readonly operations: CoachOperations &
+    PlanningReadOperations &
+    PlanningRequestOperations &
+    PlanCreationOperations;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
   readonly listener: WriterProtocolListener;

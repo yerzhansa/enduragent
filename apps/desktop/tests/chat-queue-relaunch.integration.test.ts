@@ -135,11 +135,9 @@ class QueueRecoveryBackend {
         if (request.method === "getChatAttachmentComposer") {
           return response(emptyAttachmentComposer);
         }
-        if (
-          request.method === "resumePlanningRequests" ||
-          request.method === "listPlanningRequests"
-        ) {
-          return response({ deliveries: [] });
+        if (request.method === "resumePlanningRequests") return response({ deliveries: [] });
+        if (request.method === "listPlanningRequests") {
+          return response({ deliveries: [], planCreation: null });
         }
         if (request.method === "getTranscriptPage") {
           const cursor = request.params.cursor;

@@ -5,6 +5,8 @@ import type {
   CoachDecisionAnswer,
   CoachDecisionReadModel,
   PlanningRequestDelivery,
+  PlanCreationAnswerInput,
+  PlanCreationCardModel,
   PlanHandoffSuggestion,
 } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
@@ -44,7 +46,8 @@ export interface ChatChoiceView {
 export type ChatTranscriptItemView =
   | { readonly kind: "message"; readonly message: ChatMessageView }
   | { readonly kind: "choice"; readonly choice: ChatChoiceView }
-  | { readonly kind: "planning-request"; readonly delivery: PlanningRequestDelivery };
+  | { readonly kind: "planning-request"; readonly delivery: PlanningRequestDelivery }
+  | { readonly kind: "plan-creation"; readonly model: PlanCreationCardModel | null };
 
 export type ChatDecisionPhase = "idle" | "continuing" | "recovering";
 
@@ -67,6 +70,10 @@ export interface ChatSurfaceState {
   readonly planningRequestBusyId: string | null;
   readonly planningRequestError: string | null;
   readonly planningRequestFocusId: string | null;
+  readonly planCreation: PlanCreationCardModel | null;
+  readonly planCreationLoaded: boolean;
+  readonly planCreationBusy: boolean;
+  readonly planCreationError: string | null;
   readonly timeline: readonly ChatTranscriptItemView[];
   readonly status: ChatStatus;
   readonly notice: string | null;
@@ -101,6 +108,8 @@ export interface ChatActions {
   retryPlanningRequest(requestId: string): void;
   retryPlanningRequestLoad(): void;
   clearPlanningRequestFocus(): void;
+  startPlanCreation(): void;
+  answerPlanCreation(answer: PlanCreationAnswerInput): void;
   stop(): void;
   removeQueued(id: string): void;
   runQueuedCommand(id: string): void;
@@ -136,6 +145,10 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   planningRequestBusyId: null,
   planningRequestError: null,
   planningRequestFocusId: null,
+  planCreation: null,
+  planCreationLoaded: false,
+  planCreationBusy: false,
+  planCreationError: null,
   timeline: Object.freeze([]),
   status: "idle",
   notice: null,
@@ -250,6 +263,9 @@ export function sameChatTimeline(
     if (item.kind === "planning-request" && other.kind === "planning-request") {
       return JSON.stringify(item.delivery) === JSON.stringify(other.delivery);
     }
+    if (item.kind === "plan-creation" && other.kind === "plan-creation") {
+      return JSON.stringify(item.model) === JSON.stringify(other.model);
+    }
     return false;
   });
 }
@@ -276,6 +292,10 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.planningRequestError === right.planningRequestError &&
     left.planningRequestFocusId === right.planningRequestFocusId &&
     JSON.stringify(left.planningRequests) === JSON.stringify(right.planningRequests) &&
+    JSON.stringify(left.planCreation) === JSON.stringify(right.planCreation) &&
+    left.planCreationLoaded === right.planCreationLoaded &&
+    left.planCreationBusy === right.planCreationBusy &&
+    left.planCreationError === right.planCreationError &&
     left.workBlocked === right.workBlocked &&
     left.sendDisabled === right.sendDisabled &&
     left.inputDisabled === right.inputDisabled &&

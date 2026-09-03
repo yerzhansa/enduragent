@@ -27,6 +27,7 @@ import { QueuedMessages } from "./QueuedMessages";
 import { SpendNotice } from "./SpendNotice";
 import { TrainingContextPanel } from "./TrainingContextPanel";
 import { Transcript } from "./Transcript";
+import { PlanCreationDock } from "./PlanCreationCards";
 
 const CHAT_DISCLAIMER =
   "Not medical advice, and not a substitute for a doctor or a certified coach.";
@@ -208,8 +209,9 @@ export function ChatView(): ReactElement {
                 <Notice />
                 <RetryBar />
               </div>
-              <div className="mb-2.5 empty:hidden">
+              <div className="mb-2.5 grid gap-2.5 empty:hidden">
                 <CoachDecisionPanel onCustomOpenChange={setCustomDecisionOpen} />
+                <PlanCreationDock />
               </div>
               <AttachmentPanel />
               <QueuedMessages />

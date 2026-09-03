@@ -87,6 +87,9 @@ describe("Planning request delivery", () => {
     resolveWorkoutSource?: Parameters<
       typeof createPlanningRequestDeliveryService
     >[0]["resolveWorkoutSource"],
+    readPlanCreationCard: Parameters<
+      typeof createPlanningRequestDeliveryService
+    >[0]["readPlanCreationCard"] = async () => null,
   ) => {
     const crypto = createNodeCrypto();
     const plans = createPlanRepository(store);
@@ -95,6 +98,7 @@ describe("Planning request delivery", () => {
         outbox: createChatPlanOutboxRepository(store, crypto),
         requests: createPlanningRequestRepository(store, crypto),
         identity,
+        readPlanCreationCard,
         async resolveTarget() {
           const latest = await plans.readLatest();
           if (latest?.status === "active") return "active_plan";
@@ -269,7 +273,16 @@ describe("Planning request delivery", () => {
       }),
     });
 
-    const result = await service().listPlanningRequests!({ chatId: "chat-1" });
+    const planCreation = {
+      creationId: "01J60HFQ7T0000000000000001",
+      version: 1,
+      status: "in-progress" as const,
+      answeredSummaries: [],
+      openQuestion: { kind: "goal-question" as const, prompt: "Goal?", candidates: [] },
+    };
+    const result = await service(undefined, undefined, async () => planCreation)
+      .listPlanningRequests!({ chatId: "chat-1" });
+    expect(result.planCreation).toEqual(planCreation);
     expect(result.deliveries).toHaveLength(1);
     expect(result.deliveries[0]).toMatchObject({
       requestId: "request-1",

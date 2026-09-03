@@ -5,6 +5,7 @@ import {
   type AthleteState,
   type CoachEngine,
   type CoachOperations,
+  type PlanCreationOperations,
   type SpendSummary,
 } from "@enduragent/coach-contract";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
@@ -17,6 +18,7 @@ import { runCoachServe, type CoachServeDependencies } from "../src/serve.js";
 import { createInvocationCoordinator } from "../src/daemon/invocation-coordinator.js";
 import type { CoachRpcServerInput } from "../src/daemon/rpc-server.js";
 import type { LocalCoachLifecycle } from "../src/local-runner.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -65,7 +67,8 @@ const engine: CoachEngine = {
   getAthleteState: async () => state,
 };
 
-const operations: CoachOperations = {
+const operations: CoachOperations & PlanCreationOperations = {
+  ...planCreationOperationStubs,
   importFiles: async ({ paths }) => ({
     schemaVersion: 2,
     files: { total: paths.length, imported: paths.length, quarantined: 0 },

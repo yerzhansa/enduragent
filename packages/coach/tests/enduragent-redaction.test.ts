@@ -17,6 +17,7 @@ import { runEnduragent, type EnduragentDependencies } from "../src/enduragent.js
 import type { WithLocalCoachInput } from "../src/local-runner.js";
 import { withCoachStoreWriter } from "../src/runtime.js";
 import type { SpendMeterService } from "../src/spend-meter.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const API_KEY_SECRET = "F8_LOCAL_API_KEY_MUST_NOT_ESCAPE";
 const MESSAGE_SECRET = "F8_LOCAL_MESSAGE_MUST_NOT_ESCAPE";
@@ -151,6 +152,7 @@ describe.skipIf(!hasLoopback)("local CLI redaction boundary", () => {
           home: context.home,
           engine: coachEngine,
           operations: {
+            ...planCreationOperationStubs,
             importFiles: async ({ paths }) => ({
               schemaVersion: 2,
               files: { total: paths.length, imported: paths.length, quarantined: 0 },

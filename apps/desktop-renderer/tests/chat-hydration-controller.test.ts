@@ -94,7 +94,7 @@ function coachClient(input: {
         }) as never;
       }
       if (method === "listPlanningRequests") {
-        return Promise.resolve({ deliveries: [] }) as never;
+        return Promise.resolve({ deliveries: [], planCreation: null }) as never;
       }
       if (method === "resumePlanningRequests") {
         return Promise.resolve({ deliveries: [] }) as never;
@@ -223,7 +223,9 @@ describe("chat controller transcript hydration", () => {
       }
       if (method === "getChatQueue")
         return Promise.resolve({ schemaVersion: 1, revision: 0, items: [] }) as never;
-      if (method === "listPlanningRequests") return Promise.resolve({ deliveries: [] }) as never;
+      if (method === "listPlanningRequests") {
+        return Promise.resolve({ deliveries: [], planCreation: null }) as never;
+      }
       throw new TypeError();
     });
     const { controller, states } = subject({

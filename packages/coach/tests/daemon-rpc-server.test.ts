@@ -32,6 +32,8 @@ import {
   type CoachDecisionReadModel,
   type CoachEngine,
   type CoachOperations,
+  type PlanCreationCardModel,
+  type PlanCreationOperations,
   type PlanningReadOperations,
   type PlanningOperations,
   type PlanReadModel,
@@ -51,6 +53,7 @@ import type { MonotonicTimer, ScheduledMonotonicTimer } from "../src/daemon/upgr
 import type { DesktopTelegramController } from "../src/desktop-telegram-controller.js";
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { LocalCoachLifecycle } from "../src/local-runner.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const roots: string[] = [];
 
@@ -133,7 +136,8 @@ const completedDecision = {
   },
 } satisfies CoachDecisionReadModel;
 
-const operations: CoachOperations & PlanningReadOperations = {
+const operations: CoachOperations & PlanningReadOperations & PlanCreationOperations = {
+  ...planCreationOperationStubs,
   exportTrainingFile: async () => ({
     status: "exported",
     byteLength: 4_096,
@@ -2117,7 +2121,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     const getPlanningRequest = vi.fn(async () => ({ status: "missing" as const }));
     const retryPlanningRequest = vi.fn(async () => ({ status: "missing" as const }));
     const resumePlanningRequests = vi.fn(async () => ({ deliveries: [] }));
-    const listPlanningRequests = vi.fn(async () => ({ deliveries: [] }));
+    const listPlanningRequests = vi.fn(async () => ({ deliveries: [], planCreation: null }));
     const rpc = createCoachRpcServer({
       engine: engine(),
       operations: {
@@ -2209,6 +2213,100 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     });
     expect(resumePlanningRequests).toHaveBeenCalledOnce();
     await client.close();
+  });
+
+  it("dispatches strict Plan Creation operations for the renderer", async () => {
+    const token = "x".repeat(43);
+    const creationId = "01J00000000000000000000000";
+    const startedCard: PlanCreationCardModel = {
+      creationId,
+      version: 1,
+      status: "in-progress",
+      answeredSummaries: [],
+      openQuestion: { kind: "goal-question", prompt: "Goal?", candidates: [] },
+    };
+    const answeredCard: PlanCreationCardModel = {
+      creationId,
+      version: 2,
+      status: "in-progress",
+      answeredSummaries: [{ answerKey: "goal", title: "Goal", detail: "Build power" }],
+      openQuestion: {
+        kind: "success-question",
+        prompt: "Success?",
+        input: { kind: "authored", placeholder: "Describe success" },
+      },
+    };
+    const startPlanCreation = vi.fn<PlanCreationOperations["plan_creation.start"]>(async () => ({
+      status: "started",
+      outcome: "created",
+      planCreation: startedCard,
+    }));
+    const answerPlanCreation = vi.fn<PlanCreationOperations["plan_creation.answer"]>(async () => ({
+      status: "answered",
+      planCreation: answeredCard,
+    }));
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: {
+        ...operations,
+        "plan_creation.start": startPlanCreation,
+        "plan_creation.answer": answerPlanCreation,
+      },
+      token,
+      owner: "app-supervised",
+    });
+    const renderer = await openSocket(rpc);
+    renderer.ws.send(
+      JSON.stringify(
+        createClientHandshakeFrame(TEST_RENDERER_CAPABILITY_BYTES.toString("base64url")),
+      ),
+    );
+    await renderer.frames.next();
+    const startParams = { commandId: "start-1" };
+    const answerParams = {
+      commandId: "answer-1",
+      creationId,
+      expectedVersion: 1,
+      answer: { kind: "goal" as const, goal: { kind: "fitness" as const, outcome: "Build power" } },
+    };
+    for (const request of [
+      { id: "start", method: "plan_creation.start", params: startParams },
+      { id: "answer", method: "plan_creation.answer", params: answerParams },
+    ]) {
+      renderer.ws.send(JSON.stringify({ jsonrpc: "2.0", ...request }));
+      expect(parseCoachRpcEnvelope(await renderer.frames.next())).toEqual({
+        jsonrpc: "2.0",
+        id: request.id,
+        result:
+          request.method === "plan_creation.start"
+            ? { status: "started", outcome: "created", planCreation: startedCard }
+            : { status: "answered", planCreation: answeredCard },
+      });
+    }
+    expect(startPlanCreation).toHaveBeenCalledWith(startParams);
+    expect(answerPlanCreation).toHaveBeenCalledWith(answerParams);
+
+    for (const request of [
+      {
+        id: "invalid-start",
+        method: "plan_creation.start",
+        params: { ...startParams, extra: true },
+      },
+      {
+        id: "invalid-answer",
+        method: "plan_creation.answer",
+        params: { ...answerParams, extra: true },
+      },
+    ]) {
+      renderer.ws.send(JSON.stringify({ jsonrpc: "2.0", ...request }));
+      expect(parseCoachRpcEnvelope(await renderer.frames.next())).toMatchObject({
+        id: request.id,
+        error: { code: -32602, message: "Invalid params" },
+      });
+    }
+    expect(startPlanCreation).toHaveBeenCalledOnce();
+    expect(answerPlanCreation).toHaveBeenCalledOnce();
+    await renderer.close();
   });
 
   it.each([

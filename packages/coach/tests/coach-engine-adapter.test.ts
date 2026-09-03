@@ -7,7 +7,18 @@ import {
   type TurnEvent,
 } from "@enduragent/coach-contract";
 import type { CyclingFtpAnchorResolver, CyclingFtpAnchorResult } from "@enduragent/kernel/anchors";
-import { createCoachEngineAdapter } from "../src/coach-engine-adapter.js";
+import { createCoachEngineAdapter as createProductionCoachEngineAdapter } from "../src/coach-engine-adapter.js";
+
+type AdapterInput = Parameters<typeof createProductionCoachEngineAdapter>[0];
+
+function createCoachEngineAdapter(
+  input: Omit<AdapterInput, "planCreationDrainGate"> & {
+    readonly planCreationDrainGate?: AdapterInput["planCreationDrainGate"];
+  },
+) {
+  const { planCreationDrainGate = { hasOpenQuestion: async () => false }, ...rest } = input;
+  return createProductionCoachEngineAdapter({ ...rest, planCreationDrainGate });
+}
 
 const state: AthleteState = {
   schemaVersion: "3",
@@ -87,6 +98,88 @@ function backend(overrides: Partial<CoachEngine> = {}): CoachEngine {
 }
 
 describe("coach engine adapter", () => {
+  it("refuses desktop Chat and every queue drain while a Plan Creation question is open", async () => {
+    const selected = resolver();
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "unexpected" }));
+    const resumeChatQueue = vi.fn(async () => {
+      throw new Error("unexpected");
+    });
+    const runQueuedCommand = vi.fn(async () => {
+      throw new Error("unexpected");
+    });
+    const retryQueuedTurn = vi.fn(async () => {
+      throw new Error("unexpected");
+    });
+    const getChatQueue = vi.fn(async () => ({ schemaVersion: 1 as const, revision: 4, items: [] }));
+    const engine = createCoachEngineAdapter({
+      backend: backend({
+        chat,
+        resumeChatQueue,
+        runQueuedCommand,
+        retryQueuedTurn,
+        getChatQueue,
+      }),
+      getAthleteState: async () => state,
+      cyclingFtpAnchorResolver: selected.value,
+      planCreationDrainGate: { hasOpenQuestion: async () => true },
+      now: () => 1_752_796_801_999,
+    });
+    await expect(engine.chat({ chatId: "desktop", message: "queued" })).resolves.toEqual({
+      text: "",
+    });
+    await expect(engine.resumeChatQueue?.({ chatId: "desktop" })).resolves.toEqual({
+      snapshot: { schemaVersion: 1, revision: 4, items: [] },
+    });
+    await expect(
+      engine.runQueuedCommand?.({ chatId: "desktop", queuedMessageId: "queued-1" }),
+    ).resolves.toEqual({ snapshot: { schemaVersion: 1, revision: 4, items: [] } });
+    await expect(
+      engine.retryQueuedTurn?.({ chatId: "desktop", claimId: "claim-1" }),
+    ).resolves.toEqual({ snapshot: { schemaVersion: 1, revision: 4, items: [] } });
+    expect(chat).not.toHaveBeenCalled();
+    expect(resumeChatQueue).not.toHaveBeenCalled();
+    expect(runQueuedCommand).not.toHaveBeenCalled();
+    expect(retryQueuedTurn).not.toHaveBeenCalled();
+    expect(getChatQueue).toHaveBeenCalledTimes(3);
+    expect(selected.resolve).not.toHaveBeenCalled();
+  });
+
+  it("fails open when the Plan Creation drain gate cannot be read", async () => {
+    const selected = resolver();
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "ok" }));
+    const queueResult = {
+      snapshot: { schemaVersion: 1 as const, revision: 4, items: [] },
+    };
+    const resumeChatQueue = vi.fn(async () => queueResult);
+    const runQueuedCommand = vi.fn(async () => queueResult);
+    const retryQueuedTurn = vi.fn(async () => queueResult);
+    const engine = createCoachEngineAdapter({
+      backend: backend({ chat, resumeChatQueue, runQueuedCommand, retryQueuedTurn }),
+      getAthleteState: async () => state,
+      cyclingFtpAnchorResolver: selected.value,
+      planCreationDrainGate: {
+        hasOpenQuestion: async () => Promise.reject(new Error("corrupt Plan Creation record")),
+      },
+      now: () => 1_752_796_801_999,
+    });
+
+    await expect(engine.chat({ chatId: "desktop", message: "continue" })).resolves.toEqual({
+      text: "ok",
+    });
+    await expect(engine.resumeChatQueue?.({ chatId: "desktop" })).resolves.toEqual(queueResult);
+    await expect(
+      engine.runQueuedCommand?.({ chatId: "desktop", queuedMessageId: "queued-1" }),
+    ).resolves.toEqual(queueResult);
+    await expect(
+      engine.retryQueuedTurn?.({ chatId: "desktop", claimId: "claim-1" }),
+    ).resolves.toEqual(queueResult);
+    expect(chat).toHaveBeenCalledOnce();
+    expect(resumeChatQueue).toHaveBeenCalledOnce();
+    expect(runQueuedCommand).toHaveBeenCalledOnce();
+    expect(retryQueuedTurn).toHaveBeenCalledOnce();
+    expect(selected.resolve).toHaveBeenCalledOnce();
+  });
+
   it("resolves one FTP anchor at the call epoch and validates event order and response", async () => {
     const selected = resolver();
     const calls: string[] = [];

@@ -33,6 +33,7 @@ import {
   type CoachRpcServer,
 } from "../../src/daemon/rpc-server.js";
 import type { DesktopTelegramController } from "../../src/desktop-telegram-controller.js";
+import { planCreationOperationStubs } from "../helpers/plan-creation-operation-stubs.js";
 
 const AUTH_TOKEN = "F8_AUTH_TOKEN_MUST_NOT_BE_LOGGED12345678901";
 const API_KEY_SECRET = "F8_API_KEY_MUST_NOT_ESCAPE";
@@ -192,6 +193,7 @@ async function startRpc(coachEngine: CoachEngine): Promise<RunningRpc> {
       }),
     },
     operations: {
+      ...planCreationOperationStubs,
       importFiles: async ({ paths }) => ({
         schemaVersion: 2,
         files: { total: paths.length, imported: paths.length, quarantined: 0 },

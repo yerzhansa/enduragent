@@ -10,6 +10,7 @@ import type {
   CoachOperations,
   SpendOperations,
   OperationProgressEvent,
+  PlanCreationOperations,
   PlanningOperations,
   PlanningRequestOperations,
   PlanProgressEvent,
@@ -383,7 +384,10 @@ export async function launchDesktopFixture(input: {
       >;
     },
   };
-  const operations: CoachOperations & PlanningOperations & PlanningRequestOperations = {
+  const operations: CoachOperations &
+    PlanningOperations &
+    PlanningRequestOperations &
+    PlanCreationOperations = {
     async importFiles(request, onEvent) {
       const frames = await invoke("importFiles", request);
       for (const event of eventFrames(frames)) onEvent?.(event as OperationProgressEvent);
@@ -552,6 +556,16 @@ export async function launchDesktopFixture(input: {
     async listPlanningRequests(request) {
       return finalFrame(await invoke("listPlanningRequests", request)) as Awaited<
         ReturnType<NonNullable<PlanningRequestOperations["listPlanningRequests"]>>
+      >;
+    },
+    async "plan_creation.start"(request) {
+      return finalFrame(await invoke("plan_creation.start", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.start"]>
+      >;
+    },
+    async "plan_creation.answer"(request) {
+      return finalFrame(await invoke("plan_creation.answer", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.answer"]>
       >;
     },
     async getPlanState(request) {

@@ -1448,7 +1448,16 @@ describe("coach request and event projection", () => {
       getPlanningRequest: async () => ({ status: "missing" }),
       retryPlanningRequest: async () => ({ status: "missing" }),
       resumePlanningRequests: async () => ({ deliveries: [] }),
-      listPlanningRequests: async () => ({ deliveries: [] }),
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: null }),
+      "plan_creation.start": async () => ({
+        status: "rejected",
+        reason: "command-conflict",
+      }),
+      "plan_creation.answer": async () => ({
+        status: "rejected",
+        reason: "no-unfinished-creation",
+        planCreation: null,
+      }),
     };
     expect(Object.keys(COACH_RPC_METHOD_REGISTRY)).toEqual(Object.keys(fake));
     expect(COACH_RPC_METHOD_NAMES).toEqual(Object.keys(fake));
@@ -1948,8 +1957,8 @@ describe("handshake", () => {
     expect(ServerHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(accepted)))).toEqual({
       type: "handshake",
       status: "accepted",
-      clientProtocolVersion: 33,
-      serverProtocolVersion: 33,
+      clientProtocolVersion: 34,
+      serverProtocolVersion: 34,
       owner: "service-managed",
       athleteHome: "/synthetic/athlete",
       rendererCapability: "A".repeat(43),
@@ -1958,7 +1967,7 @@ describe("handshake", () => {
 
   it("refuses a previous-protocol client with a version-mismatch frame instead of a parse error", () => {
     const previous = PROTOCOL_VERSION - 1;
-    expect(previous).toBe(32);
+    expect(previous).toBe(33);
     expect(() =>
       createAcceptedServerHandshakeFrame("service-managed", previous, {
         ...acceptedHandshakeBinding,
@@ -2033,7 +2042,7 @@ describe("handshake", () => {
 
   it("accepts aligned protocol 33 peers and classifies mismatches in both directions", () => {
     const client = createClientHandshakeFrame("synthetic-test-token");
-    expect(client.clientProtocolVersion).toBe(33);
+    expect(client.clientProtocolVersion).toBe(34);
     expect(ClientHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(client)))).toEqual(client);
     const accepted = createAcceptedServerHandshakeFrame(
       "service-managed",
@@ -2159,7 +2168,7 @@ describe("additive protocol signals", () => {
     expect(AgentErrorKindSchema.safeParse("aborted").success).toBe(false);
   });
 
-  it("uses protocol version 33", () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+  it("uses protocol version 34", () => {
+    expect(PROTOCOL_VERSION).toBe(34);
   });
 });

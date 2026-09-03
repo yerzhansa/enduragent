@@ -5,6 +5,7 @@ import {
   CreatePlanningRequestRpcResultSchema,
   CreateWorkoutPlanningRequestRpcParamsSchema,
   ListPlanningRequestsRpcParamsSchema,
+  ListPlanningRequestsRpcResultSchema,
   PlanningRequestDeliverySchema,
 } from "../src/index.js";
 
@@ -142,5 +143,8 @@ describe("Planning request contract", () => {
     expect(() =>
       ListPlanningRequestsRpcParamsSchema.parse({ chatId: "chat-1", extra: true }),
     ).toThrow();
+    expect(
+      ListPlanningRequestsRpcResultSchema.parse({ deliveries: [], planCreation: null }),
+    ).toEqual({ deliveries: [], planCreation: null });
   });
 });

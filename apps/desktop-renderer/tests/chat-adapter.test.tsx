@@ -104,6 +104,10 @@ describe("chat view adapter", () => {
       planningRequestBusyId: null,
       planningRequestError: null,
       planningRequestFocusId: null,
+      planCreation: null,
+      planCreationLoaded: false,
+      planCreationBusy: false,
+      planCreationError: null,
       timeline: [
         {
           kind: "message",
@@ -215,6 +219,79 @@ describe("chat view adapter", () => {
       inputDisabled: false,
       newConversationUnavailable: true,
     });
+  });
+
+  it("projects a Plan Creation conversation item and blocks only Send for an open question", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const model = {
+      creationId: "01J00000000000000000000000",
+      version: 1,
+      status: "in-progress" as const,
+      answeredSummaries: [],
+      openQuestion: { kind: "goal-question" as const, prompt: "Goal?", candidates: [] },
+    };
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: { value: model, loaded: true, busy: false, error: null },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      planCreation: model,
+      planCreationLoaded: true,
+      sendDisabled: true,
+      inputDisabled: false,
+      timeline: [{ kind: "plan-creation", model }],
+    });
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: { ...model, version: 2, openQuestion: null },
+          loaded: true,
+          busy: false,
+          error: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({ sendDisabled: false, inputDisabled: false });
+  });
+
+  it("suppresses interrupted recovery while a Plan Creation question is open", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    let stopped = submitted();
+    stopped = reduceChatState(stopped, {
+      type: "event",
+      requestKey: 1,
+      event: {
+        type: "interrupted",
+        turnId: "turn-stopped",
+        chatId: "desktop",
+        text: "Partial response",
+      },
+    });
+
+    adapter.view.render(
+      stopped,
+      controls({
+        planCreation: {
+          value: {
+            creationId: "01J00000000000000000000000",
+            version: 1,
+            status: "in-progress",
+            answeredSummaries: [],
+            openQuestion: { kind: "goal-question", prompt: "Goal?", candidates: [] },
+          },
+          loaded: true,
+          busy: false,
+          error: null,
+        },
+      }),
+    );
+
+    expect(published.at(-1)).toMatchObject({ status: "interrupted", interrupted: false });
   });
 
   it("keeps v2 decision consequences between the athlete request and Coach continuation", () => {
@@ -550,6 +627,7 @@ describe("chat view adapter", () => {
       published.at(-1)?.timeline.map((item) => {
         if (item.kind === "choice") return "choice";
         if (item.kind === "planning-request") return "planning-request";
+        if (item.kind === "plan-creation") return "plan-creation";
         return item.message.role === "athlete" ? "athlete" : item.message.delivery;
       }),
     ).toEqual(["athlete", "interrupted", "choice", "complete"]);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PlanCreationCardModelSchema } from "./plan-creation.js";
 
 const PlanningRequestIdSchema = z.string().min(1).max(512);
 const PlanningRequestInstantSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -312,7 +313,10 @@ export const ListPlanningRequestsRpcParamsSchema = z
   .strict();
 export type ListPlanningRequestsRpcParams = z.infer<typeof ListPlanningRequestsRpcParamsSchema>;
 export const ListPlanningRequestsRpcResultSchema = z
-  .object({ deliveries: z.array(PlanningRequestDeliverySchema) })
+  .object({
+    deliveries: z.array(PlanningRequestDeliverySchema),
+    planCreation: PlanCreationCardModelSchema.nullable(),
+  })
   .strict();
 export type ListPlanningRequestsRpcResult = z.infer<typeof ListPlanningRequestsRpcResultSchema>;
 

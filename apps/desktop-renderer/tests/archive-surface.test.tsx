@@ -45,6 +45,8 @@ function chatActions(): ChatActions {
     retryPlanningRequest: vi.fn(),
     retryPlanningRequestLoad: vi.fn(),
     clearPlanningRequestFocus: vi.fn(),
+    startPlanCreation: vi.fn(),
+    answerPlanCreation: vi.fn(),
     stop: vi.fn(),
     retry: vi.fn(),
     removeQueued: vi.fn(),

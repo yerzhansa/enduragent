@@ -357,6 +357,8 @@ export function bootRenderer(): Disposer {
     retryPlanningRequest: (requestId) => chatController.retryPlanningRequest(requestId),
     retryPlanningRequestLoad: () => chatController.retryPlanningRequestLoad(),
     clearPlanningRequestFocus: () => chatController.clearPlanningRequestFocus(),
+    startPlanCreation: () => void chatController.startPlanCreation(),
+    answerPlanCreation: (answer) => void chatController.answerPlanCreation(answer),
     stop: () => chatController.stop(),
     removeQueued: (id) => chatController.removeQueued(id),
     runQueuedCommand: (id) => void chatController.runQueuedCommand(id),

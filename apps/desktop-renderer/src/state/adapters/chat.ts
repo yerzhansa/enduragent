@@ -266,10 +266,19 @@ export function createChatViewAdapter(input: {
     const planningItems: ChatTranscriptItemView[] = planningRequests
       .filter((delivery) => delivery.state !== "cancelled")
       .map((delivery) => ({ kind: "planning-request", delivery }));
-    const timeline = [...historicalItems, ...liveItems, ...planningItems];
+    const planCreation = controls?.planCreation;
+    const timeline = [
+      ...historicalItems,
+      ...liveItems,
+      ...planningItems,
+      ...(planCreation?.loaded === true && planCreation.value !== null
+        ? ([{ kind: "plan-creation", model: planCreation.value }] as const)
+        : []),
+    ];
     const decisionBlocksWork =
       decision?.value?.status === "unanswered" ||
       (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
+    const planCreationBlocksWork = planCreation?.value?.openQuestion != null;
     const decisionLoading = controls?.decisionLoading === true;
     const decisionLoadError = controls?.queueLoadError ?? controls?.decisionLoadError ?? null;
     const decisionUnavailable = decisionLoading || decisionLoadError !== null;
@@ -305,6 +314,10 @@ export function createChatViewAdapter(input: {
       planningRequestBusyId: controls?.planningRequests?.busyId ?? null,
       planningRequestError: controls?.planningRequests?.error ?? null,
       planningRequestFocusId: controls?.planningRequests?.focusId ?? null,
+      planCreation: planCreation?.value ?? null,
+      planCreationLoaded: planCreation?.loaded ?? false,
+      planCreationBusy: planCreation?.busy ?? false,
+      planCreationError: planCreation?.error ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
       notice: decisionBlocksWork
@@ -313,10 +326,15 @@ export function createChatViewAdapter(input: {
           (state.status === "streaming" ? null : state.progress)),
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,
-      interrupted: state.status === "interrupted" && !decisionBlocksWork,
+      interrupted:
+        state.status === "interrupted" && !decisionBlocksWork && !planCreationBlocksWork,
       workBlocked,
       sendDisabled:
-        workBlocked || decisionBlocksWork || decisionUnavailable || attachmentUnavailable,
+        workBlocked ||
+        decisionBlocksWork ||
+        decisionUnavailable ||
+        attachmentUnavailable ||
+        planCreationBlocksWork,
       inputDisabled: workBlocked,
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,

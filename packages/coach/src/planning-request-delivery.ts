@@ -13,6 +13,7 @@ import {
   RetryPlanningRequestRpcParamsSchema,
   RetryPlanningRequestRpcResultSchema,
   type PlanningRequestDelivery,
+  type PlanCreationCardModel,
   type PlanningRequestOperations,
   type CreatePlanningRequestPayload,
   type CreatePlanningRequestRpcResult,
@@ -35,6 +36,7 @@ export interface PlanningRequestDeliveryServiceInput {
   readonly requests: PlanningRequestRepository;
   readonly identity: AuthoredIdentity;
   readonly resolveTarget: () => Promise<PlanningRequestTarget>;
+  readonly readPlanCreationCard: () => Promise<PlanCreationCardModel | null>;
   readonly resolveWorkoutSource?: (input: {
     readonly chatId: string;
     readonly attachmentId: string;
@@ -279,6 +281,7 @@ export function createPlanningRequestDeliveryService(
       const records = await input.outbox.readByChatId(parsed.chatId);
       return ListPlanningRequestsRpcResultSchema.parse({
         deliveries: await Promise.all(records.map((record) => project(input.requests, record))),
+        planCreation: await input.readPlanCreationCard(),
       });
     },
   };
