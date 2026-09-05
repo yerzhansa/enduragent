@@ -32,14 +32,14 @@
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/provider": "^3.0.9",
     "@ai-sdk/provider-utils": "^4.0.24",
-    "@anthropic-ai/claude-agent-sdk": "0.3.220",
-    "@clack/prompts": "^1.2.0",
+    "@anthropic-ai/claude-agent-sdk": "0.3.258",
+    "@clack/prompts": "^1.7.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "ai": "^6.0.158",
-    "grammy": "^1.42.0",
+    "grammy": "^1.46.0",
     "intervals-icu-api": "^0.4.0",
-    "yaml": "^2.8.3",
-    "zod": "^4.3.6"
+    "yaml": "^2.9.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@enduragent/core": "workspace:*",
@@ -47,7 +47,7 @@
     "@types/node": "^25.6.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22"
