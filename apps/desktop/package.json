@@ -57,7 +57,7 @@
     "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^25.6.0",
-    "@vitejs/plugin-react": "5.2.0",
+    "@vitejs/plugin-react": "6.1.1",
     "electron": "43.1.1",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
