@@ -20,19 +20,19 @@
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/engine": "workspace:*",
     "@enduragent/kernel": "workspace:*",
-    "@clack/prompts": "^1.2.0",
+    "@clack/prompts": "^1.7.0",
     "@grammyjs/auto-retry": "^2.0.2",
     "ai": "^6.0.158",
-    "grammy": "^1.42.0",
+    "grammy": "^1.46.0",
     "intervals-icu-api": "^0.4.0",
-    "yaml": "^2.8.3",
-    "zod": "^4.3.6"
+    "yaml": "^2.9.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "fast-check": "^4.7.0",
+    "fast-check": "^4.9.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   }
 }
