@@ -511,8 +511,8 @@ importers:
         specifier: ^3.0.69
         version: 3.0.72(zod@4.4.1)
       '@ai-sdk/deepseek':
-        specifier: ^2.0.25
-        version: 2.0.39(zod@4.4.1)
+        specifier: ^3.0.31
+        version: 3.0.31(zod@4.4.1)
       '@ai-sdk/google':
         specifier: ^3.0.63
         version: 3.0.65(zod@4.4.1)
@@ -807,9 +807,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/deepseek@2.0.39':
-    resolution: {integrity: sha512-3wUq1cvqSWkRadCSqcDXBLpOwUAe+JqfWQZS0fK0sWiqDeTIEzsse+r7xcN2x5XpJjefT0d7FQTa3u2lZ/yxbg==}
-    engines: {node: '>=18'}
+  '@ai-sdk/deepseek@3.0.31':
+    resolution: {integrity: sha512-csuqeUO3W9Jl7KA6yR+EWXoQp9tukRiOP3BCbOjo9+vX7k5gUq8ZR4ddyGxjtQBujZblYFgY7CtUbAQLhPK5Xw==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -850,6 +850,10 @@ packages:
   '@ai-sdk/provider@3.0.9':
     resolution: {integrity: sha512-/ngMKqKdL9dSlY/eQ3NFDzzFyw0Hix+cbFFlyuKEKcOgpHdBt/spKUvX/i0wGrDLFPYJeVvv3N0j92LxWRL7yQ==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.7':
+    resolution: {integrity: sha512-6or44XprPzKbr8zkmzosowSE0pxkvJcoojBL+mCZvPUt3kvXp3XSNqeVun9golb1acEfSo6yaEBRT18h2VU+1Q==}
+    engines: {node: '>=22'}
 
   '@anthropic-ai/claude-agent-sdk@0.3.220':
     resolution: {integrity: sha512-glc7SdwPkOkLw8oxwLo9PKTdLJGqW/PIR4urWXFoRtX9YllwozsEVc5Tc1+EvLSkfrsxPJqQWqOgpjUOQXf1oA==}
@@ -6007,9 +6011,9 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.30(zod@4.4.1)
       zod: 4.4.1
 
-  '@ai-sdk/deepseek@2.0.39(zod@4.4.1)':
+  '@ai-sdk/deepseek@3.0.31(zod@4.4.1)':
     dependencies:
-      '@ai-sdk/provider': 3.0.10
+      '@ai-sdk/provider': 4.0.7
       '@ai-sdk/provider-utils': 4.0.30(zod@4.4.1)
       zod: 4.4.1
 
@@ -6050,6 +6054,10 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.9':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.7':
     dependencies:
       json-schema: 0.4.0
 
