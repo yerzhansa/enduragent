@@ -1078,7 +1078,7 @@ describe("desktop startup wiring", () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
 
     expect(source).not.toMatch(/encryption: safeStorage/u);
-    expect(source.split("encryption: credentialEncryption.encryption")).toHaveLength(4);
+    expect(source.split("encryption: credentialEncryption.encryption")).toHaveLength(5);
     expect(source).toMatch(/safeStorage,\n/u);
   });
 
@@ -1090,14 +1090,14 @@ describe("desktop startup wiring", () => {
     expect(source.slice(report - 400, report)).toMatch(/process\.platform === "darwin"/u);
   });
 
-  it("uses one shared lock for both envelope-deletion paths", async () => {
+  it("uses one shared lock for every envelope-deletion path", async () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
 
     expect(source).toMatch(/credentialEncryption\.retireKeychainKey\(proof\)/u);
     expect(source.split("createCredentialEnvelopeMutationLock()")).toHaveLength(2);
     expect(
       source.split("revalidateEnvelopeRemoval: revalidateCredentialEnvelopeRemoval"),
-    ).toHaveLength(3);
-    expect(source.split("observeEnvelopeRemoved: retireCredentialEncryptionKey")).toHaveLength(3);
+    ).toHaveLength(4);
+    expect(source.split("observeEnvelopeRemoved: retireCredentialEncryptionKey")).toHaveLength(4);
   });
 });

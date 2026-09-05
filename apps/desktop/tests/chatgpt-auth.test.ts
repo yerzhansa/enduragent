@@ -1,16 +1,28 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { syntheticOAuthOwner } from "./helpers/oauth-owner.js";
+import type { CodexCredentials } from "@enduragent/core";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LlmProvider, RuntimeConfigSnapshot } from "@enduragent/coach-contract";
-import {
-  createChatGptAuth as createChatGptAuthSubject,
-  deleteChatGptProfile,
-  hasChatGptProfile,
-  writeChatGptProfile,
-} from "../src/main/chatgpt-auth.js";
+import { createChatGptAuth as createChatGptAuthSubject } from "../src/main/chatgpt-auth.js";
 
 const roots: string[] = [];
+const owners = new Map<string, ReturnType<typeof syntheticOAuthOwner>>();
+function profileOwner(configDir: string) {
+  let owner = owners.get(configDir);
+  if (owner === undefined) {
+    owner = syntheticOAuthOwner(configDir);
+    owners.set(configDir, owner);
+  }
+  return owner;
+}
+const hasChatGptProfile = (configDir: string) => profileOwner(configDir).hasProfile("openai-codex");
+const writeChatGptProfile = (configDir: string, credentials: CodexCredentials) =>
+  profileOwner(configDir).writeProfile(credentials);
+const deleteChatGptProfile = (configDir: string) =>
+  profileOwner(configDir).deleteProfile("openai-codex");
 
 async function configDir(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "desktop-chatgpt-auth-"));
@@ -69,12 +81,26 @@ function runtimeSnapshot(
 }
 
 function createChatGptAuth(
-  options: Omit<Parameters<typeof createChatGptAuthSubject>[0], "getRuntimeConfig"> & {
+  options: Omit<
+    Parameters<typeof createChatGptAuthSubject>[0],
+    "getRuntimeConfig" | "profileStore" | "dependencies"
+  > & {
+    readonly configDir: string;
+    readonly dependencies?: Parameters<typeof createChatGptAuthSubject>[0]["dependencies"] & {
+      readonly writeProfile?: (configDir: string, credentials: CodexCredentials) => Promise<void>;
+    };
     readonly getRuntimeConfig?: () => Promise<RuntimeConfigSnapshot>;
   },
 ) {
   return createChatGptAuthSubject({
     ...options,
+    profileStore: {
+      ...profileOwner(options.configDir),
+      writeProfile:
+        options.dependencies?.writeProfile === undefined
+          ? profileOwner(options.configDir).writeProfile
+          : (credentials) => options.dependencies!.writeProfile!(options.configDir, credentials),
+    },
     getRuntimeConfig: options.getRuntimeConfig ?? (async () => runtimeSnapshot()),
   });
 }
@@ -117,7 +143,7 @@ describe("desktop ChatGPT auth", () => {
     const directory = await configDir();
     await writeChatGptProfile(directory, credentials());
     const clearRuntimeCredential = vi.fn(async () => {
-      deleteChatGptProfile(directory);
+      await deleteChatGptProfile(directory);
       return "cleared" as const;
     });
     const auth = createChatGptAuth({
@@ -135,6 +161,43 @@ describe("desktop ChatGPT auth", () => {
     expect(clearRuntimeCredential).toHaveBeenCalledOnce();
     await expect(hasChatGptProfile(directory)).resolves.toBe(false);
   });
+
+  it.each([false, true])(
+    "disconnects an active custom profile and preserves other profiles (default: %s)",
+    async (includeDefault) => {
+      const directory = await configDir();
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        join(directory, "auth-profiles.json"),
+        JSON.stringify({
+          custom: { type: "oauth", ...credentials() },
+          unrelated: { type: "oauth", ...credentials(), access: "obviously-fake-unrelated" },
+          ...(includeDefault ? { "openai-codex": { type: "oauth", ...credentials() } } : {}),
+        }),
+      );
+      const owner = syntheticOAuthOwner(directory, { selectedProfile: "custom" });
+      owners.set(directory, owner);
+      await owner.initialize();
+      const auth = createChatGptAuth({
+        configDir: directory,
+        activeProfileName: async () => "custom",
+        applyRuntimeConfig: async () => {},
+        openExternal: async () => {},
+        clearRuntimeCredential: async () => {
+          await owner.deleteProfile("custom");
+          return "cleared";
+        },
+      });
+      await expect(auth.deleteCredential()).resolves.toEqual({
+        status: "deleted",
+        cleanupPending: false,
+      });
+      await expect(owner.hasProfile("custom")).resolves.toBe(false);
+      await expect(owner.hasProfile("openai-codex")).resolves.toBe(includeDefault);
+      const remaining = JSON.parse(await readFile(join(directory, "auth-profiles.json"), "utf8"));
+      expect(Object.keys(remaining)).toEqual(["unrelated"]);
+    },
+  );
 
   it("fails closed and surfaces profile/runtime divergence during deletion", async () => {
     const directory = await configDir();
@@ -180,79 +243,41 @@ describe("desktop ChatGPT auth", () => {
     });
   });
 
-  it("atomically merges the profile with mode 0600 and validates its shape", async () => {
+  it("stores login credentials only in the encrypted envelope", async () => {
     const directory = await configDir();
     await writeChatGptProfile(directory, credentials());
-    const path = join(directory, "auth-profiles.json");
-    const first = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
-    first.other = { type: "oauth", marker: true };
-    await writeFile(path, JSON.stringify(first));
-    await chmod(path, 0o644);
-    await writeChatGptProfile(directory, credentials());
-    const stored = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
-    expect(stored.other).toEqual({ type: "oauth", marker: true });
-    expect(stored["openai-codex"]).toMatchObject({
-      type: "oauth",
-      access: "obviously-fake-access",
-      refresh: "obviously-fake-refresh",
-      expires: 4_102_444_800_000,
+    const path = join(dirname(directory), "credentials-v1", "oauth.bin");
+    const bytes = await readFile(path);
+    expect(bytes.includes(Buffer.from(credentials().access))).toBe(false);
+    expect(bytes.includes(Buffer.from(credentials().refresh))).toBe(false);
+    await expect(readFile(join(directory, "auth-profiles.json"))).rejects.toMatchObject({
+      code: "ENOENT",
     });
-    if (process.platform !== "win32") {
-      expect((await stat(path)).mode & 0o777).toBe(0o600);
-    }
+    if (process.platform !== "win32") expect((await stat(path)).mode & 0o777).toBe(0o600);
     await expect(hasChatGptProfile(directory)).resolves.toBe(true);
   });
 
-  it("preserves unrelated profile fields and the Desktop credential shape", async () => {
+  it("retains unrelated legacy profiles during migration", async () => {
     const directory = await configDir();
-    const path = join(directory, "auth-profiles.json");
     await mkdir(directory, { recursive: true });
+    const other = { type: "oauth", access: "synthetic-other", future: { generation: 1 } };
+    const path = join(directory, "auth-profiles.json");
     await writeFile(
       path,
-      JSON.stringify({
-        other: {
-          type: "oauth",
-          access: "obviously-fake-other-access",
-          future: { generation: 1 },
-        },
-      }),
+      JSON.stringify({ other, "openai-codex": { type: "oauth", ...credentials() } }),
+      { mode: 0o600 },
     );
-
-    const write = writeChatGptProfile(directory, {
-      ...credentials(),
-      accountId: "",
-      email: "synthetic@example.invalid",
-    });
-
-    expect(write).toBeInstanceOf(Promise);
-    await write;
-    const stored = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
-    expect(stored.other).toEqual({
-      type: "oauth",
-      access: "obviously-fake-other-access",
-      future: { generation: 1 },
-    });
-    expect(stored["openai-codex"]).toEqual({
-      type: "oauth",
-      access: "obviously-fake-access",
-      refresh: "obviously-fake-refresh",
-      expires: 4_102_444_800_000,
-      email: "synthetic@example.invalid",
-    });
-    if (process.platform !== "win32") {
-      expect((await stat(path)).mode & 0o777).toBe(0o600);
-    }
+    await expect(hasChatGptProfile(directory)).resolves.toBe(true);
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ other });
   });
 
-  it("treats absent, corrupt, and invalid profiles as absent", async () => {
+  it("does not fall back to newly added plaintext after encrypted storage becomes corrupt", async () => {
     const directory = await configDir();
-    await expect(hasChatGptProfile(directory)).resolves.toBe(false);
     await writeChatGptProfile(directory, credentials());
-    await writeFile(join(directory, "auth-profiles.json"), "{");
-    await expect(hasChatGptProfile(directory)).resolves.toBe(false);
+    await writeFile(join(dirname(directory), "credentials-v1", "oauth.bin"), "corrupt");
     await writeFile(
       join(directory, "auth-profiles.json"),
-      JSON.stringify({ "openai-codex": { type: "oauth" } }),
+      JSON.stringify({ "openai-codex": { type: "oauth", ...credentials() } }),
     );
     await expect(hasChatGptProfile(directory)).resolves.toBe(false);
   });
@@ -298,7 +323,7 @@ describe("desktop ChatGPT auth", () => {
     await expect(auth.status()).resolves.toEqual({ state: "absent", runtimeReady: false });
   });
 
-  it("completes login by quarantining invalid UTF-8 profile bytes", async () => {
+  it("refuses malformed legacy migration without creating a plaintext quarantine", async () => {
     const directory = await configDir();
     const path = join(directory, "auth-profiles.json");
     const originalBytes = invalidUtf8ProfilesBytes();
@@ -312,15 +337,13 @@ describe("desktop ChatGPT auth", () => {
     });
 
     await expect(auth.login("quarantine", selection())).resolves.toEqual({
-      status: "stored",
+      status: "refused",
       operationId: "quarantine",
+      reason: "storage-failed",
     });
-    expect(await readFile(`${path}.corrupt`)).toEqual(originalBytes);
-    if (process.platform !== "win32") {
-      expect((await stat(`${path}.corrupt`)).mode & 0o777).toBe(0o600);
-      expect((await stat(path)).mode & 0o777).toBe(0o600);
-    }
-    await expect(hasChatGptProfile(directory)).resolves.toBe(true);
+    expect(await readFile(path)).toEqual(originalBytes);
+    await expect(readFile(`${path}.corrupt`)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(hasChatGptProfile(directory)).resolves.toBe(false);
   });
 
   it("does not replace an unreadable existing profile path", async () => {
@@ -503,7 +526,8 @@ describe("desktop ChatGPT auth", () => {
     const directory = await configDir();
     await writeChatGptProfile(directory, credentials());
     let activationSignal: AbortSignal | undefined;
-    const overallActivationSignal = AbortSignal.timeout(5);
+    const activationController = new AbortController();
+    const overallActivationSignal = activationController.signal;
     const auth = createChatGptAuth({
       configDir: directory,
       activationTimeoutMs: 100,
@@ -511,6 +535,7 @@ describe("desktop ChatGPT auth", () => {
       getRuntimeConfig: async () => runtimeSnapshot("openai-codex", true),
       applyRuntimeConfig: async (_request, signal) => {
         activationSignal = signal;
+        queueMicrotask(() => activationController.abort());
         return await new Promise<void>(() => {});
       },
     });

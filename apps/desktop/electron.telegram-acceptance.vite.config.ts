@@ -19,6 +19,12 @@ export default defineConfig(
           },
           output: {
             chunkFileNames: "[name]-[hash].js",
+            minifyInternalExports: false,
+            manualChunks: {
+              "oauth-acceptance-route": [
+                resolve(desktopRoot, "scripts/support/packaged-telegram/oauth-fetch-route.ts"),
+              ],
+            },
           },
         },
       },

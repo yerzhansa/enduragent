@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isAbsolute, relative, sep } from "node:path";
 import ts from "typescript";
 
@@ -729,7 +730,12 @@ function topLevelFunction(value, name) {
 }
 
 function verifyTelegramAcceptanceTopLevelLayout(source) {
-  const statements = source.statements;
+  const statements = source.statements.filter(
+    (statement) =>
+      !ts.isImportDeclaration(statement) ||
+      (ts.isStringLiteral(statement.moduleSpecifier) &&
+        statement.moduleSpecifier.text === "electron"),
+  );
   if (
     statements.length !== 10 ||
     !ts.isImportDeclaration(statements[0]) ||
@@ -835,7 +841,7 @@ function verifyTelegramAcceptanceBootstrapDeclaration(source) {
   }
 }
 
-export function verifyTelegramAcceptanceMainEntry(value) {
+export function verifyTelegramAcceptanceMainEntry(value, readRoute) {
   if (typeof value !== "string") {
     throw new TypeError("Telegram acceptance main entry is invalid");
   }
@@ -857,6 +863,10 @@ export function verifyTelegramAcceptanceMainEntry(value) {
   };
   collectImports(source);
   const staticImports = source.statements.filter(ts.isImportDeclaration);
+  const hasOAuthRoute = staticImports.length === 4;
+  if (readRoute !== undefined && !hasOAuthRoute) {
+    throw new TypeError("OAuth acceptance route import is required");
+  }
   const electronImport = staticImports[0];
   const electronBindings = electronImport?.importClause?.namedBindings;
   const appImport = ts.isNamedImports(electronBindings) ? electronBindings.elements[0] : undefined;
@@ -909,7 +919,7 @@ export function verifyTelegramAcceptanceMainEntry(value) {
   const exit = assignments?.get("exit");
   if (
     source.parseDiagnostics.length !== 0 ||
-    staticImports.length !== 1 ||
+    (staticImports.length !== 1 && staticImports.length !== 4) ||
     electronImport === undefined ||
     electronImport.modifiers !== undefined ||
     electronImport.attributes !== undefined ||
@@ -921,26 +931,53 @@ export function verifyTelegramAcceptanceMainEntry(value) {
     electronImport.importClause.phaseModifier !== undefined ||
     electronImport.importClause?.name !== undefined ||
     !ts.isNamedImports(electronBindings) ||
-    electronBindings.elements.length !== 1 ||
+    electronBindings.elements.length !== (hasOAuthRoute ? 2 : 1) ||
     electronBindings.elements.hasTrailingComma ||
     appImport === undefined ||
     appImport.isTypeOnly ||
     appImport.propertyName !== undefined ||
     appImport.name.text !== "app" ||
+    (hasOAuthRoute &&
+      (electronBindings.elements[1].name.text !== "shell" ||
+        electronBindings.elements[1].propertyName !== undefined ||
+        electronBindings.elements[1].isTypeOnly)) ||
     imports.length !== 1 ||
     imports[0] !== productionImport ||
     assignments === undefined ||
     !propertyPath(assignments.get("input"), ["process", "stdin"]) ||
     beforeImport === undefined ||
     !arrowFunction(beforeImport, [], (body) =>
-      callExpression(
-        body,
-        ["consumeAcceptanceStartupMarker"],
-        [
-          (argument) => propertyPath(argument, ["process", "env"]),
-          (argument) => ts.isIdentifier(argument) && argument.text === "app",
-        ],
-      ),
+      !hasOAuthRoute
+        ? callExpression(
+            body,
+            ["consumeAcceptanceStartupMarker"],
+            [
+              (argument) => propertyPath(argument, ["process", "env"]),
+              (argument) => ts.isIdentifier(argument) && argument.text === "app",
+            ],
+          )
+        : ts.isBlock(body) &&
+          body.statements.length === 2 &&
+          expressionStatement(body.statements[0], (expression) =>
+            callExpression(
+              expression,
+              ["installOAuthAcceptanceRoute"],
+              [
+                (argument) => ts.isStringLiteral(argument) && argument.text === "main",
+                (argument) => ts.isIdentifier(argument) && argument.text === "shell",
+              ],
+            ),
+          ) &&
+          expressionStatement(body.statements[1], (expression) =>
+            callExpression(
+              expression,
+              ["consumeAcceptanceStartupMarker"],
+              [
+                (argument) => propertyPath(argument, ["process", "env"]),
+                (argument) => ts.isIdentifier(argument) && argument.text === "app",
+              ],
+            ),
+          ),
     ) ||
     quit === undefined ||
     !arrowFunction(quit, [], (body) => callExpression(body, ["app", "quit"])) ||
@@ -991,5 +1028,52 @@ export function verifyTelegramAcceptanceMainEntry(value) {
   }
   verifyTelegramAcceptanceHelperDeclarations(source);
   verifyTelegramAcceptanceBootstrapDeclaration(source);
+  if (hasOAuthRoute) {
+    for (const [index, moduleName] of [
+      [2, "node:fs"],
+      [3, "node:path"],
+    ]) {
+      const sideImport = staticImports[index];
+      if (
+        sideImport.importClause !== undefined ||
+        sideImport.modifiers !== undefined ||
+        sideImport.attributes !== undefined ||
+        !ts.isStringLiteral(sideImport.moduleSpecifier) ||
+        sideImport.moduleSpecifier.text !== moduleName
+      ) {
+        throw new TypeError("OAuth acceptance route dependency is invalid");
+      }
+    }
+    const routeImport = staticImports[1];
+    const routeBindings = routeImport?.importClause?.namedBindings;
+    if (
+      routeImport === undefined ||
+      !ts.isStringLiteral(routeImport.moduleSpecifier) ||
+      !/^\.\/oauth-acceptance-route-[A-Za-z0-9_-]+\.js$/u.test(routeImport.moduleSpecifier.text) ||
+      routeImport.modifiers !== undefined ||
+      routeImport.attributes !== undefined ||
+      routeImport.importClause?.name !== undefined ||
+      !ts.isNamedImports(routeBindings) ||
+      routeBindings.elements.length !== 1 ||
+      routeBindings.elements[0].name.text !== "installOAuthAcceptanceRoute" ||
+      routeBindings.elements[0].propertyName !== undefined ||
+      routeBindings.elements[0].isTypeOnly ||
+      typeof readRoute !== "function"
+    ) {
+      throw new TypeError("OAuth acceptance route import is invalid");
+    }
+    verifyOAuthAcceptanceRoute(readRoute(`out/main/${routeImport.moduleSpecifier.text.slice(2)}`));
+  }
   return `out/main/${importPath.slice(2)}`;
+}
+
+export function verifyOAuthAcceptanceRoute(value) {
+  if (
+    typeof value !== "string" ||
+    createHash("sha256")
+      .update(JSON.stringify(syntaxTokens(value)))
+      .digest("hex") !== "c148f7a3a422dfcddcdc84481c7e657025b2e4be0648ae269b0d5d3275ee9ce4"
+  ) {
+    throw new TypeError("OAuth acceptance route does not match the reviewed transport");
+  }
 }

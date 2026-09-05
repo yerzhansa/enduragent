@@ -18,6 +18,44 @@ import {
   withInterprocessFileLockSync,
 } from "../io/interprocess-file-lock-sync.js";
 
+export const DESKTOP_OAUTH_OWNERSHIP_FILE = ".desktop-oauth-owner.json";
+
+export class DesktopOwnedOAuthHomeError extends Error {
+  constructor() {
+    super(
+      "This home belongs to Enduragent desktop. Stop shared-home CLI processes and use a separate CLI home, then sign in there.",
+    );
+    this.name = "DesktopOwnedOAuthHomeError";
+  }
+}
+
+function desktopOwnershipMarkerPresent(profilesPath: string): boolean {
+  try {
+    lstatSync(join(dirname(profilesPath), DESKTOP_OAUTH_OWNERSHIP_FILE));
+    return true;
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")
+      return false;
+    throw error;
+  }
+}
+
+function syncProfileDirectory(path: string): void {
+  if (process.platform === "win32") return;
+  const fd = openSync(dirname(path), "r");
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+export function assertCliOAuthHome(profilesPath: string): void {
+  if (desktopOwnershipMarkerPresent(profilesPath)) {
+    throw new DesktopOwnedOAuthHomeError();
+  }
+}
+
 const AUTH_PROFILES_LOCK_FILE = ".auth-profiles.lock";
 
 export interface StoredProfile {
@@ -188,6 +226,7 @@ export function loadStoredProfileSnapshot(
   profilesPath: string,
   name: string,
 ): StoredProfileSnapshot | null {
+  assertCliOAuthHome(profilesPath);
   const profile = profileAt(readProfiles(profilesPath), name);
   return profile === undefined ? null : snapshot(profile);
 }
@@ -199,6 +238,7 @@ export function saveStoredProfile(
 ): void {
   mkdirSync(dirname(profilesPath), { recursive: true, mode: 0o700 });
   withInterprocessFileLockSync(lockPathFor(profilesPath), () => {
+    assertCliOAuthHome(profilesPath);
     const profiles = readProfiles(profilesPath);
     profiles[name] = profile;
     writeProfiles(profilesPath, profiles);
@@ -212,6 +252,7 @@ export function recoverAndSaveStoredProfile(
 ): void {
   mkdirSync(dirname(profilesPath), { recursive: true, mode: 0o700 });
   withInterprocessFileLockSync(lockPathFor(profilesPath), () => {
+    assertCliOAuthHome(profilesPath);
     const recovered = readProfilesForRecovery(profilesPath);
     if (recovered.malformedBytes !== undefined) {
       writeQuarantine(profilesPath, recovered.malformedBytes);
@@ -224,6 +265,7 @@ export function recoverAndSaveStoredProfile(
 export function deleteStoredProfile(profilesPath: string, name: string): DeleteStoredProfileResult {
   mkdirSync(dirname(profilesPath), { recursive: true, mode: 0o700 });
   return withInterprocessFileLockSync(lockPathFor(profilesPath), () => {
+    assertCliOAuthHome(profilesPath);
     const profiles = readProfiles(profilesPath);
     if (profileAt(profiles, name) === undefined) return { status: "missing" };
     delete profiles[name];
@@ -240,6 +282,7 @@ export async function compareAndSaveStoredProfile(
 ): Promise<CompareAndSaveStoredProfileResult> {
   mkdirSync(dirname(profilesPath), { recursive: true, mode: 0o700 });
   return withInterprocessFileLock(lockPathFor(profilesPath), () => {
+    assertCliOAuthHome(profilesPath);
     const profiles = readProfiles(profilesPath);
     const current = profileAt(profiles, name);
     if (current === undefined) return { status: "missing" };
@@ -249,5 +292,54 @@ export async function compareAndSaveStoredProfile(
     profiles[name] = next;
     writeProfiles(profilesPath, profiles);
     return { status: "saved", profile: next };
+  });
+}
+
+export async function migrateDesktopOAuthProfiles(
+  profilesPath: string,
+  names: readonly string[],
+  persistAndVerify: (
+    legacy: Readonly<Record<string, StoredProfileSnapshot>>,
+    owned: boolean,
+  ) => Promise<void>,
+): Promise<void> {
+  mkdirSync(dirname(profilesPath), { recursive: true, mode: 0o700 });
+  await withInterprocessFileLock(lockPathFor(profilesPath), async () => {
+    const marker = join(dirname(profilesPath), DESKTOP_OAUTH_OWNERSHIP_FILE);
+    if (desktopOwnershipMarkerPresent(profilesPath)) {
+      const metadata = lstatSync(marker);
+      if (!metadata.isFile() || metadata.isSymbolicLink()) throw new DesktopOwnedOAuthHomeError();
+      const ownership: unknown = JSON.parse(readFileSync(marker, "utf8"));
+      if (
+        !isStoredProfile(ownership) ||
+        ownership.schemaVersion !== 1 ||
+        ownership.owner !== "desktop"
+      )
+        throw new DesktopOwnedOAuthHomeError();
+      await persistAndVerify({}, true);
+      return;
+    }
+    const profiles = readProfiles(profilesPath);
+    const selected = Object.fromEntries(
+      names.flatMap((name) => {
+        const profile = profileAt(profiles, name);
+        return profile === undefined ? [] : [[name, snapshot(profile)] as const];
+      }),
+    );
+    await persistAndVerify(selected, false);
+    const latest = readProfiles(profilesPath);
+    for (const name of names) {
+      const current = profileAt(latest, name);
+      if ((current === undefined ? undefined : revision(current)) !== selected[name]?.revision) {
+        throw new Error("Desktop OAuth migration is incomplete: the legacy profile changed.");
+      }
+      delete latest[name];
+    }
+    if (Object.keys(selected).length > 0) {
+      writeProfiles(profilesPath, latest);
+      syncProfileDirectory(profilesPath);
+    }
+    atomicWriteFileSync(marker, JSON.stringify({ schemaVersion: 1, owner: "desktop" }));
+    syncProfileDirectory(marker);
   });
 }

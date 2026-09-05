@@ -4,7 +4,7 @@ import type {
   PlanningReadOperations,
   PlanningRequestOperations,
 } from "@enduragent/coach-contract";
-import type { ConfirmationGate } from "@enduragent/core";
+import type { ConfirmationGate, OAuthCredentialOwner } from "@enduragent/core";
 import { prepareAthleteHome, type AthleteHome } from "@enduragent/kernel-node/home";
 import type { WriterProtocolListener } from "@enduragent/kernel-node/lock";
 import { createLocalCoachComposition, type LocalCoachComposition } from "./composition.js";
@@ -31,6 +31,7 @@ export interface WithLocalCoachInput<T> {
   readonly env: Record<string, string | undefined>;
   readonly home: AthleteHome;
   readonly deferInitialRefresh?: boolean;
+  readonly oauthOwner?: OAuthCredentialOwner;
   readonly operation: (lifecycle: LocalCoachLifecycle) => Promise<T>;
 }
 
@@ -85,6 +86,7 @@ export async function withLocalCoach<T>(
         try {
           lifecycle = await createLocalCoachComposition({
             env: writerEnv,
+            ...(input.oauthOwner === undefined ? {} : { oauthOwner: input.oauthOwner }),
             home: selectedHome,
             context,
             config: compositionConfig,

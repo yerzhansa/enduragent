@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   configureTelegramAcceptanceSigningEnvironment,
   createTelegramAcceptanceBuilderConfiguration,
@@ -191,6 +191,18 @@ function emptyPackagedHelper(source: string, name: string, nextDeclaration: stri
   const end = source.indexOf(nextDeclaration, body);
   if (start < 0 || body < 0 || end < 0) throw new TypeError("test helper boundary is invalid");
   return `${source.slice(0, body + 1)}}\n${source.slice(end)}`;
+}
+
+function oauthProductionMain(): string {
+  return productionMain()
+    .replace(
+      'import { app } from "electron";',
+      'import { app, shell } from "electron";\nimport { installOAuthAcceptanceRoute } from "./oauth-acceptance-route-verified.js";\nimport "node:fs";\nimport "node:path";',
+    )
+    .replace(
+      "beforeImport: () => consumeAcceptanceStartupMarker(process.env, app),",
+      'beforeImport: () => { installOAuthAcceptanceRoute("main", shell); consumeAcceptanceStartupMarker(process.env, app); },',
+    );
 }
 
 function beforePackagedBootstrap(source: string, mutation: string): string {
@@ -572,6 +584,64 @@ describe("Telegram acceptance package", () => {
     ]) {
       expect(() => verifyTelegramAcceptanceMainEntry(invalid)).toThrow();
     }
+  });
+
+  it("requires OAuth routing when verifying an OAuth acceptance package", () => {
+    const readRoute = vi.fn(() => "");
+    expect(() => verifyTelegramAcceptanceMainEntry(productionMain(), readRoute)).toThrow(
+      "OAuth acceptance route import is required",
+    );
+    expect(readRoute).not.toHaveBeenCalled();
+  });
+
+  it("reads the exact route only after validating the routed bootstrap", () => {
+    const readRoute = vi.fn(() => {
+      throw new Error("route reader reached");
+    });
+    expect(() => verifyTelegramAcceptanceMainEntry(oauthProductionMain(), readRoute)).toThrow(
+      "route reader reached",
+    );
+    expect(readRoute).toHaveBeenCalledExactlyOnceWith(
+      "out/main/oauth-acceptance-route-verified.js",
+    );
+  });
+
+  it("rejects omitted or replaced routing and changed bootstrap invocation before reading code", () => {
+    for (const invalid of [
+      oauthProductionMain().replace(
+        'import { installOAuthAcceptanceRoute } from "./oauth-acceptance-route-verified.js";\n',
+        "",
+      ),
+      oauthProductionMain().replace("./oauth-acceptance-route-verified.js", "./other-route.js"),
+      oauthProductionMain().replace('installOAuthAcceptanceRoute("main", shell); ', ""),
+      oauthProductionMain().replace(
+        'installOAuthAcceptanceRoute("main", shell)',
+        'installOAuthAcceptanceRoute("utility", shell)',
+      ),
+      oauthProductionMain().replace(
+        'installOAuthAcceptanceRoute("main", shell)',
+        'replacementRoute("main", shell)',
+      ),
+      oauthProductionMain().replace(
+        "await runTelegramAcceptanceBootstrap({",
+        "await replacementBootstrap({",
+      ),
+      oauthProductionMain().replace("input.beforeImport();", "input.importProduction();"),
+    ]) {
+      const readRoute = vi.fn(() => "");
+      expect(() => verifyTelegramAcceptanceMainEntry(invalid, readRoute)).toThrow();
+      expect(readRoute).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects modified transport content in the routed package", () => {
+    const readRoute = vi.fn(() => "export function installOAuthAcceptanceRoute() {}");
+    expect(() => verifyTelegramAcceptanceMainEntry(oauthProductionMain(), readRoute)).toThrow(
+      "OAuth acceptance route does not match the reviewed transport",
+    );
+    expect(readRoute).toHaveBeenCalledExactlyOnceWith(
+      "out/main/oauth-acceptance-route-verified.js",
+    );
   });
 
   it("rejects writes to protected packaged helpers immediately before bootstrap", () => {

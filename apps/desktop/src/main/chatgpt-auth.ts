@@ -1,10 +1,7 @@
-import { join } from "node:path";
+import type { DesktopOAuthCredentialOwner } from "./oauth-credential-owner.js";
 import {
   CodexLoginError,
-  deleteStoredProfile,
-  loadStoredProfileSnapshot,
   loginCodex,
-  recoverAndSaveStoredProfile,
   type CodexCredentials,
   type CodexLoginProgressPhase,
   type CodexLoginOptions,
@@ -79,12 +76,11 @@ export interface ChatGptAuthController {
 
 interface ChatGptAuthDependencies {
   readonly loginCodex?: (options: CodexLoginOptions) => Promise<CodexCredentials>;
-  readonly writeProfile?: (configDir: string, credentials: CodexCredentials) => Promise<void>;
-  readonly deleteProfile?: (configDir: string) => void;
 }
 
 interface CreateChatGptAuthOptions {
-  readonly configDir: string;
+  readonly profileStore: DesktopOAuthCredentialOwner;
+  readonly activeProfileName?: () => Promise<string>;
   readonly applyRuntimeConfig: (
     request: ConfigureRuntimeRpcParams,
     signal?: AbortSignal,
@@ -111,51 +107,6 @@ class ChatGptAuthFlowError extends Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function validProfile(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-  return (
-    value.type === "oauth" &&
-    typeof value.access === "string" &&
-    value.access.length > 0 &&
-    typeof value.refresh === "string" &&
-    value.refresh.length > 0 &&
-    typeof value.expires === "number" &&
-    Number.isFinite(value.expires) &&
-    (value.accountId === undefined || typeof value.accountId === "string") &&
-    (value.email === undefined || typeof value.email === "string")
-  );
-}
-
-export async function hasChatGptProfile(configDir: string): Promise<boolean> {
-  try {
-    const snapshot = loadStoredProfileSnapshot(
-      join(configDir, "auth-profiles.json"),
-      CHATGPT_PROFILE_NAME,
-    );
-    return snapshot !== null && validProfile(snapshot.profile);
-  } catch {
-    return false;
-  }
-}
-
-export async function writeChatGptProfile(
-  configDir: string,
-  credentials: CodexCredentials,
-): Promise<void> {
-  recoverAndSaveStoredProfile(join(configDir, "auth-profiles.json"), CHATGPT_PROFILE_NAME, {
-    type: "oauth",
-    access: credentials.access,
-    refresh: credentials.refresh,
-    expires: credentials.expires,
-    ...(credentials.accountId.length > 0 ? { accountId: credentials.accountId } : {}),
-    ...(credentials.email !== undefined ? { email: credentials.email } : {}),
-  });
-}
-
-export function deleteChatGptProfile(configDir: string): void {
-  deleteStoredProfile(join(configDir, "auth-profiles.json"), CHATGPT_PROFILE_NAME);
 }
 
 async function configuredRuntime(
@@ -217,8 +168,10 @@ async function withAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise
 
 export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAuthController {
   const runLogin = options.dependencies?.loginCodex ?? loginCodex;
-  const storeProfile = options.dependencies?.writeProfile ?? writeChatGptProfile;
-  const removeProfile = options.dependencies?.deleteProfile ?? deleteChatGptProfile;
+  const hasProfile = (): Promise<boolean> => options.profileStore.hasProfile(CHATGPT_PROFILE_NAME);
+  const storeProfile = options.profileStore.writeProfile.bind(options.profileStore);
+  const removeProfile = (): Promise<void> =>
+    options.profileStore.deleteProfile(CHATGPT_PROFILE_NAME);
   const serializeCredentialMutation: SerializeCredentialMutation =
     options.serializeCredentialMutation ?? ((operation) => operation());
   let activeLogin:
@@ -239,7 +192,7 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
     } catch {
       return { status: "refused", reason: "invalid-input" };
     }
-    if (!(await hasChatGptProfile(options.configDir))) {
+    if (!(await hasProfile())) {
       return { status: "refused", reason: "credential-required" };
     }
     const timeoutSignal = AbortSignal.timeout(
@@ -303,7 +256,7 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
     }
     try {
       signal.throwIfAborted();
-      await storeProfile(options.configDir, credentials);
+      await storeProfile(credentials);
     } catch {
       if (signal.aborted) {
         return { status: "refused", operationId, reason: "cancelled" };
@@ -314,9 +267,9 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
   };
 
   return {
-    hasStoredProfile: () => hasChatGptProfile(options.configDir),
+    hasStoredProfile: () => hasProfile(),
     async status() {
-      const configured = await hasChatGptProfile(options.configDir);
+      const configured = await hasProfile();
       const runtimeReady = await configuredRuntime(options.getRuntimeConfig);
       return {
         state: configured || runtimeReady === true ? "configured" : "absent",
@@ -353,8 +306,15 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
       serializeCredentialMutation(() => applySelection(selection, signal)),
     deleteCredential() {
       return serializeCredentialMutation(async () => {
-        const stored = await hasChatGptProfile(options.configDir);
         const runtimeReady = await configuredRuntime(options.getRuntimeConfig);
+        let profileName: string = CHATGPT_PROFILE_NAME;
+        try {
+          if (runtimeReady === true && options.activeProfileName !== undefined)
+            profileName = await options.activeProfileName();
+        } catch {
+          return { status: "refused", reason: "runtime-unavailable" };
+        }
+        const stored = await options.profileStore.hasProfile(profileName);
         if (!stored) {
           return runtimeReady === true
             ? { status: "refused", reason: "runtime-state-diverged" }
@@ -370,7 +330,7 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
           try {
             const cleared = await options.clearRuntimeCredential();
             if (cleared === "not-active") {
-              removeProfile(options.configDir);
+              await options.profileStore.deleteProfile(profileName);
             } else if (cleared !== "cleared") {
               throw new TypeError();
             }
@@ -379,12 +339,12 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
           }
         } else {
           try {
-            removeProfile(options.configDir);
+            await removeProfile();
           } catch {
             return { status: "refused", reason: "storage-failed" };
           }
         }
-        if (await hasChatGptProfile(options.configDir)) {
+        if (await options.profileStore.hasProfile(profileName)) {
           return { status: "refused", reason: "runtime-state-diverged" };
         }
         return { status: "deleted", cleanupPending: false };

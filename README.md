@@ -158,9 +158,11 @@ keeps preferences, its random installation UUID, and encrypted credentials under
 `~/Library/Application Support/Enduragent` on macOS or `%LOCALAPPDATA%\Enduragent` on Windows.
 Delete both locations to remove all locally stored Enduragent data.
 
-**Keys encrypted at rest.** API keys are encrypted with macOS secure storage, keyed from your
-Keychain. If secure storage is unavailable, the app refuses to save the key rather than writing it
-in the clear.
+**Credentials encrypted at rest.** Desktop encrypts API keys and ChatGPT sign-in tokens with the
+operating system's credential backend. If secure storage is unavailable, desktop refuses to save
+credentials. Existing desktop ChatGPT profiles migrate after encrypted storage is verified.
+Stop CLI processes using the desktop home before migration. Use a separate home and sign in
+again for CLI use; CLI profiles retain private-file storage. Backups and older copies are not erased.
 
 **What does leave.** Your prompt and the training numbers in it go to the model provider you
 chose. Your intervals.icu key goes to intervals.icu. The self-hosted Telegram bot and official

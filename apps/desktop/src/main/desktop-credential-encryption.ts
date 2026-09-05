@@ -1,3 +1,5 @@
+import { DESKTOP_OAUTH_ENVELOPE_FILE } from "./oauth-credential-owner.js";
+import { KEYCHAIN_ENVELOPE_KEY_ID } from "./credential-envelope-format.js";
 import {
   selectDesktopCredentialBackend,
   selectDesktopCredentialBackendLocked,
@@ -24,7 +26,10 @@ import {
   type KeychainBindingResponse,
   type KeychainBindingTransport,
 } from "./keychain-binding.js";
-import { resolveKeychainBindingPath, type KeychainBindingLocation } from "./keychain-binding-path.js";
+import {
+  resolveKeychainBindingPath,
+  type KeychainBindingLocation,
+} from "./keychain-binding-path.js";
 
 const UNAVAILABLE_BINDING_RESPONSE: KeychainBindingResponse = Object.freeze({
   ok: false,
@@ -55,6 +60,7 @@ export interface DesktopCredentialEncryption {
   credentialRecoverySnapshot(): Promise<{
     selection: DesktopCredentialBackendSelection;
     unverifiedEnvelopes: number;
+    oauthEnvelopeUnverified: boolean;
   }>;
 }
 
@@ -195,10 +201,7 @@ export async function prepareDesktopCredentialEncryption(
       if (selection.status !== "keychain") return undefined;
       const retired = await selection.retireKey(proof);
       if (retired.status === "failed") {
-        transitionToUnavailable(
-          retired.code,
-          retired.keyCleanupPending ? "retirement" : "none",
-        );
+        transitionToUnavailable(retired.code, retired.keyCleanupPending ? "retirement" : "none");
       }
       return retired;
     },
@@ -208,21 +211,31 @@ export async function prepareDesktopCredentialEncryption(
     credentialRecoverySnapshot(): Promise<{
       selection: DesktopCredentialBackendSelection;
       unverifiedEnvelopes: number;
+      oauthEnvelopeUnverified: boolean;
     }> {
       return options.serializeEnvelopeMutation(async () => {
         const current = selection;
         if (current.status !== "keychain") {
-          return { selection: current, unverifiedEnvelopes: 0 };
+          return { selection: current, unverifiedEnvelopes: 0, oauthEnvelopeUnverified: false };
         }
         try {
           const { inventory } = await scanBoundCredentialEnvelopes(
             roots,
             options.location.platform,
           );
-          return { selection: current, unverifiedEnvelopes: inventory.unverified };
+          return {
+            selection: current,
+            unverifiedEnvelopes: inventory.unverified,
+            oauthEnvelopeUnverified: inventory.deletionBlockers.some(
+              (entry) =>
+                entry.vault === "credentials" &&
+                entry.fileName === DESKTOP_OAUTH_ENVELOPE_FILE &&
+                entry.keyId !== KEYCHAIN_ENVELOPE_KEY_ID,
+            ),
+          };
         } catch {
           transitionToUnavailable("unknown", keyCleanupDebt);
-          return { selection, unverifiedEnvelopes: 0 };
+          return { selection, unverifiedEnvelopes: 0, oauthEnvelopeUnverified: false };
         }
       });
     },

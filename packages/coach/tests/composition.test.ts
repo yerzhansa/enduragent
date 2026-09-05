@@ -17,6 +17,7 @@ import {
   loadStoredProfileSnapshot,
   saveStoredProfile,
   type Config,
+  type OAuthCredentialOwner,
 } from "@enduragent/core";
 import type {
   AthleteDataReaderPort,
@@ -378,6 +379,7 @@ async function compose(
   configOverride?: Config,
   env: Record<string, string | undefined> = { ENDURAGENT_HOME: home.root },
   deferInitialRefresh?: boolean,
+  oauthOwner?: OAuthCredentialOwner,
 ) {
   const coreConfig = configOverride ?? config(home, intervals);
   return createLocalCoachComposition(
@@ -386,6 +388,7 @@ async function compose(
       home,
       context,
       config: coreConfig,
+      ...(oauthOwner === undefined ? {} : { oauthOwner }),
       engineConfig: engineConfigFromConfig(coreConfig),
       ...(deferInitialRefresh === undefined ? {} : { deferInitialRefresh }),
     },
@@ -5694,5 +5697,82 @@ describe("local coach composition", () => {
     await expect(second).rejects.toBe(hostFailure);
     expect(runtimeCloseCalls).toBe(1);
     expect(trace.at(-1)).toBe("runtime-close-end");
+  });
+  it("uses the private desktop owner for custom-profile status, access, refresh, and deletion", async () => {
+    const home = await freshHome();
+    const legacyPath = join(home.configDir, "auth-profiles.json");
+    await writeFile(legacyPath, "synthetic malformed legacy bytes");
+    let present = true;
+    const oauthOwner: OAuthCredentialOwner = {
+      hasProfile: vi.fn(
+        async (name) => name === "openai-codex" || (name === "custom-desktop" && present),
+      ),
+      getAccessToken: vi.fn(async () => "synthetic-private-access"),
+      deleteProfile: vi.fn(async () => {
+        present = false;
+      }),
+    };
+    let received: CreateCoachEngineInput | undefined;
+    const initial: Config = {
+      ...config(home),
+      llm: {
+        ...config(home).llm,
+        provider: "openai-codex",
+        apiKey: "",
+        authProfile: "custom-desktop",
+      },
+    };
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: (input) => {
+          received = input;
+          return backend();
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+      },
+      fakeContext(home),
+      undefined,
+      initial,
+      { ENDURAGENT_HOME: home.root },
+      true,
+      oauthOwner,
+    );
+    try {
+      await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+        llm: { credential_configured: true },
+      });
+      const signal = new AbortController().signal;
+      await expect(
+        received!.ports.getAccessToken("custom-desktop", signal, "synthetic-rejected"),
+      ).resolves.toBe("synthetic-private-access");
+      expect(oauthOwner.getAccessToken).toHaveBeenCalledWith(
+        "custom-desktop",
+        signal,
+        "synthetic-rejected",
+      );
+      await expect(
+        lifecycle.operations.configureRuntime({
+          llm: { provider: "openai-codex", clear_credential: true },
+        }),
+      ).resolves.toMatchObject({ status: "applied" });
+      expect(oauthOwner.deleteProfile).toHaveBeenCalledWith("custom-desktop");
+      await expect(lifecycle.operations.getRuntimeConfig({})).resolves.toMatchObject({
+        llm: { credential_configured: false },
+      });
+      expect(await readFile(join(home.configDir, "config.yaml"), "utf8")).toContain(
+        "auth_profile: custom-desktop",
+      );
+      expect(await oauthOwner.hasProfile("openai-codex")).toBe(true);
+      expect(await readFile(legacyPath, "utf8")).toBe("synthetic malformed legacy bytes");
+    } finally {
+      await lifecycle.close();
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { DESKTOP_OAUTH_ENVELOPE_FILE } from "./oauth-credential-owner.js";
 import { opendir } from "node:fs/promises";
 import { join } from "node:path";
 import { CREDENTIAL_FILE_MODE, DESKTOP_CREDENTIAL_SLOTS } from "./credential-vault.js";
@@ -78,6 +79,12 @@ export function credentialEnvelopeTargets(
   roots: CredentialEnvelopeRoots,
 ): readonly CredentialEnvelopeTarget[] {
   return [
+    {
+      vault: "credentials",
+      root: roots.credentialRoot,
+      fileName: DESKTOP_OAUTH_ENVELOPE_FILE,
+      mode: CREDENTIAL_FILE_MODE,
+    },
     ...DESKTOP_CREDENTIAL_SLOTS.map((slot) => ({
       vault: "credentials" as const,
       root: roots.credentialRoot,
@@ -103,7 +110,7 @@ function transientCredentialEnvelopeTarget(
   entry: string,
 ): CredentialEnvelopeTarget | undefined {
   if (root === roots.credentialRoot) {
-    for (const slot of DESKTOP_CREDENTIAL_SLOTS) {
+    for (const slot of [...DESKTOP_CREDENTIAL_SLOTS, "oauth"]) {
       for (const prefix of [`.${slot}.`, `.${slot}.bin.`]) {
         if (!entry.startsWith(prefix)) continue;
         for (const suffix of [".tmp", ".deleted"]) {

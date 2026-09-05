@@ -38,4 +38,9 @@ export function verifyTelegramAcceptanceWorkspaceRuntime(
   packages: readonly string[];
   exportTargets: readonly string[];
 }>;
-export function verifyTelegramAcceptanceMainEntry(value: unknown): string;
+export function verifyTelegramAcceptanceMainEntry(
+  value: unknown,
+  readRoute?: (path: string) => string,
+): string;
+
+export function verifyOAuthAcceptanceRoute(value: unknown): void;

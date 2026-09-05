@@ -1,3 +1,6 @@
+import { join } from "node:path";
+import { CONFIG_DIR } from "../config.js";
+import { assertCliOAuthHome } from "./profile-store.js";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { note, text, isCancel, log } from "@clack/prompts";
@@ -46,6 +49,7 @@ async function promptForCode(message: string, signal: AbortSignal): Promise<stri
 }
 
 export async function runCodexLogin(): Promise<OAuthCredential> {
+  assertCliOAuthHome(join(CONFIG_DIR, "auth-profiles.json"));
   const headless = isHeadless();
 
   const creds = await loginCodex({

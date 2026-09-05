@@ -8,6 +8,7 @@ import {
   createDevelopmentPackagePlan,
 } from "./development-package-plan.mjs";
 import { KEYCHAIN_BINDING_ASAR_PATH } from "./package-inventory.mjs";
+import { capturePackagedSelfTest } from "./packaged-self-test-client.mjs";
 
 const APP_READY_TIMEOUT_MS = 30_000;
 const SELF_TEST_TIMEOUT_MS = 120_000;
@@ -16,7 +17,6 @@ const BUILD_TIMEOUT_MS = 600_000;
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = resolve(scriptDirectory, "..");
 const repositoryRoot = resolve(desktopRoot, "../..");
-const cliEntry = join(repositoryRoot, "packages/coach/dist/enduragent.js");
 const developmentPackagePlan = createDevelopmentPackagePlan({ desktopRoot });
 
 export function shouldPrepareDevelopmentPackage(arguments_) {
@@ -234,14 +234,14 @@ async function stopApplication(running, application, rpcUrl) {
   throw new Error("packaged application resources remained active");
 }
 
-async function invokeCli(athleteHome, schema, expectedExit) {
+async function invokeDiagnostic(athleteHome, rpcUrl, schema, expectedExit) {
   const environment = applicationEnvironment(athleteHome);
   checked(environment.CYCLING_COACH_HOME === undefined, "legacy home override is present");
-  const result = await capture(
-    process.execPath,
-    ["--disable-warning=ExperimentalWarning", cliEntry, "self-test"],
-    { cwd: repositoryRoot, env: environment },
-  );
+  const result = await capturePackagedSelfTest({
+    athleteHome,
+    rpcUrl,
+    timeoutMs: SELF_TEST_TIMEOUT_MS,
+  });
   checked(result.code === expectedExit && result.signal === null, "self-test exit was unexpected");
   checked(result.stderr === "", "self-test wrote an error stream");
   const lines = result.stdout.split(/\r?\n/u).filter((line) => line.length > 0);
@@ -262,7 +262,12 @@ async function runApplicationCase(input) {
   try {
     ready = await running.ready;
     checked(typeof ready.rpcUrl === "string", "packaged readiness omitted the RPC address");
-    const terminal = await invokeCli(input.athleteHome, input.schema, input.expectedExit);
+    const terminal = await invokeDiagnostic(
+      input.athleteHome,
+      ready.rpcUrl,
+      input.schema,
+      input.expectedExit,
+    );
     await stopApplication(running, input.application, ready.rpcUrl);
     return terminal;
   } catch (error) {
@@ -321,11 +326,7 @@ async function main() {
       "--force",
       "--sign",
       "-",
-      join(
-        copiedApplication,
-        "Contents/Resources/app.asar.unpacked",
-        KEYCHAIN_BINDING_ASAR_PATH,
-      ),
+      join(copiedApplication, "Contents/Resources/app.asar.unpacked", KEYCHAIN_BINDING_ASAR_PATH),
     ]);
     const frameworksDirectory = join(copiedApplication, "Contents/Frameworks");
     for (const entry of (await readdir(frameworksDirectory)).sort()) {

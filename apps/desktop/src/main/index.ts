@@ -1,4 +1,8 @@
 import "./keychain-binding-probe-deprecation.js";
+import {
+  createDesktopOAuthCredentialOwner,
+  readDesktopOAuthProfileName,
+} from "./oauth-credential-owner.js";
 import { bindDevelopmentUserData } from "./development-user-data.js";
 import { bindWindowsUserData } from "./windows-user-data.js";
 import {
@@ -30,12 +34,7 @@ import {
   shell,
   utilityProcess,
 } from "electron";
-import {
-  CHATGPT_PROFILE_NAME,
-  createChatGptAuth,
-  deleteChatGptProfile,
-  hasChatGptProfile,
-} from "./chatgpt-auth.js";
+import { CHATGPT_PROFILE_NAME, createChatGptAuth } from "./chatgpt-auth.js";
 import { createClaudeCliStatus, readClaudeCliSettings } from "./claude-cli-status.js";
 import {
   installDesktopConnectionIpc,
@@ -326,9 +325,68 @@ async function runDesktop(): Promise<void> {
   } catch {
     process.stderr.write("desktop-first-run-config-failure seed\n");
   }
+  const selectedAthleteHome = AthleteHomeIdentitySchema.parse(
+    await realpath(resolveDesktopAthleteHome(environment)),
+  );
+  const intervalsStorePath = join(selectedAthleteHome, "store", "store.db");
+  const credentialRoot = join(app.getPath("userData"), CREDENTIAL_DIRECTORY_NAME);
+  const telegramCredentialRoot = join(app.getPath("userData"), TELEGRAM_CREDENTIAL_DIRECTORY_NAME);
+  const serializeCredentialMutation = createCredentialMutationLock();
+  const serializeCredentialEnvelopeMutation = createCredentialEnvelopeMutationLock();
+  const acceptanceCredentialBackend = resolveAcceptanceCredentialBackend({
+    isPackaged: app.isPackaged,
+    hidden: desktopAcceptanceHidden,
+    backend: environment.ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND,
+    appName: app.getName(),
+    appPath: app.getAppPath(),
+    userDataPath: app.getPath("userData"),
+    disposableContext:
+      environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
+  });
+  const credentialEncryption = await prepareDesktopCredentialEncryption({
+    credentialRoot,
+    telegramRoot: telegramCredentialRoot,
+    location: {
+      platform: process.platform,
+      packaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      applicationPath: app.getAppPath(),
+    },
+    safeStorage,
+    serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,
+    ...(acceptanceCredentialBackend !== undefined
+      ? {
+          createTransport: () => createAcceptanceKeychainTransport(acceptanceCredentialBackend),
+        }
+      : {}),
+  });
+  const prepareCredentialEnvelopeWrite = async (
+    proof: CredentialEnvelopeLockProof,
+  ): Promise<void> => {
+    await credentialEncryption.prepareEnvelopeWrite(proof);
+  };
+  const revalidateCredentialEnvelopeRemoval = async (
+    proof: CredentialEnvelopeLockProof,
+  ): Promise<boolean> => await credentialEncryption.revalidateEnvelopeRemoval(proof);
+  const retireCredentialEncryptionKey = async (
+    proof: CredentialEnvelopeLockProof,
+  ): Promise<void> => {
+    await credentialEncryption.retireKeychainKey(proof);
+  };
+  const oauthOwner = createDesktopOAuthCredentialOwner({
+    root: credentialRoot,
+    configDir: join(selectedAthleteHome, "config"),
+    selectedProfile: await readDesktopOAuthProfileName(join(selectedAthleteHome, "config")),
+    encryption: credentialEncryption.encryption,
+    serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,
+    prepareEnvelopeWrite: prepareCredentialEnvelopeWrite,
+    revalidateEnvelopeRemoval: revalidateCredentialEnvelopeRemoval,
+    observeEnvelopeRemoved: retireCredentialEncryptionKey,
+  });
   const supervisor = new DesktopDaemonSupervisor(
     {
       env: environment,
+      oauthOwner,
       executablePath: process.execPath,
       appVersion: app.getVersion(),
       platform: process.platform,
@@ -502,69 +560,31 @@ async function runDesktop(): Promise<void> {
       if (!quitRequested) app.exit(resolution.exitCode);
       return;
     }
-    const selectedAthleteHome = AthleteHomeIdentitySchema.parse(
-      await realpath(resolveDesktopAthleteHome(environment)),
-    );
-    const intervalsStorePath = join(selectedAthleteHome, "store", "store.db");
     requireDesktopDaemonHome(selectedAthleteHome, resolution.athleteHome);
-    const credentialRoot = join(app.getPath("userData"), CREDENTIAL_DIRECTORY_NAME);
-    const telegramCredentialRoot = join(
-      app.getPath("userData"),
-      TELEGRAM_CREDENTIAL_DIRECTORY_NAME,
-    );
-    const serializeCredentialMutation = createCredentialMutationLock();
-    const serializeCredentialEnvelopeMutation = createCredentialEnvelopeMutationLock();
-    const acceptanceCredentialBackend = resolveAcceptanceCredentialBackend({
-      isPackaged: app.isPackaged,
-      hidden: desktopAcceptanceHidden,
-      backend: environment.ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND,
-      appName: app.getName(),
-      appPath: app.getAppPath(),
-      userDataPath: app.getPath("userData"),
-      disposableContext:
-        environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
-    });
-    const credentialEncryption = await prepareDesktopCredentialEncryption({
-      credentialRoot,
-      telegramRoot: telegramCredentialRoot,
-      location: {
-        platform: process.platform,
-        packaged: app.isPackaged,
-        resourcesPath: process.resourcesPath,
-        applicationPath: app.getAppPath(),
-      },
-      safeStorage,
-      serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,
-      ...(acceptanceCredentialBackend !== undefined
-        ? {
-            createTransport: () => createAcceptanceKeychainTransport(acceptanceCredentialBackend),
-          }
-        : {}),
-    });
-    const prepareCredentialEnvelopeWrite = async (
-      proof: CredentialEnvelopeLockProof,
-    ): Promise<void> => {
-      await credentialEncryption.prepareEnvelopeWrite(proof);
-    };
-    const revalidateCredentialEnvelopeRemoval = async (
-      proof: CredentialEnvelopeLockProof,
-    ): Promise<boolean> => await credentialEncryption.revalidateEnvelopeRemoval(proof);
-    const retireCredentialEncryptionKey = async (
-      proof: CredentialEnvelopeLockProof,
-    ): Promise<void> => {
-      await credentialEncryption.retireKeychainKey(proof);
-    };
+    if (resolution.supervision !== "app-supervised" || resolution.owner !== "app-supervised") {
+      if (!desktopAcceptanceHidden)
+        dialog.showErrorBox(
+          "Stop the shared-home daemon",
+          "Stop CLI and background-service processes using this desktop home, then reopen Enduragent. Use a separate home and login for the CLI.",
+        );
+      await shutdown();
+      if (!quitRequested) app.exit(3);
+      return;
+    }
+    await oauthOwner.initialize().catch(() => undefined);
     const credentialRecoveryStatus = async (): Promise<DesktopCredentialRecoveryStatus> => {
       const snapshot = await credentialEncryption.credentialRecoverySnapshot();
       const selected = snapshot.selection;
       if (selected.status === "keychain") {
         return {
           state: "ready",
-          unverifiedEnvelopes: snapshot.unverifiedEnvelopes,
+          unverifiedEnvelopes:
+            snapshot.unverifiedEnvelopes +
+            Number((await oauthOwner.recoveryRequired()) && !snapshot.oauthEnvelopeUnverified),
         };
       }
       if (selected.status === "safe-storage") {
-        return { state: "ready", unverifiedEnvelopes: 0 };
+        return { state: "ready", unverifiedEnvelopes: Number(await oauthOwner.recoveryRequired()) };
       }
       return { state: desktopCredentialRecoveryFailureState(selected.code) };
     };
@@ -804,7 +824,7 @@ async function runDesktop(): Promise<void> {
           clearRuntimeCredential: authority.clearCredential,
           selectedLlmProvider: async (storedCredentialSlots) =>
             readSelectedLlmProvider(await authority.getRuntimeConfig(), {
-              chatGptProfilePresent: await hasChatGptProfile(configDir),
+              chatGptProfilePresent: await oauthOwner.hasProfile(CHATGPT_PROFILE_NAME),
               storedCredentialSlots,
             }),
         }),
@@ -1016,7 +1036,8 @@ async function runDesktop(): Promise<void> {
       preparedTelegramBindings.set(connection.generation, successorTelegram);
     };
     const chatGptAuth = createChatGptAuth({
-      configDir,
+      profileStore: oauthOwner,
+      activeProfileName: () => readDesktopOAuthProfileName(configDir),
       async applyRuntimeConfig(request, signal) {
         const binding = activeRuntimeBinding!;
         const lifecycleState = daemonLifecycle?.snapshot();
@@ -1076,8 +1097,6 @@ async function runDesktop(): Promise<void> {
         lifecycleSnapshot: () => daemonLifecycle?.snapshot(),
         managedModelCredentials,
         resetTelegramRuntime: () => telegramCoordinator.resetRuntimeForCredentialReset(),
-        configDir,
-        deleteChatGptProfile,
         credentialRoot,
         telegramRoot: telegramCredentialRoot,
         serializeEnvelopeMutation: serializeCredentialEnvelopeMutation,

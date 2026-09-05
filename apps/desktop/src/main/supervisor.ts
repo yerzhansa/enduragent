@@ -1,3 +1,5 @@
+import { classifyFailure, type OAuthCredentialOwner } from "@enduragent/core";
+import { isOAuthRequest, type OAuthResponse } from "../utility/oauth-protocol.js";
 import { isAbsolute } from "node:path";
 import { utilityProcess, type UtilityProcess } from "electron";
 import {
@@ -254,6 +256,7 @@ async function terminateUnacknowledgedUtility(
 
 export async function forkAppSupervisedDaemon(input: {
   readonly utilityEntry: string;
+  readonly oauthOwner?: OAuthCredentialOwner;
   readonly homeRoot: string;
   readonly appVersion: string;
   readonly handoffCapability?: string;
@@ -275,6 +278,7 @@ export async function forkAppSupervisedDaemon(input: {
     stdio: "ignore",
     env: createUtilityEnvironment(),
   });
+  const oauthController = new AbortController();
   let exitCode: number | null = null;
   let exited = false;
   let startPosted = false;
@@ -290,6 +294,7 @@ export async function forkAppSupervisedDaemon(input: {
     resolveExited = resolve;
   });
   child.once("exit", (code) => {
+    oauthController.abort();
     exited = true;
     exitCode = Number.isInteger(code) ? code : null;
     const readinessFailure =
@@ -304,6 +309,44 @@ export async function forkAppSupervisedDaemon(input: {
     });
   });
   child.on("message", (message) => {
+    if (startPosted && !exited && isOAuthRequest(message)) {
+      const request = message;
+      const respond = (response: OAuthResponse): void => {
+        if (!exited) child.postMessage(response);
+      };
+      void (async () => {
+        try {
+          const owner = input.oauthOwner;
+          if (owner === undefined) throw new Error();
+          const value =
+            request.operation === "status"
+              ? await owner.hasProfile(request.profile)
+              : request.operation === "token"
+                ? await owner.getAccessToken(
+                    request.profile,
+                    oauthController.signal,
+                    request.rejectedAccessToken,
+                  )
+                : (await owner.deleteProfile(request.profile), null);
+          respond({ type: "oauth-response", id: request.id, status: "ok", value });
+        } catch (error) {
+          const reason = classifyFailure(error);
+          respond({
+            type: "oauth-response",
+            id: request.id,
+            status: "failed",
+            reason:
+              reason === "reauth" ||
+              reason === "rate_limit" ||
+              reason === "server_error" ||
+              reason === "network"
+                ? reason
+                : "unknown",
+          });
+        }
+      })().catch(() => undefined);
+      return;
+    }
     if (!startPosted || terminalClaim !== undefined || !isUtilityTerminalFrame(message)) return;
     terminalClaim = message;
     child.postMessage({ type: "terminal-ack" } satisfies UtilityTerminalAckFrame);
@@ -353,6 +396,7 @@ export class DesktopDaemonSupervisor {
   constructor(
     private readonly input: Omit<ResolveDesktopDaemonInput, "startAppSupervisedDaemon"> & {
       readonly platform?: NodeJS.Platform;
+      readonly oauthOwner?: OAuthCredentialOwner;
     },
     private readonly utilityEntry: string,
     private readonly resolveDaemon: typeof resolveDesktopDaemon = resolveDesktopDaemon,
@@ -384,6 +428,7 @@ export class DesktopDaemonSupervisor {
       startAppSupervisedDaemon: ({ home, handoffCapability }) =>
         forkAppSupervisedDaemon({
           utilityEntry: this.utilityEntry,
+          oauthOwner: this.input.oauthOwner,
           homeRoot: home.root,
           appVersion: this.input.appVersion,
           signal: this.input.signal,

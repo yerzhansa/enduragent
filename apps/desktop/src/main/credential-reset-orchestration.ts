@@ -43,8 +43,6 @@ export interface CreateDesktopCredentialResetOptions {
   readonly lifecycleSnapshot: () => DesktopCredentialResetLifecycleSnapshot | undefined;
   readonly managedModelCredentials: ReadonlySet<string>;
   readonly resetTelegramRuntime: () => Promise<boolean>;
-  readonly configDir: string;
-  readonly deleteChatGptProfile: (configDir: string) => void;
   readonly credentialRoot: string;
   readonly telegramRoot: string;
   readonly serializeEnvelopeMutation: SerializeCredentialEnvelopeMutation;
@@ -101,7 +99,6 @@ export function createDesktopCredentialReset(
         return { status: "refused", reason: "runtime-unavailable" };
       }
       try {
-        options.deleteChatGptProfile(options.configDir);
         const reset = await resetStorage({
           credentialRoot: options.credentialRoot,
           telegramRoot: options.telegramRoot,

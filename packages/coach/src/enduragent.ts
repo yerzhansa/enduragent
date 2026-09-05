@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+import {
+  assertCliOAuthHome,
+  DesktopOwnedOAuthHomeError,
+  type OAuthCredentialOwner,
+} from "@enduragent/core";
 import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
@@ -103,6 +108,7 @@ function isEnduragentAppVersion(value: unknown): value is string {
 }
 
 export interface RunEnduragentInput {
+  readonly oauthOwner?: OAuthCredentialOwner;
   readonly argv: readonly string[];
   readonly env: Record<string, string | undefined>;
   readonly terminal: CoachCliTerminal;
@@ -848,8 +854,11 @@ function canonicalHome(home: AthleteHome): AthleteHome {
 async function resolvePreparedAthleteHome(
   env: Record<string, string | undefined>,
   dependencies: EnduragentDependencies,
+  owner: "cli" | "desktop" = "cli",
 ): Promise<AthleteHome> {
-  return dependencies.prepareAthleteHome!(canonicalHome(dependencies.resolveAthleteHome(env)));
+  const home = canonicalHome(dependencies.resolveAthleteHome(env));
+  if (owner === "cli") assertCliOAuthHome(join(home.configDir, "auth-profiles.json"));
+  return dependencies.prepareAthleteHome!(home);
 }
 
 function validateSuccessorInput(home: AthleteHome, input: DesignatedSuccessorInput): void {
@@ -2200,6 +2209,9 @@ async function runServeInvocation(input: {
         env: input.runInput.env,
         home: input.home,
         deferInitialRefresh: true,
+        ...(input.runInput.oauthOwner === undefined
+          ? {}
+          : { oauthOwner: input.runInput.oauthOwner }),
         operation: async (lifecycle) =>
           successor === undefined
             ? runCoachServe({
@@ -2289,6 +2301,7 @@ async function runServeInvocation(input: {
 }
 
 export interface RunAppSupervisedEnduragentInput {
+  readonly oauthOwner?: OAuthCredentialOwner;
   readonly env: Record<string, string | undefined>;
   readonly terminal: CoachCliTerminal;
   readonly signal: AbortSignal;
@@ -2305,6 +2318,10 @@ function renderEnduragentFailure(
   error: unknown,
   terminal: Pick<CoachCliTerminal, "stderr">,
 ): ExitCode {
+  if (error instanceof DesktopOwnedOAuthHomeError) {
+    terminal.stderr.write(`${error.message}\n`);
+    return EXIT_AGENT_ERROR;
+  }
   if (storeNewerThanApp(error) !== null) {
     terminal.stderr.write(
       "Enduragent cannot start: this athlete store was created by a newer app version. Update Enduragent and retry.\n",
@@ -2360,7 +2377,7 @@ export async function runAppSupervisedEnduragent(
     ...dependencies,
   };
   try {
-    const home = await resolvePreparedAthleteHome(input.env, resolvedDependencies);
+    const home = await resolvePreparedAthleteHome(input.env, resolvedDependencies, "desktop");
     let readinessFailure: ReadinessFailureStatus | undefined;
     const exitCode = await runServeInvocation({
       invocationOwner: "app-supervised",
@@ -2368,6 +2385,7 @@ export async function runAppSupervisedEnduragent(
         ? {}
         : { starterCapability: input.handoffCapability }),
       runInput: {
+        ...(input.oauthOwner === undefined ? {} : { oauthOwner: input.oauthOwner }),
         argv: [],
         env: input.env,
         terminal: input.terminal,
@@ -2459,7 +2477,7 @@ export async function runEnduragent(
     }
 
     if (invocation.kind === "self-test") {
-      return runSelfTestInvocation(input, resolvedDependencies);
+      return await runSelfTestInvocation(input, resolvedDependencies);
     }
 
     if (invocation.kind === "verb") {
@@ -2482,7 +2500,8 @@ export async function runEnduragent(
       }
       try {
         return await runPreparedVerb(input, invocation, request, resolvedDependencies);
-      } catch {
+      } catch (error) {
+        if (error instanceof DesktopOwnedOAuthHomeError) throw error;
         input.terminal.stderr.write("Enduragent could not complete this command.\n");
         return EXIT_AGENT_ERROR;
       }

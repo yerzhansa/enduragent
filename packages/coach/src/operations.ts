@@ -99,7 +99,7 @@ export interface CreateCoachOperationsInput {
     request: VerifyIntervalsCredentialRpcParams,
     signal: AbortSignal,
   ) => Promise<VerifyIntervalsCredentialRpcResult>;
-  readonly readRuntimeConfig?: () => GetRuntimeConfigRpcResult;
+  readonly readRuntimeConfig?: () => GetRuntimeConfigRpcResult | Promise<GetRuntimeConfigRpcResult>;
 }
 
 export interface CoachOperationsDependencies {
@@ -414,7 +414,7 @@ export function createCoachOperations(
         if (input.readRuntimeConfig === undefined) {
           throw new TypeError("Runtime configuration read is unavailable.");
         }
-        return GetRuntimeConfigRpcResultSchema.parse(input.readRuntimeConfig());
+        return GetRuntimeConfigRpcResultSchema.parse(await input.readRuntimeConfig());
       });
     },
     getUnitsPreference(request: GetUnitsPreferenceRpcParams): Promise<GetUnitsPreferenceRpcResult> {

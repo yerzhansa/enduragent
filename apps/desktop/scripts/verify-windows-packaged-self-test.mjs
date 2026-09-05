@@ -9,6 +9,7 @@ import {
   createSecuritySmokeLaunchEnvironment,
 } from "../smoke/security-smoke-environment.mjs";
 import { createWindowsPackagePlan } from "./windows-package-plan.mjs";
+import { capturePackagedSelfTest } from "./packaged-self-test-client.mjs";
 
 const APP_READY_TIMEOUT_MS = 30_000;
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -69,8 +70,6 @@ export const SECURITY_SMOKE_SHUTDOWN_STAGES = Object.freeze([
 ]);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = resolve(scriptDirectory, "..");
-const repositoryRoot = resolve(desktopRoot, "../..");
-const cliEntry = join(repositoryRoot, "packages/coach/dist/enduragent.js");
 
 function checked(condition, message) {
   if (!condition) throw new Error(message);
@@ -181,10 +180,13 @@ function capture(
     child.stderr.on("data", (chunk) => {
       stderr += String(chunk);
     });
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      rejectRun(new Error(timeoutMessage));
-    }, Math.max(0, deadline - performance.now()));
+    const timer = setTimeout(
+      () => {
+        child.kill("SIGKILL");
+        rejectRun(new Error(timeoutMessage));
+      },
+      Math.max(0, deadline - performance.now()),
+    );
     child.once("error", () => {
       clearTimeout(timer);
       rejectRun(new Error("packaged self-test command process failed"));
@@ -529,7 +531,10 @@ export function validateReadyFrame(value) {
     value.rendererSurface === "app" || value.rendererSurface === "setup-gate",
     "packaged renderer surface was invalid",
   );
-  checked(Array.isArray(value.bridgeKeys) && value.bridgeKeys.length > 0, "preload bridge was absent");
+  checked(
+    Array.isArray(value.bridgeKeys) && value.bridgeKeys.length > 0,
+    "preload bridge was absent",
+  );
   return value;
 }
 
@@ -591,9 +596,7 @@ export function validatePackagedSecondLaunch(result, privateValues) {
   const markerState =
     stdoutOccurrences === 0 && stderrOccurrences === 0
       ? "absent"
-      : stdoutOccurrences === 1 &&
-          stderrOccurrences === 0 &&
-          framedStdoutOccurrences === 1
+      : stdoutOccurrences === 1 && stderrOccurrences === 0 && framedStdoutOccurrences === 1
         ? "present"
         : "invalid";
   if (result.code === 0 && result.signal === null && markerState === "present") return result;
@@ -676,7 +679,10 @@ export async function runWindowsPackagedSelfTest(input = {}) {
   checked(process.arch === "x64", "packaged Windows self-test requires x64 Node");
   const plan = await createWindowsPackagePlan({ desktopRoot });
   const executable = input.executable ?? plan.executablePath;
-  checked(typeof executable === "string" && resolve(executable) === executable, "executable must be absolute");
+  checked(
+    typeof executable === "string" && resolve(executable) === executable,
+    "executable must be absolute",
+  );
   const base = await realpath(tmpdir());
   const scratch = await mkdtemp(join(base, "eaw-"));
   const security = createSecuritySmokeEnvironment(scratch);
@@ -725,10 +731,7 @@ export async function runWindowsPackagedSelfTest(input = {}) {
       `--desktop-security-control-pipe=${controlPipeName}`,
     ];
     running = launchApplication(executable, launchArguments, launchEnvironment);
-    const [readyValue, shutdownInput] = await Promise.all([
-      running.ready,
-      controlPipe.connection,
-    ]);
+    const [readyValue, shutdownInput] = await Promise.all([running.ready, controlPipe.connection]);
     running.shutdownInput = shutdownInput;
     const ready = validateReadyFrame(readyValue);
     const token = (await readFile(join(security.configDirectory, "daemon.token"), "utf8")).trim();
@@ -753,11 +756,11 @@ export async function runWindowsPackagedSelfTest(input = {}) {
       deadline: secondDeadline,
     });
     validatePackagedSecondLaunch(second, [security.athleteHome, token, controlPipeName]);
-    const command = await capture(
-      process.execPath,
-      ["--disable-warning=ExperimentalWarning", cliEntry, "self-test"],
-      { cwd: repositoryRoot, env: launchEnvironment },
-    );
+    const command = await capturePackagedSelfTest({
+      athleteHome: security.athleteHome,
+      rpcUrl: ready.rpcUrl,
+      timeoutMs: COMMAND_TIMEOUT_MS,
+    });
     const terminal = validateSelfTestTerminal(parseSingleJsonLine(command, "self-test"));
     checked(
       !command.stdout.includes(token) && !command.stdout.includes(security.athleteHome),
@@ -805,8 +808,7 @@ export async function runWindowsPackagedSelfTest(input = {}) {
 
 async function main() {
   checked(
-    process.argv.length === 2 ||
-      (process.argv.length === 4 && process.argv[2] === "--executable"),
+    process.argv.length === 2 || (process.argv.length === 4 && process.argv[2] === "--executable"),
     "arguments are not supported",
   );
   const result = await runWindowsPackagedSelfTest({

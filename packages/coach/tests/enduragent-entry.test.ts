@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
 import { PassThrough, Writable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DESKTOP_OAUTH_OWNERSHIP_FILE } from "@enduragent/core";
 import {
   EXIT_AGENT_ERROR,
   EXIT_DAEMON_UNAVAILABLE,
@@ -462,6 +463,43 @@ describe("enduragent executable composition", () => {
     expect(prepareAthleteHome).toHaveBeenCalledWith(home);
     expect(call).toHaveBeenCalledWith("selfTest", {}, expect.any(Object));
     expect(close).toHaveBeenCalledOnce();
+    expect(withLocalCoachDependency).not.toHaveBeenCalled();
+  });
+
+  it("explains desktop-owned home refusal before connecting the self-test client", async () => {
+    await mkdir(home.configDir, { recursive: true });
+    await writeFile(
+      join(home.configDir, DESKTOP_OAUTH_OWNERSHIP_FILE),
+      JSON.stringify({ schemaVersion: 1, owner: "desktop" }),
+    );
+    const connectSelfTestClient = vi.fn();
+    const prepareAthleteHome = vi.fn(async () => home);
+    const withLocalCoachDependency = vi.fn();
+    const io = terminal();
+
+    await expect(
+      runEnduragent(
+        {
+          argv: ["self-test"],
+          env,
+          terminal: io.value,
+          signal: new AbortController().signal,
+        },
+        {
+          resolveAthleteHome: () => home,
+          prepareAthleteHome,
+          connectSelfTestClient,
+          withLocalCoach: withLocalCoachDependency,
+          readPackageVersion: async () => "0.0.1",
+        },
+      ),
+    ).resolves.toBe(EXIT_AGENT_ERROR);
+    expect(io.stdout.read()).toBe("");
+    expect(io.stderr.read()).toBe(
+      "This home belongs to Enduragent desktop. Stop shared-home CLI processes and use a separate CLI home, then sign in there.\n",
+    );
+    expect(prepareAthleteHome).not.toHaveBeenCalled();
+    expect(connectSelfTestClient).not.toHaveBeenCalled();
     expect(withLocalCoachDependency).not.toHaveBeenCalled();
   });
 

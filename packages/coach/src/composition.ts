@@ -37,6 +37,7 @@ import {
   type ClaudeCliRuntimeConfigPatch,
   type CodexAgentRuntimeConfigPatch,
   type Config,
+  type OAuthCredentialOwner,
   type ConversationStorePort,
   type ReferenceRuntime,
   type RuntimeConfigPatch,
@@ -238,6 +239,7 @@ export interface LocalCoachCompositionInput {
   readonly config: Config;
   readonly engineConfig: EngineConfig;
   readonly deferInitialRefresh?: boolean;
+  readonly oauthOwner?: OAuthCredentialOwner;
 }
 
 export interface LocalCoachCompositionDependencies {
@@ -363,7 +365,16 @@ function runtimePatch(request: ConfigureRuntimeRpcParams, config: Config): Runti
 }
 
 function mergedRuntimeConfig(config: Config, request: ConfigureRuntimeRpcParams): Config {
-  return { ...config, ...resolveRuntimeConfig(runtimePatch(request, config), config) };
+  return {
+    ...config,
+    ...resolveRuntimeConfig(
+      runtimePatch(request, config),
+      config,
+      request.llm?.clear_credential === true && config.llm.provider === "openai-codex"
+        ? { authProfile: config.llm.authProfile ?? "openai-codex" }
+        : undefined,
+    ),
+  };
 }
 
 const LLM_CREDENTIAL_ENVIRONMENT_KEYS = {
@@ -522,8 +533,14 @@ function persistRuntimeConfig(
   replacePrivateFile(path, toYaml(next));
 }
 
-function runtimeCredentialConfigured(configDir: string, config: Config): boolean {
+async function runtimeCredentialConfigured(
+  configDir: string,
+  config: Config,
+  oauthOwner?: OAuthCredentialOwner,
+): Promise<boolean> {
   if (config.llm.provider === "openai-codex") {
+    if (oauthOwner !== undefined)
+      return oauthOwner.hasProfile(config.llm.authProfile ?? "openai-codex");
     try {
       const snapshot = loadStoredProfileSnapshot(
         join(configDir, "auth-profiles.json"),
@@ -540,19 +557,20 @@ function runtimeCredentialConfigured(configDir: string, config: Config): boolean
   return config.llm.apiKey.length > 0;
 }
 
-function runtimeConfigSnapshot(
+async function runtimeConfigSnapshot(
   configDir: string,
   config: Config,
   environment: Readonly<Record<string, string | undefined>>,
   timezone: string,
   intervalsVerificationPending: boolean,
-): GetRuntimeConfigRpcResult {
+  oauthOwner?: OAuthCredentialOwner,
+): Promise<GetRuntimeConfigRpcResult> {
   return {
     schemaVersion: 3,
     llm: {
       provider: config.llm.provider,
       model: config.llm.model,
-      credential_configured: runtimeCredentialConfigured(configDir, config),
+      credential_configured: await runtimeCredentialConfigured(configDir, config, oauthOwner),
     },
     intervals: {
       athlete_id: config.intervals.athleteId,
@@ -894,8 +912,7 @@ export async function createLocalCoachComposition(
   let intervalsConfigRevision = 0;
   const ownerLookup = (config: Config) => ({
     apiKey: config.intervals.apiKey,
-    athleteId:
-      config.intervals.athleteId.length === 0 ? "0" : config.intervals.athleteId,
+    athleteId: config.intervals.athleteId.length === 0 ? "0" : config.intervals.athleteId,
     historyNewestDate: referencePlan(config).window.newest,
     clock: ownerClock,
   });
@@ -1218,7 +1235,10 @@ export async function createLocalCoachComposition(
       },
     });
     await attachmentOperations.reconcile();
-    const getAccessToken = createAccessTokenReader(input.home.configDir);
+    const getAccessToken =
+      input.oauthOwner === undefined
+        ? createAccessTokenReader(input.home.configDir)
+        : input.oauthOwner.getAccessToken.bind(input.oauthOwner);
     const openRouterModelMetadata = createPersistentOpenRouterModelMetadataCache(
       input.home.configDir,
     );
@@ -1593,12 +1613,19 @@ export async function createLocalCoachComposition(
         request.llm.clear_credential !== true &&
         candidate.llm.provider === "openai-codex"
       ) {
-        credential(
-          loadStoredProfileSnapshot(
-            join(input.home.configDir, "auth-profiles.json"),
-            candidate.llm.authProfile ?? "openai-codex",
-          )?.profile,
-        );
+        if (input.oauthOwner !== undefined) {
+          if (!(await input.oauthOwner.hasProfile(candidate.llm.authProfile ?? "openai-codex"))) {
+            throw new TypeError(
+              "OAuth profile is unavailable. Use desktop credential recovery or sign in again.",
+            );
+          }
+        } else
+          credential(
+            loadStoredProfileSnapshot(
+              join(input.home.configDir, "auth-profiles.json"),
+              candidate.llm.authProfile ?? "openai-codex",
+            )?.profile,
+          );
       }
       const chatGptProfileClear =
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
@@ -1642,7 +1669,16 @@ export async function createLocalCoachComposition(
               unapprovedConfig,
             );
             if (chatGptProfileClear) {
-              deleteStoredProfile(join(input.home.configDir, "auth-profiles.json"), "openai-codex");
+              if (input.oauthOwner === undefined) {
+                deleteStoredProfile(
+                  join(input.home.configDir, "auth-profiles.json"),
+                  unapprovedConfig.llm.authProfile ?? "openai-codex",
+                );
+              } else {
+                await input.oauthOwner.deleteProfile(
+                  unapprovedConfig.llm.authProfile ?? "openai-codex",
+                );
+              }
             }
             await pendingOwnerClaim?.claim();
           } catch (error) {
@@ -1849,8 +1885,7 @@ export async function createLocalCoachComposition(
         runtime,
         intervalsCredentials: options.liveIntervals,
         historyNewestDate: () => referencePlan(approvedConfig()).window.newest,
-        calendarTimeZone: () =>
-          resolveUserTimezone(approvedConfig().session.timezone),
+        calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
         readTranscriptPage: (request) => reconfigurable.getTranscriptPage(request),
         readArchivedConversations: (request) => reconfigurable.listArchivedConversations(request),
         readArchivedTranscriptPage: (request) => reconfigurable.getArchivedTranscriptPage(request),
@@ -1884,6 +1919,7 @@ export async function createLocalCoachComposition(
             input.env,
             activeTimezone,
             intervalsVerificationPending(),
+            input.oauthOwner,
           ),
       },
       dependencies.operationsDependencies,

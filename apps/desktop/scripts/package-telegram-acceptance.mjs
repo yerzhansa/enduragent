@@ -221,6 +221,7 @@ verifyTelegramAcceptanceWorkspaceRuntime(packagedManifest, listPackage(archive),
 );
 const productionMain = verifyTelegramAcceptanceMainEntry(
   extractFile(archive, packagedManifest.main).toString("utf8"),
+  (path) => extractFile(archive, path).toString("utf8"),
 );
 if (extractFile(archive, productionMain).length === 0) {
   throw new TypeError("Telegram acceptance production main is empty");
