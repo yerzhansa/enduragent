@@ -1,5 +1,60 @@
 # cycling-coach
 
+## 2026.9.5
+
+### Patch Changes
+
+- 7a005a7: User-facing: Training now shows recently imported ride files immediately without requiring an Intervals.icu sync.
+
+  Credential-free setups no longer run Intervals.icu refreshes or surface their failures.
+
+- 92ca64a: User-facing: Added a standard Coach decision panel for important training choices, with custom answers, Skip, saved consequences, and relaunch recovery.
+
+  Important coaching choices now remain blocked until answered or skipped, and interrupted continuations resume once after relaunch.
+
+- dfba9a5: User-facing: Redesigned Chat as a calmer Reading room with Training context, a clearer composer, and a Stop control that preserves partial responses.
+
+  Stopped responses now remain in conversation history after relaunch, and the shared Coach connection stays available for the next message.
+
+- 6589ea7: Carry balanced activity visibility summaries from the current intervals.icu reference fetch to sync consumers.
+
+  `SyncRpcResult` now reports `overall` and `recent7Days` windows. Each window includes its raw total, visible count, other malformed rows, and sorted per-source restrictions with the `source-restricted` reason. Both windows must balance, and recent counts cannot exceed their overall counterparts. Detection still uses exact `source === "STRAVA"`; the contract supports additional providers without collapsing them into one source. Counts stay in memory, come from the same fetch that supplies training context, and no longer come from historical backfill. Mid-page capture resumes report a page's dropped rows once. `PROTOCOL_VERSION` moves from 18 to 19. No athlete-facing copy changes.
+
+- 9cfd329: User-facing: Automatic update checks now contact Enduragent at most once per day per installation, while repeated update commands reuse recent results.
+
+  Persist the daily telemetry attempt before sending it, route manual version checks directly to npm, and share successful or in-progress version lookups.
+
+- 795fccf: User-facing: Saved queued Chat messages across app restarts, added explicit recovery actions, and now keeps a queued message visible with an error when removal cannot be saved.
+- 1151bf1: User-facing: Explained when Strava API restrictions hide activities, with separate recovery steps for future and past rides.
+
+  Show the restricted count after sync on the Training page, in the sidebar, and in Telegram. Direct athletes to connect their recording source to intervals.icu for future rides or use Import All Strava Data with an intervals.icu supporter subscription for history.
+
+- 3627ecd: Distinguish confirmation guard refusals and returned failures from completed changes.
+
+  User-facing: When a workout can no longer be changed, the coach explains why instead of saying it is done.
+
+- 30ca87f: User-facing: Backups made before the Planning storage update now restore successfully when they contain a replaced Plan. Current backups continue to restore the replacement history safely.
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+- 3627ecd: Retain unsummarized conversation history after compaction failures and stop when it cannot safely fit.
+
+  User-facing: If a conversation summary fails, the coach keeps the original context or asks you to try again instead of silently forgetting earlier goals and corrections.
+
+- 529cbf8: User-facing: Coaching panels now say when hidden source data makes an answer unreliable.
+
+  Refuse adherence after any restricted recent activity, and refuse load, performance, and recent-ride panels when half their activity window is restricted.
+
+- 66f0532: User-facing: Your training history now syncs even when most of your rides came from Strava — the sessions intervals.icu can share are saved instead of the whole sync failing with no data at all.
+
+  intervals.icu cannot expose activity detail for Strava-sourced rows under the Strava API Agreement, so it returns a five-key placeholder with no `type`, `moving_time`, `elapsed_time` or streams. The activity index treated a missing `type` as a fatal transport error and aborted the entire pull, so a single placeholder wiped out every other activity in the same window. Placeholder rows are now dropped from the index; rows that do carry a `type` keep the identical strict validation. The `intervals-icu-api` bump to 0.4.0 makes `Activity.type` nullish so the response array parses at all, and the reference sport-adapter dispatcher guards `null` as well as `undefined`.
+
+- 3627ecd: Prepare explicit Astra selection on the public OpenAI API while retaining existing default models and restricting unverified subscription transports.
+
+  User-facing: You can explicitly choose Astra with an OpenAI API key. Existing model choices stay unchanged, and unavailable cost estimates are not shown as known prices.
+
+- 4018b25: Keep Training History freshness and calendar windows anchored to the current successful sync and the athlete's active timezone.
+
+  User-facing: Training History now stays current after a successful sync that finds no new data, and its week boundaries follow your active timezone without requiring a restart.
+
 ## 2026.8.18
 
 ### Patch Changes

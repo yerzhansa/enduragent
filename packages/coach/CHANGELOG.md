@@ -1,5 +1,101 @@
 # @enduragent/coach
 
+## 0.1.1
+
+### Patch Changes
+
+- 2d0128c: Add the privileged Chat attachment-admission contract and durable queued-Message attachment identities.
+- b38ae00: User-facing: Coach answers can now offer a safe Continue in Plan card, resolve Workout date conflicts, retry failed handoffs without duplicates, and recover a Proposal when a local Plan save fails.
+
+  Chat keeps typed Plan handoffs with their transcript turn, while Plan protects athlete-created Workouts and requires review before applying a new date or replacing a coach-owned Workout.
+
+- 66579e6: User-facing: Chat safely resumes unfinished Plan handoffs after relaunch. Deleting Chat attachment data keeps delivered Plan work and its compact origin record intact.
+- 8c20aef: User-facing: Workout handoffs from Chat now open the same reviewable Plan Proposal after retries or relaunch, while Draft and Plan-creation requests continue in their exact Plan conversation.
+
+  Planning stores the destination artifact and request relation together, preserves date conflicts for review, and keeps delivery retryable when destination intake is temporarily unavailable.
+
+- d6d960f: Chat can securely rebuild a selected Workout handoff and restore its current Plan status after relaunch.
+
+  The daemon resolves local Workout details instead of trusting renderer-provided snapshots, and durable handoffs can be listed by their source conversation.
+
+- dc24ae3: User-facing: Applying or rejecting a Chat-originated Plan Proposal now records the matching Chat result atomically, so relaunch cannot show a stale or contradictory handoff.
+
+  Planning keeps revised Proposals attached to their originating request, rolls back the complete Plan change when terminal-result storage fails, and leaves calendar mirroring separate from local success.
+
+- 2d09c46: User-facing: Past chats can now be permanently deleted with clear confirmation while imported activities and Plan work stay intact. Chat also keeps its safety note visible when cards stack up, orders those cards consistently, and closes the compact Training context drawer reliably from the keyboard.
+- 68bf244: Read selected activity files during processing and traverse XML without recursion.
+
+  User-facing: Importing a batch of activity files uses less memory. Deeply nested GPX and TCX files no longer interrupt the import with a stack error.
+
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+- f3a8b51: User-facing: Adding more than five files now keeps the first five. Pasted images show as `Pasted image.png`.
+- 07b0a8d: User-facing: The active Plan now shows race-day Form and goal feasibility at a glance, with clearer race-week and readiness details. Ended Plans can open their saved coach conversation as read-only history.
+- c507634: End an active Plan locally before removing tomorrow-onward Plan-owned Intervals workouts, with durable retry and verify-only recovery that preserves today and athlete-created events.
+- e649a25: Add display-only Estimated CP from two eligible recent measured-power efforts, including stale and unavailable states, an explanatory tooltip, evidence and route-assumption drawers, and strict isolation from FTP and Plan mutations.
+- f6cacbb: Add forward-only race-readiness projections, explicit unavailable and changed-assumption states, refresh recovery, and taper safety refusal without mutating the active Plan.
+- b02a1e8: User-facing: Plans now end automatically after their final date and let athletes record the race as Completed or Not completed without changing their saved Plan.
+- b87174d: Replace an active Plan atomically while preserving today, verify tomorrow-onward cleanup of the old Plan before writing the replacement’s next seven days, and keep failures recoverable after relaunch.
+- 3ad0c39: Show every active Plan week with phase, purpose, status, and planned time, plus a complete authoritative race-week schedule with separate training, race, and total accounting.
+- a52086c: Add Plan-scoped settings with immediate persistence and safely auto-apply eligible future workout duration reductions.
+- 6546ba5: User-facing: Active Plans can now show one automatic, score-free review of the latest completed week after a successful sync.
+- a5a366f: User-facing: Stopping a Chat response or losing connection now keeps the interrupted message retryable and sends later queued messages once, in order.
+- eba82b9: User-facing: Chat recovery now survives repeated connection losses without duplicating your message after relaunch, while preserving every partial and completed Coach response.
+- 2567965: User-facing: Plan coach conversations now collect durable training inputs, show a reviewable summary, and create a complete structured Draft before anything can activate or reach the Intervals calendar.
+
+  The Plan composer stays at the bottom, optional Race Course attachment lives inside it, and interrupted intake saves recover from the conversation after relaunch.
+
+- a415177: Add the internal training-history contract, persisted coverage evidence, calendar-aware capture plan, and state composition wiring.
+- 4018b25: Keep Training History freshness and calendar windows anchored to the current successful sync and the athlete's active timezone.
+
+  User-facing: Training History now stays current after a successful sync that finds no new data, and its week boundaries follow your active timezone without requiring a restart.
+
+- f65201d: User-facing: Training History now marks only the dates affected by dropped activities as incomplete. Open weeks and comparison callouts no longer claim totals for days that have not finished.
+- ca163a7: Keep last-recorded Training history during temporary storage failures, preserve selected rides unless refreshed history proves they were removed, and fence ride analysis cache invalidation against late results.
+
+  User-facing: Training now keeps your last recorded history during temporary refresh problems. Ride review no longer closes or reuses out-of-date analysis when refreshed data cannot prove a ride was removed.
+
+- 5b53e73: Replace the legacy Training panel stack with a week-first summary, six-week riding trend, recent-ride callouts, and inline Ride review.
+
+  User-facing: The Training page now leads with your week: riding time, rides, distance and Load, a six-week trend, and your recent rides with the ride you should look at first. Ride review opens right on the page.
+
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [66579e6]
+- Updated dependencies [8c20aef]
+- Updated dependencies [d6d960f]
+- Updated dependencies [dc24ae3]
+- Updated dependencies [1e07590]
+- Updated dependencies [2d09c46]
+- Updated dependencies [68bf244]
+- Updated dependencies [3627ecd]
+- Updated dependencies [30ca87f]
+- Updated dependencies [48f6422]
+- Updated dependencies [3627ecd]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [f6cacbb]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [3ad0c39]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [1594b20]
+- Updated dependencies [a5a366f]
+- Updated dependencies [eba82b9]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [3627ecd]
+- Updated dependencies [4018b25]
+- Updated dependencies [f65201d]
+  - @enduragent/coach-contract@0.1.2
+  - @enduragent/engine@0.0.3
+  - @enduragent/core@0.1.4
+  - @enduragent/kernel@0.1.1
+  - @enduragent/kernel-node@0.1.1
+  - @enduragent/sync-intervals-icu@0.1.1
+  - @enduragent/sport-cycling@0.0.7
+  - @enduragent/coach-cli@0.1.2
+
 ## 0.1.0
 
 ### Minor Changes

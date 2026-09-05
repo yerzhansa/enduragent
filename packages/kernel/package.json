@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/kernel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Portable compute, store, and Reference kernel; I/O flows through injected ports.",
   "type": "module",

@@ -1,5 +1,23 @@
 # running-coach
 
+## 0.0.8
+
+### Patch Changes
+
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [2d09c46]
+- Updated dependencies [3627ecd]
+- Updated dependencies [48f6422]
+- Updated dependencies [eba82b9]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [3627ecd]
+- Updated dependencies [4018b25]
+  - @enduragent/core@0.1.4
+  - @enduragent/sport-running@0.1.4
+
 ## 0.0.7
 
 ### Patch Changes

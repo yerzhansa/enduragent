@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/sync-file-import",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "description": "Private stable file source for the Reference layer.",
   "type": "module",

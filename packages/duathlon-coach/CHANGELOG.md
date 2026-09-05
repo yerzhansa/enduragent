@@ -1,5 +1,11 @@
 # duathlon-coach
 
+## 0.0.7
+
+### Patch Changes
+
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+
 ## 0.0.6
 
 ### Patch Changes

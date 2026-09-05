@@ -1,5 +1,32 @@
 # @enduragent/sync-intervals-icu
 
+## 0.1.1
+
+### Patch Changes
+
+- e649a25: Add display-only Estimated CP from two eligible recent measured-power efforts, including stale and unavailable states, an explanatory tooltip, evidence and route-assumption drawers, and strict isolation from FTP and Plan mutations.
+- a415177: Add the internal training-history contract, persisted coverage evidence, calendar-aware capture plan, and state composition wiring.
+- f65201d: User-facing: Training History now marks only the dates affected by dropped activities as incomplete. Open weeks and comparison callouts no longer claim totals for days that have not finished.
+- Updated dependencies [b38ae00]
+- Updated dependencies [66579e6]
+- Updated dependencies [8c20aef]
+- Updated dependencies [d6d960f]
+- Updated dependencies [dc24ae3]
+- Updated dependencies [2d09c46]
+- Updated dependencies [68bf244]
+- Updated dependencies [30ca87f]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [4018b25]
+- Updated dependencies [f65201d]
+  - @enduragent/kernel@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

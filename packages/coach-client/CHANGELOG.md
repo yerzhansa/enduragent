@@ -1,5 +1,31 @@
 # @enduragent/coach-client
 
+## 0.1.2
+
+### Patch Changes
+
+- 2d0128c: Add the privileged Chat attachment-admission contract and durable queued-Message attachment identities.
+- d6d960f: Chat can securely rebuild a selected Workout handoff and restore its current Plan status after relaunch.
+
+  The daemon resolves local Workout details instead of trusting renderer-provided snapshots, and durable handoffs can be listed by their source conversation.
+
+- 2d09c46: User-facing: Past chats can now be permanently deleted with clear confirmation while imported activities and Plan work stay intact. Chat also keeps its safety note visible when cards stack up, orders those cards consistently, and closes the compact Training context drawer reliably from the keyboard.
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [d6d960f]
+- Updated dependencies [2d09c46]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [f6cacbb]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [3ad0c39]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+  - @enduragent/coach-contract@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

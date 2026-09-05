@@ -1,5 +1,65 @@
 # @enduragent/core
 
+## 0.1.4
+
+### Patch Changes
+
+- 2d0128c: Add the privileged Chat attachment-admission contract and durable queued-Message attachment identities.
+- b38ae00: User-facing: Coach answers can now offer a safe Continue in Plan card, resolve Workout date conflicts, retry failed handoffs without duplicates, and recover a Proposal when a local Plan save fails.
+
+  Chat keeps typed Plan handoffs with their transcript turn, while Plan protects athlete-created Workouts and requires review before applying a new date or replacing a coach-owned Workout.
+
+- 2d09c46: User-facing: Past chats can now be permanently deleted with clear confirmation while imported activities and Plan work stay intact. Chat also keeps its safety note visible when cards stack up, orders those cards consistently, and closes the compact Training context drawer reliably from the keyboard.
+- 3627ecd: Distinguish confirmation guard refusals and returned failures from completed changes.
+
+  User-facing: When a workout can no longer be changed, the coach explains why instead of saying it is done.
+
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+- eba82b9: User-facing: Chat recovery now survives repeated connection losses without duplicating your message after relaunch, while preserving every partial and completed Coach response.
+- 2567965: User-facing: Plan coach conversations now collect durable training inputs, show a reviewable summary, and create a complete structured Draft before anything can activate or reach the Intervals calendar.
+
+  The Plan composer stays at the bottom, optional Race Course attachment lives inside it, and interrupted intake saves recover from the conversation after relaunch.
+
+- a415177: Add the internal training-history contract, persisted coverage evidence, calendar-aware capture plan, and state composition wiring.
+- 3627ecd: Prepare explicit Astra selection on the public OpenAI API while retaining existing default models and restricting unverified subscription transports.
+
+  User-facing: You can explicitly choose Astra with an OpenAI API key. Existing model choices stay unchanged, and unavailable cost estimates are not shown as known prices.
+
+- 4018b25: Keep Training History freshness and calendar windows anchored to the current successful sync and the athlete's active timezone.
+
+  User-facing: Training History now stays current after a successful sync that finds no new data, and its week boundaries follow your active timezone without requiring a restart.
+
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [66579e6]
+- Updated dependencies [8c20aef]
+- Updated dependencies [d6d960f]
+- Updated dependencies [dc24ae3]
+- Updated dependencies [1e07590]
+- Updated dependencies [2d09c46]
+- Updated dependencies [68bf244]
+- Updated dependencies [30ca87f]
+- Updated dependencies [3627ecd]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [f6cacbb]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [3ad0c39]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [1594b20]
+- Updated dependencies [a5a366f]
+- Updated dependencies [eba82b9]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [3627ecd]
+- Updated dependencies [4018b25]
+- Updated dependencies [f65201d]
+  - @enduragent/coach-contract@0.1.2
+  - @enduragent/engine@0.0.3
+  - @enduragent/kernel@0.1.1
+
 ## 0.1.3
 
 ### Patch Changes

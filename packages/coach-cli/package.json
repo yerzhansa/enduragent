@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/coach-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Contract-only terminal surface for the enduragent coach.",
   "type": "module",
