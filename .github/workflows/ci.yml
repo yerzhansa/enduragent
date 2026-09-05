@@ -71,6 +71,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - name: Test deterministic Chat regressions
+        run: pnpm test:chat-regression
       - name: Test workspace on Linux
         run: |
           pnpm exec vitest run --shard=1/2

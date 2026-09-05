@@ -10,6 +10,7 @@
     "dogfood:store": "pnpm --filter @enduragent/coach dogfood:store",
     "build": "pnpm -r build",
     "test": "vitest run",
+    "test:chat-regression": "vitest run apps/desktop/tests/chat-regression-gate-contract.test.ts apps/desktop/tests/chat-attachment-ipc.test.ts apps/desktop-renderer/tests/chat-controller.test.ts apps/desktop-renderer/tests/chat-queue-recovery.test.ts apps/desktop-renderer/tests/chat-decision-controller.test.ts apps/desktop-renderer/tests/chat-hydration-controller.test.ts apps/desktop-renderer/tests/chat-hydration.test.ts apps/desktop-renderer/tests/turn-state.test.ts apps/desktop-renderer/tests/chat-adapter.test.tsx apps/desktop-renderer/tests/chat-surface.test.tsx apps/desktop-renderer/tests/plan-adapter.test.ts apps/desktop-renderer/tests/plan-controller.test.ts apps/desktop-renderer/tests/plan-chat-card.test.ts apps/desktop-renderer/tests/plan-reference-card.test.tsx packages/engine/tests/chat-queue.test.ts --maxWorkers=4",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "oxlint packages/ apps/",
