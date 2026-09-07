@@ -1836,6 +1836,11 @@ export function createChatController(input: {
         previewAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
+          if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
+            publishChange({ notice: "The latest Change is no longer eligible for Undo." });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
           publishChange({
             error:
               result.reason === "stale-version"
