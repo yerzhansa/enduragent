@@ -70,6 +70,7 @@ export function createMemoryReadTool(
     description,
     inputSchema: zodSchema(z.object({})),
     execute: async () => {
+      if (memory.refreshPlanReadGate) await memory.refreshPlanReadGate();
       const result = memory.getContext() || "No athlete data stored yet.";
       onRead?.(result);
       return bindProvenance ? bindMemoryToolResult(memory, "memory_read", {}, result) : result;
@@ -216,7 +217,8 @@ export function createMemoryTools(
       description: "Load the current active training plan",
       inputSchema: zodSchema(z.object({})),
       execute: async () => {
-        const result = memory.loadPlan() ?? { message: "No plan saved yet." };
+        const message = memory.refreshPlanReadGate ? await memory.refreshPlanReadGate() : null;
+        const result = message ?? memory.loadPlan() ?? { message: "No plan saved yet." };
         return bindProvenance ? bindMemoryToolResult(memory, "plan_load", {}, result) : result;
       },
     }),

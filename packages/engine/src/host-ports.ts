@@ -102,6 +102,7 @@ export interface MemoryStorePort {
     source?: MemoryWriteSource,
     provenance?: SourceProvenance,
   ): void | Promise<void>;
+  refreshPlanReadGate?(): Promise<string | null>;
   loadPlan(): unknown | null;
   /** Source labels bound to the exact visible result of a synchronous tool read. */
   provenanceForToolRead?(
