@@ -6,6 +6,7 @@ import {
   PlanChangeApplyResultSchema,
   PlanChangeApplyRpcParamsSchema,
   PlanChangeIntentSchema,
+  PlanChangeFtpSourcesSchema,
   PlanChangeModelSchema,
   PlanChangePreviewResultSchema,
   PlanChangePreviewRpcParamsSchema,
@@ -66,6 +67,8 @@ describe("Plan Change contract", () => {
     { kind: "weekly-duration", hours: 2.75 },
     { kind: "longest-workout", minutes: 45 },
     { kind: "inverse", changeId },
+    { kind: "ftp", watts: 1 },
+    { kind: "ftp", watts: 9_999 },
   ])("accepts Schedule intent $kind", (value) => {
     expect(PlanChangeIntentSchema.parse(value)).toEqual(value);
   });
@@ -89,8 +92,49 @@ describe("Plan Change contract", () => {
     { kind: "inverse", changeId: "invalid" },
     { kind: "inverse", changeId, extra: true },
     { kind: "ftp", ftp: 220 },
+    ...[null, 0, -1, 220.5, 10_000, Infinity].map((watts) => ({ kind: "ftp", watts })),
   ])("rejects invalid or deferred intent %j", (value) => {
     expect(PlanChangeIntentSchema.safeParse(value).success).toBe(false);
+  });
+
+  it("accepts nullable whole watts for Draft FTP and Workout power", () => {
+    for (const watts of [null, 1, 220, 9_999]) {
+      expect(PlanCreationDraftSchema.shape.ftp.parse(watts)).toBe(watts);
+      expect(PlanChangeWorkoutSchema.parse({ ...workout, power: watts }).power).toBe(watts);
+    }
+    for (const watts of [0, -1, 220.5, 10_000, Infinity, "220"]) {
+      expect(PlanCreationDraftSchema.shape.ftp.safeParse(watts).success).toBe(false);
+      expect(PlanChangeWorkoutSchema.safeParse({ ...workout, power: watts }).success).toBe(false);
+    }
+  });
+
+  it("preserves by-value FTP evidence and validates its sources", () => {
+    const premise = {
+      acceptedPlanFtp: null,
+      requestedFtp: 220,
+      candidates: [
+        { source: "manual", watts: 210, selected: true },
+        { source: "intervals-ftp", watts: 205, selected: false },
+        { source: "intervals-eftp", watts: 215, selected: false },
+      ],
+    };
+    expect(PlanChangeFtpSourcesSchema.parse(premise)).toEqual(premise);
+    expect(
+      PlanChangeFtpSourcesSchema.parse({ ...premise, requestedFtp: null }).requestedFtp,
+    ).toBeNull();
+    for (const candidate of [
+      { source: "unknown", watts: 220, selected: true },
+      { source: "manual", watts: 220.5, selected: true },
+      { source: "manual", watts: 220 },
+      { source: "manual", watts: 220, selected: true, refreshedAtMs: 1 },
+    ]) {
+      expect(
+        PlanChangeFtpSourcesSchema.safeParse({ ...premise, candidates: [candidate] }).success,
+      ).toBe(false);
+    }
+    expect(
+      PlanChangeApplyResultSchema.parse({ status: "rejected", reason: "ftp-sources-changed" }),
+    ).toEqual({ status: "rejected", reason: "ftp-sources-changed" });
   });
 
   it("reuses the Draft Workout schema and preserves exact differences and premises", () => {

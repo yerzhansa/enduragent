@@ -1,5 +1,6 @@
 import {
   PlanChangeModelSchema,
+  PlanChangeFtpSourcesSchema,
   PlanChangeApplyRpcParamsSchema,
   PlanChangeApplyResultSchema,
   PlanChangePreviewRpcParamsSchema,
@@ -21,7 +22,12 @@ import {
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
-import { applyScheduleIntent, planChangeRaceWindow } from "@enduragent/sport-cycling";
+import {
+  applyScheduleIntent,
+  planChangeRaceWindow,
+  readCyclingPlanFtpCandidates,
+} from "@enduragent/sport-cycling";
+import type { PlanFtpAdapter } from "@enduragent/engine/sport";
 import { z } from "zod";
 
 export const PROPOSAL_STALE_AFTER_HOURS = 24;
@@ -48,6 +54,7 @@ const titles = {
   "weekly-duration": "Limit weekly duration",
   "longest-workout": "Limit the longest Workout",
   inverse: "Undo the latest Change",
+  ftp: "Correct FTP",
 } satisfies Record<PlanChangeIntent["kind"], string>;
 
 async function readCompletedWorkoutIds(
@@ -66,6 +73,21 @@ async function readCompletedWorkoutIds(
   return new Set(
     rows.map((row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id),
   );
+}
+
+async function inverseCorrectsFtp(
+  store: SqlStore,
+  planId: string,
+  changeId: string,
+): Promise<boolean> {
+  const original = await store.get(
+    "SELECT diff_json FROM plan_change WHERE id=? AND plan_id=? AND status='applied'",
+    [changeId, planId],
+  );
+  if (original === undefined) return false;
+  const envelope = PlanChangeEnvelopeSchema.parse(JSON.parse(z.string().parse(original.diff_json)));
+  const intent = PlanChangeModelSchema.shape.intent.safeParse(envelope.intent);
+  return intent.success && intent.data.kind === "ftp";
 }
 
 export async function projectPlanChanges(input: {
@@ -93,15 +115,16 @@ export async function projectPlanChanges(input: {
       )
         undo = { eligible: false, reason: "plan-changed" };
       else {
+        const draft = PlanCreationDraftSchema.parse(JSON.parse(context.snapshotJson));
         const restored = applyScheduleIntent({
-          draft: PlanCreationDraftSchema.parse(JSON.parse(context.snapshotJson)),
+          draft,
           previousDraft: PlanCreationDraftSchema.parse(JSON.parse(context.previousSnapshotJson)),
           intent: { kind: "inverse", changeId: change.changeId },
           completedWorkoutIds,
           todayDateKey: input.todayDateKey,
         });
         undo =
-          restored.diff.length > 0
+          restored.diff.length > 0 || restored.after.ftp !== draft.ftp
             ? { eligible: true }
             : { eligible: false, reason: "nothing-to-restore" };
       }
@@ -117,6 +140,8 @@ export function createPlanChangeOperations(input: {
   todayDateKey: () => number;
   now: () => number;
   calendarConnected: () => Promise<boolean>;
+  ftp: Pick<PlanFtpAdapter, "read" | "saveManual">;
+  logger: { warn(event: string): void };
 }): PlanChangeOperations {
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -155,8 +180,19 @@ export function createPlanChangeOperations(input: {
         throw parsed.error;
       }
       const { intent, planId, expectedVersion } = parsed.data;
+      let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
       const result = await repository.preview({
-        admit,
+        async admit(store) {
+          const rejection = await admit(store);
+          if (rejection !== null) return rejection;
+          if (
+            intent.kind === "ftp" ||
+            (intent.kind === "inverse" &&
+              (await inverseCorrectsFtp(store, planId, intent.changeId)))
+          )
+            ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
+          return null;
+        },
         command: await stamp(parsed.data),
         planId,
         expectedVersion,
@@ -193,13 +229,20 @@ export function createPlanChangeOperations(input: {
                   ),
                 })
               : applyScheduleIntent({ ...transformation, intent });
-          if (intent.kind === "inverse" && diff.length === 0)
+          if (intent.kind === "inverse" && diff.length === 0 && after.ftp === draft.ftp)
             return { status: "rejected", reason: "invalid-intent" };
-          const window = planChangeRaceWindow({
-            goal: draft.goal,
-            diff,
-            todayDateKey: transformation.todayDateKey,
-          });
+          const correctsFtp =
+            intent.kind === "ftp" ||
+            (intent.kind === "inverse" &&
+              newestApplied !== null &&
+              PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "ftp");
+          const window = correctsFtp
+            ? null
+            : planChangeRaceWindow({
+                goal: draft.goal,
+                diff,
+                todayDateKey: transformation.todayDateKey,
+              });
           if (window !== null) return { status: "rejected", reason: "race-window", window };
           return {
             afterSnapshotJson: canonicalJson(after),
@@ -210,6 +253,20 @@ export function createPlanChangeOperations(input: {
               totals,
               supersedes: null,
               premises: [
+                ...(correctsFtp
+                  ? [
+                      {
+                        id: "ftp-sources",
+                        label: "FTP source comparison at this decision",
+                        source: "Saved profile and synchronized FTP evidence",
+                        value: {
+                          acceptedPlanFtp: draft.ftp,
+                          requestedFtp: after.ftp,
+                          candidates: ftpCandidates,
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   id: "confirmed-limits",
                   label: "Confirmed Plan limits",
@@ -242,10 +299,32 @@ export function createPlanChangeOperations(input: {
     async "plan_change.apply"(request) {
       const parsed = PlanChangeApplyRpcParamsSchema.parse(request);
       const command = await stamp(parsed);
+      let correctedWatts: number | null = null;
       const result = await repository.apply({
         admit,
-        async admitChange(_store, { afterSnapshotJson, diff, todayDateKey }) {
+        async admitChange(
+          store,
+          { afterSnapshotJson, diff, todayDateKey, intent: rawIntent, premises },
+        ) {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(afterSnapshotJson));
+          const parsedIntent = PlanChangeModelSchema.shape.intent.safeParse(rawIntent);
+          const intent = parsedIntent.success ? parsedIntent.data : null;
+          const ftpPremise = premises.find((premise) => premise.id === "ftp-sources");
+          if (ftpPremise !== undefined) {
+            const sources = PlanChangeFtpSourcesSchema.parse(ftpPremise.value);
+            const current = await readCyclingPlanFtpCandidates(input.ftp);
+            if (canonicalJson(sources.candidates) !== canonicalJson(current))
+              return "ftp-sources-changed";
+          }
+          if (intent?.kind === "ftp") {
+            correctedWatts = intent.watts;
+            return null;
+          }
+          if (
+            intent?.kind === "inverse" &&
+            (await inverseCorrectsFtp(store, parsed.planId, intent.changeId))
+          )
+            return null;
           return planChangeRaceWindow({
             goal: draft.goal,
             diff: PlanChangeModelSchema.shape.diff.parse(diff),
@@ -305,6 +384,13 @@ export function createPlanChangeOperations(input: {
           };
         },
       });
+      if (result.status === "applied" && correctedWatts !== null) {
+        try {
+          await input.ftp.saveManual(correctedWatts);
+        } catch {
+          input.logger.warn("plan_change_manual_ftp_save_failed");
+        }
+      }
       return PlanChangeApplyResultSchema.parse(result);
     },
   };

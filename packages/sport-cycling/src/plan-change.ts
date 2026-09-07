@@ -1,12 +1,14 @@
 import { addCivilDays, dateKeyFromText, weekdayForDateKey } from "@enduragent/kernel/planning";
 import { type CreationDraft, digest } from "./creation-draft-builder.js";
+import { validateManualPlanFtp } from "./plan-ftp.js";
 
 export type ScheduleIntent =
   | { kind: "weekday-duration"; day: number; minutes: number }
   | { kind: "weekday-unavailable"; day: number }
   | { kind: "hard-weekday"; day: number }
   | { kind: "weekly-duration"; hours: number }
-  | { kind: "longest-workout"; minutes: number };
+  | { kind: "longest-workout"; minutes: number }
+  | { kind: "ftp"; watts: number };
 
 type Workout = CreationDraft["weeks"][number]["workouts"][number];
 
@@ -52,7 +54,8 @@ function changed(before: Workout, after: Workout): boolean {
     before.kind !== after.kind ||
     before.date !== after.date ||
     before.minutes !== after.minutes ||
-    before.guidance !== after.guidance
+    before.guidance !== after.guidance ||
+    before.power !== after.power
   );
 }
 
@@ -112,6 +115,18 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
   }
   const { intent } = input;
   const after = structuredClone(draft);
+  if (intent.kind === "ftp") {
+    const watts = validateManualPlanFtp(intent.watts);
+    after.ftp = watts;
+    for (const week of after.weeks) {
+      for (const workout of week.workouts) {
+        if (!mutable(workout, todayDateKey, completedWorkoutIds)) continue;
+        workout.power = watts;
+        workout.guidance = `Use your confirmed FTP of ${watts} W`;
+      }
+    }
+    return changeResult(draft, after);
+  }
   for (const week of after.weeks) {
     if (intent.kind === "weekly-duration") {
       const budgetMinutes = Math.floor(intent.hours * 60);

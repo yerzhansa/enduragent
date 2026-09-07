@@ -534,3 +534,89 @@ describe("race window protection", () => {
     ).toBeNull();
   });
 });
+
+describe("FTP Plan Changes", () => {
+  it("sets confirmed FTP only on mutable Workouts and preserves every other field", () => {
+    const draft = fixture();
+    const original = structuredClone(draft);
+    const completedWorkoutIds = new Set(["w2-hard"]);
+    const result = applyScheduleIntent({
+      draft,
+      intent: { kind: "ftp", watts: 235 },
+      todayDateKey,
+      completedWorkoutIds,
+    });
+    expect(result.after.ftp).toBe(235);
+    expect(result.totals.after).toEqual(result.totals.before);
+    expect(result.diff).toHaveLength(14);
+    for (const before of workouts(draft)) {
+      const after = workouts(result.after).find((workout) => workout.id === before.id);
+      if (
+        before.pinned ||
+        before.date === null ||
+        before.date < "1998-08-24" ||
+        completedWorkoutIds.has(before.id)
+      ) {
+        expect(after).toEqual(before);
+      } else {
+        expect(after).toEqual({
+          ...before,
+          power: 235,
+          guidance: "Use your confirmed FTP of 235 W",
+        });
+      }
+    }
+    expect(draft).toEqual(original);
+    expect(result.after.outputFingerprint).not.toBe(draft.outputFingerprint);
+    const { inputFingerprint: _input, outputFingerprint, ...snapshot } = result.after;
+    expect(outputFingerprint).toBe(
+      createHash("sha256").update(canonicalJson(snapshot)).digest("hex"),
+    );
+  });
+
+  it.each([0, -1, 235.5, 10_000, Infinity, NaN])("rejects invalid FTP %s", (watts) => {
+    expect(() => run({ kind: "ftp", watts })).toThrow("Enter 1–9999 whole watts.");
+  });
+
+  it.each([null, 210])("restores prior FTP %s and Workout power through an inverse", (watts) => {
+    const before = fixture();
+    before.ftp = watts;
+    for (const workout of workouts(before)) workout.power = watts;
+    const corrected = applyScheduleIntent({
+      draft: before,
+      intent: { kind: "ftp", watts: 235 },
+      todayDateKey,
+    });
+    const restored = applyScheduleIntent({
+      draft: corrected.after,
+      intent: { kind: "inverse", changeId: "ftp-correction" },
+      previousDraft: before,
+      todayDateKey,
+    });
+    expect(restored.after.ftp).toBe(watts);
+    expect(restored.after.weeks).toEqual(before.weeks);
+    expect(restored.diff).toHaveLength(15);
+    expect(
+      restored.diff.every((row) => row.before?.power === 235 && row.after?.power === watts),
+    ).toBe(true);
+  });
+
+  it("includes power-only differences in an inverse", () => {
+    const previousDraft = fixture();
+    const draft = structuredClone(previousDraft);
+    draft.weeks[1].workouts[0].power = 235;
+    const result = applyScheduleIntent({
+      draft,
+      intent: { kind: "inverse", changeId: "power-correction" },
+      previousDraft,
+      todayDateKey,
+    });
+    expect(result.diff).toEqual([
+      {
+        workoutId: "w2-hard",
+        before: draft.weeks[1].workouts[0],
+        after: previousDraft.weeks[1].workouts[0],
+      },
+    ]);
+  });
+});

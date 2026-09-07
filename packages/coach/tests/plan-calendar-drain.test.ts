@@ -1,3 +1,4 @@
+import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import { createHash } from "node:crypto";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { PlanCreationDraftSchema, type PlanCreationAnswerInput } from "@enduragent/coach-contract";
@@ -45,6 +46,14 @@ async function harness() {
     today: () => String(today).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"),
   });
   const changes = createPlanChangeOperations({
+    ftp: createCyclingPlanFtpAdapter({
+      readManual: async () => null,
+      readIntervalsFtp: async () => null,
+      readIntervalsEftp: async () => null,
+      saveManual: async () => {},
+      refreshIntervals: async () => {},
+    }),
+    logger: { warn: () => {} },
     ...dependencies,
     calendarConnected: async () => connected,
   });

@@ -22,6 +22,7 @@ import {
   type PlanCreationRepository,
 } from "@enduragent/kernel/planning";
 import type { PlanMirrorCalendarPort } from "@enduragent/engine";
+import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import {
   createPlanCalendarDrain,
   type PlanCalendarDrain,
@@ -359,7 +360,31 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     );
     const calendarConnected = () =>
       this.options.calendarConnected ?? Boolean(this.options.calendar);
+    const readFtpAnchor = async (confidence: "manual" | "platform") => {
+      const row = await this.requireStore().get(
+        "SELECT value, valid_from FROM anchor_history WHERE sport = 'cycling' AND anchor_type = 'ftp' AND confidence = ? AND source = ? ORDER BY valid_from DESC, id DESC LIMIT 1",
+        [confidence, confidence === "manual" ? "athlete" : "intervals-icu"],
+      );
+      return typeof row?.value === "number" && typeof row.valid_from === "number"
+        ? { watts: row.value, refreshedAtMs: row.valid_from * 1_000 }
+        : null;
+    };
+    const ftp = createCyclingPlanFtpAdapter({
+      readManual: () => readFtpAnchor("manual"),
+      readIntervalsFtp: () => readFtpAnchor("platform"),
+      readIntervalsEftp: async () => null,
+      saveManual: async (watts) => {
+        const stamp = identity.hlcStamp();
+        await this.requireStore().run(
+          "INSERT INTO anchor_history (id, sport, anchor_type, value, unit, valid_from, source, confidence, note, provenance, device_id, hlc_physical_ms, hlc_counter) VALUES (?, 'cycling', 'ftp', ?, 'W', ?, 'athlete', 'manual', NULL, 'manual', 'fixture-device', ?, 0)",
+          [identity.newUlid(), watts, Math.floor(stamp.physicalMs / 1_000), stamp.physicalMs],
+        );
+      },
+      refreshIntervals: async () => {},
+    });
     this.changes = createPlanChangeOperations({
+      ftp,
+      logger: { warn: () => {} },
       store: this.store,
       identity,
       crypto: globalThis.crypto,
@@ -548,6 +573,10 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
 
   async seedActiveTraining(options: { readonly goal?: "fitness" | "event" } = {}) {
     const host = this.requireHost();
+    await this.requireStore().run(
+      "INSERT INTO anchor_history (id, sport, anchor_type, value, unit, valid_from, source, confidence, note, provenance, device_id, hlc_physical_ms, hlc_counter) VALUES (?, 'cycling', 'ftp', 210, 'W', 883612800, 'intervals-icu', 'platform', NULL, 'sync', 'fixture-device', 883612800000, 0)",
+      [fixtureId("FTP")],
+    );
     const card = await this.seedTrainingCreation(
       { kind: "none" },
       options.goal === "event"

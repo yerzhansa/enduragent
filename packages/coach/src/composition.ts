@@ -899,14 +899,6 @@ export async function createLocalCoachComposition(
     todayDateKey: planningDateKey,
     now,
   });
-  const planChangeOperations = createPlanChangeOperations({
-    store: input.context.store,
-    identity: planningIdentity,
-    crypto: globalThis.crypto,
-    todayDateKey: planningDateKey,
-    now,
-    calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
-  });
   const planningRepository = createLegacyPlanRepository(input.context.store);
   const legacyWriterFence = createLegacyWriterFence(input.context.store);
   const persistPlan = await createLegacyPlanRowWriter({
@@ -2026,6 +2018,16 @@ export async function createLocalCoachComposition(
       async refreshIntervals() {
         await coachOperations.sync({});
       },
+    });
+    const planChangeOperations = createPlanChangeOperations({
+      ftp,
+      logger,
+      store: input.context.store,
+      identity: planningIdentity,
+      crypto: globalThis.crypto,
+      todayDateKey: planningDateKey,
+      now,
+      calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
     });
     const planCalendar = createPlanMirrorCalendarAdapter(() => {
       const intervals = approvedConfig().intervals;
