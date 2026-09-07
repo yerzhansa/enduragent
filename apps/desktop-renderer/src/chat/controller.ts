@@ -1,3 +1,4 @@
+import { commitmentsAcknowledgement } from "./plan-creation-compatibility";
 import type {
   CoachClient,
   CoachClientCallOptions,
@@ -2409,11 +2410,7 @@ export function createChatController(input: {
       }
     },
     async answerPlanCreation(answer) {
-      const acknowledgingCommitments =
-        answer.kind === "commitments" &&
-        answer.commitments.kind === "authored" &&
-        answer.commitments.acknowledged === true &&
-        planCreation?.commitmentsAcknowledgement != null;
+      const acknowledgingCommitments = false;
       if (
         disposed ||
         planCreationBusy ||
@@ -2459,7 +2456,7 @@ export function createChatController(input: {
           planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
         } else if (
           acknowledgingCommitments &&
-          result.planCreation.commitmentsAcknowledgement === null &&
+          commitmentsAcknowledgement(result.planCreation) === null &&
           result.planCreation.draft !== null &&
           !result.planCreation.draftStale
         ) {
@@ -2615,7 +2612,7 @@ export function createChatController(input: {
         planCreation === null ||
         planCreation.draft === null ||
         planCreation.draftStale ||
-        planCreation.commitmentsAcknowledgement !== null ||
+        planCreation.pendingCommitment !== null ||
         !planCreation.draft.weeks.some((week) => week.workouts.length > 0)
       )
         return;
@@ -2698,7 +2695,7 @@ export function createChatController(input: {
           "code" in error.data
             ? error.data.code
             : null;
-        if (rejection === "commitments-unacknowledged" && error instanceof CoachRpcRemoteError) {
+        if (rejection === "commitments-pending" && error instanceof CoachRpcRemoteError) {
           activationAttempt = null;
           planCreationActivateConfirmationOpen = false;
           planCreationError = error.message;

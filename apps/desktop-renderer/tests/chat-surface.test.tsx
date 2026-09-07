@@ -364,7 +364,7 @@ function planCreationModel(
   return {
     draft: null,
     draftStale: false,
-    commitmentsAcknowledgement: null,
+    pendingCommitment: null,
     creationId: "01J00000000000000000000000",
     version: patch.version ?? 1,
     status: "in-progress",
@@ -2406,7 +2406,7 @@ describe("chat surface", () => {
       await user.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "commitments",
-        commitments: { kind: "authored", text: "Pilates on Thursday" },
+        commitments: { kind: "interpreted", text: "Pilates on Thursday" },
       });
 
       setChat({
@@ -2902,99 +2902,6 @@ describe("chat surface", () => {
       await userEvent.click(discard);
       expect(actions.openPlanCreationDiscard).toHaveBeenCalledOnce();
       expect(composer()).toBeEnabled();
-    });
-
-    it("requires written commitments confirmation before activation and focuses activation after confirmation", async () => {
-      const model: PlanCreationCardModel = {
-        ...planCreationModel(null),
-        status: "review",
-        draft: planCreationDraft(),
-        commitmentsAcknowledgement: { text: "Keep Fridays free for family." },
-      };
-      setChat({
-        planCreationLoaded: true,
-        planCreation: model,
-        timeline: [{ kind: "plan-creation", model }],
-      });
-      render(<Harness />);
-      const card = screen.getByRole("region", { name: "Confirm your written commitments" });
-      const activate = screen.getByRole("button", { name: "Activate Plan" });
-      expect(within(card).getByText("Written commitments")).toBeVisible();
-      expect(within(card).getByText("Not yet confirmed")).toBeVisible();
-      expect(within(card).getByRole("rowheader", { name: "Submitted" })).toBeVisible();
-      expect(within(card).getByRole("cell")).toHaveTextContent("Keep Fridays free for family.");
-      expect(activate).toBeDisabled();
-      expect(activate).toHaveAccessibleDescription(
-        "These commitments are recorded but were not applied to Workouts. Activation waits for your confirmation.",
-      );
-      expect(
-        card.compareDocumentPosition(activate) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      expect(
-        within(card)
-          .getAllByRole("button")
-          .map((button) => button.textContent),
-      ).toEqual(["Edit commitments", "Confirm limits"]);
-      await userEvent.click(within(card).getByRole("button", { name: "Confirm limits" }));
-      expect(actions.answerPlanCreation).toHaveBeenCalledExactlyOnceWith({
-        kind: "commitments",
-        commitments: {
-          kind: "authored",
-          text: "Keep Fridays free for family.",
-          acknowledged: true,
-        },
-      });
-      setChat({ planCreationBusy: true });
-      for (const button of within(card).getAllByRole("button")) expect(button).toBeDisabled();
-      await userEvent.click(within(card).getByRole("button", { name: "Confirm limits" }));
-      expect(actions.answerPlanCreation).toHaveBeenCalledOnce();
-      const confirmed = { ...model, version: model.version + 1, commitmentsAcknowledgement: null };
-      setChat({
-        planCreationBusy: false,
-        planCreation: confirmed,
-        timeline: [{ kind: "plan-creation", model: confirmed }],
-        planCreationFocusRequest: { target: "activate", revision: 1 },
-      });
-      expect(screen.queryByRole("region", { name: "Confirm your written commitments" })).toBeNull();
-      expect(activate).toBeEnabled();
-      expect(activate).not.toHaveAttribute("aria-describedby");
-      await waitFor(() => expect(activate).toHaveFocus());
-    });
-
-    it("edits pending written commitments in the existing prefilled editor", async () => {
-      const text = "Keep Fridays free for family.";
-      const model: PlanCreationCardModel = {
-        ...planCreationModel(null, {
-          answeredSummaries: [
-            {
-              answerKey: "commitments",
-              title: "Commitments",
-              detail: text,
-              question: commitmentsQuestion("What should this Plan work around?", "Your limits"),
-              answer: { kind: "commitments", commitments: { kind: "authored", text } },
-            },
-          ],
-        }),
-        status: "review",
-        draft: planCreationDraft(),
-        commitmentsAcknowledgement: { text },
-      };
-      vi.mocked(actions.editPlanCreation).mockImplementation((answerKey) => {
-        setChat({ planCreationEditingKey: answerKey, planCreationFocusRevision: 1 });
-      });
-      setChat({
-        planCreationLoaded: true,
-        planCreation: model,
-        timeline: [{ kind: "plan-creation", model }],
-      });
-      render(<Harness />);
-      await userEvent.click(screen.getByRole("button", { name: "Edit commitments" }));
-      expect(actions.editPlanCreation).toHaveBeenCalledExactlyOnceWith("commitments");
-      const editor = screen.getByRole("textbox", { name: "Scheduling details" });
-      expect(editor).toHaveValue(text);
-      await waitFor(() => expect(editor).toHaveFocus());
-      expect(screen.getByRole("button", { name: "Confirm limits" })).toBeDisabled();
-      expect(actions.answerPlanCreation).not.toHaveBeenCalled();
     });
 
     it("keeps fixed Workout dates and pinned status visible during Draft review", () => {

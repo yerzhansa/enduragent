@@ -1834,7 +1834,7 @@ describe("chat controller", () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
       status: "in-progress",
@@ -1920,8 +1920,15 @@ describe("chat controller", () => {
               ? { ...draft, weeks: draft.weeks.map((week) => ({ ...week, workouts: [] })) }
               : draft,
         draftStale: kind === "stale",
-        commitmentsAcknowledgement:
-          kind === "commitments-pending" ? { text: "Keep Sundays free." } : null,
+        pendingCommitment:
+          kind === "commitments-pending"
+            ? {
+                text: "Keep Sundays free.",
+                rules: [],
+                status: "clarify",
+                unparsed: ["Keep Sundays free."],
+              }
+            : null,
       };
       const activatePlanCreation =
         vi.fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>();
@@ -1933,6 +1940,7 @@ describe("chat controller", () => {
       );
       await controller.start();
       await controller.openPlanCreationActivate();
+      expect(controls.at(-1)?.planCreation?.activateConfirmationOpen).toBe(false);
       await controller.confirmPlanCreationActivate();
       expect(controls.at(-1)?.planCreation).toMatchObject({
         value: card,
@@ -1952,7 +1960,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     let rejectRead!: (error: Error) => void;
     const read = new Promise<GetPlanStateRpcResult>((_, reject) => {
@@ -2004,7 +2012,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     let finishActivation!: (result: PlanCreationActivateRpcResult) => void;
     const pending = new Promise<PlanCreationActivateRpcResult>((resolve) => {
@@ -2062,7 +2070,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const activatePlanCreation = vi
       .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
@@ -2112,7 +2120,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const activatePlanCreation = vi
       .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
@@ -2139,7 +2147,7 @@ describe("chat controller", () => {
     expect(refreshPlanLibrary).toHaveBeenCalledTimes(2);
   });
 
-  it("rereads the Draft and shows the daemon message when commitments need acknowledgement", async () => {
+  it("rereads the Draft and shows the daemon message when commitments need correction", async () => {
     const stale: PlanCreationCardModel = {
       creationId: "01J00000000000000000000000",
       version: 3,
@@ -2149,19 +2157,22 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const current: PlanCreationCardModel = {
       ...stale,
       version: 4,
-      commitmentsAcknowledgement: { text: "Keep Sundays free." },
+      pendingCommitment: {
+        text: "Keep Sundays free.",
+        rules: [],
+        status: "clarify",
+        unparsed: ["Keep Sundays free."],
+      },
     };
-    const message = "Acknowledge your written commitments before activating this Plan.";
+    const message = "Correct your written commitments before activating this Plan.";
     const activatePlanCreation = vi
       .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
-      .mockRejectedValue(
-        new CoachRpcRemoteError(-32000, message, { code: "commitments-unacknowledged" }),
-      );
+      .mockRejectedValue(new CoachRpcRemoteError(-32000, message, { code: "commitments-pending" }));
     const listPlanningRequests = vi
       .fn(async () => ({ deliveries: [], planCreation: current }))
       .mockResolvedValueOnce({ deliveries: [], planCreation: stale });
@@ -2196,7 +2207,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const activatePlanCreation =
       vi.fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>();
@@ -2227,7 +2238,7 @@ describe("chat controller", () => {
     const completeCard: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -2308,7 +2319,7 @@ describe("chat controller", () => {
     const card: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -2354,7 +2365,7 @@ describe("chat controller", () => {
     const completeCard: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -2385,7 +2396,7 @@ describe("chat controller", () => {
     const card: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -2442,7 +2453,7 @@ describe("chat controller", () => {
     const card: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -2480,7 +2491,7 @@ describe("chat controller", () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 4,
       status: "in-progress",
@@ -2559,7 +2570,7 @@ describe("chat controller", () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
       status: "in-progress",
@@ -2633,7 +2644,7 @@ describe("chat controller", () => {
     const goalCard: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
       status: "in-progress",
@@ -2699,7 +2710,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const review: PlanCreationCardModel = {
       ...ready,
@@ -2750,7 +2761,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft,
       draftStale: true,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const previewPlanCreation = vi
       .fn<(request: PlanCreationPreviewRpcParams) => Promise<PlanCreationPreviewRpcResult>>()
@@ -2781,7 +2792,7 @@ describe("chat controller", () => {
     const ready: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 10,
       status: "in-progress",
@@ -2832,7 +2843,7 @@ describe("chat controller", () => {
       openQuestion: null,
       draft: planCreationDraft(originalAnswers),
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
     };
     const changed: PlanCreationCardModel = {
       ...review,
@@ -2867,7 +2878,7 @@ describe("chat controller", () => {
     const ready: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 10,
       status: "in-progress",
@@ -2897,7 +2908,7 @@ describe("chat controller", () => {
     const ready: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 10,
       status: "in-progress",
@@ -2936,7 +2947,7 @@ describe("chat controller", () => {
     const first: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 4,
       status: "in-progress",
@@ -2947,7 +2958,7 @@ describe("chat controller", () => {
     const replacement: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000001",
       version: 1,
       status: "in-progress",
@@ -2983,7 +2994,7 @@ describe("chat controller", () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
       status: "in-progress",
@@ -3747,7 +3758,7 @@ describe("Plan library Chat entry", () => {
     openQuestion: goalQuestion("Goal?"),
     draft: null,
     draftStale: false,
-    commitmentsAcknowledgement: null,
+    pendingCommitment: null,
   };
 
   it.each([null, { ...creation, creationId: "replacement-creation" }])(

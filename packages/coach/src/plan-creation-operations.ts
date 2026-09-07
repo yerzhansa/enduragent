@@ -53,11 +53,14 @@ import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
   encodePlanCreationAnswer,
   isPlanCreationDraftCurrent,
+  pendingPlanCreationCommitment,
+  resolvePlanCreationAnswer,
   projectPlanCreationCard,
   projectPlanCreationAnswerSummaries,
   resolvePlanCreationAnswerFlow,
   resolvePlanCreationDraftAnswers,
   validPlanCreationAnswer,
+  validateCommitmentInterpretation,
   type PlanCreationAnswerKey,
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
@@ -69,7 +72,7 @@ import {
   readClosedPlanOccupiesToday,
 } from "./plan-change-operations.js";
 
-export { projectPlanCreationCard } from "./plan-creation-answers.js";
+export { projectPlanCreationCard, interpretCommitmentMessage } from "./plan-creation-answers.js";
 
 export interface GoalEventCandidateSource {
   read(): Promise<readonly { name: string; date: string; sourceLabel: string }[]>;
@@ -526,7 +529,7 @@ export function createPlanCreationOperations(input: {
             expectedVersion: parsed.expectedVersion,
             answerId: input.identity.newUlid(),
             answerKey: parsed.answer.kind,
-            valueJson: encodePlanCreationAnswer(parsed.answer, { kind: "athlete" }),
+            valueJson: canonicalJson({ answer: parsed.answer, source: { kind: "athlete" } }),
           });
           const response = PlanCreationAnswerRpcResultSchema.parse({
             status: "answered",
@@ -554,6 +557,44 @@ export function createPlanCreationOperations(input: {
           planCreation: snapshot === undefined ? null : await project(snapshot),
         });
       }
+      const answer = resolvePlanCreationAnswer(snapshot, parsed.answer);
+      const flow = resolvePlanCreationAnswerFlow(snapshot);
+      const answerKey =
+        parsed.answer.kind === "commitments-confirm" ||
+        parsed.answer.kind === "commitments-cancel" ||
+        parsed.answer.kind === "commitments-interpret"
+          ? "commitments"
+          : parsed.answer.kind;
+      if (
+        snapshot.version === parsed.expectedVersion &&
+        flow.next !== answerKey &&
+        !flow.valid.has(answerKey)
+      ) {
+        return PlanCreationAnswerRpcResultSchema.parse({
+          status: "rejected",
+          reason: "answer-not-expected",
+          planCreation: await project(snapshot),
+        });
+      }
+      if (
+        snapshot.version === parsed.expectedVersion &&
+        (answer === null || !validPlanCreationAnswer(snapshot, flow, answer, today()))
+      ) {
+        return PlanCreationAnswerRpcResultSchema.parse({
+          status: "rejected",
+          reason: "invalid-answer",
+          planCreation:
+            answer?.kind === "commitments" && answer.commitments.kind === "interpreted"
+              ? {
+                  ...(await project(snapshot)),
+                  pendingCommitment: {
+                    text: answer.commitments.text,
+                    ...validateCommitmentInterpretation(answer.commitments.text),
+                  },
+                }
+              : await project(snapshot),
+        });
+      }
       const stampValue = await stamp(parsed.commandId, digest);
       const answerId = input.identity.newUlid();
       const record = () =>
@@ -562,26 +603,12 @@ export function createPlanCreationOperations(input: {
           creationId: parsed.creationId,
           expectedVersion: parsed.expectedVersion,
           answerId,
-          answerKey: parsed.answer.kind,
-          valueJson: encodePlanCreationAnswer(parsed.answer, { kind: "athlete" }),
+          answerKey,
+          valueJson:
+            answer === null
+              ? canonicalJson({ answer: parsed.answer, source: { kind: "athlete" } })
+              : encodePlanCreationAnswer(answer, { kind: "athlete" }),
         });
-      if (snapshot.version === parsed.expectedVersion) {
-        const flow = resolvePlanCreationAnswerFlow(snapshot);
-        if (flow.next !== parsed.answer.kind && !flow.valid.has(parsed.answer.kind)) {
-          return PlanCreationAnswerRpcResultSchema.parse({
-            status: "rejected",
-            reason: "answer-not-expected",
-            planCreation: await project(snapshot),
-          });
-        }
-        if (!validPlanCreationAnswer(snapshot, flow, parsed.answer, today())) {
-          return PlanCreationAnswerRpcResultSchema.parse({
-            status: "rejected",
-            reason: "invalid-answer",
-            planCreation: await project(snapshot),
-          });
-        }
-      }
       try {
         const result = await record();
         const response = PlanCreationAnswerRpcResultSchema.parse({
@@ -631,6 +658,14 @@ export function createPlanCreationOperations(input: {
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "rejected",
             reason: "stale-version",
+            planCreation: projectPlanCreationCard(snapshot, { today: today() }),
+          });
+        }
+        if (pendingPlanCreationCommitment(snapshot) !== null) {
+          return PlanCreationPreviewRpcResultSchema.parse({
+            status: "rejected",
+            reason: "commitments-pending",
+            explanation: "Clarify or cancel the pending commitment correction.",
             planCreation: projectPlanCreationCard(snapshot, { today: today() }),
           });
         }
@@ -705,93 +740,107 @@ export function createPlanCreationOperations(input: {
     async "plan_creation.activate"(request) {
       const parsed = PlanCreationActivateRpcParamsSchema.parse(request);
       const command = await stamp(parsed.commandId, await requestDigest(input.crypto, parsed));
-      const result = await input.repository.activate({
-        command,
-        incumbent: parsed.incumbent,
-        creationId: parsed.creationId,
-        expectedVersion: parsed.expectedVersion,
-        activatedAt: today(),
-        todayDateKey: todayDateKey(),
-        mirrorJobId: input.identity.newUlid(),
-        cleanupJobId: input.identity.newUlid(),
-        revisionId: input.identity.newUlid(),
-        isDraftCurrent: isPlanCreationDraftCurrent,
-        materialize(snapshot) {
-          if (snapshot.currentDraft === null || resolvePlanCreationDraftAnswers(snapshot) === null)
-            throw new PlanCreationStoreError("not-ready");
-          const commitments =
-            resolvePlanCreationAnswerFlow(snapshot).valid.get("commitments")?.answer;
-          if (
-            commitments?.kind === "commitments" &&
-            commitments.commitments.kind === "authored" &&
-            commitments.commitments.acknowledged !== true
-          )
-            throw new PlanCreationStoreError("commitments-unacknowledged");
-          const draft = PlanCreationDraftSchema.parse(
-            JSON.parse(snapshot.currentDraft.outputSnapshotJson),
-          );
-          const planId = input.identity.newUlid();
-          const startDateKey = dateKeyFromText(draft.start);
-          const targetDateKey = dateKeyFromText(draft.end);
-          const name = draft.goal.kind === "event" ? draft.goal.name : "Improve fitness";
-          const primaryGoal =
-            draft.answeredSummaries.find((answer) => answer.answerKey === "success")?.detail ??
-            name;
-          const totalWeeks = draft.weeks.length;
-          const kind =
-            inclusiveCivilDays(startDateKey, targetDateKey) >= MIN_FULL_PLAN_DAYS
-              ? "full_plan"
-              : "short_race_preparation";
-          const authored = {
-            deviceId: command.deviceId,
-            hlcPhysicalMs: command.hlcPhysicalMs,
-            hlcCounter: command.hlcCounter,
-          };
-          return {
-            plan: {
-              id: planId,
-              originId: null,
-              name,
-              primaryGoal,
-              startDateKey,
-              targetDateKey,
-              status: "active",
-              kind,
-              totalWeeks,
-              weekStartDay: weekdayForDateKey(startDateKey),
-              structureJson: canonicalJson({
-                source: "plan-creation",
-                creationId: snapshot.id,
-                draftRevisionNumber: snapshot.currentDraft.revisionNumber,
-                spanKind: draft.spanKind,
-                mode: draft.mode,
-              }),
-              createdAtMs: command.nowMs,
-              updatedAtMs: command.nowMs,
-              ...authored,
-            },
-            workouts: draft.weeks.flatMap((week) =>
-              week.workouts.flatMap((workout) =>
-                workout.date === null
-                  ? []
-                  : [
-                      {
-                        id: input.identity.newUlid(),
-                        planId,
-                        dateKey: dateKeyFromText(workout.date),
-                        sport: "Ride",
-                        name: workout.name,
-                        durationS: Math.round(workout.minutes * 60),
-                        structureJson: canonicalJson(workout),
-                        origin: "coach" as const,
-                        ...authored,
-                      },
-                    ],
+      const result = await input.repository
+        .activate({
+          command,
+          incumbent: parsed.incumbent,
+          creationId: parsed.creationId,
+          expectedVersion: parsed.expectedVersion,
+          activatedAt: today(),
+          todayDateKey: todayDateKey(),
+          mirrorJobId: input.identity.newUlid(),
+          cleanupJobId: input.identity.newUlid(),
+          revisionId: input.identity.newUlid(),
+          isDraftCurrent(snapshot) {
+            if (pendingPlanCreationCommitment(snapshot) !== null)
+              throw new PlanCreationStoreError("commitments-pending");
+            return isPlanCreationDraftCurrent(snapshot);
+          },
+          materialize(snapshot) {
+            if (
+              snapshot.currentDraft === null ||
+              resolvePlanCreationDraftAnswers(snapshot) === null
+            )
+              throw new PlanCreationStoreError("not-ready");
+            if (pendingPlanCreationCommitment(snapshot) !== null)
+              throw new PlanCreationStoreError("commitments-pending");
+            const draft = PlanCreationDraftSchema.parse(
+              JSON.parse(snapshot.currentDraft.outputSnapshotJson),
+            );
+            const planId = input.identity.newUlid();
+            const startDateKey = dateKeyFromText(draft.start);
+            const targetDateKey = dateKeyFromText(draft.end);
+            const name = draft.goal.kind === "event" ? draft.goal.name : "Improve fitness";
+            const primaryGoal =
+              draft.answeredSummaries.find((answer) => answer.answerKey === "success")?.detail ??
+              name;
+            const totalWeeks = draft.weeks.length;
+            const kind =
+              inclusiveCivilDays(startDateKey, targetDateKey) >= MIN_FULL_PLAN_DAYS
+                ? "full_plan"
+                : "short_race_preparation";
+            const authored = {
+              deviceId: command.deviceId,
+              hlcPhysicalMs: command.hlcPhysicalMs,
+              hlcCounter: command.hlcCounter,
+            };
+            return {
+              plan: {
+                id: planId,
+                originId: null,
+                name,
+                primaryGoal,
+                startDateKey,
+                targetDateKey,
+                status: "active",
+                kind,
+                totalWeeks,
+                weekStartDay: weekdayForDateKey(startDateKey),
+                structureJson: canonicalJson({
+                  source: "plan-creation",
+                  creationId: snapshot.id,
+                  draftRevisionNumber: snapshot.currentDraft.revisionNumber,
+                  spanKind: draft.spanKind,
+                  mode: draft.mode,
+                }),
+                createdAtMs: command.nowMs,
+                updatedAtMs: command.nowMs,
+                ...authored,
+              },
+              workouts: draft.weeks.flatMap((week) =>
+                week.workouts.flatMap((workout) =>
+                  workout.date === null
+                    ? []
+                    : [
+                        {
+                          id: input.identity.newUlid(),
+                          planId,
+                          dateKey: dateKeyFromText(workout.date),
+                          sport: "Ride",
+                          name: workout.name,
+                          durationS: Math.round(workout.minutes * 60),
+                          structureJson: canonicalJson(workout),
+                          origin: "coach" as const,
+                          ...authored,
+                        },
+                      ],
+                ),
               ),
-            ),
-          };
-        },
-      });
+            };
+          },
+        })
+        .catch(async (error: unknown) => {
+          if (error instanceof PlanCreationStoreError && error.code === "not-ready") {
+            const snapshot = await input.repository.readUnfinished();
+            if (
+              snapshot?.id === parsed.creationId &&
+              snapshot.version === parsed.expectedVersion &&
+              pendingPlanCreationCommitment(snapshot) !== null
+            )
+              throw new PlanCreationStoreError("commitments-pending");
+          }
+          throw error;
+        });
       return PlanCreationActivateRpcResultSchema.parse(result);
     },
     async "plan_creation.discard"(request) {

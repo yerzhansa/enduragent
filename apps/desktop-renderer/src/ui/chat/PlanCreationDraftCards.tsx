@@ -1,3 +1,4 @@
+import { commitmentsAcknowledgement } from "../../chat/plan-creation-compatibility";
 import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
@@ -139,7 +140,7 @@ export function PlanCreationDraftCards(props: {
   }, [focusRequest?.revision, focusRequest?.target]);
   const draft = props.draft;
   const stale = props.model.draftStale;
-  const acknowledgement = stale ? null : props.model.commitmentsAcknowledgement;
+  const acknowledgement = stale ? null : commitmentsAcknowledgement(props.model);
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =
@@ -170,7 +171,7 @@ export function PlanCreationDraftCards(props: {
               onClick={() =>
                 actions?.answerPlanCreation({
                   kind: "commitments",
-                  commitments: { kind: "authored", text: acknowledgement.text, acknowledged: true },
+                  commitments: { kind: "interpreted", text: acknowledgement.text },
                 })
               }
             >

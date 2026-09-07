@@ -536,7 +536,9 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     this.planning = undefined;
   }
 
-  async card(): Promise<PlanCreationCardModel | null> {
+  async card(): Promise<
+    (PlanCreationCardModel & { readonly commitmentsAcknowledgement?: null }) | null
+  > {
     return this.requireHost().readCard();
   }
 
@@ -551,7 +553,9 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
   }
 
   async seedTrainingCreation(
-    commitments: Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"] = {
+    commitments:
+      | Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"]
+      | { readonly kind: "authored"; readonly text: string; readonly acknowledged?: boolean } = {
       kind: "none",
     },
     goal: Extract<PlanCreationAnswerInput, { kind: "goal" }>["goal"] = { kind: "fitness" },
@@ -582,7 +586,13 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
             longestWorkoutHours: 2,
           },
       { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
-      { kind: "commitments", commitments },
+      {
+        kind: "commitments",
+        commitments:
+          commitments.kind === "authored"
+            ? { kind: "interpreted", text: commitments.text }
+            : commitments,
+      },
       { kind: "baseline", baseline: "regular" },
       { kind: "success", success: { kind: "authored", text: "Ride four steady hours" } },
       { kind: "restriction", restriction: { kind: "none" } },

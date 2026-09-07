@@ -99,7 +99,7 @@ export const PlanCreationSuccessSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCreationSuccess = z.infer<typeof PlanCreationSuccessSchema>;
 
-export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
+const PlanCreationOrdinaryAnswerSchemas = [
   z.object({ kind: z.literal("goal"), goal: PlanCreationGoalSchema }).strict(),
   z.object({ kind: z.literal("success"), success: PlanCreationSuccessSchema }).strict(),
   z.object({ kind: z.literal("plan-length"), weeks: PlanCreationPlanLengthWeeksSchema }).strict(),
@@ -114,21 +114,6 @@ export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
     .strict(),
   z.object({ kind: z.literal("schedule-mode"), mode: z.enum(["fixed", "flexible"]) }).strict(),
   PlanCreationAvailabilityAnswerSchema,
-  z
-    .object({
-      kind: z.literal("commitments"),
-      commitments: z.discriminatedUnion("kind", [
-        z.object({ kind: z.literal("none") }).strict(),
-        z
-          .object({
-            kind: z.literal("authored"),
-            text: z.string().min(1).max(2_000),
-            acknowledged: z.boolean().optional(),
-          })
-          .strict(),
-      ]),
-    })
-    .strict(),
   z
     .object({
       kind: z.literal("baseline"),
@@ -162,8 +147,107 @@ export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
       ]),
     })
     .strict(),
+] as const;
+
+export const PlanCreationCommitmentRuleSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("weekday-duration"),
+      day: PlanCreationWeekdaySchema,
+      minutes: z.number().positive().max(1440),
+    })
+    .strict(),
+  z.object({ kind: z.literal("weekday-unavailable"), day: PlanCreationWeekdaySchema }).strict(),
+  z.object({ kind: z.literal("hard-weekday"), day: PlanCreationWeekdaySchema }).strict(),
+  z
+    .object({
+      kind: z.literal("time-off"),
+      start: PlanCreationCivilDateSchema,
+      end: PlanCreationCivilDateSchema,
+    })
+    .strict()
+    .refine((rule) => rule.end >= rule.start, { path: ["end"] }),
+]);
+export type PlanCreationCommitmentRule = z.infer<typeof PlanCreationCommitmentRuleSchema>;
+
+const PlanCreationCommitmentTextSchema = z.string().min(1).max(2_000);
+const PlanCreationCommitmentInputTextSchema = PlanCreationCommitmentTextSchema.trim().min(1);
+const PlanCreationNoCommitmentsSchema = z.object({ kind: z.literal("none") }).strict();
+export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
+  ...PlanCreationOrdinaryAnswerSchemas,
+  z
+    .object({
+      kind: z.literal("commitments"),
+      commitments: z.discriminatedUnion("kind", [
+        PlanCreationNoCommitmentsSchema,
+        z
+          .object({ kind: z.literal("interpreted"), text: PlanCreationCommitmentInputTextSchema })
+          .strict(),
+      ]),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("commitments-interpret"),
+      text: PlanCreationCommitmentInputTextSchema,
+    })
+    .strict(),
+  z.object({ kind: z.literal("commitments-confirm") }).strict(),
+  z.object({ kind: z.literal("commitments-cancel") }).strict(),
 ]);
 export type PlanCreationAnswerInput = z.infer<typeof PlanCreationAnswerInputSchema>;
+
+export const PlanCreationAnswerSchema = z.discriminatedUnion("kind", [
+  ...PlanCreationOrdinaryAnswerSchemas,
+  z
+    .object({
+      kind: z.literal("commitments"),
+      commitments: z.union([
+        PlanCreationNoCommitmentsSchema,
+        z
+          .object({
+            kind: z.literal("interpreted"),
+            text: PlanCreationCommitmentTextSchema,
+            rules: z.array(PlanCreationCommitmentRuleSchema),
+            status: z.enum(["confirmed", "clarify"]),
+          })
+          .strict()
+          .refine((answer) => answer.status !== "confirmed" || answer.rules.length > 0, {
+            path: ["rules"],
+          }),
+        z
+          .object({
+            kind: z.literal("authored"),
+            text: z.string().min(1).max(2_000),
+            acknowledged: z.boolean().optional(),
+          })
+          .strict()
+          .transform((answer) => ({
+            kind: "interpreted" as const,
+            text: answer.text,
+            rules: new Array<PlanCreationCommitmentRule>(),
+            status: "clarify" as const,
+          })),
+      ]),
+    })
+    .strict(),
+]);
+export type PlanCreationAnswer = z.infer<typeof PlanCreationAnswerSchema>;
+
+export const PlanCreationPendingCommitmentSchema = z
+  .object({
+    text: PlanCreationCommitmentTextSchema,
+    rules: z.array(PlanCreationCommitmentRuleSchema),
+    status: z.enum(["confirm", "clarify"]),
+    unparsed: z.array(z.string().min(1).max(2_000)),
+  })
+  .strict()
+  .refine(
+    (pending) =>
+      pending.status !== "confirm" || (pending.rules.length > 0 && pending.unparsed.length === 0),
+    { path: ["status"] },
+  );
+export type PlanCreationPendingCommitment = z.infer<typeof PlanCreationPendingCommitmentSchema>;
 
 export const GoalEventCandidateSchema = z
   .object({
@@ -466,7 +550,7 @@ export const PlanCreationAnswerSummarySchema = z
       z.object({ kind: z.literal("derived"), label: z.string().min(1).max(128) }).strict(),
     ]),
     question: PlanCreationOpenQuestionSchema,
-    answer: PlanCreationAnswerInputSchema,
+    answer: PlanCreationAnswerSchema,
   })
   .strict()
   .superRefine((summary, context) => {
@@ -573,10 +657,7 @@ export const PlanCreationCardModelSchema = z
     status: z.enum(["in-progress", "review"]),
     draft: PlanCreationDraftSchema.nullable(),
     draftStale: z.boolean(),
-    commitmentsAcknowledgement: z
-      .object({ text: z.string().min(1).max(2_000) })
-      .strict()
-      .nullable(),
+    pendingCommitment: PlanCreationPendingCommitmentSchema.nullable(),
     readiness: z.enum(["incomplete", "ready"]),
     answeredSummaries: z.array(PlanCreationAnswerSummarySchema).max(16),
     openQuestion: PlanCreationOpenQuestionSchema.nullable(),
@@ -690,6 +771,14 @@ export const PlanCreationPreviewRpcResultSchema = z.discriminatedUnion("status",
           "no-unfinished-creation",
           "not-ready",
         ]),
+        planCreation: PlanCreationCardModelSchema.nullable(),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.literal("commitments-pending"),
+        explanation: z.literal("Clarify or cancel the pending commitment correction."),
         planCreation: PlanCreationCardModelSchema.nullable(),
       })
       .strict(),

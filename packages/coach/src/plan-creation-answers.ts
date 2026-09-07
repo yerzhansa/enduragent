@@ -1,15 +1,18 @@
 import {
   PLAN_CREATION_ANSWER_KEYS,
-  PlanCreationAnswerInputSchema,
+  PlanCreationAnswerSchema,
   PlanCreationCardModelSchema,
   PlanCreationDraftSchema,
   type PlanCreationAnswerInput,
+  type PlanCreationAnswer,
+  type PlanCreationCommitmentRule,
+  type PlanCreationPendingCommitment,
   type PlanCreationAnswerSummary,
   type PlanCreationCardModel,
   type PlanCreationGoal,
   type PlanCreationOpenQuestion,
 } from "@enduragent/coach-contract";
-import type { CreationDraftInput } from "@enduragent/sport-cycling";
+import { interpretCommitments, type CreationDraftInput } from "@enduragent/sport-cycling";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   PlanCreationStoreError,
@@ -33,7 +36,7 @@ export interface PlanCreationProjectionContext {
 }
 
 export interface StoredPlanCreationAnswer {
-  readonly answer: PlanCreationAnswerInput;
+  readonly answer: PlanCreationAnswer;
   readonly source: PlanCreationAnswerSource;
   readonly record: PlanCreationAnswerRecord;
 }
@@ -88,17 +91,17 @@ const parseStoredAnswer = (record: PlanCreationAnswerRecord): StoredPlanCreation
   const stored = object(decoded);
   if (!isAnswerKey(record.answerKey)) return corrupt();
   if (hasExactKeys(stored, ["answer", "source"])) {
-    const answer = PlanCreationAnswerInputSchema.safeParse(stored.answer);
+    const answer = PlanCreationAnswerSchema.safeParse(stored.answer);
     if (!answer.success || answer.data.kind !== record.answerKey) return corrupt();
     return { answer: answer.data, source: parseSource(stored.source), record };
   }
-  const legacyAnswer = PlanCreationAnswerInputSchema.safeParse(stored);
+  const legacyAnswer = PlanCreationAnswerSchema.safeParse(stored);
   if (!legacyAnswer.success || legacyAnswer.data.kind !== record.answerKey) return corrupt();
   return { answer: legacyAnswer.data, source: { kind: "athlete" }, record };
 };
 
 export const encodePlanCreationAnswer = (
-  answer: PlanCreationAnswerInput,
+  answer: PlanCreationAnswer,
   source: PlanCreationAnswerSource,
 ): string => canonicalJson({ answer, source });
 
@@ -106,10 +109,151 @@ export const readPlanCreationAnswers = (
   snapshot: PlanCreationSnapshot,
 ): readonly StoredPlanCreationAnswer[] => snapshot.answers.map(parseStoredAnswer);
 
+export function validateCommitmentInterpretation(text: string) {
+  const interpreted = interpretCommitments(text);
+  return interpreted.rules.length > 20
+    ? {
+        ...interpreted,
+        status: "clarify" as const,
+        unparsed: ["Keep it to a few limits at a time."],
+      }
+    : interpreted;
+}
+
+export function pendingPlanCreationCommitment(
+  snapshot: PlanCreationSnapshot,
+): PlanCreationPendingCommitment | null {
+  const latest = readPlanCreationAnswers(snapshot)
+    .filter(({ answer }) => answer.kind === "commitments")
+    .at(-1)?.answer;
+  if (
+    latest?.kind !== "commitments" ||
+    latest.commitments.kind !== "interpreted" ||
+    latest.commitments.status === "confirmed"
+  )
+    return null;
+  const interpreted = validateCommitmentInterpretation(latest.commitments.text);
+  return latest.commitments.rules.length === 0 && interpreted.status === "confirm"
+    ? {
+        text: latest.commitments.text,
+        rules: [],
+        status: "clarify",
+        unparsed: [latest.commitments.text],
+      }
+    : { text: latest.commitments.text, ...interpreted };
+}
+
+const confirmedCommitments = (
+  snapshot: PlanCreationSnapshot,
+): Extract<PlanCreationAnswer, { kind: "commitments" }> => {
+  for (const { answer } of [...readPlanCreationAnswers(snapshot)].reverse()) {
+    if (
+      answer.kind === "commitments" &&
+      (answer.commitments.kind === "none" || answer.commitments.status === "confirmed")
+    )
+      return answer;
+  }
+  return { kind: "commitments", commitments: { kind: "none" } };
+};
+
+export function interpretCommitmentMessage(text: string): PlanCreationAnswerInput | null {
+  const parsed = validateCommitmentInterpretation(text);
+  return parsed.status === "confirm"
+    ? { kind: "commitments", commitments: { kind: "interpreted", text } }
+    : null;
+}
+
+export function resolvePlanCreationAnswer(
+  snapshot: PlanCreationSnapshot,
+  answer: PlanCreationAnswerInput,
+): PlanCreationAnswer | null {
+  if (answer.kind === "commitments-cancel") {
+    return pendingPlanCreationCommitment(snapshot) === null ? null : confirmedCommitments(snapshot);
+  }
+  if (answer.kind === "commitments-confirm") {
+    const pending = pendingPlanCreationCommitment(snapshot);
+    return pending?.status !== "confirm"
+      ? null
+      : {
+          kind: "commitments",
+          commitments: {
+            kind: "interpreted",
+            text: pending.text,
+            rules: pending.rules,
+            status: "confirmed",
+          },
+        };
+  }
+  if (
+    answer.kind === "commitments-interpret" ||
+    (answer.kind === "commitments" && answer.commitments.kind === "interpreted")
+  ) {
+    const text =
+      answer.kind === "commitments-interpret"
+        ? answer.text
+        : answer.commitments.kind === "interpreted"
+          ? answer.commitments.text
+          : corrupt();
+    return {
+      kind: "commitments",
+      commitments: {
+        kind: "interpreted",
+        text,
+        rules: interpretCommitments(text).rules,
+        status: "clarify",
+      },
+    };
+  }
+  return answer.kind === "commitments"
+    ? { kind: "commitments", commitments: { kind: "none" } }
+    : answer;
+}
+
+const commitmentRuleDetail = (rule: PlanCreationCommitmentRule): string => {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  if (rule.kind === "time-off") {
+    const format = (date: string): string => {
+      const [year, month, day] = date.split("-");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
+    };
+    return `Off ${format(rule.start)} to ${format(rule.end)}`;
+  }
+  const day = days[rule.day - 1];
+  if (rule.kind === "weekday-duration") return `${day} · at most ${rule.minutes} min`;
+  if (rule.kind === "weekday-unavailable") return `${day} · unavailable`;
+  return `${day} · no hard training`;
+};
+
+const commitmentRulesDetail = (rules: readonly PlanCreationCommitmentRule[]): string => {
+  let detail = "";
+  for (const [index, rule] of rules.entries()) {
+    const next = [detail, commitmentRuleDetail(rule)].filter(Boolean).join("; ");
+    const remaining = rules.length - index - 1;
+    const suffix = remaining > 0 ? ` · and ${remaining} more` : "";
+    if (next.length + suffix.length > 2_000) return `${detail} · and ${rules.length - index} more`;
+    detail = next;
+  }
+  return detail;
+};
+
 type PlanCreationGoalFamily = "event" | "fitness";
 
 const goalFamily = (
-  answer: Extract<PlanCreationAnswerInput, { kind: "goal" }>,
+  answer: Extract<PlanCreationAnswer, { kind: "goal" }>,
 ): PlanCreationGoalFamily => (answer.goal.kind === "fitness" ? "fitness" : "event");
 
 const currentGoalRunStart = (
@@ -119,7 +263,7 @@ const currentGoalRunStart = (
     (
       stored,
     ): stored is StoredPlanCreationAnswer & {
-      readonly answer: Extract<PlanCreationAnswerInput, { kind: "goal" }>;
+      readonly answer: Extract<PlanCreationAnswer, { kind: "goal" }>;
     } => stored.answer.kind === "goal",
   );
   const current = goals.at(-1);
@@ -141,7 +285,7 @@ const currentScheduleModeRunStart = (
     (
       stored,
     ): stored is StoredPlanCreationAnswer & {
-      readonly answer: Extract<PlanCreationAnswerInput, { kind: "schedule-mode" }>;
+      readonly answer: Extract<PlanCreationAnswer, { kind: "schedule-mode" }>;
     } => stored.answer.kind === "schedule-mode",
   );
   const current = modes.at(-1);
@@ -259,7 +403,7 @@ function goalDetail(snapshot: PlanCreationSnapshot, goal: PlanCreationGoal): str
   return `${candidate.name} · ${candidate.date} · ${candidate.sourceLabel}`;
 }
 
-const successDetail = (answer: Extract<PlanCreationAnswerInput, { kind: "success" }>): string => {
+const successDetail = (answer: Extract<PlanCreationAnswer, { kind: "success" }>): string => {
   if (answer.success.kind === "authored") return answer.success.text;
   if (answer.success.kind === "fitness-choice") {
     if (answer.success.choice === "train-consistently") return "Train consistently";
@@ -272,7 +416,7 @@ const successDetail = (answer: Extract<PlanCreationAnswerInput, { kind: "success
 };
 
 const availabilityDetail = (
-  answer: Extract<PlanCreationAnswerInput, { kind: "availability" }>,
+  answer: Extract<PlanCreationAnswer, { kind: "availability" }>,
 ): string => {
   const limits = `Up to ${hours(answer.weeklyHoursLimit)} a week, longest Workout ${hours(answer.longestWorkoutHours)}`;
   if (answer.mode === "flexible") {
@@ -288,7 +432,7 @@ const availabilityDetail = (
 };
 
 const restrictionDetail = (
-  restriction: Extract<PlanCreationAnswerInput, { kind: "restriction" }>["restriction"],
+  restriction: Extract<PlanCreationAnswer, { kind: "restriction" }>["restriction"],
 ): string => {
   if (restriction.kind === "none") return "No training restrictions";
   const end = restriction.endDate === undefined ? "" : ` until ${restriction.endDate}`;
@@ -335,7 +479,9 @@ function answerSummary(
         detail:
           answer.commitments.kind === "none"
             ? "No fixed commitments, other training, or time off"
-            : answer.commitments.text,
+            : answer.commitments.rules.length === 0
+              ? answer.commitments.text
+              : commitmentRulesDetail(answer.commitments.rules),
       };
     case "baseline":
       return {
@@ -635,25 +781,13 @@ export function isPlanCreationDraftCurrent(
 ): boolean {
   if (inputVersion === undefined) return false;
   if (inputVersion + 1 === snapshot.version) return true;
-  const answers = readPlanCreationAnswers(snapshot);
-  const original = answers
-    .filter(
-      (stored) =>
-        stored.record.creationVersion <= inputVersion && stored.answer.kind === "commitments",
-    )
-    .at(-1)?.answer;
+  const original = resolvePlanCreationDraftAnswers({
+    ...snapshot,
+    answers: snapshot.answers.filter((answer) => answer.creationVersion <= inputVersion),
+  });
+  const current = resolvePlanCreationDraftAnswers(snapshot);
   return (
-    original?.kind === "commitments" &&
-    original.commitments.kind === "authored" &&
-    answers
-      .filter((stored) => stored.record.creationVersion > inputVersion)
-      .every(
-        ({ answer }) =>
-          answer.kind === "commitments" &&
-          answer.commitments.kind === "authored" &&
-          original.commitments.kind === "authored" &&
-          answer.commitments.text === original.commitments.text,
-      )
+    original !== null && current !== null && canonicalJson(original) === canonicalJson(current)
   );
 }
 
@@ -666,7 +800,6 @@ export function projectPlanCreationCard(
   if (snapshot.status !== "in-progress" && snapshot.status !== "review") return corrupt();
   const flow = resolvePlanCreationAnswerFlow(snapshot);
   const question = flow.next === null ? null : questionForKey(snapshot, flow, context, flow.next);
-  const commitments = flow.valid.get("commitments")?.answer;
   return PlanCreationCardModelSchema.parse({
     creationId: snapshot.id,
     version: snapshot.version,
@@ -676,12 +809,7 @@ export function projectPlanCreationCard(
         ? null
         : PlanCreationDraftSchema.parse(JSON.parse(snapshot.currentDraft.outputSnapshotJson)),
     draftStale: snapshot.currentDraft !== null && !isPlanCreationDraftCurrent(snapshot),
-    commitmentsAcknowledgement:
-      commitments?.kind === "commitments" &&
-      commitments.commitments.kind === "authored" &&
-      commitments.commitments.acknowledged !== true
-        ? { text: commitments.commitments.text }
-        : null,
+    pendingCommitment: pendingPlanCreationCommitment(snapshot),
     readiness: question === null ? "ready" : "incomplete",
     answeredSummaries: projectPlanCreationAnswerSummaries(snapshot, flow, context),
     openQuestion: question,
@@ -691,9 +819,12 @@ export function projectPlanCreationCard(
 export function validPlanCreationAnswer(
   snapshot: PlanCreationSnapshot,
   flow: PlanCreationAnswerFlow,
-  answer: PlanCreationAnswerInput,
+  answer: PlanCreationAnswer,
   today: string,
 ): boolean {
+  if (answer.kind === "commitments") {
+    return answer.commitments.kind === "none" || answer.commitments.rules.length <= 20;
+  }
   if (answer.kind === "goal") {
     const candidateId = answer.goal.kind === "event-candidate" ? answer.goal.candidateId : null;
     return (
@@ -733,7 +864,7 @@ export function resolvePlanCreationDraftAnswers(
   const length = flow.valid.get("plan-length")?.answer;
   const availability = flow.valid.get("availability")?.answer;
   const startTiming = flow.valid.get("start-timing")?.answer;
-  const commitments = flow.valid.get("commitments")?.answer;
+  const commitments = confirmedCommitments(snapshot);
   const baseline = flow.valid.get("baseline")?.answer;
   const success = flow.valid.get("success")?.answer;
   const restriction = flow.valid.get("restriction")?.answer;
@@ -766,10 +897,7 @@ export function resolvePlanCreationDraftAnswers(
     goal: normalizedGoal(),
     availability: schedule,
     startTiming: startTiming.timing,
-    commitments:
-      commitments.commitments.kind === "none"
-        ? { kind: "none" }
-        : { kind: "authored", text: commitments.commitments.text },
+    commitments: commitments.commitments,
     baseline: baseline.baseline,
     success: success.success,
     restriction: restriction.restriction,
