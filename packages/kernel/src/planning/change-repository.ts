@@ -45,18 +45,27 @@ export const PlanChangePreviewStoreResultSchema = z.discriminatedUnion("status",
       version: RevisionNumberSchema,
     })
     .strict(),
-  z
-    .object({
-      status: z.literal("rejected"),
-      reason: z.enum([
-        "stale-version",
-        "no-active-plan",
-        "command-conflict",
-        "invalid-intent",
-        "sync-stale",
-      ]),
-    })
-    .strict(),
+  z.discriminatedUnion("reason", [
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.enum([
+          "stale-version",
+          "no-active-plan",
+          "command-conflict",
+          "invalid-intent",
+          "sync-stale",
+        ]),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.literal("race-window"),
+        window: z.object({ start: z.iso.date(), end: z.iso.date() }).strict(),
+      })
+      .strict(),
+  ]),
 ]);
 export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
   z
@@ -79,6 +88,7 @@ export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
         "no-active-plan",
         "command-conflict",
         "sync-stale",
+        "race-window",
       ]),
     })
     .strict(),
@@ -94,7 +104,10 @@ export interface PlanChangeUndoContext {
 export interface PreviewPlanChangeInput {
   readonly admit?: (
     store: SqlStore,
-  ) => Promise<Extract<PlanChangePreviewStoreResult, { status: "rejected" }>["reason"] | null>;
+  ) => Promise<Exclude<
+    Extract<PlanChangePreviewStoreResult, { status: "rejected" }>["reason"],
+    "race-window"
+  > | null>;
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
   readonly expectedVersion: number;
@@ -104,7 +117,8 @@ export interface PreviewPlanChangeInput {
     context: PlanChangeUndoContext & { readonly completedWorkoutIds: ReadonlySet<string> },
   ) =>
     | { readonly afterSnapshotJson: string; readonly envelope: PlanChangeEnvelope }
-    | { readonly status: "rejected"; readonly reason: "invalid-intent" };
+    | { readonly status: "rejected"; readonly reason: "invalid-intent" }
+    | Extract<PlanChangePreviewStoreResult, { reason: "race-window" }>;
 }
 export interface PlanChangeWorkoutMutations {
   readonly insert: readonly PlanWorkoutRecord[];
@@ -114,6 +128,17 @@ export interface PlanChangeWorkoutMutations {
 export interface ApplyPlanChangeInput {
   readonly admit?: (
     store: SqlStore,
+  ) => Promise<Exclude<
+    Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"],
+    "race-window"
+  > | null>;
+  readonly admitChange?: (
+    store: SqlStore,
+    context: {
+      readonly afterSnapshotJson: string;
+      readonly diff: PlanChangeEnvelope["diff"];
+      readonly todayDateKey: number;
+    },
   ) => Promise<Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"] | null>;
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
@@ -538,6 +563,12 @@ export function createPlanChangeRepository(
           const { afterSnapshotJson } = z
             .object({ afterSnapshotJson: z.string() })
             .parse(JSON.parse(change.reconciliation_effect_json));
+          const rejection = await input.admitChange?.(store, {
+            afterSnapshotJson,
+            diff: PlanChangeEnvelopeSchema.parse(JSON.parse(change.diff_json)).diff,
+            todayDateKey,
+          });
+          if (rejection != null) return { status: "rejected", reason: rejection };
           if (!(await writeWorkouts(input, change, afterSnapshotJson, todayDateKey)))
             return { status: "rejected", reason: "stale-version" };
           const revisionNumber = active.current_revision_number + 1;

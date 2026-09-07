@@ -21,7 +21,7 @@ import {
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
-import { applyScheduleIntent } from "@enduragent/sport-cycling";
+import { applyScheduleIntent, planChangeRaceWindow } from "@enduragent/sport-cycling";
 import { z } from "zod";
 
 export const PROPOSAL_STALE_AFTER_HOURS = 24;
@@ -195,6 +195,12 @@ export function createPlanChangeOperations(input: {
               : applyScheduleIntent({ ...transformation, intent });
           if (intent.kind === "inverse" && diff.length === 0)
             return { status: "rejected", reason: "invalid-intent" };
+          const window = planChangeRaceWindow({
+            goal: draft.goal,
+            diff,
+            todayDateKey: transformation.todayDateKey,
+          });
+          if (window !== null) return { status: "rejected", reason: "race-window", window };
           return {
             afterSnapshotJson: canonicalJson(after),
             envelope: PlanChangeEnvelopeSchema.parse({
@@ -238,6 +244,16 @@ export function createPlanChangeOperations(input: {
       const command = await stamp(parsed);
       const result = await repository.apply({
         admit,
+        async admitChange(_store, { afterSnapshotJson, diff, todayDateKey }) {
+          const draft = PlanCreationDraftSchema.parse(JSON.parse(afterSnapshotJson));
+          return planChangeRaceWindow({
+            goal: draft.goal,
+            diff: PlanChangeModelSchema.shape.diff.parse(diff),
+            todayDateKey,
+          }) === null
+            ? null
+            : "race-window";
+        },
         command,
         planId: parsed.planId,
         changeId: parsed.changeId,

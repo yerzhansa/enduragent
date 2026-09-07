@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TrainingExportCivilDateSchema } from "./training-export.js";
 import { PlanCloseRpcParamsSchema, PlanCreationDraftSchema } from "./plan-creation.js";
 
 const WeekdaySchema = z.number().int().min(1).max(7);
@@ -109,18 +110,29 @@ export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
       version: z.number().int().positive(),
     })
     .strict(),
-  z
-    .object({
-      status: z.literal("rejected"),
-      reason: z.enum([
-        "stale-version",
-        "no-active-plan",
-        "command-conflict",
-        "invalid-intent",
-        "sync-stale",
-      ]),
-    })
-    .strict(),
+  z.discriminatedUnion("reason", [
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.enum([
+          "stale-version",
+          "no-active-plan",
+          "command-conflict",
+          "invalid-intent",
+          "sync-stale",
+        ]),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.literal("race-window"),
+        window: z
+          .object({ start: TrainingExportCivilDateSchema, end: TrainingExportCivilDateSchema })
+          .strict(),
+      })
+      .strict(),
+  ]),
 ]);
 export type PlanChangePreviewResult = z.infer<typeof PlanChangePreviewResultSchema>;
 
@@ -155,6 +167,7 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
         "no-active-plan",
         "command-conflict",
         "sync-stale",
+        "race-window",
       ]),
     })
     .strict(),

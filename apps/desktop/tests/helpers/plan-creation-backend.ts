@@ -508,14 +508,17 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     commitments: Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"] = {
       kind: "none",
     },
+    goal: Extract<PlanCreationAnswerInput, { kind: "goal" }>["goal"] = { kind: "fitness" },
   ): Promise<PlanCreationCardModel> {
     const host = this.requireHost();
     const started = await host["plan_creation.start"]({ commandId: "seed-training-start" });
     if (started.status !== "started") throw new TypeError("Training seed was not started");
     let card = started.planCreation;
     const answers: PlanCreationAnswerInput[] = [
-      { kind: "goal", goal: { kind: "fitness" } },
-      { kind: "plan-length", weeks: 4 },
+      { kind: "goal", goal },
+      ...(goal.kind === "fitness"
+        ? [{ kind: "plan-length", weeks: 4 } satisfies PlanCreationAnswerInput]
+        : []),
       { kind: "schedule-mode", mode: "fixed" },
       {
         kind: "availability",
@@ -543,9 +546,20 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     return card;
   }
 
-  async seedActiveTraining() {
+  async seedActiveTraining(options: { readonly goal?: "fitness" | "event" } = {}) {
     const host = this.requireHost();
-    const card = await this.seedTrainingCreation();
+    const card = await this.seedTrainingCreation(
+      { kind: "none" },
+      options.goal === "event"
+        ? {
+            kind: "event-manual",
+            name: "Local cycling event",
+            date: new Date(Date.parse(`${this.civilDate}T00:00:00.000Z`) + 6 * 86_400_000)
+              .toISOString()
+              .slice(0, 10),
+          }
+        : { kind: "fitness" },
+    );
     const previewed = await host["plan_creation.preview"]({
       commandId: "seed-training-preview",
       creationId: card.creationId,

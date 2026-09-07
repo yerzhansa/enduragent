@@ -21,6 +21,7 @@ async function activatedPlan(
     connected: false,
     lastSuccessfulSyncAtMs: null,
   },
+  eventDate: string | null = null,
 ) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
@@ -63,8 +64,14 @@ async function activatedPlan(
   if (start.status !== "started") throw new Error("Expected creation");
   let card = start.planCreation;
   const answers: PlanCreationAnswerInput[] = [
-    { kind: "goal", goal: { kind: "fitness" } },
-    { kind: "plan-length", weeks: 4 },
+    ...(eventDate === null
+      ? ([
+          { kind: "goal", goal: { kind: "fitness" } },
+          { kind: "plan-length", weeks: 4 },
+        ] satisfies PlanCreationAnswerInput[])
+      : ([
+          { kind: "goal", goal: { kind: "event-manual", name: "Autumn ride", date: eventDate } },
+        ] satisfies PlanCreationAnswerInput[])),
     { kind: "schedule-mode", mode: "fixed" },
     {
       kind: "availability",
@@ -76,7 +83,13 @@ async function activatedPlan(
     { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
     { kind: "commitments", commitments: { kind: "none" } },
     { kind: "baseline", baseline: "regular" },
-    { kind: "success", success: { kind: "fitness-choice", choice: "climb-stronger" } },
+    {
+      kind: "success",
+      success:
+        eventDate === null
+          ? { kind: "fitness-choice", choice: "climb-stronger" }
+          : { kind: "event-finish", choice: "finish-fast" },
+    },
     { kind: "restriction", restriction: { kind: "none" } },
   ];
   for (const answer of answers) {
@@ -1248,4 +1261,185 @@ describe("Plan Change sync age", () => {
       expect(await dumpStore(test.store)).toBe(before);
     },
   );
+});
+
+describe("race-window protection", () => {
+  it("checks stale sync before race-window and version rejections without changing pending previews", async () => {
+    const now = 904_694_400_000;
+    const staleNow = now + 86_400_000 + 1;
+    let today = 19980902;
+    const test = await activatedPlan(
+      () => today,
+      { connected: true, lastSuccessfulSyncAtMs: now },
+      "1998-09-09",
+    );
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "reduce-training");
+    const intent: PlanChangeIntent = { kind: "inverse", changeId: forward.change.changeId };
+    const pending = await test.preview(intent, "restore-training", 2);
+    today = 19980903;
+    test.setNow(staleNow);
+    const before = await dumpStore(test.store);
+    for (const expectedVersion of [2, 1]) {
+      await expect(
+        test.changes["plan_change.preview"]({
+          commandId: `stale-preview-${expectedVersion}`,
+          planId: test.planId,
+          expectedVersion,
+          intent,
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "sync-stale" });
+      expect(await dumpStore(test.store)).toBe(before);
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: `apply-restoration-${expectedVersion}`,
+          planId: test.planId,
+          expectedVersion,
+          changeId: pending.change.changeId,
+          decision: "apply",
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "sync-stale" });
+      expect(await dumpStore(test.store)).toBe(before);
+      expect((await test.creation["plan.list"]({})).changes).toContainEqual(pending.change);
+    }
+    await test.recordSync(staleNow);
+    const afterSync = await dumpStore(test.store);
+    await expect(
+      test.changes["plan_change.preview"]({
+        commandId: "stale-preview-2",
+        planId: test.planId,
+        expectedVersion: 2,
+        intent,
+      }),
+    ).resolves.toEqual({
+      status: "rejected",
+      reason: "race-window",
+      window: { start: "1998-09-03", end: "1998-09-09" },
+    });
+    expect(await dumpStore(test.store)).toBe(afterSync);
+    await expect(
+      test.changes["plan_change.apply"]({
+        commandId: "apply-restoration-2",
+        planId: test.planId,
+        expectedVersion: 2,
+        changeId: pending.change.changeId,
+        decision: "apply",
+      }),
+    ).resolves.toEqual({ status: "rejected", reason: "race-window" });
+    expect(await dumpStore(test.store)).toBe(afterSync);
+    expect((await test.creation["plan.list"]({})).changes).toContainEqual(pending.change);
+  });
+
+  it.each([
+    { kind: "weekday-unavailable", day: 4 },
+    { kind: "weekday-duration", day: 4, minutes: 20 },
+    { kind: "hard-weekday", day: 4 },
+  ] satisfies PlanChangeIntent[])(
+    "allows $kind reductions and refuses their inverse in the event window without writes",
+    async (intent) => {
+      const test = await activatedPlan(() => 19980903, undefined, "1998-09-09");
+      const forward = await test.preview(intent);
+      expect(forward.change.diff.some((row) => row.before?.date === "1998-09-03")).toBe(true);
+      await applyChange(test, forward.change.changeId, 1, "reduce-training");
+      const before = await dumpStore(test.store);
+      await expect(
+        test.changes["plan_change.preview"]({
+          commandId: "restore-training",
+          planId: test.planId,
+          expectedVersion: 2,
+          intent: { kind: "inverse", changeId: forward.change.changeId },
+        }),
+      ).resolves.toEqual({
+        status: "rejected",
+        reason: "race-window",
+        window: { start: "1998-09-03", end: "1998-09-09" },
+      });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+
+  it("allows a fitness Plan inverse on the same civil day", async () => {
+    const test = await activatedPlan(() => 19980903);
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "reduce-training");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "restore-training",
+      2,
+    );
+    await applyChange(test, inverse.change.changeId, 2, "apply-restoration");
+  });
+
+  it("allows increases dated outside the window while today is inside it", async () => {
+    const test = await activatedPlan(() => 19980903, undefined, "1998-09-03");
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 6 });
+    await applyChange(test, forward.change.changeId, 1, "reduce-training");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "restore-training",
+      2,
+    );
+    expect(inverse.change.diff.every((row) => row.after?.date === "1998-09-05")).toBe(true);
+    await applyChange(test, inverse.change.changeId, 2, "apply-restoration");
+  });
+
+  it("rechecks an inverse when today enters the window and preserves pending state, cancel, and replay", async () => {
+    let today = 19980902;
+    const todayDateKey = vi.fn(() => today);
+    const test = await activatedPlan(todayDateKey, undefined, "1998-09-09");
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    const applied = await applyChange(test, forward.change.changeId, 1, "reduce-training");
+    const inverseIntent: PlanChangeIntent = { kind: "inverse", changeId: forward.change.changeId };
+    const inverse = await test.preview(inverseIntent, "restore-training", 2);
+    const before = await dumpStore(test.store);
+    todayDateKey.mockClear();
+    const transaction = test.store.transaction.bind(test.store);
+    const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
+      today = 19980903;
+      return transaction(fn);
+    });
+    await expect(
+      test.changes["plan_change.apply"]({
+        commandId: "apply-restoration",
+        planId: test.planId,
+        expectedVersion: 2,
+        changeId: inverse.change.changeId,
+        decision: "apply",
+      }),
+    ).resolves.toEqual({ status: "rejected", reason: "race-window" });
+    expect(todayDateKey).toHaveBeenCalledOnce();
+    expect(hook).toHaveBeenCalledOnce();
+    hook.mockRestore();
+    expect(await dumpStore(test.store)).toBe(before);
+    expect((await test.creation["plan.list"]({})).changes).toContainEqual(inverse.change);
+    expect(await test.preview(inverseIntent, "restore-training", 2)).toEqual(inverse);
+    expect(await test.changes["plan_change.apply"](applied.request)).toEqual(applied.result);
+    expect(await dumpStore(test.store)).toBe(before);
+    await expect(
+      test.changes["plan_change.apply"]({
+        commandId: "cancel-restoration",
+        planId: test.planId,
+        expectedVersion: 2,
+        changeId: inverse.change.changeId,
+        decision: "cancel",
+      }),
+    ).resolves.toMatchObject({ status: "cancelled", version: 2 });
+  });
+
+  it("replays an applied increasing inverse after today enters the window", async () => {
+    let today = 19980902;
+    const test = await activatedPlan(() => today, undefined, "1998-09-09");
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "reduce-training");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "restore-training",
+      2,
+    );
+    const applied = await applyChange(test, inverse.change.changeId, 2, "apply-restoration");
+    today = 19980903;
+    const before = await dumpStore(test.store);
+    expect(await test.changes["plan_change.apply"](applied.request)).toEqual(applied.result);
+    expect(await dumpStore(test.store)).toBe(before);
+  });
 });

@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import { describe, expect, it } from "vitest";
 import { type CreationDraft } from "../src/creation-draft-builder.js";
-import { applyScheduleIntent, type ScheduleIntent } from "../src/plan-change.js";
+import {
+  applyScheduleIntent,
+  planChangeRaceWindow,
+  type ScheduleIntent,
+} from "../src/plan-change.js";
 
 const todayDateKey = 19980824;
 
@@ -416,5 +420,117 @@ describe("Inverse Plan Changes", () => {
     expect(result.after).toEqual(draft);
     expect(result.diff).toEqual([]);
     expect(result.totals.after).toEqual(result.totals.before);
+  });
+});
+
+describe("race window protection", () => {
+  const goal = { kind: "event", name: "Spring ride", date: "2000-03-03" } as const;
+  const window = { start: "2000-02-26", end: "2000-03-03" };
+  const workout = {
+    date: "2000-02-29",
+    minutes: 60,
+    kind: "easy",
+    power: null,
+  } as const;
+
+  it.each([20000225, 20000304])(
+    "allows increases when today %s is outside the window",
+    (todayDateKey) => {
+      expect(
+        planChangeRaceWindow({ goal, todayDateKey, diff: [{ before: null, after: workout }] }),
+      ).toBeNull();
+    },
+  );
+
+  it.each([20000226, 20000229, 20000303])(
+    "protects the inclusive window on %s across a leap day",
+    (todayDateKey) => {
+      expect(
+        planChangeRaceWindow({ goal, todayDateKey, diff: [{ before: null, after: workout }] }),
+      ).toEqual(window);
+    },
+  );
+
+  it.each(["2000-02-26", "2000-03-03"])("includes a new Workout dated %s", (date) => {
+    expect(
+      planChangeRaceWindow({
+        goal,
+        todayDateKey: 20000226,
+        diff: [{ before: null, after: { ...workout, date } }],
+      }),
+    ).toEqual(window);
+  });
+
+  it.each(["2000-02-25", "2000-03-04", null])(
+    "allows a new Workout dated %s outside the window",
+    (date) => {
+      expect(
+        planChangeRaceWindow({
+          goal,
+          todayDateKey: 20000226,
+          diff: [{ before: null, after: { ...workout, date } }],
+        }),
+      ).toBeNull();
+    },
+  );
+
+  it.each([
+    { ...workout, minutes: 61 },
+    { ...workout, kind: "hard" as const },
+    { ...workout, power: 1 },
+  ])("refuses a training increase: %j", (after) => {
+    expect(
+      planChangeRaceWindow({ goal, todayDateKey: 20000226, diff: [{ before: workout, after }] }),
+    ).toEqual(window);
+  });
+
+  it.each(["endurance", "long", "event"] as const)(
+    "detects %s to hard even when duration decreases",
+    (kind) => {
+      expect(
+        planChangeRaceWindow({
+          goal,
+          todayDateKey: 20000226,
+          diff: [
+            { before: { ...workout, kind }, after: { ...workout, kind: "hard", minutes: 30 } },
+          ],
+        }),
+      ).toEqual(window);
+    },
+  );
+
+  it("compares numeric power and treats null as zero", () => {
+    const check = (before: number | null, after: number | null) =>
+      planChangeRaceWindow({
+        goal,
+        todayDateKey: 20000226,
+        diff: [{ before: { ...workout, power: before }, after: { ...workout, power: after } }],
+      });
+    expect(check(100, 101)).toEqual(window);
+    expect(check(100, 99)).toBeNull();
+    expect(check(100, null)).toBeNull();
+    expect(check(null, 0)).toBeNull();
+  });
+
+  it("allows reductions, removals, unchanged training and fitness Plans", () => {
+    expect(
+      planChangeRaceWindow({
+        goal,
+        todayDateKey: 20000226,
+        diff: [
+          { before: workout, after: { ...workout, minutes: 30 } },
+          { before: workout, after: null },
+          { before: { ...workout, kind: "hard" }, after: workout },
+          { before: workout, after: workout },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      planChangeRaceWindow({
+        goal: { kind: "fitness", weeks: 4 },
+        todayDateKey: 20000226,
+        diff: [{ before: null, after: workout }],
+      }),
+    ).toBeNull();
   });
 });
