@@ -209,6 +209,11 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
 
 export const IDLE_FIRST_SYNC: FirstSyncState = Object.freeze({ status: "idle" });
 
+export const PLAN_CHANGES_PAUSED_NOTICE =
+  "Plan Changes are paused because synchronized training is older than 24 hours. Refresh the connection, then request a fresh preview.";
+export const PLAN_CHANGES_RESUMED_NOTICE =
+  "Sources are available again. Request a fresh preview before applying.";
+
 export interface PlanChangeSurfaceState {
   readonly open: boolean;
   readonly planId: string | null;

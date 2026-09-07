@@ -7,7 +7,13 @@ import type {
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
+import { createChatController } from "../src/chat/controller";
+import {
+  EMPTY_CHAT_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  PLAN_CHANGES_RESUMED_NOTICE,
+  type ChatActions,
+} from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { ChatView } from "../src/ui/chat/ChatView";
@@ -144,6 +150,28 @@ function patchChange(
   );
 }
 
+function connectController(result: unknown, refresh: () => Promise<void>) {
+  const call = vi.fn().mockResolvedValue(result);
+  const controller = createChatController({
+    clients: {
+      getClient: vi.fn().mockResolvedValue({ call }),
+      reconnect: vi.fn().mockResolvedValue({ call }),
+      close: vi.fn(),
+    },
+    view: { render: vi.fn() },
+    refreshTrainingContext: async () => {},
+    refreshSpend: async () => {},
+    readPlanLibrary: () => useEnduragentStore.getState().planLibrary.value,
+    readPlanChange: () => useEnduragentStore.getState().planChange,
+    publishPlanChange: (planChange) => useEnduragentStore.setState({ planChange }),
+    refreshPlanLibrary: refresh,
+  });
+  useEnduragentStore.setState({
+    chatActions: { ...stubActions(), applyPlanChange: controller.applyPlanChange },
+  });
+  return { controller, call };
+}
+
 beforeEach(() => {
   useEnduragentStore.setState({
     activeView: "chat",
@@ -175,6 +203,173 @@ beforeEach(() => {
 });
 
 describe("Plan Change cards", () => {
+  it("announces recovery when a paused library loaded before the surface opened turns fresh", () => {
+    setChanges([]);
+    patchChange({ open: false, notice: null });
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    act(() =>
+      useEnduragentStore.getState().setPlanLibrary({
+        status: "ready",
+        value: { ...value, changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 0 } },
+      }),
+    );
+    expect(useEnduragentStore.getState().planChange.notice).toBeNull();
+    patchChange({ open: true, planId: active.planId });
+    render(<PlanChangeCards />);
+    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+    act(() => useEnduragentStore.getState().setPlanLibrary({ status: "ready", value }));
+    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
+  });
+
+  it.each(["preview", "apply"] as const)(
+    "recovers after a sync-stale %s rejection and a failed library refresh",
+    async (action) => {
+      setChanges([change()]);
+      const value = useEnduragentStore.getState().planLibrary.value;
+      if (!value) throw new Error("Missing library");
+      const refresh = vi.fn(async () => {
+        useEnduragentStore.getState().setPlanLibrary({ status: "unavailable", value });
+        throw new Error("unavailable");
+      });
+      const { controller } = connectController(
+        { status: "rejected", reason: "sync-stale" },
+        refresh,
+      );
+      render(<PlanChangeCards />);
+      await act(async () => {
+        if (action === "preview") await controller.previewPlanChange(change().intent);
+        else await controller.applyPlanChange("apply");
+      });
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(useEnduragentStore.getState().planLibrary).toEqual({ status: "unavailable", value });
+      expect(value.changesPaused).toBeNull();
+      expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+      act(() => useEnduragentStore.getState().setPlanLibrary({ status: "ready", value }));
+      expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
+      patchChange({ notice: "Review the exact changes before confirming." });
+      act(() => useEnduragentStore.getState().setPlanLibrary({ status: "ready", value }));
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Review the exact changes before confirming.",
+      );
+      controller.dispose();
+    },
+  );
+
+  it("focuses the pause notice after cancelling a pending preview while paused", async () => {
+    setChanges([change()]);
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    const pausedLibrary: ListPlansResult = {
+      ...value,
+      changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
+    };
+    useEnduragentStore.getState().setPlanLibrary({ status: "ready", value: pausedLibrary });
+    const { controller, call } = connectController(
+      { status: "cancelled", changeId: change().changeId, version: 8 },
+      async () => {
+        useEnduragentStore.getState().setPlanLibrary({
+          status: "ready",
+          value: { ...pausedLibrary, changes: [change({ status: "cancelled" })] },
+        });
+      },
+    );
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(call).toHaveBeenCalledWith(
+      "plan_change.apply",
+      expect.objectContaining({ decision: "cancel" }),
+    );
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    controller.dispose();
+  });
+
+  it("keeps the pending preview and Cancel while explaining every paused action", () => {
+    setChanges([
+      change(),
+      change({
+        changeId: "change-applied",
+        status: "applied",
+        undo: { eligible: true },
+        resultRevisionNumber: 2,
+      }),
+    ]);
+    patchChange({ editorOpen: true, error: "Earlier validation error" });
+    render(<PlanChangeCards />);
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    act(() =>
+      useEnduragentStore.getState().setPlanLibrary({
+        status: "ready",
+        value: {
+          ...value,
+          changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
+        },
+      }),
+    );
+    const section = screen.getByRole("region", { name: "Plan Changes" });
+    const notice = within(section).getByRole("status");
+    expect(notice).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+    expect(section.firstElementChild).toBe(notice);
+    for (const name of ["Change one thing", "Undo", "Apply to Plan"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("aria-describedby", notice.id);
+      expect(button).toHaveAccessibleDescription(PLAN_CHANGES_PAUSED_NOTICE);
+    }
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(screen.getAllByRole("region", { name: "Limit Wednesday training" })).toHaveLength(2);
+    expect(screen.queryByRole("region", { name: "What needs to change?" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(useEnduragentStore.getState().planChange.editorOpen).toBe(false);
+  });
+
+  it("announces a fresh sync once and lets the next preview replace the notice", () => {
+    setChanges([change()]);
+    render(<PlanChangeCards />);
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    const refresh = (changesPaused: ListPlansResult["changesPaused"]) =>
+      act(() =>
+        useEnduragentStore
+          .getState()
+          .setPlanLibrary({ status: "ready", value: { ...value, changesPaused } }),
+      );
+    refresh({ reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 });
+    refresh(null);
+    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Apply to Plan" })).not.toHaveAttribute(
+      "aria-describedby",
+    );
+    patchChange({ notice: "Review the exact changes before confirming." });
+    refresh(null);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Review the exact changes before confirming.",
+    );
+    refresh({ reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 });
+    refresh(null);
+    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
+  });
+
+  it("does not announce recovery when the Change surface is closed", () => {
+    patchChange({ open: false });
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    useEnduragentStore.getState().setPlanLibrary({
+      status: "ready",
+      value: {
+        ...value,
+        changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
+      },
+    });
+    useEnduragentStore.getState().setPlanLibrary({ status: "ready", value });
+    expect(useEnduragentStore.getState().planChange.notice).toBeNull();
+  });
+
   it("restores pending Changes in Chat alongside separate creation and an enabled composer", async () => {
     const creation: PlanCreationCardModel = {
       creationId: "separate-creation",
