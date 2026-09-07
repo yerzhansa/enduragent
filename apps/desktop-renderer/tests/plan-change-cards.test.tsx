@@ -740,6 +740,8 @@ describe("Plan Change cards", () => {
     "Review the exact changes before confirming.",
     "This preview supersedes “Earlier limit”. Training is unchanged until confirmation.",
     "The latest Change is no longer eligible for Undo.",
+    "Only training reductions are allowed during this race window. Training is unchanged.",
+    "Only training reductions are allowed in the current race window. This Change was not applied.",
     "Change applied locally. Training now matches the confirmed preview.",
     "Change cancelled. Training is unchanged; the preview remains in history.",
     "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed.",
@@ -749,6 +751,32 @@ describe("Plan Change cards", () => {
     patchChange({ notice });
     render(<PlanChangeCards />);
     expect(screen.getByRole("status")).toHaveTextContent(notice);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the request editable alongside the race-window preview notice", () => {
+    patchChange({
+      editorOpen: true,
+      notice:
+        "Only training reductions are allowed during this race window. Training is unchanged.",
+    });
+    render(<PlanChangeCards />);
+    expect(screen.getByRole("region", { name: "What needs to change?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Preview change" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the pending preview alongside the race-window apply notice", () => {
+    setChanges([change()]);
+    patchChange({
+      notice:
+        "Only training reductions are allowed in the current race window. This Change was not applied.",
+    });
+    render(<PlanChangeCards />);
+    expect(screen.getByText("Pending", { exact: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Apply to Plan" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("renders parameter errors as alerts and disables submission while busy", () => {
