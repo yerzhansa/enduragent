@@ -7,6 +7,7 @@ import {
   createPlanLifecycleRepository,
   createPlanReconciliationRepository,
   type PlanCreationCommandStamp,
+  type PreviewPlanChangeInput,
 } from "@enduragent/kernel/planning";
 import {
   dumpStore,
@@ -83,7 +84,10 @@ const envelope = {
     },
   ],
 };
-const build = (_snapshotJson: string) => ({ afterSnapshotJson: JSON.stringify(after), envelope });
+const build: PreviewPlanChangeInput["build"] = () => ({
+  afterSnapshotJson: JSON.stringify(after),
+  envelope,
+});
 
 describe("Plan Change repository", () => {
   let store: SqlStore & MigratorStore;
@@ -182,7 +186,7 @@ describe("Plan Change repository", () => {
     expectedVersion: 1,
     decision,
     nowMs: nowMs + 30,
-    todayDateKey: 19980102,
+    todayDateKey: () => 19980102,
     mirrorJobId: id("6"),
     materialize: (
       snapshotJson: string,
@@ -232,7 +236,7 @@ describe("Plan Change repository", () => {
       await expect(
         repository.apply({
           ...applyInput(),
-          todayDateKey: 19980103,
+          todayDateKey: () => 19980103,
           materialize,
         }),
       ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
@@ -266,7 +270,13 @@ describe("Plan Change repository", () => {
     const builder = vi.fn(build);
     const result = await repository.preview({ ...previewInput(), build: builder });
     expect(builder).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(builder.mock.calls[0]?.[0] ?? "null")).toEqual(draft);
+    expect(builder).toHaveBeenCalledWith({
+      completedWorkoutIds: new Set(),
+      currentRevisionNumber: 1,
+      snapshotJson: JSON.stringify(draft),
+      previousSnapshotJson: null,
+      newestApplied: null,
+    });
     expect(result).toMatchObject({
       status: "previewed",
       version: 1,
@@ -430,7 +440,158 @@ describe("Plan Change repository", () => {
     ]);
     const builder = vi.fn(build);
     await repository.preview({ ...previewInput(40), expectedVersion: 2, build: builder });
-    expect(JSON.parse(builder.mock.calls[0]?.[0] ?? "null")).toEqual(after);
+    expect(builder).toHaveBeenCalledWith({
+      completedWorkoutIds: new Set(),
+      currentRevisionNumber: 2,
+      snapshotJson: canonicalJson(after),
+      previousSnapshotJson: JSON.stringify(draft),
+      newestApplied: expect.objectContaining({
+        changeId: id("90"),
+        status: "applied",
+        baseRevisionNumber: 1,
+        resultRevisionNumber: 2,
+      }),
+    });
+  });
+
+  it("restores removed Workouts with their Draft ids in a new revision", async () => {
+    await activate();
+    await repository.preview(previewInput());
+    await repository.apply(applyInput());
+    const restoredPreview = await repository.preview({
+      ...previewInput(40),
+      expectedVersion: 2,
+      build: ({ snapshotJson, previousSnapshotJson, newestApplied }) => {
+        expect(JSON.parse(snapshotJson)).toEqual(after);
+        expect(previousSnapshotJson).toBe(JSON.stringify(draft));
+        expect(newestApplied?.changeId).toBe(id("90"));
+        if (previousSnapshotJson === null) throw new Error("Expected previous snapshot");
+        return {
+          afterSnapshotJson: previousSnapshotJson,
+          envelope: {
+            ...envelope,
+            title: "Undo the latest Change",
+            intent: { kind: "inverse", changeId: id("90") },
+            diff: envelope.diff.map((row) => ({
+              workoutId: row.workoutId,
+              before: row.after,
+              after: row.before,
+            })),
+            totals: { before: envelope.totals.after, after: envelope.totals.before },
+          },
+        };
+      },
+    });
+    expect(restoredPreview).toMatchObject({
+      status: "previewed",
+      change: {
+        changeId: id("120"),
+        baseRevisionNumber: 2,
+        diff: expect.arrayContaining([
+          { workoutId: "removed", before: null, after: removedWorkout },
+        ]),
+      },
+    });
+    const materialize: Parameters<typeof repository.apply>[0]["materialize"] = (
+      snapshotJson,
+      current,
+      diffIds,
+    ) => {
+      expect(JSON.parse(snapshotJson)).toEqual(draft);
+      expect(diffIds).toEqual(new Set(["removed", "added"]));
+      const kept = current.find((row) => row.id === id("31"));
+      if (kept === undefined) throw new Error("Expected kept Workout");
+      return {
+        insert: [
+          {
+            ...kept,
+            id: id("34"),
+            dateKey: 19980102,
+            name: removedWorkout.name,
+            durationS: removedWorkout.minutes * 60,
+            structureJson: JSON.stringify(removedWorkout),
+          },
+        ],
+        update: [],
+        delete: [id("33")],
+      };
+    };
+    const input = {
+      ...applyInput(),
+      command: stamp("restore", 50),
+      changeId: id("120"),
+      expectedVersion: 2,
+      nowMs: nowMs + 50,
+      materialize,
+    };
+    const result = await repository.apply(input);
+    expect(result).toEqual({
+      status: "applied",
+      changeId: id("120"),
+      revisionNumber: 3,
+      version: 3,
+    });
+    expect(await store.all("SELECT id,structure_json FROM plan_workout ORDER BY id")).toEqual([
+      { id: id("31"), structure_json: JSON.stringify(keptWorkout) },
+      { id: id("34"), structure_json: JSON.stringify(removedWorkout) },
+    ]);
+    expect(
+      await store.get(
+        "SELECT snapshot_json,parent_revision_number,source_kind,source_id FROM plan_revision WHERE revision_number=3",
+      ),
+    ).toEqual({
+      snapshot_json: canonicalJson(draft),
+      parent_revision_number: 2,
+      source_kind: "plan-change",
+      source_id: id("120"),
+    });
+    await expect(repository.listChanges(planId)).resolves.toMatchObject([
+      { changeId: id("90"), status: "applied", resultRevisionNumber: 2 },
+      { changeId: id("120"), status: "applied", resultRevisionNumber: 3 },
+    ]);
+    const beforeReplay = await dumpStore(store);
+    await expect(repository.apply(input)).resolves.toEqual(result);
+    expect(await dumpStore(store)).toBe(beforeReplay);
+    await expect(repository.readUndoContext(planId)).resolves.toMatchObject({
+      currentRevisionNumber: 3,
+      snapshotJson: canonicalJson(draft),
+      previousSnapshotJson: canonicalJson(after),
+      newestApplied: { changeId: id("120"), intent: { kind: "inverse", changeId: id("90") } },
+    });
+  });
+
+  it("reads the newest applied revision despite cancelled and superseded previews", async () => {
+    await expect(repository.readUndoContext(planId)).resolves.toBeNull();
+    await activate();
+    await expect(repository.readUndoContext(id("88"))).resolves.toBeNull();
+    await expect(repository.readUndoContext(planId)).resolves.toEqual({
+      currentRevisionNumber: 1,
+      snapshotJson: JSON.stringify(draft),
+      previousSnapshotJson: null,
+      newestApplied: null,
+    });
+    await repository.preview(previewInput());
+    await repository.apply(applyInput());
+    const applied = await repository.readUndoContext(planId);
+    await repository.preview({ ...previewInput(40), expectedVersion: 2 });
+    await repository.preview({ ...previewInput(50), expectedVersion: 2 });
+    await repository.apply({
+      ...applyInput("cancel"),
+      command: stamp("cancel-later", 55),
+      nowMs: nowMs + 55,
+      changeId: id("130"),
+      expectedVersion: 2,
+    });
+    await expect(repository.readUndoContext(planId)).resolves.toEqual(applied);
+    const builder = vi.fn(build);
+    await repository.preview({ ...previewInput(60), expectedVersion: 2, build: builder });
+    expect(builder).toHaveBeenCalledWith({
+      completedWorkoutIds: new Set(),
+      currentRevisionNumber: 2,
+      snapshotJson: canonicalJson(after),
+      previousSnapshotJson: JSON.stringify(draft),
+      newestApplied: expect.objectContaining({ changeId: id("90"), resultRevisionNumber: 2 }),
+    });
   });
 
   it("enqueues a pending mirror job for a fresh seven-day window on apply", async () => {
@@ -482,7 +643,7 @@ describe("Plan Change repository", () => {
     const items = await reconciliation.readItems(id("4"));
     await repository.preview(previewInput(12));
     await expect(
-      repository.apply({ ...applyInput(), changeId: id("92"), todayDateKey: 19980101 }),
+      repository.apply({ ...applyInput(), changeId: id("92"), todayDateKey: () => 19980101 }),
     ).resolves.toMatchObject({ status: "applied" });
     expect(await reconciliation.readJob(id("4"))).toEqual({
       ...verified,
@@ -564,7 +725,7 @@ describe("Plan Change repository", () => {
     await expect(
       repository.apply({
         ...applyInput(),
-        todayDateKey: 19980101,
+        todayDateKey: () => 19980101,
         materialize: (_snapshotJson, current) => {
           const moved = current.find((workout) => workout.id === id("32"));
           if (moved === undefined) throw new Error("Expected moved Workout");
@@ -608,7 +769,7 @@ describe("Plan Change repository", () => {
         changeId: id("120"),
         expectedVersion: 2,
         nowMs: nowMs + 50,
-        todayDateKey: 19980101,
+        todayDateKey: () => 19980101,
         materialize: (_snapshotJson, current) => {
           const moved = current.find((workout) => workout.id === id("32"));
           if (moved === undefined) throw new Error("Expected moved Workout");
@@ -752,7 +913,7 @@ describe("Plan Change repository", () => {
           await repository.apply({
             ...input,
             mirrorJobId: id("8"),
-            todayDateKey: 19980103,
+            todayDateKey: () => 19980103,
             materialize,
           }),
         ),

@@ -134,7 +134,7 @@ async function harness() {
       expectedVersion: plan.version,
       nowMs: 904_694_400_000,
       changeId: identity.newUlid(),
-      build(snapshotJson) {
+      build({ snapshotJson }) {
         const snapshot = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
         const before = snapshot.weeks
           .flatMap((week) => week.workouts)
@@ -429,7 +429,7 @@ describe("Plan calendar drain", () => {
       expectedVersion: 1,
       nowMs: 904_694_400_000,
       changeId: test.identity.newUlid(),
-      build(snapshotJson) {
+      build({ snapshotJson }) {
         const snapshot = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
         for (const week of snapshot.weeks) {
           week.workouts = week.workouts.map((row) => (row.id === before.id ? after : row));

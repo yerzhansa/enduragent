@@ -23,6 +23,7 @@ const change: PlanChangeModel = {
   supersedes: null,
   supersededBy: null,
   resultRevisionNumber: null,
+  undo: null,
   confidence: "High",
   premises: [],
 };

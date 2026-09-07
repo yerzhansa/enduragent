@@ -103,6 +103,7 @@ function change(patch: Partial<PlanChangeModel> = {}): PlanChangeModel {
     supersedes: null,
     supersededBy: null,
     resultRevisionNumber: null,
+    undo: null,
     confidence: "Confirmed schedule limits",
     premises: [
       {
@@ -380,6 +381,37 @@ describe("Plan Change cards", () => {
     ).toBeVisible();
     expect(within(history).queryByRole("button", { name: "Apply to Plan" })).toBeNull();
     expect(within(history).queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("renders unrecognized premise values as their plain labels", async () => {
+    const values: PlanChangeModel["premises"][number]["value"][] = [
+      null,
+      true,
+      42,
+      "text",
+      ["nested"],
+      { changeId: "prior-change", title: "Earlier limit" },
+      { kind: "weekday-duration", day: "invalid", minutes: 30 },
+      { kind: "inverse", changeId: "00000000000000000000000140" },
+    ];
+    setChanges([
+      change({
+        premises: values.map((value, index) => ({
+          id: `premise-${index}`,
+          label: `Evidence ${index}`,
+          source: "Your confirmed request",
+          value,
+        })),
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+    const source = screen.getByRole("region", { name: "Source details" });
+    expect(
+      within(source)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual(values.map((_, index) => `Evidence ${index}`));
   });
 
   it("moves focus to the editor, back to Change one thing, and to a new preview heading", async () => {

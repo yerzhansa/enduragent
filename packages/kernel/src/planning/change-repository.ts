@@ -72,6 +72,12 @@ export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
 ]);
 export type PlanChangePreviewStoreResult = z.infer<typeof PlanChangePreviewStoreResultSchema>;
 export type PlanChangeApplyStoreResult = z.infer<typeof PlanChangeApplyStoreResultSchema>;
+export interface PlanChangeUndoContext {
+  readonly currentRevisionNumber: number;
+  readonly snapshotJson: string;
+  readonly previousSnapshotJson: string | null;
+  readonly newestApplied: PlanChangeRecord | null;
+}
 export interface PreviewPlanChangeInput {
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
@@ -79,7 +85,7 @@ export interface PreviewPlanChangeInput {
   readonly nowMs: number;
   readonly changeId: string;
   readonly build: (
-    snapshotJson: string,
+    context: PlanChangeUndoContext & { readonly completedWorkoutIds: ReadonlySet<string> },
   ) =>
     | { readonly afterSnapshotJson: string; readonly envelope: PlanChangeEnvelope }
     | { readonly status: "rejected"; readonly reason: "invalid-intent" };
@@ -96,7 +102,7 @@ export interface ApplyPlanChangeInput {
   readonly expectedVersion: number;
   readonly decision: "apply" | "cancel";
   readonly nowMs: number;
-  readonly todayDateKey: number;
+  readonly todayDateKey: () => number;
   readonly mirrorJobId: string;
   readonly materialize: (
     afterSnapshotJson: string,
@@ -108,6 +114,7 @@ export interface PlanChangeRepository {
   preview(input: PreviewPlanChangeInput): Promise<PlanChangePreviewStoreResult>;
   apply(input: ApplyPlanChangeInput): Promise<PlanChangeApplyStoreResult>;
   listChanges(planId: string): Promise<PlanChangeRecord[]>;
+  readUndoContext(planId: string): Promise<PlanChangeUndoContext | null>;
 }
 const ActiveRowSchema = z.object({
   plan_id: UlidSchema,
@@ -199,6 +206,39 @@ export function createPlanChangeRepository(
       resultRevisionNumber: row.result_revision_number,
     });
   };
+  const readUndoContext = async (active: z.infer<typeof ActiveRowSchema>) => {
+    const revision = z
+      .object({ snapshot_json: z.string() })
+      .parse(
+        await store.get(
+          "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=?",
+          [active.plan_id, active.current_revision_number],
+        ),
+      );
+    const newest = await store.get(
+      "SELECT * FROM plan_change WHERE plan_id=? AND status='applied' ORDER BY result_revision_number DESC LIMIT 1",
+      [active.plan_id],
+    );
+    const newestApplied =
+      newest === undefined ? null : project(ChangeRowSchema.parse(newest), new Map());
+    const previous =
+      newestApplied === null
+        ? null
+        : z
+            .object({ snapshot_json: z.string() })
+            .parse(
+              await store.get(
+                "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=?",
+                [active.plan_id, newestApplied.baseRevisionNumber],
+              ),
+            );
+    return {
+      currentRevisionNumber: active.current_revision_number,
+      snapshotJson: revision.snapshot_json,
+      previousSnapshotJson: previous?.snapshot_json ?? null,
+      newestApplied,
+    };
+  };
   const retire = async (
     row: ChangeRow,
     input: { command: PlanCreationCommandStamp; nowMs: number },
@@ -219,6 +259,7 @@ export function createPlanChangeRepository(
     input: ApplyPlanChangeInput,
     change: ChangeRow,
     afterSnapshotJson: string,
+    todayDateKey: number,
   ) => {
     const plan = await plans.read(input.planId);
     if (plan === undefined) return fail();
@@ -254,12 +295,21 @@ export function createPlanChangeRepository(
       completedRows.map((row) => z.string().parse(row.plan_workout_id)),
     );
     const currentByDraftId = new Map(current.map((workout) => [draftId(workout), workout]));
+    if (current.some((workout) => !baseIds.has(draftId(workout)))) return false;
+    for (const workout of afterWorkouts) {
+      if (
+        !baseIds.has(workout.id) &&
+        workout.date !== null &&
+        dateKeyFromText(workout.date) < todayDateKey
+      )
+        return false;
+    }
     for (const workout of changedWorkouts) {
       const row = currentByDraftId.get(workout.id);
       if (
         workout.pinned ||
         workout.date === null ||
-        dateKeyFromText(workout.date) < input.todayDateKey ||
+        dateKeyFromText(workout.date) < todayDateKey ||
         (row !== undefined && completedWorkoutIds.has(row.id))
       )
         return false;
@@ -271,6 +321,7 @@ export function createPlanChangeRepository(
         row === undefined
           ? workout.date !== null
           : workout.date === null ||
+            row.origin !== "coach" ||
             row.name !== workout.name ||
             row.durationS !== workout.minutes * 60 ||
             row.dateKey !== dateKeyFromText(workout.date) ||
@@ -366,15 +417,21 @@ export function createPlanChangeRepository(
         if (active === null) return { status: "rejected", reason: "no-active-plan" };
         if (active.plan_id !== input.planId || active.version !== input.expectedVersion)
           return { status: "rejected", reason: "stale-version" };
-        const revision = z
-          .object({ snapshot_json: z.string() })
-          .parse(
-            await store.get(
-              "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=?",
-              [input.planId, active.current_revision_number],
-            ),
-          );
-        const built = input.build(revision.snapshot_json);
+        const completedRows = await store.all(
+          `SELECT workout.structure_json FROM plan_workout workout
+          WHERE workout.plan_id=? AND EXISTS (
+            SELECT 1 FROM plan_workout_match match
+            WHERE match.plan_workout_id=workout.id AND match.plan_id=workout.plan_id
+              AND match.decision='confirmed'
+          )`,
+          [input.planId],
+        );
+        const completedWorkoutIds = new Set(
+          completedRows.map(
+            (row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id,
+          ),
+        );
+        const built = input.build({ ...(await readUndoContext(active)), completedWorkoutIds });
         if ("status" in built) return built;
         const afterSnapshotJson = canonicalJson(JSON.parse(built.afterSnapshotJson));
         const fingerprint = await dependencies.sha256(afterSnapshotJson);
@@ -430,6 +487,7 @@ export function createPlanChangeRepository(
     },
     async apply(input) {
       return store.transaction(async () => {
+        const todayDateKey = input.todayDateKey();
         const prior = await replay("plan_change.apply", input.command);
         if (prior !== undefined) return PlanChangeApplyStoreResultSchema.parse(prior);
         const active = await readActive();
@@ -455,7 +513,7 @@ export function createPlanChangeRepository(
           const { afterSnapshotJson } = z
             .object({ afterSnapshotJson: z.string() })
             .parse(JSON.parse(change.reconciliation_effect_json));
-          if (!(await writeWorkouts(input, change, afterSnapshotJson)))
+          if (!(await writeWorkouts(input, change, afterSnapshotJson, todayDateKey)))
             return { status: "rejected", reason: "stale-version" };
           const revisionNumber = active.current_revision_number + 1;
           await store.run(
@@ -496,7 +554,7 @@ export function createPlanChangeRepository(
               input.planId,
             ],
           );
-          const windowEnd = addCivilDays(input.todayDateKey, 6);
+          const windowEnd = addCivilDays(todayDateKey, 6);
           await store.run(
             `INSERT INTO plan_reconciliation_job (
             id,plan_id,kind,status,window_start_date_key,window_end_date_key,
@@ -504,20 +562,13 @@ export function createPlanChangeRepository(
             created_at_ms,updated_at_ms,completed_at_ms
             ) VALUES (?,?,'mirror','pending',?,?,0,0,0,NULL,NULL,?,?,NULL)
             ON CONFLICT(plan_id,kind,window_start_date_key,window_end_date_key) DO NOTHING`,
-            [
-              input.mirrorJobId,
-              input.planId,
-              input.todayDateKey,
-              windowEnd,
-              input.nowMs,
-              input.nowMs,
-            ],
+            [input.mirrorJobId, input.planId, todayDateKey, windowEnd, input.nowMs, input.nowMs],
           );
           const job = z.object({ id: UlidSchema }).parse(
             await store.get(
               `SELECT id FROM plan_reconciliation_job
               WHERE plan_id=? AND kind='mirror' AND window_start_date_key=? AND window_end_date_key=?`,
-              [input.planId, input.todayDateKey, windowEnd],
+              [input.planId, todayDateKey, windowEnd],
             ),
           );
           await store.run(
@@ -528,7 +579,7 @@ export function createPlanChangeRepository(
                   AND origin='coach' AND date_key BETWEEN ? AND ?
               )
             )))`,
-            [job.id, input.todayDateKey, windowEnd],
+            [job.id, todayDateKey, windowEnd],
           );
           await store.run(
             `UPDATE plan_reconciliation_job SET status='pending',last_error_code=NULL,
@@ -549,6 +600,12 @@ export function createPlanChangeRepository(
           result,
         );
         return result;
+      });
+    },
+    async readUndoContext(planId) {
+      return store.transaction(async () => {
+        const active = await readActive();
+        return active === null || active.plan_id !== planId ? null : readUndoContext(active);
       });
     },
     async listChanges(planId) {

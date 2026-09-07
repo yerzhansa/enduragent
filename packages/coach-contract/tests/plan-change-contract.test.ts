@@ -42,6 +42,7 @@ const change = {
   supersedes: null,
   supersededBy: null,
   resultRevisionNumber: null,
+  undo: null,
   confidence:
     "Moderate confidence. Based on your confirmed limits and the available training record.",
   premises: [
@@ -64,6 +65,7 @@ describe("Plan Change contract", () => {
     { kind: "weekly-duration", hours: 2.5 },
     { kind: "weekly-duration", hours: 2.75 },
     { kind: "longest-workout", minutes: 45 },
+    { kind: "inverse", changeId },
   ])("accepts Schedule intent $kind", (value) => {
     expect(PlanChangeIntentSchema.parse(value)).toEqual(value);
   });
@@ -84,6 +86,8 @@ describe("Plan Change contract", () => {
     { kind: "longest-workout", minutes: Infinity },
     { kind: "hard-weekday", day: 3, minutes: 30 },
     { kind: "inverse" },
+    { kind: "inverse", changeId: "invalid" },
+    { kind: "inverse", changeId, extra: true },
     { kind: "ftp", ftp: 220 },
   ])("rejects invalid or deferred intent %j", (value) => {
     expect(PlanChangeIntentSchema.safeParse(value).success).toBe(false);
@@ -111,9 +115,64 @@ describe("Plan Change contract", () => {
   it.each(["pending", "applied", "cancelled", "superseded", "stale"])(
     "accepts athlete status %s",
     (status) => {
-      expect(PlanChangeModelSchema.parse({ ...change, status }).status).toBe(status);
+      expect(
+        PlanChangeModelSchema.parse({
+          ...change,
+          status,
+          undo: status === "applied" ? { eligible: true } : null,
+        }).status,
+      ).toBe(status);
     },
   );
+
+  it("validates Undo eligibility only on applied Changes", () => {
+    for (const undo of [
+      { eligible: true },
+      ...["not-newest", "inverse", "nothing-to-restore", "plan-changed"].map((reason) => ({
+        eligible: false,
+        reason,
+      })),
+    ]) {
+      expect(PlanChangeModelSchema.parse({ ...change, status: "applied", undo }).undo).toEqual(
+        undo,
+      );
+      expect(PlanChangeModelSchema.safeParse({ ...change, undo }).success).toBe(false);
+    }
+    for (const undo of [
+      null,
+      { eligible: false },
+      { eligible: false, reason: "unknown" },
+      { eligible: true, reason: "inverse" },
+    ]) {
+      expect(PlanChangeModelSchema.safeParse({ ...change, status: "applied", undo }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it("preserves arbitrary JSON premise values including the undone Change", () => {
+    const values = [
+      { changeId, title: "Limit weekday duration" },
+      null,
+      true,
+      42,
+      "source",
+      [1, { nested: false }],
+    ];
+    for (const value of values) {
+      const model = {
+        ...change,
+        premises: [{ id: "undone-change", label: "Applied Change", source: "Plan history", value }],
+      };
+      expect(PlanChangeModelSchema.parse(model)).toEqual(model);
+    }
+    expect(
+      PlanChangeModelSchema.safeParse({
+        ...change,
+        premises: [{ id: "bad", label: "Bad", source: "Bad", value: undefined }],
+      }).success,
+    ).toBe(false);
+  });
 
   it("preserves the successor id in superseded history", () => {
     const superseded = {

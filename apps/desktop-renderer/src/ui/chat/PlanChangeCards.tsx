@@ -3,6 +3,7 @@ import type {
   PlanChangeModel,
   PlanChangeWorkout,
 } from "@enduragent/coach-contract";
+import { PlanChangeIntentSchema } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
@@ -135,7 +136,10 @@ function Difference({ change }: { change: PlanChangeModel }): ReactElement {
   );
 }
 
-function premiseValue(intent: PlanChangeIntent): string {
+function premiseValue(premise: PlanChangeModel["premises"][number]): string {
+  const parsed = PlanChangeIntentSchema.safeParse(premise.value);
+  if (!parsed.success) return premise.label;
+  const intent = parsed.data;
   switch (intent.kind) {
     case "weekday-duration":
       return `${days[intent.day - 1]} · ${intent.minutes} min`;
@@ -147,11 +151,13 @@ function premiseValue(intent: PlanChangeIntent): string {
       return `${intent.hours} hours each week`;
     case "longest-workout":
       return `${intent.minutes} min`;
+    case "inverse":
+      return premise.label;
   }
 }
 
 function ChangeEditor(): ReactElement {
-  const [kind, setKind] = useState<PlanChangeIntent["kind"]>("weekday-duration");
+  const [kind, setKind] = useState<(typeof changeOptions)[number]["value"]>("weekday-duration");
   const [day, setDay] = useState(3);
   const [minutes, setMinutes] = useState("30");
   const [hours, setHours] = useState("3");
@@ -440,7 +446,7 @@ export function PlanChangeCards(): ReactElement | null {
           <div role="table" aria-label="Source details">
             {source.change.premises.map((premise) => (
               <Fact key={premise.id} label={`${premise.label} · ${premise.source}`}>
-                {premiseValue(premise.value)}
+                {premiseValue(premise)}
               </Fact>
             ))}
           </div>
