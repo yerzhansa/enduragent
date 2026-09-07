@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { CommitmentRule } from "./commitments.js";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
@@ -25,7 +26,14 @@ export interface CreationDraftInput {
       | { kind: "none" }
       | { kind: "no-training" | "no-hard-training"; endDate?: string }
       | { kind: "max-duration"; hours: number; endDate?: string };
-    commitments: { kind: "none" } | { kind: "authored"; text: string };
+    commitments:
+      | { kind: "none" }
+      | {
+          kind: "interpreted";
+          text: string;
+          rules: readonly CommitmentRule[];
+          status: "confirmed" | "clarify";
+        };
     baseline: "regular" | "occasional" | "starting-again";
     success:
       | { kind: "fitness-choice"; choice: "train-consistently" | "climb-stronger" | "ride-farther" }
@@ -103,14 +111,36 @@ function rulesFor(answers: CreationDraftInput["answers"], key: number) {
   const restriction = answers.restriction;
   const active =
     restriction.kind !== "none" && (!restriction.endDate || civilText(key) <= restriction.endDate);
+  const date = civilText(key);
+  const weekday = weekdayForDateKey(key) || 7;
+  const rules =
+    answers.commitments.kind === "interpreted" && answers.commitments.status === "confirmed"
+      ? answers.commitments.rules
+      : [];
+  const unavailable = rules.some((rule) =>
+    rule.kind === "time-off"
+      ? date >= rule.start && date <= rule.end
+      : rule.kind === "weekday-unavailable" && rule.day === weekday,
+  );
+  const noHard = rules.some((rule) => rule.kind === "hard-weekday" && rule.day === weekday);
+  const weekdayLimit = rules.reduce(
+    (limit, rule) =>
+      rule.kind === "weekday-duration" && rule.day === weekday
+        ? Math.min(limit, rule.minutes)
+        : limit,
+    Infinity,
+  );
+  const hardReplacement: "easy" | "endurance" | null =
+    active && restriction.kind === "no-hard-training" ? "easy" : noHard ? "endurance" : null;
   return {
-    unavailable: active && restriction.kind === "no-training",
-    noHard: active && restriction.kind === "no-hard-training",
+    unavailable: unavailable || (active && restriction.kind === "no-training"),
+    hardReplacement,
     minutes: Math.floor(
       Math.min(
-        answers.availability.longestWorkoutHours,
-        active && restriction.kind === "max-duration" ? restriction.hours : Infinity,
-      ) * 60,
+        answers.availability.longestWorkoutHours * 60,
+        active && restriction.kind === "max-duration" ? restriction.hours * 60 : Infinity,
+        weekdayLimit,
+      ),
     ),
   };
 }
@@ -213,7 +243,13 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
         assigned === undefined
           ? {
               minutes: Math.min(...possible.map((date) => rulesFor(answers, date).minutes)),
-              noHard: possible.some((date) => rulesFor(answers, date).noHard),
+              hardReplacement: possible.some(
+                (date) => rulesFor(answers, date).hardReplacement === "easy",
+              )
+                ? ("easy" as const)
+                : possible.some((date) => rulesFor(answers, date).hardReplacement === "endurance")
+                  ? ("endurance" as const)
+                  : null,
             }
           : rulesFor(answers, assigned);
       const minutes = Math.min(template.minutes, rule.minutes, remaining);
@@ -225,18 +261,25 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
         week.notes.push(`${template.name} removed because no compatible time remains.`);
         continue;
       }
-      const replaceHard = template.kind === "hard" && rule.noHard;
-      const name = replaceHard ? "Easy ride" : template.name;
+      const replacement = template.kind === "hard" ? rule.hardReplacement : null;
+      const name =
+        replacement === "easy"
+          ? "Easy ride"
+          : replacement === "endurance"
+            ? "Endurance ride"
+            : template.name;
       if (minutes < template.minutes)
         week.notes.push(`${name} limited to ${minutes} minutes by your confirmed limits.`);
-      if (replaceHard)
+      if (replacement)
         week.notes.push(
-          "Hard training replaced with an easy ride under the confirmed restriction.",
+          replacement === "easy"
+            ? "Hard training replaced with an easy ride under the confirmed restriction."
+            : "Hard training replaced with an endurance ride under your confirmed limits.",
         );
       week.workouts.push({
         id: `w${number}-template-${index + 1}`,
         name,
-        kind: replaceHard ? "easy" : template.kind,
+        kind: replacement ?? template.kind,
         date: assigned === undefined ? null : civilText(assigned),
         minutes,
         pinned: false,
@@ -256,10 +299,6 @@ export function buildCreationDraft(input: CreationDraftInput): CreationDraftResu
         "No Workouts fit anywhere in this Plan under your confirmed limits. Edit those limits to continue.",
     };
   const notes = [...new Set(weeks.flatMap((week) => week.notes))];
-  if (answers.commitments.kind === "authored")
-    notes.push(
-      "Your written commitments are recorded for review and have not been applied to Workouts.",
-    );
   const draft: Omit<CreationDraft, "inputFingerprint" | "outputFingerprint"> = {
     kind: "draft",
     goal: structuredClone(goal),

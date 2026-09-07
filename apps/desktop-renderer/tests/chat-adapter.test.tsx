@@ -236,7 +236,7 @@ describe("chat view adapter", () => {
     const model = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
       status: "in-progress" as const,
@@ -423,7 +423,7 @@ describe("chat view adapter", () => {
     const model: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
       status: "in-progress",
@@ -524,7 +524,7 @@ describe("chat view adapter", () => {
     const nextModel: PlanCreationCardModel = {
       draft: null,
       draftStale: false,
-      commitmentsAcknowledgement: null,
+      pendingCommitment: null,
       creationId: "01J00000000000000000000001",
       version: 1,
       status: "in-progress",
@@ -582,7 +582,7 @@ describe("chat view adapter", () => {
           value: {
             draft: null,
             draftStale: false,
-            commitmentsAcknowledgement: null,
+            pendingCommitment: null,
             creationId: "01J00000000000000000000000",
             version: 1,
             status: "in-progress",

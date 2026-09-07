@@ -31,6 +31,7 @@ import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
 import {
   readPlanCreationAnswers,
+  interpretCommitmentMessage,
   resolvePlanCreationDraftAnswers,
 } from "../src/plan-creation-answers.js";
 
@@ -1977,223 +1978,335 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     await expect(test.host.readCard()).resolves.toBeNull();
   });
 
-  it.each([undefined, false])(
-    "blocks unacknowledged commitments (%s) without writes and activates the same Draft after acknowledgement",
-    async (acknowledged) => {
-      const test = await review();
-      const active = await test.host["plan_creation.activate"](test.request);
-      const started = await test.host["plan_creation.start"]({ commandId: "replacement" });
-      if (started.status !== "started") throw new Error("Expected replacement creation");
-      let card = started.planCreation;
-      const text = "Strength training on Wednesdays";
-      for (const answer of [
-        fitnessGoal,
-        { kind: "plan-length", weeks: 4 },
-        fixedMode,
-        fixedAvailability,
-        startTiming,
-        {
-          kind: "commitments",
-          commitments: {
-            kind: "authored",
-            text,
-            ...(acknowledged === undefined ? {} : { acknowledged }),
-          },
-        },
-        regularBaseline,
-        fitnessSuccess,
-        noRestriction,
-      ] satisfies PlanCreationAnswerInput[]) {
-        card = await answered(
-          test.host["plan_creation.answer"]({
-            commandId: `replacement-${answer.kind}`,
-            creationId: card.creationId,
-            expectedVersion: card.version,
-            answer,
-          }),
-        );
-      }
-      expect(card.commitmentsAcknowledgement).toEqual({ text });
-      const previewRequest = {
-        commandId: "replacement-preview",
-        creationId: card.creationId,
-        expectedVersion: card.version,
-      };
-      const previewed = await test.host["plan_creation.preview"](previewRequest);
-      if (previewed.status !== "previewed" || previewed.planCreation.draft === null)
-        throw new Error("Expected Draft with pending commitments");
-      card = previewed.planCreation;
-      expect(card.draft?.notes).toContain(
-        "Your written commitments are recorded for review and have not been applied to Workouts.",
+  it("persists pending limits, blocks preview and activation, then confirms and rebuilds", async () => {
+    const test = await review();
+    const original = await test.repository.readUnfinished();
+    if (original === undefined) throw new Error("Expected creation");
+    const text = "Wednesdays at most 45 min. Saturday off";
+    const pending = await answered(
+      test.host["plan_creation.answer"]({
+        commandId: "interpret",
+        creationId: test.request.creationId,
+        expectedVersion: test.request.expectedVersion,
+        answer: { kind: "commitments", commitments: { kind: "interpreted", text } },
+      }),
+    );
+    expect(pending.pendingCommitment).toEqual({
+      text,
+      rules: [
+        { kind: "weekday-duration", day: 3, minutes: 45 },
+        { kind: "weekday-unavailable", day: 6 },
+      ],
+      status: "confirm",
+      unparsed: [],
+    });
+    expect(pending.draftStale).toBe(false);
+    await expect(test.host.readCard()).resolves.toEqual(pending);
+    const current = await test.repository.readUnfinished();
+    if (current === undefined) throw new Error("Expected creation");
+    expect(resolvePlanCreationDraftAnswers(current)).toEqual(
+      resolvePlanCreationDraftAnswers(original),
+    );
+    const writes = vi.spyOn(test.store, "run");
+    await expect(
+      test.host["plan_creation.preview"]({
+        commandId: "pending-preview",
+        creationId: pending.creationId,
+        expectedVersion: pending.version,
+      }),
+    ).resolves.toMatchObject({ status: "rejected", reason: "commitments-pending" });
+    await expect(
+      test.host["plan_creation.activate"]({ ...test.request, expectedVersion: pending.version }),
+    ).rejects.toMatchObject({
+      code: "commitments-pending",
+      message: "Clarify or cancel the pending commitment correction.",
+    });
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+    const request = {
+      commandId: "confirm",
+      creationId: pending.creationId,
+      expectedVersion: pending.version,
+      answer: { kind: "commitments-confirm" },
+    } as const;
+    const confirmed = await answered(test.host["plan_creation.answer"](request));
+    expect(confirmed).toMatchObject({ pendingCommitment: null, draftStale: true });
+    expect(
+      confirmed.answeredSummaries.find((answer) => answer.answerKey === "commitments")?.detail,
+    ).toBe("Wed · at most 45 min; Sat · unavailable");
+    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
+      status: "answered",
+      planCreation: confirmed,
+    });
+    const rebuilt = await test.host["plan_creation.preview"]({
+      commandId: "rebuild",
+      creationId: confirmed.creationId,
+      expectedVersion: confirmed.version,
+    });
+    if (rebuilt.status !== "previewed") throw new Error("Expected rebuilt Draft");
+    expect(rebuilt.planCreation.draft?.inputFingerprint).not.toBe(test.draft.inputFingerprint);
+    expect(
+      rebuilt.planCreation.draft?.weeks
+        .flatMap((week) => week.workouts)
+        .every(
+          (workout) =>
+            workout.date === null || new Date(`${workout.date}T00:00:00Z`).getUTCDay() !== 6,
+        ),
+    ).toBe(true);
+    await expect(
+      test.host["plan_creation.activate"]({
+        ...test.request,
+        expectedVersion: rebuilt.planCreation.version,
+      }),
+    ).resolves.toMatchObject({ creationId: confirmed.creationId });
+    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
+      status: "answered",
+      planCreation: confirmed,
+    });
+  });
+
+  it("replaces pending text and cancellation restores confirmed rules and the Draft", async () => {
+    const test = await previewHarness();
+    await test.ready();
+    await test.answer({ kind: "commitments-interpret", text: "Tuesday maximum 30 minutes" });
+    const confirmed = await test.answer({ kind: "commitments-confirm" });
+    const previewed = await test.host["plan_creation.preview"]({
+      commandId: "preview",
+      creationId: confirmed.creationId,
+      expectedVersion: confirmed.version,
+    });
+    if (previewed.status !== "previewed") throw new Error("Expected Draft");
+    const original = await test.repository.readUnfinished();
+    if (original === undefined) throw new Error("Expected creation");
+    const submit = async (answer: PlanCreationAnswerInput): Promise<PlanCreationCardModel> => {
+      const card = await test.host.readCard();
+      if (card === null) throw new Error("Expected creation");
+      return answered(
+        test.host["plan_creation.answer"]({
+          commandId: `correction-${card.version}`,
+          creationId: card.creationId,
+          expectedVersion: card.version,
+          answer,
+        }),
       );
-      const before = await test.repository.readUnfinished();
-      if (before === undefined) throw new Error("Expected creation");
-      const builderAnswers = resolvePlanCreationDraftAnswers(before);
-      expect(builderAnswers?.commitments).toEqual({ kind: "authored", text });
-      const incumbent = { planId: active.planId, version: 1 };
-      const request = {
-        commandId: "replacement-activate",
-        incumbent,
-        creationId: card.creationId,
-        expectedVersion: card.version,
-      };
-      const activeBefore = await test.store.all("SELECT * FROM planning_plan");
-      const plansBefore = await test.store.all("SELECT * FROM plan");
-      const writes = vi.spyOn(test.store, "run");
-      await expect(test.host["plan_creation.activate"](request)).rejects.toMatchObject({
-        code: "commitments-unacknowledged",
-      });
-      expect(writes).not.toHaveBeenCalled();
-      writes.mockRestore();
-      expect(await test.store.all("SELECT * FROM planning_plan")).toEqual(activeBefore);
-      expect(await test.store.all("SELECT * FROM plan")).toEqual(plansBefore);
-      expect(await test.repository.readUnfinished()).toEqual(before);
-      const acknowledgementRequest = {
-        commandId: "acknowledge",
-        creationId: card.creationId,
-        expectedVersion: card.version,
-        answer: {
-          kind: "commitments",
-          commitments: { kind: "authored", text, acknowledged: true },
+    };
+    await submit({ kind: "commitments-interpret", text: "Wednesday off" });
+    const pending = await submit({ kind: "commitments-interpret", text: "Usually away" });
+    expect(pending.pendingCommitment).toEqual({
+      text: "Usually away",
+      rules: [],
+      status: "clarify",
+      unparsed: ["Usually away"],
+    });
+    await expect(
+      test.host["plan_creation.answer"]({
+        commandId: "invalid-confirm",
+        creationId: pending.creationId,
+        expectedVersion: pending.version,
+        answer: { kind: "commitments-confirm" },
+      }),
+    ).resolves.toMatchObject({ status: "rejected", reason: "invalid-answer" });
+    const restored = await submit({ kind: "commitments-cancel" });
+    expect(restored).toMatchObject({
+      pendingCommitment: null,
+      draftStale: false,
+      draft: previewed.planCreation.draft,
+    });
+    const current = await test.repository.readUnfinished();
+    if (current === undefined) throw new Error("Expected creation");
+    expect(resolvePlanCreationDraftAnswers(current)).toEqual(
+      resolvePlanCreationDraftAnswers(original),
+    );
+    expect(
+      restored.answeredSummaries.find((answer) => answer.answerKey === "commitments")?.detail,
+    ).toBe("Tue · at most 30 min");
+    await expect(
+      test.host["plan_creation.answer"]({
+        commandId: "cancel-again",
+        creationId: restored.creationId,
+        expectedVersion: restored.version,
+        answer: { kind: "commitments-cancel" },
+      }),
+    ).resolves.toMatchObject({ status: "rejected", reason: "invalid-answer" });
+  });
+
+  it.each([undefined, false, true])(
+    "reads legacy authored answers as clarification regardless of acknowledgement %s",
+    (acknowledged) => {
+      const legacy = snapshot([
+        {
+          ...stored(1, noCommitments),
+          valueJson: canonicalJson({
+            answer: {
+              kind: "commitments",
+              commitments: {
+                kind: "authored",
+                text: "Wednesday off",
+                ...(acknowledged === undefined ? {} : { acknowledged }),
+              },
+            },
+            source: { kind: "athlete" },
+          }),
         },
-      } as const;
-      const confirmed = await answered(test.host["plan_creation.answer"](acknowledgementRequest));
-      expect(confirmed).toMatchObject({
-        draftStale: false,
-        commitmentsAcknowledgement: null,
-        draft: card.draft,
+      ]);
+      expect(readPlanCreationAnswers(legacy)[0]?.answer).toEqual({
+        kind: "commitments",
+        commitments: { kind: "interpreted", text: "Wednesday off", rules: [], status: "clarify" },
       });
-      expect(
-        confirmed.answeredSummaries.find((summary) => summary.answerKey === "commitments")?.detail,
-      ).toBe(text);
-      const after = await test.repository.readUnfinished();
-      if (after === undefined) throw new Error("Expected acknowledged creation");
-      expect(resolvePlanCreationDraftAnswers(after)).toEqual(builderAnswers);
-      expect(
-        createHash("sha256")
-          .update(
-            canonicalJson({ answers: resolvePlanCreationDraftAnswers(after), today, ftp: null }),
-          )
-          .digest("hex"),
-      ).toBe(before.currentDraft?.inputFingerprint);
-      expect(after.currentDraft).toEqual(before.currentDraft);
-      await expect(test.host.readCard()).resolves.toEqual(confirmed);
-      await expect(test.host["plan_creation.answer"](acknowledgementRequest)).resolves.toEqual({
-        status: "answered",
-        planCreation: confirmed,
-      });
-      await expect(test.host["plan_creation.preview"](previewRequest)).resolves.toEqual(previewed);
-      const result = await test.host["plan_creation.activate"]({
-        ...request,
-        expectedVersion: confirmed.version,
-      });
-      expect(result.closedPlanId).toBe(active.planId);
-      await expect(
-        test.host["plan_creation.activate"]({ ...request, expectedVersion: confirmed.version }),
-      ).resolves.toEqual(result);
-      await expect(test.host["plan_creation.answer"](acknowledgementRequest)).resolves.toEqual({
-        status: "answered",
-        planCreation: confirmed,
+      expect(projectPlanCreationCard(legacy).pendingCommitment).toMatchObject({
+        text: "Wednesday off",
+        status: "clarify",
+        rules: [],
       });
     },
   );
 
-  it("keeps a built Draft and its input fingerprint current after acknowledging the same text", async () => {
+  it("blocks activation without a Draft while a correction is pending and cancels to no commitments", async () => {
     const test = await previewHarness();
     await test.ready();
-    const text = "Strength training on Wednesdays";
-    const pending = await test.answer({
-      kind: "commitments",
-      commitments: { kind: "authored", text },
-    });
-    const previewed = await test.host["plan_creation.preview"]({
-      commandId: "preview",
-      creationId: pending.creationId,
-      expectedVersion: pending.version,
-    });
-    if (previewed.status !== "previewed") throw new Error("Expected Draft");
-    const request = {
-      commandId: "acknowledge",
-      creationId: pending.creationId,
-      expectedVersion: previewed.planCreation.version,
-      answer: { kind: "commitments", commitments: { kind: "authored", text, acknowledged: true } },
-    } as const;
-    const card = await answered(test.host["plan_creation.answer"](request));
-    expect(card).toMatchObject({
-      draftStale: false,
-      commitmentsAcknowledgement: null,
-      draft: previewed.planCreation.draft,
-    });
-    const snapshot = await test.repository.readUnfinished();
-    if (snapshot === undefined) throw new Error("Expected creation");
-    const answers = resolvePlanCreationDraftAnswers(snapshot);
-    expect(answers?.commitments).toEqual({ kind: "authored", text });
+    const pending = await test.answer({ kind: "commitments-interpret", text: "Wednesday off" });
+    await expect(
+      test.host["plan_creation.activate"]({
+        commandId: "activate-pending",
+        creationId: pending.creationId,
+        expectedVersion: pending.version,
+        incumbent: null,
+      }),
+    ).rejects.toMatchObject({ code: "commitments-pending" });
+    const restored = await test.answer({ kind: "commitments-cancel" });
+    expect(restored.pendingCommitment).toBeNull();
     expect(
-      createHash("sha256")
-        .update(canonicalJson({ answers, today, ftp: null }))
-        .digest("hex"),
-    ).toBe(card.draft?.inputFingerprint);
-    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
-      status: "answered",
-      planCreation: card,
-    });
-    await expect(test.host.readCard()).resolves.toEqual(card);
-    const changed = await answered(
-      test.host["plan_creation.answer"]({
-        ...request,
-        commandId: "change-text",
+      restored.answeredSummaries.find((answer) => answer.answerKey === "commitments")?.answer,
+    ).toEqual(noCommitments);
+  });
+
+  it.each(["commitments-interpret", "commitments"] as const)(
+    "rejects more than 20 distinct rules through %s without storing anything",
+    async (kind) => {
+      const test = await previewHarness();
+      const card = await test.ready();
+      const before = await test.repository.readUnfinished();
+      const text = Array.from(
+        { length: 21 },
+        (_, index) => `Off ${1900 + index}-09-01 to ${1900 + index}-09-02`,
+      ).join("\n");
+      const writes = vi.spyOn(test.store, "run");
+      const result = await test.host["plan_creation.answer"]({
+        commandId: "too-many-limits",
+        creationId: card.creationId,
         expectedVersion: card.version,
-        answer: {
-          kind: "commitments",
-          commitments: {
-            kind: "authored",
-            text: "Strength training on Fridays",
-            acknowledged: true,
+        answer:
+          kind === "commitments-interpret"
+            ? { kind, text }
+            : { kind, commitments: { kind: "interpreted", text } },
+      });
+      expect(result).toMatchObject({
+        status: "rejected",
+        reason: "invalid-answer",
+        planCreation: {
+          version: card.version,
+          pendingCommitment: {
+            text,
+            status: "clarify",
+            unparsed: ["Keep it to a few limits at a time."],
           },
         },
-      }),
-    );
-    expect(changed.draftStale).toBe(true);
-    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
-      status: "answered",
-      planCreation: card,
-    });
-  });
-
-  it("projects acknowledgement changes without changing the commitments summary", async () => {
-    const test = await previewHarness();
-    expect((await test.ready()).commitmentsAcknowledgement).toBeNull();
-    const text = "Strength training on Wednesdays";
-    for (const acknowledged of [false, true, false]) {
-      const card = await test.answer({
-        kind: "commitments",
-        commitments: { kind: "authored", text, acknowledged },
       });
-      expect(card.commitmentsAcknowledgement).toEqual(acknowledged ? null : { text });
-      expect(
-        card.answeredSummaries.find((summary) => summary.answerKey === "commitments")?.detail,
-      ).toBe(text);
-    }
-    expect((await test.answer(noCommitments)).commitmentsAcknowledgement).toBeNull();
+      expect(writes).not.toHaveBeenCalled();
+      writes.mockRestore();
+      expect(await test.repository.readUnfinished()).toEqual(before);
+      expect(await test.host.readCard()).toEqual(card);
+      expect(interpretCommitmentMessage(text)).toBeNull();
+    },
+  );
+
+  it("accepts 20 distinct rules and keeps their projected summary below the schema limit", async () => {
+    const test = await previewHarness();
+    await test.ready();
+    const text = Array.from(
+      { length: 20 },
+      (_, index) => `Off ${1900 + index}-09-01 to ${1900 + index}-09-02`,
+    ).join("\n");
+    const pending = await test.answer({ kind: "commitments-interpret", text });
+    expect(pending.pendingCommitment?.rules).toHaveLength(20);
+    expect(pending.pendingCommitment?.status).toBe("confirm");
+    const confirmed = await test.answer({ kind: "commitments-confirm" });
+    const detail = confirmed.answeredSummaries.find(
+      (answer) => answer.answerKey === "commitments",
+    )?.detail;
+    expect(detail).toBeDefined();
+    expect(detail?.length).toBeLessThanOrEqual(2_000);
+    expect(PlanCreationCardModelSchema.safeParse(confirmed).success).toBe(true);
+    expect(await test.host.readCard()).toEqual(confirmed);
   });
 
-  it("keeps changed commitment text stale even when it is acknowledged", async () => {
-    const test = await review();
-    const card = await answered(
-      test.host["plan_creation.answer"]({
-        commandId: "changed-commitments",
-        creationId: test.request.creationId,
-        expectedVersion: test.request.expectedVersion,
-        answer: {
-          kind: "commitments",
-          commitments: { kind: "authored", text: "No riding on Wednesdays", acknowledged: true },
-        },
-      }),
+  it("deduplicates repeated input before storage and bounds summaries of existing oversized records", async () => {
+    const test = await previewHarness();
+    await test.ready();
+    const text = Array.from({ length: 120 }, () => "Mon off").join("\n");
+    const pending = await test.answer({ kind: "commitments-interpret", text });
+    expect(pending.pendingCommitment?.rules).toEqual([{ kind: "weekday-unavailable", day: 1 }]);
+    await test.answer({ kind: "commitments-confirm" });
+    const current = await test.repository.readUnfinished();
+    if (current === undefined) throw new Error("Expected creation");
+    const projected = projectPlanCreationCard(
+      {
+        ...current,
+        answers: current.answers.map((record) =>
+          record.answerKey !== "commitments"
+            ? record
+            : {
+                ...record,
+                valueJson: JSON.stringify({
+                  answer: {
+                    kind: "commitments",
+                    commitments: {
+                      kind: "interpreted",
+                      text,
+                      status: "confirmed",
+                      rules: Array.from({ length: 120 }, () => ({
+                        kind: "weekday-unavailable",
+                        day: 1,
+                      })),
+                    },
+                  },
+                  source: { kind: "athlete" },
+                }),
+              },
+        ),
+      },
+      { today },
     );
-    expect(card).toMatchObject({ draftStale: true, commitmentsAcknowledgement: null });
-    await expect(
-      test.host["plan_creation.activate"]({ ...test.request, expectedVersion: card.version }),
-    ).rejects.toMatchObject({ code: "not-ready" });
+    const detail = projected.answeredSummaries.find(
+      (answer) => answer.answerKey === "commitments",
+    )?.detail;
+    expect(detail?.length).toBeLessThanOrEqual(2_000);
+    expect(detail).toMatch(/^Mon · unavailable; .* · and \d+ more$/u);
+    expect(PlanCreationCardModelSchema.safeParse(projected).success).toBe(true);
+  });
+
+  it("formats each commitment rule in the compact summary", async () => {
+    const test = await previewHarness();
+    await test.ready();
+    await test.answer({
+      kind: "commitments-interpret",
+      text: "Wed 45 min. Sat unavailable. No hard on Mon. Off 3 September 1998 to 9 September 1998",
+    });
+    const confirmed = await test.answer({ kind: "commitments-confirm" });
+    expect(
+      confirmed.answeredSummaries.find((answer) => answer.answerKey === "commitments")?.detail,
+    ).toBe(
+      "Wed · at most 45 min; Sat · unavailable; Mon · no hard training; Off 3 Sep 1998 to 9 Sep 1998",
+    );
+  });
+
+  it("routes parsed commitment chat text through the existing answer shape", () => {
+    expect(interpretCommitmentMessage("Wednesday off")).toEqual({
+      kind: "commitments",
+      commitments: { kind: "interpreted", text: "Wednesday off" },
+    });
+    expect(interpretCommitmentMessage("How did my ride go?")).toBeNull();
+    expect(interpretCommitmentMessage("Wednesday off. Usually away")).toBeNull();
   });
 
   it("rejects missing Drafts and stale versions without creating a Plan", async () => {

@@ -7,6 +7,8 @@ import {
   PlanCreationActivateRpcParamsSchema,
   PlanCreationActivateRpcResultSchema,
   PlanCreationAnswerInputSchema,
+  PlanCreationAnswerSchema,
+  PlanCreationCommitmentRuleSchema,
   PlanCreationAnswerRpcParamsSchema,
   PlanCreationAnswerRpcResultSchema,
   PlanCreationAnswerSummarySchema,
@@ -56,7 +58,7 @@ const card = {
   status: "in-progress" as const,
   draft: null,
   draftStale: false,
-  commitmentsAcknowledgement: null,
+  pendingCommitment: null,
   readiness: "incomplete" as const,
   answeredSummaries: [],
   openQuestion: goalQuestion,
@@ -93,7 +95,7 @@ const newAnswers = [
   { kind: "commitments", commitments: { kind: "none" } },
   {
     kind: "commitments",
-    commitments: { kind: "authored", text: "Strength training on Wednesdays" },
+    commitments: { kind: "interpreted", text: "Wednesdays 45 minutes" },
   },
   { kind: "baseline", baseline: "regular" },
   { kind: "baseline", baseline: "occasional" },
@@ -516,43 +518,91 @@ describe("Plan Creation contract", () => {
     );
   });
 
-  it("accepts legacy commitments and explicit acknowledgement while keeping strict objects", () => {
-    const commitments = { kind: "authored", text: "Strength training on Wednesdays" };
-    for (const value of [
-      commitments,
-      { ...commitments, acknowledged: false },
-      { ...commitments, acknowledged: true },
-    ]) {
-      expect(
-        PlanCreationAnswerInputSchema.parse({ kind: "commitments", commitments: value }),
-      ).toEqual({ kind: "commitments", commitments: value });
-    }
-    for (const value of [
-      { ...commitments, acknowledged: "yes" },
-      { ...commitments, extra: true },
+  it("accepts text interpretation and confirmation actions without trusting submitted rules", () => {
+    for (const answer of [
+      { kind: "commitments", commitments: { kind: "interpreted", text: "Wed 45 min" } },
+      { kind: "commitments-interpret", text: "Wed 45 min" },
+      { kind: "commitments-confirm" },
+      { kind: "commitments-cancel" },
+    ])
+      expect(PlanCreationAnswerInputSchema.parse(answer)).toEqual(answer);
+    for (const commitments of [
+      { kind: "authored", text: "Wed 45 min" },
+      { kind: "authored", text: "Wed 45 min", acknowledged: true },
+      { kind: "interpreted", text: "Wed 45 min", rules: [], status: "confirmed" },
       { kind: "none", acknowledged: true },
-    ]) {
+    ])
       expect(
-        PlanCreationAnswerInputSchema.safeParse({ kind: "commitments", commitments: value })
-          .success,
+        PlanCreationAnswerInputSchema.safeParse({ kind: "commitments", commitments }).success,
       ).toBe(false);
+  });
+
+  it("reads legacy authored answers as unresolved without applying their text", () => {
+    for (const acknowledged of [undefined, false, true]) {
+      const normalized = PlanCreationAnswerSchema.parse({
+        kind: "commitments",
+        commitments: { kind: "authored", text: "  Wed 45 min  ", acknowledged },
+      });
+      expect(normalized).toEqual({
+        kind: "commitments",
+        commitments: { kind: "interpreted", text: "  Wed 45 min  ", rules: [], status: "clarify" },
+      });
+      expect(PlanCreationAnswerSchema.parse(normalized)).toEqual(normalized);
+      expect(
+        PlanCreationCardModelSchema.parse({
+          ...card,
+          pendingCommitment: { text: "  Wed 45 min  ", rules: [], status: "clarify", unparsed: [] },
+        }).pendingCommitment?.text,
+      ).toBe("  Wed 45 min  ");
     }
   });
 
-  it("requires a nullable strict commitments acknowledgement projection", () => {
-    const pending = { text: "Strength training on Wednesdays" };
+  it("requires normalized stored commitments and strict valid rules", () => {
+    const rules = [{ kind: "weekday-duration", day: 3, minutes: 45 }];
+    for (const status of ["confirmed", "clarify"]) {
+      const answer = {
+        kind: "commitments",
+        commitments: { kind: "interpreted", text: "Wed 45 min", rules, status },
+      };
+      expect(PlanCreationAnswerSchema.parse(answer)).toEqual(answer);
+    }
+    for (const rule of [
+      { kind: "weekday-duration", day: 0, minutes: 45 },
+      { kind: "weekday-duration", day: 3, minutes: 0 },
+      { kind: "weekday-duration", day: 3, minutes: 1441 },
+      { kind: "weekday-unavailable", day: 8 },
+      { kind: "hard-weekday", day: 3, extra: true },
+      { kind: "time-off", start: "1998-02-30", end: "1998-03-01" },
+      { kind: "time-off", start: "1998-03-02", end: "1998-03-01" },
+    ])
+      expect(PlanCreationCommitmentRuleSchema.safeParse(rule).success).toBe(false);
+    expect(PlanCreationAnswerSchema.safeParse({ kind: "commitments-confirm" }).success).toBe(false);
+  });
+
+  it("requires the nullable strict pending commitment projection", () => {
+    const pending = {
+      text: "Wed 45 min",
+      rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
+      status: "confirm",
+      unparsed: [],
+    };
     expect(
-      PlanCreationCardModelSchema.parse({ ...card, commitmentsAcknowledgement: pending })
-        .commitmentsAcknowledgement,
+      PlanCreationCardModelSchema.parse({ ...card, pendingCommitment: pending }).pendingCommitment,
     ).toEqual(pending);
-    expect(PlanCreationCardModelSchema.parse(card).commitmentsAcknowledgement).toBeNull();
-    const { commitmentsAcknowledgement: _pending, ...missing } = card;
+    expect(PlanCreationCardModelSchema.parse(card).pendingCommitment).toBeNull();
+    const { pendingCommitment: _pending, ...missing } = card;
     expect(PlanCreationCardModelSchema.safeParse(missing).success).toBe(false);
+    for (const invalid of [
+      { ...pending, rules: [] },
+      { ...pending, unparsed: ["sometimes"] },
+      { ...pending, acknowledged: false },
+    ]) {
+      expect(
+        PlanCreationCardModelSchema.safeParse({ ...card, pendingCommitment: invalid }).success,
+      ).toBe(false);
+    }
     expect(
-      PlanCreationCardModelSchema.safeParse({
-        ...card,
-        commitmentsAcknowledgement: { ...pending, acknowledged: false },
-      }).success,
+      PlanCreationCardModelSchema.safeParse({ ...card, commitmentsAcknowledgement: null }).success,
     ).toBe(false);
   });
 
@@ -975,6 +1025,17 @@ describe("Plan Creation Draft contract", () => {
           planCreation: null,
         }),
       ).toEqual({ status: "rejected", reason, planCreation: null });
+    const pendingCommitment = {
+      status: "rejected",
+      reason: "commitments-pending",
+      explanation: "Clarify or cancel the pending commitment correction.",
+      planCreation: null,
+    };
+    expect(PlanCreationPreviewRpcResultSchema.parse(pendingCommitment)).toEqual(pendingCommitment);
+    expect(
+      PlanCreationPreviewRpcResultSchema.safeParse({ ...pendingCommitment, explanation: undefined })
+        .success,
+    ).toBe(false);
     const noWorkouts = {
       status: "rejected",
       reason: "no-workouts",

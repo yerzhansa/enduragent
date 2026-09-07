@@ -724,8 +724,8 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
   if (question === null) throw new TypeError("commitments question required");
   const current =
     props.currentAnswer?.kind === "commitments" ? props.currentAnswer.commitments : null;
-  const [authored, setAuthored] = useState(current?.kind === "authored");
-  const [text, setText] = useState(current?.kind === "authored" ? current.text : "");
+  const [authored, setAuthored] = useState(current?.kind === "interpreted");
+  const [text, setText] = useState(current?.kind === "interpreted" ? current.text : "");
   const [error, setError] = useState<string>();
   const editor = useRef<HTMLTextAreaElement>(null);
   const customTrigger = useRef<HTMLButtonElement>(null);
@@ -754,7 +754,7 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
           setError(undefined);
           props.onAnswer({
             kind: "commitments",
-            commitments: { kind: "authored", text: text.trim() },
+            commitments: { kind: "interpreted", text: text.trim() },
           });
         }}
         onKeyDown={(event) => {

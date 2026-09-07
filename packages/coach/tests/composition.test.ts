@@ -2436,7 +2436,7 @@ describe("local coach composition", () => {
           readiness: "ready",
           version: answers.length + 2,
           draftStale: false,
-          commitmentsAcknowledgement: null,
+          pendingCommitment: null,
         });
         expect(card.draft).not.toBeNull();
         expect(await store.all("SELECT * FROM plan_creation_draft_revision")).toHaveLength(1);

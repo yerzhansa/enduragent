@@ -9,15 +9,15 @@ export type PlanCreationErrorCode =
   | "corrupt-record"
   | "version-conflict"
   | "not-ready"
-  | "commitments-unacknowledged";
+  | "commitments-pending";
 
 export class PlanCreationStoreError extends Error {
   constructor(readonly code: PlanCreationErrorCode) {
     super(
       code === "not-ready"
         ? "Build a current complete Draft and resolve pending answers before activation."
-        : code === "commitments-unacknowledged"
-          ? "Acknowledge your written commitments before activating this Plan."
+        : code === "commitments-pending"
+          ? "Clarify or cancel the pending commitment correction."
           : code,
     );
     this.name = "PlanCreationStoreError";

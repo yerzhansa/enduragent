@@ -8,6 +8,7 @@ import {
 } from "@enduragent/kernel/planning";
 import { describe, expect, it } from "vitest";
 import { buildCreationDraft, type CreationDraftInput } from "../src/creation-draft-builder.js";
+import type { CommitmentRule } from "../src/commitments.js";
 
 function input(): CreationDraftInput {
   return {
@@ -37,6 +38,127 @@ function eventDate(weeks: number) {
 }
 
 describe("creation draft builder", () => {
+  it.each([
+    { kind: "weekday-duration", day: 1, minutes: 20 },
+    { kind: "weekday-unavailable", day: 1 },
+    { kind: "hard-weekday", day: 1 },
+    { kind: "time-off", start: "1998-08-25", end: "1998-08-26" },
+  ] satisfies CommitmentRule[])("fingerprints a confirmed $kind rule", (rule) => {
+    const value = input();
+    const before = build(value);
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Scheduling limits",
+      status: "confirmed",
+      rules: [rule],
+    };
+    expect(build(value).inputFingerprint).not.toBe(before.inputFingerprint);
+  });
+
+  it("applies weekday caps alongside the tighter duration restriction", () => {
+    const value = input();
+    value.answers.availability = {
+      mode: "fixed",
+      weeklyHoursLimit: 6,
+      longestWorkoutHours: 2,
+      usableWeekdays: [1, 3, 5],
+    };
+    const before = build(value);
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Wednesday max 20 minutes",
+      status: "confirmed",
+      rules: [{ kind: "weekday-duration", day: 3, minutes: 20 }],
+    };
+    const after = build(value);
+    expect(after.inputFingerprint).not.toBe(before.inputFingerprint);
+    expect(after.weeks[0]?.workouts.map(({ minutes }) => minutes)).toEqual([45, 20, 100]);
+    value.answers.restriction = { kind: "max-duration", hours: 0.25 };
+    expect(build(value).weeks[0]?.workouts.map(({ minutes }) => minutes)).toEqual([15, 15, 15]);
+  });
+
+  it("removes unavailable weekdays and includes both time-off boundaries", () => {
+    const value = input();
+    value.answers.availability = {
+      mode: "fixed",
+      weeklyHoursLimit: 6,
+      longestWorkoutHours: 2,
+      usableWeekdays: [1, 3, 5],
+    };
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Wednesday off. Away 1998-08-28 to 1998-08-31",
+      status: "confirmed",
+      rules: [
+        { kind: "weekday-unavailable", day: 3 },
+        { kind: "time-off", start: "1998-08-28", end: "1998-08-31" },
+      ],
+    };
+    const workouts = build(value).weeks.flatMap(({ workouts }) => workouts);
+    expect(workouts.map(({ date }) => date)).toContain("1998-08-24");
+    expect(workouts.map(({ date }) => date)).toContain("1998-09-04");
+    for (const workout of workouts) {
+      expect(weekdayForDateKey(dateKeyFromText(workout.date ?? ""))).not.toBe(3);
+      const date = workout.date ?? "";
+      expect(date < "1998-08-28" || date > "1998-08-31").toBe(true);
+    }
+  });
+
+  it("softens hard training to endurance only on the confirmed weekday", () => {
+    const value = input();
+    value.answers.availability = {
+      mode: "fixed",
+      weeklyHoursLimit: 6,
+      longestWorkoutHours: 2,
+      usableWeekdays: [1, 3, 5],
+    };
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "No hard on Monday",
+      status: "confirmed",
+      rules: [{ kind: "hard-weekday", day: 1 }],
+    };
+    expect(build(value).weeks[0]?.workouts[0]).toMatchObject({
+      kind: "endurance",
+      name: "Endurance ride",
+    });
+    value.answers.commitments.rules = [{ kind: "hard-weekday", day: 3 }];
+    expect(build(value).weeks[0]?.workouts[0]).toMatchObject({ kind: "hard" });
+    value.answers.restriction = { kind: "no-hard-training" };
+    expect(build(value).weeks[0]?.workouts[0]).toMatchObject({ kind: "easy" });
+  });
+
+  it("keeps unconfirmed rules out of Workouts", () => {
+    const value = input();
+    const before = build(value);
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Monday off",
+      status: "clarify",
+      rules: [{ kind: "weekday-unavailable", day: 1 }],
+    };
+    expect(build(value).weeks).toEqual(before.weeks);
+  });
+
+  it("respects commitments in a flexible pool and retains a full week off", () => {
+    const value = input();
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Monday max 20 min. No hard on Tuesday. Away 1998-08-31 to 1998-09-06",
+      status: "confirmed",
+      rules: [
+        { kind: "weekday-duration", day: 1, minutes: 20 },
+        { kind: "hard-weekday", day: 2 },
+        { kind: "time-off", start: "1998-08-31", end: "1998-09-06" },
+      ],
+    };
+    const draft = build(value);
+    expect(draft.weeks[0]?.workouts.map(({ minutes }) => minutes)).toEqual([20, 20, 20]);
+    expect(draft.weeks[0]?.workouts[0]).toMatchObject({ kind: "endurance", date: null });
+    expect(draft.weeks[1]?.workouts).toEqual([]);
+    expect(draft.weeks[2]?.workouts).toHaveLength(3);
+  });
+
   it.each([1, 4, 5, 24, 25])(
     "builds the %i-week Event boundary and retains the Goal date",
     (weeks) => {
@@ -249,7 +371,12 @@ describe("creation draft builder", () => {
 
   it("is deterministic, keeps input unchanged, hashes canonical snapshots and invents no power", () => {
     const value = input();
-    value.answers.commitments = { kind: "authored", text: "Social ride on Sunday" };
+    value.answers.commitments = {
+      kind: "interpreted",
+      text: "Sunday off",
+      rules: [{ kind: "weekday-unavailable", day: 7 }],
+      status: "confirmed",
+    };
     const original = structuredClone(value);
     const first = build(value);
     const second = build(value);
@@ -261,9 +388,7 @@ describe("creation draft builder", () => {
     expect(outputFingerprint).toBe(
       createHash("sha256").update(canonicalJson(snapshot)).digest("hex"),
     );
-    expect(first.notes).toContain(
-      "Your written commitments are recorded for review and have not been applied to Workouts.",
-    );
+    expect(first.notes.join(" ")).not.toContain("not been applied");
     for (const workout of first.weeks.flatMap((week) => week.workouts))
       expect(workout).toMatchObject({
         power: null,
