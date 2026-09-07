@@ -4,15 +4,9 @@ import type {
   PlanChangeWorkout,
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
+import { Button } from "@enduragent/ui";
+import { Card, CardContent } from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 const changeOptions = [

@@ -1,8 +1,8 @@
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Check } from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@enduragent/ui";
+import { Card, CardContent } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function PlanCreationSummary(props: {

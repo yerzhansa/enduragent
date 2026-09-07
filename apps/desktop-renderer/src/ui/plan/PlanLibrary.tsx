@@ -6,8 +6,8 @@ import type {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@enduragent/ui";
+import { Card, CardContent } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -16,7 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { requestPlanCalendarRetry } from "../../plan/library-refresh";
 import { useEnduragentStore } from "../../state/store";
 

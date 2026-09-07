@@ -1,7 +1,7 @@
 import type { PlanCreationAnswerSummary, PlanHistoryResult } from "@enduragent/coach-contract";
 import type { ReactElement, ReactNode } from "react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@enduragent/ui";
+import { Card, CardContent } from "@enduragent/ui";
 
 const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
   ["plan-length", "Plan length"],

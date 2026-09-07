@@ -1,6 +1,6 @@
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -9,10 +9,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { PlanCreationQuestionCard } from "./PlanCreationQuestionCard";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent } from "@enduragent/ui";
 import { PlanCreationDraftCards } from "./PlanCreationDraftCards";
 import { PlanCreationSummary } from "./PlanCreationSummary";
 

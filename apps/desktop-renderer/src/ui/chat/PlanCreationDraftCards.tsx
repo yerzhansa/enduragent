@@ -4,8 +4,8 @@ import type {
   PlanCreationDraft,
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@enduragent/ui";
+import { Card, CardContent } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
