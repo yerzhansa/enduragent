@@ -49,6 +49,7 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
       closeReason: null,
       closedAt: null,
       activatedAt: "1998-09-07",
+      todayChoice: null,
       calendar: { status: "pending", window: null, currentThrough: null, error: null },
       creationId: null,
     },

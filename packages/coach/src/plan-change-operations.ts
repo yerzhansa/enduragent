@@ -31,6 +31,7 @@ import {
   supportingEventWorkoutLimitExplanation,
   planChangeRaceWindow,
   readCyclingPlanFtpCandidates,
+  readTodayChoice,
 } from "@enduragent/sport-cycling";
 import type { PlanFtpAdapter } from "@enduragent/engine/sport";
 import { z } from "zod";
@@ -60,6 +61,7 @@ const titles = {
   "longest-workout": "Limit the longest Workout",
   inverse: "Undo the latest Change",
   ftp: "Correct FTP",
+  "choose-workout": "Choose a Workout for today",
 } satisfies Record<Exclude<PlanChangeIntent["kind"], "supporting-event">, string>;
 
 const eventTitles = {
@@ -114,6 +116,60 @@ async function readCompletedWorkoutIds(
   return new Set(
     rows.map((row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id),
   );
+}
+
+export async function readClosedPlanOccupiesToday(
+  store: SqlStore,
+  todayDateKey: number,
+): Promise<boolean> {
+  return (
+    (await store.get(
+      `SELECT 1 FROM plan_workout workout
+    JOIN planning_plan plan ON plan.plan_id=workout.plan_id
+    JOIN plan_reconciliation_item item ON item.plan_workout_id=workout.id
+    JOIN plan_reconciliation_job job ON job.id=item.job_id
+    WHERE plan.status='closed' AND workout.date_key=? AND item.date_key=?
+      AND job.kind='mirror' AND item.operation='create' AND item.status IN ('created','verified')
+    LIMIT 1`,
+      [todayDateKey, todayDateKey],
+    )) !== undefined
+  );
+}
+
+export function projectTodayChoice(
+  draft: z.infer<typeof PlanCreationDraftSchema>,
+  todayDateKey: number,
+  occupiedByClosedPlan: boolean,
+  completedWorkoutIds: ReadonlySet<string> = new Set(),
+) {
+  if (draft.mode !== "flexible") return null;
+  const answers = draft.answeredSummaries.map((summary) => summary.answer);
+  const availability = answers.find((answer) => answer.kind === "availability");
+  const restriction = answers.find((answer) => answer.kind === "restriction");
+  if (availability === undefined || restriction === undefined) return null;
+  return readTodayChoice({
+    draft,
+    todayDateKey,
+    occupiedByClosedPlan,
+    completedWorkoutIds,
+    answers: { availability, restriction: restriction.restriction },
+  });
+}
+
+function choiceRejection(
+  choice: ReturnType<typeof projectTodayChoice>,
+  workoutId: string,
+): string | null {
+  if (choice?.eligible.some((workout) => workout.workoutId === workoutId)) return null;
+  return (
+    choice?.blocked.find((workout) => workout.workoutId === workoutId)?.reason ??
+    "This Workout is no longer eligible."
+  );
+}
+
+function civilDate(todayDateKey: number): string {
+  const text = String(todayDateKey);
+  return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
 }
 
 async function readAppliedIntent(
@@ -248,12 +304,17 @@ export function createPlanChangeOperations(input: {
         throw parsed.error;
       }
       const { intent, planId, expectedVersion } = parsed.data;
+      let occupiedByClosedPlan = false;
+      let previewTodayDateKey: number;
       let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
       let eventSources: PlanChangeEventSource[] = [];
       const result = await repository.preview({
         async admit(store) {
           const rejection = await admit(store);
           if (rejection !== null) return rejection;
+          previewTodayDateKey = input.todayDateKey();
+          if (intent.kind === "choose-workout")
+            occupiedByClosedPlan = await readClosedPlanOccupiesToday(store, previewTodayDateKey);
           const original =
             intent.kind === "inverse"
               ? await readAppliedIntent(store, planId, intent.changeId)
@@ -294,10 +355,22 @@ export function createPlanChangeOperations(input: {
               PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse")
           )
             return { status: "rejected", reason: "invalid-intent" };
+          if (intent.kind === "choose-workout") {
+            const message = choiceRejection(
+              projectTodayChoice(
+                draft,
+                previewTodayDateKey,
+                occupiedByClosedPlan,
+                completedWorkoutIds,
+              ),
+              intent.workoutId,
+            );
+            if (message !== null) return { status: "rejected", reason: "invalid-intent", message };
+          }
           const transformation = {
             draft,
             completedWorkoutIds,
-            todayDateKey: input.todayDateKey(),
+            todayDateKey: previewTodayDateKey,
           };
           const originalIntent =
             intent.kind === "inverse" && newestApplied !== null
@@ -385,6 +458,9 @@ export function createPlanChangeOperations(input: {
                 intent.kind === "supporting-event"
                   ? eventTitles[intent.operation]
                   : titles[intent.kind],
+              ...(intent.kind === "choose-workout"
+                ? { details: "Only this Workout will receive today’s date after confirmation." }
+                : {}),
               intent,
               diff,
               totals,
@@ -400,6 +476,16 @@ export function createPlanChangeOperations(input: {
                         value: eventSource,
                       },
                     ]),
+                ...(intent.kind === "choose-workout"
+                  ? [
+                      {
+                        id: "today",
+                        label: "Today",
+                        source: "Your local day",
+                        value: { date: civilDate(previewTodayDateKey) },
+                      },
+                    ]
+                  : []),
                 ...(correctsFtp
                   ? [
                       {
@@ -451,7 +537,7 @@ export function createPlanChangeOperations(input: {
         admit,
         async admitChange(
           store,
-          { afterSnapshotJson, diff, todayDateKey, intent: rawIntent, premises },
+          { snapshotJson, afterSnapshotJson, diff, todayDateKey, intent: rawIntent, premises },
         ) {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(afterSnapshotJson));
           const parsedIntent = PlanChangeModelSchema.shape.intent.safeParse(rawIntent);
@@ -463,6 +549,29 @@ export function createPlanChangeOperations(input: {
               (candidate) => candidate.providerId === source.providerId,
             );
             if (current?.sourceRevision !== source.sourceRevision) return "event-source-changed";
+          }
+          if (intent?.kind === "choose-workout") {
+            const today = z
+              .object({ date: z.iso.date() })
+              .strict()
+              .safeParse(premises.find((premise) => premise.id === "today")?.value);
+            if (!today.success || today.data.date !== civilDate(todayDateKey))
+              return {
+                status: "rejected",
+                reason: "day-changed",
+                message:
+                  "The day changed while this choice was open. Request a fresh choice for today; no date was assigned.",
+              };
+            const message = choiceRejection(
+              projectTodayChoice(
+                PlanCreationDraftSchema.parse(JSON.parse(snapshotJson)),
+                todayDateKey,
+                await readClosedPlanOccupiesToday(store, todayDateKey),
+                await readCompletedWorkoutIds(store, parsed.planId),
+              ),
+              intent.workoutId,
+            );
+            if (message !== null) return { status: "rejected", reason: "not-eligible", message };
           }
           const ftpPremise = premises.find((premise) => premise.id === "ftp-sources");
           if (ftpPremise !== undefined) {

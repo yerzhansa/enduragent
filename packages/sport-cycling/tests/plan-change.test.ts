@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import { describe, expect, it } from "vitest";
-import { type CreationDraft } from "../src/creation-draft-builder.js";
+import { type CreationDraft, type CreationDraftInput } from "../src/creation-draft-builder.js";
 import {
   applyScheduleIntent,
   applySupportingEventIntent,
@@ -10,6 +10,8 @@ import {
   planChangeRaceWindow,
   type ScheduleIntent,
 } from "../src/plan-change.js";
+
+import { readTodayChoice } from "../src/today-choice.js";
 
 const todayDateKey = 19980824;
 
@@ -1277,3 +1279,184 @@ it.each(["mutable", "pinned", "completed"])(
     );
   },
 );
+
+describe("flexible daily choice", () => {
+  const answers: Pick<CreationDraftInput["answers"], "availability" | "restriction"> = {
+    availability: { mode: "flexible", weeklyHoursLimit: 6, longestWorkoutHours: 2 },
+    restriction: { kind: "none" },
+  };
+
+  function flexibleDraft() {
+    const draft = fixture();
+    draft.mode = "flexible";
+    for (const workout of workouts(draft)) {
+      if (!workout.pinned) workout.date = null;
+    }
+    return draft;
+  }
+
+  function choice(restriction: CreationDraftInput["answers"]["restriction"] = { kind: "none" }) {
+    return readTodayChoice({
+      draft: flexibleDraft(),
+      todayDateKey,
+      answers: { ...answers, restriction },
+    });
+  }
+
+  it("offers only undated unpinned and incomplete Workouts in today's week", () => {
+    const draft = flexibleDraft();
+    draft.weeks[1].workouts[2].pinned = true;
+    const result = readTodayChoice({
+      draft,
+      todayDateKey,
+      answers,
+      completedWorkoutIds: new Set(["w2-endurance"]),
+    });
+    expect(result).toEqual({
+      date: "1998-08-24",
+      eligible: [
+        { workoutId: "w2-hard", name: "Controlled effort", minutes: 45, kind: "hard" },
+        { workoutId: "undated", name: "Optional ride", minutes: 75, kind: "easy" },
+      ],
+      blocked: [],
+      reason: null,
+    });
+  });
+
+  it("returns null for fixed mode, another week and no remaining candidates", () => {
+    expect(readTodayChoice({ draft: fixture(), todayDateKey, answers })).toBeNull();
+    expect(readTodayChoice({ draft: flexibleDraft(), todayDateKey: 19981001, answers })).toBeNull();
+    const draft = flexibleDraft();
+    draft.weeks[1].workouts = [];
+    expect(readTodayChoice({ draft, todayDateKey, answers })).toBeNull();
+  });
+
+  it.each([false, true])("prioritizes today's occupied date with closed Plan = %s", (closed) => {
+    const draft = flexibleDraft();
+    if (!closed) draft.weeks[0].workouts[0].date = "1998-08-24";
+    const result = readTodayChoice({
+      draft,
+      todayDateKey,
+      answers: { ...answers, restriction: { kind: "no-training" } },
+      occupiedByClosedPlan: closed,
+    });
+    expect(result?.eligible).toEqual([]);
+    expect(result?.reason).toBe("Today already belongs to a dated Workout.");
+    expect(result?.blocked).toHaveLength(4);
+    expect(result?.blocked.every((item) => item.reason === result.reason)).toBe(true);
+  });
+
+  it("blocks every candidate under a current no-training restriction", () => {
+    const result = choice({ kind: "no-training", endDate: "1998-08-24" });
+    expect(result?.eligible).toEqual([]);
+    expect(result?.reason).toBe("Today is unavailable under your confirmed limits.");
+    expect(result?.blocked.every((item) => item.reason === result.reason)).toBe(true);
+  });
+
+  it.each([
+    { kind: "no-training", endDate: "1998-08-23" },
+    { kind: "no-hard-training", endDate: "1998-08-23" },
+    { kind: "max-duration", hours: 0.5, endDate: "1998-08-23" },
+  ] satisfies CreationDraftInput["answers"]["restriction"][])(
+    "ignores the expired restriction $kind",
+    (restriction) => {
+      const result = choice(restriction);
+      expect(result?.eligible).toHaveLength(4);
+      expect(result?.blocked).toEqual([]);
+      expect(result?.reason).toBeNull();
+    },
+  );
+
+  it("caps today's duration at the lower answered limit and includes the exact boundary", () => {
+    const result = choice({ kind: "max-duration", hours: 0.75 });
+    expect(result?.eligible.map((workout) => workout.workoutId)).toEqual(["w2-hard"]);
+    expect(result?.blocked.map((workout) => workout.reason)).toEqual(
+      Array<string>(3).fill("Today is limited to 45 minutes."),
+    );
+    expect(result?.reason).toBeNull();
+    const longest = readTodayChoice({
+      draft: flexibleDraft(),
+      todayDateKey,
+      answers: {
+        availability: { ...answers.availability, longestWorkoutHours: 0.5 },
+        restriction: { kind: "max-duration", hours: 1 },
+      },
+    });
+    expect(longest?.eligible).toEqual([]);
+    expect(longest?.reason).toBe("Today is limited to 30 minutes.");
+  });
+
+  it("blocks hard training after duration checks and permits other kinds", () => {
+    const result = choice({ kind: "no-hard-training" });
+    expect(result?.blocked).toEqual([
+      { workoutId: "w2-hard", name: "Controlled effort", reason: "No hard training today." },
+    ]);
+    expect(result?.eligible).toHaveLength(3);
+    const capped = readTodayChoice({
+      draft: flexibleDraft(),
+      todayDateKey,
+      answers: {
+        availability: { ...answers.availability, longestWorkoutHours: 0.5 },
+        restriction: { kind: "no-hard-training" },
+      },
+    });
+    expect(capped?.blocked[0].reason).toBe("Today is limited to 30 minutes.");
+    const draft = flexibleDraft();
+    draft.weeks[1].workouts = draft.weeks[1].workouts.filter((workout) => workout.kind === "hard");
+    expect(
+      readTodayChoice({
+        draft,
+        todayDateKey,
+        answers: { ...answers, restriction: { kind: "no-hard-training" } },
+      })?.reason,
+    ).toBe("No hard training today.");
+  });
+
+  it("dates only the selected Workout and restores its null date through the inverse", () => {
+    const draft = flexibleDraft();
+    const before = structuredClone(draft);
+    const result = applyScheduleIntent({
+      draft,
+      todayDateKey,
+      intent: { kind: "choose-workout", workoutId: "w2-hard" },
+    });
+    expect(result.diff).toEqual([
+      {
+        workoutId: "w2-hard",
+        before: draft.weeks[1].workouts[0],
+        after: { ...draft.weeks[1].workouts[0], date: "1998-08-24" },
+      },
+    ]);
+    expect(draft).toEqual(before);
+    expect(result.totals.after.plan - result.totals.before.plan).toBe(45);
+    const inverse = applyScheduleIntent({
+      draft: result.after,
+      previousDraft: before,
+      todayDateKey,
+      intent: { kind: "inverse", changeId: "chosen-workout" },
+    });
+    expect(inverse.after.weeks).toEqual(before.weeks);
+    expect(inverse.diff[0].after?.date).toBeNull();
+  });
+
+  it.each(["missing", "w1-hard", "event"])("refuses an unavailable selection %s", (workoutId) => {
+    expect(() =>
+      applyScheduleIntent({
+        draft: flexibleDraft(),
+        todayDateKey,
+        intent: { kind: "choose-workout", workoutId },
+      }),
+    ).toThrow("This Workout is no longer eligible.");
+  });
+
+  it("counts dating an undated Workout inside the race window as an increase", () => {
+    const workout = { date: null, minutes: 45, kind: "easy", power: null } as const;
+    expect(
+      planChangeRaceWindow({
+        goal: { kind: "event", name: "Autumn ride", date: "1998-09-27" },
+        todayDateKey: 19980921,
+        diff: [{ before: workout, after: { ...workout, date: "1998-09-21" } }],
+      }),
+    ).toEqual({ start: "1998-09-21", end: "1998-09-27" });
+  });
+});

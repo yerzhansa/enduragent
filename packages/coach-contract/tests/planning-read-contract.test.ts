@@ -132,7 +132,7 @@ describe("Plan library contract", () => {
       calendarConnected: true,
       legacy: null,
       creation: null,
-      active,
+      active: { ...active, todayChoice: null },
       closed: [],
       changes: [],
     };
@@ -195,7 +195,7 @@ describe("Plan library contract", () => {
         calendarConnected: false,
         legacy: null,
         creation: null,
-        active,
+        active: { ...active, todayChoice: null },
         closed: [closed],
         changes: [],
         changesPaused: null,

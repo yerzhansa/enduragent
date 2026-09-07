@@ -158,6 +158,36 @@ async function activatedPlan(
   const workouts = () =>
     store.all("SELECT * FROM plan_workout WHERE plan_id = ? ORDER BY id", [planId]);
   return {
+    async activateNext() {
+      const started = await creation["plan_creation.start"]({
+        commandId: `next-start-${++sequence}`,
+      });
+      if (started.status !== "started") throw new Error("Expected next creation");
+      let next = started.planCreation;
+      for (const answer of answers) {
+        const result = await creation["plan_creation.answer"]({
+          commandId: `next-answer-${++sequence}`,
+          creationId: next.creationId,
+          expectedVersion: next.version,
+          answer,
+        });
+        if (result.status !== "answered") throw new Error("Expected next answer");
+        next = result.planCreation;
+      }
+      const preview = await creation["plan_creation.preview"]({
+        commandId: `next-preview-${++sequence}`,
+        creationId: next.creationId,
+        expectedVersion: next.version,
+      });
+      if (preview.status !== "previewed") throw new Error("Expected next Draft");
+      const result = await creation["plan_creation.activate"]({
+        commandId: `next-activate-${++sequence}`,
+        creationId: next.creationId,
+        expectedVersion: preview.planCreation.version,
+        incumbent: { planId, version: 2 },
+      });
+      return result.planId;
+    },
     store,
     ftp,
     saveManual,
@@ -2211,4 +2241,220 @@ it("restores flexible Plan Workouts and the revision fingerprint after an Import
   );
   expect(revisions).toHaveLength(2);
   expect(revisions[1]).toEqual(revisions[0]);
+});
+
+describe("Flexible daily choice", () => {
+  const flexiblePlan = (todayDateKey = () => 19980902, eventDate: string | null = null) =>
+    activatedPlan(
+      todayDateKey,
+      { connected: false, lastSuccessfulSyncAtMs: null },
+      eventDate,
+      "flexible",
+    );
+
+  it("projects current choices, dates only the selected Draft Workout and undoes its row", async () => {
+    const test = await flexiblePlan();
+    const list = await test.creation["plan.list"]({});
+    const choice = list.active?.todayChoice;
+    expect(choice?.date).toBe("1998-09-02");
+    const selected = choice?.eligible[0];
+    if (!selected) throw new Error("Expected eligible Workout");
+    expect(await test.workouts()).toEqual([]);
+    const preview = await test.preview({ kind: "choose-workout", workoutId: selected.workoutId });
+    expect(preview.change.title).toBe("Choose a Workout for today");
+    expect(preview.change.details).toBe(
+      "Only this Workout will receive today’s date after confirmation.",
+    );
+    expect(preview.change.premises).toContainEqual({
+      id: "today",
+      label: "Today",
+      source: "Your local day",
+      value: { date: "1998-09-02" },
+    });
+    expect(preview.change.diff).toHaveLength(1);
+    expect(preview.change.diff[0]).toMatchObject({
+      workoutId: selected.workoutId,
+      before: { date: null },
+      after: { date: "1998-09-02", id: selected.workoutId },
+    });
+    const apply = {
+      commandId: "choose-apply",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: preview.change.changeId,
+      decision: "apply" as const,
+    };
+    expect(await test.changes["plan_change.apply"](apply)).toMatchObject({
+      status: "applied",
+      revisionNumber: 2,
+      version: 2,
+    });
+    const rows = await test.workouts();
+    expect(rows).toHaveLength(1);
+    expect(JSON.parse(String(rows[0]?.structure_json))).toMatchObject({
+      id: selected.workoutId,
+      date: "1998-09-02",
+    });
+    expect(rows[0]?.date_key).toBe(19980902);
+    expect((await test.creation["plan.list"]({})).active?.todayChoice).toMatchObject({
+      eligible: [],
+      reason: "Today already belongs to a dated Workout.",
+    });
+    const undo = await test.preview(
+      { kind: "inverse", changeId: preview.change.changeId },
+      "undo-choice",
+      2,
+    );
+    expect(undo.change.diff[0]?.after?.date).toBeNull();
+    expect(
+      await test.changes["plan_change.apply"]({
+        ...apply,
+        commandId: "undo-apply",
+        changeId: undo.change.changeId,
+        expectedVersion: 2,
+      }),
+    ).toMatchObject({ status: "applied", revisionNumber: 3 });
+    expect(await test.workouts()).toEqual([]);
+    expect((await test.creation["plan.list"]({})).active?.todayChoice?.eligible).toContainEqual(
+      selected,
+    );
+  });
+
+  it("returns null for fixed Plans and rejects ids outside eligible choices", async () => {
+    const fixed = await activatedPlan();
+    expect((await fixed.creation["plan.list"]({})).active?.todayChoice).toBeNull();
+    const test = await flexiblePlan();
+    for (const host of [fixed, test]) {
+      expect(
+        await host.changes["plan_change.preview"]({
+          commandId: "invalid-choice",
+          planId: host.planId,
+          expectedVersion: 1,
+          intent: { kind: "choose-workout", workoutId: "missing" },
+        }),
+      ).toEqual({
+        status: "rejected",
+        reason: "invalid-intent",
+        message: "This Workout is no longer eligible.",
+      });
+    }
+  });
+
+  it("refuses a changed day without mutation and leaves cancellation available", async () => {
+    let today = 19980902;
+    const test = await flexiblePlan(() => today);
+    const workoutId = test.draft.weeks[0]?.workouts[0]?.id;
+    if (!workoutId) throw new Error("Expected Workout");
+    const preview = await test.preview({ kind: "choose-workout", workoutId });
+    const before = await dumpStore(test.store);
+    today = 19980903;
+    const request = {
+      commandId: "midnight-choice",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: preview.change.changeId,
+      decision: "apply" as const,
+    };
+    expect(await test.changes["plan_change.apply"](request)).toEqual({
+      status: "rejected",
+      reason: "day-changed",
+      message:
+        "The day changed while this choice was open. Request a fresh choice for today; no date was assigned.",
+    });
+    expect(await dumpStore(test.store)).toEqual(before);
+    expect(
+      await test.changes["plan_change.apply"]({
+        ...request,
+        commandId: "cancel-midnight",
+        decision: "cancel",
+      }),
+    ).toMatchObject({ status: "cancelled" });
+  });
+
+  it("rejects dating an undated Workout in the race window", async () => {
+    const test = await flexiblePlan(() => 19980902, "1998-09-07");
+    const workoutId = test.draft.weeks[0]?.workouts.find((workout) => !workout.pinned)?.id;
+    if (!workoutId) throw new Error("Expected Workout");
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "race-choice",
+        planId: test.planId,
+        expectedVersion: 1,
+        intent: { kind: "choose-workout", workoutId },
+      }),
+    ).toMatchObject({ status: "rejected", reason: "race-window" });
+  });
+});
+
+it("blocks mirrored closed-Plan Workouts at preview and rechecks mirror completion at apply", async () => {
+  const test = await activatedPlan(
+    () => 19980902,
+    { connected: false, lastSuccessfulSyncAtMs: null },
+    null,
+    "flexible",
+  );
+  const workoutId = test.draft.weeks[0]?.workouts[0]?.id;
+  if (!workoutId) throw new Error("Expected Workout");
+  const first = await test.preview({ kind: "choose-workout", workoutId });
+  expect(
+    await test.changes["plan_change.apply"]({
+      commandId: "first-choice",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: first.change.changeId,
+      decision: "apply",
+    }),
+  ).toMatchObject({ status: "applied" });
+  const row = (await test.workouts())[0];
+  if (typeof row?.id !== "string") throw new Error("Expected dated row");
+  const job = await test.store.get(
+    "SELECT id FROM plan_reconciliation_job WHERE plan_id=? AND kind='mirror' ORDER BY created_at_ms DESC LIMIT 1",
+    [test.planId],
+  );
+  const itemId = "00000000000000000000000999";
+  await test.store.run(
+    `INSERT INTO plan_reconciliation_item (id,job_id,plan_workout_id,operation,status,date_key,external_id,expected_json,created_at_ms,updated_at_ms) VALUES (?,?,?,'create','pending',19980902,'synthetic-choice','{}',904694400000,904694400000)`,
+    [itemId, String(job?.id), row.id],
+  );
+  const planId = await test.activateNext();
+  const choice = (await test.creation["plan.list"]({})).active?.todayChoice;
+  const selected = choice?.eligible[0];
+  if (!selected) throw new Error("Expected eligible choice before mirror completion");
+  const request = {
+    commandId: "next-choice",
+    planId,
+    expectedVersion: 1,
+    intent: { kind: "choose-workout" as const, workoutId: selected.workoutId },
+  };
+  const preview = await test.changes["plan_change.preview"](request);
+  if (preview.status !== "previewed") throw new Error("Expected choice preview");
+  await test.store.run("UPDATE plan_reconciliation_item SET status='created' WHERE id=?", [itemId]);
+  const blocked = (await test.creation["plan.list"]({})).active?.todayChoice;
+  expect(blocked).toMatchObject({
+    eligible: [],
+    reason: "Today already belongs to a dated Workout.",
+  });
+  expect(blocked?.blocked[0]?.reason).toBe("Today already belongs to a dated Workout.");
+  expect(
+    await test.changes["plan_change.preview"]({ ...request, commandId: "blocked-preview" }),
+  ).toEqual({
+    status: "rejected",
+    reason: "invalid-intent",
+    message: "Today already belongs to a dated Workout.",
+  });
+  const before = await dumpStore(test.store);
+  expect(
+    await test.changes["plan_change.apply"]({
+      commandId: "blocked-apply",
+      planId,
+      expectedVersion: 1,
+      changeId: preview.change.changeId,
+      decision: "apply",
+    }),
+  ).toEqual({
+    status: "rejected",
+    reason: "not-eligible",
+    message: "Today already belongs to a dated Workout.",
+  });
+  expect(await dumpStore(test.store)).toEqual(before);
 });

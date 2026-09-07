@@ -7,6 +7,7 @@ import {
   createPlanLifecycleRepository,
   createPlanReconciliationRepository,
   type PlanCreationCommandStamp,
+  type PlanChangeEnvelope,
   type PreviewPlanChangeInput,
 } from "@enduragent/kernel/planning";
 import {
@@ -52,7 +53,7 @@ const addedWorkout = {
   date: "1998-01-03",
   minutes: 30,
 };
-const poolWorkout = { id: "pool", name: "Flexible ride", kind: "easy", date: null, minutes: 30 };
+const poolWorkout = { id: id("35"), name: "Flexible ride", kind: "easy", date: null, minutes: 30 };
 const draft = {
   outputFingerprint: fingerprint,
   weeks: [{ number: 1, minutes: 180, workouts: [keptWorkout, removedWorkout, poolWorkout] }],
@@ -101,11 +102,20 @@ describe("Plan Change repository", () => {
   });
   afterEach(async () => store.close());
 
-  const activate = async (pinned = false) => {
+  const activate = async (pinned = false, poolPinned = false) => {
     const removed = pinned ? { ...removedWorkout, pinned: true } : removedWorkout;
     const snapshot = {
       ...draft,
-      weeks: [{ ...draft.weeks[0], workouts: [keptWorkout, removed, poolWorkout] }],
+      weeks: [
+        {
+          ...draft.weeks[0],
+          workouts: [
+            keptWorkout,
+            removed,
+            poolPinned ? { ...poolWorkout, pinned: true } : poolWorkout,
+          ],
+        },
+      ],
     };
     const creation = createPlanCreationRepository(store);
     await creation.start({
@@ -262,6 +272,309 @@ describe("Plan Change repository", () => {
     expect(await dumpStore(store)).toBe(before);
     await expect(repository.listChanges(planId)).resolves.toMatchObject([{ status: "pending" }]);
   });
+
+  const choiceSnapshot = (workout: { date: string | null; minutes: number }) => ({
+    ...draft,
+    weeks: [
+      {
+        ...draft.weeks[0],
+        workouts: [keptWorkout, removedWorkout, { ...poolWorkout, ...workout }],
+      },
+    ],
+  });
+  const chooseToday = async () => {
+    const chosen = { ...poolWorkout, date: "1998-01-03" };
+    await repository.preview({
+      ...previewInput(),
+      build: () => ({
+        afterSnapshotJson: JSON.stringify(choiceSnapshot(chosen)),
+        envelope: {
+          ...envelope,
+          title: "Choose a Workout for today",
+          details: "Only this Workout will receive today’s date after confirmation.",
+          intent: { kind: "choose-workout", workoutId: poolWorkout.id },
+          diff: [{ workoutId: poolWorkout.id, before: poolWorkout, after: chosen }],
+          premises: [
+            { id: "today", label: "Today", source: "Current day", value: { date: chosen.date } },
+          ],
+        },
+      }),
+    });
+    const materialize: Parameters<typeof repository.apply>[0]["materialize"] = (
+      _snapshot,
+      current,
+      diffIds,
+    ) => {
+      expect(diffIds).toEqual(new Set([poolWorkout.id]));
+      const template = current[0];
+      if (template === undefined) throw new Error("Expected existing Workout");
+      return {
+        insert: [
+          {
+            ...template,
+            id: poolWorkout.id,
+            dateKey: 19980103,
+            name: chosen.name,
+            durationS: chosen.minutes * 60,
+            structureJson: JSON.stringify(chosen),
+          },
+        ],
+        update: [],
+        delete: [],
+      };
+    };
+    return { ...applyInput(), todayDateKey: () => 19980103, materialize };
+  };
+
+  it.each([
+    { date: null, minutes: 20 },
+    { date: "1998-01-02", minutes: 30 },
+    { date: "1998-01-04", minutes: 30 },
+  ])("handles an undated mutation to $date with $minutes minutes", async (workout) => {
+    await activate();
+    await repository.preview({
+      ...previewInput(),
+      build: () => ({ afterSnapshotJson: JSON.stringify(choiceSnapshot(workout)), envelope }),
+    });
+    const before = await dumpStore(store);
+    if (workout.date === null) {
+      const rows = await store.all("SELECT * FROM plan_workout ORDER BY id");
+      const materialize = vi.fn(() => ({ insert: [], update: [], delete: [] }));
+      await expect(
+        repository.apply({ ...applyInput(), todayDateKey: () => 19980103, materialize }),
+      ).resolves.toMatchObject({ status: "applied", revisionNumber: 2, version: 2 });
+      expect(materialize).toHaveBeenCalledWith(expect.any(String), expect.any(Array), new Set());
+      expect(await store.all("SELECT * FROM plan_workout ORDER BY id")).toEqual(rows);
+      expect(
+        await store.get("SELECT snapshot_json FROM plan_revision WHERE revision_number=2"),
+      ).toEqual({ snapshot_json: canonicalJson(choiceSnapshot(workout)) });
+      return;
+    }
+    const materialize = vi.fn(applyInput().materialize);
+    await expect(
+      repository.apply({ ...applyInput(), todayDateKey: () => 19980103, materialize }),
+    ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+    expect(materialize).not.toHaveBeenCalled();
+    expect(await dumpStore(store)).toBe(before);
+  });
+
+  it.each<PlanChangeEnvelope["intent"]>([
+    { kind: "weekly-duration", hours: 1.5 },
+    { kind: "choose-workout", workoutId: "another-workout" },
+  ])("refuses dating an undated Workout outside its own choice intent: %j", async (intent) => {
+    await activate();
+    await repository.preview({
+      ...previewInput(),
+      build: () => ({
+        afterSnapshotJson: JSON.stringify(choiceSnapshot({ date: "1998-01-03", minutes: 30 })),
+        envelope: { ...envelope, intent },
+      }),
+    });
+    const before = await dumpStore(store);
+    const materialize = vi.fn(() => ({ insert: [], update: [], delete: [] }));
+    await expect(
+      repository.apply({ ...applyInput(), todayDateKey: () => 19980103, materialize }),
+    ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+    expect(materialize).not.toHaveBeenCalled();
+    expect(await dumpStore(store)).toBe(before);
+  });
+
+  it("keeps the pinned guard when an undated Workout receives today's date", async () => {
+    await activate(false, true);
+    const input = await chooseToday();
+    const before = await dumpStore(store);
+    await expect(repository.apply(input)).resolves.toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    expect(await dumpStore(store)).toBe(before);
+  });
+
+  it.each(["day-changed", "not-eligible"] as const)(
+    "preserves %s admission copy without writes",
+    async (reason) => {
+      await activate();
+      const input = await chooseToday();
+      const before = await dumpStore(store);
+      const rejection = {
+        status: "rejected" as const,
+        reason,
+        message: "Request a fresh choice for today.",
+      };
+      const admitChange = vi.fn<NonNullable<Parameters<typeof repository.apply>[0]["admitChange"]>>(
+        async (_store, context) => {
+          expect(context.snapshotJson).toBe(JSON.stringify(draft));
+          expect(context.todayDateKey).toBe(19980103);
+          expect(context.premises).toEqual([
+            { id: "today", label: "Today", source: "Current day", value: { date: "1998-01-03" } },
+          ]);
+          return rejection;
+        },
+      );
+      await expect(repository.apply({ ...input, admitChange })).resolves.toEqual(rejection);
+      expect(admitChange).toHaveBeenCalledTimes(1);
+      expect(await dumpStore(store)).toBe(before);
+    },
+  );
+
+  it.each([
+    { completed: false, todayDateKey: 19980103 },
+    { completed: true, todayDateKey: 19980103 },
+    { completed: false, todayDateKey: 19980104 },
+    { completed: false, todayDateKey: 19980102 },
+  ])(
+    "inserts today's choice and handles inverse with completed=$completed on $todayDateKey",
+    async ({ completed, todayDateKey }) => {
+      await activate();
+      const input = await chooseToday();
+      await expect(repository.apply(input)).resolves.toMatchObject({
+        status: "applied",
+        revisionNumber: 2,
+        version: 2,
+      });
+      expect(
+        await store.get("SELECT id,date_key FROM plan_workout WHERE id=?", [poolWorkout.id]),
+      ).toEqual({ id: poolWorkout.id, date_key: 19980103 });
+      expect(
+        await store.get(
+          "SELECT status FROM plan_reconciliation_job WHERE window_start_date_key=19980103",
+        ),
+      ).toEqual({ status: "pending" });
+      if (completed)
+        await store.run(
+          "INSERT INTO plan_workout_match (id,plan_id,plan_workout_id,activity_id,source,decision,activity_date_key,activity_sport,observed_at_ms,decided_at_ms,device_id,hlc_physical_ms,hlc_counter) VALUES (?,?,?,?,'heuristic','confirmed',19980103,'Ride',?,?,'test-device-1998',?,0)",
+          [id("70"), planId, poolWorkout.id, "c".repeat(64), nowMs, nowMs, nowMs],
+        );
+      await repository.preview({
+        ...previewInput(40),
+        expectedVersion: 2,
+        build: () => ({
+          afterSnapshotJson: JSON.stringify(draft),
+          envelope: { ...envelope, intent: { kind: "inverse", changeId: id("90") } },
+        }),
+      });
+      const before = await dumpStore(store);
+      const inverseInput = {
+        ...input,
+        command: stamp("undo-choice", 50),
+        nowMs: nowMs + 50,
+        changeId: id("120"),
+        expectedVersion: 2,
+        todayDateKey: () => todayDateKey,
+        materialize: () => ({ insert: [], update: [], delete: [poolWorkout.id] }),
+      };
+      const result = await repository.apply(inverseInput);
+      if (completed || todayDateKey !== 19980103) {
+        expect(result).toEqual({ status: "rejected", reason: "stale-version" });
+        expect(await dumpStore(store)).toBe(before);
+      } else {
+        expect(result).toMatchObject({ status: "applied", revisionNumber: 3 });
+        expect(
+          await store.get("SELECT id FROM plan_workout WHERE id=?", [poolWorkout.id]),
+        ).toBeUndefined();
+        expect(
+          await store.get("SELECT snapshot_json FROM plan_revision WHERE revision_number=3"),
+        ).toEqual({ snapshot_json: canonicalJson(draft) });
+        const applied = await dumpStore(store);
+        await expect(repository.apply(inverseInput)).resolves.toEqual(result);
+        expect(await dumpStore(store)).toBe(applied);
+      }
+    },
+  );
+
+  it("refuses an inverse of another applied intent that undates a Workout", async () => {
+    await activate();
+    await repository.preview(previewInput());
+    await expect(repository.apply(applyInput())).resolves.toMatchObject({ status: "applied" });
+    const undated = {
+      ...after,
+      weeks: [
+        {
+          ...after.weeks[0],
+          workouts: [keptWorkout, { ...addedWorkout, date: null }, poolWorkout],
+        },
+      ],
+    };
+    await repository.preview({
+      ...previewInput(40),
+      expectedVersion: 2,
+      build: () => ({
+        afterSnapshotJson: JSON.stringify(undated),
+        envelope: { ...envelope, intent: { kind: "inverse", changeId: id("90") } },
+      }),
+    });
+    const before = await dumpStore(store);
+    const materialize = vi.fn(() => ({ insert: [], update: [], delete: [id("33")] }));
+    await expect(
+      repository.apply({
+        ...applyInput(),
+        command: stamp("undo-duration", 50),
+        nowMs: nowMs + 50,
+        changeId: id("120"),
+        expectedVersion: 2,
+        todayDateKey: () => 19980103,
+        materialize,
+      }),
+    ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+    expect(materialize).not.toHaveBeenCalled();
+    expect(await dumpStore(store)).toBe(before);
+  });
+
+  it.each(["another-workout", "pending-change", "missing-change"])(
+    "refuses undating through a choice inverse with %s",
+    async (reason) => {
+      await activate();
+      const input = await chooseToday();
+      await expect(repository.apply(input)).resolves.toMatchObject({ status: "applied" });
+      const inverseSnapshot =
+        reason === "another-workout"
+          ? {
+              ...draft,
+              weeks: [
+                {
+                  ...draft.weeks[0],
+                  workouts: [
+                    keptWorkout,
+                    { ...removedWorkout, date: null },
+                    { ...poolWorkout, date: "1998-01-03" },
+                  ],
+                },
+              ],
+            }
+          : draft;
+      await repository.preview({
+        ...previewInput(40),
+        expectedVersion: 2,
+        build: () => ({
+          afterSnapshotJson: JSON.stringify(inverseSnapshot),
+          envelope: {
+            ...envelope,
+            intent: {
+              kind: "inverse",
+              changeId: id(
+                reason === "another-workout" ? "90" : reason === "pending-change" ? "120" : "999",
+              ),
+            },
+          },
+        }),
+      });
+      const before = await dumpStore(store);
+      const materialize = vi.fn(() => ({ insert: [], update: [], delete: [] }));
+      await expect(
+        repository.apply({
+          ...input,
+          command: stamp("undo-choice", 50),
+          nowMs: nowMs + 50,
+          changeId: id("120"),
+          expectedVersion: 2,
+          todayDateKey: () => (reason === "another-workout" ? 19980102 : 19980103),
+          materialize,
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+      expect(materialize).not.toHaveBeenCalled();
+      expect(await dumpStore(store)).toBe(before);
+    },
+  );
 
   it("previews the current revision without changing training or Plan version", async () => {
     await activate();
@@ -444,7 +757,9 @@ describe("Plan Change repository", () => {
       await activate();
       const next = structuredClone(draft);
       const workout = next.weeks[0].workouts.find((candidate) =>
-        direction === "undated-to-dated" ? candidate.id === "pool" : candidate.id === "removed",
+        direction === "undated-to-dated"
+          ? candidate.id === poolWorkout.id
+          : candidate.id === removedWorkout.id,
       );
       if (workout === undefined) throw new Error("Expected Workout");
       workout.date = direction === "undated-to-dated" ? "1998-01-03" : null;

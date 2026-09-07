@@ -186,6 +186,33 @@ export const LegacyPlanSummarySchema = z
   .strict();
 export type LegacyPlanSummary = z.infer<typeof LegacyPlanSummarySchema>;
 
+export const PlanTodayChoiceSchema = z
+  .object({
+    date: z.iso.date(),
+    eligible: z.array(
+      z
+        .object({
+          workoutId: PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element.shape.id,
+          name: PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element.shape.name,
+          minutes: PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element.shape.minutes,
+          kind: PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element.shape.kind,
+        })
+        .strict(),
+    ),
+    blocked: z.array(
+      z
+        .object({
+          workoutId: z.string().min(1),
+          name: z.string().min(1),
+          reason: z.string().min(1),
+        })
+        .strict(),
+    ),
+    reason: z.string().min(1).nullable(),
+  })
+  .strict();
+export type PlanTodayChoice = z.infer<typeof PlanTodayChoiceSchema>;
+
 export const ListPlansParamsSchema = z.object({}).strict();
 export type ListPlansParams = z.infer<typeof ListPlansParamsSchema>;
 export const ListPlansResultSchema = z
@@ -193,7 +220,10 @@ export const ListPlansResultSchema = z
     calendarConnected: z.boolean(),
     legacy: LegacyPlanSummarySchema.nullable(),
     creation: PlanCreationCardModelSchema.nullable(),
-    active: PlanSummarySchema.extend({ status: z.literal("active") }).nullable(),
+    active: PlanSummarySchema.extend({
+      status: z.literal("active"),
+      todayChoice: PlanTodayChoiceSchema.nullable(),
+    }).nullable(),
     closed: z.array(PlanSummarySchema.extend({ status: z.literal("closed") })),
     changes: z.array(PlanChangeModelSchema),
     changesPaused: PlanChangesPausedSchema,

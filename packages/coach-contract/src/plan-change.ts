@@ -93,6 +93,7 @@ const WeekdaySchema = z.number().int().min(1).max(7);
 export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
   SupportingEventIntentSchema,
   z.object({ kind: z.literal("ftp"), watts: FtpWattsSchema }).strict(),
+  z.object({ kind: z.literal("choose-workout"), workoutId: z.string().min(1).max(128) }).strict(),
   z
     .object({
       kind: z.literal("weekday-duration"),
@@ -141,6 +142,7 @@ export const PlanChangeModelSchema = z
     baseRevisionNumber: z.number().int().positive(),
     status: z.enum(["pending", "applied", "cancelled", "superseded", "stale"]),
     title: z.string().min(1),
+    details: z.string().min(1).optional(),
     intent: PlanChangeIntentSchema,
     diff: z.array(
       z
@@ -209,6 +211,7 @@ export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
       .object({
         status: z.literal("rejected"),
         reason: z.literal("invalid-intent"),
+        message: z.string().min(1).optional(),
         explanation: z.string().min(1).optional(),
       })
       .strict(),
@@ -247,21 +250,30 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
       version: z.number().int().positive(),
     })
     .strict(),
-  z
-    .object({
-      status: z.literal("rejected"),
-      reason: z.enum([
-        "stale-version",
-        "not-pending",
-        "no-active-plan",
-        "command-conflict",
-        "sync-stale",
-        "race-window",
-        "ftp-sources-changed",
-        "event-source-changed",
-      ]),
-    })
-    .strict(),
+  z.discriminatedUnion("reason", [
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.enum(["day-changed", "not-eligible"]),
+        message: z.string().min(1).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.enum([
+          "stale-version",
+          "not-pending",
+          "no-active-plan",
+          "command-conflict",
+          "sync-stale",
+          "race-window",
+          "ftp-sources-changed",
+          "event-source-changed",
+        ]),
+      })
+      .strict(),
+  ]),
 ]);
 export type PlanChangeApplyResult = z.infer<typeof PlanChangeApplyResultSchema>;
 

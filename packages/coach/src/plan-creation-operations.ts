@@ -61,7 +61,12 @@ import {
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
 
-import { projectPlanChanges, readPlanChangesPaused } from "./plan-change-operations.js";
+import {
+  projectPlanChanges,
+  readPlanChangesPaused,
+  projectTodayChoice,
+  readClosedPlanOccupiesToday,
+} from "./plan-change-operations.js";
 
 export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
@@ -338,12 +343,41 @@ export function createPlanCreationOperations(input: {
           ),
         }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;
+        const choiceDateKey = todayDateKey();
+        const activeRevision =
+          active === null
+            ? undefined
+            : await transactionStore.get(
+                `SELECT revision.snapshot_json FROM planning_plan plan
+          JOIN plan_revision revision ON revision.plan_id=plan.plan_id AND revision.revision_number=plan.current_revision_number
+          WHERE plan.plan_id=?`,
+                [active.planId],
+              );
+        const activeDraft =
+          activeRevision === undefined
+            ? null
+            : PlanCreationDraftSchema.safeParse(
+                JSON.parse(z.string().parse(activeRevision.snapshot_json)),
+              );
+        const todayChoice = !activeDraft?.success
+          ? null
+          : projectTodayChoice(
+              activeDraft.data,
+              choiceDateKey,
+              await readClosedPlanOccupiesToday(transactionStore, choiceDateKey),
+            );
         return ListPlansResultSchema.parse({
           calendarConnected: calendarConnected(),
           legacy,
           creation:
             creation === undefined ? null : projectPlanCreationCard(creation, { today: today() }),
-          active,
+          active:
+            active === null
+              ? null
+              : {
+                  ...active,
+                  todayChoice,
+                },
           changesPaused:
             active === null
               ? null
