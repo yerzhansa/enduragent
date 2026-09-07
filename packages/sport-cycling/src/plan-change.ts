@@ -1,4 +1,4 @@
-import { dateKeyFromText, weekdayForDateKey } from "@enduragent/kernel/planning";
+import { addCivilDays, dateKeyFromText, weekdayForDateKey } from "@enduragent/kernel/planning";
 import { type CreationDraft, digest } from "./creation-draft-builder.js";
 
 export type ScheduleIntent =
@@ -153,4 +153,38 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
     week.workouts = week.workouts.filter((workout) => workout.minutes > 0);
   }
   return changeResult(draft, after);
+}
+
+export const PLAN_CHANGE_RACE_WINDOW_DAYS = 7;
+
+type IncreaseWorkout = Pick<Workout, "date" | "minutes" | "kind"> & { power: number | null };
+
+export function planChangeRaceWindow(input: {
+  goal: CreationDraft["goal"];
+  todayDateKey: number;
+  diff: readonly { before: IncreaseWorkout | null; after: IncreaseWorkout | null }[];
+}): { start: string; end: string } | null {
+  if (input.goal.kind !== "event") return null;
+  const end = dateKeyFromText(input.goal.date);
+  const start = addCivilDays(end, 1 - PLAN_CHANGE_RACE_WINDOW_DAYS);
+  if (input.todayDateKey < start || input.todayDateKey > end) return null;
+  const increases = input.diff.some(({ before, after }) => {
+    if (after?.date == null) return false;
+    const date = dateKeyFromText(after.date);
+    return (
+      date >= start &&
+      date <= end &&
+      (before === null ||
+        after.minutes > before.minutes ||
+        (before.kind !== "hard" && after.kind === "hard") ||
+        (after.power ?? 0) > (before.power ?? 0))
+    );
+  });
+  const startText = String(start).padStart(8, "0");
+  return increases
+    ? {
+        start: `${startText.slice(0, 4)}-${startText.slice(4, 6)}-${startText.slice(6, 8)}`,
+        end: input.goal.date,
+      }
+    : null;
 }

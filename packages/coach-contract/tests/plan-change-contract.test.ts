@@ -274,3 +274,35 @@ describe("Plan Change contract", () => {
     },
   );
 });
+
+describe("race window rejections", () => {
+  const rejection = {
+    status: "rejected",
+    reason: "race-window",
+    window: { start: "1998-09-01", end: "1998-09-07" },
+  };
+
+  it("requires civil window dates only on race-window preview rejections", () => {
+    expect(PlanChangePreviewResultSchema.parse(rejection)).toEqual(rejection);
+    expect(
+      PlanChangePreviewResultSchema.safeParse({ status: "rejected", reason: "race-window" })
+        .success,
+    ).toBe(false);
+    expect(
+      PlanChangePreviewResultSchema.safeParse({ ...rejection, reason: "sync-stale" }).success,
+    ).toBe(false);
+    for (const window of [
+      { start: "1998-02-30", end: "1998-09-07" },
+      { start: "1998-09-01", end: "1998-09-07T00:00:00Z" },
+      { start: "1998-09-01" },
+      { ...rejection.window, extra: true },
+    ])
+      expect(PlanChangePreviewResultSchema.safeParse({ ...rejection, window }).success).toBe(false);
+  });
+
+  it("accepts the apply reason without a preview window", () => {
+    const applied = { status: "rejected", reason: "race-window" };
+    expect(PlanChangeApplyResultSchema.parse(applied)).toEqual(applied);
+    expect(PlanChangeApplyResultSchema.safeParse(rejection).success).toBe(false);
+  });
+});
