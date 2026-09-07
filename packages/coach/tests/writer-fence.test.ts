@@ -49,6 +49,7 @@ async function fixture(
     ...dependencies,
     repository: createPlanCreationRepository(store),
     eventCandidates: { read: async () => [] },
+    eventSources: { read: async () => [] },
     today: () => "1998-09-02",
   });
   const seed = async () => {

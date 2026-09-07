@@ -179,6 +179,7 @@ const creation: PlanCreationCardModel = {
   },
 };
 const active: NonNullable<ListPlansResult["active"]> = {
+  supportingEventCandidates: [],
   planId: "active-library",
   version: 1,
   name: "Build steady power",

@@ -76,6 +76,45 @@ describe("Plan library contract", () => {
     creationId: "creation-active",
   };
 
+  it("requires synchronized Supporting Event candidates on the active Plan", () => {
+    const candidate = {
+      providerId: "fixture-event",
+      name: "Autumn ride",
+      date: "1999-01-02",
+      category: "RACE_B",
+      sourceLabel: "Intervals.icu event",
+    };
+    const library = {
+      calendarConnected: true,
+      legacy: null,
+      creation: null,
+      active: { ...active, todayChoice: null, supportingEventCandidates: [candidate] },
+      closed: [],
+      changes: [],
+      changesPaused: null,
+    };
+    expect(ListPlansResultSchema.parse(library)).toEqual(library);
+    expect(
+      ListPlansResultSchema.safeParse({ ...library, active: { ...active, todayChoice: null } })
+        .success,
+    ).toBe(false);
+    for (const invalid of [
+      { ...candidate, providerId: "" },
+      { ...candidate, name: "" },
+      { ...candidate, date: "1999-02-30" },
+      { ...candidate, category: "WORKOUT" },
+      { ...candidate, sourceLabel: "" },
+      { ...candidate, sourceRevision: "a".repeat(64) },
+    ]) {
+      expect(
+        ListPlansResultSchema.safeParse({
+          ...library,
+          active: { ...active, supportingEventCandidates: [invalid] },
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   it("accepts the empty library and strict empty params", () => {
     const empty = {
       calendarConnected: false,
@@ -132,7 +171,7 @@ describe("Plan library contract", () => {
       calendarConnected: true,
       legacy: null,
       creation: null,
-      active: { ...active, todayChoice: null },
+      active: { ...active, todayChoice: null, supportingEventCandidates: [] },
       closed: [],
       changes: [],
     };
@@ -195,7 +234,7 @@ describe("Plan library contract", () => {
         calendarConnected: false,
         legacy: null,
         creation: null,
-        active: { ...active, todayChoice: null },
+        active: { ...active, todayChoice: null, supportingEventCandidates: [] },
         closed: [closed],
         changes: [],
         changesPaused: null,

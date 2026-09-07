@@ -120,6 +120,7 @@ describe("Plan Intervals calendar adapter", () => {
       },
       crypto: globalThis.crypto,
       eventCandidates: { read: async () => [] },
+      eventSources: { read: async () => [] },
       today: () => "1998-09-02",
       todayDateKey: () => 19980902,
       now,

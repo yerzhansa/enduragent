@@ -39,6 +39,7 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     calendarConnected: false,
     legacy: null,
     active: {
+      supportingEventCandidates: [],
       planId: "plan-active",
       version: 7,
       name: "Build fitness",
@@ -541,5 +542,50 @@ describe("Plan Change controller", () => {
     await h.controller.applyPlanChange("cancel");
     expect(h.call).not.toHaveBeenCalled();
     expect(h.surface()).toEqual(EMPTY_PLAN_CHANGE_SURFACE);
+  });
+  it("preserves the backend Supporting Event validation explanation in the editor", async () => {
+    const explanation = "The event date conflicts with a confirmed training limit.";
+    const h = harness({ status: "rejected", reason: "invalid-intent", explanation });
+    h.controller.openPlanChangeEditor();
+    await h.controller.previewPlanChange({
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-13",
+      role: "Training",
+    });
+    expect(h.surface()).toMatchObject({ editorOpen: true, error: explanation, busy: false });
+  });
+
+  it("uses event validation copy before sending malformed parameters", async () => {
+    const h = harness(null);
+    await h.controller.previewPlanChange({
+      kind: "supporting-event",
+      operation: "add",
+      name: "",
+      date: "",
+      role: "Training",
+    });
+    expect(h.surface().error).toBe("Enter the event name and exact date.");
+    await h.controller.previewPlanChange({
+      kind: "supporting-event",
+      operation: "remove",
+      eventId: "",
+    });
+    expect(h.surface().error).toBe("Choose a Supporting Event already accepted in this Plan.");
+    expect(h.call).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the library and retains the pending event after synchronized source drift", async () => {
+    const h = harness({ status: "rejected", reason: "event-source-changed" });
+    await h.controller.applyPlanChange("apply");
+    expect(h.surface()).toMatchObject({
+      notice: "The synchronized event changed. Request a fresh preview before applying.",
+      error: null,
+      busy: false,
+    });
+    expect(h.refresh).toHaveBeenCalledOnce();
+    await h.controller.applyPlanChange("cancel");
+    expect(h.call).toHaveBeenCalledTimes(2);
   });
 });

@@ -3186,6 +3186,7 @@ describe("chat surface", () => {
                     end: "1998-10-04",
                     weeks: 12,
                     status: "active",
+                    supportingEventCandidates: [],
                     closeReason: null,
                     closedAt: null,
                     activatedAt: "1998-07-06",

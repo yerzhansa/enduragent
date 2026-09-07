@@ -1,15 +1,23 @@
 import type {
+  ListPlansResult,
   PlanChangeIntent,
   PlanChangeModel,
   PlanChangeWorkout,
 } from "@enduragent/coach-contract";
-import { PlanChangeFtpSourcesSchema, PlanChangeIntentSchema } from "@enduragent/coach-contract";
+import {
+  PlanChangeEventSourceSchema,
+  PlanChangeFtpSourcesSchema,
+  PlanChangeIntentSchema,
+} from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
+
+import { SupportingEventFields } from "./SupportingEventFields";
+import { currentSupportingEvents, supportingEventDifference } from "../../plan/supporting-events";
 
 const changeOptions = [
   { value: "weekday-duration", label: "Weekday duration cap" },
@@ -18,6 +26,7 @@ const changeOptions = [
   { value: "weekly-duration", label: "Weekly duration cap" },
   { value: "longest-workout", label: "Longest-Workout cap" },
   { value: "ftp", label: "Correct FTP" },
+  { value: "supporting-event", label: "Supporting Event" },
 ] satisfies Array<{ value: PlanChangeIntent["kind"]; label: string }>;
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const statusLabels = {
@@ -98,7 +107,23 @@ function workoutValue(workout: PlanChangeWorkout | null): string {
   return `${date} · ${workout.minutes} min${workout.power === null ? "" : ` · ${workout.power} W`}`;
 }
 
-function Difference({ change }: { change: PlanChangeModel }): ReactElement {
+function eventDate(date: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function Difference({
+  change,
+  library,
+}: {
+  change: PlanChangeModel;
+  library: ListPlansResult;
+}): ReactElement {
+  const events = supportingEventDifference(library, change);
   const weekNumbers = [
     ...new Set(
       [...change.totals.before.weeks, ...change.totals.after.weeks].map((week) => week.number),
@@ -106,6 +131,22 @@ function Difference({ change }: { change: PlanChangeModel }): ReactElement {
   ];
   return (
     <>
+      {change.intent.kind === "supporting-event" ||
+      (change.intent.kind === "inverse" &&
+        JSON.stringify(events.before) !== JSON.stringify(events.after)) ? (
+        <div role="table" aria-label="Supporting Events">
+          <Fact label="Supporting Events before">
+            {events.before
+              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+              .join("; ") || "None"}
+          </Fact>
+          <Fact label="Supporting Events after">
+            {events.after
+              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+              .join("; ") || "None"}
+          </Fact>
+        </div>
+      ) : null}
       <div role="table" aria-label="Affected individual Workouts">
         {change.diff.map((row) => (
           <Fact key={row.workoutId} label={row.before?.name ?? row.after?.name ?? "Workout"}>
@@ -161,6 +202,12 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
       </ul>
     );
   }
+  if (premise.id === "event-source") {
+    const parsed = PlanChangeEventSourceSchema.safeParse(premise.value);
+    return parsed.success
+      ? `${parsed.data.name} · ${eventDate(parsed.data.date)} · ${parsed.data.category}`
+      : premise.label;
+  }
   if (premise.id === "undone-change") {
     const value = premise.value;
     return value !== null &&
@@ -194,6 +241,10 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
 
 function ChangeEditor(): ReactElement {
   const [kind, setKind] = useState<(typeof changeOptions)[number]["value"]>("weekday-duration");
+  const library = useEnduragentStore((store) => store.planLibrary.value);
+  const [eventIntent, setEventIntent] = useState<
+    Extract<PlanChangeIntent, { kind: "supporting-event" }>
+  >({ kind: "supporting-event", operation: "add", name: "", date: "", role: "Training" });
   const [day, setDay] = useState(3);
   const [minutes, setMinutes] = useState("30");
   const [hours, setHours] = useState("3");
@@ -215,6 +266,9 @@ function ChangeEditor(): ReactElement {
           event.preventDefault();
           let intent: PlanChangeIntent;
           switch (kind) {
+            case "supporting-event":
+              intent = eventIntent;
+              break;
             case "weekday-duration":
               intent = { kind, day, minutes: Number(minutes) };
               break;
@@ -265,6 +319,14 @@ function ChangeEditor(): ReactElement {
             </SelectContent>
           </Select>
         </div>
+        {kind === "supporting-event" ? (
+          <SupportingEventFields
+            events={library ? currentSupportingEvents(library) : []}
+            candidates={library?.active?.supportingEventCandidates ?? []}
+            busy={state.busy}
+            onIntentChange={setEventIntent}
+          />
+        ) : null}
         {weekday ? (
           <div className="grid gap-[calc(var(--inset)/2)]">
             <label htmlFor="plan-change-day" className="text-xs text-ink-2">
@@ -463,7 +525,7 @@ export function PlanChangeCards(): ReactElement | null {
               : "Review this exact difference. Training stays unchanged until you confirm."
           }
         >
-          <Difference change={pending} />
+          <Difference change={pending} library={library} />
           <div role="table" aria-label="Facts">
             <Fact label="Main Goal">{library.active.name}</Fact>
             <Fact label="Confidence">{pending.confidence}</Fact>
@@ -537,7 +599,7 @@ export function PlanChangeCards(): ReactElement | null {
           {source.difference ? (
             <>
               <p className="m-0 text-sm text-ink-2">{statusLabels[source.change.status]}</p>
-              <Difference change={source.change} />
+              <Difference change={source.change} library={library} />
             </>
           ) : null}
           <div role="table" aria-label="Source details">

@@ -258,6 +258,7 @@ describe("legacy v11 store upgrade and startup", () => {
         identity: createAuthoredIdentity(home.configDir, { now: () => Date.UTC(1998, 6, 7, 12) }),
         crypto: globalThis.crypto,
         eventCandidates: { read: async () => [] },
+        eventSources: { read: async () => [] },
         today: () => "1998-07-07",
         now: () => Date.UTC(1998, 6, 7, 12),
       });

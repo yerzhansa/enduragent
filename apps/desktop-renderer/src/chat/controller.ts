@@ -1812,17 +1812,22 @@ export function createChatController(input: {
       const parameterCopy =
         intent.kind === "ftp"
           ? "Enter FTP above zero."
-          : intent.kind === "weekly-duration"
-            ? Number.isFinite(intent.hours) &&
-              intent.hours > 0 &&
-              !Number.isInteger(intent.hours * 4)
-              ? "Enter weekly hours in quarter-hour steps, like 2.25."
-              : "Enter a weekly duration above zero."
-            : "day" in intent && (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
-              ? "Choose the weekday to change."
-              : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+          : intent.kind === "supporting-event"
+            ? "eventId" in intent && !intent.eventId.trim()
+              ? "Choose a Supporting Event already accepted in this Plan."
+              : "Enter the event name and exact date."
+            : intent.kind === "weekly-duration"
+              ? Number.isFinite(intent.hours) &&
+                intent.hours > 0 &&
+                !Number.isInteger(intent.hours * 4)
+                ? "Enter weekly hours in quarter-hour steps, like 2.25."
+                : "Enter a weekly duration above zero."
+              : "day" in intent &&
+                  (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
                 ? "Choose the weekday to change."
-                : "Enter a duration above zero.";
+                : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+                  ? "Choose the weekday to change."
+                  : "Enter a duration above zero.";
       const parsedIntent = PlanChangeIntentSchema.safeParse(intent);
       if (!parsedIntent.success) {
         publishChange({ error: parameterCopy });
@@ -1868,7 +1873,7 @@ export function createChatController(input: {
               result.reason === "stale-version"
                 ? "This request used an older Plan revision. Request a fresh preview."
                 : result.reason === "invalid-intent"
-                  ? parameterCopy
+                  ? (result.explanation ?? parameterCopy)
                   : "This Change could not be previewed. Training is unchanged.",
           });
           if (result.reason === "stale-version") {
@@ -1941,21 +1946,24 @@ export function createChatController(input: {
           }
           publishChange({
             notice:
-              result.reason === "race-window"
-                ? "Only training reductions are allowed in the current race window. This Change was not applied."
-                : result.reason === "ftp-sources-changed"
-                  ? "The FTP sources changed. Request a fresh preview before applying this correction."
-                  : result.reason === "stale-version"
-                    ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
-                    : result.reason === "not-pending"
-                      ? "This preview is no longer pending. Training is unchanged."
-                      : "This Change could not be applied. Training and the pending preview are unchanged.",
+              result.reason === "event-source-changed"
+                ? "The synchronized event changed. Request a fresh preview before applying."
+                : result.reason === "race-window"
+                  ? "Only training reductions are allowed in the current race window. This Change was not applied."
+                  : result.reason === "ftp-sources-changed"
+                    ? "The FTP sources changed. Request a fresh preview before applying this correction."
+                    : result.reason === "stale-version"
+                      ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
+                      : result.reason === "not-pending"
+                        ? "This preview is no longer pending. Training is unchanged."
+                        : "This Change could not be applied. Training and the pending preview are unchanged.",
           });
           if (
             result.reason === "stale-version" ||
             result.reason === "not-pending" ||
             result.reason === "race-window" ||
-            result.reason === "ftp-sources-changed"
+            result.reason === "ftp-sources-changed" ||
+            result.reason === "event-source-changed"
           ) {
             await input.refreshPlanLibrary?.().catch(() => {});
           }

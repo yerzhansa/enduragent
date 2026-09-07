@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { PlanChangeModelSchema, PlanChangesPausedSchema } from "./plan-change.js";
+import {
+  PlanChangeEventSourceSchema,
+  PlanChangeModelSchema,
+  PlanChangesPausedSchema,
+} from "./plan-change.js";
 import { PlanCreationCardModelSchema, PlanCreationDraftSchema } from "./plan-creation.js";
 
 export const PlanDateKeySchema = z.number().int().min(1_000_101).max(99_991_231);
@@ -223,6 +227,11 @@ export const ListPlansResultSchema = z
     active: PlanSummarySchema.extend({
       status: z.literal("active"),
       todayChoice: PlanTodayChoiceSchema.nullable(),
+      supportingEventCandidates: z.array(
+        PlanChangeEventSourceSchema.omit({ sourceRevision: true }).extend({
+          sourceLabel: z.string().trim().min(1),
+        }),
+      ),
     }).nullable(),
     closed: z.array(PlanSummarySchema.extend({ status: z.literal("closed") })),
     changes: z.array(PlanChangeModelSchema),

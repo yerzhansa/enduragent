@@ -889,6 +889,10 @@ export async function createLocalCoachComposition(
     identity: planningIdentity,
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [] },
+    eventSources: createPlanChangeEventSourceReader({
+      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+      readLatest: () => readLatestReference(input.home.root),
+    }),
     baselineEvidence: { read: async () => undefined },
     calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
     legacyPlan: () =>
