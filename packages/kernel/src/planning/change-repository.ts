@@ -49,13 +49,14 @@ export const PlanChangePreviewStoreResultSchema = z.discriminatedUnion("status",
     z
       .object({
         status: z.literal("rejected"),
-        reason: z.enum([
-          "stale-version",
-          "no-active-plan",
-          "command-conflict",
-          "invalid-intent",
-          "sync-stale",
-        ]),
+        reason: z.literal("invalid-intent"),
+        explanation: z.string().min(1).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.enum(["stale-version", "no-active-plan", "command-conflict", "sync-stale"]),
       })
       .strict(),
     z
@@ -90,6 +91,7 @@ export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
         "sync-stale",
         "race-window",
         "ftp-sources-changed",
+        "event-source-changed",
       ]),
     })
     .strict(),
@@ -118,7 +120,11 @@ export interface PreviewPlanChangeInput {
     context: PlanChangeUndoContext & { readonly completedWorkoutIds: ReadonlySet<string> },
   ) =>
     | { readonly afterSnapshotJson: string; readonly envelope: PlanChangeEnvelope }
-    | { readonly status: "rejected"; readonly reason: "invalid-intent" }
+    | {
+        readonly status: "rejected";
+        readonly reason: "invalid-intent";
+        readonly explanation?: string;
+      }
     | Extract<PlanChangePreviewStoreResult, { reason: "race-window" }>;
 }
 export interface PlanChangeWorkoutMutations {
@@ -142,7 +148,11 @@ export interface ApplyPlanChangeInput {
       readonly premises: PlanChangeEnvelope["premises"];
       readonly todayDateKey: number;
     },
-  ) => Promise<Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"] | null>;
+  ) => Promise<
+    | Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"]
+    | { readonly mutablePinnedWorkoutIds: readonly string[] }
+    | null
+  >;
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
   readonly changeId: string;
@@ -307,6 +317,7 @@ export function createPlanChangeRepository(
     change: ChangeRow,
     afterSnapshotJson: string,
     todayDateKey: number,
+    mutablePinnedWorkoutIds: ReadonlySet<string>,
   ) => {
     const plan = await plans.read(input.planId);
     if (plan === undefined) return fail();
@@ -354,12 +365,15 @@ export function createPlanChangeRepository(
     for (const workout of changedWorkouts) {
       const row = currentByDraftId.get(workout.id);
       if (
-        workout.pinned ||
-        workout.date === null ||
-        dateKeyFromText(workout.date) < todayDateKey ||
+        (workout.pinned && !mutablePinnedWorkoutIds.has(workout.id)) ||
+        (workout.date === null
+          ? afterById.get(workout.id)?.date !== null
+          : afterById.get(workout.id)?.date === null ||
+            dateKeyFromText(workout.date) < todayDateKey) ||
         (row !== undefined && completedWorkoutIds.has(row.id))
       )
         return false;
+      if (workout.date === null) diffIds.delete(workout.id);
     }
     for (const workout of baseWorkouts) {
       if (!diffIds.has(workout.id)) continue;
@@ -567,15 +581,24 @@ export function createPlanChangeRepository(
             .object({ afterSnapshotJson: z.string() })
             .parse(JSON.parse(change.reconciliation_effect_json));
           const envelope = PlanChangeEnvelopeSchema.parse(JSON.parse(change.diff_json));
-          const rejection = await input.admitChange?.(store, {
+          const admission = await input.admitChange?.(store, {
             afterSnapshotJson,
             diff: envelope.diff,
             intent: envelope.intent,
             premises: envelope.premises,
             todayDateKey,
           });
-          if (rejection != null) return { status: "rejected", reason: rejection };
-          if (!(await writeWorkouts(input, change, afterSnapshotJson, todayDateKey)))
+          if (typeof admission === "string") return { status: "rejected", reason: admission };
+          const mutablePinnedWorkoutIds = new Set(admission?.mutablePinnedWorkoutIds ?? []);
+          if (
+            !(await writeWorkouts(
+              input,
+              change,
+              afterSnapshotJson,
+              todayDateKey,
+              mutablePinnedWorkoutIds,
+            ))
+          )
             return { status: "rejected", reason: "stale-version" };
           const revisionNumber = active.current_revision_number + 1;
           await store.run(

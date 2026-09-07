@@ -879,6 +879,7 @@ const draft = {
   notes: [],
   guidance: "Use comfortable perceived effort or your known heart-rate guidance",
   ftp: null,
+  supportingEvents: [],
   builderId: "cycling-creation-draft",
   builderVersion: "1",
   inputFingerprint: "a".repeat(64),
@@ -886,6 +887,15 @@ const draft = {
 };
 
 describe("Plan Creation Draft contract", () => {
+  it("defaults Supporting Events for existing revisions and creations", () => {
+    const { supportingEvents, ...previousDraft } = draft;
+    expect(supportingEvents).toEqual([]);
+    expect(PlanCreationDraftSchema.parse(previousDraft)).toEqual(draft);
+    expect(PlanCreationDraftSchema.parse(previousDraft).weeks[0]?.workouts[0]).not.toHaveProperty(
+      "supportingEventId",
+    );
+  });
+
   it("round-trips a review Draft through preview and planning request hydration", () => {
     const review = { ...card, status: "review", readiness: "ready", openQuestion: null, draft };
     const result = { status: "previewed", planCreation: review };

@@ -5,6 +5,7 @@ import {
   PlanCreationDraftSchema,
   type PlanCreationAnswerInput,
   type PlanChangeIntent,
+  type PlanChangeEventSource,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
@@ -24,6 +25,7 @@ async function activatedPlan(
     lastSuccessfulSyncAtMs: null,
   },
   eventDate: string | null = null,
+  mode: "fixed" | "flexible" = "fixed",
 ) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
@@ -75,7 +77,9 @@ async function activatedPlan(
     refreshIntervals: async () => {},
   });
   const logger = { warn: vi.fn() };
-  const changes = createPlanChangeOperations({ ...dependencies, ftp, logger });
+  let candidates: PlanChangeEventSource[] = [];
+  const eventSources = { read: vi.fn(async () => structuredClone(candidates)) };
+  const changes = createPlanChangeOperations({ ...dependencies, ftp, logger, eventSources });
   const start = await creation["plan_creation.start"]({ commandId: "start" });
   if (start.status !== "started") throw new Error("Expected creation");
   let card = start.planCreation;
@@ -88,14 +92,16 @@ async function activatedPlan(
       : ([
           { kind: "goal", goal: { kind: "event-manual", name: "Autumn ride", date: eventDate } },
         ] satisfies PlanCreationAnswerInput[])),
-    { kind: "schedule-mode", mode: "fixed" },
-    {
-      kind: "availability",
-      mode: "fixed",
-      weeklyHoursLimit: 8,
-      longestWorkoutHours: 3,
-      usableWeekdays: [6, 2, 4],
-    },
+    { kind: "schedule-mode", mode },
+    mode === "fixed"
+      ? {
+          kind: "availability",
+          mode,
+          weeklyHoursLimit: 8,
+          longestWorkoutHours: 3,
+          usableWeekdays: [6, 2, 4],
+        }
+      : { kind: "availability", mode, weeklyHoursLimit: 8, longestWorkoutHours: 3 },
     { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
     { kind: "commitments", commitments: { kind: "none" } },
     { kind: "baseline", baseline: "regular" },
@@ -156,6 +162,10 @@ async function activatedPlan(
     ftp,
     saveManual,
     logger,
+    eventSources,
+    setEventSources: (sources: PlanChangeEventSource[]) => {
+      candidates = structuredClone(sources);
+    },
     setFtpSources: (sources: {
       manual?: PlanFtpSourceValue | null;
       intervalsFtp?: PlanFtpSourceValue | null;
@@ -1759,4 +1769,446 @@ it("does not read FTP evidence for other Changes or their inverse", async () => 
   );
   await applyChange(test, inverse.change.changeId, 2, "limit-restore");
   expect(read).not.toHaveBeenCalled();
+});
+
+describe("Supporting Event Plan Changes", () => {
+  const manualIntent = {
+    kind: "supporting-event",
+    operation: "add",
+    name: "Local autumn ride",
+    date: "1998-09-05",
+    role: "Training",
+  } satisfies PlanChangeIntent;
+  const source: PlanChangeEventSource = {
+    providerId: "fixture-race",
+    name: "Synchronized autumn ride",
+    date: "1998-09-05",
+    category: "RACE_B",
+    sourceRevision: "a".repeat(64),
+  };
+
+  it("never persists an invalid Draft as a preview when a week would exceed six Workouts", async () => {
+    const test = await activatedPlan();
+    let version = 1;
+    while ((await revisionSnapshot(test, version)).weeks[0].workouts.length < 6) {
+      const index = version - 1;
+      const preview = await test.preview(
+        { ...manualIntent, date: "1998-09-03", name: `Local ride ${index + 1}` },
+        `event-preview-${index}`,
+        index + 1,
+      );
+      await applyChange(test, preview.change.changeId, index + 1, `event-apply-${index}`);
+      version++;
+    }
+    const draft = await revisionSnapshot(test, version);
+    expect(draft.weeks[0].workouts).toHaveLength(6);
+    expect(PlanCreationDraftSchema.safeParse(draft).success).toBe(true);
+    const before = await dumpStore(test.store);
+    const changes = await test.store.all("SELECT * FROM plan_change ORDER BY id");
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "seventh-workout-preview",
+        planId: test.planId,
+        expectedVersion: version,
+        intent: { ...manualIntent, date: "1998-09-03" },
+      }),
+    ).toEqual({
+      status: "rejected",
+      reason: "invalid-intent",
+      explanation:
+        "A week can hold at most six Workouts. Remove or move one before adding this event.",
+    });
+    expect(await dumpStore(test.store)).toBe(before);
+    expect(await test.store.all("SELECT * FROM plan_change ORDER BY id")).toEqual(changes);
+    expect(await test.store.all("SELECT * FROM plan_change WHERE status = 'preview'")).toEqual([]);
+  });
+
+  it("adds a manual event without source evidence and undoes its pinned Workout and displacement", async () => {
+    const test = await activatedPlan();
+    const before = await test.workouts();
+    test.eventSources.read.mockRejectedValue(new Error("Source reader unavailable"));
+    const preview = await test.preview(manualIntent);
+    expect(preview.change.title).toBe("Add a Supporting Event");
+    expect(preview.change.premises.some((premise) => premise.id === "event-source")).toBe(false);
+    expect(await test.workouts()).toEqual(before);
+    const eventWorkout = preview.change.diff.find(
+      (row) => row.after?.supportingEventId !== undefined,
+    );
+    if (eventWorkout?.after === null || eventWorkout?.after === undefined)
+      throw new Error("Expected event Workout");
+    expect(eventWorkout.after).toMatchObject({
+      date: manualIntent.date,
+      kind: "event",
+      pinned: true,
+      minutes: 45,
+      guidance: "Use the accepted event limit",
+    });
+    expect(
+      preview.change.diff.some(
+        (row) => row.before?.date === manualIntent.date && row.after === null,
+      ),
+    ).toBe(true);
+    await applyChange(test, preview.change.changeId, 1, "manual-add");
+    expect((await revisionSnapshot(test, 2)).supportingEvents).toMatchObject([
+      {
+        name: manualIntent.name,
+        date: manualIntent.date,
+        role: "Training",
+        source: { kind: "manual" },
+      },
+    ]);
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: preview.change.changeId },
+      "manual-undo",
+      2,
+    );
+    expect(inverse.change.diff).toContainEqual({
+      workoutId: eventWorkout.workoutId,
+      before: eventWorkout.after,
+      after: null,
+    });
+    await applyChange(test, inverse.change.changeId, 2, "manual-restore");
+    expect((await revisionSnapshot(test, 3)).supportingEvents).toEqual([]);
+    expect(test.eventSources.read).not.toHaveBeenCalled();
+    expect((await revisionSnapshot(test, 3)).weeks).toEqual(test.draft.weeks);
+    expect((await test.workouts()).map((row) => row.structure_json).sort()).toEqual(
+      before.map((row) => row.structure_json).sort(),
+    );
+  });
+
+  it("retains the event Workout database id through role and date changes", async () => {
+    const test = await activatedPlan();
+    const added = await test.preview(manualIntent);
+    await applyChange(test, added.change.changeId, 1, "add-event");
+    const event = (await revisionSnapshot(test, 2)).supportingEvents[0];
+    if (event === undefined) throw new Error("Expected Supporting Event");
+    const stored = await test.store.get(
+      "SELECT id FROM plan_workout WHERE plan_id=? AND json_extract(structure_json,'$.supportingEventId')=?",
+      [test.planId, event.id],
+    );
+    const important = await test.preview(
+      { kind: "supporting-event", operation: "role", eventId: event.id, role: "Important" },
+      "important-preview",
+      2,
+    );
+    await applyChange(test, important.change.changeId, 2, "important-apply");
+    const corrected = await test.preview(
+      {
+        kind: "supporting-event",
+        operation: "manual",
+        eventId: event.id,
+        name: event.name,
+        date: "1998-09-08",
+      },
+      "correct-preview",
+      3,
+    );
+    await applyChange(test, corrected.change.changeId, 3, "correct-apply");
+    expect(
+      await test.store.get(
+        "SELECT id FROM plan_workout WHERE plan_id=? AND json_extract(structure_json,'$.supportingEventId')=?",
+        [test.planId, event.id],
+      ),
+    ).toEqual(stored);
+    const snapshot = await revisionSnapshot(test, 4);
+    expect(snapshot.supportingEvents[0]).toMatchObject({
+      id: event.id,
+      role: "Important",
+      date: "1998-09-08",
+    });
+    expect(
+      snapshot.weeks
+        .flatMap((week) => week.workouts)
+        .filter((workout) => workout.supportingEventId === event.id),
+    ).toMatchObject([{ date: "1998-09-08", pinned: true }]);
+  });
+
+  it("renames event metadata and undoes the name without rewriting Workouts", async () => {
+    const test = await activatedPlan();
+    const added = await test.preview(manualIntent);
+    await applyChange(test, added.change.changeId, 1, "add-event");
+    const event = (await revisionSnapshot(test, 2)).supportingEvents[0];
+    if (event === undefined) throw new Error("Expected Supporting Event");
+    const workouts = await test.workouts();
+    const renamed = await test.preview(
+      { kind: "supporting-event", operation: "name", eventId: event.id, name: "A new name" },
+      "rename-preview",
+      2,
+    );
+    expect(renamed.change.diff).toEqual([]);
+    await applyChange(test, renamed.change.changeId, 2, "rename-apply");
+    expect((await revisionSnapshot(test, 3)).supportingEvents[0]?.name).toBe("A new name");
+    expect(await test.workouts()).toEqual(workouts);
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: renamed.change.changeId },
+      "rename-undo",
+      3,
+    );
+    expect(inverse.change.diff).toEqual([]);
+    await applyChange(test, inverse.change.changeId, 3, "rename-restore");
+    expect((await revisionSnapshot(test, 4)).supportingEvents[0]?.name).toBe(event.name);
+    expect(await test.workouts()).toEqual(workouts);
+  });
+
+  it("captures synchronized event evidence and refuses changed or removed sources without mutation", async () => {
+    const test = await activatedPlan();
+    test.setEventSources([source]);
+    const preview = await test.preview({ ...manualIntent, providerId: source.providerId });
+    expect(preview.change.premises.find((premise) => premise.id === "event-source")).toMatchObject({
+      source: "Intervals.icu event",
+      value: source,
+    });
+    const before = await dumpStore(test.store);
+    const request = {
+      commandId: "synced-apply",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: preview.change.changeId,
+      decision: "apply" as const,
+    };
+    for (const candidates of [[{ ...source, sourceRevision: "b".repeat(64) }], []]) {
+      test.setEventSources(candidates);
+      expect(await test.changes["plan_change.apply"](request)).toEqual({
+        status: "rejected",
+        reason: "event-source-changed",
+      });
+      expect(await dumpStore(test.store)).toBe(before);
+      expect((await test.creation["plan.list"]({})).changes).toContainEqual(preview.change);
+    }
+    test.setEventSources([source]);
+    const applied = await test.changes["plan_change.apply"](request);
+    expect(applied.status).toBe("applied");
+    const snapshot = await revisionSnapshot(test, 2);
+    expect(snapshot.supportingEvents[0]).toMatchObject({
+      name: source.name,
+      date: source.date,
+      source: {
+        kind: "synced",
+        providerId: source.providerId,
+        sourceRevision: source.sourceRevision,
+      },
+    });
+    test.eventSources.read.mockRejectedValue(new Error("Source reader unavailable"));
+    const after = await dumpStore(test.store);
+    expect(await test.changes["plan_change.apply"](request)).toEqual(applied);
+    expect(await test.preview({ ...manualIntent, providerId: source.providerId })).toEqual(preview);
+    expect(await dumpStore(test.store)).toBe(after);
+  });
+
+  it("rechecks source revision after entering the apply transaction", async () => {
+    const test = await activatedPlan();
+    test.setEventSources([source]);
+    const preview = await test.preview({ ...manualIntent, providerId: source.providerId });
+    const before = await dumpStore(test.store);
+    const transaction = test.store.transaction.bind(test.store);
+    const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
+      test.setEventSources([{ ...source, sourceRevision: "c".repeat(64) }]);
+      return transaction(fn);
+    });
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "source-race",
+        planId: test.planId,
+        expectedVersion: 1,
+        changeId: preview.change.changeId,
+        decision: "apply",
+      }),
+    ).toEqual({ status: "rejected", reason: "event-source-changed" });
+    expect(hook).toHaveBeenCalledOnce();
+    hook.mockRestore();
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it.each([
+    {
+      intent: { kind: "supporting-event", operation: "remove", eventId: "missing" },
+      explanation: "Choose a Supporting Event already accepted in this Plan.",
+    },
+    {
+      intent: { ...manualIntent, date: "1998-10-01" },
+      explanation: "Choose a Supporting Event inside this Plan span.",
+    },
+    {
+      intent: { ...manualIntent, date: "1998-09-06" },
+      explanation: "The event date conflicts with a confirmed training limit.",
+    },
+  ] satisfies { intent: PlanChangeIntent; explanation: string }[])(
+    "returns event validation without writing a preview: $explanation",
+    async ({ intent, explanation }) => {
+      const test = await activatedPlan();
+      const before = await dumpStore(test.store);
+      expect(
+        await test.changes["plan_change.preview"]({
+          commandId: "invalid-event",
+          planId: test.planId,
+          expectedVersion: 1,
+          intent,
+        }),
+      ).toEqual({ status: "rejected", reason: "invalid-intent", explanation });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+
+  it.each([
+    { intent: { ...manualIntent, name: " " }, explanation: "Enter the event name and exact date." },
+    {
+      intent: { ...manualIntent, date: "1998-02-30" },
+      explanation: "Enter the event name and exact date.",
+    },
+    { intent: { ...manualIntent, role: "Ignored" }, explanation: "Choose Important or Training." },
+    {
+      intent: { kind: "supporting-event", operation: "remove", eventId: "" },
+      explanation: "Choose a Supporting Event already accepted in this Plan.",
+    },
+  ])(
+    "explains malformed event fields at the RPC boundary: $explanation",
+    async ({ intent, explanation }) => {
+      const test = await activatedPlan();
+      const before = await dumpStore(test.store);
+      const result = await Reflect.apply(test.changes["plan_change.preview"], undefined, [
+        {
+          commandId: "malformed-event",
+          planId: test.planId,
+          expectedVersion: 1,
+          intent,
+        },
+      ]);
+      expect(result).toEqual({ status: "rejected", reason: "invalid-intent", explanation });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+
+  it("refuses a date correction whose target day elapsed after preview", async () => {
+    let today = 19980902;
+    const test = await activatedPlan(() => today);
+    const added = await test.preview({ ...manualIntent, date: "1998-09-12" });
+    await applyChange(test, added.change.changeId, 1, "add-event");
+    const event = (await revisionSnapshot(test, 2)).supportingEvents[0];
+    if (event === undefined) throw new Error("Expected Supporting Event");
+    const correction = await test.preview(
+      {
+        kind: "supporting-event",
+        operation: "manual",
+        eventId: event.id,
+        name: event.name,
+        date: "1998-09-05",
+      },
+      "correct-date",
+      2,
+    );
+    today = 19980906;
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "apply-elapsed-date",
+        planId: test.planId,
+        expectedVersion: 2,
+        changeId: correction.change.changeId,
+        decision: "apply",
+      }),
+    ).toEqual({ status: "rejected", reason: "stale-version" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("captures synchronized evidence for Undo and refuses source drift", async () => {
+    const test = await activatedPlan();
+    test.setEventSources([source]);
+    const added = await test.preview({ ...manualIntent, providerId: source.providerId });
+    await applyChange(test, added.change.changeId, 1, "synced-add");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: added.change.changeId },
+      "synced-undo",
+      2,
+    );
+    expect(inverse.change.premises.find((premise) => premise.id === "event-source")).toMatchObject({
+      source: "Intervals.icu event",
+      value: source,
+    });
+    test.setEventSources([{ ...source, sourceRevision: "d".repeat(64) }]);
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "synced-restore",
+        planId: test.planId,
+        expectedVersion: 2,
+        changeId: inverse.change.changeId,
+        decision: "apply",
+      }),
+    ).toEqual({ status: "rejected", reason: "event-source-changed" });
+    expect(await dumpStore(test.store)).toBe(before);
+    test.setEventSources([source]);
+    await applyChange(test, inverse.change.changeId, 2, "synced-restore");
+    expect((await revisionSnapshot(test, 3)).supportingEvents).toEqual([]);
+  });
+
+  it("cancels synchronized Changes without rereading their source", async () => {
+    const test = await activatedPlan();
+    test.setEventSources([source]);
+    const preview = await test.preview({ ...manualIntent, providerId: source.providerId });
+    const workouts = await test.workouts();
+    test.eventSources.read.mockClear().mockRejectedValue(new Error("Source reader unavailable"));
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "synced-cancel",
+        planId: test.planId,
+        expectedVersion: 1,
+        changeId: preview.change.changeId,
+        decision: "cancel",
+      }),
+    ).toMatchObject({ status: "cancelled" });
+    expect(test.eventSources.read).not.toHaveBeenCalled();
+    expect(await test.workouts()).toEqual(workouts);
+  });
+});
+
+it("restores flexible Plan Workouts and the revision fingerprint after an Important event undo", async () => {
+  const test = await activatedPlan(undefined, undefined, null, "flexible");
+  const baseline = await test.preview({ kind: "ftp", watts: 220 });
+  await applyChange(test, baseline.change.changeId, 1, "baseline-ftp");
+  const before = await revisionSnapshot(test, 2);
+  const undated = before.weeks.flatMap((week) => week.workouts);
+  expect(undated.length).toBeGreaterThan(0);
+  expect(undated.every((workout) => workout.date === null)).toBe(true);
+  expect(await test.workouts()).toEqual([]);
+  const preview = await test.preview(
+    {
+      kind: "supporting-event",
+      operation: "add",
+      name: "Local ride",
+      date: "1998-09-03",
+      role: "Important",
+    },
+    "important-preview",
+    2,
+  );
+  expect(
+    preview.change.diff.some(
+      (row) => row.before?.date === null && row.before.minutes !== row.after?.minutes,
+    ),
+  ).toBe(true);
+  expect(
+    preview.change.diff.some(
+      (row) => row.before?.date === null && row.before.kind !== row.after?.kind,
+    ),
+  ).toBe(true);
+  expect(await revisionSnapshot(test, 2)).toEqual(before);
+  await applyChange(test, preview.change.changeId, 2, "important-add");
+  expect(await test.workouts()).toHaveLength(1);
+  const inverse = await test.preview(
+    { kind: "inverse", changeId: preview.change.changeId },
+    "important-undo",
+    3,
+  );
+  await applyChange(test, inverse.change.changeId, 3, "important-restore");
+  const restored = await revisionSnapshot(test, 4);
+  expect(restored.weeks.flatMap((week) => week.workouts)).toEqual(undated);
+  expect(restored).toEqual(before);
+  expect(restored.outputFingerprint).toBe(before.outputFingerprint);
+  expect(await test.workouts()).toEqual([]);
+  const revisions = await test.store.all(
+    "SELECT fingerprint FROM plan_revision WHERE plan_id=? AND revision_number IN (2,4) ORDER BY revision_number",
+    [test.planId],
+  );
+  expect(revisions).toHaveLength(2);
+  expect(revisions[1]).toEqual(revisions[0]);
 });

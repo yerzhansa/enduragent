@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { type CreationDraft } from "../src/creation-draft-builder.js";
 import {
   applyScheduleIntent,
+  applySupportingEventIntent,
+  type SupportingEventIntent,
+  type SupportingEventRules,
   planChangeRaceWindow,
   type ScheduleIntent,
 } from "../src/plan-change.js";
@@ -316,7 +319,22 @@ describe("Inverse Plan Changes", () => {
     expect(previousDraft).toEqual(fixture());
   });
 
-  it("keeps current copies of completed, past, pinned and undated Workouts", () => {
+  it("keeps the current copy when the restored Workout would land before today", () => {
+    const previousDraft = fixture();
+    const draft = structuredClone(previousDraft);
+    const moved = draft.weeks[3].workouts[0];
+    moved.date = "1998-09-12";
+    const result = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey: 19980908,
+    });
+    expect(workouts(result.after).find((workout) => workout.id === moved.id)).toEqual(moved);
+    expect(result.diff.some((row) => row.workoutId === moved.id)).toBe(false);
+  });
+
+  it("keeps current copies of completed, past and pinned Workouts", () => {
     const previousDraft = fixture();
     const { after: draft } = applyScheduleIntent({
       draft: previousDraft,
@@ -324,7 +342,6 @@ describe("Inverse Plan Changes", () => {
       todayDateKey,
     });
     draft.weeks[2].workouts[0].pinned = true;
-    draft.weeks[2].workouts[1].date = null;
     const completedWorkoutIds = new Set(["w3-long"]);
     const result = applyScheduleIntent({
       draft,
@@ -333,24 +350,17 @@ describe("Inverse Plan Changes", () => {
       todayDateKey: 19980831,
       completedWorkoutIds,
     });
-    const protectedIds = [
-      "w2-hard",
-      "w2-endurance",
-      "w2-long",
-      "w3-hard",
-      "w3-endurance",
-      "w3-long",
-    ];
+    const protectedIds = ["w2-hard", "w2-endurance", "w2-long", "w3-hard", "w3-long"];
     for (const id of protectedIds) {
       expect(workouts(result.after).find((workout) => workout.id === id)).toEqual(
         workouts(draft).find((workout) => workout.id === id),
       );
       expect(result.diff.some((row) => row.workoutId === id)).toBe(false);
     }
-    expect(result.diff).toHaveLength(9);
+    expect(result.diff).toHaveLength(10);
   });
 
-  it("restores removed Workouts dated today and skips removed Workouts that are no longer mutable", () => {
+  it("restores removed Workouts dated today or undated and skips protected Workouts", () => {
     const previousDraft = fixture();
     const { after: draft } = applyScheduleIntent({
       draft: previousDraft,
@@ -368,12 +378,13 @@ describe("Inverse Plan Changes", () => {
     });
     expect(result.diff).toEqual([
       { workoutId: "w3-hard", before: null, after: previousDraft.weeks[2].workouts[0] },
+      { workoutId: "w5-hard", before: null, after: previousDraft.weeks[4].workouts[0] },
     ]);
     expect(
       workouts(result.after)
         .filter((workout) => workout.kind === "hard")
         .map((workout) => workout.id),
-    ).toEqual(["w1-hard", "w3-hard"]);
+    ).toEqual(["w1-hard", "w3-hard", "w5-hard"]);
   });
 
   it("preserves non-mutable Workouts present only in the current snapshot", () => {
@@ -396,10 +407,11 @@ describe("Inverse Plan Changes", () => {
     });
     expect(result.after.weeks[1].workouts.map((workout) => workout.id)).toEqual(
       draft.weeks[1].workouts
-        .filter((workout) => workout.id !== "new-mutable")
+        .filter((workout) => workout.id !== "new-mutable" && workout.id !== "new-undated")
         .map((workout) => workout.id),
     );
     expect(result.diff).toEqual([
+      { workoutId: "new-undated", before: { ...base, id: "new-undated", date: null }, after: null },
       { workoutId: "new-mutable", before: { ...base, id: "new-mutable" }, after: null },
     ]);
   });
@@ -620,3 +632,648 @@ describe("FTP Plan Changes", () => {
     ]);
   });
 });
+
+const eventRules: SupportingEventRules = {
+  availability: {
+    mode: "fixed",
+    usableWeekdays: [1, 2, 3, 4, 5, 6, 7],
+    longestWorkoutHours: 2,
+    weeklyHoursLimit: 8,
+  },
+  restriction: { kind: "none" },
+};
+const sourceEvent = {
+  providerId: "race-fixture",
+  name: "River ride",
+  date: "1998-09-02",
+  category: "RACE_B" as const,
+  sourceRevision: "a".repeat(64),
+};
+function eventChange(
+  intent: SupportingEventIntent,
+  draft: CreationDraft = fixture(),
+  rules = eventRules,
+) {
+  return applySupportingEventIntent({
+    draft,
+    intent,
+    rules,
+    todayDateKey,
+    eventId: "river",
+    source: sourceEvent,
+  });
+}
+function eventAdded(role: "Important" | "Training" = "Training") {
+  const result = eventChange({
+    kind: "supporting-event",
+    operation: "add",
+    name: "River ride",
+    date: "1998-09-02",
+    role,
+  });
+  if (result.status !== "changed") throw new Error(result.explanation);
+  return result;
+}
+
+describe("Supporting Event Plan Changes", () => {
+  it.each(["add", "manual", "source-update"] as const)(
+    "rejects %s when the resulting week would contain seven Workouts",
+    (operation) => {
+      const draft = eventAdded().after;
+      const week = draft.weeks[3];
+      const template = week.workouts[0];
+      while (week.workouts.length < 6) {
+        week.workouts.push({ ...template, id: `extra-${week.workouts.length}`, pinned: true });
+      }
+      const before = structuredClone(draft);
+      if (operation === "source-update" && draft.supportingEvents?.[0]) {
+        draft.supportingEvents[0].source = {
+          kind: "synced",
+          providerId: sourceEvent.providerId,
+          sourceRevision: sourceEvent.sourceRevision,
+        };
+      }
+      const result = applySupportingEventIntent({
+        draft,
+        intent:
+          operation === "add"
+            ? {
+                kind: "supporting-event",
+                operation,
+                name: "Hill ride",
+                date: "1998-09-10",
+                role: "Training",
+              }
+            : operation === "manual"
+              ? {
+                  kind: "supporting-event",
+                  operation,
+                  eventId: "river",
+                  name: "Hill ride",
+                  date: "1998-09-10",
+                }
+              : { kind: "supporting-event", operation, eventId: "river" },
+        eventId: "hill",
+        source: { ...sourceEvent, date: "1998-09-10" },
+        rules: eventRules,
+        todayDateKey,
+      });
+      expect(result).toEqual({
+        status: "invalid",
+        explanation:
+          "A week can hold at most six Workouts. Remove or move one before adding this event.",
+      });
+      expect(draft.weeks).toEqual(before.weeks);
+    },
+  );
+
+  it("adds a manual event, drops same-day training, and fingerprints its pinned Workout", () => {
+    const before = fixture();
+    const result = eventAdded();
+    expect(result.after.supportingEvents).toEqual([
+      {
+        id: "river",
+        name: "River ride",
+        date: "1998-09-02",
+        role: "Training",
+        source: { kind: "manual" },
+      },
+    ]);
+    expect(workouts(result.after).find((workout) => workout.supportingEventId === "river")).toEqual(
+      {
+        id: "supporting-event-river",
+        name: "River ride",
+        date: "1998-09-02",
+        kind: "event",
+        minutes: 45,
+        pinned: true,
+        power: null,
+        guidance: "Use the accepted event limit",
+        supportingEventId: "river",
+      },
+    );
+    expect(result.diff.map((row) => row.workoutId)).toEqual([
+      "w3-endurance",
+      "supporting-event-river",
+    ]);
+    expect(result.diff[0].after).toBeNull();
+    expect(result.diff[1].before).toBeNull();
+    expect(result.after.outputFingerprint).not.toBe(before.outputFingerprint);
+    expect(before).toEqual(fixture());
+  });
+
+  it("accepts source values on synced add and source-update while preserving the Workout id", () => {
+    const added = eventChange({
+      kind: "supporting-event",
+      operation: "add",
+      name: "Old name",
+      date: "1998-09-03",
+      role: "Training",
+      providerId: sourceEvent.providerId,
+    });
+    if (added.status !== "changed") throw new Error(added.explanation);
+    expect(added.after.supportingEvents?.[0]).toEqual({
+      id: "river",
+      name: sourceEvent.name,
+      date: sourceEvent.date,
+      role: "Training",
+      source: {
+        kind: "synced",
+        providerId: sourceEvent.providerId,
+        sourceRevision: sourceEvent.sourceRevision,
+      },
+    });
+    const updated = applySupportingEventIntent({
+      draft: added.after,
+      intent: { kind: "supporting-event", operation: "source-update", eventId: "river" },
+      todayDateKey,
+      rules: eventRules,
+      source: {
+        ...sourceEvent,
+        name: "New river ride",
+        date: "1998-09-10",
+        sourceRevision: "b".repeat(64),
+      },
+    });
+    if (updated.status !== "changed") throw new Error(updated.explanation);
+    expect(updated.after.supportingEvents?.[0]).toMatchObject({
+      name: "New river ride",
+      date: "1998-09-10",
+      source: { sourceRevision: "b".repeat(64) },
+    });
+    expect(updated.diff.find((row) => row.workoutId === "supporting-event-river")).toMatchObject({
+      before: { date: "1998-09-02" },
+      after: { id: "supporting-event-river", date: "1998-09-10", name: "New river ride" },
+    });
+    expect(
+      workouts(updated.after).filter((workout) => workout.supportingEventId === "river"),
+    ).toHaveLength(1);
+  });
+
+  it("corrects manual name and date in place, then removes the event and its Workout", () => {
+    const corrected = eventChange(
+      {
+        kind: "supporting-event",
+        operation: "manual",
+        eventId: "river",
+        name: "Hill ride",
+        date: "1998-09-10",
+      },
+      eventAdded().after,
+    );
+    if (corrected.status !== "changed") throw new Error(corrected.explanation);
+    expect(
+      workouts(corrected.after).find((workout) => workout.supportingEventId === "river"),
+    ).toMatchObject({ id: "supporting-event-river", name: "Hill ride", date: "1998-09-10" });
+    const removed = eventChange(
+      { kind: "supporting-event", operation: "remove", eventId: "river" },
+      corrected.after,
+    );
+    if (removed.status !== "changed") throw new Error(removed.explanation);
+    expect(removed.after.supportingEvents).toEqual([]);
+    expect(removed.diff).toEqual([
+      {
+        workoutId: "supporting-event-river",
+        before: workouts(corrected.after).find((workout) => workout.supportingEventId === "river"),
+        after: null,
+      },
+    ]);
+  });
+
+  it("renames metadata only, including synced events", () => {
+    const draft = eventAdded().after;
+    if (draft.supportingEvents?.[0])
+      draft.supportingEvents[0].source = {
+        kind: "synced",
+        providerId: sourceEvent.providerId,
+        sourceRevision: sourceEvent.sourceRevision,
+      };
+    const result = eventChange(
+      { kind: "supporting-event", operation: "name", eventId: "river", name: "My river ride" },
+      draft,
+    );
+    if (result.status !== "changed") throw new Error(result.explanation);
+    expect(result.after.supportingEvents?.[0].name).toBe("My river ride");
+    expect(result.after.weeks).toEqual(draft.weeks);
+    expect(result.diff).toEqual([]);
+    expect(result.totals.before).toEqual(result.totals.after);
+  });
+
+  it("caps Important event civil weeks across Draft week boundaries, then restores nothing for Training", () => {
+    const draft = eventAdded().after;
+    for (const workout of workouts(draft)) {
+      if (workout.id === "w3-hard") workout.date = "1998-09-03";
+      if (workout.id === "w4-hard") workout.date = "1998-09-06";
+    }
+    const result = eventChange(
+      { kind: "supporting-event", operation: "role", eventId: "river", role: "Important" },
+      draft,
+    );
+    if (result.status !== "changed") throw new Error(result.explanation);
+    for (const id of ["w3-hard", "w4-hard"])
+      expect(workouts(result.after).find((workout) => workout.id === id)).toMatchObject({
+        kind: "endurance",
+        name: "Endurance ride",
+        minutes: 30,
+      });
+    expect(workouts(result.after).find((workout) => workout.id === "w3-long")?.minutes).toBe(30);
+    expect(workouts(result.after).find((workout) => workout.id === "w4-long")?.minutes).toBe(100);
+    const training = eventChange(
+      { kind: "supporting-event", operation: "role", eventId: "river", role: "Training" },
+      result.after,
+    );
+    if (training.status !== "changed") throw new Error(training.explanation);
+    expect(training.after.weeks).toEqual(result.after.weeks);
+    expect(training.diff).toEqual([]);
+  });
+
+  it("caps event duration to the answered day limit and active restriction", () => {
+    const intent = {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-02",
+      role: "Training",
+    } as const;
+    for (const rules of [
+      { ...eventRules, availability: { ...eventRules.availability, longestWorkoutHours: 0.5 } },
+      {
+        ...eventRules,
+        restriction: { kind: "max-duration", hours: 0.5, endDate: "1998-09-02" } as const,
+      },
+    ]) {
+      const result = eventChange(intent, fixture(), rules);
+      if (result.status !== "changed") throw new Error(result.explanation);
+      expect(
+        workouts(result.after).find((workout) => workout.supportingEventId === "river")?.minutes,
+      ).toBe(30);
+    }
+  });
+
+  it("restores the prior Draft through inverse add, remove and date correction", () => {
+    for (const [draft, intent] of [
+      [
+        fixture(),
+        {
+          kind: "supporting-event",
+          operation: "add",
+          name: "River ride",
+          date: "1998-09-02",
+          role: "Training",
+        },
+      ],
+      [eventAdded().after, { kind: "supporting-event", operation: "remove", eventId: "river" }],
+      [
+        eventAdded().after,
+        {
+          kind: "supporting-event",
+          operation: "manual",
+          eventId: "river",
+          name: "New name",
+          date: "1998-09-10",
+        },
+      ],
+    ] satisfies [CreationDraft, SupportingEventIntent][]) {
+      const result = eventChange(intent, draft);
+      if (result.status !== "changed") throw new Error(result.explanation);
+      const inverse = applyScheduleIntent({
+        draft: result.after,
+        previousDraft: draft,
+        intent: { kind: "inverse", changeId: "change" },
+        todayDateKey,
+      });
+      expect(inverse.after).toEqual(draft);
+    }
+  });
+
+  it("counts an event added during the race window as an increase", () => {
+    const draft = fixture();
+    const result = applySupportingEventIntent({
+      draft,
+      intent: {
+        kind: "supporting-event",
+        operation: "add",
+        name: "Local ride",
+        date: "1998-09-24",
+        role: "Training",
+      },
+      eventId: "local",
+      rules: eventRules,
+      todayDateKey: 19980921,
+    });
+    if (result.status !== "changed") throw new Error(result.explanation);
+    expect(
+      planChangeRaceWindow({ goal: draft.goal, todayDateKey: 19980921, diff: result.diff }),
+    ).toEqual({ start: "1998-09-21", end: "1998-09-27" });
+  });
+
+  it("rejects unknown events, malformed details, invalid roles, outside dates, and Main Goal dates", () => {
+    const add = {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-02",
+      role: "Training",
+    } as const;
+    expect(
+      eventChange({ kind: "supporting-event", operation: "remove", eventId: "missing" }),
+    ).toEqual({
+      status: "invalid",
+      explanation: "Choose a Supporting Event already accepted in this Plan.",
+    });
+    for (const intent of [
+      { ...add, name: " " },
+      { ...add, date: "1998-02-30" },
+    ])
+      expect(eventChange(intent)).toEqual({
+        status: "invalid",
+        explanation: "Enter the event name and exact date.",
+      });
+    for (const date of ["1998-08-16", "1998-09-28", "1998-09-27"])
+      expect(eventChange({ ...add, date })).toEqual({
+        status: "invalid",
+        explanation: "Choose a Supporting Event inside this Plan span.",
+      });
+  });
+
+  it("refuses an unavailable weekday or an active no-training restriction", () => {
+    const intent = {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-02",
+      role: "Training",
+    } as const;
+    for (const rules of [
+      {
+        ...eventRules,
+        availability: {
+          mode: "fixed",
+          longestWorkoutHours: 2,
+          weeklyHoursLimit: 8,
+          usableWeekdays: [1],
+        } as const,
+      },
+      { ...eventRules, restriction: { kind: "no-training", endDate: "1998-09-02" } as const },
+    ])
+      expect(eventChange(intent, fixture(), rules)).toEqual({
+        status: "invalid",
+        explanation: "The event date conflicts with a confirmed training limit.",
+      });
+  });
+
+  it("refuses manual correction of synced events and source-update of manual events", () => {
+    const draft = eventAdded().after;
+    expect(
+      eventChange(
+        { kind: "supporting-event", operation: "source-update", eventId: "river" },
+        draft,
+      ),
+    ).toEqual({
+      status: "invalid",
+      explanation: "Choose a synchronized Supporting Event already accepted in this Plan.",
+    });
+    if (draft.supportingEvents?.[0])
+      draft.supportingEvents[0].source = {
+        kind: "synced",
+        providerId: sourceEvent.providerId,
+        sourceRevision: sourceEvent.sourceRevision,
+      };
+    expect(
+      eventChange(
+        {
+          kind: "supporting-event",
+          operation: "manual",
+          eventId: "river",
+          name: "Correction",
+          date: "1998-09-03",
+        },
+        draft,
+      ),
+    ).toEqual({
+      status: "invalid",
+      explanation: "Accept synchronized event updates through a fresh source-update preview.",
+    });
+  });
+
+  it("preserves completed event Workouts through inverse and refuses direct edits", () => {
+    const draft = eventAdded().after;
+    const completedWorkoutIds = new Set(["supporting-event-river"]);
+    const result = applySupportingEventIntent({
+      draft,
+      intent: { kind: "supporting-event", operation: "remove", eventId: "river" },
+      rules: eventRules,
+      todayDateKey,
+      completedWorkoutIds,
+    });
+    expect(result).toEqual({
+      status: "invalid",
+      explanation: "Past or completed event Workouts cannot be changed.",
+    });
+    const inverse = applyScheduleIntent({
+      draft,
+      previousDraft: fixture(),
+      intent: { kind: "inverse", changeId: "change" },
+      todayDateKey,
+      completedWorkoutIds,
+    });
+    expect(
+      workouts(inverse.after).find((workout) => workout.supportingEventId === "river"),
+    ).toEqual(workouts(draft).find((workout) => workout.supportingEventId === "river"));
+    expect(inverse.after.supportingEvents).toEqual(draft.supportingEvents);
+  });
+});
+
+it("keeps a past moved event in its current week with its accepted metadata during inverse", () => {
+  const previousDraft = eventAdded().after;
+  const moved = eventChange(
+    {
+      kind: "supporting-event",
+      operation: "manual",
+      eventId: "river",
+      name: "Early river ride",
+      date: "1998-08-27",
+    },
+    previousDraft,
+  );
+  if (moved.status !== "changed") throw new Error(moved.explanation);
+  const inverse = applyScheduleIntent({
+    draft: moved.after,
+    previousDraft,
+    intent: { kind: "inverse", changeId: "move" },
+    todayDateKey: 19980828,
+  });
+  const linked = workouts(inverse.after).filter((workout) => workout.supportingEventId === "river");
+  expect(linked).toHaveLength(1);
+  expect(linked[0]).toMatchObject({ date: "1998-08-27", name: "Early river ride" });
+  expect(inverse.after.weeks[1].workouts).toContainEqual(linked[0]);
+  expect(inverse.after.supportingEvents).toEqual(moved.after.supportingEvents);
+});
+
+it("does not restore a removed event whose Workout date has passed", () => {
+  const previousDraft = eventAdded().after;
+  const removed = eventChange(
+    { kind: "supporting-event", operation: "remove", eventId: "river" },
+    previousDraft,
+  );
+  if (removed.status !== "changed") throw new Error(removed.explanation);
+  const inverse = applyScheduleIntent({
+    draft: removed.after,
+    previousDraft,
+    intent: { kind: "inverse", changeId: "remove" },
+    todayDateKey: 19980903,
+  });
+  expect(inverse.after.supportingEvents).toEqual([]);
+  expect(workouts(inverse.after).some((workout) => workout.supportingEventId === "river")).toBe(
+    false,
+  );
+  expect(inverse.diff).toEqual([]);
+});
+
+it("leaves past, completed and pinned training unchanged and caps undated training in the event week when an Important event caps the week", () => {
+  const draft = fixture();
+  draft.weeks[2].workouts.push({
+    id: "pinned-training",
+    name: "Pinned ride",
+    kind: "endurance",
+    date: "1998-09-04",
+    minutes: 60,
+    pinned: true,
+    power: null,
+    guidance: "Ride comfortably",
+  });
+  draft.weeks[2].workouts.push({
+    id: "undated-training",
+    name: "Optional ride",
+    kind: "endurance",
+    date: null,
+    minutes: 60,
+    pinned: false,
+    power: null,
+    guidance: "Ride comfortably",
+  });
+  const result = applySupportingEventIntent({
+    draft,
+    intent: {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-03",
+      role: "Important",
+    },
+    eventId: "river",
+    rules: eventRules,
+    todayDateKey: 19980901,
+    completedWorkoutIds: new Set(["w3-endurance"]),
+  });
+  if (result.status !== "changed") throw new Error(result.explanation);
+  for (const id of ["w3-hard", "w3-endurance", "pinned-training", "event"]) {
+    expect(workouts(result.after).find((workout) => workout.id === id)).toEqual(
+      workouts(draft).find((workout) => workout.id === id),
+    );
+  }
+  expect(workouts(result.after).find((workout) => workout.id === "w3-long")?.minutes).toBe(30);
+  expect(workouts(result.after).find((workout) => workout.id === "undated-training")).toMatchObject(
+    { minutes: 30, kind: "endurance", date: null },
+  );
+});
+
+it("preserves a legacy revision fingerprint when inverse restores its defaulted snapshot", () => {
+  const previousDraft = fixture();
+  const legacyFingerprint = previousDraft.outputFingerprint;
+  previousDraft.supportingEvents = [];
+  const changed = applyScheduleIntent({
+    draft: previousDraft,
+    intent: { kind: "longest-workout", minutes: 20 },
+    todayDateKey,
+  });
+  const inverse = applyScheduleIntent({
+    draft: changed.after,
+    previousDraft,
+    intent: { kind: "inverse", changeId: "legacy-change" },
+    todayDateKey,
+  });
+  expect(inverse.after).toEqual(previousDraft);
+  expect(inverse.after.outputFingerprint).toBe(legacyFingerprint);
+});
+
+it("undoes a metadata-only rename after the event Workout is completed", () => {
+  const previousDraft = eventAdded().after;
+  const renamed = eventChange(
+    { kind: "supporting-event", operation: "name", eventId: "river", name: "A corrected name" },
+    previousDraft,
+  );
+  if (renamed.status !== "changed") throw new Error(renamed.explanation);
+  const linked = workouts(renamed.after).find((workout) => workout.supportingEventId === "river");
+  if (linked === undefined) throw new Error("Expected an event Workout");
+  const inverse = applyScheduleIntent({
+    draft: renamed.after,
+    previousDraft,
+    intent: { kind: "inverse", changeId: "rename" },
+    todayDateKey: 19980903,
+    completedWorkoutIds: new Set([linked.id]),
+  });
+  expect(inverse.diff).toEqual([]);
+  expect(inverse.after.supportingEvents).toEqual(previousDraft.supportingEvents);
+  expect(workouts(inverse.after).find((workout) => workout.id === linked.id)).toEqual(linked);
+});
+
+it("restores undated Workout minutes and kinds after an Important event inverse", () => {
+  const draft = fixture();
+  draft.mode = "flexible";
+  for (const workout of draft.weeks[2].workouts) workout.date = null;
+  const result = eventChange(
+    {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-02",
+      role: "Important",
+    },
+    draft,
+  );
+  if (result.status !== "changed") throw new Error(result.explanation);
+  expect(result.after.weeks[2].workouts[0]).toMatchObject({
+    date: null,
+    minutes: 30,
+    kind: "endurance",
+  });
+  const inverse = applyScheduleIntent({
+    draft: result.after,
+    previousDraft: draft,
+    intent: { kind: "inverse", changeId: "important-add" },
+    todayDateKey,
+  });
+  expect(inverse.after.weeks[2].workouts).toEqual(draft.weeks[2].workouts);
+  expect(inverse.after).toEqual(draft);
+});
+
+it.each(["mutable", "pinned", "completed"])(
+  "restores all undated Workout fields only when %s allows it",
+  (state) => {
+    const previousDraft = fixture();
+    const previous = previousDraft.weeks[1].workouts.find((workout) => workout.id === "undated");
+    if (previous === undefined) throw new Error("Expected undated Workout");
+    previous.pinned = state === "pinned";
+    const draft = structuredClone(previousDraft);
+    const present = draft.weeks[1].workouts.find((workout) => workout.id === "undated");
+    if (present === undefined) throw new Error("Expected undated Workout");
+    Object.assign(present, {
+      minutes: 20,
+      kind: "endurance",
+      name: "Changed ride",
+      guidance: "Use power",
+      power: 200,
+    });
+    const inverse = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "undated-change" },
+      todayDateKey,
+      completedWorkoutIds: new Set(state === "completed" ? [present.id] : []),
+    });
+    expect(workouts(inverse.after).find((workout) => workout.id === present.id)).toEqual(
+      state === "mutable" ? previous : present,
+    );
+  },
+);

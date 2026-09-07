@@ -46,6 +46,7 @@ async function harness() {
     today: () => String(today).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"),
   });
   const changes = createPlanChangeOperations({
+    eventSources: { read: async () => [] },
     ftp: createCyclingPlanFtpAdapter({
       readManual: async () => null,
       readIntervalsFtp: async () => null,

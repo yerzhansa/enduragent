@@ -1595,6 +1595,7 @@ describe("Plan Creation activation", () => {
     const activated = await test.host["plan_creation.activate"](test.request);
     let sequence = 1000;
     const changes = createPlanChangeOperations({
+      eventSources: { read: async () => [] },
       ftp: createCyclingPlanFtpAdapter({
         readManual: async () => null,
         readIntervalsFtp: async () => null,

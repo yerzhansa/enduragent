@@ -162,6 +162,7 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): string {
     case "longest-workout":
       return `${intent.minutes} min`;
     case "inverse":
+    case "supporting-event":
       return premise.label;
     case "ftp":
       return `${intent.watts} W`;

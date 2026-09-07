@@ -6,6 +6,7 @@ import {
   PlanChangePreviewRpcParamsSchema,
   PlanChangeApplyRpcParamsSchema,
   type PlanChangeOperations,
+  type SupportingEvent,
   type PlanChangeApplyRpcParams,
   type PlanChangeApplyResult,
   type PlanChangePreviewRpcParams,
@@ -37,6 +38,7 @@ import {
   type PlanCreationHost,
 } from "../../../../packages/coach/src/plan-creation-operations.js";
 import { createPlanChangeOperations } from "../../../../packages/coach/src/plan-change-operations.js";
+import { createPlanChangeEventSourceReader } from "../../../../packages/coach/src/plan-change-event-source-reader.js";
 import type { DesktopFixtureScript } from "./desktop-fixture.js";
 import { createPlanQaFixtureScript } from "./plan-qa-live.js";
 import {
@@ -148,6 +150,23 @@ export class PlanCreationBackend {
   private queueRevision = 0;
   private queue: QueuedMessage[] = [];
   private transcript: TranscriptTurn[] = [];
+  private syncedEventCandidate = {
+    id: 17,
+    name: "Local supporting ride",
+    start_date_local: "1998-01-10T09:00:00",
+    category: "RACE_B",
+  };
+
+  setSyncedEventCandidate(candidate: Partial<typeof this.syncedEventCandidate>): void {
+    this.syncedEventCandidate = { ...this.syncedEventCandidate, ...candidate };
+  }
+
+  async readSyncedEventCandidates() {
+    return createPlanChangeEventSourceReader({
+      calendarConnected: () => this.options.calendarConnected ?? Boolean(this.options.calendar),
+      readLatest: () => ({ planned_workouts: [this.syncedEventCandidate] }),
+    }).read();
+  }
 
   constructor(
     private readonly databasePath: string,
@@ -384,6 +403,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     });
     this.changes = createPlanChangeOperations({
       ftp,
+      eventSources: { read: () => this.readSyncedEventCandidates() },
       logger: { warn: () => {} },
       store: this.store,
       identity,
@@ -603,6 +623,50 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       expectedVersion: previewed.planCreation.version,
     });
     return { planId: activated.planId, draft: previewed.planCreation.draft };
+  }
+
+  async seedActiveTrainingWithManualEvent(
+    event: { name?: string; date?: string; role?: SupportingEvent["role"] } = {},
+  ) {
+    const active = await this.seedActiveTraining();
+    if (active.planId === null) throw new TypeError("Training Plan was not activated");
+    const date =
+      event.date ??
+      active.draft.weeks.flatMap((week) => week.workouts).find((workout) => workout.date !== null)
+        ?.date;
+    if (date === null || date === undefined) throw new TypeError("Training seed has no event date");
+    const preview = await this.previewChange({
+      commandId: "seed-manual-event-preview",
+      planId: active.planId,
+      expectedVersion: 1,
+      intent: {
+        kind: "supporting-event",
+        operation: "add",
+        name: event.name ?? "Local supporting ride",
+        date,
+        role: event.role ?? "Training",
+      },
+    });
+    if (preview.status !== "previewed")
+      throw new TypeError(`Event seed was rejected: ${preview.reason}`);
+    const applied = await this.applyChange({
+      commandId: "seed-manual-event-apply",
+      planId: active.planId,
+      changeId: preview.change.changeId,
+      expectedVersion: 1,
+      decision: "apply",
+    });
+    if (applied.status !== "applied") throw new TypeError("Event seed was not applied");
+    const revision = await this.requireStore().get(
+      "SELECT snapshot_json FROM plan_revision WHERE plan_id=? ORDER BY revision_number DESC LIMIT 1",
+      [active.planId],
+    );
+    if (typeof revision?.snapshot_json !== "string")
+      throw new TypeError("Event revision is unavailable");
+    return {
+      planId: active.planId,
+      draft: PlanCreationDraftSchema.parse(JSON.parse(revision.snapshot_json)),
+    };
   }
 
   async previewChange(params: PlanChangePreviewRpcParams) {

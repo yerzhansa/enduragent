@@ -7,6 +7,8 @@ import {
   PlanChangeApplyRpcParamsSchema,
   PlanChangeIntentSchema,
   PlanChangeFtpSourcesSchema,
+  PlanChangeEventSourceSchema,
+  SupportingEventSchema,
   PlanChangeModelSchema,
   PlanChangePreviewResultSchema,
   PlanChangePreviewRpcParamsSchema,
@@ -348,5 +350,120 @@ describe("race window rejections", () => {
     const applied = { status: "rejected", reason: "race-window" };
     expect(PlanChangeApplyResultSchema.parse(applied)).toEqual(applied);
     expect(PlanChangeApplyResultSchema.safeParse(rejection).success).toBe(false);
+  });
+});
+
+describe("Supporting Event contracts", () => {
+  const event = {
+    id: "supporting-event-one",
+    name: "Autumn ride",
+    date: "1998-09-12",
+    role: "Important",
+    source: { kind: "manual" },
+  };
+  const source = {
+    providerId: "fixture-event",
+    sourceRevision: "a".repeat(64),
+    name: event.name,
+    date: event.date,
+    category: "RACE_B",
+  };
+
+  it.each([
+    { operation: "add", name: event.name, date: event.date, role: "Important" },
+    {
+      operation: "add",
+      name: event.name,
+      date: event.date,
+      role: "Training",
+      providerId: source.providerId,
+    },
+    { operation: "remove", eventId: event.id },
+    { operation: "role", eventId: event.id, role: "Training" },
+    { operation: "manual", eventId: event.id, name: event.name, date: event.date },
+    { operation: "source-update", eventId: event.id },
+    { operation: "name", eventId: event.id, name: "Renamed ride" },
+  ])("accepts operation $operation", (operation) => {
+    const value = { kind: "supporting-event", ...operation };
+    expect(PlanChangeIntentSchema.parse(value)).toEqual(value);
+  });
+
+  it.each([
+    { operation: "add", name: event.name, date: event.date, role: "Ignore" },
+    { operation: "add", name: " ", date: event.date, role: "Important" },
+    { operation: "add", name: event.name, date: "1998-02-30", role: "Important" },
+    { operation: "add", name: event.name, date: event.date, role: "Training", providerId: "" },
+    { operation: "remove" },
+    { operation: "remove", eventId: "" },
+    { operation: "remove", eventId: event.id, name: event.name },
+    { operation: "role", eventId: event.id, role: "Main" },
+    { operation: "manual", eventId: event.id, name: event.name },
+    { operation: "source-update", eventId: event.id, date: event.date },
+    { operation: "name", eventId: event.id, name: "" },
+    { operation: "unknown", eventId: event.id },
+  ])("rejects malformed operation %j", (operation) => {
+    expect(
+      PlanChangeIntentSchema.safeParse({ kind: "supporting-event", ...operation }).success,
+    ).toBe(false);
+  });
+
+  it("preserves manual and synchronized events and validates source identity", () => {
+    expect(SupportingEventSchema.parse(event)).toEqual(event);
+    const synced = {
+      ...event,
+      source: {
+        kind: "synced",
+        providerId: source.providerId,
+        sourceRevision: source.sourceRevision,
+      },
+    };
+    expect(SupportingEventSchema.parse(synced)).toEqual(synced);
+    for (const invalid of [
+      { ...event, role: "Ignore" },
+      { ...event, date: "1998-02-30" },
+      { ...event, source: { kind: "manual", providerId: source.providerId } },
+      { ...synced, source: { ...synced.source, sourceRevision: "not-a-hash" } },
+      { ...synced, source: { kind: "synced", providerId: source.providerId } },
+    ]) {
+      expect(SupportingEventSchema.safeParse(invalid).success).toBe(false);
+    }
+    expect(PlanChangeWorkoutSchema.parse(workout)).toEqual(workout);
+    expect(
+      PlanChangeWorkoutSchema.parse({ ...workout, supportingEventId: event.id }).supportingEventId,
+    ).toBe(event.id);
+  });
+
+  it("preserves by-value synchronized event premises", () => {
+    expect(PlanChangeEventSourceSchema.parse(source)).toEqual(source);
+    const value = {
+      ...change,
+      premises: [
+        { id: "event-source", label: "Event", source: "Intervals.icu event", value: source },
+      ],
+    };
+    expect(PlanChangeModelSchema.parse(value)).toEqual(value);
+    for (const invalid of [
+      { ...source, category: "WORKOUT" },
+      { ...source, sourceRevision: "invalid" },
+      { ...source, date: "1998-09-12T12:00:00" },
+      { ...source, providerId: "" },
+      { ...source, unexpected: true },
+    ]) {
+      expect(PlanChangeEventSourceSchema.safeParse(invalid).success).toBe(false);
+    }
+  });
+
+  it("permits explanations only for invalid intents and rejects source drift", () => {
+    const rejection = {
+      status: "rejected",
+      reason: "invalid-intent",
+      explanation: "Choose a Supporting Event already accepted in this Plan.",
+    };
+    expect(PlanChangePreviewResultSchema.parse(rejection)).toEqual(rejection);
+    expect(
+      PlanChangePreviewResultSchema.safeParse({ ...rejection, reason: "sync-stale" }).success,
+    ).toBe(false);
+    const drift = { status: "rejected", reason: "event-source-changed" };
+    expect(PlanChangeApplyResultSchema.parse(drift)).toEqual(drift);
   });
 });

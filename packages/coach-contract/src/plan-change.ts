@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TrainingExportCivilDateSchema } from "./training-export.js";
-import { PlanCloseRpcParamsSchema, PlanCreationDraftSchema } from "./plan-creation.js";
+import {
+  PlanCloseRpcParamsSchema,
+  PlanCreationDraftSchema,
+  SupportingEventRoleSchema,
+} from "./plan-creation.js";
 
 const FtpWattsSchema = z.number().int().min(1).max(9_999);
 
@@ -21,9 +25,73 @@ export const PlanChangeFtpSourcesSchema = z
   .strict();
 export type PlanChangeFtpSources = z.infer<typeof PlanChangeFtpSourcesSchema>;
 
+export const PlanChangeEventSourceSchema = z
+  .object({
+    providerId: z.string().min(1),
+    sourceRevision: z.string().regex(/^[0-9a-f]{64}$/u),
+    name: z.string().trim().min(1).max(512),
+    date: TrainingExportCivilDateSchema,
+    category: z.enum(["RACE_A", "RACE_B", "RACE_C"]),
+  })
+  .strict();
+export type PlanChangeEventSource = z.infer<typeof PlanChangeEventSourceSchema>;
+
+const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("add"),
+      name: z.string().trim().min(1).max(512),
+      date: TrainingExportCivilDateSchema,
+      role: SupportingEventRoleSchema,
+      providerId: z.string().min(1).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("remove"),
+      eventId: z.string().min(1).max(128),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("role"),
+      eventId: z.string().min(1).max(128),
+      role: SupportingEventRoleSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("manual"),
+      eventId: z.string().min(1).max(128),
+      name: z.string().trim().min(1).max(512),
+      date: TrainingExportCivilDateSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("source-update"),
+      eventId: z.string().min(1).max(128),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("supporting-event"),
+      operation: z.literal("name"),
+      eventId: z.string().min(1).max(128),
+      name: z.string().trim().min(1).max(512),
+    })
+    .strict(),
+]);
+
 const WeekdaySchema = z.number().int().min(1).max(7);
 
 export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
+  SupportingEventIntentSchema,
   z.object({ kind: z.literal("ftp"), watts: FtpWattsSchema }).strict(),
   z
     .object({
@@ -134,13 +202,14 @@ export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
     z
       .object({
         status: z.literal("rejected"),
-        reason: z.enum([
-          "stale-version",
-          "no-active-plan",
-          "command-conflict",
-          "invalid-intent",
-          "sync-stale",
-        ]),
+        reason: z.enum(["stale-version", "no-active-plan", "command-conflict", "sync-stale"]),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.literal("invalid-intent"),
+        explanation: z.string().min(1).optional(),
       })
       .strict(),
     z
@@ -189,6 +258,7 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
         "sync-stale",
         "race-window",
         "ftp-sources-changed",
+        "event-source-changed",
       ]),
     })
     .strict(),
