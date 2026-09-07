@@ -1298,7 +1298,7 @@ export async function createLocalCoachComposition(
       calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
       droppedActivitiesSource: () => runtime!.currentDroppedActivities(),
     });
-    const buildBundle = (config: Config): RuntimeBundle => {
+    const buildBundle = async (config: Config): Promise<RuntimeBundle> => {
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
         timezone === config.session.timezone
@@ -1310,11 +1310,16 @@ export async function createLocalCoachComposition(
       const memory = new Memory(input.home.root, timezone, {
         platform: dependencies.platform,
         persistPlan,
+        planReadGate: async () =>
+          (await legacyWriterFence.read()).chatAuthoritySinceMs !== null
+            ? "This Plan is managed in Chat. Open the Plan page or ask in Chat about your Plan."
+            : null,
         planWriteGate: async () =>
           (await legacyWriterFence.fenced())
             ? "This Plan is managed in Chat. Change or stop it from Chat or the Plan library."
             : null,
       });
+      await memory.refreshPlanReadGate?.();
       const conversationStore = createConversationStore(
         input.home.root,
         config.session.resetArchiveRetentionDays,
@@ -1483,7 +1488,7 @@ export async function createLocalCoachComposition(
         }),
       };
     };
-    const initialBundle = buildBundle(approvedConfig());
+    const initialBundle = await buildBundle(approvedConfig());
     let activeTimezone = initialBundle.timezone;
     const reconfigurable = createReconfigurableRuntimeBundle(initialBundle);
     const persistConfig = dependencies.persistRuntimeConfig ?? persistRuntimeConfig;
@@ -1638,7 +1643,7 @@ export async function createLocalCoachComposition(
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
       signal.throwIfAborted();
       await reconfigurable.replace(
-        () => {
+        async () => {
           signal.throwIfAborted();
           const latestCandidate = mergedRuntimeConfig(unapprovedConfig, effectiveRequest);
           if (
@@ -1659,7 +1664,9 @@ export async function createLocalCoachComposition(
             latestCandidate,
             latestIntervalsChanged,
             replacementOwnerReady,
-            replacement: buildBundle(approvedRuntimeConfig(latestCandidate, replacementOwnerReady)),
+            replacement: await buildBundle(
+              approvedRuntimeConfig(latestCandidate, replacementOwnerReady),
+            ),
           };
         },
         async ({ latestCandidate, latestIntervalsChanged, replacementOwnerReady, replacement }) => {

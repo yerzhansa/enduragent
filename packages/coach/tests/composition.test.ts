@@ -2480,6 +2480,87 @@ describe("local coach composition", () => {
     },
   );
 
+  it("hides the file Plan only after Chat takes planning authority and after reopening", async () => {
+    const home = await freshHome();
+    await mkdir(home.storeDir, { recursive: true });
+    await mkdir(join(home.root, "plans"), { recursive: true });
+    await writeFile(
+      join(home.root, "plans", "current-plan.json"),
+      JSON.stringify({ name: "File endurance Plan", primaryGoal: "Ride consistently" }),
+    );
+    const store = openSqliteStorage(join(home.storeDir, "store.db"));
+    stores.push(store);
+    await runMigrations(store, MIGRATIONS);
+    const instant = Date.UTC(1998, 6, 13, 12);
+    const planId = "0000000000000000000000000A";
+    await createPlanRepository(store).replace(
+      {
+        id: planId,
+        originId: null,
+        name: "Stored endurance Plan",
+        primaryGoal: "Ride consistently",
+        startDateKey: 19980713,
+        targetDateKey: 19981004,
+        status: "active",
+        kind: "full_plan",
+        totalWeeks: 12,
+        weekStartDay: 1,
+        structureJson: "{}",
+        createdAtMs: instant,
+        updatedAtMs: instant,
+        deviceId: "fixture-device",
+        hlcPhysicalMs: instant,
+        hlcCounter: 0,
+      },
+      [],
+    );
+    await store.run(
+      `INSERT INTO planning_plan (plan_id,status,version,current_revision_number,activated_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+VALUES (?,'active',1,1,?,?,'fixture-device',?,0)`,
+      [planId, instant, instant, instant],
+    );
+    let engineInput: CreateCoachEngineInput | undefined;
+    const dependencies: LocalCoachCompositionDependencies = {
+      bootstrap: async () => reference(),
+      createRuntime: () => runtime(),
+      createBackend: (input) => {
+        engineInput = input;
+        return backend();
+      },
+      now: () => instant,
+    };
+    const context = { home, store, listener: inertWriterProtocolListener };
+    let lifecycle = await compose(home, dependencies, context);
+    try {
+      if (engineInput === undefined) throw new TypeError("Production Chat ports are unavailable");
+      const memory = engineInput.ports.memory;
+      const visibleContext = memory.getContext();
+      expect(visibleContext).toContain("## Current Plan\n- Name: File endurance Plan");
+      await memory.refreshPlanReadGate?.();
+      expect(memory.getContext()).toBe(visibleContext);
+      expect(
+        await store.get("SELECT chat_authority_since_ms FROM planning_authority WHERE singleton=1"),
+      ).toEqual({ chat_authority_since_ms: null });
+
+      const started = await lifecycle.operations["plan_creation.start"]({
+        commandId: "start-chat-plan",
+      });
+      expect(started.status).toBe("started");
+      await memory.refreshPlanReadGate?.();
+      expect(memory.getContext()).not.toContain("## Current Plan");
+      expect(memory.getContext()).not.toContain("File endurance Plan");
+      expect(memory.getContextWithProvenance?.().text).not.toContain("## Current Plan");
+
+      await lifecycle.close();
+      lifecycle = await compose(home, dependencies, context);
+      expect(engineInput.ports.memory).not.toBe(memory);
+      expect(engineInput.ports.memory.getContext()).not.toContain("## Current Plan");
+      expect(engineInput.ports.memory.getContext()).not.toContain("File endurance Plan");
+    } finally {
+      await lifecycle.close();
+    }
+  });
+
   it("discards Plan Creation through real composition while preserving stored Plans and Chat", async () => {
     const home = await freshHome();
     await mkdir(home.storeDir, { recursive: true });

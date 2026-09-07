@@ -912,6 +912,7 @@ export class CoachAgent {
           }
         }
 
+        if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
         const turnTools = this.toolsForChat(chatId);
         this.systemPrompt = chatId.startsWith("plan:")
           ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
@@ -1874,6 +1875,7 @@ export class CoachAgent {
               : { [COACH_DECISION_TOOL_NAME]: this.decisionTool },
           model: this.config.llm.model,
         });
+    if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
     const system =
       (isPlan
         ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
