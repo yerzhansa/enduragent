@@ -629,6 +629,34 @@ export function projectPlanCreationAnswerSummaries(
   });
 }
 
+export function isPlanCreationDraftCurrent(
+  snapshot: PlanCreationSnapshot,
+  inputVersion = snapshot.currentDraft?.inputVersion,
+): boolean {
+  if (inputVersion === undefined) return false;
+  if (inputVersion + 1 === snapshot.version) return true;
+  const answers = readPlanCreationAnswers(snapshot);
+  const original = answers
+    .filter(
+      (stored) =>
+        stored.record.creationVersion <= inputVersion && stored.answer.kind === "commitments",
+    )
+    .at(-1)?.answer;
+  return (
+    original?.kind === "commitments" &&
+    original.commitments.kind === "authored" &&
+    answers
+      .filter((stored) => stored.record.creationVersion > inputVersion)
+      .every(
+        ({ answer }) =>
+          answer.kind === "commitments" &&
+          answer.commitments.kind === "authored" &&
+          original.commitments.kind === "authored" &&
+          answer.commitments.text === original.commitments.text,
+      )
+  );
+}
+
 export function projectPlanCreationCard(
   snapshot: PlanCreationSnapshot,
   context: PlanCreationProjectionContext = {
@@ -638,6 +666,7 @@ export function projectPlanCreationCard(
   if (snapshot.status !== "in-progress" && snapshot.status !== "review") return corrupt();
   const flow = resolvePlanCreationAnswerFlow(snapshot);
   const question = flow.next === null ? null : questionForKey(snapshot, flow, context, flow.next);
+  const commitments = flow.valid.get("commitments")?.answer;
   return PlanCreationCardModelSchema.parse({
     creationId: snapshot.id,
     version: snapshot.version,
@@ -646,8 +675,13 @@ export function projectPlanCreationCard(
       snapshot.currentDraft === null
         ? null
         : PlanCreationDraftSchema.parse(JSON.parse(snapshot.currentDraft.outputSnapshotJson)),
-    draftStale:
-      snapshot.currentDraft !== null && snapshot.currentDraft.inputVersion + 1 !== snapshot.version,
+    draftStale: snapshot.currentDraft !== null && !isPlanCreationDraftCurrent(snapshot),
+    commitmentsAcknowledgement:
+      commitments?.kind === "commitments" &&
+      commitments.commitments.kind === "authored" &&
+      commitments.commitments.acknowledged !== true
+        ? { text: commitments.commitments.text }
+        : null,
     readiness: question === null ? "ready" : "incomplete",
     answeredSummaries: projectPlanCreationAnswerSummaries(snapshot, flow, context),
     openQuestion: question,
@@ -732,7 +766,10 @@ export function resolvePlanCreationDraftAnswers(
     goal: normalizedGoal(),
     availability: schedule,
     startTiming: startTiming.timing,
-    commitments: commitments.commitments,
+    commitments:
+      commitments.commitments.kind === "none"
+        ? { kind: "none" }
+        : { kind: "authored", text: commitments.commitments.text },
     baseline: baseline.baseline,
     success: success.success,
     restriction: restriction.restriction,

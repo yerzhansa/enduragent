@@ -56,6 +56,7 @@ const card = {
   status: "in-progress" as const,
   draft: null,
   draftStale: false,
+  commitmentsAcknowledgement: null,
   readiness: "incomplete" as const,
   answeredSummaries: [],
   openQuestion: goalQuestion,
@@ -513,6 +514,46 @@ describe("Plan Creation contract", () => {
     summaryFixtures.forEach((summary) =>
       expect(PlanCreationAnswerSummarySchema.parse(summary)).toEqual(summary),
     );
+  });
+
+  it("accepts legacy commitments and explicit acknowledgement while keeping strict objects", () => {
+    const commitments = { kind: "authored", text: "Strength training on Wednesdays" };
+    for (const value of [
+      commitments,
+      { ...commitments, acknowledged: false },
+      { ...commitments, acknowledged: true },
+    ]) {
+      expect(
+        PlanCreationAnswerInputSchema.parse({ kind: "commitments", commitments: value }),
+      ).toEqual({ kind: "commitments", commitments: value });
+    }
+    for (const value of [
+      { ...commitments, acknowledged: "yes" },
+      { ...commitments, extra: true },
+      { kind: "none", acknowledged: true },
+    ]) {
+      expect(
+        PlanCreationAnswerInputSchema.safeParse({ kind: "commitments", commitments: value })
+          .success,
+      ).toBe(false);
+    }
+  });
+
+  it("requires a nullable strict commitments acknowledgement projection", () => {
+    const pending = { text: "Strength training on Wednesdays" };
+    expect(
+      PlanCreationCardModelSchema.parse({ ...card, commitmentsAcknowledgement: pending })
+        .commitmentsAcknowledgement,
+    ).toEqual(pending);
+    expect(PlanCreationCardModelSchema.parse(card).commitmentsAcknowledgement).toBeNull();
+    const { commitmentsAcknowledgement: _pending, ...missing } = card;
+    expect(PlanCreationCardModelSchema.safeParse(missing).success).toBe(false);
+    expect(
+      PlanCreationCardModelSchema.safeParse({
+        ...card,
+        commitmentsAcknowledgement: { ...pending, acknowledged: false },
+      }).success,
+    ).toBe(false);
   });
 
   it("requires consistent Card readiness and open-question states", () => {

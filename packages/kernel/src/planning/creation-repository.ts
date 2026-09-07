@@ -139,6 +139,7 @@ export interface ActivatePlanCreationInput extends DiscardPlanCreationInput {
   readonly mirrorJobId: string;
   readonly cleanupJobId: string;
   readonly revisionId: string;
+  readonly isDraftCurrent?: (snapshot: PlanCreationSnapshot) => boolean;
   readonly materialize: (snapshot: PlanCreationSnapshot) => {
     readonly plan: PlanRecord;
     readonly workouts: readonly PlanWorkoutRecord[];
@@ -460,6 +461,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
       mirrorJobId,
       cleanupJobId,
       revisionId,
+      isDraftCurrent,
       materialize,
     }) {
       return store.transaction(async () => {
@@ -479,7 +481,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
         if (
           current.status !== "review" ||
           revision === null ||
-          revision.inputVersion + 1 !== current.version
+          !(isDraftCurrent?.(current) ?? revision.inputVersion + 1 === current.version)
         )
           throw new PlanCreationStoreError("not-ready");
         const draft = ActivationDraftSchema.safeParse(json(revision.outputSnapshotJson));

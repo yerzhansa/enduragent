@@ -364,6 +364,7 @@ function planCreationModel(
   return {
     draft: null,
     draftStale: false,
+    commitmentsAcknowledgement: null,
     creationId: "01J00000000000000000000000",
     version: patch.version ?? 1,
     status: "in-progress",

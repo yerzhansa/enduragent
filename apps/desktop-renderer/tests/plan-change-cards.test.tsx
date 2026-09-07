@@ -180,6 +180,7 @@ describe("Plan Change cards", () => {
       readiness: "incomplete",
       draft: null,
       draftStale: false,
+      commitmentsAcknowledgement: null,
       answeredSummaries: [],
       openQuestion: null,
     };

@@ -130,6 +130,7 @@ const creation: PlanCreationCardModel = {
   readiness: "incomplete",
   draft: null,
   draftStale: false,
+  commitmentsAcknowledgement: null,
   answeredSummaries: [],
   openQuestion: {
     kind: "start-timing-question",
