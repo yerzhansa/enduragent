@@ -226,6 +226,48 @@ describe("Plan Change controller", () => {
     },
   );
 
+  it.each([false, true])(
+    "keeps the editor open after a race-window refusal even when refresh fails: %s",
+    async (refreshFails) => {
+      const h = harness({
+        status: "rejected",
+        reason: "race-window",
+        window: { start: "1998-09-07", end: "1998-09-13" },
+      });
+      if (refreshFails) h.refresh.mockRejectedValue(new Error("unavailable"));
+      h.controller.openPlanChangeEditor();
+      await h.controller.previewPlanChange(change.intent);
+      expect(h.surface()).toMatchObject({
+        editorOpen: true,
+        busy: false,
+        error: null,
+        notice:
+          "Only training reductions are allowed during this race window. Training is unchanged.",
+      });
+      expect(h.refresh).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, true])(
+    "preserves the pending Change after a race-window apply refusal even when refresh fails: %s",
+    async (refreshFails) => {
+      const h = harness({ status: "rejected", reason: "race-window" });
+      if (refreshFails) h.refresh.mockRejectedValue(new Error("unavailable"));
+      await h.controller.applyPlanChange("apply");
+      expect(h.surface()).toMatchObject({
+        busy: false,
+        error: null,
+        notice:
+          "Only training reductions are allowed in the current race window. This Change was not applied.",
+      });
+      expect(h.refresh).toHaveBeenCalledOnce();
+      await h.controller.applyPlanChange("apply");
+      expect(h.call).toHaveBeenCalledTimes(2);
+      expect(h.call.mock.calls[1]?.[1]).toMatchObject({ changeId: change.changeId });
+      expect(h.call.mock.calls[1]?.[1]).not.toEqual(h.call.mock.calls[0]?.[1]);
+    },
+  );
+
   it("replays an inverse command after a lost response", async () => {
     const h = harness(new Error("lost response"));
     const intent: PlanChangeIntent = { kind: "inverse", changeId: "00000000000000000000000140" };

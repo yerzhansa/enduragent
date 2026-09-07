@@ -1846,6 +1846,14 @@ export function createChatController(input: {
             await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
+          if (result.reason === "race-window") {
+            publishChange({
+              notice:
+                "Only training reductions are allowed during this race window. Training is unchanged.",
+            });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
           if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
             publishChange({ notice: "The latest Change is no longer eligible for Undo." });
             await input.refreshPlanLibrary?.().catch(() => {});
@@ -1927,13 +1935,19 @@ export function createChatController(input: {
           }
           publishChange({
             notice:
-              result.reason === "stale-version"
-                ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
-                : result.reason === "not-pending"
-                  ? "This preview is no longer pending. Training is unchanged."
-                  : "This Change could not be applied. Training and the pending preview are unchanged.",
+              result.reason === "race-window"
+                ? "Only training reductions are allowed in the current race window. This Change was not applied."
+                : result.reason === "stale-version"
+                  ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
+                  : result.reason === "not-pending"
+                    ? "This preview is no longer pending. Training is unchanged."
+                    : "This Change could not be applied. Training and the pending preview are unchanged.",
           });
-          if (result.reason === "stale-version" || result.reason === "not-pending") {
+          if (
+            result.reason === "stale-version" ||
+            result.reason === "not-pending" ||
+            result.reason === "race-window"
+          ) {
             await input.refreshPlanLibrary?.().catch(() => {});
           }
           return;

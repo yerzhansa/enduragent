@@ -293,9 +293,11 @@ function ChangeEditor(): ReactElement {
             />
           </div>
         ) : null}
-        <p role="alert" className="m-0 text-xs text-danger">
-          {state.error}
-        </p>
+        {state.error ? (
+          <p role="alert" className="m-0 text-xs text-danger">
+            {state.error}
+          </p>
+        ) : null}
         <div className="mt-row flex flex-wrap gap-inset">
           <Button
             type="button"
