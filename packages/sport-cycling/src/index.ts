@@ -49,6 +49,7 @@ export { CyclingRaceCourseError, interpretCyclingRaceCourse } from "./race-cours
 export type { CyclingRaceCourseInterpretation } from "./race-course.js";
 export {
   createCyclingPlanFtpAdapter,
+  readCyclingPlanFtpCandidates,
   validateManualPlanFtp,
   type CyclingPlanFtpSourcePorts,
 } from "./plan-ftp.js";

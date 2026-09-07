@@ -89,6 +89,7 @@ export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
         "command-conflict",
         "sync-stale",
         "race-window",
+        "ftp-sources-changed",
       ]),
     })
     .strict(),
@@ -137,6 +138,8 @@ export interface ApplyPlanChangeInput {
     context: {
       readonly afterSnapshotJson: string;
       readonly diff: PlanChangeEnvelope["diff"];
+      readonly intent: PlanChangeEnvelope["intent"];
+      readonly premises: PlanChangeEnvelope["premises"];
       readonly todayDateKey: number;
     },
   ) => Promise<Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"] | null>;
@@ -563,9 +566,12 @@ export function createPlanChangeRepository(
           const { afterSnapshotJson } = z
             .object({ afterSnapshotJson: z.string() })
             .parse(JSON.parse(change.reconciliation_effect_json));
+          const envelope = PlanChangeEnvelopeSchema.parse(JSON.parse(change.diff_json));
           const rejection = await input.admitChange?.(store, {
             afterSnapshotJson,
-            diff: PlanChangeEnvelopeSchema.parse(JSON.parse(change.diff_json)).diff,
+            diff: envelope.diff,
+            intent: envelope.intent,
+            premises: envelope.premises,
             todayDateKey,
           });
           if (rejection != null) return { status: "rejected", reason: rejection };

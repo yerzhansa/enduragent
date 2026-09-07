@@ -33,7 +33,7 @@ export interface CreationDraftInput {
       | { kind: "authored"; text: string };
   };
   today: string;
-  ftp: null;
+  ftp: number | null;
 }
 
 interface DraftWorkout {
@@ -44,7 +44,7 @@ interface DraftWorkout {
   minutes: number;
   pinned: boolean;
   guidance: string;
-  power: null;
+  power: number | null;
 }
 
 interface DraftWeek {
@@ -66,7 +66,7 @@ export interface CreationDraft {
   weeks: DraftWeek[];
   notes: string[];
   guidance: string;
-  ftp: null;
+  ftp: number | null;
   builderId: string;
   builderVersion: string;
   inputFingerprint: string;

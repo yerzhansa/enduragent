@@ -942,7 +942,7 @@ describe("Plan Creation Draft contract", () => {
     expect(PlanCreationDraftSchema.safeParse({ ...draft, start: "1998-02-30" }).success).toBe(
       false,
     );
-    expect(PlanCreationDraftSchema.safeParse({ ...draft, ftp: 250 }).success).toBe(false);
+    expect(PlanCreationDraftSchema.safeParse({ ...draft, ftp: 250 }).success).toBe(true);
   });
 
   it("rejects forged preview fields and preserves every rejection reason", () => {

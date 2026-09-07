@@ -163,6 +163,8 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): string {
       return `${intent.minutes} min`;
     case "inverse":
       return premise.label;
+    case "ftp":
+      return `${intent.watts} W`;
   }
 }
 

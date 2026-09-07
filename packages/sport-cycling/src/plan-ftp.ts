@@ -13,6 +13,20 @@ export interface CyclingPlanFtpSourcePorts {
   refreshIntervals(): Promise<void>;
 }
 
+export async function readCyclingPlanFtpCandidates(adapter: Pick<PlanFtpAdapter, "read">) {
+  const snapshot = await adapter.read();
+  const sources: readonly [PlanFtpSource, PlanFtpSourceValue | null][] = [
+    ["manual", snapshot.manual],
+    ["intervals-ftp", snapshot.intervalsFtp],
+    ["intervals-eftp", snapshot.intervalsEftp],
+  ];
+  return sources.flatMap(([source, value]) =>
+    value === null
+      ? []
+      : [{ source, watts: value.watts, selected: snapshot.usedSource === source }],
+  );
+}
+
 function validSource(value: PlanFtpSourceValue | null): PlanFtpSourceValue | null {
   if (value === null) return null;
   if (

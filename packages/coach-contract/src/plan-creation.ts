@@ -488,7 +488,7 @@ const PlanCreationDraftWorkoutSchema = z
     minutes: z.number().positive().max(1440),
     pinned: z.boolean(),
     guidance: z.string().min(1).max(512),
-    power: z.null(),
+    power: z.number().int().min(1).max(9_999).nullable(),
   })
   .strict();
 
@@ -533,7 +533,7 @@ export const PlanCreationDraftSchema = z
       .max(24),
     notes: z.array(z.string().min(1).max(2_000)).max(1_000),
     guidance: z.string().min(1).max(512),
-    ftp: z.null(),
+    ftp: z.number().int().min(1).max(9_999).nullable(),
     builderId: z.string().min(1).max(128),
     builderVersion: z.string().min(1).max(128),
     inputFingerprint: z.string().regex(/^[0-9a-f]{64}$/u),

@@ -1,3 +1,4 @@
+import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import type { LegacyPlanSummary } from "@enduragent/coach-contract";
 import { createHash } from "node:crypto";
 import { canonicalJson } from "@enduragent/kernel/archive";
@@ -1594,6 +1595,14 @@ describe("Plan Creation activation", () => {
     const activated = await test.host["plan_creation.activate"](test.request);
     let sequence = 1000;
     const changes = createPlanChangeOperations({
+      ftp: createCyclingPlanFtpAdapter({
+        readManual: async () => null,
+        readIntervalsFtp: async () => null,
+        readIntervalsEftp: async () => null,
+        saveManual: async () => {},
+        refreshIntervals: async () => {},
+      }),
+      logger: { warn: () => {} },
       calendarConnected: async () => true,
       store: test.store,
       identity: {

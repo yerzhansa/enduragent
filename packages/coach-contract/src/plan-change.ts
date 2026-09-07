@@ -2,9 +2,29 @@ import { z } from "zod";
 import { TrainingExportCivilDateSchema } from "./training-export.js";
 import { PlanCloseRpcParamsSchema, PlanCreationDraftSchema } from "./plan-creation.js";
 
+const FtpWattsSchema = z.number().int().min(1).max(9_999);
+
+export const PlanChangeFtpSourcesSchema = z
+  .object({
+    acceptedPlanFtp: FtpWattsSchema.nullable(),
+    requestedFtp: FtpWattsSchema.nullable(),
+    candidates: z.array(
+      z
+        .object({
+          source: z.enum(["manual", "intervals-ftp", "intervals-eftp"]),
+          watts: FtpWattsSchema,
+          selected: z.boolean(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type PlanChangeFtpSources = z.infer<typeof PlanChangeFtpSourcesSchema>;
+
 const WeekdaySchema = z.number().int().min(1).max(7);
 
 export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("ftp"), watts: FtpWattsSchema }).strict(),
   z
     .object({
       kind: z.literal("weekday-duration"),
@@ -168,6 +188,7 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
         "command-conflict",
         "sync-stale",
         "race-window",
+        "ftp-sources-changed",
       ]),
     })
     .strict(),

@@ -1,9 +1,61 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCyclingPlanFtpAdapter, validateManualPlanFtp } from "../src/plan-ftp.js";
+import {
+  createCyclingPlanFtpAdapter,
+  readCyclingPlanFtpCandidates,
+  validateManualPlanFtp,
+} from "../src/plan-ftp.js";
 
 const value = (watts: number) => ({ watts, refreshedAtMs: 1_000 });
 
 describe("cycling Plan FTP adapter", () => {
+  it.each([
+    {
+      manual: 210,
+      ftp: null,
+      eftp: null,
+      expected: [{ source: "manual", watts: 210, selected: true }],
+    },
+    {
+      manual: null,
+      ftp: 215,
+      eftp: null,
+      expected: [{ source: "intervals-ftp", watts: 215, selected: true }],
+    },
+    {
+      manual: null,
+      ftp: null,
+      eftp: 220,
+      expected: [{ source: "intervals-eftp", watts: 220, selected: true }],
+    },
+    {
+      manual: 210,
+      ftp: 215,
+      eftp: 220,
+      expected: [
+        { source: "manual", watts: 210, selected: true },
+        { source: "intervals-ftp", watts: 215, selected: false },
+        { source: "intervals-eftp", watts: 220, selected: false },
+      ],
+    },
+    { manual: null, ftp: null, eftp: null, expected: [] },
+  ])(
+    "reads FTP candidates by value: $manual / $ftp / $eftp",
+    async ({ manual, ftp, eftp, expected }) => {
+      let refreshedAtMs = 1_000;
+      const source = (watts: number | null) => (watts === null ? null : { watts, refreshedAtMs });
+      const adapter = createCyclingPlanFtpAdapter({
+        readManual: async () => source(manual),
+        readIntervalsFtp: async () => source(ftp),
+        readIntervalsEftp: async () => source(eftp),
+        saveManual: async () => {},
+        refreshIntervals: async () => {},
+      });
+      await expect(readCyclingPlanFtpCandidates(adapter)).resolves.toEqual(expected);
+      refreshedAtMs = 2_000;
+      await expect(readCyclingPlanFtpCandidates(adapter)).resolves.toEqual(expected);
+    },
+  );
+
   it("uses manual FTP before Intervals FTP and Intervals eFTP", async () => {
     const adapter = createCyclingPlanFtpAdapter({
       readManual: async () => value(280),
