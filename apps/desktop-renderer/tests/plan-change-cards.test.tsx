@@ -205,6 +205,117 @@ beforeEach(() => {
 });
 
 describe("Plan Change cards", () => {
+  function setTodayChoice(
+    todayChoice: NonNullable<ListPlansResult["active"]>["todayChoice"],
+  ): void {
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value?.active) throw new Error("Missing active Plan");
+    const activePlan = value.active;
+    act(() =>
+      useEnduragentStore.setState({
+        planLibrary: {
+          status: "ready",
+          value: { ...value, active: { ...activePlan, todayChoice } },
+        },
+      }),
+    );
+  }
+
+  it("shows host-eligible Workouts and previews the selected row", async () => {
+    setTodayChoice({
+      date: "1998-09-07",
+      eligible: [
+        { workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" },
+        { workoutId: "steady", name: "Steady ride", minutes: 45, kind: "endurance" },
+      ],
+      blocked: [
+        { workoutId: "hard", name: "Hill repeats", reason: "No hard training today." },
+        { workoutId: "long", name: "Long ride", reason: "Today is limited to 45 minutes." },
+      ],
+      reason: null,
+    });
+    render(<PlanChangeCards />);
+    const card = screen.getByRole("region", { name: "Choose one eligible Workout" });
+    expect(within(card).getByText("Today")).toBeVisible();
+    expect(within(card).getByText("Easy ride · 30 min")).toBeVisible();
+    expect(within(card).getByText("Steady ride · 45 min")).toBeVisible();
+    expect(within(card).getByText("No hard training today.")).toBeVisible();
+    expect(within(card).getByText("Today is limited to 45 minutes.")).toBeVisible();
+    expect(within(card).queryByRole("button", { name: "Review Hill repeats" })).toBeNull();
+    await userEvent.click(within(card).getByRole("button", { name: "Review Steady ride" }));
+    expect(
+      useEnduragentStore.getState().chatActions?.previewPlanChange,
+    ).toHaveBeenCalledExactlyOnceWith({
+      kind: "choose-workout",
+      workoutId: "steady",
+    });
+  });
+
+  it("shows the Plan-level blocker when no Workout is eligible", () => {
+    setTodayChoice({
+      date: "1998-09-07",
+      eligible: [],
+      blocked: [],
+      reason: "Today already belongs to a dated Workout.",
+    });
+    render(<PlanChangeCards />);
+    const card = screen.getByRole("region", { name: "Choose one eligible Workout" });
+    expect(within(card).getByText("Today already belongs to a dated Workout.")).toBeVisible();
+    expect(within(card).queryByRole("button")).toBeNull();
+  });
+
+  it("omits the Today card when the host exposes no choice", () => {
+    render(<PlanChangeCards />);
+    expect(screen.queryByRole("region", { name: "Choose one eligible Workout" })).toBeNull();
+  });
+
+  it.each(["busy", "paused", "disconnected"])("disables daily review while %s", (state) => {
+    setTodayChoice({
+      date: "1998-09-07",
+      eligible: [{ workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" }],
+      blocked: [],
+      reason: null,
+    });
+    if (state === "busy") patchChange({ busy: true });
+    if (state === "disconnected") useEnduragentStore.setState({ chatActions: null });
+    if (state === "paused") {
+      const value = useEnduragentStore.getState().planLibrary.value;
+      if (!value) throw new Error("Missing library");
+      useEnduragentStore.setState({
+        planLibrary: {
+          status: "ready",
+          value: { ...value, changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 0 } },
+        },
+      });
+    }
+    render(<PlanChangeCards />);
+    expect(screen.getByRole("button", { name: "Review Easy ride" })).toBeDisabled();
+  });
+
+  it("shows the daily choice guarantee beside the exact date difference", () => {
+    setChanges([
+      change({
+        title: "Choose a Workout for today",
+        intent: { kind: "choose-workout", workoutId: workout.id },
+        details: "Only this Workout will receive today’s date after confirmation.",
+        diff: [
+          {
+            workoutId: workout.id,
+            before: { ...workout, date: null },
+            after: { ...workout, date: "1998-09-07" },
+          },
+        ],
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    const card = screen.getByRole("region", { name: "Choose a Workout for today" });
+    expect(
+      within(card).getByText("Only this Workout will receive today’s date after confirmation."),
+    ).toBeVisible();
+    expect(within(card).getByText("Undated · 60 min → 7 Sept 1998 · 60 min")).toBeVisible();
+    expect(within(card).getByRole("button", { name: "Apply to Plan" })).toBeEnabled();
+  });
+
   it("announces recovery when a paused library loaded before the surface opened turns fresh", () => {
     setChanges([]);
     patchChange({ open: false, notice: null });

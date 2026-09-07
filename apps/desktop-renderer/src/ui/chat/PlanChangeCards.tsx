@@ -231,6 +231,7 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
       return `${intent.hours} hours each week`;
     case "longest-workout":
       return `${intent.minutes} min`;
+    case "choose-workout":
     case "inverse":
     case "supporting-event":
       return premise.label;
@@ -513,6 +514,47 @@ export function PlanChangeCards(): ReactElement | null {
         </div>
       </ChangeCard>
       {state.editorOpen && !paused ? <ChangeEditor /> : null}
+      {library.active.todayChoice ? (
+        <ChangeCard eyebrow="Today" title="Choose one eligible Workout">
+          <ul className="m-0 grid list-none p-0">
+            {library.active.todayChoice.eligible.map((workout) => (
+              <li
+                key={workout.workoutId}
+                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+              >
+                <span className="text-sm leading-5">
+                  {workout.name} · {workout.minutes} min
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={paused || state.busy || actions === null}
+                  aria-describedby={pausedReason}
+                  onClick={() =>
+                    actions?.previewPlanChange({
+                      kind: "choose-workout",
+                      workoutId: workout.workoutId,
+                    })
+                  }
+                >
+                  Review {workout.name}
+                </Button>
+              </li>
+            ))}
+            {library.active.todayChoice.blocked.map((workout) => (
+              <li
+                key={workout.workoutId}
+                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+              >
+                <span className="text-sm leading-5">{workout.name}</span>
+                <span className="text-sm leading-5 text-ink-2">{workout.reason}</span>
+              </li>
+            ))}
+          </ul>
+          {library.active.todayChoice.eligible.length === 0 && library.active.todayChoice.reason ? (
+            <p className="m-0 text-sm leading-5 text-ink-2">{library.active.todayChoice.reason}</p>
+          ) : null}
+        </ChangeCard>
+      ) : null}
       {pending ? (
         <ChangeCard
           eyebrow="Plan Change"
@@ -525,6 +567,9 @@ export function PlanChangeCards(): ReactElement | null {
               : "Review this exact difference. Training stays unchanged until you confirm."
           }
         >
+          {pending.details ? (
+            <p className="m-0 text-sm leading-5 text-ink-2">{pending.details}</p>
+          ) : null}
           <Difference change={pending} library={library} />
           <div role="table" aria-label="Facts">
             <Fact label="Main Goal">{library.active.name}</Fact>
