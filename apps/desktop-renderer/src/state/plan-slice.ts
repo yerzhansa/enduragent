@@ -15,7 +15,12 @@ import type {
 } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
 import type { EnduragentState } from "./store";
-import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "./chat-slice";
+import {
+  EMPTY_CHAT_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  PLAN_CHANGES_RESUMED_NOTICE,
+  type ChatSurfaceState,
+} from "./chat-slice";
 
 export type PlanTransitionState =
   | { readonly status: "idle" }
@@ -222,7 +227,35 @@ export const createPlanSlice: StateCreator<EnduragentState, [], [], PlanSlice> =
     set({ planCloseAttempt: attempt });
   },
   setPlanLibrary(value) {
-    set({ planLibrary: value });
+    set((state) => {
+      if (value.status !== "ready") return { planLibrary: value };
+      const activePlanId = value.value.active?.planId;
+      const surfaceOpen =
+        activePlanId !== undefined &&
+        ((state.planChange.open && state.planChange.planId === activePlanId) ||
+          value.value.changes.some((change) => change.status === "pending"));
+      if (!surfaceOpen) return { planLibrary: value };
+      if (value.value.changesPaused !== null) {
+        return {
+          planLibrary: value,
+          planChange: {
+            ...state.planChange,
+            editorOpen: false,
+            error: null,
+            notice: PLAN_CHANGES_PAUSED_NOTICE,
+          },
+        };
+      }
+      const wasPaused =
+        state.planChange.notice === PLAN_CHANGES_PAUSED_NOTICE ||
+        (state.planLibrary.status === "ready" && state.planLibrary.value.changesPaused !== null);
+      return {
+        planLibrary: value,
+        ...(wasPaused
+          ? { planChange: { ...state.planChange, notice: PLAN_CHANGES_RESUMED_NOTICE } }
+          : {}),
+      };
+    });
   },
   bindPlanLibraryActions(actions) {
     set({ planLibraryActions: actions });

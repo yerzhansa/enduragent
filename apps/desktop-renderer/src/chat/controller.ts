@@ -37,7 +37,11 @@ import {
   type TurnEvent,
 } from "@enduragent/coach-contract";
 import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
-import { EMPTY_PLAN_CHANGE_SURFACE, type PlanChangeSurfaceState } from "../state/chat-slice";
+import {
+  EMPTY_PLAN_CHANGE_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  type PlanChangeSurfaceState,
+} from "../state/chat-slice";
 import type { DesktopCoachClientProvider } from "../coach-client";
 import {
   DESKTOP_CHAT_ID,
@@ -1769,6 +1773,7 @@ export function createChatController(input: {
   const publishChange = (patch: Partial<PlanChangeSurfaceState>): void => {
     if (!disposed) input.publishPlanChange?.({ ...readChange(), ...patch });
   };
+  const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
   const changeFocus = (target: "editor" | "preview" | "change") => ({
     target,
     revision: (readChange().focusRequest?.revision ?? 0) + 1,
@@ -1787,7 +1792,7 @@ export function createChatController(input: {
     },
     openPlanChangeEditor() {
       const active = input.readPlanLibrary?.()?.active;
-      if (disposed || readChange().busy || !active) return;
+      if (disposed || readChange().busy || !active || changesPaused()) return;
       publishChange({
         open: true,
         planId: active.planId,
@@ -1803,7 +1808,7 @@ export function createChatController(input: {
     async previewPlanChange(intent) {
       const library = input.readPlanLibrary?.();
       const active = library?.active;
-      if (disposed || readChange().busy || !active) return;
+      if (disposed || readChange().busy || !active || changesPaused()) return;
       const parameterCopy =
         intent.kind === "weekly-duration"
           ? Number.isFinite(intent.hours) && intent.hours > 0 && !Number.isInteger(intent.hours * 4)
@@ -1836,6 +1841,11 @@ export function createChatController(input: {
         previewAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
+          if (result.reason === "sync-stale") {
+            publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
           if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
             publishChange({ notice: "The latest Change is no longer eligible for Undo." });
             await input.refreshPlanLibrary?.().catch(() => {});
@@ -1880,7 +1890,8 @@ export function createChatController(input: {
     async applyPlanChange(decision) {
       const library = input.readPlanLibrary?.();
       const active = library?.active;
-      if (disposed || readChange().busy || !active) return;
+      if (disposed || readChange().busy || !active || (decision === "apply" && changesPaused()))
+        return;
       const pending = library.changes.find((change) => change.status === "pending");
       const retry =
         applyAttempt?.decision === decision &&
@@ -1909,6 +1920,11 @@ export function createChatController(input: {
         applyAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
+          if (result.reason === "sync-stale") {
+            publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
           publishChange({
             notice:
               result.reason === "stale-version"

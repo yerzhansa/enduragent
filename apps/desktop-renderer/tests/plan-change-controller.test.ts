@@ -6,7 +6,11 @@ import type {
 } from "@enduragent/coach-contract";
 import { describe, expect, it, vi } from "vitest";
 import { createChatController } from "../src/chat/controller";
-import { EMPTY_PLAN_CHANGE_SURFACE, type PlanChangeSurfaceState } from "../src/state/chat-slice";
+import {
+  EMPTY_PLAN_CHANGE_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  type PlanChangeSurfaceState,
+} from "../src/state/chat-slice";
 
 const change: PlanChangeModel = {
   changeId: "change-preview",
@@ -83,6 +87,12 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     call,
     refresh,
     surface: () => surface,
+    pause() {
+      library = {
+        ...library,
+        changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
+      };
+    },
     updateVersion(version: number) {
       if (library.active) library = { ...library, active: { ...library.active, version } };
     },
@@ -90,6 +100,56 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
 }
 
 describe("Plan Change controller", () => {
+  it.each(["preview", "apply"] as const)(
+    "shows the pause notice without an alert after a sync-stale %s rejection",
+    async (action) => {
+      const h = harness({ status: "rejected", reason: "sync-stale" });
+      h.controller.openPlanChangeEditor();
+      if (action === "preview") await h.controller.previewPlanChange(change.intent);
+      else await h.controller.applyPlanChange("apply");
+      expect(h.surface()).toMatchObject({
+        editorOpen: false,
+        busy: false,
+        error: null,
+        notice: PLAN_CHANGES_PAUSED_NOTICE,
+      });
+      expect(h.refresh).toHaveBeenCalledOnce();
+      expect(h.call).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["preview", "apply"] as const)(
+    "keeps the sync-stale %s notice when refresh fails",
+    async (action) => {
+      const h = harness({ status: "rejected", reason: "sync-stale" });
+      h.refresh.mockRejectedValue(new Error("unavailable"));
+      if (action === "preview") await h.controller.previewPlanChange(change.intent);
+      else await h.controller.applyPlanChange("apply");
+      expect(h.surface()).toMatchObject({
+        error: null,
+        notice: PLAN_CHANGES_PAUSED_NOTICE,
+        busy: false,
+      });
+      expect(h.refresh).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("blocks preview and apply from the library flag but permits Cancel", async () => {
+    const h = harness({ status: "cancelled", changeId: change.changeId, version: 8 });
+    h.pause();
+    h.controller.openPlanChangeEditor();
+    expect(h.surface().editorOpen).toBe(false);
+    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange({ kind: "inverse", changeId: "applied-change" });
+    await h.controller.applyPlanChange("apply");
+    expect(h.call).not.toHaveBeenCalled();
+    await h.controller.applyPlanChange("cancel");
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.apply",
+      expect.objectContaining({ decision: "cancel" }),
+    );
+  });
+
   it("opens and backs out of the editor with explicit focus requests", () => {
     const h = harness(null);
     h.controller.openPlanChangeEditor();

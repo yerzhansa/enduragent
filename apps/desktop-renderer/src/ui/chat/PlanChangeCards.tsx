@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Re
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
+import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 
 const changeOptions = [
@@ -325,13 +326,18 @@ export function PlanChangeCards(): ReactElement | null {
   const sourceHeading = useRef<HTMLHeadingElement>(null);
   const sourceOpener = useRef<HTMLButtonElement | null>(null);
   const changeButton = useRef<HTMLButtonElement>(null);
+  const pauseNotice = useRef<HTMLParagraphElement>(null);
   const previewHeading = useRef<HTMLHeadingElement>(null);
   const pending = library?.changes.find((change) => change.status === "pending");
+  const paused = library?.changesPaused != null;
   useEffect(() => {
     if (activeView !== "chat" || state.busy) return;
     if (state.focusRequest?.target === "preview" && pending) previewHeading.current?.focus();
-    if (state.focusRequest?.target === "change") changeButton.current?.focus();
-  }, [state.focusRequest, state.busy, pending?.changeId, activeView]);
+    if (state.focusRequest?.target === "change") {
+      if (paused) pauseNotice.current?.focus();
+      else changeButton.current?.focus();
+    }
+  }, [state.focusRequest, state.busy, pending?.changeId, activeView, paused]);
   useEffect(() => {
     if (source) sourceHeading.current?.focus();
   }, [source]);
@@ -349,11 +355,20 @@ export function PlanChangeCards(): ReactElement | null {
     sourceOpener.current = button;
     setSource({ change, difference });
   };
-  const notice = state.notice ?? (pending ? "Review the exact changes before confirming." : null);
+  const notice = paused
+    ? PLAN_CHANGES_PAUSED_NOTICE
+    : (state.notice ?? (pending ? "Review the exact changes before confirming." : null));
+  const pausedReason = paused ? "plan-changes-notice" : undefined;
   return (
     <section aria-label="Plan Changes" className="grid min-w-0 gap-inset">
       {notice ? (
-        <p role="status" className="m-0 text-sm text-ink-2">
+        <p
+          ref={pauseNotice}
+          id="plan-changes-notice"
+          role="status"
+          tabIndex={-1}
+          className="m-0 text-sm text-ink-2"
+        >
           {notice}
         </p>
       ) : null}
@@ -374,7 +389,8 @@ export function PlanChangeCards(): ReactElement | null {
         <div className="mt-row flex flex-wrap gap-inset">
           <Button
             ref={changeButton}
-            disabled={state.busy || actions === null}
+            disabled={paused || state.busy || actions === null}
+            aria-describedby={pausedReason}
             onClick={() => actions?.openPlanChangeEditor()}
           >
             Change one thing
@@ -384,7 +400,7 @@ export function PlanChangeCards(): ReactElement | null {
           </Button>
         </div>
       </ChangeCard>
-      {state.editorOpen ? <ChangeEditor /> : null}
+      {state.editorOpen && !paused ? <ChangeEditor /> : null}
       {pending ? (
         <ChangeCard
           eyebrow="Plan Change"
@@ -419,7 +435,8 @@ export function PlanChangeCards(): ReactElement | null {
               Cancel
             </Button>
             <Button
-              disabled={state.busy || actions === null}
+              disabled={paused || state.busy || actions === null}
+              aria-describedby={pausedReason}
               onClick={() => actions?.applyPlanChange("apply")}
             >
               Apply to Plan
@@ -447,7 +464,8 @@ export function PlanChangeCards(): ReactElement | null {
               {change.status === "applied" && change.undo?.eligible ? (
                 <Button
                   variant="outline"
-                  disabled={state.busy || actions === null}
+                  disabled={paused || state.busy || actions === null}
+                  aria-describedby={pausedReason}
                   onClick={() =>
                     actions?.previewPlanChange({ kind: "inverse", changeId: change.changeId })
                   }
