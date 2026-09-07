@@ -398,6 +398,74 @@ describe("Plan Change repository", () => {
     expect(await dumpStore(store)).toBe(before);
   });
 
+  it("applies undated Workout changes only to the revision and Plan version", async () => {
+    await activate();
+    const changed = { ...poolWorkout, minutes: 20, kind: "endurance" };
+    const next = {
+      ...draft,
+      weeks: [{ ...draft.weeks[0], workouts: [keptWorkout, removedWorkout, changed] }],
+    };
+    await repository.preview({
+      ...previewInput(),
+      build: () => ({
+        afterSnapshotJson: JSON.stringify(next),
+        envelope: {
+          ...envelope,
+          diff: [{ workoutId: poolWorkout.id, before: poolWorkout, after: changed }],
+        },
+      }),
+    });
+    const rows = await store.all("SELECT * FROM plan_workout ORDER BY id");
+    for (const operation of ["INSERT", "UPDATE", "DELETE"]) {
+      await store.exec(`CREATE TRIGGER reject_workout_${operation.toLowerCase()}
+        BEFORE ${operation} ON plan_workout
+        BEGIN SELECT RAISE(ABORT, 'Unexpected Workout row write'); END`);
+    }
+    const materialize = vi.fn(() => ({ insert: [], update: [], delete: [] }));
+    await expect(repository.apply({ ...applyInput(), materialize })).resolves.toMatchObject({
+      status: "applied",
+      revisionNumber: 2,
+      version: 2,
+    });
+    expect(materialize).toHaveBeenCalledWith(expect.any(String), expect.any(Array), new Set());
+    expect(await store.all("SELECT * FROM plan_workout ORDER BY id")).toEqual(rows);
+    expect(await store.get("SELECT version,current_revision_number FROM planning_plan")).toEqual({
+      version: 2,
+      current_revision_number: 2,
+    });
+    expect(
+      await store.get("SELECT snapshot_json FROM plan_revision WHERE revision_number=2"),
+    ).toEqual({ snapshot_json: canonicalJson(next) });
+  });
+
+  it.each(["undated-to-dated", "dated-to-undated"])(
+    "refuses %s Workout changes without writes",
+    async (direction) => {
+      await activate();
+      const next = structuredClone(draft);
+      const workout = next.weeks[0].workouts.find((candidate) =>
+        direction === "undated-to-dated" ? candidate.id === "pool" : candidate.id === "removed",
+      );
+      if (workout === undefined) throw new Error("Expected Workout");
+      workout.date = direction === "undated-to-dated" ? "1998-01-03" : null;
+      await repository.preview({
+        ...previewInput(),
+        build: () => ({
+          afterSnapshotJson: JSON.stringify(next),
+          envelope: { ...envelope, diff: [] },
+        }),
+      });
+      const before = await dumpStore(store);
+      const materialize = vi.fn(() => ({ insert: [], update: [], delete: [] }));
+      await expect(repository.apply({ ...applyInput(), materialize })).resolves.toEqual({
+        status: "rejected",
+        reason: "stale-version",
+      });
+      expect(materialize).not.toHaveBeenCalled();
+      expect(await dumpStore(store)).toBe(before);
+    },
+  );
+
   it("applies one new revision and atomically preserves, adds and removes Workout rows", async () => {
     await activate();
     await repository.preview(previewInput());

@@ -64,11 +64,21 @@ export {
 export { buildCreationDraft } from "./creation-draft-builder.js";
 export {
   applyScheduleIntent,
+  applySupportingEventIntent,
+  supportingEventWorkoutLimitExplanation,
   planChangeRaceWindow,
   PLAN_CHANGE_RACE_WINDOW_DAYS,
 } from "./plan-change.js";
-export type { ScheduleIntent, ScheduleChangeDiff, ScheduleChangeTotals } from "./plan-change.js";
 export type {
+  ScheduleIntent,
+  ScheduleChangeDiff,
+  ScheduleChangeTotals,
+  SupportingEventIntent,
+  SupportingEventRules,
+  SupportingEventSourceCandidate,
+} from "./plan-change.js";
+export type {
+  SupportingEvent,
   CreationDraftInput,
   CreationDraft,
   CreationDraftResult,

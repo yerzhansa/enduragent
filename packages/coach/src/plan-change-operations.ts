@@ -1,12 +1,15 @@
 import {
   PlanChangeModelSchema,
   PlanChangeFtpSourcesSchema,
+  PlanChangeEventSourceSchema,
   PlanChangeApplyRpcParamsSchema,
   PlanChangeApplyResultSchema,
   PlanChangePreviewRpcParamsSchema,
   PlanChangePreviewResultSchema,
   PlanCreationDraftSchema,
   type PlanChangeIntent,
+  type PlanChangeEventSource,
+  type PlanCreationDraft,
   type PlanChangeOperations,
   type PlanChangeModel,
   type PlanChangesPaused,
@@ -24,6 +27,8 @@ import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
   applyScheduleIntent,
+  applySupportingEventIntent,
+  supportingEventWorkoutLimitExplanation,
   planChangeRaceWindow,
   readCyclingPlanFtpCandidates,
 } from "@enduragent/sport-cycling";
@@ -55,7 +60,43 @@ const titles = {
   "longest-workout": "Limit the longest Workout",
   inverse: "Undo the latest Change",
   ftp: "Correct FTP",
-} satisfies Record<PlanChangeIntent["kind"], string>;
+} satisfies Record<Exclude<PlanChangeIntent["kind"], "supporting-event">, string>;
+
+const eventTitles = {
+  add: "Add a Supporting Event",
+  remove: "Remove a Supporting Event",
+  role: "Change a Supporting Event role",
+  manual: "Correct a Supporting Event",
+  "source-update": "Accept synchronized event details",
+  name: "Rename a Supporting Event",
+} satisfies Record<Extract<PlanChangeIntent, { kind: "supporting-event" }>["operation"], string>;
+
+function supportingEventRules(draft: PlanCreationDraft) {
+  const answers = draft.answeredSummaries.map((summary) => summary.answer);
+  const availability = answers.find((answer) => answer.kind === "availability");
+  const restriction = answers.find((answer) => answer.kind === "restriction");
+  if (availability === undefined || restriction === undefined)
+    throw new Error("The Plan snapshot is missing confirmed training limits.");
+  return { availability, restriction: restriction.restriction };
+}
+
+function metadataChanged(before: PlanCreationDraft, after: PlanCreationDraft): boolean {
+  return (
+    before.ftp !== after.ftp ||
+    canonicalJson(before.supportingEvents) !== canonicalJson(after.supportingEvents)
+  );
+}
+
+function invalidEventExplanation(issues: readonly z.core.$ZodIssue[]): string {
+  const paths = issues.flatMap((issue) =>
+    issue.code === "invalid_union"
+      ? issue.errors.flatMap((errors) => errors.flatMap((error) => error.path))
+      : issue.path,
+  );
+  if (paths.includes("role")) return "Choose Important or Training.";
+  if (paths.includes("eventId")) return "Choose a Supporting Event already accepted in this Plan.";
+  return "Enter the event name and exact date.";
+}
 
 async function readCompletedWorkoutIds(
   store: SqlStore,
@@ -75,19 +116,39 @@ async function readCompletedWorkoutIds(
   );
 }
 
-async function inverseCorrectsFtp(
+async function readAppliedIntent(
   store: SqlStore,
   planId: string,
   changeId: string,
-): Promise<boolean> {
+): Promise<PlanChangeIntent | null> {
   const original = await store.get(
     "SELECT diff_json FROM plan_change WHERE id=? AND plan_id=? AND status='applied'",
     [changeId, planId],
   );
-  if (original === undefined) return false;
+  if (original === undefined) return null;
   const envelope = PlanChangeEnvelopeSchema.parse(JSON.parse(z.string().parse(original.diff_json)));
-  const intent = PlanChangeModelSchema.shape.intent.safeParse(envelope.intent);
-  return intent.success && intent.data.kind === "ftp";
+  return PlanChangeModelSchema.shape.intent.parse(envelope.intent);
+}
+
+async function eventNeedsSource(
+  store: SqlStore,
+  planId: string,
+  intent: Extract<PlanChangeIntent, { kind: "supporting-event" }>,
+  inverse: boolean,
+): Promise<boolean> {
+  if (intent.operation === "add") return intent.providerId !== undefined;
+  if (intent.operation === "manual") return false;
+  const revisions = await store.all(
+    "SELECT snapshot_json FROM plan_revision WHERE plan_id=? ORDER BY revision_number DESC LIMIT ?",
+    [planId, inverse ? 2 : 1],
+  );
+  return revisions.some((revision) =>
+    PlanCreationDraftSchema.parse(
+      JSON.parse(z.string().parse(revision.snapshot_json)),
+    ).supportingEvents.some(
+      (event) => event.id === intent.eventId && event.source.kind === "synced",
+    ),
+  );
 }
 
 export async function projectPlanChanges(input: {
@@ -124,7 +185,7 @@ export async function projectPlanChanges(input: {
           todayDateKey: input.todayDateKey,
         });
         undo =
-          restored.diff.length > 0 || restored.after.ftp !== draft.ftp
+          restored.diff.length > 0 || metadataChanged(draft, restored.after)
             ? { eligible: true }
             : { eligible: false, reason: "nothing-to-restore" };
       }
@@ -142,6 +203,7 @@ export function createPlanChangeOperations(input: {
   calendarConnected: () => Promise<boolean>;
   ftp: Pick<PlanFtpAdapter, "read" | "saveManual">;
   logger: { warn(event: string): void };
+  eventSources: { read(): Promise<PlanChangeEventSource[]> };
 }): PlanChangeOperations {
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -176,21 +238,39 @@ export function createPlanChangeOperations(input: {
       const parsed = PlanChangePreviewRpcParamsSchema.safeParse(request);
       if (!parsed.success) {
         if (parsed.error.issues.every((issue) => issue.path[0] === "intent"))
-          return { status: "rejected", reason: "invalid-intent" };
+          return {
+            status: "rejected",
+            reason: "invalid-intent",
+            ...(request.intent?.kind === "supporting-event"
+              ? { explanation: invalidEventExplanation(parsed.error.issues) }
+              : {}),
+          };
         throw parsed.error;
       }
       const { intent, planId, expectedVersion } = parsed.data;
       let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
+      let eventSources: PlanChangeEventSource[] = [];
       const result = await repository.preview({
         async admit(store) {
           const rejection = await admit(store);
           if (rejection !== null) return rejection;
-          if (
-            intent.kind === "ftp" ||
-            (intent.kind === "inverse" &&
-              (await inverseCorrectsFtp(store, planId, intent.changeId)))
-          )
+          const original =
+            intent.kind === "inverse"
+              ? await readAppliedIntent(store, planId, intent.changeId)
+              : null;
+          if (intent.kind === "ftp" || original?.kind === "ftp")
             ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
+          const eventIntent =
+            intent.kind === "supporting-event"
+              ? intent
+              : original?.kind === "supporting-event"
+                ? original
+                : null;
+          if (
+            eventIntent !== null &&
+            (await eventNeedsSource(store, planId, eventIntent, intent.kind === "inverse"))
+          )
+            eventSources = await input.eventSources.read();
           return null;
         },
         command: await stamp(parsed.data),
@@ -219,17 +299,71 @@ export function createPlanChangeOperations(input: {
             completedWorkoutIds,
             todayDateKey: input.todayDateKey(),
           };
-          const { after, diff, totals } =
-            intent.kind === "inverse"
-              ? applyScheduleIntent({
+          const originalIntent =
+            intent.kind === "inverse" && newestApplied !== null
+              ? PlanChangeModelSchema.shape.intent.parse(newestApplied.intent)
+              : null;
+          const eventIntent =
+            intent.kind === "supporting-event"
+              ? intent
+              : originalIntent?.kind === "supporting-event"
+                ? originalIntent
+                : null;
+          const previousDraft =
+            intent.kind === "inverse" && previousSnapshotJson !== null
+              ? PlanCreationDraftSchema.parse(JSON.parse(previousSnapshotJson))
+              : null;
+          const existingEvent =
+            eventIntent !== null && "eventId" in eventIntent
+              ? [...draft.supportingEvents, ...(previousDraft?.supportingEvents ?? [])].find(
+                  (event) => event.id === eventIntent.eventId,
+                )
+              : undefined;
+          const providerId =
+            eventIntent?.operation === "add"
+              ? eventIntent.providerId
+              : existingEvent?.source.kind === "synced"
+                ? existingEvent.source.providerId
+                : undefined;
+          const eventSource = eventSources.find((source) => source.providerId === providerId);
+          if (providerId !== undefined && eventSource === undefined)
+            return {
+              status: "rejected",
+              reason: "invalid-intent",
+              explanation:
+                "Accept synchronized event updates through a fresh source-update preview.",
+            };
+          const transformed =
+            intent.kind === "supporting-event"
+              ? applySupportingEventIntent({
                   ...transformation,
                   intent,
-                  previousDraft: PlanCreationDraftSchema.parse(
-                    JSON.parse(previousSnapshotJson ?? "null"),
-                  ),
+                  ...(intent.operation === "add" ? { eventId: input.identity.newUlid() } : {}),
+                  ...(eventSource === undefined ? {} : { source: eventSource }),
+                  rules: supportingEventRules(draft),
                 })
-              : applyScheduleIntent({ ...transformation, intent });
-          if (intent.kind === "inverse" && diff.length === 0 && after.ftp === draft.ftp)
+              : intent.kind === "inverse"
+                ? applyScheduleIntent({
+                    ...transformation,
+                    intent,
+                    previousDraft: previousDraft ?? PlanCreationDraftSchema.parse(null),
+                  })
+                : applyScheduleIntent({ ...transformation, intent });
+          if (!("after" in transformed))
+            return {
+              status: "rejected",
+              reason: "invalid-intent",
+              explanation: transformed.explanation,
+            };
+          const { after, diff, totals } = transformed;
+          if (eventIntent !== null) {
+            const explanation = supportingEventWorkoutLimitExplanation(after);
+            if (explanation !== null)
+              return { status: "rejected", reason: "invalid-intent", explanation };
+          }
+          if (!PlanCreationDraftSchema.safeParse(after).success)
+            return { status: "rejected", reason: "invalid-intent" };
+          if (intent.kind === "inverse" && diff.length === 0 && !metadataChanged(draft, after))
             return { status: "rejected", reason: "invalid-intent" };
           const correctsFtp =
             intent.kind === "ftp" ||
@@ -247,12 +381,25 @@ export function createPlanChangeOperations(input: {
           return {
             afterSnapshotJson: canonicalJson(after),
             envelope: PlanChangeEnvelopeSchema.parse({
-              title: titles[intent.kind],
+              title:
+                intent.kind === "supporting-event"
+                  ? eventTitles[intent.operation]
+                  : titles[intent.kind],
               intent,
               diff,
               totals,
               supersedes: null,
               premises: [
+                ...(eventSource === undefined
+                  ? []
+                  : [
+                      {
+                        id: "event-source",
+                        label: "Supporting Event source at this decision",
+                        source: "Intervals.icu event",
+                        value: eventSource,
+                      },
+                    ]),
                 ...(correctsFtp
                   ? [
                       {
@@ -309,6 +456,14 @@ export function createPlanChangeOperations(input: {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(afterSnapshotJson));
           const parsedIntent = PlanChangeModelSchema.shape.intent.safeParse(rawIntent);
           const intent = parsedIntent.success ? parsedIntent.data : null;
+          const eventPremise = premises.find((premise) => premise.id === "event-source");
+          if (eventPremise !== undefined) {
+            const source = PlanChangeEventSourceSchema.parse(eventPremise.value);
+            const current = (await input.eventSources.read()).find(
+              (candidate) => candidate.providerId === source.providerId,
+            );
+            if (current?.sourceRevision !== source.sourceRevision) return "event-source-changed";
+          }
           const ftpPremise = premises.find((premise) => premise.id === "ftp-sources");
           if (ftpPremise !== undefined) {
             const sources = PlanChangeFtpSourcesSchema.parse(ftpPremise.value);
@@ -320,18 +475,32 @@ export function createPlanChangeOperations(input: {
             correctedWatts = intent.watts;
             return null;
           }
+          const original =
+            intent?.kind === "inverse"
+              ? await readAppliedIntent(store, parsed.planId, intent.changeId)
+              : null;
+          if (original?.kind === "ftp") return null;
+          const workouts = PlanChangeModelSchema.shape.diff.parse(diff);
+          if (planChangeRaceWindow({ goal: draft.goal, diff: workouts, todayDateKey }) !== null)
+            return "race-window";
+          const changesEvents =
+            intent?.kind === "supporting-event" || original?.kind === "supporting-event";
           if (
-            intent?.kind === "inverse" &&
-            (await inverseCorrectsFtp(store, parsed.planId, intent.changeId))
+            changesEvents &&
+            workouts.some(
+              ({ after }) => after?.date != null && dateKeyFromText(after.date) < todayDateKey,
+            )
           )
-            return null;
-          return planChangeRaceWindow({
-            goal: draft.goal,
-            diff: PlanChangeModelSchema.shape.diff.parse(diff),
-            todayDateKey,
-          }) === null
-            ? null
-            : "race-window";
+            return "stale-version";
+          return changesEvents
+            ? {
+                mutablePinnedWorkoutIds: workouts.flatMap(({ before }) =>
+                  before?.kind === "event" && before.supportingEventId !== undefined
+                    ? [before.id]
+                    : [],
+                ),
+              }
+            : null;
         },
         command,
         planId: parsed.planId,

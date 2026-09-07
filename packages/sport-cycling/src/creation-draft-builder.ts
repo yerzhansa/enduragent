@@ -36,6 +36,14 @@ export interface CreationDraftInput {
   ftp: number | null;
 }
 
+export interface SupportingEvent {
+  id: string;
+  name: string;
+  date: string;
+  role: "Important" | "Training";
+  source: { kind: "manual" } | { kind: "synced"; providerId: string; sourceRevision: string };
+}
+
 interface DraftWorkout {
   id: string;
   name: string;
@@ -43,6 +51,7 @@ interface DraftWorkout {
   date: string | null;
   minutes: number;
   pinned: boolean;
+  supportingEventId?: string;
   guidance: string;
   power: number | null;
 }
@@ -57,6 +66,7 @@ interface DraftWeek {
 
 export interface CreationDraft {
   kind: "draft";
+  supportingEvents?: SupportingEvent[];
   goal: CreationDraftInput["answers"]["goal"];
   mode: "fixed" | "flexible";
   start: string;

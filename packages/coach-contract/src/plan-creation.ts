@@ -479,6 +479,28 @@ export const PlanCreationAnswerSummarySchema = z
   });
 export type PlanCreationAnswerSummary = z.infer<typeof PlanCreationAnswerSummarySchema>;
 
+export const SupportingEventRoleSchema = z.enum(["Important", "Training"]);
+
+export const SupportingEventSchema = z
+  .object({
+    id: z.string().min(1).max(128),
+    name: z.string().trim().min(1).max(512),
+    date: PlanCreationCivilDateSchema,
+    role: SupportingEventRoleSchema,
+    source: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("manual") }).strict(),
+      z
+        .object({
+          kind: z.literal("synced"),
+          providerId: z.string().min(1),
+          sourceRevision: z.string().regex(/^[0-9a-f]{64}$/u),
+        })
+        .strict(),
+    ]),
+  })
+  .strict();
+export type SupportingEvent = z.infer<typeof SupportingEventSchema>;
+
 const PlanCreationDraftWorkoutSchema = z
   .object({
     id: z.string().min(1).max(128),
@@ -488,6 +510,7 @@ const PlanCreationDraftWorkoutSchema = z
     minutes: z.number().positive().max(1440),
     pinned: z.boolean(),
     guidance: z.string().min(1).max(512),
+    supportingEventId: z.string().min(1).max(128).optional(),
     power: z.number().int().min(1).max(9_999).nullable(),
   })
   .strict();
@@ -534,6 +557,7 @@ export const PlanCreationDraftSchema = z
     notes: z.array(z.string().min(1).max(2_000)).max(1_000),
     guidance: z.string().min(1).max(512),
     ftp: z.number().int().min(1).max(9_999).nullable(),
+    supportingEvents: z.array(SupportingEventSchema).default([]),
     builderId: z.string().min(1).max(128),
     builderVersion: z.string().min(1).max(128),
     inputFingerprint: z.string().regex(/^[0-9a-f]{64}$/u),

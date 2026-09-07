@@ -5,6 +5,7 @@ export function planCreationDraft(
 ): PlanCreationDraft {
   return {
     kind: "draft",
+    supportingEvents: [],
     answeredSummaries,
     goal: { kind: "fitness", outcome: "Build steady power", weeks: 4 },
     mode: "flexible",

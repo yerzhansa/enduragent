@@ -148,6 +148,7 @@ import {
 } from "./intervals-credential-approval.js";
 import { createCoachEngineAdapter } from "./coach-engine-adapter.js";
 import { createPlanChangeOperations } from "./plan-change-operations.js";
+import { createPlanChangeEventSourceReader } from "./plan-change-event-source-reader.js";
 import { createPlanCreationOperations } from "./plan-creation-operations.js";
 import {
   createStoreRuntime,
@@ -2021,6 +2022,10 @@ export async function createLocalCoachComposition(
     });
     const planChangeOperations = createPlanChangeOperations({
       ftp,
+      eventSources: createPlanChangeEventSourceReader({
+        calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+        readLatest: () => readLatestReference(input.home.root),
+      }),
       logger,
       store: input.context.store,
       identity: planningIdentity,

@@ -185,6 +185,7 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
     case "longest-workout":
       return `${intent.minutes} min`;
     case "inverse":
+    case "supporting-event":
       return premise.label;
     case "ftp":
       return `${intent.watts} W`;

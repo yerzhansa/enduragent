@@ -589,6 +589,7 @@ export function createPlanCreationOperations(input: {
         const { inputFingerprint, outputFingerprint: _builderOutputFingerprint, ...output } = built;
         const draftOutput = {
           ...output,
+          supportingEvents: [],
           answeredSummaries: projectPlanCreationAnswerSummaries(
             snapshot,
             resolvePlanCreationAnswerFlow(snapshot),
