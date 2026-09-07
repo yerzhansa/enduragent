@@ -51,6 +51,7 @@ import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import {
   encodePlanCreationAnswer,
+  isPlanCreationDraftCurrent,
   projectPlanCreationCard,
   projectPlanCreationAnswerSummaries,
   resolvePlanCreationAnswerFlow,
@@ -225,7 +226,14 @@ export function createPlanCreationOperations(input: {
           ...card,
           status: "review" as const,
           draft: PlanCreationDraftSchema.parse(JSON.parse(recordedDraft.output_snapshot_json)),
-          draftStale: recordedDraft.input_version + 1 !== version,
+          draftStale: !isPlanCreationDraftCurrent(
+            {
+              ...snapshot,
+              version,
+              answers: snapshot.answers.filter((answer) => answer.creationVersion <= version),
+            },
+            recordedDraft.input_version,
+          ),
         };
   };
   const readCard = async (): Promise<PlanCreationCardModel | null> => {
@@ -626,9 +634,18 @@ export function createPlanCreationOperations(input: {
         mirrorJobId: input.identity.newUlid(),
         cleanupJobId: input.identity.newUlid(),
         revisionId: input.identity.newUlid(),
+        isDraftCurrent: isPlanCreationDraftCurrent,
         materialize(snapshot) {
           if (snapshot.currentDraft === null || resolvePlanCreationDraftAnswers(snapshot) === null)
             throw new PlanCreationStoreError("not-ready");
+          const commitments =
+            resolvePlanCreationAnswerFlow(snapshot).valid.get("commitments")?.answer;
+          if (
+            commitments?.kind === "commitments" &&
+            commitments.commitments.kind === "authored" &&
+            commitments.commitments.acknowledged !== true
+          )
+            throw new PlanCreationStoreError("commitments-unacknowledged");
           const draft = PlanCreationDraftSchema.parse(
             JSON.parse(snapshot.currentDraft.outputSnapshotJson),
           );

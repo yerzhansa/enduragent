@@ -119,7 +119,13 @@ export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
       kind: z.literal("commitments"),
       commitments: z.discriminatedUnion("kind", [
         z.object({ kind: z.literal("none") }).strict(),
-        z.object({ kind: z.literal("authored"), text: z.string().min(1).max(2_000) }).strict(),
+        z
+          .object({
+            kind: z.literal("authored"),
+            text: z.string().min(1).max(2_000),
+            acknowledged: z.boolean().optional(),
+          })
+          .strict(),
       ]),
     })
     .strict(),
@@ -543,6 +549,10 @@ export const PlanCreationCardModelSchema = z
     status: z.enum(["in-progress", "review"]),
     draft: PlanCreationDraftSchema.nullable(),
     draftStale: z.boolean(),
+    commitmentsAcknowledgement: z
+      .object({ text: z.string().min(1).max(2_000) })
+      .strict()
+      .nullable(),
     readiness: z.enum(["incomplete", "ready"]),
     answeredSummaries: z.array(PlanCreationAnswerSummarySchema).max(16),
     openQuestion: PlanCreationOpenQuestionSchema.nullable(),

@@ -28,7 +28,10 @@ import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
-import { readPlanCreationAnswers } from "../src/plan-creation-answers.js";
+import {
+  readPlanCreationAnswers,
+  resolvePlanCreationDraftAnswers,
+} from "../src/plan-creation-answers.js";
 
 const unusedStore = () => {
   const store = openSqliteStorage(":memory:");
@@ -1953,6 +1956,225 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     expect(await test.store.all("SELECT * FROM plan")).toEqual(plans);
     expect(await test.store.all("SELECT * FROM plan_workout")).toEqual(workouts);
     await expect(test.host.readCard()).resolves.toBeNull();
+  });
+
+  it.each([undefined, false])(
+    "blocks unacknowledged commitments (%s) without writes and activates the same Draft after acknowledgement",
+    async (acknowledged) => {
+      const test = await review();
+      const active = await test.host["plan_creation.activate"](test.request);
+      const started = await test.host["plan_creation.start"]({ commandId: "replacement" });
+      if (started.status !== "started") throw new Error("Expected replacement creation");
+      let card = started.planCreation;
+      const text = "Strength training on Wednesdays";
+      for (const answer of [
+        fitnessGoal,
+        { kind: "plan-length", weeks: 4 },
+        fixedMode,
+        fixedAvailability,
+        startTiming,
+        {
+          kind: "commitments",
+          commitments: {
+            kind: "authored",
+            text,
+            ...(acknowledged === undefined ? {} : { acknowledged }),
+          },
+        },
+        regularBaseline,
+        fitnessSuccess,
+        noRestriction,
+      ] satisfies PlanCreationAnswerInput[]) {
+        card = await answered(
+          test.host["plan_creation.answer"]({
+            commandId: `replacement-${answer.kind}`,
+            creationId: card.creationId,
+            expectedVersion: card.version,
+            answer,
+          }),
+        );
+      }
+      expect(card.commitmentsAcknowledgement).toEqual({ text });
+      const previewRequest = {
+        commandId: "replacement-preview",
+        creationId: card.creationId,
+        expectedVersion: card.version,
+      };
+      const previewed = await test.host["plan_creation.preview"](previewRequest);
+      if (previewed.status !== "previewed" || previewed.planCreation.draft === null)
+        throw new Error("Expected Draft with pending commitments");
+      card = previewed.planCreation;
+      expect(card.draft?.notes).toContain(
+        "Your written commitments are recorded for review and have not been applied to Workouts.",
+      );
+      const before = await test.repository.readUnfinished();
+      if (before === undefined) throw new Error("Expected creation");
+      const builderAnswers = resolvePlanCreationDraftAnswers(before);
+      expect(builderAnswers?.commitments).toEqual({ kind: "authored", text });
+      const incumbent = { planId: active.planId, version: 1 };
+      const request = {
+        commandId: "replacement-activate",
+        incumbent,
+        creationId: card.creationId,
+        expectedVersion: card.version,
+      };
+      const activeBefore = await test.store.all("SELECT * FROM planning_plan");
+      const plansBefore = await test.store.all("SELECT * FROM plan");
+      const writes = vi.spyOn(test.store, "run");
+      await expect(test.host["plan_creation.activate"](request)).rejects.toMatchObject({
+        code: "commitments-unacknowledged",
+      });
+      expect(writes).not.toHaveBeenCalled();
+      writes.mockRestore();
+      expect(await test.store.all("SELECT * FROM planning_plan")).toEqual(activeBefore);
+      expect(await test.store.all("SELECT * FROM plan")).toEqual(plansBefore);
+      expect(await test.repository.readUnfinished()).toEqual(before);
+      const acknowledgementRequest = {
+        commandId: "acknowledge",
+        creationId: card.creationId,
+        expectedVersion: card.version,
+        answer: {
+          kind: "commitments",
+          commitments: { kind: "authored", text, acknowledged: true },
+        },
+      } as const;
+      const confirmed = await answered(test.host["plan_creation.answer"](acknowledgementRequest));
+      expect(confirmed).toMatchObject({
+        draftStale: false,
+        commitmentsAcknowledgement: null,
+        draft: card.draft,
+      });
+      expect(
+        confirmed.answeredSummaries.find((summary) => summary.answerKey === "commitments")?.detail,
+      ).toBe(text);
+      const after = await test.repository.readUnfinished();
+      if (after === undefined) throw new Error("Expected acknowledged creation");
+      expect(resolvePlanCreationDraftAnswers(after)).toEqual(builderAnswers);
+      expect(
+        createHash("sha256")
+          .update(
+            canonicalJson({ answers: resolvePlanCreationDraftAnswers(after), today, ftp: null }),
+          )
+          .digest("hex"),
+      ).toBe(before.currentDraft?.inputFingerprint);
+      expect(after.currentDraft).toEqual(before.currentDraft);
+      await expect(test.host.readCard()).resolves.toEqual(confirmed);
+      await expect(test.host["plan_creation.answer"](acknowledgementRequest)).resolves.toEqual({
+        status: "answered",
+        planCreation: confirmed,
+      });
+      await expect(test.host["plan_creation.preview"](previewRequest)).resolves.toEqual(previewed);
+      const result = await test.host["plan_creation.activate"]({
+        ...request,
+        expectedVersion: confirmed.version,
+      });
+      expect(result.closedPlanId).toBe(active.planId);
+      await expect(
+        test.host["plan_creation.activate"]({ ...request, expectedVersion: confirmed.version }),
+      ).resolves.toEqual(result);
+      await expect(test.host["plan_creation.answer"](acknowledgementRequest)).resolves.toEqual({
+        status: "answered",
+        planCreation: confirmed,
+      });
+    },
+  );
+
+  it("keeps a built Draft and its input fingerprint current after acknowledging the same text", async () => {
+    const test = await previewHarness();
+    await test.ready();
+    const text = "Strength training on Wednesdays";
+    const pending = await test.answer({
+      kind: "commitments",
+      commitments: { kind: "authored", text },
+    });
+    const previewed = await test.host["plan_creation.preview"]({
+      commandId: "preview",
+      creationId: pending.creationId,
+      expectedVersion: pending.version,
+    });
+    if (previewed.status !== "previewed") throw new Error("Expected Draft");
+    const request = {
+      commandId: "acknowledge",
+      creationId: pending.creationId,
+      expectedVersion: previewed.planCreation.version,
+      answer: { kind: "commitments", commitments: { kind: "authored", text, acknowledged: true } },
+    } as const;
+    const card = await answered(test.host["plan_creation.answer"](request));
+    expect(card).toMatchObject({
+      draftStale: false,
+      commitmentsAcknowledgement: null,
+      draft: previewed.planCreation.draft,
+    });
+    const snapshot = await test.repository.readUnfinished();
+    if (snapshot === undefined) throw new Error("Expected creation");
+    const answers = resolvePlanCreationDraftAnswers(snapshot);
+    expect(answers?.commitments).toEqual({ kind: "authored", text });
+    expect(
+      createHash("sha256")
+        .update(canonicalJson({ answers, today, ftp: null }))
+        .digest("hex"),
+    ).toBe(card.draft?.inputFingerprint);
+    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
+      status: "answered",
+      planCreation: card,
+    });
+    await expect(test.host.readCard()).resolves.toEqual(card);
+    const changed = await answered(
+      test.host["plan_creation.answer"]({
+        ...request,
+        commandId: "change-text",
+        expectedVersion: card.version,
+        answer: {
+          kind: "commitments",
+          commitments: {
+            kind: "authored",
+            text: "Strength training on Fridays",
+            acknowledged: true,
+          },
+        },
+      }),
+    );
+    expect(changed.draftStale).toBe(true);
+    await expect(test.host["plan_creation.answer"](request)).resolves.toEqual({
+      status: "answered",
+      planCreation: card,
+    });
+  });
+
+  it("projects acknowledgement changes without changing the commitments summary", async () => {
+    const test = await previewHarness();
+    expect((await test.ready()).commitmentsAcknowledgement).toBeNull();
+    const text = "Strength training on Wednesdays";
+    for (const acknowledged of [false, true, false]) {
+      const card = await test.answer({
+        kind: "commitments",
+        commitments: { kind: "authored", text, acknowledged },
+      });
+      expect(card.commitmentsAcknowledgement).toEqual(acknowledged ? null : { text });
+      expect(
+        card.answeredSummaries.find((summary) => summary.answerKey === "commitments")?.detail,
+      ).toBe(text);
+    }
+    expect((await test.answer(noCommitments)).commitmentsAcknowledgement).toBeNull();
+  });
+
+  it("keeps changed commitment text stale even when it is acknowledged", async () => {
+    const test = await review();
+    const card = await answered(
+      test.host["plan_creation.answer"]({
+        commandId: "changed-commitments",
+        creationId: test.request.creationId,
+        expectedVersion: test.request.expectedVersion,
+        answer: {
+          kind: "commitments",
+          commitments: { kind: "authored", text: "No riding on Wednesdays", acknowledged: true },
+        },
+      }),
+    );
+    expect(card).toMatchObject({ draftStale: true, commitmentsAcknowledgement: null });
+    await expect(
+      test.host["plan_creation.activate"]({ ...test.request, expectedVersion: card.version }),
+    ).rejects.toMatchObject({ code: "not-ready" });
   });
 
   it("rejects missing Drafts and stale versions without creating a Plan", async () => {

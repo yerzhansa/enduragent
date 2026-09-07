@@ -2294,6 +2294,10 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
 
   it.each([
     ["not-ready", "Build a current complete Draft and resolve pending answers before activation."],
+    [
+      "commitments-unacknowledged",
+      "Acknowledge your written commitments before activating this Plan.",
+    ],
     ["version-conflict", "version-conflict"],
     ["command-conflict", "command-conflict"],
   ] as const)(
@@ -2350,6 +2354,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       status: "in-progress",
       draft: null,
       draftStale: false,
+      commitmentsAcknowledgement: null,
       readiness: "incomplete",
       answeredSummaries: [],
       openQuestion: {
@@ -2383,6 +2388,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       status: "in-progress",
       draft: null,
       draftStale: false,
+      commitmentsAcknowledgement: null,
       readiness: "incomplete",
       answeredSummaries: [
         {

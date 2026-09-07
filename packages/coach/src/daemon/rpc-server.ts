@@ -1955,6 +1955,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               if (
                 error instanceof PlanCreationStoreError &&
                 (error.code === "not-ready" ||
+                  error.code === "commitments-unacknowledged" ||
                   error.code === "version-conflict" ||
                   error.code === "command-conflict")
               ) {
