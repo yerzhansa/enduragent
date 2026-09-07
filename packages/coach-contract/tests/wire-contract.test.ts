@@ -1332,6 +1332,7 @@ describe("coach request and event projection", () => {
         active: null,
         closed: [],
         changes: [],
+        changesPaused: null,
       }),
       "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
       "plan.history": async () => null,

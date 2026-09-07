@@ -6,8 +6,8 @@ import {
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
-  createPlanWorkoutMatchRepository,
   createPlanCreationRepository,
+  createPlanWorkoutMatchRepository,
 } from "@enduragent/kernel/planning";
 import { dumpStore, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
@@ -15,11 +15,29 @@ import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 
-async function activatedPlan(todayDateKey = () => 19980902) {
+async function activatedPlan(
+  todayDateKey = () => 19980902,
+  initialSync: { connected: boolean; lastSuccessfulSyncAtMs: number | null } = {
+    connected: false,
+    lastSuccessfulSyncAtMs: null,
+  },
+) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
   await runMigrations(store, MIGRATIONS);
   let sequence = 100;
+  let nowMs = 904_694_400_000;
+  let connected = initialSync.connected;
+  const calendarConnected = vi.fn(async () => connected);
+  const recordSync = async (atMs: number) => {
+    await store.run(
+      `INSERT INTO source_artifact (artifact_key,source,lane,external_id,artifact_kind,archive_address,archive_rel_path,archive_epoch_s)
+      VALUES (?, 'intervals-icu', 'activities', 'synthetic-sync', 'snapshot', ?, 'synthetic/sync.json', ?)`,
+      [`sync-${++sequence}`, "a".repeat(64), Math.floor(atMs / 1000)],
+    );
+  };
+  if (initialSync.lastSuccessfulSyncAtMs !== null)
+    await recordSync(initialSync.lastSuccessfulSyncAtMs);
   const identity = {
     deviceId: async () => "plan-change-test-device",
     newUlid: () => String(++sequence).padStart(26, "0"),
@@ -30,11 +48,13 @@ async function activatedPlan(todayDateKey = () => 19980902) {
     identity,
     crypto: globalThis.crypto,
     todayDateKey,
-    now: () => 904_694_400_000,
+    now: () => nowMs,
+    calendarConnected,
   };
   const creation = createPlanCreationOperations({
     ...dependencies,
     repository: createPlanCreationRepository(store),
+    calendarConnected: () => connected,
     eventCandidates: { read: async () => [] },
     today: () => "1998-09-02",
   });
@@ -104,6 +124,14 @@ async function activatedPlan(todayDateKey = () => 19980902) {
     store.all("SELECT * FROM plan_workout WHERE plan_id = ? ORDER BY id", [planId]);
   return {
     store,
+    setNow: (value: number) => {
+      nowMs = value;
+    },
+    setConnected: (value: boolean) => {
+      connected = value;
+    },
+    recordSync,
+    calendarConnected,
     creation,
     changes,
     planId,
@@ -981,4 +1009,243 @@ describe("Plan Change transaction races", () => {
       ),
     ).toEqual([{ window_start_date_key: 19980905, window_end_date_key: 19980911 }]);
   });
+});
+
+describe("Plan Change sync age", () => {
+  const now = 904_694_400_000;
+  const day = 24 * 60 * 60 * 1000;
+
+  it.each(["preview", "apply"] as const)(
+    "rejects %s when sync becomes stale at transaction entry without mutations",
+    async (operation) => {
+      const test = await activatedPlan(undefined, { connected: true, lastSuccessfulSyncAtMs: now });
+      const pending = await test.preview();
+      test.setNow(now + day);
+      const before = await dumpStore(test.store);
+      const transaction = test.store.transaction.bind(test.store);
+      const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
+        test.setNow(now + day + 1);
+        return transaction(fn);
+      });
+      const result =
+        operation === "preview"
+          ? await test.changes["plan_change.preview"]({
+              commandId: "sync-race-preview",
+              planId: test.planId,
+              expectedVersion: 1,
+              intent: { kind: "longest-workout", minutes: 20 },
+            })
+          : await test.changes["plan_change.apply"]({
+              commandId: "sync-race-apply",
+              planId: test.planId,
+              expectedVersion: 1,
+              changeId: pending.change.changeId,
+              decision: "apply",
+            });
+      expect(hook).toHaveBeenCalledOnce();
+      expect(result).toEqual({ status: "rejected", reason: "sync-stale" });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+
+  it.each([
+    { name: "fresh", connected: true, lastSuccessfulSyncAtMs: now - day + 1000, paused: false },
+    { name: "exactly 24 hours", connected: true, lastSuccessfulSyncAtMs: now - day, paused: false },
+    { name: "stale", connected: true, lastSuccessfulSyncAtMs: now - day - 1000, paused: true },
+    { name: "never synced", connected: true, lastSuccessfulSyncAtMs: null, paused: false },
+    {
+      name: "not connected",
+      connected: false,
+      lastSuccessfulSyncAtMs: now - day - 1000,
+      paused: false,
+    },
+  ])("projects and enforces $name sync without gating creation", async (state) => {
+    const test = await activatedPlan(undefined, state);
+    const listed = await test.creation["plan.list"]({});
+    expect(listed.changesPaused).toEqual(
+      state.paused
+        ? { reason: "sync-stale", lastSuccessfulSyncAtMs: state.lastSuccessfulSyncAtMs }
+        : null,
+    );
+    const before = await dumpStore(test.store);
+    const result = await test.changes["plan_change.preview"]({
+      commandId: "sync-preview",
+      planId: test.planId,
+      expectedVersion: 1,
+      intent: { kind: "longest-workout", minutes: 30 },
+    });
+    if (state.paused) {
+      expect(result).toEqual({ status: "rejected", reason: "sync-stale" });
+      expect(await dumpStore(test.store)).toBe(before);
+    } else {
+      if (result.status !== "previewed") throw new Error("Expected preview");
+      await applyChange(test, result.change.changeId, 1, "sync-apply");
+    }
+  });
+
+  it.each([null, now, now - day - 1000])(
+    "uses successful sync age even when a later sync failed, last success %s",
+    async (lastSuccessfulSyncAtMs) => {
+      const test = await activatedPlan(undefined, { connected: true, lastSuccessfulSyncAtMs });
+      await test.store.run(
+        "INSERT INTO sync_failure (source,severity,detail,logical_ordinal) VALUES ('intervals-icu','warn','source temporarily unavailable',1)",
+      );
+      const paused = lastSuccessfulSyncAtMs !== null && now - lastSuccessfulSyncAtMs > day;
+      expect((await test.creation["plan.list"]({})).changesPaused).toEqual(
+        paused ? { reason: "sync-stale", lastSuccessfulSyncAtMs } : null,
+      );
+      const result = await test.changes["plan_change.preview"]({
+        commandId: "after-sync-failure",
+        planId: test.planId,
+        expectedVersion: 1,
+        intent: { kind: "longest-workout", minutes: 30 },
+      });
+      expect(result.status).toBe(paused ? "rejected" : "previewed");
+      if (result.status === "previewed")
+        await applyChange(test, result.change.changeId, 1, "apply-after-failure");
+    },
+  );
+
+  it("recomputes the pause after disconnection and only projects it for an active Plan", async () => {
+    const test = await activatedPlan(undefined, {
+      connected: true,
+      lastSuccessfulSyncAtMs: now - day - 1000,
+    });
+    expect((await test.creation["plan.list"]({})).changesPaused).not.toBeNull();
+    test.setConnected(false);
+    expect((await test.creation["plan.list"]({})).changesPaused).toBeNull();
+    test.setConnected(true);
+    await test.creation["plan.close"]({
+      commandId: "close-stale",
+      planId: test.planId,
+      expectedVersion: 1,
+    });
+    expect(await test.creation["plan.list"]({})).toMatchObject({
+      active: null,
+      changesPaused: null,
+      changes: [],
+    });
+  });
+
+  it.each(["schedule", "inverse"] as const)(
+    "keeps a %s preview pending while stale and still permits cancel",
+    async (kind) => {
+      const test = await activatedPlan(undefined, { connected: true, lastSuccessfulSyncAtMs: now });
+      const forward = await test.preview();
+      if (kind === "inverse") await applyChange(test, forward.change.changeId, 1, "forward");
+      const version = kind === "inverse" ? 2 : 1;
+      const intent: PlanChangeIntent =
+        kind === "inverse"
+          ? { kind: "inverse", changeId: forward.change.changeId }
+          : { kind: "longest-workout", minutes: 20 };
+      const pending = await test.preview(intent, "pending", version);
+      test.setNow(now + day + 1);
+      const before = await dumpStore(test.store);
+      await expect(
+        test.changes["plan_change.preview"]({
+          commandId: "stale-preview",
+          planId: test.planId,
+          expectedVersion: version,
+          intent,
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "sync-stale" });
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "stale-apply",
+          planId: test.planId,
+          expectedVersion: version,
+          changeId: pending.change.changeId,
+          decision: "apply",
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "sync-stale" });
+      expect(await dumpStore(test.store)).toBe(before);
+      expect((await test.creation["plan.list"]({})).changes).toContainEqual(pending.change);
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "cancel-stale",
+          planId: test.planId,
+          expectedVersion: version,
+          changeId: pending.change.changeId,
+          decision: "cancel",
+        }),
+      ).resolves.toMatchObject({ status: "cancelled", version });
+    },
+  );
+
+  it.each(["fresh", "never synced", "not connected"])(
+    "permits cancellation when %s",
+    async (state) => {
+      const test = await activatedPlan(undefined, {
+        connected: state !== "not connected",
+        lastSuccessfulSyncAtMs: state === "never synced" ? null : now,
+      });
+      const pending = await test.preview();
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "cancel",
+          planId: test.planId,
+          expectedVersion: 1,
+          changeId: pending.change.changeId,
+          decision: "cancel",
+        }),
+      ).resolves.toMatchObject({ status: "cancelled", version: 1 });
+    },
+  );
+
+  it("rechecks an aged preview at apply and clears the pause after a new activity sync", async () => {
+    const test = await activatedPlan(undefined, { connected: true, lastSuccessfulSyncAtMs: now });
+    const pending = await test.preview();
+    test.setNow(now + day + 1);
+    const request = {
+      commandId: "apply-after-sync",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: pending.change.changeId,
+      decision: "apply" as const,
+    };
+    await expect(test.changes["plan_change.apply"](request)).resolves.toEqual({
+      status: "rejected",
+      reason: "sync-stale",
+    });
+    expect((await test.creation["plan.list"]({})).changesPaused).not.toBeNull();
+    await test.recordSync(now + day);
+    expect((await test.creation["plan.list"]({})).changesPaused).toBeNull();
+    await expect(test.changes["plan_change.apply"](request)).resolves.toMatchObject({
+      status: "applied",
+    });
+  });
+
+  it.each(["schedule", "inverse"] as const)(
+    "replays recorded %s apply while stale and preserves command conflicts",
+    async (kind) => {
+      const test = await activatedPlan(undefined, { connected: true, lastSuccessfulSyncAtMs: now });
+      const forward = await test.preview();
+      const appliedForward = await applyChange(test, forward.change.changeId, 1, "forward");
+      const applied =
+        kind === "inverse"
+          ? await applyChange(
+              test,
+              (
+                await test.preview(
+                  { kind: "inverse", changeId: forward.change.changeId },
+                  "inverse",
+                  2,
+                )
+              ).change.changeId,
+              2,
+              "inverse-apply",
+            )
+          : appliedForward;
+      test.setNow(now + day + 1);
+      test.calendarConnected.mockRejectedValue(new Error("Sync status is unavailable"));
+      const before = await dumpStore(test.store);
+      await expect(test.changes["plan_change.apply"](applied.request)).resolves.toEqual(
+        applied.result,
+      );
+      await expect(
+        test.changes["plan_change.apply"]({ ...applied.request, expectedVersion: 99 }),
+      ).resolves.toEqual({ status: "rejected", reason: "command-conflict" });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
 });

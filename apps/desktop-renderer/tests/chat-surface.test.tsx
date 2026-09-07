@@ -3175,6 +3175,7 @@ describe("chat surface", () => {
               legacy: null,
               creation: null,
               closed: [],
+              changesPaused: null,
               changes: [],
               active: hasActivePlan
                 ? {
@@ -3327,6 +3328,7 @@ describe("chat surface", () => {
             creation: null,
             active: null,
             closed: [],
+            changesPaused: null,
             changes: [],
           },
         },

@@ -220,6 +220,7 @@ const operations: CoachOperations &
     active: null,
     closed: [],
     changes: [],
+    changesPaused: null,
   }),
   "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
   "plan_change.preview": async () => ({ status: "rejected", reason: "no-active-plan" }),
@@ -873,6 +874,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
             active: null,
             closed: [],
             changes: [],
+            changesPaused: null,
           };
         },
         "plan.close": async () => {
@@ -2483,6 +2485,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       active: null,
       closed: [],
       changes: [],
+      changesPaused: null,
     }));
     const closePlan = vi.fn<PlanCreationOperations["plan.close"]>(async () => ({
       status: "closed",
@@ -2603,6 +2606,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
           active: null,
           closed: [],
           changes: [],
+          changesPaused: null,
         },
       },
       {

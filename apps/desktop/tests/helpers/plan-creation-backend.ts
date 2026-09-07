@@ -357,6 +357,8 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       },
       { todayDateKey: () => Number(this.civilDate.replaceAll("-", "")) },
     );
+    const calendarConnected = () =>
+      this.options.calendarConnected ?? Boolean(this.options.calendar);
     this.changes = createPlanChangeOperations({
       store: this.store,
       identity,
@@ -364,9 +366,8 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       todayDateKey: () =>
         this.options.calendar === undefined ? 19980101 : Number(this.civilDate.replaceAll("-", "")),
       now: () => this.instant,
+      calendarConnected: async () => calendarConnected(),
     });
-    const calendarConnected = () =>
-      this.options.calendarConnected ?? Boolean(this.options.calendar);
     this.host = createPlanCreationOperations({
       store: this.store,
       repository: this.repository,
@@ -428,6 +429,27 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
   setCivilDate(date: string): void {
     this.civilDate = date;
     this.instant = Date.parse(`${date}T00:00:00.000Z`);
+  }
+
+  setSyncClock(nowMs: number): void {
+    this.instant = nowMs;
+  }
+
+  async recordSuccessfulSync(atMs = this.instant): Promise<void> {
+    const epochSeconds = Math.floor(atMs / 1_000);
+    await this.requireStore().run(
+      `INSERT INTO source_artifact (
+        artifact_key, source, lane, external_id, artifact_kind,
+        archive_address, archive_rel_path, archive_epoch_s
+      ) VALUES (?, 'intervals-icu', 'activities', 'synthetic-sync', 'snapshot', ?, ?, ?)
+      ON CONFLICT DO NOTHING`,
+      [
+        `synthetic-sync-${epochSeconds}`,
+        "a".repeat(64),
+        `synthetic/activities/${epochSeconds}.json`,
+        epochSeconds,
+      ],
+    );
   }
 
   failNextClose(): void {

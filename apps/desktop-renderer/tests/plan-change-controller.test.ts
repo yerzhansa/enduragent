@@ -49,6 +49,7 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     },
     creation: null,
     closed: [],
+    changesPaused: null,
     changes,
   };
   const call = vi.fn(async (_method: string, _request: unknown): Promise<never> => {

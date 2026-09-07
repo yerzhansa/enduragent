@@ -21,6 +21,7 @@ describe("Plan controller", () => {
         creation: null,
         active: null,
         closed: [],
+        changesPaused: null,
         changes: [],
       }),
       renderLibrary: vi.fn(),
@@ -48,6 +49,7 @@ describe("Plan controller", () => {
         creation: null,
         active: null,
         closed: [],
+        changesPaused: null,
         changes: [],
       }),
       renderLibrary: vi.fn(),
@@ -85,6 +87,7 @@ describe("Plan library refresh", () => {
     creation: null,
     active: null,
     closed: [],
+    changesPaused: null,
     changes: [],
   };
 
