@@ -8,10 +8,12 @@ import {
   type PlanChangeIntent,
   type PlanChangeOperations,
   type PlanChangeModel,
+  type PlanChangesPaused,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   createPlanChangeRepository,
+  createPlanWorkoutMatchRepository,
   PlanChangeEnvelopeSchema,
   dateKeyFromText,
   type PlanWorkoutRecord,
@@ -21,6 +23,21 @@ import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
 import { applyScheduleIntent } from "@enduragent/sport-cycling";
 import { z } from "zod";
+
+export const PROPOSAL_STALE_AFTER_HOURS = 24;
+
+export async function readPlanChangesPaused(input: {
+  calendarConnected: () => Promise<boolean>;
+  syncStatus: () => Promise<{ lastSuccessfulSyncAtMs: number | null; awaitingSync: boolean }>;
+  now: () => number;
+}): Promise<PlanChangesPaused> {
+  if (!(await input.calendarConnected())) return null;
+  const { lastSuccessfulSyncAtMs } = await input.syncStatus();
+  return lastSuccessfulSyncAtMs !== null &&
+    input.now() - lastSuccessfulSyncAtMs > PROPOSAL_STALE_AFTER_HOURS * 60 * 60 * 1000
+    ? { reason: "sync-stale", lastSuccessfulSyncAtMs }
+    : null;
+}
 
 const DraftIdSchema = z.object({ id: z.string() }).passthrough();
 
@@ -99,6 +116,7 @@ export function createPlanChangeOperations(input: {
   crypto: Crypto;
   todayDateKey: () => number;
   now: () => number;
+  calendarConnected: () => Promise<boolean>;
 }): PlanChangeOperations {
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -120,6 +138,14 @@ export function createPlanChangeOperations(input: {
       hlcCounter: clock.counter,
     };
   };
+  const admit = async (store: SqlStore) =>
+    (
+      await readPlanChangesPaused({
+        calendarConnected: input.calendarConnected,
+        syncStatus: () => createPlanWorkoutMatchRepository(store).readSyncStatus(),
+        now: input.now,
+      })
+    )?.reason ?? null;
   return {
     async "plan_change.preview"(request) {
       const parsed = PlanChangePreviewRpcParamsSchema.safeParse(request);
@@ -130,6 +156,7 @@ export function createPlanChangeOperations(input: {
       }
       const { intent, planId, expectedVersion } = parsed.data;
       const result = await repository.preview({
+        admit,
         command: await stamp(parsed.data),
         planId,
         expectedVersion,
@@ -210,6 +237,7 @@ export function createPlanChangeOperations(input: {
       const parsed = PlanChangeApplyRpcParamsSchema.parse(request);
       const command = await stamp(parsed);
       const result = await repository.apply({
+        admit,
         command,
         planId: parsed.planId,
         changeId: parsed.changeId,

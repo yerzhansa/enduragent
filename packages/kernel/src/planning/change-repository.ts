@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SqlStore } from "../store/ports.js";
 import { canonicalJson } from "../archive/canonical.js";
 import { createPlanningCommandLedger, fail, PlanCreationStoreError } from "./command-ledger.js";
 import type { PlanCreationCommandStamp, PlanningCommandName } from "./command-ledger.js";
@@ -47,7 +48,13 @@ export const PlanChangePreviewStoreResultSchema = z.discriminatedUnion("status",
   z
     .object({
       status: z.literal("rejected"),
-      reason: z.enum(["stale-version", "no-active-plan", "command-conflict", "invalid-intent"]),
+      reason: z.enum([
+        "stale-version",
+        "no-active-plan",
+        "command-conflict",
+        "invalid-intent",
+        "sync-stale",
+      ]),
     })
     .strict(),
 ]);
@@ -66,7 +73,13 @@ export const PlanChangeApplyStoreResultSchema = z.discriminatedUnion("status", [
   z
     .object({
       status: z.literal("rejected"),
-      reason: z.enum(["stale-version", "not-pending", "no-active-plan", "command-conflict"]),
+      reason: z.enum([
+        "stale-version",
+        "not-pending",
+        "no-active-plan",
+        "command-conflict",
+        "sync-stale",
+      ]),
     })
     .strict(),
 ]);
@@ -79,6 +92,9 @@ export interface PlanChangeUndoContext {
   readonly newestApplied: PlanChangeRecord | null;
 }
 export interface PreviewPlanChangeInput {
+  readonly admit?: (
+    store: SqlStore,
+  ) => Promise<Extract<PlanChangePreviewStoreResult, { status: "rejected" }>["reason"] | null>;
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
   readonly expectedVersion: number;
@@ -96,6 +112,9 @@ export interface PlanChangeWorkoutMutations {
   readonly delete: readonly string[];
 }
 export interface ApplyPlanChangeInput {
+  readonly admit?: (
+    store: SqlStore,
+  ) => Promise<Extract<PlanChangeApplyStoreResult, { status: "rejected" }>["reason"] | null>;
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
   readonly changeId: string;
@@ -413,6 +432,8 @@ export function createPlanChangeRepository(
       return store.transaction(async () => {
         const prior = await replay("plan_change.preview", input.command);
         if (prior !== undefined) return PlanChangePreviewStoreResultSchema.parse(prior);
+        const rejection = await input.admit?.(store);
+        if (rejection != null) return { status: "rejected", reason: rejection };
         const active = await readActive();
         if (active === null) return { status: "rejected", reason: "no-active-plan" };
         if (active.plan_id !== input.planId || active.version !== input.expectedVersion)
@@ -490,6 +511,10 @@ export function createPlanChangeRepository(
         const todayDateKey = input.todayDateKey();
         const prior = await replay("plan_change.apply", input.command);
         if (prior !== undefined) return PlanChangeApplyStoreResultSchema.parse(prior);
+        if (input.decision === "apply") {
+          const rejection = await input.admit?.(store);
+          if (rejection != null) return { status: "rejected", reason: rejection };
+        }
         const active = await readActive();
         if (active === null) return { status: "rejected", reason: "no-active-plan" };
         if (active.plan_id !== input.planId || active.version !== input.expectedVersion)

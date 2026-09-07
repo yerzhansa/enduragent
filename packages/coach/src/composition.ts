@@ -905,6 +905,7 @@ export async function createLocalCoachComposition(
     crypto: globalThis.crypto,
     todayDateKey: planningDateKey,
     now,
+    calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
   });
   const planningRepository = createLegacyPlanRepository(input.context.store);
   const legacyWriterFence = createLegacyWriterFence(input.context.store);

@@ -1594,6 +1594,7 @@ describe("Plan Creation activation", () => {
     const activated = await test.host["plan_creation.activate"](test.request);
     let sequence = 1000;
     const changes = createPlanChangeOperations({
+      calendarConnected: async () => true,
       store: test.store,
       identity: {
         deviceId: async () => "calendar-change-test-device",
@@ -1709,6 +1710,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
       legacy: null,
       creation: null,
       changes: [],
+      changesPaused: null,
       active: {
         planId: activated.planId,
         version: 1,

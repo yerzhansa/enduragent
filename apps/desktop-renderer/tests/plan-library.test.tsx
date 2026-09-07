@@ -251,6 +251,7 @@ describe("Plan library", () => {
           creation: null,
           active,
           closed,
+          changesPaused: null,
           changes: [],
         }}
         readDetails={vi.fn()}
@@ -274,7 +275,15 @@ describe("Plan library", () => {
     };
     render(
       <PlanLibrary
-        library={{ calendarConnected: false, legacy, creation, active, closed, changes: [] }}
+        library={{
+          calendarConnected: false,
+          legacy,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        }}
         readDetails={vi.fn()}
         readFinalDetails={vi.fn()}
       />,
@@ -318,6 +327,7 @@ describe("Plan library", () => {
           creation: null,
           active: null,
           closed: [],
+          changesPaused: null,
           changes: [],
         }}
         readDetails={vi.fn()}
@@ -402,6 +412,7 @@ describe("Plan library", () => {
             creation: null,
             active: { ...active, calendar },
             closed,
+            changesPaused: null,
             changes: [],
           }}
           readDetails={vi.fn()}
@@ -437,6 +448,7 @@ describe("Plan library", () => {
           creation: null,
           active,
           closed,
+          changesPaused: null,
           changes: [],
         },
       },
@@ -456,6 +468,7 @@ describe("Plan library", () => {
         creation: hasCreation ? creation : null,
         active: hasActive ? active : null,
         closed: hasClosed ? closed : [],
+        changesPaused: null,
         changes: [],
       };
       useEnduragentStore.setState({ planLibrary: { status: "ready", value: library } });
@@ -527,7 +540,15 @@ describe("Plan library", () => {
     render(
       <PlanLibrary
         readFinalDetails={vi.fn()}
-        library={{ calendarConnected: false, legacy: null, creation, active, closed, changes: [] }}
+        library={{
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        }}
         readDetails={readDetails}
       />,
     );
@@ -555,6 +576,7 @@ describe("Plan library", () => {
       creation,
       active,
       closed,
+      changesPaused: null,
       changes: [],
     };
     const view = render(
@@ -584,6 +606,7 @@ describe("Plan library", () => {
           creation,
           active: null,
           closed: [],
+          changesPaused: null,
           changes: [],
         }}
         readDetails={vi.fn()}
@@ -599,6 +622,7 @@ describe("Plan library", () => {
           creation: { ...creation, draft: planCreationDraft() },
           active: null,
           closed: [],
+          changesPaused: null,
           changes: [],
         }}
         readDetails={vi.fn()}
@@ -616,6 +640,7 @@ describe("Plan library", () => {
       creation: null,
       active,
       closed,
+      changesPaused: null,
       changes: [],
     };
     useEnduragentStore.setState({
@@ -649,6 +674,7 @@ describe("Plan library", () => {
         creation,
         active,
         closed,
+        changesPaused: null,
         changes: [],
       }));
       const controller = createPlanController({
@@ -738,7 +764,15 @@ describe("Plan library refresh subscription", () => {
       activeView: "plan",
       planLibrary: {
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       },
     });
     const refresh = vi.fn(async () => {
@@ -750,6 +784,7 @@ describe("Plan library refresh subscription", () => {
           creation,
           active: { ...active, calendar: { ...active.calendar, status: "running" } },
           closed,
+          changesPaused: null,
           changes: [],
         },
       });
@@ -782,7 +817,15 @@ describe("Plan library refresh subscription", () => {
       activeView: "plan",
       planLibrary: {
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       },
     });
     const { refresh, unsubscribe } = watchRefresh();
@@ -807,6 +850,7 @@ describe("Plan library refresh subscription", () => {
               },
             },
             closed,
+            changesPaused: null,
             changes: [],
           },
         });
@@ -827,6 +871,7 @@ describe("Plan library refresh subscription", () => {
       legacy: null,
       creation: null,
       closed: [],
+      changesPaused: null,
       changes: [],
       active: {
         ...active,
@@ -910,6 +955,7 @@ describe("Plan library refresh subscription", () => {
       legacy: null,
       creation: null,
       closed: [],
+      changesPaused: null,
       changes: [],
       active: {
         ...active,
@@ -987,6 +1033,7 @@ describe("Plan library refresh subscription", () => {
           legacy: null,
           creation: null,
           closed: [],
+          changesPaused: null,
           changes: [],
           active: {
             ...active,
@@ -1022,6 +1069,7 @@ describe("Plan library refresh subscription", () => {
         creation: null,
         active,
         closed: [],
+        changesPaused: null,
         changes: [],
       };
       useEnduragentStore.setState({
@@ -1086,7 +1134,15 @@ describe("Plan library refresh subscription", () => {
       chat: { ...EMPTY_CHAT_SURFACE, planCreation: null },
       planLibrary: {
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       },
     });
     const { refresh, unsubscribe } = watchRefresh();
@@ -1127,7 +1183,15 @@ describe("Plan library refresh subscription", () => {
       chat: { ...EMPTY_CHAT_SURFACE, planCreation: creation, planCreationLoaded: true },
       planLibrary: {
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       },
     });
     const { refresh, unsubscribe } = watchRefresh();
@@ -1146,7 +1210,15 @@ describe("Plan library refresh subscription", () => {
     useEnduragentStore.setState({
       planLibrary: {
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       },
     });
     const { refresh, unsubscribe } = watchRefresh();
@@ -1219,6 +1291,7 @@ describe("Plan library refresh subscription", () => {
         creation,
         active,
         closed,
+        changesPaused: null,
         changes: [],
       });
       await started;
@@ -1226,7 +1299,15 @@ describe("Plan library refresh subscription", () => {
       expect(listPlans).toHaveBeenCalledOnce();
       expect(store.getState().planLibrary).toEqual({
         status: "ready",
-        value: { calendarConnected: false, legacy: null, creation, active, closed, changes: [] },
+        value: {
+          calendarConnected: false,
+          legacy: null,
+          creation,
+          active,
+          closed,
+          changes: [],
+          changesPaused: null,
+        },
       });
     } finally {
       unsubscribe();
@@ -1277,6 +1358,7 @@ describe("Plan creation title", () => {
             creation: answered,
             active: null,
             closed: [],
+            changesPaused: null,
             changes: [],
           }}
           readDetails={vi.fn()}
@@ -1323,7 +1405,15 @@ it("keeps Plan history below the library while a creation occupies the header", 
     planActions,
     planLibrary: {
       status: "ready",
-      value: { calendarConnected: false, legacy: null, creation, active, closed: [], changes: [] },
+      value: {
+        calendarConnected: false,
+        legacy: null,
+        creation,
+        active,
+        closed: [],
+        changes: [],
+        changesPaused: null,
+      },
     },
   });
   render(<PlanView />);
@@ -1347,6 +1437,7 @@ describe("Stop Plan", () => {
           creation: null,
           active,
           closed,
+          changesPaused: null,
           changes: [],
         }}
         readDetails={vi.fn()}
@@ -1480,6 +1571,7 @@ describe("Stop Plan", () => {
       creation: null,
       active,
       closed,
+      changesPaused: null,
       changes: [],
     };
     const view = render(
@@ -1549,6 +1641,7 @@ describe("Stop Plan", () => {
               creation: null,
               active: null,
               closed: [{ ...history.plan, status: "closed" }],
+              changesPaused: null,
               changes: [],
             },
           },
@@ -1563,6 +1656,7 @@ describe("Stop Plan", () => {
             creation: null,
             active,
             closed,
+            changesPaused: null,
             changes: [],
           },
         },
@@ -1626,6 +1720,7 @@ describe("Stop Plan", () => {
         creation: null,
         active,
         closed,
+        changesPaused: null,
         changes: [],
       });
       await started;

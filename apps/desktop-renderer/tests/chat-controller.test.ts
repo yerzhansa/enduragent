@@ -697,6 +697,7 @@ function subject(
     active: null,
     creation: null,
     closed: [],
+    changesPaused: null,
     changes: [],
   }));
   const openChat = vi.fn();

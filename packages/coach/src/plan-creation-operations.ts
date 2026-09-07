@@ -33,6 +33,7 @@ import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
   createPlanChangeRepository,
+  createPlanWorkoutMatchRepository,
   createPlanLifecycleRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
@@ -60,7 +61,7 @@ import {
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
 
-import { projectPlanChanges } from "./plan-change-operations.js";
+import { projectPlanChanges, readPlanChangesPaused } from "./plan-change-operations.js";
 
 export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
@@ -343,6 +344,15 @@ export function createPlanCreationOperations(input: {
           creation:
             creation === undefined ? null : projectPlanCreationCard(creation, { today: today() }),
           active,
+          changesPaused:
+            active === null
+              ? null
+              : await readPlanChangesPaused({
+                  calendarConnected: async () => calendarConnected(),
+                  syncStatus: () =>
+                    createPlanWorkoutMatchRepository(transactionStore).readSyncStatus(),
+                  now,
+                }),
           changes:
             active === null
               ? []

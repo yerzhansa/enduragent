@@ -168,6 +168,7 @@ function library(planId: string, pending = false): ListPlansResult {
     },
     closed: [],
     creation,
+    changesPaused: null,
     changes: pending
       ? [
           {

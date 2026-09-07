@@ -191,6 +191,7 @@ describe("Plan Change contract", () => {
       active: null,
       closed: [],
       changes: [],
+      changesPaused: null,
     };
     expect(ListPlansResultSchema.parse(empty)).toEqual(empty);
     expect(
@@ -253,7 +254,7 @@ describe("Plan Change contract", () => {
     ).toBe("cancelled");
   });
 
-  it.each(["stale-version", "no-active-plan", "command-conflict", "invalid-intent"])(
+  it.each(["stale-version", "no-active-plan", "command-conflict", "invalid-intent", "sync-stale"])(
     "accepts preview rejection %s",
     (reason) => {
       expect(PlanChangePreviewResultSchema.parse({ status: "rejected", reason })).toEqual({
@@ -263,7 +264,7 @@ describe("Plan Change contract", () => {
     },
   );
 
-  it.each(["stale-version", "not-pending", "no-active-plan", "command-conflict"])(
+  it.each(["stale-version", "not-pending", "no-active-plan", "command-conflict", "sync-stale"])(
     "accepts apply rejection %s",
     (reason) => {
       expect(PlanChangeApplyResultSchema.parse({ status: "rejected", reason })).toEqual({

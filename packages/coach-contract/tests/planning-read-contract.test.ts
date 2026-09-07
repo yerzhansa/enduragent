@@ -84,6 +84,7 @@ describe("Plan library contract", () => {
       active: null,
       closed: [],
       changes: [],
+      changesPaused: null,
     };
     expect(ListPlansParamsSchema.parse({})).toEqual({});
     expect(ListPlansResultSchema.parse(empty)).toEqual(empty);
@@ -109,6 +110,7 @@ describe("Plan library contract", () => {
       active: null,
       closed: [],
       changes: [],
+      changesPaused: null,
     };
     expect(LegacyPlanSummarySchema.parse(legacy)).toEqual(legacy);
     expect(ListPlansResultSchema.parse(library)).toEqual(library);
@@ -125,8 +127,46 @@ describe("Plan library contract", () => {
     expect(ListPlansResultSchema.safeParse(withoutLegacy).success).toBe(false);
   });
 
+  it("requires an explicit pause state and preserves the last successful sync timestamp", () => {
+    const library = {
+      calendarConnected: true,
+      legacy: null,
+      creation: null,
+      active,
+      closed: [],
+      changes: [],
+    };
+    expect(ListPlansResultSchema.safeParse(library).success).toBe(false);
+    for (const changesPaused of [
+      null,
+      { reason: "sync-stale", lastSuccessfulSyncAtMs: Date.parse("1998-12-20T00:00:00Z") },
+    ]) {
+      expect(ListPlansResultSchema.parse({ ...library, changesPaused }).changesPaused).toEqual(
+        changesPaused,
+      );
+    }
+    for (const changesPaused of [
+      undefined,
+      { reason: "sync-stale" },
+      { reason: "sync-stale", lastSuccessfulSyncAtMs: null },
+      { reason: "sync-stale", lastSuccessfulSyncAtMs: "1998-12-20T00:00:00Z" },
+      { reason: "sync-stale", lastSuccessfulSyncAtMs: Infinity },
+      { reason: "not-connected", lastSuccessfulSyncAtMs: 0 },
+      { reason: "sync-stale", lastSuccessfulSyncAtMs: 0, awaitingSync: true },
+    ]) {
+      expect(ListPlansResultSchema.safeParse({ ...library, changesPaused }).success).toBe(false);
+    }
+  });
+
   it("requires an explicit boolean calendar connection independently of library contents", () => {
-    const library = { legacy: null, creation: null, active: null, closed: [], changes: [] };
+    const library = {
+      legacy: null,
+      creation: null,
+      active: null,
+      closed: [],
+      changes: [],
+      changesPaused: null,
+    };
     expect(ListPlansResultSchema.safeParse(library).success).toBe(false);
     expect(ListPlansResultSchema.safeParse({ ...library, calendarConnected: "true" }).success).toBe(
       false,
@@ -158,6 +198,7 @@ describe("Plan library contract", () => {
         active,
         closed: [closed],
         changes: [],
+        changesPaused: null,
       };
       expect(ListPlansResultSchema.parse(library)).toEqual(library);
       expect(ListPlansResultSchema.safeParse({ ...library, active: closed }).success).toBe(false);

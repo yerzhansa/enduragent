@@ -23,6 +23,15 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
 
+export const PlanChangesPausedSchema = z
+  .object({
+    reason: z.literal("sync-stale"),
+    lastSuccessfulSyncAtMs: z.number(),
+  })
+  .strict()
+  .nullable();
+export type PlanChangesPaused = z.infer<typeof PlanChangesPausedSchema>;
+
 export const PlanChangeWorkoutSchema =
   PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element;
 export type PlanChangeWorkout = z.infer<typeof PlanChangeWorkoutSchema>;
@@ -103,7 +112,13 @@ export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
   z
     .object({
       status: z.literal("rejected"),
-      reason: z.enum(["stale-version", "no-active-plan", "command-conflict", "invalid-intent"]),
+      reason: z.enum([
+        "stale-version",
+        "no-active-plan",
+        "command-conflict",
+        "invalid-intent",
+        "sync-stale",
+      ]),
     })
     .strict(),
 ]);
@@ -134,7 +149,13 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
   z
     .object({
       status: z.literal("rejected"),
-      reason: z.enum(["stale-version", "not-pending", "no-active-plan", "command-conflict"]),
+      reason: z.enum([
+        "stale-version",
+        "not-pending",
+        "no-active-plan",
+        "command-conflict",
+        "sync-stale",
+      ]),
     })
     .strict(),
 ]);
