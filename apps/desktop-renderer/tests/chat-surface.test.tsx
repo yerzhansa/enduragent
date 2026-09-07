@@ -3073,6 +3073,39 @@ describe("chat surface", () => {
           status: "review",
           draft: planCreationDraft(),
         };
+        useEnduragentStore.setState({
+          planLibrary: {
+            status: "ready",
+            value: {
+              calendarConnected: false,
+              legacy: null,
+              creation: null,
+              closed: [],
+              changes: [],
+              active: hasActivePlan
+                ? {
+                    planId: "00000000000000000000000003",
+                    version: 2,
+                    name: "Steady autumn",
+                    start: "1998-07-06",
+                    end: "1998-10-04",
+                    weeks: 12,
+                    status: "active",
+                    closeReason: null,
+                    closedAt: null,
+                    activatedAt: "1998-07-06",
+                    creationId: null,
+                    calendar: {
+                      status: "pending",
+                      window: null,
+                      currentThrough: null,
+                      error: null,
+                    },
+                  }
+                : null,
+            },
+          },
+        });
         if (hasActivePlan) {
           useEnduragentStore.getState().setPlanHydration({
             status: "ready",
@@ -3191,6 +3224,27 @@ describe("chat surface", () => {
         status: "review",
         draft: planCreationDraft(),
       };
+      useEnduragentStore.setState({
+        planLibrary: {
+          status: "ready",
+          value: {
+            calendarConnected: false,
+            legacy: null,
+            creation: null,
+            active: null,
+            closed: [],
+            changes: [],
+          },
+        },
+        planLibraryActions: {
+          refresh: vi.fn(async () => {}),
+          closePlan: vi.fn(),
+          readPlanHistory: vi.fn(),
+          startCreation: vi.fn(),
+          continueCreation: vi.fn(),
+          changeInChat: vi.fn(),
+        },
+      });
       actions.confirmPlanCreationActivate = vi.fn(() =>
         setChat({
           planCreationError:
@@ -3206,6 +3260,9 @@ describe("chat surface", () => {
       });
       render(<Harness />);
       const dialog = screen.getByRole("dialog");
+      await waitFor(() =>
+        expect(within(dialog).getByRole("button", { name: "Activate Plan" })).toBeEnabled(),
+      );
       await userEvent.click(within(dialog).getByRole("button", { name: "Activate Plan" }));
       expect(
         within(dialog).getByText(

@@ -174,6 +174,22 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
     return this.beginAttempt(id, nowMs);
   }
 
+  async readLatestJobsForLibrary(): Promise<readonly PlanReconciliationJobRecord[]> {
+    const latest = new Map<string, PlanReconciliationJobRecord>();
+    for (const job of [...this.jobs.values()].sort(
+      (left, right) =>
+        left.planId.localeCompare(right.planId) ||
+        left.kind.localeCompare(right.kind) ||
+        right.windowStartDateKey - left.windowStartDateKey ||
+        right.windowEndDateKey - left.windowEndDateKey ||
+        right.id.localeCompare(left.id),
+    )) {
+      const key = `${job.planId}:${job.kind}`;
+      if (!latest.has(key)) latest.set(key, job);
+    }
+    return Object.freeze([...latest.values()]);
+  }
+
   async readLatestJobByWindow(
     planId: string,
     kind: PlanReconciliationKind,

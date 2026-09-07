@@ -33,8 +33,17 @@ function totals(draft: CreationDraft): ScheduleChangeTotals["before"] {
   return { plan: weeks.reduce((sum, week) => sum + week.minutes, 0), weeks };
 }
 
-function mutable(workout: Workout, todayDateKey: number): boolean {
-  return !workout.pinned && workout.date !== null && dateKeyFromText(workout.date) >= todayDateKey;
+function mutable(
+  workout: Workout,
+  todayDateKey: number,
+  completedWorkoutIds: ReadonlySet<string>,
+): boolean {
+  return (
+    !workout.pinned &&
+    !completedWorkoutIds.has(workout.id) &&
+    workout.date !== null &&
+    dateKeyFromText(workout.date) >= todayDateKey
+  );
 }
 
 function changed(before: Workout, after: Workout): boolean {
@@ -51,10 +60,12 @@ export function applyScheduleIntent<Draft extends CreationDraft>({
   draft,
   intent,
   todayDateKey,
+  completedWorkoutIds = new Set<string>(),
 }: {
   draft: Draft;
   intent: ScheduleIntent;
   todayDateKey: number;
+  completedWorkoutIds?: ReadonlySet<string>;
 }): { after: Draft; diff: ScheduleChangeDiff[]; totals: ScheduleChangeTotals } {
   const after = structuredClone(draft);
   for (const week of after.weeks) {
@@ -62,7 +73,7 @@ export function applyScheduleIntent<Draft extends CreationDraft>({
       const budgetMinutes = Math.floor(intent.hours * 60);
       let used = totalMinutes(week.workouts);
       for (const workout of [...week.workouts].reverse()) {
-        if (!mutable(workout, todayDateKey) || used <= budgetMinutes) continue;
+        if (!mutable(workout, todayDateKey, completedWorkoutIds) || used <= budgetMinutes) continue;
         const remaining = workout.minutes - (used - budgetMinutes);
         const minutes = remaining < 15 ? 0 : remaining;
         used -= workout.minutes - minutes;
@@ -70,7 +81,7 @@ export function applyScheduleIntent<Draft extends CreationDraft>({
       }
     } else {
       for (const workout of week.workouts) {
-        if (!mutable(workout, todayDateKey) || workout.date === null) continue;
+        if (!mutable(workout, todayDateKey, completedWorkoutIds) || workout.date === null) continue;
         const weekday = weekdayForDateKey(dateKeyFromText(workout.date)) || 7;
         switch (intent.kind) {
           case "weekday-duration":

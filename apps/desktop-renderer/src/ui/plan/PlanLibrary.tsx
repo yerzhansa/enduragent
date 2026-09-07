@@ -154,12 +154,15 @@ export function PlanLibrary(props: {
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discard = useRef<HTMLButtonElement>(null);
+  const continueButton = useRef<HTMLButtonElement>(null);
+  const changeButton = useRef<HTMLButtonElement>(null);
   const stop = useRef<HTMLButtonElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
   const [closing, setClosing] = useState<PlanSummary | null>(null);
-  const [saving, setSaving] = useState(false);
+  const closeAttempt = useEnduragentStore((state) => state.planCloseAttempt);
+  const setCloseAttempt = useEnduragentStore((state) => state.setPlanCloseAttempt);
+  const saving = closeAttempt?.busy ?? false;
   const [closeError, setCloseError] = useState<string | null>(null);
-  const savePending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -168,27 +171,36 @@ export function PlanLibrary(props: {
     };
   }, []);
   const confirmClose = async (): Promise<void> => {
-    if (closing === null || actions === null || savePending.current) return;
-    savePending.current = true;
-    setSaving(true);
+    const pending = useEnduragentStore.getState().planCloseAttempt;
+    if (closing === null || actions === null || pending?.busy) return;
+    setCloseError(null);
+    const command =
+      pending?.command.planId === closing.planId
+        ? pending.command
+        : {
+            commandId: crypto.randomUUID(),
+            planId: closing.planId,
+            expectedVersion: closing.version,
+          };
+    setCloseAttempt({ command, busy: true });
     let result;
     try {
-      result = await actions.closePlan({
-        planId: closing.planId,
-        expectedVersion: closing.version,
-      });
+      result = await actions.closePlan(command);
     } catch {
+      setCloseAttempt({ command, busy: false });
       if (mounted.current) {
-        setCloseError("Stopping could not be saved locally. Your Plan is unchanged.");
-        setClosing(null);
-        setSaving(false);
+        setCloseError(
+          "Stopping could not be confirmed. The library will show the current state after refresh.",
+        );
       }
-      savePending.current = false;
+      void actions.refresh();
       return;
     }
-    savePending.current = false;
-    if (!mounted.current) return;
-    setSaving(false);
+    setCloseAttempt(null);
+    if (!mounted.current) {
+      void actions.refresh();
+      return;
+    }
     if (result.status === "rejected") {
       if (result.reason === "stale-version") {
         setCloseError("The Plan changed. Review its current details before stopping.");
@@ -211,10 +223,17 @@ export function PlanLibrary(props: {
     creation?.answeredSummaries.length ??
     0;
   useEffect(() => {
-    if (focusRequest?.target === "discard") {
-      queueMicrotask(() => discard.current?.focus());
-    }
-  }, [focusRequest]);
+    const requestedTarget = focusRequest?.target;
+    const target =
+      requestedTarget === "discard"
+        ? discard
+        : requestedTarget === "continue"
+          ? continueButton
+          : requestedTarget === "change"
+            ? changeButton
+            : null;
+    if (target !== null) queueMicrotask(() => target.current?.focus());
+  }, [focusRequest, busy, creation?.creationId, active?.planId]);
   return (
     <section aria-label="Plan library" className="grid min-w-0 gap-inset">
       {closeError === null || closing !== null ? null : (
@@ -258,7 +277,9 @@ export function PlanLibrary(props: {
             <Button
               variant="destructive-solid"
               size="lg"
-              disabled={saving || actions === null || closeError !== null}
+              disabled={
+                saving || actions === null || (closeError !== null && closeAttempt === null)
+              }
               onClick={() => void confirmClose()}
             >
               Stop Plan
@@ -302,6 +323,7 @@ export function PlanLibrary(props: {
               Discard
             </Button>
             <Button
+              ref={continueButton}
               disabled={busy || actions === null}
               onClick={() => actions?.continueCreation(creation)}
             >
@@ -346,7 +368,11 @@ export function PlanLibrary(props: {
             <Button variant="outline" onClick={props.readDetails}>
               Read Plan details
             </Button>
-            <Button disabled={actions === null} onClick={() => actions?.changeInChat()}>
+            <Button
+              ref={changeButton}
+              disabled={actions === null}
+              onClick={() => actions?.changeInChat()}
+            >
               Change in Chat
             </Button>
           </div>

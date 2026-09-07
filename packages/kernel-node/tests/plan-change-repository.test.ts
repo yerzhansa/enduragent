@@ -97,7 +97,12 @@ describe("Plan Change repository", () => {
   });
   afterEach(async () => store.close());
 
-  const activate = async () => {
+  const activate = async (pinned = false) => {
+    const removed = pinned ? { ...removedWorkout, pinned: true } : removedWorkout;
+    const snapshot = {
+      ...draft,
+      weeks: [{ ...draft.weeks[0], workouts: [keptWorkout, removed, poolWorkout] }],
+    };
     const creation = createPlanCreationRepository(store);
     await creation.start({
       command: stamp("start", 1),
@@ -111,7 +116,7 @@ describe("Plan Change repository", () => {
       draftId: id("2"),
       inputSnapshotJson: "{}",
       inputFingerprint: "e".repeat(64),
-      outputSnapshotJson: JSON.stringify(draft),
+      outputSnapshotJson: JSON.stringify(snapshot),
       builderId: "cycling",
       builderVersion: "1",
       activationFingerprint: fingerprint,
@@ -119,6 +124,7 @@ describe("Plan Change repository", () => {
     const command = stamp("activate", 3);
     await creation.activate({
       command,
+      incumbent: null,
       creationId: id("1"),
       expectedVersion: 2,
       activatedAt: "1998-01-01",
@@ -145,7 +151,7 @@ describe("Plan Change repository", () => {
           hlcPhysicalMs: command.hlcPhysicalMs,
           hlcCounter: command.hlcCounter,
         },
-        workouts: [keptWorkout, removedWorkout].map((workout, index) => ({
+        workouts: [keptWorkout, removed].map((workout, index) => ({
           id: id(String(31 + index)),
           planId,
           dateKey: 19980101 + index,
@@ -200,6 +206,57 @@ describe("Plan Change repository", () => {
         delete: [id("32")],
       };
     },
+  });
+
+  it.each(["delete", "update"] as const)(
+    "rejects a %s after midnight and leaves the preview pending without any writes",
+    async (operation) => {
+      await activate();
+      const changed = { ...removedWorkout, minutes: 30 };
+      const next =
+        operation === "delete"
+          ? after
+          : {
+              ...draft,
+              weeks: [{ ...draft.weeks[0], workouts: [keptWorkout, changed, poolWorkout] }],
+            };
+      await repository.preview({
+        ...previewInput(),
+        build: () => ({
+          afterSnapshotJson: JSON.stringify(next),
+          envelope: { ...envelope, diff: [] },
+        }),
+      });
+      const before = await dumpStore(store);
+      const materialize = vi.fn(applyInput().materialize);
+      await expect(
+        repository.apply({
+          ...applyInput(),
+          todayDateKey: 19980103,
+          materialize,
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+      expect(materialize).not.toHaveBeenCalled();
+      expect(await dumpStore(store)).toBe(before);
+      expect(await store.get("SELECT id FROM plan_workout WHERE id=?", [id("32")])).toEqual({
+        id: id("32"),
+      });
+      await expect(repository.listChanges(planId)).resolves.toMatchObject([
+        { status: "pending", resultRevisionNumber: null },
+      ]);
+    },
+  );
+
+  it("rejects changes to a pinned Workout in the saved revision", async () => {
+    await activate(true);
+    await repository.preview(previewInput());
+    const before = await dumpStore(store);
+    await expect(repository.apply(applyInput())).resolves.toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    expect(await dumpStore(store)).toBe(before);
+    await expect(repository.listChanges(planId)).resolves.toMatchObject([{ status: "pending" }]);
   });
 
   it("previews the current revision without changing training or Plan version", async () => {

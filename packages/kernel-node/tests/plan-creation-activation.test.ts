@@ -31,13 +31,17 @@ const draft = {
   weeks: [{ workouts: [datedWorkout, poolWorkout] }, { workouts: [] }],
 };
 
-const activationInput = (key = "1") => {
+const activationInput = (
+  key = "1",
+  incumbent: Parameters<PlanCreationRepository["activate"]>[0]["incumbent"] = null,
+) => {
   const command = stamp(`activate-${key}`, Number(key) * 10 + 2);
   const planId = id(`1${key}`);
   return {
     command,
     creationId: id(key),
     expectedVersion: 2,
+    incumbent,
     activatedAt: "1998-01-01",
     todayDateKey: 19980101,
     mirrorJobId: id(`5${key}`),
@@ -122,6 +126,15 @@ describe("Plan Creation activation repository", () => {
       activatedAt: "1998-01-01",
     });
     await expect(repository.readUnfinished()).resolves.toBeUndefined();
+    await expect(start()).resolves.toMatchObject({
+      outcome: "replayed",
+      snapshot: {
+        id: id("1"),
+        status: "activated",
+        version: 3,
+        currentDraft: { revisionNumber: 1 },
+      },
+    });
     expect(
       await store.get("SELECT status,version,activated_plan_id,terminal_at_ms FROM plan_creation"),
     ).toEqual({
@@ -190,7 +203,9 @@ describe("Plan Creation activation repository", () => {
     await review();
     const first = await repository.activate(activationInput());
     await review("2");
-    const second = await repository.activate(activationInput("2"));
+    const second = await repository.activate(
+      activationInput("2", { planId: id("11"), version: 1 }),
+    );
     expect(second.closedPlanId).toBe(first.planId);
     expect(
       await store.get(
@@ -259,12 +274,47 @@ describe("Plan Creation activation repository", () => {
     expect(await dumpStore(store)).toBe(before);
   });
 
+  it.each(["version", "closed", "different", "unexpected"])(
+    "rejects a changed incumbent when it is %s without changing stored rows",
+    async (change) => {
+      await review();
+      const first = await repository.activate(activationInput());
+      await review("2");
+      if (change === "version")
+        await store.run("UPDATE planning_plan SET version=version+1 WHERE plan_id=?", [
+          first.planId,
+        ]);
+      if (change === "closed") {
+        await store.run(
+          "UPDATE planning_plan SET status='closed',close_reason='stopped',close_actor=?,closed_at_ms=?,updated_at_ms=?,version=version+1 WHERE plan_id=?",
+          ["test-device-1998", nowMs + 23, nowMs + 23, first.planId],
+        );
+        await store.run("UPDATE plan SET status='ended' WHERE id=?", [first.planId]);
+      }
+      const before = await dumpStore(store);
+      await expect(
+        repository.activate(
+          activationInput(
+            "2",
+            change === "unexpected"
+              ? null
+              : {
+                  planId: change === "different" ? id("99") : first.planId,
+                  version: 1,
+                },
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "version-conflict" });
+      expect(await dumpStore(store)).toBe(before);
+    },
+  );
+
   it("uses civil-day windows and keeps cleanup nonempty after the incumbent's final day", async () => {
     await review();
     await repository.activate(activationInput());
     await review("2");
     await repository.activate({
-      ...activationInput("2"),
+      ...activationInput("2", { planId: id("11"), version: 1 }),
       activatedAt: "1998-01-31",
       todayDateKey: 19980131,
     });
@@ -306,7 +356,7 @@ describe("Plan Creation activation repository", () => {
       const before = await dumpStore(store);
       await expect(
         repository.activate({
-          ...activationInput("2"),
+          ...activationInput("2", { planId: id("11"), version: 1 }),
           expectedVersion: kind === "stale" ? 3 : kind === "missing" || kind === "version" ? 1 : 2,
         }),
       ).rejects.toMatchObject({
@@ -369,12 +419,14 @@ describe("Plan Creation activation repository", () => {
       close: () => store.close(),
       transaction: (operation) => store.transaction(operation),
     });
-    await expect(failing.activate(activationInput("2"))).rejects.toThrow(
-      "Synthetic activation ledger failure",
-    );
+    await expect(
+      failing.activate(activationInput("2", { planId: id("11"), version: 1 })),
+    ).rejects.toThrow("Synthetic activation ledger failure");
     expect(closureObserved).toBe(true);
     expect(await dumpStore(store)).toBe(before);
-    await expect(repository.activate(activationInput("2"))).resolves.toMatchObject({
+    await expect(
+      repository.activate(activationInput("2", { planId: id("11"), version: 1 })),
+    ).resolves.toMatchObject({
       closedPlanId: id("11"),
     });
   });

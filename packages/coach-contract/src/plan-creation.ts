@@ -671,7 +671,12 @@ export const PlanCreationPreviewRpcResultSchema = z.discriminatedUnion("status",
 ]);
 export type PlanCreationPreviewRpcResult = z.infer<typeof PlanCreationPreviewRpcResultSchema>;
 
-export const PlanCreationActivateRpcParamsSchema = PlanCreationDiscardRpcParamsSchema;
+export const PlanCreationActivateRpcParamsSchema = PlanCreationDiscardRpcParamsSchema.extend({
+  incumbent: z
+    .object({ planId: PlanCreationUlidSchema, version: z.number().int().positive() })
+    .strict()
+    .nullable(),
+});
 export type PlanCreationActivateRpcParams = z.infer<typeof PlanCreationActivateRpcParamsSchema>;
 
 export const PlanCreationActivateRpcResultSchema = z

@@ -2326,6 +2326,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
           method: "plan_creation.activate",
           params: {
             commandId: "activate",
+            incumbent: null,
             creationId: "01J00000000000000000000000",
             expectedVersion: 2,
           },
@@ -2542,7 +2543,12 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     };
     const previewParams = { commandId: "preview-1", creationId, expectedVersion: 2 };
     const discardParams = { commandId: "discard-1", creationId, expectedVersion: 2 };
-    const activateParams = { commandId: "activate-1", creationId, expectedVersion: 2 };
+    const activateParams = {
+      commandId: "activate-1",
+      incumbent: null,
+      creationId,
+      expectedVersion: 2,
+    };
     const closeParams = {
       commandId: "close-1",
       planId: activationResult.planId,

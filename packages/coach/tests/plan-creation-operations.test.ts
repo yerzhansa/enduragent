@@ -33,6 +33,9 @@ import { readPlanCreationAnswers } from "../src/plan-creation-answers.js";
 const unusedStore = () => {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
+  void store.exec(
+    "CREATE TABLE planning_command (command_name TEXT, command_id TEXT, request_digest TEXT, status TEXT, result_json TEXT, created_at_ms INTEGER,aggregate_refs_json TEXT,error_code TEXT,error_json TEXT,version INTEGER,updated_at_ms INTEGER,device_id TEXT,hlc_physical_ms INTEGER,hlc_counter INTEGER)",
+  );
   return store;
 };
 
@@ -914,9 +917,13 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     store,
     repository,
     host,
+    started,
     ready,
     answer,
     card: () => card,
+    setCardVersion: (version: number) => {
+      card = { ...card, version };
+    },
     setConnected: (value: boolean) => {
       connected = value;
     },
@@ -928,6 +935,198 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     },
   };
 }
+
+describe("Plan Creation command replay", () => {
+  it("projects start and answer results from their recorded versions", async () => {
+    const test = await previewHarness();
+    await test.host["plan_creation.discard"]({
+      commandId: "discard-initial",
+      creationId: test.card().creationId,
+      expectedVersion: 1,
+    });
+    const startRequest = { commandId: "recorded-start" };
+    const command = (request: { commandId: string }) => ({
+      commandId: request.commandId,
+      requestDigest: createHash("sha256").update(canonicalJson(request)).digest("hex"),
+      nowMs: 883_612_800_000,
+      deviceId: "preview-test-device",
+      hlcPhysicalMs: 883_612_800_000,
+      hlcCounter: 0,
+    });
+    const started = await test.repository.start({
+      command: command(startRequest),
+      creationId: id("800"),
+      seed: { schemaVersion: 1, eventCandidates: [] },
+    });
+    const originalStart = {
+      status: "started",
+      outcome: "created",
+      planCreation: projectPlanCreationCard(started.snapshot, { today }),
+    };
+    const answerRequest = {
+      commandId: "recorded-answer",
+      creationId: started.snapshot.id,
+      expectedVersion: 1,
+      answer: fitnessGoal,
+    };
+    const result = await test.repository.recordAnswer({
+      command: command(answerRequest),
+      creationId: started.snapshot.id,
+      expectedVersion: 1,
+      answerId: id("801"),
+      answerKey: "goal",
+      valueJson: canonicalJson({ answer: fitnessGoal, source: { kind: "athlete" } }),
+    });
+    const originalAnswer = {
+      status: "answered",
+      planCreation: projectPlanCreationCard(result.snapshot, { today }),
+    };
+    await test.host["plan_creation.discard"]({
+      commandId: "discard-recorded",
+      creationId: started.snapshot.id,
+      expectedVersion: 2,
+    });
+    const next = await test.host["plan_creation.start"]({ commandId: "next" });
+    await expect(test.host["plan_creation.start"](startRequest)).resolves.toEqual(originalStart);
+    await expect(test.host["plan_creation.answer"](answerRequest)).resolves.toEqual(originalAnswer);
+    expect(next).toMatchObject({ status: "started" });
+    expect(await test.host.readCard()).not.toMatchObject({ creationId: started.snapshot.id });
+  });
+
+  it("replays the draft and status that existed at the command version", async () => {
+    const test = await previewHarness();
+    const ready = await test.ready();
+    const beforePreviewRequest = { commandId: "resume-before-preview" };
+    const beforePreview = await test.host["plan_creation.start"](beforePreviewRequest);
+    const preview = await test.host["plan_creation.preview"]({
+      commandId: "preview",
+      creationId: ready.creationId,
+      expectedVersion: ready.version,
+    });
+    if (preview.status !== "previewed") throw new Error("Expected preview");
+    await expect(test.host["plan_creation.start"](beforePreviewRequest)).resolves.toEqual(
+      beforePreview,
+    );
+    const reviewStartRequest = { commandId: "resume-review" };
+    const reviewStart = await test.host["plan_creation.start"](reviewStartRequest);
+    const answerRequest = {
+      commandId: "edit-length",
+      creationId: ready.creationId,
+      expectedVersion: preview.planCreation.version,
+      answer: { kind: "plan-length", weeks: 8 } as const,
+    };
+    const originalAnswer = await test.host["plan_creation.answer"](answerRequest);
+    if (originalAnswer.status !== "answered") throw new Error("Expected answer");
+    expect(originalAnswer.planCreation).toMatchObject({ status: "review", draftStale: true });
+    const rebuilt = await test.host["plan_creation.preview"]({
+      commandId: "rebuild",
+      creationId: ready.creationId,
+      expectedVersion: originalAnswer.planCreation.version,
+    });
+    if (rebuilt.status !== "previewed") throw new Error("Expected rebuilt preview");
+    await expect(test.host["plan_creation.answer"](answerRequest)).resolves.toEqual(originalAnswer);
+    await test.host["plan_creation.discard"]({
+      commandId: "discard-review",
+      creationId: ready.creationId,
+      expectedVersion: rebuilt.planCreation.version,
+    });
+    await test.host["plan_creation.start"]({ commandId: "start-next" });
+    await expect(test.host["plan_creation.start"](beforePreviewRequest)).resolves.toEqual(
+      beforePreview,
+    );
+    await expect(test.host["plan_creation.start"](reviewStartRequest)).resolves.toEqual(
+      reviewStart,
+    );
+    await expect(test.host["plan_creation.answer"](answerRequest)).resolves.toEqual(originalAnswer);
+  });
+
+  it.each(["discarded", "activated"] as const)(
+    "returns the original start and answer after %s and another start",
+    async (terminal) => {
+      const test = await previewHarness();
+      await test.answer(fitnessGoal);
+      const resumed = await test.host["plan_creation.start"]({ commandId: "resume" });
+      const request = {
+        commandId: "original-answer",
+        creationId: test.card().creationId,
+        expectedVersion: test.card().version,
+        answer: { kind: "plan-length", weeks: 4 } as const,
+      };
+      const originalAnswer = await test.host["plan_creation.answer"](request);
+      expect(originalAnswer.status).toBe("answered");
+      const current = await test.repository.readUnfinished();
+      if (current === undefined) throw new Error("Expected creation");
+      test.setCardVersion(current.version);
+      const ready = await test.ready();
+      await expect(test.host["plan_creation.answer"](request)).resolves.toEqual(originalAnswer);
+      if (terminal === "discarded") {
+        await test.host["plan_creation.discard"]({
+          commandId: "discard",
+          creationId: ready.creationId,
+          expectedVersion: ready.version,
+        });
+      } else {
+        const preview = await test.host["plan_creation.preview"]({
+          commandId: "preview",
+          creationId: ready.creationId,
+          expectedVersion: ready.version,
+        });
+        if (preview.status !== "previewed") throw new Error("Expected preview");
+        await test.host["plan_creation.activate"]({
+          commandId: "activate",
+          creationId: ready.creationId,
+          expectedVersion: preview.planCreation.version,
+          incumbent: null,
+        });
+      }
+      test.advanceDay();
+      await expect(test.host["plan_creation.answer"](request)).resolves.toEqual(originalAnswer);
+      const next = await test.host["plan_creation.start"]({ commandId: "next" });
+      if (next.status !== "started") throw new Error("Expected next creation");
+      const before = await test.store.all("SELECT * FROM plan_creation");
+      const readUnfinished = vi.spyOn(test.repository, "readUnfinished");
+      const unavailable = () => {
+        throw new Error("Replay must use the recorded result");
+      };
+      const restarted = createPlanCreationOperations({
+        store: test.store,
+        repository: test.repository,
+        identity: {
+          newUlid: () => id("999"),
+          deviceId: async () => "preview-test-device",
+          hlcStamp: () => ({ physicalMs: 883_612_800_000, counter: 0 }),
+        },
+        crypto: globalThis.crypto,
+        eventCandidates: { read: unavailable },
+        baselineEvidence: { read: unavailable },
+        today: () => today,
+      });
+      await expect(restarted["plan_creation.start"]({ commandId: "start" })).resolves.toEqual(
+        test.started,
+      );
+      await expect(restarted["plan_creation.answer"](request)).resolves.toEqual(originalAnswer);
+      await expect(test.host["plan_creation.start"]({ commandId: "start" })).resolves.toEqual(
+        test.started,
+      );
+      await expect(test.host["plan_creation.start"]({ commandId: "resume" })).resolves.toEqual(
+        resumed,
+      );
+      await expect(test.host["plan_creation.answer"](request)).resolves.toEqual(originalAnswer);
+      await expect(
+        test.host["plan_creation.answer"]({ ...request, creationId: next.planCreation.creationId }),
+      ).resolves.toMatchObject({
+        status: "rejected",
+        reason: "command-conflict",
+        planCreation: null,
+      });
+      expect(readUnfinished).not.toHaveBeenCalled();
+      expect(await test.repository.readUnfinished()).toMatchObject({
+        id: next.planCreation.creationId,
+      });
+      expect(await test.store.all("SELECT * FROM plan_creation")).toEqual(before);
+    },
+  );
+});
 
 describe("Plan Creation preview", () => {
   it("stores a complete Draft, replays its result, and rebuilds stale review answers", async () => {
@@ -1103,6 +1302,7 @@ describe("Plan Creation activation", () => {
       draft: result.planCreation.draft,
       request: {
         commandId: "activate",
+        incumbent: null,
         creationId: card.creationId,
         expectedVersion: result.planCreation.version,
       },
@@ -1163,6 +1363,59 @@ describe("Plan Creation activation", () => {
     });
     test.setConnected(false);
     expect((await test.host["plan.list"]({})).calendarConnected).toBe(false);
+  });
+
+  it("keeps library database reads constant as closed Plans are added", async () => {
+    const test = await review();
+    const activated = await test.host["plan_creation.activate"](test.request);
+    const all = vi.spyOn(test.store, "all");
+    const get = vi.spyOn(test.store, "get");
+    const initial = await test.host["plan.list"]({});
+    expect(initial.active?.planId).toBe(activated.planId);
+    expect(initial.closed).toEqual([]);
+    const initialQueries = all.mock.calls.length + get.mock.calls.length;
+    expect(initialQueries).toBeGreaterThan(0);
+    const reconciliation = createPlanReconciliationRepository(test.store);
+    for (const number of [800, 801, 802]) {
+      const planId = id(String(number));
+      await test.store.run(
+        `INSERT INTO plan (
+          id,origin_id,name,primary_goal,start_date_key,target_date_key,status,kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+        ) SELECT ?,origin_id,name,primary_goal,start_date_key,target_date_key,'ended',kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+          FROM plan WHERE id=?`,
+        [planId, activated.planId],
+      );
+      await test.store.run(
+        `INSERT INTO planning_plan (
+          plan_id,status,version,current_revision_number,activated_at_ms,closed_at_ms,
+          close_reason,close_actor,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+        ) SELECT ?,'closed',2,current_revision_number,activated_at_ms,updated_at_ms,
+          'stopped',device_id,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+          FROM planning_plan WHERE plan_id=?`,
+        [planId, activated.planId],
+      );
+      await reconciliation.createOrGetJob({
+        id: id(String(number + 100)),
+        planId,
+        kind: "cleanup",
+        windowStartDateKey: 19980902,
+        windowEndDateKey: 19980929,
+        createdAtMs: 904_737_600_000,
+      });
+    }
+    all.mockClear();
+    get.mockClear();
+    const expanded = await test.host["plan.list"]({});
+    expect(expanded.active).toEqual(initial.active);
+    expect(expanded.closed).toHaveLength(3);
+    expect(expanded.closed.map((plan) => plan.calendar.window)).toEqual([
+      { start: "1998-09-02", end: "1998-09-29" },
+      { start: "1998-09-02", end: "1998-09-29" },
+      { start: "1998-09-02", end: "1998-09-29" },
+    ]);
+    expect(all.mock.calls.length + get.mock.calls.length).toBe(initialQueries);
   });
 
   it("projects pending, running, failed and verified mirror work across connection changes", async () => {
@@ -1431,7 +1684,10 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     const before = test.host["plan.list"]({});
     await entered;
     expect(transaction).toHaveBeenCalledTimes(1);
-    const activation = test.host["plan_creation.activate"](test.request);
+    const activation = test.host["plan_creation.activate"]({
+      ...test.request,
+      incumbent: { planId: incumbentId, version: 1 },
+    });
     await vi.waitFor(() => expect(transaction).toHaveBeenCalledTimes(2));
     releaseRead();
     await expect(before).resolves.toMatchObject({
@@ -1649,6 +1905,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     expect(draft.weeks).toHaveLength(12);
     const activated = await test.host["plan_creation.activate"]({
       commandId: "activate",
+      incumbent: null,
       creationId: card.creationId,
       expectedVersion: reviewed.planCreation.version,
     });
@@ -1703,6 +1960,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     const card = await test.ready();
     const request = {
       commandId: "activate",
+      incumbent: null,
       creationId: card.creationId,
       expectedVersion: card.version,
     };
@@ -1723,7 +1981,8 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     const test = await review();
     const edited = await answered(
       test.host["plan_creation.answer"]({
-        ...test.request,
+        creationId: test.request.creationId,
+        expectedVersion: test.request.expectedVersion,
         commandId: "edit",
         answer: { kind: "plan-length", weeks: 8 },
       }),

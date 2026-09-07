@@ -100,9 +100,10 @@ export function PlanCreationActivateDialog(): ReactElement | null {
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const actions = useEnduragentStore((state) => state.chatActions);
   const knowledge = useEnduragentStore((state) => state.chat.planCreationActivePlanKnowledge);
-  const activePlanName = knowledge.kind === "active" ? knowledge.name : null;
+
   const library = useEnduragentStore((state) => state.planLibrary.value);
   const libraryStatus = useEnduragentStore((state) => state.planLibrary.status);
+  const activePlanName = library?.active?.name ?? null;
   const libraryActions = useEnduragentStore((state) => state.planLibraryActions);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const [connection, setConnection] = useState<"checking" | "fresh" | "stale">("checking");
@@ -190,7 +191,13 @@ export function PlanCreationActivateDialog(): ReactElement | null {
           <Button
             variant="default"
             size="lg"
-            disabled={busy || actions === null}
+            disabled={
+              busy ||
+              actions === null ||
+              connection !== "fresh" ||
+              libraryStatus !== "ready" ||
+              library === null
+            }
             onClick={confirmActivation}
           >
             {activePlanName === null ? "Activate Plan" : "Activate new Plan"}

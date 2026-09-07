@@ -64,7 +64,7 @@ export type PlanLibraryState =
   | { readonly status: "unavailable"; readonly value: ListPlansResult | null };
 
 export interface PlanLibraryActions {
-  closePlan(input: Omit<PlanCloseRpcParams, "commandId">): Promise<PlanCloseResult>;
+  closePlan(input: PlanCloseRpcParams): Promise<PlanCloseResult>;
   readPlanHistory(planId: string): Promise<PlanHistoryResult>;
   refresh(): Promise<void>;
   startCreation(): void;
@@ -164,6 +164,11 @@ export interface PlanSlice {
   readonly plan: PlanSurfaceState;
   readonly planSurface: PlanReadSurfaceState;
   readonly planLibrary: PlanLibraryState;
+  readonly planCloseAttempt: {
+    readonly command: PlanCloseRpcParams;
+    readonly busy: boolean;
+  } | null;
+  setPlanCloseAttempt: (attempt: PlanSlice["planCloseAttempt"]) => void;
   readonly planLibraryActions: PlanLibraryActions | null;
   setPlanLibrary: (value: PlanLibraryState) => void;
   bindPlanLibraryActions: (actions: PlanLibraryActions | null) => void;
@@ -212,6 +217,10 @@ export const createPlanSlice: StateCreator<EnduragentState, [], [], PlanSlice> =
   plan: EMPTY_PLAN_SURFACE,
   planLibrary: { status: "loading", value: null },
   planLibraryActions: null,
+  planCloseAttempt: null,
+  setPlanCloseAttempt(attempt) {
+    set({ planCloseAttempt: attempt });
+  },
   setPlanLibrary(value) {
     set({ planLibrary: value });
   },

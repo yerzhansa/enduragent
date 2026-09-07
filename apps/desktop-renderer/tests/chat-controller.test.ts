@@ -5,11 +5,13 @@ import {
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientProtocolError,
+  CoachRpcRemoteError,
   type CoachClient,
   type CoachClientCallOptions,
 } from "@enduragent/coach-client";
 import type {
   GetPlanStateRpcResult,
+  ListPlansResult,
   ChatAttachmentComposerReadModel,
   ChatQueueSnapshot,
   CoachDecisionReadModel,
@@ -688,6 +690,15 @@ function subject(
   const refresh = vi.fn(refreshImplementation);
   const refreshSpend = vi.fn(spendRefreshImplementation);
   const refreshPlan = vi.fn(async () => {});
+  const refreshPlanLibrary = vi.fn(async () => {});
+  const readPlanLibrary = vi.fn((): ListPlansResult => ({
+    calendarConnected: false,
+    legacy: null,
+    active: null,
+    creation: null,
+    closed: [],
+    changes: [],
+  }));
   const openChat = vi.fn();
   const provider: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => first),
@@ -713,6 +724,8 @@ function subject(
     },
     refreshTrainingContext: refresh,
     refreshPlan,
+    refreshPlanLibrary,
+    readPlanLibrary,
     openChat,
     refreshSpend,
     canChat,
@@ -744,6 +757,8 @@ function subject(
     refresh,
     refreshSpend,
     refreshPlan,
+    refreshPlanLibrary,
+    readPlanLibrary,
     openChat,
     openPlanningRequest,
   };
@@ -1964,7 +1979,7 @@ describe("chat controller", () => {
     expect(getPlanState).toHaveBeenCalledOnce();
     expect(controls.at(-1)?.planCreation).toMatchObject({
       activePlanKnowledge: { kind: "unknown" },
-      error: "Activation could not be saved locally. Your previous Plan is unchanged.",
+      error: "The current Plan could not be read. Refresh the Plan library before activating.",
       activateConfirmationOpen: false,
       busy: false,
     });
@@ -2009,6 +2024,7 @@ describe("chat controller", () => {
       commandId: expect.any(String),
       creationId: card.creationId,
       expectedVersion: card.version,
+      incumbent: null,
     });
     expect(controls.at(-1)?.planCreation).toMatchObject({
       busy: true,
@@ -2030,7 +2046,7 @@ describe("chat controller", () => {
     expect(refreshPlan).toHaveBeenCalledOnce();
   });
 
-  it("keeps a failed activation open and retries with a fresh command id", async () => {
+  it("keeps an unconfirmed activation open and retries the exact command", async () => {
     const card: PlanCreationCardModel = {
       creationId: "01J00000000000000000000000",
       version: 3,
@@ -2052,7 +2068,7 @@ describe("chat controller", () => {
         closedPlanId: null,
         activatedAt: "1998-09-07",
       });
-    const { controller, controls, refreshPlan } = subject(
+    const { controller, controls, refreshPlan, refreshPlanLibrary } = subject(
       client(replies(), {
         listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
         activatePlanCreation,
@@ -2065,16 +2081,54 @@ describe("chat controller", () => {
       value: card,
       busy: false,
       activateConfirmationOpen: true,
-      error: "Activation could not be saved locally. Your previous Plan is unchanged.",
+      error:
+        "The activation result could not be confirmed. The Plan library will show the current state after refresh.",
     });
     expect(refreshPlan).not.toHaveBeenCalled();
+    expect(refreshPlanLibrary).toHaveBeenCalledOnce();
+    await controller.confirmPlanCreationActivate();
+    expect(activatePlanCreation).toHaveBeenCalledTimes(2);
+    expect(activatePlanCreation.mock.calls[1]?.[0]).toEqual(
+      activatePlanCreation.mock.calls[0]?.[0],
+    );
+    expect(controls.at(-1)?.planCreation?.value).toBeNull();
+    expect(refreshPlan).toHaveBeenCalledOnce();
+  });
+
+  it("starts a fresh activation command after a definitive rejection", async () => {
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 3,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      draftStale: false,
+    };
+    const activatePlanCreation = vi
+      .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
+      .mockRejectedValue(
+        new CoachRpcRemoteError(-32000, "Plan changed", { code: "version-conflict" }),
+      );
+    const { controller, controls, refreshPlanLibrary } = subject(
+      client(replies(), {
+        listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+        activatePlanCreation,
+      }),
+    );
+    await controller.start();
+    await controller.openPlanCreationActivate();
+    await controller.confirmPlanCreationActivate();
     await controller.confirmPlanCreationActivate();
     expect(activatePlanCreation).toHaveBeenCalledTimes(2);
     expect(activatePlanCreation.mock.calls[1]?.[0].commandId).not.toEqual(
       activatePlanCreation.mock.calls[0]?.[0].commandId,
     );
-    expect(controls.at(-1)?.planCreation?.value).toBeNull();
-    expect(refreshPlan).toHaveBeenCalledOnce();
+    expect(controls.at(-1)?.planCreation?.error).toBe(
+      "The Plan changed. Read the Plan library and confirm again.",
+    );
+    expect(refreshPlanLibrary).toHaveBeenCalledTimes(2);
   });
 
   it("cancels activation without changing the Draft and does not restore a dialog after relaunch", async () => {
@@ -3706,13 +3760,11 @@ describe("Plan library Chat entry", () => {
   });
 
   it("prepares an empty library entry to start before Chat hydration", async () => {
-    const start = vi.fn(
-      async (): Promise<PlanCreationStartRpcResult> => ({
-        status: "started",
-        outcome: "created",
-        planCreation: creation,
-      }),
-    );
+    const start = vi.fn(async (): Promise<PlanCreationStartRpcResult> => ({
+      status: "started",
+      outcome: "created",
+      planCreation: creation,
+    }));
     const fake = client(replies(), { startPlanCreation: start });
     const { controller, controls } = subject(fake);
     controller.resumeCreation(null);

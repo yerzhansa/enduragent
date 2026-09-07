@@ -269,8 +269,8 @@ function ChangeEditor(): ReactElement {
               className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
               id="plan-change-hours"
               type="number"
-              min="0"
-              step="any"
+              min="0.25"
+              step="0.25"
               value={hours}
               disabled={state.busy}
               onChange={(event) => setHours(event.target.value)}

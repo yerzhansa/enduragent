@@ -261,20 +261,26 @@ describe("Plan Change controller", () => {
     },
   );
 
-  it("keeps the pending preview on transport failure", async () => {
+  it("refreshes the library without claiming an outcome on transport failure", async () => {
     const h = harness(new Error("offline"));
     await h.controller.applyPlanChange("apply");
     expect(h.surface()).toMatchObject({
       busy: false,
-      notice: "This Change could not be applied. Training and the pending preview are unchanged.",
+      notice:
+        "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
     });
-    expect(h.refresh).not.toHaveBeenCalled();
+    expect(h.refresh).toHaveBeenCalledOnce();
   });
 
   it.each([
     [{ kind: "weekday-duration", day: 2, minutes: 0 }, "Enter a duration above zero."],
     [{ kind: "longest-workout", minutes: Number.NaN }, "Enter a duration above zero."],
     [{ kind: "weekly-duration", hours: -1 }, "Enter a weekly duration above zero."],
+    [{ kind: "weekly-duration", hours: 0 }, "Enter a weekly duration above zero."],
+    [
+      { kind: "weekly-duration", hours: 2.3 },
+      "Enter weekly hours in quarter-hour steps, like 2.25.",
+    ],
     [{ kind: "weekday-unavailable", day: 8 }, "Choose the weekday to change."],
   ] satisfies [PlanChangeIntent, string][])(
     "validates parameters before the RPC for %j",
@@ -285,6 +291,48 @@ describe("Plan Change controller", () => {
       expect(h.call).not.toHaveBeenCalled();
     },
   );
+
+  it.each(["preview", "apply"] as const)(
+    "replays the exact %s confirmation after a lost response and refresh",
+    async (action) => {
+      const h = harness(new Error("lost response"));
+      h.refresh.mockImplementation(async () => h.updateVersion(8));
+      const submit = () =>
+        action === "preview"
+          ? h.controller.previewPlanChange(change.intent)
+          : h.controller.applyPlanChange("apply");
+      await submit();
+      await submit();
+      expect(h.call).toHaveBeenCalledTimes(2);
+      expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
+      expect(h.refresh).toHaveBeenCalledTimes(2);
+      expect(h.surface().busy).toBe(false);
+    },
+  );
+
+  it.each(["preview", "apply"] as const)(
+    "clears a %s confirmation after a definitive rejection",
+    async (action) => {
+      const h = harness({ status: "rejected", reason: "stale-version" });
+      const submit = () =>
+        action === "preview"
+          ? h.controller.previewPlanChange(change.intent)
+          : h.controller.applyPlanChange("apply");
+      await submit();
+      await submit();
+      expect(h.call.mock.calls[1]?.[1]).not.toEqual(h.call.mock.calls[0]?.[1]);
+    },
+  );
+
+  it("starts a new command for a different preview intent after a lost response", async () => {
+    const h = harness(new Error("lost response"));
+    await h.controller.previewPlanChange(change.intent);
+    await h.controller.previewPlanChange({ kind: "weekly-duration", hours: 2.25 });
+    expect(h.call.mock.calls[1]?.[1]).toMatchObject({
+      intent: { kind: "weekly-duration", hours: 2.25 },
+    });
+    expect(h.call.mock.calls[1]?.[1]).not.toEqual(h.call.mock.calls[0]?.[1]);
+  });
 
   it("does not submit a retired preview", async () => {
     const h = harness(null, [{ ...change, status: "cancelled" }]);

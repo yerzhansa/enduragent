@@ -126,6 +126,7 @@ const response = (value: unknown): readonly string[] => [JSON.stringify(value)];
 export class PlanCreationBackend {
   readonly script: DesktopFixtureScript;
   readonly creationRequests: ScriptRequest[] = [];
+  readonly closeRequests: ScriptRequest[] = [];
   readonly changeApplyResponses: {
     readonly params: PlanChangeApplyRpcParams;
     readonly result: PlanChangeApplyResult;
@@ -251,6 +252,7 @@ export class PlanCreationBackend {
           );
         }
         if (request.method === "plan.close") {
+          this.closeRequests.push(request);
           const fail = this.closeFails;
           this.closeFails = false;
           if (fail) {
@@ -521,6 +523,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       throw new TypeError("Training seed Draft is unavailable");
     const activated = await host["plan_creation.activate"]({
       commandId: "seed-training-activate",
+      incumbent: null,
       creationId: card.creationId,
       expectedVersion: previewed.planCreation.version,
     });

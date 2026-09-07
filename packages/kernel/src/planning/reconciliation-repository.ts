@@ -92,6 +92,7 @@ export interface PlanReconciliationRepository {
     planId: string,
     kind: PlanReconciliationKind,
   ): Promise<PlanReconciliationJobRecord | undefined>;
+  readLatestJobsForLibrary(): Promise<readonly PlanReconciliationJobRecord[]>;
   beginAttempt(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
   reopenJob(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
   failJob(
@@ -456,6 +457,17 @@ export function createPlanReconciliationRepository(
         [planId, kind],
       );
       return row === undefined ? undefined : jobFromRow(row);
+    },
+    async readLatestJobsForLibrary() {
+      const rows = await store.all(
+        `SELECT ${JOB_COLUMNS} FROM (
+           SELECT ${JOB_COLUMNS},ROW_NUMBER() OVER (
+             PARTITION BY plan_id,kind
+             ORDER BY window_start_date_key DESC,window_end_date_key DESC,id DESC
+           ) AS job_rank FROM plan_reconciliation_job
+         ) WHERE job_rank=1 ORDER BY plan_id,kind`,
+      );
+      return Object.freeze(rows.map(jobFromRow));
     },
     async beginAttempt(id, updatedAtMs) {
       if (!ULID.test(id) || !validTimestamp(updatedAtMs)) {

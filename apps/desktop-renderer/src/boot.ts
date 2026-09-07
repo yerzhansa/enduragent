@@ -263,9 +263,11 @@ export function bootRenderer(): Disposer {
       void chatController.startPlanCreation();
     },
     continueCreation: (creation) => {
+      chatController.requestPlanLibraryFocus("continue");
       void chatController.continueCreationFromLibrary(creation.creationId);
     },
     changeInChat: () => {
+      chatController.requestPlanLibraryFocus("change");
       chatController.pausePlanCreation();
       const state = store.getState();
       const planId = state.planLibrary.value?.active?.planId ?? null;
@@ -300,6 +302,14 @@ export function bootRenderer(): Disposer {
   const disposePlanToChatRefresh = store.subscribe((state, previousState) => {
     if (previousState.activeView === "plan" && state.activeView === "chat") {
       chatController.refreshPlanningRequests();
+    }
+    const libraryTarget = state.chat.planCreationFocusRequest?.libraryTarget;
+    if (
+      previousState.activeView === "chat" &&
+      state.activeView === "plan" &&
+      libraryTarget !== undefined
+    ) {
+      chatController.requestPlanLibraryFocus(libraryTarget);
     }
   });
 

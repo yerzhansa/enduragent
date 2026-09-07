@@ -1030,7 +1030,7 @@ function selectedPlanningRequestContext(input: {
     addCivilDays(input.plan.startDateKey, input.plan.totalWeeks * 7 - 1);
   const occupied = new Set(input.workouts.map((workout) => workout.dateKey));
   let recommendedDateKey: number | null = null;
-  for (let dateKey = addCivilDays(requestedDateKey, 1); dateKey <= maximumDateKey; ) {
+  for (let dateKey = addCivilDays(requestedDateKey, 1); dateKey <= maximumDateKey;) {
     if (!occupied.has(dateKey)) {
       recommendedDateKey = dateKey;
       break;
@@ -1038,7 +1038,7 @@ function selectedPlanningRequestContext(input: {
     dateKey = addCivilDays(dateKey, 1);
   }
   if (recommendedDateKey === null) {
-    for (let dateKey = minimumDateKey; dateKey < requestedDateKey; ) {
+    for (let dateKey = minimumDateKey; dateKey < requestedDateKey;) {
       if (!occupied.has(dateKey)) {
         recommendedDateKey = dateKey;
         break;
@@ -1284,6 +1284,8 @@ export function createPlanningOperations(
     "PL-T09",
     "PL-T10",
     "PL-T11",
+    "PL-T15",
+    "PL-T16",
     "PL-T17",
     "PL-T18",
     "PL-T19",
@@ -1293,6 +1295,8 @@ export function createPlanningOperations(
     "PL-T24",
     "PL-T25",
     "PL-T26",
+    "PL-T28",
+    "PL-T29",
     "PL-T40",
   ]);
   const conversations =
@@ -1517,26 +1521,18 @@ export function createPlanningOperations(
       week.kind === "inside" ? week.weekIndex : week.side === "before" ? 1 : plan.totalWeeks;
     const weekStartDateKey = addCivilDays(plan.startDateKey, (weekIndex - 1) * 7);
     const matchSync = await workoutMatches.readSyncStatus();
-    const refreshed = overrides.readOnly
-      ? {
-          activities: await workoutMatches.listActivities(
-            weekStartDateKey,
-            addCivilDays(weekStartDateKey, 6),
-          ),
-          matches: await workoutMatches.readForPlan(plan.id),
-        }
-      : await refreshPlanWorkoutMatches({
-          planId: plan.id,
-          workouts,
-          startDateKey: weekStartDateKey,
-          endDateKey: addCivilDays(weekStartDateKey, 6),
-          repository: workoutMatches,
-          identity: {
-            newId: () => input.identity.newUlid(),
-            deviceId: () => input.identity.deviceId(),
-            stamp: () => input.identity.hlcStamp(),
-          },
-        });
+    const refreshed = await refreshPlanWorkoutMatches({
+      planId: plan.id,
+      workouts,
+      startDateKey: weekStartDateKey,
+      endDateKey: addCivilDays(weekStartDateKey, 6),
+      repository: workoutMatches,
+      identity: {
+        newId: () => input.identity.newUlid(),
+        deviceId: () => input.identity.deviceId(),
+        stamp: () => input.identity.hlcStamp(),
+      },
+    });
     const matchRows = projectWorkoutMatches({
       workouts: workouts.filter(
         (workout) =>
@@ -1908,7 +1904,14 @@ export function createPlanningOperations(
     });
   };
 
-  const read = async (overrides: ReadOverrides = {}): Promise<PlanReadModel> => {
+  const read = async (
+    overrides: ReadOverrides = {},
+    activePlan?: PlanRecord,
+  ): Promise<PlanReadModel> => {
+    if (!overrides.readOnly && (await writerFence.fenced())) {
+      overrides = { ...overrides, readOnly: true };
+    }
+    if (activePlan !== undefined) return readActive(activePlan, 0, overrides);
     const fence = await writerFence.read();
     if (fence.activePlanId !== null) {
       const activePlan = await plans.read(fence.activePlanId);
@@ -2368,17 +2371,15 @@ export function createPlanningOperations(
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     };
-    const premiseRecords = build.premises.map(
-      (premise): PlanProposalPremiseRecord => ({
-        ...premise,
-        id: input.identity.newUlid(),
-        proposalId: next.id,
-        createdAtMs: timestamp,
-        deviceId,
-        hlcPhysicalMs: stamp.physicalMs,
-        hlcCounter: stamp.counter,
-      }),
-    );
+    const premiseRecords = build.premises.map((premise): PlanProposalPremiseRecord => ({
+      ...premise,
+      id: input.identity.newUlid(),
+      proposalId: next.id,
+      createdAtMs: timestamp,
+      deviceId,
+      hlcPhysicalMs: stamp.physicalMs,
+      hlcCounter: stamp.counter,
+    }));
     validatePlanProposal({
       proposal: next,
       premises: premiseRecords,
@@ -2464,13 +2465,22 @@ export function createPlanningOperations(
   return {
     async getPlanState(request) {
       GetPlanStateRpcParamsSchema.parse(request);
-      return GetPlanStateRpcResultSchema.parse({ status: "ready", state: await read() });
+      const readOnly = await writerFence.fenced();
+      return GetPlanStateRpcResultSchema.parse({
+        status: "ready",
+        state: await read({ readOnly }),
+      });
     },
     executePlanTransition(request, onEvent) {
       const command = ExecutePlanTransitionRpcParamsSchema.parse(request);
       return enqueue(async () => {
         const fenced = await writerFence.fenced();
-        if (fenced && fencedTransitions.has(command.transitionId)) {
+        if (
+          fenced &&
+          (fencedTransitions.has(command.transitionId) ||
+            ((command.transitionId === "PL-T12" || command.transitionId === "PL-T27") &&
+              command.mode !== "verify"))
+        ) {
           return reject(
             {
               code: "conflict",
@@ -3385,6 +3395,9 @@ export function createPlanningOperations(
           const existingJob = await reconciliations.readLatestJob(plan.id, "mirror");
           const existingItems =
             existingJob === undefined ? [] : await reconciliations.readItems(existingJob.id);
+          if (fenced && (existingJob === undefined || existingItems.length === 0)) {
+            return reject(UNAVAILABLE);
+          }
           const total = Math.max(existingItems.length, 1);
           const operationId = input.identity.newUlid();
           deliver(onEvent, {
@@ -4973,7 +4986,7 @@ export function createPlanningOperations(
             if (activePlan?.status !== "active") return reject(UNAVAILABLE);
             return ExecutePlanTransitionRpcResultSchema.parse({
               status: "completed",
-              state: await readActive(activePlan, 0, { activeScenario: "PL-S004" }),
+              state: await read({ activeScenario: "PL-S004" }, activePlan),
             });
           }
           const coachBackPair =

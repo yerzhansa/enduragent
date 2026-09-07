@@ -73,6 +73,7 @@ export function PlanFinalDetails(props: {
   readonly history: NonNullable<PlanHistoryResult>;
   readonly notice?: string | null;
   readonly backToLibrary: () => void;
+  readonly retryCalendar?: () => Promise<void>;
 }): ReactElement {
   const { plan, revision, cleanup } = props.history;
   const draft = revision.snapshot;
@@ -184,6 +185,15 @@ export function PlanFinalDetails(props: {
         </CardContent>
       </Card>
       <div className="flex flex-wrap gap-inset">
+        {plan.calendar?.status === "failed" && plan.calendar.error.endsWith("Retry available.") ? (
+          <Button
+            variant="outline"
+            disabled={props.retryCalendar === undefined}
+            onClick={() => void props.retryCalendar?.()}
+          >
+            Retry calendar
+          </Button>
+        ) : null}
         <Button variant="outline" onClick={props.backToLibrary}>
           Back to library
         </Button>

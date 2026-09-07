@@ -142,6 +142,7 @@ const SnapshotSchema = z.object({
             date: z.string().nullable(),
             name: z.string(),
             minutes: z.number(),
+            pinned: z.boolean().optional(),
           })
           .passthrough(),
       ),
@@ -222,11 +223,6 @@ export function createPlanChangeRepository(
     const plan = await plans.read(input.planId);
     if (plan === undefined) return fail();
     const current = await plans.readWorkouts(input.planId);
-    const diffIds = new Set(
-      PlanChangeEnvelopeSchema.parse(JSON.parse(change.diff_json)).diff.map(
-        (item) => item.workoutId,
-      ),
-    );
     const revision = z
       .object({ snapshot_json: z.string() })
       .parse(
@@ -238,7 +234,36 @@ export function createPlanChangeRepository(
     const baseWorkouts = SnapshotSchema.parse(JSON.parse(revision.snapshot_json)).weeks.flatMap(
       (week) => week.workouts,
     );
+    const afterWorkouts = SnapshotSchema.parse(JSON.parse(afterSnapshotJson)).weeks.flatMap(
+      (week) => week.workouts,
+    );
+    const afterById = new Map(afterWorkouts.map((workout) => [workout.id, workout]));
+    const baseIds = new Set(baseWorkouts.map((workout) => workout.id));
+    const changedWorkouts = baseWorkouts.filter(
+      (workout) => canonicalJson(workout) !== canonicalJson(afterById.get(workout.id) ?? null),
+    );
+    const diffIds = new Set([
+      ...changedWorkouts.map((workout) => workout.id),
+      ...afterWorkouts.filter((workout) => !baseIds.has(workout.id)).map((workout) => workout.id),
+    ]);
+    const completedRows = await store.all(
+      "SELECT plan_workout_id FROM plan_workout_match WHERE plan_id=? AND decision='confirmed'",
+      [input.planId],
+    );
+    const completedWorkoutIds = new Set(
+      completedRows.map((row) => z.string().parse(row.plan_workout_id)),
+    );
     const currentByDraftId = new Map(current.map((workout) => [draftId(workout), workout]));
+    for (const workout of changedWorkouts) {
+      const row = currentByDraftId.get(workout.id);
+      if (
+        workout.pinned ||
+        workout.date === null ||
+        dateKeyFromText(workout.date) < input.todayDateKey ||
+        (row !== undefined && completedWorkoutIds.has(row.id))
+      )
+        return false;
+    }
     for (const workout of baseWorkouts) {
       if (!diffIds.has(workout.id)) continue;
       const row = currentByDraftId.get(workout.id);
