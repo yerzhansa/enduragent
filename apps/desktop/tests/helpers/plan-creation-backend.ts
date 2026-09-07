@@ -419,6 +419,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       identity,
       crypto: globalThis.crypto,
       eventCandidates: { read: async () => [] },
+      eventSources: { read: () => this.readSyncedEventCandidates() },
       legacyPlan: async () => this.options.legacy ?? null,
       calendarConnected,
       today: () => this.civilDate,

@@ -197,6 +197,7 @@ function harness(
     },
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [candidateSource] },
+    eventSources: { read: async () => [] },
     baselineEvidence,
     today: () => today,
   });
@@ -702,6 +703,7 @@ describe("Plan Creation operations", () => {
       },
       crypto: globalThis.crypto,
       eventCandidates: { read: async () => [candidateSource] },
+      eventSources: { read: async () => [] },
       today: () => today,
     });
     await expect(host["plan_creation.start"]({ commandId: "one" })).resolves.toMatchObject({
@@ -801,6 +803,7 @@ describe("Plan Creation operations", () => {
       },
       crypto: globalThis.crypto,
       eventCandidates: { read: async () => [] },
+      eventSources: { read: async () => [] },
       today: () => today,
     });
     const request = { commandId: "discard", creationId: id("1"), expectedVersion: 1 };
@@ -882,6 +885,7 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     },
     crypto: globalThis.crypto,
     eventCandidates: { read: async () => [candidateSource] },
+    eventSources: { read: async () => [] },
     calendarConnected: () => connected,
     legacyPlan,
     today: () => currentToday,
@@ -1102,6 +1106,7 @@ describe("Plan Creation command replay", () => {
         },
         crypto: globalThis.crypto,
         eventCandidates: { read: unavailable },
+        eventSources: { read: async () => [] },
         baselineEvidence: { read: unavailable },
         today: () => today,
       });
@@ -1723,6 +1728,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
       changesPaused: null,
       active: {
         todayChoice: null,
+        supportingEventCandidates: [],
         planId: activated.planId,
         version: 1,
         name: "Improve fitness",

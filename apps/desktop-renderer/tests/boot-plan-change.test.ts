@@ -160,6 +160,7 @@ function library(planId: string, pending = false): ListPlansResult {
       end: "1998-10-04",
       weeks: 4,
       status: "active",
+      supportingEventCandidates: [],
       closeReason: null,
       closedAt: null,
       activatedAt: "1998-09-07",

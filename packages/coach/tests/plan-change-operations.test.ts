@@ -56,11 +56,14 @@ async function activatedPlan(
     now: () => nowMs,
     calendarConnected,
   };
+  let candidates: PlanChangeEventSource[] = [];
+  const eventSources = { read: vi.fn(async () => structuredClone(candidates)) };
   const creation = createPlanCreationOperations({
     ...dependencies,
     repository: createPlanCreationRepository(store),
     calendarConnected: () => connected,
     eventCandidates: { read: async () => [] },
+    eventSources,
     today: () => "1998-09-02",
   });
   let manual: PlanFtpSourceValue | null = null;
@@ -77,8 +80,6 @@ async function activatedPlan(
     refreshIntervals: async () => {},
   });
   const logger = { warn: vi.fn() };
-  let candidates: PlanChangeEventSource[] = [];
-  const eventSources = { read: vi.fn(async () => structuredClone(candidates)) };
   const changes = createPlanChangeOperations({ ...dependencies, ftp, logger, eventSources });
   const start = await creation["plan_creation.start"]({ commandId: "start" });
   if (start.status !== "started") throw new Error("Expected creation");
@@ -1978,6 +1979,35 @@ describe("Supporting Event Plan Changes", () => {
     await applyChange(test, inverse.change.changeId, 3, "rename-restore");
     expect((await revisionSnapshot(test, 4)).supportingEvents[0]?.name).toBe(event.name);
     expect(await test.workouts()).toEqual(workouts);
+  });
+
+  it("lists source candidates only while connected and excludes accepted events", async () => {
+    const test = await activatedPlan(undefined, {
+      connected: true,
+      lastSuccessfulSyncAtMs: 904_694_400_000,
+    });
+    const other = { ...source, providerId: "another-fixture-event", name: "Another ride" };
+    test.setEventSources([source, other]);
+    const readCandidates = async () =>
+      (await test.creation["plan.list"]({})).active?.supportingEventCandidates;
+    const expected = [source, other].map(({ providerId, name, date, category }) => ({
+      providerId,
+      name,
+      date,
+      category,
+      sourceLabel: "Intervals.icu event",
+    }));
+    expect(await readCandidates()).toEqual(expected);
+    test.setConnected(false);
+    test.eventSources.read.mockClear();
+    expect(await readCandidates()).toEqual([]);
+    expect(test.eventSources.read).not.toHaveBeenCalled();
+    test.setConnected(true);
+    expect(await readCandidates()).toEqual(expected);
+    const preview = await test.preview({ ...manualIntent, providerId: source.providerId });
+    expect(await readCandidates()).toEqual(expected);
+    await applyChange(test, preview.change.changeId, 1, "accept-event");
+    expect(await readCandidates()).toEqual([expected[1]]);
   });
 
   it("captures synchronized event evidence and refuses changed or removed sources without mutation", async () => {

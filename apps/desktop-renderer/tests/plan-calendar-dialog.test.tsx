@@ -13,6 +13,7 @@ const summary: NonNullable<ListPlansResult["active"]> = {
   end: "1998-10-04",
   weeks: 4,
   status: "active",
+  supportingEventCandidates: [],
   closeReason: null,
   closedAt: null,
   activatedAt: "1998-09-07",

@@ -5,6 +5,7 @@ import {
   PlanHistoryParamsSchema,
   PlanHistoryResultSchema,
   type PlanCalendarStatus,
+  type PlanChangeEventSource,
   type PlanCloseRpcParams,
   type PlanCloseResult,
   type PlanHistoryParams,
@@ -109,6 +110,7 @@ export function createPlanCreationOperations(input: {
   identity: AuthoredIdentity;
   crypto: Crypto;
   eventCandidates: GoalEventCandidateSource;
+  eventSources: { read(): Promise<PlanChangeEventSource[]> };
   baselineEvidence?: BaselineEvidenceSource;
   calendarConnected?: () => boolean;
   legacyPlan?: () => Promise<LegacyPlanSummary | null>;
@@ -299,10 +301,36 @@ export function createPlanCreationOperations(input: {
     activatedAt: timestampDate(plan.activatedAtMs),
     creationId: plan.creationId,
   });
+  const supportingEventCandidates = async (planId: string, sources: PlanChangeEventSource[]) => {
+    if (sources.length === 0) return [];
+    const revision = await input.store.get(
+      "SELECT snapshot_json FROM plan_revision WHERE plan_id=? ORDER BY revision_number DESC LIMIT 1",
+      [planId],
+    );
+    const accepted = new Set(
+      revision === undefined
+        ? []
+        : PlanCreationDraftSchema.parse(
+            JSON.parse(z.string().parse(revision.snapshot_json)),
+          ).supportingEvents.flatMap((event) =>
+            event.source.kind === "synced" ? [event.source.providerId] : [],
+          ),
+    );
+    return sources
+      .filter((source) => !accepted.has(source.providerId))
+      .map(({ providerId, name, date, category }) => ({
+        providerId,
+        name,
+        date,
+        category,
+        sourceLabel: "Intervals.icu event",
+      }));
+  };
   return {
     async "plan.list"(request) {
       ListPlansParamsSchema.parse(request);
       const legacy = await legacyPlan();
+      const sources = calendarConnected() ? await input.eventSources.read() : [];
       return input.store.transaction(async () => {
         const transactionStore = {
           exec: (sql: string) => input.store.exec(sql),
@@ -377,6 +405,10 @@ export function createPlanCreationOperations(input: {
               : {
                   ...active,
                   todayChoice,
+                  supportingEventCandidates: await supportingEventCandidates(
+                    active.planId,
+                    sources,
+                  ),
                 },
           changesPaused:
             active === null

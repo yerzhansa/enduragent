@@ -261,6 +261,7 @@ describe("Plan operations", () => {
       identity: authored,
       crypto: globalThis.crypto,
       eventCandidates: { read: async () => [] },
+      eventSources: { read: async () => [] },
       today: () => "1998-09-02",
     });
     const started = await creation["plan_creation.start"]({ commandId: "start" });

@@ -70,6 +70,7 @@ function stubActions(): ChatActions {
 }
 
 const active: NonNullable<ListPlansResult["active"]> = {
+  supportingEventCandidates: [],
   planId: "active-change",
   version: 7,
   name: "Build steady power",
@@ -566,6 +567,7 @@ describe("Plan Change cards", () => {
       "Weekly duration cap",
       "Longest-Workout cap",
       "Correct FTP",
+      "Supporting Event",
     ]);
     await userEvent.click(await screen.findByRole("option", { name: "Weekday unavailable" }));
     expect(screen.getByRole("combobox", { name: "Weekday" })).toHaveTextContent("Wed");
@@ -942,5 +944,121 @@ describe("Plan Change cards", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "This request used an older Plan revision. Request a fresh preview.",
     );
+  });
+  it("renders Supporting Event facts and synchronized evidence", async () => {
+    setChanges([
+      change({
+        title: "Add a Supporting Event",
+        intent: {
+          kind: "supporting-event",
+          operation: "add",
+          name: "River ride",
+          date: "1998-09-13",
+          role: "Training",
+          providerId: "17",
+        },
+        diff: [
+          {
+            workoutId: "event-workout",
+            before: null,
+            after: {
+              ...workout,
+              id: "event-workout",
+              supportingEventId: "river",
+              name: "River ride",
+              date: "1998-09-13",
+              kind: "event",
+              pinned: true,
+            },
+          },
+        ],
+        premises: [
+          {
+            id: "event-source",
+            label: "Supporting Event source at this decision",
+            source: "Intervals.icu event",
+            value: {
+              providerId: "17",
+              sourceRevision: "a".repeat(64),
+              name: "River ride",
+              date: "1998-09-13",
+              category: "RACE_B",
+            },
+          },
+        ],
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    const facts = screen.getByRole("table", { name: "Supporting Events" });
+    expect(facts).toHaveTextContent("Supporting Events beforeNone");
+    expect(facts).toHaveTextContent("Supporting Events afterRiver ride · 13 Sept 1998 · Training");
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+    const source = screen.getByRole("region", { name: "Source details" });
+    expect(source).toHaveTextContent("Intervals.icu event");
+    expect(source).toHaveTextContent("River ride · 13 Sept 1998 · RACE_B");
+  });
+
+  it("selects a synchronized candidate from the library and keeps manual entry available", async () => {
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (!value) throw new Error("Missing library");
+    useEnduragentStore.setState({
+      planLibrary: {
+        status: "ready",
+        value: {
+          ...value,
+          calendarConnected: true,
+          active: {
+            ...active,
+            supportingEventCandidates: [
+              {
+                providerId: "17",
+                name: "River ride",
+                date: "1998-09-13",
+                category: "RACE_B",
+                sourceLabel: "Intervals.icu event",
+              },
+            ],
+          },
+        },
+      },
+    });
+    patchChange({ editorOpen: true });
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Change" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Supporting Event" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Synchronized event" }));
+    expect(await screen.findByRole("option", { name: "Manual entry" })).toBeVisible();
+    await userEvent.click(screen.getByRole("option", { name: "River ride · Intervals.icu event" }));
+    await userEvent.click(screen.getByRole("button", { name: "Preview change" }));
+    expect(useEnduragentStore.getState().chatActions?.previewPlanChange).toHaveBeenLastCalledWith({
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-13",
+      role: "Training",
+      providerId: "17",
+    });
+  });
+
+  it("submits manual event fields through the shared editor and shows validation inline", async () => {
+    patchChange({ editorOpen: true, error: "Choose a Supporting Event inside this Plan span." });
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Change" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Supporting Event" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Event name" }), "River ride");
+    const date = screen.getByLabelText("Event date");
+    expect(date).toHaveAttribute("type", "date");
+    await userEvent.type(date, "1998-09-13");
+    await userEvent.click(screen.getByRole("button", { name: "Preview change" }));
+    expect(useEnduragentStore.getState().chatActions?.previewPlanChange).toHaveBeenLastCalledWith({
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-13",
+      role: "Training",
+    });
+    expect(
+      within(screen.getByRole("region", { name: "What needs to change?" })).getByRole("alert"),
+    ).toHaveTextContent("Choose a Supporting Event inside this Plan span.");
   });
 });
