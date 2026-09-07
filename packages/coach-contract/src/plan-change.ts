@@ -17,6 +17,9 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
     .object({ kind: z.literal("weekly-duration"), hours: z.number().positive().multipleOf(0.25) })
     .strict(),
   z.object({ kind: z.literal("longest-workout"), minutes: z.number().int().positive() }).strict(),
+  z
+    .object({ kind: z.literal("inverse"), changeId: PlanCloseRpcParamsSchema.shape.planId })
+    .strict(),
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
 
@@ -54,6 +57,17 @@ export const PlanChangeModelSchema = z
     supersedes: PlanCloseRpcParamsSchema.shape.planId.nullable(),
     supersededBy: PlanCloseRpcParamsSchema.shape.planId.nullable(),
     resultRevisionNumber: z.number().int().positive().nullable(),
+    undo: z
+      .discriminatedUnion("eligible", [
+        z.object({ eligible: z.literal(true) }).strict(),
+        z
+          .object({
+            eligible: z.literal(false),
+            reason: z.enum(["not-newest", "inverse", "nothing-to-restore", "plan-changed"]),
+          })
+          .strict(),
+      ])
+      .nullable(),
     confidence: z.string(),
     premises: z.array(
       z
@@ -61,12 +75,16 @@ export const PlanChangeModelSchema = z
           id: z.string().min(1),
           label: z.string().min(1),
           source: z.string().min(1),
-          value: PlanChangeIntentSchema,
+          value: z.json(),
         })
         .strict(),
     ),
   })
-  .strict();
+  .strict()
+  .refine((change) => (change.status === "applied") === (change.undo !== null), {
+    path: ["undo"],
+    message: "Undo eligibility is required only for applied Changes",
+  });
 export type PlanChangeModel = z.infer<typeof PlanChangeModelSchema>;
 
 export const PlanChangePreviewRpcParamsSchema = PlanCloseRpcParamsSchema.extend({

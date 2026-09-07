@@ -185,6 +185,7 @@ function library(planId: string, pending = false): ListPlansResult {
             supersedes: null,
             supersededBy: null,
             resultRevisionNumber: null,
+            undo: null,
             confidence: "High",
             premises: [],
           },

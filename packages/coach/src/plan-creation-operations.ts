@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  PlanChangeModelSchema,
   PlanCloseRpcParamsSchema,
   PlanCloseResultSchema,
   PlanHistoryParamsSchema,
@@ -60,6 +59,8 @@ import {
   type PlanCreationAnswerKey,
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
+
+import { projectPlanChanges } from "./plan-change-operations.js";
 
 export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
@@ -345,9 +346,12 @@ export function createPlanCreationOperations(input: {
           changes:
             active === null
               ? []
-              : (await planChanges.listChanges(active.planId)).map((change) =>
-                  PlanChangeModelSchema.parse(change),
-                ),
+              : await projectPlanChanges({
+                  repository: planChanges,
+                  store: transactionStore,
+                  planId: active.planId,
+                  todayDateKey: todayDateKey(),
+                }),
           closed: summaries.filter((plan) => plan.status === "closed"),
         });
       });

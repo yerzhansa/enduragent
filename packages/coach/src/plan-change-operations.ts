@@ -1,4 +1,5 @@
 import {
+  PlanChangeModelSchema,
   PlanChangeApplyRpcParamsSchema,
   PlanChangeApplyResultSchema,
   PlanChangePreviewRpcParamsSchema,
@@ -6,6 +7,7 @@ import {
   PlanCreationDraftSchema,
   type PlanChangeIntent,
   type PlanChangeOperations,
+  type PlanChangeModel,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
@@ -13,6 +15,7 @@ import {
   PlanChangeEnvelopeSchema,
   dateKeyFromText,
   type PlanWorkoutRecord,
+  type PlanChangeRepository,
 } from "@enduragent/kernel/planning";
 import type { MigratorStore, SqlStore } from "@enduragent/kernel/store";
 import type { AuthoredIdentity } from "@enduragent/kernel-node/home";
@@ -27,7 +30,68 @@ const titles = {
   "hard-weekday": "No hard training on a weekday",
   "weekly-duration": "Limit weekly duration",
   "longest-workout": "Limit the longest Workout",
+  inverse: "Undo the latest Change",
 } satisfies Record<PlanChangeIntent["kind"], string>;
+
+async function readCompletedWorkoutIds(
+  store: SqlStore,
+  planId: string,
+): Promise<ReadonlySet<string>> {
+  const rows = await store.all(
+    `SELECT workout.structure_json FROM plan_workout workout
+    WHERE workout.plan_id=? AND EXISTS (
+      SELECT 1 FROM plan_workout_match match
+      WHERE match.plan_workout_id=workout.id AND match.plan_id=workout.plan_id
+        AND match.decision='confirmed'
+    )`,
+    [planId],
+  );
+  return new Set(
+    rows.map((row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id),
+  );
+}
+
+export async function projectPlanChanges(input: {
+  repository: PlanChangeRepository;
+  store: SqlStore;
+  planId: string;
+  todayDateKey: number;
+}): Promise<PlanChangeModel[]> {
+  const changes = await input.repository.listChanges(input.planId);
+  if (!changes.some((change) => change.status === "applied"))
+    return changes.map((change) => PlanChangeModelSchema.parse({ ...change, undo: null }));
+  const context = await input.repository.readUndoContext(input.planId);
+  const completedWorkoutIds = await readCompletedWorkoutIds(input.store, input.planId);
+  return changes.map((change) => {
+    let undo: PlanChangeModel["undo"] = null;
+    if (change.status === "applied") {
+      if (context === null) undo = { eligible: false, reason: "plan-changed" };
+      else if (context.newestApplied?.changeId !== change.changeId)
+        undo = { eligible: false, reason: "not-newest" };
+      else if (PlanChangeModelSchema.shape.intent.parse(change.intent).kind === "inverse")
+        undo = { eligible: false, reason: "inverse" };
+      else if (
+        change.resultRevisionNumber !== context.currentRevisionNumber ||
+        context.previousSnapshotJson === null
+      )
+        undo = { eligible: false, reason: "plan-changed" };
+      else {
+        const restored = applyScheduleIntent({
+          draft: PlanCreationDraftSchema.parse(JSON.parse(context.snapshotJson)),
+          previousDraft: PlanCreationDraftSchema.parse(JSON.parse(context.previousSnapshotJson)),
+          intent: { kind: "inverse", changeId: change.changeId },
+          completedWorkoutIds,
+          todayDateKey: input.todayDateKey,
+        });
+        undo =
+          restored.diff.length > 0
+            ? { eligible: true }
+            : { eligible: false, reason: "nothing-to-restore" };
+      }
+    }
+    return PlanChangeModelSchema.parse({ ...change, undo });
+  });
+}
 
 export function createPlanChangeOperations(input: {
   store: SqlStore & Pick<MigratorStore, "transaction">;
@@ -65,34 +129,45 @@ export function createPlanChangeOperations(input: {
         throw parsed.error;
       }
       const { intent, planId, expectedVersion } = parsed.data;
-      const completedRows = await input.store.all(
-        `SELECT workout.structure_json FROM plan_workout workout
-        WHERE workout.plan_id=? AND EXISTS (
-          SELECT 1 FROM plan_workout_match match
-          WHERE match.plan_workout_id=workout.id AND match.plan_id=workout.plan_id
-            AND match.decision='confirmed'
-        )`,
-        [planId],
-      );
-      const completedWorkoutIds = new Set(
-        completedRows.map(
-          (row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id,
-        ),
-      );
       const result = await repository.preview({
         command: await stamp(parsed.data),
         planId,
         expectedVersion,
         nowMs: input.now(),
         changeId: input.identity.newUlid(),
-        build(snapshotJson) {
+        build({
+          snapshotJson,
+          previousSnapshotJson,
+          newestApplied,
+          currentRevisionNumber,
+          completedWorkoutIds,
+        }) {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
-          const { after, diff, totals } = applyScheduleIntent({
+          if (
+            intent.kind === "inverse" &&
+            (newestApplied?.changeId !== intent.changeId ||
+              newestApplied.resultRevisionNumber !== currentRevisionNumber ||
+              previousSnapshotJson === null ||
+              PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse")
+          )
+            return { status: "rejected", reason: "invalid-intent" };
+          const transformation = {
             draft,
-            intent,
             completedWorkoutIds,
             todayDateKey: input.todayDateKey(),
-          });
+          };
+          const { after, diff, totals } =
+            intent.kind === "inverse"
+              ? applyScheduleIntent({
+                  ...transformation,
+                  intent,
+                  previousDraft: PlanCreationDraftSchema.parse(
+                    JSON.parse(previousSnapshotJson ?? "null"),
+                  ),
+                })
+              : applyScheduleIntent({ ...transformation, intent });
+          if (intent.kind === "inverse" && diff.length === 0)
+            return { status: "rejected", reason: "invalid-intent" };
           return {
             afterSnapshotJson: canonicalJson(after),
             envelope: PlanChangeEnvelopeSchema.parse({
@@ -108,6 +183,16 @@ export function createPlanChangeOperations(input: {
                   source: "Your confirmed answers",
                   value: intent,
                 },
+                ...(intent.kind === "inverse" && newestApplied !== null
+                  ? [
+                      {
+                        id: "undone-change",
+                        label: "Applied Change",
+                        source: "Plan history",
+                        value: { changeId: newestApplied.changeId, title: newestApplied.title },
+                      },
+                    ]
+                  : []),
               ],
               confidence:
                 "Moderate confidence. Based on your confirmed limits and the available training record.",
@@ -115,7 +200,11 @@ export function createPlanChangeOperations(input: {
           };
         },
       });
-      return PlanChangePreviewResultSchema.parse(result);
+      return PlanChangePreviewResultSchema.parse(
+        result.status === "previewed"
+          ? { ...result, change: { ...result.change, undo: null } }
+          : result,
+      );
     },
     async "plan_change.apply"(request) {
       const parsed = PlanChangeApplyRpcParamsSchema.parse(request);
@@ -127,7 +216,7 @@ export function createPlanChangeOperations(input: {
         expectedVersion: parsed.expectedVersion,
         decision: parsed.decision,
         nowMs: input.now(),
-        todayDateKey: input.todayDateKey(),
+        todayDateKey: input.todayDateKey,
         mirrorJobId: input.identity.newUlid(),
         materialize(snapshotJson, currentWorkouts, diffIds) {
           const draft = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));

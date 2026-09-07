@@ -277,3 +277,144 @@ describe("Schedule Plan Changes", () => {
     ]);
   });
 });
+
+describe("Inverse Plan Changes", () => {
+  const intents: ScheduleIntent[] = [
+    { kind: "weekday-duration", day: 1, minutes: 20 },
+    { kind: "weekday-unavailable", day: 1 },
+    { kind: "hard-weekday", day: 1 },
+    { kind: "weekly-duration", hours: 1 },
+    { kind: "longest-workout", minutes: 20 },
+  ];
+
+  it.each(intents)("restores the exact prior snapshot after $kind", (intent) => {
+    const previousDraft = fixture();
+    const changed = applyScheduleIntent({ draft: previousDraft, intent, todayDateKey });
+    const current = structuredClone(changed.after);
+    const result = applyScheduleIntent({
+      draft: current,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey,
+    });
+    expect(result.after).toEqual(previousDraft);
+    expect(result.totals.after).toEqual(changed.totals.before);
+    expect(result.totals.before).toEqual(changed.totals.after);
+    expect(result.diff).toHaveLength(changed.diff.length);
+    for (const row of changed.diff) {
+      expect(result.diff.find((inverse) => inverse.workoutId === row.workoutId)).toEqual({
+        workoutId: row.workoutId,
+        before: row.after,
+        after: row.before,
+      });
+    }
+    expect(current).toEqual(changed.after);
+    expect(previousDraft).toEqual(fixture());
+  });
+
+  it("keeps current copies of completed, past, pinned and undated Workouts", () => {
+    const previousDraft = fixture();
+    const { after: draft } = applyScheduleIntent({
+      draft: previousDraft,
+      intent: { kind: "longest-workout", minutes: 20 },
+      todayDateKey,
+    });
+    draft.weeks[2].workouts[0].pinned = true;
+    draft.weeks[2].workouts[1].date = null;
+    const completedWorkoutIds = new Set(["w3-long"]);
+    const result = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey: 19980831,
+      completedWorkoutIds,
+    });
+    const protectedIds = [
+      "w2-hard",
+      "w2-endurance",
+      "w2-long",
+      "w3-hard",
+      "w3-endurance",
+      "w3-long",
+    ];
+    for (const id of protectedIds) {
+      expect(workouts(result.after).find((workout) => workout.id === id)).toEqual(
+        workouts(draft).find((workout) => workout.id === id),
+      );
+      expect(result.diff.some((row) => row.workoutId === id)).toBe(false);
+    }
+    expect(result.diff).toHaveLength(9);
+  });
+
+  it("restores removed Workouts dated today and skips removed Workouts that are no longer mutable", () => {
+    const previousDraft = fixture();
+    const { after: draft } = applyScheduleIntent({
+      draft: previousDraft,
+      intent: { kind: "weekday-unavailable", day: 1 },
+      todayDateKey,
+    });
+    previousDraft.weeks[3].workouts[0].pinned = true;
+    previousDraft.weeks[4].workouts[0].date = null;
+    const result = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey: 19980831,
+      completedWorkoutIds: new Set(["w6-hard"]),
+    });
+    expect(result.diff).toEqual([
+      { workoutId: "w3-hard", before: null, after: previousDraft.weeks[2].workouts[0] },
+    ]);
+    expect(
+      workouts(result.after)
+        .filter((workout) => workout.kind === "hard")
+        .map((workout) => workout.id),
+    ).toEqual(["w1-hard", "w3-hard"]);
+  });
+
+  it("preserves non-mutable Workouts present only in the current snapshot", () => {
+    const previousDraft = fixture();
+    const draft = structuredClone(previousDraft);
+    const base = draft.weeks[1].workouts[0];
+    draft.weeks[1].workouts.push(
+      { ...base, id: "new-pinned", pinned: true },
+      { ...base, id: "new-undated", date: null },
+      { ...base, id: "new-past", date: "1998-08-23" },
+      { ...base, id: "new-completed" },
+      { ...base, id: "new-mutable" },
+    );
+    const result = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey,
+      completedWorkoutIds: new Set(["new-completed"]),
+    });
+    expect(result.after.weeks[1].workouts.map((workout) => workout.id)).toEqual(
+      draft.weeks[1].workouts
+        .filter((workout) => workout.id !== "new-mutable")
+        .map((workout) => workout.id),
+    );
+    expect(result.diff).toEqual([
+      { workoutId: "new-mutable", before: { ...base, id: "new-mutable" }, after: null },
+    ]);
+  });
+
+  it("returns no difference when all changed Workouts have passed", () => {
+    const previousDraft = fixture();
+    const { after: draft } = applyScheduleIntent({
+      draft: previousDraft,
+      intent: { kind: "longest-workout", minutes: 20 },
+      todayDateKey,
+    });
+    const result = applyScheduleIntent({
+      draft,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "applied-change" },
+      todayDateKey: 19980928,
+    });
+    expect(result.after).toEqual(draft);
+    expect(result.diff).toEqual([]);
+    expect(result.totals.after).toEqual(result.totals.before);
+  });
+});

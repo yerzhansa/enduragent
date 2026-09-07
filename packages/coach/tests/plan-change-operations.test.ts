@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   PlanCreationDraftSchema,
   type PlanCreationAnswerInput,
@@ -89,11 +89,12 @@ async function activatedPlan(todayDateKey = () => 19980902) {
   const preview = async (
     intent: PlanChangeIntent = { kind: "longest-workout", minutes: 30 },
     commandId = "change-preview",
+    expectedVersion = 1,
   ) => {
     const result = await changes["plan_change.preview"]({
       commandId,
       planId,
-      expectedVersion: 1,
+      expectedVersion,
       intent,
     });
     if (result.status !== "previewed") throw new Error(`Expected Change preview: ${result.reason}`);
@@ -482,5 +483,502 @@ describe("Plan Change operations", () => {
       expectedVersion: 1,
     });
     expect((await test.creation["plan.list"]({})).changes).toEqual([]);
+  });
+});
+
+async function applyChange(
+  test: Awaited<ReturnType<typeof activatedPlan>>,
+  changeId: string,
+  expectedVersion: number,
+  commandId: string,
+) {
+  const request = {
+    commandId,
+    planId: test.planId,
+    changeId,
+    expectedVersion,
+    decision: "apply" as const,
+  };
+  const result = await test.changes["plan_change.apply"](request);
+  expect(result).toMatchObject({ status: "applied", revisionNumber: expectedVersion + 1 });
+  return { request, result };
+}
+
+async function revisionSnapshot(test: Awaited<ReturnType<typeof activatedPlan>>, revision: number) {
+  const row = await test.store.get(
+    "SELECT snapshot_json FROM plan_revision WHERE plan_id=? AND revision_number=?",
+    [test.planId, revision],
+  );
+  return PlanCreationDraftSchema.parse(JSON.parse(String(row?.snapshot_json)));
+}
+
+describe("confirmed inverse Changes", () => {
+  it.each([
+    { kind: "weekday-duration", day: 4, minutes: 20 },
+    { kind: "weekday-unavailable", day: 4 },
+    { kind: "hard-weekday", day: 4 },
+    { kind: "weekly-duration", hours: 1 },
+    { kind: "longest-workout", minutes: 20 },
+  ] satisfies PlanChangeIntent[])(
+    "restores the exact prior snapshot after $kind and replays the inverse apply",
+    async (intent) => {
+      const test = await activatedPlan();
+      const original = await revisionSnapshot(test, 1);
+      const beforeRows = await test.workouts();
+      const forward = await test.preview(intent);
+      expect(forward.change.diff.length).toBeGreaterThan(0);
+      await applyChange(test, forward.change.changeId, 1, "apply-forward");
+      expect((await test.creation["plan.list"]({})).changes).toMatchObject([
+        { changeId: forward.change.changeId, undo: { eligible: true } },
+      ]);
+      const changedRows = await test.workouts();
+      const inverse = await test.preview(
+        { kind: "inverse", changeId: forward.change.changeId },
+        "inverse-preview",
+        2,
+      );
+      expect(inverse.change).toMatchObject({
+        title: "Undo the latest Change",
+        status: "pending",
+        undo: null,
+        intent: { kind: "inverse", changeId: forward.change.changeId },
+        premises: [
+          { id: "confirmed-limits", value: { kind: "inverse", changeId: forward.change.changeId } },
+          {
+            id: "undone-change",
+            value: { changeId: forward.change.changeId, title: forward.change.title },
+          },
+        ],
+      });
+      expect(
+        [...inverse.change.diff].sort((a, b) => a.workoutId.localeCompare(b.workoutId)),
+      ).toEqual(
+        forward.change.diff
+          .map((row) => ({ workoutId: row.workoutId, before: row.after, after: row.before }))
+          .sort((a, b) => a.workoutId.localeCompare(b.workoutId)),
+      );
+      expect(inverse.change.totals).toEqual({
+        before: forward.change.totals.after,
+        after: forward.change.totals.before,
+      });
+      expect(await test.workouts()).toEqual(changedRows);
+      const applied = await applyChange(test, inverse.change.changeId, 2, "apply-inverse");
+      expect(await revisionSnapshot(test, 3)).toEqual(original);
+      const restoredRows = await test.workouts();
+      expect(restoredRows.map((row) => row.structure_json).sort()).toEqual(
+        beforeRows.map((row) => row.structure_json).sort(),
+      );
+      for (const row of changedRows) {
+        expect(restoredRows.find((restored) => restored.id === row.id)?.structure_json).toBe(
+          beforeRows.find((before) => before.id === row.id)?.structure_json,
+        );
+      }
+      expect((await test.creation["plan.list"]({})).changes).toMatchObject([
+        {
+          changeId: forward.change.changeId,
+          status: "applied",
+          undo: { eligible: false, reason: "not-newest" },
+        },
+        {
+          changeId: inverse.change.changeId,
+          status: "applied",
+          resultRevisionNumber: 3,
+          undo: { eligible: false, reason: "inverse" },
+        },
+      ]);
+      const beforeReplay = await dumpStore(test.store);
+      expect(await test.changes["plan_change.apply"](applied.request)).toEqual(applied.result);
+      expect(await dumpStore(test.store)).toBe(beforeReplay);
+      expect(
+        await test.changes["plan_change.preview"]({
+          commandId: "redo",
+          planId: test.planId,
+          expectedVersion: 3,
+          intent: { kind: "inverse", changeId: inverse.change.changeId },
+        }),
+      ).toEqual({ status: "rejected", reason: "invalid-intent" });
+    },
+  );
+
+  it("rejects pending and unknown targets without replacing the current preview", async () => {
+    const test = await activatedPlan();
+    const pending = await test.preview();
+    for (const changeId of [pending.change.changeId, "01J00000000000000000000999"]) {
+      const before = await dumpStore(test.store);
+      expect(
+        await test.changes["plan_change.preview"]({
+          commandId: `inverse-${changeId}`,
+          planId: test.planId,
+          expectedVersion: 1,
+          intent: { kind: "inverse", changeId },
+        }),
+      ).toEqual({ status: "rejected", reason: "invalid-intent" });
+      expect(await dumpStore(test.store)).toBe(before);
+    }
+  });
+
+  it("rejects changed input under a reused inverse preview command id", async () => {
+    const test = await activatedPlan();
+    const forward = await test.preview();
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "inverse",
+      2,
+    );
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "inverse",
+        planId: test.planId,
+        expectedVersion: 2,
+        intent: { kind: "inverse", changeId: inverse.change.changeId },
+      }),
+    ).toEqual({ status: "rejected", reason: "command-conflict" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("preserves eligibility across replacement, cancellation, replay, and rejects a target after a newer apply", async () => {
+    const test = await activatedPlan();
+    const forward = await test.preview();
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const current = await test.workouts();
+    const inverseIntent: PlanChangeIntent = { kind: "inverse", changeId: forward.change.changeId };
+    const inverse = await test.preview(inverseIntent, "inverse-preview", 2);
+    const replacement = await test.preview(
+      { kind: "longest-workout", minutes: 20 },
+      "replacement",
+      2,
+    );
+    expect((await test.creation["plan.list"]({})).changes).toMatchObject([
+      { undo: { eligible: true } },
+      { status: "superseded", undo: null },
+      { status: "pending", undo: null },
+    ]);
+    await test.changes["plan_change.apply"]({
+      commandId: "cancel-replacement",
+      planId: test.planId,
+      changeId: replacement.change.changeId,
+      expectedVersion: 2,
+      decision: "cancel",
+    });
+    expect(await test.preview(inverseIntent, "inverse-preview", 2)).toEqual(inverse);
+    expect((await test.creation["plan.list"]({})).changes).toMatchObject([
+      { undo: { eligible: true } },
+      { status: "superseded", undo: null },
+      { status: "cancelled", undo: null },
+    ]);
+    const cancelledInverse = await test.preview(inverseIntent, "cancelled-inverse", 2);
+    await test.changes["plan_change.apply"]({
+      commandId: "cancel-inverse",
+      planId: test.planId,
+      changeId: cancelledInverse.change.changeId,
+      expectedVersion: 2,
+      decision: "cancel",
+    });
+    expect(await test.workouts()).toEqual(current);
+    expect(
+      await test.store.all("SELECT * FROM plan_revision WHERE plan_id=?", [test.planId]),
+    ).toHaveLength(2);
+    const second = await test.preview(
+      { kind: "longest-workout", minutes: 15 },
+      "second-forward",
+      2,
+    );
+    await applyChange(test, second.change.changeId, 2, "apply-second");
+    const listed = (await test.creation["plan.list"]({})).changes;
+    expect(listed.find((row) => row.changeId === forward.change.changeId)?.undo).toEqual({
+      eligible: false,
+      reason: "not-newest",
+    });
+    expect(listed.find((row) => row.changeId === second.change.changeId)?.undo).toEqual({
+      eligible: true,
+    });
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "old-inverse",
+        planId: test.planId,
+        expectedVersion: 3,
+        intent: inverseIntent,
+      }),
+    ).toEqual({ status: "rejected", reason: "invalid-intent" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("keeps completed and past training from the current snapshot while restoring today's and future training", async () => {
+    let today = 19980902;
+    const test = await activatedPlan(() => today);
+    const forward = await test.preview();
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const current = await revisionSnapshot(test, 2);
+    const completed = current.weeks
+      .flatMap((week) => week.workouts)
+      .find((workout) => workout.date === "1998-09-10");
+    if (!completed) throw new Error("Expected completed Workout");
+    await matchWorkout(test, completed.id, "heuristic", "confirmed");
+    today = 19980908;
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "inverse",
+      2,
+    );
+    expect(inverse.change.diff.length).toBeGreaterThan(0);
+    expect(inverse.change.diff.length).toBeLessThan(forward.change.diff.length);
+    expect(
+      inverse.change.diff.every(
+        (row) => row.before?.date !== null && String(row.before?.date) >= "1998-09-08",
+      ),
+    ).toBe(true);
+    expect(inverse.change.diff.some((row) => row.before?.date === "1998-09-08")).toBe(true);
+    await applyChange(test, inverse.change.changeId, 2, "apply-inverse");
+    const restored = await revisionSnapshot(test, 3);
+    const restoredRows = new Map(
+      restored.weeks.flatMap((week) => week.workouts).map((row) => [row.id, row]),
+    );
+    for (const workout of current.weeks.flatMap((week) => week.workouts)) {
+      if (workout.id === completed.id || String(workout.date) < "1998-09-08")
+        expect(restoredRows.get(workout.id)).toEqual(workout);
+    }
+  });
+
+  it("reports nothing to restore for an elapsed-only difference and preserves the pending preview on refusal", async () => {
+    let today = 19980902;
+    const test = await activatedPlan(() => today);
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const pending = await test.preview({ kind: "longest-workout", minutes: 20 }, "pending", 2);
+    today = 19980925;
+    expect(
+      (await test.creation["plan.list"]({})).changes.find(
+        (row) => row.changeId === forward.change.changeId,
+      )?.undo,
+    ).toEqual({ eligible: false, reason: "nothing-to-restore" });
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "empty-inverse",
+        planId: test.planId,
+        expectedVersion: 2,
+        intent: { kind: "inverse", changeId: forward.change.changeId },
+      }),
+    ).toEqual({ status: "rejected", reason: "invalid-intent" });
+    expect(await dumpStore(test.store)).toBe(before);
+    expect(
+      (await test.creation["plan.list"]({})).changes.find(
+        (row) => row.changeId === pending.change.changeId,
+      )?.status,
+    ).toBe("pending");
+  });
+
+  it("rejects inverse restoration when a removed Workout becomes past during review", async () => {
+    let today = 19980902;
+    const test = await activatedPlan(() => today);
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "inverse",
+      2,
+    );
+    expect(inverse.change.diff.every((row) => row.before === null)).toBe(true);
+    today = 19980904;
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "apply-inverse",
+        planId: test.planId,
+        changeId: inverse.change.changeId,
+        expectedVersion: 2,
+        decision: "apply",
+      }),
+    ).toEqual({ status: "rejected", reason: "stale-version" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("rejects inverse restoration when a current row was absent from the base snapshot", async () => {
+    const test = await activatedPlan();
+    const forward = await test.preview({ kind: "weekday-unavailable", day: 4 });
+    await applyChange(test, forward.change.changeId, 1, "apply-forward");
+    const inverse = await test.preview(
+      { kind: "inverse", changeId: forward.change.changeId },
+      "inverse",
+      2,
+    );
+    const restored = inverse.change.diff[0]?.after;
+    if (!restored) throw new Error("Expected restored Workout");
+    await test.store.run(
+      "INSERT INTO plan_workout (id,plan_id,date_key,sport,name,duration_s,structure_json,origin,device_id,hlc_physical_ms,hlc_counter) SELECT ?,plan_id,date_key,sport,?,?,?,'athlete',device_id,hlc_physical_ms,hlc_counter FROM plan_workout WHERE plan_id=? LIMIT 1",
+      [
+        "00000000000000000000000999",
+        restored.name,
+        restored.minutes * 60,
+        canonicalJson(restored),
+        test.planId,
+      ],
+    );
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "apply-inverse",
+        planId: test.planId,
+        changeId: inverse.change.changeId,
+        expectedVersion: 2,
+        decision: "apply",
+      }),
+    ).toEqual({ status: "rejected", reason: "stale-version" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it.each(["elapsed", "completed", "ownership", "snapshot"] as const)(
+    "rejects inverse apply after %s drift without writes",
+    async (drift) => {
+      let today = 19980902;
+      const test = await activatedPlan(() => today);
+      const forward = await test.preview();
+      await applyChange(test, forward.change.changeId, 1, "apply-forward");
+      const inverse = await test.preview(
+        { kind: "inverse", changeId: forward.change.changeId },
+        "inverse",
+        2,
+      );
+      const changed = inverse.change.diff[0];
+      if (!changed?.before) throw new Error("Expected changed Workout");
+      if (drift === "elapsed") today = 19980925;
+      if (drift === "completed")
+        await matchWorkout(test, changed.workoutId, "platform", "confirmed");
+      if (drift === "ownership")
+        await test.store.run(
+          "UPDATE plan_workout SET origin='athlete' WHERE plan_id=? AND json_extract(structure_json,'$.id')=?",
+          [test.planId, changed.workoutId],
+        );
+      if (drift === "snapshot")
+        await test.store.run(
+          "UPDATE plan_workout SET structure_json=? WHERE plan_id=? AND json_extract(structure_json,'$.id')=?",
+          [canonicalJson({ ...changed.before, minutes: 17 }), test.planId, changed.workoutId],
+        );
+      const before = await dumpStore(test.store);
+      expect(
+        await test.changes["plan_change.apply"]({
+          commandId: "apply-inverse",
+          planId: test.planId,
+          changeId: inverse.change.changeId,
+          expectedVersion: 2,
+          decision: "apply",
+        }),
+      ).toEqual({ status: "rejected", reason: "stale-version" });
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+});
+
+describe("Plan Change transaction races", () => {
+  it.each(["schedule", "inverse"] as const)(
+    "excludes completion committed before the %s preview transaction",
+    async (kind) => {
+      const test = await activatedPlan();
+      const forward = await test.preview();
+      if (kind === "inverse") await applyChange(test, forward.change.changeId, 1, "apply-forward");
+      const completed = forward.change.diff[0];
+      if (!completed) throw new Error("Expected changed Workout");
+      const transaction = test.store.transaction.bind(test.store);
+      const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce(async (fn) => {
+        await matchWorkout(test, completed.workoutId, "platform", "confirmed");
+        return transaction(fn);
+      });
+      const preview = await test.preview(
+        kind === "inverse"
+          ? { kind: "inverse", changeId: forward.change.changeId }
+          : { kind: "longest-workout", minutes: 30 },
+        "racing-preview",
+        kind === "inverse" ? 2 : 1,
+      );
+      hook.mockRestore();
+      expect(preview.change.diff.length).toBeGreaterThan(0);
+      expect(preview.change.diff.some((row) => row.workoutId === completed.workoutId)).toBe(false);
+      const before = await test.workouts();
+      await applyChange(test, preview.change.changeId, kind === "inverse" ? 2 : 1, "apply-race");
+      const protectedRow = before.find(
+        (row) =>
+          PlanCreationDraftSchema.shape.weeks.element.shape.workouts.element.parse(
+            JSON.parse(String(row.structure_json)),
+          ).id === completed.workoutId,
+      );
+      expect(protectedRow).toBeDefined();
+      expect((await test.workouts()).find((row) => row.id === protectedRow?.id)).toEqual(
+        protectedRow,
+      );
+    },
+  );
+
+  it.each(["changed", "restored"] as const)(
+    "rejects a %s Workout that elapses before apply enters its transaction",
+    async (kind) => {
+      let today = 19980903;
+      const todayDateKey = vi.fn(() => today);
+      const test = await activatedPlan(todayDateKey);
+      const forward = await test.preview(
+        kind === "restored"
+          ? { kind: "weekday-unavailable", day: 4 }
+          : { kind: "longest-workout", minutes: 30 },
+      );
+      await applyChange(test, forward.change.changeId, 1, "apply-forward");
+      const inverse = await test.preview(
+        { kind: "inverse", changeId: forward.change.changeId },
+        "inverse",
+        2,
+      );
+      expect(inverse.change.diff.some((row) => row.after?.date === "1998-09-03")).toBe(true);
+      const before = await dumpStore(test.store);
+      todayDateKey.mockClear();
+      const transaction = test.store.transaction.bind(test.store);
+      const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
+        today = 19980904;
+        return transaction(fn);
+      });
+      expect(
+        await test.changes["plan_change.apply"]({
+          commandId: "apply-midnight",
+          planId: test.planId,
+          changeId: inverse.change.changeId,
+          expectedVersion: 2,
+          decision: "apply",
+        }),
+      ).toEqual({ status: "rejected", reason: "stale-version" });
+      hook.mockRestore();
+      expect(todayDateKey).toHaveBeenCalledTimes(1);
+      expect(await dumpStore(test.store)).toBe(before);
+    },
+  );
+
+  it("uses the transaction date for preview and the entire apply mirror window", async () => {
+    let today = 19980903;
+    const todayDateKey = vi.fn(() => today);
+    const test = await activatedPlan(todayDateKey);
+    const transaction = test.store.transaction.bind(test.store);
+    const hook = vi.spyOn(test.store, "transaction").mockImplementationOnce((fn) => {
+      today = 19980904;
+      return transaction(fn);
+    });
+    todayDateKey.mockClear();
+    const preview = await test.preview();
+    expect(todayDateKey).toHaveBeenCalledTimes(1);
+    expect(preview.change.diff.length).toBeGreaterThan(0);
+    expect(preview.change.diff.every((row) => String(row.before?.date) >= "1998-09-04")).toBe(true);
+    hook.mockImplementationOnce((fn) => {
+      today = 19980905;
+      return transaction(fn);
+    });
+    todayDateKey.mockClear();
+    todayDateKey.mockImplementation(() => today++);
+    await applyChange(test, preview.change.changeId, 1, "apply-midnight");
+    hook.mockRestore();
+    expect(todayDateKey).toHaveBeenCalledTimes(1);
+    expect(
+      await test.store.all(
+        "SELECT window_start_date_key,window_end_date_key FROM plan_reconciliation_job WHERE kind='mirror' AND window_start_date_key=?",
+        [19980905],
+      ),
+    ).toEqual([{ window_start_date_key: 19980905, window_end_date_key: 19980911 }]);
   });
 });

@@ -56,17 +56,61 @@ function changed(before: Workout, after: Workout): boolean {
   );
 }
 
-export function applyScheduleIntent<Draft extends CreationDraft>({
-  draft,
-  intent,
-  todayDateKey,
-  completedWorkoutIds = new Set<string>(),
-}: {
-  draft: Draft;
-  intent: ScheduleIntent;
-  todayDateKey: number;
-  completedWorkoutIds?: ReadonlySet<string>;
-}): { after: Draft; diff: ScheduleChangeDiff[]; totals: ScheduleChangeTotals } {
+function changeResult<Draft extends CreationDraft>(draft: Draft, after: Draft) {
+  const current = new Map(draft.weeks.flatMap((week) => week.workouts).map((w) => [w.id, w]));
+  const remaining = new Map(after.weeks.flatMap((week) => week.workouts).map((w) => [w.id, w]));
+  const diff: ScheduleChangeDiff[] = [];
+  for (const before of current.values()) {
+    const next = remaining.get(before.id) ?? null;
+    if (next === null || changed(before, next)) {
+      diff.push({ workoutId: before.id, before: structuredClone(before), after: next });
+    }
+  }
+  for (const next of remaining.values()) {
+    if (!current.has(next.id)) diff.push({ workoutId: next.id, before: null, after: next });
+  }
+  const { inputFingerprint: _input, outputFingerprint: _output, ...snapshot } = after;
+  after.outputFingerprint = digest(snapshot);
+  return { after, diff, totals: { before: totals(draft), after: totals(after) } };
+}
+
+export function applyScheduleIntent<Draft extends CreationDraft>(
+  input: {
+    draft: Draft;
+    todayDateKey: number;
+    completedWorkoutIds?: ReadonlySet<string>;
+  } & (
+    | { intent: ScheduleIntent }
+    | { intent: { kind: "inverse"; changeId: string }; previousDraft: Draft }
+  ),
+): { after: Draft; diff: ScheduleChangeDiff[]; totals: ScheduleChangeTotals } {
+  const { draft, todayDateKey, completedWorkoutIds = new Set<string>() } = input;
+  if ("previousDraft" in input) {
+    const after = structuredClone(input.previousDraft);
+    const current = new Map(draft.weeks.flatMap((week) => week.workouts).map((w) => [w.id, w]));
+    for (const week of after.weeks) {
+      week.workouts = week.workouts
+        .filter(
+          (workout) =>
+            current.has(workout.id) || mutable(workout, todayDateKey, completedWorkoutIds),
+        )
+        .map((workout) => {
+          const present = current.get(workout.id);
+          return present && !mutable(present, todayDateKey, completedWorkoutIds)
+            ? structuredClone(present)
+            : workout;
+        });
+      const restoredIds = new Set(week.workouts.map((workout) => workout.id));
+      const currentWeek = draft.weeks.find((candidate) => candidate.number === week.number);
+      for (const workout of currentWeek?.workouts ?? []) {
+        if (!mutable(workout, todayDateKey, completedWorkoutIds) && !restoredIds.has(workout.id)) {
+          week.workouts.push(structuredClone(workout));
+        }
+      }
+    }
+    return changeResult(draft, after);
+  }
+  const { intent } = input;
   const after = structuredClone(draft);
   for (const week of after.weeks) {
     if (intent.kind === "weekly-duration") {
@@ -108,15 +152,5 @@ export function applyScheduleIntent<Draft extends CreationDraft>({
     }
     week.workouts = week.workouts.filter((workout) => workout.minutes > 0);
   }
-  const remaining = new Map(after.weeks.flatMap((week) => week.workouts).map((w) => [w.id, w]));
-  const diff: ScheduleChangeDiff[] = [];
-  for (const before of draft.weeks.flatMap((week) => week.workouts)) {
-    const next = remaining.get(before.id) ?? null;
-    if (next === null || changed(before, next)) {
-      diff.push({ workoutId: before.id, before: structuredClone(before), after: next });
-    }
-  }
-  const { inputFingerprint: _input, outputFingerprint: _output, ...snapshot } = after;
-  after.outputFingerprint = digest(snapshot);
-  return { after, diff, totals: { before: totals(draft), after: totals(after) } };
+  return changeResult(draft, after);
 }
