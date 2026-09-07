@@ -113,6 +113,66 @@ describe("Plan reconciliation repository", () => {
     expect(await repository.readItems(JOB_ID)).toEqual([savedItem]);
   });
 
+  it("reads the latest library jobs for three Plans and both kinds in one query", async () => {
+    const repository = await fresh();
+    if (store === undefined) throw new Error("missing store");
+    const planIds = [PLAN_ID, "01K00000000000000000000009", "01K00000000000000000000010"];
+    for (const planId of planIds.slice(1)) {
+      await store.run(
+        `INSERT INTO plan (
+          id,origin_id,name,primary_goal,start_date_key,target_date_key,status,kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+        ) SELECT ?,origin_id,name,primary_goal,start_date_key,target_date_key,'ended',kind,total_weeks,
+          week_start_day,structure_json,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+          FROM plan WHERE id=?`,
+        [planId, PLAN_ID],
+      );
+    }
+    let sequence = 20;
+    for (const planId of planIds) {
+      for (const kind of ["mirror", "cleanup"] as const) {
+        for (const window of [
+          { windowStartDateKey: 19980825, windowEndDateKey: 19980831, createdAtMs: 100 },
+          { windowStartDateKey: 19980826, windowEndDateKey: 19980901, createdAtMs: 20 },
+          { windowStartDateKey: 19980826, windowEndDateKey: 19980902, createdAtMs: 10 },
+        ]) {
+          await repository.createOrGetJob({
+            ...job(),
+            ...window,
+            id: `01K${String(sequence++).padStart(23, "0")}`,
+            planId,
+            kind,
+          });
+        }
+      }
+    }
+    const expected = [];
+    for (const planId of planIds) {
+      for (const kind of ["cleanup", "mirror"] as const) {
+        expected.push(await repository.readLatestJobByWindow(planId, kind));
+      }
+    }
+    let queryCount = 0;
+    const source = store;
+    const counted = createPlanReconciliationRepository({
+      exec: source.exec.bind(source),
+      run: source.run.bind(source),
+      all: async (...args) => {
+        queryCount += 1;
+        return source.all(...args);
+      },
+      get: async (...args) => {
+        queryCount += 1;
+        return source.get(...args);
+      },
+      close: source.close.bind(source),
+      transaction: source.transaction.bind(source),
+    });
+    expect(await counted.readLatestJobsForLibrary()).toEqual(expected);
+    expect(queryCount).toBe(1);
+    expect(expected).toHaveLength(6);
+  });
+
   it("lists runnable jobs across Plans by window, creation time, and identity", async () => {
     const repository = await fresh();
     if (store === undefined) throw new Error("missing store");

@@ -240,6 +240,19 @@ describe("Schedule Plan Changes", () => {
     expect(result.after.answeredSummaries).toEqual([]);
   });
 
+  it.each(intents)("preserves completed Workouts today for $kind", (intent) => {
+    const draft = fixture();
+    const completedWorkoutIds = new Set(["w2-hard"]);
+    const result = applyScheduleIntent({ draft, intent, todayDateKey, completedWorkoutIds });
+    const completed = workouts(draft).find((workout) => workout.id === "w2-hard");
+    expect(completed?.date).toBe("1998-08-24");
+    expect(workouts(result.after).find((workout) => workout.id === "w2-hard")).toEqual(completed);
+    expect(result.diff.some((row) => row.workoutId === "w2-hard")).toBe(false);
+    expect(result.diff.length).toBeGreaterThan(0);
+    expect(draft).toEqual(fixture());
+    expect(completedWorkoutIds).toEqual(new Set(["w2-hard"]));
+  });
+
   it.each(intents)("is deterministic and fingerprints the changed content for $kind", (intent) => {
     const first = run(intent);
     expect(run(intent)).toEqual(first);

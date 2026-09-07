@@ -304,6 +304,7 @@ describe("Plan operations", () => {
       commandId: "activate",
       creationId: card.creationId,
       expectedVersion: reviewed.planCreation.version,
+      incumbent: null,
     });
     const operations = createPlanningOperations(
       { context, engine: engine(), identity: authored },

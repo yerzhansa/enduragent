@@ -39,6 +39,7 @@ const activationInput = (key = "1") => {
   const planId = id(`1${key}`);
   return {
     command,
+    incumbent: null,
     creationId: id(key),
     expectedVersion: 2,
     activatedAt: "1998-01-01",

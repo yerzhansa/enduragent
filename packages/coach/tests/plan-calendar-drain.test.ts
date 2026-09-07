@@ -90,8 +90,10 @@ async function harness() {
     });
     if (preview.status !== "previewed" || preview.planCreation.draft === null)
       throw new Error("Expected Draft");
+    const { active } = await creation["plan.list"]({});
     const result = await creation["plan_creation.activate"]({
       commandId: `activate-${++sequence}`,
+      incumbent: active === null ? null : { planId: active.planId, version: active.version },
       creationId: card.creationId,
       expectedVersion: preview.planCreation.version,
     });

@@ -65,6 +65,20 @@ export function createPlanChangeOperations(input: {
         throw parsed.error;
       }
       const { intent, planId, expectedVersion } = parsed.data;
+      const completedRows = await input.store.all(
+        `SELECT workout.structure_json FROM plan_workout workout
+        WHERE workout.plan_id=? AND EXISTS (
+          SELECT 1 FROM plan_workout_match match
+          WHERE match.plan_workout_id=workout.id AND match.plan_id=workout.plan_id
+            AND match.decision='confirmed'
+        )`,
+        [planId],
+      );
+      const completedWorkoutIds = new Set(
+        completedRows.map(
+          (row) => DraftIdSchema.parse(JSON.parse(z.string().parse(row.structure_json))).id,
+        ),
+      );
       const result = await repository.preview({
         command: await stamp(parsed.data),
         planId,
@@ -76,6 +90,7 @@ export function createPlanChangeOperations(input: {
           const { after, diff, totals } = applyScheduleIntent({
             draft,
             intent,
+            completedWorkoutIds,
             todayDateKey: input.todayDateKey(),
           });
           return {
@@ -150,9 +165,8 @@ export function createPlanChangeOperations(input: {
             delete: currentWorkouts
               .filter(
                 (workout) =>
-                  diffIds.has(
-                    DraftIdSchema.parse(JSON.parse(workout.structureJson)).id,
-                  ) && !retained.has(workout.id),
+                  diffIds.has(DraftIdSchema.parse(JSON.parse(workout.structureJson)).id) &&
+                  !retained.has(workout.id),
               )
               .map((workout) => workout.id),
           };

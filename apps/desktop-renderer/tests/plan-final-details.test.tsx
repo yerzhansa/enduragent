@@ -157,11 +157,40 @@ describe("final Plan details", () => {
       value.cleanup = "none";
       render(<PlanFinalDetails history={value} backToLibrary={vi.fn()} />);
       expect(screen.getByRole("row", { name: /^Calendar/ })).toHaveTextContent(copy);
-      expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
-        "Back to library",
-      ]);
+      expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(
+        calendar.status === "failed" && calendar.error.endsWith("Retry available.")
+          ? ["Retry calendar", "Back to library"]
+          : ["Back to library"],
+      );
     },
   );
+
+  it("offers the calendar retry action only while cleanup remains retryable", () => {
+    const value = history();
+    value.plan.calendar = {
+      status: "failed",
+      window: null,
+      currentThrough: null,
+      error: "Calendar cleanup failed. Retry available.",
+    };
+    const retryCalendar = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <PlanFinalDetails history={value} backToLibrary={vi.fn()} retryCalendar={retryCalendar} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry calendar" }));
+    expect(retryCalendar).toHaveBeenCalledOnce();
+    value.plan.calendar = {
+      status: "verified",
+      window: null,
+      currentThrough: "1998-09-13",
+      error: null,
+    };
+    view.rerender(
+      <PlanFinalDetails history={value} backToLibrary={vi.fn()} retryCalendar={retryCalendar} />,
+    );
+    expect(screen.queryByRole("button", { name: "Retry calendar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /^Calendar/ })).toHaveTextContent("Cleanup complete");
+  });
 
   it("retains undated Workouts as Not chosen and preserves dated and pinned Workouts", () => {
     const value = history();

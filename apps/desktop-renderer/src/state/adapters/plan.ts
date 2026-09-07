@@ -43,31 +43,28 @@ export async function readPlanHistory(
 
 export async function closePlan(
   clients: DesktopCoachClientProvider,
-  input: Omit<PlanCloseRpcParams, "commandId">,
+  input: PlanCloseRpcParams,
 ): Promise<PlanCloseResult> {
   return (await clients.getClient()).call("plan.close", {
     ...input,
-    commandId: globalThis.crypto.randomUUID(),
   });
 }
 
 export async function previewPlanChange(
   clients: DesktopCoachClientProvider,
-  input: Omit<PlanChangePreviewRpcParams, "commandId">,
+  input: PlanChangePreviewRpcParams,
 ) {
   return (await clients.getClient()).call("plan_change.preview", {
     ...input,
-    commandId: globalThis.crypto.randomUUID(),
   });
 }
 
 export async function applyPlanChange(
   clients: DesktopCoachClientProvider,
-  input: Omit<PlanChangeApplyRpcParams, "commandId">,
+  input: PlanChangeApplyRpcParams,
 ) {
   return (await clients.getClient()).call("plan_change.apply", {
     ...input,
-    commandId: globalThis.crypto.randomUUID(),
   });
 }
 

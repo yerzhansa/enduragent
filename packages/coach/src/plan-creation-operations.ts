@@ -174,6 +174,60 @@ export function createPlanCreationOperations(input: {
     const current = await persistDerivedBaseline(snapshot);
     return projectPlanCreationCard(current, { today: today() });
   };
+  const replayRow = async (
+    name: "plan_creation.start" | "plan_creation.answer",
+    commandId: string,
+    digest: string,
+  ) => {
+    const row = await input.store.get(
+      "SELECT request_digest,status,result_json FROM planning_command WHERE command_name=? AND command_id=?",
+      [name, commandId],
+    );
+    if (row === undefined) return undefined;
+    if (row.request_digest !== digest) throw new PlanCreationStoreError("command-conflict");
+    if (row.status !== "succeeded" || typeof row.result_json !== "string")
+      throw new PlanCreationStoreError("corrupt-record");
+    return z
+      .object({
+        creationId: z.string(),
+        outcome: z.enum(["created", "resumed"]).optional(),
+        version: z.number().int().positive().optional(),
+      })
+      .parse(JSON.parse(row.result_json));
+  };
+  const projectRecorded = async (snapshot: PlanCreationSnapshot, version: number) => {
+    const draftRow = await input.store.get(
+      "SELECT output_snapshot_json,input_version FROM plan_creation_draft_revision WHERE creation_id=? AND input_version+1<=? ORDER BY revision_number DESC LIMIT 1",
+      [snapshot.id, version],
+    );
+    const recordedDraft =
+      draftRow === undefined
+        ? null
+        : z
+            .object({
+              output_snapshot_json: z.string(),
+              input_version: z.number().int().positive(),
+            })
+            .parse(draftRow);
+    const card = projectPlanCreationCard(
+      {
+        ...snapshot,
+        status: "in-progress",
+        version,
+        currentDraft: null,
+        answers: snapshot.answers.filter((answer) => answer.creationVersion <= version),
+      },
+      { today: today() },
+    );
+    return recordedDraft === null
+      ? card
+      : {
+          ...card,
+          status: "review" as const,
+          draft: PlanCreationDraftSchema.parse(JSON.parse(recordedDraft.output_snapshot_json)),
+          draftStale: recordedDraft.input_version + 1 !== version,
+        };
+  };
   const readCard = async (): Promise<PlanCreationCardModel | null> => {
     const snapshot = await input.repository.readUnfinished();
     return snapshot === undefined ? null : project(snapshot);
@@ -261,17 +315,18 @@ export function createPlanCreationOperations(input: {
         const creation = await input.repository.readUnfinished();
         const records = await plans.listPlans();
         const reconciliation = createPlanReconciliationRepository(transactionStore);
-        const summaries = await Promise.all(
-          records.map(async (plan) => ({
-            ...summarizePlan(plan),
-            calendar: summarizeCalendar(
-              await reconciliation.readLatestJobByWindow(
-                plan.planId,
-                plan.status === "active" ? "mirror" : "cleanup",
-              ),
-            ),
-          })),
+        const jobs = new Map(
+          (await reconciliation.readLatestJobsForLibrary()).map((job) => [
+            `${job.planId}:${job.kind}`,
+            job,
+          ]),
         );
+        const summaries = records.map((plan) => ({
+          ...summarizePlan(plan),
+          calendar: summarizeCalendar(
+            jobs.get(`${plan.planId}:${plan.status === "active" ? "mirror" : "cleanup"}`),
+          ),
+        }));
         const active = summaries.find((plan) => plan.status === "active") ?? null;
         return ListPlansResultSchema.parse({
           calendarConnected: calendarConnected(),
@@ -336,25 +391,31 @@ export function createPlanCreationOperations(input: {
     },
     async "plan_creation.start"(request) {
       const parsed = PlanCreationStartRpcParamsSchema.parse(request);
-      const current = await input.repository.readUnfinished();
-      const candidates =
-        current === undefined
-          ? (await input.eventCandidates.read()).slice(0, 10).map((candidate) => ({
-              candidateId: input.identity.newUlid(),
-              ...candidate,
-            }))
-          : [];
+      const digest = await requestDigest(input.crypto, parsed);
       try {
+        const replay = await replayRow("plan_creation.start", parsed.commandId, digest);
+        const current = replay === undefined ? await input.repository.readUnfinished() : undefined;
+        const candidates =
+          current === undefined && replay === undefined
+            ? (await input.eventCandidates.read()).slice(0, 10).map((candidate) => ({
+                candidateId: input.identity.newUlid(),
+                ...candidate,
+              }))
+            : [];
         const result = await input.repository.start({
-          command: await stamp(parsed.commandId, await requestDigest(input.crypto, parsed)),
+          command: await stamp(parsed.commandId, digest),
           creationId: current?.id ?? input.identity.newUlid(),
           seed: { schemaVersion: 1, eventCandidates: candidates },
         });
-        return PlanCreationStartRpcResultSchema.parse({
+        const response = PlanCreationStartRpcResultSchema.parse({
           status: "started",
-          outcome: result.outcome === "created" ? "created" : "resumed",
-          planCreation: await project(result.snapshot),
+          outcome: replay?.outcome ?? (result.outcome === "created" ? "created" : "resumed"),
+          planCreation:
+            replay === undefined
+              ? await project(result.snapshot)
+              : await projectRecorded(result.snapshot, replay.version ?? result.snapshot.version),
         });
+        return response;
       } catch (error) {
         if (error instanceof PlanCreationStoreError && error.code === "command-conflict") {
           return PlanCreationStartRpcResultSchema.parse({
@@ -367,6 +428,36 @@ export function createPlanCreationOperations(input: {
     },
     async "plan_creation.answer"(request) {
       const parsed = PlanCreationAnswerRpcParamsSchema.parse(request);
+      const digest = await requestDigest(input.crypto, parsed);
+      try {
+        const replay = await replayRow("plan_creation.answer", parsed.commandId, digest);
+        if (replay !== undefined) {
+          const result = await input.repository.recordAnswer({
+            command: await stamp(parsed.commandId, digest),
+            creationId: parsed.creationId,
+            expectedVersion: parsed.expectedVersion,
+            answerId: input.identity.newUlid(),
+            answerKey: parsed.answer.kind,
+            valueJson: encodePlanCreationAnswer(parsed.answer, { kind: "athlete" }),
+          });
+          const response = PlanCreationAnswerRpcResultSchema.parse({
+            status: "answered",
+            planCreation: await projectRecorded(
+              result.snapshot,
+              replay.version ?? result.snapshot.version,
+            ),
+          });
+          return response;
+        }
+      } catch (error) {
+        if (error instanceof PlanCreationStoreError && error.code === "command-conflict")
+          return PlanCreationAnswerRpcResultSchema.parse({
+            status: "rejected",
+            reason: "command-conflict",
+            planCreation: null,
+          });
+        throw error;
+      }
       const snapshot = await input.repository.readUnfinished();
       if (snapshot === undefined || snapshot.id !== parsed.creationId) {
         return PlanCreationAnswerRpcResultSchema.parse({
@@ -375,7 +466,6 @@ export function createPlanCreationOperations(input: {
           planCreation: snapshot === undefined ? null : await project(snapshot),
         });
       }
-      const digest = await requestDigest(input.crypto, parsed);
       const stampValue = await stamp(parsed.commandId, digest);
       const answerId = input.identity.newUlid();
       const record = () =>
@@ -406,10 +496,11 @@ export function createPlanCreationOperations(input: {
       }
       try {
         const result = await record();
-        return PlanCreationAnswerRpcResultSchema.parse({
+        const response = PlanCreationAnswerRpcResultSchema.parse({
           status: "answered",
           planCreation: await project(result.snapshot),
         });
+        return response;
       } catch (error) {
         if (
           error instanceof PlanCreationStoreError &&
@@ -527,6 +618,7 @@ export function createPlanCreationOperations(input: {
       const command = await stamp(parsed.commandId, await requestDigest(input.crypto, parsed));
       const result = await input.repository.activate({
         command,
+        incumbent: parsed.incumbent,
         creationId: parsed.creationId,
         expectedVersion: parsed.expectedVersion,
         activatedAt: today(),

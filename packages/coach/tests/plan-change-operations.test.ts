@@ -5,14 +5,17 @@ import {
   type PlanChangeIntent,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
-import { createPlanCreationRepository } from "@enduragent/kernel/planning";
+import {
+  createPlanWorkoutMatchRepository,
+  createPlanCreationRepository,
+} from "@enduragent/kernel/planning";
 import { dumpStore, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 
-async function activatedPlan() {
+async function activatedPlan(todayDateKey = () => 19980902) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
   await runMigrations(store, MIGRATIONS);
@@ -26,7 +29,7 @@ async function activatedPlan() {
     store,
     identity,
     crypto: globalThis.crypto,
-    todayDateKey: () => 19980902,
+    todayDateKey,
     now: () => 904_694_400_000,
   };
   const creation = createPlanCreationOperations({
@@ -75,6 +78,7 @@ async function activatedPlan() {
     throw new Error("Expected Draft");
   const activated = await creation["plan_creation.activate"]({
     commandId: "activate",
+    incumbent: null,
     creationId: card.creationId,
     expectedVersion: draftResult.planCreation.version,
   });
@@ -108,7 +112,129 @@ async function activatedPlan() {
   };
 }
 
+async function matchWorkout(
+  test: Awaited<ReturnType<typeof activatedPlan>>,
+  workoutId: string,
+  source: "platform" | "heuristic",
+  decision: "suggested" | "confirmed" | "rejected" | "unpaired",
+) {
+  const workout = await test.store.get(
+    "SELECT id,date_key FROM plan_workout WHERE plan_id=? AND json_extract(structure_json,'$.id')=?",
+    [test.planId, workoutId],
+  );
+  if (typeof workout?.id !== "string" || typeof workout.date_key !== "number")
+    throw new Error("Expected dated Workout");
+  return createPlanWorkoutMatchRepository(test.store).observe({
+    id: "900".padStart(26, "0"),
+    planId: test.planId,
+    planWorkoutId: workout.id,
+    activityId: "a".repeat(64),
+    providerActivityId: source === "platform" ? "synthetic-activity" : null,
+    providerEventId: source === "platform" ? 42 : null,
+    source,
+    decision,
+    activityDateKey: workout.date_key,
+    activitySport: "Ride",
+    activityDurationS: 3600,
+    observedAtMs: 904_694_400_000,
+    decidedAtMs: decision === "suggested" ? null : 904_694_400_000,
+    deviceId: "plan-change-test-device",
+    hlcPhysicalMs: 904_694_400_000,
+    hlcCounter: 0,
+  });
+}
+
 describe("Plan Change operations", () => {
+  it.each(["platform", "heuristic"] as const)(
+    "excludes a Workout completed today through a %s match from preview and preserves it on apply",
+    async (source) => {
+      const test = await activatedPlan(() => 19980903);
+      const completed = test.draft.weeks
+        .flatMap((week) => week.workouts)
+        .find((workout) => workout.date === "1998-09-03");
+      if (completed === undefined) throw new Error("Expected today's Workout");
+      const match = await matchWorkout(test, completed.id, source, "confirmed");
+      const before = await test.workouts();
+      const preview = await test.preview({ kind: "weekday-unavailable", day: 4 });
+      expect(preview.change.diff.some((row) => row.workoutId === completed.id)).toBe(false);
+      expect(preview.change.diff.length).toBeGreaterThan(0);
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "apply-completed-preview",
+          planId: test.planId,
+          changeId: preview.change.changeId,
+          expectedVersion: 1,
+          decision: "apply",
+        }),
+      ).resolves.toMatchObject({ status: "applied" });
+      expect((await test.workouts()).find((row) => row.id === match.planWorkoutId)).toEqual(
+        before.find((row) => row.id === match.planWorkoutId),
+      );
+      expect(await createPlanWorkoutMatchRepository(test.store).readForPlan(test.planId)).toEqual([
+        match,
+      ]);
+    },
+  );
+
+  it.each([
+    { source: "heuristic", decision: "suggested" },
+    { source: "heuristic", decision: "rejected" },
+    { source: "platform", decision: "unpaired" },
+  ] as const)(
+    "keeps a $decision match eligible for preview and apply",
+    async ({ source, decision }) => {
+      const test = await activatedPlan(() => 19980903);
+      const workout = test.draft.weeks
+        .flatMap((week) => week.workouts)
+        .find((row) => row.date === "1998-09-03");
+      if (workout === undefined) throw new Error("Expected today's Workout");
+      await matchWorkout(test, workout.id, source, decision);
+      const preview = await test.preview({ kind: "weekday-unavailable", day: 4 });
+      expect(
+        preview.change.diff.some((row) => row.workoutId === workout.id && row.after === null),
+      ).toBe(true);
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "apply-uncompleted",
+          planId: test.planId,
+          changeId: preview.change.changeId,
+          expectedVersion: 1,
+          decision: "apply",
+        }),
+      ).resolves.toMatchObject({ status: "applied" });
+    },
+  );
+
+  it.each([
+    { kind: "weekday-unavailable", day: 4 },
+    { kind: "longest-workout", minutes: 15 },
+  ] satisfies PlanChangeIntent[])(
+    "rejects $kind when a completion appears after preview without any writes",
+    async (intent) => {
+      const test = await activatedPlan(() => 19980903);
+      const preview = await test.preview(intent);
+      const changed = preview.change.diff.find((row) => row.before?.date === "1998-09-03");
+      if (changed === undefined) throw new Error("Expected today's changed Workout");
+      await matchWorkout(test, changed.workoutId, "heuristic", "confirmed");
+      const before = await dumpStore(test.store);
+      await expect(
+        test.changes["plan_change.apply"]({
+          commandId: "apply-completed",
+          planId: test.planId,
+          changeId: preview.change.changeId,
+          expectedVersion: 1,
+          decision: "apply",
+        }),
+      ).resolves.toEqual({ status: "rejected", reason: "stale-version" });
+      expect(await dumpStore(test.store)).toBe(before);
+      expect((await test.creation["plan.list"]({})).changes).toMatchObject([
+        { status: "pending", resultRevisionNumber: null },
+      ]);
+      const fresh = await test.preview(intent, "fresh-preview");
+      expect(fresh.change.diff.some((row) => row.workoutId === changed.workoutId)).toBe(false);
+    },
+  );
+
   it("stores a pending preview in plan.list without changing training and replays its captured result", async () => {
     const test = await activatedPlan();
     const before = await test.workouts();

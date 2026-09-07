@@ -8,6 +8,7 @@ import {
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientProtocolError,
+  CoachRpcRemoteError,
 } from "@enduragent/coach-client";
 import {
   PLAN_CREATION_ANSWER_KEYS,
@@ -24,6 +25,9 @@ import {
   type PlanHandoffSuggestion,
   type ListPlansResult,
   type PlanChangeIntent,
+  type PlanChangePreviewRpcParams,
+  type PlanChangeApplyRpcParams,
+  type PlanCreationActivateRpcParams,
   type PlanCreationAnswerInput,
   type PlanCreationAnswerSummary,
   type PlanCreationCardModel,
@@ -195,7 +199,8 @@ export interface ChatViewControls {
     readonly discardEvents: readonly PlanCreationDiscardEvent[];
     readonly notice: string | null;
     readonly focusRequest: {
-      readonly target: "discard" | "activate" | "start";
+      readonly target: "discard" | "activate" | "start" | "continue" | "change";
+      readonly libraryTarget?: "continue" | "change";
       readonly revision: number;
     } | null;
   };
@@ -248,6 +253,7 @@ export interface ChatController {
   refreshPlanningRequests(): void;
   focusPlanningRequest(requestId: string): void;
   clearPlanningRequestFocus(): void;
+  requestPlanLibraryFocus(target: "continue" | "change"): void;
   resumeCreation(model: PlanCreationCardModel | null): void;
   continueCreationFromLibrary(creationId: string): Promise<void>;
   startPlanCreation(): Promise<void>;
@@ -403,6 +409,9 @@ export function createChatController(input: {
   let planCreation: PlanCreationCardModel | null = null;
   let planCreationLoaded = false;
   let planCreationBusy = false;
+  let activationAttempt: PlanCreationActivateRpcParams | null = null;
+  let previewAttempt: PlanChangePreviewRpcParams | null = null;
+  let applyAttempt: PlanChangeApplyRpcParams | null = null;
   let planCreationError: string | null = null;
   let planCreationPaused = false;
   let planCreationEditingKey: PlanCreationAnswerSummary["answerKey"] | null = null;
@@ -414,7 +423,8 @@ export function createChatController(input: {
   let planCreationDiscardEvents: readonly PlanCreationDiscardEvent[] = [];
   let planCreationNotice: string | null = null;
   let planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "start";
+    readonly target: "discard" | "activate" | "start" | "continue" | "change";
+    readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null = null;
   let planCreationActionFocusRevision = 0;
@@ -1092,11 +1102,13 @@ export function createChatController(input: {
 
   const installPlanCreation = (
     next: PlanCreationCardModel | null,
-    focusTarget?: "discard" | "activate" | "start",
+    focusTarget?: "discard" | "activate" | "start" | "continue" | "change",
   ): void => {
     const previous = planCreation;
     let actionFocusRequested = false;
-    const requestActionFocus = (target: "discard" | "activate" | "start"): void => {
+    const requestActionFocus = (
+      target: "discard" | "activate" | "start" | "continue" | "change",
+    ): void => {
       requestPlanCreationFocus(target);
       actionFocusRequested = true;
     };
@@ -1154,8 +1166,16 @@ export function createChatController(input: {
     mergeHydratedMessages(hydration.turns, state.messages, hydration.entries)
       .filter((message) => message.role === "athlete" || message.text.length > 0)
       .at(-1)?.id ?? null;
-  const requestPlanCreationFocus = (target: "discard" | "activate" | "start"): void => {
-    planCreationFocusRequest = { target, revision: ++planCreationActionFocusRevision };
+  const requestPlanCreationFocus = (
+    target: "discard" | "activate" | "start" | "continue" | "change",
+  ): void => {
+    planCreationFocusRequest = {
+      ...(target === "start" || planCreationFocusRequest?.libraryTarget === undefined
+        ? {}
+        : { libraryTarget: planCreationFocusRequest.libraryTarget }),
+      target,
+      revision: ++planCreationActionFocusRevision,
+    };
   };
   const planCreationDiscardNotice = (
     reason: "stale-version" | "command-conflict" | "no-unfinished-creation",
@@ -1756,6 +1776,15 @@ export function createChatController(input: {
 
   render();
   return {
+    requestPlanLibraryFocus(target) {
+      if (disposed) return;
+      planCreationFocusRequest = {
+        target,
+        libraryTarget: target,
+        revision: ++planCreationActionFocusRevision,
+      };
+      render();
+    },
     openPlanChangeEditor() {
       const active = input.readPlanLibrary?.()?.active;
       if (disposed || readChange().busy || !active) return;
@@ -1777,23 +1806,34 @@ export function createChatController(input: {
       if (disposed || readChange().busy || !active) return;
       const parameterCopy =
         intent.kind === "weekly-duration"
-          ? "Enter a weekly duration above zero."
+          ? Number.isFinite(intent.hours) && intent.hours > 0 && !Number.isInteger(intent.hours * 4)
+            ? "Enter weekly hours in quarter-hour steps, like 2.25."
+            : "Enter a weekly duration above zero."
           : "day" in intent && (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
             ? "Choose the weekday to change."
             : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
               ? "Choose the weekday to change."
               : "Enter a duration above zero.";
-      if (!PlanChangeIntentSchema.safeParse(intent).success) {
+      const parsedIntent = PlanChangeIntentSchema.safeParse(intent);
+      if (!parsedIntent.success) {
         publishChange({ error: parameterCopy });
         return;
       }
-      publishChange({ busy: true, error: null, notice: null });
-      try {
-        const result = await previewPlanChange(input.clients, {
+      if (
+        previewAttempt?.planId !== active.planId ||
+        JSON.stringify(previewAttempt.intent) !== JSON.stringify(parsedIntent.data)
+      ) {
+        previewAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
           planId: active.planId,
           expectedVersion: active.version,
-          intent,
-        });
+          intent: parsedIntent.data,
+        };
+      }
+      publishChange({ busy: true, error: null, notice: null });
+      try {
+        const result = await previewPlanChange(input.clients, previewAttempt);
+        previewAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
           publishChange({
@@ -1820,10 +1860,14 @@ export function createChatController(input: {
             ? `This preview supersedes “${superseded.title}”. Training is unchanged until confirmation.`
             : "Review the exact changes before confirming.",
         });
-        await input.refreshPlanLibrary?.();
+        await input.refreshPlanLibrary?.().catch(() => {});
         publishChange({ focusRequest: changeFocus("preview") });
       } catch {
-        publishChange({ error: "This Change could not be previewed. Training is unchanged." });
+        publishChange({
+          error:
+            "The preview result could not be confirmed. The Plan library will show the current state after refresh.",
+        });
+        await input.refreshPlanLibrary?.().catch(() => {});
       } finally {
         publishChange({ busy: false });
       }
@@ -1833,18 +1877,31 @@ export function createChatController(input: {
       const active = library?.active;
       if (disposed || readChange().busy || !active) return;
       const pending = library.changes.find((change) => change.status === "pending");
-      if (!pending) {
+      const retry =
+        applyAttempt?.decision === decision &&
+        applyAttempt.planId === active.planId &&
+        (!pending || pending.changeId === applyAttempt.changeId)
+          ? applyAttempt
+          : null;
+      if (!pending && retry === null) {
         publishChange({ notice: "This preview is no longer pending. Training is unchanged." });
         return;
       }
-      publishChange({ busy: true, error: null, notice: null });
-      try {
-        const result = await applyPlanChange(input.clients, {
+      if (retry !== null) applyAttempt = retry;
+      else if (pending) {
+        applyAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
           planId: active.planId,
           changeId: pending.changeId,
           expectedVersion: active.version,
           decision,
-        });
+        };
+      }
+      if (applyAttempt === null) return;
+      publishChange({ busy: true, error: null, notice: null });
+      try {
+        const result = await applyPlanChange(input.clients, applyAttempt);
+        applyAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
           publishChange({
@@ -1869,13 +1926,14 @@ export function createChatController(input: {
               ? "Change applied locally. Training now matches the confirmed preview."
               : "Change cancelled. Training is unchanged; the preview remains in history.",
         });
-        await input.refreshPlanLibrary?.();
+        await input.refreshPlanLibrary?.().catch(() => {});
         publishChange({ focusRequest: changeFocus("change") });
       } catch {
         publishChange({
           notice:
-            "This Change could not be applied. Training and the pending preview are unchanged.",
+            "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
         });
+        await input.refreshPlanLibrary?.().catch(() => {});
       } finally {
         publishChange({ busy: false });
       }
@@ -2517,7 +2575,7 @@ export function createChatController(input: {
       } catch {
         if (disposed || activePlanKnowledge !== knowledge) return;
         planCreationError =
-          "Activation could not be saved locally. Your previous Plan is unchanged.";
+          "The current Plan could not be read. Refresh the Plan library before activating.";
       }
       planCreationBusy = false;
       render();
@@ -2539,21 +2597,57 @@ export function createChatController(input: {
         planCreation === null
       )
         return;
+      const library = input.readPlanLibrary?.();
+      if (library == null) {
+        planCreationError = "Read the Plan library and confirm again.";
+        render();
+        return;
+      }
+      const incumbent =
+        library.active === null
+          ? null
+          : { planId: library.active.planId, version: library.active.version };
       const target = planCreation;
+      if (
+        activationAttempt?.creationId !== target.creationId ||
+        activationAttempt.expectedVersion !== target.version
+      ) {
+        activationAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
+          creationId: target.creationId,
+          expectedVersion: target.version,
+          incumbent,
+        };
+      }
       planCreationBusy = true;
       planCreationError = null;
       render();
       try {
-        await (
-          await input.clients.getClient()
-        ).call("plan_creation.activate", {
-          commandId: globalThis.crypto.randomUUID(),
-          creationId: target.creationId,
-          expectedVersion: target.version,
-        });
-      } catch {
-        planCreationError =
-          "Activation could not be saved locally. Your previous Plan is unchanged.";
+        await (await input.clients.getClient()).call("plan_creation.activate", activationAttempt);
+        activationAttempt = null;
+      } catch (error) {
+        const rejection =
+          error instanceof CoachRpcRemoteError &&
+          error.data !== null &&
+          typeof error.data === "object" &&
+          "code" in error.data
+            ? error.data.code
+            : null;
+        if (
+          rejection === "version-conflict" ||
+          rejection === "not-ready" ||
+          rejection === "command-conflict"
+        ) {
+          activationAttempt = null;
+          planCreationError =
+            rejection === "version-conflict"
+              ? "The Plan changed. Read the Plan library and confirm again."
+              : "Activation could not be saved locally. Your previous Plan is unchanged.";
+        } else {
+          planCreationError =
+            "The activation result could not be confirmed. The Plan library will show the current state after refresh.";
+        }
+        await input.refreshPlanLibrary?.().catch(() => {});
         planCreationBusy = false;
         render();
         return;

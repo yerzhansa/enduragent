@@ -299,6 +299,14 @@ describe("Plan Change cards", () => {
     await userEvent.click(await screen.findByRole("option", { name: "Weekly duration cap" }));
     expect(screen.queryByRole("combobox", { name: "Weekday" })).toBeNull();
     expect(screen.getByRole("spinbutton", { name: "Weekly limit in hours" })).toHaveValue(3);
+    expect(screen.getByRole("spinbutton", { name: "Weekly limit in hours" })).toHaveAttribute(
+      "min",
+      "0.25",
+    );
+    expect(screen.getByRole("spinbutton", { name: "Weekly limit in hours" })).toHaveAttribute(
+      "step",
+      "0.25",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Preview change" }));
     expect(actions?.previewPlanChange).toHaveBeenLastCalledWith({
       kind: "weekly-duration",

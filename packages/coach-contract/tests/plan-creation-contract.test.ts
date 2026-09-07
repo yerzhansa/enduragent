@@ -695,7 +695,7 @@ describe("Plan Creation contract", () => {
   });
 
   it("validates activation identity, command boundaries, and civil dates", () => {
-    const request = { commandId: "activate", creationId, expectedVersion: 2 };
+    const request = { commandId: "activate", creationId, expectedVersion: 2, incumbent: null };
     expect(PlanCreationActivateRpcParamsSchema.parse(request)).toEqual(request);
     for (const extra of [
       { expectedVersion: 0 },
@@ -705,6 +705,23 @@ describe("Plan Creation contract", () => {
       { planId: creationId },
     ]) {
       expect(PlanCreationActivateRpcParamsSchema.safeParse({ ...request, ...extra }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      PlanCreationActivateRpcParamsSchema.parse({
+        ...request,
+        incumbent: { planId: creationId, version: 2 },
+      }).incumbent,
+    ).toEqual({ planId: creationId, version: 2 });
+    for (const incumbent of [
+      undefined,
+      {},
+      { planId: creationId, version: 0 },
+      { planId: creationId, version: 1, extra: true },
+      { planId: "invalid", version: 1 },
+    ]) {
+      expect(PlanCreationActivateRpcParamsSchema.safeParse({ ...request, incumbent }).success).toBe(
         false,
       );
     }
@@ -754,7 +771,7 @@ describe("Plan Creation contract", () => {
       },
       {
         method: "plan_creation.activate",
-        params: { commandId: "activate", creationId, expectedVersion: 1 },
+        params: { commandId: "activate", creationId, expectedVersion: 1, incumbent: null },
       },
     ] as const;
     requests.forEach((request, id) =>

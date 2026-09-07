@@ -85,7 +85,8 @@ export interface ChatSurfaceState {
   readonly planCreationActivateConfirmationOpen: boolean;
   readonly planCreationActivePlanKnowledge: ActivePlanKnowledge;
   readonly planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "start";
+    readonly target: "discard" | "activate" | "start" | "continue" | "change";
+    readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null;
   readonly timeline: readonly ChatTranscriptItemView[];
@@ -369,6 +370,8 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.planCreationActivateConfirmationOpen === right.planCreationActivateConfirmationOpen &&
     left.planCreationActivePlanKnowledge === right.planCreationActivePlanKnowledge &&
     left.planCreationFocusRequest?.target === right.planCreationFocusRequest?.target &&
+    left.planCreationFocusRequest?.libraryTarget ===
+      right.planCreationFocusRequest?.libraryTarget &&
     left.planCreationFocusRequest?.revision === right.planCreationFocusRequest?.revision &&
     left.workBlocked === right.workBlocked &&
     left.sendDisabled === right.sendDisabled &&

@@ -224,6 +224,25 @@ describe("Plan Creation repository", () => {
     ).resolves.toMatchObject({ outcome: "resumed", snapshot: { id: creationId, seed } });
   });
 
+  it("records the resulting creation version in each start and answer command", async () => {
+    await start();
+    await answer();
+    await repository.start({ command: stamp("resume", "c"), creationId: secondId, seed });
+    const rows = await store.all(
+      "SELECT command_id,result_json FROM planning_command ORDER BY command_id",
+    );
+    expect(
+      rows.map((row) => ({
+        commandId: row.command_id,
+        result: JSON.parse(String(row.result_json)),
+      })),
+    ).toEqual([
+      { commandId: "answer", result: { creationId, answerId: id("3"), version: 2 } },
+      { commandId: "resume", result: { creationId, outcome: "resumed", version: 2 } },
+      { commandId: "start", result: { creationId, outcome: "created", version: 1 } },
+    ]);
+  });
+
   it("replays effects and rejects a changed digest", async () => {
     await start();
     await expect(start()).resolves.toMatchObject({ outcome: "replayed" });
@@ -247,6 +266,46 @@ describe("Plan Creation repository", () => {
     ).rejects.toMatchObject({ code: "command-conflict" });
     expect(await store.all("SELECT id FROM plan_creation_answer")).toHaveLength(1);
   });
+
+  it.each([false, true])(
+    "replays the recorded creation after discard with a later creation: %s",
+    async (startLater) => {
+      await start();
+      await answer();
+      await discard(2);
+      if (startLater)
+        await repository.start({ command: stamp("later-start", "d"), creationId: secondId, seed });
+      const before = await dumpStore(store);
+      for (const replay of [start, answer]) {
+        await expect(replay()).resolves.toMatchObject({
+          outcome: "replayed",
+          snapshot: { id: creationId, status: "discarded", version: 3, answers: [{ id: id("3") }] },
+        });
+      }
+      expect(await dumpStore(store)).toBe(before);
+      await expect(repository.readUnfinished()).resolves.toEqual(
+        startLater ? expect.objectContaining({ id: secondId }) : undefined,
+      );
+    },
+  );
+
+  it.each(["{}", JSON.stringify({ creationId: secondId })])(
+    "rejects an unresolved recorded creation",
+    async (resultJson) => {
+      await start();
+      await store.run(
+        `INSERT INTO planning_command (
+command_name,command_id,request_digest,status,aggregate_refs_json,result_json,error_code,error_json,
+version,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter
+) SELECT command_name,'unresolved',request_digest,status,aggregate_refs_json,?,error_code,error_json,
+version,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter FROM planning_command WHERE command_name='plan_creation.start'`,
+        [resultJson],
+      );
+      await expect(
+        repository.start({ command: stamp("unresolved", "a"), creationId, seed }),
+      ).rejects.toMatchObject({ code: "corrupt-record" });
+    },
+  );
 
   it("leaves no partial effect for a stale version", async () => {
     await start();

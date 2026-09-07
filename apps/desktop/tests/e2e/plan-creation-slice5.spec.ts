@@ -314,6 +314,7 @@ for (const appearance of [
         await completeFitness(scenario);
         const reviewed = await build(scenario);
         const before = await scenario.backend.inspectActivation();
+        const { active } = await scenario.backend.library();
         const unrelated = await scenario.backend.inspectUnrelated();
         const trigger = scenario.page.getByRole("button", { name: "Activate Plan", exact: true });
         const dialog = scenario.page.getByRole("dialog", {
@@ -387,6 +388,7 @@ for (const appearance of [
           params: {
             creationId: reviewed.creationId,
             expectedVersion: reviewed.version,
+            incumbent: active === null ? null : { planId: active.planId, version: active.version },
             commandId: expect.any(String),
           },
         });
@@ -417,13 +419,15 @@ test("keeps the dialog and stored Plans intact when activation rolls back, then 
     await completeFitness(scenario);
     const reviewed = await build(scenario);
     const before = await scenario.backend.inspectActivation();
+    const { active } = await scenario.backend.library();
+    expect(active).not.toBeNull();
     await scenario.backend.setActivationFailure(true);
     await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
     const dialog = scenario.page.getByRole("dialog", { name: "Close and activate?", exact: true });
     await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
     await expect(dialog.getByRole("alert")).toBeVisible();
     await expect(dialog.getByRole("alert")).toHaveText(
-      "Activation could not be saved locally. Your previous Plan is unchanged.",
+      "The activation result could not be confirmed. The Plan library will show the current state after refresh.",
     );
     expect(await scenario.backend.inspectActivation()).toEqual(before);
     expect(await scenario.backend.card()).toEqual(reviewed);
@@ -435,7 +439,13 @@ test("keeps the dialog and stored Plans intact when activation rolls back, then 
       (request) => request.method === "plan_creation.activate",
     );
     expect(requests).toHaveLength(2);
-    expect(requests[0]?.params).not.toEqual(requests[1]?.params);
+    expect(requests[0]?.params).toEqual({
+      commandId: expect.any(String),
+      creationId: reviewed.creationId,
+      expectedVersion: reviewed.version,
+      incumbent: { planId: active?.planId, version: active?.version },
+    });
+    expect(requests[1]?.params).toEqual(requests[0]?.params);
     await showActivePlan(scenario);
   } finally {
     await close(scenario);
@@ -453,7 +463,7 @@ test("prevents activation when the current Plan cannot be read", async ({ playwr
     await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
     const dialog = scenario.page.getByRole("dialog");
     await expect(scenario.page.getByRole("alert")).toHaveText(
-      "Activation could not be saved locally. Your previous Plan is unchanged.",
+      "The current Plan could not be read. Refresh the Plan library before activating.",
     );
     await expect(dialog).toHaveCount(0);
     await expect(scenario.page.getByRole("alert")).toBeInViewport();

@@ -48,6 +48,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@enduragent/ui";
+import {
+  requestPlanCalendarRetry,
+  subscribePlanFinalDetailsRefresh,
+} from "../../plan/library-refresh";
 import { formatCivilDate } from "../../lib/date";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -4488,9 +4492,11 @@ export function PlanView(): ReactElement {
     | { status: "unavailable"; planId: string; justClosed: boolean }
   >({ status: "library" });
   const historyRequest = useRef(0);
+  const stopHistoryRefresh = useRef<(() => void) | null>(null);
   useEffect(
     () => () => {
       historyRequest.current += 1;
+      stopHistoryRefresh.current?.();
     },
     [],
   );
@@ -4499,11 +4505,22 @@ export function PlanView(): ReactElement {
   const readFinalDetails = (planId: string, justClosed = false): void => {
     if (libraryActions === null) return;
     const request = ++historyRequest.current;
+    stopHistoryRefresh.current?.();
     setFinalDetails({ status: "loading", planId, justClosed });
     void libraryActions.readPlanHistory(planId).then(
       (history) => {
-        if (request === historyRequest.current)
-          setFinalDetails({ status: "ready", history, justClosed });
+        if (request !== historyRequest.current) return;
+        setFinalDetails({ status: "ready", history, justClosed });
+        if (history !== null) {
+          stopHistoryRefresh.current = subscribePlanFinalDetailsRefresh({
+            history,
+            readHistory: (id) => libraryActions.readPlanHistory(id),
+            onHistory: (value) => {
+              if (request === historyRequest.current)
+                setFinalDetails({ status: "ready", history: value, justClosed });
+            },
+          });
+        }
       },
       () => {
         if (request === historyRequest.current)
@@ -4513,6 +4530,7 @@ export function PlanView(): ReactElement {
   };
   const backToLibrary = (): void => {
     historyRequest.current += 1;
+    stopHistoryRefresh.current?.();
     setFinalDetails({ status: "library" });
   };
   const planningActions = useEnduragentStore((state) => state.planningReadActions);
@@ -4572,6 +4590,15 @@ export function PlanView(): ReactElement {
             history={finalDetails.history}
             notice={notice}
             backToLibrary={backToLibrary}
+            retryCalendar={
+              libraryActions === null
+                ? undefined
+                : async () => {
+                    if (finalDetails.history === null) return;
+                    requestPlanCalendarRetry(finalDetails.history.plan.planId);
+                    await libraryActions.refresh();
+                  }
+            }
           />
         ) : (
           <div className="grid gap-inset">

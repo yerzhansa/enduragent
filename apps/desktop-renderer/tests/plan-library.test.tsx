@@ -216,6 +216,7 @@ const combinations = [false, true].flatMap((hasCreation) =>
 );
 
 beforeEach(() => {
+  useEnduragentStore.getState().setPlanCloseAttempt(null);
   useEnduragentStore.setState({
     chat: { ...EMPTY_CHAT_SURFACE, planCreation: creation },
     chatActions: stubActions(),
@@ -223,14 +224,12 @@ beforeEach(() => {
     planActions: null,
     planLibrary: { status: "loading", value: null },
     planLibraryActions: {
-      closePlan: vi.fn(
-        async (): Promise<PlanCloseResult> => ({
-          status: "closed",
-          planId: active.planId,
-          closedAt: 904435200000,
-          cleanupJobId: "cleanup-job",
-        }),
-      ),
+      closePlan: vi.fn(async (): Promise<PlanCloseResult> => ({
+        status: "closed",
+        planId: active.planId,
+        closedAt: 904435200000,
+        cleanupJobId: "cleanup-job",
+      })),
       readPlanHistory: vi.fn(async () => null),
       refresh: vi.fn(async () => {}),
       startCreation: vi.fn(),
@@ -545,6 +544,32 @@ describe("Plan library", () => {
     expect(readDetails).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["continue", "Continue in Chat"],
+    ["change", "Change in Chat"],
+  ] as const)("restores the %s control after returning from Chat", async (target, label) => {
+    const library = {
+      calendarConnected: false,
+      legacy: null,
+      creation,
+      active,
+      closed,
+      changes: [],
+    };
+    const view = render(
+      <PlanLibrary library={library} readDetails={vi.fn()} readFinalDetails={vi.fn()} />,
+    );
+    view.unmount();
+    useEnduragentStore.setState({
+      chat: {
+        ...useEnduragentStore.getState().chat,
+        planCreationFocusRequest: { target, libraryTarget: target, revision: 2 },
+      },
+    });
+    render(<PlanLibrary library={library} readDetails={vi.fn()} readFinalDetails={vi.fn()} />);
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: label })).toHaveFocus());
+  });
+
   it("shows Paused only for the matching creation and Draft takes precedence", () => {
     useEnduragentStore.setState({
       chat: { ...EMPTY_CHAT_SURFACE, planCreation: creation, planCreationPaused: true },
@@ -617,16 +642,14 @@ describe("Plan library", () => {
     async (entry) => {
       const store = useEnduragentStore;
       store.setState({ activeView: entry === "relaunch" ? "plan" : "chat" });
-      const listPlans = vi.fn(
-        async (): Promise<ListPlansResult> => ({
-          calendarConnected: false,
-          legacy: null,
-          creation,
-          active,
-          closed,
-          changes: [],
-        }),
-      );
+      const listPlans = vi.fn(async (): Promise<ListPlansResult> => ({
+        calendarConnected: false,
+        legacy: null,
+        creation,
+        active,
+        closed,
+        changes: [],
+      }));
       const controller = createPlanController({
         listPlans,
         read: async () => ({
@@ -1378,6 +1401,7 @@ describe("Stop Plan", () => {
     expect(actions?.closePlan).toHaveBeenCalledExactlyOnceWith({
       planId: active.planId,
       expectedVersion: active.version,
+      commandId: expect.any(String),
     });
     expect(actions?.refresh).toHaveBeenCalledOnce();
     expect(readFinalDetails).toHaveBeenCalledExactlyOnceWith(active.planId, true);
@@ -1402,17 +1426,90 @@ describe("Stop Plan", () => {
     await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it.each(["save", "no-active-plan", "command-conflict"])(
+  it("retries an unconfirmed stop with the original command and displayed version", async () => {
+    const actions = useEnduragentStore.getState().planLibraryActions;
+    if (actions === null) throw new Error("Missing library actions");
+    vi.mocked(actions.closePlan).mockRejectedValueOnce(new Error("Response lost"));
+    const readFinalDetails = renderLibrary();
+    fireEvent.click(screen.getByRole("button", { name: "Stop Plan" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Stop Plan" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Stopping could not be confirmed. The library will show the current state after refresh.",
+    );
+    expect(actions.refresh).toHaveBeenCalledOnce();
+    expect(readFinalDetails).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("button", { name: "Stop Plan" })).toBeEnabled();
+    const first = vi.mocked(actions.closePlan).mock.calls[0]?.[0];
+    expect(first).toEqual({
+      planId: active.planId,
+      expectedVersion: active.version,
+      commandId: expect.any(String),
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Stop Plan" }));
+    await vi.waitFor(() => expect(readFinalDetails).toHaveBeenCalledWith(active.planId, true));
+    expect(actions.closePlan).toHaveBeenNthCalledWith(2, first);
+    expect(actions.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses the stop command after cancelling and reopening an unconfirmed attempt", async () => {
+    const actions = useEnduragentStore.getState().planLibraryActions;
+    if (actions === null) throw new Error("Missing library actions");
+    vi.mocked(actions.closePlan).mockRejectedValue(new Error("Response lost"));
+    renderLibrary();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Stop Plan" }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: "Stop Plan" }));
+      await within(dialog).findByRole("alert");
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    }
+    const calls = vi.mocked(actions.closePlan).mock.calls;
+    expect(calls[0]?.[0]).toEqual(calls[1]?.[0]);
+  });
+
+  it("keeps an unconfirmed stop command across library remounts", async () => {
+    const actions = useEnduragentStore.getState().planLibraryActions;
+    if (actions === null) throw new Error("Missing library actions");
+    vi.mocked(actions.closePlan).mockRejectedValueOnce(new Error("Response lost"));
+    const library = {
+      calendarConnected: false,
+      legacy: null,
+      creation: null,
+      active,
+      closed,
+      changes: [],
+    };
+    const view = render(
+      <PlanLibrary library={library} readDetails={vi.fn()} readFinalDetails={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Stop Plan" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Stop Plan" }),
+    );
+    await screen.findByRole("alert");
+    const command = vi.mocked(actions.closePlan).mock.calls[0]?.[0];
+    view.unmount();
+    render(<PlanLibrary library={library} readDetails={vi.fn()} readFinalDetails={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Stop Plan" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Stop Plan" }),
+    );
+    await vi.waitFor(() => expect(actions.closePlan).toHaveBeenCalledTimes(2));
+    expect(actions.closePlan).toHaveBeenNthCalledWith(2, command);
+    await vi.waitFor(() => expect(useEnduragentStore.getState().planCloseAttempt).toBeNull());
+  });
+
+  it.each(["no-active-plan", "command-conflict"])(
     "closes the dialog after %s failure",
     async (failure) => {
       const actions = useEnduragentStore.getState().planLibraryActions;
       if (actions === null) throw new Error("Missing library actions");
-      if (failure === "save") vi.mocked(actions.closePlan).mockRejectedValue(new Error("Offline"));
-      else
-        vi.mocked(actions.closePlan).mockResolvedValue({
-          status: "rejected",
-          reason: failure === "no-active-plan" ? "no-active-plan" : "command-conflict",
-        });
+      vi.mocked(actions.closePlan).mockResolvedValue({
+        status: "rejected",
+        reason: failure === "no-active-plan" ? "no-active-plan" : "command-conflict",
+      });
       const readFinalDetails = renderLibrary();
       const stop = screen.getByRole("button", { name: "Stop Plan" });
       fireEvent.click(stop);

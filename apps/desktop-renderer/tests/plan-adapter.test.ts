@@ -2089,9 +2089,8 @@ describe("Plan library RPC adapters", () => {
     });
   });
 
-  it("closes the current version with a new command id", async () => {
+  it("closes the confirmed version with its supplied command id", async () => {
     const commandId = "12345678-1234-1234-1234-123456789012";
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(commandId);
     const result = {
       status: "closed" as const,
       planId: "00000000000000000000000003",
@@ -2100,7 +2099,9 @@ describe("Plan library RPC adapters", () => {
     };
     const { clients, call } = clientProvider();
     call.mockResolvedValue(result);
-    expect(await closePlan(clients, { planId: result.planId, expectedVersion: 7 })).toEqual(result);
+    expect(
+      await closePlan(clients, { commandId, planId: result.planId, expectedVersion: 7 }),
+    ).toEqual(result);
     expect(call).toHaveBeenCalledWith("plan.close", {
       commandId,
       planId: result.planId,
@@ -2110,15 +2111,17 @@ describe("Plan library RPC adapters", () => {
 });
 
 describe("Plan Change RPC adapters", () => {
-  it("generates unique command ids and preserves preview and decision payloads", async () => {
+  it("preserves confirmed command ids and preview and decision payloads", async () => {
     const call = vi.fn().mockResolvedValue({ status: "rejected", reason: "stale-version" });
     const clients = { getClient: async () => ({ call }) } as unknown as DesktopCoachClientProvider;
     const preview = {
+      commandId: "preview-command",
       planId: "plan-active",
       expectedVersion: 4,
       intent: { kind: "weekly-duration", hours: 6 },
     } as const;
     const decision = {
+      commandId: "apply-command",
       planId: "plan-active",
       expectedVersion: 5,
       changeId: "change-pending",
@@ -2129,24 +2132,22 @@ describe("Plan Change RPC adapters", () => {
       reason: "stale-version",
     });
     await applyPlanChange(clients, decision);
-    await applyPlanChange(clients, { ...decision, decision: "cancel" });
+    await applyPlanChange(clients, {
+      ...decision,
+      commandId: "cancel-command",
+      decision: "cancel",
+    });
     expect(call).toHaveBeenNthCalledWith(1, "plan_change.preview", {
       ...preview,
-      commandId: expect.any(String),
     });
     expect(call).toHaveBeenNthCalledWith(2, "plan_change.apply", {
       ...decision,
-      commandId: expect.any(String),
     });
     expect(call).toHaveBeenNthCalledWith(3, "plan_change.apply", {
       ...decision,
       decision: "cancel",
-      commandId: expect.any(String),
+      commandId: "cancel-command",
     });
     expect(new Set(call.mock.calls.map(([, request]) => request.commandId)).size).toBe(3);
-    for (const [, request] of call.mock.calls)
-      expect(request.commandId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
-      );
   });
 });

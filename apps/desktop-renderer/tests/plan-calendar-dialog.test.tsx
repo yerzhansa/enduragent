@@ -1,5 +1,5 @@
 import type { ListPlansResult } from "@enduragent/coach-contract";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";
@@ -37,7 +37,10 @@ beforeEach(() => {
       continueCreation: vi.fn(),
       changeInChat: vi.fn(),
     } as never,
-    chatActions: null,
+    chatActions: {
+      confirmPlanCreationActivate: vi.fn(),
+      cancelPlanCreationActivate: vi.fn(),
+    } as never,
   });
 });
 afterEach(() => vi.restoreAllMocks());
@@ -50,7 +53,7 @@ describe("activation calendar consequence", () => {
         chat: {
           ...useEnduragentStore.getState().chat,
           planCreationActivePlanKnowledge: closing
-            ? { kind: "active", name: summary.name }
+            ? { kind: "active", name: "Previous training Plan" }
             : { kind: "none" },
         },
         planLibrary: {
@@ -78,6 +81,10 @@ describe("activation calendar consequence", () => {
             : "The new Plan activates now.",
         ),
       ).toBeVisible();
+      expect(screen.queryByText(/Previous training Plan/)).toBeNull();
+      expect(
+        screen.getByRole("button", { name: closing ? "Activate new Plan" : "Activate Plan" }),
+      ).toBeEnabled();
     },
   );
 
@@ -122,6 +129,8 @@ describe("activation calendar consequence", () => {
         await screen.findByText("Calendar updates wait until intervals.icu is connected."),
       ).toBeVisible();
       expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+      if (kind === "unloaded")
+        expect(screen.getByRole("button", { name: "Activate Plan" })).toBeDisabled();
     },
   );
 
@@ -179,6 +188,12 @@ describe("activation calendar consequence", () => {
     });
     render(<PlanCreationActivateDialog />);
     expect(refresh).toHaveBeenCalledOnce();
+    const confirm = screen.getByRole("button", { name: "Activate Plan" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(
+      useEnduragentStore.getState().chatActions?.confirmPlanCreationActivate,
+    ).not.toHaveBeenCalled();
     expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
     expect(screen.queryByText(/Calendar updates wait/)).toBeNull();
     useEnduragentStore.setState({
@@ -199,6 +214,11 @@ describe("activation calendar consequence", () => {
       await screen.findByText("Calendar updates wait until intervals.icu is connected."),
     ).toBeVisible();
     expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(
+      useEnduragentStore.getState().chatActions?.confirmPlanCreationActivate,
+    ).toHaveBeenCalledOnce();
   });
 
   it("treats a failed library read as disconnected even with a cached connected library", async () => {
@@ -239,5 +259,38 @@ describe("activation calendar consequence", () => {
       await screen.findByText("Calendar updates wait until intervals.icu is connected."),
     ).toBeVisible();
     expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Activate Plan" })).toBeDisabled();
+  });
+
+  it("blocks activation when refresh rejects despite a ready cached library", async () => {
+    useEnduragentStore.setState({
+      planLibrary: {
+        status: "ready",
+        value: {
+          calendarConnected: true,
+          legacy: null,
+          creation: null,
+          active: summary,
+          closed: [],
+          changes: [],
+        },
+      },
+      planLibraryActions: {
+        ...useEnduragentStore.getState().planLibraryActions,
+        refresh: vi.fn(async () => {
+          throw new Error("Library unavailable");
+        }),
+      } as never,
+    });
+    render(<PlanCreationActivateDialog />);
+    expect(
+      await screen.findByText("Calendar updates wait until intervals.icu is connected."),
+    ).toBeVisible();
+    const confirm = screen.getByRole("button", { name: "Activate new Plan" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(
+      useEnduragentStore.getState().chatActions?.confirmPlanCreationActivate,
+    ).not.toHaveBeenCalled();
   });
 });

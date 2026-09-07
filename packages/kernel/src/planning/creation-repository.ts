@@ -133,6 +133,7 @@ export const PlanCreationActivationResultSchema = z
 export type PlanCreationActivationResult = z.infer<typeof PlanCreationActivationResultSchema>;
 
 export interface ActivatePlanCreationInput extends DiscardPlanCreationInput {
+  readonly incumbent: { readonly planId: string; readonly version: number } | null;
   readonly activatedAt: string;
   readonly todayDateKey: number;
   readonly mirrorJobId: string;
@@ -192,16 +193,16 @@ const parseSeed = (value: unknown): PlanCreationSeedV1 => {
 
 export function createPlanCreationRepository(store: PlanCreationStore): PlanCreationRepository {
   const { hasReplay, recordCommand } = createPlanningCommandLedger(store);
-  const readUnfinished = async (): Promise<PlanCreationSnapshot | undefined> => {
-    const rows = await store.all(
-      "SELECT * FROM plan_creation WHERE status IN ('in-progress','review') ORDER BY created_at_ms,id",
-    );
-    if (rows.length > 1) fail();
-    const row = rows[0];
-    if (row === undefined) return undefined;
+  const readSnapshot = async (row: Row): Promise<PlanCreationSnapshot> => {
     const id = text(row, "id");
     const status = text(row, "status");
-    if (status !== "in-progress" && status !== "review") fail();
+    if (
+      status !== "in-progress" &&
+      status !== "review" &&
+      status !== "activated" &&
+      status !== "discarded"
+    )
+      return fail();
     const seedJson = row.seed_json;
     const seed =
       seedJson === null ? null : typeof seedJson === "string" ? parseSeed(json(seedJson)) : fail();
@@ -235,7 +236,7 @@ export function createPlanCreationRepository(store: PlanCreationStore): PlanCrea
     }
     return {
       id,
-      status: status === "review" ? "review" : "in-progress",
+      status,
       version: integer(row, "version"),
       seed,
       currentDraft,
@@ -255,6 +256,14 @@ export function createPlanCreationRepository(store: PlanCreationStore): PlanCrea
       }),
     };
   };
+  const readUnfinished = async (): Promise<PlanCreationSnapshot | undefined> => {
+    const rows = await store.all(
+      "SELECT * FROM plan_creation WHERE status IN ('in-progress','review') ORDER BY created_at_ms,id",
+    );
+    if (rows.length > 1) fail();
+    const row = rows[0];
+    return row === undefined ? undefined : readSnapshot(row);
+  };
   const requireUnfinished = async () => {
     const snapshot = await readUnfinished();
     if (snapshot === undefined) throw new PlanCreationStoreError("missing-creation");
@@ -263,7 +272,16 @@ export function createPlanCreationRepository(store: PlanCreationStore): PlanCrea
   const replay = async (
     name: "plan_creation.start" | "plan_creation.answer",
     command: PlanCreationCommandStamp,
-  ) => ((await hasReplay(name, command)) ? requireUnfinished() : undefined);
+  ) => {
+    const commandRow = await hasReplay(name, command);
+    if (commandRow === undefined) return undefined;
+    const parsed = z
+      .object({ creationId: z.string() })
+      .safeParse(json(text(commandRow, "result_json")));
+    if (!parsed.success) return fail();
+    const row = await store.get("SELECT * FROM plan_creation WHERE id=?", [parsed.data.creationId]);
+    return row === undefined ? fail() : readSnapshot(row);
+  };
   const replayDraft = async (command: PlanCreationCommandStamp) => {
     const row = await hasReplay("plan_creation.preview", command);
     if (row === undefined) return undefined;
@@ -310,6 +328,7 @@ WHERE singleton = 1 AND chat_authority_since_ms IS NULL`,
           {
             creationId: snapshot.id,
             outcome,
+            version: snapshot.version,
           },
         );
         return { outcome, snapshot };
@@ -364,7 +383,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
           {
             creationId,
             answerId,
-            version,
+            version: snapshot.version,
           },
         );
         return { outcome: "recorded", snapshot };
@@ -435,6 +454,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
       command,
       creationId,
       expectedVersion,
+      incumbent,
       activatedAt,
       todayDateKey,
       mirrorJobId,
@@ -470,10 +490,18 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
         validatePlanRecord(plan);
         for (const workout of workouts) validatePlanWorkoutRecord(plan, workout);
         if (plan.status !== "active") return fail();
-        const incumbent = await store.get(
-          "SELECT plan_id FROM planning_plan WHERE status='active'",
+        const activePlan = await store.get(
+          "SELECT plan_id,version FROM planning_plan WHERE status='active'",
         );
-        const closedPlanId = incumbent === undefined ? null : text(incumbent, "plan_id");
+        if (
+          incumbent === null
+            ? activePlan !== undefined
+            : activePlan === undefined ||
+              text(activePlan, "plan_id") !== incumbent.planId ||
+              integer(activePlan, "version") !== incumbent.version
+        )
+          throw new PlanCreationStoreError("version-conflict");
+        const closedPlanId = activePlan === undefined ? null : text(activePlan, "plan_id");
         const result = PlanCreationActivationResultSchema.parse({
           creationId,
           planId: plan.id,

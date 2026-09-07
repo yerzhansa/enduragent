@@ -272,7 +272,7 @@ for (const appearance of [
     }
   });
 
-  test(`rejects stale and failed stops, then completes after the final day at ${appearance.width} in ${appearance.colorScheme}`, async ({
+  test(`rejects stale stops and retries failed stops at ${appearance.width} in ${appearance.colorScheme}`, async ({
     playwright,
   }) => {
     test.setTimeout(120_000);
@@ -305,13 +305,55 @@ for (const appearance of [
       scenario.backend.failNextClose();
       await stop.click();
       await dialog.getByRole("button", { name: "Stop Plan", exact: true }).click();
-      await expect(dialog).not.toBeVisible();
-      await expect(scenario.page.getByRole("alert")).toHaveText(
-        "Stopping could not be saved locally. Your Plan is unchanged.",
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("alert")).toHaveText(
+        "Stopping could not be confirmed. The library will show the current state after refresh.",
       );
+      await expect(dialog.getByRole("button", { name: "Stop Plan", exact: true })).toBeEnabled();
       expect(await scenario.backend.inspectActivation()).toEqual(stale);
       await capture(scenario, "failed-stop");
-      await navigation.getByRole("button", { name: "Chat", exact: true }).click();
+      expect(scenario.backend.closeRequests).toHaveLength(2);
+      const failedRequest = scenario.backend.closeRequests[1];
+      expect(failedRequest?.params).toEqual({
+        commandId: expect.any(String),
+        planId: stale.planningPlans[0]?.plan_id,
+        expectedVersion: 2,
+      });
+      await dialog.getByRole("button", { name: "Stop Plan", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      await assertFinalDetails(scenario, "Stopped");
+      expect(scenario.backend.closeRequests).toHaveLength(3);
+      expect(scenario.backend.closeRequests[2]?.params).toEqual(failedRequest?.params);
+      const stopped = await scenario.backend.inspectActivation();
+      expect(stopped.planningPlans).toEqual([
+        expect.objectContaining({
+          status: "closed",
+          version: 3,
+          close_reason: "stopped",
+          close_actor: "athlete",
+        }),
+      ]);
+      expect(stopped.plans).toEqual([expect.objectContaining({ status: "ended" })]);
+      expect(stopped.revisions).toEqual(stale.revisions);
+      expect(stopped.workouts).toEqual(stale.workouts);
+      await capture(scenario, "retried-stop");
+    } finally {
+      await close(scenario);
+    }
+  });
+
+  test(`completes after the final day at ${appearance.width} in ${appearance.colorScheme}`, async ({
+    playwright,
+  }) => {
+    test.setTimeout(120_000);
+    const scenario = await launch(playwright, appearance);
+    try {
+      await scenario.backend.bumpActivePlanVersion();
+      const stale = await scenario.backend.inspectActivation();
+      const stop = scenario.page
+        .getByRole("region", { name: "Active Plan", exact: true })
+        .getByRole("button", { name: "Stop Plan", exact: true });
+      const navigation = scenario.page.getByRole("navigation", { name: "Main navigation" });
       scenario.backend.setCivilDate("1998-01-28");
       await openLibrary(scenario);
       await expect(stop).toBeVisible();

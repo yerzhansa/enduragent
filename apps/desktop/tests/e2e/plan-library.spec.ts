@@ -222,11 +222,17 @@ for (const appearance of [
       ).toBeFocused();
       await capture(scenario, "continue-in-chat");
       await openLibrary(scenario);
+      await expect(
+        scenario.page.getByRole("button", { name: "Continue in Chat", exact: true }),
+      ).toBeFocused();
       await scenario.page.getByRole("button", { name: "Change in Chat", exact: true }).click();
       await expect(scenario.page.locator("#message")).toBeFocused();
       expect(await scenario.backend.library()).toEqual(before);
       await capture(scenario, "change-in-chat");
       await openLibrary(scenario);
+      await expect(
+        scenario.page.getByRole("button", { name: "Change in Chat", exact: true }),
+      ).toBeFocused();
       await scenario.page.getByRole("button", { name: "Read Plan details", exact: true }).click();
       await expect(
         scenario.page.getByRole("heading", { name: "Plan active · week 1 of 4", exact: true }),

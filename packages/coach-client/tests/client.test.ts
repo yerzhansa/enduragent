@@ -282,6 +282,7 @@ const rpcDeadlineCases = [
     "plan_creation.activate",
     {
       commandId: "plan-activate",
+      incumbent: null,
       creationId: "00000000000000000000000000",
       expectedVersion: 1,
     },
