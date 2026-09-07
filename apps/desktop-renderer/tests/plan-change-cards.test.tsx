@@ -544,7 +544,7 @@ describe("Plan Change cards", () => {
     );
   });
 
-  it("offers the five Schedule changes in order and submits their defaults", async () => {
+  it("offers Schedule and FTP changes in order and submits their defaults", async () => {
     patchChange({ editorOpen: true });
     render(<PlanChangeCards />);
     const actions = useEnduragentStore.getState().chatActions;
@@ -564,6 +564,7 @@ describe("Plan Change cards", () => {
       "No hard training on a weekday",
       "Weekly duration cap",
       "Longest-Workout cap",
+      "Correct FTP",
     ]);
     await userEvent.click(await screen.findByRole("option", { name: "Weekday unavailable" }));
     expect(screen.getByRole("combobox", { name: "Weekday" })).toHaveTextContent("Wed");
@@ -605,6 +606,151 @@ describe("Plan Change cards", () => {
       kind: "longest-workout",
       minutes: 60,
     });
+  });
+
+  it("edits FTP in whole watts and disables the field while busy", async () => {
+    patchChange({ editorOpen: true });
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("combobox", { name: "Change" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Correct FTP" }));
+    const field = screen.getByRole("spinbutton", { name: "FTP in watts" });
+    expect(field).toHaveValue(220);
+    expect(field).toHaveAttribute("step", "1");
+    expect(field).toHaveAttribute("min", "1");
+    expect(screen.queryByRole("combobox", { name: "Weekday" })).toBeNull();
+    await userEvent.clear(field);
+    await userEvent.type(field, "245");
+    await userEvent.click(screen.getByRole("button", { name: "Preview change" }));
+    expect(useEnduragentStore.getState().chatActions?.previewPlanChange).toHaveBeenCalledWith({
+      kind: "ftp",
+      watts: 245,
+    });
+    patchChange({ busy: true });
+    expect(field).toBeDisabled();
+  });
+
+  it("shows watts on either diff side while preserving absent and undated Workouts", () => {
+    setChanges([
+      change({
+        diff: [
+          { workoutId: "corrected", before: workout, after: { ...workout, power: 220 } },
+          { workoutId: "undone", before: { ...workout, power: 220 }, after: workout },
+          { workoutId: "added", before: null, after: { ...workout, date: null, power: 230 } },
+          { workoutId: "removed", before: { ...workout, date: null, power: 230 }, after: null },
+        ],
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    const table = screen.getByRole("table", { name: "Affected individual Workouts" });
+    expect(
+      within(table)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      "9 Sept 1998 · 60 min → 9 Sept 1998 · 60 min · 220 W",
+      "9 Sept 1998 · 60 min · 220 W → 9 Sept 1998 · 60 min",
+      "Not in Plan → Undated · 60 min · 230 W",
+      "Undated · 60 min · 230 W → Not in Plan",
+    ]);
+  });
+
+  it.each([true, false])("renders FTP sources with synchronized evidence %s", async (synced) => {
+    setChanges([
+      change({
+        premises: [
+          {
+            id: "ftp-sources",
+            label: "FTP source comparison at this decision",
+            source: "Saved profile and synchronized FTP evidence",
+            value: {
+              acceptedPlanFtp: null,
+              requestedFtp: 220,
+              candidates: [
+                { source: "manual", watts: 210, selected: true },
+                ...(synced
+                  ? [
+                      { source: "intervals-ftp", watts: 205, selected: false },
+                      { source: "intervals-eftp", watts: 215, selected: false },
+                    ]
+                  : []),
+              ],
+            },
+          },
+        ],
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+    const source = screen.getByRole("region", { name: "Source details" });
+    expect(source).toHaveTextContent(
+      "FTP source comparison at this decision · Saved profile and synchronized FTP evidence",
+    );
+    expect(
+      within(source)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Saved athlete FTP · 210 W · selected",
+      ...(synced ? ["Intervals.icu FTP · 205 W", "Intervals.icu eFTP · 215 W"] : []),
+      "Your entry · 220 W",
+    ]);
+  });
+
+  it("omits an entry when Undo restores an unset FTP and falls back for malformed evidence", async () => {
+    setChanges([
+      change({
+        premises: [
+          {
+            id: "ftp-sources",
+            label: "FTP comparison",
+            source: "Stored sources",
+            value: {
+              acceptedPlanFtp: 220,
+              requestedFtp: null,
+              candidates: [{ source: "manual", watts: 220, selected: true }],
+            },
+          },
+        ],
+      }),
+    ]);
+    const view = render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+    expect(screen.getByRole("listitem")).toHaveTextContent("Saved athlete FTP · 220 W · selected");
+    expect(screen.queryByText(/Your entry/)).toBeNull();
+    view.unmount();
+    setChanges([
+      change({
+        premises: [
+          {
+            id: "ftp-sources",
+            label: "FTP comparison unavailable",
+            source: "Stored sources",
+            value: { candidates: [{ source: "unknown", watts: 200, selected: true }] },
+          },
+        ],
+      }),
+    ]);
+    render(<PlanChangeCards />);
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+    expect(
+      within(screen.getByRole("region", { name: "Source details" })).getByRole("cell"),
+    ).toHaveTextContent("FTP comparison unavailable");
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("keeps a pending card actionable after FTP sources change", () => {
+    setChanges([change({ title: "Correct FTP", intent: { kind: "ftp", watts: 220 } })]);
+    patchChange({
+      notice: "The FTP sources changed. Request a fresh preview before applying this correction.",
+    });
+    render(<PlanChangeCards />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "The FTP sources changed. Request a fresh preview before applying this correction.",
+    );
+    expect(screen.getByText("Pending", { exact: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "View evidence" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
 
   it("shows host totals and both null and undated sides with the changed after name", () => {

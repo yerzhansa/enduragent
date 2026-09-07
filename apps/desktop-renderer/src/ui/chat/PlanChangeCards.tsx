@@ -3,7 +3,7 @@ import type {
   PlanChangeModel,
   PlanChangeWorkout,
 } from "@enduragent/coach-contract";
-import { PlanChangeIntentSchema } from "@enduragent/coach-contract";
+import { PlanChangeFtpSourcesSchema, PlanChangeIntentSchema } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
@@ -17,6 +17,7 @@ const changeOptions = [
   { value: "hard-weekday", label: "No hard training on a weekday" },
   { value: "weekly-duration", label: "Weekly duration cap" },
   { value: "longest-workout", label: "Longest-Workout cap" },
+  { value: "ftp", label: "Correct FTP" },
 ] satisfies Array<{ value: PlanChangeIntent["kind"]; label: string }>;
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const statusLabels = {
@@ -73,12 +74,12 @@ function Fact(props: { label: string; children: ReactNode }): ReactElement {
       <span role="rowheader" className="text-xs leading-4 text-ink-2">
         {props.label}
       </span>
-      <strong
+      <div
         role="cell"
         className="text-right text-sm leading-5 font-semibold [overflow-wrap:anywhere] max-[560px]:text-left"
       >
         {props.children}
-      </strong>
+      </div>
     </div>
   );
 }
@@ -94,7 +95,7 @@ function workoutValue(workout: PlanChangeWorkout | null): string {
           year: "numeric",
           timeZone: "UTC",
         }).format(new Date(`${workout.date}T12:00:00Z`));
-  return `${date} · ${workout.minutes} min`;
+  return `${date} · ${workout.minutes} min${workout.power === null ? "" : ` · ${workout.power} W`}`;
 }
 
 function Difference({ change }: { change: PlanChangeModel }): ReactElement {
@@ -137,7 +138,29 @@ function Difference({ change }: { change: PlanChangeModel }): ReactElement {
   );
 }
 
-function premiseValue(premise: PlanChangeModel["premises"][number]): string {
+function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
+  if (premise.id === "ftp-sources") {
+    const parsed = PlanChangeFtpSourcesSchema.safeParse(premise.value);
+    if (!parsed.success) return premise.label;
+    const labels = {
+      manual: "Saved athlete FTP",
+      "intervals-ftp": "Intervals.icu FTP",
+      "intervals-eftp": "Intervals.icu eFTP",
+    };
+    return (
+      <ul className="m-0 grid list-none gap-1 p-0">
+        {parsed.data.candidates.map((candidate) => (
+          <li key={candidate.source}>
+            {labels[candidate.source]} · {candidate.watts} W
+            {candidate.selected ? " · selected" : ""}
+          </li>
+        ))}
+        {parsed.data.requestedFtp !== null ? (
+          <li>Your entry · {parsed.data.requestedFtp} W</li>
+        ) : null}
+      </ul>
+    );
+  }
   if (premise.id === "undone-change") {
     const value = premise.value;
     return value !== null &&
@@ -173,6 +196,7 @@ function ChangeEditor(): ReactElement {
   const [day, setDay] = useState(3);
   const [minutes, setMinutes] = useState("30");
   const [hours, setHours] = useState("3");
+  const [watts, setWatts] = useState("220");
   const state = useEnduragentStore((store) => store.planChange);
   const actions = useEnduragentStore((store) => store.chatActions);
   const firstControl = useRef<HTMLButtonElement>(null);
@@ -200,6 +224,9 @@ function ChangeEditor(): ReactElement {
             case "weekly-duration":
               intent = { kind, hours: Number(hours) };
               break;
+            case "ftp":
+              intent = { kind, watts: Number(watts) };
+              break;
             case "longest-workout":
               intent = { kind, minutes: Number(minutes) };
               break;
@@ -222,6 +249,7 @@ function ChangeEditor(): ReactElement {
               setDay(option.value === "hard-weekday" ? 1 : 3);
               setMinutes(option.value === "longest-workout" ? "60" : "30");
               setHours("3");
+              setWatts("220");
             }}
           >
             <SelectTrigger id="plan-change-kind" ref={firstControl} className="w-full">
@@ -292,6 +320,23 @@ function ChangeEditor(): ReactElement {
               value={hours}
               disabled={state.busy}
               onChange={(event) => setHours(event.target.value)}
+            />
+          </div>
+        ) : null}
+        {kind === "ftp" ? (
+          <div className="grid gap-[calc(var(--inset)/2)]">
+            <label htmlFor="plan-change-watts" className="text-xs text-ink-2">
+              FTP in watts
+            </label>
+            <input
+              className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+              id="plan-change-watts"
+              type="number"
+              min="1"
+              step="1"
+              value={watts}
+              disabled={state.busy}
+              onChange={(event) => setWatts(event.target.value)}
             />
           </div>
         ) : null}
