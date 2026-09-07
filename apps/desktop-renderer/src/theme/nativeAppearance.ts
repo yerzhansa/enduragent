@@ -1,4 +1,4 @@
-import type { Appearance } from "./applyPalette";
+import type { Appearance } from "@enduragent/ui";
 
 export function publishNativeAppearance(appearance: Appearance): void {
   try {

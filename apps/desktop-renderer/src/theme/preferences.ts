@@ -1,5 +1,5 @@
-import type { Appearance } from "./applyPalette";
-import { DEFAULT_PALETTE_ID, PALETTES } from "./palettes";
+import type { Appearance } from "@enduragent/ui";
+import { DEFAULT_PALETTE_ID, PALETTES } from "@enduragent/ui";
 
 export const PALETTE_STORAGE_KEY = "enduragent.ui.palette";
 export const APPEARANCE_STORAGE_KEY = "enduragent.ui.appearance";

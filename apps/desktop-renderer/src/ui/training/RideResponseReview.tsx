@@ -5,7 +5,7 @@ import type {
 } from "@enduragent/coach-contract";
 import type { ReactElement } from "react";
 import type { RideAnalysisViewState } from "../../activity-analysis/controller";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { analysisRefreshFailureCopy, analysisUnavailableCopy } from "./copy";
 import { responseStyles as styles } from "./responseStyles";
 

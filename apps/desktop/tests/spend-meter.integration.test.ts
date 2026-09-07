@@ -486,6 +486,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       "onChatgptLoginProgress",
       "onDroppedChatAttachments",
       "onDroppedImportFiles",
+      "onOpenSettings",
       "onPlanProgress",
       "onUpdateState",
       "pasteChatAttachment",

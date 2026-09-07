@@ -29,13 +29,13 @@
   },
   "dependencies": {
     "@enduragent/kernel": "workspace:*",
-    "clawpdf": "0.3.0",
+    "clawpdf": "0.3.1",
     "csv-parse": "7.0.2",
     "file-type": "22.0.2",
     "fit-file-parser": "3.0.2",
-    "mammoth": "1.12.1",
+    "mammoth": "1.12.2",
     "yauzl": "3.4.0",
-    "zod": "^4.3.6"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
@@ -44,7 +44,7 @@
     "pdf-lib": "1.17.1",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"

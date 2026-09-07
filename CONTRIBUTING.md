@@ -81,13 +81,13 @@ docs(readme): document the /whatsnew command
 - **Never run fake-timer tests under `isolate: false`.** Shared fake-timer state across files corrupts unrelated suites. The root `vitest.config.ts` pins `pool: "forks"` + `isolate: true` precisely so each file gets its own process and clock; do not weaken that to `isolate: false`.
 - **Prefer fake-timer or injected-clock determinism over wall-clock sleeps.** Tests that assert on elapsed time (mutex acquire timeouts, run-sync phase ordering) drive time through `vi.advanceTimersByTimeAsync` or an injected clock seam rather than racing a real `setTimeout`, so they cannot flake on a slow runner.
 
-## Desktop UI previews
+## Desktop UI verification
 
-Run `pnpm storybook` to inspect production components with fictional fixtures at `http://127.0.0.1:5187`. Stories belong in `apps/desktop-renderer/preview/` and must import their production owners. Register page scenarios in `catalogue` and component scenarios in `coverage` in `preview/catalogue.ts`; keep unavailable features pending with their delivery dependency.
+Shared controls, themes, fonts, and Storybook belong in [enduragent-ui](https://github.com/yerzhansa/enduragent-ui). Experimental flows belong in [enduragent-prototypes](https://github.com/yerzhansa/enduragent-prototypes). App consumes the same versioned GitHub release tarball as Prototypes. The UI library uses SemVer, starting at `0.1.0`. Pin its exact URL and SHA-512 integrity with pnpm 11; do not use an npm registry version, moving branch, or local file dependency in a submitted change.
 
-Run `pnpm check:ui-structure` for structural checker unit tests. Stop the development preview, then run `pnpm check:ui-previews` to build Storybook and check the wide/compact, light/dark browser matrix. This covers representative pages and selected controls; affected desktop journeys still require application QA.
+Run `pnpm build`, then `pnpm check:ui-states` on macOS 26 with Apple Silicon. The production Electron fixture covers five application states in wide/compact and light/dark layouts, plus four Settings structure and image negative controls. It uses isolated profiles and scripted loopback responses with real navigation, storage, and native appearance. Run `pnpm check:ui-structure` for the structural checker tests. Affected desktop journeys still require application QA.
 
-Screenshot verification uses the platform and browser pinned in `apps/desktop/tests/e2e/previews/baseline.json`. To change reviewed captures, choose a new baseline version, build Storybook, capture with Playwright’s `--update-snapshots=all`, inspect every image, and record the source identity and PNG hashes in `baselines/<version>/manifest.json`. Keep prior versions intact. A sealed version refuses recapture, and normal verification rejects altered or missing reviewed images. Regression-reference review does not replace feature acceptance.
+Native captures record source, build, UI artifact, Electron, and embedded Chromium identities. The sealed manifest lives in `apps/desktop/tests/e2e/application-ui-states/baselines/`. To replace a reference, choose a new baseline version in the configuration and identity helper, rebuild, capture with `--update-snapshots`, inspect every image, then run the adjacent `seal-baseline.ts` with `--reviewed`. Keep prior versions intact. Frozen verification rejects recapture and altered or missing images. The historical Storybook archive remains in App as origin evidence. Regression references do not replace feature acceptance.
 
 ## Trademark hygiene
 

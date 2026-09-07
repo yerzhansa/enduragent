@@ -6,7 +6,7 @@ import {
   type FormEvent,
   type ReactElement,
 } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   hasActiveTelegramPairingCode,
   type TelegramControlStatus,
@@ -16,7 +16,7 @@ import { credentialChangesBlocked } from "../../settings/credential-controller";
 import { PLATFORM_COPY } from "../../platform-copy";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
-import { InlineConfirmation } from "../shared/InlineConfirmation";
+import { InlineConfirmation } from "@enduragent/ui";
 
 const HEADING_CLASS =
   "mx-1 mt-[26px] mb-2 text-[11px] font-normal tracking-[0.07em] text-ink-3 uppercase first:mt-0";

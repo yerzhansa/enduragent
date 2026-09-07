@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -8,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { PLATFORM_COPY } from "../../platform-copy";
 import { focusNewConversationOpener } from "../../state/new-conversation-opener";
 import { useEnduragentStore } from "../../state/store";

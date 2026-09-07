@@ -5,8 +5,8 @@ import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
 import { resetChatStream } from "../src/state/chat-stream";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { useEnduragentStore } from "../src/state/store";
-import { paletteCustomProperties, type ResolvedTheme } from "../src/theme/applyPalette";
-import { paletteById } from "../src/theme/palettes";
+import { paletteCustomProperties, type ResolvedTheme } from "@enduragent/ui";
+import { paletteById } from "@enduragent/ui";
 import { matchMediaListenerCount, setPrefersDark } from "./matchmedia";
 
 const PALETTE_ID = "patrol";

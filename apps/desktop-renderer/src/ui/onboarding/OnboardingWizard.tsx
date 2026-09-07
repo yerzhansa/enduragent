@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { rideImportStatusCopy } from "../../ride-import";
 import { useEnduragentStore } from "../../state/store";
 import {

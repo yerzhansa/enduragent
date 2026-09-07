@@ -39,6 +39,11 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, dirname, basename, resolve, relative, sep } from "node:path";
 import { isBuiltin } from "node:module";
 import { TS_EXTS, ext, collectFiles, makeSkipCheck, nonFlagArgs, runGateCli } from "./lint-fs.js";
+import {
+  readUiReleaseLock,
+  uiReleaseLockMatches,
+  uiReleaseVersion,
+} from "./ui-release-artifact.js";
 
 export interface PackageDepRule {
   readonly ruleId: string;
@@ -47,6 +52,7 @@ export interface PackageDepRule {
   readonly allowedWorkspace: readonly string[];
   readonly allowedManifestWorkspace?: readonly string[];
   readonly allowedExternal?: readonly string[];
+  readonly allowedPublished?: readonly string[];
   readonly transitionalWorkspace: readonly string[];
   readonly forbidNode: boolean;
 }
@@ -146,6 +152,7 @@ export const RULES: readonly PackageDepRule[] = [
     ruleId: "R6",
     dir: "apps/desktop-renderer",
     srcOnly: true,
+    allowedPublished: ["@enduragent/ui"],
     allowedWorkspace: ["@enduragent/coach-contract", "@enduragent/coach-client"],
     transitionalWorkspace: [],
     allowedExternal: [
@@ -153,13 +160,7 @@ export const RULES: readonly PackageDepRule[] = [
       "react-dom",
       "zustand",
       "@base-ui/react",
-      "@fontsource-variable/geist-mono",
-      "@fontsource-variable/inter",
-      "class-variance-authority",
-      "clsx",
       "lucide-react",
-      "tailwind-merge",
-      "tw-animate-css",
     ],
     forbidNode: true,
   },
@@ -315,6 +316,7 @@ function collectSpecifiers(file: string): SpecifierRef[] {
 interface ManifestDep {
   readonly name: string;
   readonly block: string;
+  readonly version: unknown;
 }
 
 function readManifestDeps(
@@ -324,6 +326,7 @@ function readManifestDeps(
   deps: ManifestDep[];
   present: boolean;
   packageName: string;
+  packageVersion: string;
   packageExports: Record<string, unknown>;
 } {
   const manifestPath = join(fsDir, "package.json");
@@ -331,7 +334,7 @@ function readManifestDeps(
   try {
     raw = readFileSync(manifestPath, "utf-8");
   } catch {
-    return { deps: [], present: false, packageName: "", packageExports: {} };
+    return { deps: [], present: false, packageName: "", packageVersion: "", packageExports: {} };
   }
   const pkg = JSON.parse(raw) as Record<string, unknown>;
   const blocks =
@@ -342,7 +345,7 @@ function readManifestDeps(
   for (const block of blocks) {
     const entry = pkg[block];
     if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
-    for (const name of Object.keys(entry)) deps.push({ name, block });
+    for (const [name, version] of Object.entries(entry)) deps.push({ name, block, version });
   }
   const packageExports =
     pkg.exports !== null && typeof pkg.exports === "object" && !Array.isArray(pkg.exports)
@@ -352,6 +355,7 @@ function readManifestDeps(
     deps,
     present: true,
     packageName: typeof pkg.name === "string" ? pkg.name : "",
+    packageVersion: typeof pkg.version === "string" ? pkg.version : "",
     packageExports,
   };
 }
@@ -396,6 +400,34 @@ function exportTargets(value: unknown): string[] {
   if (typeof value === "string") return [value];
   if (value === null || typeof value !== "object") return [];
   return Object.values(value).flatMap(exportTargets);
+}
+
+function publishedImportAllowed(
+  lockfile: unknown,
+  importer: string,
+  fsDir: string,
+  specifier: string,
+  deps: readonly ManifestDep[],
+): boolean {
+  const name = packageRoot(specifier);
+  const declared = deps.filter((dependency) => dependency.name === name);
+  if (declared.length === 0) return false;
+  const installed = readManifestDeps(join(fsDir, "node_modules", name), "");
+  if (
+    installed.packageName !== name ||
+    !declared.every(
+      (dependency) =>
+        typeof dependency.version === "string" &&
+        uiReleaseVersion(dependency.version) === installed.packageVersion &&
+        uiReleaseLockMatches(lockfile, importer, dependency.version, installed.packageVersion),
+    )
+  )
+    return false;
+  const exportKey = specifier === name ? "." : `.${specifier.slice(name.length)}`;
+  return (
+    Object.hasOwn(installed.packageExports, exportKey) &&
+    exportTargets(installed.packageExports[exportKey]).length > 0
+  );
 }
 
 function relativeWorkspaceSpecifier(
@@ -457,6 +489,7 @@ export function runRulesAgainst(root: string, rules: readonly PackageDepRule[]):
   const notPresent: string[] = [];
   let scannedFileCount = 0;
   const packages = workspacePackages(root);
+  const releaseLock = readUiReleaseLock(root);
 
   const recordWarn = (dir: string, target: string): void => {
     const key = `${dir} -> ${target}`;
@@ -487,6 +520,19 @@ export function runRulesAgainst(root: string, rules: readonly PackageDepRule[]):
           if (spec === undefined) continue;
           if (isNodeSpecifier(spec)) {
             if (rule.forbidNode) {
+              violations.push({
+                file,
+                line: ref.line,
+                column: ref.column,
+                ruleId: rule.ruleId,
+                specifier: ref.specifier,
+                pkg: dir,
+              });
+            }
+            continue;
+          }
+          if (rule.allowedPublished?.includes(packageRoot(spec))) {
+            if (!publishedImportAllowed(releaseLock, dir, fsDir, spec, deps)) {
               violations.push({
                 file,
                 line: ref.line,
@@ -553,6 +599,19 @@ export function runRulesAgainst(root: string, rules: readonly PackageDepRule[]):
       // (2) Manifest check over declared runtime dependency edges.
       const manifestFile = join(dir, "package.json");
       for (const { name } of deps) {
+        if (rule.allowedPublished?.includes(name)) {
+          if (!publishedImportAllowed(releaseLock, dir, fsDir, name, deps)) {
+            violations.push({
+              file: manifestFile,
+              line: 1,
+              column: 1,
+              ruleId: rule.ruleId,
+              specifier: name,
+              pkg: dir,
+            });
+          }
+          continue;
+        }
         if (name.startsWith(WORKSPACE_SCOPE)) {
           const verdict = classifyManifestWorkspace(name, rule);
           if (verdict === "allowed") continue;
@@ -633,7 +692,9 @@ export function checkPrivatePackages(root: string): PrivateViolation[] {
 
 function remediation(v: PackageDepViolation): string {
   const rule = RULES.find((r) => r.dir === v.pkg || (r.dir.includes("*") && r.ruleId === v.ruleId));
-  const allowed = rule ? [...rule.allowedWorkspace, ...rule.transitionalWorkspace] : [];
+  const allowed = rule
+    ? [...rule.allowedWorkspace, ...rule.transitionalWorkspace, ...(rule.allowedPublished ?? [])]
+    : [];
   const allowedText = allowed.length > 0 ? allowed.join(", ") : "(nothing from the workspace)";
   const nodeText = rule?.forbidNode ? " and no host builtins (node:* / bare builtins)" : "";
   return `  ${v.pkg} may import only: ${allowedText}${nodeText}.`;

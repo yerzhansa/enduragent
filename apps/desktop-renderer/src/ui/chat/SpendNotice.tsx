@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Card } from "../../components/ui/card";
+import { Card } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function SpendNotice(): ReactElement {

@@ -1,6 +1,6 @@
 import { useEffect, type ReactElement } from "react";
 import { useEnduragentStore } from "../state/store";
-import { DARK_MEDIA_QUERY } from "../theme/applyPalette";
+import { DARK_MEDIA_QUERY } from "@enduragent/ui";
 import { Shell } from "./Shell";
 
 export function App(props: { readonly onReady: () => void }): ReactElement {

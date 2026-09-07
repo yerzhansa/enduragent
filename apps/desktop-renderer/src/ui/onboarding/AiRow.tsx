@@ -2,8 +2,8 @@ import { Menu } from "@base-ui/react/menu";
 import { isKeylessProvider } from "@enduragent/coach-contract";
 import { Check } from "lucide-react";
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import { Button, buttonVariants } from "../../components/ui/button";
-import { cn } from "../../lib/utils";
+import { Button, buttonVariants } from "@enduragent/ui";
+import { cn } from "@enduragent/ui";
 import {
   CUSTOM_MODEL_SELECTION,
   DESKTOP_CREDENTIAL_SLOTS,
@@ -31,7 +31,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@enduragent/ui";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,

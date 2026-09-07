@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactElement,
 } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import type { CoachDecisionAnswer, CoachDecisionReadModel } from "@enduragent/coach-contract";
 

@@ -14,7 +14,8 @@
     "package:win-dir": "pnpm build:self-test-resources && electron-vite build && node scripts/windows-development-package-plan.mjs",
     "package:win": "pnpm build:self-test-resources && electron-vite build && node scripts/windows-package-plan.mjs",
     "package:mac": "pnpm build:self-test-resources && electron-vite build && node scripts/macos-release-plan.mjs",
-    "package:telegram-acceptance": "pnpm --filter '@enduragent/desktop^...' build && pnpm build:self-test-resources && electron-vite build --config electron.telegram-acceptance.vite.config.ts && node scripts/package-telegram-acceptance.mjs",
+    "package:telegram-acceptance": "pnpm --filter '@enduragent/desktop^...' build && pnpm build:self-test-resources && pnpm package:telegram-acceptance:prepared",
+    "package:telegram-acceptance:prepared": "electron-vite build --config electron.telegram-acceptance.vite.config.ts && node scripts/package-telegram-acceptance.mjs",
     "test:e2e": "playwright test --config=playwright.e2e.config.ts",
     "test:e2e:debug": "playwright test --config=playwright.e2e.config.ts --debug",
     "build:keychain-binding": "node scripts/build-keychain-binding.mjs",
@@ -44,8 +45,8 @@
     "@enduragent/coach-client": "workspace:*",
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/core": "workspace:*",
-    "electron-updater": "6.6.2",
-    "yaml": "^2.8.3"
+    "electron-updater": "6.8.9",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
@@ -61,11 +62,11 @@
     "electron": "43.1.1",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "esbuild": "0.27.7",
-    "tsx": "^4.21.0",
+    "esbuild": "0.28.2",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.2",
     "vite": "7.3.6",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"

@@ -77,8 +77,6 @@ const BASELINE: readonly Usage[] = [
   { file: "ui/settings/styles.ts", className: "text-[13.5px]" },
   { file: "ui/settings/styles.ts", className: "text-[13px]" },
   { file: "ui/settings/styles.ts", className: "tracking-[0.07em]" },
-  { file: "ui/shared/InlineConfirmation.tsx", className: "text-[13.5px]" },
-  { file: "ui/shared/Page.tsx", className: "h-[52px]" },
   { file: "ui/sidebar/Sidebar.tsx", className: "size-[18px]" },
   { file: "ui/sidebar/SyncChip.tsx", className: "size-[7px]" },
   { file: "ui/sidebar/SyncChip.tsx", className: "text-[11px]" },

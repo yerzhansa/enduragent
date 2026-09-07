@@ -13,7 +13,7 @@ import {
 } from "react";
 import { ArrowUp, Paperclip, Square } from "lucide-react";
 import { filterSlashCommands } from "../../chat/commands";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { setupReady } from "../../state/onboarding-slice";
 import { SlashPopup } from "./SlashPopup";

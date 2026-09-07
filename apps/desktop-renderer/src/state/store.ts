@@ -5,9 +5,9 @@ import {
   resolveTheme,
   type Appearance,
   type ResolvedTheme,
-} from "../theme/applyPalette";
+} from "@enduragent/ui";
 import { publishNativeAppearance } from "../theme/nativeAppearance";
-import { paletteById } from "../theme/palettes";
+import { paletteById } from "@enduragent/ui";
 import {
   readStoredAppearance,
   readStoredPaletteId,

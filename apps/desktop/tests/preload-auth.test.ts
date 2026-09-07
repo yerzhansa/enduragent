@@ -70,6 +70,7 @@ vi.mock("electron", () => ({
 
 interface AuthBridge {
   readonly platform: unknown;
+  onOpenSettings(listener: unknown): () => void;
   getDaemonConnection(failedGeneration?: number): Promise<unknown>;
   initialSetupStatusSettled(input: unknown): Promise<unknown>;
   getTranscriptPage(input: unknown): Promise<unknown>;
@@ -396,6 +397,7 @@ describe("desktop preload ChatGPT auth", () => {
         "onDroppedChatAttachments",
         "onDroppedImportFiles",
         "onPlanProgress",
+        "onOpenSettings",
         "onUpdateState",
         "pasteChatAttachment",
         "pasteIntervalsApiKeyFromClipboard",
@@ -2080,5 +2082,22 @@ describe("desktop preload ChatGPT auth", () => {
         : bridge.chatgptLogin(chatGptLoginInput);
       await expect(operation).rejects.toBeInstanceOf(TypeError);
     }
+  });
+});
+
+describe("Settings navigation", () => {
+  it("delivers the fixed Settings command and removes disposed listeners", () => {
+    const event = mocks.on.mock.calls.find(([channel]) => channel === "enduragent:open-settings");
+    if (event === undefined) throw new Error("Settings event missing");
+    const listener = vi.fn();
+    const dispose = bridge.onOpenSettings(listener);
+    event[1]({});
+    expect(listener).toHaveBeenCalledExactlyOnceWith();
+    dispose();
+    dispose();
+    event[1]({});
+    expect(listener).toHaveBeenCalledOnce();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(() => bridge.onOpenSettings("settings")).toThrow(TypeError);
   });
 });

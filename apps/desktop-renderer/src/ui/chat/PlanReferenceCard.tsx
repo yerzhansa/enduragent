@@ -4,7 +4,7 @@ import type {
   PlanWorkoutReadModel,
 } from "@enduragent/coach-contract";
 import type { ReactElement, ReactNode } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { projectPlanChatCard } from "../../plan/chat-card";
 import { useEnduragentStore } from "../../state/store";
 

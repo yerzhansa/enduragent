@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { ArchiveReadingState } from "../../archive/controller";
 import type { TranscriptTurn } from "../../chat/hydration";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -11,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { AthleteMessage } from "../chat/AthleteMessage";
 import { CoachMessage } from "../chat/CoachMessage";
-import { Page } from "../shared/Page";
+import { Page } from "@enduragent/ui";
 import {
   ARCHIVE_BACK_COPY,
   ARCHIVE_DELETE_COPY,

@@ -1,13 +1,13 @@
 import type { WorkoutArchiveFormat } from "@enduragent/coach-contract";
 import { useId, useState, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import {
   trainingExportStatusCopy,

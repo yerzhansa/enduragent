@@ -14,8 +14,8 @@ import type {
   ChatMessageView,
   ChatTranscriptItemView,
 } from "../../state/chat-slice";
-import { cn } from "../../lib/utils";
-import { Button } from "../../components/ui/button";
+import { cn } from "@enduragent/ui";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { AthleteMessage } from "./AthleteMessage";
 import { CoachMessage } from "./CoachMessage";

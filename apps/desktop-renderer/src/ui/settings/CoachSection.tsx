@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   CUSTOM_MODEL_SELECTION,
   ONBOARDING_LLM_PROVIDER_LABELS,
@@ -16,7 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@enduragent/ui";
 import { COACH_SAVE_ERROR_COPY, COACH_VALIDATION_COPY } from "./copy";
 import { settingsStyles as styles } from "./styles";
 

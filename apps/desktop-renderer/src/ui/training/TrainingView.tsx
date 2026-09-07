@@ -16,7 +16,7 @@ import {
   type Ref,
 } from "react";
 import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { formatCivilDate } from "../../lib/date";
 import { rideImportStatusCopy } from "../../ride-import";
 import { rideImportStatusSuppressed } from "../../state/onboarding-slice";
@@ -26,7 +26,7 @@ import {
   formatRidingDuration,
   formatWholeNumber,
 } from "../../training-context/format";
-import { Page } from "../shared/Page";
+import { Page } from "@enduragent/ui";
 import { TRAINING_DEGRADED_COPY, TRAINING_HISTORY_COPY, trainingStatusCopy } from "./copy";
 import { overviewStyles as styles } from "./overviewStyles";
 import { RideDetailView, trainingRideDateTime, trainingRideKind } from "./RideReview";

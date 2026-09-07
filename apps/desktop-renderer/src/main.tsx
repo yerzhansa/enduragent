@@ -1,12 +1,15 @@
-import "./theme/fonts.css";
-import "./theme/tokens.css";
-import "./theme/tailwind.css";
+import "./theme/application.css";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { bootRenderer, type Disposer } from "./boot";
 import { bootTheme, useEnduragentStore } from "./state/store";
 
 bootTheme();
+
+const disposeOpenSettings = window.enduragentAuth.onOpenSettings(() => {
+  useEnduragentStore.getState().setActiveView("settings");
+});
+window.addEventListener("beforeunload", disposeOpenSettings, { once: true });
 
 const container = document.querySelector("#root");
 if (!(container instanceof HTMLElement)) {

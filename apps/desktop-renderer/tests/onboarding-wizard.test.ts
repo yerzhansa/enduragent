@@ -1,3 +1,4 @@
+import { buttonVariants } from "@enduragent/ui";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -288,8 +289,8 @@ describe("desktop onboarding wizard", () => {
   });
 
   it("keeps setup control heights on the shared height tokens", async () => {
-    const [button, wizard, telegram] = await Promise.all([
-      readFile(new URL("../src/components/ui/button.tsx", import.meta.url), "utf8"),
+    const button = `${buttonVariants({ size: "sm" })} ${buttonVariants({ size: "lg" })}`;
+    const [wizard, telegram] = await Promise.all([
       readFile(new URL("../src/ui/onboarding/OnboardingWizard.tsx", import.meta.url), "utf8"),
       readFile(new URL("../src/ui/onboarding/TelegramRow.tsx", import.meta.url), "utf8"),
     ]);
@@ -366,10 +367,7 @@ describe("desktop onboarding wizard", () => {
         brand: false,
       });
     }
-    const button = await readFile(
-      new URL("../src/components/ui/button.tsx", import.meta.url),
-      "utf8",
-    );
+    const button = buttonVariants();
     expect(button).toContain("bg-primary text-primary-foreground");
     const row = sources[SETUP_SOURCES.indexOf("SetupRow.tsx")] ?? "";
     expect(row).toContain("text-ok");

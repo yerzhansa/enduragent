@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { APP_VERSION } from "../../app-version";
 import type { DesktopUpdateState } from "../../update/controller";
 import { settingsMutationActive } from "../../state/settings-slice";

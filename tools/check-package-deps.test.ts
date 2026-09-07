@@ -388,6 +388,160 @@ describe("R5 sync packages", () => {
 });
 
 describe("R6 desktop renderer", () => {
+  const uiUrl = (version = "0.1.0") =>
+    `https://github.com/yerzhansa/enduragent-ui/releases/download/v${version}/enduragent-ui-${version}.tgz`;
+  function uiLock(version = "0.1.0") {
+    const url = uiUrl(version);
+    return {
+      importers: {
+        "apps/desktop-renderer": {
+          dependencies: { "@enduragent/ui": { specifier: url, version: `${url}(react@19.2.8)` } },
+        },
+      },
+      packages: {
+        [`@enduragent/ui@${url}`]: {
+          version,
+          resolution: { tarball: url, integrity: `sha512-${Buffer.alloc(64).toString("base64")}` },
+        },
+      },
+      snapshots: { [`@enduragent/ui@${url}(react@19.2.8)`]: {} },
+    };
+  }
+
+  function installUi(version = "0.1.0") {
+    writeJson("pnpm-lock.yaml", uiLock(version));
+    writeJson("apps/desktop-renderer/node_modules/@enduragent/ui/package.json", {
+      name: "@enduragent/ui",
+      version,
+      exports: {
+        ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+        "./tailwind.css": "./dist/tailwind.css",
+        "./blocked": null,
+      },
+    });
+  }
+
+  it("allows an installed GitHub release artifact with matching lock integrity and declared exports", () => {
+    installUi();
+    writeJson("apps/desktop-renderer/package.json", {
+      dependencies: { "@enduragent/ui": uiUrl() },
+    });
+    write(
+      "apps/desktop-renderer/src/ui.tsx",
+      'import { Button } from "@enduragent/ui"; import "@enduragent/ui/tailwind.css"; export { Button };',
+    );
+    expect(violationsFor(rRenderer)).toBe(0);
+  });
+
+  it.each(["0.0.1", "0.1.0", "0.2.0", "1.0.0", "1.10.0"])(
+    "allows a stable SemVer release: %s",
+    (version) => {
+      installUi(version);
+      writeJson("apps/desktop-renderer/package.json", {
+        dependencies: { "@enduragent/ui": uiUrl(version) },
+      });
+      expect(violationsFor(rRenderer)).toBe(0);
+    },
+  );
+
+  it.each([
+    "workspace:*",
+    "file:./ui.tgz",
+    "link:../ui",
+    "^0.1.0",
+    "0.1.0",
+    uiUrl("0.1.1"),
+    uiUrl("0.0.0"),
+    uiUrl("0.01.0"),
+    uiUrl("0.1.0-0"),
+    uiUrl("0.1.0-beta.1"),
+    uiUrl("0.1.0+build"),
+    uiUrl("1.0.01"),
+    uiUrl("9007199254740992.0.0"),
+    uiUrl().replace("github.com", "github.com.example.org"),
+    uiUrl().replace("https:", "http:"),
+    uiUrl().replace("yerzhansa/", "other/"),
+    uiUrl().replace("download/v0.1.0", "latest/download"),
+    `${uiUrl()}?download=1`,
+    `${uiUrl()}\n`,
+    ` ${uiUrl()}`,
+  ])("rejects a non-exact or mismatched UI dependency: %s", (version) => {
+    installUi();
+    writeJson("apps/desktop-renderer/package.json", {
+      dependencies: { "@enduragent/ui": version },
+    });
+    write("apps/desktop-renderer/src/ui.tsx", 'export { Button } from "@enduragent/ui";');
+    expect(violationsFor(rRenderer)).toBe(2);
+  });
+
+  it.each(["src/button", "dist/index.js", "unknown", "blocked"])(
+    "rejects an undeclared UI subpath: %s",
+    (subpath) => {
+      installUi();
+      writeJson("apps/desktop-renderer/package.json", {
+        dependencies: { "@enduragent/ui": uiUrl() },
+      });
+      write(
+        "apps/desktop-renderer/src/ui.tsx",
+        `export { Button } from "@enduragent/ui/${subpath}";`,
+      );
+      expect(violationsFor(rRenderer)).toBe(1);
+    },
+  );
+
+  it.each(["()", "(react@19", "(react@19))", "(react@19)?download=1"])(
+    "rejects a malformed release resolution suffix: %s",
+    (suffix) => {
+      installUi();
+      writeJson("apps/desktop-renderer/package.json", {
+        dependencies: { "@enduragent/ui": uiUrl() },
+      });
+      const lock = uiLock();
+      const version = `${uiUrl()}${suffix}`;
+      lock.importers["apps/desktop-renderer"].dependencies["@enduragent/ui"].version = version;
+      lock.snapshots = { [`@enduragent/ui@${version}`]: {} };
+      writeJson("pnpm-lock.yaml", lock);
+      expect(violationsFor(rRenderer)).toBe(1);
+    },
+  );
+
+  it("rejects missing installations and undeclared UI imports", () => {
+    writeJson("apps/desktop-renderer/package.json", {
+      dependencies: { "@enduragent/ui": uiUrl() },
+    });
+    expect(violationsFor(rRenderer)).toBe(1);
+    installUi();
+    writeJson("apps/desktop-renderer/package.json", {});
+    write("apps/desktop-renderer/src/ui.tsx", 'export { Button } from "@enduragent/ui";');
+    expect(violationsFor(rRenderer)).toBe(1);
+  });
+
+  it.each([
+    "missing",
+    "specifier",
+    "version",
+    "tarball",
+    "integrity",
+    "package-version",
+    "snapshot",
+  ])("rejects incomplete or inconsistent release lock data: %s", (field) => {
+    installUi();
+    writeJson("apps/desktop-renderer/package.json", {
+      dependencies: { "@enduragent/ui": uiUrl() },
+    });
+    const lock = uiLock();
+    const dependency = lock.importers["apps/desktop-renderer"].dependencies["@enduragent/ui"];
+    const entry = lock.packages[`@enduragent/ui@${uiUrl()}`]!;
+    if (field === "specifier") dependency.specifier = uiUrl("0.1.1");
+    if (field === "version") dependency.version = uiUrl("0.1.1");
+    if (field === "tarball") entry.resolution.tarball = uiUrl("0.1.1");
+    if (field === "integrity") entry.resolution.integrity = "sha512-invalid";
+    if (field === "package-version") entry.version = "0.1.1";
+    if (field === "snapshot") lock.snapshots = {};
+    writeJson("pnpm-lock.yaml", field === "missing" ? {} : lock);
+    expect(violationsFor(rRenderer)).toBe(1);
+  });
+
   it("R6 flags the renderer importing @enduragent/engine", () => {
     write(
       "apps/desktop-renderer/src/bad.ts",
@@ -418,35 +572,35 @@ describe("R6 desktop renderer", () => {
     expect(violationsFor(rRenderer)).toBe(2);
   });
 
-  it("R6 passes the local UI foundation dependencies", () => {
-    write(
-      "apps/desktop-renderer/src/lib/utils.ts",
-      `import { clsx } from "clsx";\nimport { twMerge } from "tailwind-merge";\nexport const value = twMerge(clsx("base"));\n`,
-    );
-    writeJson("apps/desktop-renderer/package.json", {
-      name: "@enduragent/desktop-renderer",
-      private: true,
-      dependencies: {
-        "class-variance-authority": "^0.7.1",
-        clsx: "^2.1.1",
-        "tailwind-merge": "^3.6.0",
-        "tw-animate-css": "^1.4.0",
-      },
-    });
-    expect(violationsFor(rRenderer)).toBe(0);
-  });
+  it.each(["@base-ui/react", "lucide-react"])(
+    "R6 passes the retained renderer dependency: %s",
+    (dependency) => {
+      write("apps/desktop-renderer/src/ok.ts", `import "${dependency}";`);
+      writeJson("apps/desktop-renderer/package.json", {
+        name: "@enduragent/desktop-renderer",
+        private: true,
+        dependencies: { [dependency]: "1.0.0" },
+      });
+      expect(violationsFor(rRenderer)).toBe(0);
+    },
+  );
 
-  it("R6 passes the renderer font dependencies", () => {
-    write("apps/desktop-renderer/src/ok.ts", `export const value = 1;\n`);
+  it.each([
+    "class-variance-authority",
+    "clsx",
+    "tailwind-merge",
+    "tw-animate-css",
+    "@fontsource-variable/geist-mono",
+    "@fontsource-variable/inter",
+  ])("R6 rejects a direct renderer dependency owned by shared UI: %s", (dependency) => {
     writeJson("apps/desktop-renderer/package.json", {
       name: "@enduragent/desktop-renderer",
       private: true,
-      dependencies: {
-        "@fontsource-variable/geist-mono": "^5.3.0",
-        "@fontsource-variable/inter": "^5.3.0",
-      },
+      dependencies: { [dependency]: "1.0.0" },
     });
-    expect(violationsFor(rRenderer)).toBe(0);
+    expect(violationsFor(rRenderer)).toBe(1);
+    write("apps/desktop-renderer/src/bad.ts", `import "${dependency}";`);
+    expect(violationsFor(rRenderer)).toBe(2);
   });
 });
 

@@ -57,7 +57,15 @@ export interface RunningDesktopFixture {
   evaluateMain<T>(source: string): Promise<T>;
   dropFiles(selector: string, paths: readonly string[]): Promise<void>;
   relaunch(beforeLaunch?: () => void | Promise<void>): Promise<void>;
-  screenshot(path: string): Promise<void>;
+  screenshot(
+    path: string,
+    clip?: {
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+      readonly height: number;
+    },
+  ): Promise<void>;
   setViewport(width: number, height: number): Promise<void>;
   pressKey(
     key: "Escape" | "Tab" | "v",
@@ -448,6 +456,11 @@ export async function launchDesktopFixture(input: {
     async configureRuntime(request) {
       return finalFrame(await invoke("configureRuntime", request)) as Awaited<
         ReturnType<CoachOperations["configureRuntime"]>
+      >;
+    },
+    async verify_intervals_credential(request) {
+      return finalFrame(await invoke("verify_intervals_credential", request)) as Awaited<
+        ReturnType<NonNullable<CoachOperations["verify_intervals_credential"]>>
       >;
     },
     async getRuntimeConfig(request) {
@@ -957,9 +970,12 @@ export async function launchDesktopFixture(input: {
         throw error;
       }
     },
-    async screenshot(path: string) {
+    async screenshot(path: string, clip) {
       if (closed || cdp === undefined) throw new Error("desktop fixture is closed");
-      const response = await cdp.call("Page.captureScreenshot", { format: "png" });
+      const response = await cdp.call("Page.captureScreenshot", {
+        format: "png",
+        ...(clip === undefined ? {} : { clip: { ...clip, scale: 1 } }),
+      });
       const data = response.data;
       if (typeof data !== "string") throw new TypeError("desktop screenshot was not returned");
       await writeFile(path, Buffer.from(data, "base64"));

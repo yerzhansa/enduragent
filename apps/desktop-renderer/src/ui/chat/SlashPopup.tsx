@@ -1,7 +1,7 @@
 import type { ReactElement, RefObject } from "react";
 import type { SlashCommand } from "../../chat/commands";
-import { Popover, PopoverContent } from "../../components/ui/popover";
-import { cn } from "../../lib/utils";
+import { Popover, PopoverContent } from "@enduragent/ui";
+import { cn } from "@enduragent/ui";
 
 export function SlashPopup(props: {
   readonly open: boolean;

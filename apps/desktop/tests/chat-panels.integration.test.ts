@@ -1852,6 +1852,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         "onChatgptLoginProgress",
         "onDroppedChatAttachments",
         "onDroppedImportFiles",
+        "onOpenSettings",
         "onPlanProgress",
         "onUpdateState",
         "pasteChatAttachment",

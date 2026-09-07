@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import type {
   TelegramControlStatus,
   TelegramSettingsFeedback,
@@ -19,7 +19,7 @@ import {
   TELEGRAM_ROW_TITLE,
   TELEGRAM_VERIFIED_PREFIX,
 } from "./copy";
-import { InlineConfirmation, type InlineConfirmationFocus } from "../shared/InlineConfirmation";
+import { InlineConfirmation, type InlineConfirmationFocus } from "@enduragent/ui";
 import { SetupRow, SetupSubPanel } from "./SetupRow";
 
 type TelegramPanel = "closed" | "token" | "delete";

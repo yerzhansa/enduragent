@@ -1417,19 +1417,9 @@ async function runDesktop(): Promise<void> {
           ? "../../resources/tray.ico"
           : "../../resources/trayTemplate.png",
       ),
-      trayPopoverUrl: rendererSource.trayPopoverUrl,
-      trayPreloadPath: resolve(mainDirectory, "../preload/tray.cjs"),
       platform: process.platform,
       loginItemExecutablePath: process.execPath,
       persistLoginPreference: (enabled) => backgroundAtLoginPreference.set(enabled),
-      telegramStatus: async () => {
-        const snapshot = await telegramCoordinator.status();
-        const warning = await telegramPower!.warning();
-        return {
-          channelState: snapshot.channel.state,
-          gapWarning: warning.state === "possible-message-loss",
-        };
-      },
       reportFailure(operation) {
         process.stderr.write(`desktop-residency-failure ${operation}\n`);
       },

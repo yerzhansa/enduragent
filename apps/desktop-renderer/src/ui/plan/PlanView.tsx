@@ -38,7 +38,7 @@ import {
   type PlanReadinessProjection,
   type PlanStartDateProjection,
 } from "@enduragent/coach-contract";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -47,7 +47,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { formatCivilDate } from "../../lib/date";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -56,7 +56,7 @@ import { Composer, type ComposerHandle } from "../chat/Composer";
 import { ConversationTranscript } from "../chat/Transcript";
 import { PlanLibrary } from "./PlanLibrary";
 import { PlanFinalDetails } from "./PlanFinalDetails";
-import { Page } from "../shared/Page";
+import { Page } from "@enduragent/ui";
 import { WorkoutArchiveExportControl } from "../training/TrainingExportControls";
 
 const SUPPORT_PAIR = "grid gap-[calc(var(--inset)/2)]";

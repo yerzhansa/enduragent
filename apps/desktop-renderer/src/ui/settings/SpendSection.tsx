@@ -1,6 +1,6 @@
 import type { SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { currency, notionalSpendCopy, routeSpendCopy } from "../../state/adapters/spend";
 import { useEnduragentStore } from "../../state/store";
 import { settingsStyles as styles } from "./styles";

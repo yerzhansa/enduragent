@@ -161,7 +161,7 @@
       "expected": "Explicit Quit is deduplicated, closes resident tray resources, drains accepted desktop work before normal exit, blocks repeated pre-drain exits, and never restarts the intentionally stopped daemon.",
       "automation": "deterministic",
       "tests": [
-        "apps/desktop/tests/residency.test.ts > deduplicates quit and destroys popover before tray exactly once",
+        "apps/desktop/tests/residency.test.ts > deduplicates quit and destroys the tray exactly once",
         "apps/desktop/tests/quit-coordinator.test.ts > blocks repeated pre-drain quits and permits only the updater-generated post-drain quit",
         "apps/desktop/tests/quit-coordinator.test.ts > permits a normal final exit only after a successful drain",
         "apps/desktop/tests/supervisor.test.ts > does not restart when shutdown requested the child exit"

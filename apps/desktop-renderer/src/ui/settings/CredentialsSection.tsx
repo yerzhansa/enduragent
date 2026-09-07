@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, type ReactElement, type RefObject } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import type { DesktopCredentialId } from "../../onboarding/bridge";
 import { DESKTOP_CREDENTIAL_SLOTS } from "../../onboarding/constants";
 import { onboardingCredentialMutationActive } from "../../onboarding/controller";
@@ -16,7 +16,7 @@ import {
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { SetupRow } from "../onboarding/SetupRow";
-import { InlineConfirmation } from "../shared/InlineConfirmation";
+import { InlineConfirmation } from "@enduragent/ui";
 import { credentialRuntimeLabel } from "./copy";
 
 export const SETUP_CREDENTIAL_EDIT_EVENT = "enduragent:edit-credential";

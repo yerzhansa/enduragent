@@ -323,6 +323,7 @@ async function security() {
             "onChatgptLoginProgress",
             "onDroppedChatAttachments",
             "onDroppedImportFiles",
+            "onOpenSettings",
             "onPlanProgress",
             "onUpdateState",
             "pasteChatAttachment",

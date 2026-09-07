@@ -1,3 +1,4 @@
+import { readUiStylesheet } from "./ui-styles";
 import { readdir, readFile } from "node:fs/promises";
 import { posix, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -77,11 +78,15 @@ async function stylesheets(): Promise<readonly string[]> {
 describe("theme guards", () => {
   it("gates every system-dark custom property behind the explicit light override", async () => {
     const files = await stylesheets();
-    expect(files).toContain("theme/tokens.css");
+    expect(files).toContain("theme/application.css");
 
     let guarded = 0;
-    for (const file of files) {
-      const rules = parse(await readFile(resolve(sourceRoot, file), "utf8"));
+    for (const file of [...files, "@enduragent/ui/tokens.css"]) {
+      const rules = parse(
+        file === "@enduragent/ui/tokens.css"
+          ? await readUiStylesheet("tokens.css")
+          : await readFile(resolve(sourceRoot, file), "utf8"),
+      );
       for (const rule of rules) {
         if (rule.media === undefined || !DARK_MEDIA.test(rule.media)) continue;
         if (rule.declarations.size === 0) continue;
@@ -93,8 +98,12 @@ describe("theme guards", () => {
   });
 
   it("mirrors every system-dark custom property onto the stamped dark theme", async () => {
-    for (const file of await stylesheets()) {
-      const rules = parse(await readFile(resolve(sourceRoot, file), "utf8"));
+    for (const file of [...(await stylesheets()), "@enduragent/ui/tokens.css"]) {
+      const rules = parse(
+        file === "@enduragent/ui/tokens.css"
+          ? await readUiStylesheet("tokens.css")
+          : await readFile(resolve(sourceRoot, file), "utf8"),
+      );
       const stamped = rules.filter(
         (rule) => rule.media === undefined && rule.selector.includes(EXPLICIT_DARK_GUARD),
       );
@@ -113,7 +122,7 @@ describe("theme guards", () => {
   });
 
   it("stamps the colour scheme for both explicit themes", async () => {
-    const tokens = parse(await readFile(resolve(sourceRoot, "theme/tokens.css"), "utf8"));
+    const tokens = parse(await readUiStylesheet("tokens.css"));
     for (const [selector, scheme] of [
       [':root[data-theme="light"]', "light"],
       [':root[data-theme="dark"]', "dark"],
@@ -129,7 +138,7 @@ describe("theme guards", () => {
   });
 
   it("resolves every referenced custom property from the theme vocabulary", async () => {
-    const tokens = parse(await readFile(resolve(sourceRoot, "theme/tokens.css"), "utf8"));
+    const tokens = parse(await readUiStylesheet("tokens.css"));
     const declared = new Set(
       tokens.flatMap((rule) =>
         rule.selector.startsWith(":root") ? [...rule.declarations.keys()] : [],
@@ -137,6 +146,10 @@ describe("theme guards", () => {
     );
     expect(declared.size).toBeGreaterThanOrEqual(20);
 
+    expect(await stylesheets()).toContain("theme/application.css");
+    const application = await readFile(resolve(sourceRoot, "theme/application.css"), "utf8");
+    expect(application.match(/@import "@enduragent\/ui\/tailwind.css";/gu)).toHaveLength(1);
+    expect(application.match(/tailwindcss\/preflight.css/gu)).toHaveLength(1);
     const undeclared: string[] = [];
     for (const file of await stylesheets()) {
       const source = await readFile(resolve(sourceRoot, file), "utf8");
@@ -152,7 +165,7 @@ describe("theme guards", () => {
 
 describe("control reset", () => {
   it("inherits the interface font on every control element", async () => {
-    const tokens = parse(await readFile(resolve(sourceRoot, "theme/tokens.css"), "utf8"));
+    const tokens = parse(await readUiStylesheet("tokens.css"));
     const inherited = new Set(
       tokens
         .filter((rule) => rule.media === undefined && /font:\s*inherit/u.test(rule.raw))
@@ -162,7 +175,7 @@ describe("control reset", () => {
   });
 
   it("rings every keyboard-focused control with the neutral outline", async () => {
-    const tokens = parse(await readFile(resolve(sourceRoot, "theme/tokens.css"), "utf8"));
+    const tokens = parse(await readUiStylesheet("tokens.css"));
     const focus = tokens.filter(
       (rule) => rule.media === undefined && selectors(rule).some((part) => part.includes(FOCUS)),
     );
@@ -177,7 +190,6 @@ describe("control reset", () => {
   it("suppresses the focus ring only through focus-qualified selectors", async () => {
     const unqualified: string[] = [];
     for (const file of await stylesheets()) {
-      if (file === "theme/tokens.css") continue;
       const cleared = parse(await readFile(resolve(sourceRoot, file), "utf8")).filter((rule) =>
         OUTLINE_CLEARED.test(rule.raw),
       );

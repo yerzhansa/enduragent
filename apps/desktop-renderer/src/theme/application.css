@@ -1,0 +1,22 @@
+@layer theme, base, surface, components, utilities;
+@import "@enduragent/ui/tailwind.css";
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../";
+@source "../../tray.html";
+
+@layer base {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+}
+
+@keyframes first-sync-sweep {
+  to {
+    transform: translateX(250%);
+  }
+}

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SettingsView } from "../src/ui/settings/SettingsView";
 import { useEnduragentStore } from "../src/state/store";
-import { PALETTES } from "../src/theme/palettes";
+import { PALETTES } from "@enduragent/ui";
 import { APPEARANCE_STORAGE_KEY, PALETTE_STORAGE_KEY } from "../src/theme/preferences";
 import { setPrefersDark } from "./matchmedia";
 

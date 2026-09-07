@@ -6,6 +6,7 @@ import {
   type BrowserWindow,
   type MenuItemConstructorOptions,
 } from "electron";
+import { DESKTOP_OPEN_SETTINGS_CHANNEL } from "./constants.js";
 import {
   isLoginItemResidencyEnabled,
   loginItemResidencyMatchesRequest,
@@ -14,7 +15,6 @@ import {
   type BackgroundAtLoginPreferenceWriteResult,
   type LoginItemResidencyState,
 } from "./login-item.js";
-import { createTrayPopover, type TrayPopover } from "./tray-popover.js";
 
 export const TRAY_TOOLTIP = "Enduragent" as const;
 export const TRAY_POPOVER_WIDTH = 420 as const;
@@ -30,8 +30,6 @@ export interface MainWindowResidencyPort {
 export type DesktopResidencyEvent =
   | { readonly type: "tray-created" }
   | { readonly type: "tray-destroyed" }
-  | { readonly type: "popover-shown" }
-  | { readonly type: "popover-hidden" }
   | { readonly type: "main-window-shown" }
   | { readonly type: "login-item-read"; readonly state: LoginItemResidencyState }
   | { readonly type: "login-item-set"; readonly state: LoginItemResidencyState };
@@ -40,11 +38,8 @@ export interface DesktopResidencyInput {
   readonly app: App;
   readonly mainWindow: MainWindowResidencyPort;
   readonly trayIconPath: string;
-  readonly trayPopoverUrl: string;
-  readonly trayPreloadPath: string;
   readonly platform?: NodeJS.Platform;
   readonly loginItemExecutablePath?: string;
-  readonly telegramStatus: () => Promise<TrayTelegramStatus>;
   readonly persistLoginPreference: (
     enabled: boolean,
   ) => Promise<BackgroundAtLoginPreferenceWriteResult>;
@@ -52,23 +47,6 @@ export interface DesktopResidencyInput {
     operation: "read-login-item" | "set-login-item" | "show-window" | "tray-start",
   ) => void;
   readonly observe?: (event: DesktopResidencyEvent) => void;
-}
-
-export type TrayTelegramChannelState =
-  | "disabled"
-  | "waiting-for-credential"
-  | "starting"
-  | "suspended"
-  | "online"
-  | "offline-retrying"
-  | "conflict"
-  | "invalid-token"
-  | "transfer-required"
-  | "failed";
-
-export interface TrayTelegramStatus {
-  readonly channelState: TrayTelegramChannelState;
-  readonly gapWarning: boolean;
 }
 
 export interface DesktopResidency {
@@ -82,7 +60,6 @@ export interface DesktopResidency {
 export function createDesktopResidency(input: DesktopResidencyInput): DesktopResidency {
   const platform = input.platform ?? process.platform;
   let tray: Tray | undefined;
-  let popover: TrayPopover | undefined;
   let startPromise: Promise<void> | undefined;
   let quitRequested = false;
   let closed = false;
@@ -90,7 +67,6 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
   let loginItemMutation: Promise<void> = Promise.resolve();
   const managedWindows = new WeakSet<BrowserWindow>();
 
-  const hidePopover = (): void => popover?.hide();
   const manageMainWindow = (window: BrowserWindow): void => {
     if (platform !== "win32" || managedWindows.has(window)) return;
     managedWindows.add(window);
@@ -100,45 +76,17 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       window.hide();
     });
   };
-  const showMainWindow = async (): Promise<void> => {
+  const showMainWindow = async (view: "current" | "settings" = "current"): Promise<void> => {
     if (closed) return;
-    hidePopover();
     try {
       const window = await input.mainWindow.show();
+      if (closed) return;
       manageMainWindow(window);
-      if (!closed) input.observe?.({ type: "main-window-shown" });
+      if (view === "settings") window.webContents.send(DESKTOP_OPEN_SETTINGS_CHANNEL);
+      input.observe?.({ type: "main-window-shown" });
     } catch {
       if (!closed) input.reportFailure("show-window");
     }
-  };
-  const ensurePopover = (): TrayPopover => {
-    if (popover !== undefined) return popover;
-    if (tray === undefined) throw new TypeError();
-    popover = createTrayPopover({
-      url: input.trayPopoverUrl,
-      preload: input.trayPreloadPath,
-      getTrayBounds: () => tray?.getBounds() ?? { x: 0, y: 0, width: 0, height: 0 },
-    });
-    popover.window.on("show", () => {
-      if (closed) return;
-      input.observe?.({ type: "popover-shown" });
-      const target = popover;
-      if (target === undefined) return;
-      void input.telegramStatus().then(
-        (status) => {
-          if (!closed && popover === target) target.publishTelegramStatus(status);
-        },
-        () => {
-          if (!closed && popover === target) {
-            target.publishTelegramStatus({ channelState: "failed", gapWarning: false });
-          }
-        },
-      );
-    });
-    popover.window.on("hide", () => {
-      if (!closed) input.observe?.({ type: "popover-hidden" });
-    });
-    return popover;
   };
   const readLoginState = (): LoginItemResidencyState | undefined => {
     try {
@@ -228,6 +176,10 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       },
       { type: "separator" },
       {
+        label: "Settings…",
+        click: () => void showMainWindow("settings"),
+      },
+      {
         label: "Start in background at login",
         type: "checkbox",
         checked: state === undefined ? false : isLoginItemResidencyEnabled(state, platform),
@@ -256,7 +208,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
           tray.setToolTip(TRAY_TOOLTIP);
           tray.on("click", () => {
             if (platform === "win32") void showMainWindow();
-            else ensurePopover().toggle();
+            else showContextMenu();
           });
           tray.on("right-click", showContextMenu);
           input.observe?.({ type: "tray-created" });
@@ -277,8 +229,6 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       if (closePromise !== undefined) return closePromise;
       closed = true;
       closePromise = loginItemMutation;
-      popover?.close();
-      popover = undefined;
       if (tray !== undefined) {
         tray.removeAllListeners();
         tray.destroy();

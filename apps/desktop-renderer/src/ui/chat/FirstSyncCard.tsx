@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
+import { Button } from "@enduragent/ui";
+import { Card } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function FirstSyncCard(): ReactElement | null {

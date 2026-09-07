@@ -420,7 +420,7 @@ describe("sidebar styling", () => {
         readFile(resolve(import.meta.dirname, "..", "src", "ui", "sidebar", name), "utf8"),
       ),
     );
-    expect(sources.every((source) => source.includes("components/ui/button"))).toBe(true);
+    expect(sources.every((source) => source.includes("@enduragent/ui"))).toBe(true);
     expect(sources.join("\n")).not.toContain("Sidebar.module.css");
     expect(sources.join("\n")).not.toContain("font-mono");
   });

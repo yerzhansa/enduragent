@@ -1,3 +1,4 @@
+import { readUiStylesheet } from "./ui-styles";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -3419,8 +3420,8 @@ describe("chat surface", () => {
       const sourceRoot = resolve(import.meta.dirname, "..", "src");
       const [transcript, tokens, fonts] = await Promise.all([
         readFile(resolve(sourceRoot, "ui/chat/Transcript.tsx"), "utf8"),
-        readFile(resolve(sourceRoot, "theme/tokens.css"), "utf8"),
-        readFile(resolve(sourceRoot, "theme/fonts.css"), "utf8"),
+        readUiStylesheet("tokens.css"),
+        readUiStylesheet("fonts.css"),
       ]);
       expect(transcript).toContain(
         "chat-message--coach max-w-full justify-self-start text-sm leading-5",
@@ -3433,8 +3434,8 @@ describe("chat surface", () => {
       expect(tokens).toMatch(
         /body\s*\{[^}]*font-optical-sizing:\s*auto;[^}]*font-feature-settings:\s*"cv01",\s*"ss02";/su,
       );
-      expect(fonts).toContain('@import "@fontsource-variable/inter/opsz.css";');
-      expect(fonts).toContain('@import "@fontsource-variable/geist-mono/index.css";');
+      expect(fonts).toContain("font-family: 'Inter Variable'");
+      expect(fonts).toContain("font-family: 'Geist Mono Variable'");
       expect(fonts).not.toContain("dm-sans");
     });
 
@@ -3458,11 +3459,11 @@ describe("chat surface", () => {
       expect(source).not.toContain(".module.css");
       expect(source).not.toContain("font-mono");
       expect(source).toContain("PopoverContent");
-      expect(source).toContain("components/ui/button");
+      expect(source).toContain("@enduragent/ui");
       expect(source).toContain("chat-markdown\\\\_\\\\_table-scroll");
     });
 
-    it("keeps chat support cards and dialogs on local UI primitives", async () => {
+    it("keeps chat support cards and dialogs on shared UI primitives", async () => {
       const sourceRoot = resolve(import.meta.dirname, "..", "src", "ui", "chat");
       const sources = await Promise.all(
         [
@@ -3476,9 +3477,9 @@ describe("chat surface", () => {
       const source = sources.join("\n");
       expect(source).not.toContain(".module.css");
       expect(source).not.toContain("font-mono");
-      expect(source).toContain("components/ui/button");
-      expect(source).toContain("components/ui/card");
-      expect(source).toContain("components/ui/dialog");
+      expect(source).toContain("@enduragent/ui");
+      expect(source).toContain("Card");
+      expect(source).toContain("Dialog");
     });
   });
 });

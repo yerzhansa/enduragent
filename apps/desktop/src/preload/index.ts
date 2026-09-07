@@ -30,6 +30,7 @@ import {
   DESKTOP_LIFECYCLE_CHANNEL,
   DESKTOP_PLANNING_READ_CHANNEL,
   DESKTOP_OPEN_EXTERNAL_CHANNEL,
+  DESKTOP_OPEN_SETTINGS_CHANNEL,
   DESKTOP_PLAN_PROGRESS_CHANNEL,
   DESKTOP_PLAN_COURSE_FILE_CHANNEL,
   DESKTOP_PLAN_STATE_CHANNEL,
@@ -1346,6 +1347,7 @@ async function invokeTelegramSenders(): Promise<unknown> {
 let dropDisposer: (() => void) | undefined;
 let chatAttachmentDropDisposer: (() => void) | undefined;
 let chatAttachmentDropSequence = 0;
+const openSettingsListeners = new Set<() => void>();
 const updateListeners = new Set<(state: PreloadUpdateState) => void>();
 const chatGptLoginProgressListeners = new Set<(progress: PreloadChatGptLoginProgress) => void>();
 const planProgressListeners = new Set<(progress: PlanProgressEvent) => void>();
@@ -1411,6 +1413,10 @@ ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) 
   }
 });
 
+ipcRenderer.on(DESKTOP_OPEN_SETTINGS_CHANNEL, () => {
+  for (const listener of openSettingsListeners) listener();
+});
+
 ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   const parsed = PlanProgressEventSchema.safeParse(value);
   if (!parsed.success) return;
@@ -1433,6 +1439,16 @@ contextBridge.exposeInMainWorld(
   "enduragentAuth",
   Object.freeze({
     platform: desktopPlatformProjection(),
+    onOpenSettings: (listener: unknown) => {
+      if (typeof listener !== "function") throw new TypeError();
+      const notify = (): void => {
+        listener();
+      };
+      openSettingsListeners.add(notify);
+      return (): void => {
+        openSettingsListeners.delete(notify);
+      };
+    },
     getDaemonConnection: (failedGeneration?: number) => {
       if (
         failedGeneration !== undefined &&

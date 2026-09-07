@@ -40,14 +40,6 @@ const mocks = vi.hoisted(() => {
       FakeTray.instances.push(this);
     }
   }
-  const popoverWindow = new Emitter();
-  const popover = {
-    window: popoverWindow,
-    publishTelegramStatus: vi.fn(),
-    toggle: vi.fn(),
-    hide: vi.fn(),
-    close: vi.fn(() => order.push("popover-destroy")),
-  };
   const app = Object.assign(new Emitter(), {
     requestSingleInstanceLock: vi.fn(() => true),
     exit: vi.fn(),
@@ -67,9 +59,6 @@ const mocks = vi.hoisted(() => {
     order,
     image,
     FakeTray,
-    popover,
-    popoverWindow,
-    createTrayPopover: vi.fn(() => popover),
     buildFromTemplate: vi.fn((template) => ({ template })),
     app,
     BrowserWindow: vi.fn(),
@@ -91,10 +80,6 @@ vi.mock("electron", () => ({
   safeStorage: {},
   session: { defaultSession: { protocol: { unhandle: vi.fn() } } },
   utilityProcess: { fork: vi.fn() },
-}));
-
-vi.mock("../src/main/tray-popover.js", () => ({
-  createTrayPopover: mocks.createTrayPopover,
 }));
 
 vi.mock("../src/main/security.js", () => ({
@@ -166,15 +151,12 @@ function setup(
   const reportFailure = vi.fn();
   const browserWindow = Object.assign(new mocks.Emitter(), {
     hide: vi.fn(),
+    webContents: { send: vi.fn() },
   });
   const mainWindow = {
     current: vi.fn(() => null),
     show: vi.fn(async () => browserWindow),
   };
-  const telegramStatus = vi.fn(async () => ({
-    channelState: "online" as const,
-    gapWarning: false,
-  }));
   const persistLoginPreference = vi.fn<
     (enabled: boolean) => Promise<BackgroundAtLoginPreferenceWriteResult>
   >(async (enabled) => ({ status: "stored", enabled }));
@@ -183,11 +165,8 @@ function setup(
     app: mocks.app as never,
     mainWindow: mainWindow as never,
     trayIconPath: "/synthetic/trayTemplate.png",
-    trayPopoverUrl: "enduragent://app/tray.html",
-    trayPreloadPath: "/synthetic/tray.cjs",
     platform: options.platform ?? "darwin",
     loginItemExecutablePath: options.loginItemExecutablePath,
-    telegramStatus,
     persistLoginPreference,
     reportFailure,
     observe: (event) => events.push(event),
@@ -198,7 +177,6 @@ function setup(
     reportFailure,
     mainWindow,
     browserWindow,
-    telegramStatus,
     persistLoginPreference,
   };
 }
@@ -209,11 +187,6 @@ beforeEach(() => {
   mocks.image.isEmpty.mockReturnValue(false);
   mocks.image.isEmpty.mockClear();
   mocks.image.setTemplateImage.mockClear();
-  mocks.popover.toggle.mockClear();
-  mocks.popover.hide.mockClear();
-  mocks.popover.close.mockClear();
-  mocks.popover.publishTelegramStatus.mockClear();
-  mocks.createTrayPopover.mockClear();
   mocks.buildFromTemplate.mockClear();
   mocks.app.quit.mockClear();
   mocks.app.getLoginItemSettings.mockReset();
@@ -227,7 +200,7 @@ afterEach(async () => {
 });
 
 describe("desktop residency", () => {
-  it("deduplicates start, template-marks before one tray, and toggles one lazy popover", async () => {
+  it("deduplicates start, template-marks before one tray, and opens the native menu on either click", async () => {
     const { residency, events } = setup();
     const first = residency.start();
     const second = residency.start();
@@ -241,10 +214,11 @@ describe("desktop residency", () => {
     expect(tray.listenerCount("click")).toBe(1);
     expect(tray.listenerCount("right-click")).toBe(1);
     tray.emit("click");
-    tray.emit("click");
-    expect(mocks.createTrayPopover).toHaveBeenCalledOnce();
-    expect(mocks.popover.toggle).toHaveBeenCalledTimes(2);
-    expect(mocks.app.getLoginItemSettings).not.toHaveBeenCalled();
+    tray.emit("right-click");
+    expect(mocks.buildFromTemplate).toHaveBeenCalledTimes(2);
+    expect(tray.popUpContextMenu).toHaveBeenCalledTimes(2);
+    expect(mocks.app.getLoginItemSettings).toHaveBeenCalledTimes(2);
+    expect(mocks.BrowserWindow).not.toHaveBeenCalled();
     expect(events).toContainEqual({ type: "tray-created" });
   });
 
@@ -258,7 +232,7 @@ describe("desktop residency", () => {
 
     await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledTimes(2));
     expect(mocks.image.setTemplateImage).not.toHaveBeenCalled();
-    expect(mocks.createTrayPopover).not.toHaveBeenCalled();
+    expect(mocks.buildFromTemplate).not.toHaveBeenCalled();
     expect(tray.listenerCount("right-click")).toBe(1);
   });
 
@@ -292,22 +266,10 @@ describe("desktop residency", () => {
     mocks.FakeTray.instances[0]!.emit("right-click");
 
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
-    expect(menu[2]).toMatchObject({ type: "checkbox", checked: false, enabled: true });
+    expect(menu[3]).toMatchObject({ type: "checkbox", checked: false, enabled: true });
     expect(mocks.app.getLoginItemSettings).toHaveBeenCalledWith({
       path: executablePath,
       args: [WINDOWS_BACKGROUND_AT_LOGIN_ARGUMENT],
-    });
-  });
-
-  it("refreshes a redacted Telegram projection whenever the popover is shown", async () => {
-    const { residency, telegramStatus } = setup();
-    await residency.start();
-    mocks.FakeTray.instances[0]!.emit("click");
-    mocks.popoverWindow.emit("show");
-    await vi.waitFor(() => expect(telegramStatus).toHaveBeenCalledOnce());
-    expect(mocks.popover.publishTelegramStatus).toHaveBeenCalledWith({
-      channelState: "online",
-      gapWarning: false,
     });
   });
 
@@ -326,18 +288,66 @@ describe("desktop residency", () => {
     expect(first.map((item) => item.label ?? item.type)).toEqual([
       "Open Enduragent",
       "separator",
+      "Settings…",
       "Start in background at login",
       "separator",
       "Quit Enduragent",
     ]);
-    expect(first[2]).toMatchObject({ type: "checkbox", checked: true, enabled: true });
+    expect(first[3]).toMatchObject({ type: "checkbox", checked: true, enabled: true });
     (first[0]!.click as () => void)();
     await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledOnce());
-    (first[2]!.click as (item: { checked: boolean }) => void)({ checked: false });
+    (first[3]!.click as (item: { checked: boolean }) => void)({ checked: false });
     await vi.waitFor(() =>
       expect(mocks.app.setLoginItemSettings).toHaveBeenCalledWith({ openAtLogin: false }),
     );
     expect(events).toContainEqual({ type: "main-window-shown" });
+  });
+
+  it("opens Settings only after the main window is ready", async () => {
+    const { residency, mainWindow, browserWindow } = setup();
+    const opening = deferred<typeof browserWindow>();
+    mainWindow.show.mockReturnValueOnce(opening.promise);
+    await residency.start();
+    mocks.FakeTray.instances[0]!.emit("click");
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+
+    (menu[2]!.click as () => void)();
+
+    expect(mainWindow.show).toHaveBeenCalledOnce();
+    expect(browserWindow.webContents.send).not.toHaveBeenCalled();
+    opening.resolve(browserWindow);
+    await vi.waitFor(() =>
+      expect(browserWindow.webContents.send).toHaveBeenCalledWith("enduragent:open-settings"),
+    );
+  });
+
+  it("does not send Settings after residency closes while the main window is opening", async () => {
+    const { residency, mainWindow, browserWindow } = setup();
+    const opening = deferred<typeof browserWindow>();
+    mainWindow.show.mockReturnValueOnce(opening.promise);
+    await residency.start();
+    mocks.FakeTray.instances[0]!.emit("click");
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+    (menu[2]!.click as () => void)();
+
+    await residency.close();
+    opening.resolve(browserWindow);
+    await opening.promise;
+
+    expect(browserWindow.webContents.send).not.toHaveBeenCalled();
+  });
+
+  it("reports Settings window failures without sending the navigation request", async () => {
+    const { residency, mainWindow, browserWindow, reportFailure } = setup();
+    mainWindow.show.mockRejectedValueOnce(new Error("private path"));
+    await residency.start();
+    mocks.FakeTray.instances[0]!.emit("click");
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+
+    (menu[2]!.click as () => void)();
+
+    await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("show-window"));
+    expect(browserWindow.webContents.send).not.toHaveBeenCalled();
   });
 
   it("keeps Open and Quit usable when reads fail and emits fixed failure tags only", async () => {
@@ -351,13 +361,13 @@ describe("desktop residency", () => {
     mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
     expect(menu[0]!.click).toBeTypeOf("function");
-    expect(menu[2]).toMatchObject({ checked: false, enabled: false });
-    expect(menu[4]!.click).toBeTypeOf("function");
+    expect(menu[3]).toMatchObject({ checked: false, enabled: false });
+    expect(menu[5]!.click).toBeTypeOf("function");
     expect(reportFailure).toHaveBeenCalledWith("read-login-item");
     expect(JSON.stringify(reportFailure.mock.calls)).not.toContain(secret.message);
     (menu[0]!.click as () => void)();
     await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledOnce());
-    (menu[4]!.click as () => void)();
+    (menu[5]!.click as () => void)();
     expect(mocks.app.quit).toHaveBeenCalledOnce();
   });
 
@@ -372,7 +382,7 @@ describe("desktop residency", () => {
     });
     mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
-    (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
     await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("set-login-item"));
     expect(persistLoginPreference.mock.calls).toEqual([[true], [false]]);
     expect(mocks.app.getLoginItemSettings).toHaveBeenCalled();
@@ -389,7 +399,7 @@ describe("desktop residency", () => {
       mocks.FakeTray.instances[0]!.emit("right-click");
       const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
-      (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+      (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
 
       await vi.waitFor(() => expect(persistLoginPreference).toHaveBeenCalledWith(true));
       expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
@@ -397,7 +407,7 @@ describe("desktop residency", () => {
     },
   );
 
-  it("deduplicates quit and destroys popover before tray exactly once", async () => {
+  it("deduplicates quit and destroys the tray exactly once", async () => {
     const { residency } = setup();
     await residency.start();
     mocks.FakeTray.instances[0]!.emit("click");
@@ -407,9 +417,8 @@ describe("desktop residency", () => {
     const firstClose = residency.close();
     expect(residency.close()).toBe(firstClose);
     await firstClose;
-    expect(mocks.popover.close).toHaveBeenCalledOnce();
     expect(mocks.FakeTray.instances[0]!.destroy).toHaveBeenCalledOnce();
-    expect(mocks.order.slice(-2)).toEqual(["popover-destroy", "tray-destroy"]);
+    expect(mocks.order.at(-1)).toBe("tray-destroy");
     expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
   });
 
@@ -430,7 +439,7 @@ describe("desktop residency", () => {
     tray.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
-    (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
     await vi.waitFor(() => expect(persistLoginPreference).toHaveBeenCalledWith(true));
 
     const close = residency.close();
@@ -441,11 +450,11 @@ describe("desktop residency", () => {
     await Promise.resolve();
 
     expect(settled).toBe(false);
-    expect(mocks.popover.close).toHaveBeenCalledOnce();
     expect(tray.destroy).toHaveBeenCalledOnce();
     (menu[0]!.click as () => void)();
-    (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: false });
-    (menu[4]!.click as () => void)();
+    (menu[2]!.click as () => void)();
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: false });
+    (menu[5]!.click as () => void)();
     expect(mainWindow.show).not.toHaveBeenCalled();
     expect(persistLoginPreference).toHaveBeenCalledTimes(1);
     expect(mocks.app.quit).not.toHaveBeenCalled();
@@ -473,7 +482,7 @@ describe("desktop residency", () => {
     mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
-    (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
     await vi.waitFor(() => expect(persistLoginPreference).toHaveBeenNthCalledWith(2, false));
 
     const close = residency.close();
@@ -516,7 +525,7 @@ describe("desktop residency", () => {
     mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
-    (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
     await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("set-login-item"));
     await residency.close();
 
@@ -581,7 +590,7 @@ describe("desktop residency", () => {
       mocks.FakeTray.instances[0]!.emit("right-click");
       const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
-      (menu[2]!.click as (item: { checked: boolean }) => void)({ checked: true });
+      (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
       await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("set-login-item"));
       await residency.close();
 

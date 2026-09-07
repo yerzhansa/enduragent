@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
-import { cn } from "../../lib/utils";
+import { Button } from "@enduragent/ui";
+import { cn } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { setupReady } from "../../state/onboarding-slice";
 

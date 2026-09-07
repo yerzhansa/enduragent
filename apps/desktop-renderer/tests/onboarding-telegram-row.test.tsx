@@ -1,8 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { buttonVariants } from "../src/components/ui/button";
-import { cn } from "../src/lib/utils";
+import { buttonVariants } from "@enduragent/ui";
+import { cn } from "@enduragent/ui";
 import type {
   TelegramControlStatus,
   TelegramSettingsAction,

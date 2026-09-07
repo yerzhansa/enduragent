@@ -9,14 +9,14 @@ import {
 } from "react";
 import { CHAT_AUTO_LOAD_EARLIER_THRESHOLD, chatScrollAnchor } from "../../state/chat-stream";
 import { useEnduragentStore } from "../../state/store";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "../../components/ui/dialog";
+} from "@enduragent/ui";
 import { Composer, type ComposerHandle } from "./Composer";
 import { AttachmentPanel } from "./AttachmentPanel";
 import { CoachDecisionPanel } from "./CoachDecisionPanel";

@@ -12,7 +12,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 function bytes(value: number): string {

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { isSlashCommandText } from "../../chat/commands";
-import { cn } from "../../lib/utils";
+import { cn } from "@enduragent/ui";
 import { MESSAGE_COMMAND_CLASS, MESSAGE_TEXT_CLASS } from "./Message";
 
 export function AthleteMessage(props: { readonly text: string }): ReactElement {

@@ -1,6 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import type { ReactElement, RefObject } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import type {
   AthleteSettingsFormState,
   AthleteSettingsState,

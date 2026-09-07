@@ -30,21 +30,21 @@
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/openai-compatible": "^2.0.51",
     "@ai-sdk/provider-utils": "^4.0.24",
-    "@anthropic-ai/claude-agent-sdk": "0.3.220",
+    "@anthropic-ai/claude-agent-sdk": "0.3.258",
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/kernel": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@openrouter/ai-sdk-provider": "^2.9.1",
     "ai": "^6.0.158",
     "intervals-icu-api": "^0.4.0",
-    "zod": "^4.3.6"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@ai-sdk/provider": "^3.0.10",
     "@types/node": "^25.6.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "license": "MIT"
 }

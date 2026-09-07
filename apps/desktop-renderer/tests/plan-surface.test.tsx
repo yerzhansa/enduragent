@@ -1,3 +1,4 @@
+import { readUiStylesheet } from "./ui-styles";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -3172,10 +3173,9 @@ describe("Plan surface", () => {
   });
 
   it("uses production token classes for wide, compact, Light, and Dark layouts", async () => {
-    const [view, page, tokens] = await Promise.all([
+    const [view, tokens] = await Promise.all([
       readFile(resolve(import.meta.dirname, "..", "src", "ui", "plan", "PlanView.tsx"), "utf8"),
-      readFile(resolve(import.meta.dirname, "..", "src", "ui", "shared", "Page.tsx"), "utf8"),
-      readFile(resolve(import.meta.dirname, "..", "src", "theme", "tokens.css"), "utf8"),
+      readUiStylesheet("tokens.css"),
     ]);
 
     expect(view).toContain("rounded-card bg-surface");
@@ -3183,7 +3183,12 @@ describe("Plan surface", () => {
     expect(view).toContain("overflow-x-auto");
     expect(view).toContain("text-ink-2");
     expect(view).not.toMatch(/#[\da-f]{3,8}/iu);
-    expect(page).toContain("w-[min(680px,calc(100%-64px))]");
+    render(<PlanView />);
+    expect(
+      [...document.querySelectorAll("div")].some((element) =>
+        element.classList.contains("w-[min(680px,calc(100%-64px))]"),
+      ),
+    ).toBe(true);
     expect(tokens).toContain(':root[data-theme="dark"]');
     expect(tokens).toContain(':root[data-theme="light"]');
   });

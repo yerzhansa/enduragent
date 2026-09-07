@@ -1,6 +1,6 @@
 import { LoaderCircle } from "lucide-react";
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function Notice(): ReactElement {

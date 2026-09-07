@@ -7,14 +7,14 @@ import type {
 } from "@enduragent/coach-contract";
 import { useRef, type ReactElement, type ReactNode, type Ref } from "react";
 import type { RideAnalysisViewState } from "../../activity-analysis/controller";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { formatCivilDate, formatOffsetWallTime } from "../../lib/date";
 import {
   formatDistance,
   formatRidingDuration,
   formatWholeNumber,
 } from "../../training-context/format";
-import { Page } from "../shared/Page";
+import { Page } from "@enduragent/ui";
 import { TRAINING_HISTORY_COPY, analysisRefreshFailureCopy, analysisUnavailableCopy } from "./copy";
 import { RideResponseReview } from "./RideResponseReview";
 import { rideStyles as styles } from "./rideStyles";

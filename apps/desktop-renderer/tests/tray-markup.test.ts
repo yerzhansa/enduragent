@@ -34,7 +34,7 @@ describe("tray popover markup", () => {
       readFile(resolve(root, "src/tray.ts"), "utf8"),
     ]);
     const source = `${html}\n${script}`;
-    expect(html).toContain('href="/src/theme/tailwind.css"');
+    expect(html).toContain('href="/src/theme/application.css"');
     expect(html).not.toContain("tray.css");
     expect(html).toContain("dark:");
     expect(html).toContain("motion-reduce:transition-none");

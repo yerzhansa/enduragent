@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
-import type { Appearance } from "../../theme/applyPalette";
+import type { Appearance } from "@enduragent/ui";
 
 const OPTIONS: readonly { readonly value: Appearance; readonly label: string }[] = Object.freeze([
   { value: "system", label: "System" },

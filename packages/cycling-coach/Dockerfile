@@ -3,7 +3,7 @@
 # produced by modern `pnpm deploy --prod`.
 
 # ── builder ────────────────────────────────────────────────────────────────
-FROM node:24-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a AS builder
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS builder
 WORKDIR /app
 
 ARG PNPM_VERSION=11.24.0
@@ -54,7 +54,7 @@ RUN pnpm --filter cycling-coach --prod deploy /app/runtime-bundle \
     && cp packages/cycling-coach/package.json /app/runtime-bundle/package.json
 
 # ── runtime ────────────────────────────────────────────────────────────────
-FROM node:24-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a AS runtime
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production

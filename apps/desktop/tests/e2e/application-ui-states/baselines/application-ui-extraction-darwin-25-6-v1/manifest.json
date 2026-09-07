@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "version": "application-ui-extraction-darwin-25-6-v1",
+  "reviewedBy": "Codex, GPT-6",
+  "review": "native-application-regression-reference",
+  "reviewNote": "Inspected all 20 native CI captures and compared them with the preserved Darwin 25.2 reference. Content, layout, state, and controls match; differences are environment rasterization. All 24 cases and four deliberate defect/recovery controls passed. The original reference and zero-difference comparator remain unchanged.",
+  "coverage": {
+    "projects": 4,
+    "scenarios": 5,
+    "screenshots": 20,
+    "executions": 24,
+    "structuralNegativeControls": 4
+  },
+  "sourceRevision": {
+    "commit": "3532dcc452ab3d84ec1e5255a1de9b1e1ae0c4da",
+    "dirty": false
+  },
+  "identity": {
+    "schemaVersion": 1,
+    "environment": {
+      "platform": "darwin",
+      "architecture": "arm64",
+      "darwinRelease": "25.6.0"
+    },
+    "applicationSource": {
+      "fileCount": 224,
+      "sha256": "4cc0fbb3088c37a4782b6f1b72b47e770cdf3b6cef1a25c788e0270f87f04dea"
+    },
+    "verificationSource": {
+      "fileCount": 10,
+      "sha256": "d8799d9d5eff74dba7c9d012384e338f70d662a24b35eb68ced75072bb249bc1"
+    },
+    "applicationBuild": {
+      "fileCount": 30,
+      "sha256": "9ce76d6caa89be204802afcb0449262db5a703bc8da4fd874f42b292f53daf3b",
+      "desktopVersion": "0.1.5",
+      "rendererVersion": "0.0.5"
+    },
+    "uiPackage": {
+      "fileCount": 41,
+      "sha256": "274b989349f104eae210ca321401e6335c35d2264096b5cc37d788f77e5dd3bd",
+      "name": "@enduragent/ui",
+      "version": "0.1.0",
+      "dependencySpecifier": "https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz",
+      "lockIntegrity": "sha512-TeLx+ifCF4U2OTesO7hlpNXT4O+R0Lcjxxg2bCLJsZC0skJ6hESkjBxwcWWpcltCBvgDdg7NOvrpcidoq0dclg==",
+      "lockResolution": "https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)"
+    },
+    "electron": {
+      "packageVersion": "43.1.1",
+      "executableSha256": "997d6e26011b89344f98626987155158f13f492148f79bc00f24d841ae693b60",
+      "runtime": {
+        "chrome": "150.0.7871.114",
+        "electron": "43.1.1",
+        "node": "24.18.0"
+      }
+    }
+  },
+  "historicalReference": {
+    "version": "production-4dcabb49-v1",
+    "sourceRevision": "4dcabb492a27adc088764666fe3a1d9b0e8d3317",
+    "manifestSha256": "f5073421b9093f2a94ad5591a7015567a2059c5ab82cfe8cf52b8a526392f509",
+    "screenshots": {
+      "compact-dark/confirmation.png": "04f86596081e6e68f8340b2c087601c6da99f16af2092b625b0e9363f1bcc42a",
+      "compact-dark/desktop--chat-empty.png": "0735281f86af4f0426b552648f57b5b3f38ed1373f0f2c05e93874e79177ba62",
+      "compact-dark/desktop--chat-sync-failed.png": "21f9677fbcdf7541f28e8f0f2eb71949802b63f0de9f5b6d321890387be73c9f",
+      "compact-dark/desktop--chat-syncing.png": "d6e7901e9dc46bd89fae450be392af92f70a69ecbd55b899dc6f75d4e78b0534",
+      "compact-dark/desktop--settings-preferences.png": "37958613633baa2200fe9943aa272a3cc3d16a009e4548b9669dd033c5b4e267",
+      "compact-dark/desktop--training-unavailable.png": "37ff1ffafe19447c8bcb47f139218c96cd40707bc34c5782600b0f490d19e3c4",
+      "compact-dark/select.png": "ce2b82e50e362e39d06e3aa25dcdbd5ea4bb54e7305586dbc180d7fb57cba105",
+      "compact-dark/shared-inline-confirmation--busy.png": "7df5aa8775f4de9de84512cf0708d57a25814bdf073784df3e89a52ad5fd4dae",
+      "compact-dark/shared-inline-confirmation--default.png": "8b171366af5f364ea63fc31da069e44de71e266fea6cfa3fcb3e7242eb9d8746",
+      "compact-dark/shared-inline-confirmation--disabled.png": "c25246242537272888aa2d13a0e9c52730e1a7d9bc321e93eee044147674dff8",
+      "compact-dark/shared-select--default.png": "2121887a3bd99ac892d1517399375c046271b65f3ec67af2cfa7d0d7ef26be32",
+      "compact-dark/shared-select--disabled.png": "abb57c082f67bb1a7104fffa311471b5321921d80b463a2a5238ab324b6ee10b",
+      "compact-light/confirmation.png": "2fc0992faa82366de910efce0069c773acd9d22d4f47bd2d8d7d7ae2ae6159fe",
+      "compact-light/desktop--chat-empty.png": "7c8dd8dde480b837d7f42ad3915e2619a9d1585ed987ea52075719a4bb228611",
+      "compact-light/desktop--chat-sync-failed.png": "34f8afe98fbae2e144beea8b98fddbd83ad44e79b20e5788a34be62612b55989",
+      "compact-light/desktop--chat-syncing.png": "7a46eef68c80960e312cd8f94b50cbfce4de047ff9bc002f11b754411143ec9f",
+      "compact-light/desktop--settings-preferences.png": "d413b06f4c33f0ec1dedefa77f5728203c498eb90d5b2c2c208f9fc19bf0ea68",
+      "compact-light/desktop--training-unavailable.png": "a71a1de25f02b2f332374be08c3327db9a0f31644145fa23980625b0809cbd7f",
+      "compact-light/select.png": "f94d4f8236d260a9ba483b13e44c2eb0c48e4eb37184c977f2d62eabdf9eeaa6",
+      "compact-light/shared-inline-confirmation--busy.png": "495007336d0101e35264e75cfc4ce5b19ec5ad995865576854cfc0f48ddd6f42",
+      "compact-light/shared-inline-confirmation--default.png": "d68963b4a412b958bd8d58de1d02cc6b80a9064fdc8bc251d3b846e7219e604f",
+      "compact-light/shared-inline-confirmation--disabled.png": "3759f4f0ab7ac94f804d67b04b6cf5e1567d60e92456dc5d1209adc978af7924",
+      "compact-light/shared-select--default.png": "63f1c6a4d043e52e3db84e970347822bfbd05248eac390ee29d9d61e82a28c5f",
+      "compact-light/shared-select--disabled.png": "560be24c2e9d6966de59ba70ffe4545e622576d8840bef670f6adc1f9189535f",
+      "wide-dark/confirmation.png": "045efd9226bcab11f5a017b80cb4c2811c4ad32283f078d33dea5ce29c8907b4",
+      "wide-dark/desktop--chat-empty.png": "95fb52fd678d254d64325f5ec6904423b11fca35eb02eb192cdd7ffd4f76d2d9",
+      "wide-dark/desktop--chat-sync-failed.png": "55515a9c4a819aa6840d44bc20820df60fc4915d520d1560aeb6eed9998cd988",
+      "wide-dark/desktop--chat-syncing.png": "515767ee62dcd2defc42bf910abe34b2bffbd4086d7900d58ce4d7e250e7e71d",
+      "wide-dark/desktop--settings-preferences.png": "7ba33c142ca49d01699d428a26c59d8fd1d758c3a668067095a0575aec79a370",
+      "wide-dark/desktop--training-unavailable.png": "e7fe497bec827a90ca2c753ef9ae9eb1e71a192640eba85925099442cf5b5a46",
+      "wide-dark/select.png": "ce2b82e50e362e39d06e3aa25dcdbd5ea4bb54e7305586dbc180d7fb57cba105",
+      "wide-dark/shared-inline-confirmation--busy.png": "7c7fd2447a7ce1b36bdfc7b256f43a5aef7761e5a62d7d7e01657ba8c8685eb2",
+      "wide-dark/shared-inline-confirmation--default.png": "1005572f5fb68a2a5393e03eb29466ce0d925688e67832a0519690c4afa31f4e",
+      "wide-dark/shared-inline-confirmation--disabled.png": "07fc8f84b3cf76bbb92a0b4a5c171dc2fcb0bac32de84671496bc9902eda1456",
+      "wide-dark/shared-select--default.png": "b8e411665fba82a5aed35ea34edb7f12dab07bde4bdbf7be818d9ec5a04221dd",
+      "wide-dark/shared-select--disabled.png": "b805a583b0386d6103b663ee0c226e25eeb6b57fe9e4b0ed0ee706cbc43bb943",
+      "wide-light/confirmation.png": "75c333a15ed539130fe0809aef5754cc66cd6908f099d56e22a773313680d74e",
+      "wide-light/desktop--chat-empty.png": "c9a1fb0355b2eba6de6af89d51007be413ab3d0e91bdd254fb8117043430d6ec",
+      "wide-light/desktop--chat-sync-failed.png": "3e8e7b132aeca86006443b80b95932097fcd16da236310bb7cf40b610de4ce20",
+      "wide-light/desktop--chat-syncing.png": "b098e3ee54e6fea0a59f170a8527a6348e8700aa44945c453f3eba53f6e3cd5e",
+      "wide-light/desktop--settings-preferences.png": "7d4beb6e95b38c9636c9128e67c8871fbd3470c5cd49c0cdaa917bf58d52c78e",
+      "wide-light/desktop--training-unavailable.png": "ca266ce1d8d7b30dbea55569a5bd582293b2207beb26756ba1b5b2627ff266f2",
+      "wide-light/select.png": "f94d4f8236d260a9ba483b13e44c2eb0c48e4eb37184c977f2d62eabdf9eeaa6",
+      "wide-light/shared-inline-confirmation--busy.png": "a078b53270ef0cf5e071c14fae4a34915f4f3d4bcfb15f5f751a2a2a4bcd6c87",
+      "wide-light/shared-inline-confirmation--default.png": "df416300df4369ca0505a689c14286e4bf34157432361c723e97589858bff941",
+      "wide-light/shared-inline-confirmation--disabled.png": "3453201437f5947ceeabd95d1d7cb8507bd45b6004484f6636cec9e1929fa731",
+      "wide-light/shared-select--default.png": "56a53f416e8da9a7becd8e91dad79d239b2dc17481583b5024433ef186f8065d",
+      "wide-light/shared-select--disabled.png": "00d7658123f6df74589cf23e898ac6be6e2e35566ad2c1825456b8956c9959e5"
+    }
+  },
+  "scenarioMappings": {
+    "desktop--training-loading": {
+      "historicalSourceId": "desktop--training-unavailable"
+    }
+  },
+  "screenshots": {
+    "compact-dark/desktop--chat-empty.png": "124a7775d2455f6317b4b78e4625e99865e868fa46f9649d0ce7f45ae4d918ad",
+    "compact-dark/desktop--chat-sync-failed.png": "53b75da2420f083cd57ac6e5c313fd889c8f01329996683402d494bcc60811cc",
+    "compact-dark/desktop--chat-syncing.png": "f8baa59d9bb49957931cc8fc29fe57623ae3b72ff980f5fc02e26d7d79785657",
+    "compact-dark/desktop--settings-preferences.png": "611722872b1a7630e341c3f4f343e7da9064d9da7630a521c3d3ff242e9c0850",
+    "compact-dark/desktop--training-loading.png": "dd24ac98fb7ec30a20ff5454189dcff06a13f7ae62985891edc322f7ca703413",
+    "compact-light/desktop--chat-empty.png": "ed05111a1894980c9be78d03a450afab0a58532ba71b58100533ecde29f6e434",
+    "compact-light/desktop--chat-sync-failed.png": "9c699b586960f884ace6368374cf2fdd97d31de6e5cc8366629409a9cb6a158a",
+    "compact-light/desktop--chat-syncing.png": "d0e63a6591ae0d042c4dd75b20724697a084eb491fac525c19ac885fc50a1ae9",
+    "compact-light/desktop--settings-preferences.png": "1e243583d72cf2ac5b87ddbb9b63bf6477a1138a104170f30a38e12766479f72",
+    "compact-light/desktop--training-loading.png": "26a80786b55ebb764de7d1acc6a9dcf8892853ae64a840a050fcf76ef3742909",
+    "wide-dark/desktop--chat-empty.png": "8ca90193c9735f2abaae352c1d647edbf30f211e2bc793f4b6c267f377dec00a",
+    "wide-dark/desktop--chat-sync-failed.png": "274cb68d2e0b0e7dc0ab967e7c81cf3fcb9957176563b52ef776ffef2e18ee31",
+    "wide-dark/desktop--chat-syncing.png": "7d5f3541ed41094259b002602581240eaef3d2bb1c87eadfa06976c922307eae",
+    "wide-dark/desktop--settings-preferences.png": "8e3d2ed9d4a67bc9dd440e7c70e77944658d38d46adb8d57a6a532497e0625fd",
+    "wide-dark/desktop--training-loading.png": "2bcd8ac961018e15df58c12e208c4b01e13714e9924b64509b589e33c4b294b2",
+    "wide-light/desktop--chat-empty.png": "0a3fd34966e4460044b7db8a4809e9232a1ff53bbe66567d49274d10416d649e",
+    "wide-light/desktop--chat-sync-failed.png": "bfd2e1707f6ce5f8913c3a73cbfa054c449fe4b53fee90e58bc649d869b5e527",
+    "wide-light/desktop--chat-syncing.png": "e0a3c1fd28a840fcbfbe6ff4e2b7b60286d9e993efc89cdb36c841d00f1e6516",
+    "wide-light/desktop--settings-preferences.png": "bb7c56cb2871939ed83cef9d7559eca91ae4c9f51481fe14994a5b323a5499f1",
+    "wide-light/desktop--training-loading.png": "ac38b54801d5dbba389774fe18b2fcd2ac107f0171c450eb8af9aeb45a437c9d"
+  },
+  "captureProvenance": {
+    "run": "https://github.com/yerzhansa/enduragent/actions/runs/34044896835",
+    "artifactId": 9992847723,
+    "artifactSha256": "7130292790db8633c4b7aad5eb2d6a21095b68dc803fc9f3786c5f55d2856069",
+    "pullRequestHead": "dfcf547ad1ac1f20e89bddb8fb7fb6ef4f785899"
+  }
+}

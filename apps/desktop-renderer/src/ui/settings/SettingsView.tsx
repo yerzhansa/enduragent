@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
-import { Page } from "../shared/Page";
+import { Page } from "@enduragent/ui";
 import { SetupPanel } from "../onboarding/OnboardingWizard";
 import { ApplicationSection } from "./ApplicationSection";
 import { CoachSection } from "./CoachSection";

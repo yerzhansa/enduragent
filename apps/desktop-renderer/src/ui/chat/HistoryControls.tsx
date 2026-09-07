@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@enduragent/ui";
 import { TRANSCRIPT_HYDRATION_FAILURE_COPY } from "../../chat/hydration";
 import { useEnduragentStore } from "../../state/store";
 
