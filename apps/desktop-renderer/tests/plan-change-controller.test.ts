@@ -1,3 +1,4 @@
+import { CoachRpcRemoteError } from "@enduragent/coach-client";
 import type { CoachClient } from "@enduragent/coach-client";
 import type {
   ListPlansResult,
@@ -277,6 +278,34 @@ describe("Plan Change controller", () => {
     expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
   });
 
+  it("sends the FTP intent and keeps daemon rejection copy", async () => {
+    const h = harness({ status: "rejected", reason: "command-conflict" });
+    await h.controller.previewPlanChange({ kind: "ftp", watts: 220 });
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.preview",
+      expect.objectContaining({ intent: { kind: "ftp", watts: 220 } }),
+    );
+    expect(h.surface().error).toBe("This Change could not be previewed. Training is unchanged.");
+  });
+
+  it("shows the daemon message when an FTP preview is refused remotely", async () => {
+    const h = harness(new CoachRpcRemoteError(-32000, "Enter 1–9999 whole watts."));
+    await h.controller.previewPlanChange({ kind: "ftp", watts: 220 });
+    expect(h.surface().error).toBe("Enter 1–9999 whole watts.");
+  });
+
+  it("preserves the FTP source notice when the library cannot be re-read", async () => {
+    const h = harness({ status: "rejected", reason: "ftp-sources-changed" });
+    h.refresh.mockRejectedValue(new Error("unavailable"));
+    await h.controller.applyPlanChange("apply");
+    expect(h.refresh).toHaveBeenCalledOnce();
+    expect(h.surface()).toMatchObject({
+      busy: false,
+      error: null,
+      notice: "The FTP sources changed. Request a fresh preview before applying this correction.",
+    });
+  });
+
   it("names the superseded preview", async () => {
     const h = harness({
       status: "previewed",
@@ -349,6 +378,10 @@ describe("Plan Change controller", () => {
     ],
     ["not-pending", "This preview is no longer pending. Training is unchanged."],
     [
+      "ftp-sources-changed",
+      "The FTP sources changed. Request a fresh preview before applying this correction.",
+    ],
+    [
       "command-conflict",
       "This Change could not be applied. Training and the pending preview are unchanged.",
     ],
@@ -361,11 +394,13 @@ describe("Plan Change controller", () => {
     await h.controller.applyPlanChange("apply");
     expect(h.surface()).toMatchObject({ busy: false, notice });
     expect(h.refresh).toHaveBeenCalledTimes(
-      reason === "stale-version" || reason === "not-pending" ? 1 : 0,
+      reason === "stale-version" || reason === "not-pending" || reason === "ftp-sources-changed"
+        ? 1
+        : 0,
     );
   });
 
-  it.each(["stale-version", "not-pending"])(
+  it.each(["stale-version", "not-pending", "ftp-sources-changed"])(
     "refreshes after %s apply so the next preview uses the new version",
     async (reason) => {
       const h = harness({ status: "rejected", reason });
@@ -426,6 +461,10 @@ describe("Plan Change controller", () => {
   });
 
   it.each([
+    ...[0, -1, Number.NaN, Infinity, 1.5, 10000].map((watts): [PlanChangeIntent, string] => [
+      { kind: "ftp", watts },
+      "Enter FTP above zero.",
+    ]),
     [{ kind: "weekday-duration", day: 2, minutes: 0 }, "Enter a duration above zero."],
     [{ kind: "longest-workout", minutes: Number.NaN }, "Enter a duration above zero."],
     [{ kind: "weekly-duration", hours: -1 }, "Enter a weekly duration above zero."],
