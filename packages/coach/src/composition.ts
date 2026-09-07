@@ -49,6 +49,7 @@ import {
   createCoachEngine,
   transportForProvider,
   type CreateCoachEngineInput,
+  type IntentTranslationPort,
   type EngineConfig,
   type EngineHostPorts,
   type ChatAttachmentTurnPort,
@@ -257,7 +258,9 @@ export interface LocalCoachCompositionDependencies {
   ) => Promise<LocalReferenceRuntime>;
   readonly createRuntime?: (options: LocalStoreRuntimeOptions) => LocalStoreRuntime;
   readonly runtimeDependencies?: StoreRuntimeDependencies;
-  readonly createBackend?: typeof createCoachEngine;
+  readonly createBackend?: (
+    input: CreateCoachEngineInput,
+  ) => CoachEngine & Partial<IntentTranslationPort>;
   readonly createRepository?: (store: CoachStoreWriterContext["store"]) => AnchorRepository;
   readonly createResolver?: (repository: AnchorRepository) => CyclingFtpAnchorResolver;
   readonly now?: () => number;
@@ -582,6 +585,7 @@ function runtimeConfigSnapshot(
 }
 
 interface RuntimeBundle {
+  readonly intentTranslator?: IntentTranslationPort;
   readonly engine: CoachEngine;
   readonly memory: Memory;
   readonly chatStore: ConversationStorePort;
@@ -591,6 +595,7 @@ interface RuntimeBundle {
 }
 
 function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
+  readonly intentTranslator: IntentTranslationPort;
   readonly engine: CoachEngine;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -633,6 +638,12 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   };
 
   return {
+    intentTranslator: {
+      translateIntent: (text, schema, context) =>
+        run(
+          async (bundle) => bundle.intentTranslator?.translateIntent(text, schema, context) ?? null,
+        ),
+    },
     engine: {
       chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),
       stopChat: (request) =>
@@ -1468,6 +1479,10 @@ export async function createLocalCoachComposition(
       const engineInput = { sport: cyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
       return {
+        ...(runtimeCredentialConfigured(input.home.configDir, config) &&
+        backend.translateIntent !== undefined
+          ? { intentTranslator: { translateIntent: backend.translateIntent.bind(backend) } }
+          : {}),
         memory,
         chatStore: conversationStore,
         timezone,
@@ -2025,6 +2040,7 @@ export async function createLocalCoachComposition(
       },
     });
     const planChangeOperations = createPlanChangeOperations({
+      translator: reconfigurable.intentTranslator,
       ftp,
       eventSources: createPlanChangeEventSourceReader({
         calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,

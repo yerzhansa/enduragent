@@ -187,9 +187,19 @@ export const PlanChangeModelSchema = z
   });
 export type PlanChangeModel = z.infer<typeof PlanChangeModelSchema>;
 
-export const PlanChangePreviewRpcParamsSchema = PlanCloseRpcParamsSchema.extend({
-  intent: PlanChangeIntentSchema,
-});
+export const PlanChangeRequestSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("intent"), intent: PlanChangeIntentSchema }).strict(),
+  z.object({ kind: z.literal("text"), text: z.string().min(1).max(500) }).strict(),
+]);
+export type PlanChangeRequest = z.infer<typeof PlanChangeRequestSchema>;
+
+export const PlanChangePreviewRpcParamsSchema = z.union([
+  PlanCloseRpcParamsSchema.extend({
+    request: PlanChangeRequestSchema,
+    intent: z.never().optional(),
+  }),
+  PlanCloseRpcParamsSchema.extend({ intent: PlanChangeIntentSchema }),
+]);
 export type PlanChangePreviewRpcParams = z.infer<typeof PlanChangePreviewRpcParamsSchema>;
 
 export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
@@ -213,6 +223,13 @@ export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
         reason: z.literal("invalid-intent"),
         message: z.string().min(1).optional(),
         explanation: z.string().min(1).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        status: z.literal("rejected"),
+        reason: z.literal("unsupported-request"),
+        explanation: z.string().min(1),
       })
       .strict(),
     z

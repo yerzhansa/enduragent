@@ -305,6 +305,63 @@ describe("Plan Change contract", () => {
     ).toBe("cancelled");
   });
 
+  it.each([
+    { intent },
+    { request: { kind: "intent", intent } },
+    { request: { kind: "text", text: "  my ftp is 220\n" } },
+    { request: { kind: "text", text: "x" } },
+    { request: { kind: "text", text: "x".repeat(500) } },
+  ])("preserves supported preview requests %j", (request) => {
+    const params = { ...command, ...request };
+    expect(PlanChangePreviewRpcParamsSchema.parse(params)).toEqual(params);
+    const envelope = { jsonrpc: "2.0", id: 1, method: "plan_change.preview", params };
+    expect(CoachRpcRequestEnvelopeSchema.parse(envelope)).toEqual(envelope);
+  });
+
+  it.each([
+    {},
+    { request: null },
+    { request: { kind: "unknown", text: "my ftp is 220" } },
+    { request: { kind: "text" } },
+    { request: { kind: "text", text: "" } },
+    { request: { kind: "text", text: "x".repeat(501) } },
+    { request: { kind: "text", text: 220 } },
+    { request: { kind: "text", text: "my ftp is 220", intent } },
+    { request: { kind: "text", text: "my ftp is 220", extra: true } },
+    { request: { kind: "intent" } },
+    { request: { kind: "intent", intent: { kind: "ftp", watts: 0 } } },
+    { request: { kind: "intent", intent, text: "my ftp is 220" } },
+    { request: { kind: "intent", intent, extra: true } },
+    { request: { kind: "intent", intent }, intent },
+    { request: { kind: "text", text: "my ftp is 220" }, intent },
+    { request: { kind: "text", text: "my ftp is 220" }, extra: true },
+  ])("rejects malformed or ambiguous preview requests %j", (request) => {
+    expect(PlanChangePreviewRpcParamsSchema.safeParse({ ...command, ...request }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    "This request is not supported yet. Choose one of the available actions.",
+    "Ask for one change at a time.",
+  ])("preserves unsupported request explanation %s", (explanation) => {
+    const rejection = { status: "rejected", reason: "unsupported-request", explanation };
+    expect(PlanChangePreviewResultSchema.parse(rejection)).toEqual(rejection);
+  });
+
+  it.each([undefined, null, "", 1])(
+    "requires a nonempty unsupported request explanation %j",
+    (explanation) => {
+      expect(
+        PlanChangePreviewResultSchema.safeParse({
+          status: "rejected",
+          reason: "unsupported-request",
+          explanation,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
   it.each(["stale-version", "no-active-plan", "command-conflict", "invalid-intent", "sync-stale"])(
     "accepts preview rejection %s",
     (reason) => {

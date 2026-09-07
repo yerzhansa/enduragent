@@ -24,6 +24,7 @@ import type {
   AthleteDataReaderPort,
   CreateCoachEngineInput,
   ModelTransportDecorator,
+  IntentTranslationPort,
 } from "@enduragent/engine";
 import { LATEST_SCHEMA_VERSION } from "@enduragent/kernel/reference/schemas";
 import { createPhysicalRequestLedger, runMigrations } from "@enduragent/kernel/store";
@@ -2829,6 +2830,121 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       await lifecycle.close();
     }
   });
+
+  it.each([false, true])(
+    "gates Plan Change text translation on model credentials: %s",
+    async (configured) => {
+      const home = await freshHome();
+      await mkdir(home.storeDir, { recursive: true });
+      const store = openSqliteStorage(join(home.storeDir, "store.db"));
+      stores.push(store);
+      await runMigrations(store, MIGRATIONS);
+      const translationCalls = vi.fn<(text: string) => void>();
+      const translator: IntentTranslationPort = {
+        async translateIntent(text, schema) {
+          translationCalls(text);
+          return schema.parse({
+            status: "translated",
+            intent: { kind: "longest-workout", minutes: 30 },
+          });
+        },
+      };
+      const initial = config(home);
+      const lifecycle = await compose(
+        home,
+        {
+          bootstrap: async () => reference(),
+          createRuntime: () => runtime(),
+          createBackend: () => ({ ...backend(), ...translator }),
+          now: () => Date.UTC(1998, 8, 2, 12),
+        },
+        { home, store, listener: inertWriterProtocolListener },
+        undefined,
+        { ...initial, llm: { ...initial.llm, apiKey: configured ? "synthetic-key" : "" } },
+      );
+      try {
+        const started = await lifecycle.operations["plan_creation.start"]({ commandId: "start" });
+        if (started.status !== "started") throw new Error("Expected Plan Creation");
+        let card = started.planCreation;
+        const answers: PlanCreationAnswerInput[] = [
+          { kind: "goal", goal: { kind: "fitness" } },
+          { kind: "plan-length", weeks: 4 },
+          { kind: "schedule-mode", mode: "fixed" },
+          {
+            kind: "availability",
+            mode: "fixed",
+            weeklyHoursLimit: 8,
+            longestWorkoutHours: 3,
+            usableWeekdays: [2, 4, 6],
+          },
+          { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+          { kind: "commitments", commitments: { kind: "none" } },
+          { kind: "baseline", baseline: "regular" },
+          { kind: "success", success: { kind: "fitness-choice", choice: "climb-stronger" } },
+          { kind: "restriction", restriction: { kind: "none" } },
+        ];
+        for (const [index, answer] of answers.entries()) {
+          const result = await lifecycle.operations["plan_creation.answer"]({
+            commandId: `answer-${index}`,
+            creationId: card.creationId,
+            expectedVersion: card.version,
+            answer,
+          });
+          if (result.status !== "answered") throw new Error("Expected answer");
+          card = result.planCreation;
+        }
+        const draft = await lifecycle.operations["plan_creation.preview"]({
+          commandId: "draft",
+          creationId: card.creationId,
+          expectedVersion: card.version,
+        });
+        if (draft.status !== "previewed") throw new Error("Expected Draft");
+        const activated = await lifecycle.operations["plan_creation.activate"]({
+          commandId: "activate",
+          creationId: card.creationId,
+          expectedVersion: draft.planCreation.version,
+          incumbent: null,
+        });
+        if (activated.planId === null) throw new Error("Expected active Plan");
+        const request = {
+          commandId: "text-preview",
+          planId: activated.planId,
+          expectedVersion: 1,
+          request: { kind: "text" as const, text: "Please shorten my longest sessions" },
+        };
+        const unsupported = {
+          status: "rejected",
+          reason: "unsupported-request",
+          explanation: "This request is not supported yet. Choose one of the available actions.",
+        };
+        const preview = await lifecycle.operations["plan_change.preview"](request);
+        expect(preview).toMatchObject(
+          configured
+            ? {
+                status: "previewed",
+                change: { intent: { kind: "longest-workout", minutes: 30 } },
+              }
+            : unsupported,
+        );
+        expect(translationCalls).toHaveBeenCalledTimes(configured ? 1 : 0);
+        if (configured) {
+          expect(translationCalls.mock.calls[0]?.[0]).toBe(request.request.text);
+          await lifecycle.operations.configureRuntime({
+            llm: { provider: "anthropic", clear_credential: true },
+          });
+          await expect(
+            lifecycle.operations["plan_change.preview"]({
+              ...request,
+              commandId: "text-after-credential-removal",
+            }),
+          ).resolves.toEqual(unsupported);
+          expect(translationCalls).toHaveBeenCalledTimes(1);
+        }
+      } finally {
+        await lifecycle.close();
+      }
+    },
+  );
 
   it("composes durable Plan intake through a structured Draft and activates locally before provider work", async () => {
     const home = await freshHome();

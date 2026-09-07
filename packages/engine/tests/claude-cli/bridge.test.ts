@@ -423,6 +423,30 @@ describe("error normalization", () => {
 });
 
 describe("subprocess death", () => {
+  it("keeps intent translation stateless with no tools and no subprocess retry", async () => {
+    const area = recordingWorkingArea();
+    const harness = ports(["die-mid-stream", "happy-turn"], { workingArea: area.workingArea });
+    await expect(
+      claudeCliGenerateText(
+        {
+          ...generateOpts(),
+          caller: "intent-translation",
+          tools: undefined,
+          stepLimit: 1,
+        },
+        harness.ports,
+      ),
+    ).rejects.toThrow();
+    expect(harness.state.calls).toBe(1);
+    expect(area.purposes).toEqual(["maintenance"]);
+    expect(harness.state.options[0]).toMatchObject({
+      tools: [],
+      allowedTools: [],
+      maxTurns: 1,
+      persistSession: false,
+    });
+  });
+
   it("rebuilds and replays the generation exactly once", async () => {
     const area = recordingWorkingArea();
     const harness = ports(["die-mid-stream", "happy-turn"], {

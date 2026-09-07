@@ -12,6 +12,9 @@ import type { ChatAttachmentActivitySummary, EngineHostPorts } from "./host-port
 import type { Sport } from "./sport.js";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
 import type { SourceProvenance } from "./provenance.js";
+import type { IntentTranslationPort } from "./intent-translation.js";
+
+export type { IntentTranslationPort } from "./intent-translation.js";
 
 export type { CoachEngine } from "@enduragent/coach-contract";
 export type { ChatStreamTimeouts } from "./host-ports.js";
@@ -99,7 +102,9 @@ interface QueueRetryRun {
   readonly subscribers: Set<(event: TurnEvent) => void>;
 }
 
-export function createCoachEngine(input: CreateCoachEngineInput): CoachEngine {
+export function createCoachEngine(
+  input: CreateCoachEngineInput,
+): CoachEngine & IntentTranslationPort {
   const agent = new CoachAgent(input.sport, input.ports);
   const queueRuns = new Map<string, Promise<ChatQueueRunResult>>();
   const queueRetryRuns = new Map<string, QueueRetryRun>();
@@ -384,6 +389,7 @@ export function createCoachEngine(input: CreateCoachEngineInput): CoachEngine {
     return task;
   };
   return {
+    translateIntent: agent.translateIntent,
     chat: async (request, onEvent) => {
       let decision;
       let planIntakePatch: PlanIntakePatch | undefined;

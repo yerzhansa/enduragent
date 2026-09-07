@@ -400,7 +400,13 @@ export interface LoggerPort {
   error(event: string, error?: unknown, fields?: LoggerFields): void;
 }
 
-export type CallerRole = "chat" | "flush" | "compact" | "sync-triage" | "dream";
+export type CallerRole =
+  | "chat"
+  | "flush"
+  | "compact"
+  | "sync-triage"
+  | "dream"
+  | "intent-translation";
 
 export interface UsageCost {
   readonly input: number;

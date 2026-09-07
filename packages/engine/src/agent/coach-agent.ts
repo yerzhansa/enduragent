@@ -86,6 +86,7 @@ import {
 import type { MemoryFlushOutcome } from "./memory-flush.js";
 import { evaluateSessionFreshness, shouldDeferDailyReset } from "./session-freshness.js";
 import { LLM } from "../llm.js";
+import { createIntentTranslator, type IntentTranslationPort } from "../intent-translation.js";
 import { usageFieldsFromResult } from "../llm-types.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
 import { resolveUserTimezone, appendCurrentTimeLine } from "../sport/user-time.js";
@@ -354,6 +355,7 @@ export interface DeferredPlanTurn {
 }
 
 export class CoachAgent {
+  readonly translateIntent: IntentTranslationPort["translateIntent"];
   private sport: Sport;
   private llm: LLM;
   private flushLlm: LLM;
@@ -398,6 +400,7 @@ export class CoachAgent {
     this.config = config;
     this.ports = ports;
     this.llm = new LLM(config, ports);
+    this.translateIntent = createIntentTranslator(this.llm).translateIntent;
     // Per-role lanes share one LLM instance per distinct model, so adding a
     // lane never needs pairwise equality checks against the existing ones.
     const llmByModel = new Map<string, LLM>([[config.llm.model, this.llm]]);
