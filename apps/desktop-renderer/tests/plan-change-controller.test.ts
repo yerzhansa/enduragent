@@ -125,6 +125,55 @@ describe("Plan Change controller", () => {
     });
   });
 
+  it("previews an inverse with one command per attempt and ignores duplicate actions while busy", async () => {
+    const intent: PlanChangeIntent = { kind: "inverse", changeId: "00000000000000000000000140" };
+    const h = harness({ status: "previewed", change: { ...change, intent }, version: 8 }, []);
+    const attempt = h.controller.previewPlanChange(intent);
+    expect(h.surface().busy).toBe(true);
+    await h.controller.previewPlanChange(intent);
+    await attempt;
+    expect(h.call).toHaveBeenCalledExactlyOnceWith("plan_change.preview", {
+      planId: "plan-active",
+      expectedVersion: 7,
+      intent,
+      commandId: expect.any(String),
+    });
+    expect(h.surface()).toMatchObject({
+      busy: false,
+      editorOpen: false,
+      focusRequest: { target: "preview" },
+    });
+    await h.controller.previewPlanChange(intent);
+    expect(h.call.mock.calls[1]?.[1]).not.toEqual(h.call.mock.calls[0]?.[1]);
+  });
+
+  it.each([false, true])(
+    "announces inverse ineligibility and rereads the library even when refresh fails: %s",
+    async (refreshFails) => {
+      const h = harness({ status: "rejected", reason: "invalid-intent" });
+      if (refreshFails) h.refresh.mockRejectedValue(new Error("unavailable"));
+      await h.controller.previewPlanChange({
+        kind: "inverse",
+        changeId: "00000000000000000000000140",
+      });
+      expect(h.surface()).toMatchObject({
+        busy: false,
+        error: null,
+        notice: "The latest Change is no longer eligible for Undo.",
+      });
+      expect(h.refresh).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("replays an inverse command after a lost response", async () => {
+    const h = harness(new Error("lost response"));
+    const intent: PlanChangeIntent = { kind: "inverse", changeId: "00000000000000000000000140" };
+    await h.controller.previewPlanChange(intent);
+    await h.controller.previewPlanChange(intent);
+    expect(h.call).toHaveBeenCalledTimes(2);
+    expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
+  });
+
   it("names the superseded preview", async () => {
     const h = harness({
       status: "previewed",

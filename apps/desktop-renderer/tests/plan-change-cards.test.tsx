@@ -261,6 +261,91 @@ describe("Plan Change cards", () => {
     expect(screen.queryByRole("button", { name: /Undo|Refresh preview/ })).toBeNull();
   });
 
+  it("offers Undo only on the eligible applied history card and shares preview busy state", async () => {
+    setChanges([
+      change({
+        changeId: "older",
+        status: "applied",
+        undo: { eligible: false, reason: "not-newest" },
+      }),
+      change({
+        changeId: "latest",
+        title: "Latest limit",
+        status: "applied",
+        undo: { eligible: true },
+      }),
+      change({ changeId: "cancelled", status: "cancelled" }),
+      change({ changeId: "superseded", status: "superseded" }),
+      change({ changeId: "stale", status: "stale" }),
+      change(),
+    ]);
+    render(<PlanChangeCards />);
+    expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(1);
+    const history = screen.getByRole("region", { name: "Latest limit" });
+    expect(
+      within(history)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Read historical evidence", "Undo", "Read this difference"]);
+    const undo = within(history).getByRole("button", { name: "Undo" });
+    await userEvent.click(undo);
+    expect(useEnduragentStore.getState().chatActions?.previewPlanChange).toHaveBeenCalledWith({
+      kind: "inverse",
+      changeId: "latest",
+    });
+    patchChange({ busy: true });
+    expect(undo).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply to Plan" })).toBeDisabled();
+    patchChange({ busy: false });
+    act(() => useEnduragentStore.setState({ chatActions: null }));
+    expect(undo).toBeDisabled();
+  });
+
+  it.each(["not-newest", "inverse", "nothing-to-restore", "plan-changed"] as const)(
+    "keeps applied history readable without Undo when eligibility is %s",
+    (reason) => {
+      setChanges([change({ status: "applied", undo: { eligible: false, reason } })]);
+      render(<PlanChangeCards />);
+      expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Read this difference" })).toBeEnabled();
+    },
+  );
+
+  it("renders and focuses the inverse through the shared pending card with its captured title", async () => {
+    setChanges([
+      change({
+        title: "Undo the latest Change",
+        intent: { kind: "inverse", changeId: "latest" },
+        premises: [
+          {
+            id: "undone-change",
+            label: "Undo",
+            source: "Applied Change",
+            value: { changeId: "latest", title: "Earlier Wednesday limit" },
+          },
+        ],
+      }),
+    ]);
+    patchChange({ focusRequest: { target: "preview", revision: 1 } });
+    render(<PlanChangeCards />);
+    const preview = screen.getByRole("region", { name: "Undo the latest Change" });
+    expect(within(preview).getByRole("heading")).toHaveFocus();
+    expect(preview).toHaveTextContent(
+      "Restore the previewed future training. Completed and past training stays unchanged.",
+    );
+    expect(preview).not.toHaveTextContent("Review this exact difference.");
+    expect(
+      within(preview)
+        .getAllByRole("button")
+        .slice(-2)
+        .map((button) => button.textContent),
+    ).toEqual(["Cancel", "Apply to Plan"]);
+    await userEvent.click(within(preview).getByRole("button", { name: "View evidence" }));
+    expect(screen.getByRole("region", { name: "Source details" })).toHaveTextContent(
+      "Earlier Wednesday limit",
+    );
+  });
+
   it("offers the five Schedule changes in order and submits their defaults", async () => {
     patchChange({ editorOpen: true });
     render(<PlanChangeCards />);
@@ -456,6 +541,7 @@ describe("Plan Change cards", () => {
   it.each([
     "Review the exact changes before confirming.",
     "This preview supersedes “Earlier limit”. Training is unchanged until confirmation.",
+    "The latest Change is no longer eligible for Undo.",
     "Change applied locally. Training now matches the confirmed preview.",
     "Change cancelled. Training is unchanged; the preview remains in history.",
     "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed.",
@@ -472,5 +558,16 @@ describe("Plan Change cards", () => {
     render(<PlanChangeCards />);
     expect(screen.getByRole("alert")).toHaveTextContent("Enter a duration above zero.");
     expect(screen.getByRole("button", { name: "Preview change" })).toBeDisabled();
+  });
+
+  it("renders request errors as alerts while the editor is closed", () => {
+    patchChange({
+      editorOpen: false,
+      error: "This request used an older Plan revision. Request a fresh preview.",
+    });
+    render(<PlanChangeCards />);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This request used an older Plan revision. Request a fresh preview.",
+    );
   });
 });

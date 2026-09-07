@@ -137,6 +137,15 @@ function Difference({ change }: { change: PlanChangeModel }): ReactElement {
 }
 
 function premiseValue(premise: PlanChangeModel["premises"][number]): string {
+  if (premise.id === "undone-change") {
+    const value = premise.value;
+    return value !== null &&
+      typeof value === "object" &&
+      "title" in value &&
+      typeof value.title === "string"
+      ? value.title
+      : premise.label;
+  }
   const parsed = PlanChangeIntentSchema.safeParse(premise.value);
   if (!parsed.success) return premise.label;
   const intent = parsed.data;
@@ -348,6 +357,11 @@ export function PlanChangeCards(): ReactElement | null {
           {notice}
         </p>
       ) : null}
+      {!state.editorOpen && state.error ? (
+        <p role="alert" className="m-0 text-xs text-danger">
+          {state.error}
+        </p>
+      ) : null}
       <ChangeCard
         eyebrow="Active Plan"
         title={library.active.name}
@@ -377,7 +391,11 @@ export function PlanChangeCards(): ReactElement | null {
           title={pending.title}
           status="Pending"
           headingRef={previewHeading}
-          summary="Review this exact difference. Training stays unchanged until you confirm."
+          summary={
+            pending.intent.kind === "inverse"
+              ? "Restore the previewed future training. Completed and past training stays unchanged."
+              : "Review this exact difference. Training stays unchanged until you confirm."
+          }
         >
           <Difference change={pending} />
           <div role="table" aria-label="Facts">
@@ -426,6 +444,17 @@ export function PlanChangeCards(): ReactElement | null {
               >
                 Read historical evidence
               </Button>
+              {change.status === "applied" && change.undo?.eligible ? (
+                <Button
+                  variant="outline"
+                  disabled={state.busy || actions === null}
+                  onClick={() =>
+                    actions?.previewPlanChange({ kind: "inverse", changeId: change.changeId })
+                  }
+                >
+                  Undo
+                </Button>
+              ) : null}
               <Button
                 variant="outline"
                 onClick={(event) => openSource(change, true, event.currentTarget)}
