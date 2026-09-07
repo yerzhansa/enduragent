@@ -999,6 +999,9 @@ describe("chat surface", () => {
 
       expect(screen.getByText("Will add to Training when sent")).toBeVisible();
       expect(screen.getByText("68.4 km")).toBeVisible();
+      const evidence = screen.getByRole("table", { name: "Recorded activity" });
+      expect(evidence).toHaveTextContent("Duration2h 14m");
+      expect(evidence).toHaveTextContent("Distance68.4 km");
       await user.click(screen.getByRole("button", { name: "Remove" }));
       expect(actions.removeAttachment).toHaveBeenCalledWith("attachment-fit");
     });
@@ -1433,6 +1436,10 @@ describe("chat surface", () => {
       const progress = document.querySelector(".coach-progress");
       if (!(progress instanceof HTMLElement)) throw new TypeError("progress missing");
       expect(progress).toHaveTextContent("Checking your training data…");
+      expect(progress).toHaveAttribute("aria-busy", "true");
+      expect(
+        screen.getByRole("progressbar", { name: "Checking your training data…" }),
+      ).not.toHaveAttribute("value");
       expect(progress.closest(".thread")).not.toBeNull();
       expect(progress.closest(".composer-wrap")).toBeNull();
     });
@@ -1726,7 +1733,10 @@ describe("chat surface", () => {
       act(() => {
         useEnduragentStore.setState({ firstSync: { status: "syncing" } });
       });
-      expect(screen.getByRole("progressbar", { name: "Syncing training history" })).toBeVisible();
+      const progress = screen.getByRole("progressbar", { name: "Syncing training history" });
+      expect(progress).toBeVisible();
+      expect(progress).not.toHaveAttribute("value");
+      expect(progress.closest(".first-sync__track")).not.toBeNull();
 
       act(() => {
         useEnduragentStore.setState({ firstSync: { status: "ready" } });
@@ -1769,7 +1779,7 @@ describe("chat surface", () => {
       };
     }
 
-    it("sets compact typography on every coach turn without changing athlete copy", () => {
+    it("uses shared body typography while preserving athlete turn geometry", () => {
       render(<Harness />);
       setChat({
         messages: [
@@ -1797,8 +1807,8 @@ describe("chat surface", () => {
       expect(athlete?.classList.contains("chat-message--athlete")).toBe(true);
       expect(athlete).toHaveClass("max-w-[76%]");
       const athleteCopy = athlete?.querySelector(".chat-message__text");
-      expect(athleteCopy).toHaveClass("leading-[1.6]");
-      expect(athleteCopy).not.toHaveClass("leading-5");
+      expect(athleteCopy).toHaveClass("text-sm", "leading-5");
+      expect(athleteCopy).not.toHaveClass("leading-[1.6]");
       expect(screen.queryByText("Coach")).toBeNull();
       expect(screen.queryByText("You")).toBeNull();
     });
@@ -1815,15 +1825,10 @@ describe("chat surface", () => {
     });
 
     it("declares the Inter and Geist font foundation", async () => {
-      const sourceRoot = resolve(import.meta.dirname, "..", "src");
-      const [transcript, tokens, fonts] = await Promise.all([
-        readFile(resolve(sourceRoot, "ui/chat/Transcript.tsx"), "utf8"),
+      const [tokens, fonts] = await Promise.all([
         readUiStylesheet("tokens.css"),
         readUiStylesheet("fonts.css"),
       ]);
-      expect(transcript).toContain(
-        "chat-message--coach max-w-full justify-self-start text-sm leading-5",
-      );
       expect(tokens).toMatch(/--font-size-sm:\s*14px;/u);
       expect(tokens).toMatch(/--line-height-sm:\s*20px;/u);
       expect(tokens).toMatch(/--f-prose:\s*var\(--f-ui\);/u);
@@ -1846,7 +1851,6 @@ describe("chat surface", () => {
           "CoachMessage.tsx",
           "Composer.tsx",
           "HistoryControls.tsx",
-          "Message.ts",
           "Notice.tsx",
           "SlashPopup.tsx",
           "StreamingMessage.tsx",
@@ -1858,7 +1862,7 @@ describe("chat surface", () => {
       expect(source).not.toContain("font-mono");
       expect(source).toContain("PopoverContent");
       expect(source).toContain("@enduragent/ui");
-      expect(source).toContain("chat-markdown\\\\_\\\\_table-scroll");
+      expect(source).toContain("MessageContent");
     });
 
     it("keeps chat support cards and dialogs on shared UI primitives", async () => {

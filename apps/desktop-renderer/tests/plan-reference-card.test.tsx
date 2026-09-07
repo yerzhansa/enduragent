@@ -8,23 +8,23 @@ import { PlanReferenceCard } from "../src/ui/chat/PlanReferenceCard";
 const model: PlanningReadModel = {
   schemaVersion: 1,
   status: "ready",
-  asOfDateKey: 20260826,
+  asOfDateKey: 19980826,
   plan: {
     id: "plan-1",
     name: "Twelve-week base",
     goal: "Build consistency",
     lifecycle: "active",
-    startDateKey: 20260824,
+    startDateKey: 19980824,
     targetDateKey: null,
     currentWeek: 1,
     totalWeeks: 12,
     phase: "Base",
-    weekStartDateKey: 20260824,
-    weekEndDateKey: 20260830,
+    weekStartDateKey: 19980824,
+    weekEndDateKey: 19980830,
     workouts: [
       {
         id: "workout-1",
-        dateKey: 20260826,
+        dateKey: 19980826,
         sport: "cycling",
         name: "Tempo builder",
         durationSeconds: 3_600,
@@ -101,5 +101,45 @@ describe("Plan reference card", () => {
       />,
     );
     expect(view.container).toBeEmptyDOMElement();
+  });
+  it("keeps missing duration explicit", () => {
+    const plan = model.plan;
+    if (plan === null) throw new Error("The fictional fixture requires a Plan");
+    act(() =>
+      useEnduragentStore.setState({
+        planSurface: {
+          status: "ready",
+          value: {
+            ...model,
+            plan: {
+              ...plan,
+              workouts: plan.workouts.map((workout) => ({ ...workout, durationSeconds: null })),
+            },
+          },
+        },
+        planningReadActions: null,
+      }),
+    );
+    render(
+      <PlanReferenceCard selection={{ kind: "current_week", planId: "plan-1", weekNumber: 1 }} />,
+    );
+    expect(screen.getByText("Duration unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Tempo builder")).toBeInTheDocument();
+  });
+
+  it("shows an empty week without inventing Workout facts", () => {
+    const plan = model.plan;
+    if (plan === null) throw new Error("The fictional fixture requires a Plan");
+    act(() =>
+      useEnduragentStore.setState({
+        planSurface: { status: "ready", value: { ...model, plan: { ...plan, workouts: [] } } },
+        planningReadActions: null,
+      }),
+    );
+    render(
+      <PlanReferenceCard selection={{ kind: "current_week", planId: "plan-1", weekNumber: 1 }} />,
+    );
+    expect(screen.getByText("No workouts in this week.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Plan" })).toBeDisabled();
   });
 });

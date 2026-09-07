@@ -1,3 +1,4 @@
+import { ComposerControls, ComposerInput, ComposerAction } from "@enduragent/ui";
 import {
   useImperativeHandle,
   useEffect,
@@ -11,7 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { ArrowUp, Paperclip, Square } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { filterSlashCommands } from "../../chat/commands";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -228,11 +229,42 @@ export function Composer(props: {
       <label className="sr-only" htmlFor={inputId}>
         {props.surface?.label ?? "Message your coach"}
       </label>
-      <div className="chat-composer__controls grid grid-rows-[minmax(var(--ctl-h-lg),auto)_var(--ctl-h-lg)] gap-[calc(var(--inset)/2)] rounded-card border border-line-2 bg-surface pt-row pr-ctl-px pb-row pl-[calc(var(--inset)*2)] shadow-elev-2 transition-[border-color,box-shadow] duration-120 motion-reduce:transition-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
-        <textarea
+      <ComposerControls
+        actions={
+          <>
+            {props.leadingAction ??
+              (props.surface === undefined ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Attach files"
+                  disabled={
+                    actions === null || inputDisabled || !canChat || attachmentSurface === null
+                  }
+                  onClick={() => void actions?.chooseAttachments()}
+                >
+                  <Paperclip aria-hidden="true" />
+                </Button>
+              ) : null)}
+            {status === "streaming" ? (
+              <ComposerAction
+                mode="stop"
+                disabled={props.surface === undefined && actions === null}
+                onClick={() => {
+                  if (props.surface === undefined) actions?.stop();
+                  else props.surface.stop();
+                }}
+              />
+            ) : (
+              <ComposerAction mode="send" disabled={sendDisabled || submitting || !canChat} />
+            )}
+          </>
+        }
+      >
+        <ComposerInput
           id={inputId}
           ref={textarea}
-          className="min-h-10 max-h-[140px] w-full resize-none border-0 bg-transparent py-[3px] text-sm text-ink outline-0 placeholder:text-ink-3 focus-visible:outline-0"
           rows={2}
           placeholder={
             status === "streaming"
@@ -262,51 +294,7 @@ export function Composer(props: {
             setDismissed(true);
           }}
         />
-        <div
-          className={`chat-composer__toolbar flex items-center ${props.leadingAction !== undefined || props.surface === undefined ? "justify-between" : "justify-end"}`}
-        >
-          {props.leadingAction ??
-            (props.surface === undefined ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Attach files"
-                disabled={
-                  actions === null || inputDisabled || !canChat || attachmentSurface === null
-                }
-                onClick={() => void actions?.chooseAttachments()}
-              >
-                <Paperclip aria-hidden="true" />
-              </Button>
-            ) : null)}
-          {status === "streaming" ? (
-            <Button
-              type="button"
-              variant="default"
-              size="icon-lg"
-              aria-label="Stop responding"
-              disabled={props.surface === undefined && actions === null}
-              onClick={() => {
-                if (props.surface === undefined) actions?.stop();
-                else props.surface.stop();
-              }}
-            >
-              <Square className="size-2.5 fill-current stroke-none" aria-hidden="true" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              variant="default"
-              size="icon-lg"
-              aria-label="Send message"
-              disabled={sendDisabled || submitting || !canChat}
-            >
-              <ArrowUp aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-      </div>
+      </ComposerControls>
     </form>
   );
 }

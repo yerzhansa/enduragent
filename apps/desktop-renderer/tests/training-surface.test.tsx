@@ -549,7 +549,7 @@ describe("training landing page", () => {
     const bars = figure.querySelectorAll<HTMLElement>(".training-trend-bar");
     expect(bars).toHaveLength(6);
     expect(bars.item(3)).toHaveStyle({ height: "75%" });
-    expect(figure.querySelector('[aria-hidden="true"]')).toHaveClass("max-[761px]:min-h-[76px]");
+    expect(figure.querySelector('[aria-hidden="true"]')).toHaveClass("max-[761px]:min-h-19");
     const table = within(figure).getByRole("table", {
       name: "Weekly time 6 weeks",
     });
@@ -604,12 +604,7 @@ describe("training landing page", () => {
     expect(rideDay).toHaveClass("grid", "gap-0.5", "text-xs", "leading-4", "text-ink-3");
     expect(rideDay?.querySelector("strong")).toHaveTextContent("9");
     expect(rideMeta).toHaveTextContent("Road · 42.1 km");
-    expect(rideMeta).toHaveClass(
-      "text-xs",
-      "leading-4",
-      "text-ink-3",
-      "max-[761px]:hidden",
-    );
+    expect(rideMeta).toHaveClass("text-xs", "leading-4", "text-ink-3", "max-[761px]:hidden");
     expect(rideStats).toHaveClass(
       "grid-cols-[repeat(2,auto)]",
       "gap-x-[18px]",
@@ -1464,8 +1459,8 @@ describe("training history states and import status", () => {
     expect(screen.getByRole("region", { name: "Recorded rides" })).toBeInTheDocument();
     const notice = screen
       .getByText("Training could not be refreshed. Showing the last recorded data.")
-      .closest("p");
-    expect(notice).toHaveClass("text-xs", "leading-4");
+      .closest('[data-tone="warning"]');
+    expect(notice).toHaveTextContent("Recorded through Jul 12, 1998");
   });
 
   it("leads a complete last-recorded notice with its recorded-through date", () => {
@@ -1473,10 +1468,10 @@ describe("training history states and import status", () => {
     render(<TrainingView />);
 
     const coverage = screen.getByText("Recorded through Jul 12, 1998");
-    const notice = screen.getByText("Training may be out of date.").closest("p");
+    const notice = screen.getByText("Training may be out of date.");
     expect(coverage.tagName).toBe("STRONG");
     expect(coverage.parentElement).toBe(notice);
-    expect(coverage.nextElementSibling).toHaveTextContent("Training may be out of date.");
+    expect(coverage.nextSibling?.textContent).toContain("Training may be out of date.");
   });
 
   it("combines stale and incomplete history into one warning", () => {
@@ -1558,8 +1553,9 @@ describe("training history states and import status", () => {
     expect(importButton).toBeEnabled();
     expect(importButton.textContent).toBe("");
     expect(importButton).toHaveAttribute("title", "Import ride files");
-    const previousWeek = within(screen.getByRole("group", { name: "Completed riding period" }))
-      .getByRole("button", { name: "Previous week" });
+    const previousWeek = within(
+      screen.getByRole("group", { name: "Completed riding period" }),
+    ).getByRole("button", { name: "Previous week" });
     expect(importButton.className).toBe(previousWeek.className);
     await user.click(importButton);
     expect(choose).toHaveBeenCalledOnce();
