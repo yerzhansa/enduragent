@@ -1901,7 +1901,7 @@ describe("chat controller", () => {
     ]);
   });
 
-  it.each(["missing", "stale", "empty"] as const)(
+  it.each(["missing", "stale", "empty", "commitments-pending"] as const)(
     "does not open activation for a %s Draft",
     async (kind) => {
       const draft = planCreationDraft();
@@ -1919,7 +1919,8 @@ describe("chat controller", () => {
               ? { ...draft, weeks: draft.weeks.map((week) => ({ ...week, workouts: [] })) }
               : draft,
         draftStale: kind === "stale",
-        commitmentsAcknowledgement: null,
+        commitmentsAcknowledgement:
+          kind === "commitments-pending" ? { text: "Keep Sundays free." } : null,
       };
       const activatePlanCreation =
         vi.fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>();
@@ -2135,6 +2136,53 @@ describe("chat controller", () => {
       "The Plan changed. Read the Plan library and confirm again.",
     );
     expect(refreshPlanLibrary).toHaveBeenCalledTimes(2);
+  });
+
+  it("rereads the Draft and shows the daemon message when commitments need acknowledgement", async () => {
+    const stale: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 3,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      draftStale: false,
+      commitmentsAcknowledgement: null,
+    };
+    const current: PlanCreationCardModel = {
+      ...stale,
+      version: 4,
+      commitmentsAcknowledgement: { text: "Keep Sundays free." },
+    };
+    const message = "Acknowledge your written commitments before activating this Plan.";
+    const activatePlanCreation = vi
+      .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
+      .mockRejectedValue(
+        new CoachRpcRemoteError(-32000, message, { code: "commitments-unacknowledged" }),
+      );
+    const listPlanningRequests = vi
+      .fn(async () => ({ deliveries: [], planCreation: current }))
+      .mockResolvedValueOnce({ deliveries: [], planCreation: stale });
+    const { controller, controls } = subject(
+      client(replies(), { listPlanningRequests, activatePlanCreation }),
+    );
+    await controller.start();
+    await controller.openPlanCreationActivate();
+    expect(controls.at(-1)?.planCreation?.activateConfirmationOpen).toBe(true);
+    await controller.confirmPlanCreationActivate();
+    expect(activatePlanCreation).toHaveBeenCalledOnce();
+    expect(listPlanningRequests).toHaveBeenCalledTimes(2);
+    expect(controls.at(-1)?.planCreation).toMatchObject({
+      value: current,
+      error: message,
+      busy: false,
+      activateConfirmationOpen: false,
+    });
+    await controller.openPlanCreationActivate();
+    await controller.confirmPlanCreationActivate();
+    expect(activatePlanCreation).toHaveBeenCalledOnce();
+    controller.dispose();
   });
 
   it("cancels activation without changing the Draft and does not restore a dialog after relaunch", async () => {
