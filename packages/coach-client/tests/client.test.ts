@@ -249,6 +249,7 @@ const rpcDeadlineCases = [
   ["retryPlanningRequest", { requestId: "request-1" }, 30_000],
   ["resumePlanningRequests", {}, 30_000],
   ["listPlanningRequests", { chatId: "chat-1" }, 30_000],
+  ["plan_creation.interpretCommitments", { text: "Wed 45 min" }, 30_000],
   ["plan_creation.start", { commandId: "plan-start" }, 30_000],
   [
     "plan_creation.answer",
@@ -1252,6 +1253,7 @@ describe("RPC receive and observers", () => {
         retryPlanningRequest: { status: "missing" },
         resumePlanningRequests: { deliveries: [] },
         listPlanningRequests: { deliveries: [], planCreation: null },
+        "plan_creation.interpretCommitments": { rules: [], unparsed: ["busy"], status: "clarify" },
         "plan_creation.start": { status: "rejected", reason: "command-conflict" },
         "plan_creation.answer": {
           status: "rejected",

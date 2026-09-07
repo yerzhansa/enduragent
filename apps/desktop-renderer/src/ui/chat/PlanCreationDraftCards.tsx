@@ -1,10 +1,10 @@
-import { commitmentsAcknowledgement } from "../../chat/plan-creation-compatibility";
 import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
   PlanCreationDraft,
+  PlanCreationCommitmentRule,
 } from "@enduragent/coach-contract";
-import { useEffect, useId, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -133,53 +133,19 @@ export function PlanCreationDraftCards(props: {
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discardButton = useRef<HTMLButtonElement>(null);
   const activateButton = useRef<HTMLButtonElement>(null);
-  const acknowledgementSummaryId = useId();
   useEffect(() => {
     if (focusRequest?.target === "discard") queueMicrotask(() => discardButton.current?.focus());
     if (focusRequest?.target === "activate") queueMicrotask(() => activateButton.current?.focus());
   }, [focusRequest?.revision, focusRequest?.target]);
   const draft = props.draft;
   const stale = props.model.draftStale;
-  const acknowledgement = stale ? null : commitmentsAcknowledgement(props.model);
+  const pending = props.model.pendingCommitment !== null;
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =
     draft.goal.kind === "event" ? draft.goal.name : (draft.goal.outcome ?? "Improve fitness");
   return (
     <section className="grid min-w-0 gap-inset" aria-label="Plan Draft review">
-      {acknowledgement === null ? null : (
-        <ReviewCard
-          eyebrow="Written commitments"
-          title="Confirm your written commitments"
-          status="Not yet confirmed"
-          summary="These commitments are recorded but were not applied to Workouts. Activation waits for your confirmation."
-          summaryId={acknowledgementSummaryId}
-        >
-          <div role="table" aria-label="Written commitments">
-            <Fact label="Submitted">{acknowledgement.text}</Fact>
-          </div>
-          <div className="mt-inset flex flex-wrap gap-inset">
-            <Button
-              variant="outline"
-              disabled={busy || actions === null || editingKey !== null}
-              onClick={() => actions?.editPlanCreation("commitments")}
-            >
-              Edit commitments
-            </Button>
-            <Button
-              disabled={busy || actions === null || editingKey !== null}
-              onClick={() =>
-                actions?.answerPlanCreation({
-                  kind: "commitments",
-                  commitments: { kind: "interpreted", text: acknowledgement.text },
-                })
-              }
-            >
-              Confirm limits
-            </Button>
-          </div>
-        </ReviewCard>
-      )}
       {stale ? (
         <ReviewCard title="Changed answers">
           <div role="table" aria-label="Changed answers">
@@ -269,7 +235,7 @@ export function PlanCreationDraftCards(props: {
             ))}
           </div>
         ))}
-        {error === null || confirmationOpen ? null : (
+        {error === null || confirmationOpen || pending ? null : (
           <p className="m-0 text-xs text-danger" role="alert">
             {error}
           </p>
@@ -295,8 +261,13 @@ export function PlanCreationDraftCards(props: {
           {stale ? (
             <Button
               disabled={
-                busy || actions === null || props.model.readiness !== "ready" || editingKey !== null
+                busy ||
+                actions === null ||
+                props.model.readiness !== "ready" ||
+                editingKey !== null ||
+                pending
               }
+              aria-describedby={pending ? commitmentSummaryId(props.model) : undefined}
               onClick={() => actions?.buildPlanCreationDraft()}
             >
               Rebuild Draft
@@ -305,10 +276,8 @@ export function PlanCreationDraftCards(props: {
             <Button
               ref={activateButton}
               aria-haspopup="dialog"
-              aria-describedby={acknowledgement === null ? undefined : acknowledgementSummaryId}
-              disabled={
-                busy || actions === null || workouts.length === 0 || acknowledgement !== null
-              }
+              aria-describedby={pending ? commitmentSummaryId(props.model) : undefined}
+              disabled={busy || actions === null || workouts.length === 0 || pending}
               onClick={() => actions?.openPlanCreationActivate()}
             >
               Activate Plan
@@ -317,5 +286,113 @@ export function PlanCreationDraftCards(props: {
         </div>
       </ReviewCard>
     </section>
+  );
+}
+
+export const pendingCommitmentSummary =
+  "Your last confirmed limits remain effective. Draft building and activation wait for this correction.";
+
+export function commitmentSummaryId(model: PlanCreationCardModel): string {
+  return `commitment-summary-${model.creationId}`;
+}
+
+function commitmentDateLabel(value: string): string {
+  const [year, month, day] = value.split("-");
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
+}
+
+function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
+  const days = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  switch (rule.kind) {
+    case "weekday-duration":
+      return `${days[rule.day]} · at most ${rule.minutes} min`;
+    case "weekday-unavailable":
+      return `${days[rule.day]} · unavailable`;
+    case "hard-weekday":
+      return `${days[rule.day]} · no hard training`;
+    case "time-off":
+      return `Off ${commitmentDateLabel(rule.start)} to ${commitmentDateLabel(rule.end)}`;
+  }
+}
+
+export function PlanCreationCommitmentCard(props: {
+  readonly model: PlanCreationCardModel;
+}): ReactElement | null {
+  const actions = useEnduragentStore((state) => state.chatActions);
+  const error = useEnduragentStore((state) => state.chat.planCreationError);
+  const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
+  const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
+  const pending = props.model.pendingCommitment;
+  if (pending === null) return null;
+  const disabled = busy || actions === null;
+  return (
+    <ReviewCard
+      eyebrow="Schedule correction"
+      title={pending.status === "clarify" ? "Clarify your commitment" : "Confirm these limits"}
+      status="Not yet confirmed"
+      summary={pendingCommitmentSummary}
+      summaryId={commitmentSummaryId(props.model)}
+    >
+      <div role="table" aria-label="Schedule correction">
+        <Fact label="Submitted">{pending.text}</Fact>
+        {pending.rules.map((rule, index) => (
+          <Fact key={index} label="Interpreted limit">
+            {commitmentRuleText(rule)}
+          </Fact>
+        ))}
+        {pending.unparsed.length === 0 ? null : (
+          <Fact label="Not understood">
+            <ul className="m-0 grid list-none gap-1 p-0">
+              {pending.unparsed.map((fragment, index) => (
+                <li key={index}>{fragment}</li>
+              ))}
+            </ul>
+          </Fact>
+        )}
+      </div>
+      {error === null ? null : (
+        <p role="alert" className="m-0 text-xs text-danger">
+          {error}
+        </p>
+      )}
+      <div className="mt-inset flex flex-wrap gap-inset">
+        <Button
+          variant="outline"
+          disabled={disabled}
+          onClick={() => actions?.answerPlanCreation({ kind: "commitments-cancel" })}
+        >
+          Cancel correction
+        </Button>
+        <Button
+          variant="outline"
+          disabled={disabled || editingKey !== null}
+          onClick={() => actions?.editPlanCreation("commitments")}
+        >
+          Clarify
+        </Button>
+        {pending.status === "confirm" ? (
+          <Button
+            disabled={disabled}
+            onClick={() => actions?.answerPlanCreation({ kind: "commitments-confirm" })}
+          >
+            Confirm limits
+          </Button>
+        ) : null}
+      </div>
+    </ReviewCard>
   );
 }

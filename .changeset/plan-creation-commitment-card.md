@@ -3,6 +3,4 @@
 "cycling-coach": patch
 ---
 
-Show a confirmation card for written commitments before Plan activation.
-
-User-facing: When your typed commitments could not be fitted into Workouts, the Draft shows them for you to confirm or edit before the Activate button becomes available.
+User-facing: Review the exact limits understood from your written commitments before confirming them. You can clarify or cancel a correction, and your last confirmed limits stay in place until you confirm.

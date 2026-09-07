@@ -269,7 +269,7 @@ const PlanCreationQuestionStepSchema = z
 
 const PlanCreationAuthoredOptionSchema = z
   .object({
-    label: z.literal("Something else"),
+    label: z.enum(["Something else", "Add commitments or time off"]),
     detail: z.string().min(1).max(240),
     editorLabel: z.string().min(1).max(240),
     placeholder: z.string().min(1).max(240),
@@ -839,7 +839,28 @@ export const PlanCloseResultSchema = z.discriminatedUnion("status", [
 ]);
 export type PlanCloseResult = z.infer<typeof PlanCloseResultSchema>;
 
+export const PlanCreationInterpretCommitmentsRpcParamsSchema = z
+  .object({ text: PlanCreationCommitmentTextSchema })
+  .strict();
+export type PlanCreationInterpretCommitmentsRpcParams = z.infer<
+  typeof PlanCreationInterpretCommitmentsRpcParamsSchema
+>;
+
+export const PlanCreationInterpretCommitmentsRpcResultSchema = z
+  .object({
+    rules: z.array(PlanCreationCommitmentRuleSchema),
+    unparsed: z.array(z.string()),
+    status: z.enum(["confirm", "clarify"]),
+  })
+  .strict();
+export type PlanCreationInterpretCommitmentsRpcResult = z.infer<
+  typeof PlanCreationInterpretCommitmentsRpcResultSchema
+>;
+
 export interface PlanCreationOperations {
+  "plan_creation.interpretCommitments"(
+    request: PlanCreationInterpretCommitmentsRpcParams,
+  ): Promise<PlanCreationInterpretCommitmentsRpcResult>;
   "plan.close"(request: PlanCloseRpcParams): Promise<PlanCloseResult>;
   "plan_creation.activate"(
     request: PlanCreationActivateRpcParams,

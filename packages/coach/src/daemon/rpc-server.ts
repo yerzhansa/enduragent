@@ -555,6 +555,7 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
+  "plan_creation.interpretCommitments",
   "plan_creation.start",
   "plan_creation.answer",
   "plan_creation.preview",
@@ -1893,6 +1894,17 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               }
               result = await input.operations.listPlanningRequests(
                 COACH_RPC_METHOD_REGISTRY.listPlanningRequests.requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.interpretCommitments":
+            try {
+              result = await input.operations["plan_creation.interpretCommitments"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.interpretCommitments"].requestSchema.parse(
                   generic.data.params,
                 ),
               );

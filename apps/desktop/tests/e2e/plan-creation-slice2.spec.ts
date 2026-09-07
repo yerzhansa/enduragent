@@ -436,6 +436,7 @@ for (const appearance of [
       await scenario.page.getByRole("button", { name: `Edit ${title}`, exact: true }).click();
       const editor = scenario.page.locator(field);
       await expect(editor).toBeFocused();
+      if (title === "Commitments") await expect(editor).toHaveValue("Fridays off");
       await editor.fill("Unsaved change");
       await expect(scenario.page.locator('[data-parity="composer"]')).toHaveCount(0);
       await capture(`edit-${title}`);
@@ -521,15 +522,71 @@ for (const appearance of [
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
       await waitForVersion(scenario.backend, 5);
       await scenario.page.locator('[data-parity="choice.custom"]').click();
+      await scenario.page.locator('[data-parity="custom.textarea"]').fill("Fridays off");
       await scenario.page
-        .locator('[data-parity="custom.textarea"]')
-        .fill("Away each second Friday");
-      await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-      await waitForVersion(scenario.backend, 6);
+        .getByRole("button", { name: "Review interpretation", exact: true })
+        .click();
+      await expect(
+        scenario.page.getByRole("heading", { name: "Confirm these limits", exact: true }),
+      ).toBeVisible();
+      const pending = await waitForVersion(scenario.backend, 6);
+      expect(pending.pendingCommitment).toEqual({
+        text: "Fridays off",
+        rules: [{ kind: "weekday-unavailable", day: 5 }],
+        status: "confirm",
+        unparsed: [],
+      });
+      expect(pending.answeredSummaries).toHaveLength(5);
+      expect(await scenario.backend.answers()).toHaveLength(5);
+      await scenario.page.getByRole("button", { name: "Confirm limits", exact: true }).click();
+      const confirmed = await waitForVersion(scenario.backend, 7);
+      expect(confirmed.pendingCommitment).toBeNull();
+      expect(confirmed.answeredSummaries).toHaveLength(5);
+      expect(
+        confirmed.answeredSummaries.find((summary) => summary.answerKey === "commitments"),
+      ).toMatchObject({
+        detail: "Fri · unavailable",
+        answer: {
+          kind: "commitments",
+          commitments: {
+            kind: "interpreted",
+            text: "Fridays off",
+            rules: [{ kind: "weekday-unavailable", day: 5 }],
+            status: "confirmed",
+          },
+        },
+      });
+      const commitmentAnswers = await scenario.backend.answers();
+      expect(commitmentAnswers).toHaveLength(6);
+      expect(
+        commitmentAnswers
+          .filter((row) => row.answer_key === "commitments")
+          .map((row) => ({
+            version: row.creation_version,
+            value: JSON.parse(row.value_json),
+          })),
+      ).toEqual(
+        ["clarify", "confirmed"].map((status, index) => ({
+          version: 6 + index,
+          value: {
+            answer: {
+              kind: "commitments",
+              commitments: {
+                kind: "interpreted",
+                text: "Fridays off",
+                rules: [{ kind: "weekday-unavailable", day: 5 }],
+                status,
+              },
+            },
+            source: { kind: "athlete" },
+          },
+        })),
+      );
       await cancelAuthoredEdit("Commitments", '[data-parity="custom.textarea"]', "baseline");
       await relaunch(scenario, playwright);
       await expect(question("baseline")).toBeVisible();
-      await choose(scenario.page, scenario.backend, 7, "occasional");
+      await choose(scenario.page, scenario.backend, 8, "occasional");
+      expect(await scenario.backend.answers()).toHaveLength(7);
       for (const label of ["Finish comfortably", "Finish fast", "Race for a result"]) {
         await expect(scenario.page.getByRole("button", { name: label, exact: true })).toBeVisible();
       }
@@ -538,7 +595,8 @@ for (const appearance of [
         .locator('[data-parity="custom.textarea"]')
         .fill("Finish the final climb steadily");
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-      await waitForVersion(scenario.backend, 8);
+      await waitForVersion(scenario.backend, 9);
+      expect(await scenario.backend.answers()).toHaveLength(8);
       await cancelAuthoredEdit("Success", '[data-parity="custom.textarea"]', "restriction");
       await question("restriction").getByRole("heading").focus();
       await scenario.page.keyboard.press("Escape");
@@ -558,15 +616,28 @@ for (const appearance of [
         await capture("restriction-720");
       }
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-      await waitForVersion(scenario.backend, 9);
+      await waitForVersion(scenario.backend, 10);
       const card = await requireCard(scenario.backend);
       expect(card).toMatchObject({ readiness: "ready", openQuestion: null });
+      expect(card.answeredSummaries.map((summary) => summary.answerKey)).toEqual([
+        "goal",
+        "schedule-mode",
+        "availability",
+        "start-timing",
+        "commitments",
+        "baseline",
+        "success",
+        "restriction",
+      ]);
       const answers = await scenario.backend.answers();
+      expect(answers).toHaveLength(9);
+      expect(answers.map((row) => row.creation_version)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
       expect(answers.map((row) => row.answer_key)).toEqual([
         "goal",
         "schedule-mode",
         "availability",
         "start-timing",
+        "commitments",
         "commitments",
         "baseline",
         "success",

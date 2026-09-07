@@ -11,6 +11,7 @@ import {
   type PlanChangeApplyResult,
   type PlanChangePreviewRpcParams,
   type PlanCreationAnswerInput,
+  PlanCreationInterpretCommitmentsRpcParamsSchema,
   PlanCreationActivateRpcParamsSchema,
   PlanCreationPreviewRpcParamsSchema,
   type CoachEngine,
@@ -318,6 +319,13 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
             ),
           );
         }
+        if (request.method === "plan_creation.interpretCommitments") {
+          return response(
+            await this.requireHost()["plan_creation.interpretCommitments"](
+              PlanCreationInterpretCommitmentsRpcParamsSchema.parse(request.params),
+            ),
+          );
+        }
         if (request.method === "plan_creation.start") {
           return response(
             await this.requireHost()["plan_creation.start"](
@@ -536,9 +544,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     this.planning = undefined;
   }
 
-  async card(): Promise<
-    (PlanCreationCardModel & { readonly commitmentsAcknowledgement?: null }) | null
-  > {
+  async card(): Promise<PlanCreationCardModel | null> {
     return this.requireHost().readCard();
   }
 
@@ -553,9 +559,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
   }
 
   async seedTrainingCreation(
-    commitments:
-      | Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"]
-      | { readonly kind: "authored"; readonly text: string; readonly acknowledged?: boolean } = {
+    commitments: Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"] = {
       kind: "none",
     },
     goal: Extract<PlanCreationAnswerInput, { kind: "goal" }>["goal"] = { kind: "fitness" },
@@ -588,10 +592,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
       {
         kind: "commitments",
-        commitments:
-          commitments.kind === "authored"
-            ? { kind: "interpreted", text: commitments.text }
-            : commitments,
+        commitments,
       },
       { kind: "baseline", baseline: "regular" },
       { kind: "success", success: { kind: "authored", text: "Ride four steady hours" } },

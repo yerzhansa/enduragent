@@ -5,6 +5,11 @@ export const planCreationOperationStubs = {
     status: "rejected",
     reason: "no-active-plan",
   }),
+  "plan_creation.interpretCommitments": async ({ text }) => ({
+    rules: [],
+    unparsed: [text],
+    status: "clarify",
+  }),
   "plan_creation.start": async () => ({
     status: "rejected",
     reason: "command-conflict",

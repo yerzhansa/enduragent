@@ -2335,6 +2335,8 @@ export async function createLocalCoachComposition(
       ...planChangeOperations,
       "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
       "plan.history": planCreationOperations["plan.history"],
+      "plan_creation.interpretCommitments":
+        planCreationOperations["plan_creation.interpretCommitments"],
       "plan_creation.start": planCreationOperations["plan_creation.start"],
       "plan_creation.answer": planCreationOperations["plan_creation.answer"],
       "plan_creation.preview": planCreationOperations["plan_creation.preview"],

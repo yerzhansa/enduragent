@@ -228,6 +228,68 @@ const questionKind = (result: PlanCreationCardModel): string | null =>
   result.openQuestion?.kind ?? null;
 
 describe("Plan Creation operations", () => {
+  it("interprets commitments without store access, command stamps, or external reads", async () => {
+    const unexpectedEffect = vi.fn((): never => {
+      throw new Error("Commitment interpretation must be pure");
+    });
+    const host = createPlanCreationOperations({
+      store: {
+        exec: unexpectedEffect,
+        run: unexpectedEffect,
+        get: unexpectedEffect,
+        all: unexpectedEffect,
+        close: unexpectedEffect,
+        transaction: unexpectedEffect,
+      },
+      repository: {
+        activate: unexpectedEffect,
+        readUnfinished: unexpectedEffect,
+        start: unexpectedEffect,
+        recordAnswer: unexpectedEffect,
+        replayDraft: unexpectedEffect,
+        recordDraft: unexpectedEffect,
+        discard: unexpectedEffect,
+      },
+      identity: {
+        deviceId: unexpectedEffect,
+        newUlid: unexpectedEffect,
+        hlcStamp: unexpectedEffect,
+      },
+      crypto: new Proxy(globalThis.crypto, { get: unexpectedEffect }),
+      eventCandidates: { read: unexpectedEffect },
+      eventSources: { read: unexpectedEffect },
+      baselineEvidence: { read: unexpectedEffect },
+      calendarConnected: unexpectedEffect,
+      legacyPlan: unexpectedEffect,
+      today: unexpectedEffect,
+      todayDateKey: unexpectedEffect,
+      now: unexpectedEffect,
+    });
+
+    await expect(
+      host["plan_creation.interpretCommitments"]({ text: "Wed 45 min" }),
+    ).resolves.toEqual({
+      rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
+      unparsed: [],
+      status: "confirm",
+    });
+    await expect(
+      host["plan_creation.interpretCommitments"]({ text: "Wed 45 min. Some busy days" }),
+    ).resolves.toEqual({
+      rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
+      unparsed: ["Some busy days"],
+      status: "clarify",
+    });
+    await expect(
+      host["plan_creation.interpretCommitments"]({ text: "Why is this plan suitable?" }),
+    ).resolves.toEqual({
+      rules: [],
+      unparsed: ["Why is this plan suitable"],
+      status: "clarify",
+    });
+    expect(unexpectedEffect).not.toHaveBeenCalled();
+  });
+
   it("asks every Event Goal question in flow order and becomes ready", async () => {
     const test = harness();
     expect(projectPlanCreationCard(test.current(), { today }).openQuestion).toMatchObject({
