@@ -554,6 +554,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       kind: "none",
     },
     goal: Extract<PlanCreationAnswerInput, { kind: "goal" }>["goal"] = { kind: "fitness" },
+    mode: Extract<PlanCreationAnswerInput, { kind: "schedule-mode" }>["mode"] = "fixed",
   ): Promise<PlanCreationCardModel> {
     const host = this.requireHost();
     const started = await host["plan_creation.start"]({ commandId: "seed-training-start" });
@@ -564,14 +565,21 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       ...(goal.kind === "fitness"
         ? [{ kind: "plan-length", weeks: 4 } satisfies PlanCreationAnswerInput]
         : []),
-      { kind: "schedule-mode", mode: "fixed" },
-      {
-        kind: "availability",
-        mode: "fixed",
-        weeklyHoursLimit: 6,
-        longestWorkoutHours: 2,
-        usableWeekdays: [1, 3, 6],
-      },
+      { kind: "schedule-mode", mode },
+      mode === "fixed"
+        ? {
+            kind: "availability",
+            mode,
+            weeklyHoursLimit: 6,
+            longestWorkoutHours: 2,
+            usableWeekdays: [1, 3, 6],
+          }
+        : {
+            kind: "availability",
+            mode,
+            weeklyHoursLimit: 6,
+            longestWorkoutHours: 2,
+          },
       { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
       { kind: "commitments", commitments },
       { kind: "baseline", baseline: "regular" },
@@ -591,7 +599,12 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     return card;
   }
 
-  async seedActiveTraining(options: { readonly goal?: "fitness" | "event" } = {}) {
+  async seedActiveTraining(
+    options: {
+      readonly goal?: "fitness" | "event";
+      readonly mode?: Extract<PlanCreationAnswerInput, { kind: "schedule-mode" }>["mode"];
+    } = {},
+  ) {
     const host = this.requireHost();
     await this.requireStore().run(
       "INSERT INTO anchor_history (id, sport, anchor_type, value, unit, valid_from, source, confidence, note, provenance, device_id, hlc_physical_ms, hlc_counter) VALUES (?, 'cycling', 'ftp', 210, 'W', 883612800, 'intervals-icu', 'platform', NULL, 'sync', 'fixture-device', 883612800000, 0)",
@@ -608,6 +621,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
               .slice(0, 10),
           }
         : { kind: "fitness" },
+      options.mode,
     );
     const previewed = await host["plan_creation.preview"]({
       commandId: "seed-training-preview",

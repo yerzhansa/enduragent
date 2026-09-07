@@ -1722,6 +1722,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
       changes: [],
       changesPaused: null,
       active: {
+        todayChoice: null,
         planId: activated.planId,
         version: 1,
         name: "Improve fitness",

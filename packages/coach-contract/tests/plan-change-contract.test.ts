@@ -13,6 +13,7 @@ import {
   PlanChangePreviewResultSchema,
   PlanChangePreviewRpcParamsSchema,
   PlanChangeWorkoutSchema,
+  PlanTodayChoiceSchema,
   PlanCreationDraftSchema,
 } from "../src/index.js";
 
@@ -68,6 +69,7 @@ describe("Plan Change contract", () => {
     { kind: "weekly-duration", hours: 2.5 },
     { kind: "weekly-duration", hours: 2.75 },
     { kind: "longest-workout", minutes: 45 },
+    { kind: "choose-workout", workoutId: "w1-template-1" },
     { kind: "inverse", changeId },
     { kind: "ftp", watts: 1 },
     { kind: "ftp", watts: 9_999 },
@@ -90,6 +92,9 @@ describe("Plan Change contract", () => {
     { kind: "longest-workout", minutes: 45.5 },
     { kind: "longest-workout", minutes: Infinity },
     { kind: "hard-weekday", day: 3, minutes: 30 },
+    { kind: "choose-workout" },
+    { kind: "choose-workout", workoutId: "" },
+    { kind: "choose-workout", workoutId: "workout", date: "1998-09-02" },
     { kind: "inverse" },
     { kind: "inverse", changeId: "invalid" },
     { kind: "inverse", changeId, extra: true },
@@ -466,4 +471,60 @@ describe("Supporting Event contracts", () => {
     const drift = { status: "rejected", reason: "event-source-changed" };
     expect(PlanChangeApplyResultSchema.parse(drift)).toEqual(drift);
   });
+});
+
+it("validates daily choice candidates and preserves the day premise and rejection copy", () => {
+  const todayChoice = {
+    date: "1998-09-02",
+    eligible: [{ workoutId: workout.id, name: workout.name, kind: "endurance", minutes: 60 }],
+    blocked: [
+      { workoutId: "hard-ride", name: "Controlled effort", reason: "No hard training today." },
+    ],
+    reason: null,
+  };
+  expect(PlanTodayChoiceSchema.parse(todayChoice)).toEqual(todayChoice);
+  expect(PlanTodayChoiceSchema.safeParse({ ...todayChoice, date: "1998-02-30" }).success).toBe(
+    false,
+  );
+  expect(
+    PlanTodayChoiceSchema.safeParse({
+      ...todayChoice,
+      eligible: [{ ...todayChoice.eligible[0], extra: true }],
+    }).success,
+  ).toBe(false);
+  const premise = {
+    id: "today",
+    label: "Today",
+    source: "Your local day",
+    value: { date: todayChoice.date },
+  };
+  expect(
+    PlanChangeModelSchema.parse({
+      ...change,
+      intent: { kind: "choose-workout", workoutId: workout.id },
+      details: "Only this Workout will receive today’s date after confirmation.",
+      premises: [premise],
+    }).premises,
+  ).toEqual([premise]);
+  const preview = {
+    status: "rejected",
+    reason: "invalid-intent",
+    message: "This Workout is no longer eligible.",
+  };
+  expect(PlanChangePreviewResultSchema.parse(preview)).toEqual(preview);
+  for (const reason of ["day-changed", "not-eligible"]) {
+    const rejection = {
+      status: "rejected",
+      reason,
+      message: "This Workout is no longer eligible.",
+    };
+    expect(PlanChangeApplyResultSchema.parse(rejection)).toEqual(rejection);
+  }
+  expect(
+    PlanChangeApplyResultSchema.safeParse({
+      status: "rejected",
+      reason: "stale-version",
+      message: "Extra",
+    }).success,
+  ).toBe(false);
 });

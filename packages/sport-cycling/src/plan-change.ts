@@ -13,7 +13,8 @@ export type ScheduleIntent =
   | { kind: "hard-weekday"; day: number }
   | { kind: "weekly-duration"; hours: number }
   | { kind: "longest-workout"; minutes: number }
-  | { kind: "ftp"; watts: number };
+  | { kind: "ftp"; watts: number }
+  | { kind: "choose-workout"; workoutId: string };
 
 type Workout = CreationDraft["weeks"][number]["workouts"][number];
 
@@ -181,6 +182,23 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
   }
   const { intent } = input;
   const after = structuredClone(draft);
+  if (intent.kind === "choose-workout") {
+    const date = String(todayDateKey);
+    const today = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+    const week = after.weeks.find((week) => week.start <= today && today <= week.end);
+    const workout = week?.workouts.find((workout) => workout.id === intent.workoutId);
+    if (
+      draft.mode !== "flexible" ||
+      !workout ||
+      workout.date !== null ||
+      workout.pinned ||
+      completedWorkoutIds.has(workout.id)
+    ) {
+      throw new Error("This Workout is no longer eligible.");
+    }
+    workout.date = today;
+    return changeResult(draft, after);
+  }
   if (intent.kind === "ftp") {
     const watts = validateManualPlanFtp(intent.watts);
     after.ftp = watts;
@@ -256,6 +274,7 @@ export function planChangeRaceWindow(input: {
       date >= start &&
       date <= end &&
       (before === null ||
+        before.date === null ||
         after.minutes > before.minutes ||
         (before.kind !== "hard" && after.kind === "hard") ||
         (after.power ?? 0) > (before.power ?? 0))

@@ -3189,6 +3189,7 @@ describe("chat surface", () => {
                     closeReason: null,
                     closedAt: null,
                     activatedAt: "1998-07-06",
+                    todayChoice: null,
                     creationId: null,
                     calendar: {
                       status: "pending",
