@@ -1780,7 +1780,7 @@ export function createChatController(input: {
   });
 
   render();
-  return {
+  const controller: ChatController = {
     requestPlanLibraryFocus(target) {
       if (disposed) return;
       planCreationFocusRequest = {
@@ -1810,24 +1810,26 @@ export function createChatController(input: {
       const active = library?.active;
       if (disposed || readChange().busy || !active || changesPaused()) return;
       const parameterCopy =
-        intent.kind === "ftp"
-          ? "Enter FTP above zero."
-          : intent.kind === "supporting-event"
-            ? "eventId" in intent && !intent.eventId.trim()
-              ? "Choose a Supporting Event already accepted in this Plan."
-              : "Enter the event name and exact date."
-            : intent.kind === "weekly-duration"
-              ? Number.isFinite(intent.hours) &&
-                intent.hours > 0 &&
-                !Number.isInteger(intent.hours * 4)
-                ? "Enter weekly hours in quarter-hour steps, like 2.25."
-                : "Enter a weekly duration above zero."
-              : "day" in intent &&
-                  (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
-                ? "Choose the weekday to change."
-                : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+        intent.kind === "choose-workout"
+          ? "This Workout is no longer eligible."
+          : intent.kind === "ftp"
+            ? "Enter FTP above zero."
+            : intent.kind === "supporting-event"
+              ? "eventId" in intent && !intent.eventId.trim()
+                ? "Choose a Supporting Event already accepted in this Plan."
+                : "Enter the event name and exact date."
+              : intent.kind === "weekly-duration"
+                ? Number.isFinite(intent.hours) &&
+                  intent.hours > 0 &&
+                  !Number.isInteger(intent.hours * 4)
+                  ? "Enter weekly hours in quarter-hour steps, like 2.25."
+                  : "Enter a weekly duration above zero."
+                : "day" in intent &&
+                    (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
                   ? "Choose the weekday to change."
-                  : "Enter a duration above zero.";
+                  : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+                    ? "Choose the weekday to change."
+                    : "Enter a duration above zero.";
       const parsedIntent = PlanChangeIntentSchema.safeParse(intent);
       if (!parsedIntent.success) {
         publishChange({ error: parameterCopy });
@@ -1873,7 +1875,7 @@ export function createChatController(input: {
               result.reason === "stale-version"
                 ? "This request used an older Plan revision. Request a fresh preview."
                 : result.reason === "invalid-intent"
-                  ? (result.explanation ?? parameterCopy)
+                  ? (result.explanation ?? result.message ?? parameterCopy)
                   : "This Change could not be previewed. Training is unchanged.",
           });
           if (result.reason === "stale-version") {
@@ -1946,24 +1948,30 @@ export function createChatController(input: {
           }
           publishChange({
             notice:
-              result.reason === "event-source-changed"
-                ? "The synchronized event changed. Request a fresh preview before applying."
-                : result.reason === "race-window"
-                  ? "Only training reductions are allowed in the current race window. This Change was not applied."
-                  : result.reason === "ftp-sources-changed"
-                    ? "The FTP sources changed. Request a fresh preview before applying this correction."
-                    : result.reason === "stale-version"
-                      ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
-                      : result.reason === "not-pending"
-                        ? "This preview is no longer pending. Training is unchanged."
-                        : "This Change could not be applied. Training and the pending preview are unchanged.",
+              result.reason === "day-changed"
+                ? "The day changed while this choice was open. Request a fresh choice for today; no date was assigned."
+                : result.reason === "not-eligible"
+                  ? "This Workout is no longer eligible."
+                  : result.reason === "event-source-changed"
+                    ? "The synchronized event changed. Request a fresh preview before applying."
+                    : result.reason === "race-window"
+                      ? "Only training reductions are allowed in the current race window. This Change was not applied."
+                      : result.reason === "ftp-sources-changed"
+                        ? "The FTP sources changed. Request a fresh preview before applying this correction."
+                        : result.reason === "stale-version"
+                          ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
+                          : result.reason === "not-pending"
+                            ? "This preview is no longer pending. Training is unchanged."
+                            : "This Change could not be applied. Training and the pending preview are unchanged.",
           });
           if (
             result.reason === "stale-version" ||
             result.reason === "not-pending" ||
             result.reason === "race-window" ||
             result.reason === "ftp-sources-changed" ||
-            result.reason === "event-source-changed"
+            result.reason === "event-source-changed" ||
+            result.reason === "day-changed" ||
+            result.reason === "not-eligible"
           ) {
             await input.refreshPlanLibrary?.().catch(() => {});
           }
@@ -2032,6 +2040,33 @@ export function createChatController(input: {
         planCreationBlocksWork()
       ) {
         return Promise.resolve(false);
+      }
+      const library = input.readPlanLibrary?.();
+      const changeSurface = readChange();
+      const changeOpen =
+        library?.active &&
+        ((changeSurface.open && changeSurface.planId === library.active.planId) ||
+          library.changes.some((change) => change.status === "pending"));
+      if (
+        changeOpen &&
+        attachmentIds.length === 0 &&
+        /^what should i ride today[\p{P}\s]*$/iu.test(message.trim())
+      ) {
+        if (changeSurface.busy) return false;
+        controller.saveAttachmentDraftText("");
+        await attachmentTextSaveTask;
+        if (!changesPaused()) {
+          const workout = library.active?.todayChoice?.eligible[0];
+          if (workout) {
+            await controller.previewPlanChange({
+              kind: "choose-workout",
+              workoutId: workout.workoutId,
+            });
+          } else {
+            publishChange({ error: null, notice: "No eligible Workout can be selected today." });
+          }
+        }
+        return true;
       }
       const ownership = beginAttachmentWrite(false);
       if (ownership === null) return Promise.resolve(false);
@@ -3069,4 +3104,5 @@ export function createChatController(input: {
       sequence += 1;
     },
   };
+  return controller;
 }

@@ -1,7 +1,9 @@
 import { CoachRpcRemoteError } from "@enduragent/coach-client";
 import type { CoachClient } from "@enduragent/coach-client";
 import type {
+  ChatAttachmentComposerReadModel,
   ListPlansResult,
+  PlanTodayChoice,
   PlanChangeModel,
   PlanChangeIntent,
 } from "@enduragent/coach-contract";
@@ -33,6 +35,35 @@ const change: PlanChangeModel = {
   premises: [],
 };
 
+const todayChoice: PlanTodayChoice = {
+  date: "1998-09-07",
+  eligible: [
+    { workoutId: "workout-first", name: "Easy spin", minutes: 30, kind: "easy" },
+    { workoutId: "workout-second", name: "Endurance ride", minutes: 60, kind: "endurance" },
+  ],
+  blocked: [{ workoutId: "workout-hard", name: "Hard intervals", reason: "Recovery is required." }],
+  reason: null,
+};
+
+const emptyComposer: ChatAttachmentComposerReadModel = {
+  schemaVersion: 1,
+  capabilities: {
+    schemaVersion: 1,
+    active: { provider: "test", model: "text-only", transport: "test" },
+    documents: { enabled: true, extensions: ["pdf", "txt", "csv", "docx"] },
+    completedActivities: { enabled: true, extensions: ["fit", "tcx", "gpx"] },
+    plannedWorkouts: { enabled: true, extensions: ["zwo", "erg", "mrc"] },
+    images: {
+      enabled: false,
+      mediaTypes: [],
+      reason: "model_incompatible",
+      source: "maintained_catalogue",
+      checkedAt: "1998-09-07T00:00:00.000Z",
+    },
+  },
+  draft: null,
+};
+
 function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
   let surface: PlanChangeSurfaceState = EMPTY_PLAN_CHANGE_SURFACE;
   let library: ListPlansResult = {
@@ -60,8 +91,14 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     changes,
   };
   const call = vi.fn(async (_method: string, _request: unknown): Promise<never> => {
-    if (result instanceof Error) throw result;
-    return result as never;
+    const response =
+      _method === "saveChatAttachmentDraftText" || _method === "getChatAttachmentComposer"
+        ? emptyComposer
+        : _method === "enqueueChatMessage"
+          ? { schemaVersion: 1, revision: 1, items: [] }
+          : result;
+    if (response instanceof Error) throw response;
+    return response as never;
   });
   const client: CoachClient = {
     handshake: {} as CoachClient["handshake"],
@@ -76,6 +113,7 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
       close: async () => {},
     },
     view: { render: vi.fn() },
+    initialQueueSnapshot: { schemaVersion: 1, revision: 0, items: [] },
     refreshTrainingContext: async () => {},
     refreshSpend: async () => {},
     readPlanLibrary: () => library,
@@ -95,6 +133,13 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
         ...library,
         changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
       };
+    },
+    setTodayChoice(choice: PlanTodayChoice | null = todayChoice) {
+      if (library.active)
+        library = { ...library, active: { ...library.active, todayChoice: choice } };
+    },
+    setSurface(patch: Partial<PlanChangeSurfaceState>) {
+      surface = { ...surface, ...patch };
     },
     updateVersion(version: number) {
       if (library.active) library = { ...library, active: { ...library.active, version } };
@@ -279,6 +324,181 @@ describe("Plan Change controller", () => {
     expect(h.call).toHaveBeenCalledTimes(2);
     expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
   });
+
+  it("previews the selected Workout through the existing confirmation path", async () => {
+    const intent: PlanChangeIntent = { kind: "choose-workout", workoutId: "workout-second" };
+    const h = harness({ status: "previewed", change: { ...change, intent }, version: 8 }, []);
+    await h.controller.previewPlanChange(intent);
+    expect(h.call).toHaveBeenCalledExactlyOnceWith("plan_change.preview", {
+      planId: "plan-active",
+      expectedVersion: 7,
+      intent,
+      commandId: expect.any(String),
+    });
+    expect(h.refresh).toHaveBeenCalledOnce();
+    expect(h.surface()).toMatchObject({
+      busy: false,
+      error: null,
+      focusRequest: { target: "preview" },
+    });
+  });
+
+  it("preserves the host explanation when a Workout choice preview is refused", async () => {
+    const explanation = "This Workout needs a recovery day first.";
+    const h = harness({ status: "rejected", reason: "invalid-intent", message: explanation });
+    await h.controller.previewPlanChange({ kind: "choose-workout", workoutId: "workout-hard" });
+    expect(h.surface()).toMatchObject({ error: explanation, busy: false });
+  });
+
+  describe.each([
+    [
+      "day-changed",
+      "The day changed while this choice was open. Request a fresh choice for today; no date was assigned.",
+    ],
+    ["not-eligible", "This Workout is no longer eligible."],
+  ])("%s choice apply refusal", (reason, notice) => {
+    it.each([false, true])(
+      "retains the notice and refreshes when refresh fails: %s",
+      async (refreshFails) => {
+        const h = harness({ status: "rejected", reason }, [
+          { ...change, intent: { kind: "choose-workout", workoutId: "workout-first" } },
+        ]);
+        if (refreshFails) h.refresh.mockRejectedValue(new Error("unavailable"));
+        else h.refresh.mockImplementation(async () => h.updateVersion(8));
+        await h.controller.applyPlanChange("apply");
+        expect(h.surface()).toMatchObject({ busy: false, error: null, notice });
+        expect(h.refresh).toHaveBeenCalledOnce();
+        if (!refreshFails) {
+          await h.controller.previewPlanChange({
+            kind: "choose-workout",
+            workoutId: "workout-second",
+          });
+          expect(h.call).toHaveBeenNthCalledWith(
+            2,
+            "plan_change.preview",
+            expect.objectContaining({ expectedVersion: 8 }),
+          );
+        }
+      },
+    );
+  });
+
+  it.each([
+    "what should i ride today",
+    "WHAT SHOULD I RIDE TODAY?!",
+    " What Should I Ride Today...  ",
+  ])(
+    "routes %j to the first eligible Workout and clears the persisted composer draft",
+    async (message) => {
+      const h = harness({ status: "previewed", change, version: 8 }, []);
+      h.setTodayChoice();
+      h.controller.openPlanChangeEditor();
+      expect(await h.controller.submit(message)).toBe(true);
+      expect(h.call).toHaveBeenCalledWith(
+        "plan_change.preview",
+        expect.objectContaining({
+          intent: { kind: "choose-workout", workoutId: "workout-first" },
+        }),
+      );
+      expect(h.call).toHaveBeenCalledWith("saveChatAttachmentDraftText", {
+        chatId: "desktop",
+        text: "",
+      });
+      expect(h.call.mock.calls.some(([method]) => method === "enqueueChatMessage")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it("clears the submitted draft before the preview returns so newer text survives", async () => {
+    const h = harness(null, []);
+    h.setTodayChoice(todayChoice);
+    h.controller.openPlanChangeEditor();
+    const order: string[] = [];
+    const original = h.call.getMockImplementation();
+    h.call.mockImplementation(async (method: string, request: unknown): Promise<never> => {
+      order.push(method);
+      if (method === "plan_change.preview") return new Promise<never>(() => {});
+      return original!(method, request);
+    });
+    void h.controller.submit("what should i ride today?");
+    await vi.waitFor(() => expect(order).toContain("plan_change.preview"));
+    expect(order.indexOf("saveChatAttachmentDraftText")).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf("saveChatAttachmentDraftText")).toBeLessThan(
+      order.indexOf("plan_change.preview"),
+    );
+    h.controller.dispose();
+  });
+
+  it.each([null, { ...todayChoice, eligible: [], reason: "Recovery is required." }])(
+    "announces that no Workout is eligible without sending chat when the choice is %j",
+    async (choice) => {
+      const h = harness(null, []);
+      h.setTodayChoice(choice);
+      h.controller.openPlanChangeEditor();
+      expect(await h.controller.submit("what should i ride today?")).toBe(true);
+      expect(h.surface().notice).toBe("No eligible Workout can be selected today.");
+      expect(h.call).toHaveBeenCalledExactlyOnceWith("saveChatAttachmentDraftText", {
+        chatId: "desktop",
+        text: "",
+      });
+      h.controller.dispose();
+    },
+  );
+
+  it.each([
+    "unrelated text",
+    "what should i ride today please",
+    "what should i ride today? And tomorrow?",
+  ])("sends %j through normal chat", async (message) => {
+    const h = harness(null, []);
+    h.setTodayChoice();
+    h.controller.openPlanChangeEditor();
+    expect(await h.controller.submit(message)).toBe(true);
+    expect(h.call).toHaveBeenCalledWith(
+      "enqueueChatMessage",
+      expect.objectContaining({ text: message }),
+    );
+    expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+    h.controller.dispose();
+  });
+
+  it.each(["closed", "attachments"])(
+    "keeps the today question in normal chat with %s",
+    async (scope) => {
+      const h = harness(null, []);
+      h.setTodayChoice();
+      if (scope === "attachments") h.controller.openPlanChangeEditor();
+      const attachmentIds = scope === "attachments" ? ["attachment-workout"] : [];
+      expect(await h.controller.submit("what should i ride today?", attachmentIds)).toBe(true);
+      expect(h.call).toHaveBeenCalledWith(
+        "enqueueChatMessage",
+        expect.objectContaining({
+          text: "what should i ride today?",
+          ...(attachmentIds.length ? { attachmentIds } : {}),
+        }),
+      );
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it.each(["busy", "paused"])(
+    "does not preview or enqueue today's question while %s",
+    async (state) => {
+      const h = harness(null, []);
+      h.setTodayChoice();
+      h.controller.openPlanChangeEditor();
+      if (state === "busy") h.setSurface({ busy: true });
+      else h.pause();
+      expect(await h.controller.submit("what should i ride today?")).toBe(state === "paused");
+      expect(
+        h.call.mock.calls.some(
+          ([method]) => method === "plan_change.preview" || method === "enqueueChatMessage",
+        ),
+      ).toBe(false);
+      h.controller.dispose();
+    },
+  );
 
   it("sends the FTP intent and keeps daemon rejection copy", async () => {
     const h = harness({ status: "rejected", reason: "command-conflict" });
