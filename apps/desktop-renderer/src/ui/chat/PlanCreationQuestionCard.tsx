@@ -18,6 +18,7 @@ const choiceClass =
   "grid min-h-[calc(var(--ctl-h-lg)+var(--row-inset))] w-full grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)_20px] items-center gap-2 rounded-ctl border-0 bg-transparent px-2 py-1.5 text-left text-ink hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50";
 
 interface QuestionFormProps {
+  readonly commitmentStatus?: "confirm" | "clarify";
   readonly question: PlanCreationOpenQuestion;
   readonly currentAnswer: PlanCreationAnswerInput | null;
   readonly editing: boolean;
@@ -108,6 +109,7 @@ function ChoiceActions(props: QuestionFormProps): ReactElement {
 }
 
 function CustomActions(props: {
+  readonly submitLabel?: string;
   readonly editing: boolean;
   readonly onCancel: () => void;
   readonly busy: boolean;
@@ -132,7 +134,7 @@ function CustomActions(props: {
           Back
         </Button>
         <Button type="submit" disabled={props.busy || props.continueDisabled}>
-          Continue
+          {props.submitLabel ?? "Continue"}
         </Button>
       </div>
     </div>
@@ -730,6 +732,8 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
   const editor = useRef<HTMLTextAreaElement>(null);
   const customTrigger = useRef<HTMLButtonElement>(null);
   const errorId = useId();
+  const hintId = useId();
+  const clarify = props.commitmentStatus === "clarify";
   useEffect(() => {
     props.onEditorOpenChange(authored);
     if (authored) queueMicrotask(() => editor.current?.focus());
@@ -765,7 +769,7 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
         noValidate
       >
         <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
-          <span data-parity="custom.label">{question.authoredOption.editorLabel}</span>
+          <span data-parity="custom.label">Commitments or time off</span>
           <textarea
             ref={editor}
             className={`${fieldClass} resize-y`}
@@ -774,13 +778,23 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
             placeholder={question.authoredOption.placeholder}
             maxLength={2000}
             rows={3}
-            aria-describedby={error === undefined ? undefined : errorId}
+            aria-describedby={
+              [error === undefined ? null : errorId, clarify ? hintId : null]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
             aria-invalid={error !== undefined}
             onChange={(event) => setText(event.currentTarget.value)}
           />
         </label>
+        {clarify ? (
+          <p id={hintId} className="m-0 text-sm leading-5 text-ink-2">
+            Give the weekday and exact limit, or the exact time-off dates.
+          </p>
+        ) : null}
         <ErrorText id={errorId}>{error}</ErrorText>
         <CustomActions
+          submitLabel="Review interpretation"
           editing={props.editing}
           onCancel={props.onCancel}
           busy={props.busy}

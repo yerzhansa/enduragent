@@ -1460,6 +1460,11 @@ describe("coach request and event projection", () => {
       retryPlanningRequest: async () => ({ status: "missing" }),
       resumePlanningRequests: async () => ({ deliveries: [] }),
       listPlanningRequests: async () => ({ deliveries: [], planCreation: null }),
+      "plan_creation.interpretCommitments": async () => ({
+        rules: [],
+        unparsed: ["busy"],
+        status: "clarify",
+      }),
       "plan_creation.start": async () => ({
         status: "rejected",
         reason: "command-conflict",

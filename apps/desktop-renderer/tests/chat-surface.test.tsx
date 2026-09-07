@@ -251,10 +251,11 @@ function commitmentsQuestion(prompt: string, placeholder: string): CommitmentsQu
     kind: "commitments-question",
     step: fixtureStep,
     prompt,
-    noneOption: { label: "Nothing fixed", detail: "There is nothing fixed to add." },
+    noneOption: { label: "No fixed commitments", detail: "There is nothing fixed to add." },
     authoredOption: {
       ...fixtureAuthoredOption,
-      editorLabel: "Scheduling details",
+      label: "Add commitments or time off",
+      editorLabel: "Commitments or time off",
       placeholder,
     },
   } satisfies PlanCreationOpenQuestion;
@@ -2383,27 +2384,27 @@ describe("chat surface", () => {
         planCreationLoaded: true,
         planCreation: planCreationModel(
           commitmentsQuestion(
-            "Any fixed commitments, other training, or time off to account for?",
+            "Any fixed commitments or time off?",
             "Add only the scheduling details this Plan should account for",
           ),
         ),
       });
       render(<Harness />);
 
-      expect(screen.queryByLabelText("Scheduling details")).toBeNull();
-      await user.click(screen.getByRole("button", { name: "Nothing fixed" }));
+      expect(screen.queryByLabelText("Commitments or time off")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "No fixed commitments" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "commitments",
         commitments: { kind: "none" },
       });
-      await user.click(screen.getByRole("button", { name: "Something else" }));
-      const commitments = screen.getByLabelText("Scheduling details");
+      await user.click(screen.getByRole("button", { name: "Add commitments or time off" }));
+      const commitments = screen.getByLabelText("Commitments or time off");
       expect(commitments).toHaveAttribute(
         "placeholder",
         "Add only the scheduling details this Plan should account for",
       );
       await user.type(commitments, "Pilates on Thursday");
-      await user.click(screen.getByRole("button", { name: "Continue" }));
+      await user.click(screen.getByRole("button", { name: "Review interpretation" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "commitments",
         commitments: { kind: "interpreted", text: "Pilates on Thursday" },
@@ -2767,10 +2768,7 @@ describe("chat surface", () => {
       ["Success", fitnessSuccessQuestion("What would success mean for this Fitness Goal?")],
       [
         "Commitments",
-        commitmentsQuestion(
-          "Any fixed commitments, other training, or time off to account for?",
-          "Add scheduling details",
-        ),
+        commitmentsQuestion("Any fixed commitments or time off?", "Add scheduling details"),
       ],
     ] as const)("returns from the %s editor on Escape without pausing", async (_name, question) => {
       const user = userEvent.setup();
@@ -2781,13 +2779,17 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      await user.click(screen.getByRole("button", { name: "Something else" }));
+      await user.click(
+        screen.getByRole("button", { name: /^(Something else|Add commitments or time off)$/u }),
+      );
       expect(document.querySelector('[data-parity="custom.editor"]')).not.toBeNull();
       expect(document.querySelector('[data-parity="composer"]')).toBeNull();
       await user.keyboard("{Escape}");
       expect(actions.pausePlanCreation).not.toHaveBeenCalled();
       expect(document.querySelector('[data-parity="custom.editor"]')).toBeNull();
-      expect(screen.getByRole("button", { name: "Something else" })).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: /^(Something else|Add commitments or time off)$/u }),
+      ).toBeVisible();
       expect(document.querySelector('[data-parity="composer"]')).not.toBeNull();
     });
 
@@ -2823,15 +2825,15 @@ describe("chat surface", () => {
       setChat({
         planCreation: planCreationModel(
           commitmentsQuestion(
-            "Any fixed commitments, other training, or time off to account for?",
+            "Any fixed commitments or time off?",
             "Add only the scheduling details this Plan should account for",
           ),
           { version: 2 },
         ),
       });
-      expect(screen.queryByLabelText("Scheduling details")).toBeNull();
-      await user.click(screen.getByRole("button", { name: "Something else" }));
-      expect(screen.getByLabelText("Scheduling details")).toHaveValue("");
+      expect(screen.queryByLabelText("Commitments or time off")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Add commitments or time off" }));
+      expect(screen.getByLabelText("Commitments or time off")).toHaveValue("");
 
       const ready = planCreationModel(null, {
         version: 10,
@@ -2902,6 +2904,104 @@ describe("chat surface", () => {
       await userEvent.click(discard);
       expect(actions.openPlanCreationDiscard).toHaveBeenCalledOnce();
       expect(composer()).toBeEnabled();
+    });
+
+    it.each(["question", "review", "stale"] as const)(
+      "shows interpreted limits and disables building or activation in %s",
+      async (stage) => {
+        const model: PlanCreationCardModel = {
+          ...planCreationModel(null),
+          readiness: "ready",
+          draft: stage === "question" ? null : planCreationDraft(),
+          draftStale: stage === "stale",
+          pendingCommitment: {
+            text: "Wed 45 min. Sat off. No hard on Mon. Off 1998-09-03 to 1998-09-09",
+            status: "confirm",
+            rules: [
+              { kind: "weekday-duration", day: 3, minutes: 45 },
+              { kind: "weekday-unavailable", day: 6 },
+              { kind: "hard-weekday", day: 1 },
+              { kind: "time-off", start: "1998-09-03", end: "1998-09-09" },
+            ],
+            unparsed: [],
+          },
+        };
+        setChat({
+          planCreationLoaded: true,
+          planCreation: model,
+          timeline: [{ kind: "plan-creation", model }],
+        });
+        render(<Harness />);
+        const correction = screen.getByRole("region", { name: "Confirm these limits" });
+        for (const text of [
+          "Wed · at most 45 min",
+          "Sat · unavailable",
+          "Mon · no hard training",
+          "Off 3 Sep 1998 to 9 Sep 1998",
+        ]) {
+          expect(within(correction).getByText(text)).toBeVisible();
+        }
+        expect(
+          within(correction).getAllByRole("rowheader", { name: "Interpreted limit" }),
+        ).toHaveLength(4);
+        const blocked = screen.getByRole("button", {
+          name:
+            stage === "question"
+              ? "Build Draft"
+              : stage === "stale"
+                ? "Rebuild Draft"
+                : "Activate Plan",
+        });
+        expect(blocked).toBeDisabled();
+        expect(blocked).toHaveAccessibleDescription(
+          "Your last confirmed limits remain effective. Draft building and activation wait for this correction.",
+        );
+        await userEvent.click(within(correction).getByRole("button", { name: "Confirm limits" }));
+        expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
+          kind: "commitments-confirm",
+        });
+        await userEvent.click(
+          within(correction).getByRole("button", { name: "Cancel correction" }),
+        );
+        expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({ kind: "commitments-cancel" });
+      },
+    );
+
+    it("prefills a clarification and describes the exact details needed", async () => {
+      const question = commitmentsQuestion(
+        "Any fixed commitments or time off?",
+        "Add scheduling details",
+      );
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(question),
+        pendingCommitment: {
+          text: "Some evenings are busy",
+          rules: [],
+          status: "clarify",
+          unparsed: ["Some evenings are busy"],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+      const correction = screen.getByRole("region", { name: "Clarify your commitment" });
+      expect(within(correction).getByRole("rowheader", { name: "Not understood" })).toBeVisible();
+      expect(within(correction).queryByRole("button", { name: "Confirm limits" })).toBeNull();
+      const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
+      expect(editor).toHaveValue("Some evenings are busy");
+      expect(editor).toHaveAccessibleDescription(
+        "Give the weekday and exact limit, or the exact time-off dates.",
+      );
+      await userEvent.clear(editor);
+      await userEvent.type(editor, "Wed 45 min");
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
+        kind: "commitments",
+        commitments: { kind: "interpreted", text: "Wed 45 min" },
+      });
     });
 
     it("keeps fixed Workout dates and pinned status visible during Draft review", () => {

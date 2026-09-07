@@ -321,6 +321,12 @@ export function createChatViewAdapter(input: {
       (!planCreationPaused &&
         planCreation?.value !== null &&
         planCreation?.value !== undefined &&
+        planCreation.value.pendingCommitment === null &&
+        planCreationEditingKey !== "commitments" &&
+        !(
+          planCreationEditingKey === null &&
+          planCreation.value.openQuestion?.kind === "commitments-question"
+        ) &&
         (planCreationEditingKey !== null || planCreation.value.openQuestion !== null));
     const decisionLoading = controls?.decisionLoading === true;
     const decisionLoadError = controls?.queueLoadError ?? controls?.decisionLoadError ?? null;

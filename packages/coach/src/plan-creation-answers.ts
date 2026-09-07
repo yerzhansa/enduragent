@@ -696,15 +696,15 @@ function questionForKey(
       return {
         kind: "commitments-question",
         step,
-        prompt: "Any fixed commitments, other training, or time off to account for?",
+        prompt: "Any fixed commitments or time off?",
         noneOption: {
-          label: "Nothing fixed",
+          label: "No fixed commitments",
           detail: "No fixed commitments, other training, or time off to account for.",
         },
         authoredOption: {
-          label: "Something else",
-          detail: "Add scheduling details in your own words.",
-          editorLabel: "Scheduling details",
+          label: "Add commitments or time off",
+          detail: "Review the exact interpreted limits.",
+          editorLabel: "Commitments or time off",
           placeholder: "Add only the scheduling details this Plan should account for",
         },
       };

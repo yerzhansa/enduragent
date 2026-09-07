@@ -1,4 +1,3 @@
-import { commitmentsAcknowledgement } from "./plan-creation-compatibility";
 import type {
   CoachClient,
   CoachClientCallOptions,
@@ -445,11 +444,19 @@ export function createChatController(input: {
     !decisionLoaded ||
     decision?.status === "unanswered" ||
     (decision?.status === "answered" && decision.continuation.status === "pending");
+  const acceptsCommitmentMessage = (): boolean =>
+    planCreation !== null &&
+    (planCreation.pendingCommitment !== null ||
+      (!planCreationPaused &&
+        (planCreationEditingKey === "commitments" ||
+          (planCreationEditingKey === null &&
+            planCreation.openQuestion?.kind === "commitments-question"))));
   const planCreationBlocksWork = (): boolean =>
     planCreationDiscardConfirmationOpen ||
     planCreationActivateConfirmationOpen ||
     (!planCreationPaused &&
       planCreation !== null &&
+      !acceptsCommitmentMessage() &&
       (planCreationEditingKey !== null || planCreation.openQuestion !== null));
   const decisionBlocksReset = (): boolean =>
     !decisionLoaded ||
@@ -1781,6 +1788,109 @@ export function createChatController(input: {
   });
 
   render();
+  function saveAttachmentDraftText(text: string): void {
+    const ownership = beginAttachmentWrite(false);
+    if (ownership === null) return;
+    const textRevision = ++attachmentTextRevision;
+    let surfaceRevision = attachmentSurfaceRevision;
+    const task = attachmentTextSaveTask
+      .then(async () => {
+        try {
+          const client = await input.clients.getClient();
+          surfaceRevision = claimAttachmentSurface();
+          const surface = await client.call("saveChatAttachmentDraftText", {
+            chatId: DESKTOP_CHAT_ID,
+            text,
+          });
+          if (
+            !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
+            textRevision !== attachmentTextRevision
+          ) {
+            return;
+          }
+          attachmentSurface = surface;
+          attachmentError = null;
+          render();
+        } catch {
+          if (
+            !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
+            textRevision !== attachmentTextRevision
+          ) {
+            return;
+          }
+          attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
+          render();
+        }
+      })
+      .finally(() => {
+        finishAttachmentWrite(ownership.token);
+      });
+    attachmentTextSaveTask = task;
+  }
+
+  async function answerPlanCreation(answer: PlanCreationAnswerInput): Promise<void> {
+    if (
+      disposed ||
+      planCreationBusy ||
+      planCreationDiscardConfirmationOpen ||
+      planCreationActivateConfirmationOpen ||
+      planCreation === null ||
+      (!(
+        !planCreationPaused &&
+        (planCreationEditingKey !== null || planCreation.openQuestion !== null)
+      ) &&
+        !(
+          planCreation.pendingCommitment !== null &&
+          (answer.kind === "commitments" ||
+            answer.kind === "commitments-confirm" ||
+            answer.kind === "commitments-cancel")
+        ))
+    )
+      return;
+    const key = JSON.stringify({
+      creationId: planCreation.creationId,
+      expectedVersion: planCreation.version,
+      answer,
+    });
+    const submittedEditingKey = planCreationEditingKey;
+    const submittedEditReturnPaused = planCreationEditReturnPaused;
+    planCreationBusy = true;
+    planCreationError = null;
+    planCreationNotice = null;
+    render();
+    try {
+      const result = await (
+        await input.clients.getClient()
+      ).call("plan_creation.answer", {
+        commandId: planCommandId(key),
+        creationId: planCreation.creationId,
+        expectedVersion: planCreation.version,
+        answer,
+      });
+      pendingPlanCreationCommand = null;
+      installPlanCreation(result.planCreation);
+      if (result.status === "rejected") {
+        if (
+          submittedEditingKey !== null &&
+          planCreation?.answeredSummaries.some(
+            (summary) => summary.answerKey === submittedEditingKey,
+          ) === true
+        ) {
+          planCreationEditingKey = submittedEditingKey;
+          planCreationEditReturnPaused = submittedEditReturnPaused;
+          planCreationPaused = false;
+        }
+        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      }
+    } catch {
+      planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+    } finally {
+      planCreationBusy = false;
+      render();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+    }
+  }
+
   const controller: ChatController = {
     requestPlanLibraryFocus(target) {
       if (disposed) return;
@@ -2029,6 +2139,8 @@ export function createChatController(input: {
       finishAttachmentWrite(ownership.token);
     },
     async submit(message, attachmentIds = []) {
+      const submittedTextRevision = attachmentTextRevision;
+      const submittedAttachmentGeneration = attachmentGeneration;
       await waitForPlanningRequestLoad();
       if (
         !canChat() ||
@@ -2068,6 +2180,46 @@ export function createChatController(input: {
           }
         }
         return true;
+      }
+      if (
+        attachmentIds.length === 0 &&
+        message.length > 0 &&
+        message.length <= 2_000 &&
+        acceptsCommitmentMessage() &&
+        !readChange().open
+      ) {
+        if (planCreationBusy) return false;
+        const submittedCreation = planCreation;
+        planCreationBusy = true;
+        render();
+        let interpretation;
+        try {
+          interpretation = await (
+            await input.clients.getClient()
+          ).call("plan_creation.interpretCommitments", { text: message });
+        } catch {
+          planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+          return false;
+        } finally {
+          planCreationBusy = false;
+          render();
+        }
+        if (disposed || planCreation !== submittedCreation || readChange().open) return false;
+        if (interpretation.status === "confirm") {
+          await answerPlanCreation({
+            kind: "commitments",
+            commitments: { kind: "interpreted", text: message },
+          });
+          if (planCreationError !== null) return false;
+          if (
+            attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+            submittedTextRevision === attachmentTextRevision
+          ) {
+            saveAttachmentDraftText("");
+            await attachmentTextSaveTask;
+          }
+          return true;
+        }
       }
       const ownership = beginAttachmentWrite(false);
       if (ownership === null) return Promise.resolve(false);
@@ -2125,45 +2277,7 @@ export function createChatController(input: {
       if (disposed || resetBlocksWork() || attachmentBusyTokens.size > 0) return;
       receiveAdmissions(results);
     },
-    saveAttachmentDraftText(text) {
-      const ownership = beginAttachmentWrite(false);
-      if (ownership === null) return;
-      const textRevision = ++attachmentTextRevision;
-      let surfaceRevision = attachmentSurfaceRevision;
-      const task = attachmentTextSaveTask
-        .then(async () => {
-          try {
-            const client = await input.clients.getClient();
-            surfaceRevision = claimAttachmentSurface();
-            const surface = await client.call("saveChatAttachmentDraftText", {
-              chatId: DESKTOP_CHAT_ID,
-              text,
-            });
-            if (
-              !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
-              textRevision !== attachmentTextRevision
-            ) {
-              return;
-            }
-            attachmentSurface = surface;
-            attachmentError = null;
-            render();
-          } catch {
-            if (
-              !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
-              textRevision !== attachmentTextRevision
-            ) {
-              return;
-            }
-            attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
-            render();
-          }
-        })
-        .finally(() => {
-          finishAttachmentWrite(ownership.token);
-        });
-      attachmentTextSaveTask = task;
-    },
+    saveAttachmentDraftText,
     removeAttachment(attachmentId) {
       void mutateAttachment((client) =>
         client.call("removeChatAttachment", { chatId: DESKTOP_CHAT_ID, attachmentId }),
@@ -2407,6 +2521,7 @@ export function createChatController(input: {
         planCreationActivateConfirmationOpen ||
         planCreation === null ||
         planCreation.readiness !== "ready" ||
+        planCreation.pendingCommitment !== null ||
         planCreationEditingKey !== null
       )
         return;
@@ -2427,7 +2542,10 @@ export function createChatController(input: {
         });
         pendingPlanCreationCommand = null;
         installPlanCreation(result.planCreation);
-        if (result.status === "rejected") {
+        if (result.status === "rejected" && result.reason === "commitments-pending") {
+          planCreationError = result.explanation;
+          await loadPlanningRequests().catch(() => {});
+        } else if (result.status === "rejected") {
           planCreationNotice =
             result.reason === "no-workouts"
               ? "No Workouts fit anywhere in this Plan under your confirmed limits. Edit those limits to continue."
@@ -2437,76 +2555,35 @@ export function createChatController(input: {
                   ? "The answers changed. Start a fresh build."
                   : "Build failed. Your answers and last complete Draft are preserved.";
         }
-      } catch {
-        planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
+      } catch (error) {
+        if (
+          error instanceof CoachRpcRemoteError &&
+          error.data !== null &&
+          typeof error.data === "object" &&
+          "code" in error.data &&
+          error.data.code === "commitments-pending"
+        ) {
+          pendingPlanCreationCommand = null;
+          planCreationError = error.message;
+          await loadPlanningRequests().catch(() => {});
+        } else {
+          planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
+        }
       } finally {
         planCreationBusy = false;
         render();
       }
     },
-    async answerPlanCreation(answer) {
-      const acknowledgingCommitments = false;
+    answerPlanCreation,
+    pausePlanCreation() {
       if (
         disposed ||
         planCreationBusy ||
-        planCreationDiscardConfirmationOpen ||
-        planCreationActivateConfirmationOpen ||
-        (!planCreationBlocksWork() && !acknowledgingCommitments) ||
-        planCreation === null
+        planCreation === null ||
+        planCreationPaused ||
+        (planCreationEditingKey === null && planCreation.openQuestion === null)
       )
         return;
-      const key = JSON.stringify({
-        creationId: planCreation.creationId,
-        expectedVersion: planCreation.version,
-        answer,
-      });
-      const submittedEditingKey = planCreationEditingKey;
-      const submittedEditReturnPaused = planCreationEditReturnPaused;
-      planCreationBusy = true;
-      planCreationError = null;
-      planCreationNotice = null;
-      render();
-      try {
-        const result = await (
-          await input.clients.getClient()
-        ).call("plan_creation.answer", {
-          commandId: planCommandId(key),
-          creationId: planCreation.creationId,
-          expectedVersion: planCreation.version,
-          answer,
-        });
-        pendingPlanCreationCommand = null;
-        installPlanCreation(result.planCreation);
-        if (result.status === "rejected") {
-          if (
-            submittedEditingKey !== null &&
-            planCreation?.answeredSummaries.some(
-              (summary) => summary.answerKey === submittedEditingKey,
-            ) === true
-          ) {
-            planCreationEditingKey = submittedEditingKey;
-            planCreationEditReturnPaused = submittedEditReturnPaused;
-            planCreationPaused = false;
-          }
-          planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
-        } else if (
-          acknowledgingCommitments &&
-          commitmentsAcknowledgement(result.planCreation) === null &&
-          result.planCreation.draft !== null &&
-          !result.planCreation.draftStale
-        ) {
-          requestPlanCreationFocus("activate");
-        }
-      } catch {
-        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
-      } finally {
-        planCreationBusy = false;
-        render();
-        if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
-      }
-    },
-    pausePlanCreation() {
-      if (disposed || planCreationBusy || !planCreationBlocksWork()) return;
       planCreationEditingKey = null;
       planCreationEditReturnPaused = false;
       if (planCreation?.openQuestion !== null && planCreation?.openQuestion !== undefined) {
@@ -2542,7 +2619,8 @@ export function createChatController(input: {
         disposed ||
         planCreationBusy ||
         planCreation === null ||
-        !planCreation.answeredSummaries.some((summary) => summary.answerKey === answerKey)
+        (!(answerKey === "commitments" && planCreation.pendingCommitment !== null) &&
+          !planCreation.answeredSummaries.some((summary) => summary.answerKey === answerKey))
       ) {
         return;
       }

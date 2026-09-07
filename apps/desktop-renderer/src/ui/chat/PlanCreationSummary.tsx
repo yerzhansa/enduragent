@@ -5,6 +5,8 @@ import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
+import { commitmentSummaryId } from "./PlanCreationDraftCards";
+
 export function PlanCreationSummary(props: {
   readonly model: PlanCreationCardModel;
   readonly answersOnly?: boolean;
@@ -119,7 +121,17 @@ export function PlanCreationSummary(props: {
             <div className="flex flex-wrap gap-inset" data-parity="progress.actions">
               {ready && props.model.draft === null ? (
                 <Button
-                  disabled={actions === null || busy || editingKey !== null}
+                  disabled={
+                    actions === null ||
+                    busy ||
+                    editingKey !== null ||
+                    props.model.pendingCommitment !== null
+                  }
+                  aria-describedby={
+                    props.model.pendingCommitment === null
+                      ? undefined
+                      : commitmentSummaryId(props.model)
+                  }
                   onClick={() => actions?.buildPlanCreationDraft()}
                 >
                   Build Draft

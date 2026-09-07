@@ -2454,6 +2454,14 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         },
       },
     };
+    const interpretation = {
+      rules: [{ kind: "weekday-unavailable" as const, day: 6 }],
+      unparsed: [],
+      status: "confirm" as const,
+    };
+    const interpretCommitments = vi.fn<
+      PlanCreationOperations["plan_creation.interpretCommitments"]
+    >(async () => interpretation);
     const startPlanCreation = vi.fn<PlanCreationOperations["plan_creation.start"]>(async () => ({
       status: "started",
       outcome: "created",
@@ -2511,6 +2519,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         "plan_change.preview": previewPlanChange,
         "plan_change.apply": applyPlanChange,
         "plan.history": readHistory,
+        "plan_creation.interpretCommitments": interpretCommitments,
         "plan_creation.start": startPlanCreation,
         "plan_creation.answer": answerPlanCreation,
         "plan_creation.preview": previewPlanCreation,
@@ -2562,6 +2571,12 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     };
     const historyParams = { planId: activationResult.planId };
     for (const { result, ...request } of [
+      {
+        id: "interpret",
+        method: "plan_creation.interpretCommitments",
+        params: { text: "Saturday unavailable" },
+        result: interpretation,
+      },
       {
         id: "start",
         method: "plan_creation.start",
@@ -2643,6 +2658,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         result,
       });
     }
+    expect(interpretCommitments).toHaveBeenCalledExactlyOnceWith({ text: "Saturday unavailable" });
     expect(startPlanCreation).toHaveBeenCalledWith(startParams);
     expect(answerPlanCreation).toHaveBeenCalledWith(answerParams);
     expect(previewPlanCreation).toHaveBeenCalledWith(previewParams);
@@ -2655,6 +2671,11 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     expect(readHistory).toHaveBeenCalledWith(historyParams);
 
     for (const request of [
+      {
+        id: "invalid-interpret",
+        method: "plan_creation.interpretCommitments",
+        params: { text: "Saturday unavailable", commandId: "not-a-command" },
+      },
       {
         id: "invalid-start",
         method: "plan_creation.start",

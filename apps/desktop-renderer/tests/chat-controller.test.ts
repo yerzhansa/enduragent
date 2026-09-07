@@ -29,6 +29,8 @@ import type {
   PlanCreationDiscardRpcResult,
   PlanCreationPreviewRpcParams,
   PlanCreationPreviewRpcResult,
+  PlanCreationInterpretCommitmentsRpcParams,
+  PlanCreationInterpretCommitmentsRpcResult,
   PlanCreationStartRpcParams,
   PlanCreationStartRpcResult,
   QueuedChatMessage,
@@ -49,6 +51,7 @@ import {
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "../src/chat/limits";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import { planCreationDraft } from "./plan-creation-draft-fixtures";
+import { EMPTY_PLAN_CHANGE_SURFACE } from "../src/state/chat-slice";
 import { CHAT_WORKING_COPY, EMPTY_CHAT_STATE, type ChatState } from "../src/turn-state";
 
 const questionStep = { current: 1, total: 9 } as const;
@@ -320,6 +323,25 @@ function rejectWhenAborted(options: CoachClientCallOptions<"chat"> | undefined):
   });
 }
 
+const emptyComposer = (): ChatAttachmentComposerReadModel => ({
+  schemaVersion: 1,
+  capabilities: {
+    schemaVersion: 1,
+    active: { provider: "test", model: "text-only", transport: "test" },
+    documents: { enabled: true, extensions: ["pdf", "txt", "csv", "docx"] },
+    completedActivities: { enabled: true, extensions: ["fit", "tcx", "gpx"] },
+    plannedWorkouts: { enabled: true, extensions: ["zwo", "erg", "mrc"] },
+    images: {
+      enabled: false,
+      mediaTypes: [],
+      reason: "model_incompatible",
+      source: "maintained_catalogue",
+      checkedAt: "2001-01-01T00:00:00.000Z",
+    },
+  },
+  draft: null,
+});
+
 function client(
   implementation: (
     request: { chatId: string; message: string },
@@ -378,6 +400,9 @@ function client(
     readonly previewPlanCreation?: (
       request: PlanCreationPreviewRpcParams,
     ) => Promise<PlanCreationPreviewRpcResult>;
+    readonly interpretCommitments?: (
+      request: PlanCreationInterpretCommitmentsRpcParams,
+    ) => Promise<PlanCreationInterpretCommitmentsRpcResult>;
     readonly startPlanCreation?: (
       request: PlanCreationStartRpcParams,
     ) => Promise<PlanCreationStartRpcResult>;
@@ -424,24 +449,6 @@ function client(
     const hideQueueCall = (): void => {
       call.mock.calls.pop();
     };
-    const emptyComposer = (): ChatAttachmentComposerReadModel => ({
-      schemaVersion: 1,
-      capabilities: {
-        schemaVersion: 1,
-        active: { provider: "test", model: "text-only", transport: "test" },
-        documents: { enabled: true, extensions: ["pdf", "txt", "csv", "docx"] },
-        completedActivities: { enabled: true, extensions: ["fit", "tcx", "gpx"] },
-        plannedWorkouts: { enabled: true, extensions: ["zwo", "erg", "mrc"] },
-        images: {
-          enabled: false,
-          mediaTypes: [],
-          reason: "model_incompatible",
-          source: "maintained_catalogue",
-          checkedAt: "2001-01-01T00:00:00.000Z",
-        },
-      },
-      draft: null,
-    });
     if (method === "getChatAttachmentComposer") {
       hideQueueCall();
       return (sessions.composer?.() ?? Promise.resolve(emptyComposer())) as never;
@@ -475,6 +482,14 @@ function client(
           status: "rejected",
           reason: "no-unfinished-creation",
           planCreation: null,
+        })) as never;
+    }
+    if (method === "plan_creation.interpretCommitments") {
+      return (sessions.interpretCommitments?.(request) ??
+        Promise.resolve({
+          rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
+          unparsed: [],
+          status: "confirm",
         })) as never;
     }
     if (method === "plan_creation.start") {
@@ -701,6 +716,7 @@ function subject(
     changes: [],
   }));
   const openChat = vi.fn();
+  const readPlanChange = vi.fn(() => EMPTY_PLAN_CHANGE_SURFACE);
   const provider: DesktopCoachClientProvider = {
     getClient: vi.fn(async () => first),
     reconnect: vi.fn(async () => reconnected),
@@ -727,6 +743,7 @@ function subject(
     refreshPlan,
     refreshPlanLibrary,
     readPlanLibrary,
+    readPlanChange,
     openChat,
     refreshSpend,
     canChat,
@@ -760,6 +777,7 @@ function subject(
     refreshPlan,
     refreshPlanLibrary,
     readPlanLibrary,
+    readPlanChange,
     openChat,
     openPlanningRequest,
   };
@@ -2698,6 +2716,326 @@ describe("chat controller", () => {
     expect(controls.at(-1)?.planCreation?.value).toEqual(completeCard);
     await expect(controller.submit("Chat continues")).resolves.toBe(true);
     expect(chatMessages(fake)).toEqual(["Chat continues"]);
+  });
+
+  it.each(["question", "pending", "review", "paused", "paused-pending", "change"] as const)(
+    "routes parsed composer limits only with an open commitment correction: %s",
+    async (surface) => {
+      const card: PlanCreationCardModel = {
+        creationId: "01J00000000000000000000000",
+        version: 10,
+        status: "in-progress",
+        readiness: "ready",
+        answeredSummaries: [],
+        openQuestion:
+          surface === "question" || surface === "paused" || surface === "paused-pending"
+            ? {
+                kind: "commitments-question",
+                step: { current: 8, total: 10 },
+                prompt: "Any fixed commitments?",
+                noneOption: { label: "No fixed commitments", detail: "Nothing fixed." },
+                authoredOption: {
+                  label: "Add commitments or time off",
+                  detail: "Add scheduling details.",
+                  editorLabel: "Commitments or time off",
+                  placeholder: "Your limits",
+                },
+              }
+            : null,
+        draft: null,
+        draftStale: false,
+        pendingCommitment:
+          surface === "pending" || surface === "change" || surface === "paused-pending"
+            ? {
+                text: "Wed 30 min",
+                rules: [{ kind: "weekday-duration", day: 3, minutes: 30 }],
+                status: "confirm",
+                unparsed: [],
+              }
+            : null,
+      };
+      const answerPlanCreation = vi
+        .fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>()
+        .mockResolvedValue({ status: "answered", planCreation: { ...card, version: 11 } });
+      const fake = client(replies(), {
+        listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+        answerPlanCreation,
+      });
+      const { controller, readPlanChange } = subject(fake);
+      if (surface === "change")
+        readPlanChange.mockReturnValue({ ...EMPTY_PLAN_CHANGE_SURFACE, open: true });
+      await controller.start();
+      if (surface === "paused" || surface === "paused-pending") controller.pausePlanCreation();
+      await expect(controller.submit("Wed at most 45 min")).resolves.toBe(true);
+      if (surface === "question" || surface === "pending" || surface === "paused-pending") {
+        expect(answerPlanCreation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            answer: {
+              kind: "commitments",
+              commitments: { kind: "interpreted", text: "Wed at most 45 min" },
+            },
+          }),
+        );
+        expect(chatMessages(fake)).toEqual([]);
+      } else {
+        expect(answerPlanCreation).not.toHaveBeenCalled();
+        expect(chatMessages(fake)).toEqual(["Wed at most 45 min"]);
+      }
+      controller.dispose();
+    },
+  );
+
+  it.each([
+    { rules: [], unparsed: [], status: "confirm" },
+    { rules: [{ kind: "weekday-unavailable", day: 6 }], unparsed: [], status: "confirm" },
+    {
+      rules: [{ kind: "weekday-unavailable", day: 6 }],
+      unparsed: ["sometimes busy"],
+      status: "clarify",
+    },
+    { rules: [], unparsed: ["How easy should I ride?"], status: "clarify" },
+  ] satisfies PlanCreationInterpretCommitmentsRpcResult[])(
+    "routes composer text according to daemon interpretation: %j",
+    async (interpretation) => {
+      const card: PlanCreationCardModel = {
+        creationId: "01J00000000000000000000000",
+        version: 10,
+        status: "review",
+        readiness: "ready",
+        answeredSummaries: [],
+        openQuestion: null,
+        draft: planCreationDraft(),
+        draftStale: false,
+        pendingCommitment: { text: "busy", rules: [], status: "clarify", unparsed: ["busy"] },
+      };
+      const interpretCommitments = vi.fn(async () => interpretation);
+      const answerPlanCreation = vi.fn(async (): Promise<PlanCreationAnswerRpcResult> => ({
+        status: "answered",
+        planCreation: { ...card, version: 11 },
+      }));
+      const fake = client(replies(), {
+        listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+        interpretCommitments,
+        answerPlanCreation,
+      });
+      const { controller } = subject(fake);
+      await controller.start();
+      const text = "A message interpreted by the daemon";
+      await expect(controller.submit(text)).resolves.toBe(true);
+      expect(interpretCommitments).toHaveBeenCalledWith({ text });
+      if (interpretation.status === "confirm") {
+        expect(answerPlanCreation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            answer: { kind: "commitments", commitments: { kind: "interpreted", text } },
+          }),
+        );
+        expect(chatMessages(fake)).toEqual([]);
+      } else {
+        expect(answerPlanCreation).not.toHaveBeenCalled();
+        expect(chatMessages(fake)).toEqual([text]);
+      }
+      controller.dispose();
+    },
+  );
+
+  it.each(["success", "failure", "newer"] as const)(
+    "preserves composer draft ownership after interpreted answer: %s",
+    async (outcome) => {
+      const card: PlanCreationCardModel = {
+        creationId: "01J00000000000000000000000",
+        version: 10,
+        status: "review",
+        readiness: "ready",
+        answeredSummaries: [],
+        openQuestion: null,
+        draft: planCreationDraft(),
+        draftStale: false,
+        pendingCommitment: { text: "busy", rules: [], status: "clarify", unparsed: ["busy"] },
+      };
+      let release = () => {};
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const answerPlanCreation = vi.fn(async (): Promise<PlanCreationAnswerRpcResult> => {
+        await pending;
+        if (outcome === "failure") throw new Error("Connection lost");
+        return { status: "answered", planCreation: { ...card, version: 11 } };
+      });
+      let persistedText = "";
+      const saveAttachmentDraftText = vi.fn(
+        async (text: string): Promise<ChatAttachmentComposerReadModel> => {
+          persistedText = text;
+          return {
+            ...emptyComposer(),
+            draft:
+              text === ""
+                ? null
+                : {
+                    schemaVersion: 1,
+                    chatId: "desktop",
+                    text,
+                    state: "active",
+                    updatedAt: "1998-09-03T00:00:00.000Z",
+                    attachments: [],
+                  },
+          };
+        },
+      );
+      const { controller, controls } = subject(
+        client(replies(), {
+          listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+          answerPlanCreation,
+          saveAttachmentDraftText,
+        }),
+      );
+      await controller.start();
+      controller.saveAttachmentDraftText("Wed 45 min");
+      const submission = controller.submit("Wed 45 min");
+      await vi.waitFor(() => expect(answerPlanCreation).toHaveBeenCalledOnce());
+      if (outcome === "newer") controller.saveAttachmentDraftText("My next message");
+      release();
+      await expect(submission).resolves.toBe(outcome !== "failure");
+      await vi.waitFor(() =>
+        expect(saveAttachmentDraftText).toHaveBeenCalledTimes(outcome === "failure" ? 1 : 2),
+      );
+      expect(saveAttachmentDraftText.mock.calls).toEqual(
+        outcome === "failure"
+          ? [["Wed 45 min"]]
+          : [["Wed 45 min"], [outcome === "success" ? "" : "My next message"]],
+      );
+      const expectedText =
+        outcome === "success" ? "" : outcome === "newer" ? "My next message" : "Wed 45 min";
+      expect(persistedText).toBe(expectedText);
+      await vi.waitFor(() => {
+        expect(controls.at(-1)?.attachments?.error).toBeNull();
+        expect(controls.at(-1)?.attachments?.value?.draft?.text ?? "").toBe(expectedText);
+      });
+      controller.dispose();
+    },
+  );
+
+  it("keeps unrelated composer messages in ordinary chat", async () => {
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 10,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      draftStale: false,
+      pendingCommitment: {
+        text: "Wed 30 min",
+        rules: [],
+        status: "clarify",
+        unparsed: ["Wed 30 min"],
+      },
+    };
+    const answerPlanCreation =
+      vi.fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>();
+    const fake = client(replies(), {
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+      answerPlanCreation,
+      interpretCommitments: async () => ({
+        rules: [],
+        unparsed: ["How is my fitness"],
+        status: "clarify",
+      }),
+    });
+    const { controller } = subject(fake);
+    await controller.start();
+    await expect(controller.submit("How is my fitness?")).resolves.toBe(true);
+    expect(answerPlanCreation).not.toHaveBeenCalled();
+    expect(chatMessages(fake)).toEqual(["How is my fitness?"]);
+    controller.dispose();
+  });
+
+  it.each(["commitments-confirm", "commitments-cancel"] as const)(
+    "resolves a pending correction from Draft review with %s",
+    async (kind) => {
+      const card: PlanCreationCardModel = {
+        creationId: "01J00000000000000000000000",
+        version: 10,
+        status: "review",
+        readiness: "ready",
+        answeredSummaries: [],
+        openQuestion: null,
+        draft: planCreationDraft(),
+        draftStale: false,
+        pendingCommitment: {
+          text: "Wed 30 min",
+          rules: [{ kind: "weekday-duration", day: 3, minutes: 30 }],
+          status: "confirm",
+          unparsed: [],
+        },
+      };
+      const answerPlanCreation = vi
+        .fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>()
+        .mockResolvedValue({
+          status: "answered",
+          planCreation: { ...card, version: 11, pendingCommitment: null },
+        });
+      const previewPlanCreation =
+        vi.fn<(request: PlanCreationPreviewRpcParams) => Promise<PlanCreationPreviewRpcResult>>();
+      const { controller, controls } = subject(
+        client(replies(), {
+          listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+          answerPlanCreation,
+          previewPlanCreation,
+        }),
+      );
+      await controller.start();
+      await controller.buildPlanCreationDraft();
+      expect(previewPlanCreation).not.toHaveBeenCalled();
+      controller.editPlanCreation("commitments");
+      expect(controls.at(-1)?.planCreation?.editingKey).toBe("commitments");
+      controller.cancelPlanCreationEdit();
+      await controller.answerPlanCreation({ kind });
+      expect(answerPlanCreation).toHaveBeenCalledWith(
+        expect.objectContaining({ answer: { kind } }),
+      );
+      expect(controls.at(-1)?.planCreation?.value?.pendingCommitment).toBeNull();
+      controller.dispose();
+    },
+  );
+
+  it("rereads pending correction and displays the daemon explanation after rejected Draft build", async () => {
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 10,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      draftStale: false,
+      pendingCommitment: null,
+    };
+    const pending: PlanCreationCardModel = {
+      ...card,
+      version: 11,
+      pendingCommitment: { text: "busy", rules: [], status: "clarify", unparsed: ["busy"] },
+    };
+    const explanation = "Clarify or cancel the pending commitment correction.";
+    const previewPlanCreation = vi
+      .fn<(request: PlanCreationPreviewRpcParams) => Promise<PlanCreationPreviewRpcResult>>()
+      .mockResolvedValue({
+        status: "rejected",
+        reason: "commitments-pending",
+        explanation,
+        planCreation: pending,
+      });
+    const listPlanningRequests = vi
+      .fn(async () => ({ deliveries: [], planCreation: pending }))
+      .mockResolvedValueOnce({ deliveries: [], planCreation: card });
+    const { controller, controls } = subject(
+      client(replies(), { listPlanningRequests, previewPlanCreation }),
+    );
+    await controller.start();
+    await controller.buildPlanCreationDraft();
+    expect(listPlanningRequests).toHaveBeenCalledTimes(2);
+    expect(controls.at(-1)?.planCreation).toMatchObject({ value: pending, error: explanation });
+    controller.dispose();
   });
 
   it("retries Draft preview with a stable command and restores review on relaunch", async () => {

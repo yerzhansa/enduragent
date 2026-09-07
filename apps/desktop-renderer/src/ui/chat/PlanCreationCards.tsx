@@ -13,7 +13,7 @@ import {
 import { useEnduragentStore } from "../../state/store";
 import { PlanCreationQuestionCard } from "./PlanCreationQuestionCard";
 import { Card, CardContent } from "@enduragent/ui";
-import { PlanCreationDraftCards } from "./PlanCreationDraftCards";
+import { PlanCreationDraftCards, PlanCreationCommitmentCard } from "./PlanCreationDraftCards";
 import { PlanCreationSummary } from "./PlanCreationSummary";
 
 export function PlanCreationDiscardDialog(): ReactElement {
@@ -255,10 +255,18 @@ export function PlanCreationDock(props: {
     <PlanCreationQuestionCard
       key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
       question={question}
-      currentAnswer={editedSummary?.answer ?? null}
+      currentAnswer={
+        question.kind === "commitments-question" && model.pendingCommitment !== null
+          ? {
+              kind: "commitments",
+              commitments: { kind: "interpreted", text: model.pendingCommitment.text },
+            }
+          : (editedSummary?.answer ?? null)
+      }
+      commitmentStatus={model.pendingCommitment?.status}
       editing={editingKey !== null}
       busy={busy}
-      error={error}
+      error={model.pendingCommitment === null ? error : null}
       focusRevision={focusRevision}
       onAnswer={(answer) => actions?.answerPlanCreation(answer)}
       onLater={() => actions?.pausePlanCreation()}
@@ -269,6 +277,17 @@ export function PlanCreationDock(props: {
 }
 
 export function PlanCreationConversation(props: {
+  readonly model: PlanCreationCardModel | null;
+}): ReactElement {
+  return (
+    <section className="grid min-w-0 gap-inset" aria-label="Plan creation">
+      {props.model === null ? null : <PlanCreationCommitmentCard model={props.model} />}
+      <PlanCreationConversationContent model={props.model} />
+    </section>
+  );
+}
+
+function PlanCreationConversationContent(props: {
   readonly model: PlanCreationCardModel | null;
 }): ReactElement | null {
   const [editVersion, setEditVersion] = useState<number | null>(null);

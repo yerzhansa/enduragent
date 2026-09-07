@@ -24,12 +24,14 @@ import {
   PlanCreationDraftSchema,
   PlanCreationPreviewRpcParamsSchema,
   PlanCreationPreviewRpcResultSchema,
+  PlanCreationInterpretCommitmentsRpcParamsSchema,
+  PlanCreationInterpretCommitmentsRpcResultSchema,
   PlanCreationStartRpcParamsSchema,
   PlanCreationStartRpcResultSchema,
   type PlanCreationCardModel,
   type PlanCreationOperations,
 } from "@enduragent/coach-contract";
-import { buildCreationDraft } from "@enduragent/sport-cycling";
+import { buildCreationDraft, interpretCommitments } from "@enduragent/sport-cycling";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
@@ -479,6 +481,12 @@ export function createPlanCreationOperations(input: {
               },
         );
       });
+    },
+    async "plan_creation.interpretCommitments"(request) {
+      const parsed = PlanCreationInterpretCommitmentsRpcParamsSchema.parse(request);
+      return PlanCreationInterpretCommitmentsRpcResultSchema.parse(
+        interpretCommitments(parsed.text),
+      );
     },
     async "plan_creation.start"(request) {
       const parsed = PlanCreationStartRpcParamsSchema.parse(request);

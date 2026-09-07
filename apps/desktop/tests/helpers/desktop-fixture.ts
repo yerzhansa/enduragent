@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import {
   ListPlansResultSchema,
+  PlanCreationInterpretCommitmentsRpcResultSchema,
   PlanCloseResultSchema,
   PlanChangePreviewResultSchema,
   PlanChangeApplyResultSchema,
@@ -601,6 +602,11 @@ export async function launchDesktopFixture(input: {
     },
     async "plan.history"(request) {
       return PlanHistoryResultSchema.parse(finalFrame(await invoke("plan.history", request)));
+    },
+    async "plan_creation.interpretCommitments"(request) {
+      return PlanCreationInterpretCommitmentsRpcResultSchema.parse(
+        finalFrame(await invoke("plan_creation.interpretCommitments", request)),
+      );
     },
     async "plan_creation.start"(request) {
       return finalFrame(await invoke("plan_creation.start", request)) as Awaited<
