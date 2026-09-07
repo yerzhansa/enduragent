@@ -2357,12 +2357,17 @@ export function createChatController(input: {
       }
     },
     async answerPlanCreation(answer) {
+      const acknowledgingCommitments =
+        answer.kind === "commitments" &&
+        answer.commitments.kind === "authored" &&
+        answer.commitments.acknowledged === true &&
+        planCreation?.commitmentsAcknowledgement != null;
       if (
         disposed ||
         planCreationBusy ||
         planCreationDiscardConfirmationOpen ||
         planCreationActivateConfirmationOpen ||
-        !planCreationBlocksWork() ||
+        (!planCreationBlocksWork() && !acknowledgingCommitments) ||
         planCreation === null
       )
         return;
@@ -2400,6 +2405,13 @@ export function createChatController(input: {
             planCreationPaused = false;
           }
           planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+        } else if (
+          acknowledgingCommitments &&
+          result.planCreation.commitmentsAcknowledgement === null &&
+          result.planCreation.draft !== null &&
+          !result.planCreation.draftStale
+        ) {
+          requestPlanCreationFocus("activate");
         }
       } catch {
         planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
@@ -2551,6 +2563,7 @@ export function createChatController(input: {
         planCreation === null ||
         planCreation.draft === null ||
         planCreation.draftStale ||
+        planCreation.commitmentsAcknowledgement !== null ||
         !planCreation.draft.weeks.some((week) => week.workouts.length > 0)
       )
         return;
@@ -2633,7 +2646,12 @@ export function createChatController(input: {
           "code" in error.data
             ? error.data.code
             : null;
-        if (
+        if (rejection === "commitments-unacknowledged" && error instanceof CoachRpcRemoteError) {
+          activationAttempt = null;
+          planCreationActivateConfirmationOpen = false;
+          planCreationError = error.message;
+          await loadPlanningRequests().catch(() => {});
+        } else if (
           rejection === "version-conflict" ||
           rejection === "not-ready" ||
           rejection === "command-conflict"

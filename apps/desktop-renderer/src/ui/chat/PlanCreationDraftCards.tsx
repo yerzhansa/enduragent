@@ -3,7 +3,7 @@ import type {
   PlanCreationCardModel,
   PlanCreationDraft,
 } from "@enduragent/coach-contract";
-import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactElement, type ReactNode } from "react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -78,6 +78,7 @@ function ReviewCard(props: {
   readonly title: string;
   readonly status?: string;
   readonly summary?: string;
+  readonly summaryId?: string;
   readonly children: ReactNode;
 }): ReactElement {
   return (
@@ -103,7 +104,11 @@ function ReviewCard(props: {
             </span>
           ) : null}
         </div>
-        {props.summary ? <p className="m-0 text-sm leading-5 text-ink-2">{props.summary}</p> : null}
+        {props.summary ? (
+          <p id={props.summaryId} className="m-0 text-sm leading-5 text-ink-2">
+            {props.summary}
+          </p>
+        ) : null}
         {props.children}
       </CardContent>
     </Card>
@@ -127,18 +132,53 @@ export function PlanCreationDraftCards(props: {
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discardButton = useRef<HTMLButtonElement>(null);
   const activateButton = useRef<HTMLButtonElement>(null);
+  const acknowledgementSummaryId = useId();
   useEffect(() => {
     if (focusRequest?.target === "discard") queueMicrotask(() => discardButton.current?.focus());
     if (focusRequest?.target === "activate") queueMicrotask(() => activateButton.current?.focus());
   }, [focusRequest?.revision, focusRequest?.target]);
   const draft = props.draft;
   const stale = props.model.draftStale;
+  const acknowledgement = stale ? null : props.model.commitmentsAcknowledgement;
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =
     draft.goal.kind === "event" ? draft.goal.name : (draft.goal.outcome ?? "Improve fitness");
   return (
     <section className="grid min-w-0 gap-inset" aria-label="Plan Draft review">
+      {acknowledgement === null ? null : (
+        <ReviewCard
+          eyebrow="Written commitments"
+          title="Confirm your written commitments"
+          status="Not yet confirmed"
+          summary="These commitments are recorded but were not applied to Workouts. Activation waits for your confirmation."
+          summaryId={acknowledgementSummaryId}
+        >
+          <div role="table" aria-label="Written commitments">
+            <Fact label="Submitted">{acknowledgement.text}</Fact>
+          </div>
+          <div className="mt-inset flex flex-wrap gap-inset">
+            <Button
+              variant="outline"
+              disabled={busy || actions === null || editingKey !== null}
+              onClick={() => actions?.editPlanCreation("commitments")}
+            >
+              Edit commitments
+            </Button>
+            <Button
+              disabled={busy || actions === null || editingKey !== null}
+              onClick={() =>
+                actions?.answerPlanCreation({
+                  kind: "commitments",
+                  commitments: { kind: "authored", text: acknowledgement.text, acknowledged: true },
+                })
+              }
+            >
+              Confirm limits
+            </Button>
+          </div>
+        </ReviewCard>
+      )}
       {stale ? (
         <ReviewCard title="Changed answers">
           <div role="table" aria-label="Changed answers">
@@ -264,7 +304,10 @@ export function PlanCreationDraftCards(props: {
             <Button
               ref={activateButton}
               aria-haspopup="dialog"
-              disabled={busy || actions === null || workouts.length === 0}
+              aria-describedby={acknowledgement === null ? undefined : acknowledgementSummaryId}
+              disabled={
+                busy || actions === null || workouts.length === 0 || acknowledgement !== null
+              }
               onClick={() => actions?.openPlanCreationActivate()}
             >
               Activate Plan

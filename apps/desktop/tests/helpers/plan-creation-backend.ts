@@ -482,7 +482,11 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     return this.requireHost()["plan.list"]({});
   }
 
-  async seedActiveTraining() {
+  async seedTrainingCreation(
+    commitments: Extract<PlanCreationAnswerInput, { kind: "commitments" }>["commitments"] = {
+      kind: "none",
+    },
+  ): Promise<PlanCreationCardModel> {
     const host = this.requireHost();
     const started = await host["plan_creation.start"]({ commandId: "seed-training-start" });
     if (started.status !== "started") throw new TypeError("Training seed was not started");
@@ -499,7 +503,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
         usableWeekdays: [1, 3, 6],
       },
       { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
-      { kind: "commitments", commitments: { kind: "none" } },
+      { kind: "commitments", commitments },
       { kind: "baseline", baseline: "regular" },
       { kind: "success", success: { kind: "authored", text: "Ride four steady hours" } },
       { kind: "restriction", restriction: { kind: "none" } },
@@ -514,6 +518,12 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       if (answered.status !== "answered") throw new TypeError("Training seed answer was rejected");
       card = answered.planCreation;
     }
+    return card;
+  }
+
+  async seedActiveTraining() {
+    const host = this.requireHost();
+    const card = await this.seedTrainingCreation();
     const previewed = await host["plan_creation.preview"]({
       commandId: "seed-training-preview",
       creationId: card.creationId,
