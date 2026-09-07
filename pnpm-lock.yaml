@@ -176,8 +176,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/coach-contract
       '@enduragent/ui':
-        specifier: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz
-        version: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        specifier: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.2.0/enduragent-ui-0.2.0.tgz
+        version: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.2.0/enduragent-ui-0.2.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       lucide-react:
         specifier: ^1.39.0
         version: 1.39.0(react@19.2.8)
@@ -281,7 +281,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/coach-cli:
     dependencies:
@@ -347,7 +347,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/core:
     dependencies:
@@ -1171,9 +1171,9 @@ packages:
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
 
-  '@enduragent/ui@https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz':
-    resolution: {integrity: sha512-TeLx+ifCF4U2OTesO7hlpNXT4O+R0Lcjxxg2bCLJsZC0skJ6hESkjBxwcWWpcltCBvgDdg7NOvrpcidoq0dclg==, tarball: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz}
-    version: 0.1.0
+  '@enduragent/ui@https://github.com/yerzhansa/enduragent-ui/releases/download/v0.2.0/enduragent-ui-0.2.0.tgz':
+    resolution: {integrity: sha512-EH8VBOVyKz58JFvPCODX+TOp2Pd4+wubbVgDeN1SohPh7j9lrkdFZl9SJzeLnMvACDp+t5WJwoMGpCZCO5dO5Q==, tarball: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.2.0/enduragent-ui-0.2.0.tgz}
+    version: 0.2.0
     engines: {node: '>=24'}
     peerDependencies:
       react: ^19.2.8
@@ -6219,7 +6219,7 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@enduragent/ui@https://github.com/yerzhansa/enduragent-ui/releases/download/v0.1.0/enduragent-ui-0.1.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
+  '@enduragent/ui@https://github.com/yerzhansa/enduragent-ui/releases/download/v0.2.0/enduragent-ui-0.2.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
     dependencies:
       '@base-ui/react': 1.6.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority: 0.7.1
@@ -7374,7 +7374,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@25.6.0)(typescript@6.0.3))(vite@7.3.6(@types/node@25.6.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)(yaml@2.9.0))
 
   '@vitest/expect@4.1.11':
     dependencies:

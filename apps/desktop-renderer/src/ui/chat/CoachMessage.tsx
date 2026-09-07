@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type ReactElement } from "react";
 import { renderCoachMarkdown } from "../../chat/markdown";
-import { COACH_MESSAGE_TEXT_CLASS } from "./Message";
+import { MessageContent } from "@enduragent/ui";
 
 export function CoachMessage(props: { readonly text: string }): ReactElement {
   const host = useRef<HTMLDivElement>(null);
@@ -12,5 +12,5 @@ export function CoachMessage(props: { readonly text: string }): ReactElement {
     renderCoachMarkdown(node, text);
   }, [text]);
 
-  return <div className={COACH_MESSAGE_TEXT_CLASS} ref={host} />;
+  return <MessageContent ref={host} />;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { Button } from "@enduragent/ui";
+import { Button, ProgressDisplay } from "@enduragent/ui";
 import { Card } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
@@ -44,10 +44,10 @@ export function FirstSyncCard(): ReactElement | null {
               : "Your saved progress is safe."}
         </p>
         {syncing ? (
-          <div
-            className="first-sync__track relative mt-row h-1 overflow-hidden rounded-full bg-sunk before:absolute before:h-full before:w-2/5 before:-translate-x-full before:rounded-[inherit] before:bg-ink-2 before:content-[''] before:animate-[first-sync-sweep_1.2s_ease-in-out_infinite] motion-reduce:before:translate-x-0 motion-reduce:before:animate-none"
-            role="progressbar"
-            aria-label="Syncing training history"
+          <ProgressDisplay
+            className="first-sync__track mt-row"
+            label="Syncing training history"
+            value={{ kind: "indeterminate" }}
           />
         ) : null}
         {!syncing && !unreachable ? (

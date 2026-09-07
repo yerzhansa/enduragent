@@ -1,6 +1,5 @@
-import { LoaderCircle } from "lucide-react";
 import type { ReactElement } from "react";
-import { Button } from "@enduragent/ui";
+import { Button, ProgressDisplay } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function Notice(): ReactElement {
@@ -16,18 +15,14 @@ export function CoachProgress(): ReactElement | null {
   const progress = useEnduragentStore((state) => state.chat.coachProgress ?? null);
   if (progress === null) return null;
   return (
-    <section
-      className="coach-progress mt-row grid grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)] items-center gap-inset rounded-card border border-line bg-surface p-ctl-px"
+    <ProgressDisplay
+      className="coach-progress mt-row rounded-card border border-line bg-surface p-ctl-px"
       role="status"
       aria-live="polite"
       aria-busy="true"
-    >
-      <LoaderCircle
-        className="size-4 justify-self-center animate-spin text-accent motion-reduce:animate-none"
-        aria-hidden="true"
-      />
-      <strong className="text-sm font-medium leading-5">{progress}</strong>
-    </section>
+      label={progress}
+      value={{ kind: "indeterminate" }}
+    />
   );
 }
 

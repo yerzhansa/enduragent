@@ -1,3 +1,4 @@
+import { AttachmentList, AttachmentPreview, EvidenceList, NoticeRow } from "@enduragent/ui";
 import type {
   AttachmentAdmissionReadModel,
   ChatAttachmentComposerItem,
@@ -6,12 +7,11 @@ import {
   Activity,
   AlertTriangle,
   CalendarDays,
-  Check,
   FileText,
   Image as ImageIcon,
   LoaderCircle,
 } from "lucide-react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
@@ -54,35 +54,6 @@ function AttachmentIcon(props: { readonly kind: ChatAttachmentComposerItem["kind
   );
 }
 
-function Note(props: {
-  readonly tone?: "normal" | "warning" | "activity";
-  readonly title: string;
-  readonly children: ReactNode;
-  readonly action?: ReactElement;
-}): ReactElement {
-  const warning = props.tone === "warning";
-  const Icon = warning ? AlertTriangle : props.tone === "activity" ? Activity : Check;
-  const iconTone = warning
-    ? "bg-danger/14 text-danger"
-    : props.tone === "activity"
-      ? "bg-accent/14 text-accent"
-      : "bg-ok/14 text-ok";
-  return (
-    <div className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-3 border-t border-line bg-bg-2 px-4 py-3 max-[760px]:grid-cols-[32px_minmax(0,1fr)]">
-      <span className={`flex size-8 items-center justify-center rounded-md ${iconTone}`}>
-        <Icon className="size-4" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <strong className="block text-sm text-ink">{props.title}</strong>
-        <p className="mt-1 mb-0 text-xs leading-5 text-ink-2">{props.children}</p>
-      </div>
-      {props.action === undefined ? null : (
-        <span className="max-[760px]:col-start-2">{props.action}</span>
-      )}
-    </div>
-  );
-}
-
 function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }): ReactElement {
   const actions = useEnduragentStore((state) => state.chatActions);
   const planningRequestsLoaded = useEnduragentStore((state) => state.chat.planningRequestsLoaded);
@@ -92,34 +63,29 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
   if (attachment.preview.kind === "document") {
     const scanned = attachment.preview.extractedTextChars === 0;
     return (
-      <Note title={scanned ? "Stored locally — no text found" : "Stored locally"}>
+      <NoticeRow title={scanned ? "Stored locally — no text found" : "Stored locally"}>
         {scanned
           ? "Coach can inspect visual PDF pages when image input is available; OCR is not used."
           : "Coach can read this file through managed attachment tools."}
-      </Note>
+      </NoticeRow>
     );
   }
   if (attachment.preview.kind === "activity") {
     const session = attachment.preview.sessions[0]!;
     return (
       <>
-        <div className="grid grid-cols-3 divide-x divide-line border-t border-line max-[760px]:grid-cols-1 max-[760px]:divide-x-0 max-[760px]:divide-y">
-          <div className="px-4 py-3">
-            <span className="block text-xs text-ink-2">Date</span>
-            <strong className="mt-1 block text-sm">{formatDate(session.startUtc)}</strong>
-          </div>
-          <div className="px-4 py-3">
-            <span className="block text-xs text-ink-2">Duration</span>
-            <strong className="mt-1 block text-sm">{duration(session.durationSeconds)}</strong>
-          </div>
-          <div className="px-4 py-3">
-            <span className="block text-xs text-ink-2">Distance</span>
-            <strong className="mt-1 block text-sm">{distance(session.distanceMeters)}</strong>
-          </div>
-        </div>
-        <Note tone="activity" title="Will add to Training when sent">
+        <EvidenceList
+          className="border-t border-line"
+          label="Recorded activity"
+          rows={[
+            { id: "date", label: "Date", value: formatDate(session.startUtc) },
+            { id: "duration", label: "Duration", value: duration(session.durationSeconds) },
+            { id: "distance", label: "Distance", value: distance(session.distanceMeters) },
+          ]}
+        />
+        <NoticeRow tone="neutral" title="Will add to Training when sent">
           Send confirms the import; Plan and Calendar stay unchanged.
-        </Note>
+        </NoticeRow>
       </>
     );
   }
@@ -162,7 +128,7 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
           })}
         </fieldset>
         {selected === undefined ? null : (
-          <Note
+          <NoticeRow
             title={`${selected.title} selected`}
             action={
               <Button
@@ -179,16 +145,16 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
             }
           >
             Send asks Coach to analyze it, or review it in Plan now.
-          </Note>
+          </NoticeRow>
         )}
       </>
     );
   }
   return (
-    <Note title="Image input available">
+    <NoticeRow title="Image input available">
       The configured model can view this image ({attachment.preview.width} ×{" "}
       {attachment.preview.height}).
-    </Note>
+    </NoticeRow>
   );
 }
 
@@ -197,19 +163,17 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
   const setActiveView = useEnduragentStore((state) => state.setActiveView);
   const attachment = props.attachment;
   return (
-    <section
-      className="overflow-hidden rounded-card border border-line-2 bg-surface shadow-elev-2"
+    <AttachmentPreview
       aria-label={`${attachment.displayName} attachment`}
-    >
-      <div className="flex min-h-14 min-w-0 items-center gap-3 px-4 py-2">
-        <AttachmentIcon kind={attachment.kind} />
-        <div className="min-w-0 flex-1">
-          <strong className="block truncate text-sm">{attachment.displayName}</strong>
-          <small className="mt-1 block text-xs text-ink-2">
-            {attachment.extension.toUpperCase()} · {bytes(attachment.byteSize)}
-            {attachment.status === "preprocessing" ? " · processing locally" : ""}
-          </small>
-        </div>
+      title={attachment.displayName}
+      detail={
+        <>
+          {attachment.extension.toUpperCase()} · {bytes(attachment.byteSize)}
+          {attachment.status === "preprocessing" ? " · processing locally" : ""}
+        </>
+      }
+      icon={<AttachmentIcon kind={attachment.kind} />}
+      actions={
         <Button
           type="button"
           variant="ghost"
@@ -220,14 +184,15 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
         >
           Remove
         </Button>
-      </div>
+      }
+    >
       {attachment.status === "preprocessing" ? (
-        <Note title="Processing locally">
+        <NoticeRow title="Processing locally">
           The file is being checked and prepared without sending its raw contents to a provider.
-        </Note>
+        </NoticeRow>
       ) : null}
       {attachment.status === "blocked" ? (
-        <Note
+        <NoticeRow
           tone="warning"
           title={
             attachment.reason === "encrypted_pdf"
@@ -250,10 +215,10 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
           {attachment.reason === "encrypted_pdf"
             ? "Choose an unlocked PDF; the current draft is preserved."
             : "Remove it or choose a compatible model in Settings."}
-        </Note>
+        </NoticeRow>
       ) : null}
       {attachment.status === "failed" ? (
-        <Note
+        <NoticeRow
           tone="warning"
           title="This file couldn’t be prepared"
           action={
@@ -272,10 +237,10 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
           }
         >
           Your message draft is safe. Remove this file or try it again.
-        </Note>
+        </NoticeRow>
       ) : null}
       {attachment.status === "ready" ? <ReadyPreview attachment={attachment} /> : null}
-    </section>
+    </AttachmentPreview>
   );
 }
 
@@ -348,7 +313,7 @@ export function AttachmentPanel(): ReactElement | null {
     return null;
   }
   return (
-    <div className="mb-2.5 grid gap-2.5" aria-live="polite">
+    <AttachmentList aria-live="polite">
       {surface.attachmentBusy ? (
         <div className="flex items-center gap-3 rounded-card border border-line-2 bg-surface p-4 text-sm text-ink-2">
           <LoaderCircle
@@ -389,6 +354,6 @@ export function AttachmentPanel(): ReactElement | null {
       {attachments.map((attachment) => (
         <AttachmentCard key={attachment.attachmentId} attachment={attachment} />
       ))}
-    </div>
+    </AttachmentList>
   );
 }
