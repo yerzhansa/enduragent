@@ -125,7 +125,11 @@ describe("codex-agent MCP endpoint", () => {
   beforeEach(() => {
     dataDir = mkdtempSync(join(tmpdir(), "codex-mcp-"));
     log = { reads: [], writes: [], fetches: 0 };
-    ctx = createTurnContext(null, "chat-1");
+    ctx = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: null,
+      chatId: "chat-1",
+    });
   });
 
   afterEach(async () => {

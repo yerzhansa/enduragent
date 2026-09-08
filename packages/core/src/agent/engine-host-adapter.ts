@@ -1,3 +1,5 @@
+import { createNpmCoachLanguage } from "../language-preference.js";
+import type { CoachLanguage } from "@enduragent/i18n";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type {
@@ -34,6 +36,7 @@ import {
 import { classifyFailure, extractRetryAfterMs } from "./token-utils.js";
 
 export interface EngineHostAdapterOverrides {
+  readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReaderPort;
   readonly calendarMutations?: PlatformCalendarMutationsPort;
   readonly modelTransportDecorator?: ModelTransportDecorator;
@@ -79,6 +82,7 @@ export function createEngineHostAdapter(input: {
   const { config } = input;
   const overrides = input.overrides ?? {};
   const engineConfig = engineConfigFromConfig(config);
+  const coachLanguage = overrides.language ?? createNpmCoachLanguage(config.dataDir);
   const memory = new Memory(config.dataDir, config.session.timezone || "UTC");
   const conversationStore = createConversationStore(
     config.dataDir,
@@ -119,6 +123,7 @@ export function createEngineHostAdapter(input: {
     conversationStore,
     ports: {
       config: engineConfig,
+      language: { resolveFor: ({ athleteText }) => coachLanguage.resolveFor({ athleteText }) },
       memory,
       chatStore: conversationStore,
       transcriptWriter: conversationStore,

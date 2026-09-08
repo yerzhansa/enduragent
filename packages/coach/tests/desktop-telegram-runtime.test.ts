@@ -1,4 +1,6 @@
+import { createTestCoachLanguage } from "./language-fixture.js";
 import { describe, expect, it, vi } from "vitest";
+import type { CoachEngine } from "@enduragent/coach-contract";
 import type { CreateTelegramChannelInput, TelegramChannelRuntime } from "@enduragent/core";
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { InvocationCoordinator } from "../src/daemon/invocation-coordinator.js";
@@ -51,14 +53,22 @@ describe("Desktop Telegram runtime projection", () => {
       published: true,
       referenceSucceeded: true,
       requests: { store: 1, reference: 1, total: 2 },
-      droppedActivities: { overall: { total: 0, visible: 0, restrictions: [], other: 0 }, recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 } },
+      droppedActivities: {
+        overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+        recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+      },
     }));
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "Bonjour" }));
     const lifecycle = {
+      language: createTestCoachLanguage(),
       home: { root: "/synthetic/home" },
-      engine: {},
+      engine: { chat },
       operations: { sync },
       confirmations,
-    } as unknown as Pick<LocalCoachLifecycle, "home" | "engine" | "operations" | "confirmations">;
+    } as unknown as Pick<
+      LocalCoachLifecycle,
+      "home" | "engine" | "operations" | "confirmations" | "language"
+    >;
     const invocations = {
       canAdmit: () => true,
       reserve,
@@ -95,7 +105,21 @@ describe("Desktop Telegram runtime projection", () => {
     const projected = createBot.mock.calls[0]![0];
     expect(projected.token).toBe("secret");
     expect(projected.webhookPolicy).toBe("preserve");
-    expect(projected.engine).toBe(lifecycle.engine);
+    expect(projected.engine).not.toBe(lifecycle.engine);
+    await projected.engine.chat({
+      chatId: "telegram:73",
+      message: "Hello\nBonjour",
+      turn: { language: "fr", languageSource: "message" },
+    });
+    expect(chat).toHaveBeenCalledWith(
+      {
+        chatId: "telegram:73",
+        message: "Hello\nBonjour",
+        turn: { language: "fr", languageSource: "message" },
+      },
+      undefined,
+    );
+    expect(projected.host.language).toBe(lifecycle.language);
     expect(projected.host.diagnostics).toBeUndefined();
     const next = vi.fn(async () => undefined);
     await projected.host.access.middleware({} as never, next);
@@ -155,11 +179,15 @@ describe("Desktop Telegram runtime projection", () => {
       return { run: vi.fn(), cancel: vi.fn(), key: "telegram:73" };
     });
     const lifecycle = {
+      language: createTestCoachLanguage(),
       home: { root: "/synthetic/home" },
       engine: {},
       operations: { sync: vi.fn() },
       confirmations: {},
-    } as unknown as Pick<LocalCoachLifecycle, "home" | "engine" | "operations" | "confirmations">;
+    } as unknown as Pick<
+      LocalCoachLifecycle,
+      "home" | "engine" | "operations" | "confirmations" | "language"
+    >;
     const runtimeFactory = createDesktopTelegramRuntimeFactory(
       {
         lifecycle,

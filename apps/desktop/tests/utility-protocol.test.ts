@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("electron", () => ({
+  app: { getPreferredSystemLanguages: () => ["en-US"] },
+  utilityProcess: { fork: vi.fn() },
+}));
 import {
   isUtilityShutdownFrame,
   isUtilityStartFrame,
@@ -9,6 +14,17 @@ import {
 import { createUtilityTerminalFrame } from "../src/utility/protocol.js";
 
 describe("desktop utility protocol", () => {
+  it("accepts preferred system languages in start frames", () => {
+    expect(
+      isUtilityStartFrame({
+        type: "start",
+        homeRoot: "/synthetic/athlete",
+        appVersion: "2026.8.0",
+        preferredLanguages: ["en-US"],
+      }),
+    ).toBe(true);
+  });
+
   it("accepts only strict start and shutdown control frames", () => {
     expect(
       isUtilityStartFrame({

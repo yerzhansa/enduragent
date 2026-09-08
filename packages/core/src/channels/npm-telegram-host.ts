@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import type { BinaryConfig } from "../binary.js";
 import type { ConfirmationGate } from "../agent/confirmation-gate.js";
 import { buildWhatsNewMessage } from "../release-notes.js";
@@ -22,6 +23,7 @@ import { createAuthMiddleware } from "./telegram-access.js";
 import type { TelegramHostCapabilities } from "./telegram-host.js";
 
 export interface CreateNpmTelegramHostInput {
+  readonly language: CoachLanguage;
   readonly binary: BinaryConfig;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
   readonly dataDir: string;
@@ -82,6 +84,7 @@ export function createNpmTelegramHost(input: CreateNpmTelegramHostInput): Telegr
   const reference = input.reference;
 
   return {
+    language: input.language,
     access: {
       middleware: createAuthMiddleware({
         dataDir: input.dataDir,

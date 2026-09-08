@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCoachEngine } from "../src/index.js";
 import type { CoachDecisionReadModel, TurnEvent } from "@enduragent/coach-contract";
 import type { GenerateResult, Sport } from "../src/sport.js";
+import type { EngineHostPorts } from "../src/host-ports.js";
+import type { LanguageResolution } from "@enduragent/i18n";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 
 const dirs: string[] = [];
@@ -39,7 +41,7 @@ function makeDecision(chatId: string): CoachDecisionReadModel {
   };
 }
 
-function setup() {
+function setup(language?: EngineHostPorts["language"]) {
   const dataDir = mkdtempSync(join(tmpdir(), "coach-decision-engine-"));
   dirs.push(dataDir);
   const ports = baseAgentConfig(dataDir);
@@ -49,20 +51,18 @@ function setup() {
     athleteText: string;
     coachText: string;
   }> = [];
-  const generate = vi.fn(
-    async (_request: unknown): Promise<GenerateResult> => ({
-      text: "Keep tomorrow easy, then reassess.",
-      toolCalls: [],
-      finishReason: "stop",
-      usage: {
-        inputTokens: 1,
-        outputTokens: 1,
-        totalTokens: 2,
-        inputTokenDetails: { noCacheTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
-        outputTokenDetails: { textTokens: 1, reasoningTokens: 0 },
-      },
-    }),
-  );
+  const generate = vi.fn(async (_request: unknown): Promise<GenerateResult> => ({
+    text: "Keep tomorrow easy, then reassess.",
+    toolCalls: [],
+    finishReason: "stop",
+    usage: {
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 2,
+      inputTokenDetails: { noCacheTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      outputTokenDetails: { textTokens: 1, reasoningTokens: 0 },
+    },
+  }));
   const ids = ["continuation-1", "turn-1"];
   const engine = createCoachEngine({
     sport: {
@@ -78,6 +78,7 @@ function setup() {
     } as Sport,
     ports: {
       ...ports,
+      ...(language === undefined ? {} : { language }),
       transcriptWriter: {
         appendCompletedTurn: () => undefined,
         appendInterruptedTurn: (turn) => interrupted.push(turn),
@@ -96,6 +97,78 @@ function setup() {
 }
 
 describe("coach decision lifecycle", () => {
+  it.each(["chat-language", "plan:language"])(
+    "resolves the saved athlete message when continuing %s and re-resolves on retry",
+    async (chatId) => {
+      let language: LanguageResolution = { language: "it", source: "preference", locale: "it-IT" };
+      const resolveFor = vi.fn(async () => language);
+      const { engine, generate, store } = setup({ resolveFor });
+      store.appendDecisionRequested({
+        turnId: "turn-decision",
+        decision: makeDecision(chatId),
+        toolCallId: "tool-1",
+        athleteText: "Come recupero domani?",
+        requestedAt: "1998-08-24T00:00:00.000Z",
+      });
+      expect(resolveFor).not.toHaveBeenCalled();
+      generate.mockRejectedValueOnce(new Error("failed continuation"));
+      await expect(
+        engine.answerCoachDecision({
+          chatId,
+          decisionId: "decision-1",
+          answer: { kind: "option", optionId: "recovery" },
+        }),
+      ).rejects.toThrow("failed continuation");
+      expect(resolveFor).toHaveBeenCalledExactlyOnceWith({
+        chatId,
+        athleteText: "Come recupero domani?",
+      });
+      expect(generate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            system: expect.stringContaining("The athlete chose Italian (Italiano)."),
+          }),
+        }),
+      );
+      language = { language: "ja", source: "preference", locale: "ja-JP" };
+      await engine.resumeCoachDecision({ chatId, decisionId: "decision-1" });
+      expect(resolveFor).toHaveBeenCalledTimes(2);
+      expect(resolveFor).toHaveBeenLastCalledWith({ chatId, athleteText: "Come recupero domani?" });
+      expect(generate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            system: expect.stringContaining("The athlete chose Japanese (日本語)."),
+          }),
+        }),
+      );
+    },
+  );
+
+  it("resolves a custom decision answer as the latest actual athlete message", async () => {
+    const resolveFor = vi.fn(async (): Promise<LanguageResolution> => ({
+      language: "it",
+      source: "message",
+      locale: "it-IT",
+    }));
+    const { engine, store } = setup({ resolveFor });
+    store.appendDecisionRequested({
+      turnId: "turn-decision",
+      decision: makeDecision("chat-custom-language"),
+      toolCallId: "tool-1",
+      athleteText: "What should I do tomorrow?",
+      requestedAt: "1998-08-24T00:00:00.000Z",
+    });
+    await engine.answerCoachDecision({
+      chatId: "chat-custom-language",
+      decisionId: "decision-1",
+      answer: { kind: "custom", text: "Vorrei riposare domani." },
+    });
+    expect(resolveFor).toHaveBeenCalledExactlyOnceWith({
+      chatId: "chat-custom-language",
+      athleteText: "Vorrei riposare domani.",
+    });
+  });
+
   it("persists one continuation and returns it on an identical duplicate answer", async () => {
     const { engine, generate, store } = setup();
     const events: TurnEvent[] = [];

@@ -19,6 +19,7 @@ import type { DaemonHealthState } from "../../../packages/coach/src/daemon/healt
 import type { InvocationCoordinator } from "../../../packages/coach/src/daemon/invocation-coordinator.js";
 import type { DesktopTelegramController } from "../../../packages/coach/src/desktop-telegram-controller.js";
 import type { LocalCoachLifecycle } from "../../../packages/coach/src/local-runner.js";
+import { createTestCoachLanguage } from "../../../packages/coach/tests/language-fixture.js";
 
 const telegramTransport = vi.hoisted(() => ({
   construct: undefined as ((token: string) => unknown) | undefined,
@@ -479,11 +480,12 @@ async function createFixture(): Promise<ReleaseChainFixture> {
   };
   const invocations = createInvocationCoordinator();
   const lifecycle = {
+    language: createTestCoachLanguage(),
     home: { root: athleteHome, storeDir, archiveDir, configDir },
     engine,
     operations,
     confirmations,
-  } as Pick<LocalCoachLifecycle, "home" | "engine" | "operations" | "confirmations">;
+  } as Pick<LocalCoachLifecycle, "home" | "engine" | "operations" | "confirmations" | "language">;
   const createRuntime = createDesktopTelegramRuntimeFactory(
     {
       lifecycle,

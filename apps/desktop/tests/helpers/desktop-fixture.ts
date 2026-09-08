@@ -452,6 +452,12 @@ export async function launchDesktopFixture(input: {
         ReturnType<CoachOperations["getRuntimeConfig"]>
       >;
     },
+    async getLanguagePreference() {
+      return { value: null };
+    },
+    async setLanguagePreference(request) {
+      return { value: request.value };
+    },
     async getUnitsPreference(request) {
       return finalFrame(await invoke("getUnitsPreference", request)) as {
         value: "metric" | "imperial";

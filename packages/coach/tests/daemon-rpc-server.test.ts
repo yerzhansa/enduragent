@@ -51,6 +51,7 @@ import type { MonotonicTimer, ScheduledMonotonicTimer } from "../src/daemon/upgr
 import type { DesktopTelegramController } from "../src/desktop-telegram-controller.js";
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { LocalCoachLifecycle } from "../src/local-runner.js";
+import { createTestCoachLanguage } from "./language-fixture.js";
 
 const roots: string[] = [];
 
@@ -1630,6 +1631,66 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     );
     expect(parseCoachRpcEnvelope(await client.frames.next())).toMatchObject({
       id: "units-invalid",
+      error: { code: -32602, message: "Invalid params" },
+    });
+    await client.close();
+  });
+
+  it("dispatches strict authenticated language reads and writes through the operations object", async () => {
+    const token = "x".repeat(43);
+    const getLanguagePreference = vi.fn(async () => ({
+      value: null,
+    }));
+    const setLanguagePreference = vi.fn(async ({ value }: { value: "it" | null }) => ({
+      value,
+    }));
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: { ...operations, getLanguagePreference, setLanguagePreference },
+      token,
+      owner: "app-supervised",
+    });
+    const client = await openSocket(rpc);
+    client.ws.send(JSON.stringify(createClientHandshakeFrame(token)));
+    await client.frames.next();
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "language-read",
+        method: "getLanguagePreference",
+        params: {},
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toEqual({
+      jsonrpc: "2.0",
+      id: "language-read",
+      result: { value: null },
+    });
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "language-write",
+        method: "setLanguagePreference",
+        params: { value: "it" },
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toEqual({
+      jsonrpc: "2.0",
+      id: "language-write",
+      result: { value: "it" },
+    });
+    expect(getLanguagePreference).toHaveBeenCalledWith({});
+    expect(setLanguagePreference).toHaveBeenCalledWith({ value: "it" });
+    client.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "language-invalid",
+        method: "setLanguagePreference",
+        params: { value: "other" },
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await client.frames.next())).toMatchObject({
+      id: "language-invalid",
       error: { code: -32602, message: "Invalid params" },
     });
     await client.close();
@@ -3620,13 +3681,14 @@ describe.skipIf(!hasLoopback)("authenticated upgrade control", () => {
     const runtimeFactory = createDesktopTelegramRuntimeFactory(
       {
         lifecycle: {
+          language: createTestCoachLanguage(),
           home: { root: "/synthetic/home" },
           engine: engine(),
           operations,
           confirmations: {},
         } as unknown as Pick<
           LocalCoachLifecycle,
-          "home" | "engine" | "operations" | "confirmations"
+          "home" | "engine" | "operations" | "confirmations" | "language"
         >,
         invocations,
         appVersion: "1.2.3",

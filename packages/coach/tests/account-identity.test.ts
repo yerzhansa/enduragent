@@ -592,7 +592,7 @@ describe("account identity", () => {
     expect(baseFetch).toHaveBeenCalledOnce();
     const upgraded = openSqliteStorage(storePath);
     try {
-      expect(await upgraded.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+      expect(await upgraded.get("PRAGMA user_version")).toEqual({ user_version: 32 });
       expect(await upgraded.get("SELECT count(*) AS count FROM store_owner")).toEqual({ count: 1 });
       expect(await upgraded.all("SELECT * FROM workout ORDER BY workout_key")).toEqual(
         beforeWorkouts,

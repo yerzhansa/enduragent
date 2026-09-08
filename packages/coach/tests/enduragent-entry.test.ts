@@ -1,3 +1,4 @@
+import { createTestCoachLanguage } from "./language-fixture.js";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -568,6 +569,7 @@ describe("enduragent executable composition", () => {
       ): Promise<LocalCoachRunResult<T>> => {
         withLocalCoachCalls += 1;
         expect(input.home).toBe(preparedHome);
+        expect(input.preferredLanguages).toEqual(["fr-BE", "en-US"]);
         return status === "not-configured" ? { status, configPath: privateConfigPath } : { status };
       };
       const privateConfigPath = join(home.configDir, "synthetic-private-profile-token");
@@ -578,6 +580,7 @@ describe("enduragent executable composition", () => {
           terminal: io.value,
           signal: new AbortController().signal,
           appVersion: "2026.8.0",
+          preferredLanguages: ["fr-BE", "en-US"],
         },
         {
           resolveAthleteHome: () => home,
@@ -667,6 +670,7 @@ describe("enduragent executable composition", () => {
     const lifecycle = {
       home,
       engine: mocked.engine,
+      language: createTestCoachLanguage(),
       operations,
       spendMeter,
       confirmations,
@@ -753,6 +757,7 @@ describe("enduragent executable composition", () => {
             const value = await input.operation({
               home,
               engine: mocked.engine,
+              language: createTestCoachLanguage(),
               operations,
               spendMeter,
               confirmations,
@@ -997,6 +1002,7 @@ describe("enduragent executable composition", () => {
       const lifecycle = {
         home,
         engine: mocked.engine,
+        language: createTestCoachLanguage(),
         operations,
         spendMeter,
         confirmations,
@@ -1110,6 +1116,7 @@ describe("enduragent executable composition", () => {
               value: await input.operation({
                 home,
                 engine: mocked.engine,
+                language: createTestCoachLanguage(),
                 operations,
                 spendMeter,
                 confirmations,

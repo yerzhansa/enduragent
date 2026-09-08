@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -95,6 +96,51 @@ describe("engine host adapter", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     rmSync(dataDir, { recursive: true, force: true });
+  });
+
+  it("resolves through the shared language service after preference changes", async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-language-"));
+    vi.stubEnv("ENDURAGENT_LANGUAGE", "");
+    vi.stubEnv("LANGUAGE", "de_DE.UTF-8");
+    const language = createNpmCoachLanguage(dataDir);
+    const resolve = vi.spyOn(language, "resolveFor");
+    const { ports } = createEngineHostAdapter({
+      config: config(dataDir),
+      stateReader: legacyStateReader,
+      overrides: { language },
+    });
+    await language.set("it");
+    await expect(
+      ports.language.resolveFor({ chatId: "synthetic", athleteText: "hello" }),
+    ).resolves.toMatchObject({ language: "it", source: "preference" });
+    expect(resolve).toHaveBeenLastCalledWith({ athleteText: "hello" });
+    await language.set(null);
+    await expect(
+      ports.language.resolveFor({ chatId: "synthetic", athleteText: "42" }),
+    ).resolves.toMatchObject({ language: "de", source: "surface" });
+  });
+
+  it("uses the environment override while persisting the next preference", async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-language-env-"));
+    vi.stubEnv("ENDURAGENT_LANGUAGE", "fr");
+    const language = createNpmCoachLanguage(dataDir);
+    const { ports } = createEngineHostAdapter({
+      config: config(dataDir),
+      stateReader: legacyStateReader,
+      overrides: { language },
+    });
+    await expect(language.set("ja")).resolves.toMatchObject({
+      value: "fr",
+      origin: "environment",
+    });
+    await expect(
+      ports.language.resolveFor({ chatId: "synthetic", athleteText: "hello" }),
+    ).resolves.toMatchObject({ language: "fr", source: "preference" });
+    vi.stubEnv("ENDURAGENT_LANGUAGE", "");
+    await expect(createNpmCoachLanguage(dataDir).current()).resolves.toMatchObject({
+      value: "ja",
+      origin: "stored",
+    });
   });
 
   it("projects immutable engine config with independent chat and compact windows", () => {

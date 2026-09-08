@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -63,7 +64,9 @@ afterEach(() => {
 describe("createNpmTelegramHost", () => {
   it("omits operations and raw diagnostics when no Reference runtime is supplied", async () => {
     const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
+    const language = createNpmCoachLanguage(dataDir);
     const host = createNpmTelegramHost({
+      language,
       binary: cyclingBinary,
       confirmations: {
         peek: () => undefined,
@@ -73,6 +76,7 @@ describe("createNpmTelegramHost", () => {
       dataDir,
     });
 
+    expect(host.language).toBe(language);
     expect(host.operations).toBeUndefined();
     expect(host.diagnostics).toBeUndefined();
   });
@@ -96,6 +100,7 @@ describe("createNpmTelegramHost", () => {
     };
     const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
     const host = createNpmTelegramHost({
+      language: createNpmCoachLanguage(dataDir),
       binary: cyclingBinary,
       confirmations,
       dataDir,
@@ -132,6 +137,7 @@ describe("createNpmTelegramHost", () => {
   it("exposes npm install only under npm self-update policy", async () => {
     const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
     const host = createNpmTelegramHost({
+      language: createNpmCoachLanguage(dataDir),
       binary: cyclingBinary,
       confirmations: {
         peek: () => undefined,
@@ -159,6 +165,7 @@ describe("createNpmTelegramHost", () => {
     managed = true;
     const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
     const host = createNpmTelegramHost({
+      language: createNpmCoachLanguage(dataDir),
       binary: cyclingBinary,
       confirmations: {
         peek: () => undefined,

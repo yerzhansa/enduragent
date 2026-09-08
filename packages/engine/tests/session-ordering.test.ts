@@ -3,7 +3,11 @@ import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
 import { withSessionLock } from "../src/agent/session-lock.js";
 import { createTurnContext } from "../src/agent/turn-context.js";
 
-function deferred(): { promise: Promise<void>; resolve: () => void; reject: (error: Error) => void } {
+function deferred(): {
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: Error) => void;
+} {
   let resolve!: () => void;
   let reject!: (error: Error) => void;
   const promise = new Promise<void>((res, rej) => {
@@ -93,8 +97,14 @@ describe("per-session ordering", () => {
       source: "platform",
       confidence: "high",
     };
-    const contextA = createTurnContext(anchorA);
-    const contextB = createTurnContext(anchorB);
+    const contextA = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: anchorA,
+    });
+    const contextB = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: anchorB,
+    });
     contextA.readToolCache.set("probe", "A");
     contextA.turnWrites.writesCommitted = 1;
     expect(contextA).not.toBe(contextB);

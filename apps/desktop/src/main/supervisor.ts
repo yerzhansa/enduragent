@@ -1,5 +1,5 @@
 import { isAbsolute } from "node:path";
-import { utilityProcess, type UtilityProcess } from "electron";
+import { app, utilityProcess, type UtilityProcess } from "electron";
 import {
   AppSupervisedDaemonStartError,
   resolveDesktopDaemon,
@@ -21,6 +21,7 @@ export type { UtilityTerminalFrame } from "../utility/protocol.js";
 
 export type UtilityStartFrame = {
   readonly type: "start";
+  readonly preferredLanguages?: string[];
   readonly homeRoot: string;
   readonly appVersion: string;
   readonly handoffCapability?: string;
@@ -35,8 +36,16 @@ function isReadinessFailureStatus(value: unknown): value is ReadinessFailureStat
 export function isUtilityStartFrame(value: unknown): value is UtilityStartFrame {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
+  const keys = Object.keys(record)
+    .filter((key) => key !== "preferredLanguages")
+    .sort();
+  const languages = record.preferredLanguages;
   if (
+    (languages !== undefined &&
+      (!Array.isArray(languages) ||
+        !languages.every(
+          (entry: unknown) => typeof entry === "string" && entry.length > 0 && entry.length <= 128,
+        ))) ||
     record.type !== "start" ||
     typeof record.homeRoot !== "string" ||
     !isAbsolute(record.homeRoot) ||
@@ -263,6 +272,7 @@ export async function forkAppSupervisedDaemon(input: {
     type: "start",
     homeRoot: input.homeRoot,
     appVersion: input.appVersion,
+    preferredLanguages: app.getPreferredSystemLanguages(),
     ...(input.handoffCapability === undefined
       ? {}
       : { handoffCapability: input.handoffCapability }),

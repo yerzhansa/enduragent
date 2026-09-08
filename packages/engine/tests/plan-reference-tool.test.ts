@@ -40,7 +40,13 @@ const planning: PlanningReadModel = {
 
 async function execute(
   request: unknown,
-  context = createTurnContext(null, "desktop", undefined, "Show my Plan", "turn-1"),
+  context = createTurnContext({
+    language: { language: "en", source: "default", locale: "en-GB" },
+    resolvedCs: null,
+    chatId: "desktop",
+    athleteText: "Show my Plan",
+    turnId: "turn-1",
+  }),
 ) {
   const read = vi.fn(async () => planning);
   const planTool = createPlanReferenceTool({ planning: { getPlanningReadModel: read } });
@@ -75,7 +81,13 @@ describe("read_plan_reference tool", () => {
   });
 
   it("returns Plan data outside Desktop without recording a host card", async () => {
-    const context = createTurnContext(null, "telegram:42", undefined, "Show my Plan", "turn-1");
+    const context = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: null,
+      chatId: "telegram:42",
+      athleteText: "Show my Plan",
+      turnId: "turn-1",
+    });
     const value = await execute({ kind: "active_plan_summary" }, context);
     expect(value.result).toMatchObject({ status: "ready" });
     expect(context.planReference.selection).toBeNull();

@@ -1,3 +1,4 @@
+import { createTestCoachLanguage } from "./language-fixture.js";
 import { createServer, type Server } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
@@ -348,6 +349,7 @@ describe.skipIf(!hasLoopback)("CLI verbs over real RPC framing", () => {
     const conversation = createConversationStore(dataDir);
     let idSequence = 0;
     const ports: EngineHostPorts = {
+      language: createTestCoachLanguage(),
       config: engineConfigFromConfig(config),
       memory: new Memory(dataDir, "UTC"),
       chatStore: conversation,

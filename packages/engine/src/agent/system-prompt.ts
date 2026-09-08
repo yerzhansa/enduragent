@@ -6,6 +6,7 @@
 import type { SportPersona } from "../sport.js";
 import type { MemoryStorePort } from "../host-ports.js";
 import { LAYER_3_PROMPT_RULES } from "@enduragent/kernel/reference/validation";
+import { describeLanguage, type LanguageResolution } from "@enduragent/i18n";
 import { wrapAthleteContextFence } from "./prompt-fence.js";
 
 // ============================================================================
@@ -92,6 +93,7 @@ When a technical term is genuinely the takeaway, define it in parens on first us
 ("decoupling — how much your heart rate drifts up at the same power"). Feel is the
 athlete's own check, not a measured threshold; when the number and the feel
 disagree, trust the effort.
+Mirror the athlete's register within the resolved reply language; mirroring never changes that language.
 
 ## Name your basis
 Every recommendation names, in plain language, the signal(s) it rests on — a
@@ -297,6 +299,19 @@ export function staticRuleBlocks(
   return LAYER_3_GROUNDING_ENABLED ? [...blocks, LAYER_3_PROMPT_RULES] : blocks;
 }
 
+function replyLanguageRules(resolution: LanguageResolution): string {
+  const { englishName, endonym } = describeLanguage(resolution.language);
+  const direction =
+    resolution.source === "preference"
+      ? `The athlete chose ${englishName} (${endonym}). Write every athlete-facing sentence in ${englishName}, even when the athlete writes in another language. This rule outranks "Mirror the athlete's register": mirror register, tone, and level of detail within ${englishName}; never mirror the language itself.`
+      : `No language is saved. Reply in the language of the athlete's latest message; that is what "Mirror the athlete's register" means for language. When the message carries no language signal (a bare command, numbers only), reply in ${englishName} (${endonym}).`;
+  return `# Reply language
+
+${direction}
+
+The rule covers your prose only. Leave these exactly as they are: tool arguments and every JSON field name and value, metric names and units (FTP, Fitness, Fatigue, Form, Load, Intensity, weighted average power, W/kg, bpm), memory-file section headings and the numerals inside them, compaction summary headings, plan and workout identifiers, activity names copied from the athlete's data, cited titles, and command names such as /review. Do not translate stored athlete text or rewrite historical content. Do not change numeric values, units, dates, or cited evidence because of the language.`;
+}
+
 export function buildSystemPrompt(
   persona: SportPersona,
   memory: MemoryStorePort,
@@ -306,6 +321,7 @@ export function buildSystemPrompt(
     excludeSections?: readonly string[];
     context?: string;
     confirmationGate?: boolean;
+    outputLanguage?: LanguageResolution;
   },
 ): string {
   const skillsContent = Object.entries(persona.skills)
@@ -341,6 +357,9 @@ export function buildSystemPrompt(
   // appendCurrentTimeLine() so it stays fresh across long sessions and
   // doesn't go stale crossing local midnight. See user-time.ts.
   volatileParts.push(`# Current Date & Time\n\nTime zone: ${tz}`);
+  if (opts?.outputLanguage) {
+    volatileParts.push(replyLanguageRules(opts.outputLanguage));
+  }
 
   // Volatile per-turn block: rendered AFTER the cache boundary because it
   // depends on disk state (whether the last sync failed validation) and would
@@ -364,7 +383,7 @@ export function buildPlanCoachSystemPrompt(
   memory: MemoryStorePort,
   tz: string = "UTC",
   degradeBlock?: string,
-  opts?: { excludeSections?: readonly string[] },
+  opts?: { excludeSections?: readonly string[]; outputLanguage?: LanguageResolution },
 ): string {
   const context = memory.getContext(opts);
   const prefix = [PLAN_COACH_AUTHORITY_RULES, ...planCoachRuleBlocks()].join(SECTION_SEPARATOR);
@@ -376,6 +395,9 @@ export function buildPlanCoachSystemPrompt(
     );
   }
   volatileParts.push(`# Current Date & Time\n\nTime zone: ${tz}`);
+  if (opts?.outputLanguage) {
+    volatileParts.push(replyLanguageRules(opts.outputLanguage));
+  }
   if (degradeBlock) volatileParts.push(degradeBlock);
   return prefix + SYSTEM_PROMPT_CACHE_BOUNDARY + "\n\n" + volatileParts.join(SECTION_SEPARATOR);
 }

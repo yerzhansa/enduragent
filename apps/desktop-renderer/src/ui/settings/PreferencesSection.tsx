@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { PLATFORM_COPY } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
 import { AppearanceControl } from "./AppearanceControl";
+import { LanguageControl } from "./LanguageControl";
 import { PalettePicker } from "./PalettePicker";
 import { settingsStyles as styles } from "./styles";
 import { UnitsControl } from "./UnitsControl";
@@ -13,6 +14,13 @@ export function PreferencesSection(): ReactElement {
     <>
       <h2 className={styles.heading}>Preferences</h2>
       <section className={styles.group} aria-label="Preferences">
+        <div className={styles.row}>
+          <div className={styles.label}>
+            <div className={styles.rowTitle}>Language</div>
+            <div className={styles.rowDetail}>Controls the language the coach replies in.</div>
+          </div>
+          <LanguageControl />
+        </div>
         <div className={styles.row}>
           <div className={styles.label}>
             <div className={styles.rowTitle}>Units</div>

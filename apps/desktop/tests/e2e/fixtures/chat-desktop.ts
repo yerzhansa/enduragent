@@ -202,6 +202,12 @@ function createScript(turn: ScriptedTurn): DesktopFixtureScript {
         });
       }
       if (request.method === "getSetupStatus") return response(readySetupStatus);
+      if (request.method === "getLanguagePreference") {
+        return response({ value: null });
+      }
+      if (request.method === "setLanguagePreference") {
+        return response(request.params);
+      }
       if (request.method === "getUnitsPreference") {
         return response({ value: "metric", source: "default" });
       }

@@ -12,6 +12,7 @@
     "@base-ui/react": "^1.7.0",
     "@enduragent/coach-client": "workspace:*",
     "@enduragent/coach-contract": "workspace:*",
+    "@enduragent/i18n": "workspace:*",
     "@enduragent/ui": "https://github.com/yerzhansa/enduragent-ui/releases/download/v0.3.0/enduragent-ui-0.3.0.tgz",
     "lucide-react": "^1.39.0",
     "react": "19.2.8",

@@ -22,3 +22,5 @@ export * from "./units-preference-repository.js";
 export * from "../planning/index.js";
 export * from "../chat-attachments/index.js";
 export * from "../chat-plan-outbox/index.js";
+
+export * from "./language-preference-repository.js";

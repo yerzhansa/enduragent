@@ -210,6 +210,9 @@ class DecisionContinuationBackend {
     const conversation = createConversationStore(this.conversationDir);
     this.conversation = conversation;
     const ports: EngineHostPorts = {
+      language: {
+        resolveFor: async () => ({ language: "en", source: "default", locale: "en-GB" }),
+      },
       config: {
         dataSource: "platform",
         llm: {

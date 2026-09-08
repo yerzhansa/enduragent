@@ -41,6 +41,7 @@
   "dependencies": {
     "@enduragent/coach-cli": "workspace:*",
     "@enduragent/coach-contract": "workspace:*",
+    "@enduragent/i18n": "workspace:*",
     "@enduragent/core": "workspace:*",
     "@enduragent/engine": "workspace:*",
     "@enduragent/kernel": "workspace:*",

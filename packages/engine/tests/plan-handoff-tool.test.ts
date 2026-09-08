@@ -10,7 +10,13 @@ const suggestion = {
 };
 
 async function execute(chatId: string, request: unknown = suggestion) {
-  const context = createTurnContext(null, chatId, undefined, "Can we move Friday?", "turn-1");
+  const context = createTurnContext({
+    language: { language: "en", source: "default", locale: "en-GB" },
+    resolvedCs: null,
+    chatId,
+    athleteText: "Can we move Friday?",
+    turnId: "turn-1",
+  });
   const handoffTool = createPlanHandoffTool();
   const result = await (
     handoffTool.execute as (input: unknown, options: unknown) => Promise<unknown>
@@ -38,7 +44,13 @@ describe("request_plan_handoff tool", () => {
   });
 
   it("keeps the first Desktop suggestion when the model calls twice", async () => {
-    const context = createTurnContext(null, "desktop", undefined, "Can we move Friday?", "turn-1");
+    const context = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: null,
+      chatId: "desktop",
+      athleteText: "Can we move Friday?",
+      turnId: "turn-1",
+    });
     const handoffTool = createPlanHandoffTool();
     const executeTool = handoffTool.execute as (
       input: unknown,

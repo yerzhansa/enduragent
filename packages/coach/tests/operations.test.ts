@@ -1763,4 +1763,78 @@ describe("coach operations", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("serializes persisted language reads and writes through the same operation FIFO", async () => {
+    const root = await mkdtemp(join(await realpath(tmpdir()), "coach-language-"));
+    const liveHome: AthleteHome = {
+      root,
+      storeDir: join(root, "store"),
+      archiveDir: join(root, "archive"),
+      configDir: join(root, "config"),
+    };
+    const store = openSqliteStorage(join(root, "coach.db"));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const order: string[] = [];
+    try {
+      await runMigrations(store, MIGRATIONS);
+      const operations = createCoachOperations({
+        home: liveHome,
+        context: {
+          home: liveHome,
+          store,
+          listener: {} as CoachStoreWriterContext["listener"],
+        },
+        runtime: operationRuntime(async (work) => {
+          order.push("sync-start");
+          await gate;
+          await work(new AbortController().signal);
+          order.push("sync-end");
+          return {
+            published: true,
+            legacySucceeded: true,
+            counts: requestCounts(0, 0),
+          };
+        }),
+        intervalsCredentials: intervalsCredentials(),
+        historyNewestDate: () => "1998-07-18",
+        calendarTimeZone: () => "UTC",
+        applyRuntimeConfig: async () => {},
+      });
+      const sync = operations.sync({});
+      const write = operations.setLanguagePreference!({ value: "it" }).then((result) => {
+        order.push("write");
+        return result;
+      });
+      const read = operations.getLanguagePreference!({}).then((result) => {
+        order.push("read");
+        return result;
+      });
+      await Promise.resolve();
+      expect(order).toEqual(["sync-start"]);
+      release();
+      await expect(sync).resolves.toMatchObject({ schemaVersion: 1 });
+      await expect(write).resolves.toEqual({ value: "it" });
+      await expect(read).resolves.toEqual({ value: "it" });
+      expect(order).toEqual(["sync-start", "sync-end", "write", "read"]);
+      await expect(
+        store.get("SELECT language, device_id FROM athlete_language"),
+      ).resolves.toMatchObject({
+        language: "it",
+        device_id: expect.stringMatching(/^desktop:[0-9A-HJKMNP-TV-Z]{26}$/u),
+      });
+      await expect(operations.setLanguagePreference!({ value: null })).resolves.toEqual({
+        value: null,
+      });
+      await expect(operations.getLanguagePreference!({})).resolves.toEqual({ value: null });
+      await store.run("UPDATE athlete_language SET language = 'xx'");
+      await expect(operations.getLanguagePreference!({})).resolves.toEqual({ value: null });
+    } finally {
+      release();
+      await store.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

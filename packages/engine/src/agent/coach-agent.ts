@@ -2,6 +2,7 @@ import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
+import type { LanguageResolution } from "@enduragent/i18n";
 import type {
   AnswerCoachDecisionRpcParams,
   AnswerCoachDecisionRpcResult,
@@ -369,7 +370,6 @@ export class CoachAgent {
   private readonly planTools: ToolSet;
   private readonly decisionTool: Tool | undefined;
   private readonly planReferenceTool: Tool | undefined;
-  private systemPrompt: string;
   private tz: string;
   // Derived once from getEffectiveSections(sport): the spec'd sections with
   // inject === false, dropped from the Athlete Context. Orphan sections are
@@ -513,8 +513,6 @@ export class CoachAgent {
       [PLAN_INTAKE_TOOL_NAME]: planIntakeTool,
     };
     ports.onToolsAssembled?.(Object.freeze(Object.keys(this.tools)));
-    // systemPrompt is rebuilt at the top of every chat() call; no need to bake one here.
-    this.systemPrompt = "";
   }
 
   private toolsForChat(chatId: string): ToolSet {
@@ -689,6 +687,7 @@ export class CoachAgent {
   // told to blindly "try again", which would re-run already-committed paid side
   // effects. The recovery call carries NO tools, so it cannot commit a new write.
   private async recoverStepExhaustedText(
+    systemPrompt: string,
     text: string,
     finishReason: FinishReason,
     messages: ModelMessage[],
@@ -706,7 +705,7 @@ export class CoachAgent {
     turnBudget.chargeModelCall();
     try {
       const recovery = await this.llm.generate({
-        system: this.systemPrompt,
+        system: systemPrompt,
         messages: [...messages, { role: "user", content: RECOVERY_PROMPT }],
         tools: undefined,
         caller: "chat",
@@ -790,6 +789,9 @@ export class CoachAgent {
     chatId: string,
     userMessage: string,
     turn?: {
+      language?: LanguageResolution;
+      athleteText?: string;
+      languageDetectionText?: string;
       resolvedCs?: ResolvedCs | null;
       referenceProvenance?: SourceProvenance;
       attachmentContext?: string;
@@ -803,24 +805,26 @@ export class CoachAgent {
     onPlanIntake?: (patch: PlanIntakePatch) => void,
     onDeferredPlanTurn?: (turn: DeferredPlanTurn) => void,
   ): Promise<string> {
-    // One explicit context per turn, created synchronously before the session
-    // lock is queued so rapid same-chat sends can never share turn state. Tool
-    // wrappers and sport tools reach it through the tool-execution options, so
-    // the tool set and cached template hash never rebuild. resolvedCs is null
-    // when the channel supplies nothing (CLI path, no sync data).
     const turnId = requestedTurnId ?? this.ports.randomId();
-    const ctx = createTurnContext(
-      turn?.resolvedCs ?? null,
-      chatId,
-      turn?.referenceProvenance ?? EMPTY_PROVENANCE,
-      userMessage,
-      turnId,
-    );
     return withSessionLock(chatId, async () => {
       const abortController = new AbortController();
       const activeTurn = { turnId, controller: abortController };
       this.activeChatTurns.set(chatId, activeTurn);
       try {
+        const athleteText = turn?.athleteText ?? userMessage;
+        const ctx = createTurnContext({
+          language:
+            turn?.language ??
+            (await this.ports.language.resolveFor({
+              chatId,
+              athleteText: turn?.languageDetectionText ?? athleteText,
+            })),
+          resolvedCs: turn?.resolvedCs ?? null,
+          chatId,
+          referenceProvenance: turn?.referenceProvenance,
+          athleteText,
+          turnId,
+        });
         const existingDecision = this.ports.coachDecisions?.getDecision(chatId);
         if (existingDecision?.status === "unanswered") {
           throw new Error(
@@ -913,11 +917,13 @@ export class CoachAgent {
         }
 
         const turnTools = this.toolsForChat(chatId);
-        this.systemPrompt = chatId.startsWith("plan:")
+        const systemPrompt = chatId.startsWith("plan:")
           ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
+              outputLanguage: ctx.language,
               excludeSections: this.excludedSectionNames,
             })
           : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
+              outputLanguage: ctx.language,
               excludeSections: this.excludedSectionNames,
               confirmationGate: this.confirmationGate,
             });
@@ -929,7 +935,7 @@ export class CoachAgent {
 
         const budget = computeHistoryTokenBudget({
           contextWindowTokens: this.config.contextWindowTokens,
-          systemPrompt: this.systemPrompt,
+          systemPrompt,
           budgetRatio: this.config.session.historyTokenBudgetRatio,
         });
         const { kept, dropped, previousSummary, previousSummaryProvenance } = splitHistoryByBudget({
@@ -1066,7 +1072,7 @@ export class CoachAgent {
           if (
             shouldCompact({
               messages: compacted.messages,
-              systemPrompt: this.systemPrompt,
+              systemPrompt,
               contextWindowTokens: this.config.contextWindowTokens,
             })
           ) {
@@ -1098,7 +1104,7 @@ export class CoachAgent {
             if (
               shouldCompact({
                 messages,
-                systemPrompt: this.systemPrompt,
+                systemPrompt,
                 contextWindowTokens: this.config.contextWindowTokens,
               })
             ) {
@@ -1133,7 +1139,7 @@ export class CoachAgent {
                 turn?.nativeMedia ?? [],
               );
               const result = await this.llm.generate({
-                system: this.systemPrompt,
+                system: systemPrompt,
                 messages: providerMessages,
                 tools: turnTools,
                 stopWhen: stepCountIs(10),
@@ -1203,6 +1209,7 @@ export class CoachAgent {
 
               // Recovery runs only on this success path (before the catch below).
               const recovered = await this.recoverStepExhaustedText(
+                systemPrompt,
                 text,
                 finishReason,
                 providerMessages,
@@ -1227,7 +1234,7 @@ export class CoachAgent {
               if (chatId.startsWith("plan:")) assertPlanCoachReplyAuthority(effectiveText);
 
               const templateHash = this.templateHashForChat(chatId, turnTools);
-              const assembledHash = computeAssembledHash(this.systemPrompt, providerMessages);
+              const assembledHash = computeAssembledHash(systemPrompt, providerMessages);
 
               const lineage: ChatLineage = {
                 templateHash,
@@ -1515,7 +1522,7 @@ export class CoachAgent {
             try {
               this.chatStore.appendTurn(chatId, userMessage, streamedText, {
                 templateHash,
-                assembledHash: computeAssembledHash(this.systemPrompt, providerMessages),
+                assembledHash: computeAssembledHash(systemPrompt, providerMessages),
                 provider: this.config.llm.provider,
                 model: this.config.llm.model,
                 lineageVersion: promptLineageSchemaVersion(providerMessages),
@@ -1857,7 +1864,20 @@ export class CoachAgent {
     try {
       onEvent?.({ type: "turn-start", turnId, chatId: decision.chatId });
     } catch {}
-    const context = createTurnContext(null, decision.chatId, EMPTY_PROVENANCE, "", turnId);
+    const athleteText = store.getDecisionAthleteText(decision.chatId, decision.decisionId);
+    if (athleteText === null) throw new Error("Decision athlete context was not found.");
+    const latestAthleteText =
+      decision.answer.kind === "custom" ? decision.answer.text : athleteText;
+    const context = createTurnContext({
+      language: await this.ports.language.resolveFor({
+        chatId: decision.chatId,
+        athleteText: latestAthleteText,
+      }),
+      resolvedCs: null,
+      chatId: decision.chatId,
+      athleteText: latestAthleteText,
+      turnId,
+    });
     const isPlan = decision.chatId.startsWith("plan:");
     const continuationTools = isPlan ? this.planTools : undefined;
     const lineageTemplateHash = isPlan
@@ -1877,15 +1897,15 @@ export class CoachAgent {
     const system =
       (isPlan
         ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
+            outputLanguage: context.language,
             excludeSections: this.excludedSectionNames,
           })
         : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
+            outputLanguage: context.language,
             excludeSections: this.excludedSectionNames,
             confirmationGate: this.confirmationGate,
           })) + `\n\n# Decision Continuation\n\n${decisionContinuationMessage(decision)}`;
     const { messages: history } = this.chatStore.load(decision.chatId);
-    const athleteText = store.getDecisionAthleteText(decision.chatId, decision.decisionId);
-    if (athleteText === null) throw new Error("Decision athlete context was not found.");
     const historyWithAthlete =
       athleteText === "" ||
       history.some((message) => message.role === "user" && messageText(message) === athleteText)

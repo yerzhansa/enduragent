@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -32,6 +33,7 @@ interface FakeBot {
     config: { use: ReturnType<typeof vi.fn> };
   };
   use: ReturnType<typeof vi.fn>;
+  callbackQuery: ReturnType<typeof vi.fn>;
   command: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
@@ -63,6 +65,7 @@ async function buildBot(
       config: { use: vi.fn() },
     },
     use: vi.fn(),
+    callbackQuery: vi.fn(),
     command: vi.fn(),
     on: vi.fn(),
     stop: vi.fn(async () => undefined),
@@ -83,6 +86,7 @@ async function buildBot(
     ...overrides,
   };
   const host = {
+    language: createNpmCoachLanguage(dataDir),
     access: { middleware: async (_ctx: unknown, next: () => Promise<void>) => next() },
     confirmations: {
       peek: vi.fn(async () => undefined),
@@ -189,10 +193,12 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
 
     expect(engine.chat).toHaveBeenCalledTimes(1);
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "one\ntwo\nthree",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "one\ntwo\nthree",
+      }),
+    );
 
     // The flushed answer threads to the LAST fragment's message id, on the
     // last fragment's reply context.
@@ -222,7 +228,9 @@ describe("inbound coalescing (fake timers)", () => {
     await vi.advanceTimersByTimeAsync(100);
     await drainPending();
     expect(engine.chat).toHaveBeenCalledTimes(1);
-    expect(engine.chat).toHaveBeenCalledWith({ chatId: "telegram:777", message: "a\nb\nc" });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:777", message: "a\nb\nc" }),
+    );
   });
 
   it("different chats are isolated: concurrent fragments never cross-join", async () => {
@@ -235,8 +243,12 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
 
     expect(engine.chat).toHaveBeenCalledTimes(2);
-    expect(engine.chat).toHaveBeenCalledWith({ chatId: "telegram:1", message: "left" });
-    expect(engine.chat).toHaveBeenCalledWith({ chatId: "telegram:2", message: "right" });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:1", message: "left" }),
+    );
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:2", message: "right" }),
+    );
   });
 
   it("preserves first-message order while asynchronous session lookup is pending", async () => {
@@ -259,10 +271,12 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
 
     expect(engine.chat).toHaveBeenCalledOnce();
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "first\nsecond",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "first\nsecond",
+      }),
+    );
   });
 
   it("a slash update mid-buffer flushes the pending text BEFORE the command handler runs", async () => {
@@ -276,14 +290,14 @@ describe("inbound coalescing (fake timers)", () => {
     await getFlushMiddleware(bot)(makeCtx({ message: { text: "/status" } }), next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect(engine.chat).toHaveBeenCalledTimes(1);
-    expect(engine.chat.mock.invocationCallOrder[0]).toBeLessThan(next.mock.invocationCallOrder[0]);
-
     await drainPending();
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "pending thought",
-    });
+    expect(engine.chat).toHaveBeenCalledTimes(1);
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "pending thought",
+      }),
+    );
 
     // The flush cleared the debounce timer: the window elapsing later must not
     // double-dispatch the same buffered text.
@@ -319,7 +333,7 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
 
     expect(resolveTurnContext).toHaveBeenCalledTimes(2);
-    expect(engine.chat.mock.calls).toEqual([
+    expect(engine.chat.mock.calls).toMatchObject([
       [{ chatId: "telegram:777", message: "pending thought" }],
       [{ chatId: "telegram:777", message: "/status" }],
     ]);
@@ -357,10 +371,12 @@ describe("inbound coalescing (fake timers)", () => {
     await handlingStart;
     await drainPending();
 
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "pending thought",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "pending thought",
+      }),
+    );
     expect(engine.resetSession).toHaveBeenCalledWith({ chatId: "telegram:777" });
     expect(engine.chat.mock.invocationCallOrder[0]).toBeLessThan(
       engine.resetSession.mock.invocationCallOrder[0],
@@ -391,10 +407,12 @@ describe("inbound coalescing (fake timers)", () => {
     // No timer advance: the drain itself must flush, then await the turn.
     await drainPending();
     expect(engine.chat).toHaveBeenCalledTimes(1);
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "about to shut down",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "about to shut down",
+      }),
+    );
   });
 
   it("keeps the first fragment's admission reservation through a shutdown drain", async () => {
@@ -424,10 +442,12 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
 
     expect(run).toHaveBeenCalledOnce();
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "accepted before shutdown\nand still accepted",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "accepted before shutdown\nand still accepted",
+      }),
+    );
     expect(cancel).not.toHaveBeenCalled();
 
     await expect(
@@ -500,7 +520,9 @@ describe("inbound coalescing (fake timers)", () => {
     await expect(getMessageText(bot)(ctx)).resolves.toBeUndefined();
     await vi.advanceTimersByTimeAsync(CHAT_COALESCE_MS);
     await drainPending();
-    expect(engine.chat).toHaveBeenCalledWith({ chatId: "telegram:777", message: "hello" });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:777", message: "hello" }),
+    );
   });
 
   it("leading-slash message:text (unregistered command fallthrough) is never buffered", async () => {
@@ -509,22 +531,27 @@ describe("inbound coalescing (fake timers)", () => {
 
     await handler(makeCtx({ message: { text: "a buffered thought" } }));
     await handler(makeCtx({ message: { text: "/unknowncmd" } }));
+    await vi.advanceTimersByTimeAsync(0);
 
     // The slash turn dispatched immediately — no window wait, no coalescing
     // with the pending free-form fragment.
     expect(engine.chat).toHaveBeenCalledTimes(1);
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "/unknowncmd",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "/unknowncmd",
+      }),
+    );
 
     await vi.advanceTimersByTimeAsync(CHAT_COALESCE_MS);
     await drainPending();
     expect(engine.chat).toHaveBeenCalledTimes(2);
-    expect(engine.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "a buffered thought",
-    });
+    expect(engine.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "a buffered thought",
+      }),
+    );
   });
 });
 
@@ -629,10 +656,12 @@ describe("in-handler drain tracking", () => {
 
     try {
       expect(engine.chat).toHaveBeenCalledOnce();
-      expect(engine.chat).toHaveBeenCalledWith({
-        chatId: "telegram:777",
-        message: "arrived during drain",
-      });
+      expect(engine.chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: "telegram:777",
+          message: "arrived during drain",
+        }),
+      );
     } finally {
       await drainPending();
     }

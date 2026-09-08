@@ -1,3 +1,4 @@
+import { createCoachLanguage } from "@enduragent/i18n";
 import { describe, expect, it, vi } from "vitest";
 import {
   type AthleteState,
@@ -7,7 +8,15 @@ import {
   type TurnEvent,
 } from "@enduragent/coach-contract";
 import type { CyclingFtpAnchorResolver, CyclingFtpAnchorResult } from "@enduragent/kernel/anchors";
-import { createCoachEngineAdapter } from "../src/coach-engine-adapter.js";
+import { createCoachEngineAdapter, withTrustedTurnLanguage } from "../src/coach-engine-adapter.js";
+
+const coachLanguage = createCoachLanguage({
+  store: {
+    read: async () => ({ value: "it", origin: "stored" }),
+    write: async (value) => ({ value, origin: "stored" }),
+  },
+  surface: { language: "en", locale: "en-US" },
+});
 
 const state: AthleteState = {
   schemaVersion: "3",
@@ -87,6 +96,73 @@ function backend(overrides: Partial<CoachEngine> = {}): CoachEngine {
 }
 
 describe("coach engine adapter", () => {
+  it("preserves trusted host language without resolving the concatenated message", async () => {
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "ok" }));
+    const resolveFor = vi.fn(coachLanguage.resolveFor);
+    const adapter = createCoachEngineAdapter({
+      coachLanguage: { ...coachLanguage, resolveFor },
+      backend: backend({ chat }),
+      getAthleteState: async () => state,
+      cyclingFtpAnchorResolver: resolver().value,
+      now: () => 1000,
+    });
+    const request: ChatRequest = {
+      chatId: "telegram:73",
+      message: "Hello\nBonjour",
+      turn: { language: "fr", languageSource: "message" },
+    };
+    await withTrustedTurnLanguage(adapter).chat(request);
+    expect(resolveFor).not.toHaveBeenCalled();
+    expect(chat.mock.calls[0]?.[0].turn).toMatchObject({
+      language: "fr",
+      languageSource: "message",
+    });
+    await adapter.chat(request);
+    expect(resolveFor).toHaveBeenCalledOnce();
+    expect(chat.mock.calls[1]?.[0].turn).toMatchObject({
+      language: "it",
+      languageSource: "preference",
+    });
+  });
+
+  it("resolves trusted host requests without a supplied language", async () => {
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "ok" }));
+    const engine = withTrustedTurnLanguage(
+      createCoachEngineAdapter({
+        coachLanguage,
+        backend: backend({ chat }),
+        getAthleteState: async () => state,
+        cyclingFtpAnchorResolver: resolver().value,
+        now: () => 1000,
+      }),
+    );
+    await engine.chat({ chatId: "telegram:73", message: "Hello" });
+    expect(chat.mock.calls[0]?.[0].turn).toMatchObject({
+      language: "it",
+      languageSource: "preference",
+    });
+  });
+
+  it("overwrites renderer language with the athlete preference", async () => {
+    const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "ok" }));
+    const engine = createCoachEngineAdapter({
+      coachLanguage,
+      backend: backend({ chat }),
+      getAthleteState: async () => state,
+      cyclingFtpAnchorResolver: resolver().value,
+      now: () => 1000,
+    });
+    await engine.chat({
+      chatId: "desktop",
+      message: "Hello",
+      turn: { language: "fr", languageSource: "message" },
+    });
+    expect(chat.mock.calls[0]?.[0].turn).toMatchObject({
+      language: "it",
+      languageSource: "preference",
+    });
+  });
+
   it("resolves one FTP anchor at the call epoch and validates event order and response", async () => {
     const selected = resolver();
     const calls: string[] = [];
@@ -97,6 +173,7 @@ describe("coach engine adapter", () => {
       return { text: "ready" };
     });
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({ chat }),
       getAthleteState: async () => state,
       cyclingFtpAnchorResolver: selected.value,
@@ -120,6 +197,7 @@ describe("coach engine adapter", () => {
     const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "no" }));
     const now = vi.fn(() => 0);
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({ chat }),
       getAthleteState: async () => state,
       cyclingFtpAnchorResolver: selected.value,
@@ -137,6 +215,7 @@ describe("coach engine adapter", () => {
     const selected = resolver();
     const invalidEvent = { type: "turn-start", turnId: "x" } as unknown as TurnEvent;
     const invalid = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           try {
@@ -152,6 +231,7 @@ describe("coach engine adapter", () => {
     await expect(invalid.chat({ chatId: "x", message: "x" })).rejects.toThrow();
     const backendError = { kind: "backend" };
     const precedence = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           onEvent?.(invalidEvent);
@@ -164,6 +244,7 @@ describe("coach engine adapter", () => {
     });
     await expect(precedence.chat({ chatId: "x", message: "x" })).rejects.toBe(backendError);
     const advisory = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           onEvent?.({ type: "final-text", turnId: "x", text: "ok" });
@@ -180,6 +261,7 @@ describe("coach engine adapter", () => {
       }),
     ).resolves.toEqual({ text: "ok" });
     const malformed = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({ chat: async () => ({ text: 1 }) as unknown as { text: string } }),
       getAthleteState: async () => state,
       cyclingFtpAnchorResolver: resolver().value,
@@ -191,6 +273,7 @@ describe("coach engine adapter", () => {
   it("validates every text_delta before advisory delivery and latches malformed deltas", async () => {
     const received: TurnEvent[] = [];
     const valid = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           onEvent?.({ type: "text_delta", turnId: "turn-1", delta: "one" });
@@ -217,6 +300,7 @@ describe("coach engine adapter", () => {
       extra: true,
     } as unknown as TurnEvent;
     const malformed = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           expect(() => onEvent?.(malformedDelta)).not.toThrow();
@@ -231,6 +315,7 @@ describe("coach engine adapter", () => {
 
     const backendError = new Error("backend wins");
     const precedence = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (_request, onEvent) => {
           onEvent?.(malformedDelta);
@@ -247,6 +332,7 @@ describe("coach engine adapter", () => {
   it("strictly validates reset requests and responses", async () => {
     const resetSession = vi.fn<CoachEngine["resetSession"]>(async () => ({ memoryFlushed: true }));
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({ resetSession }),
       getAthleteState: async () => state,
       cyclingFtpAnchorResolver: resolver().value,
@@ -262,6 +348,7 @@ describe("coach engine adapter", () => {
   it("strictly validates has-session requests and responses asynchronously", async () => {
     const hasSession = vi.fn<CoachEngine["hasSession"]>(async () => ({ hasSession: true }));
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({ hasSession }),
       getAthleteState: async () => state,
       cyclingFtpAnchorResolver: resolver().value,
@@ -311,6 +398,7 @@ describe("coach engine adapter", () => {
       },
     );
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         getCoachDecision,
         answerCoachDecision,
@@ -349,6 +437,7 @@ describe("coach engine adapter", () => {
   it("validates injected athlete state and exposes exactly eight methods", async () => {
     const getAthleteState = vi.fn(async (): Promise<AthleteState> => state);
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend(),
       getAthleteState,
       cyclingFtpAnchorResolver: resolver().value,
@@ -375,6 +464,7 @@ describe("coach engine adapter", () => {
     ]);
     await expect(
       createCoachEngineAdapter({
+        coachLanguage,
         backend: backend(),
         getAthleteState: async () => ({ ...state, extra: true }) as AthleteState,
         cyclingFtpAnchorResolver: resolver().value,
@@ -388,6 +478,7 @@ describe("coach engine adapter", () => {
     const turn = request.turn;
     let received: ChatRequest | undefined;
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (value) => {
           received = value;
@@ -409,6 +500,7 @@ describe("coach engine adapter", () => {
     const missing = { kind: "missing" as const, refusal: "missing-cycling-ftp-anchor" as const };
     let received: ChatRequest | undefined;
     const engine = createCoachEngineAdapter({
+      coachLanguage,
       backend: backend({
         chat: async (value) => {
           received = value;

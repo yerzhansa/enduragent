@@ -13,6 +13,7 @@ import type {
   RequestUserDecisionInput,
   RequestUserDecisionResult,
 } from "@enduragent/coach-contract";
+import type { LanguageResolution } from "@enduragent/i18n";
 import type { ModelMessage } from "ai";
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type { GenerateOptions, GenerateResult } from "./sport.js";
@@ -482,8 +483,16 @@ export interface ReferenceStateSnapshot {
   } | null;
 }
 
+export interface LanguageResolverPort {
+  resolveFor(input: {
+    readonly chatId: string;
+    readonly athleteText: string;
+  }): Promise<LanguageResolution>;
+}
+
 export interface EngineHostPorts {
   readonly config: EngineConfig;
+  readonly language: LanguageResolverPort;
   readonly memory: MemoryStorePort;
   readonly chatStore: ChatStorePort;
   readonly chatAttachments?: ChatAttachmentTurnPort;

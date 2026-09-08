@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({ utilityProcess: { fork: vi.fn() } }));
+vi.mock("electron", () => ({
+  app: { getPreferredSystemLanguages: () => ["en-US"] },
+  utilityProcess: { fork: vi.fn() },
+}));
 
 import type {
   DesktopDaemonResolution,
@@ -102,6 +105,7 @@ describe("desktop main supervisor", () => {
 
     expect(child.postMessage).toHaveBeenCalledWith({
       type: "start",
+      preferredLanguages: ["en-US"],
       homeRoot: "/synthetic/athlete",
       appVersion: "2026.8.0",
     });
@@ -339,6 +343,7 @@ describe("desktop main supervisor", () => {
     );
     expect(child.postMessage).toHaveBeenCalledWith({
       type: "start",
+      preferredLanguages: ["en-US"],
       homeRoot: "/synthetic/athlete",
       appVersion: "2026.8.0",
       handoffCapability: "h".repeat(43),

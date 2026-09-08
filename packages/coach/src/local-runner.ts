@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import type {
   CoachEngine,
   CoachOperations,
@@ -13,6 +14,7 @@ import { checkHomeReadiness, type ReadinessFailure } from "./readiness.js";
 import { withCoachStoreWriter } from "./runtime.js";
 
 export interface LocalCoachLifecycle {
+  readonly language: CoachLanguage;
   readonly home: AthleteHome;
   readonly engine: CoachEngine;
   readonly operations: CoachOperations & PlanningReadOperations & PlanningRequestOperations;
@@ -30,6 +32,7 @@ export type LocalCoachRunResult<T> =
 export interface WithLocalCoachInput<T> {
   readonly env: Record<string, string | undefined>;
   readonly home: AthleteHome;
+  readonly preferredLanguages?: readonly string[];
   readonly deferInitialRefresh?: boolean;
   readonly operation: (lifecycle: LocalCoachLifecycle) => Promise<T>;
 }
@@ -85,6 +88,9 @@ export async function withLocalCoach<T>(
         try {
           lifecycle = await createLocalCoachComposition({
             env: writerEnv,
+            ...(input.preferredLanguages === undefined
+              ? {}
+              : { preferredLanguages: input.preferredLanguages }),
             home: selectedHome,
             context,
             config: compositionConfig,
@@ -99,6 +105,7 @@ export async function withLocalCoach<T>(
               kind: "fulfilled",
               value: await input.operation({
                 home: selectedHome,
+                language: publishedLifecycle.language,
                 engine: publishedLifecycle.engine,
                 operations: publishedLifecycle.operations,
                 spendMeter: publishedLifecycle.spendMeter,

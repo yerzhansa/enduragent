@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +28,7 @@ async function buildStartHandler(resetSession: ReturnType<typeof vi.fn>) {
   const bot = {
     api: { sendMessage: vi.fn(), setMyCommands: vi.fn(async () => true), config: { use: vi.fn() } },
     use: vi.fn(),
+    callbackQuery: vi.fn(),
     command: vi.fn(),
     on: vi.fn(),
     catch: vi.fn(),
@@ -45,6 +47,7 @@ async function buildStartHandler(resetSession: ReturnType<typeof vi.fn>) {
     getAthleteState: vi.fn(),
   };
   const host = {
+    language: createNpmCoachLanguage(dataDir),
     access: { middleware: async (_ctx: unknown, next: () => Promise<void>) => next() },
     confirmations: {
       peek: vi.fn(async () => undefined),

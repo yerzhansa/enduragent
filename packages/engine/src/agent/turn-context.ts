@@ -1,4 +1,5 @@
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
+import type { LanguageResolution } from "@enduragent/i18n";
 import { EMPTY_PROVENANCE, type SourceProvenance } from "../provenance.js";
 import type {
   CoachDecisionReadModel,
@@ -43,6 +44,7 @@ export interface TurnPlanIntakeRecord {
 // another's anchor, read cache, or write record, while the tool set (built
 // once at construction) and the cached template hash never rebuild.
 export interface TurnContext {
+  readonly language: LanguageResolution;
   /** Resolved primary anchor (running critical speed) for this turn; null when the channel supplies none. */
   readonly resolvedCs: ResolvedCs | null;
   /** Chat this turn belongs to; the key a host confirmation surface resolves a proposal against. */
@@ -69,15 +71,24 @@ interface BrandedTurnContext extends TurnContext {
   readonly [TURN_CONTEXT_BRAND]: true;
 }
 
-export function createTurnContext(
-  resolvedCs: ResolvedCs | null,
-  chatId: string = "",
-  referenceProvenance: SourceProvenance = EMPTY_PROVENANCE,
-  athleteText: string = "",
-  turnId: string = "",
-): TurnContext {
+export function createTurnContext({
+  language,
+  resolvedCs,
+  chatId = "",
+  referenceProvenance = EMPTY_PROVENANCE,
+  athleteText = "",
+  turnId = "",
+}: {
+  language: LanguageResolution;
+  resolvedCs: ResolvedCs | null;
+  chatId?: string;
+  referenceProvenance?: SourceProvenance;
+  athleteText?: string;
+  turnId?: string;
+}): TurnContext {
   const ctx: BrandedTurnContext = {
     [TURN_CONTEXT_BRAND]: true,
+    language,
     resolvedCs,
     chatId,
     turnId,

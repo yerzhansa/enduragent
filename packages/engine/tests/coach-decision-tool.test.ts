@@ -39,7 +39,12 @@ describe("request_user_decision tool", () => {
         throw new Error("disk full");
       },
     } as unknown as CoachDecisionStorePort;
-    const context = createTurnContext(null, "desktop", undefined, "What should I do?");
+    const context = createTurnContext({
+      language: { language: "en", source: "default", locale: "en-GB" },
+      resolvedCs: null,
+      chatId: "desktop",
+      athleteText: "What should I do?",
+    });
     const decisionTool = createCoachDecisionTool({
       store,
       randomId: () => "id",
