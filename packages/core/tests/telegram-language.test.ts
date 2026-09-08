@@ -35,7 +35,7 @@ vi.mock("grammy", async (importOriginal) => {
           ...args[1],
           client: {
             ...args[1]?.client,
-            fetch: async (url) => {
+            fetch: async (url: string | URL | Request) => {
               const body = JSON.stringify(
                 captured.unchangedMarkup && String(url).endsWith("/editMessageReplyMarkup")
                   ? {
