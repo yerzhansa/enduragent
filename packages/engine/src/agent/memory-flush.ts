@@ -3,11 +3,14 @@ import type { ModelMessage } from "ai";
 import { z } from "zod";
 import type { MemorySectionSpec } from "../sport.js";
 import type { MemoryStorePort } from "../host-ports.js";
-import { createMemoryReadTool, MEMORY_READ_FLUSH_DESCRIPTION } from "../sport/memory-tools.js";
+import {
+  createLedgerAppendTool,
+  createMemoryReadTool,
+  MEMORY_READ_FLUSH_DESCRIPTION,
+} from "../sport/memory-tools.js";
 import type { LLM } from "../llm.js";
 import type { GenerateResult } from "../sport.js";
 import type { TurnBudget } from "./turn-budget.js";
-import { LEDGER_EVENT_KINDS, LEDGER_DATE_PATTERN, type LedgerEventKind } from "../sport/ledger-event.js";
 import { warnOrphanSections } from "../sport/orphan-sections.js";
 import {
   provenanceOfMessages,
@@ -139,35 +142,6 @@ function createFlushMemoryWriteTool(
   });
 }
 
-function createLedgerAppendTool(
-  memory: MemoryStorePort,
-  provenance: () => SourceProvenance,
-  onAppend: () => void,
-) {
-  return tool({
-    description:
-      "Record a dated athlete event (decision, override, illness, experiment, outcome) in the permanent event ledger. Entries are appended, never replaced.",
-    inputSchema: zodSchema(
-      z.object({
-        date: z
-          .string()
-          .regex(LEDGER_DATE_PATTERN)
-          .describe("Date the event happened (YYYY-MM-DD, athlete-local)"),
-        kind: z.enum(LEDGER_EVENT_KINDS).describe("Event category"),
-        text: z
-          .string()
-          .min(1)
-          .describe("What happened, in one or two sentences, including rationale or outcome when stated"),
-      }),
-    ),
-    execute: async (input: { date: string; kind: LedgerEventKind; text: string }) => {
-      memory.appendEvent({ ...input, source: "flush" }, provenance());
-      onAppend();
-      return { recorded: true };
-    },
-  });
-}
-
 // ============================================================================
 // CHRONIC-KEYWORD CONVERGENCE SCAN
 // ============================================================================
@@ -253,6 +227,7 @@ export async function runMemoryFlush(params: {
     ),
     ledger_append: createLedgerAppendTool(
       params.memory,
+      "flush",
       () => visibleProvenance,
       () => {
         ledgerAppends++;

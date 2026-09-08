@@ -65,7 +65,7 @@ function makeStubSport(): Sport {
       const writeSchema = z.object({ section: z.string(), content: z.string() });
       return [
         {
-          name: "memory_read",
+          name: "memory_query",
           description: "Reads a memory section.",
           inputSchema: readSchema,
           tool: tool({
@@ -128,9 +128,9 @@ function scriptedTurn(
 }
 
 describe("memory read-cache eviction at the write boundary", () => {
-  it("re-executes an identical memory_read after a same-turn memory_write", async () => {
+  it("re-executes an identical memory_query after a same-turn memory_write", async () => {
     const complete = scriptedTurn([
-      [{ id: "r1", name: "memory_read", arguments: { section: "cycling-profile" } }],
+      [{ id: "r1", name: "memory_query", arguments: { section: "cycling-profile" } }],
       [
         {
           id: "w1",
@@ -138,7 +138,7 @@ describe("memory read-cache eviction at the write boundary", () => {
           arguments: { section: "cycling-profile", content: "FTP 260" },
         },
       ],
-      [{ id: "r2", name: "memory_read", arguments: { section: "cycling-profile" } }],
+      [{ id: "r2", name: "memory_query", arguments: { section: "cycling-profile" } }],
     ]);
 
     const agent = await setupAgent(complete);
@@ -148,10 +148,10 @@ describe("memory read-cache eviction at the write boundary", () => {
     expect(reads).toEqual(["cycling-profile", "cycling-profile"]);
   });
 
-  it("still memoizes identical memory_read calls when no write intervenes", async () => {
+  it("still memoizes identical memory_query calls when no write intervenes", async () => {
     const complete = scriptedTurn([
-      [{ id: "r1", name: "memory_read", arguments: { section: "cycling-profile" } }],
-      [{ id: "r2", name: "memory_read", arguments: { section: "cycling-profile" } }],
+      [{ id: "r1", name: "memory_query", arguments: { section: "cycling-profile" } }],
+      [{ id: "r2", name: "memory_query", arguments: { section: "cycling-profile" } }],
     ]);
 
     const agent = await setupAgent(complete);

@@ -7,9 +7,14 @@ import { eachDateKeyInRange, todayInTZ } from "@enduragent/engine/sport";
 import { sanitizeUntrustedText } from "../agent/prompt-fence.js";
 import { atomicWriteFileSync } from "../io/atomic-write-file-sync.js";
 import { safeReadJson } from "../io/safe-read-json.js";
-import { appendJournalEntry } from "./journal.js";
+import { appendJournalEntry, JOURNAL_FILENAME } from "./journal.js";
 import { COMPACTION_SUMMARY_END_MARKER, COMPACTION_SUMMARY_MARKER } from "./compaction-note.js";
-import { appendLedgerEvent, LEDGER_FILENAME, type LedgerEventInput } from "./event-ledger.js";
+import {
+  appendLedgerEvent,
+  ledgerEventSchema,
+  LEDGER_FILENAME,
+  type LedgerEventInput,
+} from "./event-ledger.js";
 import { ProvenanceMetadata } from "./provenance-metadata.js";
 import {
   EMPTY_PROVENANCE,
@@ -461,7 +466,33 @@ export class Memory implements MemoryStore {
     return readFileSync(path, "utf-8");
   }
 
-  appendEvent(event: LedgerEventInput, provenance?: SourceProvenance): void {
+  readJournalRaw(): string {
+    const path = join(this.memoryDir, JOURNAL_FILENAME);
+    if (!existsSync(path)) return "";
+    return readFileSync(path, "utf-8");
+  }
+
+  appendEvent(event: LedgerEventInput, provenance?: SourceProvenance): boolean {
+    ledgerEventSchema.omit({ ts: true }).parse(event);
+    const digest = (entry: LedgerEventInput) =>
+      contentDigest(
+        JSON.stringify([
+          entry.date,
+          entry.kind,
+          entry.text.trim().replace(/\s+/g, " ").toLowerCase(),
+        ]),
+      );
+    const eventDigest = digest(event);
+    for (const line of this.readEventsRaw().split("\n")) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const existing = ledgerEventSchema.safeParse(parsed);
+      if (existing.success && digest(existing.data) === eventDigest) return false;
+    }
     appendLedgerEvent(this.memoryDir, event, (line) => {
       this.provenance.write(
         `ledger:${contentDigest(line)}`,
@@ -469,6 +500,7 @@ export class Memory implements MemoryStore {
         this.resolvedWriteProvenance(provenance),
       );
     });
+    return true;
   }
 
   // ── Plans ──────────────────────────────────────────────────────────────

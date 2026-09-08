@@ -398,7 +398,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
       memory.savePlan({ name: "Garmin plan" }, "chat-tool", GARMIN);
       const tools = createMemoryTools(
         memory,
-        [{ name: "person", description: "Athlete profile" }],
+        [{ name: "person", description: "Athlete profile", inject: false }],
         { bindProvenance: true },
       );
 

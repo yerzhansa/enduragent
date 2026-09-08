@@ -75,12 +75,12 @@ describe("effective-section inject flags: explicit on every core and sport secti
   });
 });
 
-describe("memory_read chat description: full-memory nudge on the chat instance", () => {
-  it("carries the dedupe nudge naming the non-injected sections", () => {
+describe("memory_read chat description", () => {
+  it("describes the complement and plan state", () => {
     const m = new Memory(dataDir);
     const tools = createMemoryTools(m, getEffectiveSections(cyclingSport));
     const desc = (tools.memory_read as { description?: string }).description ?? "";
-    expect(desc).toContain("do not call this to re-read");
-    expect(desc).toContain("notes, equipment, history");
+    expect(desc).toContain("only stored sections that Athlete Context does not show");
+    expect(desc).toContain("plan state");
   });
 });
