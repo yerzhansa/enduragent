@@ -130,9 +130,7 @@ async function relaunch(scenario: Scenario, playwright: Playwright): Promise<voi
   await scenario.fixture.setViewport(scenario.width, 820);
   Object.assign(scenario, await connect(playwright, scenario.fixture, scenario.colorScheme));
   expect(await scenario.page.evaluate(() => innerWidth)).toBe(scenario.width);
-  await expect(
-    scenario.page.getByRole("button", { name: "Start a Plan", exact: true }),
-  ).toBeVisible();
+  await expect(scenario.page.locator("#message")).toBeVisible();
   await test.info().attach("relaunch-timing", {
     body: JSON.stringify({ milliseconds: performance.now() - started }),
     contentType: "application/json",
@@ -181,7 +179,7 @@ async function capture(page: Page, name: string): Promise<void> {
       header: '[data-slot="dialog-header"]',
       actions: '[data-slot="dialog-footer"]',
       consequence: '[data-parity="discarded.record"]',
-      start: '[data-parity="start.row"]',
+      composer: "#message",
     };
     const result: Record<string, unknown> = {};
     for (const [key, selector] of Object.entries(selectors)) {
@@ -206,10 +204,10 @@ async function capture(page: Page, name: string): Promise<void> {
       };
     }
     const consequence = document.querySelector('[data-parity="discarded.record"]');
-    const start = document.querySelector('[data-parity="start.row"]');
-    result.consequenceBeforeStart =
-      consequence !== null && start !== null
-        ? Boolean(consequence.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const composer = document.querySelector("#message");
+    result.consequenceBeforeComposer =
+      consequence !== null && composer !== null
+        ? Boolean(consequence.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING)
         : null;
     result.environment = {
       width: innerWidth,
@@ -231,7 +229,11 @@ async function waitForVersion(backend: PlanCreationBackend, version: number): Pr
 }
 
 async function startAndAnswerGoal(scenario: Scenario): Promise<void> {
-  await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+  await scenario.page.locator("#message").fill("/plan");
+  await scenario.page.locator("#message").press("Enter");
+  await expect(
+    scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+  ).toBeVisible();
   await waitForVersion(scenario.backend, 1);
   await scenario.page.getByRole("button", { name: "Improve without an event" }).click();
   await waitForVersion(scenario.backend, 2);
@@ -262,7 +264,7 @@ async function discardPlanCreation(page: Page): Promise<void> {
   await openDiscardConfirmation(page);
   const started = performance.now();
   await page.getByRole("button", { name: "Discard creation" }).click();
-  await expect(page.getByRole("button", { name: "Start a Plan", exact: true })).toBeFocused();
+  await expect(page.locator("#message")).toBeFocused();
   await test.info().attach("discard-timing", {
     body: JSON.stringify({ milliseconds: performance.now() - started }),
     contentType: "application/json",
@@ -275,14 +277,14 @@ async function discardPlanCreation(page: Page): Promise<void> {
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start a Plan" })).toBeVisible();
+  await expect(page.locator("#message")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Message your coach" })).toBeEnabled();
   expect(
     await page.locator('[data-parity="discarded.record"]').evaluate((record) => {
-      const start = document.querySelector('[data-parity="start.row"]');
+      const composer = document.querySelector("#message");
       return (
-        start !== null &&
-        Boolean(record.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING)
+        composer !== null &&
+        Boolean(record.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING)
       );
     }),
   ).toBe(true);
@@ -341,8 +343,7 @@ for (const appearance of [
       await expect(scenario.backend.inspectDiscard()).resolves.toEqual(beforeDiscard);
 
       await discardPlanCreation(scenario.page);
-      const start = scenario.page.getByRole("button", { name: "Start a Plan" });
-      await expect(start).toBeFocused();
+      await expect(scenario.page.locator("#message")).toBeFocused();
       const afterDiscard = await scenario.backend.inspectDiscard();
       expect(afterDiscard.creations).toEqual([
         {
@@ -362,7 +363,7 @@ for (const appearance of [
       await expectNoPlanCreationSummaries(scenario.page);
 
       await relaunch(scenario, playwright);
-      await expect(scenario.page.getByRole("button", { name: "Start a Plan" })).toBeVisible();
+      await expect(scenario.page.locator("#message")).toBeVisible();
       await expectNoPlanCreationSummaries(scenario.page);
     } finally {
       await close(scenario);
@@ -385,7 +386,7 @@ test("preserves an ordinary Chat turn after discard and relaunch", async ({ play
 
     await relaunch(scenario, playwright);
     await expect(scenario.backend.inspectUnrelated()).resolves.toEqual(unrelatedBeforeDiscard);
-    await expect(scenario.page.getByRole("button", { name: "Start a Plan" })).toBeVisible();
+    await expect(scenario.page.locator("#message")).toBeVisible();
     await expect(scenario.page.getByText(ordinaryPrompt, { exact: true })).toBeVisible();
     await expect(scenario.page.getByText(ordinaryCoachReply, { exact: true })).toBeVisible();
   } finally {
@@ -402,7 +403,11 @@ test("starts a distinct Plan Creation after discard", async ({ playwright }) => 
     if (discardedId === undefined) throw new TypeError("Plan Creation row is unavailable");
     await discardPlanCreation(scenario.page);
 
-    await scenario.page.getByRole("button", { name: "Start a Plan" }).click();
+    await scenario.page.locator("#message").fill("/plan");
+    await scenario.page.locator("#message").press("Enter");
+    await expect(
+      scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+    ).toBeVisible();
     await expect(
       scenario.page.getByRole("heading", {
         name: "What do you want this Plan to prepare you for?",
@@ -439,9 +444,7 @@ for (const failure of ["before", "after"] as const) {
       if (failure === "before") expect(await scenario.backend.inspectDiscard()).toEqual(before);
       else expect((await scenario.backend.inspectDiscard()).creations[0]?.status).toBe("discarded");
       await scenario.page.getByRole("button", { name: "Discard creation", exact: true }).click();
-      await expect(
-        scenario.page.getByRole("button", { name: "Start a Plan", exact: true }),
-      ).toBeFocused();
+      await expect(scenario.page.locator("#message")).toBeFocused();
       const requests = scenario.backend.creationRequests.filter(
         (request) => request.method === "plan_creation.discard",
       );

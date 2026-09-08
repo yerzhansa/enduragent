@@ -217,7 +217,11 @@ async function choose(page: Page, backend: PlanCreationBackend, version: number,
 }
 
 async function startFitnessGoal(scenario: Scenario): Promise<void> {
-  await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+  await scenario.page.locator("#message").fill("/plan");
+  await scenario.page.locator("#message").press("Enter");
+  await expect(
+    scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+  ).toBeVisible();
   await waitForVersion(scenario.backend, 1);
   await choose(scenario.page, scenario.backend, 2, "fitness");
 }
@@ -482,7 +486,11 @@ for (const appearance of [
       expect(await scenario.backend.answers()).toEqual(answers);
     };
     try {
-      await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+      await scenario.page.locator("#message").fill("/plan");
+      await scenario.page.locator("#message").press("Enter");
+      await expect(
+        scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+      ).toBeVisible();
       await waitForVersion(scenario.backend, 1);
       await expect(question("goal").getByRole("heading")).toBeFocused();
       await capture("goal");
@@ -689,8 +697,12 @@ test("preserves ordinary Chat, Past chats, and active Plan editing during creati
   try {
     const originalPlan = await readPlanFacts();
     await expect(scenario.page.getByText(historyText, { exact: true })).toBeVisible();
-    await composer.fill("Keep this ordinary Chat draft.");
     await startFitnessGoal(scenario);
+    await expect(composer).toHaveValue("");
+    await scenario.page.getByRole("button", { name: "Later", exact: true }).click();
+    await expect(composer).toBeEnabled();
+    await composer.fill("Keep this ordinary Chat draft.");
+    await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(composer).toBeDisabled();
     await expect(composer).toHaveValue("Keep this ordinary Chat draft.");
     await scenario.page.getByRole("button", { name: "Later", exact: true }).click();

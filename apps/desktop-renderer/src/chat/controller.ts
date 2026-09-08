@@ -2194,6 +2194,27 @@ export function createChatController(input: {
       const submittedAttachmentGeneration = attachmentGeneration;
       await waitForPlanningRequestLoad();
       if (
+        message.trim().toLowerCase() === "/plan" &&
+        attachmentIds.length === 0 &&
+        canChat() &&
+        queueLoaded &&
+        !disposed &&
+        !resetBlocksWork() &&
+        !decisionBlocksWork()
+      ) {
+        if (planCreation === null) await controller.startPlanCreation();
+        else if (planCreationPaused) controller.continuePlanCreation();
+        else return false;
+        if (
+          attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+          submittedTextRevision === attachmentTextRevision
+        ) {
+          saveAttachmentDraftText("");
+          await attachmentTextSaveTask;
+        }
+        return true;
+      }
+      if (
         !canChat() ||
         !queueLoaded ||
         (!/\S/u.test(message) && attachmentIds.length === 0) ||

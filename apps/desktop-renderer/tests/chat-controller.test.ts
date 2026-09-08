@@ -2342,7 +2342,7 @@ describe("chat controller", () => {
     });
     await expect(controller.submit("Chat continues")).resolves.toBe(true);
     expect(chatMessages(fake)).toEqual(["Chat continues"]);
-    await controller.startPlanCreation();
+    await expect(controller.submit("/plan")).resolves.toBe(true);
     expect(controls.at(-1)?.planCreation).toMatchObject({
       value: nextCard,
       discardEvents: [{ eventId: completeCard.creationId, afterMessageId: null }],
@@ -2486,7 +2486,7 @@ describe("chat controller", () => {
     });
   });
 
-  it("returns focus to Start when refresh removes a Card behind its discard dialog", async () => {
+  it("requests composer focus when refresh removes a Card behind its discard dialog", async () => {
     const card: PlanCreationCardModel = {
       draft: null,
       calendarWindow: null,
@@ -4324,6 +4324,74 @@ describe("Plan library Chat entry", () => {
       value: draft,
       focusRequest: { target: "activate" },
     });
+    controller.dispose();
+  });
+
+  it("starts Plan Creation with /plan and clears the saved composer without sending to the coach", async () => {
+    const start = vi.fn(async (): Promise<PlanCreationStartRpcResult> => ({
+      status: "started",
+      outcome: "created",
+      planCreation: creation,
+    }));
+    const saveText = vi.fn(async () => emptyComposer());
+    const fake = client(replies(), {
+      startPlanCreation: start,
+      saveAttachmentDraftText: saveText,
+    });
+    const { controller, controls } = subject(fake);
+    await controller.start();
+
+    await expect(controller.submit("/plan")).resolves.toBe(true);
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(start).toHaveBeenCalledWith({ commandId: expect.any(String) });
+    expect(saveText).toHaveBeenCalledWith("");
+    expect(controls.at(-1)?.planCreation?.value).toEqual(creation);
+    expect(chatMessages(fake)).toEqual([]);
+    controller.dispose();
+  });
+
+  it("resumes a paused Plan question with /plan without starting another creation", async () => {
+    const start =
+      vi.fn<(request: PlanCreationStartRpcParams) => Promise<PlanCreationStartRpcResult>>();
+    const fake = client(replies(), {
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: creation }),
+      startPlanCreation: start,
+    });
+    const { controller, controls } = subject(fake);
+    await controller.start();
+    controller.pausePlanCreation();
+    expect(controls.at(-1)?.planCreation?.paused).toBe(true);
+    const revision = controls.at(-1)?.planCreation?.focusRevision ?? 0;
+
+    await expect(controller.submit("/plan")).resolves.toBe(true);
+
+    expect(controls.at(-1)?.planCreation).toMatchObject({ value: creation, paused: false });
+    expect(controls.at(-1)?.planCreation?.focusRevision).toBeGreaterThan(revision);
+    expect(start).not.toHaveBeenCalled();
+    expect(chatMessages(fake)).toEqual([]);
+    controller.dispose();
+  });
+
+  it("ignores /plan during an open question without sending to the coach", async () => {
+    const start =
+      vi.fn<(request: PlanCreationStartRpcParams) => Promise<PlanCreationStartRpcResult>>();
+    const saveText = vi.fn(async () => emptyComposer());
+    const fake = client(replies(), {
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: creation }),
+      startPlanCreation: start,
+      saveAttachmentDraftText: saveText,
+    });
+    const { controller, controls } = subject(fake);
+    await controller.start();
+    const before = controls.at(-1)?.planCreation;
+
+    await expect(controller.submit("/plan")).resolves.toBe(false);
+
+    expect(controls.at(-1)?.planCreation).toEqual(before);
+    expect(start).not.toHaveBeenCalled();
+    expect(saveText).not.toHaveBeenCalled();
+    expect(chatMessages(fake)).toEqual([]);
     controller.dispose();
   });
 

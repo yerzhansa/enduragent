@@ -189,6 +189,13 @@ export function Composer(props: {
       }
       if (event.key === "Enter" || event.key === "Tab") {
         event.preventDefault();
+        if (
+          event.key === "Enter" &&
+          matches[active]?.command === event.currentTarget.value.trim().toLowerCase()
+        ) {
+          void submit();
+          return;
+        }
         accept(active);
         return;
       }

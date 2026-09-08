@@ -167,7 +167,11 @@ async function continueAnswer(scenario: Scenario): Promise<void> {
 }
 
 async function completeFitness(scenario: Scenario): Promise<void> {
-  await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+  await scenario.page.locator("#message").fill("/plan");
+  await scenario.page.locator("#message").press("Enter");
+  await expect(
+    scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+  ).toBeVisible();
   await expect.poll(async () => (await scenario.backend.card())?.version).toBe(1);
   await choose(scenario, "fitness");
   await choose(scenario, "4");
