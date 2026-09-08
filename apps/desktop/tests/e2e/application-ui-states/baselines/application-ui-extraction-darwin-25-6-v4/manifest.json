@@ -3,12 +3,12 @@
   "version": "application-ui-extraction-darwin-25-6-v4",
   "reviewedBy": "Codex, GPT-6",
   "review": "native-application-regression-reference",
-  "reviewNote": "Pending: chat-empty, chat-syncing and chat-sync-failed captures are replaced from CI runs of the reseal PR; settings-preferences and training-loading are retained from darwin-25-6-v3. The captures record current rendering and do not approve feature behaviour.",
+  "reviewNote": "Inspected the chat-syncing captures from PR 953 CI run 34243520631 and the chat-sync-failed and chat-empty captures from PR 954 CI runs 34245538246 and 34247707001: they no longer show the Start a Plan action above the composer (Plan creation starts from the /plan command), the transcript hides permanent scrollbars, and they otherwise match the darwin-25-6-v3 references. settings-preferences and training-loading are retained from darwin-25-6-v3. The captures record current rendering and do not approve feature behaviour.",
   "coverage": {
     "projects": 4,
     "scenarios": 5,
     "screenshots": 20,
-    "executions": 8,
+    "executions": 12,
     "structuralNegativeControls": 0
   },
   "sourceRevision": {
@@ -116,40 +116,42 @@
     }
   },
   "screenshots": {
-    "compact-dark/desktop--chat-empty.png": "ac28fed06b593d0f4152d7a6fc965c11f889ef8226b42777021ef6c3746e212e",
+    "compact-dark/desktop--chat-empty.png": "252a22e7921739d11356549d2b70cac618a915b8df6b774be5ef695ababa67e8",
     "compact-dark/desktop--chat-sync-failed.png": "1a89d05b4977f2817fb608eb550b8b34a103b1c62de2f595fa44aa9fc604fe8b",
     "compact-dark/desktop--chat-syncing.png": "eb2af9b1e5d1515b8b82e06a155d6340e4985def9f21d210b888d8696407902b",
     "compact-dark/desktop--settings-preferences.png": "611722872b1a7630e341c3f4f343e7da9064d9da7630a521c3d3ff242e9c0850",
     "compact-dark/desktop--training-loading.png": "dd24ac98fb7ec30a20ff5454189dcff06a13f7ae62985891edc322f7ca703413",
-    "compact-light/desktop--chat-empty.png": "250ae2c3d674b4774fc3200fc11f99c17f31dbe817758a87223653fa6f9d3128",
+    "compact-light/desktop--chat-empty.png": "8faf98de6ef022ab18a4e420e513a3ad3baeaac4ea6c39014c5e2901966414af",
     "compact-light/desktop--chat-sync-failed.png": "b6878a057aaf3dce5f85c142004cb21229fc6c444129aa2c729af50b794a1241",
     "compact-light/desktop--chat-syncing.png": "0562a2222986ed88b331e27de6f023e9875691b226b8ea21014ac3c30e8bd449",
     "compact-light/desktop--settings-preferences.png": "1e243583d72cf2ac5b87ddbb9b63bf6477a1138a104170f30a38e12766479f72",
     "compact-light/desktop--training-loading.png": "26a80786b55ebb764de7d1acc6a9dcf8892853ae64a840a050fcf76ef3742909",
-    "wide-dark/desktop--chat-empty.png": "c64ff9b3174f16f793bc73cdcceb8e49b6f6bfdff039a9ecf5ba2f548612ccd0",
+    "wide-dark/desktop--chat-empty.png": "acb7e73e3c7f54c38479e6bbc89ea6feb16e91c4f65b6caf8243b71e1211bbd6",
     "wide-dark/desktop--chat-sync-failed.png": "bb83f3f754a3fb2fac089c135da1023465c01fc86e6c0e88f856dc40a92646d6",
     "wide-dark/desktop--chat-syncing.png": "6847897b5185320804001bdd5adde6b33495121f3f88b849eac466848b3505c0",
     "wide-dark/desktop--settings-preferences.png": "8e3d2ed9d4a67bc9dd440e7c70e77944658d38d46adb8d57a6a532497e0625fd",
     "wide-dark/desktop--training-loading.png": "2bcd8ac961018e15df58c12e208c4b01e13714e9924b64509b589e33c4b294b2",
-    "wide-light/desktop--chat-empty.png": "1173163103df3c43269e2c9434344da932f817c7bf5b18a1427a1d8b572ded12",
+    "wide-light/desktop--chat-empty.png": "ab21135b3a20472e497bc44f3bf5bc7e44017375c20fc213e99a55fdfb194e27",
     "wide-light/desktop--chat-sync-failed.png": "ba7ab6bec9fc547f534b6d795351af765912bd4a261a9b30aee45ee65484e40f",
     "wide-light/desktop--chat-syncing.png": "226613320431184505d71b89880c564fb9b3a19e225c3baa528e75c3aedbf2fe",
     "wide-light/desktop--settings-preferences.png": "bb7c56cb2871939ed83cef9d7559eca91ae4c9f51481fe14994a5b323a5499f1",
     "wide-light/desktop--training-loading.png": "ac38b54801d5dbba389774fe18b2fcd2ac107f0171c450eb8af9aeb45a437c9d"
   },
   "captureProvenance": {
-    "currentCaptures": 8,
-    "retainedScreenshots": 12,
+    "currentCaptures": 12,
+    "retainedScreenshots": 8,
     "retainedVersion": "application-ui-extraction-darwin-25-6-v3",
     "retainedManifestSha256": "0861057c1ea87306bee1de3de9f339c5ac603f1116572b86ec6c102a1cbb9f01",
     "fullMatrixVerification": "Pending subsequent CI run against this reviewed reference.",
     "runs": [
       "https://github.com/yerzhansa/enduragent/actions/runs/34243520631",
-      "https://github.com/yerzhansa/enduragent/actions/runs/34245538246"
+      "https://github.com/yerzhansa/enduragent/actions/runs/34245538246",
+      "https://github.com/yerzhansa/enduragent/actions/runs/34247707001"
     ],
     "artifactIds": [
       10063625774,
-      10064468867
+      10064468867,
+      10065167205
     ]
   }
 }
