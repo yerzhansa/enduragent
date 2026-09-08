@@ -83,6 +83,7 @@ describe("createCoachEngine", () => {
       "resumeCoachDecision",
       "retryQueuedTurn",
       "runQueuedCommand",
+      "settle",
       "skipCoachDecision",
       "stopChat",
     ]);
