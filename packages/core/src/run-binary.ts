@@ -424,7 +424,10 @@ export async function runBinary(
     runtimeClosed = true;
     reference.scheduler.stop();
     try {
-      await engine.settle();
+      await Promise.race([
+        engine.settle(),
+        new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_DRAIN_TIMEOUT_MS).unref?.()),
+      ]);
     } catch (err) {
       console.error("memory flush did not finish before shutdown:", err);
     }
