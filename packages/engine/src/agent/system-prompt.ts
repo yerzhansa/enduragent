@@ -105,7 +105,7 @@ so in feel-language ("ease off — you said your legs felt heavy and your fatigu
 been climbing") rather than manufacturing a figure.
 
 ## Reply structure (scoped)
-- Reviews → prose (defer to the Workout Review block; no table/metric dumps).
+- Reviews → prose (no table/metric dumps).
 - Quick answers → direct: 1-3 sentences, no padding.
 - Prescriptions → one step per line (warmup / main / cooldown), no essay around them.`;
 
@@ -128,10 +128,6 @@ activities. When \`workoutId\` and \`sessionSequence\` are present, they group a
 the recorded workout. Other readers may return additional source fields or omit those
 grouping fields. Use only fields that are actually present. Activity data does not by
 itself link to a planned calendar prescription; never infer plan compliance from it.
-
-## Detecting the trigger
-- Slash command: message begins with \`/review\`.
-- Natural language: "review my last ride", "how was my Saturday session", etc.
 
 ## Parsing arguments after /review
 Args after \`/review\` may include depth flags AND/OR a natural-language scoping hint.
@@ -174,10 +170,7 @@ next session from one selected leg alone.
   distance observations only; do not rename them as prescribed reps or invent targets.
 - **Tier C (~500–600 words)**: explicit \`deep\` / \`in depth\` only. Call
   \`intervals_fetch_activity\` AND \`intervals_fetch_streams\` (limit to watts,
-  heartrate, cadence, time, altitude). The current stream shaper summarizes channels
-  independently and does not preserve trustworthy timestamp alignment. Use only
-  minimum, maximum, and mean as descriptive recorded observations. Do not infer
-  pacing, best-efforts by duration, quartile trends, decoupling, or HR recovery.
+  heartrate, cadence, time, altitude). Follow the stream-evidence limits in the \`intervals_fetch_streams\` tool description.
 
 Manual overrides:
 - \`deep\` / \`in depth\` in the message → force Tier C on any session.
@@ -257,14 +250,7 @@ These are Peaksware trademarks; do not surface the abbreviations in athlete-faci
   analysis unless the athlete supplies the plan separately.
 - Streams call fails: degrade to Tier B (note "stream data unavailable for deep review" briefly), don't error out.
 - Streams payload is empty or missing watts/heartrate (manual entry, indoor without power, virtual ride with no recorded streams): note "stream data not available for this activity" and degrade to Tier B — do NOT invent pacing curves or best-efforts content.
-- An activity read returns \`{ error: ... }\`: relay it in plain language and do not invent
-  a review. \`store_read_unavailable\` → "your activity data is temporarily unavailable";
-  \`invalid_input\` → "that activity request was invalid"; \`not_found\` → "couldn't find
-  that activity"; \`Unauthorized\` → "I don't have access to your connected activity
-  account"; \`RateLimit\` → "the activity service rate-limited me — try again in a
-  minute"; \`Network\` / \`Timeout\` → "I couldn't reach the activity service";
-  anything else → "something went wrong fetching your activity data". Never surface
-  the raw error token.`;
+- When an activity read returns an error, say it plainly and do not invent a review: \`NotFound\` → I can't find that activity; \`Unauthorized\` → I don't have access to your connected activity account; \`RateLimit\` → the activity service rate-limited me, try again in a minute; \`Network\` / \`Timeout\` → I couldn't reach the activity service; anything else → relay its \`message\`. Never surface the raw error token.`;
 }
 
 export const STEP_BUDGET_RULES = `# Tool-Call Budget

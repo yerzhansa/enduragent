@@ -1,10 +1,5 @@
 # Workout Review
 
-Cycling-specific analysis content for workout reviews. The structural rules
-(3-questions, prose voice, depth tiers, footer) live in Core's review-rules block;
-the trademark substitution table also lives there, and the session-cluster gap is a
-sport-persona field Core renders. This file teaches the analysis.
-
 ## Canonical activity evidence
 
 The activity list provides a bounded summary: `workoutId`, `sessionSequence`,
@@ -14,14 +9,6 @@ start, elapsed/timer duration, and distance.
 
 These fields do not contain planned targets, plan compliance, intensity, load, power,
 heart rate, cadence, or wellness. Do not infer those values from lap timing or distance.
-Tier C stream data may add recorded power, heart rate, cadence, time, altitude, and
-other requested public channels; use only channels that are actually present. The
-current stream shaper summarizes each channel independently and does not preserve
-trustworthy timestamp or cross-channel alignment. Use only minimum, maximum, and mean
-as descriptive recorded observations. Those independently summarized statistics alone
-cannot establish session quality, recovery, readiness, or justify changing the next
-session. Do not calculate pacing, duration-based best efforts,
-quartile trends, decoupling, HR recovery, fade patterns, or indoor/outdoor comparisons.
 
 ## Multisport evidence
 
@@ -31,10 +18,6 @@ requested for only one leg, say which legs were not detailed and do not use that
 alone to judge the whole workout or change the next session.
 
 ## Show numbers — the cycling rows
-
-Core's review-rules block owns the show-numbers trigger, the tier-escalation ladder,
-the `| Metric | Value |` skeleton, and the compact-table formatting rule. This
-section names the cycling rows that fill that skeleton.
 
 Summary/detail table rows:
 
