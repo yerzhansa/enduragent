@@ -54,7 +54,7 @@ export const buildPlanSkeletonInputSchema = z.object({
 export const cyclingCreateWorkoutInputSchema = z.object({
   date: dateKeySchema.describe("Workout date (YYYY-MM-DD)"),
   workout: intervalsWorkoutInputSchema.describe(
-    "Structured workout: name + ordered steps. Top-level steps can be simple (warmup/steady/interval/ramp/recovery/rest/cooldown/freeride) or a set {type:'set', repeat, interval, recovery}. Durations use seconds or minutes only. Power targets: {kind:'percent_ftp'|'watts'|'zone', value} or {kind, low, high} for ranges. Ramps require low+high.",
+    "Structured workout: name + ordered steps. Top-level steps can be simple (warmup/steady/interval/ramp/recovery/rest/cooldown/freeride) or a set {type:'set', repeat, interval, recovery}. Durations use seconds or minutes only. Power targets: {kind:'percent_ftp'|'watts'|'zone', value} or {kind, low, high} for ranges. Ramps require low+high. Every step except freeride and rest needs a power target.",
   ),
 });
 
