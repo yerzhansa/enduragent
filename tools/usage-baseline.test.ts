@@ -207,16 +207,25 @@ describe("buildReport", () => {
     expect(g.cacheRead.overallRatio).toBeNull();
   });
 
-  it("cost: sums + means only lines carrying a cost object", () => {
+  it("cost: repriced from tokens on the uncached input share, never read from the ledger", () => {
+    const priced = {
+      model: "claude-sonnet-5",
+      inputTokens: 10_000,
+      outputTokens: 100,
+      cacheReadTokens: 8_000,
+      cacheWriteTokens: 1_000,
+    };
+    const inflated = { input: 0.02, output: 0.001, cacheRead: 0.0016, cacheWrite: 0.0025, total: 0.0251 };
     const raw = jsonl([
-      line({ cost: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 0.02 } }),
-      line({ cost: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, total: 0.04 } }),
-      line({}), // no cost — skipped, NOT counted as 0
+      line({ ...priced, cost: inflated }),
+      line({ ...priced }),
+      line({ model: "not-in-catalog", inputTokens: 500, cost: inflated }),
     ]);
     const g = buildReport({ ledgerPath: "/p", dataDirSource: "x", raw, kind: "turn", caller: "chat" }).groups[0];
+    const perLine = (1_000 * 2 + 8_000 * 0.2 + 1_000 * 2.5 + 100 * 10) / 1_000_000;
     expect(g.cost.costedLines).toBe(2);
-    expect(g.cost.total).toBeCloseTo(0.06);
-    expect(g.cost.meanPerTurn).toBeCloseTo(0.03); // mean over costed lines only
+    expect(g.cost.total).toBeCloseTo(2 * perLine, 9);
+    expect(g.cost.meanPerTurn).toBeCloseTo(perLine, 9);
   });
 
   it("latency percentiles use durationMs", () => {
