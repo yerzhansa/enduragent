@@ -42,76 +42,172 @@ export type PlanChangeEventSource = z.infer<typeof PlanChangeEventSourceSchema>;
 const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("add"),
-      name: z.string().trim().min(1).max(512),
-      date: TrainingExportCivilDateSchema,
-      role: SupportingEventRoleSchema,
-      providerId: z.string().min(1).optional(),
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z.literal("add").describe("Add a supporting event to the plan"),
+      name: z.string().trim().min(1).max(512).describe("Name of the supporting event"),
+      date: TrainingExportCivilDateSchema.describe(
+        "Date of the supporting event in YYYY-MM-DD format",
+      ),
+      role: SupportingEventRoleSchema.describe(
+        "Important = reduce training in the event week; Training = include the event without reducing surrounding training",
+      ),
+      providerId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Identifier of the synchronized source event, when adding a linked event"),
     })
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("remove"),
-      eventId: z.string().min(1).max(128),
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z.literal("remove").describe("Remove an existing supporting event from the plan"),
+      eventId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing supporting event to change"),
     })
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("role"),
-      eventId: z.string().min(1).max(128),
-      role: SupportingEventRoleSchema,
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z
+        .literal("role")
+        .describe("Change the training priority of an existing supporting event"),
+      eventId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing supporting event to change"),
+      role: SupportingEventRoleSchema.describe(
+        "Important = reduce training in the event week; Training = include the event without reducing surrounding training",
+      ),
     })
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("manual"),
-      eventId: z.string().min(1).max(128),
-      name: z.string().trim().min(1).max(512),
-      date: TrainingExportCivilDateSchema,
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z
+        .literal("manual")
+        .describe("Correct the name and date of a manually added supporting event"),
+      eventId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing supporting event to change"),
+      name: z.string().trim().min(1).max(512).describe("Name of the supporting event"),
+      date: TrainingExportCivilDateSchema.describe(
+        "Date of the supporting event in YYYY-MM-DD format",
+      ),
     })
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("source-update"),
-      eventId: z.string().min(1).max(128),
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z
+        .literal("source-update")
+        .describe("Accept synchronized name and date updates for a supporting event"),
+      eventId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing supporting event to change"),
     })
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event"),
-      operation: z.literal("name"),
-      eventId: z.string().min(1).max(128),
-      name: z.string().trim().min(1).max(512),
+      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      operation: z.literal("name").describe("Rename an existing supporting event"),
+      eventId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing supporting event to change"),
+      name: z.string().trim().min(1).max(512).describe("Name of the supporting event"),
     })
     .strict(),
 ]);
 
-const WeekdaySchema = z.number().int().min(1).max(7);
+const WeekdaySchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(7)
+  .describe(
+    "ISO weekday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday",
+  );
 
 export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
   SupportingEventIntentSchema,
-  z.object({ kind: z.literal("ftp"), watts: FtpWattsSchema }).strict(),
-  z.object({ kind: z.literal("choose-workout"), workoutId: z.string().min(1).max(128) }).strict(),
   z
     .object({
-      kind: z.literal("weekday-duration"),
-      day: WeekdaySchema,
-      minutes: z.number().int().positive(),
+      kind: z.literal("ftp").describe("Set the functional threshold power used by the plan"),
+      watts: FtpWattsSchema.describe("Functional threshold power, in watts"),
     })
     .strict(),
-  z.object({ kind: z.literal("weekday-unavailable"), day: WeekdaySchema }).strict(),
-  z.object({ kind: z.literal("hard-weekday"), day: WeekdaySchema }).strict(),
   z
-    .object({ kind: z.literal("weekly-duration"), hours: z.number().positive().multipleOf(0.25) })
+    .object({
+      kind: z.literal("choose-workout").describe("Choose an existing workout for today"),
+      workoutId: z
+        .string()
+        .min(1)
+        .max(128)
+        .describe("Identifier of the existing workout to choose"),
+    })
     .strict(),
-  z.object({ kind: z.literal("longest-workout"), minutes: z.number().int().positive() }).strict(),
   z
-    .object({ kind: z.literal("inverse"), changeId: PlanCloseRpcParamsSchema.shape.planId })
+    .object({
+      kind: z.literal("weekday-duration").describe("Limit session length on a recurring weekday"),
+      day: WeekdaySchema,
+      minutes: z
+        .number()
+        .int()
+        .positive()
+        .describe("Maximum session length for that weekday, in minutes"),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z
+        .literal("weekday-unavailable")
+        .describe("Make a recurring weekday unavailable for training"),
+      day: WeekdaySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("hard-weekday").describe("Disallow hard training on a recurring weekday"),
+      day: WeekdaySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("weekly-duration").describe("Limit total training time each week"),
+      hours: z
+        .number()
+        .positive()
+        .multipleOf(0.25)
+        .describe("Maximum total training hours per week"),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("longest-workout").describe("Limit the length of any single workout"),
+      minutes: z
+        .number()
+        .int()
+        .positive()
+        .describe("Maximum session length for any weekday, in minutes"),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("inverse").describe("Undo a previously applied plan change"),
+      changeId: PlanCloseRpcParamsSchema.shape.planId.describe(
+        "Identifier of the applied plan change to undo",
+      ),
+    })
     .strict(),
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
