@@ -371,10 +371,10 @@ describe("store athlete reader", () => {
   it("keeps legacy platform activity results supported without promising canonical grouping fields", async () => {
     const platformActivity = {
       id: 42,
-      start_date_local: "1998-07-18T08:00:00",
-      moving_time: 3_600,
+      startDateLocal: "1998-07-18T08:00:00",
+      movingTime: 3_600,
       distance: 40_000,
-      icu_training_load: 50,
+      icuTrainingLoad: 50,
     };
     const client = {
       activities: {
