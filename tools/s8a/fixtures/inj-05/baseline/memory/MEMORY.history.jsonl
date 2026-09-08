@@ -1,2 +1,3 @@
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"cycling-profile","oldBody":null,"newBody":"_updated: 1998-07-06\n- FTP 250 W (coach, 1998-07-06)","source":"flush"}
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"goals","oldBody":null,"newBody":"_updated: 1998-07-06\n- Weekly training load target: 400 (coach, 1998-07-06)","source":"flush"}
+{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"cycling-profile","oldBody":null,"newBody":"_updated: 1998-07-06\n- FTP: 250 W (prior memory, date unknown; re-confirm)","source":"flush"}
+{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"goals","oldBody":null,"newBody":"_updated: 1998-07-06\n- Weekly training Load target: 400 (prior memory, date unknown; re-confirm)","source":"flush"}
+{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"notes","oldBody":null,"newBody":"_updated: 1998-07-06\n- Most recent weekly review: completed 3 rides, with training Load trending upward and recovery remaining steady (coach, 1998-07-06).","source":"flush"}

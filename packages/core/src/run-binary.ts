@@ -423,6 +423,11 @@ export async function runBinary(
     if (runtimeClosed) return;
     runtimeClosed = true;
     reference.scheduler.stop();
+    try {
+      await engine.settle();
+    } catch (err) {
+      console.error("memory flush did not finish before shutdown:", err);
+    }
     await prepared.close?.();
   };
 
