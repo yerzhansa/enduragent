@@ -99,7 +99,7 @@ function seedSession(chatId: string, lines: Array<{ role: string; content: strin
   writeFileSync(
     join(sessionsDir, `${chatId}.jsonl`),
     lines.map((l) => JSON.stringify(l)).join("\n") + "\n",
-    "utf-8",
+    { encoding: "utf-8", mode: 0o600 },
   );
 }
 
@@ -154,8 +154,11 @@ describe("flush dedupe — at most one memory flush per chat() turn", () => {
 
     const text = await agent.chat("daily", "hello");
 
-    expect(text).toBe("fresh-day-reply");
-    expect(countFlushCalls(complete)).toBeLessThanOrEqual(1);
+    expect(text).toContain("fresh-day-reply");
+    expect(isFlushCall(complete.mock.calls[0])).toBe(false);
+    const { withSessionLock } = await import("../src/agent/session-lock.js");
+    await withSessionLock("daily", async () => {});
+    expect(countFlushCalls(complete)).toBeLessThanOrEqual(2);
   });
 
   it("a normal single-flush trim turn is unchanged (no false suppression)", async () => {

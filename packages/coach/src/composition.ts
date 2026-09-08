@@ -651,6 +651,7 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       resumeCoachDecision: (request, onEvent) =>
         run((bundle) => bundle.engine.resumeCoachDecision(request, onEvent)),
       resetSession: (request) => run((bundle) => bundle.engine.resetSession(request)),
+      settle: (request) => run(async (bundle) => bundle.engine.settle?.(request)),
       hasSession: (request) => run((bundle) => bundle.engine.hasSession(request)),
       getAthleteState: () => run((bundle) => bundle.engine.getAthleteState()),
     },
@@ -2291,6 +2292,7 @@ export async function createLocalCoachComposition(
           };
           await attempt(() => dependencies.closeHostAdapters?.());
           await attempt(() => reference!.scheduler.stop());
+          await attempt(async () => reconfigurable.engine.settle?.());
           await attempt(() => runtime!.close());
           await initialRefreshPromise?.catch(() => {});
           if (failure !== undefined) throw failure.error;

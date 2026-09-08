@@ -18,6 +18,7 @@ import type {
   ResetSessionResponse,
   ResumeCoachDecisionRpcParams,
   ResumeCoachDecisionRpcResult,
+  SettleRequest,
   SkipCoachDecisionRpcParams,
   SkipCoachDecisionRpcResult,
   TurnEvent,
@@ -89,6 +90,10 @@ export class CoachAgent implements CoachEngine {
 
   getAthleteState(): Promise<AthleteState> {
     return this.engine.getAthleteState();
+  }
+
+  settle(request?: SettleRequest): Promise<void> {
+    return this.engine.settle?.(request) ?? Promise.resolve();
   }
 
   getMemory(): Memory {

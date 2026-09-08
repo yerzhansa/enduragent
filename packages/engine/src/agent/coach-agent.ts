@@ -49,7 +49,7 @@ import {
   promptLineageSchemaVersion,
   sha256_16,
 } from "./prompt-lineage.js";
-import { withSessionLock } from "./session-lock.js";
+import { drainSessionLocks, withSessionLock } from "./session-lock.js";
 import { capToolResult, TOOL_RESULT_SHARE } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
@@ -375,7 +375,6 @@ export class CoachAgent {
   // inject === false, dropped from the Athlete Context. Orphan sections are
   // never in this list, so they always inject.
   private readonly excludedSectionNames: readonly string[];
-  private archiveDeferred = new Set<string>();
   private lastFlushMessageCount = new Map<string, number>();
   private readonly confirmationGate: boolean;
   // The prompt-template hash is derived from constructor-stable inputs (soul,
@@ -680,6 +679,38 @@ export class CoachAgent {
     throw lastError;
   }
 
+  settle(chatId?: string): Promise<void> {
+    if (chatId === undefined) return drainSessionLocks();
+    return withSessionLock(chatId, async () => {});
+  }
+
+  private queueFlush(
+    chatId: string,
+    messages: ModelMessage[],
+    trigger: "stale-reset" | "soft-threshold",
+  ): void {
+    void withSessionLock(chatId, async () => {
+      try {
+        const outcome = await this.flushMemory(messages, trigger);
+        const zeroWrite =
+          outcome.writes === 0 &&
+          outcome.ledgerAppends === 0 &&
+          messages.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
+        if (zeroWrite && trigger === "stale-reset") {
+          console.warn(
+            JSON.stringify({
+              event: "memory_flush_zero_write_retry",
+              messageCount: messages.length,
+            }),
+          );
+          await this.flushMemory(messages, trigger);
+        }
+      } catch (err) {
+        this.log.warn(`Queued ${trigger} memory flush failed`, err);
+      }
+    });
+  }
+
   // Step-exhaustion recovery: when the model spent all 10 steps on tool calls
   // (or hit the output cap) and never emitted final text, run one no-tools
   // completion asking it to summarize. If that yields nothing (or throws), fall
@@ -879,41 +910,19 @@ export class CoachAgent {
         let archivedAt: string | undefined;
 
         if (!fresh && !deferDaily) {
-          // Flush memory before reset, then archive
-          let outcome: MemoryFlushOutcome | null = null;
           if (history.length > 0 && !flushedThisTurn) {
             flushedThisTurn = true;
-            try {
-              outcome = await this.flushMemory(history, "stale-reset", turnBudget);
-            } catch (err) {
-              this.log.warn("Pre-reset memory flush failed; archiving session anyway", err);
-            }
+            this.queueFlush(chatId, history, "stale-reset");
           }
-          const zeroWrite =
-            outcome !== null &&
-            outcome.writes === 0 &&
-            outcome.ledgerAppends === 0 &&
-            history.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
-          if (zeroWrite && !this.archiveDeferred.has(chatId)) {
-            this.archiveDeferred.add(chatId);
-            console.warn(
-              JSON.stringify({
-                event: "memory_flush_archive_deferred",
-                messageCount: history.length,
-              }),
-            );
-          } else {
-            const boundaryAt = new Date(this.ports.now()).toISOString();
-            this.chatStore.resetConversation({
-              chatId,
-              boundaryAt,
-              reason: "stale-reset",
-            });
-            this.archiveDeferred.delete(chatId);
-            this.lastFlushMessageCount.delete(chatId);
-            history = [];
-            archivedAt = boundaryAt;
-          }
+          const boundaryAt = new Date(this.ports.now()).toISOString();
+          this.chatStore.resetConversation({
+            chatId,
+            boundaryAt,
+            reason: "stale-reset",
+          });
+          this.lastFlushMessageCount.delete(chatId);
+          history = [];
+          archivedAt = boundaryAt;
         }
 
         const turnTools = this.toolsForChat(chatId);
@@ -1007,11 +1016,7 @@ export class CoachAgent {
           this.lastFlushMessageCount.set(chatId, history.length);
           if (!flushedThisTurn) {
             flushedThisTurn = true;
-            try {
-              await this.flushMemory(history, "soft-threshold", turnBudget);
-            } catch (err) {
-              this.log.warn("Soft-threshold memory flush failed; continuing turn", err);
-            }
+            this.queueFlush(chatId, history, "soft-threshold");
           }
         }
 
@@ -2124,7 +2129,6 @@ export class CoachAgent {
         boundaryAt: new Date(this.ports.now()).toISOString(),
         reason: "explicit-reset",
       });
-      this.archiveDeferred.delete(chatId);
       this.lastFlushMessageCount.delete(chatId);
       return { memoryFlushed };
     });

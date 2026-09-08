@@ -124,6 +124,8 @@ export type ResetSessionRequest = z.infer<typeof ResetSessionRequestSchema>;
 export const ResetSessionResponseSchema = z.object({ memoryFlushed: z.boolean() }).strict();
 export type ResetSessionResponse = z.infer<typeof ResetSessionResponseSchema>;
 
+export const SettleRequestSchema = z.object({ chatId: z.string().optional() }).strict();
+export type SettleRequest = z.infer<typeof SettleRequestSchema>;
 export const HasSessionRequestSchema = z.object({ chatId: z.string() }).strict();
 export type HasSessionRequest = z.infer<typeof HasSessionRequestSchema>;
 
@@ -189,6 +191,7 @@ export interface CoachEngine {
     onEvent?: (event: TurnEvent) => void,
   ): Promise<ResumeCoachDecisionRpcResult>;
   resetSession(request: ResetSessionRequest): Promise<ResetSessionResponse>;
+  settle?(request?: SettleRequest): Promise<void>;
   hasSession(request: HasSessionRequest): Promise<HasSessionResponse>;
   getAthleteState(): Promise<AthleteState>;
   replacePlanChatHistory?(request: ReplacePlanChatHistoryRequest): Promise<void>;
