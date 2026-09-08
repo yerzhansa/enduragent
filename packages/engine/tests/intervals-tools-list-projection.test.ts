@@ -99,6 +99,7 @@ describe("intervals list projections", () => {
       maxHeartrate: 155,
       icuFtp: 250,
       totalElevationGain: 0,
+      source: "GARMIN_CONNECT",
     };
     const row = Object.freeze({ ...expected, description: "unused", calories: null });
     const tool = createCoreToolsWithSportConfig(

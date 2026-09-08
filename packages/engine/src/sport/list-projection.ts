@@ -34,6 +34,7 @@ const ACTIVITY_FIELDS = new Set([
   "maxHeartrate",
   "icuFtp",
   "totalElevationGain",
+  "source",
 ]);
 
 function projectFields(row: object, fields: ReadonlySet<string>): Record<string, unknown> {
