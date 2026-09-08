@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ApiError, IntervalsClient } from "intervals-icu-api";
 import type { IntervalsActivityType } from "../sport.js";
 import { downsampleStreams } from "./stream-downsample.js";
+import { projectActivity, projectWellness } from "./list-projection.js";
 import {
   guardDeletableEvent,
   guardUpdatableEvent,
@@ -116,12 +117,12 @@ export function createPureCoreIntervalsTools(
               );
               if (rangeError) return rangeError;
               try {
-                return readResult(
-                  await selectedReader.listWellness({
-                    start: input.oldest,
-                    ...(input.newest === undefined ? {} : { end: input.newest }),
-                  }),
-                );
+                const result = await selectedReader.listWellness({
+                  start: input.oldest,
+                  ...(input.newest === undefined ? {} : { end: input.newest }),
+                });
+                if (!result.ok) return readResult(result);
+                return readResult({ ...result, value: result.value.map(projectWellness) });
               } catch (error) {
                 return platformFailure(error);
               }
@@ -396,12 +397,12 @@ export function createCoreToolsWithSportConfig(
         );
         if (rangeError) return rangeError;
         try {
-          return readResult(
-            await selectedReader.listActivities({
-              start: input.oldest,
-              ...(input.newest === undefined ? {} : { end: input.newest }),
-            }),
-          );
+          const result = await selectedReader.listActivities({
+            start: input.oldest,
+            ...(input.newest === undefined ? {} : { end: input.newest }),
+          });
+          if (!result.ok) return readResult(result);
+          return readResult({ ...result, value: result.value.map(projectActivity) });
         } catch (error) {
           return platformFailure(error);
         }

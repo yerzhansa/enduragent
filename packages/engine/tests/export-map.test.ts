@@ -42,7 +42,7 @@ describe("engine public export surface", () => {
       "PlanWorkoutDriftError",
       "RaceCourseLifecycleError",
       "SUMMARY_PREFIX",
-      "TOOL_RESULT_SHARE",
+      "TOOL_RESULT_MAX_TOKENS",
       "UNKNOWN_PROVENANCE",
       "WEEKLY_REVIEW_RACE_QUIET_DAYS",
       "WORKOUT_MATCH_AS_PLANNED_MAX_SECONDS",
