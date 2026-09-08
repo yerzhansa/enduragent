@@ -186,6 +186,7 @@ export interface CoachEngine {
     onEvent?: (event: TurnEvent) => void,
   ): Promise<ResumeCoachDecisionRpcResult>;
   resetSession(request: ResetSessionRequest): Promise<ResetSessionResponse>;
+  settle?(request: HasSessionRequest): Promise<void>;
   hasSession(request: HasSessionRequest): Promise<HasSessionResponse>;
   getAthleteState(): Promise<AthleteState>;
   replacePlanChatHistory?(request: ReplacePlanChatHistoryRequest): Promise<void>;

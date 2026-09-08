@@ -681,6 +681,10 @@ export class CoachAgent {
     throw lastError;
   }
 
+  settle(chatId: string): Promise<void> {
+    return withSessionLock(chatId, async () => {});
+  }
+
   private queueFlush(
     chatId: string,
     messages: ModelMessage[],
