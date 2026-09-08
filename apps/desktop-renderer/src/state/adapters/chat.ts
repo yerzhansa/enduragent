@@ -381,6 +381,7 @@ export function createChatViewAdapter(input: {
         ? null
         : (state.activeTurn?.error?.athleteMessage ??
           (planActivated ? null : planCreation?.notice) ??
+          (planCreation?.value == null ? planCreation?.error : null) ??
           (state.status === "streaming" ? null : state.progress)),
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,

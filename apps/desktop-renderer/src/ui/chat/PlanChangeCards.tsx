@@ -583,7 +583,7 @@ export function PlanChangeCards(): ReactElement | null {
                 key={workout.workoutId}
                 className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
-                <span className="text-xs leading-4 text-ink-2">
+                <span className="text-sm leading-5">
                   {workout.name} · {workout.minutes} min
                 </span>
                 <Button
@@ -607,7 +607,7 @@ export function PlanChangeCards(): ReactElement | null {
                 key={workout.workoutId}
                 className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
-                <span className="text-xs leading-4 text-ink-2">{workout.name}</span>
+                <span className="text-sm leading-5">{workout.name}</span>
                 <div className="text-sm leading-5">{workout.reason}</div>
               </li>
             ))}

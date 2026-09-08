@@ -191,6 +191,7 @@ export function Composer(props: {
         event.preventDefault();
         if (
           event.key === "Enter" &&
+          !event.shiftKey &&
           matches[active]?.command === event.currentTarget.value.trim().toLowerCase()
         ) {
           void submit();
