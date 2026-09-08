@@ -36,7 +36,7 @@ const calendarCases = [
       currentThrough: "1998-10-04",
       error: null,
     },
-    sentence: "Calendar up to date",
+    sentence: "7 Sept 1998 to 4 Oct 1998 · Up to date",
   },
   {
     calendar: {

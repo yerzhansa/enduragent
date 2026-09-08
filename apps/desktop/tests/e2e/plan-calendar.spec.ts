@@ -203,7 +203,7 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   await expect(activeCard).toContainText("Improve fitness");
   await expect(
     activeCard.getByText(
-      connected ? /Calendar up to date|Updating calendar/ : "Connect to mirror Workouts",
+      connected ? /Up to date|Updating calendar/ : "Connect to mirror Workouts",
     ),
   ).toBeVisible();
 }

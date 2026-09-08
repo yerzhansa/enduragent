@@ -491,17 +491,15 @@ export function PlanChangeCards(): ReactElement | null {
       <ChangeCard
         eyebrow="Active Plan"
         title={library.active.name}
-        summary={`${
+        summary={
           library.creation
             ? "Your separate Plan creation is still open."
             : "Changes affect future, uncompleted training."
-        }${library.active.calendar.status === "verified" ? " · Calendar up to date" : ""}`}
+        }
       >
-        {library.active.calendar.status === "verified" ? null : (
-          <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
-            {calendarStatusLabel(library.active.calendar)}
-          </p>
-        )}
+        <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
+          {calendarStatusLabel(library.active.calendar)}
+        </p>
         <div className="flex flex-wrap gap-inset">
           <Button
             ref={changeButton}
