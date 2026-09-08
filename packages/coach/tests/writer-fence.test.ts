@@ -462,7 +462,7 @@ describe("legacy writer fence", () => {
     },
   );
 
-  it("permits legacy authoring when no Chat creation has ever started", async () => {
+  it("rejects PL-T01 without writes when no Chat creation has ever started", async () => {
     const test = await fixture("empty");
     const fence = createLegacyWriterFence(test.store);
     const before = await dumpStore(test.store);
@@ -479,10 +479,14 @@ describe("legacy writer fence", () => {
         commandId: "legacy-start",
         sourceConversationId: null,
       }),
-    ).resolves.toMatchObject({ status: "completed" });
+    ).resolves.toMatchObject({
+      status: "rejected",
+      error: { code: "conflict", message: MESSAGE },
+    });
+    expect(await dumpStore(test.store)).toBe(before);
   });
 
-  it.each(commands(CONVERSATION_ID))(
+  it.each(commands(CONVERSATION_ID).filter((command) => command.transitionId !== "PL-T01"))(
     "does not fence $transitionId when no Chat creation has ever started",
     async (command) => {
       const test = await fixture("empty");
@@ -570,6 +574,7 @@ describe("legacy writer fence", () => {
 
   it("checks ownership when a queued command enters the serialized lane", async () => {
     const test = await fixture("empty");
+    await test.openConversation();
     let signalEntered: () => void = () => {};
     const entered = new Promise<void>((resolve) => {
       signalEntered = resolve;
@@ -594,23 +599,25 @@ describe("legacy writer fence", () => {
       },
     );
     const first = operations.executePlanTransition?.({
-      transitionId: "PL-T01",
+      transitionId: "PL-T03",
       commandId: "first",
-      sourceConversationId: null,
+      conversationId: CONVERSATION_ID,
     });
     await entered;
     const queued = operations.executePlanTransition?.({
-      transitionId: "PL-T01",
+      transitionId: "PL-T03",
       commandId: "queued",
-      sourceConversationId: null,
+      conversationId: CONVERSATION_ID,
     });
     await test.creation["plan_creation.start"]({ commandId: "chat-start" });
+    const before = await dumpStore(test.store);
     release();
     await expect(first).resolves.toMatchObject({ status: "completed" });
     await expect(queued).resolves.toMatchObject({
       status: "rejected",
       error: { code: "conflict", message: MESSAGE },
     });
+    expect(await dumpStore(test.store)).toBe(before);
   });
 
   it("does not create a calendar mirror when fenced verification has no prior items", async () => {

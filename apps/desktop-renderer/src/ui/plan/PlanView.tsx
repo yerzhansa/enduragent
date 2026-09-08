@@ -889,57 +889,26 @@ function CoursePickerDialog(): ReactElement {
 
 function NoPlan(): ReactElement {
   const actions = useEnduragentStore((state) => state.planActions);
-  const transition = useEnduragentStore((state) => state.plan.transition);
-  const model = useEnduragentStore((state) => planReadModel(state.plan));
-  const startGuard = model?.transitions.find((guard) => guard.transitionId === "PL-T01");
-  const startBlocked = startGuard?.status === "blocked";
-  const busy = transition.status === "submitting" || transition.status === "running";
-  const failed = transition.status === "failed";
+  const creationExists = useEnduragentStore((state) => state.planLibrary.value?.creation != null);
 
   return (
     <div className="grid gap-6" data-plan-scenario="PL-S001">
       <section className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-lg font-semibold">Train toward one clear goal</h2>
-        <p className="m-0 text-ink-2">
-          Your coach will ask here for your Goal Event, optional GPX/FIT Race Course, weekly
-          availability, and FTP. Nothing writes until you approve.
-        </p>
+        <h2 className="m-0 text-lg font-semibold">No active Plan</h2>
+        <p className="m-0 text-ink-2">Create a Plan when you are ready.</p>
       </section>
-      <section className="grid gap-inset">
-        <h2 className="m-0 text-sm font-medium">What the draft needs</h2>
-        <div className="overflow-hidden rounded-card bg-surface px-5 shadow-elev-1">
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">Goal event + Race Course</h3>
-            <p className="m-0 text-ink-2">Race date, priority, and optional GPX/FIT file</p>
-          </div>
-          <div className="h-px bg-line" />
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">Current training</h3>
-            <p className="m-0 text-ink-2">Recent workouts, recovery, and weekly availability</p>
-          </div>
-          <div className="h-px bg-line" />
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">FTP</h3>
-            <p className="m-0 text-ink-2">Athlete-entered FTP, Intervals FTP, or Intervals eFTP</p>
-          </div>
+      {creationExists ? null : (
+        <div className="flex flex-wrap gap-inset">
+          <Button
+            id="plan-start-coach"
+            type="button"
+            disabled={actions === null}
+            onClick={() => actions?.startPlan()}
+          >
+            Start a Plan
+          </Button>
         </div>
-      </section>
-      {failed ? <StaleNotice message={transition.error.message} /> : null}
-      {startBlocked && startGuard.reason !== null ? (
-        <StaleNotice message={startGuard.reason} />
-      ) : null}
-      <div className="flex flex-wrap gap-inset">
-        <Button
-          id="plan-start-coach"
-          type="button"
-          disabled={actions === null || busy || startBlocked}
-          aria-busy={busy ? "true" : undefined}
-          onClick={() => actions?.startPlan()}
-        >
-          {busy ? "Opening coach…" : "Build a plan with coach"}
-        </Button>
-        {failed ? <RetryButton /> : null}
-      </div>
+      )}
     </div>
   );
 }

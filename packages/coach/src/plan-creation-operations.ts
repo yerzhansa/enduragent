@@ -185,9 +185,20 @@ export function createPlanCreationOperations(input: {
       throw error;
     }
   };
-  const project = async (snapshot: PlanCreationSnapshot): Promise<PlanCreationCardModel> => {
-    const current = await persistDerivedBaseline(snapshot);
-    return projectPlanCreationCard(current, { today: today() });
+  const project = async (
+    snapshot: PlanCreationSnapshot,
+    questionToday = today(),
+  ): Promise<PlanCreationCardModel> => {
+    let calendarWindow: PlanCreationCardModel["calendarWindow"] = null;
+    if (calendarConnected()) {
+      const active = await input.store.get("SELECT id FROM plan WHERE status='active' LIMIT 1");
+      const today = todayDateKey();
+      calendarWindow = {
+        startDate: dateText(addCivilDays(today, active === undefined ? 0 : 1)),
+        endDate: dateText(addCivilDays(today, 6)),
+      };
+    }
+    return projectPlanCreationCard(snapshot, { today: questionToday, calendarWindow });
   };
   const replayRow = async (
     name: "plan_creation.start" | "plan_creation.answer",
@@ -224,16 +235,13 @@ export function createPlanCreationOperations(input: {
               input_version: z.number().int().positive(),
             })
             .parse(draftRow);
-    const card = projectPlanCreationCard(
-      {
-        ...snapshot,
-        status: "in-progress",
-        version,
-        currentDraft: null,
-        answers: snapshot.answers.filter((answer) => answer.creationVersion <= version),
-      },
-      { today: today() },
-    );
+    const card = await project({
+      ...snapshot,
+      status: "in-progress",
+      version,
+      currentDraft: null,
+      answers: snapshot.answers.filter((answer) => answer.creationVersion <= version),
+    });
     return recordedDraft === null
       ? card
       : {
@@ -402,8 +410,7 @@ export function createPlanCreationOperations(input: {
         return ListPlansResultSchema.parse({
           calendarConnected: calendarConnected(),
           legacy,
-          creation:
-            creation === undefined ? null : projectPlanCreationCard(creation, { today: today() }),
+          creation: creation === undefined ? null : await project(creation),
           active:
             active === null
               ? null
@@ -511,7 +518,7 @@ export function createPlanCreationOperations(input: {
           outcome: replay?.outcome ?? (result.outcome === "created" ? "created" : "resumed"),
           planCreation:
             replay === undefined
-              ? await project(result.snapshot)
+              ? await project(await persistDerivedBaseline(result.snapshot))
               : await projectRecorded(result.snapshot, replay.version ?? result.snapshot.version),
         });
         return response;
@@ -621,7 +628,7 @@ export function createPlanCreationOperations(input: {
         const result = await record();
         const response = PlanCreationAnswerRpcResultSchema.parse({
           status: "answered",
-          planCreation: await project(result.snapshot),
+          planCreation: await project(await persistDerivedBaseline(result.snapshot)),
         });
         return response;
       } catch (error) {
@@ -650,7 +657,7 @@ export function createPlanCreationOperations(input: {
           );
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "previewed",
-            planCreation: projectPlanCreationCard(replayed, context),
+            planCreation: await project(replayed, context.today),
           });
         }
         const snapshot = await input.repository.readUnfinished();
@@ -658,15 +665,14 @@ export function createPlanCreationOperations(input: {
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "rejected",
             reason: "no-unfinished-creation",
-            planCreation:
-              snapshot === undefined ? null : projectPlanCreationCard(snapshot, { today: today() }),
+            planCreation: snapshot === undefined ? null : await project(snapshot),
           });
         }
         if (snapshot.version !== parsed.expectedVersion) {
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "rejected",
             reason: "stale-version",
-            planCreation: projectPlanCreationCard(snapshot, { today: today() }),
+            planCreation: await project(snapshot),
           });
         }
         if (pendingPlanCreationCommitment(snapshot) !== null) {
@@ -674,7 +680,7 @@ export function createPlanCreationOperations(input: {
             status: "rejected",
             reason: "commitments-pending",
             explanation: "Clarify or cancel the pending commitment correction.",
-            planCreation: projectPlanCreationCard(snapshot, { today: today() }),
+            planCreation: await project(snapshot),
           });
         }
         const answers = resolvePlanCreationDraftAnswers(snapshot);
@@ -682,7 +688,7 @@ export function createPlanCreationOperations(input: {
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "rejected",
             reason: "not-ready",
-            planCreation: projectPlanCreationCard(snapshot, { today: today() }),
+            planCreation: await project(snapshot),
           });
         }
         const buildInput = { answers, today: today(), ftp: null } as const;
@@ -692,7 +698,7 @@ export function createPlanCreationOperations(input: {
             status: "rejected",
             reason: "no-workouts",
             explanation: built.explanation,
-            planCreation: projectPlanCreationCard(snapshot, { today: buildInput.today }),
+            planCreation: await project(snapshot, buildInput.today),
           });
         }
         const { inputFingerprint, outputFingerprint: _builderOutputFingerprint, ...output } = built;
@@ -724,7 +730,7 @@ export function createPlanCreationOperations(input: {
         });
         return PlanCreationPreviewRpcResultSchema.parse({
           status: "previewed",
-          planCreation: projectPlanCreationCard(result.snapshot, { today: buildInput.today }),
+          planCreation: await project(result.snapshot, buildInput.today),
         });
       } catch (error) {
         if (

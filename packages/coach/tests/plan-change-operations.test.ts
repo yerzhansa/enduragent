@@ -28,6 +28,7 @@ async function activatedPlan(
   eventDate: string | null = null,
   mode: "fixed" | "flexible" = "fixed",
   translator?: IntentTranslationPort,
+  commitmentText?: string,
 ) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
@@ -112,7 +113,13 @@ async function activatedPlan(
         }
       : { kind: "availability", mode, weeklyHoursLimit: 8, longestWorkoutHours: 3 },
     { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
-    { kind: "commitments", commitments: { kind: "none" } },
+    {
+      kind: "commitments",
+      commitments:
+        commitmentText === undefined
+          ? { kind: "none" }
+          : { kind: "interpreted", text: commitmentText },
+    },
     { kind: "baseline", baseline: "regular" },
     {
       kind: "success",
@@ -132,6 +139,16 @@ async function activatedPlan(
     });
     if (result.status !== "answered") throw new Error("Expected answer");
     card = result.planCreation;
+  }
+  if (commitmentText !== undefined) {
+    const confirmed = await creation["plan_creation.answer"]({
+      commandId: "confirm-commitments",
+      creationId: card.creationId,
+      expectedVersion: card.version,
+      answer: { kind: "commitments-confirm" },
+    });
+    if (confirmed.status !== "answered") throw new Error("Expected confirmed commitments");
+    card = confirmed.planCreation;
   }
   const draftResult = await creation["plan_creation.preview"]({
     commandId: "draft",
@@ -2693,4 +2710,195 @@ describe("written Plan Change requests", () => {
     expect(translateIntent).toHaveBeenCalledTimes(1);
     expect(await dumpStore(test.store)).toBe(before);
   });
+});
+
+it.each(["Thu unavailable", "Time off 1998-09-03 to 1998-09-04"])(
+  "rejects Supporting Event add and move under confirmed commitments: %s",
+  async (commitmentText) => {
+    const test = await activatedPlan(
+      undefined,
+      undefined,
+      null,
+      "fixed",
+      undefined,
+      commitmentText,
+    );
+    const intent = {
+      kind: "supporting-event",
+      operation: "add",
+      name: "Local ride",
+      date: "1998-09-03",
+      role: "Training",
+    } satisfies PlanChangeIntent;
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "blocked-event",
+        planId: test.planId,
+        expectedVersion: 1,
+        intent,
+      }),
+    ).toMatchObject({ status: "rejected", reason: "invalid-intent" });
+    const added = await test.preview({ ...intent, date: "1998-09-05" }, "event-add");
+    await applyChange(test, added.change.changeId, 1, "event-apply");
+    const event = (await revisionSnapshot(test, 2)).supportingEvents[0];
+    if (!event) throw new Error("Expected Supporting Event");
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "blocked-move",
+        planId: test.planId,
+        expectedVersion: 2,
+        intent: {
+          kind: "supporting-event",
+          operation: "manual",
+          eventId: event.id,
+          name: event.name,
+          date: "1998-09-03",
+        },
+      }),
+    ).toMatchObject({ status: "rejected", reason: "invalid-intent" });
+  },
+);
+
+it.each(["Thu unavailable", "Time off 1998-09-03 to 1998-09-04"])(
+  "keeps blocked commitment days out of plan.list, preview, and apply: %s",
+  async (commitmentText) => {
+    let today = 19980902;
+    const test = await activatedPlan(
+      () => today,
+      undefined,
+      null,
+      "flexible",
+      undefined,
+      commitmentText,
+    );
+    const selected = (await test.creation["plan.list"]({})).active?.todayChoice?.eligible[0];
+    if (!selected) throw new Error("Expected choice on available day");
+    const pending = await test.preview({ kind: "choose-workout", workoutId: selected.workoutId });
+    today = 19980903;
+    const blocked = (await test.creation["plan.list"]({})).active?.todayChoice;
+    expect(blocked).toMatchObject({
+      eligible: [],
+      reason: "Today is unavailable under your confirmed limits.",
+    });
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "blocked-choice",
+        planId: test.planId,
+        expectedVersion: 1,
+        intent: { kind: "choose-workout", workoutId: selected.workoutId },
+      }),
+    ).toMatchObject({
+      status: "rejected",
+      reason: "invalid-intent",
+      message: "Today is unavailable under your confirmed limits.",
+    });
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "blocked-apply",
+        planId: test.planId,
+        expectedVersion: 1,
+        changeId: pending.change.changeId,
+        decision: "apply",
+      }),
+    ).toMatchObject({ status: "rejected" });
+    expect(await test.workouts()).toEqual([]);
+    today = 19980905;
+    expect(
+      (await test.creation["plan.list"]({})).active?.todayChoice?.eligible.length,
+    ).toBeGreaterThan(0);
+    const allowed = await test.preview(
+      { kind: "choose-workout", workoutId: selected.workoutId },
+      "allowed-choice",
+    );
+    await applyChange(test, allowed.change.changeId, 1, "allowed-apply");
+    expect(await test.workouts()).toHaveLength(1);
+  },
+);
+
+it("rejects Undo of an event move once its old date is past and keeps the later event and Workout", async () => {
+  let today = 19980902;
+  const test = await activatedPlan(() => today, undefined, null, "flexible");
+  const added = await test.preview(
+    {
+      kind: "supporting-event",
+      operation: "add",
+      name: "Local ride",
+      date: "1998-09-03",
+      role: "Training",
+    },
+    "add",
+  );
+  await applyChange(test, added.change.changeId, 1, "add-apply");
+  const event = (await revisionSnapshot(test, 2)).supportingEvents[0];
+  if (!event) throw new Error("Expected Supporting Event");
+  const moved = await test.preview(
+    {
+      kind: "supporting-event",
+      operation: "manual",
+      eventId: event.id,
+      name: "Later ride",
+      date: "1998-09-10",
+    },
+    "move",
+    2,
+  );
+  await applyChange(test, moved.change.changeId, 2, "move-apply");
+  today = 19980904;
+  const before = await revisionSnapshot(test, 3);
+  expect(
+    await test.changes["plan_change.preview"]({
+      commandId: "undo",
+      planId: test.planId,
+      expectedVersion: 3,
+      intent: { kind: "inverse", changeId: moved.change.changeId },
+    }),
+  ).toMatchObject({ status: "rejected", reason: "invalid-intent" });
+  expect(await revisionSnapshot(test, 3)).toEqual(before);
+  expect(before.supportingEvents[0]?.date).toBe("1998-09-10");
+  expect(
+    before.weeks
+      .flatMap((week) => week.workouts)
+      .find((workout) => workout.supportingEventId === event.id)?.date,
+  ).toBe("1998-09-10");
+});
+
+it("does not publish an older translated request after a newer preview is cancelled", async () => {
+  const deferred = () => {
+    let resolve: (() => void) | undefined;
+    const promise = new Promise<void>((done) => {
+      resolve = done;
+    });
+    if (resolve === undefined) throw new Error("Expected a Promise resolver");
+    return { promise, resolve };
+  };
+  const entered = deferred();
+  const finish = deferred();
+  const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) => {
+    entered.resolve();
+    await finish.promise;
+    return schema.parse({ status: "translated", intent: { kind: "longest-workout", minutes: 30 } });
+  };
+  const test = await activatedPlan(undefined, undefined, null, "fixed", { translateIntent });
+  const older = test.changes["plan_change.preview"]({
+    commandId: "older-text",
+    planId: test.planId,
+    expectedVersion: 1,
+    request: { kind: "text", text: "Please shorten my longest sessions to half an hour." },
+  });
+  await entered.promise;
+  const newer = await test.preview({ kind: "longest-workout", minutes: 40 }, "newer");
+  expect(
+    await test.changes["plan_change.apply"]({
+      commandId: "cancel-newer",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: newer.change.changeId,
+      decision: "cancel",
+    }),
+  ).toMatchObject({ status: "cancelled" });
+  finish.resolve();
+  expect(await older).toEqual({ status: "rejected", reason: "stale-version" });
+  const list = await test.creation["plan.list"]({});
+  expect(list.changes).toHaveLength(1);
+  expect(list.changes[0]?.status).toBe("cancelled");
 });

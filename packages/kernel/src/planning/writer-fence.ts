@@ -7,6 +7,13 @@ const FenceSchema = z.object({
   chatAuthoritySinceMs: z.number().nullable(),
 });
 
+export class LegacyPlanningAuthorityError extends Error {
+  constructor() {
+    super("This Plan is managed in Chat. Change or stop it from Chat or the Plan library.");
+    this.name = "LegacyPlanningAuthorityError";
+  }
+}
+
 export type LegacyWriterFenceState = z.infer<typeof FenceSchema>;
 
 export function createLegacyWriterFence(store: Pick<SqlReadStore, "get">) {
@@ -23,6 +30,14 @@ export function createLegacyWriterFence(store: Pick<SqlReadStore, "get">) {
     );
   return {
     read,
+    async assertLegacyAuthority(): Promise<void> {
+      const row = await store.get(
+        "SELECT chat_authority_since_ms FROM planning_authority WHERE singleton = 1",
+      );
+      if (row !== undefined && row.chat_authority_since_ms !== null) {
+        throw new LegacyPlanningAuthorityError();
+      }
+    },
     async fenced(): Promise<boolean> {
       const state = await read();
       return (

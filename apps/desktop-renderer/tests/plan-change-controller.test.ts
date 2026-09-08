@@ -92,7 +92,9 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
   };
   const call = vi.fn(async (_method: string, _request: unknown): Promise<never> => {
     const response =
-      _method === "saveChatAttachmentDraftText" || _method === "getChatAttachmentComposer"
+      _method === "saveChatAttachmentDraftText" ||
+      _method === "getChatAttachmentComposer" ||
+      _method === "clearChatAttachmentDraft"
         ? emptyComposer
         : _method === "enqueueChatMessage"
           ? { schemaVersion: 1, revision: 1, items: [] }
@@ -145,6 +147,9 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     },
     setSurface(patch: Partial<PlanChangeSurfaceState>) {
       surface = { ...surface, ...patch };
+    },
+    setChanges(changes: PlanChangeModel[]) {
+      library = { ...library, changes };
     },
     updateVersion(version: number) {
       if (library.active) library = { ...library, active: { ...library.active, version } };
@@ -214,10 +219,144 @@ describe("Plan Change controller", () => {
     });
     h.controller.backFromPlanChangeEditor();
     expect(h.surface()).toMatchObject({
+      open: false,
       editorOpen: false,
       focusRequest: { target: "change", revision: 2 },
     });
   });
+
+  it.each([false, true])(
+    "routes ordinary text to the coach after Back leaves Change with pending preview: %s",
+    async (pending) => {
+      const h = harness(null, pending ? [change] : []);
+      h.controller.openPlanChangeEditor();
+      h.controller.backFromPlanChangeEditor();
+      expect(await h.controller.submit("How is my fitness progressing?")).toBe(true);
+      expect(h.call).toHaveBeenCalledWith(
+        "enqueueChatMessage",
+        expect.objectContaining({ text: "How is my fitness progressing?" }),
+      );
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it("routes text back into Change after reopening an exited editor", async () => {
+    const h = harness({ status: "previewed", change, version: 8 });
+    h.controller.openPlanChangeEditor();
+    h.controller.backFromPlanChangeEditor();
+    h.controller.openPlanChangeEditor();
+    await h.controller.submit("my ftp is 220");
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.preview",
+      expect.objectContaining({ request: { kind: "text", text: "my ftp is 220" } }),
+    );
+    h.controller.dispose();
+  });
+
+  it.each(["apply", "cancel"] as const)(
+    "routes ordinary text to the coach after %s removes the last pending preview",
+    async (decision) => {
+      const h = harness({
+        status: decision === "apply" ? "applied" : "cancelled",
+        changeId: change.changeId,
+        version: 8,
+      });
+      h.controller.openPlanChangeEditor();
+      h.refresh.mockImplementation(async () => h.setChanges([]));
+      await h.controller.applyPlanChange(decision);
+      expect(h.surface()).toMatchObject({
+        open: true,
+        textRouting: false,
+        editorOpen: false,
+        notice:
+          decision === "apply"
+            ? "Change applied locally. Training now matches the confirmed preview."
+            : "Change cancelled. Training is unchanged; the preview remains in history.",
+      });
+      expect(await h.controller.submit("How is my fitness progressing?")).toBe(true);
+      expect(h.call).toHaveBeenCalledWith(
+        "enqueueChatMessage",
+        expect.objectContaining({ text: "How is my fitness progressing?" }),
+      );
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it("keeps Change open if another pending preview remains after applying", async () => {
+    const h = harness({ status: "applied", changeId: change.changeId, version: 8 });
+    h.controller.openPlanChangeEditor();
+    h.refresh.mockImplementation(async () =>
+      h.setChanges([{ ...change, changeId: "another-preview" }]),
+    );
+    await h.controller.applyPlanChange("apply");
+    expect(h.surface().open).toBe(true);
+    h.controller.dispose();
+  });
+
+  it.each([false, true])(
+    "routes ordinary text to the coach after New conversation clears Change with pending preview: %s",
+    async (pending) => {
+      const h = harness(
+        {
+          status: "rejected",
+          reason: "unsupported-request",
+          explanation: "Ask for one change at a time.",
+        },
+        pending ? [change] : [],
+      );
+      h.controller.openPlanChangeEditor();
+      await h.controller.submit("some change request");
+      expect(h.controller.openNewConversation()).toBe(true);
+      await h.controller.confirmNewConversation();
+      expect(h.surface()).toEqual(EMPTY_PLAN_CHANGE_SURFACE);
+      h.call.mockClear();
+      expect(await h.controller.submit("How is my fitness progressing?")).toBe(true);
+      expect(h.call).toHaveBeenCalledWith(
+        "enqueueChatMessage",
+        expect.objectContaining({ text: "How is my fitness progressing?" }),
+      );
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it.each(["resolve", "reject"] as const)(
+    "drops an in-flight preview after New conversation when it completes with %s",
+    async (completion) => {
+      const h = harness({ status: "previewed", change, version: 8 }, []);
+      h.controller.openPlanChangeEditor();
+      await h.controller.submit("my ftp is 220");
+      h.call.mockClear();
+      h.refresh.mockClear();
+      let complete = () => {};
+      const response = new Promise<never>((resolve, reject) => {
+        complete = () => {
+          if (completion === "resolve")
+            resolve({ status: "previewed", change, version: 8 } as never);
+          else reject(new Error("Preview response lost"));
+        };
+      });
+      h.call.mockImplementationOnce(() => response);
+      const preview = h.controller.previewPlanChange(change.intent);
+      await vi.waitFor(() =>
+        expect(h.call).toHaveBeenCalledWith("plan_change.preview", expect.anything()),
+      );
+      expect(h.controller.openNewConversation()).toBe(true);
+      await h.controller.confirmNewConversation();
+      expect(h.surface()).toEqual(EMPTY_PLAN_CHANGE_SURFACE);
+      complete();
+      await preview;
+      expect(h.surface()).toEqual(EMPTY_PLAN_CHANGE_SURFACE);
+      expect(h.refresh).not.toHaveBeenCalled();
+      h.call.mockClear();
+      await h.controller.submit("How is my fitness progressing?");
+      expect(h.call).toHaveBeenCalledWith("enqueueChatMessage", expect.anything());
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
 
   it("previews with the summary version, refreshes, and focuses the preview", async () => {
     const h = harness({ status: "previewed", change, version: 8 }, []);
@@ -537,7 +676,14 @@ describe("Plan Change controller", () => {
       h.controller.openPlanChangeEditor();
       if (state === "busy") h.setSurface({ busy: true });
       else h.pause();
-      expect(await h.controller.submit("what should i ride today?")).toBe(state === "paused");
+      expect(await h.controller.submit("what should i ride today?")).toBe(false);
+      if (state === "paused") expect(h.surface().notice).toBe(PLAN_CHANGES_PAUSED_NOTICE);
+      expect(h.call.mock.calls.some(([method]) => method === "saveChatAttachmentDraftText")).toBe(
+        false,
+      );
+      expect(h.render.mock.lastCall?.[0].messages).not.toContainEqual(
+        expect.objectContaining({ role: "athlete", text: "what should i ride today?" }),
+      );
       expect(
         h.call.mock.calls.some(
           ([method]) => method === "plan_change.preview" || method === "enqueueChatMessage",

@@ -11,6 +11,7 @@ import {
   type ScheduleIntent,
 } from "../src/plan-change.js";
 
+import type { CommitmentRule } from "../src/commitments.js";
 import { readTodayChoice } from "../src/today-choice.js";
 
 const todayDateKey = 19980824;
@@ -643,6 +644,7 @@ const eventRules: SupportingEventRules = {
     weeklyHoursLimit: 8,
   },
   restriction: { kind: "none" },
+  commitments: { kind: "none" },
 };
 const sourceEvent = {
   providerId: "race-fixture",
@@ -1281,9 +1283,13 @@ it.each(["mutable", "pinned", "completed"])(
 );
 
 describe("flexible daily choice", () => {
-  const answers: Pick<CreationDraftInput["answers"], "availability" | "restriction"> = {
+  const answers: Pick<
+    CreationDraftInput["answers"],
+    "availability" | "restriction" | "commitments"
+  > = {
     availability: { mode: "flexible", weeklyHoursLimit: 6, longestWorkoutHours: 2 },
     restriction: { kind: "none" },
+    commitments: { kind: "none" },
   };
 
   function flexibleDraft() {
@@ -1378,6 +1384,7 @@ describe("flexible daily choice", () => {
       draft: flexibleDraft(),
       todayDateKey,
       answers: {
+        ...answers,
         availability: { ...answers.availability, longestWorkoutHours: 0.5 },
         restriction: { kind: "max-duration", hours: 1 },
       },
@@ -1396,6 +1403,7 @@ describe("flexible daily choice", () => {
       draft: flexibleDraft(),
       todayDateKey,
       answers: {
+        ...answers,
         availability: { ...answers.availability, longestWorkoutHours: 0.5 },
         restriction: { kind: "no-hard-training" },
       },
@@ -1459,4 +1467,147 @@ describe("flexible daily choice", () => {
       }),
     ).toEqual({ start: "1998-09-21", end: "1998-09-27" });
   });
+});
+
+it.each([
+  { kind: "weekday-unavailable", day: 3 },
+  { kind: "time-off", start: "1998-09-01", end: "1998-09-03" },
+] satisfies CommitmentRule[])(
+  "rejects Supporting Event additions and moves blocked by confirmed $kind",
+  (rule) => {
+    const rules: SupportingEventRules = {
+      ...eventRules,
+      commitments: {
+        kind: "interpreted",
+        text: "Confirmed limits",
+        status: "confirmed",
+        rules: [rule],
+      },
+    };
+    expect(
+      eventChange(
+        {
+          kind: "supporting-event",
+          operation: "add",
+          name: "River ride",
+          date: "1998-09-02",
+          role: "Training",
+        },
+        fixture(),
+        rules,
+      ),
+    ).toMatchObject({ status: "invalid" });
+    const added = eventChange(
+      {
+        kind: "supporting-event",
+        operation: "add",
+        name: "River ride",
+        date: "1998-09-04",
+        role: "Training",
+      },
+      fixture(),
+      rules,
+    );
+    if (added.status !== "changed") throw new Error(added.explanation);
+    expect(
+      eventChange(
+        {
+          kind: "supporting-event",
+          operation: "manual",
+          eventId: "river",
+          name: "River ride",
+          date: "1998-09-02",
+        },
+        added.after,
+        rules,
+      ),
+    ).toMatchObject({ status: "invalid" });
+  },
+);
+
+it("caps Supporting Events at confirmed weekday duration", () => {
+  const result = eventChange(
+    {
+      kind: "supporting-event",
+      operation: "add",
+      name: "River ride",
+      date: "1998-09-02",
+      role: "Training",
+    },
+    fixture(),
+    {
+      ...eventRules,
+      commitments: {
+        kind: "interpreted",
+        text: "Wed 30 minutes",
+        status: "confirmed",
+        rules: [{ kind: "weekday-duration", day: 3, minutes: 30 }],
+      },
+    },
+  );
+  if (result.status !== "changed") throw new Error(result.explanation);
+  expect(
+    workouts(result.after).find((workout) => workout.supportingEventId === "river")?.minutes,
+  ).toBe(30);
+});
+
+it.each([19980903, 19980910])(
+  "keeps a moved event and its Workout in the later week when Undo at %s cannot restore the old date",
+  (today) => {
+    const previousDraft = eventAdded().after;
+    const moved = eventChange(
+      {
+        kind: "supporting-event",
+        operation: "manual",
+        eventId: "river",
+        name: "Later river ride",
+        date: "1998-09-10",
+      },
+      previousDraft,
+    );
+    if (moved.status !== "changed") throw new Error(moved.explanation);
+    const inverse = applyScheduleIntent({
+      draft: moved.after,
+      previousDraft,
+      intent: { kind: "inverse", changeId: "move" },
+      todayDateKey: today,
+    });
+    const linked = workouts(inverse.after).filter(
+      (workout) => workout.supportingEventId === "river",
+    );
+    expect(linked).toHaveLength(1);
+    expect(linked[0]).toMatchObject({ date: "1998-09-10", name: "Later river ride" });
+    expect(inverse.after.weeks[3].workouts).toContainEqual(linked[0]);
+    expect(
+      inverse.after.weeks[2].workouts.some((workout) => workout.supportingEventId === "river"),
+    ).toBe(false);
+    expect(inverse.after.supportingEvents).toEqual(moved.after.supportingEvents);
+    expect(inverse.diff).toEqual([]);
+  },
+);
+
+it("keeps current metadata when Undo retains a completed event Workout with a corrected name", () => {
+  const previousDraft = eventAdded().after;
+  const corrected = eventChange(
+    {
+      kind: "supporting-event",
+      operation: "manual",
+      eventId: "river",
+      name: "Corrected river ride",
+      date: "1998-09-02",
+    },
+    previousDraft,
+  );
+  if (corrected.status !== "changed") throw new Error(corrected.explanation);
+  const linked = workouts(corrected.after).find((workout) => workout.supportingEventId === "river");
+  if (!linked) throw new Error("Expected event Workout");
+  const inverse = applyScheduleIntent({
+    draft: corrected.after,
+    previousDraft,
+    intent: { kind: "inverse", changeId: "correction" },
+    todayDateKey: 19980902,
+    completedWorkoutIds: new Set([linked.id]),
+  });
+  expect(inverse.after.supportingEvents).toEqual(corrected.after.supportingEvents);
+  expect(workouts(inverse.after).find((workout) => workout.id === linked.id)).toEqual(linked);
 });

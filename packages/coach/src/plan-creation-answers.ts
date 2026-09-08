@@ -33,6 +33,7 @@ export interface PlanCreationBaselineEvidence {
 
 export interface PlanCreationProjectionContext {
   readonly today: string;
+  readonly calendarWindow?: PlanCreationCardModel["calendarWindow"];
 }
 
 export interface StoredPlanCreationAnswer {
@@ -809,6 +810,7 @@ export function projectPlanCreationCard(
         ? null
         : PlanCreationDraftSchema.parse(JSON.parse(snapshot.currentDraft.outputSnapshotJson)),
     draftStale: snapshot.currentDraft !== null && !isPlanCreationDraftCurrent(snapshot),
+    calendarWindow: context.calendarWindow ?? null,
     pendingCommitment: pendingPlanCreationCommitment(snapshot),
     readiness: question === null ? "ready" : "incomplete",
     answeredSummaries: projectPlanCreationAnswerSummaries(snapshot, flow, context),

@@ -8,6 +8,7 @@ import {
   PlanChangeEventSourceSchema,
   PlanChangeFtpSourcesSchema,
   PlanChangeIntentSchema,
+  PlanChangeRequestSchema,
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
@@ -180,6 +181,10 @@ function Difference({
 }
 
 function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
+  if (premise.id === "request") {
+    const parsed = PlanChangeRequestSchema.safeParse(premise.value);
+    if (parsed.success && parsed.data.kind === "text") return parsed.data.text;
+  }
   if (premise.id === "ftp-sources") {
     const parsed = PlanChangeFtpSourcesSchema.safeParse(premise.value);
     if (!parsed.success) return premise.label;
@@ -447,10 +452,13 @@ export function PlanChangeCards(): ReactElement | null {
     if (activeView !== "chat" || state.busy) return;
     if (state.focusRequest?.target === "preview" && pending) previewHeading.current?.focus();
     if (state.focusRequest?.target === "change") {
-      if (paused) pauseNotice.current?.focus();
+      if (!state.open && !pending) {
+        const composer = document.querySelector("#message");
+        if (composer instanceof HTMLTextAreaElement) composer.focus();
+      } else if (paused) pauseNotice.current?.focus();
       else changeButton.current?.focus();
     }
-  }, [state.focusRequest, state.busy, pending?.changeId, activeView, paused]);
+  }, [state.focusRequest, state.busy, state.open, pending?.changeId, activeView, paused]);
   useEffect(() => {
     if (source) sourceHeading.current?.focus();
   }, [source]);

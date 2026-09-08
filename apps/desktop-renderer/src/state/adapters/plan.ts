@@ -81,7 +81,6 @@ export interface PlanViewAdapter {
   start(): void;
   open(): void;
   openChatRequest(sourceConversationId: string, requestId: string): void;
-  startPlan(): void;
   closeCoach(): void;
   submitCoach(message: string): Promise<boolean>;
   stopCoach(): void;
@@ -592,15 +591,6 @@ export function createPlanViewAdapter(input: {
     }
   };
 
-  const startPlan = (): void => {
-    if (active !== null) return;
-    void execute({
-      transitionId: "PL-T01",
-      commandId: createCommandId(),
-      sourceConversationId: null,
-    });
-  };
-
   const open = (): void => {
     if (active !== null) return;
     const model = planReadModel(input.read());
@@ -632,7 +622,6 @@ export function createPlanViewAdapter(input: {
         requestId,
       });
     },
-    startPlan,
     closeCoach() {
       const model = planReadModel(input.read());
       if (

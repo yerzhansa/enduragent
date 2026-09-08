@@ -85,7 +85,7 @@ export interface ChatSurfaceState {
   readonly planCreationActivateConfirmationOpen: boolean;
   readonly planCreationActivePlanKnowledge: ActivePlanKnowledge;
   readonly planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "start" | "continue" | "change";
+    readonly target: "discard" | "activate" | "start" | "continue" | "change" | "edit";
     readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null;
@@ -134,7 +134,7 @@ export interface ChatActions {
   pausePlanCreation(): void;
   continuePlanCreation(): void;
   editPlanCreation(answerKey: PlanCreationAnswerSummary["answerKey"]): void;
-  cancelPlanCreationEdit(): void;
+  cancelPlanCreationEdit(returnFocus?: "edit"): void;
   openPlanCreationDiscard(): void;
   cancelPlanCreationDiscard(): void;
   confirmPlanCreationDiscard(): void;
@@ -216,6 +216,7 @@ export const PLAN_CHANGES_RESUMED_NOTICE =
 
 export interface PlanChangeSurfaceState {
   readonly open: boolean;
+  readonly textRouting: boolean;
   readonly planId: string | null;
   readonly editorOpen: boolean;
   readonly busy: boolean;
@@ -229,6 +230,7 @@ export interface PlanChangeSurfaceState {
 
 export const EMPTY_PLAN_CHANGE_SURFACE: PlanChangeSurfaceState = Object.freeze({
   open: false,
+  textRouting: false,
   planId: null,
   editorOpen: false,
   busy: false,

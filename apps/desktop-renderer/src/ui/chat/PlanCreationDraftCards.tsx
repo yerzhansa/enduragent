@@ -133,9 +133,11 @@ export function PlanCreationDraftCards(props: {
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discardButton = useRef<HTMLButtonElement>(null);
   const activateButton = useRef<HTMLButtonElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusRequest?.target === "discard") queueMicrotask(() => discardButton.current?.focus());
     if (focusRequest?.target === "activate") queueMicrotask(() => activateButton.current?.focus());
+    if (focusRequest?.target === "edit") queueMicrotask(() => editButton.current?.focus());
   }, [focusRequest?.revision, focusRequest?.target]);
   const draft = props.draft;
   const stale = props.model.draftStale;
@@ -253,6 +255,7 @@ export function PlanCreationDraftCards(props: {
           </Button>
           <Button
             variant="outline"
+            ref={editButton}
             disabled={busy || actions === null || editingKey !== null}
             onClick={props.onEditAnswers}
           >

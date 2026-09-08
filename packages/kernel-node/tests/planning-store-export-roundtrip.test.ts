@@ -450,6 +450,48 @@ describe("planning-domain SQLite export round-trip", () => {
     },
   );
 
+  it("restores a legacy conversation after Chat authority has started", async () => {
+    const source = openSqliteStorage(":memory:");
+    const destination = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(source, MIGRATIONS.slice(0, 28));
+      await runMigrations(destination, MIGRATIONS);
+      await populateV28Replacement(source);
+      await destination.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = ? WHERE singleton = 1",
+        [BASE_MS],
+      );
+      expect(await createLegacyWriterFence(destination).fenced()).toBe(true);
+      const container = await buildPre29Container(source);
+
+      await importExport(
+        {
+          sink: createSqliteImportSink(destination),
+          presence: completePresence,
+          targetUserVersion: 32,
+          ...webCryptoExportEnv,
+        },
+        { container },
+      );
+
+      for (const table of ["plan_conversation", "plan_draft_revision"]) {
+        expect(await destination.all(`SELECT * FROM ${table}`)).toEqual(
+          await source.all(`SELECT * FROM ${table}`),
+        );
+      }
+      expect(
+        await destination.get(
+          "SELECT chat_authority_since_ms FROM planning_authority WHERE singleton = 1",
+        ),
+      ).toEqual({ chat_authority_since_ms: BASE_MS });
+      expect(await createLegacyWriterFence(destination).fenced()).toBe(true);
+      expect(await destination.all("PRAGMA foreign_key_check")).toEqual([]);
+    } finally {
+      await source.close();
+      await destination.close();
+    }
+  });
+
   it("restores a v28 replacement lineage without its derived cleanup table", async () => {
     const source = openSqliteStorage(":memory:");
     const destination = openSqliteStorage(":memory:");

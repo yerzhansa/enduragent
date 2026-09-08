@@ -365,6 +365,7 @@ function planCreationModel(
   return {
     draft: null,
     draftStale: false,
+    calendarWindow: null,
     pendingCommitment: null,
     creationId: "01J00000000000000000000000",
     version: patch.version ?? 1,
@@ -1083,6 +1084,16 @@ describe("chat surface", () => {
   });
 
   describe("composer", () => {
+    it("leaves the bordered shell to the shared composer controls", () => {
+      render(<Harness />);
+      const form = composer().closest("form");
+
+      expect(form).toHaveAttribute("class", "composer relative");
+      expect(form).toHaveAttribute("data-parity", "composer");
+      expect(composer()).toHaveAttribute("data-parity", "composer.textarea");
+      expect(form?.querySelectorAll(".rounded-card.border")).toHaveLength(1);
+    });
+
     it("places the medical disclaimer directly below the composer", () => {
       render(<Harness />);
 
@@ -3258,8 +3269,17 @@ describe("chat surface", () => {
       await userEvent.click(screen.getByRole("button", { name: "Edit answers" }));
       expect(screen.getByText("A changed answer makes the Draft stale.")).toBeVisible();
       expect(screen.getByRole("button", { name: "Edit Plan length" })).toBeEnabled();
+      vi.mocked(actions.cancelPlanCreationEdit).mockImplementation((returnFocus) => {
+        if (returnFocus === "edit") {
+          setChat({ planCreationFocusRequest: { target: "edit", revision: 1 } });
+        }
+      });
       await userEvent.click(screen.getByRole("button", { name: "Back to Draft" }));
+      expect(actions.cancelPlanCreationEdit).toHaveBeenCalledWith("edit");
       expect(screen.getByRole("heading", { name: "Every week and Workout" })).toBeVisible();
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Edit answers" })).toHaveFocus(),
+      );
     });
 
     it("keeps summaries in the conversation and submits authored success", async () => {

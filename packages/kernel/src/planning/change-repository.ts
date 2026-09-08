@@ -125,6 +125,7 @@ export interface PreviewPlanChangeInput {
   readonly command: PlanCreationCommandStamp;
   readonly planId: string;
   readonly expectedVersion: number;
+  readonly expectedChangeSequence?: number;
   readonly nowMs: number;
   readonly changeId: string;
   readonly build: (
@@ -177,6 +178,7 @@ export interface ApplyPlanChangeInput {
   ) => PlanChangeWorkoutMutations;
 }
 export interface PlanChangeRepository {
+  captureChangeSequence(planId: string): Promise<number>;
   preview(input: PreviewPlanChangeInput): Promise<PlanChangePreviewStoreResult>;
   apply(input: ApplyPlanChangeInput): Promise<PlanChangeApplyStoreResult>;
   listChanges(planId: string): Promise<PlanChangeRecord[]>;
@@ -255,6 +257,15 @@ export function createPlanChangeRepository(
     );
     return row === undefined ? null : ActiveRowSchema.parse(row);
   };
+  const readChangeSequence = async (planId: string) =>
+    z
+      .object({ change_sequence: z.number().int().nonnegative() })
+      .parse(
+        await store.get(
+          "SELECT COALESCE(SUM(version),0) AS change_sequence FROM plan_change WHERE plan_id=?",
+          [planId],
+        ),
+      ).change_sequence;
   const project = (
     row: ChangeRow,
     retirements: ReadonlyMap<string, Retirement>,
@@ -479,6 +490,9 @@ export function createPlanChangeRepository(
     return true;
   };
   return {
+    async captureChangeSequence(planId) {
+      return store.transaction(() => readChangeSequence(planId));
+    },
     async preview(input) {
       return store.transaction(async () => {
         const prior = await replay("plan_change.preview", input.command);
@@ -488,6 +502,11 @@ export function createPlanChangeRepository(
         const active = await readActive();
         if (active === null) return { status: "rejected", reason: "no-active-plan" };
         if (active.plan_id !== input.planId || active.version !== input.expectedVersion)
+          return { status: "rejected", reason: "stale-version" };
+        if (
+          input.expectedChangeSequence !== undefined &&
+          (await readChangeSequence(input.planId)) !== input.expectedChangeSequence
+        )
           return { status: "rejected", reason: "stale-version" };
         const completedRows = await store.all(
           `SELECT workout.structure_json FROM plan_workout workout

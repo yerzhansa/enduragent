@@ -130,6 +130,7 @@ const creation: PlanCreationCardModel = {
   readiness: "incomplete",
   draft: null,
   draftStale: false,
+  calendarWindow: null,
   pendingCommitment: null,
   answeredSummaries: [],
   openQuestion: {
@@ -226,6 +227,17 @@ afterEach(() => {
 });
 
 describe("Plan Change boot wiring", () => {
+  it("starts Plan creation in Main Chat from the no-Plan action", async () => {
+    store.getState().setActiveView("plan");
+    mocks.call.mockResolvedValueOnce({ status: "started", planCreation: creation });
+    store.getState().planActions?.startPlan();
+    await vi.waitFor(() => expect(store.getState().chat.planCreation).toEqual(creation));
+    expect(store.getState().activeView).toBe("chat");
+    expect(mocks.call).toHaveBeenCalledExactlyOnceWith("plan_creation.start", {
+      commandId: expect.any(String),
+    });
+  });
+
   it("reloads the Plan page and library through the chat refresh hook", async () => {
     const input = vi.mocked(createChatController).mock.calls.at(-1)?.[0];
     expect(input?.refreshPlanLibrary).toBeTypeOf("function");
@@ -248,6 +260,7 @@ describe("Plan Change boot wiring", () => {
     expect(store.getState().planChange).toEqual({
       ...EMPTY_PLAN_CHANGE_SURFACE,
       open: true,
+      textRouting: true,
       planId: "plan-new",
     });
     expect(store.getState().activeView).toBe("chat");
@@ -265,10 +278,10 @@ describe("Plan Change boot wiring", () => {
     };
     store.getState().setPlanChange(previous);
     store.getState().planLibraryActions?.changeInChat();
-    expect(store.getState().planChange).toEqual({ ...previous, open: true });
+    expect(store.getState().planChange).toEqual({ ...previous, open: true, textRouting: true });
   });
 
-  it("pauses creation after Continue from the library finishes loading", async () => {
+  it("resumes creation after Continue from the library with a pending Change", async () => {
     controller().resumeCreation(creation);
     store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
     mocks.call.mockResolvedValueOnce({ deliveries: [], planCreation: creation });
@@ -278,11 +291,46 @@ describe("Plan Change boot wiring", () => {
       chatId: "desktop",
     });
     expect(store.getState().chat.planCreationError).toBeNull();
+    expect(store.getState().chat.planCreationPaused).toBe(false);
+    expect(store.getState().planLibrary.value?.changes[0]?.status).toBe("pending");
+  });
+
+  it("pauses after a busy creation command finishes and lets Continue resume it", async () => {
+    const respond =
+      vi.fn<(value: { status: "started"; planCreation: PlanCreationCardModel }) => void>();
+    mocks.call.mockReturnValueOnce(new Promise((resolve) => respond.mockImplementation(resolve)));
+    controller().resumeCreation(null);
+    const starting = controller().startPlanCreation();
+    await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledOnce());
+    expect(store.getState().chat.planCreationBusy).toBe(true);
+    store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
+    respond({ status: "started", planCreation: creation });
+    await starting;
+    expect(store.getState().chat.planCreationBusy).toBe(false);
     expect(store.getState().chat.planCreationPaused).toBe(true);
+    store.getState().chatActions?.continuePlanCreation();
+    expect(store.getState().chat.planCreationPaused).toBe(false);
+    store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
+    expect(store.getState().chat.planCreationPaused).toBe(false);
+  });
+
+  it("clears a deferred pause when the pending Change disappears before creation finishes", async () => {
+    const respond =
+      vi.fn<(value: { status: "started"; planCreation: PlanCreationCardModel }) => void>();
+    mocks.call.mockReturnValueOnce(new Promise((resolve) => respond.mockImplementation(resolve)));
+    controller().resumeCreation(null);
+    const starting = controller().startPlanCreation();
+    await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledOnce());
+    store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
+    store.getState().setPlanLibrary({ status: "ready", value: library("plan-active") });
+    respond({ status: "started", planCreation: creation });
+    await starting;
+    expect(store.getState().chat.planCreationBusy).toBe(false);
+    expect(store.getState().chat.planCreationPaused).toBe(false);
   });
 
   it.each(["creation-first", "change-first"])(
-    "keeps creation paused after Continue with a pending Change (%s)",
+    "pauses creation once when a Change is pending and lets Continue resume it (%s)",
     (order) => {
       if (order === "creation-first") controller().resumeCreation(creation);
       store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
@@ -290,10 +338,9 @@ describe("Plan Change boot wiring", () => {
       expect(store.getState().chat.planCreationLoaded).toBe(true);
       expect(store.getState().chat.planCreationPaused).toBe(true);
       store.getState().chatActions?.continuePlanCreation();
-      expect(store.getState().chat.planCreationPaused).toBe(true);
+      expect(store.getState().chat.planCreationPaused).toBe(false);
       expect(store.getState().planLibrary.value?.changes[0]?.status).toBe("pending");
-      store.getState().setPlanLibrary({ status: "ready", value: library("plan-active") });
-      store.getState().chatActions?.continuePlanCreation();
+      store.getState().setPlanLibrary({ status: "ready", value: library("plan-active", true) });
       expect(store.getState().chat.planCreationPaused).toBe(false);
     },
   );

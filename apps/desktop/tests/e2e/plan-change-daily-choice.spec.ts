@@ -307,6 +307,9 @@ for (const appearance of appearances) {
       ).toBeEnabled();
       await today.getByRole("heading").scrollIntoViewIfNeeded();
       await capture(scenario, "restored-choice");
+      await changes(scenario)
+        .getByRole("button", { name: "Change one thing", exact: true })
+        .click();
       const requestsBeforeChat = scenario.backend.creationRequests.length;
       const composer = scenario.page.getByRole("combobox", { name: "Message your coach" });
       await composer.fill("WHAT SHOULD I RIDE TODAY?!");

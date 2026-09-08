@@ -287,6 +287,11 @@ for (const appearance of [
       await expect(scenario.page.getByText("Priority 1 · Undated", { exact: true })).toHaveCount(4);
       await capture(scenario, "review");
       await scenario.page.getByRole("button", { name: "Edit answers", exact: true }).click();
+      await scenario.page.getByRole("button", { name: "Back to Draft", exact: true }).click();
+      await expect(
+        scenario.page.getByRole("button", { name: "Edit answers", exact: true }),
+      ).toBeFocused();
+      await scenario.page.getByRole("button", { name: "Edit answers", exact: true }).click();
       await scenario.page.getByRole("button", { name: "Edit Plan length", exact: true }).click();
       await choose(scenario, "8");
       await expect(

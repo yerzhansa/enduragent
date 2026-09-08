@@ -279,6 +279,7 @@ describe("Planning request delivery", () => {
       status: "in-progress" as const,
       draft: null,
       draftStale: false,
+      calendarWindow: null,
       pendingCommitment: null,
       readiness: "incomplete" as const,
       answeredSummaries: [],

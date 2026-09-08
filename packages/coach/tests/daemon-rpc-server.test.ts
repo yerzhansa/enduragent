@@ -2353,6 +2353,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       status: "in-progress",
       draft: null,
       draftStale: false,
+      calendarWindow: null,
       pendingCommitment: null,
       readiness: "incomplete",
       answeredSummaries: [],
@@ -2387,6 +2388,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       status: "in-progress",
       draft: null,
       draftStale: false,
+      calendarWindow: null,
       pendingCommitment: null,
       readiness: "incomplete",
       answeredSummaries: [

@@ -36,7 +36,11 @@ import type { CyclingFtpAnchorResolver } from "@enduragent/kernel/anchors";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
-import { createPlanIntakeRepository, createPlanRepository } from "@enduragent/kernel/planning";
+import {
+  createPlanConversationRepository,
+  createPlanIntakeRepository,
+  createPlanRepository,
+} from "@enduragent/kernel/planning";
 import {
   createLocalCoachComposition,
   type LocalCoachCompositionDependencies,
@@ -49,6 +53,28 @@ import { readIntervalsStoreOwnerState } from "../src/account-identity.js";
 import { INTERVALS_CREDENTIAL_APPROVAL_TTL_MS } from "../src/intervals-credential-approval.js";
 import { checkHomeReadiness } from "../src/readiness.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
+
+async function seedLegacyConversation(
+  store: CoachStoreWriterContext["store"],
+  replacesPlanId: string | null = null,
+): Promise<string> {
+  const conversationId = "00000000000000000000000001";
+  await createPlanConversationRepository(store).saveConversation({
+    id: conversationId,
+    planId: null,
+    replacesPlanId,
+    courseChoiceStatus: "undecided",
+    raceCourseJson: null,
+    status: "open",
+    endedAtMs: null,
+    createdAtMs: 100,
+    updatedAtMs: 100,
+    deviceId: "device-1",
+    hlcPhysicalMs: 100,
+    hlcCounter: 0,
+  });
+  return conversationId;
+}
 
 const roots: string[] = [];
 const stores: CoachStoreWriterContext["store"][] = [];
@@ -2229,13 +2255,9 @@ describe("local coach composition", () => {
       },
       { home, store, listener: inertWriterProtocolListener },
     );
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
-    expect(started).toMatchObject({
-      status: "completed",
+    const conversationId = await seedLegacyConversation(store);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
       state: {
         data: {
           ftp: {
@@ -2247,8 +2269,6 @@ describe("local coach composition", () => {
         },
       },
     });
-    if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
-    const conversationId = String(started.state.data.conversationId);
     await expect(
       lifecycle.operations.executePlanTransition?.({
         transitionId: "PL-T04",
@@ -3016,14 +3036,11 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       status: "ready",
       state: { scenarioId: "PL-S001" },
     });
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "plan-start",
-      sourceConversationId: null,
+    const conversationId = await seedLegacyConversation(store);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
+      state: { scenarioId: "PL-S017" },
     });
-    if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
-    expect(started.state).toMatchObject({ scenarioId: "PL-S017" });
-    const conversationId = String(started.state.data.conversationId);
     await lifecycle.operations.executePlanTransition?.({
       transitionId: "PL-T03",
       commandId: "plan-course-omitted",
@@ -3240,17 +3257,11 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       { ENDURAGENT_HOME: home.root },
       true,
     );
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "replacement-start",
-      sourceConversationId: null,
+    const conversationId = await seedLegacyConversation(store, activePlanId);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
+      state: { scenarioId: "PL-S079", data: { replacement: true } },
     });
-    if (started?.status !== "completed") throw new TypeError("Replacement intake did not start.");
-    expect(started.state).toMatchObject({
-      scenarioId: "PL-S079",
-      data: { replacement: true },
-    });
-    const conversationId = String(started.state.data.conversationId);
     await lifecycle.operations.executePlanTransition?.({
       transitionId: "PL-T03",
       commandId: "replacement-course-omitted",

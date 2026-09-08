@@ -154,6 +154,7 @@ const creation: PlanCreationCardModel = {
   readiness: "incomplete",
   draft: null,
   draftStale: false,
+  calendarWindow: null,
   pendingCommitment: null,
   answeredSummaries: [],
   openQuestion: {
