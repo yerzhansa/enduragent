@@ -321,7 +321,7 @@ for (const appearance of appearances) {
       expect(PlanChangePreviewRpcParamsSchema.parse(chatRequests[0]?.params)).toMatchObject({
         planId: scenario.seed.planId,
         expectedVersion: 3,
-        intent: { kind: "choose-workout", workoutId: selected.workoutId },
+        request: { kind: "text", text: "WHAT SHOULD I RIDE TODAY?!" },
       });
       await chatPending.scrollIntoViewIfNeeded();
       await capture(scenario, "chat-choice");

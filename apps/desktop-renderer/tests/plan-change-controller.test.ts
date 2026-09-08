@@ -106,13 +106,14 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     close: vi.fn(async () => {}),
   };
   const refresh = vi.fn(async () => {});
+  const render = vi.fn();
   const controller = createChatController({
     clients: {
       getClient: async () => client,
       reconnect: async () => client,
       close: async () => {},
     },
-    view: { render: vi.fn() },
+    view: { render },
     initialQueueSnapshot: { schemaVersion: 1, revision: 0, items: [] },
     refreshTrainingContext: async () => {},
     refreshSpend: async () => {},
@@ -125,9 +126,13 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
   });
   return {
     controller,
+    render,
     call,
     refresh,
     surface: () => surface,
+    clearActivePlan() {
+      library = { ...library, active: null };
+    },
     pause() {
       library = {
         ...library,
@@ -384,11 +389,13 @@ describe("Plan Change controller", () => {
   });
 
   it.each([
+    "wednesdays at most 30 minutes",
+    "my ftp is 220",
     "what should i ride today",
     "WHAT SHOULD I RIDE TODAY?!",
     " What Should I Ride Today...  ",
   ])(
-    "routes %j to the first eligible Workout and clears the persisted composer draft",
+    "routes %j through text preview, echoes it, and clears the persisted composer draft",
     async (message) => {
       const h = harness({ status: "previewed", change, version: 8 }, []);
       h.setTodayChoice();
@@ -397,9 +404,13 @@ describe("Plan Change controller", () => {
       expect(h.call).toHaveBeenCalledWith(
         "plan_change.preview",
         expect.objectContaining({
-          intent: { kind: "choose-workout", workoutId: "workout-first" },
+          request: { kind: "text", text: message },
         }),
       );
+      expect(h.render.mock.lastCall?.[0].messages).toContainEqual(
+        expect.objectContaining({ role: "athlete", text: message, delivery: "complete" }),
+      );
+      expect(h.surface()).toMatchObject({ busy: false, focusRequest: { target: "preview" } });
       expect(h.call).toHaveBeenCalledWith("saveChatAttachmentDraftText", {
         chatId: "desktop",
         text: "",
@@ -432,12 +443,23 @@ describe("Plan Change controller", () => {
   it.each([null, { ...todayChoice, eligible: [], reason: "Recovery is required." }])(
     "announces that no Workout is eligible without sending chat when the choice is %j",
     async (choice) => {
-      const h = harness(null, []);
+      const h = harness(
+        {
+          status: "rejected",
+          reason: "unsupported-request",
+          explanation: "No eligible Workout can be selected today.",
+        },
+        [],
+      );
       h.setTodayChoice(choice);
       h.controller.openPlanChangeEditor();
       expect(await h.controller.submit("what should i ride today?")).toBe(true);
       expect(h.surface().notice).toBe("No eligible Workout can be selected today.");
-      expect(h.call).toHaveBeenCalledExactlyOnceWith("saveChatAttachmentDraftText", {
+      expect(h.call).toHaveBeenCalledWith(
+        "plan_change.preview",
+        expect.objectContaining({ request: { kind: "text", text: "what should i ride today?" } }),
+      );
+      expect(h.call).toHaveBeenCalledWith("saveChatAttachmentDraftText", {
         chatId: "desktop",
         text: "",
       });
@@ -449,10 +471,9 @@ describe("Plan Change controller", () => {
     "unrelated text",
     "what should i ride today please",
     "what should i ride today? And tomorrow?",
-  ])("sends %j through normal chat", async (message) => {
+  ])("sends %j through normal chat when Change is closed", async (message) => {
     const h = harness(null, []);
     h.setTodayChoice();
-    h.controller.openPlanChangeEditor();
     expect(await h.controller.submit(message)).toBe(true);
     expect(h.call).toHaveBeenCalledWith(
       "enqueueChatMessage",
@@ -482,6 +503,32 @@ describe("Plan Change controller", () => {
     },
   );
 
+  it.each(["different-plan", "no-active-plan"])(
+    "keeps text in normal chat with %s",
+    async (scope) => {
+      const h = harness(null, []);
+      h.setSurface({ open: true, planId: "another-plan" });
+      if (scope === "no-active-plan") h.clearActivePlan();
+      await h.controller.submit("my ftp is 220");
+      expect(h.call).toHaveBeenCalledWith(
+        "enqueueChatMessage",
+        expect.objectContaining({ text: "my ftp is 220" }),
+      );
+      expect(h.call.mock.calls.some(([method]) => method === "plan_change.preview")).toBe(false);
+      h.controller.dispose();
+    },
+  );
+
+  it("routes text while the active Plan has a pending preview", async () => {
+    const h = harness({ status: "previewed", change, version: 8 });
+    await h.controller.submit("my ftp is 220");
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.preview",
+      expect.objectContaining({ request: { kind: "text", text: "my ftp is 220" } }),
+    );
+    h.controller.dispose();
+  });
+
   it.each(["busy", "paused"])(
     "does not preview or enqueue today's question while %s",
     async (state) => {
@@ -499,6 +546,44 @@ describe("Plan Change controller", () => {
       h.controller.dispose();
     },
   );
+
+  it.each([
+    "This request is not supported yet. Choose one of the available actions.",
+    "Ask for one change at a time.",
+  ])("renders the backend rejection as a notice: %s", async (explanation) => {
+    const h = harness({ status: "rejected", reason: "unsupported-request", explanation }, []);
+    h.controller.openPlanChangeEditor();
+    await h.controller.submit("some request");
+    expect(h.surface()).toMatchObject({ busy: false, error: null, notice: explanation });
+    expect(h.render.mock.lastCall?.[0].messages).toContainEqual(
+      expect.objectContaining({ role: "athlete", text: "some request" }),
+    );
+    expect(h.call.mock.calls.some(([method]) => method === "enqueueChatMessage")).toBe(false);
+    h.controller.dispose();
+  });
+
+  it("keeps host validation explanations in a text request notice", async () => {
+    const explanation = "This Plan has no remaining Workouts on Wednesday.";
+    const h = harness({ status: "rejected", reason: "invalid-intent", explanation }, []);
+    h.controller.openPlanChangeEditor();
+    await h.controller.submit("no training on wednesdays");
+    expect(h.surface()).toMatchObject({ busy: false, error: null, notice: explanation });
+    h.controller.dispose();
+  });
+
+  it("reserves one attempt while saving the draft and uses a new command for the next submission", async () => {
+    const h = harness({ status: "previewed", change, version: 8 }, []);
+    h.controller.openPlanChangeEditor();
+    const first = h.controller.submit("my ftp is 220");
+    expect(await h.controller.submit("my ftp is 230")).toBe(false);
+    await first;
+    await h.controller.submit("my ftp is 220");
+    const previews = h.call.mock.calls.filter(([method]) => method === "plan_change.preview");
+    expect(previews).toHaveLength(2);
+    expect(previews[0]?.[1]).not.toEqual(previews[1]?.[1]);
+    expect(h.render.mock.lastCall?.[0].messages).toHaveLength(2);
+    h.controller.dispose();
+  });
 
   it("sends the FTP intent and keeps daemon rejection copy", async () => {
     const h = harness({ status: "rejected", reason: "command-conflict" });
@@ -753,6 +838,20 @@ describe("Plan Change controller", () => {
     await h.controller.applyPlanChange("apply");
     expect(h.call).not.toHaveBeenCalled();
     expect(h.surface().notice).toBe("This preview is no longer pending. Training is unchanged.");
+  });
+
+  it("keeps a newer composer draft typed while a text submission is still starting", async () => {
+    const h = harness({ status: "previewed", change, version: 8 }, []);
+    h.setTodayChoice();
+    h.controller.openPlanChangeEditor();
+    const submission = h.controller.submit("wednesdays at most 30 minutes");
+    h.controller.saveAttachmentDraftText("newer composer text");
+    expect(await submission).toBe(true);
+    const saves = h.call.mock.calls
+      .filter(([method]) => method === "saveChatAttachmentDraftText")
+      .map(([, request]) => (request as { text: string }).text);
+    expect(saves.at(-1)).toBe("newer composer text");
+    h.controller.dispose();
   });
 
   it("ignores actions and late responses after disposal", async () => {

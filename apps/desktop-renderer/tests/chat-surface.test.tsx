@@ -511,6 +511,7 @@ describe("chat surface", () => {
       firstSync: { status: "idle" },
       training: EMPTY_TRAINING_SURFACE,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planSurface: { status: "loading", value: null },
       planFocus: null,
       planReturnToChat: false,
@@ -526,6 +527,7 @@ describe("chat surface", () => {
       firstSync: { status: "idle" },
       training: EMPTY_TRAINING_SURFACE,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planSurface: { status: "loading", value: null },
       planFocus: null,
       planReturnToChat: false,
@@ -1450,6 +1452,170 @@ describe("chat surface", () => {
       await user.click(screen.getByRole("button", { name: "Continue in Plan" }));
       expect(actions.continueMessageInPlan).toHaveBeenCalledWith("turn-1", message.planHandoff);
     });
+
+    it.each(["plan_change", "plan_question", "plan_creation"] as const)(
+      "hides only the legacy change suggestion with an active Plan: %s",
+      (kind) => {
+        useEnduragentStore.setState({
+          planLibrary: {
+            status: "ready",
+            value: {
+              calendarConnected: false,
+              legacy: null,
+              creation: null,
+              closed: [],
+              changesPaused: null,
+              changes: [],
+              active: {
+                planId: "plan-active",
+                version: 1,
+                name: "Build fitness",
+                start: "1998-07-06",
+                end: "1998-10-04",
+                weeks: 12,
+                status: "active",
+                supportingEventCandidates: [],
+                closeReason: null,
+                closedAt: null,
+                activatedAt: "1998-07-06",
+                todayChoice: null,
+                creationId: null,
+                calendar: { status: "pending", window: null, currentThrough: null, error: null },
+              },
+            },
+          },
+        });
+        const message: ChatMessageView = {
+          id: "message-handoff",
+          role: "coach",
+          delivery: "complete",
+          historical: false,
+          text: "We can review your training.",
+          planHandoff: { kind, title: "Review training", intent: "Review my training." },
+        };
+        setChat({
+          messages: [message],
+          planningRequestsLoaded: true,
+          timeline: [{ kind: "message", message }],
+        });
+        render(<Harness />);
+        expect(screen.getByText(message.text)).toBeVisible();
+        if (kind === "plan_change") {
+          expect(screen.queryByText(/Review a structured Proposal/u)).toBeNull();
+          expect(screen.queryByRole("button", { name: "Continue in Plan" })).toBeNull();
+        } else {
+          expect(screen.getByRole("button", { name: "Continue in Plan" })).toBeVisible();
+        }
+      },
+    );
+
+    it("shows a retry action for a safely saved failed Plan handoff", async () => {
+      const user = userEvent.setup();
+      const delivered = planningDelivery("open");
+      const failed: PlanningRequestDelivery = {
+        ...delivered,
+        state: "failed",
+        failureCode: "planning_unavailable",
+        retryable: true,
+        deliveredAtMs: null,
+        planningRequest: null,
+      };
+      setChat({
+        planningRequests: [failed],
+        planningRequestsLoaded: true,
+        timeline: [{ kind: "planning-request", delivery: failed }],
+      });
+      render(<Harness />);
+
+      expect(screen.getByText("Couldn’t open")).toBeVisible();
+      expect(screen.getAllByText(/will not create a duplicate/u)).not.toHaveLength(0);
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+      expect(actions.retryPlanningRequest).toHaveBeenCalledWith(failed.requestId);
+    });
+
+    it("renders one host-owned text handoff and keeps Plan unchanged until continued while the library is unavailable", async () => {
+      const user = userEvent.setup();
+      const message: ChatMessageView = {
+        id: "message-live-1",
+        turnId: "turn-1",
+        role: "coach",
+        delivery: "complete",
+        historical: false,
+        text: "This change should be reviewed in Plan.",
+        planHandoff: {
+          kind: "plan_change",
+          title: "Review a lighter Friday",
+          intent: "Move Friday's endurance Workout to Saturday and keep Friday easy.",
+        },
+      };
+      setChat({
+        messages: [message],
+        planningRequestsLoaded: true,
+        timeline: [{ kind: "message", message }],
+      });
+      render(<Harness />);
+
+      expect(screen.getByRole("heading", { name: "Review a lighter Friday" })).toBeVisible();
+      expect(screen.getByText(/Nothing changes until you approve it/u)).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Continue in Plan" }));
+      expect(actions.continueMessageInPlan).toHaveBeenCalledWith("turn-1", message.planHandoff);
+    });
+
+    it.each(["plan_change", "plan_question", "plan_creation"] as const)(
+      "hides only the legacy change suggestion with an active Plan: %s",
+      (kind) => {
+        useEnduragentStore.setState({
+          planLibrary: {
+            status: "unavailable",
+            value: {
+              calendarConnected: false,
+              legacy: null,
+              creation: null,
+              closed: [],
+              changesPaused: null,
+              changes: [],
+              active: {
+                planId: "plan-active",
+                version: 1,
+                name: "Build fitness",
+                start: "1998-07-06",
+                end: "1998-10-04",
+                weeks: 12,
+                status: "active",
+                supportingEventCandidates: [],
+                closeReason: null,
+                closedAt: null,
+                activatedAt: "1998-07-06",
+                todayChoice: null,
+                creationId: null,
+                calendar: { status: "pending", window: null, currentThrough: null, error: null },
+              },
+            },
+          },
+        });
+        const message: ChatMessageView = {
+          id: "message-handoff",
+          role: "coach",
+          delivery: "complete",
+          historical: false,
+          text: "We can review your training.",
+          planHandoff: { kind, title: "Review training", intent: "Review my training." },
+        };
+        setChat({
+          messages: [message],
+          planningRequestsLoaded: true,
+          timeline: [{ kind: "message", message }],
+        });
+        render(<Harness />);
+        expect(screen.getByText(message.text)).toBeVisible();
+        if (kind === "plan_change") {
+          expect(screen.queryByText(/Review a structured Proposal/u)).toBeNull();
+          expect(screen.queryByRole("button", { name: "Continue in Plan" })).toBeNull();
+        } else {
+          expect(screen.getByRole("button", { name: "Continue in Plan" })).toBeVisible();
+        }
+      },
+    );
 
     it("shows a retry action for a safely saved failed Plan handoff", async () => {
       const user = userEvent.setup();

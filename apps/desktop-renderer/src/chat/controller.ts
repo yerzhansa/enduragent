@@ -25,6 +25,8 @@ import {
   type PlanHandoffSuggestion,
   type ListPlansResult,
   type PlanChangeIntent,
+  PlanChangeRequestSchema,
+  type PlanChangeRequest,
   type PlanChangePreviewRpcParams,
   type PlanChangeApplyRpcParams,
   type PlanCreationActivateRpcParams,
@@ -231,7 +233,9 @@ export interface ChatView {
 export interface ChatController {
   openPlanChangeEditor(): void;
   backFromPlanChangeEditor(): void;
-  previewPlanChange(intent: PlanChangeIntent): Promise<void>;
+  previewPlanChange(
+    intent: PlanChangeIntent | Extract<PlanChangeRequest, { kind: "text" }>,
+  ): Promise<void>;
   applyPlanChange(decision: "apply" | "cancel"): Promise<void>;
   start(): Promise<void>;
   resume(): Promise<void>;
@@ -1921,40 +1925,49 @@ export function createChatController(input: {
       const active = library?.active;
       if (disposed || readChange().busy || !active || changesPaused()) return;
       const parameterCopy =
-        intent.kind === "choose-workout"
-          ? "This Workout is no longer eligible."
-          : intent.kind === "ftp"
-            ? "Enter FTP above zero."
-            : intent.kind === "supporting-event"
-              ? "eventId" in intent && !intent.eventId.trim()
-                ? "Choose a Supporting Event already accepted in this Plan."
-                : "Enter the event name and exact date."
-              : intent.kind === "weekly-duration"
-                ? Number.isFinite(intent.hours) &&
-                  intent.hours > 0 &&
-                  !Number.isInteger(intent.hours * 4)
-                  ? "Enter weekly hours in quarter-hour steps, like 2.25."
-                  : "Enter a weekly duration above zero."
-                : "day" in intent &&
-                    (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
-                  ? "Choose the weekday to change."
-                  : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+        intent.kind === "text"
+          ? "Keep your change request to 500 characters or fewer."
+          : intent.kind === "choose-workout"
+            ? "This Workout is no longer eligible."
+            : intent.kind === "ftp"
+              ? "Enter FTP above zero."
+              : intent.kind === "supporting-event"
+                ? "eventId" in intent && !intent.eventId.trim()
+                  ? "Choose a Supporting Event already accepted in this Plan."
+                  : "Enter the event name and exact date."
+                : intent.kind === "weekly-duration"
+                  ? Number.isFinite(intent.hours) &&
+                    intent.hours > 0 &&
+                    !Number.isInteger(intent.hours * 4)
+                    ? "Enter weekly hours in quarter-hour steps, like 2.25."
+                    : "Enter a weekly duration above zero."
+                  : "day" in intent &&
+                      (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
                     ? "Choose the weekday to change."
-                    : "Enter a duration above zero.";
-      const parsedIntent = PlanChangeIntentSchema.safeParse(intent);
+                    : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+                      ? "Choose the weekday to change."
+                      : "Enter a duration above zero.";
+      const parsedIntent =
+        intent.kind === "text"
+          ? PlanChangeRequestSchema.options[1].safeParse(intent)
+          : PlanChangeIntentSchema.safeParse(intent);
       if (!parsedIntent.success) {
         publishChange({ error: parameterCopy });
         return;
       }
       if (
         previewAttempt?.planId !== active.planId ||
-        JSON.stringify(previewAttempt.intent) !== JSON.stringify(parsedIntent.data)
+        JSON.stringify(
+          "request" in previewAttempt ? previewAttempt.request : previewAttempt.intent,
+        ) !== JSON.stringify(parsedIntent.data)
       ) {
         previewAttempt = {
           commandId: globalThis.crypto.randomUUID(),
           planId: active.planId,
           expectedVersion: active.version,
-          intent: parsedIntent.data,
+          ...(parsedIntent.data.kind === "text"
+            ? { request: parsedIntent.data }
+            : { intent: parsedIntent.data }),
         };
       }
       publishChange({ busy: true, error: null, notice: null });
@@ -1963,6 +1976,10 @@ export function createChatController(input: {
         previewAttempt = null;
         if (disposed) return;
         if (result.status === "rejected") {
+          if (result.reason === "unsupported-request") {
+            publishChange({ editorOpen: false, error: null, notice: result.explanation });
+            return;
+          }
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
             await input.refreshPlanLibrary?.().catch(() => {});
@@ -1981,14 +1998,17 @@ export function createChatController(input: {
             await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
-          publishChange({
-            error:
-              result.reason === "stale-version"
-                ? "This request used an older Plan revision. Request a fresh preview."
-                : result.reason === "invalid-intent"
-                  ? (result.explanation ?? result.message ?? parameterCopy)
-                  : "This Change could not be previewed. Training is unchanged.",
-          });
+          const rejectionCopy =
+            result.reason === "stale-version"
+              ? "This request used an older Plan revision. Request a fresh preview."
+              : result.reason === "invalid-intent"
+                ? (result.explanation ?? result.message ?? parameterCopy)
+                : "This Change could not be previewed. Training is unchanged.";
+          publishChange(
+            parsedIntent.data.kind === "text"
+              ? { editorOpen: false, error: null, notice: rejectionCopy }
+              : { error: rejectionCopy },
+          );
           if (result.reason === "stale-version") {
             await input.refreshPlanLibrary?.().catch(() => {});
           }
@@ -2159,26 +2179,23 @@ export function createChatController(input: {
       const changeOpen =
         library?.active &&
         ((changeSurface.open && changeSurface.planId === library.active.planId) ||
-          library.changes.some((change) => change.status === "pending"));
-      if (
-        changeOpen &&
-        attachmentIds.length === 0 &&
-        /^what should i ride today[\p{P}\s]*$/iu.test(message.trim())
-      ) {
+          library.changes.some(
+            (change) => change.status === "pending" && change.planId === library.active?.planId,
+          ));
+      if (changeOpen && attachmentIds.length === 0) {
         if (changeSurface.busy) return false;
-        controller.saveAttachmentDraftText("");
-        await attachmentTextSaveTask;
-        if (!changesPaused()) {
-          const workout = library.active?.todayChoice?.eligible[0];
-          if (workout) {
-            await controller.previewPlanChange({
-              kind: "choose-workout",
-              workoutId: workout.workoutId,
-            });
-          } else {
-            publishChange({ error: null, notice: "No eligible Workout can be selected today." });
-          }
+        if (changesPaused()) return true;
+        publishChange({ busy: true, error: null, notice: null });
+        reduce({ type: "append-athlete-message", id: nextId("message"), text: message });
+        if (
+          attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+          submittedTextRevision === attachmentTextRevision
+        ) {
+          controller.saveAttachmentDraftText("");
+          await attachmentTextSaveTask;
         }
+        publishChange({ busy: false });
+        await controller.previewPlanChange({ kind: "text", text: message });
         return true;
       }
       if (
