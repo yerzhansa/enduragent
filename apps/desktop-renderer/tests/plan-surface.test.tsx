@@ -5,12 +5,16 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanActiveProjectionDataSchema } from "@enduragent/coach-contract";
-import { EMPTY_PLAN_SURFACE, type PlanActions } from "../src/state/plan-slice";
+import {
+  EMPTY_PLAN_SURFACE,
+  type PlanActions,
+  type PlanLibraryActions,
+} from "../src/state/plan-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { IDLE_TRAINING_EXPORT } from "../src/training-export/controller";
 import { PlanView } from "../src/ui/plan/PlanView";
 import { pinDefaultLocale } from "./intl";
-import { PLAN_ERROR, planCoachData, planReadModel } from "./plan-fixtures";
+import { PLAN_ERROR, emptyPlanLibrary, planCoachData, planReadModel } from "./plan-fixtures";
 
 function actions(): PlanActions {
   return {
@@ -123,6 +127,8 @@ beforeEach(() => {
   pinDefaultLocale("en-US");
   useEnduragentStore.setState({
     plan: EMPTY_PLAN_SURFACE,
+    planLibrary: { status: "loading", value: null },
+    planLibraryActions: null,
     planActions: actions(),
     trainingExport: IDLE_TRAINING_EXPORT,
     trainingExportActions: null,
@@ -134,6 +140,8 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-theme");
   useEnduragentStore.setState({
     plan: EMPTY_PLAN_SURFACE,
+    planLibrary: { status: "loading", value: null },
+    planLibraryActions: null,
     planActions: null,
     planningReadActions: null,
     trainingExport: IDLE_TRAINING_EXPORT,
@@ -166,7 +174,15 @@ describe("Plan surface", () => {
 
   it("renders the no-Plan hierarchy and starts Plan creation from the keyboard", async () => {
     const user = userEvent.setup();
-    const planActions = actions();
+    const startCreation = vi.fn();
+    const planLibraryActions: PlanLibraryActions = {
+      startCreation,
+      closePlan: vi.fn(),
+      readPlanHistory: vi.fn(),
+      refresh: vi.fn(),
+      continueCreation: vi.fn(),
+      changeInChat: vi.fn(),
+    };
     const noPlan = {
       ...planReadModel(),
       transitions: [{ transitionId: "PL-T01", status: "blocked", reason: "Retired wizard" }],
@@ -177,33 +193,49 @@ describe("Plan surface", () => {
         hydration: { status: "ready", state: noPlan },
         lastReady: noPlan,
       },
-      planActions,
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
+      planLibraryActions,
     });
     render(<PlanView />);
 
-    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
     expect(screen.getByText("Create a Plan when you are ready.")).toBeInTheDocument();
     expect(screen.queryByText(/GPX\/FIT/u)).not.toBeInTheDocument();
 
     const start = screen.getByRole("button", { name: "Start a Plan" });
+    expect(start).toHaveAttribute("id", "start-plan");
+    expect(screen.getAllByRole("button", { name: "Start a Plan" })).toHaveLength(1);
+    expect(screen.getAllByText("No active Plan", { exact: true })).toHaveLength(1);
     start.focus();
     await user.keyboard("{Enter}");
-    expect(planActions.startPlan).toHaveBeenCalledOnce();
+    expect(startCreation).toHaveBeenCalledOnce();
   });
 
   it("returns focus to the no-Plan action after closing the Coach workspace", async () => {
-    const state = planReadModel({ data: { returnFocusId: "plan-start-coach" } });
+    const state = planReadModel({ data: { returnFocusId: "start-plan" } });
     useEnduragentStore.setState({
       plan: { ...EMPTY_PLAN_SURFACE, hydration: { status: "ready", state }, lastReady: state },
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
+      planLibraryActions: {
+        startCreation: vi.fn(),
+        closePlan: vi.fn(),
+        readPlanHistory: vi.fn(),
+        refresh: vi.fn(),
+        continueCreation: vi.fn(),
+        changeInChat: vi.fn(),
+      },
     });
     render(<PlanView />);
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveFocus());
+    const start = screen.getByRole("button", { name: "Start a Plan" });
+    expect(start).toHaveAttribute("id", "start-plan");
+    await waitFor(() => expect(start).toHaveFocus());
   });
 
   it("keeps the last ready no-Plan screen visible when hydration becomes stale", () => {
     const state = planReadModel();
     useEnduragentStore.setState({
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
       plan: {
         ...EMPTY_PLAN_SURFACE,
         hydration: { status: "ready", state },
@@ -215,8 +247,13 @@ describe("Plan surface", () => {
     });
     render(<PlanView />);
 
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveAttribute(
+      "id",
+      "start-plan",
+    );
     expect(screen.getByText(PLAN_ERROR.message)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
   });
 
   it("renders the server attention projection without deriving a count", async () => {
@@ -2194,11 +2231,11 @@ describe("Plan surface", () => {
     render(<PlanView />);
 
     expect(
-      screen.getByRole("heading", { name: /Aug 31, 2026 already has a Workout/u }),
+      screen.getByRole("heading", { name: /31 Aug 2026 already has a Workout/u }),
     ).toBeVisible();
     expect(screen.getByText("Protected")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Replace Club ride/u })).not.toBeInTheDocument();
-    const recommendedButtons = screen.getAllByRole("button", { name: /Use Sep 1, 2026/u });
+    const recommendedButtons = screen.getAllByRole("button", { name: /Use 1 Sept 2026/u });
     await user.click(recommendedButtons[recommendedButtons.length - 1]!);
     expect(planActions.resolvePlanningRequestDate).toHaveBeenCalledWith(requestId, {
       kind: "use-date",
@@ -2216,7 +2253,7 @@ describe("Plan surface", () => {
     const date = screen.getByLabelText("Date");
     await user.clear(date);
     await user.type(date, "2026-09-02");
-    await user.click(screen.getByRole("button", { name: /Use Sep 2, 2026/u }));
+    await user.click(screen.getByRole("button", { name: /Use 2 Sept 2026/u }));
     expect(planActions.resolvePlanningRequestDate).toHaveBeenLastCalledWith(requestId, {
       kind: "use-date",
       date: "2026-09-02",

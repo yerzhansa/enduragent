@@ -1,3 +1,5 @@
+import { calendarStatusLabel } from "../plan/PlanLibrary";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type {
   ListPlansResult,
   PlanChangeIntent,
@@ -12,7 +14,7 @@ import {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent } from "@enduragent/ui";
+import { Fact, PlanCard } from "../plan/plan-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -47,82 +49,53 @@ function ChangeCard(props: {
   children: ReactNode;
 }): ReactElement {
   return (
-    <Card size="sm" className="min-w-0" role="region" aria-label={props.title}>
-      <CardContent className="grid gap-inset">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-inset">
-          <div className="grid min-w-0 gap-[calc(var(--inset)/2)]">
-            <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-              {props.eyebrow}
-            </p>
-            <h3
-              ref={props.headingRef}
-              tabIndex={-1}
-              className="m-0 text-base leading-6 font-semibold break-words"
-            >
-              {props.title}
-            </h3>
-          </div>
-          {props.status ? (
-            <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
-              {props.status}
-            </span>
-          ) : null}
-        </div>
-        {props.summary ? <p className="m-0 text-sm leading-5 text-ink-2">{props.summary}</p> : null}
-        {props.children}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Fact(props: { label: string; children: ReactNode }): ReactElement {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[minmax(104px,0.72fr)_minmax(0,1.28fr)] gap-4 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-1 max-[560px]:gap-1"
-    >
-      <span role="rowheader" className="text-xs leading-4 text-ink-2">
-        {props.label}
-      </span>
-      <div
-        role="cell"
-        className="text-right text-sm leading-5 font-semibold [overflow-wrap:anywhere] max-[560px]:text-left"
-      >
-        {props.children}
-      </div>
-    </div>
+    <PlanCard
+      {...props}
+      aria-label={props.title}
+      headingTabIndex={-1}
+      statusClassName="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] text-xs font-normal whitespace-nowrap text-ink-2"
+    />
   );
 }
 
 function workoutValue(workout: PlanChangeWorkout | null): string {
   if (workout === null) return "Not in Plan";
-  const date =
-    workout.date === null
-      ? "Undated"
-      : new Intl.DateTimeFormat("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        }).format(new Date(`${workout.date}T12:00:00Z`));
+  const date = workout.date === null ? "Undated" : formatCivilDate(workout.date);
   return `${date} · ${workout.minutes} min${workout.power === null ? "" : ` · ${workout.power} W`}`;
 }
 
-function eventDate(date: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T12:00:00Z`));
-}
-
-function Difference({
+function SupportingEventFacts({
   change,
   library,
 }: {
   change: PlanChangeModel;
   library: ListPlansResult;
+}): ReactElement {
+  const events = supportingEventDifference(library, change);
+  return (
+    <>
+      <Fact valueAs="div" label="Supporting Events before">
+        {events.before
+          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
+          .join("; ") || "None"}
+      </Fact>
+      <Fact valueAs="div" label="Supporting Events after">
+        {events.after
+          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
+          .join("; ") || "None"}
+      </Fact>
+    </>
+  );
+}
+
+function Difference({
+  change,
+  library,
+  showSupportingEvents = true,
+}: {
+  change: PlanChangeModel;
+  library: ListPlansResult;
+  showSupportingEvents?: boolean;
 }): ReactElement {
   const events = supportingEventDifference(library, change);
   const weekNumbers = [
@@ -132,25 +105,29 @@ function Difference({
   ];
   return (
     <>
-      {change.intent.kind === "supporting-event" ||
-      (change.intent.kind === "inverse" &&
-        JSON.stringify(events.before) !== JSON.stringify(events.after)) ? (
-        <div role="table" aria-label="Supporting Events">
-          <Fact label="Supporting Events before">
-            {events.before
-              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
-              .join("; ") || "None"}
-          </Fact>
-          <Fact label="Supporting Events after">
-            {events.after
-              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
-              .join("; ") || "None"}
-          </Fact>
+      {showSupportingEvents &&
+      (change.intent.kind === "supporting-event" ||
+        (change.intent.kind === "inverse" &&
+          JSON.stringify(events.before) !== JSON.stringify(events.after))) ? (
+        <div
+          role="table"
+          className="border-t border-line [&+[role=table]]:border-t-0"
+          aria-label="Supporting Events"
+        >
+          <SupportingEventFacts change={change} library={library} />
         </div>
       ) : null}
-      <div role="table" aria-label="Affected individual Workouts">
+      <div
+        role="table"
+        className="border-t border-line [&+[role=table]]:border-t-0"
+        aria-label="Affected individual Workouts"
+      >
         {change.diff.map((row) => (
-          <Fact key={row.workoutId} label={row.before?.name ?? row.after?.name ?? "Workout"}>
+          <Fact
+            valueAs="div"
+            key={row.workoutId}
+            label={row.before?.name ?? row.after?.name ?? "Workout"}
+          >
             {workoutValue(row.before)} → {workoutValue(row.after)}
             {row.before && row.after && row.before.name !== row.after.name
               ? ` · ${row.after.name}`
@@ -158,12 +135,16 @@ function Difference({
           </Fact>
         ))}
       </div>
-      <div role="table" aria-label="Before and after totals">
-        <Fact label="Plan totals">
+      <div
+        role="table"
+        className="border-t border-line [&+[role=table]]:border-t-0"
+        aria-label="Before and after totals"
+      >
+        <Fact valueAs="div" label="Plan totals">
           {change.totals.before.plan} min → {change.totals.after.plan} min
         </Fact>
         {weekNumbers.map((number) => (
-          <Fact key={number} label={`Week ${number}`}>
+          <Fact valueAs="div" key={number} label={`Week ${number}`}>
             {change.totals.before.weeks.find((week) => week.number === number)?.minutes ??
               "Not in Plan"}{" "}
             min →{" "}
@@ -181,13 +162,16 @@ function Difference({
 }
 
 function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
+  if (premise.id === "confirmed-limits") {
+    return typeof premise.value === "string" && premise.value.trim() ? premise.value : null;
+  }
   if (premise.id === "request") {
     const parsed = PlanChangeRequestSchema.safeParse(premise.value);
     if (parsed.success && parsed.data.kind === "text") return parsed.data.text;
   }
   if (premise.id === "ftp-sources") {
     const parsed = PlanChangeFtpSourcesSchema.safeParse(premise.value);
-    if (!parsed.success) return premise.label;
+    if (!parsed.success) return null;
     const labels = {
       manual: "Saved athlete FTP",
       "intervals-ftp": "Intervals.icu FTP",
@@ -210,8 +194,8 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
   if (premise.id === "event-source") {
     const parsed = PlanChangeEventSourceSchema.safeParse(premise.value);
     return parsed.success
-      ? `${parsed.data.name} · ${eventDate(parsed.data.date)} · ${parsed.data.category}`
-      : premise.label;
+      ? `${parsed.data.name} · ${formatCivilDate(parsed.data.date)} · ${parsed.data.category}`
+      : null;
   }
   if (premise.id === "undone-change") {
     const value = premise.value;
@@ -220,10 +204,10 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
       "title" in value &&
       typeof value.title === "string"
       ? value.title
-      : premise.label;
+      : null;
   }
   const parsed = PlanChangeIntentSchema.safeParse(premise.value);
-  if (!parsed.success) return premise.label;
+  if (!parsed.success) return null;
   const intent = parsed.data;
   switch (intent.kind) {
     case "weekday-duration":
@@ -239,7 +223,7 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
     case "choose-workout":
     case "inverse":
     case "supporting-event":
-      return premise.label;
+      return null;
     case "ftp":
       return `${intent.watts} W`;
   }
@@ -414,10 +398,11 @@ function ChangeEditor(): ReactElement {
             {state.error}
           </p>
         ) : null}
-        <div className="mt-row flex flex-wrap gap-inset">
+        <div className="flex flex-wrap gap-inset">
           <Button
             type="button"
             variant="outline"
+            className="border-line bg-surface"
             disabled={state.busy}
             onClick={() => actions?.backFromPlanChangeEditor()}
           >
@@ -444,7 +429,7 @@ export function PlanChangeCards(): ReactElement | null {
   const sourceHeading = useRef<HTMLHeadingElement>(null);
   const sourceOpener = useRef<HTMLButtonElement | null>(null);
   const changeButton = useRef<HTMLButtonElement>(null);
-  const pauseNotice = useRef<HTMLParagraphElement>(null);
+  const pauseNotice = useRef<HTMLDivElement>(null);
   const previewHeading = useRef<HTMLHeadingElement>(null);
   const pending = library?.changes.find((change) => change.status === "pending");
   const paused = library?.changesPaused != null;
@@ -466,7 +451,12 @@ export function PlanChangeCards(): ReactElement | null {
   useEffect(() => {
     setSource(null);
   }, [activePlanId]);
-  if (!library?.active || (!pending && !(state.open && state.planId === library.active.planId)))
+  if (
+    !library?.active ||
+    (library.creation !== null &&
+      !pending &&
+      !(state.open && state.planId === library.active.planId))
+  )
     return null;
   const openSource = (
     change: PlanChangeModel,
@@ -481,17 +471,17 @@ export function PlanChangeCards(): ReactElement | null {
     : (state.notice ?? (pending ? "Review the exact changes before confirming." : null));
   const pausedReason = paused ? "plan-changes-notice" : undefined;
   return (
-    <section aria-label="Plan Changes" className="grid min-w-0 gap-inset">
+    <section aria-label="Plan Changes" className="grid min-w-0 gap-4">
       {notice ? (
-        <p
+        <div
           ref={pauseNotice}
           id="plan-changes-notice"
           role="status"
           tabIndex={-1}
-          className="m-0 text-sm text-ink-2"
+          className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink"
         >
-          {notice}
-        </p>
+          <p className="m-0 text-xs leading-4 text-ink-2">{notice}</p>
+        </div>
       ) : null}
       {!state.editorOpen && state.error ? (
         <p role="alert" className="m-0 text-xs text-danger">
@@ -507,16 +497,25 @@ export function PlanChangeCards(): ReactElement | null {
             : "Changes affect future, uncompleted training."
         }
       >
-        <div className="mt-row flex flex-wrap gap-inset">
+        <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
+          {calendarStatusLabel(library.active.calendar)}
+        </p>
+        <div className="flex flex-wrap gap-inset">
           <Button
             ref={changeButton}
+            variant="outline"
+            className="border-line bg-surface"
             disabled={paused || state.busy || actions === null}
             aria-describedby={pausedReason}
             onClick={() => actions?.openPlanChangeEditor()}
           >
             Change one thing
           </Button>
-          <Button variant="outline" onClick={() => setActiveView("plan")}>
+          <Button
+            variant="outline"
+            className="border-line bg-surface"
+            onClick={() => setActiveView("plan")}
+          >
             Open Plan
           </Button>
         </div>
@@ -528,13 +527,14 @@ export function PlanChangeCards(): ReactElement | null {
             {library.active.todayChoice.eligible.map((workout) => (
               <li
                 key={workout.workoutId}
-                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+                className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
                 <span className="text-sm leading-5">
                   {workout.name} · {workout.minutes} min
                 </span>
                 <Button
                   variant="outline"
+                  className="justify-self-start border-line bg-surface"
                   disabled={paused || state.busy || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
@@ -551,10 +551,10 @@ export function PlanChangeCards(): ReactElement | null {
             {library.active.todayChoice.blocked.map((workout) => (
               <li
                 key={workout.workoutId}
-                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+                className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
                 <span className="text-sm leading-5">{workout.name}</span>
-                <span className="text-sm leading-5 text-ink-2">{workout.reason}</span>
+                <div className="text-sm leading-5">{workout.reason}</div>
               </li>
             ))}
           </ul>
@@ -576,16 +576,31 @@ export function PlanChangeCards(): ReactElement | null {
           }
         >
           {pending.details ? (
-            <p className="m-0 text-sm leading-5 text-ink-2">{pending.details}</p>
+            <div
+              data-plan-change-details
+              className="m-0 rounded-ctl bg-surface-2 p-row text-sm leading-5 text-ink"
+            >
+              <p className="m-0 text-xs leading-4 text-ink-2">{pending.details}</p>
+            </div>
           ) : null}
-          <Difference change={pending} library={library} />
-          <div role="table" aria-label="Facts">
-            <Fact label="Main Goal">{library.active.name}</Fact>
-            <Fact label="Confidence">{pending.confidence}</Fact>
+          <Difference change={pending} library={library} showSupportingEvents={false} />
+          <div
+            role="table"
+            className="border-t border-line [&+[role=table]]:border-t-0"
+            aria-label="Facts"
+          >
+            <Fact valueAs="div" label="Main Goal">
+              {library.active.name}
+            </Fact>
+            <SupportingEventFacts change={pending} library={library} />
+            <Fact valueAs="div" label="Confidence">
+              {pending.confidence}
+            </Fact>
           </div>
           <div>
             <Button
               variant="outline"
+              className="border-line bg-surface"
               onClick={(event) => openSource(pending, false, event.currentTarget)}
             >
               View evidence
@@ -594,6 +609,7 @@ export function PlanChangeCards(): ReactElement | null {
           <div className="mt-row flex flex-wrap gap-inset">
             <Button
               variant="outline"
+              className="border-line bg-surface"
               disabled={state.busy || actions === null}
               onClick={() => actions?.applyPlanChange("cancel")}
             >
@@ -619,9 +635,10 @@ export function PlanChangeCards(): ReactElement | null {
             status={statusLabels[change.status]}
             summary="Earlier decisions remain readable."
           >
-            <div className="mt-row flex flex-wrap gap-inset">
+            <div className="flex flex-wrap gap-inset">
               <Button
                 variant="outline"
+                className="border-line bg-surface"
                 onClick={(event) => openSource(change, false, event.currentTarget)}
               >
                 Read historical evidence
@@ -629,6 +646,7 @@ export function PlanChangeCards(): ReactElement | null {
               {change.status === "applied" && change.undo?.eligible ? (
                 <Button
                   variant="outline"
+                  className="border-line bg-surface"
                   disabled={paused || state.busy || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
@@ -640,6 +658,7 @@ export function PlanChangeCards(): ReactElement | null {
               ) : null}
               <Button
                 variant="outline"
+                className="border-line bg-surface"
                 onClick={(event) => openSource(change, true, event.currentTarget)}
               >
                 Read this difference
@@ -655,16 +674,24 @@ export function PlanChangeCards(): ReactElement | null {
               <Difference change={source.change} library={library} />
             </>
           ) : null}
-          <div role="table" aria-label="Source details">
-            {source.change.premises.map((premise) => (
-              <Fact key={premise.id} label={`${premise.label} · ${premise.source}`}>
-                {premiseValue(premise)}
-              </Fact>
-            ))}
+          <div
+            role="table"
+            className="border-t border-line [&+[role=table]]:border-t-0"
+            aria-label="Source details"
+          >
+            {source.change.premises.map((premise) => {
+              const value = premiseValue(premise);
+              return value === null ? null : (
+                <Fact valueAs="div" key={premise.id} label={`${premise.label} · ${premise.source}`}>
+                  {value}
+                </Fact>
+              );
+            })}
           </div>
           <div className="mt-row flex flex-wrap gap-inset">
             <Button
               variant="outline"
+              className="border-line bg-surface"
               onClick={() => {
                 setSource(null);
                 sourceOpener.current?.focus();

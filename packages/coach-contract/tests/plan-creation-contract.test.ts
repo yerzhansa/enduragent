@@ -43,7 +43,6 @@ const goalQuestion = {
   eventNotListedOption: {
     label: "Event not listed",
     detail: "Tell me the event name and its exact date.",
-    editorLabel: "Name the event and include its exact date.",
     placeholder: "Event name",
     nameLabel: "Event name",
     dateLabel: "Event date",
@@ -52,7 +51,6 @@ const goalQuestion = {
     label: "Improve without an event",
     detail: "Build fitness for a fixed number of weeks.",
   },
-  authoredOption,
 };
 const card = {
   creationId,
@@ -145,10 +143,10 @@ const newQuestions = [
     step,
     prompt: "How long should this Plan be?",
     options: [
-      { weeks: 4, label: "4 weeks", detail: "A short block." },
-      { weeks: 8, label: "8 weeks", detail: "One training cycle." },
-      { weeks: 12, label: "12 weeks", detail: "Steady progression." },
-      { weeks: 16, label: "16 weeks", detail: "The longest build." },
+      { weeks: 4, label: "4 weeks" },
+      { weeks: 8, label: "8 weeks" },
+      { weeks: 12, label: "12 weeks" },
+      { weeks: 16, label: "16 weeks" },
     ],
   },
   {
@@ -185,9 +183,9 @@ const newQuestions = [
     prompt: "How much time is available?",
     mode: "flexible",
     weeklyHoursOptions: [
-      { id: "hours-6", weeklyHoursLimit: 6, label: "5–6 hours", detail: "Usual volume." },
-      { id: "hours-8", weeklyHoursLimit: 8, label: "7–8 hours", detail: "A small step." },
-      { id: "hours-10", weeklyHoursLimit: 10, label: "9+ hours", detail: "More volume." },
+      { id: "hours-6", weeklyHoursLimit: 6, label: "5–6 hours" },
+      { id: "hours-8", weeklyHoursLimit: 8, label: "7–8 hours" },
+      { id: "hours-10", weeklyHoursLimit: 10, label: "9–10 hours" },
     ],
     longestWorkoutLabel: "Longest ride in hours",
     weekdayOptions: [
@@ -205,8 +203,8 @@ const newQuestions = [
     kind: "commitments-question",
     step,
     prompt: "Any fixed commitments or other training?",
-    noneOption: { label: "No fixed commitments", detail: "There is nothing fixed to add." },
-    authoredOption: authoredOption,
+    noneOption: { label: "No fixed commitments" },
+    authoredOption: { ...authoredOption, label: "Add commitments or time off" },
   },
   {
     kind: "baseline-question",
@@ -231,7 +229,7 @@ const newQuestions = [
     step,
     prompt: "Is any Training Restriction active?",
     options: [
-      { kind: "none", label: "None", detail: "No restriction." },
+      { kind: "none", label: "None" },
       { kind: "no-training", label: "No training", detail: "No Workouts." },
       { kind: "no-hard-training", label: "No hard training", detail: "No intensity." },
       { kind: "max-duration", label: "Maximum duration", detail: "Set a limit." },
@@ -240,6 +238,14 @@ const newQuestions = [
 ] as const;
 
 const invalidNewQuestions = [
+  [
+    "goal",
+    {
+      ...goalQuestion,
+      authoredOption: { ...authoredOption, label: "Add commitments or time off" },
+      extra: true,
+    },
+  ],
   [
     "plan-length",
     {
@@ -284,7 +290,7 @@ const invalidNewQuestions = [
 const summaryFixtures = [
   {
     answerKey: "goal",
-    title: "Goal",
+    title: "Main Goal",
     detail: "Build power",
     source: { kind: "athlete" },
     question: card.openQuestion,
@@ -362,7 +368,7 @@ const summaryFixtures = [
   },
   {
     answerKey: "baseline",
-    title: "Training baseline",
+    title: "Recent training",
     detail: "Regular",
     source: { kind: "derived", label: "recent training" },
     question: newQuestions[5],
@@ -498,6 +504,18 @@ describe("Plan Creation contract", () => {
     newQuestions.forEach((question) =>
       expect(PlanCreationOpenQuestionSchema.parse(question)).toEqual(question),
     );
+  });
+
+  it("accepts a saved goal question that still carries the retired authored fields", () => {
+    const saved = {
+      ...goalQuestion,
+      eventNotListedOption: {
+        ...goalQuestion.eventNotListedOption,
+        editorLabel: "Name the event.",
+      },
+      authoredOption,
+    };
+    expect(PlanCreationOpenQuestionSchema.parse(saved)).toEqual(saved);
   });
 
   it.each(invalidNewQuestions)("rejects an invalid %s question", (_kind, question) => {
@@ -976,7 +994,7 @@ const draft = {
   answeredSummaries: [
     {
       answerKey: "goal",
-      title: "Goal",
+      title: "Main Goal",
       detail: "Build fitness",
       source: { kind: "athlete" },
       question: goalQuestion,

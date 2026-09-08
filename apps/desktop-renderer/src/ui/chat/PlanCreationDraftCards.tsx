@@ -1,3 +1,4 @@
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
@@ -6,7 +7,7 @@ import type {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent } from "@enduragent/ui";
+import { Fact, PlanCard } from "../plan/plan-card";
 import { useEnduragentStore } from "../../state/store";
 
 const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
@@ -20,34 +21,6 @@ const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey
   ["success", "Success"],
   ["restriction", "Training restriction"],
 ];
-
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}
-
-function Fact(props: { readonly label: string; readonly children: ReactNode }): ReactElement {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[minmax(104px,0.72fr)_minmax(0,1.28fr)] gap-4 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-1 max-[560px]:gap-1"
-    >
-      <span role="rowheader" className="text-xs leading-4 text-ink-2">
-        {props.label}
-      </span>
-      <strong
-        role="cell"
-        className="text-right text-sm leading-5 font-semibold [overflow-wrap:anywhere] max-[560px]:text-left"
-      >
-        {props.children}
-      </strong>
-    </div>
-  );
-}
 
 function AnswerFacts(props: {
   readonly summaries: readonly PlanCreationAnswerSummary[];
@@ -80,40 +53,10 @@ function ReviewCard(props: {
   readonly status?: string;
   readonly summary?: string;
   readonly summaryId?: string;
+  readonly "aria-label"?: string;
   readonly children: ReactNode;
 }): ReactElement {
-  return (
-    <Card
-      size="sm"
-      className="min-w-0"
-      role="region"
-      aria-label={props.eyebrow === "Draft inputs" ? "Draft inputs" : props.title}
-    >
-      <CardContent className="grid gap-inset">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-inset">
-          <div className="grid gap-[calc(var(--inset)/2)] min-w-0">
-            {props.eyebrow ? (
-              <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-                {props.eyebrow}
-              </p>
-            ) : null}
-            <h3 className="m-0 text-base leading-6 font-semibold break-words">{props.title}</h3>
-          </div>
-          {props.status ? (
-            <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
-              {props.status}
-            </span>
-          ) : null}
-        </div>
-        {props.summary ? (
-          <p id={props.summaryId} className="m-0 text-sm leading-5 text-ink-2">
-            {props.summary}
-          </p>
-        ) : null}
-        {props.children}
-      </CardContent>
-    </Card>
-  );
+  return <PlanCard {...props} aria-label={props["aria-label"] ?? props.title} />;
 }
 
 export function PlanCreationDraftCards(props: {
@@ -147,16 +90,17 @@ export function PlanCreationDraftCards(props: {
   const title =
     draft.goal.kind === "event" ? draft.goal.name : (draft.goal.outcome ?? "Improve fitness");
   return (
-    <section className="grid min-w-0 gap-inset" aria-label="Plan Draft review">
+    <section className="grid min-w-0 gap-4" aria-label="Plan Draft review">
       {stale ? (
         <ReviewCard title="Changed answers">
-          <div role="table" aria-label="Changed answers">
+          <div role="table" className="border-t border-line" aria-label="Changed answers">
             <AnswerFacts summaries={props.model.answeredSummaries} current />
           </div>
         </ReviewCard>
       ) : null}
       <ReviewCard
         eyebrow="Draft inputs"
+        aria-label="Draft inputs"
         title={title}
         status={stale ? "Stale" : "Needs review"}
         summary={
@@ -165,24 +109,26 @@ export function PlanCreationDraftCards(props: {
             : "Review the whole Draft before activating."
         }
       >
-        <div role="table" aria-label="Draft inputs">
+        <div role="table" className="border-t border-line" aria-label="Draft inputs">
           <Fact
             label={`Main Goal · ${goal?.source.kind === "derived" ? goal.source.label : "your answer"}`}
           >
             {draft.goal.kind === "event"
-              ? `${draft.goal.name} · ${dateLabel(draft.goal.date)}`
+              ? `${draft.goal.name} · ${formatCivilDate(draft.goal.date)}`
               : title}
           </Fact>
           <Fact label="Calendar">Local review only</Fact>
           <Fact label="Plan span">
-            {dateLabel(draft.start)} to {dateLabel(draft.end)} · {draft.weeks.length} weeks ·{" "}
-            {draft.spanKind}
+            {formatCivilDate(draft.start)} to {formatCivilDate(draft.end)} · {draft.weeks.length}{" "}
+            weeks · {draft.spanKind}
           </Fact>
           <AnswerFacts summaries={draft.answeredSummaries} omitGoal />
         </div>
-        <details className="border-t border-line pt-3">
-          <summary className="cursor-pointer text-sm font-medium">How this Plan was built</summary>
-          <div role="table" aria-label="How this Plan was built">
+        <details className="mt-row border-t border-line">
+          <summary className="cursor-pointer py-inset text-sm font-normal text-ink-2">
+            How this Plan was built
+          </summary>
+          <div role="table" className="border-t border-line" aria-label="How this Plan was built">
             <Fact label="Guidance">Heart rate or perceived effort. No FTP test.</Fact>
             <Fact label="Training approach">Balanced · default</Fact>
             {draft.notes.map((note, index) => (
@@ -200,30 +146,34 @@ export function PlanCreationDraftCards(props: {
         summary={`${draft.weeks.length} weeks · ${workouts.length} Workouts · ${workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min`}
       >
         {draft.weeks.map((week) => (
-          <div key={week.number} className="grid min-w-0 gap-inset">
-            <p className="m-0 text-xs font-semibold text-ink-2">
-              Week {week.number} · {dateLabel(week.start)} to {dateLabel(week.end)} ·{" "}
+          <div key={week.number} className="min-w-0 [&:not(:first-child)]:pt-4">
+            <p className="m-0 pb-inset text-xs font-semibold uppercase tracking-wide text-ink-2">
+              Week {week.number} · {formatCivilDate(week.start)} to {formatCivilDate(week.end)} ·{" "}
               {week.workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min
             </p>
-            <div role="list" aria-label={`Week ${week.number} Workouts`}>
+            <div
+              role="list"
+              className="border-t border-line"
+              aria-label={`Week ${week.number} Workouts`}
+            >
               {week.workouts.length === 0 ? (
-                <p className="m-0 text-sm leading-5 text-ink-2">No Workouts this week.</p>
+                <p className="m-0 text-sm leading-5 text-ink">No Workouts this week.</p>
               ) : (
                 week.workouts.map((workout, index) => (
                   <div
                     key={workout.id}
                     role="listitem"
-                    className="grid grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)_auto] items-start gap-3 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-[minmax(0,1fr)_auto]"
+                    className="grid grid-cols-[minmax(72px,0.6fr)_minmax(0,1.5fr)_auto] items-center gap-inset border-t border-line py-row first:border-t-0 max-md:grid-cols-1 max-md:gap-1 max-md:px-3 max-md:py-inset"
                   >
-                    <span className="text-xs leading-4 text-ink-2 max-[560px]:col-span-2">
+                    <span className="text-xs leading-4 text-ink-2">
                       {workout.date === null
                         ? `Priority ${index + 1} · Undated`
-                        : dateLabel(workout.date)}
+                        : formatCivilDate(workout.date)}
                     </span>
-                    <strong className="text-sm leading-5 font-medium [overflow-wrap:anywhere]">
+                    <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
                       {workout.name} · {workout.minutes} min · {workout.guidance}
                     </strong>
-                    <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
+                    <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
                       planned{workout.pinned ? " · Pinned" : ""}
                     </span>
                   </div>
@@ -231,7 +181,7 @@ export function PlanCreationDraftCards(props: {
               )}
             </div>
             {week.notes.map((note, index) => (
-              <p key={`${index}:${note}`} className="m-0 text-sm leading-5 text-ink-2">
+              <p key={`${index}:${note}`} className="mt-inset mb-0 text-sm leading-5 text-ink-2">
                 {note}
               </p>
             ))}
@@ -242,10 +192,11 @@ export function PlanCreationDraftCards(props: {
             {error}
           </p>
         )}
-        <div className="mt-inset flex flex-wrap gap-inset">
+        <div className="mt-4 flex flex-wrap gap-inset">
           <Button
             ref={discardButton}
             variant="destructive"
+            className="border-[color-mix(in_srgb,var(--danger)_52%,var(--line))]"
             data-plan-creation-discard={props.model.creationId}
             aria-haspopup="dialog"
             disabled={busy || actions === null}
@@ -255,6 +206,7 @@ export function PlanCreationDraftCards(props: {
           </Button>
           <Button
             variant="outline"
+            className="border-line bg-surface"
             ref={editButton}
             disabled={busy || actions === null || editingKey !== null}
             onClick={props.onEditAnswers}
@@ -299,25 +251,6 @@ export function commitmentSummaryId(model: PlanCreationCardModel): string {
   return `commitment-summary-${model.creationId}`;
 }
 
-function commitmentDateLabel(value: string): string {
-  const [year, month, day] = value.split("-");
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
-}
-
 function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
   const days = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   switch (rule.kind) {
@@ -328,7 +261,7 @@ function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
     case "hard-weekday":
       return `${days[rule.day]} · no hard training`;
     case "time-off":
-      return `Off ${commitmentDateLabel(rule.start)} to ${commitmentDateLabel(rule.end)}`;
+      return `Off ${formatCivilDate(rule.start)} to ${formatCivilDate(rule.end)}`;
   }
 }
 
@@ -350,7 +283,7 @@ export function PlanCreationCommitmentCard(props: {
       summary={pendingCommitmentSummary}
       summaryId={commitmentSummaryId(props.model)}
     >
-      <div role="table" aria-label="Schedule correction">
+      <div role="table" className="border-t border-line" aria-label="Schedule correction">
         <Fact label="Submitted">{pending.text}</Fact>
         {pending.rules.map((rule, index) => (
           <Fact key={index} label="Interpreted limit">
@@ -375,6 +308,7 @@ export function PlanCreationCommitmentCard(props: {
       <div className="mt-inset flex flex-wrap gap-inset">
         <Button
           variant="outline"
+          className="border-line bg-surface"
           disabled={disabled}
           onClick={() => actions?.answerPlanCreation({ kind: "commitments-cancel" })}
         >
@@ -382,6 +316,7 @@ export function PlanCreationCommitmentCard(props: {
         </Button>
         <Button
           variant="outline"
+          className="border-line bg-surface"
           disabled={disabled || editingKey !== null}
           onClick={() => actions?.editPlanCreation("commitments")}
         >

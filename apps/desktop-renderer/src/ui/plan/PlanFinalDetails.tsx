@@ -1,7 +1,9 @@
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type { PlanCreationAnswerSummary, PlanHistoryResult } from "@enduragent/coach-contract";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent } from "@enduragent/ui";
+import { Card, CardContent, CardHeader } from "@enduragent/ui";
+import { Fact, PlanCard } from "./plan-card";
 
 const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
   ["plan-length", "Plan length"],
@@ -41,34 +43,6 @@ function calendarLabel(
   }
 }
 
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}
-
-function Fact(props: { readonly label: string; readonly children: ReactNode }): ReactElement {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[minmax(104px,0.72fr)_minmax(0,1.28fr)] gap-4 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-1 max-[560px]:gap-1"
-    >
-      <span role="rowheader" className="text-xs leading-4 text-ink-2">
-        {props.label}
-      </span>
-      <strong
-        role="cell"
-        className="text-right text-sm leading-5 font-semibold [overflow-wrap:anywhere] max-[560px]:text-left"
-      >
-        {props.children}
-      </strong>
-    </div>
-  );
-}
-
 export function PlanFinalDetails(props: {
   readonly history: NonNullable<PlanHistoryResult>;
   readonly notice?: string | null;
@@ -85,51 +59,50 @@ export function PlanFinalDetails(props: {
         ? "Stopped"
         : "Unknown reason";
   return (
-    <section aria-label="Final Plan history" className="grid min-w-0 gap-inset">
+    <section aria-label="Final Plan history" className="grid min-w-0 gap-4">
       {props.notice ? (
         <p role="status" className="m-0 text-sm leading-5 text-ink-2">
           {props.notice}
         </p>
       ) : null}
-      <Card size="sm" className="min-w-0" role="region" aria-label="Closed Plan">
-        <CardContent className="grid gap-inset">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-inset">
-            <div className="grid min-w-0 gap-[calc(var(--inset)/2)]">
-              <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-                Closed Plan
-              </p>
-              <h3 className="m-0 text-base leading-6 font-semibold break-words">{plan.name}</h3>
-            </div>
-            <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
-              Closed
-            </span>
-          </div>
-          <p className="m-0 text-sm leading-5 text-ink-2">
-            {dateLabel(plan.start)} to {dateLabel(plan.end)} · {plan.weeks} weeks · {reason}
-          </p>
-          {draft.goal.kind === "event" && draft.goal.date > draft.end ? (
+      <PlanCard
+        eyebrow="Closed Plan"
+        title={plan.name}
+        status="Closed"
+        aria-label="Closed Plan"
+        parityAttributes={false}
+        summary={`${formatCivilDate(plan.start)} to ${formatCivilDate(plan.end)} · ${plan.weeks} weeks · ${reason}`}
+        headerChildren={
+          draft.goal.kind === "event" && draft.goal.date > draft.end ? (
             <p role="status" className="m-0 text-sm leading-5 text-ink-2">
-              Your Event Goal is still {dateLabel(draft.goal.date)}. Start a new Plan for event
-              preparation when it is within 24 weeks.
+              Your Event Goal is still {formatCivilDate(draft.goal.date)}. Start a new Plan for
+              event preparation when it is within 24 weeks.
             </p>
-          ) : null}
-        </CardContent>
-      </Card>
-      <Card size="sm" className="min-w-0" role="region" aria-label="Final Plan details">
-        <CardContent className="grid gap-inset">
+          ) : null
+        }
+      />
+      <Card
+        size="sm"
+        className="block min-w-0 gap-[normal] py-0"
+        role="region"
+        aria-label="Final Plan details"
+      >
+        <CardHeader className="block rounded-none p-4">
           <h3 className="m-0 text-base leading-6 font-semibold break-words">Final Plan details</h3>
-          <div role="table" aria-label="Draft inputs">
+        </CardHeader>
+        <CardContent className="px-4 pt-0 pb-4">
+          <div role="table" aria-label="Draft inputs" className="border-t border-line">
             <Fact
               label={`Main Goal · ${goal?.source.kind === "derived" ? goal.source.label : "your answer"}`}
             >
               {draft.goal.kind === "event"
-                ? `${draft.goal.name} · ${dateLabel(draft.goal.date)}`
+                ? `${draft.goal.name} · ${formatCivilDate(draft.goal.date)}`
                 : (draft.goal.outcome ?? "Improve fitness")}
             </Fact>
             <Fact label="Calendar">{calendarLabel(plan.calendar, cleanup)}</Fact>
             <Fact label="Plan span">
-              {dateLabel(draft.start)} to {dateLabel(draft.end)} · {draft.weeks.length} weeks ·{" "}
-              {draft.spanKind}
+              {formatCivilDate(draft.start)} to {formatCivilDate(draft.end)} · {draft.weeks.length}{" "}
+              weeks · {draft.spanKind}
             </Fact>
             {answerLabels.map(([key, label]) => {
               const summary = draft.answeredSummaries.find((answer) => answer.answerKey === key);
@@ -144,12 +117,16 @@ export function PlanFinalDetails(props: {
             })}
           </div>
           {draft.weeks.map((week) => (
-            <div key={week.number} className="grid min-w-0 gap-inset">
-              <p className="m-0 text-xs font-semibold text-ink-2">
-                Week {week.number} · {dateLabel(week.start)} to {dateLabel(week.end)} ·{" "}
+            <div key={week.number} className="min-w-0">
+              <p className="m-0 pt-4 pb-inset text-xs font-semibold uppercase tracking-wide text-ink-2">
+                Week {week.number} · {formatCivilDate(week.start)} to {formatCivilDate(week.end)} ·{" "}
                 {week.workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min
               </p>
-              <div role="list" aria-label={`Week ${week.number} Workouts`}>
+              <div
+                role="list"
+                aria-label={`Week ${week.number} Workouts`}
+                className="border-t border-line"
+              >
                 {week.workouts.length === 0 ? (
                   <p className="m-0 text-sm leading-5 text-ink-2">No Workouts this week.</p>
                 ) : (
@@ -157,17 +134,17 @@ export function PlanFinalDetails(props: {
                     <div
                       key={workout.id}
                       role="listitem"
-                      className="grid grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)_auto] items-start gap-3 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-[minmax(0,1fr)_auto]"
+                      className="grid grid-cols-[minmax(72px,0.6fr)_minmax(0,1.5fr)_auto] items-center gap-inset border-t border-line py-row first:border-t-0 max-md:grid-cols-1 max-md:gap-1 max-md:px-3 max-md:py-inset"
                     >
-                      <span className="text-xs leading-4 text-ink-2 max-[560px]:col-span-2">
+                      <span className="text-xs leading-4 text-ink-2">
                         {workout.date === null
                           ? `Priority ${index + 1} · Undated`
-                          : dateLabel(workout.date)}
+                          : formatCivilDate(workout.date)}
                       </span>
-                      <strong className="text-sm leading-5 font-medium [overflow-wrap:anywhere]">
+                      <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
                         {workout.name} · {workout.minutes} min · {workout.guidance}
                       </strong>
-                      <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
+                      <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
                         {workout.date === null && !workout.pinned ? "Not chosen" : "planned"}
                         {workout.pinned ? " · Pinned" : ""}
                       </span>
@@ -176,7 +153,7 @@ export function PlanFinalDetails(props: {
                 )}
               </div>
               {week.notes.map((note, index) => (
-                <p key={`${index}:${note}`} className="m-0 text-sm leading-5 text-ink-2">
+                <p key={`${index}:${note}`} className="mt-inset mb-0 text-sm leading-5 text-ink-2">
                   {note}
                 </p>
               ))}
@@ -194,7 +171,7 @@ export function PlanFinalDetails(props: {
             Retry calendar
           </Button>
         ) : null}
-        <Button variant="outline" onClick={props.backToLibrary}>
+        <Button variant="outline" className="border-line bg-surface" onClick={props.backToLibrary}>
           Back to library
         </Button>
       </div>

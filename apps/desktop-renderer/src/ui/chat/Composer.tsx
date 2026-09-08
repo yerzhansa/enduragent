@@ -191,6 +191,7 @@ export function Composer(props: {
         event.preventDefault();
         if (
           event.key === "Enter" &&
+          !event.shiftKey &&
           matches[active]?.command === event.currentTarget.value.trim().toLowerCase()
         ) {
           void submit();
@@ -246,6 +247,7 @@ export function Composer(props: {
         {props.surface?.label ?? "Message your coach"}
       </label>
       <ComposerControls
+        className="gap-1.5 pt-[calc(var(--row-inset)+1px)]"
         actions={
           <>
             {props.leadingAction ??
@@ -253,7 +255,8 @@ export function Composer(props: {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
+                  size="icon-sm"
+                  className="gap-inset text-ink-3 disabled:text-ink-3 disabled:opacity-100"
                   aria-label="Attach files"
                   disabled={
                     actions === null || inputDisabled || !canChat || attachmentSurface === null
@@ -273,7 +276,11 @@ export function Composer(props: {
                 }}
               />
             ) : (
-              <ComposerAction mode="send" disabled={sendDisabled || submitting || !canChat} />
+              <ComposerAction
+                mode="send"
+                className="gap-inset border-0 px-1.5 py-px text-base leading-6 disabled:bg-sunk disabled:text-ink-3 disabled:opacity-100"
+                disabled={sendDisabled || submitting || !canChat}
+              />
             )}
           </>
         }
@@ -283,7 +290,8 @@ export function Composer(props: {
           ref={textarea}
           data-parity="composer.textarea"
           defaultValue={props.draftMemory?.current ?? ""}
-          rows={2}
+          rows={1}
+          className="pb-1.5"
           placeholder={
             status === "streaming"
               ? "Coach is responding…"

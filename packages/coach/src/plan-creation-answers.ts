@@ -1,3 +1,4 @@
+import { formatCivilDate } from "@enduragent/coach-contract";
 import {
   PLAN_CREATION_ANSWER_KEYS,
   PlanCreationAnswerSchema,
@@ -213,25 +214,7 @@ export function resolvePlanCreationAnswer(
 const commitmentRuleDetail = (rule: PlanCreationCommitmentRule): string => {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   if (rule.kind === "time-off") {
-    const format = (date: string): string => {
-      const [year, month, day] = date.split("-");
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
-    };
-    return `Off ${format(rule.start)} to ${format(rule.end)}`;
+    return `Off ${formatCivilDate(rule.start)} to ${formatCivilDate(rule.end)}`;
   }
   const day = days[rule.day - 1];
   if (rule.kind === "weekday-duration") return `${day} · at most ${rule.minutes} min`;
@@ -387,8 +370,8 @@ const requireGoal = (flow: PlanCreationAnswerFlow): PlanCreationGoal => {
 const hours = (value: number): string => `${value} h`;
 
 const baselineDetail = (baseline: "regular" | "occasional" | "starting-again"): string => {
-  if (baseline === "regular") return "Training regularly";
-  if (baseline === "occasional") return "Training occasionally";
+  if (baseline === "regular") return "Regular";
+  if (baseline === "occasional") return "Occasional";
   return "Starting again";
 };
 
@@ -396,12 +379,12 @@ function goalDetail(snapshot: PlanCreationSnapshot, goal: PlanCreationGoal): str
   if (goal.kind === "fitness") {
     return goal.outcome ?? "Build fitness for a fixed number of weeks.";
   }
-  if (goal.kind === "event-manual") return `${goal.name} · ${goal.date}`;
+  if (goal.kind === "event-manual") return `${goal.name} · ${formatCivilDate(goal.date)}`;
   const candidate = snapshot.seed?.eventCandidates.find(
     (item) => item.candidateId === goal.candidateId,
   );
   if (candidate === undefined) return corrupt();
-  return `${candidate.name} · ${candidate.date} · ${candidate.sourceLabel}`;
+  return `${candidate.name} · ${formatCivilDate(candidate.date)} · ${candidate.sourceLabel}`;
 }
 
 const successDetail = (answer: Extract<PlanCreationAnswer, { kind: "success" }>): string => {
@@ -416,7 +399,7 @@ const successDetail = (answer: Extract<PlanCreationAnswer, { kind: "success" }>)
   return "Race for a result";
 };
 
-const availabilityDetail = (
+export const availabilityDetail = (
   answer: Extract<PlanCreationAnswer, { kind: "availability" }>,
 ): string => {
   const limits = `Up to ${hours(answer.weeklyHoursLimit)} a week, longest Workout ${hours(answer.longestWorkoutHours)}`;
@@ -428,19 +411,29 @@ const availabilityDetail = (
   const weekdays = [...answer.usableWeekdays]
     .sort((left, right) => left - right)
     .map((weekday) => names[weekday - 1])
-    .join(" ");
+    .join(", ");
   return `${limits}, ${weekdays}`;
 };
 
-const restrictionDetail = (
+export const restrictionDetail = (
   restriction: Extract<PlanCreationAnswer, { kind: "restriction" }>["restriction"],
 ): string => {
   if (restriction.kind === "none") return "No training restrictions";
-  const end = restriction.endDate === undefined ? "" : ` until ${restriction.endDate}`;
+  const end =
+    restriction.endDate === undefined ? "" : ` until ${formatCivilDate(restriction.endDate)}`;
   if (restriction.kind === "no-training") return `No training${end}`;
   if (restriction.kind === "no-hard-training") return `No hard training${end}`;
   return `Maximum Workout duration ${hours(restriction.hours)}${end}`;
 };
+
+export const commitmentsDetail = (
+  commitments: Extract<PlanCreationAnswer, { kind: "commitments" }>["commitments"],
+): string =>
+  commitments.kind === "none"
+    ? "No fixed commitments"
+    : commitments.rules.length === 0
+      ? commitments.text
+      : commitmentRulesDetail(commitments.rules);
 
 function answerSummary(
   snapshot: PlanCreationSnapshot,
@@ -451,7 +444,7 @@ function answerSummary(
   const shared = { answerKey: answer.kind, question, answer, source: stored.source };
   switch (answer.kind) {
     case "goal":
-      return { ...shared, title: "Goal", detail: goalDetail(snapshot, answer.goal) };
+      return { ...shared, title: "Main Goal", detail: goalDetail(snapshot, answer.goal) };
     case "success":
       return { ...shared, title: "Success", detail: successDetail(answer) };
     case "plan-length":
@@ -463,7 +456,7 @@ function answerSummary(
         detail:
           answer.timing.kind === "as-soon-as-possible"
             ? "As soon as possible"
-            : `Earliest start ${answer.timing.date}`,
+            : `Earliest start ${formatCivilDate(answer.timing.date)}`,
       };
     case "schedule-mode":
       return {
@@ -477,17 +470,12 @@ function answerSummary(
       return {
         ...shared,
         title: "Commitments",
-        detail:
-          answer.commitments.kind === "none"
-            ? "No fixed commitments, other training, or time off"
-            : answer.commitments.rules.length === 0
-              ? answer.commitments.text
-              : commitmentRulesDetail(answer.commitments.rules),
+        detail: commitmentsDetail(answer.commitments),
       };
     case "baseline":
       return {
         ...shared,
-        title: "Training baseline",
+        title: "Recent training",
         detail: baselineDetail(answer.baseline),
       };
     case "restriction":
@@ -519,7 +507,6 @@ function questionForKey(
         eventNotListedOption: {
           label: "Event not listed",
           detail: "Tell me the event name and its exact date.",
-          editorLabel: "Name the event and include its exact date.",
           placeholder: "Event name",
           nameLabel: "Event name",
           dateLabel: "Event date",
@@ -527,12 +514,6 @@ function questionForKey(
         fitnessOption: {
           label: "Improve without an event",
           detail: "Build fitness for a fixed number of weeks.",
-        },
-        authoredOption: {
-          label: "Something else",
-          detail: "Answer in your own words.",
-          editorLabel: "Name the event and include its exact date.",
-          placeholder: "Event name",
         },
       };
     case "success":
@@ -605,10 +586,10 @@ function questionForKey(
         step,
         prompt: "How long should this Fitness Plan be?",
         options: [
-          { weeks: 4, label: "4 weeks", detail: "A short, focused block." },
-          { weeks: 8, label: "8 weeks", detail: "One full training cycle." },
-          { weeks: 12, label: "12 weeks", detail: "Room for steady progression." },
-          { weeks: 16, label: "16 weeks", detail: "The longest steady build." },
+          { weeks: 4, label: "4 weeks" },
+          { weeks: 8, label: "8 weeks" },
+          { weeks: 12, label: "12 weeks" },
+          { weeks: 16, label: "16 weeks" },
         ],
       };
     case "start-timing":
@@ -662,19 +643,16 @@ function questionForKey(
             id: "hours-6",
             weeklyHoursLimit: 6,
             label: "5–6 hours",
-            detail: "Up to about six hours of riding a week.",
           },
           {
             id: "hours-8",
             weeklyHoursLimit: 8,
             label: "7–8 hours",
-            detail: "Up to about eight hours of riding a week.",
           },
           {
             id: "hours-10",
             weeklyHoursLimit: 10,
-            label: "9+ hours",
-            detail: "About nine hours or more of riding a week.",
+            label: "9–10 hours",
           },
         ],
         longestWorkoutLabel: "Longest ride in hours",
@@ -687,10 +665,12 @@ function questionForKey(
           { weekday: 6, label: "Sat" },
           { weekday: 7, label: "Sun" },
         ],
-        derivedPoolNote:
-          scheduleMode.mode === "flexible"
-            ? "Your weekly limit sets 3 Workouts up to 6 h, 4 up to 8 h, or 5 above 8 h."
-            : "Choose every weekday you can usually train.",
+        ...(scheduleMode.mode === "flexible"
+          ? {
+              derivedPoolNote:
+                "Your weekly limit sets 3 Workouts up to 6 h, 4 up to 8 h, or 5 above 8 h.",
+            }
+          : {}),
       };
     }
     case "commitments":
@@ -700,7 +680,6 @@ function questionForKey(
         prompt: "Any fixed commitments or time off?",
         noneOption: {
           label: "No fixed commitments",
-          detail: "No fixed commitments, other training, or time off to account for.",
         },
         authoredOption: {
           label: "Add commitments or time off",
@@ -736,12 +715,11 @@ function questionForKey(
       return {
         kind: "restriction-question",
         step,
-        prompt: "What Training Restriction should this Plan respect?",
+        prompt: "Does anything need to limit training right now?",
         options: [
           {
             kind: "none",
             label: "No training restrictions",
-            detail: "No temporary operational limit needs to shape this Plan.",
           },
           {
             kind: "no-training",

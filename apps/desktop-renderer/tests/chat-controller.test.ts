@@ -67,7 +67,6 @@ function goalQuestion(
     eventNotListedOption: {
       label: "Event not listed",
       detail: "Tell me the event name and its exact date.",
-      editorLabel: "Name the event.",
       placeholder: "Event name",
       nameLabel: "Event name",
       dateLabel: "Event date",
@@ -75,12 +74,6 @@ function goalQuestion(
     fitnessOption: {
       label: "Improve without an event",
       detail: "Build fitness.",
-    },
-    authoredOption: {
-      label: "Something else",
-      detail: "Name an event.",
-      editorLabel: "Name the event.",
-      placeholder: "Event name",
     },
   };
 }

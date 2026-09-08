@@ -52,7 +52,7 @@ import {
   requestPlanCalendarRetry,
   subscribePlanFinalDetailsRefresh,
 } from "../../plan/library-refresh";
-import { formatCivilDate } from "../../lib/date";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "../chat/CoachDecisionPanel";
@@ -884,32 +884,6 @@ function CoursePickerDialog(): ReactElement {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function NoPlan(): ReactElement {
-  const actions = useEnduragentStore((state) => state.planActions);
-  const creationExists = useEnduragentStore((state) => state.planLibrary.value?.creation != null);
-
-  return (
-    <div className="grid gap-6" data-plan-scenario="PL-S001">
-      <section className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-lg font-semibold">No active Plan</h2>
-        <p className="m-0 text-ink-2">Create a Plan when you are ready.</p>
-      </section>
-      {creationExists ? null : (
-        <div className="flex flex-wrap gap-inset">
-          <Button
-            id="plan-start-coach"
-            type="button"
-            disabled={actions === null}
-            onClick={() => actions?.startPlan()}
-          >
-            Start a Plan
-          </Button>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -4411,7 +4385,7 @@ function EndedProjection(): ReactElement {
   );
 }
 
-function ReadyProjection(): ReactElement {
+function ReadyProjection(): ReactElement | null {
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   if (
@@ -4429,7 +4403,7 @@ function ReadyProjection(): ReactElement {
       <StatusCard title={model.title} support={model.summary} />
     );
   }
-  if (model.lifecycle === "none" || model.projection === "no-plan") return <NoPlan />;
+  if (model.lifecycle === "none" || model.projection === "no-plan") return null;
   if (model.projection === "coach") return <PlanCoach />;
   if (model.projection === "draft") return <DraftProjection />;
   if (model.projection === "active") return <ActiveProjection />;
@@ -4521,15 +4495,7 @@ export function PlanView(): ReactElement {
     ? "Loading…"
     : historyPage
       ? `${activeData.plan.name} · active Plan · mutation and recovery log`
-      : activeOverview && activeData !== null
-        ? `${activeData.plan.name}${
-            activeData.plan.targetDate === null
-              ? ""
-              : ` · ${formatCivilDate(activeData.plan.targetDate)}`
-          } · Active`
-        : model?.lifecycle === "none"
-          ? "No active plan"
-          : undefined;
+      : undefined;
 
   useEffect(() => {
     if (returnFocusId === null || finalDetails.status !== "library") return;
@@ -4543,7 +4509,11 @@ export function PlanView(): ReactElement {
         : "Plan closed. Calendar cleanup pending."
       : null;
     return (
-      <Page title="Plan" className="plan-view" busy={finalDetails.status === "loading"}>
+      <Page
+        title="Plan"
+        className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
+        busy={finalDetails.status === "loading"}
+      >
         {finalDetails.status === "ready" && finalDetails.history !== null ? (
           <PlanFinalDetails
             history={finalDetails.history}
@@ -4638,7 +4608,7 @@ export function PlanView(): ReactElement {
           </Button>
         ) : undefined
       }
-      className="plan-view"
+      className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
       contentMode={coachWorkspace ? "workspace" : "scroll"}
     >
       <div className={coachWorkspace ? "h-full min-h-0" : "grid gap-6"}>

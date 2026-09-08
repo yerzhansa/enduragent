@@ -210,6 +210,8 @@ async function navigate(scenario: Scenario, destination: "Chat" | "Plan") {
 }
 
 async function enterChanges(scenario: Scenario) {
+  await expect(changes(scenario)).toBeVisible();
+  await expect(changes(scenario).getByRole("button")).toHaveText(["Change one thing", "Open Plan"]);
   await navigate(scenario, "Plan");
   await scenario.page
     .getByRole("region", { name: "Plan library", exact: true })
@@ -405,8 +407,13 @@ async function assertPreview(scenario: Scenario, change: ChangeCase) {
     ),
   ]);
   const facts = pending.getByRole("table", { name: "Facts", exact: true });
-  await expect(facts.getByRole("rowheader")).toHaveText(["Main Goal", "Confidence"]);
-  await expect(facts.getByRole("cell")).toHaveText(["Improve fitness", confidence]);
+  await expect(facts.getByRole("rowheader")).toHaveText([
+    "Main Goal",
+    "Supporting Events before",
+    "Supporting Events after",
+    "Confidence",
+  ]);
+  await expect(facts.getByRole("cell")).toHaveText(["Improve fitness", "None", "None", confidence]);
   await expect(pending.getByRole("button")).toHaveText([
     "View evidence",
     "Cancel",
@@ -531,7 +538,9 @@ for (const appearance of appearances) {
       await expect(details.getByRole("rowheader")).toHaveText([
         "Confirmed Plan limits · Your confirmed answers",
       ]);
-      await expect(details.getByRole("cell")).toHaveText(["Wed · 30 min"]);
+      await expect(details.getByRole("cell")).toHaveText([
+        "Up to 6 h a week, longest Workout 2 h, Mon, Wed, Sat · No fixed commitments · No training restrictions",
+      ]);
       await source.getByRole("button", { name: "Back", exact: true }).click();
       await expect(card.getByRole("button", { name: "View evidence", exact: true })).toBeFocused();
       await expect(source).toHaveCount(0);

@@ -567,10 +567,26 @@ describe("Plan Change cards", () => {
     expect(composer).toHaveValue("How should I pace tomorrow?");
   });
 
-  it("shows the active Plan only after entry and restores a pending preview without entry", () => {
+  it("renders the Active Plan actions without a creation, pending Change, or open Change surface", async () => {
+    patchChange({ open: false, planId: null });
+    render(<PlanChangeCards />);
+
+    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Change one thing" }));
+    expect(useEnduragentStore.getState().chatActions?.openPlanChangeEditor).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Open Plan" }));
+    expect(useEnduragentStore.getState().activeView).toBe("plan");
+  });
+
+  it("shows the active Plan before entry and restores a pending preview without entry", () => {
     patchChange({ open: false, planId: null });
     const view = render(<PlanChangeCards />);
-    expect(screen.queryByRole("region", { name: "Plan Changes" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open Plan" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
     setChanges([change()]);
     expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Limit Wednesday training" })).toBeVisible();
@@ -847,7 +863,7 @@ describe("Plan Change cards", () => {
     ]);
   });
 
-  it("omits an entry when Undo restores an unset FTP and falls back for malformed evidence", async () => {
+  it("omits an entry when Undo restores an unset FTP and omits malformed evidence", async () => {
     setChanges([
       change({
         premises: [
@@ -884,8 +900,8 @@ describe("Plan Change cards", () => {
     render(<PlanChangeCards />);
     await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
     expect(
-      within(screen.getByRole("region", { name: "Source details" })).getByRole("cell"),
-    ).toHaveTextContent("FTP comparison unavailable");
+      within(screen.getByRole("region", { name: "Source details" })).queryByRole("cell"),
+    ).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
   });
 
@@ -931,6 +947,13 @@ describe("Plan Change cards", () => {
     ).toEqual(["Plan totals", "Week 1"]);
     expect(totals).toHaveTextContent("1234 min → 1204 min");
     expect(totals).toHaveTextContent("321 min → 291 min");
+    const facts = screen.getByRole("table", { name: "Facts" });
+    expect(
+      within(facts)
+        .getAllByRole("rowheader")
+        .map((row) => row.textContent),
+    ).toEqual(["Main Goal", "Supporting Events before", "Supporting Events after", "Confidence"]);
+    expect(within(facts).getAllByText("None", { exact: true })).toHaveLength(2);
     expect(screen.getByText("Main Goal", { exact: true })).toBeVisible();
     expect(screen.getByText("Confidence", { exact: true })).toBeVisible();
     expect(screen.getByText("Confirmed schedule limits", { exact: true })).toBeVisible();
@@ -963,7 +986,7 @@ describe("Plan Change cards", () => {
     expect(within(history).queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
-  it("renders unrecognized premise values as their plain labels", async () => {
+  it("omits unrecognized premise values and renders confirmed text", async () => {
     const values: PlanChangeModel["premises"][number]["value"][] = [
       null,
       true,
@@ -977,7 +1000,7 @@ describe("Plan Change cards", () => {
     setChanges([
       change({
         premises: values.map((value, index) => ({
-          id: `premise-${index}`,
+          id: typeof value === "string" ? "confirmed-limits" : `premise-${index}`,
           label: `Evidence ${index}`,
           source: "Your confirmed request",
           value,
@@ -991,7 +1014,8 @@ describe("Plan Change cards", () => {
       within(source)
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
-    ).toEqual(values.map((_, index) => `Evidence ${index}`));
+    ).toEqual(["text"]);
+    expect(within(source).queryByText("Evidence 0")).toBeNull();
   });
 
   it("moves focus to the editor, back to Change one thing, and to a new preview heading", async () => {
@@ -1137,7 +1161,7 @@ describe("Plan Change cards", () => {
       }),
     ]);
     render(<PlanChangeCards />);
-    const facts = screen.getByRole("table", { name: "Supporting Events" });
+    const facts = screen.getByRole("table", { name: "Facts" });
     expect(facts).toHaveTextContent("Supporting Events beforeNone");
     expect(facts).toHaveTextContent("Supporting Events afterRiver ride · 13 Sept 1998 · Training");
     await userEvent.click(screen.getByRole("button", { name: "View evidence" }));

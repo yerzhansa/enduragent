@@ -1,3 +1,4 @@
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type { PlanCreationAnswerInput, PlanCreationOpenQuestion } from "@enduragent/coach-contract";
 import {
   useEffect,
@@ -13,9 +14,9 @@ import { Button } from "@enduragent/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@enduragent/ui";
 
 const fieldClass =
-  "min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20";
+  "min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-semibold leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20";
 const choiceClass =
-  "grid min-h-[calc(var(--ctl-h-lg)+var(--row-inset))] w-full grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)_20px] items-center gap-2 rounded-ctl border-0 bg-transparent px-2 py-1.5 text-left text-ink hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50";
+  "grid min-h-[calc(var(--ctl-h-lg)+var(--row-inset))] w-full grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)_20px] max-md:grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)] items-center gap-2 rounded-ctl border-0 bg-transparent px-2 py-1.5 text-left text-ink hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:bg-primary/10 disabled:pointer-events-none disabled:opacity-50";
 
 interface QuestionFormProps {
   readonly commitmentStatus?: "confirm" | "clarify";
@@ -32,7 +33,7 @@ interface QuestionFormProps {
 function ChoiceRow(props: {
   readonly answerId: string;
   readonly label: string;
-  readonly detail: string;
+  readonly detail?: string;
   readonly number?: number;
   readonly selected?: boolean;
   readonly custom?: boolean;
@@ -53,7 +54,11 @@ function ChoiceRow(props: {
       onClick={props.onClick}
     >
       <span
-        className="grid size-8 place-items-center rounded-full border border-line-2 text-xs leading-4 text-ink-2"
+        className={
+          props.selected
+            ? "grid size-ctl-sm place-items-center rounded-full border border-primary bg-primary text-xs leading-4 text-primary-foreground"
+            : "grid size-ctl-sm place-items-center rounded-full border border-line-2 text-xs leading-4 text-ink-2"
+        }
         data-parity="choice.row.number"
       >
         {props.number === undefined ? <Plus className="size-4" aria-hidden="true" /> : props.number}
@@ -62,14 +67,16 @@ function ChoiceRow(props: {
         <strong className="block text-sm font-medium leading-5" data-parity="choice.row.label">
           {props.label}
         </strong>
-        <span
-          className="mt-[calc(var(--inset)/2)] block text-sm leading-5 text-ink-2"
-          data-parity="choice.row.detail"
-        >
-          {props.detail}
-        </span>
+        {props.detail === undefined ? null : (
+          <span
+            className="mt-[calc(var(--inset)/2)] block text-sm leading-5 text-ink-2"
+            data-parity="choice.row.detail"
+          >
+            {props.detail}
+          </span>
+        )}
       </span>
-      <ChevronRight className="size-4 text-ink-2" aria-hidden="true" />
+      <ChevronRight className="size-4 text-ink-2 max-md:hidden" aria-hidden="true" />
     </button>
   );
 }
@@ -87,24 +94,18 @@ function ChoiceList(props: {
   );
 }
 
-function ChoiceActions(props: QuestionFormProps): ReactElement {
+function ChoiceActions(props: QuestionFormProps): ReactElement | null {
+  if (!props.editing) return null;
   return (
-    <div className="flex justify-end gap-inset px-2 pt-[calc(var(--inset)/2)] pb-2">
-      {props.editing ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="mr-auto"
-          disabled={props.busy}
-          onClick={props.onCancel}
-        >
-          Back to answers
-        </Button>
-      ) : null}
-      <Button type="button" variant="outline" disabled={props.busy} onClick={props.onLater}>
-        Later
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      className="mr-auto border-line bg-surface"
+      disabled={props.busy}
+      onClick={props.onCancel}
+    >
+      Back to answers
+    </Button>
   );
 }
 
@@ -122,7 +123,7 @@ function CustomActions(props: {
         <Button
           type="button"
           variant="outline"
-          className="mr-auto"
+          className="mr-auto border-line bg-surface"
           disabled={props.busy}
           onClick={props.onCancel}
         >
@@ -130,7 +131,13 @@ function CustomActions(props: {
         </Button>
       ) : null}
       <div className="flex gap-inset">
-        <Button type="button" variant="outline" disabled={props.busy} onClick={props.onBack}>
+        <Button
+          type="button"
+          variant="outline"
+          className="border-line bg-surface"
+          disabled={props.busy}
+          onClick={props.onBack}
+        >
           Back
         </Button>
         <Button type="submit" disabled={props.busy || props.continueDisabled}>
@@ -156,16 +163,12 @@ function GoalForm(props: QuestionFormProps): ReactElement {
   const question = props.question.kind === "goal-question" ? props.question : null;
   if (question === null) throw new TypeError("goal question required");
   const currentGoal = props.currentAnswer?.kind === "goal" ? props.currentAnswer.goal : null;
-  const [manualSource, setManualSource] = useState<"event-not-listed" | "custom" | null>(
-    currentGoal?.kind === "event-manual" ? "event-not-listed" : null,
-  );
-  const manual = manualSource !== null;
+  const [manual, setManual] = useState(currentGoal?.kind === "event-manual");
   const [name, setName] = useState(currentGoal?.kind === "event-manual" ? currentGoal.name : "");
   const [date, setDate] = useState(currentGoal?.kind === "event-manual" ? currentGoal.date : "");
   const [errors, setErrors] = useState<{ name?: string; date?: string }>({});
   const editor = useRef<HTMLInputElement>(null);
   const eventNotListedTrigger = useRef<HTMLButtonElement>(null);
-  const customTrigger = useRef<HTMLButtonElement>(null);
   const nameErrorId = useId();
   const dateErrorId = useId();
   useEffect(() => {
@@ -174,14 +177,12 @@ function GoalForm(props: QuestionFormProps): ReactElement {
     return () => props.onEditorOpenChange(false);
   }, [manual, props.onEditorOpenChange]);
   const back = (): void => {
-    const trigger = manualSource === "custom" ? customTrigger : eventNotListedTrigger;
     setErrors({});
-    setManualSource(null);
-    queueMicrotask(() => trigger.current?.focus());
+    setManual(false);
+    queueMicrotask(() => eventNotListedTrigger.current?.focus());
   };
   if (manual) {
-    const editorCopy =
-      manualSource === "custom" ? question.authoredOption : question.eventNotListedOption;
+    const editorCopy = question.eventNotListedOption;
     const submit = (event: FormEvent<HTMLFormElement>): void => {
       event.preventDefault();
       const nextErrors = {
@@ -204,10 +205,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
         }}
         noValidate
       >
-        <p className="m-0 text-xs font-semibold leading-4 text-ink-2" data-parity="custom.label">
-          {editorCopy.editorLabel}
-        </p>
-        <div className="grid gap-inset sm:grid-cols-2">
+        <div className="grid gap-inset">
           <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
             {question.eventNotListedOption.nameLabel}
             <input
@@ -248,9 +246,6 @@ function GoalForm(props: QuestionFormProps): ReactElement {
   }
   const selectedCandidate =
     currentGoal?.kind === "event-candidate" ? currentGoal.candidateId : null;
-  const openManual = (source: "event-not-listed" | "custom"): void => {
-    setManualSource(source);
-  };
   return (
     <div>
       <ChoiceList>
@@ -260,7 +255,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
               key={candidate.candidateId}
               answerId={candidate.candidateId}
               number={index + 1}
-              label={`${candidate.name} · ${candidate.date}`}
+              label={`${candidate.name} · ${formatCivilDate(candidate.date)}`}
               detail={candidate.sourceLabel}
               selected={candidate.candidateId === selectedCandidate}
               disabled={props.busy}
@@ -281,7 +276,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
             detail={question.eventNotListedOption.detail}
             selected={currentGoal?.kind === "event-manual"}
             disabled={props.busy}
-            onClick={() => openManual("event-not-listed")}
+            onClick={() => setManual(true)}
           />,
           <ChoiceRow
             key="fitness"
@@ -292,16 +287,6 @@ function GoalForm(props: QuestionFormProps): ReactElement {
             selected={currentGoal?.kind === "fitness"}
             disabled={props.busy}
             onClick={() => props.onAnswer({ kind: "goal", goal: { kind: "fitness" } })}
-          />,
-          <ChoiceRow
-            key="custom"
-            buttonRef={customTrigger}
-            answerId="custom"
-            label={question.authoredOption.label}
-            detail={question.authoredOption.detail}
-            custom
-            disabled={props.busy}
-            onClick={() => openManual("custom")}
           />,
         ]}
       </ChoiceList>
@@ -573,16 +558,23 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
         <ErrorText id={longestErrorId}>{errors.longest}</ErrorText>
       </label>
       {question.mode === "fixed" ? (
-        <fieldset className="m-0 grid gap-2 border-0 px-4 py-0" aria-describedby={weekdaysErrorId}>
-          <legend className="text-xs font-semibold leading-4 text-ink-2">Usable weekdays</legend>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+        <fieldset
+          className="mx-4 my-0 flex min-w-0 flex-wrap gap-inset border-0 p-0"
+          aria-describedby={weekdaysErrorId}
+        >
+          <legend className="mb-inset px-0.5 text-sm font-normal leading-5 text-ink">
+            Usable weekdays
+          </legend>
+          <div className="flex flex-wrap gap-inset">
             {question.weekdayOptions.map((option) => (
               <label
                 key={option.weekday}
-                className="grid justify-items-center gap-1 rounded-ctl border border-line-2 bg-surface px-2 py-2 text-xs"
+                className="flex items-center gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2"
               >
                 <input
                   type="checkbox"
+                  className="my-0.75 size-4 accent-primary"
+                  disabled={props.busy}
                   name="usableWeekdays"
                   value={option.weekday}
                   defaultChecked={
@@ -604,16 +596,13 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
           <Button
             type="button"
             variant="outline"
-            className="mr-auto"
+            className="mr-auto border-line bg-surface"
             disabled={props.busy}
             onClick={props.onCancel}
           >
             Back to answers
           </Button>
         ) : null}
-        <Button type="button" variant="outline" disabled={props.busy} onClick={props.onLater}>
-          Later
-        </Button>
         <Button type="submit" disabled={props.busy}>
           Continue
         </Button>
@@ -644,7 +633,7 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
           return;
         }
         if (date.length === 0 || date < question.earliestAllowed) {
-          setError(`Choose a date on or after ${question.earliestAllowed}.`);
+          setError(`Choose a date on or after ${formatCivilDate(question.earliestAllowed)}.`);
           return;
         }
         setError(undefined);
@@ -701,16 +690,13 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
           <Button
             type="button"
             variant="outline"
-            className="mr-auto"
+            className="mr-auto border-line bg-surface"
             disabled={props.busy}
             onClick={props.onCancel}
           >
             Back to answers
           </Button>
         ) : null}
-        <Button type="button" variant="outline" disabled={props.busy} onClick={props.onLater}>
-          Later
-        </Button>
         {timing === "earliest" ? (
           <Button type="submit" disabled={props.busy}>
             Continue
@@ -967,16 +953,13 @@ function RestrictionForm(props: QuestionFormProps): ReactElement {
           <Button
             type="button"
             variant="outline"
-            className="mr-auto"
+            className="mr-auto border-line bg-surface"
             disabled={props.busy}
             onClick={props.onCancel}
           >
             Back to answers
           </Button>
         ) : null}
-        <Button type="button" variant="outline" disabled={props.busy} onClick={props.onLater}>
-          Later
-        </Button>
         {kind === null ? null : (
           <Button type="submit" disabled={props.busy}>
             Continue
@@ -1051,23 +1034,35 @@ export function PlanCreationQuestionCard(
         props.onLater();
       }}
     >
-      <CardHeader className="gap-0 border-b border-line">
-        <p
-          className="m-0 mb-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2"
-          data-parity="question.eyebrow"
-        >
-          Plan creation · question {props.question.step.current} of {props.question.step.total}
-        </p>
-        <CardTitle>
-          <h2
-            ref={heading}
-            tabIndex={-1}
-            className="m-0 font-medium outline-none"
-            data-parity="question.title"
+      <CardHeader className="flex items-center justify-between gap-inset rounded-none border-b border-line pt-4 pr-3 pb-inset! pl-4">
+        <div className="min-w-0">
+          <p
+            className="m-0 mb-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2"
+            data-parity="question.eyebrow"
           >
-            {props.question.prompt}
-          </h2>
-        </CardTitle>
+            Plan creation · question {props.question.step.current} of {props.question.step.total}
+          </p>
+          <CardTitle>
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              className="m-0 font-medium outline-none"
+              data-parity="question.title"
+            >
+              {props.question.prompt}
+            </h2>
+          </CardTitle>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="border-line bg-surface"
+          aria-label="Later"
+          disabled={props.busy}
+          onClick={props.onLater}
+        >
+          Later
+        </Button>
       </CardHeader>
       <CardContent className="grid min-w-0 gap-inset p-0">
         <QuestionForm {...props} />

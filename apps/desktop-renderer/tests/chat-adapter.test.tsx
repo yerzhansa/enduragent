@@ -251,7 +251,6 @@ describe("chat view adapter", () => {
         eventNotListedOption: {
           label: "Event not listed" as const,
           detail: "Tell me the event name and its exact date.",
-          editorLabel: "Name the event.",
           placeholder: "Event name",
           nameLabel: "Event name",
           dateLabel: "Event date",
@@ -259,12 +258,6 @@ describe("chat view adapter", () => {
         fitnessOption: {
           label: "Improve without an event",
           detail: "Build fitness for a fixed number of weeks.",
-        },
-        authoredOption: {
-          label: "Something else" as const,
-          detail: "Tell me the event name and its exact date.",
-          editorLabel: "Name the event.",
-          placeholder: "Event name",
         },
       },
     };
@@ -602,7 +595,6 @@ describe("chat view adapter", () => {
               eventNotListedOption: {
                 label: "Event not listed",
                 detail: "Tell me the event name and its exact date.",
-                editorLabel: "Name the event.",
                 placeholder: "Event name",
                 nameLabel: "Event name",
                 dateLabel: "Event date",
@@ -610,12 +602,6 @@ describe("chat view adapter", () => {
               fitnessOption: {
                 label: "Improve without an event",
                 detail: "Build fitness for a fixed number of weeks.",
-              },
-              authoredOption: {
-                label: "Something else",
-                detail: "Tell me the event name and its exact date.",
-                editorLabel: "Name the event.",
-                placeholder: "Event name",
               },
             },
           },

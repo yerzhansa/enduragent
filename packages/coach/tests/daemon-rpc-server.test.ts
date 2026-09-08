@@ -2365,7 +2365,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         eventNotListedOption: {
           label: "Event not listed",
           detail: "Tell me the event name and its exact date.",
-          editorLabel: "Name the event.",
           placeholder: "Event name",
           nameLabel: "Event name",
           dateLabel: "Event date",
@@ -2373,12 +2372,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         fitnessOption: {
           label: "Improve without an event",
           detail: "Build fitness for a fixed number of weeks.",
-        },
-        authoredOption: {
-          label: "Something else",
-          detail: "Tell me the event name and its exact date.",
-          editorLabel: "Name the event.",
-          placeholder: "Event name",
         },
       },
     };
@@ -2394,7 +2387,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       answeredSummaries: [
         {
           answerKey: "goal",
-          title: "Goal",
+          title: "Main Goal",
           detail: "Build power",
           source: { kind: "athlete" },
           question: {
@@ -2405,7 +2398,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
             eventNotListedOption: {
               label: "Event not listed",
               detail: "Tell me the event name and its exact date.",
-              editorLabel: "Name the event.",
               placeholder: "Event name",
               nameLabel: "Event name",
               dateLabel: "Event date",
@@ -2413,12 +2405,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
             fitnessOption: {
               label: "Improve without an event",
               detail: "Build fitness for a fixed number of weeks.",
-            },
-            authoredOption: {
-              label: "Something else",
-              detail: "Tell me the event name and its exact date.",
-              editorLabel: "Name the event.",
-              placeholder: "Event name",
             },
           },
           answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build power" } },

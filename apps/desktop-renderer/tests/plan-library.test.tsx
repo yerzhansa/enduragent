@@ -165,18 +165,11 @@ const creation: PlanCreationCardModel = {
     eventNotListedOption: {
       label: "Event not listed",
       detail: "Add your event.",
-      editorLabel: "Event",
       placeholder: "Event name",
       nameLabel: "Name",
       dateLabel: "Date",
     },
     fitnessOption: { label: "General fitness", detail: "Build fitness." },
-    authoredOption: {
-      label: "Something else",
-      detail: "Name an event.",
-      editorLabel: "Event",
-      placeholder: "Event name",
-    },
   },
 };
 const active: NonNullable<ListPlansResult["active"]> = {

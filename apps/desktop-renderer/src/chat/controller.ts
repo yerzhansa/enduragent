@@ -2205,6 +2205,7 @@ export function createChatController(input: {
         if (planCreation === null) await controller.startPlanCreation();
         else if (planCreationPaused) controller.continuePlanCreation();
         else return false;
+        if (planCreation === null) return false;
         if (
           attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
           submittedTextRevision === attachmentTextRevision
