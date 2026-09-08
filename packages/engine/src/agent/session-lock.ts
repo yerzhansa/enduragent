@@ -6,3 +6,7 @@ export async function withSessionLock<T>(chatId: string, fn: () => Promise<T>): 
   locks.set(chatId, next.then(() => {}, () => {}));
   return next;
 }
+
+export function drainSessionLocks(): Promise<void> {
+  return Promise.all(locks.values()).then(() => {});
+}

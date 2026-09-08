@@ -460,6 +460,7 @@ export function createCoachEngine(input: CreateCoachEngineInput): CoachEngine {
     resumeCoachDecision: (request, onEvent) => agent.resumeCoachDecision(request, onEvent),
     resetSession: (request) =>
       withQueueAuthority(request.chatId, () => agent.resetSession(request.chatId)),
+    settle: (request) => agent.settle(request?.chatId),
     hasSession: async (request) => ({ hasSession: agent.hasSession(request.chatId) }),
     getAthleteState: () => agent.getAthleteState(),
     replacePlanChatHistory: async (request) => {

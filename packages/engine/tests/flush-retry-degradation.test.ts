@@ -101,6 +101,11 @@ function warnEvents(warnSpy: ReturnType<typeof vi.spyOn>): Array<Record<string, 
     .filter((e: unknown): e is Record<string, unknown> => e !== null);
 }
 
+async function drain(chatId: string): Promise<void> {
+  const { withSessionLock } = await import("../src/agent/session-lock.js");
+  await withSessionLock(chatId, async () => {});
+}
+
 function eventsNamed(warnSpy: ReturnType<typeof vi.spyOn>, name: string) {
   return warnEvents(warnSpy).filter((e) => e.event === name);
 }
@@ -156,7 +161,7 @@ describe("flush retry and degradation", () => {
     ).toBe(true);
   });
 
-  it("a zero-write stale flush defers the archive exactly once", async () => {
+  it("a zero-write stale flush retries once after the reply and the archive is immediate", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     let n = 0;
     const complete = vi.fn(async () => {
@@ -165,39 +170,25 @@ describe("flush retry and degradation", () => {
     });
     const { agent, chatStore } = await setupAgent(complete);
     const resetSpy = vi.spyOn(chatStore, "resetConversation");
-    seedSession("defer", STALE_FOUR);
+    seedSession("retry-zero", STALE_FOUR);
 
-    const t1 = await agent.chat("defer", "hello");
-    expect(t1).toBe("turn-2");
-    expect(listArchives("defer")).toHaveLength(0);
-    expect(resetSpy).not.toHaveBeenCalled();
-    expect(eventsNamed(warnSpy, "memory_flush_archive_deferred")).toHaveLength(1);
-    expect(eventsNamed(warnSpy, "memory_flush_archive_deferred")[0].messageCount).toBe(4);
-    const afterT1 = readFileSync(join(dataDir, "sessions", "defer.jsonl"), "utf-8");
-    expect(afterT1).toContain("old-fact-1");
-    expect(afterT1).toContain("hello");
-
-    seedSession("defer", STALE_FOUR);
-
-    const t2 = await agent.chat("defer", "hello again");
-    // This turn archives (deferral is one-shot), so the reply carries the
-    // one-time post-reset notice prefix ahead of the model text.
-    expect(t2.startsWith("Started a fresh session")).toBe(true);
-    expect(t2).toContain("turn-4");
-    const archives = listArchives("defer");
-    expect(archives).toHaveLength(1);
+    const t1 = await agent.chat("retry-zero", "hello");
+    expect(t1.startsWith("Started a fresh session")).toBe(true);
+    expect(t1).toContain("turn-1");
     expect(resetSpy).toHaveBeenCalledTimes(1);
-    expect(resetSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ chatId: "defer", reason: "stale-reset" }),
-    );
-    expect(readFileSync(join(dataDir, "sessions", archives[0]), "utf-8")).toContain("old-fact-1");
-    const afterT2 = readFileSync(join(dataDir, "sessions", "defer.jsonl"), "utf-8");
-    expect(afterT2).toContain("hello again");
-    expect(afterT2).not.toContain("old-fact-1");
-    expect(eventsNamed(warnSpy, "memory_flush_archive_deferred")).toHaveLength(1);
+    expect(listArchives("retry-zero")).toHaveLength(1);
+    await drain("retry-zero");
+
+    expect(complete).toHaveBeenCalledTimes(3);
+    const retries = eventsNamed(warnSpy, "memory_flush_zero_write_retry");
+    expect(retries).toHaveLength(1);
+    expect(retries[0].messageCount).toBe(4);
+    const afterT1 = readFileSync(join(dataDir, "sessions", "retry-zero.jsonl"), "utf-8");
+    expect(afterT1).toContain("hello");
+    expect(afterT1).not.toContain("old-fact-1");
   });
 
-  it("a zero-write flush on a short stale session archives normally", async () => {
+  it("a zero-write flush on a short stale session does not retry", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     let n = 0;
     const complete = vi.fn(async () => {
@@ -208,11 +199,12 @@ describe("flush retry and degradation", () => {
     seedSession("short", STALE_FOUR.slice(0, 2));
 
     const text = await agent.chat("short", "hello");
-    // Archiving turn → reply prefixed with the one-time post-reset notice.
     expect(text.startsWith("Started a fresh session")).toBe(true);
-    expect(text).toContain("turn-2");
+    expect(text).toContain("turn-1");
     expect(listArchives("short")).toHaveLength(1);
-    expect(eventsNamed(warnSpy, "memory_flush_archive_deferred")).toHaveLength(0);
+    await drain("short");
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(eventsNamed(warnSpy, "memory_flush_zero_write_retry")).toHaveLength(0);
   });
 
   it("an overflow-recovery flush failure no longer kills the turn", async () => {
