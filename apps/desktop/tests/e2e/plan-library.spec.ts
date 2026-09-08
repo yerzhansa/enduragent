@@ -302,7 +302,7 @@ for (const appearance of [
       await capture(scenario, "empty-library");
       await relaunch(scenario, playwright);
       await expect(library().getByRole("heading")).toHaveText(["No active Plan"]);
-      await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+      await scenario.page.locator("#start-plan").click();
       await expect(
         scenario.page
           .locator('[data-parity="question.card"][data-question="goal"]')

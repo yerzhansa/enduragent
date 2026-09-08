@@ -205,7 +205,7 @@ export interface ChatViewControls {
     readonly discardEvents: readonly PlanCreationDiscardEvent[];
     readonly notice: string | null;
     readonly focusRequest: {
-      readonly target: "discard" | "activate" | "start" | "continue" | "change";
+      readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
       readonly libraryTarget?: "continue" | "change";
       readonly revision: number;
     } | null;
@@ -270,7 +270,7 @@ export interface ChatController {
   pausePlanCreation(): void;
   continuePlanCreation(): void;
   editPlanCreation(answerKey: PlanCreationAnswerSummary["answerKey"]): void;
-  cancelPlanCreationEdit(): void;
+  cancelPlanCreationEdit(returnFocus?: "edit"): void;
   openPlanCreationDiscard(): void;
   cancelPlanCreationDiscard(): void;
   confirmPlanCreationDiscard(): Promise<void>;
@@ -431,7 +431,7 @@ export function createChatController(input: {
   let planCreationDiscardEvents: readonly PlanCreationDiscardEvent[] = [];
   let planCreationNotice: string | null = null;
   let planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "start" | "continue" | "change";
+    readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
     readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null = null;
@@ -1118,12 +1118,12 @@ export function createChatController(input: {
 
   const installPlanCreation = (
     next: PlanCreationCardModel | null,
-    focusTarget?: "discard" | "activate" | "start" | "continue" | "change",
+    focusTarget?: "discard" | "activate" | "edit" | "start" | "continue" | "change",
   ): void => {
     const previous = planCreation;
     let actionFocusRequested = false;
     const requestActionFocus = (
-      target: "discard" | "activate" | "start" | "continue" | "change",
+      target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
     ): void => {
       requestPlanCreationFocus(target);
       actionFocusRequested = true;
@@ -1183,7 +1183,7 @@ export function createChatController(input: {
       .filter((message) => message.role === "athlete" || message.text.length > 0)
       .at(-1)?.id ?? null;
   const requestPlanCreationFocus = (
-    target: "discard" | "activate" | "start" | "continue" | "change",
+    target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
   ): void => {
     planCreationFocusRequest = {
       ...(target === "start" || planCreationFocusRequest?.libraryTarget === undefined
@@ -1780,10 +1780,23 @@ export function createChatController(input: {
     return task;
   };
 
+  let implicitPlanChangeRouting = true;
   const readChange = (): PlanChangeSurfaceState =>
     input.readPlanChange?.() ?? EMPTY_PLAN_CHANGE_SURFACE;
   const publishChange = (patch: Partial<PlanChangeSurfaceState>): void => {
     if (!disposed) input.publishPlanChange?.({ ...readChange(), ...patch });
+  };
+  const routesTextToPlanChange = (): boolean => {
+    const library = input.readPlanLibrary?.();
+    const surface = readChange();
+    return Boolean(
+      library?.active &&
+      ((surface.textRouting && surface.planId === library.active.planId) ||
+        (implicitPlanChangeRouting &&
+          library.changes.some(
+            (change) => change.status === "pending" && change.planId === library.active?.planId,
+          ))),
+    );
   };
   const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
   const changeFocus = (target: "editor" | "preview" | "change") => ({
@@ -1910,6 +1923,7 @@ export function createChatController(input: {
       if (disposed || readChange().busy || !active || changesPaused()) return;
       publishChange({
         open: true,
+        textRouting: true,
         planId: active.planId,
         editorOpen: true,
         error: null,
@@ -1918,7 +1932,14 @@ export function createChatController(input: {
     },
     backFromPlanChangeEditor() {
       if (disposed || readChange().busy) return;
-      publishChange({ editorOpen: false, error: null, focusRequest: changeFocus("change") });
+      implicitPlanChangeRouting = false;
+      publishChange({
+        open: false,
+        textRouting: false,
+        editorOpen: false,
+        error: null,
+        focusRequest: changeFocus("change"),
+      });
     },
     async previewPlanChange(intent) {
       const library = input.readPlanLibrary?.();
@@ -1970,11 +1991,18 @@ export function createChatController(input: {
             : { intent: parsedIntent.data }),
         };
       }
-      publishChange({ busy: true, error: null, notice: null });
+      const previewEpoch = epoch;
+      publishChange({
+        busy: true,
+        textRouting: true,
+        planId: active.planId,
+        error: null,
+        notice: null,
+      });
       try {
         const result = await previewPlanChange(input.clients, previewAttempt);
+        if (disposed || epoch !== previewEpoch) return;
         previewAttempt = null;
-        if (disposed) return;
         if (result.status === "rejected") {
           if (result.reason === "unsupported-request") {
             publishChange({ editorOpen: false, error: null, notice: result.explanation });
@@ -2026,8 +2054,10 @@ export function createChatController(input: {
             : "Review the exact changes before confirming.",
         });
         await input.refreshPlanLibrary?.().catch(() => {});
+        if (epoch !== previewEpoch) return;
         publishChange({ focusRequest: changeFocus("preview") });
       } catch (error) {
+        if (disposed || epoch !== previewEpoch) return;
         publishChange({
           error:
             error instanceof CoachRpcRemoteError && parsedIntent.data.kind === "ftp"
@@ -2036,7 +2066,7 @@ export function createChatController(input: {
         });
         await input.refreshPlanLibrary?.().catch(() => {});
       } finally {
-        publishChange({ busy: false });
+        if (!disposed) publishChange({ busy: false });
       }
     },
     async applyPlanChange(decision) {
@@ -2118,7 +2148,8 @@ export function createChatController(input: {
               : "Change cancelled. Training is unchanged; the preview remains in history.",
         });
         await input.refreshPlanLibrary?.().catch(() => {});
-        publishChange({ focusRequest: changeFocus("change") });
+        implicitPlanChangeRouting = true;
+        publishChange({ textRouting: false, focusRequest: changeFocus("change") });
       } catch {
         publishChange({
           notice:
@@ -2174,17 +2205,13 @@ export function createChatController(input: {
       ) {
         return Promise.resolve(false);
       }
-      const library = input.readPlanLibrary?.();
       const changeSurface = readChange();
-      const changeOpen =
-        library?.active &&
-        ((changeSurface.open && changeSurface.planId === library.active.planId) ||
-          library.changes.some(
-            (change) => change.status === "pending" && change.planId === library.active?.planId,
-          ));
-      if (changeOpen && attachmentIds.length === 0) {
+      if (routesTextToPlanChange() && attachmentIds.length === 0) {
         if (changeSurface.busy) return false;
-        if (changesPaused()) return true;
+        if (changesPaused()) {
+          publishChange({ notice: PLAN_CHANGES_PAUSED_NOTICE });
+          return false;
+        }
         publishChange({ busy: true, error: null, notice: null });
         reduce({ type: "append-athlete-message", id: nextId("message"), text: message });
         if (
@@ -2203,7 +2230,7 @@ export function createChatController(input: {
         message.length > 0 &&
         message.length <= 2_000 &&
         acceptsCommitmentMessage() &&
-        !readChange().open
+        !routesTextToPlanChange()
       ) {
         if (planCreationBusy) return false;
         const submittedCreation = planCreation;
@@ -2221,7 +2248,8 @@ export function createChatController(input: {
           planCreationBusy = false;
           render();
         }
-        if (disposed || planCreation !== submittedCreation || readChange().open) return false;
+        if (disposed || planCreation !== submittedCreation || routesTextToPlanChange())
+          return false;
         if (interpretation.status === "confirm") {
           await answerPlanCreation({
             kind: "commitments",
@@ -2455,6 +2483,8 @@ export function createChatController(input: {
       planCreationLoaded = true;
       planCreationEditingKey = null;
       clearPlanCreationPause();
+      implicitPlanChangeRouting = false;
+      publishChange({ textRouting: false });
       planCreationPaused = false;
       planCreationFocusRevision += 1;
       if (planCreation?.draft !== null && planCreation?.draft !== undefined) {
@@ -2489,6 +2519,8 @@ export function createChatController(input: {
         planCreationLoaded = true;
         planCreationEditingKey = null;
         clearPlanCreationPause();
+        implicitPlanChangeRouting = false;
+        publishChange({ textRouting: false });
         planCreationPaused = false;
         planCreationFocusRevision += 1;
         if (result.planCreation.draft !== null) requestPlanCreationFocus("activate");
@@ -2627,6 +2659,8 @@ export function createChatController(input: {
         return;
       }
       clearPlanCreationPause();
+      implicitPlanChangeRouting = false;
+      publishChange({ textRouting: false });
       planCreationPaused = false;
       planCreationFocusRevision += 1;
       render();
@@ -2647,12 +2681,15 @@ export function createChatController(input: {
       planCreationFocusRevision += 1;
       render();
     },
-    cancelPlanCreationEdit() {
-      if (disposed || planCreationBusy || planCreationEditingKey === null) return;
-      planCreationEditingKey = null;
-      planCreationPaused = planCreationEditReturnPaused;
-      planCreationEditReturnPaused = false;
-      planCreationFocusRevision += 1;
+    cancelPlanCreationEdit(returnFocus) {
+      if (disposed || planCreationBusy || (planCreationEditingKey === null && !returnFocus)) return;
+      if (planCreationEditingKey !== null) {
+        planCreationEditingKey = null;
+        planCreationPaused = planCreationEditReturnPaused;
+        planCreationEditReturnPaused = false;
+        planCreationFocusRevision += 1;
+      }
+      if (returnFocus) requestPlanCreationFocus(returnFocus);
       render();
       if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
     },
@@ -3102,6 +3139,8 @@ export function createChatController(input: {
           decisionError = null;
           attachmentSummaries.clear();
           planCreationDiscardEvents = [];
+          implicitPlanChangeRouting = false;
+          publishChange(EMPTY_PLAN_CHANGE_SURFACE);
           updateReset(() => hydrator.resetSucceeded(), {
             type: "reset-succeeded",
             announcement: result.memoryFlushed

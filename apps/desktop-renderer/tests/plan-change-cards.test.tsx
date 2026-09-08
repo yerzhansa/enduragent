@@ -181,6 +181,7 @@ beforeEach(() => {
     chatActions: stubActions(),
     planChange: {
       open: true,
+      textRouting: false,
       planId: active.planId,
       editorOpen: false,
       busy: false,
@@ -205,6 +206,33 @@ beforeEach(() => {
 });
 
 describe("Plan Change cards", () => {
+  it("reads the persisted typed request from pending Change evidence after remount", async () => {
+    const text = "wednesdays at most 30 minutes";
+    setChanges([
+      change({
+        premises: [
+          {
+            id: "request",
+            label: "Your request",
+            source: "Your message",
+            value: { kind: "text", text },
+          },
+        ],
+      }),
+    ]);
+    const view = render(<PlanChangeCards />);
+    view.unmount();
+    render(<PlanChangeCards />);
+
+    await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
+
+    expect(
+      within(screen.getByRole("table", { name: "Source details" })).getByRole("cell", {
+        name: text,
+      }),
+    ).toBeVisible();
+  });
+
   function setTodayChoice(
     todayChoice: NonNullable<ListPlansResult["active"]>["todayChoice"],
   ): void {
@@ -369,7 +397,7 @@ describe("Plan Change cards", () => {
     },
   );
 
-  it("focuses the pause notice after cancelling a pending preview while paused", async () => {
+  it("keeps Change history visible and focuses the pause notice after cancelling", async () => {
     setChanges([change()]);
     const value = useEnduragentStore.getState().planLibrary.value;
     if (!value) throw new Error("Missing library");
@@ -387,14 +415,22 @@ describe("Plan Change cards", () => {
         });
       },
     );
-    render(<PlanChangeCards />);
+    useEnduragentStore.setState({ runtimeReady: true, onboarding: READY_ONBOARDING });
+    render(<ChatView />);
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(call).toHaveBeenCalledWith(
       "plan_change.apply",
       expect.objectContaining({ decision: "cancel" }),
     );
-    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
-    expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+    const section = screen.getByRole("region", { name: "Plan Changes" });
+    const notice = within(section).getByRole("status");
+    await waitFor(() => expect(notice).toHaveFocus());
+    expect(notice).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
+    expect(useEnduragentStore.getState().planChange).toMatchObject({
+      open: true,
+      textRouting: false,
+    });
+    expect(within(section).getByText("Cancelled", { exact: true })).toBeVisible();
     expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
     controller.dispose();
@@ -491,6 +527,7 @@ describe("Plan Change cards", () => {
       readiness: "incomplete",
       draft: null,
       draftStale: false,
+      calendarWindow: null,
       pendingCommitment: null,
       answeredSummaries: [],
       openQuestion: null,

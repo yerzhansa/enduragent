@@ -4,6 +4,7 @@ import {
   type CreationDraftInput,
   type SupportingEvent,
   digest,
+  rulesFor,
 } from "./creation-draft-builder.js";
 import { validateManualPlanFtp } from "./plan-ftp.js";
 
@@ -103,6 +104,15 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
       (!workout.pinned || (workout.kind === "event" && workout.supportingEventId !== undefined)) &&
       !completedWorkoutIds.has(workout.id) &&
       (workout.date === null || dateKeyFromText(workout.date) >= todayDateKey);
+    const previous = new Map(
+      input.previousDraft.weeks
+        .flatMap((week) => week.workouts)
+        .map((workout) => [workout.id, workout]),
+    );
+    const canRestore = (workout: Workout) => {
+      const prior = previous.get(workout.id);
+      return restorable(workout) && (prior === undefined || restorable(prior));
+    };
     for (const week of after.weeks) {
       const currentWeek = draft.weeks.find((candidate) => candidate.number === week.number);
       const currentWeekIds = new Set(currentWeek?.workouts.map((workout) => workout.id));
@@ -110,18 +120,16 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
         .filter((workout) => {
           const present = current.get(workout.id);
           return present
-            ? restorable(present) || currentWeekIds.has(present.id)
+            ? canRestore(present) || currentWeekIds.has(present.id)
             : restorable(workout);
         })
         .map((workout) => {
           const present = current.get(workout.id);
-          return present && !(restorable(present) && restorable(workout))
-            ? structuredClone(present)
-            : workout;
+          return present && !canRestore(present) ? structuredClone(present) : workout;
         });
       const restoredIds = new Set(week.workouts.map((workout) => workout.id));
       for (const workout of currentWeek?.workouts ?? []) {
-        if (!restorable(workout) && !restoredIds.has(workout.id)) {
+        if (!canRestore(workout) && !restoredIds.has(workout.id)) {
           week.workouts.push(structuredClone(workout));
         }
       }
@@ -136,7 +144,7 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
       );
       const protectedEventIds = new Set(
         [...current.values()]
-          .filter((workout) => !restorable(workout))
+          .filter((workout) => !canRestore(workout))
           .flatMap((workout) =>
             workout.supportingEventId === undefined ? [] : [workout.supportingEventId],
           ),
@@ -155,10 +163,20 @@ export function applyScheduleIntent<Draft extends CreationDraft>(
       );
       for (const event of draft.supportingEvents ?? []) {
         if (!protectedEventIds.has(event.id)) continue;
-        const previous = input.previousDraft.supportingEvents?.find(
+        const priorEvent = input.previousDraft.supportingEvents?.find(
           (candidate) => candidate.id === event.id,
         );
-        restoredEvents.push(structuredClone(previous?.date === event.date ? previous : event));
+        const unchangedWorkouts = [...current.values()]
+          .filter((workout) => workout.supportingEventId === event.id)
+          .every((workout) => {
+            const prior = previous.get(workout.id);
+            return prior !== undefined && !changed(prior, workout);
+          });
+        restoredEvents.push(
+          structuredClone(
+            priorEvent?.date === event.date && unchangedWorkouts ? priorEvent : event,
+          ),
+        );
       }
       if (input.previousDraft.supportingEvents !== undefined || restoredEvents.length > 0) {
         after.supportingEvents = restoredEvents;
@@ -306,7 +324,7 @@ export type SupportingEventIntent = { kind: "supporting-event" } & (
 
 export type SupportingEventRules = Pick<
   CreationDraftInput["answers"],
-  "availability" | "restriction"
+  "availability" | "restriction" | "commitments"
 >;
 
 export interface SupportingEventSourceCandidate {
@@ -324,22 +342,13 @@ function supportingEventDateValid(date: string): boolean {
 }
 
 function eventDayRules(rules: SupportingEventRules, date: string) {
-  const restriction = rules.restriction;
-  const active =
-    restriction.kind !== "none" && (!restriction.endDate || date <= restriction.endDate);
+  const dayRules = rulesFor(rules, dateKeyFromText(date));
   return {
+    ...dayRules,
     unavailable:
+      dayRules.unavailable ||
       (rules.availability.mode === "fixed" &&
-        !rules.availability.usableWeekdays.includes(
-          weekdayForDateKey(dateKeyFromText(date)) || 7,
-        )) ||
-      (active && restriction.kind === "no-training"),
-    minutes: Math.floor(
-      Math.min(
-        rules.availability.longestWorkoutHours,
-        active && restriction.kind === "max-duration" ? restriction.hours : Infinity,
-      ) * 60,
-    ),
+        !rules.availability.usableWeekdays.includes(weekdayForDateKey(dateKeyFromText(date)) || 7)),
   };
 }
 

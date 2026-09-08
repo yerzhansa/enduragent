@@ -182,6 +182,9 @@ async function replacementDraft(scenario: Scenario, mode: "fixed" | "flexible" =
 }
 
 async function confirmReplacement(scenario: Scenario, connected = true) {
+  expect((await scenario.backend.card())?.calendarWindow).toEqual(
+    connected ? { startDate: "1998-01-04", endDate: "1998-01-09" } : null,
+  );
   await scenario.page.getByRole("button", { name: "Activate Plan", exact: true }).click();
   const dialog = scenario.page.getByRole("dialog", { name: "Close and activate?", exact: true });
   await expect(dialog).toContainText("Today’s calendar Workout stays. The new Plan activates now.");

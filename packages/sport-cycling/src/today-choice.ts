@@ -1,4 +1,4 @@
-import { type CreationDraft, type CreationDraftInput } from "./creation-draft-builder.js";
+import { rulesFor, type CreationDraft, type CreationDraftInput } from "./creation-draft-builder.js";
 
 type Workout = CreationDraft["weeks"][number]["workouts"][number];
 
@@ -12,7 +12,7 @@ export interface TodayChoice {
 export function readTodayChoice(input: {
   draft: CreationDraft;
   todayDateKey: number;
-  answers: Pick<CreationDraftInput["answers"], "availability" | "restriction">;
+  answers: Pick<CreationDraftInput["answers"], "availability" | "restriction" | "commitments">;
   completedWorkoutIds?: ReadonlySet<string>;
   occupiedByClosedPlan?: boolean;
 }): TodayChoice | null {
@@ -29,17 +29,7 @@ export function readTodayChoice(input: {
   const occupied =
     input.occupiedByClosedPlan ||
     draft.weeks.some((week) => week.workouts.some((workout) => workout.date === date));
-  const restriction = answers.restriction;
-  const active =
-    restriction.kind !== "none" && (!restriction.endDate || date <= restriction.endDate);
-  const unavailable = active && restriction.kind === "no-training";
-  const noHard = active && restriction.kind === "no-hard-training";
-  const minutes = Math.floor(
-    Math.min(
-      answers.availability.longestWorkoutHours,
-      active && restriction.kind === "max-duration" ? restriction.hours : Infinity,
-    ) * 60,
-  );
+  const { unavailable, hardReplacement, minutes } = rulesFor(answers, input.todayDateKey);
   const planReason = occupied
     ? "Today already belongs to a dated Workout."
     : unavailable
@@ -51,7 +41,7 @@ export function readTodayChoice(input: {
       planReason ??
       (workout.minutes > minutes
         ? `Today is limited to ${minutes} minutes.`
-        : workout.kind === "hard" && noHard
+        : workout.kind === "hard" && hardReplacement !== null
           ? "No hard training today."
           : null);
     if (reason) {

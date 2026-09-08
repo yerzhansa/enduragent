@@ -60,6 +60,7 @@ const card = {
   status: "in-progress" as const,
   draft: null,
   draftStale: false,
+  calendarWindow: null,
   pendingCommitment: null,
   readiness: "incomplete" as const,
   answeredSummaries: [],
@@ -623,6 +624,27 @@ describe("Plan Creation contract", () => {
     const withoutReadiness: Record<string, unknown> = { ...card };
     delete withoutReadiness.readiness;
     expect(PlanCreationCardModelSchema.safeParse(withoutReadiness).success).toBe(false);
+  });
+
+  it("requires a strict nullable calendar window with civil dates", () => {
+    const calendarWindow = { startDate: "1998-09-01", endDate: "1998-09-07" };
+    expect(PlanCreationCardModelSchema.parse({ ...card, calendarWindow }).calendarWindow).toEqual(
+      calendarWindow,
+    );
+    expect(PlanCreationCardModelSchema.parse(card).calendarWindow).toBeNull();
+    const missing: Record<string, unknown> = { ...card };
+    delete missing.calendarWindow;
+    expect(PlanCreationCardModelSchema.safeParse(missing).success).toBe(false);
+    for (const invalid of [
+      { startDate: "1998-09-01" },
+      { ...calendarWindow, startDate: "1998-09-01T00:00:00Z" },
+      { ...calendarWindow, endDate: "1998-02-30" },
+      { ...calendarWindow, timezone: "UTC" },
+    ]) {
+      expect(
+        PlanCreationCardModelSchema.safeParse({ ...card, calendarWindow: invalid }).success,
+      ).toBe(false);
+    }
   });
 
   it("closes every answer and host-owned Card variant", () => {

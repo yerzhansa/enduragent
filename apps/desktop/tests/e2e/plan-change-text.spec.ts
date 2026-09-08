@@ -94,6 +94,14 @@ async function launch(
   }
 }
 
+async function relaunch(scenario: Scenario, playwright: Playwright): Promise<void> {
+  await scenario.browser.close();
+  await scenario.fixture.relaunch(() => scenario.backend.reopen());
+  await scenario.fixture.setViewport(scenario.width, 820);
+  Object.assign(scenario, await connect(playwright, scenario.fixture, scenario.colorScheme));
+  expect(await scenario.page.evaluate(() => innerWidth)).toBe(scenario.width);
+}
+
 async function capture(scenario: Scenario, name: string): Promise<void> {
   await mkdir(previews, { recursive: true });
   const screenshotPath = join(previews, `${name}-${scenario.width}-${scenario.colorScheme}.png`);
@@ -162,6 +170,17 @@ function pendingCard(scenario: Scenario, title: string) {
   return changes(scenario)
     .getByRole("region", { name: title, exact: true })
     .filter({ has: scenario.page.getByText("Pending", { exact: true }) });
+}
+
+async function openChanges(scenario: Scenario): Promise<void> {
+  await scenario.page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("button", { name: "Plan", exact: true })
+    .click();
+  await scenario.page
+    .getByRole("region", { name: "Plan library", exact: true })
+    .getByRole("button", { name: "Change in Chat", exact: true })
+    .click();
 }
 
 async function send(scenario: Scenario, text: string) {
@@ -246,6 +265,7 @@ for (const appearance of appearances) {
       await card.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(card).toHaveCount(0);
 
+      await openChanges(scenario);
       await send(scenario, "wednesdays at most 30 minutes");
       const typed = pendingCard(scenario, durationTitle);
       await expect(typed.getByRole("heading")).toBeFocused();
@@ -265,9 +285,25 @@ for (const appearance of appearances) {
       ).toHaveText(cardRows);
       await typed.getByRole("heading").scrollIntoViewIfNeeded();
       await capture(scenario, "text-duration-preview");
-      await typed.getByRole("button", { name: "Cancel", exact: true }).click();
-      await expect(typed).toHaveCount(0);
+      await relaunch(scenario, playwright);
+      const restored = pendingCard(scenario, durationTitle);
+      await expect(restored).toBeVisible();
+      await restored.getByRole("button", { name: "View evidence", exact: true }).click();
+      const evidence = changes(scenario).getByRole("region", {
+        name: "Source details",
+        exact: true,
+      });
+      await expect(
+        evidence.getByText("wednesdays at most 30 minutes", { exact: true }),
+      ).toBeVisible();
+      await capture(scenario, "text-request-relaunched");
+      await evidence.getByRole("button", { name: "Back", exact: true }).click();
+      await pendingCard(scenario, durationTitle)
+        .getByRole("button", { name: "Cancel", exact: true })
+        .click();
+      await expect(pendingCard(scenario, durationTitle)).toHaveCount(0);
 
+      await openChanges(scenario);
       await send(scenario, "my ftp is 220");
       const ftp = pendingCard(scenario, ftpTitle);
       await expect(ftp.getByRole("heading")).toBeFocused();
@@ -292,6 +328,7 @@ for (const appearance of appearances) {
       await ftp.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(ftp).toHaveCount(0);
 
+      await openChanges(scenario);
       const previewsBeforeRejections = (await scenario.backend.library()).changes;
       for (const request of [
         {

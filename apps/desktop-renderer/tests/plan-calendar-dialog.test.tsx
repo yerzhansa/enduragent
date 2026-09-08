@@ -1,4 +1,4 @@
-import type { ListPlansResult } from "@enduragent/coach-contract";
+import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
@@ -22,11 +22,25 @@ const summary: NonNullable<ListPlansResult["active"]> = {
   creationId: null,
 };
 
+const creation: PlanCreationCardModel = {
+  creationId: "01J00000000000000000000000",
+  version: 1,
+  status: "in-progress",
+  draft: null,
+  draftStale: false,
+  calendarWindow: null,
+  pendingCommitment: null,
+  readiness: "ready",
+  answeredSummaries: [],
+  openQuestion: null,
+};
+
 beforeEach(() => {
-  vi.spyOn(Date, "now").mockReturnValue(new Date("1998-09-07T12:00:00").getTime());
+  vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2000, 0, 1));
   useEnduragentStore.setState({
     chat: {
       ...EMPTY_CHAT_SURFACE,
+      planCreation: creation,
       planCreationActivateConfirmationOpen: true,
       planCreationActivePlanKnowledge: { kind: "none" },
     },
@@ -54,6 +68,13 @@ describe("activation calendar consequence", () => {
       useEnduragentStore.setState({
         chat: {
           ...useEnduragentStore.getState().chat,
+          planCreation: {
+            ...creation,
+            calendarWindow: {
+              startDate: closing ? "1998-09-08" : "1998-09-07",
+              endDate: "1998-09-15",
+            },
+          },
           planCreationActivePlanKnowledge: closing
             ? { kind: "active", name: "Previous training Plan" }
             : { kind: "none" },
@@ -74,7 +95,7 @@ describe("activation calendar consequence", () => {
       render(<PlanCreationActivateDialog />);
       expect(
         await screen.findByText(
-          `Dated Workouts sync from ${closing ? "tomorrow" : "today"} through 13 Sept 1998.`,
+          `Dated Workouts sync from ${closing ? "tomorrow" : "today"} through 15 Sept 1998.`,
         ),
       ).toBeVisible();
       expect(
@@ -142,6 +163,15 @@ describe("activation calendar consequence", () => {
     "uses connection availability before the first Plan: %s",
     async (calendarConnected) => {
       useEnduragentStore.setState({
+        chat: {
+          ...useEnduragentStore.getState().chat,
+          planCreation: {
+            ...creation,
+            calendarWindow: calendarConnected
+              ? { startDate: "1998-09-07", endDate: "1998-09-13" }
+              : null,
+          },
+        },
         planLibrary: {
           status: "ready",
           value: {
@@ -165,6 +195,28 @@ describe("activation calendar consequence", () => {
       ).toBeVisible();
     },
   );
+
+  it("uses a null card window even when the library reports a connected calendar", async () => {
+    useEnduragentStore.setState({
+      planLibrary: {
+        status: "ready",
+        value: {
+          calendarConnected: true,
+          legacy: null,
+          creation: null,
+          active: null,
+          closed: [],
+          changesPaused: null,
+          changes: [],
+        },
+      },
+    });
+    render(<PlanCreationActivateDialog />);
+    expect(
+      await screen.findByText("Calendar updates wait until intervals.icu is connected."),
+    ).toBeVisible();
+    expect(screen.queryByText(/Dated Workouts sync/)).toBeNull();
+  });
 
   it("shows no sync line until the library read confirms the connection", async () => {
     let finish: () => void = () => {};

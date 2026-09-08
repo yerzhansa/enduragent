@@ -274,6 +274,7 @@ export function bootRenderer(): Disposer {
       state.setPlanChange({
         ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
         open: true,
+        textRouting: true,
         planId,
       });
       store.getState().setActiveView("chat");
@@ -281,21 +282,22 @@ export function bootRenderer(): Disposer {
     },
   });
   const disposePlanLibraryRefresh = subscribePlanLibraryRefresh(planController);
+  let pendingChangePauseRequested = false;
   const disposePendingChangeRestore = store.subscribe((state, previousState) => {
     const pending =
       state.planLibrary.value?.changes.some((change) => change.status === "pending") ?? false;
     const hadPending =
       previousState.planLibrary.value?.changes.some((change) => change.status === "pending") ??
       false;
-    if (
-      pending &&
-      (!hadPending ||
-        (!previousState.chat.planCreationLoaded && state.chat.planCreationLoaded) ||
-        (previousState.chat.planCreationPaused && !state.chat.planCreationPaused) ||
-        (previousState.chat.planCreationBusy &&
-          !state.chat.planCreationBusy &&
-          !state.chat.planCreationPaused))
+    if (!pending) pendingChangePauseRequested = false;
+    else if (
+      !hadPending ||
+      (!previousState.chat.planCreationLoaded && state.chat.planCreationLoaded)
     ) {
+      pendingChangePauseRequested = true;
+    }
+    if (pendingChangePauseRequested && !state.chat.planCreationBusy) {
+      pendingChangePauseRequested = false;
       chatController.pausePlanCreation();
     }
   });
@@ -344,7 +346,7 @@ export function bootRenderer(): Disposer {
   });
   store.getState().bindPlanActions({
     open: () => planAdapter.open(),
-    startPlan: () => planAdapter.startPlan(),
+    startPlan: () => store.getState().planLibraryActions?.startCreation(),
     closeCoach: () => planAdapter.closeCoach(),
     submitCoach: (message) => planAdapter.submitCoach(message),
     stopCoach: () => planAdapter.stopCoach(),
@@ -479,7 +481,7 @@ export function bootRenderer(): Disposer {
     pausePlanCreation: () => chatController.pausePlanCreation(),
     continuePlanCreation: () => chatController.continuePlanCreation(),
     editPlanCreation: (answerKey) => chatController.editPlanCreation(answerKey),
-    cancelPlanCreationEdit: () => chatController.cancelPlanCreationEdit(),
+    cancelPlanCreationEdit: (returnFocus) => chatController.cancelPlanCreationEdit(returnFocus),
     openPlanCreationDiscard: () => chatController.openPlanCreationDiscard(),
     cancelPlanCreationDiscard: () => chatController.cancelPlanCreationDiscard(),
     confirmPlanCreationDiscard: () => void chatController.confirmPlanCreationDiscard(),

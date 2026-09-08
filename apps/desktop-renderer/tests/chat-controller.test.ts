@@ -744,6 +744,7 @@ function subject(
     refreshPlanLibrary,
     readPlanLibrary,
     readPlanChange,
+    publishPlanChange: (next) => readPlanChange.mockReturnValue(next),
     openChat,
     refreshSpend,
     canChat,
@@ -1851,6 +1852,7 @@ describe("chat controller", () => {
   it("gates coaching work only while a Plan Creation Card is visible", async () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -1901,6 +1903,12 @@ describe("chat controller", () => {
     await expect(controller.submit("blocked by edit")).resolves.toBe(false);
     controller.cancelPlanCreationEdit();
     expect(controls.at(-1)?.planCreation).toMatchObject({ paused: true, editingKey: null });
+    controller.cancelPlanCreationEdit("edit");
+    expect(controls.at(-1)?.planCreation).toMatchObject({
+      paused: true,
+      editingKey: null,
+      focusRequest: { target: "edit" },
+    });
 
     controller.refreshPlanningRequests();
     await vi.waitFor(() => expect(controls.at(-1)?.planCreation?.value).toEqual(ready));
@@ -1937,6 +1945,7 @@ describe("chat controller", () => {
             : kind === "empty"
               ? { ...draft, weeks: draft.weeks.map((week) => ({ ...week, workouts: [] })) }
               : draft,
+        calendarWindow: null,
         draftStale: kind === "stale",
         pendingCommitment:
           kind === "commitments-pending"
@@ -1977,6 +1986,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2029,6 +2039,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2087,6 +2098,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2137,6 +2149,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2174,6 +2187,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2224,6 +2238,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -2255,6 +2270,7 @@ describe("chat controller", () => {
   it("guards an in-flight discard, sends the displayed revision, and clears the Card", async () => {
     const completeCard: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2336,6 +2352,7 @@ describe("chat controller", () => {
   it("retries a failed discard with the identical command and no premature consequence", async () => {
     const card: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2382,6 +2399,7 @@ describe("chat controller", () => {
   it("cancels discard with focus restoration and keeps Chat gated only while open", async () => {
     const completeCard: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2413,6 +2431,7 @@ describe("chat controller", () => {
   it("installs the returned Card and publishes an inline notice after discard rejection", async () => {
     const card: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2470,6 +2489,7 @@ describe("chat controller", () => {
   it("returns focus to Start when refresh removes a Card behind its discard dialog", async () => {
     const card: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2508,6 +2528,7 @@ describe("chat controller", () => {
     });
     const planCreation: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2587,6 +2608,7 @@ describe("chat controller", () => {
     };
     const planCreation: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2661,6 +2683,7 @@ describe("chat controller", () => {
   it("retries Card commands with stable ids, installs monotonically, and unblocks Chat", async () => {
     const goalCard: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -2743,6 +2766,7 @@ describe("chat controller", () => {
               }
             : null,
         draft: null,
+        calendarWindow: null,
         draftStale: false,
         pendingCommitment:
           surface === "pending" || surface === "change" || surface === "paused-pending"
@@ -2767,7 +2791,12 @@ describe("chat controller", () => {
       await controller.start();
       if (surface === "paused" || surface === "paused-pending") controller.pausePlanCreation();
       await expect(controller.submit("Wed at most 45 min")).resolves.toBe(true);
-      if (surface === "question" || surface === "pending" || surface === "paused-pending") {
+      if (
+        surface === "question" ||
+        surface === "pending" ||
+        surface === "paused-pending" ||
+        surface === "change"
+      ) {
         expect(answerPlanCreation).toHaveBeenCalledWith(
           expect.objectContaining({
             answer: {
@@ -2784,6 +2813,107 @@ describe("chat controller", () => {
       controller.dispose();
     },
   );
+
+  it("records a typed creation answer after Continue while a Change remains pending", async () => {
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 10,
+      status: "in-progress",
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: {
+        kind: "commitments-question",
+        step: { current: 8, total: 10 },
+        prompt: "Any fixed commitments?",
+        noneOption: { label: "No fixed commitments", detail: "Nothing fixed." },
+        authoredOption: {
+          label: "Add commitments or time off",
+          detail: "Add scheduling details.",
+          editorLabel: "Commitments or time off",
+          placeholder: "Your limits",
+        },
+      },
+      draft: null,
+      calendarWindow: null,
+      draftStale: false,
+      pendingCommitment: null,
+    };
+    const answerPlanCreation = vi
+      .fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>()
+      .mockResolvedValue({ status: "answered", planCreation: { ...card, version: 11 } });
+    const fake = client(replies(), {
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+      answerPlanCreation,
+    });
+    const { controller, controls, readPlanLibrary, readPlanChange } = subject(fake);
+    readPlanLibrary.mockReturnValue({
+      ...readPlanLibrary(),
+      active: {
+        supportingEventCandidates: [],
+        planId: "plan-active",
+        version: 7,
+        name: "Build fitness",
+        start: "1998-09-07",
+        end: "1998-10-04",
+        weeks: 4,
+        status: "active",
+        closeReason: null,
+        closedAt: null,
+        activatedAt: "1998-09-07",
+        todayChoice: null,
+        calendar: { status: "pending", window: null, currentThrough: null, error: null },
+        creationId: null,
+      },
+      changes: [
+        {
+          changeId: "change-preview",
+          planId: "plan-active",
+          baseRevisionNumber: 1,
+          status: "pending",
+          title: "Limit weekday duration",
+          intent: { kind: "weekday-duration", day: 2, minutes: 45 },
+          diff: [],
+          totals: {
+            before: { plan: 120, weeks: [{ number: 1, minutes: 120 }] },
+            after: { plan: 90, weeks: [{ number: 1, minutes: 90 }] },
+          },
+          supersedes: null,
+          supersededBy: null,
+          resultRevisionNumber: null,
+          undo: null,
+          confidence: "High",
+          premises: [],
+        },
+      ],
+    });
+    readPlanChange.mockReturnValue({
+      ...EMPTY_PLAN_CHANGE_SURFACE,
+      planId: "plan-active",
+      open: true,
+      textRouting: true,
+    });
+    await controller.start();
+    controller.pausePlanCreation();
+    expect(controls.at(-1)?.planCreation?.paused).toBe(true);
+
+    controller.continuePlanCreation();
+    await expect(controller.submit("Wed at most 45 min")).resolves.toBe(true);
+
+    expect(controls.at(-1)?.planCreation?.paused).toBe(false);
+    expect(answerPlanCreation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        answer: {
+          kind: "commitments",
+          commitments: { kind: "interpreted", text: "Wed at most 45 min" },
+        },
+      }),
+    );
+    expect(fake.call).not.toHaveBeenCalledWith("plan_change.preview", expect.anything());
+    expect(chatMessages(fake)).toEqual([]);
+    expect(readPlanLibrary().changes[0]?.status).toBe("pending");
+    expect(readPlanChange()).toMatchObject({ open: true, textRouting: false });
+    controller.dispose();
+  });
 
   it.each([
     { rules: [], unparsed: [], status: "confirm" },
@@ -2805,6 +2935,7 @@ describe("chat controller", () => {
         answeredSummaries: [],
         openQuestion: null,
         draft: planCreationDraft(),
+        calendarWindow: null,
         draftStale: false,
         pendingCommitment: { text: "busy", rules: [], status: "clarify", unparsed: ["busy"] },
       };
@@ -2849,6 +2980,7 @@ describe("chat controller", () => {
         answeredSummaries: [],
         openQuestion: null,
         draft: planCreationDraft(),
+        calendarWindow: null,
         draftStale: false,
         pendingCommitment: { text: "busy", rules: [], status: "clarify", unparsed: ["busy"] },
       };
@@ -2923,6 +3055,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: {
         text: "Wed 30 min",
@@ -2961,6 +3094,7 @@ describe("chat controller", () => {
         answeredSummaries: [],
         openQuestion: null,
         draft: planCreationDraft(),
+        calendarWindow: null,
         draftStale: false,
         pendingCommitment: {
           text: "Wed 30 min",
@@ -3008,6 +3142,7 @@ describe("chat controller", () => {
       answeredSummaries: [],
       openQuestion: null,
       draft: planCreationDraft(),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -3047,6 +3182,7 @@ describe("chat controller", () => {
       answeredSummaries: [planLengthSummary(4)],
       openQuestion: null,
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -3098,6 +3234,7 @@ describe("chat controller", () => {
       answeredSummaries: [planLengthSummary(8)],
       openQuestion: null,
       draft,
+      calendarWindow: null,
       draftStale: true,
       pendingCommitment: null,
     };
@@ -3129,6 +3266,7 @@ describe("chat controller", () => {
   it("submits an edited answer at the current version and closes the editor", async () => {
     const ready: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -3180,6 +3318,7 @@ describe("chat controller", () => {
       answeredSummaries: originalAnswers,
       openQuestion: null,
       draft: planCreationDraft(originalAnswers),
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
     };
@@ -3215,6 +3354,7 @@ describe("chat controller", () => {
   it("preserves Edit and focus state when an identical Plan Creation model is restored", async () => {
     const ready: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -3245,6 +3385,7 @@ describe("chat controller", () => {
   it("keeps a rejected Edit open with its error and current answer", async () => {
     const ready: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -3284,6 +3425,7 @@ describe("chat controller", () => {
   it("clears and replaces server-authoritative Plan Creation cards", async () => {
     const first: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -3295,6 +3437,7 @@ describe("chat controller", () => {
     };
     const replacement: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000001",
@@ -3331,6 +3474,7 @@ describe("chat controller", () => {
   it("keeps interrupted recovery inert while a Plan Creation question is open", async () => {
     const planCreation: PlanCreationCardModel = {
       draft: null,
+      calendarWindow: null,
       draftStale: false,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
@@ -4095,6 +4239,7 @@ describe("Plan library Chat entry", () => {
     answeredSummaries: [planLengthSummary(12)],
     openQuestion: goalQuestion("Goal?"),
     draft: null,
+    calendarWindow: null,
     draftStale: false,
     pendingCommitment: null,
   };

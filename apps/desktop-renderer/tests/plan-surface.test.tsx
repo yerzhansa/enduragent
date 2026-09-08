@@ -164,29 +164,28 @@ describe("Plan surface", () => {
     expect(screen.getByText(/Update Enduragent/u)).toBeInTheDocument();
   });
 
-  it("renders the accepted no-Plan hierarchy and starts PL-T01 from the keyboard", async () => {
+  it("renders the no-Plan hierarchy and starts Plan creation from the keyboard", async () => {
     const user = userEvent.setup();
     const planActions = actions();
+    const noPlan = {
+      ...planReadModel(),
+      transitions: [{ transitionId: "PL-T01", status: "blocked", reason: "Retired wizard" }],
+    } satisfies ReturnType<typeof planReadModel>;
     useEnduragentStore.setState({
       plan: {
         ...EMPTY_PLAN_SURFACE,
-        hydration: { status: "ready", state: planReadModel() },
-        lastReady: planReadModel(),
+        hydration: { status: "ready", state: noPlan },
+        lastReady: noPlan,
       },
       planActions,
     });
     render(<PlanView />);
 
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("What the draft needs")).toBeInTheDocument();
-    expect(screen.getByText("Goal event + Race Course")).toBeInTheDocument();
-    expect(screen.getByText("Current training")).toBeInTheDocument();
-    expect(screen.getByText("FTP")).toBeInTheDocument();
-    expect(screen.getAllByText(/GPX\/FIT/u)).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeInTheDocument();
+    expect(screen.queryByText(/GPX\/FIT/u)).not.toBeInTheDocument();
 
-    const start = screen.getByRole("button", { name: "Build a plan with coach" });
+    const start = screen.getByRole("button", { name: "Start a Plan" });
     start.focus();
     await user.keyboard("{Enter}");
     expect(planActions.startPlan).toHaveBeenCalledOnce();
@@ -199,9 +198,7 @@ describe("Plan surface", () => {
     });
     render(<PlanView />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Build a plan with coach" })).toHaveFocus(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveFocus());
   });
 
   it("keeps the last ready no-Plan screen visible when hydration becomes stale", () => {
@@ -219,9 +216,7 @@ describe("Plan surface", () => {
     render(<PlanView />);
 
     expect(screen.getByText(PLAN_ERROR.message)).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
   });
 
   it("renders the server attention projection without deriving a count", async () => {

@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
+  PLAN_CHANGE_TRANSLATION_BUDGET_MS,
+} from "@enduragent/coach-contract";
 import { z } from "zod";
 import { createIntentTranslator } from "../src/intent-translation.js";
 import { createFakeLLM } from "./helpers/fake-llm.js";
@@ -19,6 +23,67 @@ const context = { candidates: ["candidate-1" as const], events: ["event-1" as co
 const translated = { status: "translated", intent: { kind: "ftp", watts: 220 } };
 
 describe("intent translation", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    [10_000, 30_000],
+    [29_000, 16_000],
+    [30_000, 15_000],
+  ])("shares the translation budget after a %sms first call", async (elapsed, repairBudget) => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const model = createFakeLLM(["not JSON", JSON.stringify(translated)]);
+    const generate = model.generate.bind(model);
+    vi.spyOn(model, "generate").mockImplementation(async (options) => {
+      const result = await generate(options);
+      now += model.capturedOpts.length === 1 ? elapsed : repairBudget - 1;
+      return result;
+    });
+
+    await expect(
+      createIntentTranslator(model).translateIntent("threshold 220", schema, context),
+    ).resolves.toEqual(translated);
+
+    expect(model.capturedOpts.map((options) => options.deadlineMs)).toEqual([30_000, repairBudget]);
+    expect(elapsed + repairBudget).toBeLessThanOrEqual(PLAN_CHANGE_TRANSLATION_BUDGET_MS);
+    expect(PLAN_CHANGE_PREVIEW_TIMEOUT_MS - PLAN_CHANGE_TRANSLATION_BUDGET_MS).toBe(15_000);
+  });
+
+  it("does not start a repair after the aggregate deadline", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const model = createFakeLLM(["not JSON", JSON.stringify(translated)]);
+    const generate = model.generate.bind(model);
+    vi.spyOn(model, "generate").mockImplementation(async (options) => {
+      const result = await generate(options);
+      now = PLAN_CHANGE_TRANSLATION_BUDGET_MS;
+      return result;
+    });
+
+    await expect(
+      createIntentTranslator(model).translateIntent("threshold 220", schema, context),
+    ).resolves.toBeNull();
+    expect(model.capturedOpts).toHaveLength(1);
+  });
+
+  it("rejects a repair returned after the aggregate deadline", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const model = createFakeLLM(["not JSON", JSON.stringify(translated)]);
+    const generate = model.generate.bind(model);
+    vi.spyOn(model, "generate").mockImplementation(async (options) => {
+      const result = await generate(options);
+      now += 30_000;
+      return result;
+    });
+
+    await expect(
+      createIntentTranslator(model).translateIntent("threshold 220", schema, context),
+    ).resolves.toBeNull();
+    expect(model.capturedOpts).toHaveLength(2);
+    expect(model.capturedOpts[1].deadlineMs).toBe(15_000);
+  });
+
   it("uses the exact host schema and context without tools or a model loop", async () => {
     const model = createFakeLLM([JSON.stringify(translated)]);
     const port = createIntentTranslator(model);

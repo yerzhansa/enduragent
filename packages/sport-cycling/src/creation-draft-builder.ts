@@ -107,7 +107,10 @@ function civilText(key: number): string {
   return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
 }
 
-function rulesFor(answers: CreationDraftInput["answers"], key: number) {
+export function rulesFor(
+  answers: Pick<CreationDraftInput["answers"], "availability" | "restriction" | "commitments">,
+  key: number,
+) {
   const restriction = answers.restriction;
   const active =
     restriction.kind !== "none" && (!restriction.endDate || civilText(key) <= restriction.endDate);

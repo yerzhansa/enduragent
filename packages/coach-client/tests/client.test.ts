@@ -2,6 +2,7 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { WebSocketServer, type WebSocket as ServerWebSocket } from "ws";
 import {
   COACH_RPC_METHOD_REGISTRY,
+  PLAN_CHANGE_TRANSLATION_BUDGET_MS,
   PROTOCOL_VERSION,
   createAcceptedServerHandshakeFrame,
   createVersionMismatchServerHandshakeFrame,
@@ -138,7 +139,7 @@ const rpcDeadlineCases = [
       expectedVersion: 1,
       intent: { kind: "longest-workout", minutes: 60 },
     },
-    30_000,
+    60_000,
   ],
   [
     "plan_change.apply",
@@ -1061,6 +1062,7 @@ describe("RPC receive and observers", () => {
         },
         "plan.list": {
           calendarConnected: false,
+          changesPaused: null,
           legacy: null,
           creation: null,
           active: null,
@@ -2134,6 +2136,35 @@ describe("disconnect, close, and send bounds", () => {
       expect(socket.closeCalls).toHaveLength(1);
     },
   );
+
+  it("keeps a preview connection open through the full translation budget", async () => {
+    vi.useFakeTimers();
+    const { socket, connecting } = acceptedSocket();
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const preview = client.call("plan_change.preview", {
+      commandId: "change-preview",
+      planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      expectedVersion: 1,
+      request: { kind: "text", text: "make the long ride shorter" },
+    });
+
+    await vi.advanceTimersByTimeAsync(PLAN_CHANGE_TRANSLATION_BUDGET_MS);
+    expect(socket.closeCalls).toEqual([]);
+    const request = parseCoachRpcEnvelope(socket.sent.at(-1)!);
+    if (!("id" in request)) throw new Error("Expected a preview request");
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: { status: "rejected", reason: "no-active-plan" },
+      }),
+    );
+    await expect(preview).resolves.toEqual({ status: "rejected", reason: "no-active-plan" });
+    expect(socket.closeCalls).toEqual([]);
+    socket.closeSynchronously = true;
+    await client.close();
+  });
 
   it("lets a response just before the deadline win and times out at the exact boundary", async () => {
     vi.useFakeTimers();

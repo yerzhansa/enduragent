@@ -1,4 +1,6 @@
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
+import { todayInTZ } from "@enduragent/engine/sport";
+import { createNodeCrypto } from "@enduragent/kernel-node/ingest";
 import type { LegacyPlanSummary } from "@enduragent/coach-contract";
 import { createHash } from "node:crypto";
 import { canonicalJson } from "@enduragent/kernel/archive";
@@ -13,6 +15,7 @@ import {
   createPlanCreationRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
+  createPlanningRequestRepository,
   PlanCreationStoreError,
   type PlanCreationAnswerRecord,
   type PlanCreationRepository,
@@ -24,11 +27,12 @@ import {
   projectPlanCreationCard,
   type BaselineEvidenceSource,
 } from "../src/plan-creation-operations.js";
-import { runMigrations } from "@enduragent/kernel/store";
+import { createChatPlanOutboxRepository, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanChangeOperations } from "../src/plan-change-operations.js";
 import { createPlanningReadService } from "../src/planning-read-service.js";
+import { createPlanningRequestDeliveryService } from "../src/planning-request-delivery.js";
 import {
   readPlanCreationAnswers,
   interpretCommitmentMessage,
@@ -930,7 +934,10 @@ describe("Plan Creation operations", () => {
   });
 });
 
-async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | null>) {
+async function previewHarness(
+  legacyPlan?: () => Promise<LegacyPlanSummary | null>,
+  baselineEvidence?: BaselineEvidenceSource,
+) {
   let currentToday = today;
   let connected = false;
   const store = openSqliteStorage(":memory:");
@@ -938,7 +945,7 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
   await runMigrations(store, MIGRATIONS);
   const repository = createPlanCreationRepository(store);
   let sequence = 100;
-  const host = createPlanCreationOperations({
+  const hostInput = {
     store,
     repository,
     identity: {
@@ -951,10 +958,12 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     eventSources: { read: async () => [] },
     calendarConnected: () => connected,
     legacyPlan,
+    baselineEvidence,
     today: () => currentToday,
     todayDateKey: () => Number(currentToday.replaceAll("-", "")),
     now: () => Date.parse(`${currentToday}T12:00:00Z`),
-  });
+  };
+  const host = createPlanCreationOperations(hostInput);
   const started = await host["plan_creation.start"]({ commandId: "start" });
   if (started.status !== "started") throw new Error("Expected creation");
   let card = started.planCreation;
@@ -988,6 +997,7 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     store,
     repository,
     host,
+    restore: () => createPlanCreationOperations(hostInput),
     started,
     ready,
     answer,
@@ -1006,6 +1016,146 @@ async function previewHarness(legacyPlan?: () => Promise<LegacyPlanSummary | nul
     },
   };
 }
+
+describe("Plan Creation read projections", () => {
+  it.each(["start", "answer"] as const)(
+    "keeps reads and rejections pure and derives baseline once on successful %s",
+    async (command) => {
+      let available = false;
+      const readEvidence = vi.fn(async () =>
+        available ? { baseline: "regular" as const, label: "synced training history" } : undefined,
+      );
+      const test = await previewHarness(undefined, { read: readEvidence });
+      for (const answer of [
+        fitnessGoal,
+        { kind: "plan-length", weeks: 4 } as const,
+        flexibleMode,
+        flexibleAvailability,
+        startTiming,
+        noCommitments,
+      ])
+        await test.answer(answer);
+      const card = test.card();
+      expect(card.openQuestion?.kind).toBe("baseline-question");
+      available = true;
+      readEvidence.mockClear();
+      const rows = async () => ({
+        creations: await test.store.all("SELECT * FROM plan_creation"),
+        answers: await test.store.all("SELECT * FROM plan_creation_answer"),
+        commands: await test.store.all("SELECT * FROM planning_command"),
+        drafts: await test.store.all("SELECT * FROM plan_creation_draft_revision"),
+      });
+      const before = await rows();
+      const restored = test.restore();
+      const crypto = createNodeCrypto();
+      const delivery = createPlanningRequestDeliveryService({
+        outbox: createChatPlanOutboxRepository(test.store, crypto),
+        requests: createPlanningRequestRepository(test.store, crypto),
+        identity: {
+          deviceId: async () => "read-test-device",
+          newUlid: () => id("900"),
+          hlcStamp: () => ({ physicalMs: 883_612_800_000, counter: 0 }),
+        },
+        resolveTarget: async () => "plan_creation",
+        readPlanCreationCard: restored.readCard,
+      });
+      const listPlanningRequests = delivery.listPlanningRequests;
+      if (listPlanningRequests === undefined) throw new Error("Expected planning request reader");
+      await expect(test.host.readCard()).resolves.toEqual(card);
+      await expect(restored.readCard()).resolves.toEqual(card);
+      await expect(listPlanningRequests({ chatId: "read-test-chat" })).resolves.toMatchObject({
+        planCreation: card,
+      });
+      await expect(restored["plan.list"]({})).resolves.toMatchObject({ creation: card });
+      await expect(
+        restored["plan_creation.answer"]({
+          commandId: "unexpected-answer",
+          creationId: card.creationId,
+          expectedVersion: card.version,
+          answer: noRestriction,
+        }),
+      ).resolves.toMatchObject({ status: "rejected", reason: "answer-not-expected" });
+      await expect(
+        restored["plan_creation.answer"]({
+          commandId: "stale-answer",
+          creationId: card.creationId,
+          expectedVersion: card.version - 1,
+          answer: regularBaseline,
+        }),
+      ).resolves.toMatchObject({ status: "rejected", reason: "stale-version" });
+      await expect(
+        restored["plan_creation.preview"]({
+          commandId: "not-ready-preview",
+          creationId: card.creationId,
+          expectedVersion: card.version,
+        }),
+      ).resolves.toMatchObject({ status: "rejected", reason: "not-ready" });
+      await expect(
+        restored["plan_creation.discard"]({
+          commandId: "stale-discard",
+          creationId: card.creationId,
+          expectedVersion: card.version - 1,
+        }),
+      ).resolves.toMatchObject({ status: "rejected", reason: "stale-version" });
+      expect(await rows()).toEqual(before);
+      expect(readEvidence).not.toHaveBeenCalled();
+      if (command === "start") {
+        await expect(
+          restored["plan_creation.start"]({ commandId: "resume-with-evidence" }),
+        ).resolves.toMatchObject({
+          status: "started",
+          planCreation: { version: card.version + 1 },
+        });
+      } else {
+        await expect(
+          restored["plan_creation.answer"]({
+            commandId: "answer-with-evidence",
+            creationId: card.creationId,
+            expectedVersion: card.version,
+            answer: noCommitments,
+          }),
+        ).resolves.toMatchObject({
+          status: "answered",
+          planCreation: { version: card.version + 2 },
+        });
+      }
+      expect(readEvidence).toHaveBeenCalledOnce();
+      const persisted = await rows();
+      expect(persisted.answers.filter((answer) => answer.answer_key === "baseline")).toHaveLength(
+        1,
+      );
+      expect(
+        persisted.commands.filter(
+          (row) =>
+            typeof row.command_id === "string" &&
+            row.command_id.startsWith("plan-creation-derived-baseline:"),
+        ),
+      ).toHaveLength(1);
+      await restored.readCard();
+      await listPlanningRequests({ chatId: "read-test-chat" });
+      expect(await rows()).toEqual(persisted);
+      await restored["plan_creation.start"]({ commandId: "resume-again" });
+      expect(readEvidence).toHaveBeenCalledOnce();
+      expect(await test.store.all("SELECT * FROM plan_creation_answer")).toEqual(persisted.answers);
+    },
+  );
+
+  it("projects the connected calendar window using the planning timezone date", async () => {
+    const test = await previewHarness();
+    expect((await test.host.readCard())?.calendarWindow).toBeNull();
+    test.setConnected(true);
+    const instant = new Date("1998-09-02T01:00:00Z");
+    test.setToday(todayInTZ("America/Los_Angeles", instant));
+    expect((await test.host.readCard())?.calendarWindow).toEqual({
+      startDate: "1998-09-01",
+      endDate: "1998-09-07",
+    });
+    expect((await test.host["plan.list"]({})).creation?.calendarWindow).toEqual({
+      startDate: "1998-09-01",
+      endDate: "1998-09-07",
+    });
+  });
+});
 
 describe("Plan Creation command replay", () => {
   it("projects start and answer results from their recorded versions", async () => {
@@ -1380,6 +1530,24 @@ describe("Plan Creation activation", () => {
       },
     };
   };
+
+  it("starts the replacement calendar window tomorrow in the planning timezone", async () => {
+    const test = await review();
+    await test.host["plan_creation.activate"](test.request);
+    test.setConnected(true);
+    test.setToday(todayInTZ("America/Los_Angeles", new Date("1998-09-03T01:00:00Z")));
+    const started = await test.host["plan_creation.start"]({ commandId: "replacement-window" });
+    expect(started).toMatchObject({
+      status: "started",
+      planCreation: { calendarWindow: { startDate: "1998-09-03", endDate: "1998-09-08" } },
+    });
+    expect((await test.host.readCard())?.calendarWindow).toEqual({
+      startDate: "1998-09-03",
+      endDate: "1998-09-08",
+    });
+    test.setConnected(false);
+    expect((await test.host.readCard())?.calendarWindow).toBeNull();
+  });
 
   it("reads the injected legacy summary before opening the list transaction", async () => {
     const legacy = {

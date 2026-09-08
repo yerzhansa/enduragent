@@ -6,6 +6,9 @@ import {
   SupportingEventRoleSchema,
 } from "./plan-creation.js";
 
+export const PLAN_CHANGE_TRANSLATION_BUDGET_MS = 45_000;
+export const PLAN_CHANGE_PREVIEW_TIMEOUT_MS = PLAN_CHANGE_TRANSLATION_BUDGET_MS + 15_000;
+
 const FtpWattsSchema = z.number().int().min(1).max(9_999);
 
 export const PlanChangeFtpSourcesSchema = z

@@ -657,6 +657,13 @@ export const PlanCreationCardModelSchema = z
     status: z.enum(["in-progress", "review"]),
     draft: PlanCreationDraftSchema.nullable(),
     draftStale: z.boolean(),
+    calendarWindow: z
+      .object({
+        startDate: PlanCreationCivilDateSchema,
+        endDate: PlanCreationCivilDateSchema,
+      })
+      .strict()
+      .nullable(),
     pendingCommitment: PlanCreationPendingCommitmentSchema.nullable(),
     readiness: z.enum(["incomplete", "ready"]),
     answeredSummaries: z.array(PlanCreationAnswerSummarySchema).max(16),

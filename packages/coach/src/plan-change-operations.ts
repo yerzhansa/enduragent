@@ -85,7 +85,12 @@ function supportingEventRules(draft: PlanCreationDraft) {
   const restriction = answers.find((answer) => answer.kind === "restriction");
   if (availability === undefined || restriction === undefined)
     throw new Error("The Plan snapshot is missing confirmed training limits.");
-  return { availability, restriction: restriction.restriction };
+  const commitments = answers.find((answer) => answer.kind === "commitments");
+  return {
+    availability,
+    restriction: restriction.restriction,
+    commitments: commitments?.commitments ?? { kind: "none" as const },
+  };
 }
 
 function metadataChanged(before: PlanCreationDraft, after: PlanCreationDraft): boolean {
@@ -158,7 +163,7 @@ export function projectTodayChoice(
     todayDateKey,
     occupiedByClosedPlan,
     completedWorkoutIds,
-    answers: { availability, restriction: restriction.restriction },
+    answers: supportingEventRules(draft),
   });
 }
 
@@ -329,6 +334,7 @@ export function createPlanChangeOperations(input: {
           : { kind: "intent", intent: parsed.data.intent };
       const command = await stamp(parsed.data);
       let intent: PlanChangeIntent;
+      let expectedChangeSequence: number | undefined;
       if (changeRequest.kind === "text") {
         const prior = await input.store.get(
           "SELECT request_digest,result_json FROM planning_command WHERE command_name='plan_change.preview' AND command_id=? AND status='succeeded'",
@@ -354,6 +360,7 @@ export function createPlanChangeOperations(input: {
         if (active === undefined) return { status: "rejected", reason: "no-active-plan" };
         if (active.plan_id !== planId || active.version !== expectedVersion)
           return { status: "rejected", reason: "stale-version" };
+        expectedChangeSequence = await repository.captureChangeSequence(planId);
         const current = await repository.readUndoContext(planId);
         if (current === null) return { status: "rejected", reason: "no-active-plan" };
         const draft = PlanCreationDraftSchema.parse(JSON.parse(current.snapshotJson));
@@ -388,6 +395,7 @@ export function createPlanChangeOperations(input: {
       let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
       let eventSources: PlanChangeEventSource[] = [];
       const result = await repository.preview({
+        ...(expectedChangeSequence === undefined ? {} : { expectedChangeSequence }),
         async admit(store) {
           const rejection = await admit(store);
           if (rejection !== null) return rejection;

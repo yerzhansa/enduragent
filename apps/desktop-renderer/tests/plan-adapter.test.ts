@@ -158,22 +158,23 @@ describe("Plan view adapter", () => {
     expect(getPlanState).toHaveBeenCalledTimes(2);
   });
 
-  it("dispatches PL-T01 with one stable command identifier", async () => {
+  it("dispatches PL-T36 with one stable command identifier", async () => {
     const execute = deferred<ExecutePlanTransitionRpcResult>();
     const subject = harness({
       ids: ["create-draft-command"],
       executePlanTransition: () => execute.promise,
     });
 
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     expect(subject.executePlanTransition).toHaveBeenCalledWith({
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "create-draft-command",
-      sourceConversationId: null,
+      sourceConversationId: "chat-1",
+      requestId: "request-1",
     });
     expect(subject.surface.transition).toEqual({
       status: "submitting",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "create-draft-command",
     });
 
@@ -512,21 +513,22 @@ describe("Plan view adapter", () => {
       }),
     });
 
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     await settle();
     expect(subject.surface.transition).toEqual({
       status: "failed",
       commandId: "rejected-command",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       error: PLAN_ERROR,
     });
 
     subject.adapter.retry();
     await settle();
     expect(subject.executePlanTransition).toHaveBeenLastCalledWith({
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "retry-command",
-      sourceConversationId: null,
+      sourceConversationId: "chat-1",
+      requestId: "request-1",
     });
   });
 
@@ -2012,12 +2014,12 @@ describe("Plan view adapter", () => {
     });
     subject.adapter.start();
     await settle();
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     await settle();
 
     const matching: PlanProgressEvent = {
       commandId: "command-1",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       operationId: "operation-1",
       phase: "running",
       completed: 1,

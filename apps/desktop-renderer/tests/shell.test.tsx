@@ -360,9 +360,7 @@ describe("shell", () => {
     });
     await user.click(screen.getByRole("button", { name: "Plan" }));
     expect(await screen.findByRole("region", { name: "Plan" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
     expect(document.querySelector("div.thread")).not.toBeNull();
     const conversation = screen.getByLabelText("Coaching conversation");
     expect(conversation.closest(".hidden")).not.toBeNull();

@@ -84,13 +84,16 @@ export function PlanCreationDiscardDialog(): ReactElement {
   );
 }
 
-function calendarWindowEnd(now: number): string {
-  const date = new Date(now);
-  date.setDate(date.getDate() + 6);
+function calendarWindowEnd(endDate: string): string {
+  const year = Number(endDate.slice(0, 4));
+  const month = Number(endDate.slice(5, 7));
+  const day = Number(endDate.slice(8, 10));
+  const date = new Date(Date.UTC(year, month - 1, day));
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   }).format(date);
 }
 
@@ -100,6 +103,12 @@ export function PlanCreationActivateDialog(): ReactElement | null {
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const actions = useEnduragentStore((state) => state.chatActions);
   const knowledge = useEnduragentStore((state) => state.chat.planCreationActivePlanKnowledge);
+  const calendarWindow = useEnduragentStore((state) => {
+    const creation = state.planLibrary.value?.creation;
+    return creation != null && creation.creationId === state.chat.planCreation?.creationId
+      ? creation.calendarWindow
+      : (state.chat.planCreation?.calendarWindow ?? null);
+  });
 
   const library = useEnduragentStore((state) => state.planLibrary.value);
   const libraryStatus = useEnduragentStore((state) => state.planLibrary.status);
@@ -130,8 +139,6 @@ export function PlanCreationActivateDialog(): ReactElement | null {
       cancelled = true;
     };
   }, [open, libraryActions]);
-  const connected =
-    connection === "fresh" && libraryStatus === "ready" && (library?.calendarConnected ?? false);
   const cancelActivation = useCallback((): void => {
     actions?.cancelPlanCreationActivate();
   }, [actions]);
@@ -164,8 +171,8 @@ export function PlanCreationActivateDialog(): ReactElement | null {
           </DialogDescription>
           {connection === "checking" ? null : (
             <p className="m-0 text-sm leading-5 text-ink-2">
-              {connected
-                ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${calendarWindowEnd(Date.now())}.`
+              {calendarWindow !== null
+                ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${calendarWindowEnd(calendarWindow.endDate)}.`
                 : "Calendar updates wait until intervals.icu is connected."}
             </p>
           )}
@@ -315,7 +322,7 @@ function PlanCreationConversationContent(props: {
               <Button
                 variant="outline"
                 onClick={() => {
-                  actions?.cancelPlanCreationEdit();
+                  actions?.cancelPlanCreationEdit("edit");
                   setEditVersion(null);
                 }}
               >
