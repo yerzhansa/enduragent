@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   COACH_RPC_METHOD_REGISTRY,
   CoachRpcRequestEnvelopeSchema,
@@ -60,6 +61,43 @@ const change = {
 };
 
 describe("Plan Change contract", () => {
+  it("describes every intent field and its units in the generated JSON schema", () => {
+    const descriptions = new Map<string, unknown[]>();
+    function visit(value: unknown): void {
+      if (value === null || typeof value !== "object") return;
+      for (const [key, child] of Object.entries(value)) {
+        if (key === "properties" && child !== null && typeof child === "object") {
+          for (const [field, schema] of Object.entries(child)) {
+            expect(schema).toHaveProperty("description", expect.any(String));
+            if (schema !== null && typeof schema === "object" && "description" in schema) {
+              expect(schema.description).not.toBe("");
+              descriptions.set(field, [...(descriptions.get(field) ?? []), schema.description]);
+            }
+          }
+        }
+        visit(child);
+      }
+    }
+
+    visit(z.toJSONSchema(PlanChangeIntentSchema));
+
+    expect(descriptions.get("day")).toEqual(
+      Array(3).fill(
+        "ISO weekday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday",
+      ),
+    );
+    expect(descriptions.get("minutes")).toEqual([
+      "Maximum session length for that weekday, in minutes",
+      "Maximum length of any single workout, in minutes",
+    ]);
+    expect(descriptions.get("hours")).toEqual(["Maximum total training hours per week"]);
+    expect(descriptions.get("role")).toEqual(
+      Array(2).fill(
+        "Important = reduce training in the event week; Training = include the event without reducing surrounding training",
+      ),
+    );
+  });
+
   it.each([
     intent,
     { kind: "weekday-unavailable", day: 7 },
