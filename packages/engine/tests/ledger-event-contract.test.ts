@@ -16,14 +16,14 @@ describe("ledger event contract", () => {
         source,
       })),
     );
-    expect(events.map((event) => event.kind)).toEqual([
+    expect([...new Set(events.map((event) => event.kind))]).toEqual([
       "decision",
       "override",
       "illness",
       "experiment",
       "outcome",
     ]);
-    expect(new Set(events.map((event) => event.source))).toEqual(new Set(["flush"]));
+    expect(new Set(events.map((event) => event.source))).toEqual(new Set(["flush", "chat"]));
   });
 
   it("accepts the canonical date shape and rejects malformed dates", () => {

@@ -137,13 +137,14 @@ const REPLAY_UNSAFE_TOOL_NAMES = new Set([
   "intervals_delete_workout",
   "intervals_update_workout",
   "memory_write",
+  "ledger_append",
   "plan_save",
 ]);
 
 // The subset of write tools that mutate the state behind the memoized memory
 // read tools (memory_read / memory_query / plan_load); their execution evicts
 // those cache entries so a same-turn re-read sees the write.
-const MEMORY_MUTATING_TOOL_NAMES = new Set(["memory_write", "plan_save"]);
+const MEMORY_MUTATING_TOOL_NAMES = new Set(["memory_write", "ledger_append", "plan_save"]);
 // Eviction runs inside wrapWriteTool, which early-returns for tools outside
 // REPLAY_UNSAFE_TOOL_NAMES — so a memory mutator outside that set would never
 // evict. Assert the subset relation at module load so the gap can't open silently.
@@ -293,6 +294,7 @@ function committedWriteSummary(name: string, result: unknown): string | undefine
     created?: unknown;
     deleted?: unknown;
     saved?: unknown;
+    recorded?: unknown;
     updated?: unknown;
   };
   if (out.created === true) return "created a workout on the calendar";
@@ -301,6 +303,7 @@ function committedWriteSummary(name: string, result: unknown): string | undefine
     return "updated a scheduled workout";
   }
   if (out.saved === true && name === "memory_write") return "saved athlete memory";
+  if (out.recorded === true && name === "ledger_append") return "recorded an athlete event";
   if (out.saved === true && name === "plan_save") return "saved the training plan";
   return undefined;
 }

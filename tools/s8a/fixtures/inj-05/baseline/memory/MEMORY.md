@@ -5,8 +5,8 @@
 
 ## cycling-profile
 _updated: 1998-07-06
-- FTP: 250 W (existing memory; source/date not recorded — re-confirm)
+- FTP 250 W (source/date not recorded; re-confirm)
 
 ## goals
 _updated: 1998-07-06
-- Weekly training load target: 400 (existing memory; source/date not recorded — re-confirm)
+- Weekly training-load target: 400 (source/date not recorded; re-confirm)

@@ -29,7 +29,7 @@ describe("memory_query tool", () => {
     const tools = createMemoryTools(memory, SECTIONS);
     expect(Object.keys(tools)).toContain("memory_query");
     expect(tools.memory_read.description).toContain(
-      "do not call this to re-read them unless you wrote memory this turn",
+      "only stored sections that Athlete Context does not show",
     );
   });
 
@@ -77,7 +77,9 @@ describe("memory_query tool", () => {
       {} as never,
     )) as string;
 
-    expect(result).toBe("Memory query 2026-01-01..2026-01-31: no daily notes or events found.");
+    expect(result).toBe(
+      "Memory query 2026-01-01..2026-01-31: no daily notes, events, or history found.",
+    );
   });
 
   it("joins in-range ledger events, excludes out-of-range, skips malformed", async () => {

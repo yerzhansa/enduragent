@@ -1,3 +1,1 @@
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"schedule","oldBody":null,"newBody":"_updated: 1998-07-06\n- Typically rides 4 times per week, mostly in the mornings (source and confirmation date not recorded; re-confirm).","source":"flush"}
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"goals","oldBody":null,"newBody":"_updated: 1998-07-06\n- Target a century ride at the end of August 1998 (athlete, 1998-07-06).","source":"flush"}
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"cycling-profile","oldBody":null,"newBody":"_updated: 1998-07-06\n- FTP: 250 W (source and confirmation date not recorded; re-confirm).","source":"flush"}
+{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"goals","oldBody":null,"newBody":"_updated: 1998-07-06\n- Target a century ride at the end of August 1998 (athlete, 1998-07-06)","source":"flush"}
