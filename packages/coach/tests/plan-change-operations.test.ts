@@ -1,4 +1,5 @@
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
+import type { IntentTranslationPort } from "@enduragent/engine";
 import type { PlanFtpSourceValue } from "@enduragent/engine/sport";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
@@ -26,6 +27,7 @@ async function activatedPlan(
   },
   eventDate: string | null = null,
   mode: "fixed" | "flexible" = "fixed",
+  translator?: IntentTranslationPort,
 ) {
   const store = openSqliteStorage(":memory:");
   onTestFinished(() => store.close());
@@ -80,7 +82,13 @@ async function activatedPlan(
     refreshIntervals: async () => {},
   });
   const logger = { warn: vi.fn() };
-  const changes = createPlanChangeOperations({ ...dependencies, ftp, logger, eventSources });
+  const changes = createPlanChangeOperations({
+    ...dependencies,
+    ftp,
+    logger,
+    eventSources,
+    ...(translator === undefined ? {} : { translator }),
+  });
   const start = await creation["plan_creation.start"]({ commandId: "start" });
   if (start.status !== "started") throw new Error("Expected creation");
   let card = start.planCreation;
@@ -2487,4 +2495,202 @@ it("blocks mirrored closed-Plan Workouts at preview and rechecks mirror completi
     message: "Today already belongs to a dated Workout.",
   });
   expect(await dumpStore(test.store)).toEqual(before);
+});
+
+describe("written Plan Change requests", () => {
+  it("records the exact typed request in the command and replays after apply without translating again", async () => {
+    const translateIntent: IntentTranslationPort["translateIntent"] = vi.fn(async (_text, schema) =>
+      schema.parse({ status: "translated", intent: { kind: "longest-workout", minutes: 30 } }),
+    );
+    const test = await activatedPlan(undefined, undefined, null, "fixed", { translateIntent });
+    const request = {
+      commandId: "written-preview",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "text", text: "  Please shorten my longest sessions to half an hour.  " },
+    } as const;
+    const beforeWorkouts = await test.workouts();
+    const preview = await test.changes["plan_change.preview"](request);
+    expect(preview.status).toBe("previewed");
+    if (preview.status !== "previewed") throw new Error("Expected preview");
+    expect(preview.change.intent).toEqual({ kind: "longest-workout", minutes: 30 });
+    expect(preview.change.premises).toContainEqual({
+      id: "request",
+      label: "Your request",
+      source: "Your typed change request",
+      value: request.request,
+    });
+    expect(await test.workouts()).toEqual(beforeWorkouts);
+    const recorded = await test.store.get(
+      "SELECT result_json FROM planning_command WHERE command_id=?",
+      [request.commandId],
+    );
+    expect(recorded?.result_json).toContain(request.request.text);
+    expect(await test.changes["plan_change.preview"](request)).toEqual(preview);
+    await test.changes["plan_change.apply"]({
+      commandId: "apply-written",
+      planId: test.planId,
+      expectedVersion: 1,
+      changeId: preview.change.changeId,
+      decision: "apply",
+    });
+    expect(await test.changes["plan_change.preview"](request)).toEqual(preview);
+    expect(translateIntent).toHaveBeenCalledTimes(1);
+    expect(
+      await test.changes["plan_change.preview"]({
+        ...request,
+        request: { kind: "text", text: "my ftp is 220" },
+      }),
+    ).toEqual({ status: "rejected", reason: "command-conflict" });
+    expect(translateIntent).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives wrapped cards and text the same preview diff", async () => {
+    const test = await activatedPlan();
+    const card = await test.changes["plan_change.preview"]({
+      commandId: "wrapped-card",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "intent", intent: { kind: "longest-workout", minutes: 30 } },
+    });
+    const text = await test.changes["plan_change.preview"]({
+      commandId: "typed-equivalent",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "text", text: "long rides at most 30 minutes" },
+    });
+    if (card.status !== "previewed" || text.status !== "previewed")
+      throw new Error("Expected previews");
+    expect(text.change.diff).toEqual(card.change.diff);
+    expect(text.change.totals).toEqual(card.change.totals);
+    expect(text.change.intent).toEqual(card.change.intent);
+  });
+
+  it.each([
+    [
+      "Make my bike lighter",
+      "This request is not supported yet. Choose one of the available actions.",
+    ],
+    ["my ftp is 220 and no training on wednesdays", "Ask for one change at a time."],
+    ["my ftp is 220 then no training on wednesdays", "Ask for one change at a time."],
+    ["my ftp is 220, no training on wednesdays", "Ask for one change at a time."],
+    ["what should i ride today", "No eligible Workout can be selected today."],
+  ])("stores nothing for %s", async (text, explanation) => {
+    const test = await activatedPlan();
+    await test.preview();
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "unsupported-text",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text },
+      }),
+    ).toEqual({ status: "rejected", reason: "unsupported-request", explanation });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("selects the host's first eligible daily Workout and uses ordinary apply", async () => {
+    const test = await activatedPlan(undefined, undefined, null, "flexible");
+    const listed = await test.creation["plan.list"]({});
+    const first = listed.active?.todayChoice?.eligible[0];
+    if (first === undefined) throw new Error("Expected eligible Workout");
+    const preview = await test.changes["plan_change.preview"]({
+      commandId: "daily-text",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "text", text: "what should i ride today" },
+    });
+    if (preview.status !== "previewed") throw new Error("Expected daily preview");
+    expect(preview.change.intent).toEqual({ kind: "choose-workout", workoutId: first.workoutId });
+    expect(
+      await test.changes["plan_change.apply"]({
+        commandId: "daily-text-apply",
+        planId: test.planId,
+        expectedVersion: 1,
+        changeId: preview.change.changeId,
+        decision: "apply",
+      }),
+    ).toMatchObject({ status: "applied" });
+  });
+
+  it("maps a model candidate token to the eligible Workout id", async () => {
+    const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) =>
+      schema.parse({
+        status: "translated",
+        intent: { kind: "choose-workout", workoutId: "candidate-1" },
+      });
+    const test = await activatedPlan(undefined, undefined, null, "flexible", { translateIntent });
+    const first = (await test.creation["plan.list"]({})).active?.todayChoice?.eligible[0];
+    if (first === undefined) throw new Error("Expected eligible Workout");
+    const preview = await test.changes["plan_change.preview"]({
+      commandId: "model-candidate",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "text", text: "Select the first candidate" },
+    });
+    expect(preview).toMatchObject({
+      status: "previewed",
+      change: { intent: { kind: "choose-workout", workoutId: first.workoutId } },
+    });
+  });
+
+  it.each([
+    { kind: "choose-workout", workoutId: "candidate-99" },
+    { kind: "supporting-event", operation: "remove", eventId: "event-99" },
+  ])("rejects unknown model references as unsupported-request: %j", async (intent) => {
+    const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) =>
+      schema.parse({ status: "translated", intent });
+    const test = await activatedPlan(undefined, undefined, null, "flexible", { translateIntent });
+    const before = await dumpStore(test.store);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "unknown-reference",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text: "An unmatched request" },
+      }),
+    ).toMatchObject({ status: "rejected", reason: "unsupported-request" });
+    expect(await dumpStore(test.store)).toBe(before);
+  });
+
+  it("checks host version before invoking the model and checks race protection after translation", async () => {
+    let workoutId = "";
+    const translateIntent: IntentTranslationPort["translateIntent"] = vi.fn(async (_text, schema) =>
+      schema.parse({
+        status: "translated",
+        intent: { kind: "choose-workout", workoutId: "candidate-1" },
+      }),
+    );
+    const test = await activatedPlan(undefined, undefined, "1998-09-07", "flexible", {
+      translateIntent,
+    });
+    const listed = await test.creation["plan.list"]({});
+    const first = listed.active?.todayChoice?.eligible[0];
+    if (first === undefined) throw new Error("Expected eligible Workout");
+    workoutId = first.workoutId;
+    const before = await dumpStore(test.store);
+    const request = {
+      commandId: "translated-protection",
+      planId: test.planId,
+      expectedVersion: 5,
+      request: { kind: "text", text: "Choose an easy ride for today" },
+    } as const;
+    expect(await test.changes["plan_change.preview"](request)).toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    expect(translateIntent).not.toHaveBeenCalled();
+    const card = await test.changes["plan_change.preview"]({
+      commandId: "card-protection",
+      planId: test.planId,
+      expectedVersion: 1,
+      intent: { kind: "choose-workout", workoutId },
+    });
+    expect(card).toMatchObject({ status: "rejected", reason: "race-window" });
+    const text = await test.changes["plan_change.preview"]({ ...request, expectedVersion: 1 });
+    expect(text).toEqual(card);
+    expect(translateIntent).toHaveBeenCalledTimes(1);
+    expect(await dumpStore(test.store)).toBe(before);
+  });
 });

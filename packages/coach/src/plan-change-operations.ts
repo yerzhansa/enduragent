@@ -1,5 +1,7 @@
 import {
   PlanChangeModelSchema,
+  PlanChangeIntentSchema,
+  PlanCloseRpcParamsSchema,
   PlanChangeFtpSourcesSchema,
   PlanChangeEventSourceSchema,
   PlanChangeApplyRpcParamsSchema,
@@ -8,6 +10,7 @@ import {
   PlanChangePreviewResultSchema,
   PlanCreationDraftSchema,
   type PlanChangeIntent,
+  type PlanChangeRequest,
   type PlanChangeEventSource,
   type PlanCreationDraft,
   type PlanChangeOperations,
@@ -19,6 +22,7 @@ import {
   createPlanChangeRepository,
   createPlanWorkoutMatchRepository,
   PlanChangeEnvelopeSchema,
+  PlanChangePreviewStoreResultSchema,
   dateKeyFromText,
   type PlanWorkoutRecord,
   type PlanChangeRepository,
@@ -35,6 +39,8 @@ import {
 } from "@enduragent/sport-cycling";
 import type { PlanFtpAdapter } from "@enduragent/engine/sport";
 import { z } from "zod";
+import type { IntentTranslationPort } from "@enduragent/engine";
+import { supportedChangeKinds, translateChangeRequest } from "./plan-change-translator.js";
 
 export const PROPOSAL_STALE_AFTER_HOURS = 24;
 
@@ -260,6 +266,7 @@ export function createPlanChangeOperations(input: {
   ftp: Pick<PlanFtpAdapter, "read" | "saveManual">;
   logger: { warn(event: string): void };
   eventSources: { read(): Promise<PlanChangeEventSource[]> };
+  translator?: IntentTranslationPort;
 }): PlanChangeOperations {
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -293,17 +300,89 @@ export function createPlanChangeOperations(input: {
     async "plan_change.preview"(request) {
       const parsed = PlanChangePreviewRpcParamsSchema.safeParse(request);
       if (!parsed.success) {
-        if (parsed.error.issues.every((issue) => issue.path[0] === "intent"))
+        PlanCloseRpcParamsSchema.parse({
+          commandId: request.commandId,
+          planId: request.planId,
+          expectedVersion: request.expectedVersion,
+        });
+        const rawIntent =
+          "intent" in request
+            ? request.intent
+            : request.request.kind === "intent"
+              ? request.request.intent
+              : undefined;
+        const checkedIntent = PlanChangeIntentSchema.safeParse(rawIntent);
+        if (rawIntent !== undefined && !checkedIntent.success)
           return {
             status: "rejected",
             reason: "invalid-intent",
-            ...(request.intent?.kind === "supporting-event"
-              ? { explanation: invalidEventExplanation(parsed.error.issues) }
+            ...(rawIntent.kind === "supporting-event"
+              ? { explanation: invalidEventExplanation(checkedIntent.error.issues) }
               : {}),
           };
         throw parsed.error;
       }
-      const { intent, planId, expectedVersion } = parsed.data;
+      const { planId, expectedVersion } = parsed.data;
+      const changeRequest: PlanChangeRequest =
+        "request" in parsed.data
+          ? parsed.data.request
+          : { kind: "intent", intent: parsed.data.intent };
+      const command = await stamp(parsed.data);
+      let intent: PlanChangeIntent;
+      if (changeRequest.kind === "text") {
+        const prior = await input.store.get(
+          "SELECT request_digest,result_json FROM planning_command WHERE command_name='plan_change.preview' AND command_id=? AND status='succeeded'",
+          [command.commandId],
+        );
+        if (prior !== undefined) {
+          if (prior.request_digest !== command.requestDigest)
+            return { status: "rejected", reason: "command-conflict" };
+          const result = PlanChangePreviewStoreResultSchema.parse(
+            JSON.parse(z.string().parse(prior.result_json)),
+          );
+          return PlanChangePreviewResultSchema.parse(
+            result.status === "previewed"
+              ? { ...result, change: { ...result.change, undo: null } }
+              : result,
+          );
+        }
+        const rejection = await admit(input.store);
+        if (rejection !== null) return { status: "rejected", reason: rejection };
+        const active = await input.store.get(
+          "SELECT plan_id,version FROM planning_plan WHERE status='active'",
+        );
+        if (active === undefined) return { status: "rejected", reason: "no-active-plan" };
+        if (active.plan_id !== planId || active.version !== expectedVersion)
+          return { status: "rejected", reason: "stale-version" };
+        const current = await repository.readUndoContext(planId);
+        if (current === null) return { status: "rejected", reason: "no-active-plan" };
+        const draft = PlanCreationDraftSchema.parse(JSON.parse(current.snapshotJson));
+        const today = input.todayDateKey();
+        const choice = projectTodayChoice(
+          draft,
+          today,
+          await readClosedPlanOccupiesToday(input.store, today),
+          await readCompletedWorkoutIds(input.store, planId),
+        );
+        const translated = await translateChangeRequest(changeRequest.text, {
+          allowedKinds: supportedChangeKinds,
+          eligibleWorkouts: (choice?.eligible ?? []).map(({ workoutId }) => ({ workoutId })),
+          supportingEvents: draft.supportingEvents.map(({ id }) => ({ id })),
+          ...(input.translator === undefined ? {} : { translator: input.translator }),
+        });
+        if (translated.status !== "translated")
+          return {
+            status: "rejected",
+            reason: "unsupported-request",
+            explanation:
+              translated.status === "combined"
+                ? "Ask for one change at a time."
+                : translated.status === "no-eligible-workout"
+                  ? "No eligible Workout can be selected today."
+                  : "This request is not supported yet. Choose one of the available actions.",
+          };
+        intent = translated.intent;
+      } else intent = changeRequest.intent;
       let occupiedByClosedPlan = false;
       let previewTodayDateKey: number;
       let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
@@ -334,7 +413,7 @@ export function createPlanChangeOperations(input: {
             eventSources = await input.eventSources.read();
           return null;
         },
-        command: await stamp(parsed.data),
+        command,
         planId,
         expectedVersion,
         nowMs: input.now(),
@@ -466,6 +545,16 @@ export function createPlanChangeOperations(input: {
               totals,
               supersedes: null,
               premises: [
+                ...(changeRequest.kind === "text"
+                  ? [
+                      {
+                        id: "request",
+                        label: "Your request",
+                        source: "Your typed change request",
+                        value: changeRequest,
+                      },
+                    ]
+                  : []),
                 ...(eventSource === undefined
                   ? []
                   : [
