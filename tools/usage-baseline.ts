@@ -27,6 +27,7 @@ import { join } from "node:path";
 import { USAGE_LEDGER_FILE, type UsageLedgerLine } from "../packages/core/src/usage-ledger.js";
 import { getCoachHome, expandTilde } from "../packages/core/src/coach-home.js";
 import { MS_PER_DAY } from "../packages/engine/src/sport/date-keys.js";
+import { priceInclusiveUsage } from "../packages/engine/src/usage-cost.js";
 
 const UNKNOWN_TEMPLATE = "unknown";
 const MIN_SPAN_DAYS = 3;
@@ -190,8 +191,8 @@ export interface GroupSummary {
     ratioSampleSize: number;
   };
   cost: {
-    // Only lines carrying a cost object contribute; lines lacking cost are
-    // skipped, NOT counted as 0.
+    // Lines whose provider/model is not in the price catalog are skipped,
+    // NOT counted as 0.
     total: number;
     meanPerTurn: number | null;
     costedLines: number;
@@ -234,7 +235,15 @@ function summarizeGroup(
   }
 
   const costTotals = lines
-    .map((l) => l.cost?.total)
+    .map(
+      (l) =>
+        priceInclusiveUsage(l.provider, l.model, {
+          inputTokens: l.inputTokens ?? 0,
+          outputTokens: l.outputTokens ?? 0,
+          cacheReadTokens: l.cacheReadTokens ?? 0,
+          cacheWriteTokens: l.cacheWriteTokens ?? 0,
+        })?.total,
+    )
     .filter((c): c is number => Number.isFinite(c));
 
   return {

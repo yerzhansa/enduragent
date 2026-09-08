@@ -11,7 +11,8 @@ import { isKeylessProvider } from "@enduragent/coach-contract";
 import { dirname } from "node:path";
 
 import { splitSystemPromptAtBoundary } from "./agent/system-prompt.js";
-import { isPriced, priceUsage } from "./agent/codex/cost.js";
+import { isPriced } from "./agent/codex/cost.js";
+import { priceInclusiveUsage } from "./usage-cost.js";
 
 import type {
   EngineConfig,
@@ -573,11 +574,11 @@ function priceAiSdkUsage(
 ): GenerateResult["cost"] | undefined {
   if (!priced || !totalUsage) return undefined;
   const details = cacheTokenDetails(totalUsage);
-  return priceUsage(provider, modelId, {
-    input: totalUsage.inputTokens ?? 0,
-    output: totalUsage.outputTokens ?? 0,
-    cacheRead: details?.cacheReadTokens ?? 0,
-    cacheWrite: details?.cacheWriteTokens ?? 0,
+  return priceInclusiveUsage(provider, modelId, {
+    inputTokens: totalUsage.inputTokens ?? 0,
+    outputTokens: totalUsage.outputTokens ?? 0,
+    cacheReadTokens: details?.cacheReadTokens ?? 0,
+    cacheWriteTokens: details?.cacheWriteTokens ?? 0,
   });
 }
 
