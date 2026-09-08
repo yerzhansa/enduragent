@@ -99,21 +99,19 @@ export function createLedgerAppendTool(
   return tool({
     description:
       source === "chat"
-        ? "Record a dated athlete event the athlete just stated or decided (decision, override, illness, experiment, outcome). Do not record routine training data or anything already in Athlete Context."
+        ? "Record a dated event the athlete just stated: decision, override, illness, experiment, outcome. Skip routine training data and anything already in Athlete Context."
         : "Record a dated athlete event (decision, override, illness, experiment, outcome) in the permanent event ledger. Entries are appended, never replaced.",
     inputSchema: zodSchema(
       z.object({
         date: z
           .string()
           .regex(LEDGER_DATE_PATTERN)
-          .describe("Date the event happened (YYYY-MM-DD, athlete-local)"),
+          .describe("Event date, YYYY-MM-DD, athlete-local"),
         kind: z.enum(LEDGER_EVENT_KINDS).describe("Event category"),
         text: z
           .string()
           .min(1)
-          .describe(
-            "What happened, in one or two sentences, including rationale or outcome when stated",
-          ),
+          .describe("One or two sentences, with rationale or outcome when stated"),
       }),
     ),
     execute: async (input: { date: string; kind: LedgerEventKind; text: string }) => {
