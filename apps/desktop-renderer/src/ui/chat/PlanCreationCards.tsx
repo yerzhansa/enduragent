@@ -1,4 +1,4 @@
-import { formatCivilDate } from "../../lib/date";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";

@@ -1,4 +1,4 @@
-import { formatCivilDate } from "../lib/date";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 
 export function creationTitle(creation: PlanCreationCardModel): string {

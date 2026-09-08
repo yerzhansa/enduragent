@@ -1,4 +1,4 @@
-import { formatCivilDate } from "../../lib/date";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import type { LegacyPlanSummary, ListPlansResult, PlanSummary } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";

@@ -7,11 +7,11 @@ afterEach(() => {
 });
 
 describe("regional date and time formatting", () => {
-  it("keeps civil dates British with a US locale and a 12-hour wall clock", () => {
+  it("uses US date order and a 12-hour wall clock", () => {
     pinDefaultLocale("en-US");
 
-    expect(formatCivilDate("1998-07-18")).toBe("18 Jul 1998");
-    expect(formatCivilDate("1998-07-18", { day: "numeric", month: "numeric" })).toBe("18/07");
+    expect(formatCivilDate("1998-07-18")).toBe("Jul 18, 1998");
+    expect(formatCivilDate("1998-07-18", { day: "numeric", month: "numeric" })).toBe("7/18");
     expect(formatOffsetWallTime(900_000_000, 21_600)).toBe("10:00 PM");
     expect(formatInstantDateTime("1998-07-20T08:00:00.000Z")).toBe("Jul 20, 1998, 8:00 AM");
   });

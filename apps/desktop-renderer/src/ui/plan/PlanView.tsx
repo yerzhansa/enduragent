@@ -52,7 +52,7 @@ import {
   requestPlanCalendarRetry,
   subscribePlanFinalDetailsRefresh,
 } from "../../plan/library-refresh";
-import { formatCivilDate } from "../../lib/date";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "../chat/CoachDecisionPanel";
