@@ -152,7 +152,11 @@ async function replacementDraft(scenario: Scenario, mode: "fixed" | "flexible" =
   await navigate(scenario, "Plan");
   await expect(active(scenario)).toBeVisible();
   await navigate(scenario, "Chat");
-  await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+  await scenario.page.locator("#message").fill("/plan");
+  await scenario.page.locator("#message").press("Enter");
+  await expect(
+    scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+  ).toBeVisible();
   await expect.poll(async () => (await scenario.backend.card())?.status).toBe("in-progress");
   await choose(scenario, "fitness");
   await choose(scenario, "4");

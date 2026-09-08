@@ -90,7 +90,11 @@ async function choose(page: Page, backend: PlanCreationBackend, version: number,
 }
 
 async function answerThroughFitnessSuccess(scenario: Scenario): Promise<void> {
-  await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+  await scenario.page.locator("#message").fill("/plan");
+  await scenario.page.locator("#message").press("Enter");
+  await expect(
+    scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+  ).toBeVisible();
   await waitForVersion(scenario.backend, 1);
   await choose(scenario.page, scenario.backend, 2, "fitness");
   await choose(scenario.page, scenario.backend, 3, "8");
@@ -148,7 +152,11 @@ test("persists the Fitness success choice and restores the Restriction Card", as
 test("restores the Plan length Card after relaunching between answers", async ({ playwright }) => {
   const scenario = await launch(playwright);
   try {
-    await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+    await scenario.page.locator("#message").fill("/plan");
+    await scenario.page.locator("#message").press("Enter");
+    await expect(
+      scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+    ).toBeVisible();
     await waitForVersion(scenario.backend, 1);
     await choose(scenario.page, scenario.backend, 2, "fitness");
     await relaunch(scenario, playwright);

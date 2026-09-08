@@ -2323,14 +2323,13 @@ describe("chat surface", () => {
       useEnduragentStore.getState().bindChatActions(actions);
       render(<Harness />);
       setChat({ planCreationLoaded: true, decision: unansweredDecision() });
-      const startButton = screen.getByRole("button", { name: "Start a Plan" });
-      expect(startButton).toBeDisabled();
-      await userEvent.click(startButton);
-      expect(actions.startPlanCreation).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: "Start a Plan" })).toBeNull();
       setChat({ decision: null });
-      expect(startButton).toBeEnabled();
-      await userEvent.click(startButton);
-      expect(actions.startPlanCreation).toHaveBeenCalledOnce();
+      await userEvent.type(composer(), "/plan");
+      await userEvent.keyboard("{Enter}");
+      expect(actions.submit).toHaveBeenCalledTimes(1);
+      expect(actions.submit).toHaveBeenCalledWith("/plan");
+      await waitFor(() => expect(composer()).toHaveValue(""));
       setChat({
         planCreation: planCreationModel(goalQuestion("What are you preparing for?")),
         sendDisabled: true,
@@ -3654,7 +3653,7 @@ describe("chat surface", () => {
       await waitFor(() => expect(discard).toHaveFocus());
     });
 
-    it("disables discard confirmation in flight and focuses Start after success", async () => {
+    it("disables discard confirmation in flight and focuses the composer after success", async () => {
       const actions = stubActions();
       const model = planCreationModel(null, {
         version: 3,
@@ -3701,11 +3700,11 @@ describe("chat surface", () => {
         inputDisabled: false,
         timeline: [{ kind: "plan-creation-discard", eventId: "01J00000000000000000000000" }],
       });
-      const start = screen.getByRole("button", { name: "Start a Plan" });
-      await waitFor(() => expect(start).toHaveFocus());
+      await waitFor(() => expect(composer()).toHaveFocus());
+      expect(screen.queryByRole("button", { name: "Start a Plan" })).toBeNull();
       const discarded = document.querySelector('[data-parity="discarded.record"]');
       expect(discarded).not.toBeNull();
-      expect(discarded?.compareDocumentPosition(start)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(discarded?.compareDocumentPosition(composer())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(composer()).toBeEnabled();
       expect(screen.queryByText("Build steady power", { exact: true })).toBeNull();
       expect(screen.getByText("Plan creation discarded")).toBeVisible();

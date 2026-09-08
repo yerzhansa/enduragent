@@ -5,7 +5,7 @@ export interface SlashCommand {
 
 export const SLASH_COMMANDS: readonly SlashCommand[] = Object.freeze([
   Object.freeze({ command: "/start", description: "Start a fresh session" }),
-  Object.freeze({ command: "/plan", description: "Generate a training plan" }),
+  Object.freeze({ command: "/plan", description: "Start a Plan in Chat" }),
   Object.freeze({ command: "/workout", description: "Get today's workout" }),
   Object.freeze({ command: "/status", description: "Check current fitness, fatigue, and form" }),
   Object.freeze({ command: "/review", description: "Review your last session" }),

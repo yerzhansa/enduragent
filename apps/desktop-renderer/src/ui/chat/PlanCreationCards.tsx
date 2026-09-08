@@ -226,31 +226,14 @@ export function PlanCreationDock(props: {
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const focusRevision = useEnduragentStore((state) => state.chat.planCreationFocusRevision);
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
-  const decision = useEnduragentStore((state) => state.chat.decision);
   const actions = useEnduragentStore((state) => state.chatActions);
-  const startButton = useRef<HTMLButtonElement>(null);
-  const decisionPending =
-    decision?.status === "unanswered" ||
-    (decision?.status === "answered" && decision.continuation.status === "pending");
   useEffect(() => {
-    if (focusRequest?.target === "start") startButton.current?.focus();
+    if (focusRequest?.target === "start") {
+      queueMicrotask(() => document.getElementById("message")?.focus());
+    }
   }, [focusRequest?.revision, focusRequest?.target]);
   if (!loaded) return null;
-  if (model === null) {
-    return (
-      <div className="flex min-w-0 justify-end gap-inset" data-parity="start.row">
-        <Button
-          ref={startButton}
-          variant="outline"
-          data-parity="start.button"
-          disabled={busy || actions === null || decisionPending}
-          onClick={() => actions?.startPlanCreation()}
-        >
-          Start a Plan
-        </Button>
-      </div>
-    );
-  }
+  if (model === null) return null;
   if (paused || (editingKey === null && model.openQuestion === null)) return null;
   const editedSummary =
     editingKey === null

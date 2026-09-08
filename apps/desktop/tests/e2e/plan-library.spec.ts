@@ -261,9 +261,7 @@ for (const appearance of [
       await expect(
         scenario.page.getByText("Plan creation discarded", { exact: true }),
       ).toBeVisible();
-      await expect(
-        scenario.page.getByRole("button", { name: "Start a Plan", exact: true }),
-      ).toBeFocused();
+      await expect(scenario.page.locator("#message")).toBeFocused();
       await expect(
         scenario.page.getByRole("button", { name: "Continue in Chat", exact: true }),
       ).toHaveCount(0);
@@ -271,7 +269,11 @@ for (const appearance of [
       expect(after.active).toEqual(before.active);
       expect(after.closed).toEqual(before.closed);
       await capture(scenario, "creation-discarded");
-      await scenario.page.getByRole("button", { name: "Start a Plan", exact: true }).click();
+      await scenario.page.locator("#message").fill("/plan");
+      await scenario.page.locator("#message").press("Enter");
+      await expect(
+        scenario.page.locator('[data-parity="question.card"][data-question="goal"]'),
+      ).toBeVisible();
       await expect(
         scenario.page
           .locator('[data-parity="question.card"][data-question="goal"]')

@@ -520,6 +520,8 @@ describe("chat view adapter", () => {
 
     expect(published.at(-1)).toMatchObject({
       planCreation: null,
+      planCreationFocusRequest: { target: "start", revision: 1 },
+      inputDisabled: false,
       timeline: [{ kind: "plan-creation-discard", eventId: "01J00000000000000000000000" }],
     });
 
