@@ -131,7 +131,7 @@ describe("engine durable chat queue", () => {
     });
     expect(resolveFor).toHaveBeenLastCalledWith({
       chatId: "desktop",
-      athleteText: "Come recupero domani?",
+      athleteText: "How was my ride?\n\nCome recupero domani?",
     });
     expect(requests).toHaveLength(2);
   });
