@@ -8,6 +8,7 @@ import { sanitizeUntrustedText } from "../agent/prompt-fence.js";
 import { atomicWriteFileSync } from "../io/atomic-write-file-sync.js";
 import { safeReadJson } from "../io/safe-read-json.js";
 import { appendJournalEntry } from "./journal.js";
+import { COMPACTION_SUMMARY_END_MARKER, COMPACTION_SUMMARY_MARKER } from "./compaction-note.js";
 import { appendLedgerEvent, LEDGER_FILENAME, type LedgerEventInput } from "./event-ledger.js";
 import { ProvenanceMetadata } from "./provenance-metadata.js";
 import {
@@ -26,6 +27,23 @@ const SECTION_SPLIT = /(?=^## )/m;
 const markerOf = (section: string) => `## ${section}`;
 const bodyOf = (block: string) => block.slice(block.indexOf("\n") + 1);
 const canonicalSectionBody = (block: string) => bodyOf(block).trimEnd();
+
+function injectableDailyLines(daily: string): Array<{ line: string; index: number }> {
+  let inSummary = false;
+  return daily.split("\n").flatMap((line, index) => {
+    const trimmed = line.trimEnd();
+    if (trimmed === COMPACTION_SUMMARY_MARKER) {
+      inSummary = true;
+      return [];
+    }
+    if (trimmed === COMPACTION_SUMMARY_END_MARKER) {
+      inSummary = false;
+      return [];
+    }
+    if (inSummary && /^#{1,3} /.test(line)) inSummary = false;
+    return inSummary ? [] : [{ line, index }];
+  });
+}
 
 function sectionBodies(parts: readonly string[]): Map<string, string> {
   const sections = new Map<string, string>();
@@ -500,8 +518,10 @@ export class Memory implements MemoryStore {
       if (injectable) parts.push("## Athlete Memory\n" + injectable);
     }
 
-    const daily = this.readDailyNotes();
-    if (daily) {
+    const daily = injectableDailyLines(this.readDailyNotes())
+      .map(({ line }) => line)
+      .join("\n");
+    if (daily.trim()) {
       parts.push("## Today's Notes\n" + daily);
     }
 
@@ -558,8 +578,10 @@ export class Memory implements MemoryStore {
     }
     const daily = this.readDailyNotes();
     if (daily) {
+      const dailyLines = injectableDailyLines(daily);
+      const injectable = dailyLines.map(({ line }) => line).join("\n");
       const marker = `## Today's Notes\n`;
-      const dailyIndex = text.indexOf(marker + daily);
+      const dailyIndex = injectable.trim() ? text.indexOf(marker + injectable) : -1;
       const dailyBodyIndex = dailyIndex < 0 ? -1 : dailyIndex + marker.length;
       if (isVisibleAt(dailyBodyIndex)) {
         const date = todayInTZ(this.tz);
@@ -567,7 +589,7 @@ export class Memory implements MemoryStore {
           provenance = unionProvenance(provenance, UNKNOWN_PROVENANCE);
         } else {
           let rawOffset = 0;
-          for (const [index, line] of daily.split("\n").entries()) {
+          for (const { index, line } of dailyLines) {
             if (!isVisibleAt(dailyBodyIndex + rawOffset)) break;
             if (line.length > 0) {
               provenance = unionProvenance(
