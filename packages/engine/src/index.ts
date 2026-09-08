@@ -572,7 +572,7 @@ export {
 export { makeSummaryMessage, splitHistoryByBudget, SUMMARY_PREFIX } from "./agent/history-limit.js";
 export { truncateUtf16Safe } from "./text-truncate.js";
 export { warnOrphanSections, _resetOrphanWarnCacheForTesting } from "./sport/orphan-sections.js";
-export { capToolResult, TOOL_RESULT_SHARE } from "./agent/tool-result-cap.js";
+export { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./agent/tool-result-cap.js";
 export {
   COMPACTION_SUMMARY_END_MARKER,
   COMPACTION_SUMMARY_MARKER,

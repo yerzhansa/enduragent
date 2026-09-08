@@ -2,7 +2,7 @@ import type { Tool } from "ai";
 import { estimateTokens } from "./token-utils.js";
 import { isUntrustedEnvelope } from "./prompt-fence.js";
 
-export const TOOL_RESULT_SHARE = 0.5;
+export const TOOL_RESULT_MAX_TOKENS = 24_000;
 
 type CappedResult = {
   truncated: true;

@@ -49,7 +49,7 @@ import {
   sha256_16,
 } from "./prompt-lineage.js";
 import { drainSessionLocks, withSessionLock } from "./session-lock.js";
-import { capToolResult, TOOL_RESULT_SHARE } from "./tool-result-cap.js";
+import { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
 import {
@@ -437,7 +437,7 @@ export class CoachAgent {
     this.excludedSectionNames = sections.filter((s) => s.inject === false).map((s) => s.name);
 
     const registrations = sport.tools(runtimePorts);
-    const maxResultTokens = Math.floor(this.config.contextWindowTokens * TOOL_RESULT_SHARE);
+    const maxResultTokens = TOOL_RESULT_MAX_TOKENS;
     const prepareConfirmedRun = (
       name: string,
       ctx: TurnContext | undefined,
