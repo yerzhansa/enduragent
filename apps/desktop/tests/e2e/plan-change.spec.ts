@@ -405,8 +405,13 @@ async function assertPreview(scenario: Scenario, change: ChangeCase) {
     ),
   ]);
   const facts = pending.getByRole("table", { name: "Facts", exact: true });
-  await expect(facts.getByRole("rowheader")).toHaveText(["Main Goal", "Confidence"]);
-  await expect(facts.getByRole("cell")).toHaveText(["Improve fitness", confidence]);
+  await expect(facts.getByRole("rowheader")).toHaveText([
+    "Main Goal",
+    "Supporting Events before",
+    "Supporting Events after",
+    "Confidence",
+  ]);
+  await expect(facts.getByRole("cell")).toHaveText(["Improve fitness", "None", "None", confidence]);
   await expect(pending.getByRole("button")).toHaveText([
     "View evidence",
     "Cancel",

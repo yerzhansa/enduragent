@@ -12,7 +12,7 @@ import {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent } from "@enduragent/ui";
+import { Card, CardContent, CardHeader } from "@enduragent/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -47,14 +47,23 @@ function ChangeCard(props: {
   children: ReactNode;
 }): ReactElement {
   return (
-    <Card size="sm" className="min-w-0" role="region" aria-label={props.title}>
-      <CardContent className="grid gap-inset">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-inset">
-          <div className="grid min-w-0 gap-[calc(var(--inset)/2)]">
-            <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
+    <Card
+      size="sm"
+      className="block min-w-0 gap-[normal] py-0"
+      role="region"
+      aria-label={props.title}
+    >
+      <CardHeader className="block rounded-none p-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="min-w-0 justify-self-start">
+            <p
+              data-plan-card-eyebrow
+              className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
+            >
               {props.eyebrow}
             </p>
             <h3
+              data-plan-card-title
               ref={props.headingRef}
               tabIndex={-1}
               className="m-0 text-base leading-6 font-semibold break-words"
@@ -63,14 +72,21 @@ function ChangeCard(props: {
             </h3>
           </div>
           {props.status ? (
-            <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
+            <span
+              data-plan-card-status
+              className="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] text-xs font-normal whitespace-nowrap text-ink-2"
+            >
               {props.status}
             </span>
           ) : null}
         </div>
-        {props.summary ? <p className="m-0 text-sm leading-5 text-ink-2">{props.summary}</p> : null}
-        {props.children}
-      </CardContent>
+        {props.summary ? (
+          <p data-plan-card-summary className="mt-inset mb-0 text-sm leading-5 text-ink-2">
+            {props.summary}
+          </p>
+        ) : null}
+      </CardHeader>
+      <CardContent className="px-4 pt-0 pb-4">{props.children}</CardContent>
     </Card>
   );
 }
@@ -79,14 +95,14 @@ function Fact(props: { label: string; children: ReactNode }): ReactElement {
   return (
     <div
       role="row"
-      className="grid grid-cols-[minmax(104px,0.72fr)_minmax(0,1.28fr)] gap-4 border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-1 max-[560px]:gap-1"
+      className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] max-md:grid-cols-1 max-md:gap-1"
     >
       <span role="rowheader" className="text-xs leading-4 text-ink-2">
         {props.label}
       </span>
       <div
         role="cell"
-        className="text-right text-sm leading-5 font-semibold [overflow-wrap:anywhere] max-[560px]:text-left"
+        className="text-right text-sm leading-5 font-medium [overflow-wrap:anywhere] max-md:text-left"
       >
         {props.children}
       </div>
@@ -117,12 +133,38 @@ function eventDate(date: string): string {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-function Difference({
+function SupportingEventFacts({
   change,
   library,
 }: {
   change: PlanChangeModel;
   library: ListPlansResult;
+}): ReactElement {
+  const events = supportingEventDifference(library, change);
+  return (
+    <>
+      <Fact label="Supporting Events before">
+        {events.before
+          .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+          .join("; ") || "None"}
+      </Fact>
+      <Fact label="Supporting Events after">
+        {events.after
+          .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+          .join("; ") || "None"}
+      </Fact>
+    </>
+  );
+}
+
+function Difference({
+  change,
+  library,
+  showSupportingEvents = true,
+}: {
+  change: PlanChangeModel;
+  library: ListPlansResult;
+  showSupportingEvents?: boolean;
 }): ReactElement {
   const events = supportingEventDifference(library, change);
   const weekNumbers = [
@@ -132,23 +174,23 @@ function Difference({
   ];
   return (
     <>
-      {change.intent.kind === "supporting-event" ||
-      (change.intent.kind === "inverse" &&
-        JSON.stringify(events.before) !== JSON.stringify(events.after)) ? (
-        <div role="table" aria-label="Supporting Events">
-          <Fact label="Supporting Events before">
-            {events.before
-              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
-              .join("; ") || "None"}
-          </Fact>
-          <Fact label="Supporting Events after">
-            {events.after
-              .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
-              .join("; ") || "None"}
-          </Fact>
+      {showSupportingEvents &&
+      (change.intent.kind === "supporting-event" ||
+        (change.intent.kind === "inverse" &&
+          JSON.stringify(events.before) !== JSON.stringify(events.after))) ? (
+        <div
+          role="table"
+          className="border-t border-line [&+[role=table]]:border-t-0"
+          aria-label="Supporting Events"
+        >
+          <SupportingEventFacts change={change} library={library} />
         </div>
       ) : null}
-      <div role="table" aria-label="Affected individual Workouts">
+      <div
+        role="table"
+        className="border-t border-line [&+[role=table]]:border-t-0"
+        aria-label="Affected individual Workouts"
+      >
         {change.diff.map((row) => (
           <Fact key={row.workoutId} label={row.before?.name ?? row.after?.name ?? "Workout"}>
             {workoutValue(row.before)} → {workoutValue(row.after)}
@@ -158,7 +200,11 @@ function Difference({
           </Fact>
         ))}
       </div>
-      <div role="table" aria-label="Before and after totals">
+      <div
+        role="table"
+        className="border-t border-line [&+[role=table]]:border-t-0"
+        aria-label="Before and after totals"
+      >
         <Fact label="Plan totals">
           {change.totals.before.plan} min → {change.totals.after.plan} min
         </Fact>
@@ -414,10 +460,11 @@ function ChangeEditor(): ReactElement {
             {state.error}
           </p>
         ) : null}
-        <div className="mt-row flex flex-wrap gap-inset">
+        <div className="flex flex-wrap gap-inset">
           <Button
             type="button"
             variant="outline"
+            className="border-line bg-surface"
             disabled={state.busy}
             onClick={() => actions?.backFromPlanChangeEditor()}
           >
@@ -444,7 +491,7 @@ export function PlanChangeCards(): ReactElement | null {
   const sourceHeading = useRef<HTMLHeadingElement>(null);
   const sourceOpener = useRef<HTMLButtonElement | null>(null);
   const changeButton = useRef<HTMLButtonElement>(null);
-  const pauseNotice = useRef<HTMLParagraphElement>(null);
+  const pauseNotice = useRef<HTMLDivElement>(null);
   const previewHeading = useRef<HTMLHeadingElement>(null);
   const pending = library?.changes.find((change) => change.status === "pending");
   const paused = library?.changesPaused != null;
@@ -481,17 +528,17 @@ export function PlanChangeCards(): ReactElement | null {
     : (state.notice ?? (pending ? "Review the exact changes before confirming." : null));
   const pausedReason = paused ? "plan-changes-notice" : undefined;
   return (
-    <section aria-label="Plan Changes" className="grid min-w-0 gap-inset">
+    <section aria-label="Plan Changes" className="grid min-w-0 gap-4">
       {notice ? (
-        <p
+        <div
           ref={pauseNotice}
           id="plan-changes-notice"
           role="status"
           tabIndex={-1}
-          className="m-0 text-sm text-ink-2"
+          className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink"
         >
-          {notice}
-        </p>
+          <p className="m-0 text-xs leading-4 text-ink-2">{notice}</p>
+        </div>
       ) : null}
       {!state.editorOpen && state.error ? (
         <p role="alert" className="m-0 text-xs text-danger">
@@ -507,16 +554,22 @@ export function PlanChangeCards(): ReactElement | null {
             : "Changes affect future, uncompleted training."
         }
       >
-        <div className="mt-row flex flex-wrap gap-inset">
+        <div className="flex flex-wrap gap-inset">
           <Button
             ref={changeButton}
+            variant="outline"
+            className="border-line bg-surface"
             disabled={paused || state.busy || actions === null}
             aria-describedby={pausedReason}
             onClick={() => actions?.openPlanChangeEditor()}
           >
             Change one thing
           </Button>
-          <Button variant="outline" onClick={() => setActiveView("plan")}>
+          <Button
+            variant="outline"
+            className="border-line bg-surface"
+            onClick={() => setActiveView("plan")}
+          >
             Open Plan
           </Button>
         </div>
@@ -528,13 +581,14 @@ export function PlanChangeCards(): ReactElement | null {
             {library.active.todayChoice.eligible.map((workout) => (
               <li
                 key={workout.workoutId}
-                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+                className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
-                <span className="text-sm leading-5">
+                <span className="text-xs leading-4 text-ink-2">
                   {workout.name} · {workout.minutes} min
                 </span>
                 <Button
                   variant="outline"
+                  className="justify-self-start border-line bg-surface"
                   disabled={paused || state.busy || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
@@ -551,10 +605,10 @@ export function PlanChangeCards(): ReactElement | null {
             {library.active.todayChoice.blocked.map((workout) => (
               <li
                 key={workout.workoutId}
-                className="flex flex-wrap items-center justify-between gap-inset border-t border-line py-3 first:border-t-0"
+                className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
-                <span className="text-sm leading-5">{workout.name}</span>
-                <span className="text-sm leading-5 text-ink-2">{workout.reason}</span>
+                <span className="text-xs leading-4 text-ink-2">{workout.name}</span>
+                <div className="text-sm leading-5">{workout.reason}</div>
               </li>
             ))}
           </ul>
@@ -576,16 +630,27 @@ export function PlanChangeCards(): ReactElement | null {
           }
         >
           {pending.details ? (
-            <p className="m-0 text-sm leading-5 text-ink-2">{pending.details}</p>
+            <div
+              data-plan-change-details
+              className="m-0 rounded-ctl bg-surface-2 p-row text-sm leading-5 text-ink"
+            >
+              <p className="m-0 text-xs leading-4 text-ink-2">{pending.details}</p>
+            </div>
           ) : null}
-          <Difference change={pending} library={library} />
-          <div role="table" aria-label="Facts">
+          <Difference change={pending} library={library} showSupportingEvents={false} />
+          <div
+            role="table"
+            className="border-t border-line [&+[role=table]]:border-t-0"
+            aria-label="Facts"
+          >
             <Fact label="Main Goal">{library.active.name}</Fact>
+            <SupportingEventFacts change={pending} library={library} />
             <Fact label="Confidence">{pending.confidence}</Fact>
           </div>
           <div>
             <Button
               variant="outline"
+              className="border-line bg-surface"
               onClick={(event) => openSource(pending, false, event.currentTarget)}
             >
               View evidence
@@ -594,6 +659,7 @@ export function PlanChangeCards(): ReactElement | null {
           <div className="mt-row flex flex-wrap gap-inset">
             <Button
               variant="outline"
+              className="border-line bg-surface"
               disabled={state.busy || actions === null}
               onClick={() => actions?.applyPlanChange("cancel")}
             >
@@ -619,9 +685,10 @@ export function PlanChangeCards(): ReactElement | null {
             status={statusLabels[change.status]}
             summary="Earlier decisions remain readable."
           >
-            <div className="mt-row flex flex-wrap gap-inset">
+            <div className="flex flex-wrap gap-inset">
               <Button
                 variant="outline"
+                className="border-line bg-surface"
                 onClick={(event) => openSource(change, false, event.currentTarget)}
               >
                 Read historical evidence
@@ -629,6 +696,7 @@ export function PlanChangeCards(): ReactElement | null {
               {change.status === "applied" && change.undo?.eligible ? (
                 <Button
                   variant="outline"
+                  className="border-line bg-surface"
                   disabled={paused || state.busy || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
@@ -640,6 +708,7 @@ export function PlanChangeCards(): ReactElement | null {
               ) : null}
               <Button
                 variant="outline"
+                className="border-line bg-surface"
                 onClick={(event) => openSource(change, true, event.currentTarget)}
               >
                 Read this difference
@@ -655,7 +724,11 @@ export function PlanChangeCards(): ReactElement | null {
               <Difference change={source.change} library={library} />
             </>
           ) : null}
-          <div role="table" aria-label="Source details">
+          <div
+            role="table"
+            className="border-t border-line [&+[role=table]]:border-t-0"
+            aria-label="Source details"
+          >
             {source.change.premises.map((premise) => (
               <Fact key={premise.id} label={`${premise.label} · ${premise.source}`}>
                 {premiseValue(premise)}
@@ -665,6 +738,7 @@ export function PlanChangeCards(): ReactElement | null {
           <div className="mt-row flex flex-wrap gap-inset">
             <Button
               variant="outline"
+              className="border-line bg-surface"
               onClick={() => {
                 setSource(null);
                 sourceOpener.current?.focus();

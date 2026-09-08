@@ -1,13 +1,8 @@
-import type {
-  LegacyPlanSummary,
-  ListPlansResult,
-  PlanCreationCardModel,
-  PlanSummary,
-} from "@enduragent/coach-contract";
+import type { LegacyPlanSummary, ListPlansResult, PlanSummary } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent } from "@enduragent/ui";
+import { Card, CardContent, CardHeader } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -17,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@enduragent/ui";
+import { creationTitle } from "../../plan/creation-title";
 import { requestPlanCalendarRetry } from "../../plan/library-refresh";
 import { useEnduragentStore } from "../../state/store";
 
@@ -37,26 +33,41 @@ function LibraryCard(props: {
   readonly children?: ReactNode;
 }): ReactElement {
   return (
-    <Card size="sm" className="min-w-0" role="region" aria-label={props.eyebrow ?? props.title}>
-      <CardContent className="grid gap-inset">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-inset">
-          <div className="grid min-w-0 gap-[calc(var(--inset)/2)]">
+    <Card
+      size="sm"
+      className="block min-w-0 gap-[normal] py-0"
+      role="region"
+      aria-label={props.eyebrow ?? props.title}
+    >
+      <CardHeader className="block rounded-none p-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="min-w-0 justify-self-start">
             {props.eyebrow ? (
-              <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
+              <p
+                data-plan-card-eyebrow
+                className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
+              >
                 {props.eyebrow}
               </p>
             ) : null}
-            <h3 className="m-0 text-base leading-6 font-semibold break-words">{props.title}</h3>
+            <h3 data-plan-card-title className="m-0 text-base leading-6 font-semibold break-words">
+              {props.title}
+            </h3>
           </div>
           {props.status ? (
-            <span className="rounded-chip bg-ink/7 px-2 py-1 text-xs font-medium text-ink-2">
+            <span
+              data-plan-card-status
+              className="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2"
+            >
               {props.status}
             </span>
           ) : null}
         </div>
-        <p className="m-0 text-sm leading-5 text-ink-2">{props.summary}</p>
-        {props.children}
-      </CardContent>
+        <p data-plan-card-summary className="mt-inset mb-0 text-sm leading-5 text-ink-2">
+          {props.summary}
+        </p>
+      </CardHeader>
+      {props.children ? <CardContent className="p-0">{props.children}</CardContent> : null}
     </Card>
   );
 }
@@ -69,7 +80,7 @@ function CalendarStatus(props: {
   if (calendar.status === "failed") {
     const retryAvailable = calendar.error.endsWith("Retry available.");
     return (
-      <div className="grid gap-inset">
+      <div className="mx-4 mb-inset grid gap-inset">
         <p role="alert" className="m-0 text-sm text-danger">
           {retryAvailable ? "Calendar sync failed. Retry available." : "Calendar sync failed."}
         </p>
@@ -77,6 +88,7 @@ function CalendarStatus(props: {
           <div>
             <Button
               variant="outline"
+              className="border-line bg-surface"
               disabled={props.retry === undefined}
               onClick={() => void props.retry?.()}
             >
@@ -106,25 +118,10 @@ function CalendarStatus(props: {
       break;
   }
   return (
-    <p role="status" className="m-0 text-sm leading-5 text-ink-2">
+    <p role="status" className="mx-4 mt-0 mb-inset text-sm leading-5 text-ink-2">
       Calendar · {label}
     </p>
   );
-}
-
-function creationTitle(creation: PlanCreationCardModel): string {
-  const summary = creation.answeredSummaries.find((answer) => answer.answerKey === "goal");
-  if (summary?.answer.kind !== "goal") return "New Plan";
-  const goal = summary.answer.goal;
-  if (goal.kind === "fitness") return goal.outcome ?? "Improve fitness";
-  if (goal.kind === "event-manual") return `${goal.name} · ${dateLabel(goal.date)}`;
-  const candidate =
-    summary.question.kind === "goal-question"
-      ? summary.question.candidates.find((item) => item.candidateId === goal.candidateId)
-      : undefined;
-  return candidate === undefined
-    ? summary.detail
-    : `${candidate.name} · ${dateLabel(candidate.date)}`;
 }
 
 function spanLabel(plan: PlanSummary): string {
@@ -235,7 +232,7 @@ export function PlanLibrary(props: {
     if (target !== null) queueMicrotask(() => target.current?.focus());
   }, [focusRequest, busy, creation?.creationId, active?.planId]);
   return (
-    <section aria-label="Plan library" className="grid min-w-0 gap-inset">
+    <section aria-label="Plan library" className="grid min-w-0 gap-4">
       {closeError === null || closing !== null ? null : (
         <p role="alert" className="m-0 text-sm text-danger">
           {closeError}
@@ -270,7 +267,15 @@ export function PlanLibrary(props: {
           )}
           <DialogFooter className="mx-0 mt-row mb-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
             <DialogClose
-              render={<Button ref={cancel} variant="outline" size="lg" disabled={saving} />}
+              render={
+                <Button
+                  ref={cancel}
+                  variant="outline"
+                  className="border-line bg-surface"
+                  size="lg"
+                  disabled={saving}
+                />
+              }
             >
               Cancel
             </DialogClose>
@@ -310,10 +315,11 @@ export function PlanLibrary(props: {
           }
           summary={`${creation.answeredSummaries.length} of ${total} answered. ${active === null ? "No Plan is active." : `${active.name} keeps running.`}`}
         >
-          <div className="flex flex-wrap gap-inset">
+          <div className="flex flex-wrap gap-inset px-4 pb-4">
             <Button
               ref={discard}
               variant="destructive"
+              className="border-[color-mix(in_srgb,var(--danger)_52%,var(--line))]"
               aria-haspopup="dialog"
               disabled={
                 busy || chatActions === null || chatCreation?.creationId !== creation.creationId
@@ -352,10 +358,11 @@ export function PlanLibrary(props: {
                 : undefined
             }
           />
-          <div className="flex flex-wrap gap-inset">
+          <div className="flex flex-wrap gap-inset px-4 pb-4">
             <Button
               ref={stop}
               variant="destructive"
+              className="border-[color-mix(in_srgb,var(--danger)_52%,var(--line))]"
               aria-haspopup="dialog"
               disabled={actions === null || saving}
               onClick={() => {
@@ -365,7 +372,11 @@ export function PlanLibrary(props: {
             >
               Stop Plan
             </Button>
-            <Button variant="outline" onClick={props.readDetails}>
+            <Button
+              variant="outline"
+              className="border-line bg-surface"
+              onClick={props.readDetails}
+            >
               Read Plan details
             </Button>
             <Button
@@ -386,9 +397,10 @@ export function PlanLibrary(props: {
           status="Closed"
           summary={`${spanLabel(plan)} · ${plan.closeReason === "stopped" ? "Stopped" : plan.closeReason === "completed" ? "Completed" : "Unknown reason"}`}
         >
-          <div className="flex flex-wrap gap-inset">
+          <div className="flex flex-wrap gap-inset px-4 pb-4">
             <Button
               variant="outline"
+              className="border-line bg-surface"
               disabled={actions === null}
               onClick={() => props.readFinalDetails(plan.planId)}
             >
@@ -404,7 +416,7 @@ export function PlanLibrary(props: {
           status="Closed"
           summary={legacySummary(legacy)}
         >
-          <p className="m-0 text-sm leading-5 text-ink-2">
+          <p className="m-0 px-4 pb-4 text-sm leading-5 text-ink-2">
             Read only · Saved before Plans moved to Chat
           </p>
         </LibraryCard>

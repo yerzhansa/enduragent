@@ -931,6 +931,13 @@ describe("Plan Change cards", () => {
     ).toEqual(["Plan totals", "Week 1"]);
     expect(totals).toHaveTextContent("1234 min → 1204 min");
     expect(totals).toHaveTextContent("321 min → 291 min");
+    const facts = screen.getByRole("table", { name: "Facts" });
+    expect(
+      within(facts)
+        .getAllByRole("rowheader")
+        .map((row) => row.textContent),
+    ).toEqual(["Main Goal", "Supporting Events before", "Supporting Events after", "Confidence"]);
+    expect(within(facts).getAllByText("None", { exact: true })).toHaveLength(2);
     expect(screen.getByText("Main Goal", { exact: true })).toBeVisible();
     expect(screen.getByText("Confidence", { exact: true })).toBeVisible();
     expect(screen.getByText("Confirmed schedule limits", { exact: true })).toBeVisible();
@@ -1137,7 +1144,7 @@ describe("Plan Change cards", () => {
       }),
     ]);
     render(<PlanChangeCards />);
-    const facts = screen.getByRole("table", { name: "Supporting Events" });
+    const facts = screen.getByRole("table", { name: "Facts" });
     expect(facts).toHaveTextContent("Supporting Events beforeNone");
     expect(facts).toHaveTextContent("Supporting Events afterRiver ride · 13 Sept 1998 · Training");
     await userEvent.click(screen.getByRole("button", { name: "View evidence" }));

@@ -3092,6 +3092,86 @@ describe("chat surface", () => {
       expect(composer()).toBeEnabled();
     });
 
+    it("preserves pinned-event-first Workout order within the Draft week", () => {
+      const draft = planCreationDraft();
+      const workouts = [
+        {
+          id: "pinned-event",
+          name: "Autumn event",
+          kind: "event",
+          date: "1998-10-04",
+          minutes: 120,
+          pinned: true,
+          guidance: "Ride at a sustainable effort",
+          power: null,
+        },
+        {
+          id: "monday-endurance",
+          name: "Monday endurance ride",
+          kind: "endurance",
+          date: "1998-09-28",
+          minutes: 60,
+          pinned: false,
+          guidance: "Ride at a comfortable effort",
+          power: null,
+        },
+      ] satisfies (typeof draft.weeks)[number]["workouts"];
+      draft.weeks = draft.weeks.map((week) =>
+        week.number === 4
+          ? { ...week, start: "1998-09-28", end: "1998-10-04", workouts }
+          : week,
+      );
+      const original = structuredClone(draft);
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft,
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+
+      const rows = within(screen.getByRole("list", { name: "Week 4 Workouts" })).getAllByRole(
+        "listitem",
+      );
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toHaveTextContent("4 Oct 1998");
+      expect(rows[0]).toHaveTextContent("Autumn event");
+      expect(rows[0]).toHaveTextContent("Pinned");
+      expect(rows[1]).toHaveTextContent("28 Sept 1998");
+      expect(rows[1]).toHaveTextContent("Monday endurance ride");
+      expect(draft).toEqual(original);
+    });
+
+    it("shows the creation notice once above the Draft review", () => {
+      const notice = "Your confirmed limits leave no Workouts in this Draft.";
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        notice,
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+
+      const creation = screen.getByRole("region", { name: "Plan creation" });
+      const notices = screen.getAllByText(notice, { exact: true });
+      expect(notices).toHaveLength(1);
+      const status = within(creation).getByRole("status");
+      expect(status).toBeVisible();
+      expect(status).toHaveTextContent(notice);
+      const review = within(creation).getByRole("region", { name: "Plan Draft review" });
+      expect(status.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(document.querySelector(".chat-notice-host")).not.toHaveTextContent(notice);
+    });
+
     it.each(["question", "review", "stale"] as const)(
       "shows interpreted limits and disables building or activation in %s",
       async (stage) => {
@@ -3312,7 +3392,9 @@ describe("chat surface", () => {
       await waitFor(() =>
         expect(screen.getByRole("heading", { name: "What would success mean?" })).toHaveFocus(),
       );
-      expect(screen.getByText("Build steady power")).toBeVisible();
+      expect(
+        within(screen.getByLabelText("Goal answer")).getByText("Build steady power"),
+      ).toBeVisible();
       expect(screen.getByText("Goal · your answer", { exact: true })).toBeVisible();
       expect(screen.getByText("1 of 9 answered.")).toBeVisible();
       const answerRow = screen.getByRole("listitem", { name: "Goal answer" });
@@ -3627,7 +3709,8 @@ describe("chat surface", () => {
       });
 
       const discard = screen.getByRole("button", { name: "Discard" });
-      expect(discard).toHaveClass("bg-destructive/10");
+      expect(discard).toHaveClass("text-destructive", "bg-transparent");
+      expect(discard.closest('[data-parity="progress.actions"]')).not.toBeNull();
       await userEvent.click(discard);
 
       expect(screen.getByRole("heading", { name: "Discard this Plan creation?" })).toBeVisible();
@@ -3764,12 +3847,16 @@ describe("chat surface", () => {
       await userEvent.click(screen.getByRole("button", { name: "Discard creation" }));
 
       expect(screen.queryByRole("heading", { name: "Discard this Plan creation?" })).toBeNull();
-      expect(screen.getByText("Build steady power", { exact: true })).toBeVisible();
+      expect(
+        within(screen.getByLabelText("Goal answer")).getByText("Build steady power", {
+          exact: true,
+        }),
+      ).toBeVisible();
       expect(
         screen.getByText(
           "Plan Creation changed before it could be discarded. The latest version is shown.",
-        ),
-      ).toHaveClass("chat-notice");
+        ).closest(".chat-notice"),
+      ).toBeVisible();
       await waitFor(() => expect(screen.getByRole("button", { name: "Discard" })).toHaveFocus());
     });
 

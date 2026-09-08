@@ -41,7 +41,7 @@ export function TrainingContextPanel(props: {
 
   return (
     <aside
-      className={`training-context min-h-0 overflow-auto border-l border-line bg-surface-2 px-[calc(var(--inset)*2)] py-[calc(var(--inset)*2)] ${props.className ?? ""}`}
+      className={`training-context min-h-0 overflow-auto [scrollbar-width:none] border-l border-line bg-surface-2 px-[calc(var(--inset)*2)] py-[calc(var(--inset)*2)] ${props.className ?? ""}`}
       aria-label={props.labelledBy === undefined ? "Training context" : undefined}
       aria-labelledby={props.labelledBy}
     >

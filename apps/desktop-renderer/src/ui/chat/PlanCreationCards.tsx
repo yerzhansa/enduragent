@@ -15,6 +15,7 @@ import { PlanCreationQuestionCard } from "./PlanCreationQuestionCard";
 import { Card, CardContent } from "@enduragent/ui";
 import { PlanCreationDraftCards, PlanCreationCommitmentCard } from "./PlanCreationDraftCards";
 import { PlanCreationSummary } from "./PlanCreationSummary";
+import { Notice } from "./Notice";
 
 export function PlanCreationDiscardDialog(): ReactElement {
   const open = useEnduragentStore((state) => state.chat.planCreationDiscardConfirmationOpen);
@@ -37,14 +38,14 @@ export function PlanCreationDiscardDialog(): ReactElement {
       }}
     >
       <DialogContent
-        className="w-[min(520px,calc(100vw-32px))] max-w-none gap-0 border-line p-5 shadow-elev-4 sm:max-w-none"
+        className="w-[min(420px,calc(100vw-32px))] max-w-none gap-0 border-line p-4 shadow-elev-4 sm:max-w-none"
         showCloseButton={false}
         initialFocus={keepCreating}
         finalFocus={false}
         aria-busy={busy ? "true" : undefined}
       >
-        <DialogHeader className="gap-inset">
-          <DialogTitle className="m-0 text-lg font-semibold">
+        <DialogHeader className="gap-0">
+          <DialogTitle className="mt-0 mb-inset text-lg font-semibold">
             Discard this Plan creation?
           </DialogTitle>
           <DialogDescription className="m-0 leading-5">
@@ -63,7 +64,8 @@ export function PlanCreationDiscardDialog(): ReactElement {
               <Button
                 ref={keepCreating}
                 variant="outline"
-                size="lg"
+                className="border-line bg-surface"
+                size="default"
                 disabled={busy || actions === null}
               />
             }
@@ -72,7 +74,7 @@ export function PlanCreationDiscardDialog(): ReactElement {
           </DialogClose>
           <Button
             variant="destructive-solid"
-            size="lg"
+            size="default"
             disabled={busy || actions === null}
             onClick={confirmDiscard}
           >
@@ -156,21 +158,21 @@ export function PlanCreationActivateDialog(): ReactElement | null {
       }}
     >
       <DialogContent
-        className="w-[min(520px,calc(100vw-32px))] max-w-none gap-0 border-line p-5 shadow-elev-4 sm:max-w-none"
+        className="w-[min(420px,calc(100vw-32px))] max-w-none gap-0 border-line p-4 shadow-elev-4 sm:max-w-none"
         showCloseButton={false}
         initialFocus={cancelButton}
         finalFocus={false}
         aria-busy={busy ? "true" : undefined}
       >
-        <DialogHeader className="gap-inset">
-          <DialogTitle className="m-0 text-lg font-semibold">
+        <DialogHeader className="gap-0">
+          <DialogTitle className="mt-0 mb-inset text-lg font-semibold">
             {activePlanName === null ? "Activate Plan?" : "Close and activate?"}
           </DialogTitle>
           <DialogDescription className="m-0 leading-5">
             {`${activePlanName === null ? "" : `${activePlanName} closes. Today’s calendar Workout stays. `}The new Plan activates now.`}
           </DialogDescription>
           {connection === "checking" ? null : (
-            <p className="m-0 text-sm leading-5 text-ink-2">
+            <p className="mt-inset mb-0 text-sm leading-5 text-ink-2">
               {calendarWindow !== null
                 ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${calendarWindowEnd(calendarWindow.endDate)}.`
                 : "Calendar updates wait until intervals.icu is connected."}
@@ -188,7 +190,8 @@ export function PlanCreationActivateDialog(): ReactElement | null {
               <Button
                 ref={cancelButton}
                 variant="outline"
-                size="lg"
+                className="border-line bg-surface"
+                size="default"
                 disabled={busy || actions === null}
               />
             }
@@ -197,7 +200,7 @@ export function PlanCreationActivateDialog(): ReactElement | null {
           </DialogClose>
           <Button
             variant="default"
-            size="lg"
+            size="default"
             disabled={
               busy ||
               actions === null ||
@@ -270,7 +273,8 @@ export function PlanCreationConversation(props: {
   readonly model: PlanCreationCardModel | null;
 }): ReactElement {
   return (
-    <section className="grid min-w-0 gap-inset" aria-label="Plan creation">
+    <section className="grid min-w-0 gap-4" aria-label="Plan creation">
+      <Notice inPlanCreation />
       {props.model === null ? null : <PlanCreationCommitmentCard model={props.model} />}
       <PlanCreationConversationContent model={props.model} />
     </section>
@@ -285,7 +289,7 @@ function PlanCreationConversationContent(props: {
   const actions = useEnduragentStore((state) => state.chatActions);
   if (props.model === null)
     return (
-      <p role="status" className="m-0 text-sm text-ink-2">
+      <p role="status" className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink">
         Plan activated locally.
       </p>
     );
@@ -304,6 +308,7 @@ function PlanCreationConversationContent(props: {
             <div>
               <Button
                 variant="outline"
+                className="border-line bg-surface"
                 onClick={() => {
                   actions?.cancelPlanCreationEdit("edit");
                   setEditVersion(null);
@@ -334,12 +339,12 @@ function PlanCreationConversationContent(props: {
 export function PlanCreationDiscardConsequence(props: { readonly eventId: string }): ReactElement {
   return (
     <article
-      className="grid gap-[calc(var(--inset)/2)] rounded-ctl bg-surface-2 p-row"
+      className="block gap-row rounded-ctl bg-surface-2 p-row"
       data-plan-creation-discard-event={props.eventId}
       data-parity="discarded.record"
     >
-      <strong className="text-sm font-medium leading-5">Plan creation discarded</strong>
-      <p className="m-0 text-xs leading-4 text-ink-2">
+      <strong className="text-sm font-semibold leading-5">Plan creation discarded</strong>
+      <p className="mt-1 mb-0 text-xs leading-4 text-ink-2">
         No Plan was created. Your active Plan, Schedule, training restrictions, saved preferences,
         and chat history are unchanged.
       </p>

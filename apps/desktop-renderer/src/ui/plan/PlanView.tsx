@@ -4543,7 +4543,11 @@ export function PlanView(): ReactElement {
         : "Plan closed. Calendar cleanup pending."
       : null;
     return (
-      <Page title="Plan" className="plan-view" busy={finalDetails.status === "loading"}>
+      <Page
+        title="Plan"
+        className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
+        busy={finalDetails.status === "loading"}
+      >
         {finalDetails.status === "ready" && finalDetails.history !== null ? (
           <PlanFinalDetails
             history={finalDetails.history}
@@ -4638,7 +4642,7 @@ export function PlanView(): ReactElement {
           </Button>
         ) : undefined
       }
-      className="plan-view"
+      className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
       contentMode={coachWorkspace ? "workspace" : "scroll"}
     >
       <div className={coachWorkspace ? "h-full min-h-0" : "grid gap-6"}>
