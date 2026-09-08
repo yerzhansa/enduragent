@@ -628,11 +628,10 @@ describe("first sync controller", () => {
   });
 
   it("keeps first sync free of a second wire tracker and ships the existing status surface", async () => {
-    const [host, card, controller, styles] = await Promise.all([
+    const [host, card, controller] = await Promise.all([
       readFile(new URL("../src/boot.ts", import.meta.url), "utf8"),
       readFile(new URL("../src/ui/chat/FirstSyncCard.tsx", import.meta.url), "utf8"),
       readFile(new URL("../src/first-sync.ts", import.meta.url), "utf8"),
-      readFile(new URL("../src/theme/application.css", import.meta.url), "utf8"),
     ]);
     for (const copy of [
       "Getting your coach ready",
@@ -650,14 +649,13 @@ describe("first sync controller", () => {
     expect(card).not.toContain("Training history is ready");
     expect(card).not.toContain("Your coach is ready when you are.");
     expect(card).toContain('aria-labelledby="first-sync-title"');
-    expect(card).toContain('role="progressbar"');
-    expect(card).toContain('aria-label="Syncing training history"');
+    expect(card).toContain("ProgressDisplay");
+    expect(card).toContain('label="Syncing training history"');
     expect(host).toContain("coordinator: trainingSyncCoordinator");
     expect(host).not.toContain("syncNeedsReconnect");
     expect(controller).not.toMatch(/onNotificationEnvelope|requestId|chat|transcript/u);
     expect(card).toContain('className="first-sync my-6 w-full');
     expect(card).not.toContain("first-sync__mark");
-    expect(card).toContain("motion-reduce:before:animate-none");
-    expect(styles).toContain("@keyframes first-sync-sweep");
+    expect(card).toContain('value={{ kind: "indeterminate" }}');
   });
 });
