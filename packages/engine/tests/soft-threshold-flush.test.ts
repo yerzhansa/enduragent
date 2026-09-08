@@ -189,17 +189,22 @@ function trimLines(): Array<{ role: string; content: string; ts: string }> {
   }));
 }
 
+async function drain(chatId: string): Promise<void> {
+  const { withSessionLock } = await import("../src/agent/session-lock.js");
+  await withSessionLock(chatId, async () => {});
+}
+
 function readSession(chatId: string): string {
   return readFileSync(join(dataDir, "sessions", `${chatId}.jsonl`), "utf-8");
 }
 
 describe("soft-threshold flush in chat()", () => {
-  it("fires past 80% and cools down for 5 messages", async () => {
+  it("fires past 80% after the reply and cools down for 5 messages", async () => {
     let n = 0;
     const complete = vi.fn(async () => {
       n++;
-      if (n === 1) return mkAssistant("facts noted");
-      return mkAssistant("main-reply");
+      if (n === 1) return mkAssistant("main-reply");
+      return mkAssistant("facts noted");
     });
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const agent = await setupAgent(complete);
@@ -208,6 +213,7 @@ describe("soft-threshold flush in chat()", () => {
     const text = await agent.chat("soft", "hello");
 
     expect(text).toBe("main-reply");
+    await drain("soft");
     expect(complete).toHaveBeenCalledTimes(2);
     const warnSpy = console.warn as unknown as ReturnType<typeof vi.fn>;
     expect(warnSpy.mock.calls.some((c) => String(c[0]).includes("flush failed"))).toBe(false);
@@ -236,7 +242,7 @@ describe("soft-threshold flush in chat()", () => {
     let n = 0;
     const complete = vi.fn(async () => {
       n++;
-      if (n <= 2) throw new Error("boom");
+      if (n === 2 || n === 3) throw new Error("boom");
       return mkAssistant("ok-reply");
     });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -246,10 +252,13 @@ describe("soft-threshold flush in chat()", () => {
     const text = await agent.chat("fail", "hello");
 
     expect(text).toBe("ok-reply");
+    await drain("fail");
     expect(
-      warnSpy.mock.calls.some((c) => String(c[0]).includes("Soft-threshold memory flush failed")),
+      warnSpy.mock.calls.some((c) =>
+        String(c[0]).includes("Queued soft-threshold memory flush failed"),
+      ),
     ).toBe(true);
-    expect(complete.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(complete).toHaveBeenCalledTimes(3);
     const session = readSession("fail");
     expect(session).toContain("hello");
     expect(session).toContain("ok-reply");
