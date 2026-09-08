@@ -35,6 +35,7 @@ describe("engine scaffold", () => {
       "ATHLETE_CONTEXT_TRUNCATION_NOTICE",
       "CLAUDE_CLI_PRICE_TABLE",
       "CODEX_AGENT_PRICE_TABLE",
+      "COMPACTION_SUMMARY_END_MARKER",
       "COMPACTION_SUMMARY_MARKER",
       "ClaudeCliConfigError",
       "ClaudeWorkingAreaError",
