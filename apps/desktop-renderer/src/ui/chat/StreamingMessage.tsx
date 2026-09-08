@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type ReactElement } from "react";
 import { chatStreamBuffer } from "../../state/chat-stream";
-import { COACH_MESSAGE_TEXT_CLASS } from "./Message";
+import { MessageContent } from "@enduragent/ui";
 
 export function StreamingMessage(props: { readonly messageId: string }): ReactElement {
   const host = useRef<HTMLDivElement>(null);
@@ -13,5 +13,5 @@ export function StreamingMessage(props: { readonly messageId: string }): ReactEl
     };
   }, [messageId]);
 
-  return <div className={COACH_MESSAGE_TEXT_CLASS} ref={host} />;
+  return <MessageContent ref={host} />;
 }

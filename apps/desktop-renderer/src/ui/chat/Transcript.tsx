@@ -1,3 +1,4 @@
+import { ChatTurn } from "@enduragent/ui";
 import {
   Activity,
   CalendarDays,
@@ -78,25 +79,17 @@ function MessageRow(props: {
   const hasActivePlan = useEnduragentStore((state) => state.planLibrary.value?.active != null);
   const streaming = message.role === "coach" && message.delivery === "streaming";
   const silent = message.historical || message.role === "athlete";
-  const rowClassName = cn(
-    "chat-message grid min-w-0 data-[delivery=interrupted]:text-ink-2",
-    message.role === "coach"
-      ? "chat-message--coach max-w-full justify-self-start text-sm leading-5"
-      : "chat-message--athlete max-w-[76%] justify-self-end rounded-card rounded-br-ctl border border-line bg-surface px-4 py-3",
-  );
 
   return (
-    <article
-      className={rowClassName}
+    <ChatTurn
+      speaker={message.role}
+      label={message.role === "athlete" ? "Your message" : "Coach response"}
       data-message-id={message.id}
       data-delivery={message.delivery}
       aria-live={silent ? "off" : undefined}
       aria-atomic={message.role === "coach" ? "true" : "false"}
       aria-busy={streaming ? "true" : undefined}
     >
-      <span className="sr-only">
-        {message.role === "athlete" ? "Your message" : "Coach response"}
-      </span>
       {message.role === "athlete" ? (
         <div className="grid gap-2.5">
           {message.attachments?.map((attachment) => {
@@ -144,7 +137,7 @@ function MessageRow(props: {
           )}
         </div>
       )}
-    </article>
+    </ChatTurn>
   );
 }
 

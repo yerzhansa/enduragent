@@ -7,7 +7,7 @@ import type {
 } from "@enduragent/coach-contract";
 import { useRef, type ReactElement, type ReactNode, type Ref } from "react";
 import type { RideAnalysisViewState } from "../../activity-analysis/controller";
-import { Button } from "@enduragent/ui";
+import { Button, RideMetricList, FactualCallout, Disclosure } from "@enduragent/ui";
 import { formatCivilDate, formatOffsetWallTime } from "../../lib/date";
 import {
   formatDistance,
@@ -762,10 +762,7 @@ export function RideDetailView(props: {
           </p>
         ) : null}
         {props.calloutReason === null ? null : (
-          <p className={styles.calloutReason}>
-            <strong>Worth a look</strong>
-            <span>{props.calloutReason}</span>
-          </p>
+          <FactualCallout title="Worth a look">{props.calloutReason}</FactualCallout>
         )}
       </section>
       {metrics.length === 0 ? null : (
@@ -775,25 +772,18 @@ export function RideDetailView(props: {
           data-parity="ride-key-stats"
         >
           <h2 id="key-stats-title">{TRAINING_HISTORY_COPY.keyStats}</h2>
-          <dl className={styles.recordedMetrics}>
-            {metrics.map((metric) => (
-              <div key={metric.label}>
-                <dt>{metric.label}</dt>
-                <dd>{metric.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <RideMetricList rows={metrics.map((metric) => ({ ...metric, id: metric.label }))} />
         </section>
       )}
-      <details
-        className={styles.recordedDisclosure}
+      <Disclosure
+        summary={TRAINING_HISTORY_COPY.disclosure}
+        className="mt-7"
         onToggle={(event) => {
           if (!event.currentTarget.open || analysisStarted.current) return;
           analysisStarted.current = true;
           props.onStartAnalysis?.();
         }}
       >
-        <summary>{TRAINING_HISTORY_COPY.disclosure}</summary>
         <div className={styles.recordedDisclosureBody}>
           <AerobicDriftPanel
             rideId={props.ride.id}
@@ -830,7 +820,7 @@ export function RideDetailView(props: {
             onRefresh={props.onRefreshAnalysis}
           />
         </div>
-      </details>
+      </Disclosure>
     </Page>
   );
 }

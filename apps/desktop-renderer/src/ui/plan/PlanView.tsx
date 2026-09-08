@@ -38,7 +38,7 @@ import {
   type PlanReadinessProjection,
   type PlanStartDateProjection,
 } from "@enduragent/coach-contract";
-import { Button } from "@enduragent/ui";
+import { ArtifactCard, BeforeAfterList, Button, NoticeRow, ProgressDisplay } from "@enduragent/ui";
 import {
   Dialog,
   DialogClose,
@@ -475,20 +475,17 @@ function AppliedHistoryProjection(props: {
         </div>
       </div>
       {before === null || after === null ? null : (
-        <div className="grid gap-inset rounded-card bg-sunk p-row sm:grid-cols-2">
-          <div className={SUPPORT_PAIR}>
-            <p className="m-0 text-sm text-ink-2">Before</p>
-            <p className="m-0 font-semibold">
-              {before.name} · {historyDuration(before.durationS)}
-            </p>
-          </div>
-          <div className={SUPPORT_PAIR}>
-            <p className="m-0 text-sm text-ink-2">After</p>
-            <p className="m-0 font-semibold">
-              {after.name} · {historyDuration(after.durationS)}
-            </p>
-          </div>
-        </div>
+        <BeforeAfterList
+          label="Workout change"
+          rows={[
+            {
+              id: props.entry?.id ?? "workout",
+              label: "Workout",
+              before: `${before.name} · ${historyDuration(before.durationS)}`,
+              after: `${after.name} · ${historyDuration(after.durationS)}`,
+            },
+          ]}
+        />
       )}
       {props.entry === null ||
       props.entry.weekLoadBefore === null ||
@@ -565,17 +562,12 @@ function StatusCard(props: {
   readonly retry?: boolean;
 }): ReactElement {
   return (
-    <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
-      <div className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-base font-medium">{props.title}</h2>
-        <p className="m-0 text-ink-2">{props.support}</p>
-      </div>
-      {props.retry === true ? (
-        <div className="pt-row">
-          <RetryButton />
-        </div>
-      ) : null}
-    </section>
+    <ArtifactCard
+      headingLevel={2}
+      title={props.title}
+      summary={props.support}
+      actions={props.retry === true ? <RetryButton /> : undefined}
+    />
   );
 }
 
@@ -633,13 +625,9 @@ function ChatOriginatedPlanResultProjection(props: {
 
 function StaleNotice(props: { readonly message: string }): ReactElement {
   return (
-    <div
-      className="flex items-start gap-row rounded-ctl bg-[color-mix(in_srgb,var(--warn)_10%,var(--surface))] p-3 text-warn"
-      role="status"
-    >
-      <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <p className="m-0 text-ink-2">{props.message}</p>
-    </div>
+    <NoticeRow tone="warning" role="status">
+      {props.message}
+    </NoticeRow>
   );
 }
 
@@ -1490,32 +1478,37 @@ function DraftFormation(): ReactElement {
   const revision = transition.status === "running" && transition.transitionId === "PL-T07";
   const replacement = model?.lifecycle === "replacement-draft-forming";
   return (
-    <section
-      className="grid place-items-center gap-row rounded-card bg-surface p-8 text-center shadow-elev-1"
+    <ArtifactCard
+      headingLevel={2}
       aria-live="polite"
       aria-busy="true"
+      title={
+        revision
+          ? "Updating your Draft"
+          : replacement
+            ? "Building the replacement Draft"
+            : "Building your Draft"
+      }
+      summary={
+        revision
+          ? "Your previous Draft stays available until this update is complete."
+          : replacement
+            ? "Your current Plan stays active. The replacement Draft opens automatically."
+            : "Your Draft opens automatically when it is ready."
+      }
     >
-      <LoaderCircle
-        className="size-6 animate-spin text-primary motion-reduce:animate-none"
-        aria-hidden="true"
-      />
-      <div className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-lg font-semibold">
-          {revision
+      <ProgressDisplay
+        className="px-4 pb-4"
+        label={
+          revision
             ? "Updating your Draft"
             : replacement
               ? "Building the replacement Draft"
-              : "Building your Draft"}
-        </h2>
-        <p className="m-0 text-ink-2">
-          {revision
-            ? "Your previous Draft stays available until this update is complete."
-            : replacement
-              ? "Your current Plan stays active. The replacement Draft opens automatically."
-              : "Your Draft opens automatically when it is ready."}
-        </p>
-      </div>
-    </section>
+              : "Building your Draft"
+        }
+        value={{ kind: "indeterminate" }}
+      />
+    </ArtifactCard>
   );
 }
 
@@ -1846,202 +1839,199 @@ function DraftProjection(): ReactElement {
           </div>
         </section>
       ) : null}
-      <section className="grid gap-5 rounded-card bg-surface p-5 shadow-elev-1">
-        {replacement ? (
-          <div className="flex items-start gap-row rounded-ctl bg-sunk p-3">
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
-            <div className={SUPPORT_PAIR}>
-              <h2 className="m-0 text-sm font-semibold">Current Plan stays active</h2>
-              <p className="m-0 text-ink-2">
-                It changes only after you approve this replacement Draft.
-              </p>
-            </div>
-          </div>
-        ) : null}
-        {model?.scenarioId === "PL-S031" ? (
-          <div className="flex items-start gap-row text-ok" role="status">
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <div className={SUPPORT_PAIR}>
-              <h2 className="m-0 text-sm font-semibold text-ink">Draft updated</h2>
-              <p className="m-0 text-ink-2">The coach applied your requested change.</p>
-            </div>
-          </div>
-        ) : null}
-        {model?.scenarioId === "PL-S050" ? (
-          <div className="flex items-start gap-row text-ok" role="status">
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <div className={SUPPORT_PAIR}>
-              <h2 className="m-0 text-sm font-semibold text-ink">Start date updated</h2>
-              <p className="m-0 text-ink-2">Review the recalculated Draft before approval.</p>
-            </div>
-          </div>
-        ) : null}
-        {model?.scenarioId === "PL-S046" || model?.scenarioId === "PL-S048" ? (
-          <div
-            className="grid gap-row rounded-ctl bg-[color-mix(in_srgb,var(--warn)_10%,var(--surface))] p-3"
-            role="alert"
-          >
-            <div className="flex items-start gap-row">
-              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
+      <ArtifactCard
+        headingLevel={2}
+        title={plan?.name ?? model?.title ?? "Draft Plan"}
+        summary={
+          <>
+            {plan === null
+              ? model?.summary
+              : `${plan.workoutCount} workouts · ${plannedTime(plan.plannedDurationS)} · ${plan.phaseSummary?.join(" → ") ?? `${plan.totalWeeks} ${plan.totalWeeks === 1 ? "week" : "weeks"}`}`}
+            <p className="m-0">Calendar not started.</p>
+          </>
+        }
+        status="Draft"
+      >
+        <div className="grid gap-5 px-4 pb-4">
+          {replacement ? (
+            <div className="flex items-start gap-row rounded-ctl bg-sunk p-3">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-sm font-semibold">
-                  {model.scenarioId === "PL-S046"
-                    ? "Choose another start date"
-                    : "The Plan could not be recalculated"}
-                </h2>
-                <p className="m-0 text-ink-2">Your current Draft is safe.</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-inset">
-              <Button type="button" variant="outline" onClick={() => actions?.openDatePicker()}>
-                Choose another date
-              </Button>
-              {model.scenarioId === "PL-S048" ? (
-                <Button type="button" onClick={() => actions?.retry()}>
-                  Retry
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-        {revisionFailed && !revisionComposer ? (
-          <div className="grid gap-inset">
-            <StaleNotice message={transition.error.message} />
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => actions?.openRevisionComposer()}
-              >
-                Try another change
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        {transition.status === "failed" &&
-        (transition.transitionId === "PL-T11" || transition.transitionId === "PL-T26") ? (
-          <StaleNotice message="The Plan could not be activated. Your Draft is unchanged." />
-        ) : null}
-        <div className="flex items-start justify-between gap-row">
-          <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-lg font-semibold">
-              {plan?.name ?? model?.title ?? "Draft Plan"}
-            </h2>
-            <p className="m-0 text-ink-2">
-              {plan === null
-                ? model?.summary
-                : `${plan.workoutCount} workouts · ${plannedTime(plan.plannedDurationS)} · ${
-                    plan.phaseSummary?.join(" → ") ??
-                    `${plan.totalWeeks} ${plan.totalWeeks === 1 ? "week" : "weeks"}`
-                  }`}
-            </p>
-            <p className="m-0 text-sm text-ink-2">Calendar not started.</p>
-          </div>
-          <span className="rounded-chip bg-sunk px-3 py-1 text-sm text-primary">Draft</span>
-        </div>
-        {data?.course !== undefined ? (
-          <div className="border-t border-line pt-5">
-            <RaceCoursePanel course={data.course} draft />
-          </div>
-        ) : null}
-        {plan !== null && startDate !== undefined ? (
-          <div className="flex items-center justify-between gap-row border-t border-line pt-5">
-            <div className="flex min-w-0 items-start gap-row">
-              <CalendarDays className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-              <div className={SUPPORT_PAIR}>
-                <h3 className="m-0 text-sm font-semibold">Start date</h3>
+                <h2 className="m-0 text-sm font-semibold">Current Plan stays active</h2>
                 <p className="m-0 text-ink-2">
-                  {formatCivilDate(plan.startDate)} ·{" "}
-                  {plan.kind === "full-plan" ? "Full Plan" : "Short race-preparation block"}
+                  It changes only after you approve this replacement Draft.
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={actions === null || busy}
-              onClick={() => actions?.openDatePicker()}
-            >
-              Change
-            </Button>
-          </div>
-        ) : null}
-        {revisionComposer ? (
-          <form className="grid gap-inset border-t border-line pt-5" onSubmit={submit}>
-            <label className="text-sm font-medium" htmlFor="plan-draft-revision">
-              What should the coach change?
-            </label>
-            <textarea
-              id="plan-draft-revision"
-              autoFocus
-              rows={4}
-              className="resize-y rounded-ctl border border-line-2 bg-sunk px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              value={instruction}
-              onChange={(event) => setInstruction(event.currentTarget.value)}
-            />
-            <div className="flex justify-end gap-inset">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => actions?.closeRevisionComposer()}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!/\S/u.test(instruction)}>
-                Update draft
-              </Button>
+          ) : null}
+          {model?.scenarioId === "PL-S031" ? (
+            <div className="flex items-start gap-row text-ok" role="status">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <div className={SUPPORT_PAIR}>
+                <h2 className="m-0 text-sm font-semibold text-ink">Draft updated</h2>
+                <p className="m-0 text-ink-2">The coach applied your requested change.</p>
+              </div>
             </div>
-          </form>
-        ) : (
-          <div className="grid gap-row border-t border-line pt-5">
-            <div className="flex flex-wrap items-center justify-between gap-row">
-              <p className="m-0 text-sm text-ink-2">
-                {replacement
-                  ? "Approval swaps Plans locally. New calendar writing waits for old cleanup verification."
-                  : "Approval activates the Plan, then updates today plus the next six days in Intervals."}
-              </p>
-              <div className="flex flex-wrap justify-end gap-inset">
+          ) : null}
+          {model?.scenarioId === "PL-S050" ? (
+            <div className="flex items-start gap-row text-ok" role="status">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <div className={SUPPORT_PAIR}>
+                <h2 className="m-0 text-sm font-semibold text-ink">Start date updated</h2>
+                <p className="m-0 text-ink-2">Review the recalculated Draft before approval.</p>
+              </div>
+            </div>
+          ) : null}
+          {model?.scenarioId === "PL-S046" || model?.scenarioId === "PL-S048" ? (
+            <div
+              className="grid gap-row rounded-ctl bg-[color-mix(in_srgb,var(--warn)_10%,var(--surface))] p-3"
+              role="alert"
+            >
+              <div className="flex items-start gap-row">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
+                <div className={SUPPORT_PAIR}>
+                  <h2 className="m-0 text-sm font-semibold">
+                    {model.scenarioId === "PL-S046"
+                      ? "Choose another start date"
+                      : "The Plan could not be recalculated"}
+                  </h2>
+                  <p className="m-0 text-ink-2">Your current Draft is safe.</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-inset">
+                <Button type="button" variant="outline" onClick={() => actions?.openDatePicker()}>
+                  Choose another date
+                </Button>
+                {model.scenarioId === "PL-S048" ? (
+                  <Button type="button" onClick={() => actions?.retry()}>
+                    Retry
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {revisionFailed && !revisionComposer ? (
+            <div className="grid gap-inset">
+              <StaleNotice message={transition.error.message} />
+              <div className="flex justify-end">
                 <Button
-                  id={replacement ? "plan-approve-replacement" : undefined}
                   type="button"
                   variant="outline"
-                  disabled={actions === null || busy}
                   onClick={() => actions?.openRevisionComposer()}
                 >
-                  Back to coach
-                </Button>
-                <Button
-                  type="button"
-                  disabled={actions === null || busy}
-                  aria-busy={approving ? "true" : undefined}
-                  onClick={() => actions?.approveDraft()}
-                >
-                  {approving
-                    ? replacement
-                      ? "Checking…"
-                      : "Activating…"
-                    : replacement
-                      ? "Approve replacement"
-                      : "Approve Plan"}
+                  Try another change
                 </Button>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-row border-t border-line pt-5">
-              <p className="m-0 text-sm text-ink-2">
-                Discard removes only this Draft. Your Plan conversation stays.
-              </p>
+          ) : null}
+          {transition.status === "failed" &&
+          (transition.transitionId === "PL-T11" || transition.transitionId === "PL-T26") ? (
+            <StaleNotice message="The Plan could not be activated. Your Draft is unchanged." />
+          ) : null}
+          {data?.course !== undefined ? (
+            <div className="border-t border-line pt-5">
+              <RaceCoursePanel course={data.course} draft />
+            </div>
+          ) : null}
+          {plan !== null && startDate !== undefined ? (
+            <div className="flex items-center justify-between gap-row border-t border-line pt-5">
+              <div className="flex min-w-0 items-start gap-row">
+                <CalendarDays className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <div className={SUPPORT_PAIR}>
+                  <h3 className="m-0 text-sm font-semibold">Start date</h3>
+                  <p className="m-0 text-ink-2">
+                    {formatCivilDate(plan.startDate)} ·{" "}
+                    {plan.kind === "full-plan" ? "Full Plan" : "Short race-preparation block"}
+                  </p>
+                </div>
+              </div>
               <Button
                 type="button"
-                variant="destructive"
+                variant="outline"
                 disabled={actions === null || busy}
-                onClick={() => actions?.openDiscardConfirmation()}
+                onClick={() => actions?.openDatePicker()}
               >
-                Discard draft
+                Change
               </Button>
             </div>
-          </div>
-        )}
-      </section>
+          ) : null}
+          {revisionComposer ? (
+            <form className="grid gap-inset border-t border-line pt-5" onSubmit={submit}>
+              <label className="text-sm font-medium" htmlFor="plan-draft-revision">
+                What should the coach change?
+              </label>
+              <textarea
+                id="plan-draft-revision"
+                autoFocus
+                rows={4}
+                className="resize-y rounded-ctl border border-line-2 bg-sunk px-3 py-2 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+                value={instruction}
+                onChange={(event) => setInstruction(event.currentTarget.value)}
+              />
+              <div className="flex justify-end gap-inset">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => actions?.closeRevisionComposer()}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!/\S/u.test(instruction)}>
+                  Update draft
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="grid gap-row border-t border-line pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-row">
+                <p className="m-0 text-sm text-ink-2">
+                  {replacement
+                    ? "Approval swaps Plans locally. New calendar writing waits for old cleanup verification."
+                    : "Approval activates the Plan, then updates today plus the next six days in Intervals."}
+                </p>
+                <div className="flex flex-wrap justify-end gap-inset">
+                  <Button
+                    id={replacement ? "plan-approve-replacement" : undefined}
+                    type="button"
+                    variant="outline"
+                    disabled={actions === null || busy}
+                    onClick={() => actions?.openRevisionComposer()}
+                  >
+                    Back to coach
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={actions === null || busy}
+                    aria-busy={approving ? "true" : undefined}
+                    onClick={() => actions?.approveDraft()}
+                  >
+                    {approving
+                      ? replacement
+                        ? "Checking…"
+                        : "Activating…"
+                      : replacement
+                        ? "Approve replacement"
+                        : "Approve Plan"}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-row border-t border-line pt-5">
+                <p className="m-0 text-sm text-ink-2">
+                  Discard removes only this Draft. Your Plan conversation stays.
+                </p>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={actions === null || busy}
+                  onClick={() => actions?.openDiscardConfirmation()}
+                >
+                  Discard draft
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </ArtifactCard>
       <DiscardDraftDialog />
       <DatePickerDialog plan={plan} startDate={startDate} />
       <Dialog
