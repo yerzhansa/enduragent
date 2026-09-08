@@ -37,3 +37,7 @@ apps/desktop-renderer/dist-storybook/
 apps/desktop-renderer/debug-storybook.log
 # coverage.py data file from `pnpm coverage:reference` (dev-time only, never committed)
 .coverage
+
+apps/desktop/tests/e2e/previews/*
+!apps/desktop/tests/e2e/previews/baselines/
+!apps/desktop/tests/e2e/previews/baseline.json
