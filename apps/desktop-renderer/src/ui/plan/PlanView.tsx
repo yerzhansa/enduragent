@@ -887,32 +887,6 @@ function CoursePickerDialog(): ReactElement {
   );
 }
 
-function NoPlan(): ReactElement {
-  const actions = useEnduragentStore((state) => state.planActions);
-  const creationExists = useEnduragentStore((state) => state.planLibrary.value?.creation != null);
-
-  return (
-    <div className="grid gap-6" data-plan-scenario="PL-S001">
-      <section className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-lg font-semibold">No active Plan</h2>
-        <p className="m-0 text-ink-2">Create a Plan when you are ready.</p>
-      </section>
-      {creationExists ? null : (
-        <div className="flex flex-wrap gap-inset">
-          <Button
-            id="plan-start-coach"
-            type="button"
-            disabled={actions === null}
-            onClick={() => actions?.startPlan()}
-          >
-            Start a Plan
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PlanQueue(): ReactElement | null {
   const queue = useEnduragentStore((state) => state.plan.coach.queued);
   const retry = useEnduragentStore((state) => state.plan.coach.retryRequired);
@@ -4411,7 +4385,7 @@ function EndedProjection(): ReactElement {
   );
 }
 
-function ReadyProjection(): ReactElement {
+function ReadyProjection(): ReactElement | null {
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   if (
@@ -4429,7 +4403,7 @@ function ReadyProjection(): ReactElement {
       <StatusCard title={model.title} support={model.summary} />
     );
   }
-  if (model.lifecycle === "none" || model.projection === "no-plan") return <NoPlan />;
+  if (model.lifecycle === "none" || model.projection === "no-plan") return null;
   if (model.projection === "coach") return <PlanCoach />;
   if (model.projection === "draft") return <DraftProjection />;
   if (model.projection === "active") return <ActiveProjection />;

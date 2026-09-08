@@ -1,5 +1,6 @@
 import type {
   ChatQueueSnapshot,
+  ListPlansResult,
   CoachDecisionReadModel,
   PlanAttention,
   PlanDraftProjection,
@@ -13,6 +14,18 @@ import type {
   PlanStartDateProjection,
   PlanReadModel,
 } from "@enduragent/coach-contract";
+
+export function emptyPlanLibrary(): ListPlansResult {
+  return {
+    calendarConnected: false,
+    legacy: null,
+    active: null,
+    creation: null,
+    closed: [],
+    changesPaused: null,
+    changes: [],
+  };
+}
 
 export const PLAN_ERROR: PlanError = Object.freeze({
   code: "unavailable",

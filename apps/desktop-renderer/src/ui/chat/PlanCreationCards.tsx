@@ -1,4 +1,4 @@
-import type { PlanCreationCardModel } from "@enduragent/coach-contract";
+import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
@@ -281,16 +281,32 @@ export function PlanCreationConversation(props: {
   );
 }
 
+function activationNotice(library: ListPlansResult | null): string {
+  const active = library?.active ?? null;
+  if (active === null) return "Plan activated locally.";
+  const calendar = active.calendar;
+  const status =
+    calendar.status === "not-connected"
+      ? "Connect intervals.icu to mirror Workouts."
+      : calendar.status === "verified"
+        ? "Calendar is up to date."
+        : calendar.status === "failed"
+          ? "Calendar update failed; see the Plan library."
+          : "Calendar Workouts are being added.";
+  return `${active.name} is active. ${status}`;
+}
+
 function PlanCreationConversationContent(props: {
   readonly model: PlanCreationCardModel | null;
 }): ReactElement | null {
   const [editVersion, setEditVersion] = useState<number | null>(null);
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const library = useEnduragentStore((state) => state.planLibrary.value);
   if (props.model === null)
     return (
       <p role="status" className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink">
-        Plan activated locally.
+        {activationNotice(library)}
       </p>
     );
   const model = props.model;

@@ -513,7 +513,12 @@ export function PlanChangeCards(): ReactElement | null {
   useEffect(() => {
     setSource(null);
   }, [activePlanId]);
-  if (!library?.active || (!pending && !(state.open && state.planId === library.active.planId)))
+  if (
+    !library?.active ||
+    (library.creation !== null &&
+      !pending &&
+      !(state.open && state.planId === library.active.planId))
+  )
     return null;
   const openSource = (
     change: PlanChangeModel,

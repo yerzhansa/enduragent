@@ -567,10 +567,26 @@ describe("Plan Change cards", () => {
     expect(composer).toHaveValue("How should I pace tomorrow?");
   });
 
-  it("shows the active Plan only after entry and restores a pending preview without entry", () => {
+  it("renders the Active Plan actions without a creation, pending Change, or open Change surface", async () => {
+    patchChange({ open: false, planId: null });
+    render(<PlanChangeCards />);
+
+    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Change one thing" }));
+    expect(useEnduragentStore.getState().chatActions?.openPlanChangeEditor).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Open Plan" }));
+    expect(useEnduragentStore.getState().activeView).toBe("plan");
+  });
+
+  it("shows the active Plan before entry and restores a pending preview without entry", () => {
     patchChange({ open: false, planId: null });
     const view = render(<PlanChangeCards />);
-    expect(screen.queryByRole("region", { name: "Plan Changes" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open Plan" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
     setChanges([change()]);
     expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Limit Wednesday training" })).toBeVisible();

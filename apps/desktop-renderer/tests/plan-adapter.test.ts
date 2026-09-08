@@ -351,7 +351,7 @@ describe("Plan view adapter", () => {
       action: "close",
       sourceScenarioId: "PL-S017",
       destinationScenarioId: "PL-S001",
-      returnFocusId: "plan-start-coach",
+      returnFocusId: "start-plan",
     });
   });
 

@@ -199,7 +199,13 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   );
   await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(scenario.page.getByText("Plan activated locally.", { exact: true })).toBeVisible();
+  await expect(
+    scenario.page.getByRole("status").filter({
+      hasText: connected
+        ? /^Improve fitness is active\. Calendar (is up to date|Workouts are being added)\.$/
+        : "Improve fitness is active. Connect intervals.icu to mirror Workouts.",
+    }),
+  ).toBeVisible();
 }
 
 test("shows calendar progress and the verified seven-day window", async ({ playwright }) => {

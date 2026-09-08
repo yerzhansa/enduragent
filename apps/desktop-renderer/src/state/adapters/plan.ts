@@ -638,7 +638,7 @@ export function createPlanViewAdapter(input: {
         sourceScenarioId: model.scenarioId,
         destinationScenarioId: model.scenarioId === "PL-S079" ? "PL-S004" : "PL-S001",
         returnFocusId:
-          model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "plan-start-coach",
+          model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "start-plan",
       });
     },
     async submitCoach(message) {

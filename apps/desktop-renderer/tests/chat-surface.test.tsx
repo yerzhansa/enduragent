@@ -2627,6 +2627,18 @@ describe("chat surface", () => {
         "aria-pressed",
         "true",
       );
+      const selected = screen.getByRole("button", { name: "No training" });
+      expect(selected).toHaveClass("aria-pressed:bg-primary/10");
+      expect(selected.querySelector('[data-parity="choice.row.number"]')).toHaveClass(
+        "bg-primary",
+        "text-primary-foreground",
+        "border-primary",
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "No hard training" })
+          .querySelector('[data-parity="choice.row.number"]'),
+      ).not.toHaveClass("bg-primary");
       fireEvent.change(screen.getByLabelText("Optional end date"), {
         target: { value: "1998-10-15" },
       });

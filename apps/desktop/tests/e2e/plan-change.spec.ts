@@ -210,6 +210,8 @@ async function navigate(scenario: Scenario, destination: "Chat" | "Plan") {
 }
 
 async function enterChanges(scenario: Scenario) {
+  await expect(changes(scenario)).toBeVisible();
+  await expect(changes(scenario).getByRole("button")).toHaveText(["Change one thing", "Open Plan"]);
   await navigate(scenario, "Plan");
   await scenario.page
     .getByRole("region", { name: "Plan library", exact: true })

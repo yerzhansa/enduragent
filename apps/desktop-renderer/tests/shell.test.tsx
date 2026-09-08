@@ -25,7 +25,7 @@ import {
   requestTrainingRestrictionFocus,
   takeTrainingRestrictionFocusRequest,
 } from "../src/ui/settings/restriction-focus";
-import { planReadModel } from "./plan-fixtures";
+import { emptyPlanLibrary, planReadModel } from "./plan-fixtures";
 
 const REPAIR_REQUIRED_CREDENTIALS: CredentialSettingsState = {
   status: "ready",
@@ -269,6 +269,7 @@ describe("shell", () => {
       onboardingActions: null,
       onboardingStartupSettled: true,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planActions: stubPlanActions(),
       settings: {
         ...useEnduragentStore.getState().settings,
@@ -289,6 +290,7 @@ describe("shell", () => {
       onboardingActions: null,
       onboardingStartupSettled: false,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planActions: null,
       settings: {
         ...useEnduragentStore.getState().settings,
@@ -356,11 +358,17 @@ describe("shell", () => {
           hydration: { status: "ready", state: planState },
           lastReady: planState,
         },
+        planLibrary: { status: "ready", value: emptyPlanLibrary() },
       });
     });
     await user.click(screen.getByRole("button", { name: "Plan" }));
     expect(await screen.findByRole("region", { name: "Plan" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "No active Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveAttribute(
+      "id",
+      "start-plan",
+    );
     expect(document.querySelector("div.thread")).not.toBeNull();
     const conversation = screen.getByLabelText("Coaching conversation");
     expect(conversation.closest(".hidden")).not.toBeNull();

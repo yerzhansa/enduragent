@@ -300,7 +300,12 @@ for (const appearance of [
       const library = () =>
         scenario.page.getByRole("region", { name: "Plan library", exact: true });
       await expect(library().getByRole("heading")).toHaveText(["No active Plan"]);
+      await expect(
+        scenario.page.getByRole("heading", { name: "No active Plan", exact: true }),
+      ).toHaveCount(1);
       await expect(library()).toContainText("Create a Plan when you are ready.");
+      await expect(library().getByRole("button")).toHaveCount(0);
+      await expect(scenario.page.locator("#start-plan")).toBeVisible();
       await capture(scenario, "empty-library");
       await relaunch(scenario, playwright);
       await expect(library().getByRole("heading")).toHaveText(["No active Plan"]);
