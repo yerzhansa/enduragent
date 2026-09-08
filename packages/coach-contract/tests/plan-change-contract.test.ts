@@ -88,7 +88,7 @@ describe("Plan Change contract", () => {
     );
     expect(descriptions.get("minutes")).toEqual([
       "Maximum session length for that weekday, in minutes",
-      "Maximum session length for any weekday, in minutes",
+      "Maximum length of any single workout, in minutes",
     ]);
     expect(descriptions.get("hours")).toEqual(["Maximum total training hours per week"]);
     expect(descriptions.get("role")).toEqual(

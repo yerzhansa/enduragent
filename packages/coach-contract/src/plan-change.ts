@@ -42,7 +42,7 @@ export type PlanChangeEventSource = z.infer<typeof PlanChangeEventSourceSchema>;
 const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("add").describe("Add a supporting event to the plan"),
       name: z.string().trim().min(1).max(512).describe("Name of the supporting event"),
       date: TrainingExportCivilDateSchema.describe(
@@ -60,7 +60,7 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("remove").describe("Remove an existing supporting event from the plan"),
       eventId: z
         .string()
@@ -71,7 +71,7 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("role")
         .describe("Change the training priority of an existing supporting event"),
@@ -87,7 +87,7 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("manual")
         .describe("Correct the name and date of a manually added supporting event"),
@@ -104,7 +104,7 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("source-update")
         .describe("Accept synchronized name and date updates for a supporting event"),
@@ -117,7 +117,7 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add or update a supporting event in the plan"),
+      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("name").describe("Rename an existing supporting event"),
       eventId: z
         .string()
@@ -198,7 +198,7 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
         .number()
         .int()
         .positive()
-        .describe("Maximum session length for any weekday, in minutes"),
+        .describe("Maximum length of any single workout, in minutes"),
     })
     .strict(),
   z
