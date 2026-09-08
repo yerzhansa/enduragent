@@ -7,6 +7,7 @@ import type {
   AttachmentCapabilitiesReadModel,
   ChatAttachmentComposerReadModel,
   CoachDecisionReadModel,
+  ListPlansResult,
   PlanCreationCardModel,
   PlanCreationOpenQuestion,
   PlanningRequestDelivery,
@@ -27,6 +28,7 @@ import { EMPTY_TRAINING_SURFACE } from "../src/state/training-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { SLASH_COMMANDS } from "../src/chat/commands";
 import { ChatView } from "../src/ui/chat/ChatView";
+import { PlanCreationSummary } from "../src/ui/chat/PlanCreationSummary";
 import { planCreationDraft } from "./plan-creation-draft-fixtures";
 import { planReadModel } from "./plan-fixtures";
 import { EMPTY_PLAN_SURFACE } from "../src/state/plan-slice";
@@ -142,7 +144,6 @@ function goalQuestion(prompt: string): GoalQuestion {
     eventNotListedOption: {
       label: "Event not listed",
       detail: "Tell me the event name and its exact date.",
-      editorLabel: "Name the event and include its exact date.",
       placeholder: "Event name",
       nameLabel: "Event name",
       dateLabel: "Event date",
@@ -151,7 +152,6 @@ function goalQuestion(prompt: string): GoalQuestion {
       label: "Improve without an event",
       detail: "Build fitness for a fixed number of weeks.",
     },
-    authoredOption: fixtureAuthoredOption,
   } satisfies PlanCreationOpenQuestion;
 }
 
@@ -220,10 +220,10 @@ function planLengthQuestion(prompt: string): PlanLengthQuestion {
     step: fixtureStep,
     prompt,
     options: [
-      { weeks: 4, label: "4 weeks", detail: "Choose a 4-week Plan." },
+      { weeks: 4, label: "4 weeks" },
       { weeks: 8, label: "8 weeks", detail: "Choose an 8-week Plan." },
-      { weeks: 12, label: "12 weeks", detail: "Choose a 12-week Plan." },
-      { weeks: 16, label: "16 weeks", detail: "Choose a 16-week Plan." },
+      { weeks: 12, label: "12 weeks" },
+      { weeks: 16, label: "16 weeks" },
     ],
   } satisfies PlanCreationOpenQuestion;
 }
@@ -251,7 +251,7 @@ function commitmentsQuestion(prompt: string, placeholder: string): CommitmentsQu
     kind: "commitments-question",
     step: fixtureStep,
     prompt,
-    noneOption: { label: "No fixed commitments", detail: "There is nothing fixed to add." },
+    noneOption: { label: "No fixed commitments" },
     authoredOption: {
       ...fixtureAuthoredOption,
       label: "Add commitments or time off",
@@ -292,9 +292,9 @@ function availabilityQuestion(
     prompt,
     mode,
     weeklyHoursOptions: [
-      { id: "hours-6", weeklyHoursLimit: 6, label: "5–6 hours", detail: "Usual volume." },
-      { id: "hours-8", weeklyHoursLimit: 8, label: "7–8 hours", detail: "A small step." },
-      { id: "hours-10", weeklyHoursLimit: 10, label: "9+ hours", detail: "More volume." },
+      { id: "hours-6", weeklyHoursLimit: 6, label: "5–6 hours" },
+      { id: "hours-8", weeklyHoursLimit: 8, label: "7–8 hours" },
+      { id: "hours-10", weeklyHoursLimit: 10, label: "9–10 hours" },
     ],
     longestWorkoutLabel: "Longest ride in hours",
     weekdayOptions: [
@@ -329,7 +329,7 @@ function restrictionQuestion(prompt: string): RestrictionQuestion {
     step: fixtureStep,
     prompt,
     options: [
-      { kind: "none", label: "None", detail: "No Training Restriction." },
+      { kind: "none", label: "None" },
       { kind: "no-training", label: "No training", detail: "Schedule no training." },
       {
         kind: "no-hard-training",
@@ -539,17 +539,73 @@ describe("chat surface", () => {
     resetChatStream();
   });
 
-  it("renders completed Plan activation once as a transcript status", () => {
+  it("renders no completed Plan creation transcript content", () => {
     render(<Harness />);
     setChat({
       planCreation: null,
       planCreationLoaded: true,
       timeline: [{ kind: "plan-creation", model: null }],
     });
-    expect(screen.getAllByText("Plan activated locally.")).toHaveLength(1);
-    expect(screen.getByText("Plan activated locally.")).toHaveAttribute("role", "status");
+    expect(screen.queryByText("Plan activated locally.")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Plan Creation" })).toBeNull();
     expect(document.querySelector(".chat-notice")).not.toBeVisible();
   });
+
+  it.each(["unloaded", "empty", "active"] as const)(
+    "describes progress with an %s Plan library",
+    (state) => {
+      const library: ListPlansResult = {
+        calendarConnected: false,
+        legacy: null,
+        active:
+          state === "active"
+            ? {
+                supportingEventCandidates: [],
+                planId: "progress-plan",
+                version: 1,
+                name: "Build steady power",
+                start: "1998-09-07",
+                end: "1998-10-04",
+                weeks: 4,
+                status: "active",
+                closeReason: null,
+                closedAt: null,
+                activatedAt: "1998-09-07",
+                todayChoice: null,
+                calendar: {
+                  status: "not-connected",
+                  window: null,
+                  currentThrough: null,
+                  error: null,
+                },
+                creationId: null,
+              }
+            : null,
+        creation: null,
+        closed: [],
+        changesPaused: null,
+        changes: [],
+      };
+      useEnduragentStore.setState({
+        planLibrary:
+          state === "unloaded"
+            ? { status: "loading", value: null }
+            : { status: "ready", value: library },
+      });
+      render(
+        <PlanCreationSummary
+          model={planCreationModel(goalQuestion("What are you preparing for?"))}
+        />,
+      );
+      const tail =
+        state === "unloaded"
+          ? ""
+          : state === "active"
+            ? " Build steady power keeps running."
+            : " No Plan is active.";
+      expect(screen.getByText(`0 of 9 answered.${tail}`, { exact: true })).toBeVisible();
+    },
+  );
 
   it("preserves and focuses the draft after enqueue failure and clears only after acknowledgment", async () => {
     const user = userEvent.setup();
@@ -2343,7 +2399,7 @@ describe("chat surface", () => {
       expect(composer()).toHaveAttribute("placeholder", "Finish the Plan question above");
       expect(screen.getByRole("button", { name: "Attach files" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Something else" })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: "Something else" })).toBeNull();
       expect(document.querySelector('[data-parity="question.card"]')).toHaveAttribute(
         "data-question",
         "goal",
@@ -2364,7 +2420,7 @@ describe("chat surface", () => {
           answeredSummaries: [
             {
               answerKey: "goal",
-              title: "Goal",
+              title: "Main Goal",
               detail: "Build steady power",
               question: goalQuestion("What are you preparing for?"),
               answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build steady power" } },
@@ -2391,11 +2447,11 @@ describe("chat surface", () => {
         planCreationLoaded: true,
         planCreation: planCreationModel(goalQuestion("What are you preparing for?")),
       });
-      await userEvent.click(screen.getByRole("button", { name: "Something else" }));
+      await userEvent.click(screen.getByRole("button", { name: "Event not listed" }));
       const eventName = screen.getByRole("textbox", { name: "Event name" });
       const eventDate = screen.getByLabelText("Event date");
-      expect(screen.getByText("Write your answer.")).toBeVisible();
-      expect(eventName).toHaveAttribute("placeholder", "Type an answer");
+      expect(screen.queryByText("Write your answer.")).toBeNull();
+      expect(eventName).toHaveAttribute("placeholder", "Event name");
       expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
       await userEvent.type(eventName, "Highland Tour");
       fireEvent.change(eventDate, { target: { value: "1998-10-18" } });
@@ -2417,8 +2473,8 @@ describe("chat surface", () => {
           answeredSummaries: [
             {
               answerKey: "goal",
-              title: "Goal",
-              detail: "Highland Tour · 1998-10-18",
+              title: "Main Goal",
+              detail: "Highland Tour · 18 Oct 1998",
               question: goalQuestion("What are you preparing for?"),
               answer: {
                 kind: "goal",
@@ -2727,7 +2783,7 @@ describe("chat surface", () => {
           answeredSummaries: [
             {
               answerKey: "goal",
-              title: "Goal",
+              title: "Main Goal",
               detail: "Build steady power",
               question: goalQuestion("What are you preparing for?"),
               answer: {
@@ -2763,7 +2819,7 @@ describe("chat surface", () => {
       const editActions = screen.getAllByRole("button", { name: /^Edit /u });
       expect(editActions).toHaveLength(2);
       for (const editAction of editActions) expect(editAction).toBeDisabled();
-      await user.click(screen.getByRole("button", { name: "Edit Goal" }));
+      await user.click(screen.getByRole("button", { name: "Edit Main Goal" }));
       expect(actions.editPlanCreation).toHaveBeenCalledOnce();
     });
 
@@ -2775,8 +2831,8 @@ describe("chat surface", () => {
         answeredSummaries: [
           {
             answerKey: "goal",
-            title: "Goal",
-            detail: "Highland Tour · 1998-10-18",
+            title: "Main Goal",
+            detail: "Highland Tour · 18 Oct 1998",
             question: goalQuestion("What do you want this Plan to prepare you for?"),
             answer: {
               kind: "goal",
@@ -2795,7 +2851,7 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      await user.click(screen.getByRole("button", { name: "Edit Goal" }));
+      await user.click(screen.getByRole("button", { name: "Edit Main Goal" }));
       expect(screen.getByRole("textbox", { name: "Event name" })).toHaveValue("Highland Tour");
       await user.click(screen.getByRole("button", { name: "Back" }));
 
@@ -2851,7 +2907,7 @@ describe("chat surface", () => {
           answeredSummaries: [
             {
               answerKey: "goal",
-              title: "Goal",
+              title: "Main Goal",
               detail: "Build Fitness by 1998-12-01",
               question: goalQuestion("What do you want this Plan to prepare you for?"),
               answer: {
@@ -2872,7 +2928,7 @@ describe("chat surface", () => {
             {
               answerKey: "start-timing",
               title: "Start timing",
-              detail: "Earliest start 1998-10-10",
+              detail: "Earliest start 10 Oct 1998",
               question: startTimingQuestion("When could this Plan start?", "1998-10-01"),
               answer: {
                 kind: "start-timing",
@@ -2978,7 +3034,9 @@ describe("chat surface", () => {
       render(<Harness />);
 
       await user.click(
-        screen.getByRole("button", { name: /^(Something else|Add commitments or time off)$/u }),
+        screen.getByRole("button", {
+          name: /^(Event not listed|Something else|Add commitments or time off)$/u,
+        }),
       );
       expect(document.querySelector('[data-parity="custom.editor"]')).not.toBeNull();
       expect(document.querySelector('[data-parity="composer"]')).toBeNull();
@@ -2986,7 +3044,9 @@ describe("chat surface", () => {
       expect(actions.pausePlanCreation).not.toHaveBeenCalled();
       expect(document.querySelector('[data-parity="custom.editor"]')).toBeNull();
       expect(
-        screen.getByRole("button", { name: /^(Something else|Add commitments or time off)$/u }),
+        screen.getByRole("button", {
+          name: /^(Event not listed|Something else|Add commitments or time off)$/u,
+        }),
       ).toBeVisible();
       expect(document.querySelector('[data-parity="composer"]')).not.toBeNull();
     });
@@ -3052,6 +3112,8 @@ describe("chat surface", () => {
         sendDisabled: false,
       });
       expect(screen.getByText("The essentials are complete.")).toBeVisible();
+      expect(screen.queryByText("Ready", { exact: true })).toBeNull();
+      expect(screen.getByText("In progress", { exact: true })).toBeVisible();
       expect(screen.getByRole("button", { name: "Build Draft" })).toBeVisible();
       expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
       await user.click(screen.getByRole("button", { name: "Build Draft" }));
@@ -3129,9 +3191,7 @@ describe("chat surface", () => {
         },
       ] satisfies (typeof draft.weeks)[number]["workouts"];
       draft.weeks = draft.weeks.map((week) =>
-        week.number === 4
-          ? { ...week, start: "1998-09-28", end: "1998-10-04", workouts }
-          : week,
+        week.number === 4 ? { ...week, start: "1998-09-28", end: "1998-10-04", workouts } : week,
       );
       const original = structuredClone(draft);
       const model: PlanCreationCardModel = {
@@ -3180,7 +3240,9 @@ describe("chat surface", () => {
       expect(status).toBeVisible();
       expect(status).toHaveTextContent(notice);
       const review = within(creation).getByRole("region", { name: "Plan Draft review" });
-      expect(status.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        status.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
       expect(document.querySelector(".chat-notice-host")).not.toHaveTextContent(notice);
     });
 
@@ -3215,7 +3277,7 @@ describe("chat surface", () => {
           "Wed · at most 45 min",
           "Sat · unavailable",
           "Mon · no hard training",
-          "Off 3 Sep 1998 to 9 Sep 1998",
+          "Off 3 Sept 1998 to 9 Sept 1998",
         ]) {
           expect(within(correction).getByText(text)).toBeVisible();
         }
@@ -3383,7 +3445,7 @@ describe("chat surface", () => {
         answeredSummaries: [
           {
             answerKey: "goal" as const,
-            title: "Goal",
+            title: "Main Goal",
             detail: "Build steady power",
             question: goalQuestion("What are you preparing for?"),
             answer: {
@@ -3405,11 +3467,11 @@ describe("chat surface", () => {
         expect(screen.getByRole("heading", { name: "What would success mean?" })).toHaveFocus(),
       );
       expect(
-        within(screen.getByLabelText("Goal answer")).getByText("Build steady power"),
+        within(screen.getByLabelText("Main Goal answer")).getByText("Build steady power"),
       ).toBeVisible();
-      expect(screen.getByText("Goal · your answer", { exact: true })).toBeVisible();
+      expect(screen.getByText("Main Goal · your answer", { exact: true })).toBeVisible();
       expect(screen.getByText("1 of 9 answered.")).toBeVisible();
-      const answerRow = screen.getByRole("listitem", { name: "Goal answer" });
+      const answerRow = screen.getByRole("listitem", { name: "Main Goal answer" });
       expect(answerRow).not.toHaveAttribute("role", "status");
       expect(composer()).toBeDisabled();
       expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
@@ -3687,7 +3749,7 @@ describe("chat surface", () => {
         answeredSummaries: [
           {
             answerKey: "goal",
-            title: "Goal",
+            title: "Main Goal",
             detail: "Build steady power",
             question: goalQuestion("What are you preparing for?"),
             answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build steady power" } },
@@ -3729,7 +3791,7 @@ describe("chat surface", () => {
       expect(composer()).toBeDisabled();
       expect(
         screen.getByText(
-          "No Plan is created. Your active Plan, Schedule, training restrictions, closed Plans, saved preferences, and chat history are unchanged.",
+          "Your answers are discarded. Your active Plan, Schedule, restrictions, saved preferences, and history stay unchanged.",
         ),
       ).toBeVisible();
       await waitFor(() =>
@@ -3755,7 +3817,7 @@ describe("chat surface", () => {
         answeredSummaries: [
           {
             answerKey: "goal",
-            title: "Goal",
+            title: "Main Goal",
             detail: "Build steady power",
             question: goalQuestion("What are you preparing for?"),
             answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build steady power" } },
@@ -3817,7 +3879,7 @@ describe("chat surface", () => {
         answeredSummaries: [
           {
             answerKey: "goal",
-            title: "Goal",
+            title: "Main Goal",
             detail: "Build steady power",
             question: goalQuestion("What are you preparing for?"),
             answer: {
@@ -3860,14 +3922,16 @@ describe("chat surface", () => {
 
       expect(screen.queryByRole("heading", { name: "Discard this Plan creation?" })).toBeNull();
       expect(
-        within(screen.getByLabelText("Goal answer")).getByText("Build steady power", {
+        within(screen.getByLabelText("Main Goal answer")).getByText("Build steady power", {
           exact: true,
         }),
       ).toBeVisible();
       expect(
-        screen.getByText(
-          "Plan Creation changed before it could be discarded. The latest version is shown.",
-        ).closest(".chat-notice"),
+        screen
+          .getByText(
+            "Plan Creation changed before it could be discarded. The latest version is shown.",
+          )
+          .closest(".chat-notice"),
       ).toBeVisible();
       await waitFor(() => expect(screen.getByRole("button", { name: "Discard" })).toHaveFocus());
     });

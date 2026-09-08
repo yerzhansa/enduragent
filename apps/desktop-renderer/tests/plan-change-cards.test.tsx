@@ -863,7 +863,7 @@ describe("Plan Change cards", () => {
     ]);
   });
 
-  it("omits an entry when Undo restores an unset FTP and falls back for malformed evidence", async () => {
+  it("omits an entry when Undo restores an unset FTP and omits malformed evidence", async () => {
     setChanges([
       change({
         premises: [
@@ -900,8 +900,8 @@ describe("Plan Change cards", () => {
     render(<PlanChangeCards />);
     await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
     expect(
-      within(screen.getByRole("region", { name: "Source details" })).getByRole("cell"),
-    ).toHaveTextContent("FTP comparison unavailable");
+      within(screen.getByRole("region", { name: "Source details" })).queryByRole("cell"),
+    ).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
   });
 
@@ -986,7 +986,7 @@ describe("Plan Change cards", () => {
     expect(within(history).queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
-  it("renders unrecognized premise values as their plain labels", async () => {
+  it("omits unrecognized premise values and renders confirmed text", async () => {
     const values: PlanChangeModel["premises"][number]["value"][] = [
       null,
       true,
@@ -1000,7 +1000,7 @@ describe("Plan Change cards", () => {
     setChanges([
       change({
         premises: values.map((value, index) => ({
-          id: `premise-${index}`,
+          id: typeof value === "string" ? "confirmed-limits" : `premise-${index}`,
           label: `Evidence ${index}`,
           source: "Your confirmed request",
           value,
@@ -1014,7 +1014,8 @@ describe("Plan Change cards", () => {
       within(source)
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
-    ).toEqual(values.map((_, index) => `Evidence ${index}`));
+    ).toEqual(["text"]);
+    expect(within(source).queryByText("Evidence 0")).toBeNull();
   });
 
   it("moves focus to the editor, back to Change one thing, and to a new preview heading", async () => {

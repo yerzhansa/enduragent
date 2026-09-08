@@ -1,3 +1,4 @@
+import { formatCivilDate } from "../../lib/date";
 import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
@@ -6,7 +7,7 @@ import type {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent, CardHeader } from "@enduragent/ui";
+import { Fact, PlanCard } from "../plan/plan-card";
 import { useEnduragentStore } from "../../state/store";
 
 const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
@@ -20,34 +21,6 @@ const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey
   ["success", "Success"],
   ["restriction", "Training restriction"],
 ];
-
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}
-
-function Fact(props: { readonly label: string; readonly children: ReactNode }): ReactElement {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] max-md:grid-cols-1 max-md:gap-1"
-    >
-      <span role="rowheader" className="text-xs leading-4 text-ink-2">
-        {props.label}
-      </span>
-      <strong
-        role="cell"
-        className="text-right text-sm leading-5 font-medium [overflow-wrap:anywhere] max-md:text-left"
-      >
-        {props.children}
-      </strong>
-    </div>
-  );
-}
 
 function AnswerFacts(props: {
   readonly summaries: readonly PlanCreationAnswerSummary[];
@@ -80,52 +53,10 @@ function ReviewCard(props: {
   readonly status?: string;
   readonly summary?: string;
   readonly summaryId?: string;
+  readonly "aria-label"?: string;
   readonly children: ReactNode;
 }): ReactElement {
-  return (
-    <Card
-      size="sm"
-      className="block min-w-0 gap-[normal] py-0"
-      role="region"
-      aria-label={props.eyebrow === "Draft inputs" ? "Draft inputs" : props.title}
-    >
-      <CardHeader className="block rounded-none p-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0 justify-self-start">
-            {props.eyebrow ? (
-              <p
-                data-plan-card-eyebrow
-                className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
-              >
-                {props.eyebrow}
-              </p>
-            ) : null}
-            <h3 data-plan-card-title className="m-0 text-base leading-6 font-semibold break-words">
-              {props.title}
-            </h3>
-          </div>
-          {props.status ? (
-            <span
-              data-plan-card-status
-              className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2"
-            >
-              {props.status}
-            </span>
-          ) : null}
-        </div>
-        {props.summary ? (
-          <p
-            data-plan-card-summary
-            id={props.summaryId}
-            className="mt-inset mb-0 text-sm leading-5 text-ink-2"
-          >
-            {props.summary}
-          </p>
-        ) : null}
-      </CardHeader>
-      <CardContent className="px-4 pt-0 pb-4">{props.children}</CardContent>
-    </Card>
-  );
+  return <PlanCard {...props} aria-label={props["aria-label"] ?? props.title} />;
 }
 
 export function PlanCreationDraftCards(props: {
@@ -169,6 +100,7 @@ export function PlanCreationDraftCards(props: {
       ) : null}
       <ReviewCard
         eyebrow="Draft inputs"
+        aria-label="Draft inputs"
         title={title}
         status={stale ? "Stale" : "Needs review"}
         summary={
@@ -182,13 +114,13 @@ export function PlanCreationDraftCards(props: {
             label={`Main Goal · ${goal?.source.kind === "derived" ? goal.source.label : "your answer"}`}
           >
             {draft.goal.kind === "event"
-              ? `${draft.goal.name} · ${dateLabel(draft.goal.date)}`
+              ? `${draft.goal.name} · ${formatCivilDate(draft.goal.date)}`
               : title}
           </Fact>
           <Fact label="Calendar">Local review only</Fact>
           <Fact label="Plan span">
-            {dateLabel(draft.start)} to {dateLabel(draft.end)} · {draft.weeks.length} weeks ·{" "}
-            {draft.spanKind}
+            {formatCivilDate(draft.start)} to {formatCivilDate(draft.end)} · {draft.weeks.length}{" "}
+            weeks · {draft.spanKind}
           </Fact>
           <AnswerFacts summaries={draft.answeredSummaries} omitGoal />
         </div>
@@ -216,7 +148,7 @@ export function PlanCreationDraftCards(props: {
         {draft.weeks.map((week) => (
           <div key={week.number} className="min-w-0 [&:not(:first-child)]:pt-4">
             <p className="m-0 pb-inset text-xs font-semibold uppercase tracking-wide text-ink-2">
-              Week {week.number} · {dateLabel(week.start)} to {dateLabel(week.end)} ·{" "}
+              Week {week.number} · {formatCivilDate(week.start)} to {formatCivilDate(week.end)} ·{" "}
               {week.workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min
             </p>
             <div
@@ -236,7 +168,7 @@ export function PlanCreationDraftCards(props: {
                     <span className="text-xs leading-4 text-ink-2">
                       {workout.date === null
                         ? `Priority ${index + 1} · Undated`
-                        : dateLabel(workout.date)}
+                        : formatCivilDate(workout.date)}
                     </span>
                     <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
                       {workout.name} · {workout.minutes} min · {workout.guidance}
@@ -319,25 +251,6 @@ export function commitmentSummaryId(model: PlanCreationCardModel): string {
   return `commitment-summary-${model.creationId}`;
 }
 
-function commitmentDateLabel(value: string): string {
-  const [year, month, day] = value.split("-");
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
-}
-
 function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
   const days = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   switch (rule.kind) {
@@ -348,7 +261,7 @@ function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
     case "hard-weekday":
       return `${days[rule.day]} · no hard training`;
     case "time-off":
-      return `Off ${commitmentDateLabel(rule.start)} to ${commitmentDateLabel(rule.end)}`;
+      return `Off ${formatCivilDate(rule.start)} to ${formatCivilDate(rule.end)}`;
   }
 }
 

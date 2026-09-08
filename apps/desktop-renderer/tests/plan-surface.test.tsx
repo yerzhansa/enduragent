@@ -2231,11 +2231,11 @@ describe("Plan surface", () => {
     render(<PlanView />);
 
     expect(
-      screen.getByRole("heading", { name: /Aug 31, 2026 already has a Workout/u }),
+      screen.getByRole("heading", { name: /31 Aug 2026 already has a Workout/u }),
     ).toBeVisible();
     expect(screen.getByText("Protected")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Replace Club ride/u })).not.toBeInTheDocument();
-    const recommendedButtons = screen.getAllByRole("button", { name: /Use Sep 1, 2026/u });
+    const recommendedButtons = screen.getAllByRole("button", { name: /Use 1 Sept 2026/u });
     await user.click(recommendedButtons[recommendedButtons.length - 1]!);
     expect(planActions.resolvePlanningRequestDate).toHaveBeenCalledWith(requestId, {
       kind: "use-date",
@@ -2253,7 +2253,7 @@ describe("Plan surface", () => {
     const date = screen.getByLabelText("Date");
     await user.clear(date);
     await user.type(date, "2026-09-02");
-    await user.click(screen.getByRole("button", { name: /Use Sep 2, 2026/u }));
+    await user.click(screen.getByRole("button", { name: /Use 2 Sept 2026/u }));
     expect(planActions.resolvePlanningRequestDate).toHaveBeenLastCalledWith(requestId, {
       kind: "use-date",
       date: "2026-09-02",

@@ -305,7 +305,7 @@ function setRideImport(next: RideImportState): void {
 async function openFirstRide(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(
     screen.getByRole("button", {
-      name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+      name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
     }),
   );
 }
@@ -358,7 +358,7 @@ describe("training landing page", () => {
     render(<TrainingView />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Training" })).toBeInTheDocument();
-    expect(screen.getByText("Jul 6–12")).toBeInTheDocument();
+    expect(screen.getByText("6 Jul–12")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import ride files" })).toBeInTheDocument();
     expect(
       [...document.querySelectorAll("[data-panel]")].map((node) => node.getAttribute("data-panel")),
@@ -381,9 +381,9 @@ describe("training landing page", () => {
   });
 
   it.each([
-    ["en-US", "1998-07-06", "1998-07-12", "Jul 6–12"],
-    ["en-US", "1998-06-29", "1998-07-05", "Jun 29–Jul 5"],
-    ["en-US", "1997-12-29", "1998-01-04", "Dec 29, 1997–Jan 4, 1998"],
+    ["en-US", "1998-07-06", "1998-07-12", "6 Jul–12"],
+    ["en-US", "1998-06-29", "1998-07-05", "29 Jun–5 Jul"],
+    ["en-US", "1997-12-29", "1998-01-04", "29 Dec 1997–4 Jan 1998"],
     ["en-GB", "1998-07-06", "1998-07-12", "6 Jul–12"],
     ["en-GB", "1998-06-29", "1998-07-05", "29 Jun–5 Jul"],
     ["en-GB", "1997-12-29", "1998-01-04", "29 Dec 1997–4 Jan 1998"],
@@ -441,7 +441,7 @@ describe("training landing page", () => {
     expect(current).toHaveAttribute("aria-pressed", "false");
     expect(previous).toBeDisabled();
     expect(next).toBeEnabled();
-    expect(screen.getByText("Jun 29–Jul 5")).toBeInTheDocument();
+    expect(screen.getByText("29 Jun–5 Jul")).toBeInTheDocument();
     expect(document.querySelector('[data-parity="rides-previous-week"]')).not.toBeInTheDocument();
     const periodStatus = screen
       .getAllByRole("status")
@@ -553,8 +553,8 @@ describe("training landing page", () => {
     const table = within(figure).getByRole("table", {
       name: "Weekly time 6 weeks",
     });
-    expect(within(figure).getByText("6/15")).toBeInTheDocument();
-    expect(within(table).getByText("Jun 15, 1998 to Jun 21, 1998")).toBeInTheDocument();
+    expect(within(figure).getByText("15/06")).toBeInTheDocument();
+    expect(within(table).getByText("15 Jun 1998 to 21 Jun 1998")).toBeInTheDocument();
     expect(within(table).getByText("0 rides")).toBeInTheDocument();
     expect(within(table).getByText("0m")).toBeInTheDocument();
   });
@@ -582,7 +582,7 @@ describe("training landing page", () => {
 
     const recent = screen.getByRole("region", { name: "Recent rides" });
     const firstRide = within(recent).getByRole("button", {
-      name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+      name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
     });
     const rideDay = firstRide.querySelector('[data-parity="ride-day"]');
     const rideMeta = firstRide.querySelector('[data-parity="ride-meta"]');
@@ -618,7 +618,7 @@ describe("training landing page", () => {
     expect(rideStats?.children[1]).toHaveTextContent("Load 91");
     expect(rideStats?.children[1]).not.toHaveClass("max-[761px]:hidden");
     const reason = within(firstRide).getByText(
-      "Longest recorded ride in the 28 days ending Jul 9, 1998",
+      "Longest recorded ride in the 28 days ending 9 Jul 1998",
     );
     expect(reason.previousElementSibling).toBe(rideMeta);
     expect(reason).toHaveClass(
@@ -632,12 +632,12 @@ describe("training landing page", () => {
     );
     expect(reason).toHaveAttribute(
       "title",
-      "Longest recorded ride in the 28 days ending Jul 9, 1998",
+      "Longest recorded ride in the 28 days ending 9 Jul 1998",
     );
     const arrow = firstRide.lastElementChild;
     expect(arrow).toHaveClass("text-base", "leading-4", "text-ink-3");
     const indoorRide = within(recent).getByRole("button", {
-      name: "Open ride review: Indoor ride, Jul 8, 1998",
+      name: "Open ride review: Indoor ride, 8 Jul 1998",
     });
     expect(indoorRide.querySelector('[data-parity="ride-day"]')).toHaveTextContent("Wed8");
     expect(indoorRide.querySelector('[data-parity="ride-meta"]')).toHaveTextContent(
@@ -659,7 +659,7 @@ describe("training landing page", () => {
     expect(
       within(screen.getByRole("region", { name: "Recent rides" }))
         .getByRole("button", {
-          name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+          name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
         })
         .querySelector('[data-parity="ride-meta"]'),
     ).toHaveTextContent("Road · 26.2 mi");
@@ -737,7 +737,7 @@ describe("ride review", () => {
     const user = userEvent.setup();
     render(<TrainingView />);
     const opener = screen.getByRole("button", {
-      name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+      name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
     });
     opener.focus();
 
@@ -747,7 +747,7 @@ describe("ride review", () => {
     await user.click(screen.getByRole("button", { name: "Back to training" }));
     expect(
       screen.getByRole("button", {
-        name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+        name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
       }),
     ).toHaveFocus();
   });
@@ -760,11 +760,11 @@ describe("ride review", () => {
     render(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
-        name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+        name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
       }),
     );
 
-    expect(screen.getByText("Jul 9, 1998")).toBeInTheDocument();
+    expect(screen.getByText("9 Jul 1998")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back to training" })).toHaveClass(
       "h-ctl-sm",
       "px-ctl-px-sm",
@@ -777,7 +777,7 @@ describe("ride review", () => {
     const eyebrow = within(overview).getByText("Road ride");
     expect(eyebrow).toHaveClass("m-0", "font-semibold");
     expect(eyebrow).not.toHaveClass("mb-2", "font-medium");
-    const reviewDate = within(overview).getByText("Jul 9, 1998 · 10:00 PM");
+    const reviewDate = within(overview).getByText("9 Jul 1998 · 10:00 PM");
     expect(reviewDate).toBeInTheDocument();
     expect(reviewDate).toHaveAttribute("datetime", "1998-07-09");
     expect(within(overview).getByText("1h 25m")).toBeInTheDocument();
@@ -848,7 +848,7 @@ describe("ride review", () => {
     render(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
-        name: "Open ride review: Indoor ride, Jul 8, 1998",
+        name: "Open ride review: Indoor ride, 8 Jul 1998",
       }),
     );
 
@@ -1185,7 +1185,7 @@ describe("ride review", () => {
     render(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
-        name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+        name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
       }),
     );
     await user.click(screen.getByText("Recorded analysis"));
@@ -1199,7 +1199,7 @@ describe("ride review", () => {
     render(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
-        name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
+        name: "Open ride review: River tempo, 9 Jul 1998 · 10:00 PM",
       }),
     );
     const withoutFirst = week("anchor", {
@@ -1455,19 +1455,19 @@ describe("training history states and import status", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "This week" })).not.toBeInTheDocument();
     expect(screen.queryByText("Worth a look")).not.toBeInTheDocument();
-    expect(screen.getByText("Recorded through Jul 12, 1998").tagName).toBe("STRONG");
+    expect(screen.getByText("Recorded through 12 Jul 1998").tagName).toBe("STRONG");
     expect(screen.getByRole("region", { name: "Recorded rides" })).toBeInTheDocument();
     const notice = screen
       .getByText("Training could not be refreshed. Showing the last recorded data.")
       .closest('[data-tone="warning"]');
-    expect(notice).toHaveTextContent("Recorded through Jul 12, 1998");
+    expect(notice).toHaveTextContent("Recorded through 12 Jul 1998");
   });
 
   it("leads a complete last-recorded notice with its recorded-through date", () => {
     setTraining(ready(history({ displayMode: "last-recorded" })));
     render(<TrainingView />);
 
-    const coverage = screen.getByText("Recorded through Jul 12, 1998");
+    const coverage = screen.getByText("Recorded through 12 Jul 1998");
     const notice = screen.getByText("Training may be out of date.");
     expect(coverage.tagName).toBe("STRONG");
     expect(coverage.parentElement).toBe(notice);
@@ -1497,7 +1497,7 @@ describe("training history states and import status", () => {
     useEnduragentStore.setState({ training: ready(panel) });
     render(<TrainingView />);
 
-    expect(screen.getByText("Recorded through Jul 9, 1998")).toBeInTheDocument();
+    expect(screen.getByText("Recorded through 9 Jul 1998")).toBeInTheDocument();
     expect(
       screen.getByText("Training may be out of date, and some rides may be missing."),
     ).toBeInTheDocument();

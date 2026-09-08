@@ -386,7 +386,8 @@ describe("Plan Change operations", () => {
           id: "confirmed-limits",
           label: "Confirmed Plan limits",
           source: "Your confirmed answers",
-          value: { kind: "longest-workout", minutes: 30 },
+          value:
+            "Up to 8 h a week, longest Workout 3 h, Tue, Thu, Sat · No fixed commitments · No training restrictions",
         },
       ],
     });
@@ -678,7 +679,7 @@ describe("confirmed inverse Changes", () => {
         undo: null,
         intent: { kind: "inverse", changeId: forward.change.changeId },
         premises: [
-          { id: "confirmed-limits", value: { kind: "inverse", changeId: forward.change.changeId } },
+          { id: "confirmed-limits", value: expect.stringContaining("No training restrictions") },
           {
             id: "undone-change",
             value: { changeId: forward.change.changeId, title: forward.change.title },

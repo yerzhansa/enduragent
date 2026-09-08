@@ -507,8 +507,8 @@ for (const appearance of [
       await scenario.page.getByLabel("Event date", { exact: true }).fill("1998-11-08");
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
       await waitForVersion(scenario.backend, 2);
-      await cancelAuthoredEdit("Goal", '[data-parity="custom.textarea"]', "schedule-mode");
-      await scenario.page.getByRole("button", { name: "Edit Goal", exact: true }).click();
+      await cancelAuthoredEdit("Main Goal", '[data-parity="custom.textarea"]', "schedule-mode");
+      await scenario.page.getByRole("button", { name: "Edit Main Goal", exact: true }).click();
       await scenario.page.keyboard.press("Escape");
       await expect(
         scenario.page.getByRole("button", { name: "Event not listed", exact: true }),

@@ -538,7 +538,9 @@ for (const appearance of appearances) {
       await expect(details.getByRole("rowheader")).toHaveText([
         "Confirmed Plan limits · Your confirmed answers",
       ]);
-      await expect(details.getByRole("cell")).toHaveText(["Wed · 30 min"]);
+      await expect(details.getByRole("cell")).toHaveText([
+        "Up to 6 h a week, longest Workout 2 h, Mon, Wed, Sat · No fixed commitments · No training restrictions",
+      ]);
       await source.getByRole("button", { name: "Back", exact: true }).click();
       await expect(card.getByRole("button", { name: "View evidence", exact: true })).toBeFocused();
       await expect(source).toHaveCount(0);

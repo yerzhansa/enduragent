@@ -380,12 +380,15 @@ for (const appearance of [
           })
           .click();
         await assertActivated(scenario, reviewed, before);
-        const activationStatus =
-          "Improve fitness is active. Connect intervals.icu to mirror Workouts.";
+        const activeCard = scenario.page.getByRole("region", {
+          name: "Improve fitness",
+          exact: true,
+        });
+        await expect(activeCard).toContainText("Improve fitness");
         await expect(
-          scenario.page.getByRole("status").filter({ hasText: activationStatus }),
+          activeCard.getByText("Connect to mirror Workouts", { exact: true }),
         ).toBeVisible();
-        await expect(scenario.page.getByText(activationStatus, { exact: true })).toHaveCount(1);
+        await expect(scenario.page.getByText("Plan activated locally.")).toHaveCount(0);
         const request = scenario.backend.creationRequests.at(-1);
         expect(request).toMatchObject({
           method: "plan_creation.activate",

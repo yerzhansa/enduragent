@@ -1,4 +1,5 @@
-import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
+import { formatCivilDate } from "../../lib/date";
+import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
@@ -16,6 +17,11 @@ import { Card, CardContent } from "@enduragent/ui";
 import { PlanCreationDraftCards, PlanCreationCommitmentCard } from "./PlanCreationDraftCards";
 import { PlanCreationSummary } from "./PlanCreationSummary";
 import { Notice } from "./Notice";
+
+const discardDialogCopy =
+  "Your answers are discarded. Your active Plan, Schedule, restrictions, saved preferences, and history stay unchanged.";
+const discardConsequenceCopy =
+  "No Plan was created. Your active Plan, Schedule, training restrictions, saved preferences, and chat history are unchanged.";
 
 export function PlanCreationDiscardDialog(): ReactElement {
   const open = useEnduragentStore((state) => state.chat.planCreationDiscardConfirmationOpen);
@@ -48,10 +54,7 @@ export function PlanCreationDiscardDialog(): ReactElement {
           <DialogTitle className="mt-0 mb-inset text-lg font-semibold">
             Discard this Plan creation?
           </DialogTitle>
-          <DialogDescription className="m-0 leading-5">
-            No Plan is created. Your active Plan, Schedule, training restrictions, closed Plans,
-            saved preferences, and chat history are unchanged.
-          </DialogDescription>
+          <DialogDescription className="m-0 leading-5">{discardDialogCopy}</DialogDescription>
         </DialogHeader>
         {error === null ? null : (
           <p className="mt-inset mb-0 text-xs text-danger" role="alert">
@@ -84,19 +87,6 @@ export function PlanCreationDiscardDialog(): ReactElement {
       </DialogContent>
     </Dialog>
   );
-}
-
-function calendarWindowEnd(endDate: string): string {
-  const year = Number(endDate.slice(0, 4));
-  const month = Number(endDate.slice(5, 7));
-  const day = Number(endDate.slice(8, 10));
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
 }
 
 export function PlanCreationActivateDialog(): ReactElement | null {
@@ -174,7 +164,7 @@ export function PlanCreationActivateDialog(): ReactElement | null {
           {connection === "checking" ? null : (
             <p className="mt-inset mb-0 text-sm leading-5 text-ink-2">
               {calendarWindow !== null
-                ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${calendarWindowEnd(calendarWindow.endDate)}.`
+                ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${formatCivilDate(calendarWindow.endDate)}.`
                 : "Calendar updates wait until intervals.icu is connected."}
             </p>
           )}
@@ -271,29 +261,15 @@ export function PlanCreationDock(props: {
 
 export function PlanCreationConversation(props: {
   readonly model: PlanCreationCardModel | null;
-}): ReactElement {
+}): ReactElement | null {
+  if (props.model === null) return null;
   return (
     <section className="grid min-w-0 gap-4" aria-label="Plan creation">
       <Notice inPlanCreation />
-      {props.model === null ? null : <PlanCreationCommitmentCard model={props.model} />}
+      <PlanCreationCommitmentCard model={props.model} />
       <PlanCreationConversationContent model={props.model} />
     </section>
   );
-}
-
-function activationNotice(library: ListPlansResult | null): string {
-  const active = library?.active ?? null;
-  if (active === null) return "Plan activated locally.";
-  const calendar = active.calendar;
-  const status =
-    calendar.status === "not-connected"
-      ? "Connect intervals.icu to mirror Workouts."
-      : calendar.status === "verified"
-        ? "Calendar is up to date."
-        : calendar.status === "failed"
-          ? "Calendar update failed; see the Plan library."
-          : "Calendar Workouts are being added.";
-  return `${active.name} is active. ${status}`;
 }
 
 function PlanCreationConversationContent(props: {
@@ -302,13 +278,7 @@ function PlanCreationConversationContent(props: {
   const [editVersion, setEditVersion] = useState<number | null>(null);
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const actions = useEnduragentStore((state) => state.chatActions);
-  const library = useEnduragentStore((state) => state.planLibrary.value);
-  if (props.model === null)
-    return (
-      <p role="status" className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink">
-        {activationNotice(library)}
-      </p>
-    );
+  if (props.model === null) return null;
   const model = props.model;
   if (model.draft === null) return <PlanCreationSummary model={model} />;
   if (editVersion === model.version)
@@ -360,10 +330,7 @@ export function PlanCreationDiscardConsequence(props: { readonly eventId: string
       data-parity="discarded.record"
     >
       <strong className="text-sm font-semibold leading-5">Plan creation discarded</strong>
-      <p className="mt-1 mb-0 text-xs leading-4 text-ink-2">
-        No Plan was created. Your active Plan, Schedule, training restrictions, saved preferences,
-        and chat history are unchanged.
-      </p>
+      <p className="mt-1 mb-0 text-xs leading-4 text-ink-2">{discardConsequenceCopy}</p>
     </article>
   );
 }

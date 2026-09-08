@@ -299,7 +299,6 @@ describe("Plan Creation operations", () => {
     expect(projectPlanCreationCard(test.current(), { today }).openQuestion).toMatchObject({
       kind: "goal-question",
       step: { current: 1, total: 9 },
-      authoredOption: { detail: "Answer in your own words." },
     });
     const answers = [
       eventGoal,
@@ -336,11 +335,11 @@ describe("Plan Creation operations", () => {
         { answerKey: "schedule-mode" },
         {
           answerKey: "availability",
-          detail: "Up to 8 h a week, longest Workout 3 h, Tue Thu Sat",
+          detail: "Up to 8 h a week, longest Workout 3 h, Tue, Thu, Sat",
         },
         { answerKey: "start-timing" },
-        { answerKey: "commitments" },
-        { answerKey: "baseline" },
+        { answerKey: "commitments", detail: "No fixed commitments" },
+        { answerKey: "baseline", title: "Recent training", detail: "Regular" },
         { answerKey: "success" },
         { answerKey: "restriction", detail: "No training restrictions" },
       ],
@@ -365,7 +364,7 @@ describe("Plan Creation operations", () => {
           kind: "restriction",
           restriction: { kind: "no-training", endDate: "1998-09-14" },
         },
-        "No training until 1998-09-14",
+        "No training until 14 Sept 1998",
       ],
       [{ kind: "restriction", restriction: { kind: "no-hard-training" } }, "No hard training"],
       [
@@ -373,7 +372,7 @@ describe("Plan Creation operations", () => {
           kind: "restriction",
           restriction: { kind: "no-hard-training", endDate: "1998-09-14" },
         },
-        "No hard training until 1998-09-14",
+        "No hard training until 14 Sept 1998",
       ],
       [
         { kind: "restriction", restriction: { kind: "max-duration", hours: 1.5 } },
@@ -384,7 +383,7 @@ describe("Plan Creation operations", () => {
           kind: "restriction",
           restriction: { kind: "max-duration", hours: 1.5, endDate: "1998-09-14" },
         },
-        "Maximum Workout duration 1.5 h until 1998-09-14",
+        "Maximum Workout duration 1.5 h until 14 Sept 1998",
       ],
     ];
     for (const [answer, detail] of cases) {
@@ -434,9 +433,9 @@ describe("Plan Creation operations", () => {
           mode: "flexible",
           derivedPoolNote: expect.stringContaining("3 Workouts up to 6 h"),
           weeklyHoursOptions: [
-            { detail: "Up to about six hours of riding a week." },
-            { detail: "Up to about eight hours of riding a week." },
-            { detail: "About nine hours or more of riding a week." },
+            { id: "hours-6", weeklyHoursLimit: 6, label: "5–6 hours" },
+            { id: "hours-8", weeklyHoursLimit: 8, label: "7–8 hours" },
+            { id: "hours-10", weeklyHoursLimit: 10, label: "9–10 hours" },
           ],
         });
       }
@@ -2526,7 +2525,7 @@ VALUES (?,'active',1,1,882748800000,882748800000,'test-device',882748800000,0)`,
     expect(
       confirmed.answeredSummaries.find((answer) => answer.answerKey === "commitments")?.detail,
     ).toBe(
-      "Wed · at most 45 min; Sat · unavailable; Mon · no hard training; Off 3 Sep 1998 to 9 Sep 1998",
+      "Wed · at most 45 min; Sat · unavailable; Mon · no hard training; Off 3 Sept 1998 to 9 Sept 1998",
     );
   });
 

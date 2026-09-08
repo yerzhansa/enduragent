@@ -199,12 +199,12 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   );
   await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  const activeCard = scenario.page.getByRole("region", { name: "Improve fitness", exact: true });
+  await expect(activeCard).toContainText("Improve fitness");
   await expect(
-    scenario.page.getByRole("status").filter({
-      hasText: connected
-        ? /^Improve fitness is active\. Calendar (is up to date|Workouts are being added)\.$/
-        : "Improve fitness is active. Connect intervals.icu to mirror Workouts.",
-    }),
+    activeCard.getByText(
+      connected ? /Calendar up to date|Updating calendar/ : "Connect to mirror Workouts",
+    ),
   ).toBeVisible();
 }
 

@@ -1,3 +1,5 @@
+import { calendarStatusLabel } from "../plan/PlanLibrary";
+import { formatCivilDate } from "../../lib/date";
 import type {
   ListPlansResult,
   PlanChangeIntent,
@@ -12,7 +14,7 @@ import {
 } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent, CardHeader } from "@enduragent/ui";
+import { Fact, PlanCard } from "../plan/plan-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -47,90 +49,19 @@ function ChangeCard(props: {
   children: ReactNode;
 }): ReactElement {
   return (
-    <Card
-      size="sm"
-      className="block min-w-0 gap-[normal] py-0"
-      role="region"
+    <PlanCard
+      {...props}
       aria-label={props.title}
-    >
-      <CardHeader className="block rounded-none p-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0 justify-self-start">
-            <p
-              data-plan-card-eyebrow
-              className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
-            >
-              {props.eyebrow}
-            </p>
-            <h3
-              data-plan-card-title
-              ref={props.headingRef}
-              tabIndex={-1}
-              className="m-0 text-base leading-6 font-semibold break-words"
-            >
-              {props.title}
-            </h3>
-          </div>
-          {props.status ? (
-            <span
-              data-plan-card-status
-              className="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] text-xs font-normal whitespace-nowrap text-ink-2"
-            >
-              {props.status}
-            </span>
-          ) : null}
-        </div>
-        {props.summary ? (
-          <p data-plan-card-summary className="mt-inset mb-0 text-sm leading-5 text-ink-2">
-            {props.summary}
-          </p>
-        ) : null}
-      </CardHeader>
-      <CardContent className="px-4 pt-0 pb-4">{props.children}</CardContent>
-    </Card>
-  );
-}
-
-function Fact(props: { label: string; children: ReactNode }): ReactElement {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] max-md:grid-cols-1 max-md:gap-1"
-    >
-      <span role="rowheader" className="text-xs leading-4 text-ink-2">
-        {props.label}
-      </span>
-      <div
-        role="cell"
-        className="text-right text-sm leading-5 font-medium [overflow-wrap:anywhere] max-md:text-left"
-      >
-        {props.children}
-      </div>
-    </div>
+      headingTabIndex={-1}
+      statusClassName="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] text-xs font-normal whitespace-nowrap text-ink-2"
+    />
   );
 }
 
 function workoutValue(workout: PlanChangeWorkout | null): string {
   if (workout === null) return "Not in Plan";
-  const date =
-    workout.date === null
-      ? "Undated"
-      : new Intl.DateTimeFormat("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        }).format(new Date(`${workout.date}T12:00:00Z`));
+  const date = workout.date === null ? "Undated" : formatCivilDate(workout.date);
   return `${date} · ${workout.minutes} min${workout.power === null ? "" : ` · ${workout.power} W`}`;
-}
-
-function eventDate(date: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T12:00:00Z`));
 }
 
 function SupportingEventFacts({
@@ -143,14 +74,14 @@ function SupportingEventFacts({
   const events = supportingEventDifference(library, change);
   return (
     <>
-      <Fact label="Supporting Events before">
+      <Fact valueAs="div" label="Supporting Events before">
         {events.before
-          .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
           .join("; ") || "None"}
       </Fact>
-      <Fact label="Supporting Events after">
+      <Fact valueAs="div" label="Supporting Events after">
         {events.after
-          .map((event) => `${event.name} · ${eventDate(event.date)} · ${event.role}`)
+          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
           .join("; ") || "None"}
       </Fact>
     </>
@@ -192,7 +123,11 @@ function Difference({
         aria-label="Affected individual Workouts"
       >
         {change.diff.map((row) => (
-          <Fact key={row.workoutId} label={row.before?.name ?? row.after?.name ?? "Workout"}>
+          <Fact
+            valueAs="div"
+            key={row.workoutId}
+            label={row.before?.name ?? row.after?.name ?? "Workout"}
+          >
             {workoutValue(row.before)} → {workoutValue(row.after)}
             {row.before && row.after && row.before.name !== row.after.name
               ? ` · ${row.after.name}`
@@ -205,11 +140,11 @@ function Difference({
         className="border-t border-line [&+[role=table]]:border-t-0"
         aria-label="Before and after totals"
       >
-        <Fact label="Plan totals">
+        <Fact valueAs="div" label="Plan totals">
           {change.totals.before.plan} min → {change.totals.after.plan} min
         </Fact>
         {weekNumbers.map((number) => (
-          <Fact key={number} label={`Week ${number}`}>
+          <Fact valueAs="div" key={number} label={`Week ${number}`}>
             {change.totals.before.weeks.find((week) => week.number === number)?.minutes ??
               "Not in Plan"}{" "}
             min →{" "}
@@ -227,13 +162,16 @@ function Difference({
 }
 
 function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
+  if (premise.id === "confirmed-limits") {
+    return typeof premise.value === "string" && premise.value.trim() ? premise.value : null;
+  }
   if (premise.id === "request") {
     const parsed = PlanChangeRequestSchema.safeParse(premise.value);
     if (parsed.success && parsed.data.kind === "text") return parsed.data.text;
   }
   if (premise.id === "ftp-sources") {
     const parsed = PlanChangeFtpSourcesSchema.safeParse(premise.value);
-    if (!parsed.success) return premise.label;
+    if (!parsed.success) return null;
     const labels = {
       manual: "Saved athlete FTP",
       "intervals-ftp": "Intervals.icu FTP",
@@ -256,8 +194,8 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
   if (premise.id === "event-source") {
     const parsed = PlanChangeEventSourceSchema.safeParse(premise.value);
     return parsed.success
-      ? `${parsed.data.name} · ${eventDate(parsed.data.date)} · ${parsed.data.category}`
-      : premise.label;
+      ? `${parsed.data.name} · ${formatCivilDate(parsed.data.date)} · ${parsed.data.category}`
+      : null;
   }
   if (premise.id === "undone-change") {
     const value = premise.value;
@@ -266,10 +204,10 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
       "title" in value &&
       typeof value.title === "string"
       ? value.title
-      : premise.label;
+      : null;
   }
   const parsed = PlanChangeIntentSchema.safeParse(premise.value);
-  if (!parsed.success) return premise.label;
+  if (!parsed.success) return null;
   const intent = parsed.data;
   switch (intent.kind) {
     case "weekday-duration":
@@ -285,7 +223,7 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
     case "choose-workout":
     case "inverse":
     case "supporting-event":
-      return premise.label;
+      return null;
     case "ftp":
       return `${intent.watts} W`;
   }
@@ -553,12 +491,17 @@ export function PlanChangeCards(): ReactElement | null {
       <ChangeCard
         eyebrow="Active Plan"
         title={library.active.name}
-        summary={
+        summary={`${
           library.creation
             ? "Your separate Plan creation is still open."
             : "Changes affect future, uncompleted training."
-        }
+        }${library.active.calendar.status === "verified" ? " · Calendar up to date" : ""}`}
       >
+        {library.active.calendar.status === "verified" ? null : (
+          <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
+            {calendarStatusLabel(library.active.calendar)}
+          </p>
+        )}
         <div className="flex flex-wrap gap-inset">
           <Button
             ref={changeButton}
@@ -648,9 +591,13 @@ export function PlanChangeCards(): ReactElement | null {
             className="border-t border-line [&+[role=table]]:border-t-0"
             aria-label="Facts"
           >
-            <Fact label="Main Goal">{library.active.name}</Fact>
+            <Fact valueAs="div" label="Main Goal">
+              {library.active.name}
+            </Fact>
             <SupportingEventFacts change={pending} library={library} />
-            <Fact label="Confidence">{pending.confidence}</Fact>
+            <Fact valueAs="div" label="Confidence">
+              {pending.confidence}
+            </Fact>
           </div>
           <div>
             <Button
@@ -734,11 +681,14 @@ export function PlanChangeCards(): ReactElement | null {
             className="border-t border-line [&+[role=table]]:border-t-0"
             aria-label="Source details"
           >
-            {source.change.premises.map((premise) => (
-              <Fact key={premise.id} label={`${premise.label} · ${premise.source}`}>
-                {premiseValue(premise)}
-              </Fact>
-            ))}
+            {source.change.premises.map((premise) => {
+              const value = premiseValue(premise);
+              return value === null ? null : (
+                <Fact valueAs="div" key={premise.id} label={`${premise.label} · ${premise.source}`}>
+                  {value}
+                </Fact>
+              );
+            })}
           </div>
           <div className="mt-row flex flex-wrap gap-inset">
             <Button

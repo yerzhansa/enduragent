@@ -217,7 +217,7 @@ describe("resident ride import glue", () => {
     expect(screen.queryByText("Training history is not available yet.")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Open ride review: Road ride, Jul 9, 1998 · 4:00 PM",
+        name: "Open ride review: Road ride, 9 Jul 1998 · 4:00 PM",
       }),
     ).toBeInTheDocument();
   });

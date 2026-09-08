@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";
+import { PlanChangeCards } from "../src/ui/chat/PlanChangeCards";
 import { PlanCreationConversation } from "../src/ui/chat/PlanCreationCards";
 
 const emptyLibrary: ListPlansResult = {
@@ -18,15 +19,15 @@ const emptyLibrary: ListPlansResult = {
 const calendarCases = [
   {
     calendar: { status: "not-connected", window: null, currentThrough: null, error: null },
-    sentence: "Connect intervals.icu to mirror Workouts.",
+    sentence: "Connect to mirror Workouts",
   },
   {
     calendar: { status: "pending", window: null, currentThrough: null, error: null },
-    sentence: "Calendar Workouts are being added.",
+    sentence: "Local only",
   },
   {
     calendar: { status: "running", window: null, currentThrough: null, error: null },
-    sentence: "Calendar Workouts are being added.",
+    sentence: "Updating calendar",
   },
   {
     calendar: {
@@ -35,7 +36,7 @@ const calendarCases = [
       currentThrough: "1998-10-04",
       error: null,
     },
-    sentence: "Calendar is up to date.",
+    sentence: "Calendar up to date",
   },
   {
     calendar: {
@@ -44,7 +45,7 @@ const calendarCases = [
       currentThrough: null,
       error: "Calendar update unavailable",
     },
-    sentence: "Calendar update failed; see the Plan library.",
+    sentence: "Calendar sync failed.",
   },
 ] satisfies readonly { calendar: PlanCalendarStatus; sentence: string }[];
 
@@ -85,18 +86,18 @@ describe("Plan creation activation status", () => {
         },
       });
 
-      render(<PlanCreationConversation model={null} />);
+      render(<PlanChangeCards />);
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-        `Build steady power is active. ${sentence}`,
+      expect(screen.getByRole("region", { name: "Build steady power" })).toHaveTextContent(
+        sentence,
       );
       expect(screen.queryByText("Plan activated locally.")).not.toBeInTheDocument();
     },
   );
 
-  it("keeps the local activation status until an active Plan is available", () => {
-    render(<PlanCreationConversation model={null} />);
+  it("renders no transcript content after activation", () => {
+    const { container } = render(<PlanCreationConversation model={null} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Plan activated locally.");
+    expect(container).toBeEmptyDOMElement();
   });
 });

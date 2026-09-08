@@ -4495,15 +4495,7 @@ export function PlanView(): ReactElement {
     ? "Loading…"
     : historyPage
       ? `${activeData.plan.name} · active Plan · mutation and recovery log`
-      : activeOverview && activeData !== null
-        ? `${activeData.plan.name}${
-            activeData.plan.targetDate === null
-              ? ""
-              : ` · ${formatCivilDate(activeData.plan.targetDate)}`
-          } · Active`
-        : model?.lifecycle === "none"
-          ? "No active plan"
-          : undefined;
+      : undefined;
 
   useEffect(() => {
     if (returnFocusId === null || finalDetails.status !== "library") return;

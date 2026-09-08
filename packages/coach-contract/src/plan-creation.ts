@@ -287,7 +287,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
         .object({
           label: z.literal("Event not listed"),
           detail: z.string().min(1).max(240),
-          editorLabel: z.string().min(1).max(240),
+          editorLabel: z.string().min(1).max(240).optional(),
           placeholder: z.string().min(1).max(240),
           nameLabel: z.string().min(1).max(128),
           dateLabel: z.string().min(1).max(128),
@@ -299,7 +299,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
           detail: z.string().min(1).max(240),
         })
         .strict(),
-      authoredOption: PlanCreationAuthoredOptionSchema,
+      authoredOption: PlanCreationAuthoredOptionSchema.optional(),
     })
     .strict(),
   z
@@ -363,7 +363,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
             .object({
               weeks: PlanCreationPlanLengthWeeksSchema,
               label: z.string().min(1).max(128),
-              detail: z.string().min(1).max(240),
+              detail: z.string().min(1).max(240).optional(),
             })
             .strict(),
         )
@@ -439,7 +439,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
               id: z.enum(["hours-6", "hours-8", "hours-10"]),
               weeklyHoursLimit: z.union([z.literal(6), z.literal(8), z.literal(10)]),
               label: z.string().min(1).max(128),
-              detail: z.string().min(1).max(240),
+              detail: z.string().min(1).max(240).optional(),
             })
             .strict(),
         )
@@ -472,7 +472,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
             [1, 2, 3, 4, 5, 6, 7],
           ),
         ),
-      derivedPoolNote: z.string().min(1).max(240),
+      derivedPoolNote: z.string().min(1).max(240).optional(),
     })
     .strict(),
   z
@@ -483,7 +483,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
       noneOption: z
         .object({
           label: z.string().min(1).max(128),
-          detail: z.string().min(1).max(240),
+          detail: z.string().min(1).max(240).optional(),
         })
         .strict(),
       authoredOption: PlanCreationAuthoredOptionSchema,
@@ -524,7 +524,7 @@ export const PlanCreationOpenQuestionSchema = z.discriminatedUnion("kind", [
             .object({
               kind: z.enum(["none", "no-training", "no-hard-training", "max-duration"]),
               label: z.string().min(1).max(128),
-              detail: z.string().min(1).max(240),
+              detail: z.string().min(1).max(240).optional(),
             })
             .strict(),
         )

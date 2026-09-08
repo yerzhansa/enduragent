@@ -13,6 +13,7 @@ export function PlanCreationSummary(props: {
   readonly answersOnly?: boolean;
 }): ReactElement {
   const actions = useEnduragentStore((state) => state.chatActions);
+  const library = useEnduragentStore((state) => state.planLibrary.value);
   const paused = useEnduragentStore((state) => state.chat.planCreationPaused);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
@@ -103,7 +104,7 @@ export function PlanCreationSummary(props: {
                   className="inline-flex items-center gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal leading-4 text-ink-2"
                   data-parity="progress.status"
                 >
-                  {ready ? "Ready" : paused ? "Paused" : "In progress"}
+                  {paused ? "Paused" : "In progress"}
                 </span>
               </div>
             </div>
@@ -113,7 +114,7 @@ export function PlanCreationSummary(props: {
             >
               {ready
                 ? "The essentials are complete."
-                : `${props.model.answeredSummaries.length} of ${total} answered.`}
+                : `${props.model.answeredSummaries.length} of ${total} answered.${library === null ? "" : ` ${library.active ? `${library.active.name} keeps running.` : "No Plan is active."}`}`}
             </p>
             <div className="mt-4 flex flex-wrap gap-inset" data-parity="progress.actions">
               <Button

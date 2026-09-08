@@ -1,4 +1,9 @@
 import {
+  availabilityDetail,
+  commitmentsDetail,
+  restrictionDetail,
+} from "./plan-creation-answers.js";
+import {
   PlanChangeModelSchema,
   PlanChangeIntentSchema,
   PlanCloseRpcParamsSchema,
@@ -601,7 +606,16 @@ export function createPlanChangeOperations(input: {
                   id: "confirmed-limits",
                   label: "Confirmed Plan limits",
                   source: "Your confirmed answers",
-                  value: intent,
+                  value: draft.answeredSummaries
+                    .flatMap(({ answer }) => {
+                      if (answer.kind === "availability") return [availabilityDetail(answer)];
+                      if (answer.kind === "restriction")
+                        return [restrictionDetail(answer.restriction)];
+                      if (answer.kind === "commitments")
+                        return [commitmentsDetail(answer.commitments)];
+                      return [];
+                    })
+                    .join(" · "),
                 },
                 ...(intent.kind === "inverse" && newestApplied !== null
                   ? [

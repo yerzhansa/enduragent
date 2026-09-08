@@ -249,7 +249,7 @@ async function openDiscardConfirmation(page: Page) {
   await expect(page.getByRole("heading", { name: "Discard this Plan creation?" })).toBeVisible();
   await expect(
     page.getByText(
-      "No Plan is created. Your active Plan, Schedule, training restrictions, closed Plans, saved preferences, and chat history are unchanged.",
+      "Your answers are discarded. Your active Plan, Schedule, restrictions, saved preferences, and history stay unchanged.",
       { exact: true },
     ),
   ).toBeVisible();

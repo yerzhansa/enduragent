@@ -1,8 +1,9 @@
+import { formatCivilDate } from "../../lib/date";
 import type { LegacyPlanSummary, ListPlansResult, PlanSummary } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";
 import { Button } from "@enduragent/ui";
-import { Card, CardContent, CardHeader } from "@enduragent/ui";
+import { PlanCard } from "./plan-card";
 import {
   Dialog,
   DialogClose,
@@ -16,15 +17,6 @@ import { creationTitle } from "../../plan/creation-title";
 import { requestPlanCalendarRetry } from "../../plan/library-refresh";
 import { useEnduragentStore } from "../../state/store";
 
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}
-
 function LibraryCard(props: {
   readonly eyebrow?: string;
   readonly title: string;
@@ -33,43 +25,32 @@ function LibraryCard(props: {
   readonly children?: ReactNode;
 }): ReactElement {
   return (
-    <Card
-      size="sm"
-      className="block min-w-0 gap-[normal] py-0"
-      role="region"
+    <PlanCard
+      {...props}
       aria-label={props.eyebrow ?? props.title}
-    >
-      <CardHeader className="block rounded-none p-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0 justify-self-start">
-            {props.eyebrow ? (
-              <p
-                data-plan-card-eyebrow
-                className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
-              >
-                {props.eyebrow}
-              </p>
-            ) : null}
-            <h3 data-plan-card-title className="m-0 text-base leading-6 font-semibold break-words">
-              {props.title}
-            </h3>
-          </div>
-          {props.status ? (
-            <span
-              data-plan-card-status
-              className="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2"
-            >
-              {props.status}
-            </span>
-          ) : null}
-        </div>
-        <p data-plan-card-summary className="mt-inset mb-0 text-sm leading-5 text-ink-2">
-          {props.summary}
-        </p>
-      </CardHeader>
-      {props.children ? <CardContent className="p-0">{props.children}</CardContent> : null}
-    </Card>
+      contentClassName="p-0"
+      statusClassName="inline-flex shrink-0 items-center gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2"
+    />
   );
+}
+
+export function calendarStatusLabel(calendar: PlanSummary["calendar"]): string {
+  switch (calendar.status) {
+    case "verified":
+      return calendar.window === null
+        ? "Up to date"
+        : `${formatCivilDate(calendar.window.start)} to ${formatCivilDate(calendar.window.end)} · Up to date`;
+    case "pending":
+      return calendar.window === null ? "Local only" : "Updating calendar";
+    case "running":
+      return "Updating calendar";
+    case "not-connected":
+      return "Connect to mirror Workouts";
+    case "failed":
+      return calendar.error.endsWith("Retry available.")
+        ? "Calendar sync failed. Retry available."
+        : "Calendar sync failed.";
+  }
 }
 
 function CalendarStatus(props: {
@@ -82,7 +63,7 @@ function CalendarStatus(props: {
     return (
       <div className="mx-4 mb-inset grid gap-inset">
         <p role="alert" className="m-0 text-sm text-danger">
-          {retryAvailable ? "Calendar sync failed. Retry available." : "Calendar sync failed."}
+          {calendarStatusLabel(calendar)}
         </p>
         {retryAvailable ? (
           <div>
@@ -99,38 +80,21 @@ function CalendarStatus(props: {
       </div>
     );
   }
-  let label: string;
-  switch (calendar.status) {
-    case "verified":
-      label =
-        calendar.window === null
-          ? "Up to date"
-          : `${dateLabel(calendar.window.start)} to ${dateLabel(calendar.window.end)} · Up to date`;
-      break;
-    case "pending":
-      label = calendar.window === null ? "Local only" : "Updating calendar";
-      break;
-    case "running":
-      label = "Updating calendar";
-      break;
-    case "not-connected":
-      label = "Connect to mirror Workouts";
-      break;
-  }
+
   return (
     <p role="status" className="mx-4 mt-0 mb-inset text-sm leading-5 text-ink-2">
-      Calendar · {label}
+      Calendar · {calendarStatusLabel(calendar)}
     </p>
   );
 }
 
 function spanLabel(plan: PlanSummary): string {
-  return `${dateLabel(plan.start)} to ${dateLabel(plan.end)} · ${plan.weeks} weeks`;
+  return `${formatCivilDate(plan.start)} to ${formatCivilDate(plan.end)} · ${plan.weeks} weeks`;
 }
 
 function legacySummary(legacy: LegacyPlanSummary): string {
   const parts: string[] = [];
-  if (legacy.targetDate !== null) parts.push(`Target ${dateLabel(legacy.targetDate)}`);
+  if (legacy.targetDate !== null) parts.push(`Target ${formatCivilDate(legacy.targetDate)}`);
   if (legacy.weeks !== null) parts.push(`${legacy.weeks} ${legacy.weeks === 1 ? "week" : "weeks"}`);
   if (legacy.goal !== null) parts.push(`Goal: ${legacy.goal}`);
   parts.push("Unknown reason");
