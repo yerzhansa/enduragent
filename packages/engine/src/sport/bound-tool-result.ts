@@ -1,7 +1,7 @@
 import type { SourceProvenance } from "../provenance.js";
 
-const BOUND_PROVENANCE = Symbol("bound-tool-result-provenance");
-const BOUND_VALUE = Symbol("bound-tool-result-value");
+const BOUND_PROVENANCE = Symbol.for("enduragent.bound-tool-result.provenance");
+const BOUND_VALUE = Symbol.for("enduragent.bound-tool-result.value");
 
 interface BoundToolResult {
   readonly [BOUND_PROVENANCE]: SourceProvenance;

@@ -50,7 +50,7 @@ function makeSport(log: ToolCallLog): Sport {
       const fetchSchema = z.object({ days: z.number() });
       return [
         {
-          name: "memory_query",
+          name: "memory_read",
           description: "Reads a memory section.",
           inputSchema: readSchema,
           tool: tool({
@@ -169,7 +169,7 @@ describe("codex-agent MCP endpoint", () => {
       const listed = await client.listTools();
       expect(listed.tools.map((entry) => entry.name).sort()).toEqual(Object.keys(tools).sort());
       expect(endpoint.toolNames.slice().sort()).toEqual(Object.keys(tools).sort());
-      const read = listed.tools.find((entry) => entry.name === "memory_query");
+      const read = listed.tools.find((entry) => entry.name === "memory_read");
       expect(read?.description).toBe("Reads a memory section.");
       expect(Object.keys(read?.inputSchema.properties ?? {})).toContain("section");
       expect(CODEX_MCP_SERVER_NAME).toBe("enduragent");
@@ -184,11 +184,11 @@ describe("codex-agent MCP endpoint", () => {
       client = await connectClient(endpoint, endpoint.bearerToken);
 
       const first = await client.callTool({
-        name: "memory_query",
+        name: "memory_read",
         arguments: { section: "cycling-profile" },
       });
       const second = await client.callTool({
-        name: "memory_query",
+        name: "memory_read",
         arguments: { section: "cycling-profile" },
       });
       expect(log.reads).toEqual(["cycling-profile"]);
@@ -219,11 +219,11 @@ describe("codex-agent MCP endpoint", () => {
       client = await connectClient(endpoint, endpoint.bearerToken);
 
       const result = await client.callTool({
-        name: "memory_query",
+        name: "memory_read",
         arguments: { section: 42 },
       });
       expect(result.isError).toBe(true);
-      expect(resultText(result)).toContain("memory_query");
+      expect(resultText(result)).toContain("memory_read");
       expect(log.reads).toEqual([]);
     },
     TEST_TIMEOUT_MS,
@@ -236,10 +236,10 @@ describe("codex-agent MCP endpoint", () => {
         tools: wrappedTools(dataDir, log),
         ctx,
       });
-      const read = definitions.find((definition) => definition.name === "memory_query");
+      const read = definitions.find((definition) => definition.name === "memory_read");
       const invalid = await read?.execute({ section: 42 });
       expect(invalid?.isError).toBe(true);
-      expect(invalid?.content[0]?.text).toContain('Invalid arguments for tool "memory_query"');
+      expect(invalid?.content[0]?.text).toContain('Invalid arguments for tool "memory_read"');
       expect(log.reads).toEqual([]);
 
       const valid = await read?.execute({ section: "cycling-profile" });
@@ -258,7 +258,7 @@ describe("codex-agent MCP endpoint", () => {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
-        params: { name: "memory_query", arguments: { section: "cycling-profile" } },
+        params: { name: "memory_read", arguments: { section: "cycling-profile" } },
       });
       const headerVariants: (Record<string, string> | undefined)[] = [
         undefined,

@@ -34,7 +34,6 @@ import type {
 import type { Sport, SportRuntimePorts } from "../sport.js";
 import { messageText } from "../sport/model-message.js";
 import { getEffectiveSections } from "../sport/effective-sections.js";
-import { createMemoryReadTool, MEMORY_READ_CHAT_DESCRIPTION } from "../sport/memory-tools.js";
 import {
   ATHLETE_CONTEXT_MAX_CHARS,
   buildPlanCoachSystemPrompt,
