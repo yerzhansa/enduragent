@@ -48,7 +48,7 @@ import {
   promptLineageSchemaVersion,
   sha256_16,
 } from "./prompt-lineage.js";
-import { withSessionLock } from "./session-lock.js";
+import { drainSessionLocks, withSessionLock } from "./session-lock.js";
 import { capToolResult, TOOL_RESULT_SHARE } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
@@ -681,7 +681,8 @@ export class CoachAgent {
     throw lastError;
   }
 
-  settle(chatId: string): Promise<void> {
+  settle(chatId?: string): Promise<void> {
+    if (chatId === undefined) return drainSessionLocks();
     return withSessionLock(chatId, async () => {});
   }
 
