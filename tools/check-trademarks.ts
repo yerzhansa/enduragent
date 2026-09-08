@@ -50,6 +50,9 @@ export const FORBIDDEN_TOKENS: Readonly<Record<string, string>> = Object.freeze(
   IF: "Intensity",
   NP: "weighted average power",
   "Normalized Power": "weighted average power",
+  "norm power": "weighted avg power",
+  "Norm power": "weighted avg power",
+  "Norm Power": "weighted avg power",
 });
 
 const MD_EXTS = new Set([".md", ".mdx"]);

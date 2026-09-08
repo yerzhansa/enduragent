@@ -164,16 +164,17 @@ export function createPureCoreIntervalsTools(
               "Fetch time-series channels for an activity by legacy or canonical ID. " +
               "Store-backed reads accept up to 16 unique public channels; platform-backed " +
               "reads also accept provider-specific channels such as smooth_grade. " +
-              "Returns a downsampled object: each requested type is independently grouped into " +
-              "consecutive ten-sample averages, with " +
-              "a per-channel min/max/mean stats header carrying the true peaks and averages " +
-              "over the full series. Bins are not timestamp-aligned across channels; do not use " +
-              "them for pacing, duration-based efforts, decoupling, or HR-recovery claims. " +
-              "Expensive: a 3-hour ride may contain ~10,800 samples per type even before " +
-              "binning. Call it only for Tier C deep reviews, when the athlete explicitly requests deep analysis. " +
-              "For Tier A/B reviews, use `intervals_fetch_activities` and " +
-              "`intervals_fetch_activity` instead. Default types are watts, heartrate, " +
-              "cadence, time, altitude.",
+              "Returns per-channel min/max/mean over the full series plus ten-sample-average " +
+              "bins that are not timestamp-aligned across channels; do not use them for pacing, " +
+              "duration-based best efforts, quartile trends, decoupling, " +
+              "HR recovery, fade patterns, or indoor/outdoor comparisons. " +
+              "Use only minimum, maximum, and mean as descriptive recorded observations. " +
+              "They alone cannot establish session quality, recovery, or readiness, " +
+              "or justify changing the next session. " +
+              "Expensive (~10,800 samples per type for a 3-hour ride): call it only for Tier C " +
+              "deep reviews the athlete explicitly requests. For Tier A/B use " +
+              "`intervals_fetch_activities` and `intervals_fetch_activity`. " +
+              "Default types: watts, heartrate, cadence, time, altitude.",
             inputSchema: zodSchema(
               z.object({
                 activityId: ACTIVITY_ID_SCHEMA.describe(ACTIVITY_ID_DESCRIPTION),
@@ -181,9 +182,7 @@ export function createPureCoreIntervalsTools(
                   .array(z.string())
                   .optional()
                   .describe(
-                    "Defaults to ['watts','heartrate','cadence','time','altitude']. " +
-                      "Store-backed reads accept up to 16 unique public channels and aliases; " +
-                      "platform-backed reads may accept additional provider-specific channels.",
+                    "Channel names; defaults to watts, heartrate, cadence, time, altitude.",
                   ),
               }),
             ),

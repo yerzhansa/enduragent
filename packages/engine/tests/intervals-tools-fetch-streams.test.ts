@@ -260,6 +260,10 @@ describe("intervals_fetch_streams", () => {
     expect(description).toContain("Store-backed reads accept up to 16 unique public channels");
     expect(description).toContain("platform-backed");
     expect(description).toContain("not timestamp-aligned");
+    expect(description).toContain("Use only minimum, maximum, and mean as descriptive recorded observations.");
+    expect(description).toContain("cannot establish session quality");
+    expect(description).toContain("quartile trends, decoupling");
+    expect(description).toContain("HR recovery, fade patterns, or indoor/outdoor comparisons");
     expect(description).toContain("do not use");
     expect(description).toContain("smooth_grade");
   });

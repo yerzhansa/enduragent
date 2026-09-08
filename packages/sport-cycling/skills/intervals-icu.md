@@ -23,12 +23,12 @@
 
 ### Load (Training Stress)
 - Quantifies how hard a single ride was
-- Load = (duration × norm power × intensity) / (FTP × 3600) × 100
+- Load = (duration × weighted avg power × intensity) / (FTP × 3600) × 100
 - A 1-hour ride at FTP = 100 load
 - Easy ride: 30-50, Hard interval session: 70-100, Long ride: 150-250
 
 ### Intensity
-- Intensity = norm power / FTP
+- Intensity = weighted avg power / FTP
 - < 0.75: Recovery/endurance
 - 0.75-0.85: Tempo
 - 0.85-0.95: Sweet spot (named sub-range, not a numbered zone)
@@ -42,7 +42,7 @@
 - Indoor ERG: weighted average power ≈ plain average power
 
 ### VI (Variability Index)
-- VI = norm power / average power
+- VI = weighted avg power / average power
 - 1.0 = perfectly steady (indoor ERG)
 - 1.05-1.1 = typical outdoor ride
 - > 1.15 = highly variable (criterium, mountain ride)
@@ -73,40 +73,6 @@ Peak power at standard durations reveals athlete strengths:
 
 ### Pushing Workouts — use `intervals_create_workout`
 
-The tool takes a **structured** workout (not prose). It serializes the steps into the intervals.icu
-native format so the power chart renders on the calendar and the workout syncs to head units.
-
-Input shape:
-- `date`: "YYYY-MM-DD"
-- `workout.name`: short title shown on the calendar card
-- `workout.steps`: ordered array of steps
-
-Each top-level step is either a **simple step** or a **set** (repeating group).
-
-**Simple step**:
-```json
-{
-  "type": "warmup" | "steady" | "interval" | "ramp" | "recovery" | "rest" | "cooldown" | "freeride",
-  "duration": { "value": <number>, "unit": "seconds" | "minutes" },
-  "power": { "kind": "percent_ftp" | "watts" | "zone",
-             "value": <number>,        // single target
-             "low": <number>, "high": <number>  // range (required for ramps) },
-  "cadence": { "target": 90 }  // or { "low": 85, "high": 95 }
-}
-```
-
-**Set step**:
-```json
-{
-  "type": "set",
-  "repeat": 3,
-  "interval": { <simple step> },
-  "recovery": { <simple step> }
-}
-```
-
-Rules:
-- Power is optional only for `freeride` and `rest`. All other step types should have a power target.
 - Ramps **require** `power.low` and `power.high` (the ramp bounds).
 - Prefer `percent_ftp` for every serialized target — the head unit resolves a percent
   unambiguously. A bare zone integer resolves against the athlete's **configured** bands
@@ -114,28 +80,7 @@ Rules:
   `Z<n>` token can render **one band** off. Sweet spot is a named sub-range (see Power
   Zone Reference for the band), not a numbered zone — serialize it as a `percent_ftp`
   range, never a bare integer.
-- Zone targets accept integers 1–7 — the athlete's configured 7-zone bands (Z4 = Threshold,
-  not sweet spot). `Z2` defaults to the power zone for Ride workouts. Use a zone integer only
-  when `percent_ftp` is genuinely unavailable.
 - Ramps accept `percent_ftp`, `watts`, or `zone` bounds. Zone-kind ramps are translated at serialization to percent-of-FTP band centers (Z1→45%, Z2→65%, Z3→83%, Z4→98%, Z5→113%, Z6→136%, Z7→160% — e.g. `Z1-Z2` becomes `ramp 45-65%`), so the power chart always renders. Use explicit `percent_ftp` bounds when you want exact ramp endpoints.
-- Durations are time-only: `seconds` or `minutes`. Distance-based workouts are not supported here.
-- The tool sends only the date, name, and serialized step description — intervals.icu derives the planned duration and Load from the parsed steps. Never supply duration or Load estimates yourself.
-
-### Example: Z2 endurance 90min
-
-```json
-{
-  "date": "2026-04-17",
-  "workout": {
-    "name": "Z2 Endurance 90min",
-    "steps": [
-      { "type": "warmup",   "duration": { "value": 10, "unit": "minutes" }, "power": { "kind": "percent_ftp", "low": 50, "high": 65 }, "cadence": { "low": 85, "high": 95 } },
-      { "type": "steady",   "duration": { "value": 70, "unit": "minutes" }, "power": { "kind": "percent_ftp", "low": 56, "high": 75 }, "cadence": { "low": 85, "high": 95 } },
-      { "type": "cooldown", "duration": { "value": 10, "unit": "minutes" }, "power": { "kind": "percent_ftp", "value": 50 }, "cadence": { "low": 85, "high": 95 } }
-    ]
-  }
-}
-```
 
 ### Example: Sweet Spot 3×15
 
