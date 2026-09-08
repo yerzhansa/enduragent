@@ -354,6 +354,11 @@ export interface DeferredPlanTurn {
   readonly planIntakePatch?: PlanIntakePatch;
 }
 
+function latestFragment(text: string): string {
+  const fragments = text.split(/\n{2,}/).filter((fragment) => fragment.trim().length > 0);
+  return fragments.at(-1) ?? text;
+}
+
 export class CoachAgent {
   private sport: Sport;
   private llm: LLM;
@@ -1867,7 +1872,7 @@ export class CoachAgent {
     const athleteText = store.getDecisionAthleteText(decision.chatId, decision.decisionId);
     if (athleteText === null) throw new Error("Decision athlete context was not found.");
     const latestAthleteText =
-      decision.answer.kind === "custom" ? decision.answer.text : athleteText;
+      decision.answer.kind === "custom" ? decision.answer.text : latestFragment(athleteText);
     const context = createTurnContext({
       language: await this.ports.language.resolveFor({
         chatId: decision.chatId,
@@ -1875,7 +1880,7 @@ export class CoachAgent {
       }),
       resolvedCs: null,
       chatId: decision.chatId,
-      athleteText: latestAthleteText,
+      athleteText: "",
       turnId,
     });
     const isPlan = decision.chatId.startsWith("plan:");

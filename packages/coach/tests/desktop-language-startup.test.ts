@@ -20,11 +20,12 @@ const frame = {
 };
 
 describe("desktop language startup", () => {
-  it("validates the required OS hint array and preserves exact frame validation", () => {
+  it("validates the optional OS hint array and preserves exact frame validation", () => {
     expect(isUtilityStartFrame(frame)).toBe(true);
     expect(isUtilityStartFrame({ ...frame, preferredLanguages: [] })).toBe(true);
     expect(isUtilityStartFrame({ ...frame, handoffCapability: "x".repeat(43) })).toBe(true);
-    for (const preferredLanguages of [undefined, null, "fr", [3], [""], ["x".repeat(129)]]) {
+    expect(isUtilityStartFrame({ ...frame, preferredLanguages: undefined })).toBe(true);
+    for (const preferredLanguages of [null, "fr", [3], [""], ["x".repeat(129)]]) {
       expect(isUtilityStartFrame({ ...frame, preferredLanguages })).toBe(false);
     }
     expect(isUtilityStartFrame({ ...frame, extra: true })).toBe(false);

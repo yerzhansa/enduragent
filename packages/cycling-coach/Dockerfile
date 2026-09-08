@@ -29,6 +29,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY patches ./patches
 COPY packages/kernel/package.json ./packages/kernel/
 COPY packages/coach-contract/package.json ./packages/coach-contract/
+COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/engine/package.json ./packages/engine/
 COPY packages/core/package.json ./packages/core/
 COPY packages/sport-cycling/package.json ./packages/sport-cycling/
@@ -40,6 +41,7 @@ RUN pnpm install --filter cycling-coach... --frozen-lockfile
 COPY tools ./tools
 COPY packages/kernel ./packages/kernel
 COPY packages/coach-contract ./packages/coach-contract
+COPY packages/i18n ./packages/i18n
 COPY packages/engine ./packages/engine
 COPY packages/core ./packages/core
 COPY packages/sport-cycling ./packages/sport-cycling
