@@ -142,7 +142,7 @@
     "retainedScreenshots": 8,
     "retainedVersion": "application-ui-extraction-darwin-25-6-v3",
     "retainedManifestSha256": "0861057c1ea87306bee1de3de9f339c5ac603f1116572b86ec6c102a1cbb9f01",
-    "fullMatrixVerification": "Pending subsequent CI run against this reviewed reference.",
+    "fullMatrixVerification": "Verified by CI run https://github.com/yerzhansa/enduragent/actions/runs/34249334507 (24 passed).",
     "runs": [
       "https://github.com/yerzhansa/enduragent/actions/runs/34243520631",
       "https://github.com/yerzhansa/enduragent/actions/runs/34245538246",
