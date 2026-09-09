@@ -15,6 +15,8 @@ import {
   type SourceProvenance,
 } from "../provenance.js";
 import { todayInTZ } from "../sport/user-time.js";
+import { wrapAthleteContextFence } from "./prompt-fence.js";
+import { ATHLETE_CONTEXT_MAX_CHARS } from "./system-prompt.js";
 
 // ============================================================================
 // CONSTANTS
@@ -75,8 +77,11 @@ function renderCurrentMemory(memory: MemoryStorePort): {
     text: memory.getContext(),
     provenance: EMPTY_PROVENANCE,
   };
-  if (current.text) return current;
-  return { text: "No athlete data stored yet.", provenance: EMPTY_PROVENANCE };
+  const text = current.text || "No athlete data stored yet.";
+  return {
+    text: wrapAthleteContextFence({ text, maxChars: ATHLETE_CONTEXT_MAX_CHARS }),
+    provenance: current.text ? current.provenance : EMPTY_PROVENANCE,
+  };
 }
 
 function buildFlushUserPrompt(
