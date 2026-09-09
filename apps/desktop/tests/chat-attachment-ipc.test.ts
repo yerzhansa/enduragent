@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { Buffer } from "node:buffer";
 import type { ChatAttachmentComposerReadModel } from "@enduragent/coach-contract";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +132,8 @@ function setup(
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+await initializeDesktopLanguage();
 
 describe("desktop Chat attachment IPC", () => {
   it("resolves capabilities before the picker and keeps native paths in Desktop main", async () => {

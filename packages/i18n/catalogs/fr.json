@@ -2789,5 +2789,90 @@
       "unnamed": "Entraînement sans nom",
       "update": "Mettre à jour l’entraînement « {{name}} » le {{date}} — {{detail}}"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "déverrouille ton trousseau de session",
+      "macUnavailable": "Le chiffrement de {{operatingSystem}} est indisponible. Vérifie que le trousseau est accessible, puis réessaie.",
+      "windowsIdentityFailed": "La liaison de l'identité de l'application de bureau a échoué sous {{operatingSystem}}",
+      "windowsRecovery": "vérifie que le chiffrement des identifiants de {{operatingSystem}} (DPAPI) est disponible",
+      "windowsUnavailable": "Le chiffrement des identifiants de {{operatingSystem}} (DPAPI) est indisponible. Quitte et rouvre {{product}}, puis réessaie.",
+      "windowsUserDataFailed": "La liaison des données utilisateur a échoué sous {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "Activité {{format}}",
+      "attach": "Joindre",
+      "attachTitle": "Joindre des fichiers au chat",
+      "exportRideTitle": "Exporter la sortie au format {{format}}",
+      "exportWorkoutsTitle": "Exporter les entraînements planifiés au format {{format}}",
+      "pastedImage": "Image collée{{extension}}",
+      "raceCourse": "Parcours de la course",
+      "rideFiles": "Fichiers de sorties",
+      "rideImportDescription": "Ajoute des fichiers FIT, TCX ou GPX depuis {{computer}}. Tu peux aussi les déposer dans la fenêtre.",
+      "supportedFiles": "Fichiers pris en charge",
+      "workoutArchive": "Archive d'entraînements"
+    },
+    "lifecycle": {
+      "contentionContent": "Un autre processus {{product}} est déjà en cours d'exécution ou bloqué. Arrête ce processus, puis rouvre {{product}}. Si tu ne le trouves pas, ferme ta session et reconnecte-toi.",
+      "contentionTitle": "{{product}} n'a pas pu se connecter à son service en arrière-plan",
+      "malformedContent": "Corrige ou remplace le fichier {{configFile}} invalide, puis rouvre {{product}}.",
+      "malformedTitle": "{{product}} n'a pas pu utiliser sa configuration",
+      "notConfiguredContent": "Le fichier de configuration est manquant. Lance la configuration initiale de {{product}} ou restaure {{configFile}}, puis rouvre {{product}}.",
+      "notConfiguredTitle": "{{product}} n'est pas configuré",
+      "restartExhaustedContent": "Le service en arrière-plan s'est arrêté plusieurs fois et {{product}} n'a pas pu le redémarrer. Quitte {{product}} et rouvre-le. Si cela ne résout pas le problème, ferme ta session et reconnecte-toi.",
+      "restartExhaustedTitle": "Le service en arrière-plan de {{product}} s'est arrêté",
+      "unavailableContent": "Le service en arrière-plan n'a pas pu démarrer ou son état de connexion enregistré n'a pas pu être lu. Quitte {{product}} et rouvre-le. Si le problème persiste, {{restartComputer}} avant de réessayer.",
+      "unavailableTitle": "{{product}} n'a pas pu démarrer son service en arrière-plan",
+      "unexpectedContent": "{{product}} a rencontré un problème inattendu au démarrage. Quitte {{product}} et réessaie. Si le problème persiste, ferme ta session et reconnecte-toi avant de le rouvrir.",
+      "unexpectedTitle": "{{product}} n'a pas pu s'ouvrir",
+      "unreadableContent": "Vérifie que le fichier {{configFile}} peut être lu et que son dossier est accessible, puis rouvre {{product}}.",
+      "unreadableTitle": "{{product}} n'a pas pu lire sa configuration",
+      "versionMismatchContent": "Une autre version du service en arrière-plan de {{product}} est en cours d'exécution, lancée depuis la ligne de commande ou une installation précédente. Arrête ce service, puis rouvre {{product}}.",
+      "versionMismatchTitle": "{{product}} a détecté une autre version du service en arrière-plan"
+    },
+    "platform": {
+      "computerMac": "ce Mac",
+      "computerPc": "ce PC",
+      "restartMac": "redémarre ton Mac",
+      "restartPc": "redémarre ton PC"
+    },
+    "tray": {
+      "checkingConnection": "Vérification de la connexion",
+      "closeHint": "Ferme la fenêtre sans quitter l'application. Fais un clic droit sur l'icône de la barre des menus pour voir plus d'options.",
+      "coach": "Coach de cyclisme",
+      "menuBarStatus": "État de {{product}} dans la barre des menus",
+      "open": "Ouvrir {{product}}",
+      "quit": "Quitter {{product}}",
+      "ready": "Prêt quand tu veux",
+      "residency": "Exécution en arrière-plan",
+      "running": "{{product}} est en cours d'exécution",
+      "runningInMenuBar": "En cours d'exécution dans la barre des menus",
+      "settings": "Préférences…",
+      "startAtLogin": "Démarrer en arrière-plan à l'ouverture de session",
+      "tag": {
+        "active": "actif",
+        "attention": "attention",
+        "checking": "vérification",
+        "conflict": "conflit",
+        "off": "désactivé",
+        "online": "en ligne",
+        "paused": "en pause",
+        "retrying": "nouvelle tentative",
+        "starting": "démarrage",
+        "warning": "avertissement"
+      },
+      "telegram": {
+        "conflict": "Un autre processus contrôle le bot",
+        "connected": "Connecté à Telegram",
+        "connecting": "Connexion à Telegram",
+        "missedMessages": "Vérifie si des messages ont été manqués",
+        "needsAttention": "Telegram nécessite ton attention",
+        "off": "Telegram est désactivé",
+        "reconnecting": "Telegram se reconnecte",
+        "suspended": "Telegram est en pause tant que ce Mac est en veille",
+        "tokenRejected": "Jeton Telegram refusé",
+        "transferRequired": "Transfert du bot nécessaire"
+      }
+    }
   }
 }

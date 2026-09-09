@@ -3,12 +3,17 @@ import { chatFeedbackMessage } from "./copy";
 import type { ReactElement } from "react";
 import { Button, ProgressDisplay } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
+import { useWireMessageText } from "./use-wire-message-text";
 
 export function Notice(props: { readonly inPlanCreation?: boolean }): ReactElement | null {
   const { say } = usePhrasebook();
   const notice = useEnduragentStore((state) => state.chat.notice);
+  const descriptor = useEnduragentStore((state) => state.chat.noticeMessage);
   const message = notice === null ? null : chatFeedbackMessage(notice);
-  const text = message === null ? (notice ?? "") : say(message);
+  const text = useWireMessageText(
+    descriptor !== undefined || message === null ? (notice ?? "") : say(message),
+    descriptor,
+  );
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
   if (props.inPlanCreation) {

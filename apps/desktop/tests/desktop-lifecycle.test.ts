@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { DESKTOP_APP_USER_MODEL_ID } from "../src/main/constants.js";
@@ -6,6 +7,8 @@ import {
   createDesktopActivationRelay,
   DesktopIdentityBindingError,
 } from "../src/main/desktop-lifecycle.js";
+
+await initializeDesktopLanguage();
 
 describe("desktop platform lifecycle", () => {
   it("binds the frozen AppUserModelID only on Windows", () => {

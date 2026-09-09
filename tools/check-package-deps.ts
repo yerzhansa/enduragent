@@ -72,6 +72,7 @@ const DESKTOP_APP_ALLOWED: readonly string[] = [
   "@enduragent/coach-client",
   "@enduragent/coach-contract",
   "@enduragent/core",
+  "@enduragent/i18n",
 ];
 
 const LEGACY_BINARY_ALLOWED: readonly string[] = ["@enduragent/core", "@enduragent/sport-*"];
