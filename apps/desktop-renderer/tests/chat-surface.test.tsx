@@ -3328,6 +3328,10 @@ describe("chat surface", () => {
       });
       render(<Harness />);
       const correction = screen.getByRole("region", { name: "Clarify your commitment" });
+      const progress = screen.getByRole("region", { name: "Plan Creation progress" });
+      expect(
+        progress.compareDocumentPosition(correction) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).not.toBe(0);
       expect(within(correction).getByRole("rowheader", { name: "Not understood" })).toBeVisible();
       expect(within(correction).queryByRole("button", { name: "Confirm limits" })).toBeNull();
       const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
