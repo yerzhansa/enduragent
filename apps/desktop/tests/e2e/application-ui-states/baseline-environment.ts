@@ -15,12 +15,12 @@ export function applicationBaselineForEnvironment(
 ): string {
   const version = /^(\d+)\.(\d+)\.\d+$/u.exec(environment.darwinRelease);
   if (environment.platform === "darwin" && environment.architecture === "arm64") {
-    if (version?.[1] === "25" && version[2] === "2") return "application-ui-extraction-v5";
+    if (version?.[1] === "25" && version[2] === "2") return "application-ui-extraction-v6";
     if (version?.[1] === "25" && version[2] === "5") {
       return "application-ui-extraction-darwin-25-5-v1";
     }
     if (version?.[1] === "25" && version[2] === "6") {
-      return "application-ui-extraction-darwin-25-6-v5";
+      return "application-ui-extraction-darwin-25-6-v6";
     }
   }
   throw new Error(

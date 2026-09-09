@@ -51,6 +51,7 @@ import { createTrainingSyncCoordinator } from "./training-sync";
 import { createSpendMeterController } from "./spend-meter/controller";
 import { createDesktopUpdateController } from "./update/controller";
 import { createProviderModelSettingsController } from "./settings/provider-model-controller";
+import { createLanguageSettingsController } from "./settings/language-controller";
 import { createAthleteSettingsController } from "./settings/athlete-controller";
 import { createSessionSettingsController } from "./settings/session-controller";
 import { createTelegramSettingsController } from "./settings/telegram-controller";
@@ -99,6 +100,7 @@ export function bootRenderer(): Disposer {
   store.getState().setOnboardingStartupSettled(false);
   const onLifecycle = (event: WindowEventMap["enduragent-lifecycle"]): void => {
     document.documentElement.dataset.rpc = event.detail.status;
+    if (event.detail.status === "ready") void languageSettingsController.refresh();
   };
   window.addEventListener("enduragent-lifecycle", onLifecycle);
 
@@ -151,6 +153,10 @@ export function bootRenderer(): Disposer {
   const trainingContextController = createTrainingContextController({
     clients,
     view: trainingAdapter.view,
+  });
+  const languageSettingsController = createLanguageSettingsController({
+    clients,
+    view: { render: (language) => store.getState().patchSettings({ language }) },
   });
   const planController = createPlanController({
     listPlans: () => listPlans(clients),
@@ -690,6 +696,7 @@ export function bootRenderer(): Disposer {
   store.getState().bindSettingsPorts({
     panes: {
       activate() {
+        void languageSettingsController.refresh();
         void providerModelSettingsController.activate();
         void credentialSettingsController.activate();
         void athleteSettingsController.activate();
@@ -704,6 +711,7 @@ export function bootRenderer(): Disposer {
     telegram: telegramAdapter.port,
     spend: spendAdapter.port,
     update: updateAdapter.port,
+    language: { set: (value) => void languageSettingsController.set(value) },
     units: {
       set: (value) => void trainingContextController.setUnitsPreference(value),
     },
@@ -723,6 +731,7 @@ export function bootRenderer(): Disposer {
     chatController.settleDroppedAttachmentAdmission(event.operationId, event.results);
   });
 
+  void languageSettingsController.start();
   void trainingContextController.start();
   void planController.start();
   spendController.start();
@@ -786,6 +795,7 @@ export function bootRenderer(): Disposer {
     archiveController.dispose();
     planAdapter.dispose();
     spendController.dispose();
+    languageSettingsController.dispose();
     trainingContextController.dispose();
     planController.dispose();
     rideAnalysisController.dispose();

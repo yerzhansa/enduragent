@@ -122,6 +122,10 @@ vi.mock("../src/settings/telegram-controller", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/settings/telegram-controller")>()),
   createTelegramSettingsController: mocks.idle,
 }));
+vi.mock("../src/settings/language-controller", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/settings/language-controller")>()),
+  createLanguageSettingsController: mocks.idle,
+}));
 
 const creation: PlanCreationCardModel = {
   creationId: "creation-draft",
