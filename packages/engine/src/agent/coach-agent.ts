@@ -94,7 +94,8 @@ import { LLM } from "../llm.js";
 import { createIntentTranslator, type IntentTranslationPort } from "../intent-translation.js";
 import { usageFieldsFromResult } from "../llm-types.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
-import { resolveUserTimezone, appendCurrentTimeLine } from "../sport/user-time.js";
+import { resolveUserTimezone, appendCurrentTimeLine, todayInTZ } from "../sport/user-time.js";
+import { loadAthleteSnapshotBlock } from "./athlete-snapshot.js";
 import { createTurnBudget, TurnBudgetExceededError, type TurnBudget } from "./turn-budget.js";
 import { TAINTED_BY_WRITES_MESSAGE, STEP_LIMIT_TRUNCATION_MESSAGE } from "./coach-agent-copy.js";
 import {
@@ -169,6 +170,7 @@ function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean
 }
 
 const RECOVERY_PROMPT = "summarize what you did and what's left";
+const SECTION_UPDATED_STAMP = "_updated: ";
 
 // Prefixed once onto the first reply after an automatic session reset so the
 // athlete is told, in plain language, that the earlier conversation is archived
@@ -529,6 +531,54 @@ export class CoachAgent {
   private toolsForChat(chatId: string): ToolSet {
     if (chatId.startsWith("plan:")) return this.planTools;
     return chatId === "desktop" ? this.desktopTools : this.tools;
+  }
+
+  private toolsForTurn(chatId: string): ToolSet {
+    const tools = this.toolsForChat(chatId);
+    if (!("memory_read" in tools) || this.hasUnshownMemorySection()) return tools;
+    const { memory_read: _unshown, ...rest } = tools;
+    return rest;
+  }
+
+  private hasUnshownMemorySection(): boolean {
+    return this.excludedSectionNames.some((name) => {
+      const body = this.memory.readSection(name);
+      if (body === null) return false;
+      if (!body.startsWith(SECTION_UPDATED_STAMP)) return body.trim() !== "";
+      const stampEnd = body.indexOf("\n");
+      return stampEnd !== -1 && body.slice(stampEnd + 1).trim() !== "";
+    });
+  }
+
+  private async buildChatSystemPrompt(
+    chatId: string,
+    language: LanguageResolution | undefined,
+  ): Promise<{ systemPrompt: string; athleteSnapshot: string | undefined }> {
+    const planGate = this.memory.refreshPlanReadGate
+      ? await this.memory.refreshPlanReadGate()
+      : null;
+    const planNone = planGate === null && this.memory.loadPlan() === null;
+    const athleteSnapshot = await loadAthleteSnapshotBlock({
+      reader: this.ports.platform.athleteData,
+      today: todayInTZ(this.tz, new Date(this.ports.now())),
+      sportTypes: this.sport.intervalsActivityTypes,
+      onError: (error) => this.log.warn("athlete_snapshot_read_failed", error),
+    });
+    const systemPrompt = chatId.startsWith("plan:")
+      ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
+          outputLanguage: language,
+          excludeSections: this.excludedSectionNames,
+          athleteSnapshot,
+          planNone,
+        })
+      : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
+          outputLanguage: language,
+          excludeSections: this.excludedSectionNames,
+          confirmationGate: this.confirmationGate,
+          athleteSnapshot,
+          planNone,
+        });
+    return { systemPrompt, athleteSnapshot };
   }
 
   private templateHashForChat(chatId: string, tools: ToolSet): string {
@@ -995,23 +1045,18 @@ export class CoachAgent {
           }
         }
 
-        if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
-        const turnTools = this.toolsForChat(chatId);
-        const systemPrompt = chatId.startsWith("plan:")
-          ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-              outputLanguage: ctx.language,
-              excludeSections: this.excludedSectionNames,
-            })
-          : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-              outputLanguage: ctx.language,
-              excludeSections: this.excludedSectionNames,
-              confirmationGate: this.confirmationGate,
-            });
-        const contextProvenance =
+        const { systemPrompt, athleteSnapshot } = await this.buildChatSystemPrompt(
+          chatId,
+          ctx.language,
+        );
+        const turnTools = this.toolsForTurn(chatId);
+        const contextProvenance = unionProvenance(
           this.memory.getContextWithProvenance?.({
             excludeSections: this.excludedSectionNames,
             maxChars: ATHLETE_CONTEXT_MAX_CHARS,
-          }).provenance ?? EMPTY_PROVENANCE;
+          }).provenance ?? EMPTY_PROVENANCE,
+          athleteSnapshot === undefined ? EMPTY_PROVENANCE : UNKNOWN_PROVENANCE,
+        );
 
         const budget = computeHistoryTokenBudget({
           contextWindowTokens: this.config.contextWindowTokens,
@@ -1310,7 +1355,7 @@ export class CoachAgent {
               }
               if (chatId.startsWith("plan:")) assertPlanCoachReplyAuthority(effectiveText);
 
-              const templateHash = this.templateHashForChat(chatId, turnTools);
+              const templateHash = this.templateHashForChat(chatId, this.toolsForChat(chatId));
               const assembledHash = computeAssembledHash(systemPrompt, providerMessages);
 
               const lineage: ChatLineage = {
@@ -1605,7 +1650,7 @@ export class CoachAgent {
               providerUserMessage,
               turn?.nativeMedia ?? [],
             );
-            const templateHash = this.templateHashForChat(chatId, turnTools);
+            const templateHash = this.templateHashForChat(chatId, this.toolsForChat(chatId));
             try {
               this.chatStore.appendTurn(chatId, userMessageWithTime, streamedText, {
                 templateHash,
@@ -1983,18 +2028,9 @@ export class CoachAgent {
               : { [COACH_DECISION_TOOL_NAME]: this.decisionTool },
           model: this.config.llm.model,
         });
-    if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
     const system =
-      (isPlan
-        ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-            outputLanguage: context.language,
-            excludeSections: this.excludedSectionNames,
-          })
-        : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-            outputLanguage: context.language,
-            excludeSections: this.excludedSectionNames,
-            confirmationGate: this.confirmationGate,
-          })) + `\n\n# Decision Continuation\n\n${decisionContinuationMessage(decision)}`;
+      (await this.buildChatSystemPrompt(decision.chatId, context.language)).systemPrompt +
+      `\n\n# Decision Continuation\n\n${decisionContinuationMessage(decision)}`;
     const { messages: history } = this.chatStore.load(decision.chatId);
     const historyWithAthlete =
       athleteText === "" ||

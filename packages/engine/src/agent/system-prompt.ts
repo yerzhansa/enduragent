@@ -22,6 +22,13 @@ export const ATHLETE_CONTEXT_MAX_CHARS = 20_000;
 
 const SECTION_SEPARATOR = "\n\n---\n\n";
 
+export const NO_PLAN_CONTEXT = "## Current Plan\nNo plan saved yet.";
+
+function withPlanState(context: string, planNone: boolean | undefined): string {
+  if (planNone !== true) return context;
+  return context ? `${context}\n\n${NO_PLAN_CONTEXT}` : NO_PLAN_CONTEXT;
+}
+
 export const SYSTEM_PROMPT_CACHE_BOUNDARY =
   SECTION_SEPARATOR +
   "<!-- cache boundary: everything above is the stable cached prefix; everything below is volatile per-build content -->";
@@ -308,12 +315,14 @@ export function buildSystemPrompt(
     context?: string;
     confirmationGate?: boolean;
     outputLanguage?: LanguageResolution;
+    athleteSnapshot?: string;
+    planNone?: boolean;
   },
 ): string {
   const skillsContent = Object.entries(persona.skills)
     .map(([name, content]) => `## Skill: ${name}\n\n${content}`)
     .join(SECTION_SEPARATOR);
-  const context = opts?.context ?? memory.getContext(opts);
+  const context = withPlanState(opts?.context ?? memory.getContext(opts), opts?.planNone);
 
   // Static rule blocks form the cached prefix; the volatile Athlete Context and
   // time zone render after the boundary marker so a memory write never
@@ -337,6 +346,9 @@ export function buildSystemPrompt(
       "# Athlete Context\n\n" +
         wrapAthleteContextFence({ text: context, maxChars: ATHLETE_CONTEXT_MAX_CHARS }),
     );
+  }
+  if (opts?.athleteSnapshot) {
+    volatileParts.push(opts.athleteSnapshot);
   }
 
   // Time zone only — never the date. The date goes per-message via
@@ -369,9 +381,14 @@ export function buildPlanCoachSystemPrompt(
   memory: MemoryStorePort,
   tz: string = "UTC",
   degradeBlock?: string,
-  opts?: { excludeSections?: readonly string[]; outputLanguage?: LanguageResolution },
+  opts?: {
+    excludeSections?: readonly string[];
+    outputLanguage?: LanguageResolution;
+    athleteSnapshot?: string;
+    planNone?: boolean;
+  },
 ): string {
-  const context = memory.getContext(opts);
+  const context = withPlanState(memory.getContext(opts), opts?.planNone);
   const prefix = [PLAN_COACH_AUTHORITY_RULES, ...planCoachRuleBlocks()].join(SECTION_SEPARATOR);
   const volatileParts: string[] = [];
   if (context) {
@@ -379,6 +396,9 @@ export function buildPlanCoachSystemPrompt(
       "# Athlete Context\n\n" +
         wrapAthleteContextFence({ text: context, maxChars: ATHLETE_CONTEXT_MAX_CHARS }),
     );
+  }
+  if (opts?.athleteSnapshot) {
+    volatileParts.push(opts.athleteSnapshot);
   }
   volatileParts.push(`# Current Date & Time\n\nTime zone: ${tz}`);
   if (opts?.outputLanguage) {

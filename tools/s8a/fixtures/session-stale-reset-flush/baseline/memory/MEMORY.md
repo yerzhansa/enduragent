@@ -5,4 +5,8 @@
 
 ## goals
 _updated: 1998-07-06
-- Target a century ride at the end of August 1998; exact event/date not yet specified (athlete, 1998-07-06)
+- Complete a century ride at the end of August 1998 (athlete, 1998-07-06)
+
+## cycling-history
+_updated: 1998-07-06
+- Mild knee soreness occurred after hill repeats on 1998-07-01; side and persistence are not yet known (athlete, 1998-07-06)

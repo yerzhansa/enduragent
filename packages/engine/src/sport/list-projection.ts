@@ -37,6 +37,55 @@ const ACTIVITY_FIELDS = new Set([
   "source",
 ]);
 
+const ATHLETE_FIELDS = new Set([
+  "icuFtp",
+  "maxHr",
+  "icuRestingHr",
+  "icuWeight",
+  "weight",
+  "height",
+  "sex",
+  "icuDateOfBirth",
+  "dateOfBirth",
+  "sportSettings",
+]);
+
+const SPORT_SETTINGS_FIELDS = new Set([
+  "types",
+  "ftp",
+  "indoorFtp",
+  "indoor_ftp",
+  "lthr",
+  "maxHr",
+  "max_hr",
+  "restingHr",
+  "weight",
+  "wPrime",
+  "w_prime",
+  "pMax",
+  "p_max",
+  "thresholdPace",
+  "threshold_pace",
+  "paceUnits",
+  "pace_units",
+  "powerZones",
+  "power_zones",
+  "powerZoneNames",
+  "power_zone_names",
+  "hrZones",
+  "hr_zones",
+  "hrZoneNames",
+  "hr_zone_names",
+  "sweetSpotMin",
+  "sweet_spot_min",
+  "sweetSpotMax",
+  "sweet_spot_max",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function projectFields(row: object, fields: ReadonlySet<string>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(row).filter(
@@ -45,8 +94,21 @@ function projectFields(row: object, fields: ReadonlySet<string>): Record<string,
   );
 }
 
+export function projectAthlete(row: unknown): Record<string, unknown> {
+  if (!isRecord(row)) return {};
+  const projected = projectFields(row, ATHLETE_FIELDS);
+  if (Array.isArray(projected.sportSettings)) {
+    projected.sportSettings = projected.sportSettings.map((settings: unknown) =>
+      isRecord(settings) ? projectFields(settings, SPORT_SETTINGS_FIELDS) : {},
+    );
+  } else {
+    delete projected.sportSettings;
+  }
+  return projected;
+}
+
 export function projectWellness(row: unknown): Record<string, unknown> {
-  if (row === null || typeof row !== "object" || Array.isArray(row)) return {};
+  if (!isRecord(row)) return {};
   const projected = projectFields(row, WELLNESS_FIELDS);
   if (!Array.isArray(projected.sportInfo) || projected.sportInfo.length === 0) {
     delete projected.sportInfo;
@@ -55,7 +117,7 @@ export function projectWellness(row: unknown): Record<string, unknown> {
 }
 
 export function projectActivity(row: unknown): unknown {
-  if (row === null || typeof row !== "object" || Array.isArray(row)) return {};
+  if (!isRecord(row)) return {};
   if ("localDate" in row && "sessionSequence" in row) return row;
   return projectFields(row, ACTIVITY_FIELDS);
 }
