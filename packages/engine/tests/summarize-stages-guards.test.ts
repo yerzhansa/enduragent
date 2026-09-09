@@ -41,7 +41,17 @@ const EMPTY_SNAPSHOT: MemorySnapshot = {
   provenanceOf: () => ({ garmin: false, nonGarmin: false, unknown: true }),
 };
 
-const hangingLLM = { generate: () => new Promise<never>(() => {}) } as unknown as LLM;
+const hangingLLM = {
+  generate: (opts: { deadlineMs?: number }) =>
+    new Promise<never>((_, reject) => {
+      if (opts.deadlineMs === undefined) return;
+      setTimeout(() => {
+        const err = new Error("Request timeout: The operation was aborted due to timeout");
+        err.name = "TimeoutError";
+        reject(err);
+      }, opts.deadlineMs);
+    }),
+} as unknown as LLM;
 
 afterEach(() => {
   vi.useRealTimers();

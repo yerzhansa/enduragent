@@ -106,18 +106,26 @@ export function createRootLogger(dataDir: string, options: RootLoggerOptions = {
   const dir = join(dataDir, "logs");
   const path = join(dir, LOG_FILE);
 
-  function rotateIfNeeded(): void {
+  function overSizeCap(): boolean {
     try {
-      if (statSync(path).size >= maxBytes) {
-        renameSync(path, `${path}.1`);
-        return;
-      }
+      return statSync(path).size >= maxBytes;
     } catch {
-      // File absent or unstat-able — nothing to rotate.
-      return;
+      return false;
     }
-    pruneFileByAge(path, now() - maxAgeMs);
   }
+
+  function rotateIfNeeded(): void {
+    if (!overSizeCap()) return;
+    pruneFileByAge(path, now() - maxAgeMs);
+    if (!overSizeCap()) return;
+    try {
+      renameSync(path, `${path}.1`);
+    } catch {}
+  }
+
+  try {
+    pruneFileByAge(path, now() - maxAgeMs);
+  } catch {}
 
   return {
     emit(level, line, fields) {

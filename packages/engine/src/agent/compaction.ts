@@ -23,7 +23,7 @@ import type { LLM } from "../llm.js";
 import type { GenerateOptions } from "../sport.js";
 import type { TurnBudget } from "./turn-budget.js";
 
-type ModelCallCharger = Pick<TurnBudget, "chargeModelCall">;
+type GenerateCallCharger = Pick<TurnBudget, "chargeGenerateCall">;
 
 // ============================================================================
 // CONSTANTS
@@ -343,32 +343,18 @@ async function generateSummaryWithTimeout(
     userContent: string;
     maxOutputTokens: number;
     caller?: GenerateOptions["caller"];
-    budget?: ModelCallCharger;
+    budget?: GenerateCallCharger;
   },
 ): Promise<string> {
   const { budget, system, userContent, ...rest } = opts;
-  budget?.chargeModelCall();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Summarization timed out after ${SUMMARIZATION_TIMEOUT_MS}ms`)),
-      SUMMARIZATION_TIMEOUT_MS,
-    );
-  });
-  const call = llm.generate({
+  budget?.chargeGenerateCall();
+  const { text } = await llm.generate({
     system,
     messages: [{ role: "user", content: userContent }],
+    deadlineMs: SUMMARIZATION_TIMEOUT_MS,
     ...rest,
   });
-  try {
-    const { text } = await Promise.race([call, deadline]);
-    return text;
-  } finally {
-    clearTimeout(timer);
-    // Race-only deadline: the losing call keeps running; swallow its late
-    // rejection so it cannot surface as an unhandled rejection.
-    call.catch(() => {});
-  }
+  return text;
 }
 
 export function computeAdaptiveChunkRatio(
@@ -452,7 +438,7 @@ async function finalizeSummary(params: {
   system: string;
   maxRetries: number;
   caller?: GenerateOptions["caller"];
-  budget?: ModelCallCharger;
+  budget?: GenerateCallCharger;
 }): Promise<string> {
   const { llm, system, maxRetries, caller, budget } = params;
   let best = capSummary(params.summary);
@@ -493,7 +479,7 @@ export async function summarizeDroppedMessages(params: {
   maxRetries?: number;
   contextWindowTokens?: number;
   caller?: GenerateOptions["caller"];
-  budget?: ModelCallCharger;
+  budget?: GenerateCallCharger;
 }): Promise<{
   summary: string;
   unsummarized: ModelMessage[];
@@ -566,7 +552,7 @@ export async function summarizeInStages(params: {
   previousSummary?: string;
   contextWindowTokens?: number;
   caller?: GenerateOptions["caller"];
-  budget?: ModelCallCharger;
+  budget?: GenerateCallCharger;
 }): Promise<{ messages: ModelMessage[]; summary?: string; summaryProvenance?: SourceProvenance }> {
   const { llm, mustPreserveTokens, memory, recentToKeep = 4, contextWindowTokens, caller, budget } = params;
 
