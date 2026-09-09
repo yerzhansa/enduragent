@@ -189,6 +189,26 @@ function builderYaml(
     ),
     "electronLanguages:",
     "  - en-US",
+    "  - es",
+    "  - fr",
+    "  - it",
+    "  - de",
+    "  - nl",
+    "  - da",
+    "  - sv",
+    "  - nb",
+    "  - fi",
+    "  - pt-PT",
+    "  - pt_PT",
+    "  - pt-BR",
+    "  - pt_BR",
+    "  - pl",
+    "  - ko",
+    "  - ja",
+    "  - zh-CN",
+    "  - zh_CN",
+    "  - zh-TW",
+    "  - zh_TW",
     "directories:",
     "  output: dist",
     "files:",
@@ -235,11 +255,7 @@ async function syntheticPackage(): Promise<SyntheticPackage> {
   const externalSource = join(desktop, "dist/extra-resources");
   const externalPackaged = join(resources, "self-test");
   const bindingSource = join(asarSource, KEYCHAIN_BINDING_ASAR_PATH);
-  const bindingPackaged = join(
-    resources,
-    "app.asar.unpacked",
-    KEYCHAIN_BINDING_ASAR_PATH,
-  );
+  const bindingPackaged = join(resources, "app.asar.unpacked", KEYCHAIN_BINDING_ASAR_PATH);
   const matrix = Buffer.from('{"schemaVersion":1}\n');
   const matrixChecksum = checksum(matrix);
 
@@ -658,9 +674,9 @@ describe("desktop package layout", () => {
     ).rejects.toThrow("invalid builder packaging authority");
   });
 
-  it("pins the sole audited Electron locale", async () => {
+  it("pins the audited Electron locales", async () => {
     const fixture = await syntheticPackage();
-    const yaml = builderYaml().replace("electronLanguages:\n  - en-US\n", "");
+    const yaml = builderYaml().replace(/electronLanguages:\n(?: {2}- [\w-]+\n)+/u, "");
     await writeFile(join(fixture.desktop, "electron-builder.yml"), yaml);
     await expect(
       verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),
@@ -668,7 +684,7 @@ describe("desktop package layout", () => {
 
     await writeFile(
       join(fixture.desktop, "electron-builder.yml"),
-      builderYaml().replace("  - en-US\n", "  - en-US\n  - fr\n"),
+      builderYaml().replace("  - en-US\n", "  - en-US\n  - ru\n"),
     );
     await expect(
       verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),

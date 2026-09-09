@@ -3,6 +3,7 @@ import { lstat, readFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
+import { WINDOWS_LOCALE_PAK_PATHS } from "./package-locales.mjs";
 import {
   PackageLayoutError,
   assertDirectory,
@@ -23,7 +24,7 @@ import {
   WINDOWS_PACKAGE_APP_ID,
   WINDOWS_PACKAGE_ARCH,
   WINDOWS_PACKAGE_GUID,
-  WINDOWS_PACKAGE_INSTALLER_LANGUAGE,
+  WINDOWS_PACKAGE_INSTALLER_LANGUAGES,
   WINDOWS_PACKAGE_PRODUCT_NAME,
   WINDOWS_PACKAGE_TARGET,
   createWindowsPackagePlan,
@@ -62,7 +63,7 @@ const expectedWindowsRuntime = new Set([
   "vk_swiftshader_icd.json",
   "vulkan-1.dll",
 ]);
-const expectedWindowsLocale = "locales/en-US.pak";
+const expectedWindowsLocales = WINDOWS_LOCALE_PAK_PATHS;
 const expectedAsarResourceFiles = new Set([
   "resources/tray.ico",
   "resources/trayTemplate.png",
@@ -124,9 +125,9 @@ function expectedNsisConfiguration() {
     createStartMenuShortcut: true,
     createDesktopShortcut: false,
     deleteAppDataOnUninstall: false,
-    installerLanguages: [WINDOWS_PACKAGE_INSTALLER_LANGUAGE],
+    installerLanguages: [...WINDOWS_PACKAGE_INSTALLER_LANGUAGES],
     language: "1033",
-    multiLanguageInstaller: false,
+    multiLanguageInstaller: true,
     displayLanguageSelector: false,
     differentialPackage: false,
     buildUniversalInstaller: false,
@@ -203,17 +204,20 @@ function validateRuntimeEntryTypes(tree) {
 }
 
 function validateRuntimeLocales(tree) {
-  const locale = tree.get(expectedWindowsLocale);
-  if (
-    locale === undefined ||
-    locale.type !== "file" ||
-    !Buffer.isBuffer(locale.bytes) ||
-    locale.bytes.length === 0
-  ) {
-    failWindows("application-inventory", "missing locale", [expectedWindowsLocale]);
+  const missing = expectedWindowsLocales.filter((expected) => {
+    const locale = tree.get(expected);
+    return (
+      locale === undefined ||
+      locale.type !== "file" ||
+      !Buffer.isBuffer(locale.bytes) ||
+      locale.bytes.length === 0
+    );
+  });
+  if (missing.length > 0) {
+    failWindows("application-inventory", "missing locale", missing);
   }
   const undeclared = [...tree.keys()].filter(
-    (path) => path.startsWith("locales/") && path !== expectedWindowsLocale,
+    (path) => path.startsWith("locales/") && !expectedWindowsLocales.includes(path),
   );
   if (undeclared.length > 0) {
     failWindows("application-inventory", "undeclared locale", undeclared);
@@ -572,10 +576,7 @@ async function verifyResources(resourcesRoot, authority, desktopRoot) {
       [...asar].map(([path, entry]) => {
         if (entry.type !== "file" || entry.unpacked !== true) return [path, entry];
         const unpacked = resources.get(`app.asar.unpacked/${path}`);
-        return [
-          path,
-          unpacked?.type === "file" ? { ...entry, bytes: unpacked.bytes } : entry,
-        ];
+        return [path, unpacked?.type === "file" ? { ...entry, bytes: unpacked.bytes } : entry];
       }),
     );
     validateRequiredAsarFiles(asar, sourceManifest);
