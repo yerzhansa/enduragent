@@ -65,12 +65,17 @@ async function makeDocx(text: string): Promise<Buffer> {
   );
 }
 
-async function makePdf(input: { readonly mixed?: boolean; readonly scanned?: boolean } = {}) {
+const FIRST_PAGE_TEXT = "Training report: recovery ride, forty-five minutes, mostly Zone 1.";
+const SECOND_PAGE_TEXT = "Second page: threshold intervals, three by ten minutes at Zone 4.";
+
+async function makePdf(
+  input: { readonly mixed?: boolean; readonly scanned?: boolean; readonly twoText?: boolean } = {},
+) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const first = pdf.addPage([612, 792]);
   if (input.scanned !== true) {
-    first.drawText("Training report: recovery ride, forty-five minutes, mostly Zone 1.", {
+    first.drawText(FIRST_PAGE_TEXT, {
       x: 50,
       y: 730,
       size: 16,
@@ -95,7 +100,14 @@ async function makePdf(input: { readonly mixed?: boolean; readonly scanned?: boo
       color: rgb(0.8, 0.85, 0.9),
     });
   }
+  if (input.twoText === true) {
+    pdf.addPage([612, 792]).drawText(SECOND_PAGE_TEXT, { x: 50, y: 730, size: 16, font });
+  }
   return Buffer.from(await pdf.save());
+}
+
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
 }
 
 function renameCentralDirectoryEntry(bytes: Buffer, from: string, to: string): Buffer {
@@ -270,18 +282,29 @@ describe("managed document readers", () => {
       readerVersion: "pdf-clawpdf-0.3.0-v1",
       visualPageNumbers: [],
     });
-    expect(text.content.pageText).toMatchObject([{ pageNumber: 1 }]);
     expect(text.content.text).toContain("[Page 1]");
+    expect(Object.keys(text.content).sort()).toEqual(["text", "truncated", "trust"]);
+
+    const twoPagePdf = await makePdf({ twoText: true });
+    const twoPages = await reader(twoPagePdf).read(source(twoPagePdf, "pdf"));
+    expect(twoPages.projection.visualPageNumbers).toEqual([]);
+    expect(occurrences(twoPages.content.text, "[Page 1]")).toBe(1);
+    expect(occurrences(twoPages.content.text, "[Page 2]")).toBe(1);
+    expect(occurrences(twoPages.content.text, FIRST_PAGE_TEXT)).toBe(1);
+    expect(occurrences(twoPages.content.text, SECOND_PAGE_TEXT)).toBe(1);
+    expect(occurrences(JSON.stringify(twoPages.content), FIRST_PAGE_TEXT)).toBe(1);
+    expect(occurrences(JSON.stringify(twoPages.content), SECOND_PAGE_TEXT)).toBe(1);
 
     const scannedPdf = await makePdf({ scanned: true });
     const scanned = await reader(scannedPdf).read(source(scannedPdf, "pdf"));
     expect(scanned.projection.visualPageNumbers).toEqual([1]);
-    expect(scanned.content).toMatchObject({ text: "", pageText: [] });
+    expect(scanned.content).toMatchObject({ text: "" });
 
     const mixedPdf = await makePdf({ mixed: true });
     const mixed = await reader(mixedPdf).read(source(mixedPdf, "pdf"));
     expect(mixed.projection.visualPageNumbers).toEqual([2]);
-    expect(mixed.content.pageText.map((page) => page.pageNumber)).toEqual([1]);
+    expect(mixed.content.text).toContain("[Page 1]");
+    expect(mixed.content.text).not.toContain("[Page 2]");
   });
 
   it("rejects malformed, encrypted, and page-limit PDF inputs", async () => {
