@@ -119,7 +119,7 @@ describe("retry loop on the codex-agent path", () => {
       const persisted = readSession("codex-agent-happy");
       expect(persisted).toHaveLength(2);
       expect(persisted[0].role).toBe("user");
-      expect(persisted[0].content).toBe("how do I ride today?");
+      expect(persisted[0].content).toMatch(/^how do I ride today\?\nCurrent time: /);
       const assistant = persisted[1];
       expect(assistant.role).toBe("assistant");
       expect(assistant.content).toBe(text);
