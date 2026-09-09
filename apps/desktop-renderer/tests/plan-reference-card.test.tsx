@@ -1,4 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PlanningReadModel } from "@enduragent/coach-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +51,30 @@ afterEach(() => {
 });
 
 describe("Plan reference card", () => {
+  it("reads Plan reference labels and actions from an injected Italian catalog", async () => {
+    useEnduragentStore.setState((state) => ({
+      settings: { ...state.settings, language: { status: "ready", value: "it" } },
+    }));
+    useEnduragentStore.setState({ planSurface: { status: "ready", value: model } });
+    await renderWithCatalog(
+      <PlanReferenceCard selection={{ kind: "current_week", planId: "plan-1", weekNumber: 1 }} />,
+      {
+        chat: {
+          planReference: {
+            currentWeek: "Settimana corrente",
+            weekTitle: "Settimana {{week}} di {{total}}",
+            openPlan: "Apri piano",
+            minutes: "{{minutes}} minuti",
+          },
+        },
+      },
+    );
+    expect(screen.getByRole("heading", { name: "Settimana 1 di 12" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apri piano" })).toBeInTheDocument();
+    expect(screen.getByText("60 minuti")).toBeInTheDocument();
+    expect(screen.getByText("Tempo builder")).toBeInTheDocument();
+  });
+
   it("renders the frozen Workout fields and opens the typed Plan destination", async () => {
     const openFromChat = vi.fn();
     act(() =>

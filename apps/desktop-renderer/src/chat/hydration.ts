@@ -1,8 +1,9 @@
+import { msg } from "@enduragent/i18n";
 import type { TranscriptPageEntry } from "@enduragent/coach-contract";
 import type { ChatTranscriptMessage } from "../turn-state";
 
 export const TRANSCRIPT_HYDRATION_PAGE_LIMIT = 25;
-export const TRANSCRIPT_HYDRATION_FAILURE_COPY = "Conversation history is temporarily unavailable.";
+export const TRANSCRIPT_HYDRATION_FAILURE_COPY = msg("chat.history.failure");
 
 export interface TranscriptTurn {
   readonly turnId: string;

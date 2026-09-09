@@ -1,9 +1,14 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { chatFeedbackMessage } from "./copy";
 import type { ReactElement } from "react";
 import { Button, ProgressDisplay } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function Notice(props: { readonly inPlanCreation?: boolean }): ReactElement | null {
+  const { say } = usePhrasebook();
   const notice = useEnduragentStore((state) => state.chat.notice);
+  const message = notice === null ? null : chatFeedbackMessage(notice);
+  const text = message === null ? (notice ?? "") : say(message);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
   if (props.inPlanCreation) {
@@ -13,19 +18,21 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
         role="status"
         hidden={notice === null}
       >
-        <p className="m-0 text-xs leading-4 text-ink-2">{notice ?? ""}</p>
+        <p className="m-0 text-xs leading-4 text-ink-2">{text}</p>
       </div>
     );
   }
   return (
     <p className="chat-notice m-0 text-sm leading-5 text-ink-2" hidden={notice === null}>
-      {notice ?? ""}
+      {text}
     </p>
   );
 }
 
 export function CoachProgress(): ReactElement | null {
+  const { say } = usePhrasebook();
   const progress = useEnduragentStore((state) => state.chat.coachProgress ?? null);
+  const message = progress === null ? null : chatFeedbackMessage(progress);
   if (progress === null) return null;
   return (
     <ProgressDisplay
@@ -33,13 +40,14 @@ export function CoachProgress(): ReactElement | null {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      label={progress}
+      label={message === null ? progress : say(message)}
       value={{ kind: "indeterminate" }}
     />
   );
 }
 
 export function RetryBar(): ReactElement {
+  const { say } = usePhrasebook();
   const interrupted = useEnduragentStore((state) => state.chat.interrupted);
   const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
@@ -58,7 +66,7 @@ export function RetryBar(): ReactElement {
         actions?.retry();
       }}
     >
-      Retry message
+      {say("chat.notice.retryMessage")}
     </Button>
   );
 }

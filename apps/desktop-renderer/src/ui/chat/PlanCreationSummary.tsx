@@ -1,9 +1,10 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@enduragent/ui";
 import { Card, CardContent } from "@enduragent/ui";
-import { creationTitle } from "../../plan/creation-title";
+import { useChatDate } from "./use-chat-date";
 import { useEnduragentStore } from "../../state/store";
 
 import { commitmentSummaryId } from "./PlanCreationDraftCards";
@@ -12,6 +13,27 @@ export function PlanCreationSummary(props: {
   readonly model: PlanCreationCardModel;
   readonly answersOnly?: boolean;
 }): ReactElement {
+  const { say, format } = usePhrasebook();
+  const formatDate = useChatDate();
+  const goalSummary = props.model.answeredSummaries.find((answer) => answer.answerKey === "goal");
+  const goal = goalSummary?.answer.kind === "goal" ? goalSummary.answer.goal : null;
+  const candidate =
+    goal?.kind === "event-candidate" && goalSummary?.question.kind === "goal-question"
+      ? goalSummary.question.candidates.find((item) => item.candidateId === goal.candidateId)
+      : undefined;
+  const title =
+    goal === null
+      ? say("chat.planCreation.newPlan")
+      : goal.kind === "fitness"
+        ? (goal.outcome ?? say("chat.planCreation.improveFitness"))
+        : goal.kind === "event-manual"
+          ? say("chat.planCreation.eventDate", { name: goal.name, date: formatDate(goal.date) })
+          : candidate === undefined
+            ? goalSummary?.detail
+            : say("chat.planCreation.eventDate", {
+                name: candidate.name,
+                date: formatDate(candidate.date),
+              });
   const actions = useEnduragentStore((state) => state.chatActions);
   const library = useEnduragentStore((state) => state.planLibrary.value);
   const paused = useEnduragentStore((state) => state.chat.planCreationPaused);
@@ -31,7 +53,7 @@ export function PlanCreationSummary(props: {
     }
   }, [focusRequest?.revision, focusRequest?.target]);
   return (
-    <section className="grid min-w-0 gap-4" aria-label="Plan Creation progress">
+    <section className="grid min-w-0 gap-4" aria-label={say("chat.planCreation.progressLabel")}>
       {props.model.answeredSummaries.length === 0 ? null : (
         <ul className="m-0 grid list-none gap-2 p-0" role="list">
           {props.model.answeredSummaries.map((summary) => (
@@ -39,7 +61,7 @@ export function PlanCreationSummary(props: {
               key={summary.answerKey}
               className="grid min-w-0 grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)_auto] items-center gap-row rounded-card border border-line bg-surface px-ctl-px py-3 text-sm"
               data-parity="summary.row"
-              aria-label={`${summary.title} answer`}
+              aria-label={say("chat.planCreation.answerLabel", { title: summary.title })}
             >
               <span className="grid size-8 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ok)_16%,var(--surface))] text-ok">
                 <Check className="size-4" aria-hidden="true" />
@@ -49,7 +71,7 @@ export function PlanCreationSummary(props: {
                   className="m-0 mb-[calc(var(--inset)/2)] text-xs font-semibold uppercase tracking-wide text-ink-2"
                   data-parity="summary.eyebrow"
                 >
-                  Answer recorded
+                  {say("chat.planCreation.answerRecorded")}
                 </p>
                 <strong
                   className="block min-w-0 break-words font-medium"
@@ -61,8 +83,13 @@ export function PlanCreationSummary(props: {
                   className="m-0 mt-[calc(var(--inset)/2)] text-xs text-ink-2"
                   data-parity="summary.detail"
                 >
-                  {summary.title} ·{" "}
-                  {summary.source.kind === "athlete" ? "your answer" : summary.source.label}
+                  {say("chat.planCreation.answerSource", {
+                    title: summary.title,
+                    source:
+                      summary.source.kind === "athlete"
+                        ? say("chat.planCreation.yourAnswer")
+                        : summary.source.label,
+                  })}
                 </p>
               </div>
               <Button
@@ -71,11 +98,11 @@ export function PlanCreationSummary(props: {
                 size="xs"
                 className="gap-inset border-line bg-surface"
                 data-parity="summary.edit"
-                aria-label={`Edit ${summary.title}`}
+                aria-label={say("chat.planCreation.editLabel", { title: summary.title })}
                 disabled={actions === null || busy || editingKey !== null}
                 onClick={() => actions?.editPlanCreation(summary.answerKey)}
               >
-                Edit
+                {say("chat.planCreation.edit")}
               </Button>
             </li>
           ))}
@@ -90,13 +117,13 @@ export function PlanCreationSummary(props: {
                   className="mt-0 mb-1 text-xs font-semibold uppercase tracking-wide text-ink-2"
                   data-parity="progress.eyebrow"
                 >
-                  Plan creation
+                  {say("chat.planCreation.title")}
                 </p>
                 <strong
                   className="block text-base font-semibold leading-6"
                   data-parity="progress.title"
                 >
-                  {creationTitle(props.model)}
+                  {title}
                 </strong>
               </div>
               <div className="flex items-center gap-inset self-start">
@@ -104,7 +131,7 @@ export function PlanCreationSummary(props: {
                   className="inline-flex items-center gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal leading-4 text-ink-2"
                   data-parity="progress.status"
                 >
-                  {paused ? "Paused" : "In progress"}
+                  {paused ? say("chat.planCreation.paused") : say("chat.planCreation.inProgress")}
                 </span>
               </div>
             </div>
@@ -113,8 +140,21 @@ export function PlanCreationSummary(props: {
               data-parity="progress.summary"
             >
               {ready
-                ? "The essentials are complete."
-                : `${props.model.answeredSummaries.length} of ${total} answered.${library === null ? "" : ` ${library.active ? `${library.active.name} keeps running.` : "No Plan is active."}`}`}
+                ? say("chat.planCreation.essentialsComplete")
+                : say("chat.planCreation.answersProgress", {
+                    answered: format.number(props.model.answeredSummaries.length, {
+                      useGrouping: false,
+                    }),
+                    total: format.number(total, { useGrouping: false }),
+                    activePlan:
+                      library === null
+                        ? ""
+                        : library.active
+                          ? say("chat.planCreation.activePlanRunning", {
+                              name: library.active.name,
+                            })
+                          : say("chat.planCreation.noActivePlan"),
+                  })}
             </p>
             <div className="mt-4 flex flex-wrap gap-inset" data-parity="progress.actions">
               <Button
@@ -127,7 +167,7 @@ export function PlanCreationSummary(props: {
                 disabled={busy || actions === null}
                 onClick={() => actions?.openPlanCreationDiscard()}
               >
-                Discard
+                {say("chat.planCreation.discard")}
               </Button>
               {ready && props.model.draft === null ? (
                 <Button
@@ -144,7 +184,7 @@ export function PlanCreationSummary(props: {
                   }
                   onClick={() => actions?.buildPlanCreationDraft()}
                 >
-                  Build Draft
+                  {say("chat.planCreation.buildDraft")}
                 </Button>
               ) : null}
               {canContinue ? (
@@ -154,7 +194,7 @@ export function PlanCreationSummary(props: {
                   disabled={actions === null || busy}
                   onClick={() => actions?.continuePlanCreation()}
                 >
-                  Continue
+                  {say("chat.planCreation.continue")}
                 </Button>
               ) : null}
             </div>

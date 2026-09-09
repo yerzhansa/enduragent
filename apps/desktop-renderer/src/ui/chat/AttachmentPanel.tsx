@@ -1,3 +1,5 @@
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { AttachmentList, AttachmentPreview, EvidenceList, NoticeRow } from "@enduragent/ui";
 import type {
   AttachmentAdmissionReadModel,
@@ -15,27 +17,38 @@ import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
-function bytes(value: number): string {
-  if (value >= 1_048_576) return `${(value / 1_048_576).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(value / 1_024))} KB`;
-}
-
-function duration(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
-}
-
-function distance(meters: number | null): string {
-  return meters === null ? "—" : `${(meters / 1_000).toFixed(1)} km`;
-}
-
-function formatDate(seconds: number): string {
-  return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(
-    new Date(seconds * 1_000),
-  );
+function useAttachmentFormatting() {
+  const { say, format } = usePhrasebook();
+  const number = (value: number) => format.number(value, { useGrouping: false });
+  const decimal = (value: number) =>
+    format.number(Number(value.toFixed(1)), {
+      useGrouping: false,
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  return {
+    bytes: (value: number) =>
+      value >= 1_048_576
+        ? say("chat.attachment.megabytes", { number: decimal(value / 1_048_576) })
+        : say("chat.attachment.kilobytes", {
+            number: number(Math.max(1, Math.round(value / 1_024))),
+          }),
+    duration(seconds: number) {
+      const minutes = Math.round(seconds / 60);
+      if (minutes < 60) return say("chat.attachment.minutes", { number: number(minutes) });
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      return remainder === 0
+        ? say("chat.attachment.hours", { number: number(hours) })
+        : say("chat.attachment.hoursMinutes", { hours: number(hours), minutes: number(remainder) });
+    },
+    distance: (meters: number | null) =>
+      meters === null
+        ? "—"
+        : say("chat.attachment.kilometers", { number: decimal(meters / 1_000) }),
+    date: (seconds: number) =>
+      format.date(new Date(seconds * 1_000), { day: "numeric", month: "short" }),
+  };
 }
 
 function AttachmentIcon(props: { readonly kind: ChatAttachmentComposerItem["kind"] }) {
@@ -55,7 +68,9 @@ function AttachmentIcon(props: { readonly kind: ChatAttachmentComposerItem["kind
 }
 
 function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }): ReactElement {
+  const { say, format } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
+  const { duration, distance, date } = useAttachmentFormatting();
   const planningRequestsLoaded = useEnduragentStore((state) => state.chat.planningRequestsLoaded);
   const planningRequestBusyId = useEnduragentStore((state) => state.chat.planningRequestBusyId);
   const attachment = props.attachment;
@@ -63,10 +78,10 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
   if (attachment.preview.kind === "document") {
     const scanned = attachment.preview.extractedTextChars === 0;
     return (
-      <NoticeRow title={scanned ? "Stored locally — no text found" : "Stored locally"}>
-        {scanned
-          ? "Coach can inspect visual PDF pages when image input is available; OCR is not used."
-          : "Coach can read this file through managed attachment tools."}
+      <NoticeRow
+        title={scanned ? say("chat.attachment.storedScanned") : say("chat.attachment.stored")}
+      >
+        {scanned ? say("chat.attachment.scannedDetail") : say("chat.attachment.documentDetail")}
       </NoticeRow>
     );
   }
@@ -76,15 +91,23 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
       <>
         <EvidenceList
           className="border-t border-line"
-          label="Recorded activity"
+          label={say("chat.attachment.activity")}
           rows={[
-            { id: "date", label: "Date", value: formatDate(session.startUtc) },
-            { id: "duration", label: "Duration", value: duration(session.durationSeconds) },
-            { id: "distance", label: "Distance", value: distance(session.distanceMeters) },
+            { id: "date", label: say("chat.attachment.date"), value: date(session.startUtc) },
+            {
+              id: "duration",
+              label: say("chat.attachment.duration"),
+              value: duration(session.durationSeconds),
+            },
+            {
+              id: "distance",
+              label: say("chat.attachment.distance"),
+              value: distance(session.distanceMeters),
+            },
           ]}
         />
-        <NoticeRow tone="neutral" title="Will add to Training when sent">
-          Send confirms the import; Plan and Calendar stay unchanged.
+        <NoticeRow tone="neutral" title={say("chat.attachment.importTitle")}>
+          {say("chat.attachment.importDetail")}
         </NoticeRow>
       </>
     );
@@ -97,7 +120,9 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
     return (
       <>
         <fieldset className="m-0 grid gap-1 border-0 border-t border-line p-2">
-          <legend className="px-2 py-1 text-xs text-ink-2">Select a workout</legend>
+          <legend className="px-2 py-1 text-xs text-ink-2">
+            {say("chat.attachment.selectWorkout")}
+          </legend>
           {preview.workouts.map((workout) => {
             const workoutSelected = workout.workoutId === preview.selectedWorkoutId;
             return (
@@ -129,7 +154,7 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
         </fieldset>
         {selected === undefined ? null : (
           <NoticeRow
-            title={`${selected.title} selected`}
+            title={say("chat.attachment.selected", { title: selected.title })}
             action={
               <Button
                 type="button"
@@ -140,36 +165,42 @@ function ReadyPreview(props: { readonly attachment: ChatAttachmentComposerItem }
                 }
                 onClick={() => actions?.reviewAttachmentInPlan(attachment.attachmentId)}
               >
-                {planningRequestBusyId === null ? "Review in Plan" : "Opening Plan…"}
+                {planningRequestBusyId === null
+                  ? say("chat.attachment.review")
+                  : say("chat.attachment.opening")}
               </Button>
             }
           >
-            Send asks Coach to analyze it, or review it in Plan now.
+            {say("chat.attachment.workoutDetail")}
           </NoticeRow>
         )}
       </>
     );
   }
   return (
-    <NoticeRow title="Image input available">
-      The configured model can view this image ({attachment.preview.width} ×{" "}
-      {attachment.preview.height}).
+    <NoticeRow title={say("chat.attachment.imageTitle")}>
+      {say("chat.attachment.imageDetail", {
+        width: format.number(attachment.preview.width, { useGrouping: false }),
+        height: format.number(attachment.preview.height, { useGrouping: false }),
+      })}
     </NoticeRow>
   );
 }
 
 function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem }): ReactElement {
+  const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
+  const { bytes } = useAttachmentFormatting();
   const setActiveView = useEnduragentStore((state) => state.setActiveView);
   const attachment = props.attachment;
   return (
     <AttachmentPreview
-      aria-label={`${attachment.displayName} attachment`}
+      aria-label={say("chat.attachment.label", { name: attachment.displayName })}
       title={attachment.displayName}
       detail={
         <>
           {attachment.extension.toUpperCase()} · {bytes(attachment.byteSize)}
-          {attachment.status === "preprocessing" ? " · processing locally" : ""}
+          {attachment.status === "preprocessing" ? say("chat.attachment.processingSuffix") : ""}
         </>
       }
       icon={<AttachmentIcon kind={attachment.kind} />}
@@ -182,13 +213,13 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
             actions?.removeAttachment(attachment.attachmentId);
           }}
         >
-          Remove
+          {say("chat.attachment.remove")}
         </Button>
       }
     >
       {attachment.status === "preprocessing" ? (
-        <NoticeRow title="Processing locally">
-          The file is being checked and prepared without sending its raw contents to a provider.
+        <NoticeRow title={say("chat.attachment.processingTitle")}>
+          {say("chat.attachment.processingDetail")}
         </NoticeRow>
       ) : null}
       {attachment.status === "blocked" ? (
@@ -196,8 +227,8 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
           tone="warning"
           title={
             attachment.reason === "encrypted_pdf"
-              ? "This PDF is password protected"
-              : "This model can’t view this file"
+              ? say("chat.attachment.encryptedTitle")
+              : say("chat.attachment.incompatibleTitle")
           }
           action={
             attachment.reason === "encrypted_pdf" ? undefined : (
@@ -207,20 +238,20 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
                 size="sm"
                 onClick={() => setActiveView("settings")}
               >
-                Open Settings
+                {say("chat.attachment.settings")}
               </Button>
             )
           }
         >
           {attachment.reason === "encrypted_pdf"
-            ? "Choose an unlocked PDF; the current draft is preserved."
-            : "Remove it or choose a compatible model in Settings."}
+            ? say("chat.attachment.encryptedDetail")
+            : say("chat.attachment.incompatibleDetail")}
         </NoticeRow>
       ) : null}
       {attachment.status === "failed" ? (
         <NoticeRow
           tone="warning"
-          title="This file couldn’t be prepared"
+          title={say("chat.attachment.failedTitle")}
           action={
             attachment.retryable ? (
               <Button
@@ -231,12 +262,12 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
                   actions?.retryAttachment(attachment.attachmentId);
                 }}
               >
-                Try again
+                {say("chat.attachment.retry")}
               </Button>
             ) : undefined
           }
         >
-          Your message draft is safe. Remove this file or try it again.
+          {say("chat.attachment.failedDetail")}
         </NoticeRow>
       ) : null}
       {attachment.status === "ready" ? <ReadyPreview attachment={attachment} /> : null}
@@ -247,6 +278,7 @@ function AttachmentCard(props: { readonly attachment: ChatAttachmentComposerItem
 function AdmissionFailure(props: {
   readonly admission: AttachmentAdmissionReadModel;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
   const admission = props.admission;
   if (admission.status !== "rejected" && admission.status !== "storage_failed") return null;
@@ -263,18 +295,23 @@ function AdmissionFailure(props: {
         <div className="min-w-0 flex-1">
           <strong className="block truncate text-sm">{admission.displayName}</strong>
           <small className="mt-1 block text-xs text-ink-2">
-            {unsupported ? "Unknown format" : "Could not add file"}
+            {unsupported
+              ? say("chat.attachment.unknownFormat")
+              : say("chat.attachment.admissionFailed")}
           </small>
         </div>
       </div>
       <div>
         <strong className="block text-sm text-ink">
-          {unsupported ? "This file type isn’t supported" : "Your draft is safe"}
+          {unsupported ? say("chat.attachment.unsupportedTitle") : say("chat.attachment.safeDraft")}
         </strong>
         <p className="mt-1 mb-0 text-xs leading-5 text-ink-2">
           {unsupported
-            ? "Try FIT, TCX, GPX, ZWO, ERG, MRC, PDF, TXT, CSV, DOCX, PNG, JPG, or WEBP."
-            : "Choose the file again; no message was sent."}
+            ? say("chat.attachment.formats", {
+                formats: "FIT, TCX, GPX, ZWO, ERG, MRC, PDF, TXT, CSV, DOCX, PNG, JPG",
+                finalFormat: "WEBP",
+              })
+            : say("chat.attachment.chooseAgain")}
         </p>
       </div>
       <div className="flex gap-2 max-[760px]:justify-start">
@@ -284,7 +321,7 @@ function AdmissionFailure(props: {
           size="sm"
           onClick={() => void actions?.chooseAttachments()}
         >
-          Choose another file
+          {say("chat.attachment.chooseFile")}
         </Button>
         <Button
           type="button"
@@ -292,7 +329,7 @@ function AdmissionFailure(props: {
           size="sm"
           onClick={() => actions?.receiveAttachmentAdmissions([])}
         >
-          Dismiss
+          {say("chat.attachment.dismiss")}
         </Button>
       </div>
     </section>
@@ -300,8 +337,15 @@ function AdmissionFailure(props: {
 }
 
 export function AttachmentPanel(): ReactElement | null {
+  const { say } = usePhrasebook();
   const surface = useEnduragentStore((state) => state.chat);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const attachmentError =
+    surface.attachmentError === null ? null : chatFeedbackMessage(surface.attachmentError);
+  const planningRequestError =
+    surface.planningRequestError === null
+      ? null
+      : chatFeedbackMessage(surface.planningRequestError);
   const attachments = surface.attachments?.draft?.attachments ?? [];
   if (
     attachments.length === 0 &&
@@ -320,7 +364,7 @@ export function AttachmentPanel(): ReactElement | null {
             className="size-4 animate-spin motion-reduce:animate-none"
             aria-hidden="true"
           />
-          Adding files…
+          {say("chat.attachment.adding")}
         </div>
       ) : null}
       {surface.attachmentError === null ? null : (
@@ -328,7 +372,7 @@ export function AttachmentPanel(): ReactElement | null {
           className="rounded-card border border-danger/40 bg-surface p-4 text-sm text-danger"
           role="alert"
         >
-          {surface.attachmentError}
+          {attachmentError === null ? surface.attachmentError : say(attachmentError)}
         </div>
       )}
       {surface.planningRequestError === null ? null : (
@@ -336,7 +380,11 @@ export function AttachmentPanel(): ReactElement | null {
           className="flex items-center justify-between gap-3 rounded-card border border-danger/40 bg-surface p-4 text-sm text-danger"
           role="alert"
         >
-          <span>{surface.planningRequestError}</span>
+          <span>
+            {planningRequestError === null
+              ? surface.planningRequestError
+              : say(planningRequestError)}
+          </span>
           <Button
             type="button"
             variant="outline"
@@ -344,7 +392,7 @@ export function AttachmentPanel(): ReactElement | null {
             disabled={surface.planningRequestBusyId !== null}
             onClick={() => actions?.retryPlanningRequestLoad()}
           >
-            Try again
+            {say("chat.attachment.retry")}
           </Button>
         </div>
       )}
