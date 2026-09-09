@@ -185,22 +185,19 @@ export class LLM {
 
   private async dispatch(opts: GenerateOpts): Promise<GenerateResult> {
     if (this.config.llm.provider === "openai-codex") {
-      const result = await codexGenerateText(
+      return codexGenerateText(
         {
           ...opts,
           modelId: this.config.llm.model,
           profileName: this.config.llm.authProfile ?? "openai-codex",
           stepLimit: opts.maxSteps,
+          onTextDelta: opts.caller === "chat" ? opts.onTextDelta : undefined,
         },
         {
           getAccessToken: this.ports.getAccessToken,
           classifyFailure: this.ports.classifyFailure,
         },
       );
-      if (opts.caller === "chat" && result.text !== "") {
-        notifyTextDelta(opts.onTextDelta, result.text);
-      }
-      return result;
     }
 
     if (this.config.llm.provider === "claude-cli") {
