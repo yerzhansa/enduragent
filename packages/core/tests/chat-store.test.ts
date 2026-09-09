@@ -509,6 +509,29 @@ describe("ChatStore durable reset — private race-checked targets", () => {
     );
   });
 
+  it("marks a precompact archive flush-pending and serves it until flushed", () => {
+    const store = new ChatStore(dataDir);
+    store.appendTurn("trim", "synthetic older user", "synthetic older coach", LINEAGE);
+    store.archivePreCompact("trim", { flushPending: true });
+
+    const archives = listPrecompactArchives("trim");
+    expect(archives).toHaveLength(1);
+    const archiveRef = archives[0].slice("trim.jsonl.".length);
+    expect(archiveRef.startsWith("precompact.")).toBe(true);
+    expect(existsSync(join(sessionsDir, `trim.jsonl.flush-pending.${archiveRef}`))).toBe(true);
+
+    const loaded = store.loadUnflushedResetArchive("trim");
+    expect(loaded?.archiveRef).toBe(archiveRef);
+    expect(loaded?.messages.map((m) => m.content)).toEqual([
+      "synthetic older user",
+      "synthetic older coach",
+    ]);
+
+    store.markResetArchiveFlushed("trim", archiveRef);
+    expect(existsSync(join(sessionsDir, `trim.jsonl.flush-pending.${archiveRef}`))).toBe(false);
+    expect(store.loadUnflushedResetArchive("trim")).toBeNull();
+  });
+
   it("drops a flush-pending marker whose archive is gone", () => {
     const store = new ChatStore(dataDir);
     store.appendTurn("orphan", "synthetic user", "synthetic coach", LINEAGE);

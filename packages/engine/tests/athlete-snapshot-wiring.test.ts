@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { ToolSet } from "ai";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cyclingSport } from "@enduragent/sport-cycling";
@@ -189,4 +189,64 @@ describe("memory_read registration follows the non-injected sections", () => {
       "Read only stored sections that Athlete Context does not show, plus today's notes and plan state.",
     );
   });
+
+  it("persists the template hash of the tools sent this turn", async () => {
+    const emptyDir = makeDataDir();
+    const notesDir = makeDataDir();
+    new Memory(notesDir).writeSection("notes", "prefers hill repeats");
+    await runTurn(emptyDir, undefined, "chat-hash");
+    await runTurn(notesDir, undefined, "chat-hash");
+    expect(lastTemplateHash(emptyDir, "chat-hash")).not.toBe(lastTemplateHash(notesDir, "chat-hash"));
+  });
+
+  it("recomputes the template hash when memory_read appears on a later turn of the same agent", async () => {
+    const dataDir = makeDataDir();
+    const base = baseAgentConfig(dataDir);
+    let tools: ToolSet = {};
+    const ports: EngineHostPorts = {
+      ...base,
+      platform: { ...base.platform, athleteData: undefined },
+      transcriptWriter: { appendCompletedTurn: () => undefined },
+      modelTransportDecorator: () => ({
+        generate: async (request) => {
+          tools = request.options.tools ?? {};
+          const usage = {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            inputTokenDetails: { noCacheTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            outputTokenDetails: { textTokens: 0, reasoningTokens: 0 },
+          };
+          return {
+            text: "ok",
+            toolCalls: [],
+            finishReason: "stop",
+            usage,
+            totalUsage: usage,
+            steps: 1,
+          };
+        },
+      }),
+    };
+    const agent = new CoachAgent(cyclingSport, ports);
+    await agent.chat("chat-hash", "first");
+    expect(tools).not.toHaveProperty("memory_read");
+    const hashWithout = lastTemplateHash(dataDir, "chat-hash");
+    new Memory(dataDir).writeSection("notes", "prefers hill repeats");
+    await agent.chat("chat-hash", "second");
+    expect(tools).toHaveProperty("memory_read");
+    expect(lastTemplateHash(dataDir, "chat-hash")).not.toBe(hashWithout);
+  });
 });
+
+function lastTemplateHash(dataDir: string, chatId: string): string {
+  const lines = readFileSync(join(dataDir, "sessions", `${chatId}.jsonl`), "utf8")
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0);
+  const last = JSON.parse(lines[lines.length - 1] ?? "{}") as { templateHash?: string };
+  if (typeof last.templateHash !== "string") {
+    throw new Error("session line is missing templateHash");
+  }
+  return last.templateHash;
+}

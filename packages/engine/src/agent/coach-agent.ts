@@ -394,12 +394,6 @@ export class CoachAgent {
   private lastFlushMessageCount = new Map<string, number>();
   private pendingFlushMessages = new Map<string, ModelMessage[]>();
   private readonly confirmationGate: boolean;
-  // The prompt-template hash is derived from constructor-stable inputs (soul,
-  // skills, tool schemas, model, and the compile-time rule-block set), so it is
-  // computed once on first use and reused for every turn of the process.
-  private templateHash?: string;
-  private desktopTemplateHash?: string;
-  private planTemplateHash?: string;
   private readonly activeChatTurns = new Map<
     string,
     { readonly turnId: string; readonly controller: AbortController }
@@ -590,13 +584,7 @@ export class CoachAgent {
   }
 
   private templateHashForChat(chatId: string, tools: ToolSet): string {
-    const current = chatId.startsWith("plan:")
-      ? this.planTemplateHash
-      : chatId === "desktop"
-        ? this.desktopTemplateHash
-        : this.templateHash;
-    if (current !== undefined) return current;
-    const value = computeTemplateHash({
+    return computeTemplateHash({
       soul: chatId.startsWith("plan:") ? PLAN_COACH_AUTHORITY_RULES : this.sport.soul,
       skills: chatId.startsWith("plan:") ? {} : this.sport.skills,
       ruleBlocks: chatId.startsWith("plan:")
@@ -607,10 +595,6 @@ export class CoachAgent {
       toolSchemas: tools,
       model: this.config.llm.model,
     });
-    if (chatId.startsWith("plan:")) this.planTemplateHash = value;
-    else if (chatId === "desktop") this.desktopTemplateHash = value;
-    else this.templateHash = value;
-    return value;
   }
 
   private runWithWriteProvenance<T>(provenance: SourceProvenance, fn: () => T): T {
@@ -786,7 +770,7 @@ export class CoachAgent {
       return;
     }
     await this.flushMemory(window, trigger, budget);
-    this.markFlushed(chatId, history.length);
+    this.markFlushed(chatId, history.length + currentTurn.length);
   }
 
   settle(chatId?: string): Promise<void> {
@@ -1042,14 +1026,23 @@ export class CoachAgent {
 
         let recoveryFlushQueued = false;
         const unflushed = this.chatStore.loadUnflushedResetArchive(chatId);
-        if (unflushed !== null) {
-          const markFlushed = () =>
-            this.chatStore.markResetArchiveFlushed(chatId, unflushed.archiveRef);
-          if (unflushed.messages.length === 0) {
-            markFlushed();
+        const ramPending = this.pendingFlushMessages.get(chatId) ?? [];
+        if (unflushed !== null || ramPending.length > 0) {
+          const markDiskFlushed = (): void => {
+            if (unflushed !== null) {
+              this.chatStore.markResetArchiveFlushed(chatId, unflushed.archiveRef);
+            }
+          };
+          if (unflushed !== null && unflushed.messages.length === 0 && ramPending.length === 0) {
+            markDiskFlushed();
           } else {
             recoveryFlushQueued = true;
-            this.queueFlush(chatId, unflushed.messages, "stale-reset", markFlushed);
+            this.queueFlush(
+              chatId,
+              ramPending.length > 0 ? [] : (unflushed?.messages ?? []),
+              "stale-reset",
+              markDiskFlushed,
+            );
           }
         }
 
@@ -1079,11 +1072,13 @@ export class CoachAgent {
         let summaryMsg: ModelMessage | undefined;
         let requeued: ModelMessage[] = [];
         if (dropped.length > 0) {
+          let trimFlushFailed = false;
           if (!flushedThisTurn) {
             flushedThisTurn = true;
             try {
               await this.flushNewMessages(chatId, history, "trim", turnBudget);
             } catch (err) {
+              trimFlushFailed = true;
               this.log.warn(
                 "Pre-compaction memory flush failed; the dropped messages stay queued for the next flush",
                 err,
@@ -1105,7 +1100,7 @@ export class CoachAgent {
             summaryMsg = makeSummaryMessage(summary, summaryProvenance);
             requeued = unsummarized;
             const compacted = [summaryMsg, ...requeued, ...kept];
-            this.chatStore.archivePreCompact(chatId);
+            this.chatStore.archivePreCompact(chatId, { flushPending: trimFlushFailed });
             this.chatStore.overwriteHistory(chatId, compacted);
             this.deferUnflushed(chatId, history, compacted.length);
           } catch (err) {
@@ -1363,7 +1358,7 @@ export class CoachAgent {
               }
               if (chatId.startsWith("plan:")) assertPlanCoachReplyAuthority(effectiveText);
 
-              const templateHash = this.templateHashForChat(chatId, this.toolsForChat(chatId));
+              const templateHash = this.templateHashForChat(chatId, turnTools);
               const assembledHash = computeAssembledHash(systemPrompt, providerMessages);
 
               const lineage: ChatLineage = {
@@ -1658,7 +1653,7 @@ export class CoachAgent {
               providerUserMessage,
               turn?.nativeMedia ?? [],
             );
-            const templateHash = this.templateHashForChat(chatId, this.toolsForChat(chatId));
+            const templateHash = this.templateHashForChat(chatId, turnTools);
             try {
               this.chatStore.appendTurn(chatId, userMessageWithTime, streamedText, {
                 templateHash,

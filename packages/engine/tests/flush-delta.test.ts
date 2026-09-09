@@ -192,16 +192,67 @@ describe("memory flush sends only what changed since the last successful flush",
     ).toHaveLength(1);
 
     expect(await agent.chat("trim", "again")).toBe("trim-reply");
+    await drain("trim");
     expect(complete.mock.calls.filter(isCompaction)).toHaveLength(1);
-    expect(flushCalls(complete)).toHaveLength(2);
+    expect(flushCalls(complete).some((flush) => flush.includes("TRIM-0 "))).toBe(true);
+    expect(flushCalls(complete).some((flush) => flush.includes("TRIM-29 "))).toBe(true);
 
     await expect(agent.resetSession("trim")).resolves.toEqual({ memoryFlushed: true });
+    const lastFlush = flushCalls(complete).at(-1) ?? "";
+    expect(lastFlush).not.toContain("TRIM-0 ");
+    expect(lastFlush).toContain("hello");
+    expect(lastFlush).toContain("again");
+    expect(lastFlush).not.toContain("## Coach Stance");
+  });
+
+  it("a failed trim flush still reaches a new process through the precompact pending marker", async () => {
+    const failing = vi.fn(async (params: Call) => {
+      const sys = params.system ?? "";
+      if (sys.includes(FLUSH_MARKER)) throw new Error("boom");
+      if (sys.includes(COMPACTION_MARKER)) return mkAssistant(FIVE_SECTION_SUMMARY);
+      return mkAssistant("trim-reply");
+    });
+    const first = await setupAgent(failing, 120_000);
+    seedSession("trim-restart", markedLines("TRIM", 30));
+    expect(await first.chat("trim-restart", "hello")).toBe("trim-reply");
+    expect(
+      readdirSync(join(dataDir, "sessions")).some((f) =>
+        f.startsWith("trim-restart.jsonl.flush-pending.precompact."),
+      ),
+    ).toBe(true);
+
+    vi.resetModules();
+    const recovered = routeByPrompt("again-reply");
+    const second = await setupAgent(recovered, 120_000);
+    expect(await second.chat("trim-restart", "again")).toBe("again-reply");
+    await drain("trim-restart");
+    expect(flushCalls(recovered).some((flush) => flush.includes("TRIM-0 "))).toBe(true);
+  });
+
+  it("an overflow-recovery flush does not resend the in-progress user line on the next flush", async () => {
+    let mainTurns = 0;
+    const complete = vi.fn(async (params: Call) => {
+      const sys = params.system ?? "";
+      if (sys.includes(FLUSH_MARKER)) return mkAssistant("facts noted");
+      if (sys.includes(COMPACTION_MARKER)) return mkAssistant(FIVE_SECTION_SUMMARY);
+      mainTurns++;
+      if (mainTurns === 1) {
+        throw new Error("Request exceeds the maximum context length of 272000 tokens");
+      }
+      return mkAssistant("recovered");
+    });
+    const agent = await setupAgent(complete, 80_000);
+    expect(await agent.chat("overflow-watermark", "hello-unique-xyz")).toBe("recovered");
+    await drain("overflow-watermark");
+    expect(flushCalls(complete)).toHaveLength(1);
+    expect(flushCalls(complete)[0]).toContain("hello-unique-xyz");
+
+    await expect(agent.resetSession("overflow-watermark")).resolves.toEqual({
+      memoryFlushed: true,
+    });
     const flushes = flushCalls(complete);
-    expect(flushes).toHaveLength(3);
-    expect(flushes[2]).toContain("TRIM-0 ");
-    expect(flushes[2]).toContain("TRIM-29 ");
-    expect(flushes[2]).toContain("hello");
-    expect(flushes[2]).toContain("again");
-    expect(flushes[2]).not.toContain("## Coach Stance");
+    expect(flushes).toHaveLength(2);
+    expect(flushes[1]).not.toContain("hello-unique-xyz");
+    expect(flushes[1]).toContain("recovered");
   });
 });

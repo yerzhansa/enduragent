@@ -634,7 +634,7 @@ describe("codex-bridge", () => {
     expect(JSON.stringify(toolMsg!.content)).toContain("logged 60");
   });
 
-  it("forwards opts.onTextDelta to every step's request", async () => {
+  it("forwards opts.onTextDelta only for the terminal step", async () => {
     const tools = {
       log_ride: {
         description: "log a ride",
@@ -668,7 +668,7 @@ describe("codex-bridge", () => {
       onTextDelta: (delta) => deltas.push(delta),
     });
 
-    expect(deltas).toEqual(["Checking", "Logged ", "60 min."]);
+    expect(deltas).toEqual(["Logged ", "60 min."]);
     expect(result.text).toBe("Logged 60 min.");
   });
 
