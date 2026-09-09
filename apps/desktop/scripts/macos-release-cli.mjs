@@ -26,9 +26,10 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
   try {
     await main();
   } catch (error) {
-    process.exitCode = 1;
     const detail = safeMacosReleaseVerificationMessage(error) ?? safeMacosReleasePlanMessage(error);
     const suffix = detail === undefined ? "" : `: ${detail}`;
-    process.stderr.write(`macOS release build failed at ${activeStage}${suffix}\n`);
+    process.stderr.write(`macOS release build failed at ${activeStage}${suffix}\n`, () =>
+      process.exit(1),
+    );
   }
 }
