@@ -239,6 +239,7 @@ async function main(): Promise<void> {
       emitScenarioStage("START", diagnosticScenario, "turn", turnIndex);
       try {
         replies.push((await agent.chat({ chatId: turn.chatId, message: turn.userMessage })).text);
+        await agent.settle?.({ chatId: turn.chatId });
       } catch (err) {
         // Drift (or any turn-level throw) fails the turn; the assert report
         // explains why. The remaining turns still run for a fuller report.

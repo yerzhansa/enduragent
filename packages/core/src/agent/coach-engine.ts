@@ -1,7 +1,7 @@
 import type { Config } from "../config.js";
 import type { Sport } from "../sport.js";
 import type { Memory } from "../memory/store.js";
-import type { CoachEngine } from "@enduragent/coach-contract";
+import type { CoachEngine, SettleRequest } from "@enduragent/coach-contract";
 import type { ConfirmationGate } from "./confirmation-gate.js";
 import { CoachAgent } from "./coach-agent.js";
 import type { AthleteDataReader, PlatformCalendarMutations } from "../athlete-data.js";
@@ -15,6 +15,7 @@ import type { ModelTransportDecorator } from "@enduragent/engine";
 export interface LocalCoachEngine extends CoachEngine {
   readonly confirmations: ConfirmationGate;
   getMemory(): Memory;
+  settle(request?: SettleRequest): Promise<void>;
 }
 
 export interface LegacyEngineOverrides {

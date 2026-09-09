@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { ToolSet } from "ai";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +7,7 @@ import { cyclingSport } from "@enduragent/sport-cycling";
 import { CoachAgent } from "../src/agent/coach-agent.js";
 import type { EngineHostPorts, MemoryStorePort } from "../src/host-ports.js";
 import { EMPTY_PROVENANCE } from "../src/provenance.js";
+import { createTurnContext } from "../src/agent/turn-context.js";
 import { Memory } from "../../core/src/memory/store.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 
@@ -32,6 +34,7 @@ function seed(dataDir: string): void {
 async function capturedSystemPrompt(
   dataDir: string,
   memoryOverride?: MemoryStorePort,
+  inspectTools?: (tools: ToolSet) => Promise<void>,
 ): Promise<string> {
   const base = baseAgentConfig(dataDir);
   let system = "";
@@ -42,6 +45,7 @@ async function capturedSystemPrompt(
     modelTransportDecorator: () => ({
       generate: async (request) => {
         system = request.options.system ?? "";
+        await inspectTools?.(request.options.tools ?? {});
         const usage = {
           inputTokens: 0,
           outputTokens: 0,
@@ -69,6 +73,37 @@ afterEach(() => {
 });
 
 describe("the agent injects only the inject-tiered sections into the assembled prompt", () => {
+  it("registers chat appends and reads the complement through the agent tool set", async () => {
+    const dataDir = makeDataDir();
+    seed(dataDir);
+    const memory = new Memory(dataDir);
+    await capturedSystemPrompt(dataDir, memory, async (tools) => {
+      expect(tools).toHaveProperty("ledger_append");
+      const context = createTurnContext(null);
+      const options = { toolCallId: "memory-wiring", messages: [], experimental_context: context };
+      const result = JSON.stringify(await tools.memory_read.execute?.({}, options));
+      expect(result).not.toContain("Name: Sam; weight 72kg");
+      expect(result).not.toContain("FTP 250W, max HR 188");
+      expect(result).toContain("prefers hill repeats");
+      const range = { from: "1998-03-12", to: "1998-03-12" };
+      await tools.memory_query.execute?.(range, options);
+      expect(context.readToolCache.size).toBeGreaterThan(0);
+      await tools.ledger_append.execute?.(
+        {
+          date: "1998-03-12",
+          kind: "decision",
+          text: "Keep the easy week",
+        },
+        options,
+      );
+      expect(context.readToolCache.size).toBe(0);
+      await tools.memory_query.execute?.(range, options);
+      expect(context.readToolCache.size).toBeGreaterThan(0);
+      expect(context.turnWrites.writesCommitted).toBe(1);
+    });
+    expect(JSON.parse(memory.readEventsRaw())).toMatchObject({ source: "chat" });
+  });
+
   it("renders inject sections and orphans, drops the non-inject ones", async () => {
     const dataDir = makeDataDir();
     seed(dataDir);

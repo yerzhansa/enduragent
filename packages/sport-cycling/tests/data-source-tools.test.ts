@@ -16,7 +16,7 @@ function tomorrowISODate(): string {
 const reader: AthleteDataReader = {
   getAthlete: async () => ({ ok: true, value: {} }),
   listWellness: async () => ({ ok: true, value: [] }),
-  listActivities: async () => ({ ok: true, value: [{ marker: "store" }] }),
+  listActivities: async () => ({ ok: true, value: [{ id: "store" }] }),
   getActivity: async () => ({ ok: true, value: {} }),
   getStreams: async () => ({ ok: true, value: {} }),
   listCalendar: async () => ({
@@ -49,7 +49,7 @@ describe("cycling data-source tools", () => {
     expect(registration.description).not.toContain("load, intensity");
     await expect(
       registration.tool.execute!({ oldest: "1998-01-01", newest: "1998-07-18" }, {} as never),
-    ).resolves.toEqual([{ marker: "store" }]);
+    ).resolves.toEqual([{ id: "store" }]);
   });
 
   it("keeps create registered and returns the exact missing-credential error", async () => {

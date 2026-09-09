@@ -297,12 +297,11 @@ describe("WORKOUT_REVIEW_RULES content", () => {
     expect(prompt).toContain("there is not enough evidence to judge how it went");
     expect(prompt).toMatch(/ask for\s+the\s+session goal plus RPE or reported feel/);
     expect(prompt).toContain("do not alter the next session");
-    expect(prompt).toContain("does not preserve trustworthy timestamp alignment");
+    expect(prompt).toContain("Follow the stream-evidence limits in the `intervals_fetch_streams` tool description.");
     expect(prompt).toMatch(
       /independently\s+summarized stream statistics alone cannot establish session quality/,
     );
     expect(prompt).not.toContain("per-channel sample count");
-    expect(prompt).toMatch(/Do not infer\s+pacing/);
     expect(prompt).toMatch(/Never\s+say/);
   });
 });

@@ -92,6 +92,7 @@ describe("running canonical engine compatibility", () => {
     expect(toolNames).toEqual([
       "memory_read",
       "memory_query",
+      "ledger_append",
       "memory_write",
       "plan_save",
       "plan_load",

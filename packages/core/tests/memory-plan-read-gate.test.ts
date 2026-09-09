@@ -63,7 +63,9 @@ describe("Memory plan read gate", () => {
     expect(unwrapBoundToolResult(result)).toBe(message);
     expect(boundToolResultProvenance(result)).toEqual(EMPTY_PROVENANCE);
     const context = await tools.memory_read.execute!({}, executeOptions);
-    expect(unwrapBoundToolResult(context)).toBe("No athlete data stored yet.");
+    expect(unwrapBoundToolResult(context)).toBe(
+      "Every stored section is already in your Athlete Context.",
+    );
     expect(boundToolResultProvenance(context)).toEqual(EMPTY_PROVENANCE);
     expect(readFileSync(path, "utf8")).toBe(original);
   });
@@ -82,7 +84,9 @@ describe("Memory plan read gate", () => {
       authority = true;
       const result = await tool.execute!({}, executeOptions);
 
-      expect(result).toBe(name === "plan_load" ? message : "No athlete data stored yet.");
+      expect(result).toBe(
+        name === "plan_load" ? message : "Every stored section is already in your Athlete Context.",
+      );
       expect(memory.getContext()).not.toContain("## Current Plan");
       expect(memory.getContextWithProvenance().provenance).toEqual(EMPTY_PROVENANCE);
     },

@@ -6,6 +6,11 @@ import { baseAgentConfig } from "./helpers/base-agent-config.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 
+async function drain(chatId: string): Promise<void> {
+  const { withSessionLock } = await import("../src/agent/session-lock.js");
+  await withSessionLock(chatId, async () => {});
+}
+
 let tempHome: string;
 let origHome: string | undefined;
 let dataDir: string;
@@ -113,8 +118,8 @@ describe("reset-path flush guards", () => {
     let n = 0;
     const complete = vi.fn(async () => {
       n++;
-      if (n <= 2) throw new Error("boom");
-      return mkAssistant("fresh-start");
+      if (n === 1) return mkAssistant("fresh-start");
+      throw new Error("boom");
     });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const agent = await setupAgent(complete);
@@ -128,6 +133,7 @@ describe("reset-path flush guards", () => {
     // A reset turn now prefixes the one-time post-reset notice before the reply.
     expect(text.startsWith("Started a fresh session")).toBe(true);
     expect(text).toContain("fresh-start");
+    await drain("stale-guard");
     expect(complete).toHaveBeenCalledTimes(3);
     const archives = listArchives("stale-guard");
     expect(archives).toHaveLength(1);
@@ -138,8 +144,46 @@ describe("reset-path flush guards", () => {
     expect(freshSession).toContain("fresh-start");
     expect(freshSession).not.toContain("old turn from a previous day");
     expect(
-      warnSpy.mock.calls.some((c) => String(c[0]).includes("Pre-reset memory flush failed")),
+      warnSpy.mock.calls.some((c) =>
+        String(c[0]).includes("Queued stale-reset memory flush failed"),
+      ),
     ).toBe(true);
+  });
+
+  it("the reply resolves before the stale-reset flush starts, and the next turn waits for it", async () => {
+    let releaseFlush: () => void = () => {};
+    const flushGate = new Promise<void>((resolve) => {
+      releaseFlush = resolve;
+    });
+    let n = 0;
+    const complete = vi.fn(async () => {
+      n++;
+      if (n === 2) {
+        await flushGate;
+        return mkAssistant("facts noted");
+      }
+      return mkAssistant(`reply-${n}`);
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete);
+    seedSession("order", [
+      { role: "user", content: "yesterday's talk", ts: STALE_TS },
+      { role: "assistant", content: "yesterday's reply", ts: STALE_TS },
+    ]);
+
+    const first = await agent.chat("order", "morning");
+
+    expect(first).toContain("reply-1");
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(listArchives("order")).toHaveLength(1);
+
+    const second = agent.chat("order", "and another thing");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(complete).toHaveBeenCalledTimes(2);
+
+    releaseFlush();
+    expect(await second).toBe("reply-3");
+    expect(complete).toHaveBeenCalledTimes(3);
   });
 
   it("defers a daily reset for one turn when the last exchange is still recent", async () => {
