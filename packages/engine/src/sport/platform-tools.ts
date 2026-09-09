@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ApiError, IntervalsClient } from "intervals-icu-api";
 import type { IntervalsActivityType } from "../sport.js";
 import { summarizeStreams } from "./stream-summary.js";
-import { projectActivity, projectWellness } from "./list-projection.js";
+import { projectActivity, projectAthlete, projectWellness } from "./list-projection.js";
 import {
   guardDeletableEvent,
   guardUpdatableEvent,
@@ -89,7 +89,9 @@ export function createPureCoreIntervalsTools(
             inputSchema: zodSchema(z.object({})),
             execute: async () => {
               try {
-                return readResult(await selectedReader.getAthlete());
+                const result = await selectedReader.getAthlete();
+                if (!result.ok) return readResult(result);
+                return readResult({ ...result, value: projectAthlete(result.value) });
               } catch (error) {
                 return platformFailure(error);
               }
