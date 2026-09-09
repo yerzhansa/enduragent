@@ -42,11 +42,14 @@ import {
   type AthleteState,
   type CoachEngine,
   type CoachOperations,
+  type PlanCreationOperations,
+  type PlanChangeOperations,
   type TelegramControlSnapshot,
   type TurnEvent,
 } from "@enduragent/coach-contract";
 import { createCoachRpcServer, type CoachRpcServer } from "../src/daemon/rpc-server.js";
 import type { DesktopTelegramController } from "../src/desktop-telegram-controller.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const token = "s".repeat(43);
 const disabledTelegramSnapshot: TelegramControlSnapshot = {
@@ -81,7 +84,8 @@ const disabledTelegram: DesktopTelegramController = {
   drainPending: async () => disabledTelegramSnapshot,
   close: async () => disabledTelegramSnapshot,
 };
-const operations: CoachOperations = {
+const operations: CoachOperations & PlanCreationOperations & PlanChangeOperations = {
+  ...planCreationOperationStubs,
   importFiles: async ({ paths }) => ({
     schemaVersion: 2,
     files: { total: paths.length, imported: paths.length, quarantined: 0 },

@@ -1,5 +1,6 @@
 import type { MigratorStore } from "../store/migrator.js";
 import type { Row, SqlStore } from "../store/ports.js";
+import { createLegacyWriterFence } from "./writer-fence.js";
 import { parseRaceCourseSnapshot } from "./race-course.js";
 
 export type PlanConversationStatus = "open" | "ended";
@@ -409,6 +410,20 @@ function sameRecord<T>(left: T, right: T): boolean {
 }
 
 export function createPlanConversationRepository(store: PlanningStore): PlanConversationRepository {
+  return createConversationRepository(store, false);
+}
+
+export function createLegacyPlanTransitionRepository(
+  store: PlanningStore,
+): PlanConversationRepository {
+  return createConversationRepository(store, true);
+}
+
+function createConversationRepository(
+  store: PlanningStore,
+  enforceLegacyAuthority: boolean,
+): PlanConversationRepository {
+  const writerFence = createLegacyWriterFence(store);
   const readConversation = async (id: string): Promise<PlanConversationRecord | undefined> => {
     const row = await store.get("SELECT * FROM plan_conversation WHERE id = ?", [id]);
     return row === undefined ? undefined : conversationFromRow(row);
@@ -438,6 +453,7 @@ export function createPlanConversationRepository(store: PlanningStore): PlanConv
     async saveConversation(record) {
       validatePlanConversationRecord(record);
       await store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         const existing = await readConversation(record.id);
         if (existing !== undefined) {
           if (existing.status === "ended") {
@@ -515,6 +531,7 @@ ON CONFLICT (id) DO UPDATE SET
     async appendTurn(record) {
       validatePlanConversationTurnRecord(record);
       return store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         await requireOpenConversation(record.conversationId);
         const existingRow = await store.get("SELECT * FROM plan_conversation_turn WHERE id = ?", [
           record.id,
@@ -567,6 +584,7 @@ ON CONFLICT (id) DO UPDATE SET
     async saveDraftRevision(record) {
       validatePlanDraftRevisionRecord(record);
       await store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         const conversation = await requireOpenConversation(record.conversationId);
         if (conversation.planId !== null && conversation.planId !== record.planId) {
           throw new PlanConversationValidationError("draft-lineage-conflict");
@@ -677,6 +695,7 @@ ON CONFLICT (id) DO UPDATE SET
         throw new PlanConversationValidationError("invalid-draft-revision");
       }
       return store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         const draft = await readDraftRevision(input.draftRevisionId);
         if (draft === undefined) {
           throw new PlanConversationValidationError("stale-draft");
@@ -738,6 +757,7 @@ ON CONFLICT (id) DO UPDATE SET
     async createOrGetSourceRequest(record) {
       validatePlanSourceRequestRecord(record);
       return store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         await requireOpenConversation(record.conversationId);
         const existing = await readSourceRequest(record.id);
         if (existing !== undefined) {
@@ -775,6 +795,7 @@ ON CONFLICT (id) DO UPDATE SET
         throw new PlanConversationValidationError("invalid-source-request");
       }
       return store.transaction(async () => {
+        if (enforceLegacyAuthority) await writerFence.assertLegacyAuthority();
         const existing = await readSourceRequest(record.id);
         if (existing === undefined) {
           throw new PlanConversationValidationError("missing-source-request");

@@ -16,3 +16,7 @@ export * from "./request-repository.js";
 export * from "./request-intake-repository.js";
 export * from "./intake-repository.js";
 export * from "./draft-build-repository.js";
+export * from "./creation-repository.js";
+export * from "./lifecycle-repository.js";
+export * from "./change-repository.js";
+export * from "./writer-fence.js";

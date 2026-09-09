@@ -123,6 +123,10 @@ import {
 import {
   GetPlanningReadModelRpcParamsSchema,
   GetPlanningReadModelRpcResultSchema,
+  PlanHistoryParamsSchema,
+  PlanHistoryResultSchema,
+  ListPlansParamsSchema,
+  ListPlansResultSchema,
   type PlanningReadOperations,
 } from "./planning-read.js";
 import {
@@ -140,6 +144,31 @@ import {
   RetryPlanningRequestRpcResultSchema,
   type PlanningRequestOperations,
 } from "./planning-request.js";
+import {
+  PlanCloseRpcParamsSchema,
+  PlanCloseResultSchema,
+  PlanCreationActivateRpcParamsSchema,
+  PlanCreationActivateRpcResultSchema,
+  PlanCreationAnswerRpcParamsSchema,
+  PlanCreationAnswerRpcResultSchema,
+  PlanCreationPreviewRpcParamsSchema,
+  PlanCreationPreviewRpcResultSchema,
+  PlanCreationDiscardRpcParamsSchema,
+  PlanCreationDiscardRpcResultSchema,
+  PlanCreationInterpretCommitmentsRpcParamsSchema,
+  PlanCreationInterpretCommitmentsRpcResultSchema,
+  PlanCreationStartRpcParamsSchema,
+  PlanCreationStartRpcResultSchema,
+  type PlanCreationOperations,
+} from "./plan-creation.js";
+
+import {
+  PlanChangePreviewRpcParamsSchema,
+  PlanChangePreviewResultSchema,
+  PlanChangeApplyRpcParamsSchema,
+  PlanChangeApplyResultSchema,
+  type PlanChangeOperations,
+} from "./plan-change.js";
 
 export const JsonValueSchema = z.json();
 export type JsonValue = z.infer<typeof JsonValueSchema>;
@@ -260,6 +289,9 @@ export const COACH_RPC_METHOD_NAMES = [
   "getArchivedTranscriptPage",
   "getAthleteState",
   "getPlanningReadModel",
+  "plan.list",
+  "plan.close",
+  "plan.history",
   "getActivityAnalysis",
   "exportTrainingFile",
   "importFiles",
@@ -300,6 +332,14 @@ export const COACH_RPC_METHOD_NAMES = [
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
+  "plan_creation.interpretCommitments",
+  "plan_creation.start",
+  "plan_creation.answer",
+  "plan_creation.preview",
+  "plan_creation.discard",
+  "plan_creation.activate",
+  "plan_change.preview",
+  "plan_change.apply",
 ] as const satisfies readonly (keyof CoachRpcService)[];
 
 export const CoachRpcMethodNameSchema = z.enum(COACH_RPC_METHOD_NAMES);
@@ -1310,6 +1350,8 @@ export type CoachRpcService = CoachEngine &
   CoachOperations &
   PlanningReadOperations &
   PlanningRequestOperations &
+  PlanCreationOperations &
+  PlanChangeOperations &
   SpendOperations &
   CoachSelfTestOperations &
   TelegramControlOperations &
@@ -1538,6 +1580,30 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       id: JsonRpcIdSchema,
       method: z.literal("getPlanningReadModel"),
       params: GetPlanningReadModelRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan.list"),
+      params: ListPlansParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan.close"),
+      params: PlanCloseRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan.history"),
+      params: PlanHistoryParamsSchema,
     })
     .strict(),
   z
@@ -1860,6 +1926,70 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       params: ListPlanningRequestsRpcParamsSchema,
     })
     .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.interpretCommitments"),
+      params: PlanCreationInterpretCommitmentsRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.start"),
+      params: PlanCreationStartRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.answer"),
+      params: PlanCreationAnswerRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.preview"),
+      params: PlanCreationPreviewRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.discard"),
+      params: PlanCreationDiscardRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_creation.activate"),
+      params: PlanCreationActivateRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_change.preview"),
+      params: PlanChangePreviewRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("plan_change.apply"),
+      params: PlanChangeApplyRpcParamsSchema,
+    })
+    .strict(),
 ]);
 export type CoachRpcRequestEnvelope = z.infer<typeof CoachRpcRequestEnvelopeSchema>;
 
@@ -2140,6 +2270,24 @@ export const COACH_RPC_METHOD_REGISTRY = {
     responseSchema: GetPlanningReadModelRpcResultSchema,
     eventSchema: NoRpcEventSchema,
   },
+  "plan.list": {
+    wireName: "plan.list",
+    requestSchema: ListPlansParamsSchema,
+    responseSchema: ListPlansResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan.close": {
+    wireName: "plan.close",
+    requestSchema: PlanCloseRpcParamsSchema,
+    responseSchema: PlanCloseResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan.history": {
+    wireName: "plan.history",
+    requestSchema: PlanHistoryParamsSchema,
+    responseSchema: PlanHistoryResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
   getActivityAnalysis: {
     wireName: "getActivityAnalysis",
     requestSchema: ActivityAnalysisRequestSchema,
@@ -2378,6 +2526,54 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "listPlanningRequests",
     requestSchema: ListPlanningRequestsRpcParamsSchema,
     responseSchema: ListPlanningRequestsRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.interpretCommitments": {
+    wireName: "plan_creation.interpretCommitments",
+    requestSchema: PlanCreationInterpretCommitmentsRpcParamsSchema,
+    responseSchema: PlanCreationInterpretCommitmentsRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.start": {
+    wireName: "plan_creation.start",
+    requestSchema: PlanCreationStartRpcParamsSchema,
+    responseSchema: PlanCreationStartRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.answer": {
+    wireName: "plan_creation.answer",
+    requestSchema: PlanCreationAnswerRpcParamsSchema,
+    responseSchema: PlanCreationAnswerRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.preview": {
+    wireName: "plan_creation.preview",
+    requestSchema: PlanCreationPreviewRpcParamsSchema,
+    responseSchema: PlanCreationPreviewRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.discard": {
+    wireName: "plan_creation.discard",
+    requestSchema: PlanCreationDiscardRpcParamsSchema,
+    responseSchema: PlanCreationDiscardRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_creation.activate": {
+    wireName: "plan_creation.activate",
+    requestSchema: PlanCreationActivateRpcParamsSchema,
+    responseSchema: PlanCreationActivateRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_change.preview": {
+    wireName: "plan_change.preview",
+    requestSchema: PlanChangePreviewRpcParamsSchema,
+    responseSchema: PlanChangePreviewResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  "plan_change.apply": {
+    wireName: "plan_change.apply",
+    requestSchema: PlanChangeApplyRpcParamsSchema,
+    responseSchema: PlanChangeApplyResultSchema,
     eventSchema: NoRpcEventSchema,
   },
 } as const satisfies CoachRpcMethodRegistryShape;

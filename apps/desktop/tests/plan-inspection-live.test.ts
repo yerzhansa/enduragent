@@ -355,7 +355,7 @@ describe("Plan inspection live fixture", () => {
       ListPlanningRequestsRpcResultSchema.parse(
         await result(script, "listPlanningRequests", { chatId: "main" }),
       ),
-    ).toEqual({ deliveries: [] });
+    ).toEqual({ deliveries: [], planCreation: null });
   });
 
   it("starts on the active Plan and follows the existing next-Plan transition", async () => {

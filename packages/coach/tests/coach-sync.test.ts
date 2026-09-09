@@ -578,7 +578,7 @@ describe("coach sync composition", () => {
             return store.get("PRAGMA user_version");
           },
         );
-        expect(value).toEqual({ user_version: 31 });
+        expect(value).toEqual({ user_version: 32 });
         expect(await pathExists(join(home.storeDir, "store.db"))).toBe(true);
         expect(await pathExists(join(home.configDir, LOCKFILE_NAME))).toBe(false);
         expect(await pathExists(join(home.configDir, PORT_FILE_NAME))).toBe(false);
@@ -586,7 +586,7 @@ describe("coach sync composition", () => {
         const reopened = openSqliteStorage(join(home.storeDir, "store.db"));
         try {
           await expect(reopened.get("PRAGMA user_version")).resolves.toEqual({
-            user_version: 31,
+            user_version: 32,
           });
         } finally {
           await reopened.close();

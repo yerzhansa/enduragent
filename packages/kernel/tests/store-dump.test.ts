@@ -103,6 +103,7 @@ describe("INV-2 canonical dump (armed with real ingest at W2)", () => {
     const dumped = DUMP_TABLES.map(({ table }) => table);
     const planning = [
       "plan",
+      "planning_authority",
       "planning_plan",
       "plan_revision",
       "plan_creation",

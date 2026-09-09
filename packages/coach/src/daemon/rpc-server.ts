@@ -36,6 +36,8 @@ import {
   type CoachEngine,
   type CoachOperations,
   type PlanningReadOperations,
+  type PlanCreationOperations,
+  type PlanChangeOperations,
   type PlanningRequestOperations,
   type CoachRpcMethodName,
   type CoachSelfTestOperations,
@@ -46,6 +48,7 @@ import {
   type SetDailySpendCapRpcParams,
   type SpendSummary,
 } from "@enduragent/coach-contract";
+import { PlanCreationStoreError } from "@enduragent/kernel/planning";
 import { unavailableChatAttachmentAdmission } from "../attachment-operations.js";
 import type { WriterProtocolHandlers } from "@enduragent/kernel-node/lock";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
@@ -300,6 +303,8 @@ export interface CoachRpcServerInput {
   readonly operations: CoachOperations &
     PlanningReadOperations &
     PlanningRequestOperations &
+    PlanCreationOperations &
+    PlanChangeOperations &
     PlanningOperations;
   readonly spend: SpendRpcHandlers;
   readonly selfTestOperations: CoachSelfTestOperations;
@@ -525,6 +530,11 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "getArchivedTranscriptPage",
   "getAthleteState",
   "getPlanningReadModel",
+  "plan.list",
+  "plan.close",
+  "plan_change.preview",
+  "plan_change.apply",
+  "plan.history",
   "getActivityAnalysis",
   "importFiles",
   "sync",
@@ -545,6 +555,12 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
+  "plan_creation.interpretCommitments",
+  "plan_creation.start",
+  "plan_creation.answer",
+  "plan_creation.preview",
+  "plan_creation.discard",
+  "plan_creation.activate",
 ]);
 
 const PLAN_CHAT_RENDERER_METHODS = new Set<CoachRpcMethodName>([
@@ -1342,6 +1358,71 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               invocationFailure = { error };
             }
             break;
+          case "plan.list":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY["plan.list"].requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations["plan.list"] === undefined) {
+                throw new TypeError("Plan library operation is unavailable.");
+              }
+              result = await input.operations["plan.list"](request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan.close":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY["plan.close"].requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations["plan.close"] === undefined) {
+                throw new TypeError("Plan closure operation is unavailable.");
+              }
+              result = await input.operations["plan.close"](request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_change.preview":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY["plan_change.preview"].requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations["plan_change.preview"] === undefined) {
+                throw new TypeError("Plan Change preview operation is unavailable.");
+              }
+              result = await input.operations["plan_change.preview"](request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_change.apply":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY["plan_change.apply"].requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations["plan_change.apply"] === undefined) {
+                throw new TypeError("Plan Change apply operation is unavailable.");
+              }
+              result = await input.operations["plan_change.apply"](request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan.history":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY["plan.history"].requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations["plan.history"] === undefined) {
+                throw new TypeError("Plan history operation is unavailable.");
+              }
+              result = await input.operations["plan.history"](request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
           case "getActivityAnalysis":
             try {
               const request = COACH_RPC_METHOD_REGISTRY.getActivityAnalysis.requestSchema.parse(
@@ -1817,6 +1898,95 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
                 ),
               );
             } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.interpretCommitments":
+            try {
+              result = await input.operations["plan_creation.interpretCommitments"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.interpretCommitments"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.start":
+            try {
+              result = await input.operations["plan_creation.start"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.start"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.answer":
+            try {
+              result = await input.operations["plan_creation.answer"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.answer"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.preview":
+            try {
+              result = await input.operations["plan_creation.preview"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.preview"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.discard":
+            try {
+              result = await input.operations["plan_creation.discard"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.discard"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "plan_creation.activate":
+            try {
+              result = await input.operations["plan_creation.activate"](
+                COACH_RPC_METHOD_REGISTRY["plan_creation.activate"].requestSchema.parse(
+                  generic.data.params,
+                ),
+              );
+            } catch (error) {
+              if (
+                error instanceof PlanCreationStoreError &&
+                (error.code === "not-ready" ||
+                  error.code === "commitments-pending" ||
+                  error.code === "version-conflict" ||
+                  error.code === "command-conflict")
+              ) {
+                await enqueueSerialized(
+                  state,
+                  serializeCoachRpcEnvelope(
+                    JsonRpcErrorResponseEnvelopeSchema.parse({
+                      jsonrpc: "2.0",
+                      id: generic.data.id,
+                      error: {
+                        code: -32000,
+                        message: new PlanCreationStoreError(error.code).message,
+                        data: { code: error.code },
+                      },
+                    }),
+                  ),
+                );
+                return;
+              }
               invocationFailure = { error };
             }
             break;

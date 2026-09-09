@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test as base, type ElectronApplication, type Page } from "@playwright/test";
+import { desktopFixtureLaunchArgs } from "../../helpers/desktop-fixture-launch-args.js";
 
 const require = createRequire(import.meta.url);
 const desktopRoot = resolve(import.meta.dirname, "../../..");
@@ -43,6 +44,7 @@ function isolatedEnvironment(paths: DesktopPaths): Record<string, string> {
     ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
     ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT: "1",
     ENDURAGENT_ACCEPTANCE_HIDDEN: "0",
+    ENDURAGENT_STARTUP_TRACE: "1",
     LANG: "en_US.UTF-8",
     TZ: "UTC",
   };
@@ -66,13 +68,16 @@ export const test = base.extend<DesktopFixtures>({
     try {
       application = await playwright._electron.launch({
         executablePath: require("electron") as string,
-        args: [desktopRoot],
+        args: [desktopRoot, ...desktopFixtureLaunchArgs(process.platform, process.env.CI)],
         cwd: desktopRoot,
         env: isolatedEnvironment(paths),
         colorScheme: "light",
         locale: "en-US",
         timezoneId: "UTC",
         timeout: launchTimeoutMs,
+      });
+      application.process().stderr?.on("data", (chunk: Buffer) => {
+        messages.push(chunk.toString());
       });
       application.on("console", (message) =>
         messages.push(`main ${message.type()}: ${message.text()}`),
@@ -89,14 +94,16 @@ export const test = base.extend<DesktopFixtures>({
       await use({ application, page, paths });
     } finally {
       const failed = testInfo.status !== testInfo.expectedStatus;
+      if (failed) {
+        const diagnostics = `${messages.join("\n")}\n`;
+        process.stderr.write(diagnostics);
+        await writeFile(testInfo.outputPath("desktop.log"), diagnostics).catch(() => {});
+      }
       if (page !== undefined) {
         if (failed) {
           await page
             .screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true })
             .catch(() => {});
-          await writeFile(testInfo.outputPath("desktop.log"), `${messages.join("\n")}\n`).catch(
-            () => {},
-          );
           await page
             .context()
             .tracing.stop({ path: testInfo.outputPath("trace.zip") })

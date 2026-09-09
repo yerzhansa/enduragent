@@ -5,12 +5,16 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanActiveProjectionDataSchema } from "@enduragent/coach-contract";
-import { EMPTY_PLAN_SURFACE, type PlanActions } from "../src/state/plan-slice";
+import {
+  EMPTY_PLAN_SURFACE,
+  type PlanActions,
+  type PlanLibraryActions,
+} from "../src/state/plan-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { IDLE_TRAINING_EXPORT } from "../src/training-export/controller";
 import { PlanView } from "../src/ui/plan/PlanView";
 import { pinDefaultLocale } from "./intl";
-import { PLAN_ERROR, planCoachData, planReadModel } from "./plan-fixtures";
+import { PLAN_ERROR, emptyPlanLibrary, planCoachData, planReadModel } from "./plan-fixtures";
 
 function actions(): PlanActions {
   return {
@@ -123,6 +127,8 @@ beforeEach(() => {
   pinDefaultLocale("en-US");
   useEnduragentStore.setState({
     plan: EMPTY_PLAN_SURFACE,
+    planLibrary: { status: "loading", value: null },
+    planLibraryActions: null,
     planActions: actions(),
     trainingExport: IDLE_TRAINING_EXPORT,
     trainingExportActions: null,
@@ -134,6 +140,8 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-theme");
   useEnduragentStore.setState({
     plan: EMPTY_PLAN_SURFACE,
+    planLibrary: { status: "loading", value: null },
+    planLibraryActions: null,
     planActions: null,
     planningReadActions: null,
     trainingExport: IDLE_TRAINING_EXPORT,
@@ -164,49 +172,70 @@ describe("Plan surface", () => {
     expect(screen.getByText(/Update Enduragent/u)).toBeInTheDocument();
   });
 
-  it("renders the accepted no-Plan hierarchy and starts PL-T01 from the keyboard", async () => {
+  it("renders the no-Plan hierarchy and starts Plan creation from the keyboard", async () => {
     const user = userEvent.setup();
-    const planActions = actions();
+    const startCreation = vi.fn();
+    const planLibraryActions: PlanLibraryActions = {
+      startCreation,
+      closePlan: vi.fn(),
+      readPlanHistory: vi.fn(),
+      refresh: vi.fn(),
+      continueCreation: vi.fn(),
+      changeInChat: vi.fn(),
+    };
+    const noPlan = {
+      ...planReadModel(),
+      transitions: [{ transitionId: "PL-T01", status: "blocked", reason: "Retired wizard" }],
+    } satisfies ReturnType<typeof planReadModel>;
     useEnduragentStore.setState({
       plan: {
         ...EMPTY_PLAN_SURFACE,
-        hydration: { status: "ready", state: planReadModel() },
-        lastReady: planReadModel(),
+        hydration: { status: "ready", state: noPlan },
+        lastReady: noPlan,
       },
-      planActions,
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
+      planLibraryActions,
     });
     render(<PlanView />);
 
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("What the draft needs")).toBeInTheDocument();
-    expect(screen.getByText("Goal event + Race Course")).toBeInTheDocument();
-    expect(screen.getByText("Current training")).toBeInTheDocument();
-    expect(screen.getByText("FTP")).toBeInTheDocument();
-    expect(screen.getAllByText(/GPX\/FIT/u)).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeInTheDocument();
+    expect(screen.queryByText(/GPX\/FIT/u)).not.toBeInTheDocument();
 
-    const start = screen.getByRole("button", { name: "Build a plan with coach" });
+    const start = screen.getByRole("button", { name: "Start a Plan" });
+    expect(start).toHaveAttribute("id", "start-plan");
+    expect(screen.getAllByRole("button", { name: "Start a Plan" })).toHaveLength(1);
+    expect(screen.getAllByText("No active Plan", { exact: true })).toHaveLength(1);
     start.focus();
     await user.keyboard("{Enter}");
-    expect(planActions.startPlan).toHaveBeenCalledOnce();
+    expect(startCreation).toHaveBeenCalledOnce();
   });
 
   it("returns focus to the no-Plan action after closing the Coach workspace", async () => {
-    const state = planReadModel({ data: { returnFocusId: "plan-start-coach" } });
+    const state = planReadModel({ data: { returnFocusId: "start-plan" } });
     useEnduragentStore.setState({
       plan: { ...EMPTY_PLAN_SURFACE, hydration: { status: "ready", state }, lastReady: state },
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
+      planLibraryActions: {
+        startCreation: vi.fn(),
+        closePlan: vi.fn(),
+        readPlanHistory: vi.fn(),
+        refresh: vi.fn(),
+        continueCreation: vi.fn(),
+        changeInChat: vi.fn(),
+      },
     });
     render(<PlanView />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Build a plan with coach" })).toHaveFocus(),
-    );
+    const start = screen.getByRole("button", { name: "Start a Plan" });
+    expect(start).toHaveAttribute("id", "start-plan");
+    await waitFor(() => expect(start).toHaveFocus());
   });
 
   it("keeps the last ready no-Plan screen visible when hydration becomes stale", () => {
     const state = planReadModel();
     useEnduragentStore.setState({
+      planLibrary: { status: "ready", value: emptyPlanLibrary() },
       plan: {
         ...EMPTY_PLAN_SURFACE,
         hydration: { status: "ready", state },
@@ -218,10 +247,13 @@ describe("Plan surface", () => {
     });
     render(<PlanView />);
 
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveAttribute(
+      "id",
+      "start-plan",
+    );
     expect(screen.getByText(PLAN_ERROR.message)).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
   });
 
   it("renders the server attention projection without deriving a count", async () => {
@@ -1013,72 +1045,82 @@ describe("Plan surface", () => {
     expect(planActions.retry).toHaveBeenCalledOnce();
   });
 
-  it("keeps reconciliation failures inline on the active Plan with retry and verify actions", async () => {
-    const user = userEvent.setup();
-    const planActions = actions();
-    const state = planReadModel({
-      lifecycle: "active",
-      scenarioId: "PL-S039",
-      projection: "active",
-      planId: "00000000000000000000000003",
-      attentionCount: 1,
-      reconciliation: {
-        status: "failed",
-        created: 1,
-        pending: 0,
-        failed: 1,
-        total: 2,
-        currentThrough: null,
-        error: {
-          code: "provider-failed",
-          message: "Some workouts could not be updated in Intervals.",
-          retryable: true,
+  it.each(["pending", "failed", "running", "verified"] as const)(
+    "hides the legacy calendar panel when reconciliation is %s",
+    (status) => {
+      const planActions = actions();
+      const state = planReadModel({
+        lifecycle: "active",
+        scenarioId: status === "failed" ? "PL-S039" : "PL-S010",
+        projection: "active",
+        planId: "00000000000000000000000003",
+        attentionCount: 1,
+        reconciliation: {
+          status: status === "pending" ? "not-started" : status,
+          created: 1,
+          pending: status === "pending" ? 1 : 0,
+          failed: status === "failed" ? 1 : 0,
+          total: 2,
+          currentThrough: status === "verified" ? "2026-08-18" : null,
+          error:
+            status === "failed"
+              ? {
+                  code: "provider-failed",
+                  message: "Some workouts could not be updated in Intervals.",
+                  retryable: true,
+                }
+              : null,
         },
-      },
-      data: {
+        data: {
+          plan: {
+            id: "00000000000000000000000003",
+            name: "Gran Fondo Almaty",
+            primaryGoal: "Finish in the front half",
+            startDate: "2026-07-13",
+            targetDate: "2026-10-04",
+            kind: "full-plan",
+            totalWeeks: 12,
+            weekStartDay: 1,
+            workoutCount: 20,
+            plannedDurationS: 72_000,
+          },
+          today: "2026-08-18",
+          weekIndex: 6,
+          todayWorkout: {
+            id: "00000000000000000000000004",
+            date: "2026-08-18",
+            sport: "cycling",
+            name: "Recovery spin",
+            durationS: 2_700,
+          },
+          workouts: [],
+        },
+      });
+      useEnduragentStore.setState({
         plan: {
-          id: "00000000000000000000000003",
-          name: "Gran Fondo Almaty",
-          primaryGoal: "Finish in the front half",
-          startDate: "2026-07-13",
-          targetDate: "2026-10-04",
-          kind: "full-plan",
-          totalWeeks: 12,
-          weekStartDay: 1,
-          workoutCount: 20,
-          plannedDurationS: 72_000,
+          ...EMPTY_PLAN_SURFACE,
+          hydration: { status: "ready", state },
+          lastReady: state,
         },
-        today: "2026-08-18",
-        weekIndex: 6,
-        todayWorkout: {
-          id: "00000000000000000000000004",
-          date: "2026-08-18",
-          sport: "cycling",
-          name: "Recovery spin",
-          durationS: 2_700,
-        },
-        workouts: [],
-      },
-    });
-    useEnduragentStore.setState({
-      plan: {
-        ...EMPTY_PLAN_SURFACE,
-        hydration: { status: "ready", state },
-        lastReady: state,
-      },
-      planActions,
-    });
+        planActions,
+      });
 
-    render(<PlanView />);
+      render(<PlanView />);
 
-    expect(screen.getByRole("heading", { name: "Plan active · week 6 of 12" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Today · Recovery spin" })).toBeInTheDocument();
-    expect(screen.getByText("Created 1 · Pending 0 · Failed 1 · Total 2")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retry" }));
-    await user.click(screen.getByRole("button", { name: "Verify again" }));
-    expect(planActions.reconcilePlan).toHaveBeenCalledOnce();
-    expect(planActions.verifyReconciliation).toHaveBeenCalledOnce();
-  });
+      expect(
+        screen.getByRole("heading", { name: "Plan active · week 6 of 12" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Today · Recovery spin" })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Intervals calendar update")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Update Intervals" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Verify again" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /Intervals/u })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Created 1 · Pending/u)).not.toBeInTheDocument();
+      expect(planActions.reconcilePlan).not.toHaveBeenCalled();
+      expect(planActions.verifyReconciliation).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps the normal active Plan concise and shows the prototype summary facts", () => {
     const state = planReadModel({
@@ -2189,11 +2231,11 @@ describe("Plan surface", () => {
     render(<PlanView />);
 
     expect(
-      screen.getByRole("heading", { name: /Aug 31, 2026 already has a Workout/u }),
+      screen.getByRole("heading", { name: /31 Aug 2026 already has a Workout/u }),
     ).toBeVisible();
     expect(screen.getByText("Protected")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Replace Club ride/u })).not.toBeInTheDocument();
-    const recommendedButtons = screen.getAllByRole("button", { name: /Use Sep 1, 2026/u });
+    const recommendedButtons = screen.getAllByRole("button", { name: /Use 1 Sept 2026/u });
     await user.click(recommendedButtons[recommendedButtons.length - 1]!);
     expect(planActions.resolvePlanningRequestDate).toHaveBeenCalledWith(requestId, {
       kind: "use-date",
@@ -2211,7 +2253,7 @@ describe("Plan surface", () => {
     const date = screen.getByLabelText("Date");
     await user.clear(date);
     await user.type(date, "2026-09-02");
-    await user.click(screen.getByRole("button", { name: /Use Sep 2, 2026/u }));
+    await user.click(screen.getByRole("button", { name: /Use 2 Sept 2026/u }));
     expect(planActions.resolvePlanningRequestDate).toHaveBeenLastCalledWith(requestId, {
       kind: "use-date",
       date: "2026-09-02",

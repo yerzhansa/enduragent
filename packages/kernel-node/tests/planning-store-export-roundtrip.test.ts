@@ -13,6 +13,7 @@ import {
   type ExportSource,
 } from "@enduragent/kernel/store/export";
 import {
+  createLegacyWriterFence,
   createPlanConversationRepository,
   createPlanReplacementRepository,
   createPlanRepository,
@@ -370,6 +371,127 @@ const completePresence: ArchivePresenceChecker = {
 };
 
 describe("planning-domain SQLite export round-trip", () => {
+  it.each([
+    { sourceVersion: 31, expectedInstant: BASE_MS },
+    { sourceVersion: 32, expectedInstant: BASE_MS - 1 },
+  ])(
+    "restores Chat ownership from a v$sourceVersion archive",
+    async ({ sourceVersion, expectedInstant }) => {
+      const source = openSqliteStorage(":memory:");
+      const destination = openSqliteStorage(":memory:");
+      try {
+        await runMigrations(source, MIGRATIONS.slice(0, sourceVersion));
+        await runMigrations(destination, MIGRATIONS);
+        for (const offset of [2, 0]) {
+          await source.run(
+            `INSERT INTO plan_creation (
+            id, status, version, seed_json, current_draft_revision_number, activated_plan_id,
+            created_at_ms, updated_at_ms, terminal_at_ms, device_id, hlc_physical_ms, hlc_counter
+          ) VALUES (?, 'discarded', 2, '{}', NULL, NULL, ?, ?, ?, ?, ?, 0)`,
+            [
+              id(20 + offset),
+              BASE_MS + offset,
+              BASE_MS + offset + 1,
+              BASE_MS + offset + 1,
+              DEVICE_ID,
+              BASE_MS + offset + 1,
+            ],
+          );
+        }
+        const authored: Record<string, readonly AuthoredRow[]> = {
+          plan_creation: await source.all(
+            "SELECT * FROM plan_creation ORDER BY created_at_ms DESC",
+          ),
+        };
+        if (sourceVersion === 32) {
+          await source.run(
+            "UPDATE planning_authority SET chat_authority_since_ms = ? WHERE singleton = 1",
+            [expectedInstant],
+          );
+          authored.planning_authority = await source.all("SELECT * FROM planning_authority");
+        }
+        const container = await encodeContainer(
+          {
+            kind: EXPORT_DOCUMENT_KIND,
+            formatVersion: EXPORT_FORMAT_VERSION,
+            store: { userVersion: await source.getUserVersion(), authored },
+            archiveManifest: [],
+          },
+          webCryptoExportEnv,
+          {},
+        );
+
+        await importExport(
+          {
+            sink: createSqliteImportSink(destination),
+            presence: completePresence,
+            targetUserVersion: 32,
+            ...webCryptoExportEnv,
+          },
+          { container },
+        );
+
+        await expect(
+          destination.all("SELECT * FROM plan_creation ORDER BY created_at_ms DESC"),
+        ).resolves.toEqual(authored.plan_creation);
+        await expect(
+          destination.get("SELECT MIN(created_at_ms) AS instant FROM plan_creation"),
+        ).resolves.toEqual({ instant: BASE_MS });
+        await expect(
+          destination.get(
+            "SELECT chat_authority_since_ms FROM planning_authority WHERE singleton = 1",
+          ),
+        ).resolves.toEqual({ chat_authority_since_ms: expectedInstant });
+        await expect(createLegacyWriterFence(destination).fenced()).resolves.toBe(true);
+      } finally {
+        await source.close();
+        await destination.close();
+      }
+    },
+  );
+
+  it("restores a legacy conversation after Chat authority has started", async () => {
+    const source = openSqliteStorage(":memory:");
+    const destination = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(source, MIGRATIONS.slice(0, 28));
+      await runMigrations(destination, MIGRATIONS);
+      await populateV28Replacement(source);
+      await destination.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = ? WHERE singleton = 1",
+        [BASE_MS],
+      );
+      expect(await createLegacyWriterFence(destination).fenced()).toBe(true);
+      const container = await buildPre29Container(source);
+
+      await importExport(
+        {
+          sink: createSqliteImportSink(destination),
+          presence: completePresence,
+          targetUserVersion: 32,
+          ...webCryptoExportEnv,
+        },
+        { container },
+      );
+
+      for (const table of ["plan_conversation", "plan_draft_revision"]) {
+        expect(await destination.all(`SELECT * FROM ${table}`)).toEqual(
+          await source.all(`SELECT * FROM ${table}`),
+        );
+      }
+      expect(
+        await destination.get(
+          "SELECT chat_authority_since_ms FROM planning_authority WHERE singleton = 1",
+        ),
+      ).toEqual({ chat_authority_since_ms: BASE_MS });
+      expect(await createLegacyWriterFence(destination).fenced()).toBe(true);
+      expect(await destination.all("PRAGMA foreign_key_check")).toEqual([]);
+    } finally {
+      await source.close();
+      await destination.close();
+    }
+  });
+
   it("restores a v28 replacement lineage without its derived cleanup table", async () => {
     const source = openSqliteStorage(":memory:");
     const destination = openSqliteStorage(":memory:");
@@ -384,7 +506,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 31,
+            targetUserVersion: 32,
             ...webCryptoExportEnv,
           },
           { container },
@@ -434,7 +556,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 31,
+            targetUserVersion: 32,
             ...webCryptoExportEnv,
           },
           { container },
@@ -457,6 +579,9 @@ describe("planning-domain SQLite export round-trip", () => {
       await runMigrations(source, MIGRATIONS);
       await runMigrations(destination, MIGRATIONS);
       await populatePlanningDomain(source);
+      await source.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = (SELECT MIN(created_at_ms) FROM plan_creation) WHERE singleton = 1",
+      );
       await populateV28Replacement(source);
       const sourceDump = await dumpStore(source);
       const built = await buildExport(
@@ -479,7 +604,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 31,
+          targetUserVersion: 32,
           ...webCryptoExportEnv,
         },
         { container: built.container },
@@ -495,7 +620,7 @@ describe("planning-domain SQLite export round-trip", () => {
         {
           sink: createSqliteImportSink(destination),
           presence: completePresence,
-          targetUserVersion: 31,
+          targetUserVersion: 32,
           ...webCryptoExportEnv,
         },
         { container: built.container },
@@ -528,7 +653,7 @@ describe("planning-domain SQLite export round-trip", () => {
           {
             sink: createSqliteImportSink(destination),
             presence: completePresence,
-            targetUserVersion: 31,
+            targetUserVersion: 32,
             ...webCryptoExportEnv,
           },
           { container },

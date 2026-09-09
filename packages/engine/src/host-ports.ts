@@ -103,6 +103,7 @@ export interface MemoryStorePort {
     source?: MemoryWriteSource,
     provenance?: SourceProvenance,
   ): void | Promise<void>;
+  refreshPlanReadGate?(): Promise<string | null>;
   loadPlan(): unknown | null;
   /** Source labels bound to the exact visible result of a synchronous tool read. */
   provenanceForToolRead?(
@@ -400,7 +401,13 @@ export interface LoggerPort {
   error(event: string, error?: unknown, fields?: LoggerFields): void;
 }
 
-export type CallerRole = "chat" | "flush" | "compact" | "sync-triage" | "dream";
+export type CallerRole =
+  | "chat"
+  | "flush"
+  | "compact"
+  | "sync-triage"
+  | "dream"
+  | "intent-translation";
 
 export interface UsageCost {
   readonly input: number;

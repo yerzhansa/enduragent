@@ -44,7 +44,7 @@ const evidenceGroups = [
     evidence: [
       [
         "apps/desktop-renderer/tests/plan-surface.test.tsx",
-        "renders the accepted no-Plan hierarchy and starts PL-T01 from the keyboard",
+        "renders the no-Plan hierarchy and starts Plan creation from the keyboard",
       ],
       [
         "apps/desktop-renderer/tests/plan-surface.test.tsx",
@@ -345,7 +345,7 @@ describe("Plan acceptance closure", () => {
     const cpEvidence = readRepositoryFile("packages/sport-cycling/tests/estimated-cp.test.ts");
 
     for (const marker of [
-      "starts PL-T01 from the keyboard",
+      "starts Plan creation from the keyboard",
       "Cancel focused before the destructive action",
       "returns focus to its active-Plan trigger",
       "wide, compact, Light, and Dark layouts",

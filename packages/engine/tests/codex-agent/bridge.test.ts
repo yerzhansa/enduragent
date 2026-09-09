@@ -644,7 +644,7 @@ describe("codexAgentGenerateText child death (D-3)", () => {
 });
 
 describe("codexAgentGenerateText stateless callers (D-10)", () => {
-  it.each(["flush", "compact"] as const)(
+  it.each(["flush", "compact", "intent-translation"] as const)(
     "declares no tool endpoint, opts out of reasoning chatter and never streams for %s",
     async (caller) => {
       const staged = await stage("turn-happy-stateless");

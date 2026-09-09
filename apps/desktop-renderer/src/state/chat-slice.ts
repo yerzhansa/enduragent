@@ -5,8 +5,13 @@ import type {
   CoachDecisionAnswer,
   CoachDecisionReadModel,
   PlanningRequestDelivery,
+  PlanCreationAnswerInput,
+  PlanCreationAnswerSummary,
+  PlanCreationCardModel,
   PlanHandoffSuggestion,
+  PlanChangeIntent,
 } from "@enduragent/coach-contract";
+import type { ActivePlanKnowledge } from "../chat/controller";
 import type { StateCreator } from "zustand";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "../chat/hydration";
 import type { FirstSyncState } from "../first-sync";
@@ -44,7 +49,9 @@ export interface ChatChoiceView {
 export type ChatTranscriptItemView =
   | { readonly kind: "message"; readonly message: ChatMessageView }
   | { readonly kind: "choice"; readonly choice: ChatChoiceView }
-  | { readonly kind: "planning-request"; readonly delivery: PlanningRequestDelivery };
+  | { readonly kind: "planning-request"; readonly delivery: PlanningRequestDelivery }
+  | { readonly kind: "plan-creation"; readonly model: PlanCreationCardModel | null }
+  | { readonly kind: "plan-creation-discard"; readonly eventId: string };
 
 export type ChatDecisionPhase = "idle" | "continuing" | "recovering";
 
@@ -67,6 +74,21 @@ export interface ChatSurfaceState {
   readonly planningRequestBusyId: string | null;
   readonly planningRequestError: string | null;
   readonly planningRequestFocusId: string | null;
+  readonly planCreation: PlanCreationCardModel | null;
+  readonly planCreationLoaded: boolean;
+  readonly planCreationBusy: boolean;
+  readonly planCreationError: string | null;
+  readonly planCreationPaused: boolean;
+  readonly planCreationEditingKey: PlanCreationAnswerSummary["answerKey"] | null;
+  readonly planCreationFocusRevision: number;
+  readonly planCreationDiscardConfirmationOpen: boolean;
+  readonly planCreationActivateConfirmationOpen: boolean;
+  readonly planCreationActivePlanKnowledge: ActivePlanKnowledge;
+  readonly planCreationFocusRequest: {
+    readonly target: "discard" | "activate" | "start" | "continue" | "change" | "edit";
+    readonly libraryTarget?: "continue" | "change";
+    readonly revision: number;
+  } | null;
   readonly timeline: readonly ChatTranscriptItemView[];
   readonly status: ChatStatus;
   readonly notice: string | null;
@@ -75,6 +97,7 @@ export interface ChatSurfaceState {
   readonly workBlocked: boolean;
   readonly sendDisabled: boolean;
   readonly inputDisabled: boolean;
+  readonly composerPlaceholder: string;
   readonly newConversationUnavailable: boolean;
   readonly resetPhase: SessionResetPhase;
   readonly resetCount: number;
@@ -87,6 +110,10 @@ export interface ChatSurfaceState {
 }
 
 export interface ChatActions {
+  openPlanChangeEditor(): void;
+  backFromPlanChangeEditor(): void;
+  previewPlanChange(intent: PlanChangeIntent): void;
+  applyPlanChange(decision: "apply" | "cancel"): void;
   submit(message: string, attachmentIds?: readonly string[]): Promise<boolean>;
   chooseAttachments(): Promise<void>;
   pasteAttachment(): Promise<void>;
@@ -101,6 +128,19 @@ export interface ChatActions {
   retryPlanningRequest(requestId: string): void;
   retryPlanningRequestLoad(): void;
   clearPlanningRequestFocus(): void;
+  startPlanCreation(): void;
+  answerPlanCreation(answer: PlanCreationAnswerInput): void;
+  buildPlanCreationDraft(): void;
+  pausePlanCreation(): void;
+  continuePlanCreation(): void;
+  editPlanCreation(answerKey: PlanCreationAnswerSummary["answerKey"]): void;
+  cancelPlanCreationEdit(returnFocus?: "edit"): void;
+  openPlanCreationDiscard(): void;
+  cancelPlanCreationDiscard(): void;
+  confirmPlanCreationDiscard(): void;
+  openPlanCreationActivate(): void;
+  cancelPlanCreationActivate(): void;
+  confirmPlanCreationActivate(): void;
   stop(): void;
   removeQueued(id: string): void;
   runQueuedCommand(id: string): void;
@@ -136,6 +176,17 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   planningRequestBusyId: null,
   planningRequestError: null,
   planningRequestFocusId: null,
+  planCreation: null,
+  planCreationLoaded: false,
+  planCreationBusy: false,
+  planCreationError: null,
+  planCreationPaused: false,
+  planCreationEditingKey: null,
+  planCreationFocusRevision: 0,
+  planCreationDiscardConfirmationOpen: false,
+  planCreationActivateConfirmationOpen: false,
+  planCreationActivePlanKnowledge: { kind: "unknown" } satisfies ActivePlanKnowledge,
+  planCreationFocusRequest: null,
   timeline: Object.freeze([]),
   status: "idle",
   notice: null,
@@ -144,6 +195,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   workBlocked: false,
   sendDisabled: false,
   inputDisabled: false,
+  composerPlaceholder: "Message your coach",
   newConversationUnavailable: true,
   resetPhase: "idle",
   resetCount: 0,
@@ -157,7 +209,39 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
 
 export const IDLE_FIRST_SYNC: FirstSyncState = Object.freeze({ status: "idle" });
 
+export const PLAN_CHANGES_PAUSED_NOTICE =
+  "Plan Changes are paused because synchronized training is older than 24 hours. Refresh the connection, then request a fresh preview.";
+export const PLAN_CHANGES_RESUMED_NOTICE =
+  "Sources are available again. Request a fresh preview before applying.";
+
+export interface PlanChangeSurfaceState {
+  readonly open: boolean;
+  readonly textRouting: boolean;
+  readonly planId: string | null;
+  readonly editorOpen: boolean;
+  readonly busy: boolean;
+  readonly error: string | null;
+  readonly notice: string | null;
+  readonly focusRequest: {
+    readonly target: "editor" | "preview" | "change";
+    readonly revision: number;
+  } | null;
+}
+
+export const EMPTY_PLAN_CHANGE_SURFACE: PlanChangeSurfaceState = Object.freeze({
+  open: false,
+  textRouting: false,
+  planId: null,
+  editorOpen: false,
+  busy: false,
+  error: null,
+  notice: null,
+  focusRequest: null,
+});
+
 export interface ChatSlice {
+  readonly planChange: PlanChangeSurfaceState;
+  setPlanChange: (next: PlanChangeSurfaceState) => void;
   readonly chat: ChatSurfaceState;
   readonly chatActions: ChatActions | null;
   readonly firstSync: FirstSyncState;
@@ -250,6 +334,12 @@ export function sameChatTimeline(
     if (item.kind === "planning-request" && other.kind === "planning-request") {
       return JSON.stringify(item.delivery) === JSON.stringify(other.delivery);
     }
+    if (item.kind === "plan-creation" && other.kind === "plan-creation") {
+      return JSON.stringify(item.model) === JSON.stringify(other.model);
+    }
+    if (item.kind === "plan-creation-discard" && other.kind === "plan-creation-discard") {
+      return item.eventId === other.eventId;
+    }
     return false;
   });
 }
@@ -276,9 +366,24 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.planningRequestError === right.planningRequestError &&
     left.planningRequestFocusId === right.planningRequestFocusId &&
     JSON.stringify(left.planningRequests) === JSON.stringify(right.planningRequests) &&
+    JSON.stringify(left.planCreation) === JSON.stringify(right.planCreation) &&
+    left.planCreationLoaded === right.planCreationLoaded &&
+    left.planCreationBusy === right.planCreationBusy &&
+    left.planCreationError === right.planCreationError &&
+    left.planCreationPaused === right.planCreationPaused &&
+    left.planCreationEditingKey === right.planCreationEditingKey &&
+    left.planCreationFocusRevision === right.planCreationFocusRevision &&
+    left.planCreationDiscardConfirmationOpen === right.planCreationDiscardConfirmationOpen &&
+    left.planCreationActivateConfirmationOpen === right.planCreationActivateConfirmationOpen &&
+    left.planCreationActivePlanKnowledge === right.planCreationActivePlanKnowledge &&
+    left.planCreationFocusRequest?.target === right.planCreationFocusRequest?.target &&
+    left.planCreationFocusRequest?.libraryTarget ===
+      right.planCreationFocusRequest?.libraryTarget &&
+    left.planCreationFocusRequest?.revision === right.planCreationFocusRequest?.revision &&
     left.workBlocked === right.workBlocked &&
     left.sendDisabled === right.sendDisabled &&
     left.inputDisabled === right.inputDisabled &&
+    left.composerPlaceholder === right.composerPlaceholder &&
     left.newConversationUnavailable === right.newConversationUnavailable &&
     left.resetPhase === right.resetPhase &&
     left.resetCount === right.resetCount &&
@@ -295,6 +400,10 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
 }
 
 export const createChatSlice: StateCreator<EnduragentState, [], [], ChatSlice> = (set) => ({
+  planChange: EMPTY_PLAN_CHANGE_SURFACE,
+  setPlanChange(next) {
+    set({ planChange: next });
+  },
   chat: EMPTY_CHAT_SURFACE,
   chatActions: null,
   firstSync: IDLE_FIRST_SYNC,

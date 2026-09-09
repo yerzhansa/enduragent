@@ -29,6 +29,7 @@ import planWorkoutAdditions028 from "./028_plan_workout_additions.sql";
 import planningDomain029 from "./029_planning_domain.sql";
 import trainingHistoryCoverage030 from "./030_training_history_coverage.sql";
 import trainingHistoryGapEvidence031 from "./031_training_history_gap_evidence.sql";
+import planningAuthority032 from "./032_planning_authority.sql";
 
 export interface Migration {
   /** Ascending schema version this migration advances the store to. */
@@ -75,4 +76,5 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 29, name: "029_planning_domain", sql: planningDomain029 },
   { version: 30, name: "030_training_history_coverage", sql: trainingHistoryCoverage030 },
   { version: 31, name: "031_training_history_gap_evidence", sql: trainingHistoryGapEvidence031 },
+  { version: 32, name: "032_planning_authority", sql: planningAuthority032 },
 ];

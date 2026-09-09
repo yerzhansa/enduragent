@@ -11,6 +11,12 @@ interface CdpResponse {
 export interface WaitForPageOptions {
   readonly timeoutMs?: number;
   readonly probeTimeoutMs?: number;
+  readonly readLaunchDiagnostics?: () => {
+    readonly stdout: string;
+    readonly stderr: string;
+    readonly exitCode: number | null;
+    readonly signalCode: NodeJS.Signals | null;
+  };
 }
 
 export function reservePort(): Promise<number> {
@@ -68,7 +74,19 @@ export async function waitForPage(port: number, options: WaitForPageOptions = {}
       await new Promise((resolveDelay) => setTimeout(resolveDelay, Math.min(25, remaining)));
     }
   }
-  throw new Error("timed out waiting for the desktop renderer");
+  const diagnostics = options.readLaunchDiagnostics?.();
+  throw new Error(
+    [
+      "timed out waiting for the desktop renderer",
+      ...(diagnostics === undefined
+        ? []
+        : [
+            `Electron exit code: ${diagnostics.exitCode}; signal: ${diagnostics.signalCode}`,
+            `Electron stdout (last 4096 characters):\n${diagnostics.stdout.slice(-4096)}`,
+            `Electron stderr (last 4096 characters):\n${diagnostics.stderr.slice(-4096)}`,
+          ]),
+    ].join("\n"),
+  );
 }
 
 export function connectCdp(

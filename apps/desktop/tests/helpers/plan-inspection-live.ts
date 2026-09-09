@@ -79,7 +79,9 @@ export function createPlanInspectionFixtureScript(
         return response(PLAN_INSPECTION_ATTACHMENT_COMPOSER);
       }
       if (request.method === "resumePlanningRequests") return response({ deliveries: [] });
-      if (request.method === "listPlanningRequests") return response({ deliveries: [] });
+      if (request.method === "listPlanningRequests") {
+        return response({ deliveries: [], planCreation: null });
+      }
       return plan.onRequest(value);
     },
   };

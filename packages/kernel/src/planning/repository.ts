@@ -46,6 +46,19 @@ export interface PlanWorkoutRecord {
   readonly hlcCounter: number;
 }
 
+export interface PlanSummaryRecord {
+  readonly planId: string;
+  readonly version: number;
+  readonly name: string;
+  readonly startDateKey: number;
+  readonly totalWeeks: number;
+  readonly status: "active" | "closed";
+  readonly closeReason: "stopped" | "completed" | "legacy-unclassified" | null;
+  readonly closedAtMs: number | null;
+  readonly activatedAtMs: number | null;
+  readonly creationId: string | null;
+}
+
 export type PlanValidationErrorCode =
   | "invalid-id"
   | "invalid-origin-id"
@@ -86,6 +99,7 @@ export interface PlanRepository {
   read(id: string): Promise<PlanRecord | undefined>;
   readByOriginId(originId: string): Promise<PlanRecord | undefined>;
   readLatest(): Promise<PlanRecord | undefined>;
+  listPlans(): Promise<readonly PlanSummaryRecord[]>;
   readWorkouts(planId: string): Promise<readonly PlanWorkoutRecord[]>;
   endActive(input: EndActivePlanInput): Promise<EndActivePlanResult>;
   count(): Promise<number>;
@@ -273,6 +287,34 @@ function workoutFromRow(row: Row): PlanWorkoutRecord {
   });
 }
 
+function planSummaryFromRow(row: Row): PlanSummaryRecord {
+  const status = text(row, "status");
+  const closeReason = nullableText(row, "close_reason");
+  if (status !== "active" && status !== "closed") {
+    throw new PlanValidationError("invalid-status");
+  }
+  if (
+    closeReason !== null &&
+    closeReason !== "stopped" &&
+    closeReason !== "completed" &&
+    closeReason !== "legacy-unclassified"
+  ) {
+    throw new PlanValidationError("invalid-json");
+  }
+  return Object.freeze({
+    planId: text(row, "plan_id"),
+    version: integer(row, "version"),
+    name: text(row, "name"),
+    startDateKey: integer(row, "start_date_key"),
+    totalWeeks: integer(row, "total_weeks"),
+    status,
+    closeReason,
+    closedAtMs: nullableInteger(row, "closed_at_ms"),
+    activatedAtMs: nullableInteger(row, "activated_at_ms"),
+    creationId: nullableText(row, "creation_id"),
+  });
+}
+
 export function createPlanRepository(store: PlanningStore): PlanRepository {
   const replace = async (
     plan: PlanRecord,
@@ -373,6 +415,20 @@ ON CONFLICT (id) DO UPDATE SET
         "SELECT * FROM plan ORDER BY updated_at_ms DESC, hlc_physical_ms DESC, hlc_counter DESC, id DESC LIMIT 1",
       );
       return row === undefined ? undefined : planFromRow(row);
+    },
+    async listPlans() {
+      const rows = await store.all(
+        `SELECT planning_plan.plan_id, planning_plan.version, plan.name, plan.start_date_key, plan.total_weeks,
+                planning_plan.status, planning_plan.close_reason, planning_plan.closed_at_ms,
+                planning_plan.activated_at_ms, plan_revision.source_id AS creation_id
+         FROM planning_plan
+         JOIN plan ON plan.id = planning_plan.plan_id
+         LEFT JOIN plan_revision ON plan_revision.plan_id = planning_plan.plan_id
+           AND plan_revision.source_kind = 'activation'
+         ORDER BY planning_plan.status = 'active' DESC,
+                  planning_plan.closed_at_ms DESC, planning_plan.plan_id ASC`,
+      );
+      return rows.map(planSummaryFromRow);
     },
     async readWorkouts(planId: string) {
       if (!ULID.test(planId)) throw new PlanValidationError("invalid-id");

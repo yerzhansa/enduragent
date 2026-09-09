@@ -32,9 +32,9 @@ describe("migrator end-to-end over node:sqlite", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("applies the full migration list and advances user_version to 31", async () => {
+  it("applies the full migration list and advances user_version to 32", async () => {
     await runMigrations(store, MIGRATIONS);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
 
     const tables = await store.all("SELECT name FROM sqlite_master WHERE type='table'");
     const names = new Set(tables.map((r) => r.name as string));
@@ -54,7 +54,7 @@ describe("migrator end-to-end over node:sqlite", () => {
     expect(await store.get("PRAGMA journal_mode")).toEqual({ journal_mode: "wal" });
     expect(await store.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 1 });
     await runMigrations(store, MIGRATIONS);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
   });
 
   it("upgrades the released Plan version 24 schema through the current schema", async () => {
@@ -66,10 +66,10 @@ describe("migrator end-to-end over node:sqlite", () => {
 
     await expect(runMigrations(store, MIGRATIONS)).resolves.toEqual({
       fromVersion: 24,
-      toVersion: 31,
-      applied: [25, 26, 27, 28, 29, 30, 31],
+      toVersion: 32,
+      applied: [25, 26, 27, 28, 29, 30, 31, 32],
     });
-    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 31 });
+    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 32 });
     await expect(
       store.all(
         "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('chat_attachment','planning_request','chat_plan_outbox') ORDER BY name",
@@ -108,11 +108,11 @@ describe("migrator end-to-end over node:sqlite", () => {
     expect(await dumpStore(store)).toBe(dump);
   });
 
-  it("upgrades a version-1-on-disk store to version 31", async () => {
+  it("upgrades a version-1-on-disk store to version 32", async () => {
     await runMigrations(store, [MIGRATIONS[0]!]);
     expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 1 });
     await runMigrations(store, MIGRATIONS);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
     expect(await store.get("SELECT singleton,ingest_version FROM ingest_metadata")).toEqual({
       singleton: 1,
       ingest_version: 0,
@@ -134,13 +134,13 @@ describe("migrator end-to-end over node:sqlite", () => {
     const result = await runMigrations(store, MIGRATIONS);
     expect(result).toEqual({
       fromVersion: 4,
-      toVersion: 31,
+      toVersion: 32,
       applied: [
         5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-        29, 30, 31,
+        29, 30, 31, 32,
       ],
     });
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
     expect(
       await store.get("SELECT revision_id,source_record_id FROM source_record_revision"),
     ).toEqual({
@@ -193,23 +193,24 @@ describe("migrator end-to-end over node:sqlite", () => {
     const result = await runMigrations(store, MIGRATIONS);
     expect(result).toEqual({
       fromVersion: 6,
-      toVersion: 31,
+      toVersion: 32,
       applied: [
-        7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+        7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+        31, 32,
       ],
     });
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 31 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
     expect(
       await store.get("SELECT name FROM sqlite_master WHERE type='table' AND name='sync_failure'"),
     ).toEqual({ name: "sync_failure" });
     await expect(runMigrations(store, MIGRATIONS)).resolves.toEqual({
-      fromVersion: 31,
-      toVersion: 31,
+      fromVersion: 32,
+      toVersion: 32,
       applied: [],
     });
   });
 
-  it("upgrades version 11 through 31 while preserving existing rows", async () => {
+  it("upgrades version 11 through 32 while preserving existing rows", async () => {
     await runMigrations(store, MIGRATIONS.slice(0, 11));
     await store.run("INSERT INTO repair_fixer_settings(fixer,enabled) VALUES(?,?)", [
       "chronoBridge",
@@ -218,8 +219,8 @@ describe("migrator end-to-end over node:sqlite", () => {
 
     await expect(runMigrations(store, MIGRATIONS)).resolves.toEqual({
       fromVersion: 11,
-      toVersion: 31,
-      applied: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+      toVersion: 32,
+      applied: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
     });
     await expect(store.get("SELECT fixer,enabled FROM repair_fixer_settings")).resolves.toEqual({
       fixer: "chronoBridge",
@@ -228,7 +229,7 @@ describe("migrator end-to-end over node:sqlite", () => {
     await expect(store.get("SELECT count(*) AS count FROM repair_fixer_settings")).resolves.toEqual(
       { count: 1 },
     );
-    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 31 });
+    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 32 });
   });
 
   it("rolls back a failed migration 12 without partial Planning tables", async () => {
@@ -593,7 +594,7 @@ describe("migrator end-to-end over node:sqlite", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("upgrades migration 28 through 31 without classifying legacy Planning rows", async () => {
+  it("upgrades migration 28 through 32 without classifying legacy Planning rows", async () => {
     await runMigrations(store, MIGRATIONS.slice(0, 28));
     const planId = `${"0".repeat(25)}A`;
     const workoutId = `${"0".repeat(25)}B`;
@@ -683,10 +684,10 @@ describe("migrator end-to-end over node:sqlite", () => {
 
     await expect(runMigrations(store, MIGRATIONS)).resolves.toEqual({
       fromVersion: 28,
-      toVersion: 31,
-      applied: [29, 30, 31],
+      toVersion: 32,
+      applied: [29, 30, 31, 32],
     });
-    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 31 });
+    await expect(store.get("PRAGMA user_version")).resolves.toEqual({ user_version: 32 });
     await expect(
       Promise.all(legacyTables.map((table) => store.all(`SELECT * FROM ${table} ORDER BY 1`))),
     ).resolves.toEqual(rowsBefore);

@@ -1,14 +1,16 @@
+import * as calendarDrain from "../src/plan-calendar-drain.js";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { existsSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import {
   EMPTY_DROPPED_ACTIVITIES,
   type AthleteState,
   type CoachEngine,
+  type PlanCreationAnswerInput,
 } from "@enduragent/coach-contract";
 import {
   RefreshTokenReusedError,
@@ -22,6 +24,7 @@ import type {
   AthleteDataReaderPort,
   CreateCoachEngineInput,
   ModelTransportDecorator,
+  IntentTranslationPort,
 } from "@enduragent/engine";
 import { LATEST_SCHEMA_VERSION } from "@enduragent/kernel/reference/schemas";
 import { createPhysicalRequestLedger, runMigrations } from "@enduragent/kernel/store";
@@ -33,7 +36,11 @@ import type { CyclingFtpAnchorResolver } from "@enduragent/kernel/anchors";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
-import { createPlanIntakeRepository, createPlanRepository } from "@enduragent/kernel/planning";
+import {
+  createPlanConversationRepository,
+  createPlanIntakeRepository,
+  createPlanRepository,
+} from "@enduragent/kernel/planning";
 import {
   createLocalCoachComposition,
   type LocalCoachCompositionDependencies,
@@ -47,8 +54,59 @@ import { INTERVALS_CREDENTIAL_APPROVAL_TTL_MS } from "../src/intervals-credentia
 import { checkHomeReadiness } from "../src/readiness.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
 
+async function seedLegacyConversation(
+  store: CoachStoreWriterContext["store"],
+  replacesPlanId: string | null = null,
+): Promise<string> {
+  const conversationId = "00000000000000000000000001";
+  await createPlanConversationRepository(store).saveConversation({
+    id: conversationId,
+    planId: null,
+    replacesPlanId,
+    courseChoiceStatus: "undecided",
+    raceCourseJson: null,
+    status: "open",
+    endedAtMs: null,
+    createdAtMs: 100,
+    updatedAtMs: 100,
+    deviceId: "device-1",
+    hlcPhysicalMs: 100,
+    hlcCounter: 0,
+  });
+  return conversationId;
+}
+
 const roots: string[] = [];
 const stores: CoachStoreWriterContext["store"][] = [];
+const runtimeEnvironmentKeys = [
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "ALIBABA_API_KEY",
+  "MINIMAX_API_KEY",
+  "MOONSHOT_API_KEY",
+  "ZAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "LLM_API_KEY",
+  "LLM_PROVIDER",
+  "LLM_MODEL",
+  "LLM_FLUSH_MODEL",
+  "LLM_COMPACT_MODEL",
+  "LLM_BASE_URL",
+  "CONTEXT_WINDOW_TOKENS",
+  "INTERVALS_API_KEY",
+  "INTERVALS_ATHLETE_ID",
+  "TELEGRAM_BOT_TOKEN",
+  "HISTORY_TOKEN_BUDGET_RATIO",
+  "SESSION_IDLE_MINUTES",
+  "SESSION_DAILY_RESET_HOUR",
+  "SESSION_RESET_ARCHIVE_RETENTION_DAYS",
+  "COACH_TZ",
+  "ENDURAGENT_CLAUDE_CLI_DISABLED",
+  "CLAUDE_CLI_PATH",
+  "CODEX_CLI_PATH",
+] as const;
 
 const state: AthleteState = {
   schemaVersion: LATEST_SCHEMA_VERSION,
@@ -486,13 +544,80 @@ async function composeWithCapturedEngineInput(home: AthleteHome, now = 1_000) {
   return { engineInput, lifecycle };
 }
 
+beforeEach(() => {
+  for (const key of runtimeEnvironmentKeys) vi.stubEnv(key, undefined);
+});
+
 afterEach(async () => {
   await Promise.all(stores.splice(0).map((store) => store.close().catch(() => {})));
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
 describe("local coach composition", () => {
+  it("kicks after startup and successful refreshes and waits for calendar idle before closing", async () => {
+    const home = await freshHome();
+    let release: () => void = () => {};
+    const completion = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const kick = vi.fn(() => completion);
+    const idle = vi.fn(() => completion);
+    vi.spyOn(calendarDrain, "createPlanCalendarDrain").mockReturnValue({ kick, idle });
+    const storeRuntime = runtime();
+    const close = vi.spyOn(storeRuntime, "close");
+    const lifecycle = await compose(home, {
+      bootstrap: async () => reference(),
+      createRuntime: () => storeRuntime,
+      createBackend: () => backend(),
+      createResolver: missingResolver,
+    });
+
+    await lifecycle.startInitialRefresh();
+    expect(kick).toHaveBeenCalledTimes(1);
+    expect(kick).toHaveBeenLastCalledWith({ reclaimRunning: true });
+    await storeRuntime.runWindow();
+    expect(kick).toHaveBeenCalledTimes(2);
+    expect(kick.mock.calls).toEqual([[{ reclaimRunning: true }], []]);
+    const list = lifecycle.operations["plan.list"];
+    if (list === undefined) throw new Error("Expected plan.list");
+    await list({});
+    expect(kick).toHaveBeenLastCalledWith();
+    expect(kick).toHaveBeenCalledTimes(3);
+    await storeRuntime.runWindow();
+    expect(kick).toHaveBeenLastCalledWith();
+    expect(kick).toHaveBeenCalledTimes(4);
+    const closing = lifecycle.close();
+    await vi.waitFor(() => expect(idle).toHaveBeenCalledOnce());
+    expect(close).not.toHaveBeenCalled();
+    release();
+    await closing;
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("builds and completes startup without a calendar connection or stored rows", async () => {
+    const home = await freshHome();
+    const context = fakeContext(home);
+    const get = vi.spyOn(context.store, "get");
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: () => backend(),
+        createResolver: missingResolver,
+      },
+      context,
+      { apiKey: "", athleteId: "0" },
+    );
+
+    await expect(lifecycle.startInitialRefresh()).resolves.toBeUndefined();
+    expect(get).toHaveBeenCalled();
+    expect(get.mock.results.every((result) => result.type === "return")).toBe(true);
+    await expect(lifecycle.close()).resolves.toBeUndefined();
+  });
+
   it("uses trusted channel identity to require Telegram confirmation without changing Desktop execution", async () => {
     const home = await freshHome();
     const { engineInput, lifecycle } = await composeWithCapturedEngineInput(home);
@@ -1326,6 +1451,53 @@ describe("local coach composition", () => {
     await lifecycle.close();
   });
 
+  it.each([false, true])(
+    "retries Plan completion after initial refresh fails with deferInitialRefresh=%s",
+    async (deferInitialRefresh) => {
+      const home = await freshHome();
+      const context = fakeContext(home);
+      const trace: string[] = [];
+      const lifecycle = await compose(
+        home,
+        {
+          bootstrap: async () => reference(trace),
+          createRuntime: () => runtime(trace),
+          createBackend: () => backend(),
+          createRepository: () => ({
+            insertIfAbsent: async () => false,
+            readCurrent: async () => undefined,
+          }),
+          createResolver: () => missingResolver(),
+        },
+        context,
+        { apiKey: "", athleteId: "" },
+        undefined,
+        { ENDURAGENT_HOME: home.root },
+        deferInitialRefresh,
+      );
+      const failure = new Error("synthetic Plan completion storage failure");
+      const read = vi.spyOn(context.store, "get").mockRejectedValueOnce(failure);
+      try {
+        await expect(lifecycle.startInitialRefresh()).rejects.toBe(failure);
+        expect(read).toHaveBeenNthCalledWith(
+          1,
+          expect.stringContaining("WHERE planning_plan.status='active'"),
+        );
+        const windowsAfterFailure = trace.filter((entry) => entry === "run-window").length;
+
+        await expect(lifecycle.startInitialRefresh()).resolves.toBeUndefined();
+        expect(
+          read.mock.calls.filter(([sql]) => sql.includes("WHERE planning_plan.status='active'")),
+        ).toHaveLength(2);
+        expect(trace.filter((entry) => entry === "run-window")).toHaveLength(
+          windowsAfterFailure + (deferInitialRefresh ? 1 : 0),
+        );
+      } finally {
+        await lifecycle.close();
+      }
+    },
+  );
+
   it("defers the daemon refresh, tracks one start, and schedules retries after capture failure", async () => {
     const home = await freshHome();
     const failure = new Error("synthetic persistence failure");
@@ -2083,13 +2255,9 @@ describe("local coach composition", () => {
       },
       { home, store, listener: inertWriterProtocolListener },
     );
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
-    expect(started).toMatchObject({
-      status: "completed",
+    const conversationId = await seedLegacyConversation(store);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
       state: {
         data: {
           ftp: {
@@ -2101,8 +2269,6 @@ describe("local coach composition", () => {
         },
       },
     });
-    if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
-    const conversationId = String(started.state.data.conversationId);
     await expect(
       lifecycle.operations.executePlanTransition?.({
         transitionId: "PL-T04",
@@ -2138,6 +2304,667 @@ describe("local coach composition", () => {
     ).resolves.toEqual({ value: 285, source: "athlete", confidence: "manual" });
     await lifecycle.close();
   });
+
+  it.each(["fitness", "event-manual"] as const)(
+    "composes Plan Creation %s answers without derived evidence and restores the persisted result",
+    async (goalKind) => {
+      const home = await freshHome();
+      await mkdir(home.storeDir, { recursive: true });
+      const databasePath = join(home.storeDir, "store.db");
+      let store = openSqliteStorage(databasePath);
+      stores.push(store);
+      await runMigrations(store, MIGRATIONS);
+      const existingPlan = {
+        id: "00000000000000000000000009",
+        originId: null,
+        name: "Existing autumn Plan",
+        primaryGoal: "Ride consistently",
+        startDateKey: 19980713,
+        targetDateKey: 19981004,
+        status: "active" as const,
+        kind: "full_plan" as const,
+        totalWeeks: 12,
+        weekStartDay: 1,
+        structureJson: "{}",
+        createdAtMs: Date.UTC(1998, 6, 13, 12),
+        updatedAtMs: Date.UTC(1998, 6, 13, 12),
+        deviceId: "fixture-device",
+        hlcPhysicalMs: Date.UTC(1998, 6, 13, 12),
+        hlcCounter: 0,
+      };
+      await createPlanRepository(store).replace(existingPlan, []);
+      const dependencies = {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: () => backend(),
+        now: () => Date.UTC(1998, 6, 13, 12),
+      };
+      let lifecycle = await compose(home, dependencies, {
+        home,
+        store,
+        listener: inertWriterProtocolListener,
+      });
+      try {
+        expect(
+          await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
+        ).toMatchObject({
+          planCreation: null,
+        });
+        const started = await lifecycle.operations["plan_creation.start"]({
+          commandId: "creation-start",
+        });
+        if (started.status !== "started") throw new TypeError("Plan Creation did not start.");
+        let card = started.planCreation;
+        expect(card).toMatchObject({
+          version: 1,
+          readiness: "incomplete",
+          openQuestion: { kind: "goal-question", candidates: [] },
+        });
+        const answers: readonly PlanCreationAnswerInput[] = [
+          {
+            kind: "goal",
+            goal:
+              goalKind === "fitness"
+                ? { kind: "fitness" }
+                : { kind: "event-manual", name: "Autumn ride", date: "1998-11-08" },
+          },
+          ...(goalKind === "fitness" ? [{ kind: "plan-length", weeks: 8 } as const] : []),
+          { kind: "schedule-mode", mode: "fixed" },
+          {
+            kind: "availability",
+            mode: "fixed",
+            weeklyHoursLimit: 8,
+            longestWorkoutHours: 3,
+            usableWeekdays: [2, 4, 6],
+          },
+          { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+          { kind: "commitments", commitments: { kind: "none" } },
+          { kind: "baseline", baseline: "regular" },
+          {
+            kind: "success",
+            success:
+              goalKind === "fitness"
+                ? { kind: "fitness-choice", choice: "climb-stronger" }
+                : { kind: "event-finish", choice: "finish-comfortably" },
+          },
+          { kind: "restriction", restriction: { kind: "no-hard-training", endDate: "1998-11-01" } },
+        ];
+        for (const [index, answer] of answers.entries()) {
+          expect(card.openQuestion?.kind).toBe(`${answer.kind}-question`);
+          const request = {
+            commandId: `creation-answer-${index}`,
+            creationId: card.creationId,
+            expectedVersion: card.version,
+            answer,
+          };
+          const result = await lifecycle.operations["plan_creation.answer"](request);
+          if (result.status !== "answered")
+            throw new TypeError(`Plan Creation rejected ${answer.kind}.`);
+          card = result.planCreation;
+          expect(card.version).toBe(index + 2);
+          if (answer.kind === "commitments") {
+            expect(card.openQuestion?.kind).toBe("baseline-question");
+            const before = await store.all("SELECT * FROM plan_creation_answer ORDER BY sequence");
+            const commands = await store.all(
+              "SELECT * FROM planning_command ORDER BY command_name,command_id",
+            );
+            expect(before.some((row) => row.answer_key === "baseline")).toBe(false);
+            for (let read = 0; read < 2; read += 1) {
+              expect(
+                await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
+              ).toMatchObject({ planCreation: card });
+            }
+            expect(await store.all("SELECT * FROM plan_creation_answer ORDER BY sequence")).toEqual(
+              before,
+            );
+            expect(
+              await store.all("SELECT * FROM planning_command ORDER BY command_name,command_id"),
+            ).toEqual(commands);
+          }
+        }
+        expect(card).toMatchObject({
+          readiness: "ready",
+          openQuestion: null,
+          version: answers.length + 1,
+        });
+        expect(card.answeredSummaries.map((summary) => summary.answerKey)).toEqual(
+          answers.map((answer) => answer.kind),
+        );
+        const rows = await store.all("SELECT * FROM plan_creation_answer ORDER BY sequence");
+        expect(rows).toHaveLength(answers.length);
+        for (const [index, row] of rows.entries()) {
+          expect(row).toMatchObject({
+            sequence: index + 1,
+            creation_version: index + 2,
+            answer_key: answers[index]?.kind,
+            scope: "plan-creation",
+            preference_id: null,
+          });
+          expect(JSON.parse(String(row.value_json))).toEqual({
+            answer: answers[index],
+            source: { kind: "athlete" },
+          });
+        }
+        const previewed = await lifecycle.operations["plan_creation.preview"]({
+          commandId: "creation-preview",
+          creationId: card.creationId,
+          expectedVersion: card.version,
+        });
+        if (previewed.status !== "previewed") throw new TypeError("Plan Draft did not build.");
+        card = previewed.planCreation;
+        expect(card).toMatchObject({
+          status: "review",
+          readiness: "ready",
+          version: answers.length + 2,
+          draftStale: false,
+          pendingCommitment: null,
+        });
+        expect(card.draft).not.toBeNull();
+        expect(await store.all("SELECT * FROM plan_creation_draft_revision")).toHaveLength(1);
+        const commands = await store.all(
+          "SELECT * FROM planning_command ORDER BY command_name,command_id",
+        );
+        expect(commands).toHaveLength(answers.length + 2);
+        for (const command of commands) expect(command.status).toBe("succeeded");
+        for (const [index] of answers.entries()) {
+          const command = commands.find((row) => row.command_id === `creation-answer-${index}`);
+          expect(JSON.parse(String(command?.result_json))).toMatchObject({
+            creationId: card.creationId,
+            version: index + 2,
+          });
+        }
+        const creation = await store.all("SELECT * FROM plan_creation");
+        expect(await createPlanRepository(store).read(existingPlan.id)).toEqual(existingPlan);
+        await lifecycle.close();
+        await store.close();
+        stores.splice(stores.indexOf(store), 1);
+        store = openSqliteStorage(databasePath);
+        stores.push(store);
+        lifecycle = await compose(home, dependencies, {
+          home,
+          store,
+          listener: inertWriterProtocolListener,
+        });
+        expect(
+          await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
+        ).toMatchObject({ planCreation: card });
+        expect(await store.all("SELECT * FROM plan_creation")).toEqual(creation);
+        expect(await createPlanRepository(store).read(existingPlan.id)).toEqual(existingPlan);
+        expect(await store.all("SELECT * FROM plan_creation_answer ORDER BY sequence")).toEqual(
+          rows,
+        );
+        expect(
+          await store.all("SELECT * FROM planning_command ORDER BY command_name,command_id"),
+        ).toEqual(commands);
+      } finally {
+        await lifecycle.close();
+      }
+    },
+  );
+
+  it("hides the file Plan only after Chat takes planning authority and after reopening", async () => {
+    const home = await freshHome();
+    await mkdir(home.storeDir, { recursive: true });
+    await mkdir(join(home.root, "plans"), { recursive: true });
+    await writeFile(
+      join(home.root, "plans", "current-plan.json"),
+      JSON.stringify({ name: "File endurance Plan", primaryGoal: "Ride consistently" }),
+    );
+    const store = openSqliteStorage(join(home.storeDir, "store.db"));
+    stores.push(store);
+    await runMigrations(store, MIGRATIONS);
+    const instant = Date.UTC(1998, 6, 13, 12);
+    const planId = "0000000000000000000000000A";
+    await createPlanRepository(store).replace(
+      {
+        id: planId,
+        originId: null,
+        name: "Stored endurance Plan",
+        primaryGoal: "Ride consistently",
+        startDateKey: 19980713,
+        targetDateKey: 19981004,
+        status: "active",
+        kind: "full_plan",
+        totalWeeks: 12,
+        weekStartDay: 1,
+        structureJson: "{}",
+        createdAtMs: instant,
+        updatedAtMs: instant,
+        deviceId: "fixture-device",
+        hlcPhysicalMs: instant,
+        hlcCounter: 0,
+      },
+      [],
+    );
+    await store.run(
+      `INSERT INTO planning_plan (plan_id,status,version,current_revision_number,activated_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+VALUES (?,'active',1,1,?,?,'fixture-device',?,0)`,
+      [planId, instant, instant, instant],
+    );
+    let engineInput: CreateCoachEngineInput | undefined;
+    const dependencies: LocalCoachCompositionDependencies = {
+      bootstrap: async () => reference(),
+      createRuntime: () => runtime(),
+      createBackend: (input) => {
+        engineInput = input;
+        return backend();
+      },
+      now: () => instant,
+    };
+    const context = { home, store, listener: inertWriterProtocolListener };
+    let lifecycle = await compose(home, dependencies, context);
+    try {
+      if (engineInput === undefined) throw new TypeError("Production Chat ports are unavailable");
+      const memory = engineInput.ports.memory;
+      const visibleContext = memory.getContext();
+      expect(visibleContext).toContain("## Current Plan\n- Name: File endurance Plan");
+      await memory.refreshPlanReadGate?.();
+      expect(memory.getContext()).toBe(visibleContext);
+      expect(
+        await store.get("SELECT chat_authority_since_ms FROM planning_authority WHERE singleton=1"),
+      ).toEqual({ chat_authority_since_ms: null });
+
+      const started = await lifecycle.operations["plan_creation.start"]({
+        commandId: "start-chat-plan",
+      });
+      expect(started.status).toBe("started");
+      await memory.refreshPlanReadGate?.();
+      expect(memory.getContext()).not.toContain("## Current Plan");
+      expect(memory.getContext()).not.toContain("File endurance Plan");
+      expect(memory.getContextWithProvenance?.().text).not.toContain("## Current Plan");
+
+      await lifecycle.close();
+      lifecycle = await compose(home, dependencies, context);
+      expect(engineInput.ports.memory).not.toBe(memory);
+      expect(engineInput.ports.memory.getContext()).not.toContain("## Current Plan");
+      expect(engineInput.ports.memory.getContext()).not.toContain("File endurance Plan");
+    } finally {
+      await lifecycle.close();
+    }
+  });
+
+  it("discards Plan Creation through real composition while preserving stored Plans and Chat", async () => {
+    const home = await freshHome();
+    await mkdir(home.storeDir, { recursive: true });
+    const databasePath = join(home.storeDir, "store.db");
+    let store = openSqliteStorage(databasePath);
+    stores.push(store);
+    await runMigrations(store, MIGRATIONS);
+    const instant = Date.UTC(1998, 6, 13, 12);
+    for (const [id, status] of [
+      ["0000000000000000000000000A", "active"],
+      ["0000000000000000000000000B", "ended"],
+    ] as const) {
+      await createPlanRepository(store).replace(
+        {
+          id,
+          originId: null,
+          name: `${status} endurance Plan`,
+          primaryGoal: "Ride consistently",
+          startDateKey: 19980713,
+          targetDateKey: 19981004,
+          status,
+          kind: "full_plan",
+          totalWeeks: 12,
+          weekStartDay: 1,
+          structureJson: "{}",
+          createdAtMs: instant,
+          updatedAtMs: instant,
+          deviceId: "fixture-device",
+          hlcPhysicalMs: instant,
+          hlcCounter: 0,
+        },
+        [],
+      );
+      await store.run(
+        `INSERT INTO planning_plan (plan_id,status,version,current_revision_number,activated_at_ms,closed_at_ms,close_reason,close_actor,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+VALUES (?,?,1,1,?,?,?,?,?,'fixture-device',?,0)`,
+        [
+          id,
+          status === "active" ? "active" : "closed",
+          instant,
+          status === "active" ? null : instant,
+          status === "active" ? null : "stopped",
+          status === "active" ? null : "athlete",
+          instant,
+          instant,
+        ],
+      );
+    }
+    await store.run(
+      `INSERT INTO planned_workout (id,date_key,sport,structure_json,provenance,device_id,hlc_physical_ms,hlc_counter)
+VALUES ('0000000000000000000000000C',19980714,'cycling','{"durationMinutes":45}','manual','fixture-device',?,0)`,
+      [instant],
+    );
+    await store.run(
+      `INSERT INTO athlete_preference (id,preference_key,value_json,status,version,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+VALUES ('0000000000000000000000000D','weekly-hours','8','active',1,?,?,'fixture-device',?,0)`,
+      [instant, instant, instant],
+    );
+    await store.run(
+      `INSERT INTO training_restriction (id,kind,status,version,start_date_key,end_date_key,confirmed_at_ms,created_at_ms,updated_at_ms,device_id,hlc_physical_ms,hlc_counter)
+VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,19980720,?,?,?,'fixture-device',?,0)`,
+      [instant, instant, instant, instant],
+    );
+    let engineInput: CreateCoachEngineInput | undefined;
+    const dependencies: LocalCoachCompositionDependencies = {
+      bootstrap: async () => reference(),
+      createRuntime: () => runtime(),
+      createBackend: (input) => {
+        engineInput = input;
+        return backend();
+      },
+      now: () => instant,
+    };
+    let lifecycle = await compose(home, dependencies, {
+      home,
+      store,
+      listener: inertWriterProtocolListener,
+    });
+    try {
+      if (engineInput === undefined) throw new TypeError("Production Chat ports are unavailable");
+      const lineage = {
+        templateHash: "template",
+        assembledHash: "assembled",
+        provider: "synthetic",
+        model: "synthetic",
+        lineageVersion: "1",
+      };
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        for (const [turnId, completedAt] of [
+          ["archived-discard-turn", "1998-07-06T00:00:00.000Z"],
+          ["current-discard-turn", "1998-07-13T00:00:00.000Z"],
+        ] as const) {
+          vi.setSystemTime(completedAt);
+          engineInput.ports.chatStore.appendTurn("desktop", turnId, `coach-${turnId}`, lineage);
+          engineInput.ports.transcriptWriter.appendCompletedTurn({
+            chatId: "desktop",
+            turnId,
+            completedAt,
+            athleteText: turnId,
+            coachText: `coach-${turnId}`,
+          });
+          if (turnId === "archived-discard-turn")
+            engineInput.ports.chatStore.resetConversation({
+              chatId: "desktop",
+              boundaryAt: "1998-07-06T00:00:01.000Z",
+              reason: "explicit-reset",
+            });
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+      const storedChat = async () => {
+        const result: Record<string, string> = {};
+        for (const directory of ["sessions", "transcripts"]) {
+          for (const name of (await readdir(join(home.root, directory))).sort()) {
+            result[`${directory}/${name}`] = (
+              await readFile(join(home.root, directory, name))
+            ).toString("base64");
+          }
+        }
+        return result;
+      };
+      const unrelated = async () => ({
+        plans: await store.all("SELECT * FROM plan ORDER BY id"),
+        planningPlans: await store.all("SELECT * FROM planning_plan ORDER BY plan_id"),
+        schedule: await store.all("SELECT * FROM planned_workout ORDER BY id"),
+        preferences: await store.all("SELECT * FROM athlete_preference ORDER BY id"),
+        restrictions: await store.all("SELECT * FROM training_restriction ORDER BY id"),
+        chat: await storedChat(),
+      });
+      const archive = await lifecycle.operations.listArchivedConversations({});
+      expect(archive.conversations).toHaveLength(1);
+      const boundaryRef = archive.conversations[0]?.boundaryRef;
+      if (boundaryRef === undefined) throw new TypeError("Archived Chat is unavailable");
+      const archivedPage = await lifecycle.operations.getArchivedTranscriptPage({
+        boundaryRef,
+        cursor: null,
+        limit: 25,
+      });
+      const currentPage = await lifecycle.operations.getTranscriptPage({ cursor: null, limit: 25 });
+      expect(archivedPage.turns).toHaveLength(1);
+      expect(currentPage.turns).toHaveLength(1);
+      const before = await unrelated();
+      expect(before.plans).toHaveLength(2);
+      expect(before.planningPlans.map((row) => row.status)).toEqual(["active", "closed"]);
+      expect(before.schedule).toHaveLength(1);
+      expect(before.preferences).toHaveLength(1);
+      expect(before.restrictions).toHaveLength(1);
+      expect(Object.keys(before.chat).length).toBeGreaterThan(1);
+      const started = await lifecycle.operations["plan_creation.start"]({
+        commandId: "discard-start",
+      });
+      if (started.status !== "started") throw new TypeError("Plan Creation did not start");
+      const answered = await lifecycle.operations["plan_creation.answer"]({
+        commandId: "discard-goal",
+        creationId: started.planCreation.creationId,
+        expectedVersion: 1,
+        answer: { kind: "goal", goal: { kind: "fitness" } },
+      });
+      if (answered.status !== "answered") throw new TypeError("Goal was not accepted");
+      const request = {
+        commandId: "discard-confirm",
+        creationId: answered.planCreation.creationId,
+        expectedVersion: answered.planCreation.version,
+      };
+      const answers = await store.all("SELECT * FROM plan_creation_answer ORDER BY id");
+      const audit = await store.all(
+        "SELECT * FROM planning_command ORDER BY command_name,command_id",
+      );
+      expect(answers).toHaveLength(1);
+      expect(audit).toHaveLength(2);
+      const first = await lifecycle.operations["plan_creation.discard"](request);
+      expect(first).toEqual({ status: "discarded" });
+      expect(await unrelated()).toEqual(before);
+      expect(await store.all("SELECT * FROM plan_creation_answer ORDER BY id")).toEqual(answers);
+      expect(
+        await store.all(
+          "SELECT * FROM planning_command WHERE command_name != 'plan_creation.discard' ORDER BY command_name,command_id",
+        ),
+      ).toEqual(audit);
+      const terminal = await store.get(
+        "SELECT status,version,terminal_at_ms,updated_at_ms FROM plan_creation WHERE id=?",
+        [request.creationId],
+      );
+      expect(terminal).toEqual({
+        status: "discarded",
+        version: request.expectedVersion + 1,
+        terminal_at_ms: expect.any(Number),
+        updated_at_ms: expect.any(Number),
+      });
+      expect(terminal?.terminal_at_ms).toBe(terminal?.updated_at_ms);
+      expect(
+        await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
+      ).toMatchObject({ planCreation: null });
+      await lifecycle.close();
+      await store.close();
+      stores.splice(stores.indexOf(store), 1);
+      store = openSqliteStorage(databasePath);
+      stores.push(store);
+      lifecycle = await compose(home, dependencies, {
+        home,
+        store,
+        listener: inertWriterProtocolListener,
+      });
+      expect(await unrelated()).toEqual(before);
+      expect(await lifecycle.operations.getTranscriptPage({ cursor: null, limit: 25 })).toEqual(
+        currentPage,
+      );
+      expect(await lifecycle.operations.listArchivedConversations({})).toEqual(archive);
+      expect(
+        await lifecycle.operations.getArchivedTranscriptPage({
+          boundaryRef,
+          cursor: null,
+          limit: 25,
+        }),
+      ).toEqual(archivedPage);
+      expect(
+        await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
+      ).toMatchObject({ planCreation: null });
+      const fresh = await lifecycle.operations["plan_creation.start"]({
+        commandId: "discard-fresh",
+      });
+      if (fresh.status !== "started") throw new TypeError("Fresh creation did not start");
+      expect(fresh.planCreation.creationId).not.toBe(request.creationId);
+      const freshRows = await store.all("SELECT * FROM plan_creation ORDER BY id");
+      await expect(lifecycle.operations["plan_creation.discard"](request)).resolves.toEqual(first);
+      await expect(
+        lifecycle.operations["plan_creation.discard"]({
+          ...request,
+          expectedVersion: request.expectedVersion + 1,
+        }),
+      ).resolves.toMatchObject({
+        status: "rejected",
+        reason: "command-conflict",
+        planCreation: fresh.planCreation,
+      });
+      await expect(
+        lifecycle.operations["plan_creation.discard"]({ ...request, commandId: "discard-old" }),
+      ).resolves.toMatchObject({
+        status: "rejected",
+        reason: "no-unfinished-creation",
+        planCreation: fresh.planCreation,
+      });
+      await expect(
+        lifecycle.operations["plan_creation.discard"]({
+          commandId: "discard-stale",
+          creationId: fresh.planCreation.creationId,
+          expectedVersion: 2,
+        }),
+      ).resolves.toMatchObject({
+        status: "rejected",
+        reason: "stale-version",
+        planCreation: fresh.planCreation,
+      });
+      expect(await store.all("SELECT * FROM plan_creation ORDER BY id")).toEqual(freshRows);
+      expect(await store.all("SELECT * FROM plan_creation_answer ORDER BY id")).toEqual(answers);
+      expect(
+        await store.all(
+          "SELECT * FROM planning_command WHERE command_name='plan_creation.discard'",
+        ),
+      ).toHaveLength(1);
+      expect(await unrelated()).toEqual(before);
+    } finally {
+      await lifecycle.close();
+    }
+  });
+
+  it.each([false, true])(
+    "gates Plan Change text translation on model credentials: %s",
+    async (configured) => {
+      const home = await freshHome();
+      await mkdir(home.storeDir, { recursive: true });
+      const store = openSqliteStorage(join(home.storeDir, "store.db"));
+      stores.push(store);
+      await runMigrations(store, MIGRATIONS);
+      const translationCalls = vi.fn<(text: string) => void>();
+      const translator: IntentTranslationPort = {
+        async translateIntent(text, schema) {
+          translationCalls(text);
+          return schema.parse({
+            status: "translated",
+            intent: { kind: "longest-workout", minutes: 30 },
+          });
+        },
+      };
+      const initial = config(home);
+      const lifecycle = await compose(
+        home,
+        {
+          bootstrap: async () => reference(),
+          createRuntime: () => runtime(),
+          createBackend: () => ({ ...backend(), ...translator }),
+          now: () => Date.UTC(1998, 8, 2, 12),
+        },
+        { home, store, listener: inertWriterProtocolListener },
+        undefined,
+        { ...initial, llm: { ...initial.llm, apiKey: configured ? "synthetic-key" : "" } },
+      );
+      try {
+        const started = await lifecycle.operations["plan_creation.start"]({ commandId: "start" });
+        if (started.status !== "started") throw new Error("Expected Plan Creation");
+        let card = started.planCreation;
+        const answers: PlanCreationAnswerInput[] = [
+          { kind: "goal", goal: { kind: "fitness" } },
+          { kind: "plan-length", weeks: 4 },
+          { kind: "schedule-mode", mode: "fixed" },
+          {
+            kind: "availability",
+            mode: "fixed",
+            weeklyHoursLimit: 8,
+            longestWorkoutHours: 3,
+            usableWeekdays: [2, 4, 6],
+          },
+          { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+          { kind: "commitments", commitments: { kind: "none" } },
+          { kind: "baseline", baseline: "regular" },
+          { kind: "success", success: { kind: "fitness-choice", choice: "climb-stronger" } },
+          { kind: "restriction", restriction: { kind: "none" } },
+        ];
+        for (const [index, answer] of answers.entries()) {
+          const result = await lifecycle.operations["plan_creation.answer"]({
+            commandId: `answer-${index}`,
+            creationId: card.creationId,
+            expectedVersion: card.version,
+            answer,
+          });
+          if (result.status !== "answered") throw new Error("Expected answer");
+          card = result.planCreation;
+        }
+        const draft = await lifecycle.operations["plan_creation.preview"]({
+          commandId: "draft",
+          creationId: card.creationId,
+          expectedVersion: card.version,
+        });
+        if (draft.status !== "previewed") throw new Error("Expected Draft");
+        const activated = await lifecycle.operations["plan_creation.activate"]({
+          commandId: "activate",
+          creationId: card.creationId,
+          expectedVersion: draft.planCreation.version,
+          incumbent: null,
+        });
+        if (activated.planId === null) throw new Error("Expected active Plan");
+        const request = {
+          commandId: "text-preview",
+          planId: activated.planId,
+          expectedVersion: 1,
+          request: { kind: "text" as const, text: "Please shorten my longest sessions" },
+        };
+        const unsupported = {
+          status: "rejected",
+          reason: "unsupported-request",
+          explanation: "This request is not supported yet. Choose one of the available actions.",
+        };
+        const preview = await lifecycle.operations["plan_change.preview"](request);
+        expect(preview).toMatchObject(
+          configured
+            ? {
+                status: "previewed",
+                change: { intent: { kind: "longest-workout", minutes: 30 } },
+              }
+            : unsupported,
+        );
+        expect(translationCalls).toHaveBeenCalledTimes(configured ? 1 : 0);
+        if (configured) {
+          expect(translationCalls.mock.calls[0]?.[0]).toBe(request.request.text);
+          await lifecycle.operations.configureRuntime({
+            llm: { provider: "anthropic", clear_credential: true },
+          });
+          await expect(
+            lifecycle.operations["plan_change.preview"]({
+              ...request,
+              commandId: "text-after-credential-removal",
+            }),
+          ).resolves.toEqual(unsupported);
+          expect(translationCalls).toHaveBeenCalledTimes(1);
+        }
+      } finally {
+        await lifecycle.close();
+      }
+    },
+  );
 
   it("composes durable Plan intake through a structured Draft and activates locally before provider work", async () => {
     const home = await freshHome();
@@ -2209,14 +3036,11 @@ describe("local coach composition", () => {
       status: "ready",
       state: { scenarioId: "PL-S001" },
     });
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "plan-start",
-      sourceConversationId: null,
+    const conversationId = await seedLegacyConversation(store);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
+      state: { scenarioId: "PL-S017" },
     });
-    if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
-    expect(started.state).toMatchObject({ scenarioId: "PL-S017" });
-    const conversationId = String(started.state.data.conversationId);
     await lifecycle.operations.executePlanTransition?.({
       transitionId: "PL-T03",
       commandId: "plan-course-omitted",
@@ -2433,17 +3257,11 @@ describe("local coach composition", () => {
       { ENDURAGENT_HOME: home.root },
       true,
     );
-    const started = await lifecycle.operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "replacement-start",
-      sourceConversationId: null,
+    const conversationId = await seedLegacyConversation(store, activePlanId);
+    await expect(lifecycle.operations.getPlanState?.({})).resolves.toMatchObject({
+      status: "ready",
+      state: { scenarioId: "PL-S079", data: { replacement: true } },
     });
-    if (started?.status !== "completed") throw new TypeError("Replacement intake did not start.");
-    expect(started.state).toMatchObject({
-      scenarioId: "PL-S079",
-      data: { replacement: true },
-    });
-    const conversationId = String(started.state.data.conversationId);
     await lifecycle.operations.executePlanTransition?.({
       transitionId: "PL-T03",
       commandId: "replacement-course-omitted",

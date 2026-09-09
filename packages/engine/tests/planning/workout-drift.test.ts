@@ -130,6 +130,7 @@ function planRepository(): PlanRepository {
     read: vi.fn(async () => plan),
     readByOriginId: vi.fn(),
     readLatest: vi.fn(async () => plan),
+    listPlans: vi.fn(async () => []),
     readWorkouts: vi.fn(async () => [workout]),
     count: vi.fn(async () => 1),
     delete: vi.fn(),

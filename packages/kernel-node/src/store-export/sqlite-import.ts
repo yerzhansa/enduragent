@@ -99,6 +99,37 @@ function normalizeRows(
   return rows.map((row) => ({ ...row, operation: "update" }));
 }
 
+async function restorePlanningAuthority(
+  store: SqliteImportStore,
+  rows: readonly AuthoredRow[],
+): Promise<RestoreTableResult> {
+  const table = "planning_authority";
+  if (rows.length === 0) return { table, inserted: 0, skipped: 0 };
+  if (rows.length !== 1 || integer(rows[0]!, "singleton") !== 1) {
+    throw new TypeError("Export row is invalid");
+  }
+  const row = rows[0]!;
+  if (row.chat_authority_since_ms === null) return { table, inserted: 0, skipped: 1 };
+  const instant = integer(row, "chat_authority_since_ms");
+  const current = await store.get(
+    "SELECT chat_authority_since_ms FROM planning_authority WHERE singleton = 1",
+  );
+  if (current === undefined) throw new TypeError("Planning authority is missing");
+  if (current.chat_authority_since_ms !== null) return { table, inserted: 0, skipped: 1 };
+  await store.run(
+    `UPDATE planning_authority
+SET chat_authority_since_ms = ?, device_id = ?, hlc_physical_ms = ?, hlc_counter = ?
+WHERE singleton = 1 AND chat_authority_since_ms IS NULL`,
+    [
+      instant,
+      toSqlValue(row.device_id),
+      toSqlValue(row.hlc_physical_ms),
+      toSqlValue(row.hlc_counter),
+    ],
+  );
+  return { table, inserted: 1, skipped: 0 };
+}
+
 async function restoreRows(
   store: SqliteImportStore,
   table: string,
@@ -123,11 +154,20 @@ export function createSqliteImportSink(store: SqliteImportStore): ImportSink {
   return {
     restoreAuthoredTable(table, rows, { sourceUserVersion }) {
       return store.transaction(async () => {
+        if (table === "planning_authority") return restorePlanningAuthority(store, rows);
         const normalized = normalizeRows(table, rows, sourceUserVersion);
         if (table === "plan_replacement" && sourceUserVersion >= 21 && sourceUserVersion < 29) {
           for (const row of normalized) await requireCompatibleCleanupJob(store, row);
         }
-        return restoreRows(store, table, normalized);
+        const result = await restoreRows(store, table, normalized);
+        if (table === "plan_creation") {
+          await store.run(
+            `UPDATE planning_authority
+SET chat_authority_since_ms = (SELECT MIN(created_at_ms) FROM plan_creation)
+WHERE singleton = 1 AND chat_authority_since_ms IS NULL AND EXISTS (SELECT 1 FROM plan_creation)`,
+          );
+        }
+        return result;
       });
     },
   };

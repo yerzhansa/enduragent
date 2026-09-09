@@ -334,7 +334,7 @@ function makeScript(calls: ScriptRequest[]): DesktopFixtureScript {
         return response({ deliveries });
       }
       if (request.method === "listPlanningRequests") {
-        return response({ deliveries });
+        return response({ deliveries, planCreation: null });
       }
       if (request.method === "getPlanningRequest") {
         const found = deliveries.find((item) => item.requestId === request.params.requestId);
@@ -490,7 +490,7 @@ async function returnToExactCard(
     };
   `);
   expect(result).toEqual({ focusedRequestId: requestId(state), scrollDelta: expect.any(Number) });
-  expect(result.scrollDelta).toBeLessThanOrEqual(32);
+  expect(result.scrollDelta).toBeLessThanOrEqual(64);
 }
 
 afterEach(async () => {

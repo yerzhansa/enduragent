@@ -1325,6 +1325,17 @@ describe("coach request and event projection", () => {
         asOfDateKey: 20260826,
         plan: null,
       }),
+      "plan.list": async () => ({
+        calendarConnected: false,
+        legacy: null,
+        creation: null,
+        active: null,
+        closed: [],
+        changes: [],
+        changesPaused: null,
+      }),
+      "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
+      "plan.history": async () => null,
       getActivityAnalysis: async () => {
         throw new Error("not exercised by registry exhaustiveness");
       },
@@ -1448,7 +1459,35 @@ describe("coach request and event projection", () => {
       getPlanningRequest: async () => ({ status: "missing" }),
       retryPlanningRequest: async () => ({ status: "missing" }),
       resumePlanningRequests: async () => ({ deliveries: [] }),
-      listPlanningRequests: async () => ({ deliveries: [] }),
+      listPlanningRequests: async () => ({ deliveries: [], planCreation: null }),
+      "plan_creation.interpretCommitments": async () => ({
+        rules: [],
+        unparsed: ["busy"],
+        status: "clarify",
+      }),
+      "plan_creation.start": async () => ({
+        status: "rejected",
+        reason: "command-conflict",
+      }),
+      "plan_creation.answer": async () => ({
+        status: "rejected",
+        reason: "no-unfinished-creation",
+        planCreation: null,
+      }),
+      "plan_creation.preview": async () => ({
+        status: "rejected",
+        reason: "no-unfinished-creation",
+        planCreation: null,
+      }),
+      "plan_creation.discard": async () => ({ status: "discarded" }),
+      "plan_creation.activate": async () => ({
+        creationId: "01J00000000000000000000000",
+        planId: "01J00000000000000000000001",
+        closedPlanId: null,
+        activatedAt: "1998-09-07",
+      }),
+      "plan_change.preview": async () => ({ status: "rejected", reason: "no-active-plan" }),
+      "plan_change.apply": async () => ({ status: "rejected", reason: "no-active-plan" }),
     };
     expect(Object.keys(COACH_RPC_METHOD_REGISTRY)).toEqual(Object.keys(fake));
     expect(COACH_RPC_METHOD_NAMES).toEqual(Object.keys(fake));
@@ -1940,7 +1979,7 @@ describe("coach request and event projection", () => {
 });
 
 describe("handshake", () => {
-  it("round trips a protocol-33 accepted frame with its authenticated home and renderer capability", () => {
+  it("round trips a protocol-36 accepted frame with its authenticated home and renderer capability", () => {
     const accepted = createAcceptedServerHandshakeFrame("service-managed", PROTOCOL_VERSION, {
       ...acceptedHandshakeBinding,
     });
@@ -1948,8 +1987,8 @@ describe("handshake", () => {
     expect(ServerHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(accepted)))).toEqual({
       type: "handshake",
       status: "accepted",
-      clientProtocolVersion: 33,
-      serverProtocolVersion: 33,
+      clientProtocolVersion: 36,
+      serverProtocolVersion: 36,
       owner: "service-managed",
       athleteHome: "/synthetic/athlete",
       rendererCapability: "A".repeat(43),
@@ -1958,7 +1997,7 @@ describe("handshake", () => {
 
   it("refuses a previous-protocol client with a version-mismatch frame instead of a parse error", () => {
     const previous = PROTOCOL_VERSION - 1;
-    expect(previous).toBe(32);
+    expect(previous).toBe(35);
     expect(() =>
       createAcceptedServerHandshakeFrame("service-managed", previous, {
         ...acceptedHandshakeBinding,
@@ -2031,9 +2070,9 @@ describe("handshake", () => {
     }
   });
 
-  it("accepts aligned protocol 33 peers and classifies mismatches in both directions", () => {
+  it("accepts aligned protocol 36 peers and classifies mismatches in both directions", () => {
     const client = createClientHandshakeFrame("synthetic-test-token");
-    expect(client.clientProtocolVersion).toBe(33);
+    expect(client.clientProtocolVersion).toBe(36);
     expect(ClientHandshakeFrameSchema.parse(JSON.parse(JSON.stringify(client)))).toEqual(client);
     const accepted = createAcceptedServerHandshakeFrame(
       "service-managed",
@@ -2159,7 +2198,53 @@ describe("additive protocol signals", () => {
     expect(AgentErrorKindSchema.safeParse("aborted").success).toBe(false);
   });
 
-  it("uses protocol version 33", () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+  it("uses protocol version 36", () => {
+    expect(PROTOCOL_VERSION).toBe(36);
+  });
+});
+
+describe("Plan lifecycle wire contract", () => {
+  const closeParams = {
+    commandId: "close-1",
+    planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    expectedVersion: 1,
+  };
+
+  it("accepts athlete closure and rejects public actor or completion claims", () => {
+    const schema = COACH_RPC_METHOD_REGISTRY["plan.close"].requestSchema;
+    expect(schema.parse(closeParams)).toEqual(closeParams);
+    for (const extra of [
+      { closeActor: "system:plan-completion" },
+      { closeReason: "completed" },
+      { closedAtMs: 904_953_600_000 },
+    ]) {
+      expect(schema.safeParse({ ...closeParams, ...extra }).success).toBe(false);
+    }
+    expect(schema.safeParse({ ...closeParams, expectedVersion: 0 }).success).toBe(false);
+  });
+
+  it("accepts closure results and every rejection reason", () => {
+    const schema = COACH_RPC_METHOD_REGISTRY["plan.close"].responseSchema;
+    expect(
+      schema.safeParse({
+        status: "closed",
+        planId: closeParams.planId,
+        closedAt: 904_953_600_000,
+        cleanupJobId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+      }).success,
+    ).toBe(true);
+    for (const reason of ["stale-version", "no-active-plan", "command-conflict"]) {
+      expect(schema.parse({ status: "rejected", reason })).toEqual({ status: "rejected", reason });
+    }
+    expect(schema.safeParse({ status: "rejected", reason: "completed" }).success).toBe(false);
+  });
+
+  it("returns null for unavailable closed history and requires a Plan id", () => {
+    const method = COACH_RPC_METHOD_REGISTRY["plan.history"];
+    expect(method.requestSchema.parse({ planId: closeParams.planId })).toEqual({
+      planId: closeParams.planId,
+    });
+    expect(method.requestSchema.safeParse({ planId: "" }).success).toBe(false);
+    expect(method.responseSchema.parse(null)).toBeNull();
   });
 });

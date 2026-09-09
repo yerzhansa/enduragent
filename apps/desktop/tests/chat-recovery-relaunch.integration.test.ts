@@ -297,6 +297,7 @@ class RecoveryBackend {
       outbox: this.outbox,
       requests: this.requests,
       identity: this.identity(),
+      readPlanCreationCard: async () => null,
       resolveTarget: async () => "active_plan",
     });
   }

@@ -99,6 +99,7 @@ export const EMPTY_CHAT_STATE: ChatState = {
 };
 
 export type ChatAction =
+  | { readonly type: "append-athlete-message"; readonly id: string; readonly text: string }
   | {
       readonly type: "submit";
       readonly requestKey: number;
@@ -189,6 +190,14 @@ export function hasClearableConversation(state: ChatState): boolean {
 
 export function reduceChatState(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
+    case "append-athlete-message":
+      return {
+        ...state,
+        messages: [
+          ...state.messages,
+          { id: action.id, role: "athlete", text: action.text, delivery: "complete" },
+        ],
+      };
     case "submit": {
       if (state.status === "streaming") return state;
       const assistant: ChatTranscriptMessage = {

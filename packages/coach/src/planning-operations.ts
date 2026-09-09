@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   ExecutePlanTransitionRpcParamsSchema,
   ExecutePlanTransitionRpcResultSchema,
@@ -114,7 +115,9 @@ import {
 } from "./planning-lifecycle.js";
 import {
   addCivilDays,
-  createPlanConversationRepository,
+  createLegacyWriterFence,
+  LegacyPlanningAuthorityError,
+  createLegacyPlanTransitionRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
   createPlanWorkoutMatchRepository,
@@ -1029,7 +1032,7 @@ function selectedPlanningRequestContext(input: {
     addCivilDays(input.plan.startDateKey, input.plan.totalWeeks * 7 - 1);
   const occupied = new Set(input.workouts.map((workout) => workout.dateKey));
   let recommendedDateKey: number | null = null;
-  for (let dateKey = addCivilDays(requestedDateKey, 1); dateKey <= maximumDateKey; ) {
+  for (let dateKey = addCivilDays(requestedDateKey, 1); dateKey <= maximumDateKey;) {
     if (!occupied.has(dateKey)) {
       recommendedDateKey = dateKey;
       break;
@@ -1037,7 +1040,7 @@ function selectedPlanningRequestContext(input: {
     dateKey = addCivilDays(dateKey, 1);
   }
   if (recommendedDateKey === null) {
-    for (let dateKey = minimumDateKey; dateKey < requestedDateKey; ) {
+    for (let dateKey = minimumDateKey; dateKey < requestedDateKey;) {
       if (!occupied.has(dateKey)) {
         recommendedDateKey = dateKey;
         break;
@@ -1217,6 +1220,7 @@ function courseProjection(input: {
 }
 
 interface ReadOverrides {
+  readonly readOnly?: boolean;
   readonly sourceConversationId?: string | null;
   readonly ftpScenario?: FtpScenario;
   readonly ftpError?: PlanError | null;
@@ -1261,6 +1265,13 @@ function queueText(queue: ChatQueueSnapshot): string {
     .join("\n\n");
 }
 
+const fencedStores = new WeakSet<CoachStoreWriterContext["store"]>();
+const commandAuthority = new AsyncLocalStorage<{
+  readonly store: CoachStoreWriterContext["store"];
+  readonly enforce: boolean;
+}>();
+const transactionScope = new AsyncLocalStorage<CoachStoreWriterContext["store"]>();
+
 export function createPlanningOperations(
   input: {
     readonly context: CoachStoreWriterContext;
@@ -1269,31 +1280,77 @@ export function createPlanningOperations(
   },
   dependencies: CreatePlanningOperationsDependencies = {},
 ): PlanningOperations {
-  const conversations =
-    dependencies.conversations ?? createPlanConversationRepository(input.context.store);
-  const intakes = dependencies.intakes ?? createPlanIntakeRepository(input.context.store);
-  const plans = dependencies.plans ?? createPlanRepository(input.context.store);
-  const draftBuilds =
-    dependencies.draftBuilds ?? createPlanDraftBuildRepository(input.context.store);
-  const reconciliations =
-    dependencies.reconciliations ?? createPlanReconciliationRepository(input.context.store);
-  const workoutMatches =
-    dependencies.workoutMatches ?? createPlanWorkoutMatchRepository(input.context.store);
-  const workoutDrifts =
-    dependencies.workoutDrifts ?? createPlanWorkoutDriftRepository(input.context.store);
-  const proposalRepository =
-    dependencies.proposals ?? createPlanProposalRepository(input.context.store);
+  const writerFence = createLegacyWriterFence(input.context.store);
+  const store = input.context.store;
+  if (!fencedStores.has(store)) {
+    const transaction = store.transaction.bind(store);
+    const run = store.run.bind(store);
+    const exec = store.exec.bind(store);
+    const requiresAuthority = (): boolean => {
+      const command = commandAuthority.getStore();
+      return command?.store === store && command.enforce;
+    };
+    store.transaction = async (operation) => {
+      if (!requiresAuthority()) return transaction(operation);
+      return transaction(async () => {
+        await writerFence.assertLegacyAuthority();
+        return transactionScope.run(store, operation);
+      });
+    };
+    store.run = async (sql, params) => {
+      if (!requiresAuthority() || transactionScope.getStore() === store) {
+        return run(sql, params);
+      }
+      return store.transaction(() => run(sql, params));
+    };
+    store.exec = async (sql) => {
+      if (!requiresAuthority() || transactionScope.getStore() === store) return exec(sql);
+      return store.transaction(() => exec(sql));
+    };
+    fencedStores.add(store);
+  }
+  const fencedTransitions = new Set<ExecutePlanTransitionRpcParams["transitionId"]>([
+    "PL-T01",
+    "PL-T02",
+    "PL-T03",
+    "PL-T04",
+    "PL-T05",
+    "PL-T06",
+    "PL-T07",
+    "PL-T08",
+    "PL-T09",
+    "PL-T10",
+    "PL-T11",
+    "PL-T15",
+    "PL-T16",
+    "PL-T17",
+    "PL-T18",
+    "PL-T19",
+    "PL-T20",
+    "PL-T21",
+    "PL-T22",
+    "PL-T24",
+    "PL-T25",
+    "PL-T26",
+    "PL-T28",
+    "PL-T29",
+    "PL-T40",
+  ]);
+  const conversations = dependencies.conversations ?? createLegacyPlanTransitionRepository(store);
+  const intakes = dependencies.intakes ?? createPlanIntakeRepository(store);
+  const plans = dependencies.plans ?? createPlanRepository(store);
+  const draftBuilds = dependencies.draftBuilds ?? createPlanDraftBuildRepository(store);
+  const reconciliations = dependencies.reconciliations ?? createPlanReconciliationRepository(store);
+  const workoutMatches = dependencies.workoutMatches ?? createPlanWorkoutMatchRepository(store);
+  const workoutDrifts = dependencies.workoutDrifts ?? createPlanWorkoutDriftRepository(store);
+  const proposalRepository = dependencies.proposals ?? createPlanProposalRepository(store);
   const planningRequests = dependencies.requests;
-  const historyRepository =
-    dependencies.history ?? createPlanAdaptationLedgerRepository(input.context.store);
-  const settingsRepository =
-    dependencies.settings ?? createPlanSettingsRepository(input.context.store);
-  const replacementRepository =
-    dependencies.replacements ?? createPlanReplacementRepository(input.context.store);
+  const historyRepository = dependencies.history ?? createPlanAdaptationLedgerRepository(store);
+  const settingsRepository = dependencies.settings ?? createPlanSettingsRepository(store);
+  const replacementRepository = dependencies.replacements ?? createPlanReplacementRepository(store);
   const weeklyReviewRepository =
-    dependencies.weeklyReviews ?? createPlanWeeklyReviewRepository(input.context.store);
-  const raceOutcomeRepository =
-    dependencies.raceOutcomes ?? createPlanRaceOutcomeRepository(input.context.store);
+    dependencies.weeklyReviews ?? createPlanWeeklyReviewRepository(store);
+  const raceOutcomeRepository = dependencies.raceOutcomes ?? createPlanRaceOutcomeRepository(store);
   const enqueue = createSerializedLane();
   const orderedWeekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const emptyIntake = async (conversationId: string): Promise<PlanIntakeRecord> => {
@@ -1356,6 +1413,20 @@ export function createPlanningOperations(
           : patch.currentTrainingSummary,
     };
   };
+  const projectIntake = (
+    current: PlanIntakeRecord,
+    turns: readonly PlanConversationTurnRecord[],
+  ): PlanIntakeRecord => {
+    let next = current;
+    for (const turn of turns.filter((turn) => turn.sequence > current.sourceTurnSequence)) {
+      try {
+        const lineage = snapshot(turn.lineageJson) as { readonly planIntakePatch?: unknown };
+        const parsed = PlanIntakePatchSchema.safeParse(lineage.planIntakePatch);
+        if (parsed.success) next = applyIntakePatch(next, parsed.data);
+      } catch {}
+    }
+    return next;
+  };
   const synchronizeIntake = async (
     conversationId: string,
     knownTurns?: readonly PlanConversationTurnRecord[],
@@ -1364,14 +1435,7 @@ export function createPlanningOperations(
     const turns = knownTurns ?? (await conversations.readTurns(conversationId));
     const pending = turns.filter((turn) => turn.sequence > current.sourceTurnSequence);
     if (pending.length === 0) return current;
-    let next = current;
-    for (const turn of pending) {
-      try {
-        const lineage = snapshot(turn.lineageJson) as { readonly planIntakePatch?: unknown };
-        const parsed = PlanIntakePatchSchema.safeParse(lineage.planIntakePatch);
-        if (parsed.success) next = applyIntakePatch(next, parsed.data);
-      } catch {}
-    }
+    const next = projectIntake(current, pending);
     const stamp = input.identity.hlcStamp();
     return intakes.save(
       {
@@ -1484,18 +1548,20 @@ export function createPlanningOperations(
       week.kind === "inside" ? week.weekIndex : week.side === "before" ? 1 : plan.totalWeeks;
     const weekStartDateKey = addCivilDays(plan.startDateKey, (weekIndex - 1) * 7);
     const matchSync = await workoutMatches.readSyncStatus();
-    const refreshed = await refreshPlanWorkoutMatches({
-      planId: plan.id,
-      workouts,
-      startDateKey: weekStartDateKey,
-      endDateKey: addCivilDays(weekStartDateKey, 6),
-      repository: workoutMatches,
-      identity: {
-        newId: () => input.identity.newUlid(),
-        deviceId: () => input.identity.deviceId(),
-        stamp: () => input.identity.hlcStamp(),
-      },
-    });
+    const refreshed = await commandAuthority.run({ store, enforce: false }, () =>
+      refreshPlanWorkoutMatches({
+        planId: plan.id,
+        workouts,
+        startDateKey: weekStartDateKey,
+        endDateKey: addCivilDays(weekStartDateKey, 6),
+        repository: workoutMatches,
+        identity: {
+          newId: () => input.identity.newUlid(),
+          deviceId: () => input.identity.deviceId(),
+          stamp: () => input.identity.hlcStamp(),
+        },
+      }),
+    );
     const matchRows = projectWorkoutMatches({
       workouts: workouts.filter(
         (workout) =>
@@ -1540,7 +1606,7 @@ export function createPlanningOperations(
       }
     }
     let drifts = await workoutDrifts.readOpenForPlan(plan.id);
-    if (dependencies.workoutDriftCalendar !== undefined) {
+    if (!overrides.readOnly && dependencies.workoutDriftCalendar !== undefined) {
       try {
         const windowEndDateKey = addCivilDays(todayDateKey, 6);
         const events = await dependencies.workoutDriftCalendar.listEvents({
@@ -1668,7 +1734,7 @@ export function createPlanningOperations(
               });
             }
             if (error.code !== "stale-base") {
-              await refuseProposal(proposal);
+              if (!overrides.readOnly) await refuseProposal(proposal);
               return null;
             }
             try {
@@ -1680,7 +1746,7 @@ export function createPlanningOperations(
                 error: PROPOSAL_STALE,
               });
             } catch {
-              await refuseProposal(proposal);
+              if (!overrides.readOnly) await refuseProposal(proposal);
               return null;
             }
           }
@@ -1867,7 +1933,23 @@ export function createPlanningOperations(
     });
   };
 
-  const read = async (overrides: ReadOverrides = {}): Promise<PlanReadModel> => {
+  const read = async (
+    overrides: ReadOverrides = {},
+    activePlan?: PlanRecord,
+  ): Promise<PlanReadModel> => {
+    if (!overrides.readOnly && (await writerFence.fenced())) {
+      overrides = { ...overrides, readOnly: true };
+    }
+    if (activePlan !== undefined) return readActive(activePlan, 0, overrides);
+    const fence = await writerFence.read();
+    if (fence.activePlanId !== null) {
+      const activePlan = await plans.read(fence.activePlanId);
+      if (activePlan === undefined) throw new TypeError("An active Plan requires a Plan record.");
+      if (activePlan.status === "active" && overrides.endedScenario === undefined) {
+        return readActive(activePlan, 0, overrides);
+      }
+      return readEnded(activePlan, 0, overrides);
+    }
     const conversation = await conversations.readLatestOpenConversation();
     if (conversation === undefined) {
       const latestPlan = await plans.readLatest();
@@ -1886,11 +1968,15 @@ export function createPlanningOperations(
     const [turns, draft, queue, decision, ftp] = await Promise.all([
       conversations.readTurns(conversation.id),
       conversations.readLatestDraftRevision(conversation.id),
-      input.engine.getChatQueue?.({ chatId }).catch(() => EMPTY_QUEUE) ?? EMPTY_QUEUE,
-      input.engine
-        .getCoachDecision({ chatId })
-        .then((result) => result.decision)
-        .catch(() => null),
+      overrides.readOnly
+        ? EMPTY_QUEUE
+        : (input.engine.getChatQueue?.({ chatId }).catch(() => EMPTY_QUEUE) ?? EMPTY_QUEUE),
+      overrides.readOnly
+        ? null
+        : input.engine
+            .getCoachDecision({ chatId })
+            .then((result) => result.decision)
+            .catch(() => null),
       dependencies.ftp?.read(),
     ]);
     const projectedPlanId = draft?.planId ?? conversation.planId;
@@ -1910,7 +1996,28 @@ export function createPlanningOperations(
         : startDateProjection({ plan: draftPlan, todayDateKey }));
     const dateScenario =
       overrides.dateScenario ?? (projectedStartDate?.status === "invalid" ? "PL-S046" : undefined);
-    const intake = await synchronizeIntake(conversation.id, turns);
+    const intake = overrides.readOnly
+      ? projectIntake(
+          (await intakes.read(conversation.id)) ?? {
+            conversationId: conversation.id,
+            eventName: null,
+            eventPriority: null,
+            eventDateKey: null,
+            athleteGoal: null,
+            availabilitySessionsPerWeek: null,
+            availabilityWeekdays: [],
+            experience: null,
+            currentTrainingSummary: null,
+            sourceTurnSequence: 0,
+            createdAtMs: conversation.createdAtMs,
+            updatedAtMs: conversation.updatedAtMs,
+            deviceId: conversation.deviceId,
+            hlcPhysicalMs: conversation.hlcPhysicalMs,
+            hlcCounter: conversation.hlcCounter,
+          },
+          turns,
+        )
+      : await synchronizeIntake(conversation.id, turns);
     const readiness = await draftReadiness({ conversation, turns, draft }, intake);
     const ready = conversation.courseChoiceStatus !== "undecided" && readiness.ready;
     const projectedCourse = overrides.course ?? storedCourseProjection(conversation, draft);
@@ -2293,17 +2400,15 @@ export function createPlanningOperations(
       hlcPhysicalMs: stamp.physicalMs,
       hlcCounter: stamp.counter,
     };
-    const premiseRecords = build.premises.map(
-      (premise): PlanProposalPremiseRecord => ({
-        ...premise,
-        id: input.identity.newUlid(),
-        proposalId: next.id,
-        createdAtMs: timestamp,
-        deviceId,
-        hlcPhysicalMs: stamp.physicalMs,
-        hlcCounter: stamp.counter,
-      }),
-    );
+    const premiseRecords = build.premises.map((premise): PlanProposalPremiseRecord => ({
+      ...premise,
+      id: input.identity.newUlid(),
+      proposalId: next.id,
+      createdAtMs: timestamp,
+      deviceId,
+      hlcPhysicalMs: stamp.physicalMs,
+      hlcCounter: stamp.counter,
+    }));
     validatePlanProposal({
       proposal: next,
       premises: premiseRecords,
@@ -2359,12 +2464,22 @@ export function createPlanningOperations(
   const reject = async (
     error: PlanError,
     overrides: ReadOverrides = {},
-  ): Promise<ExecutePlanTransitionRpcResult> =>
-    ExecutePlanTransitionRpcResultSchema.parse({
+  ): Promise<ExecutePlanTransitionRpcResult> => {
+    if (commandAuthority.getStore()?.enforce) {
+      try {
+        await writerFence.assertLegacyAuthority();
+      } catch (authorityError) {
+        if (!(authorityError instanceof LegacyPlanningAuthorityError)) throw authorityError;
+        error = { code: "conflict", message: authorityError.message, retryable: false };
+        overrides = { ...overrides, readOnly: true };
+      }
+    }
+    return ExecutePlanTransitionRpcResultSchema.parse({
       status: "rejected",
       error,
       state: await read({ ...overrides, ftpError: error }),
     });
+  };
 
   const chatOriginatedResult = async (
     request: PlanningRequestReadModel,
@@ -2389,42 +2504,43 @@ export function createPlanningOperations(
   return {
     async getPlanState(request) {
       GetPlanStateRpcParamsSchema.parse(request);
-      return GetPlanStateRpcResultSchema.parse({ status: "ready", state: await read() });
+      return commandAuthority.run({ store, enforce: true }, async () => {
+        try {
+          const readOnly = await writerFence.fenced();
+          return GetPlanStateRpcResultSchema.parse({
+            status: "ready",
+            state: await read({ readOnly }),
+          });
+        } catch (error) {
+          if (!(error instanceof LegacyPlanningAuthorityError)) throw error;
+          return GetPlanStateRpcResultSchema.parse({
+            status: "ready",
+            state: await read({ readOnly: true }),
+          });
+        }
+      });
     },
     executePlanTransition(request, onEvent) {
       const command = ExecutePlanTransitionRpcParamsSchema.parse(request);
-      return enqueue(async () => {
-        if (command.transitionId === "PL-T01") {
-          const latestPlan = await plans.readLatest();
-          const replacementPlanId = latestPlan?.status === "active" ? latestPlan.id : null;
-          let conversation =
-            replacementPlanId === null
-              ? await conversations.readLatestOpenConversation()
-              : await conversations.readLatestOpenReplacement(replacementPlanId);
-          if (conversation === undefined) {
-            const timestamp = input.identity.hlcStamp().physicalMs;
-            const stamp = input.identity.hlcStamp();
-            conversation = {
-              id: input.identity.newUlid(),
-              planId: null,
-              replacesPlanId: replacementPlanId,
-              courseChoiceStatus: "undecided",
-              raceCourseJson: null,
-              status: "open",
-              endedAtMs: null,
-              createdAtMs: timestamp,
-              updatedAtMs: timestamp,
-              deviceId: await input.identity.deviceId(),
-              hlcPhysicalMs: stamp.physicalMs,
-              hlcCounter: stamp.counter,
-            };
-            await conversations.saveConversation(conversation);
-          }
-          await ensureIntake(conversation.id);
-          return ExecutePlanTransitionRpcResultSchema.parse({
-            status: "completed",
-            state: await read(),
-          });
+      const execute = async (): Promise<ExecutePlanTransitionRpcResult> => {
+        const fenced = await writerFence.fenced();
+        if (
+          command.transitionId === "PL-T01" ||
+          command.transitionId === "PL-T25" ||
+          (fenced &&
+            (fencedTransitions.has(command.transitionId) ||
+              ((command.transitionId === "PL-T12" || command.transitionId === "PL-T27") &&
+                command.mode !== "verify")))
+        ) {
+          return reject(
+            {
+              code: "conflict",
+              message:
+                "This Plan is managed in Chat. Change or stop it from Chat or the Plan library.",
+              retryable: false,
+            },
+            { readOnly: true },
+          );
         }
         if (command.transitionId === "PL-T36") {
           if (planningRequests === undefined) return reject(UNAVAILABLE);
@@ -3298,6 +3414,9 @@ export function createPlanningOperations(
           const existingJob = await reconciliations.readLatestJob(plan.id, "mirror");
           const existingItems =
             existingJob === undefined ? [] : await reconciliations.readItems(existingJob.id);
+          if (fenced && (existingJob === undefined || existingItems.length === 0)) {
+            return reject(UNAVAILABLE);
+          }
           const total = Math.max(existingItems.length, 1);
           const operationId = input.identity.newUlid();
           deliver(onEvent, {
@@ -3486,13 +3605,15 @@ export function createPlanningOperations(
           if (candidate === undefined) return reject(UNAVAILABLE);
           try {
             const stamp = input.identity.hlcStamp();
-            await workoutMatches.decide({
-              id: candidate.id,
-              decision: command.decision === "reject" ? "rejected" : "confirmed",
-              decidedAtMs: stamp.physicalMs,
-              deviceId: await input.identity.deviceId(),
-              hlcPhysicalMs: stamp.physicalMs,
-              hlcCounter: stamp.counter,
+            await commandAuthority.run({ store, enforce: false }, async () => {
+              await workoutMatches.decide({
+                id: candidate.id,
+                decision: command.decision === "reject" ? "rejected" : "confirmed",
+                decidedAtMs: stamp.physicalMs,
+                deviceId: await input.identity.deviceId(),
+                hlcPhysicalMs: stamp.physicalMs,
+                hlcCounter: stamp.counter,
+              });
             });
             return ExecutePlanTransitionRpcResultSchema.parse({
               status: "completed",
@@ -4390,38 +4511,6 @@ export function createPlanningOperations(
             );
           }
         }
-        if (command.transitionId === "PL-T25") {
-          const activePlan = await plans.read(command.planId);
-          if (activePlan?.status !== "active") return reject(UNAVAILABLE);
-          let conversation = await conversations.readLatestOpenReplacement(activePlan.id);
-          if (conversation === undefined) {
-            const timestamp = input.identity.hlcStamp().physicalMs;
-            const stamp = input.identity.hlcStamp();
-            conversation = {
-              id: input.identity.newUlid(),
-              planId: null,
-              replacesPlanId: activePlan.id,
-              courseChoiceStatus: "undecided",
-              raceCourseJson: null,
-              status: "open",
-              endedAtMs: null,
-              createdAtMs: timestamp,
-              updatedAtMs: timestamp,
-              deviceId: await input.identity.deviceId(),
-              hlcPhysicalMs: stamp.physicalMs,
-              hlcCounter: stamp.counter,
-            };
-            try {
-              await conversations.saveConversation(conversation);
-            } catch {
-              return reject(PERSISTENCE_FAILED);
-            }
-          }
-          return ExecutePlanTransitionRpcResultSchema.parse({
-            status: "completed",
-            state: await read(),
-          });
-        }
         if (command.transitionId === "PL-T26") {
           const draft = await conversations.readDraftRevision(command.draftId);
           if (draft === undefined || draft.revision !== command.expectedRevision) {
@@ -4886,7 +4975,7 @@ export function createPlanningOperations(
             if (activePlan?.status !== "active") return reject(UNAVAILABLE);
             return ExecutePlanTransitionRpcResultSchema.parse({
               status: "completed",
-              state: await readActive(activePlan, 0, { activeScenario: "PL-S004" }),
+              state: await read({ activeScenario: "PL-S004" }, activePlan),
             });
           }
           const coachBackPair =
@@ -5193,7 +5282,29 @@ export function createPlanningOperations(
           });
         }
         return reject(UNAVAILABLE);
-      });
+      };
+      return enqueue(() =>
+        commandAuthority
+          .run(
+            {
+              store,
+              enforce:
+                fencedTransitions.has(command.transitionId) ||
+                ((command.transitionId === "PL-T12" || command.transitionId === "PL-T27") &&
+                  command.mode !== "verify"),
+            },
+            execute,
+          )
+          .catch((error: unknown) => {
+            if (error instanceof LegacyPlanningAuthorityError) {
+              return reject(
+                { code: "conflict", message: error.message, retryable: false },
+                { readOnly: true },
+              );
+            }
+            throw error;
+          }),
+      );
     },
   };
 }

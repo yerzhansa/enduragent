@@ -21,6 +21,13 @@ export interface ViewDefinition {
   readonly page: LazyExoticComponent<ComponentType> | typeof REACT_CHAT_REGION;
 }
 
+let settingsViewPromise: Promise<typeof import("../ui/settings/SettingsView")> | undefined;
+
+export function loadSettingsView(): Promise<typeof import("../ui/settings/SettingsView")> {
+  settingsViewPromise ??= import("../ui/settings/SettingsView");
+  return settingsViewPromise;
+}
+
 export const VIEWS: readonly ViewDefinition[] = Object.freeze([
   {
     id: "chat",
@@ -62,7 +69,7 @@ export const VIEWS: readonly ViewDefinition[] = Object.freeze([
     icon: Settings,
     title: "Settings",
     page: lazy(async () => ({
-      default: (await import("../ui/settings/SettingsView")).SettingsView,
+      default: (await loadSettingsView()).SettingsView,
     })),
   },
 ]);

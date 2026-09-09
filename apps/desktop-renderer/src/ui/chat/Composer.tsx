@@ -26,6 +26,7 @@ export interface ComposerHandle {
 
 export function Composer(props: {
   readonly handle: RefObject<ComposerHandle | null>;
+  readonly draftMemory?: RefObject<string>;
   readonly inputId?: string;
   readonly hidden?: boolean;
   readonly leadingAction?: ReactNode;
@@ -42,7 +43,7 @@ export function Composer(props: {
 }): ReactElement {
   const form = useRef<HTMLFormElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(props.draftMemory?.current ?? "");
   const [selected, setSelected] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +52,7 @@ export function Composer(props: {
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const chatInputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
+  const chatPlaceholder = useEnduragentStore((state) => state.chat.composerPlaceholder);
   const chatStatus = useEnduragentStore((state) => state.chat.status);
   const actions = useEnduragentStore((state) => state.chatActions);
   const chatReady = useEnduragentStore(setupReady);
@@ -81,15 +83,19 @@ export function Composer(props: {
     if (input === null || input.value === restored.text) return;
     if (input.value.length > 0 && restored.state !== "restored") return;
     input.value = restored.text;
+    if (props.draftMemory !== undefined) props.draftMemory.current = restored.text;
     setDraft(restored.text);
-  }, [attachmentSurface, props.surface]);
+  }, [attachmentSurface, props.draftMemory, props.surface]);
 
   useEffect(
     () => () => {
+      if (props.surface === undefined && textarea.current !== null) {
+        actions?.saveAttachmentDraftText(textarea.current.value);
+      }
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
       saveTimer.current = null;
     },
-    [],
+    [actions, props.surface],
   );
 
   useImperativeHandle(
@@ -106,6 +112,7 @@ export function Composer(props: {
           input.value = "";
           input.focus();
         }
+        if (props.draftMemory !== undefined) props.draftMemory.current = "";
         setDraft("");
         setSelected(0);
         setDismissed(false);
@@ -143,6 +150,7 @@ export function Composer(props: {
       if (!acknowledged) return;
       if (input.value === value) {
         input.value = "";
+        if (props.draftMemory !== undefined) props.draftMemory.current = "";
         setDraft("");
         setSelected(0);
         setDismissed(false);
@@ -181,6 +189,14 @@ export function Composer(props: {
       }
       if (event.key === "Enter" || event.key === "Tab") {
         event.preventDefault();
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey &&
+          matches[active]?.command === event.currentTarget.value.trim().toLowerCase()
+        ) {
+          void submit();
+          return;
+        }
         accept(active);
         return;
       }
@@ -205,6 +221,7 @@ export function Composer(props: {
     <form
       ref={form}
       className="composer relative"
+      data-parity="composer"
       data-chat-attachment-dropzone={
         props.surface === undefined && !inputDisabled && canChat ? "true" : undefined
       }
@@ -230,6 +247,7 @@ export function Composer(props: {
         {props.surface?.label ?? "Message your coach"}
       </label>
       <ComposerControls
+        className="gap-1.5 pt-[calc(var(--row-inset)+1px)]"
         actions={
           <>
             {props.leadingAction ??
@@ -237,7 +255,8 @@ export function Composer(props: {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
+                  size="icon-sm"
+                  className="gap-inset text-ink-3 disabled:text-ink-3 disabled:opacity-100"
                   aria-label="Attach files"
                   disabled={
                     actions === null || inputDisabled || !canChat || attachmentSurface === null
@@ -257,7 +276,11 @@ export function Composer(props: {
                 }}
               />
             ) : (
-              <ComposerAction mode="send" disabled={sendDisabled || submitting || !canChat} />
+              <ComposerAction
+                mode="send"
+                className="gap-inset border-0 px-1.5 py-px text-base leading-6 disabled:bg-sunk disabled:text-ink-3 disabled:opacity-100"
+                disabled={sendDisabled || submitting || !canChat}
+              />
             )}
           </>
         }
@@ -265,11 +288,14 @@ export function Composer(props: {
         <ComposerInput
           id={inputId}
           ref={textarea}
-          rows={2}
+          data-parity="composer.textarea"
+          defaultValue={props.draftMemory?.current ?? ""}
+          rows={1}
+          className="pb-1.5"
           placeholder={
             status === "streaming"
               ? "Coach is responding…"
-              : (props.surface?.placeholder ?? "Message your coach")
+              : (props.surface?.placeholder ?? chatPlaceholder)
           }
           disabled={inputDisabled || !canChat}
           role="combobox"
@@ -279,6 +305,7 @@ export function Composer(props: {
           aria-activedescendant={open ? `${listboxId}-option-${active}` : undefined}
           onChange={(event) => {
             const value = event.currentTarget.value;
+            if (props.draftMemory !== undefined) props.draftMemory.current = value;
             setDraft(value);
             setSelected(0);
             setDismissed(false);

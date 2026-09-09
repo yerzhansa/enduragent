@@ -86,6 +86,7 @@ describe("createCoachEngine", () => {
       "settle",
       "skipCoachDecision",
       "stopChat",
+      "translateIntent",
     ]);
     await expect(engine.hasSession({ chatId: "c1" })).resolves.toEqual({ hasSession: false });
     await expect(engine.chat({ chatId: "c1", message: "hello" })).resolves.toEqual({
