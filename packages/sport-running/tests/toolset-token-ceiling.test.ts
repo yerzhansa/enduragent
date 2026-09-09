@@ -32,10 +32,10 @@ async function serializeToolset(regs: readonly ToolRegistration[]): Promise<stri
 // Serialized-toolset budget guard (name + description + JSON schema per tool,
 // the payload that rides position 0 of every request on every step). Pinned
 // ~10% above the measured post-trim toolset; growth past it must be deliberate.
-const RUNNING_TOOLSET_CHAR_CEILING = 18_000;
+const RUNNING_TOOLSET_CHAR_CEILING = 18_600;
 
 describe("running chat toolset serialized-size ceiling", () => {
-  it("keeps the full 15-tool running toolset under the ceiling", async () => {
+  it("keeps the full 16-tool running toolset under the ceiling", async () => {
     const serialized = await serializeToolset(runningSport.tools(deps));
     expect(serialized.length).toBeLessThan(RUNNING_TOOLSET_CHAR_CEILING);
     expect(estimateTokens(serialized)).toBeLessThan(

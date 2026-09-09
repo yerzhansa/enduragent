@@ -96,7 +96,8 @@ export interface MemoryStorePort {
   appendDailyNote(note: string, date?: string, provenance?: SourceProvenance): void;
   readDailyNotesInRange(from: string, to: string): Array<{ date: string; text: string }>;
   readEventsRaw(): string;
-  appendEvent(event: LedgerEventInput, provenance?: SourceProvenance): void;
+  readJournalRaw(): string;
+  appendEvent(event: LedgerEventInput, provenance?: SourceProvenance): boolean;
   savePlan(
     plan: unknown,
     source?: MemoryWriteSource,

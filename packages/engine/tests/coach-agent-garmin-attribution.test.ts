@@ -291,15 +291,18 @@ describe("CoachAgent selective Garmin attribution", () => {
     expect(reply).toBe(`Memoized guidance.\n\n${GARMIN_DATA_ATTRIBUTION}`);
   });
 
-  it("does not count source fields hidden by the result cap", async () => {
+  it("caps a 30,000-token payload even with a 1M context window", async () => {
     const execute = vi.fn(async () => [
       { id: "synthetic", source: "GARMIN_CONNECT", samples: "x".repeat(100_000) },
     ]);
     let calls = 0;
-    const complete = vi.fn(async () =>
-      ++calls === 1 ? toolCall() : assistant("Capped guidance."),
-    );
-    const agent = await setupAgent(complete, activitySport(execute), 40_000);
+    const complete = vi.fn(async (params: { messages: unknown }) => {
+      if (++calls === 1) return toolCall();
+      expect(JSON.stringify(params.messages)).toContain("Tool result too large");
+      expect(JSON.stringify(params.messages)).not.toContain("x".repeat(100_000));
+      return assistant("Capped guidance.");
+    });
+    const agent = await setupAgent(complete, activitySport(execute), 1_000_000);
 
     expect(await agent.chat("capped", "Use the activity.")).toBe("Capped guidance.");
     expect(execute).toHaveBeenCalledOnce();

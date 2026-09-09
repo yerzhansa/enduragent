@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type {
@@ -19,9 +19,9 @@ import {
 import { cyclingSport } from "../src/sport.js";
 import { createCyclingTools } from "../src/tools.js";
 
-const capabilityPath = resolve("packages/sport-cycling/src/prescription-posture.ts");
-const sportPath = resolve("packages/sport-cycling/src/sport.ts");
-const toolsPath = resolve("packages/sport-cycling/src/tools.ts");
+const capabilityPath = fileURLToPath(new URL("../src/prescription-posture.ts", import.meta.url));
+const sportPath = fileURLToPath(new URL("../src/sport.ts", import.meta.url));
+const toolsPath = fileURLToPath(new URL("../src/tools.ts", import.meta.url));
 
 const expectedCapabilitySource = `export type PrescriptionCapability<EnvelopeValues> =
   | Readonly<{
@@ -45,7 +45,7 @@ export const CYCLING_PRESCRIPTION_CAPABILITY = {
   envelopeValues: null,
   promptSkillKey: "cycling-prescription-posture",
   toolSelectionRule:
-    "Use build_plan_skeleton and get_sample_week only when the athlete's current message explicitly asks for a cycling workout or plan or a change to one. Use intervals_create_workout only when the current message explicitly asks to create, schedule, push, or update a calendar workout; a prose-only workout request does not authorize a calendar write. An earlier-turn request does not carry forward.",
+    "Call this only when the current message explicitly asks for it; see the Cycling Prescription Availability skill.",
 } as const satisfies PrescriptionCapability<never>;
 `;
 
@@ -84,7 +84,8 @@ const memory: MemoryStorePort = {
   appendDailyNote: () => undefined,
   readDailyNotesInRange: () => [],
   readEventsRaw: () => "",
-  appendEvent: () => undefined,
+  readJournalRaw: () => "",
+  appendEvent: () => true,
   savePlan: () => undefined,
   loadPlan: () => null,
   reload: () => undefined,
@@ -108,7 +109,7 @@ describe("cycling prescription posture", () => {
       envelopeValues: null,
       promptSkillKey: "cycling-prescription-posture",
       toolSelectionRule:
-        "Use build_plan_skeleton and get_sample_week only when the athlete's current message explicitly asks for a cycling workout or plan or a change to one. Use intervals_create_workout only when the current message explicitly asks to create, schedule, push, or update a calendar workout; a prose-only workout request does not authorize a calendar write. An earlier-turn request does not carry forward.",
+        "Call this only when the current message explicitly asks for it; see the Cycling Prescription Availability skill.",
     });
     expect(CYCLING_PRESCRIPTION_CAPABILITY.envelopeValues).toBeNull();
     expect(readFileSync(capabilityPath, "utf8")).toBe(expectedCapabilitySource);

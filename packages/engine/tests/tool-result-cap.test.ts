@@ -1,13 +1,30 @@
 import { describe, it, expect } from "vitest";
 import type { Tool } from "ai";
-import { capToolResult, TOOL_RESULT_SHARE } from "../src/agent/tool-result-cap.js";
+import { capToolResult, TOOL_RESULT_MAX_TOKENS } from "../src/agent/tool-result-cap.js";
+import { estimateTokens } from "../src/agent/token-utils.js";
 
 const stubTool = (value: unknown): Tool =>
   ({ description: "stub", execute: async () => value }) as unknown as Tool;
 
 describe("capToolResult", () => {
-  it("constants pin the configured shares", () => {
-    expect(TOOL_RESULT_SHARE).toBe(0.5);
+  it("pins the absolute token limit", () => {
+    expect(TOOL_RESULT_MAX_TOKENS).toBe(24_000);
+  });
+
+  it("truncates a 30,000-token result with the absolute limit", async () => {
+    const value = "x".repeat(100_000);
+    expect(estimateTokens(value)).toBe(30_000);
+    const wrapped = capToolResult(stubTool(value), {
+      maxResultTokens: TOOL_RESULT_MAX_TOKENS,
+    });
+    expect(await wrapped.execute!({}, {} as never)).toEqual({
+      truncated: true,
+      notice:
+        "Tool result too large (~30000 tokens) and was omitted to protect context. " +
+        "Rerun with narrower arguments (e.g. a smaller date range, fewer stream types, or a shorter activity).",
+      omittedSamples: 0,
+      estimatedTokens: 30_000,
+    });
   });
 
   it("small result passes through byte-identical (same reference)", async () => {

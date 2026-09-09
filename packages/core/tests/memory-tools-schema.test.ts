@@ -17,6 +17,7 @@ function memorySpy() {
     getContext: vi.fn(),
     readDailyNotesInRange: vi.fn(() => []),
     readEventsRaw: vi.fn(() => ""),
+    readJournalRaw: vi.fn(() => ""),
     loadPlan: vi.fn(),
   } as unknown as MemoryStore;
 }
