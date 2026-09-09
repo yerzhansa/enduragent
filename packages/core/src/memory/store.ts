@@ -751,7 +751,7 @@ export class Memory implements MemoryStore {
       `Memory query ${record.from}..${record.to}` + (queryText ? ` matching "${queryText}"` : "");
     let rendered = header;
     let all = EMPTY_PROVENANCE;
-    for (const date of [...byDate.keys()].sort()) {
+    for (const date of [...byDate.keys()].sort().reverse()) {
       rendered += `\n\n## ${date}\n`;
       const items = byDate.get(date)!;
       for (const [index, item] of items.entries()) {
