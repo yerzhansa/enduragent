@@ -1,5 +1,64 @@
 # @enduragent/sport-cycling
 
+## 0.0.7
+
+### Patch Changes
+
+- 09c5ca3: Refresh runtime dependencies, including XML parser security fixes and desktop updater compatibility updates.
+
+  User-facing: This update improves the safety of imported files and refreshes the libraries used for coaching and app updates.
+
+- b2ddccb: User-facing: Plan creation in Chat can now build a Draft from your answers, with every week and Workout laid out under your confirmed limits. The Draft keeps the answers it was built from when you edit them.
+- e649a25: Add display-only Estimated CP from two eligible recent measured-power efforts, including stale and unavailable states, an explanatory tooltip, evidence and route-assumption drawers, and strict isolation from FTP and Plan mutations.
+- f6cacbb: Add forward-only race-readiness projections, explicit unavailable and changed-assumption states, refresh recovery, and taper safety refusal without mutating the active Plan.
+- 3ad0c39: Show every active Plan week with phase, purpose, status, and planned time, plus a complete authoritative race-week schedule with separate training, race, and total accounting.
+- 1594b20: Retire prompt instructions written for earlier models: remove the completed memory-section migration clause from the flush prompt, drop two redundant conduct rules and a numeric bullet cap from the cycling soul, soften two shouting registers, and give plan_save a real tool contract. Also drop the retired `.ralph/` gitignore entry.
+- 391ff3f: User-facing: The coach reads a shorter set of instructions on every message, so each reply costs a little less. Power is now called weighted avg power everywhere, and the coach no longer rejects realistic FTP values.
+- 2567965: User-facing: Plan coach conversations now collect durable training inputs, show a reviewable summary, and create a complete structured Draft before anything can activate or reach the Intervals calendar.
+
+  The Plan composer stays at the bottom, optional Race Course attachment lives inside it, and interrupted intake saves recover from the conversation after relaunch.
+
+- Updated dependencies [39902fa]
+- Updated dependencies [09c5ca3]
+- Updated dependencies [b2ddccb]
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [66579e6]
+- Updated dependencies [8c20aef]
+- Updated dependencies [d6d960f]
+- Updated dependencies [dc24ae3]
+- Updated dependencies [1e07590]
+- Updated dependencies [2d09c46]
+- Updated dependencies [68bf244]
+- Updated dependencies [f191262]
+- Updated dependencies [9d86d76]
+- Updated dependencies [30ca87f]
+- Updated dependencies [3627ecd]
+- Updated dependencies [2a2c852]
+- Updated dependencies [9ed12a5]
+- Updated dependencies [3077144]
+- Updated dependencies [9a9665f]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [f6cacbb]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [3ad0c39]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [1594b20]
+- Updated dependencies [391ff3f]
+- Updated dependencies [a5a366f]
+- Updated dependencies [eba82b9]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [3627ecd]
+- Updated dependencies [63a0f54]
+- Updated dependencies [4018b25]
+- Updated dependencies [f65201d]
+  - @enduragent/kernel@0.1.1
+  - @enduragent/engine@0.0.3
+
 ## 0.0.6
 
 ### Patch Changes

@@ -167,7 +167,7 @@ export const RULES: readonly PackageDepRule[] = [
     dir: "apps/desktop-renderer",
     srcOnly: true,
     allowedPublished: ["@enduragent/ui"],
-    allowedWorkspace: ["@enduragent/coach-contract", "@enduragent/coach-client"],
+    allowedWorkspace: ["@enduragent/coach-contract", "@enduragent/coach-client", "@enduragent/i18n"],
     transitionalWorkspace: [],
     allowedExternal: [
       "react",

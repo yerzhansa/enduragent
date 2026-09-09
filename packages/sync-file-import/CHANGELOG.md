@@ -1,5 +1,34 @@
 # @enduragent/sync-file-import
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [39902fa]
+- Updated dependencies [09c5ca3]
+- Updated dependencies [b2ddccb]
+- Updated dependencies [b38ae00]
+- Updated dependencies [66579e6]
+- Updated dependencies [8c20aef]
+- Updated dependencies [d6d960f]
+- Updated dependencies [dc24ae3]
+- Updated dependencies [2d09c46]
+- Updated dependencies [68bf244]
+- Updated dependencies [30ca87f]
+- Updated dependencies [9ed12a5]
+- Updated dependencies [9a9665f]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+- Updated dependencies [4018b25]
+- Updated dependencies [f65201d]
+  - @enduragent/kernel@0.1.1
+
 ## 0.0.2
 
 ### Patch Changes

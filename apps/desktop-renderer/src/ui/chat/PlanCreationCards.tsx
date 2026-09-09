@@ -266,8 +266,9 @@ export function PlanCreationConversation(props: {
   return (
     <section className="grid min-w-0 gap-4" aria-label="Plan creation">
       <Notice inPlanCreation />
-      <PlanCreationCommitmentCard model={props.model} />
+      {props.model.draft === null ? null : <PlanCreationCommitmentCard model={props.model} />}
       <PlanCreationConversationContent model={props.model} />
+      {props.model.draft === null ? <PlanCreationCommitmentCard model={props.model} /> : null}
     </section>
   );
 }

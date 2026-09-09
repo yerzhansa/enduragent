@@ -1,12 +1,11 @@
 import { lstat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  FuseState,
-  FuseV1Options,
-  FuseVersion,
-  getCurrentFuseWire,
-} from "@electron/fuses";
+import fuses from "@electron/fuses";
+import constants from "@electron/fuses/dist/constants.js";
+
+const { FuseV1Options, FuseVersion, getCurrentFuseWire } = fuses;
+const { FuseState } = constants;
 
 export const REQUIRED_ELECTRON_FUSES = Object.freeze({
   [FuseV1Options.RunAsNode]: FuseState.DISABLE,

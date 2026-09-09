@@ -1,5 +1,45 @@
 # @enduragent/coach-client
 
+## 0.1.2
+
+### Patch Changes
+
+- 39902fa: User-facing: A reviewed Draft can now become your active Plan. Activating closes any Plan that was running and keeps your answers with the new Plan.
+- b2ddccb: User-facing: Plan creation in Chat can now build a Draft from your answers, with every week and Workout laid out under your confirmed limits. The Draft keeps the answers it was built from when you edit them.
+- 2d0128c: Add the privileged Chat attachment-admission contract and durable queued-Message attachment identities.
+- d6d960f: Chat can securely rebuild a selected Workout handoff and restore its current Plan status after relaunch.
+
+  The daemon resolves local Workout details instead of trusting renderer-provided snapshots, and durable handoffs can be listed by their source conversation.
+
+- 2d09c46: User-facing: Past chats can now be permanently deleted with clear confirmation while imported activities and Plan work stay intact. Chat also keeps its safety note visible when cards stack up, orders those cards consistently, and closes the compact Training context drawer reliably from the keyboard.
+- 9ed12a5: User-facing: The Plan page can now read your unfinished Plan creation, your active Plan, and your closed Plans together.
+- 9a9665f: Add a confirmation before discarding unfinished Plan Creation work in Chat.
+
+  User-facing: Discard an unfinished Plan you started in chat without affecting your current Plan or your chat history.
+
+- Updated dependencies [39902fa]
+- Updated dependencies [09c5ca3]
+- Updated dependencies [b2ddccb]
+- Updated dependencies [2d0128c]
+- Updated dependencies [b38ae00]
+- Updated dependencies [d6d960f]
+- Updated dependencies [2d09c46]
+- Updated dependencies [9ed12a5]
+- Updated dependencies [ae1cbb1]
+- Updated dependencies [918600a]
+- Updated dependencies [9a9665f]
+- Updated dependencies [c507634]
+- Updated dependencies [e649a25]
+- Updated dependencies [f6cacbb]
+- Updated dependencies [b02a1e8]
+- Updated dependencies [b87174d]
+- Updated dependencies [3ad0c39]
+- Updated dependencies [a52086c]
+- Updated dependencies [6546ba5]
+- Updated dependencies [2567965]
+- Updated dependencies [a415177]
+  - @enduragent/coach-contract@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

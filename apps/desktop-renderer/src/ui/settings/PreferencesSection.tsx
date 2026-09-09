@@ -2,17 +2,34 @@ import type { ReactElement } from "react";
 import { PLATFORM_COPY } from "../../platform-copy";
 import { useEnduragentStore } from "../../state/store";
 import { AppearanceControl } from "./AppearanceControl";
+import { LanguageControl } from "./LanguageControl";
 import { PalettePicker } from "./PalettePicker";
 import { settingsStyles as styles } from "./styles";
 import { UnitsControl } from "./UnitsControl";
 
 export function PreferencesSection(): ReactElement {
   const units = useEnduragentStore((store) => store.settings.units);
+  const language = useEnduragentStore((store) => store.settings.language);
 
   return (
     <>
       <h2 className={styles.heading}>Preferences</h2>
       <section className={styles.group} aria-label="Preferences">
+        <div className={styles.row}>
+          <div className={styles.label}>
+            <div className={styles.rowTitle}>Language</div>
+            <div className={styles.rowDetail}>
+              {language.status === "saving"
+                ? "Saving language…"
+                : language.status === "unavailable"
+                  ? "Language preference unavailable"
+                  : language.value === null
+                    ? `Automatic follows your ${PLATFORM_COPY.operatingSystem} language. The coach replies in the language you write in.`
+                    : "The app and the coach use this language."}
+            </div>
+          </div>
+          <LanguageControl />
+        </div>
         <div className={styles.row}>
           <div className={styles.label}>
             <div className={styles.rowTitle}>Units</div>
