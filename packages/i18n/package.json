@@ -18,15 +18,20 @@
     "./node": {
       "types": "./dist/node.d.ts",
       "default": "./dist/node.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "default": "./dist/messages.js"
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsx scripts/generate-catalog-keys.ts && tsup",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@enduragent/coach-contract": "workspace:*",
+    "i18next": "^25.10.10",
     "zod": "^4.5.4"
   },
   "devDependencies": {

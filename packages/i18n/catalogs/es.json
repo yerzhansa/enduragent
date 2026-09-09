@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automático",
+    "back": "Atrás",
+    "cancel": "Cancelar",
+    "continue": "Continuar",
+    "save": "Guardar"
+  },
+  "language": {
+    "chooseTitle": "Elige tu idioma",
+    "continue": "Continuar"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Oscuro",
+      "detail": "Sistema sigue el ajuste de modo claro y oscuro de {{operatingSystem}}",
+      "light": "Claro",
+      "system": "Sistema",
+      "title": "Apariencia"
+    },
+    "language": {
+      "automaticDetail": "Automático usa el idioma de {{operatingSystem}}. El entrenador responde en el idioma en el que escribes.",
+      "explicitDetail": "La aplicación y el entrenador usan este idioma.",
+      "saving": "Guardando idioma…",
+      "title": "Idioma",
+      "unavailable": "Preferencia de idioma no disponible"
+    },
+    "units": {
+      "detail": "La distancia y la masa corporal siguen este ajuste. La relación potencia-peso en ciclismo se mantiene en W/kg.",
+      "imperial": "Imperial",
+      "metric": "Métrico",
+      "title": "Unidades"
+    }
+  }
+}

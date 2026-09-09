@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automaattinen",
+    "back": "Takaisin",
+    "cancel": "Peruuta",
+    "continue": "Jatka",
+    "save": "Tallenna"
+  },
+  "language": {
+    "chooseTitle": "Valitse kielesi",
+    "continue": "Jatka"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Tumma",
+      "detail": "Järjestelmä käyttää käyttöjärjestelmän {{operatingSystem}} vaalean ja tumman tilan asetusta",
+      "light": "Vaalea",
+      "system": "Järjestelmä",
+      "title": "Ulkoasu"
+    },
+    "language": {
+      "automaticDetail": "Automaattinen käyttää käyttöjärjestelmän {{operatingSystem}} kieltä. Valmentaja vastaa sillä kielellä, jolla kirjoitat.",
+      "explicitDetail": "Sovellus ja valmentaja käyttävät tätä kieltä.",
+      "saving": "Tallennetaan kieltä…",
+      "title": "Kieli",
+      "unavailable": "Kieliasetus ei ole käytettävissä"
+    },
+    "units": {
+      "detail": "Matka ja kehonpaino noudattavat tätä asetusta. Pyöräilyn teho-painosuhteen yksikkö on edelleen W/kg.",
+      "imperial": "Brittiläinen",
+      "metric": "Metrinen",
+      "title": "Yksiköt"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "자동",
+    "back": "뒤로",
+    "cancel": "취소",
+    "continue": "계속",
+    "save": "저장"
+  },
+  "language": {
+    "chooseTitle": "언어를 선택하세요",
+    "continue": "계속"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "다크",
+      "detail": "시스템은 {{operatingSystem}}의 라이트 및 다크 모드 설정을 따릅니다",
+      "light": "라이트",
+      "system": "시스템",
+      "title": "화면 모드"
+    },
+    "language": {
+      "automaticDetail": "자동은 {{operatingSystem}}의 언어를 따릅니다. 코치는 작성하신 언어로 답변합니다.",
+      "explicitDetail": "앱과 코치가 이 언어를 사용합니다.",
+      "saving": "언어 저장 중…",
+      "title": "언어",
+      "unavailable": "언어 설정을 사용할 수 없습니다"
+    },
+    "units": {
+      "detail": "거리와 체중은 이 설정을 따릅니다. 사이클링의 체중 대비 파워는 W/kg으로 유지됩니다.",
+      "imperial": "야드파운드법",
+      "metric": "미터법",
+      "title": "단위"
+    }
+  }
+}
