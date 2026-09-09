@@ -1,4 +1,3 @@
-import { LANGUAGE_OPTIONS } from "@enduragent/i18n";
 import type { CoachClient } from "@enduragent/coach-client";
 import type { RuntimeConfigSnapshot, SpendSummary } from "@enduragent/coach-contract";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -439,7 +438,6 @@ function createHarness(options: HarnessOptions = {}) {
     spend: spendAdapter.port,
     update: updateAdapter.port,
     units: { set: vi.fn() },
-    language: { set: vi.fn() },
     openSetup,
   });
   void telegramController.activate();
@@ -2153,56 +2151,4 @@ describe("spending", () => {
     expect(cap.value).toBe("0.5");
     expect(useEnduragentStore.getState().settings.spend.capDirty).toBe(false);
   });
-});
-
-it("renders Language above Units with Automatic and registry endonyms", async () => {
-  await renderSettings();
-  act(() =>
-    useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: null } }),
-  );
-  const preferences = screen.getByRole("region", { name: "Preferences" });
-  expect(
-    within(preferences).getByText("Controls the language the coach replies in."),
-  ).toBeVisible();
-  expect(
-    [...preferences.querySelectorAll(".settings-row-title")].map((row) => row.textContent),
-  ).toEqual(["Language", "Units", "Appearance"]);
-  const select = screen.getByRole("combobox", { name: "Language" });
-  expect(select).toHaveTextContent("Automatic");
-  await userEvent.click(select);
-  expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual([
-    "Automatic",
-    ...LANGUAGE_OPTIONS.map(({ endonym }) => endonym),
-  ]);
-  await userEvent.click(screen.getByRole("option", { name: "Français" }));
-  const port = useEnduragentStore.getState().settingsPorts?.language;
-  expect(port?.set).toHaveBeenCalledWith("fr");
-  expect(select).toHaveTextContent("Automatic");
-  act(() =>
-    useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: "fr" } }),
-  );
-  expect(select).toHaveTextContent("Français");
-  await userEvent.click(select);
-  await userEvent.click(await screen.findByRole("option", { name: "Automatic" }));
-  expect(port?.set).toHaveBeenLastCalledWith(null);
-});
-
-it("disables Language while loading, saving, or unbound and preserves unavailable selections", async () => {
-  await renderSettings();
-  const select = screen.getByRole("combobox", { name: "Language" });
-  expect(select).toBeDisabled();
-  act(() =>
-    useEnduragentStore.getState().patchSettings({ language: { status: "saving", value: "ja" } }),
-  );
-  expect(select).toBeDisabled();
-  expect(select).toHaveTextContent("日本語");
-  act(() =>
-    useEnduragentStore
-      .getState()
-      .patchSettings({ language: { status: "unavailable", value: "ja" } }),
-  );
-  expect(select).toBeEnabled();
-  expect(select).toHaveTextContent("日本語");
-  act(() => useEnduragentStore.getState().bindSettingsPorts(null));
-  expect(select).toBeDisabled();
 });

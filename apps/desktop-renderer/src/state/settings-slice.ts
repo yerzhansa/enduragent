@@ -1,4 +1,4 @@
-import type { LanguageTag, SpendSummary, UnitsPreference } from "@enduragent/coach-contract";
+import type { SpendSummary, UnitsPreference } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
 import type { DesktopCredentialId } from "../onboarding/bridge";
 import type { AthleteSettingsState } from "../settings/athlete-controller";
@@ -6,7 +6,6 @@ import {
   repairRequiredCredential,
   type CredentialSettingsState,
 } from "../settings/credential-controller";
-import type { LanguagePreferenceViewState } from "../settings/language-controller";
 import type { ProviderModelSettingsState } from "../settings/provider-model-controller";
 import type { SessionSettingField, SessionSettingsState } from "../settings/session-controller";
 import type { TelegramSettingsState } from "../settings/telegram-controller";
@@ -75,10 +74,6 @@ export interface UpdateSettingsPort {
   activate(): void;
 }
 
-export interface LanguageSettingsPort {
-  set(value: LanguageTag | null): void;
-}
-
 interface UnitsSettingsPort {
   set(value: UnitsPreference): void;
 }
@@ -93,7 +88,6 @@ interface SettingsPorts {
   readonly spend: SpendSettingsPort;
   readonly update: UpdateSettingsPort;
   readonly units: UnitsSettingsPort;
-  readonly language: LanguageSettingsPort;
   openSetup(): void;
 }
 
@@ -123,7 +117,6 @@ interface SettingsSurfaceState {
   readonly spend: SpendSurfaceState;
   readonly update: UpdateSurfaceState;
   readonly units: UnitsPreferenceViewState;
-  readonly language: LanguagePreferenceViewState;
 }
 
 export const CLOSED_PANE = Object.freeze({ status: "closed" } as const);
@@ -153,7 +146,6 @@ export const EMPTY_SETTINGS_SURFACE: SettingsSurfaceState = Object.freeze({
   telegram: CLOSED_PANE,
   spend: EMPTY_SPEND_SURFACE,
   update: EMPTY_UPDATE_SURFACE,
-  language: Object.freeze({ status: "loading" as const, value: null }),
   units: Object.freeze({
     status: "loading" as const,
     value: "metric" as const,
