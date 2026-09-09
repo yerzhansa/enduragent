@@ -203,7 +203,7 @@ export function ChatView(): ReactElement {
       >
         <div className="chat-reading-column grid min-h-0 min-w-0 px-6 max-md:px-4 grid-rows-[minmax(0,1fr)_auto] has-[[data-parity='question.card']]:grid-rows-[minmax(calc(var(--ctl-h-lg)*4),1fr)_minmax(0,auto)]">
           <main
-            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-[calc(var(--inset)*3)] [overflow-anchor:none] max-md:pt-5.5"
+            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] [overflow-anchor:none] max-md:pt-5.5"
             aria-label="Coaching conversation"
             data-chat-status={status}
             ref={conversation}
@@ -216,7 +216,7 @@ export function ChatView(): ReactElement {
             </div>
           </main>
           <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] pb-3.5">
-            <div className="composer-projections min-h-0 overflow-y-auto [scrollbar-width:none] overscroll-contain empty:hidden">
+            <div className="composer-projections [&>:last-child]:mb-0 min-h-0 overflow-y-auto [scrollbar-width:none] overscroll-contain empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
                   className="new-conversation-status m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
