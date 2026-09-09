@@ -38,15 +38,16 @@ const ACTIVITY_FIELDS = new Set([
 ]);
 
 const ATHLETE_FIELDS = new Set([
-  "icuFtp",
-  "maxHr",
-  "icuRestingHr",
-  "icuWeight",
-  "weight",
-  "height",
+  "id",
+  "name",
   "sex",
+  "weight",
+  "icuFtp",
+  "icuRestingHr",
+  "icuMaxHr",
+  "icuLthr",
+  "icuWeight",
   "icuDateOfBirth",
-  "dateOfBirth",
   "sportSettings",
 ]);
 

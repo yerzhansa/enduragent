@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { CoachAgent } from "../src/agent/coach-agent.js";
-import { ATHLETE_SNAPSHOT_HEADING } from "../src/agent/athlete-snapshot.js";
+import {
+  ATHLETE_SNAPSHOT_FALLBACK,
+  ATHLETE_SNAPSHOT_HEADING,
+} from "../src/agent/athlete-snapshot.js";
 import {
   buildSystemPrompt,
   NO_PLAN_CONTEXT,
@@ -25,18 +28,31 @@ function makeDataDir(): string {
   return dataDir;
 }
 
-const athlete = { icuFtp: 250, maxHr: 185, icuRestingHr: 47, icuWeight: 70, sportSettings: [] };
+const athlete = {
+  icuFtp: 250,
+  icuMaxHr: 185,
+  icuLthr: 152,
+  icuRestingHr: 47,
+  icuWeight: 70,
+  sportSettings: [],
+};
 const wellness = [{ id: "1998-07-05", ctl: 55, atl: 48, restingHR: 46, hrv: 75 }];
 
-function reader(available: boolean): AthleteDataReaderPort {
+function reader(available: boolean, calls: string[] = []): AthleteDataReaderPort {
   const unavailable = async () => ({
     ok: false as const,
     error: "store_read_unavailable" as const,
     message: "No complete local training-store snapshot is available.",
   });
   return {
-    getAthlete: available ? async () => ({ ok: true, value: athlete }) : unavailable,
-    listWellness: available ? async () => ({ ok: true, value: wellness }) : unavailable,
+    getAthlete: async () => {
+      calls.push("getAthlete");
+      return available ? { ok: true, value: athlete } : unavailable();
+    },
+    listWellness: async () => {
+      calls.push("listWellness");
+      return available ? { ok: true, value: wellness } : unavailable();
+    },
     listActivities: unavailable,
     getActivity: unavailable,
     getStreams: unavailable,
@@ -48,6 +64,7 @@ function reader(available: boolean): AthleteDataReaderPort {
 async function runTurn(
   dataDir: string,
   athleteData: AthleteDataReaderPort | undefined,
+  chatId = "chat-1",
 ): Promise<{ system: string; tools: ToolSet }> {
   const base = baseAgentConfig(dataDir);
   let system = "";
@@ -78,7 +95,7 @@ async function runTurn(
       },
     }),
   };
-  await new CoachAgent(cyclingSport, ports).chat("chat-1", "hi");
+  await new CoachAgent(cyclingSport, ports).chat(chatId, "hi");
   return { system, tools };
 }
 
@@ -95,17 +112,38 @@ describe("athlete profile and latest wellness in the turn context", () => {
     const blocks = splitSystemPromptAtBoundary(withData.system)!;
     expect(blocks.prefix).not.toContain(ATHLETE_SNAPSHOT_HEADING);
     expect(blocks.volatile).toContain(
-      `${ATHLETE_SNAPSHOT_HEADING}\n\nProfile: FTP 250 W · max HR 185 bpm · resting HR 47 bpm · weight 70 kg\n` +
+      `${ATHLETE_SNAPSHOT_HEADING}\n\nProfile: FTP 250 W · LTHR 152 bpm · max HR 185 bpm · resting HR 47 bpm · weight 70 kg\n` +
         "Wellness 1998-07-05: Fitness 55 · Fatigue 48 · Form +7 · resting HR 46 bpm · HRV 75",
     );
+    expect(blocks.volatile).not.toContain(ATHLETE_SNAPSHOT_FALLBACK);
     expect(blocks.prefix).toBe(splitSystemPromptAtBoundary(withoutData.system)!.prefix);
-    expect(withoutData.system).not.toContain(ATHLETE_SNAPSHOT_HEADING);
+    expect(withoutData.system).toContain(ATHLETE_SNAPSHOT_FALLBACK);
+    expect(withoutData.system).not.toContain("Profile:");
   });
 
-  it("omits the block when the sync store has no data", async () => {
+  it("renders the fallback line when the sync store has no data", async () => {
     const { system } = await runTurn(makeDataDir(), reader(false));
-    expect(system).not.toContain(ATHLETE_SNAPSHOT_HEADING);
+    expect(splitSystemPromptAtBoundary(system)!.volatile).toContain(ATHLETE_SNAPSHOT_FALLBACK);
+    expect(system).not.toContain("Profile:");
     expect(system).toContain("# Current Date & Time");
+  });
+
+  it("renders the fallback line when the read times out", async () => {
+    const hanging: AthleteDataReaderPort = {
+      ...reader(true),
+      getAthlete: () => new Promise(() => undefined),
+    };
+    const { system } = await runTurn(makeDataDir(), hanging);
+    expect(system).toContain(ATHLETE_SNAPSHOT_FALLBACK);
+    expect(system).not.toContain("Wellness 1998-07-05");
+  }, 15_000);
+
+  it("neither reads nor renders the snapshot on plan chats", async () => {
+    const calls: string[] = [];
+    const { system } = await runTurn(makeDataDir(), reader(true, calls), "plan:intake-1");
+    expect(calls).toEqual([]);
+    expect(system).not.toContain(ATHLETE_SNAPSHOT_HEADING);
+    expect(system).toContain("# Plan Coach");
   });
 
   it("says no plan is saved yet instead of leaving the plan block out", async () => {

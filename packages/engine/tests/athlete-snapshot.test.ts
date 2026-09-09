@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ATHLETE_SNAPSHOT_HEADING,
+  ATHLETE_SNAPSHOT_TIMEOUT_MS,
+  AthleteSnapshotTimeoutError,
   LATEST_WELLNESS_LOOKBACK_DAYS,
   loadAthleteSnapshotBlock,
   renderAthleteSnapshotBlock,
@@ -18,13 +20,32 @@ const platformAthlete = {
   email: "test@example.com",
   icuApiKey: "secret",
   icuFtp: 250,
-  maxHr: 185,
+  icuMaxHr: 185,
+  icuLthr: 150,
   icuRestingHr: 47,
   icuWeight: 70,
   sportSettings: [
     { types: ["Run"], lthr: 170, thresholdPace: 3.9 },
     { types: ["Ride", "VirtualRide"], ftp: 250, lthr: 152, maxHr: 185, powerZones: [138, 188] },
   ],
+};
+
+const decodedAthlete = {
+  id: "i12345",
+  name: "Test Athlete",
+  email: "test@example.com",
+  city: "Test City",
+  country: "US",
+  sex: "M",
+  weight: 71,
+  icuFtp: 250,
+  icuRestingHr: 47,
+  icuMaxHr: 185,
+  icuLthr: 152,
+  icuDateOfBirth: "1992-06-15",
+  locale: "en",
+  timezone: "Europe/Amsterdam",
+  icuApiKey: "secret",
 };
 
 const platformWellness = [
@@ -43,11 +64,35 @@ describe("renderAthleteSnapshotBlock", () => {
       `${ATHLETE_SNAPSHOT_HEADING}\n\n` +
         "Profile: FTP 250 W · LTHR 152 bpm · max HR 185 bpm · resting HR 47 bpm · weight 70 kg\n" +
         "Wellness 1998-07-05: Fitness 55 · Fatigue 48 · Form +7 · resting HR 46 bpm · HRV 75 · sleep 8h00 · sleep quality 3\n" +
-        "Fetch wellness or activities only for a date range or history not shown here.",
+        "Fetch wellness or activities only for a date range or history not shown here. " +
+        "Treat a single HRV or resting-HR value as one signal, not a verdict; weigh the athlete's reported feel at least as much.",
     );
     expect(block).not.toContain("secret");
     expect(block).not.toContain("test@example.com");
     expect(estimateTokens(block!)).toBeLessThan(300);
+  });
+
+  it("keeps max HR and LTHR from a decoded athlete shaped like the library type", () => {
+    const projected = projectAthlete(decodedAthlete);
+    expect(projected).toEqual({
+      id: "i12345",
+      name: "Test Athlete",
+      sex: "M",
+      weight: 71,
+      icuFtp: 250,
+      icuRestingHr: 47,
+      icuMaxHr: 185,
+      icuLthr: 152,
+      icuDateOfBirth: "1992-06-15",
+    });
+    const block = renderAthleteSnapshotBlock({
+      athlete: decodedAthlete,
+      wellness: [],
+      sportTypes: CYCLING_TYPES,
+    });
+    expect(block).toContain(
+      "Profile: FTP 250 W · LTHR 152 bpm · max HR 185 bpm · resting HR 47 bpm · weight 71 kg",
+    );
   });
 
   it("reads the store-lane shape: snake_case sport settings and renamed fitness fields", () => {
@@ -88,7 +133,7 @@ describe("projectAthlete", () => {
   it("keeps only coaching fields and projects each sport-settings row", () => {
     const projected = projectAthlete(platformAthlete);
     expect(Object.keys(projected).sort()).toEqual(
-      ["icuFtp", "icuRestingHr", "icuWeight", "maxHr", "sportSettings"].sort(),
+      ["id", "name", "icuFtp", "icuLthr", "icuMaxHr", "icuRestingHr", "icuWeight", "sportSettings"].sort(),
     );
     expect(projected.sportSettings).toEqual([
       { types: ["Run"], lthr: 170, thresholdPace: 3.9 },
@@ -157,5 +202,23 @@ describe("loadAthleteSnapshotBlock", () => {
     expect(errors).toHaveLength(1);
     expect(block).not.toContain("Profile:");
     expect(block).toContain("Wellness 1998-07-05:");
+  });
+
+  it("gives up after the deadline and reports the timeout", async () => {
+    expect(ATHLETE_SNAPSHOT_TIMEOUT_MS).toBe(5_000);
+    const errors: unknown[] = [];
+    const block = await loadAthleteSnapshotBlock({
+      reader: reader({
+        getAthlete: () => new Promise(() => undefined),
+        listWellness: async () => ({ ok: true, value: platformWellness }),
+      }),
+      today: "1998-07-06",
+      sportTypes: CYCLING_TYPES,
+      timeoutMs: 20,
+      onError: (error) => errors.push(error),
+    });
+    expect(block).toBeUndefined();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(AthleteSnapshotTimeoutError);
   });
 });

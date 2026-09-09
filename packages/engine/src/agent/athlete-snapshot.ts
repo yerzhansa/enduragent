@@ -3,11 +3,24 @@ import { MS_PER_DAY, parseDateKeyMs } from "../sport/date-keys.js";
 import { projectAthlete } from "../sport/list-projection.js";
 
 export const LATEST_WELLNESS_LOOKBACK_DAYS = 7;
+export const ATHLETE_SNAPSHOT_TIMEOUT_MS = 5_000;
 
 export const ATHLETE_SNAPSHOT_HEADING = "# Athlete Profile & Latest Wellness";
 
+export const ATHLETE_SNAPSHOT_FALLBACK =
+  `${ATHLETE_SNAPSHOT_HEADING}\n\n` +
+  "Athlete snapshot: unavailable this turn; fetch the profile and latest wellness before prescribing intensity.";
+
 const ATHLETE_SNAPSHOT_GUIDANCE =
-  "Fetch wellness or activities only for a date range or history not shown here.";
+  "Fetch wellness or activities only for a date range or history not shown here. " +
+  "Treat a single HRV or resting-HR value as one signal, not a verdict; weigh the athlete's reported feel at least as much.";
+
+export class AthleteSnapshotTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`athlete snapshot read timed out after ${timeoutMs} ms`);
+    this.name = "AthleteSnapshotTimeoutError";
+  }
+}
 
 type Row = Record<string, unknown>;
 
@@ -52,10 +65,15 @@ export function renderAthleteProfileLine(
   const projected = projectAthlete(athlete);
   const settings = sportSettingsFor(projected, sportTypes);
   const parts: string[] = [];
-  pick(parts, "FTP", num(projected.icuFtp) ?? num(settings.ftp), " W");
-  pick(parts, "LTHR", num(settings.lthr), " bpm");
-  pick(parts, "max HR", num(projected.maxHr) ?? num(settings.maxHr) ?? num(settings.max_hr), " bpm");
-  pick(parts, "resting HR", num(projected.icuRestingHr) ?? num(settings.restingHr), " bpm");
+  pick(parts, "FTP", num(settings.ftp) ?? num(projected.icuFtp), " W");
+  pick(parts, "LTHR", num(settings.lthr) ?? num(projected.icuLthr), " bpm");
+  pick(
+    parts,
+    "max HR",
+    num(settings.maxHr) ?? num(settings.max_hr) ?? num(projected.icuMaxHr),
+    " bpm",
+  );
+  pick(parts, "resting HR", num(settings.restingHr) ?? num(projected.icuRestingHr), " bpm");
   pick(
     parts,
     "weight",
@@ -117,10 +135,19 @@ export function renderAthleteSnapshotBlock(input: {
   return `${ATHLETE_SNAPSHOT_HEADING}\n\n${lines.join("\n")}\n${ATHLETE_SNAPSHOT_GUIDANCE}`;
 }
 
+function withDeadline<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new AthleteSnapshotTimeoutError(timeoutMs)), timeoutMs);
+  });
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+}
+
 export async function loadAthleteSnapshotBlock(input: {
   reader: AthleteDataReaderPort | undefined;
   today: string;
   sportTypes: readonly string[];
+  timeoutMs?: number;
   onError?: (error: unknown) => void;
 }): Promise<string | undefined> {
   const { reader } = input;
@@ -135,10 +162,18 @@ export async function loadAthleteSnapshotBlock(input: {
       return undefined;
     }
   };
-  const [athlete, wellness] = await Promise.all([
+  const reads = Promise.all([
     guarded(() => reader.getAthlete()),
     guarded(() => reader.listWellness({ start, end: input.today })),
   ]);
+  let athlete: Awaited<ReturnType<AthleteDataReaderPort["getAthlete"]>> | undefined;
+  let wellness: Awaited<ReturnType<AthleteDataReaderPort["listWellness"]>> | undefined;
+  try {
+    [athlete, wellness] = await withDeadline(reads, input.timeoutMs ?? ATHLETE_SNAPSHOT_TIMEOUT_MS);
+  } catch (error) {
+    input.onError?.(error);
+    return undefined;
+  }
   return renderAthleteSnapshotBlock({
     athlete: athlete?.ok ? athlete.value : undefined,
     wellness: wellness?.ok ? wellness.value : [],

@@ -384,7 +384,6 @@ export function buildPlanCoachSystemPrompt(
   opts?: {
     excludeSections?: readonly string[];
     outputLanguage?: LanguageResolution;
-    athleteSnapshot?: string;
     planNone?: boolean;
   },
 ): string {
@@ -396,9 +395,6 @@ export function buildPlanCoachSystemPrompt(
       "# Athlete Context\n\n" +
         wrapAthleteContextFence({ text: context, maxChars: ATHLETE_CONTEXT_MAX_CHARS }),
     );
-  }
-  if (opts?.athleteSnapshot) {
-    volatileParts.push(opts.athleteSnapshot);
   }
   volatileParts.push(`# Current Date & Time\n\nTime zone: ${tz}`);
   if (opts?.outputLanguage) {

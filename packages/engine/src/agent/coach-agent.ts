@@ -95,7 +95,11 @@ import { createIntentTranslator, type IntentTranslationPort } from "../intent-tr
 import { usageFieldsFromResult } from "../llm-types.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
 import { resolveUserTimezone, appendCurrentTimeLine, todayInTZ } from "../sport/user-time.js";
-import { loadAthleteSnapshotBlock } from "./athlete-snapshot.js";
+import {
+  ATHLETE_SNAPSHOT_FALLBACK,
+  AthleteSnapshotTimeoutError,
+  loadAthleteSnapshotBlock,
+} from "./athlete-snapshot.js";
 import { createTurnBudget, TurnBudgetExceededError, type TurnBudget } from "./turn-budget.js";
 import { TAINTED_BY_WRITES_MESSAGE, STEP_LIMIT_TRUNCATION_MESSAGE } from "./coach-agent-copy.js";
 import {
@@ -558,26 +562,30 @@ export class CoachAgent {
       ? await this.memory.refreshPlanReadGate()
       : null;
     const planNone = planGate === null && this.memory.loadPlan() === null;
+    if (chatId.startsWith("plan:")) {
+      const systemPrompt = buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
+        outputLanguage: language,
+        excludeSections: this.excludedSectionNames,
+        planNone,
+      });
+      return { systemPrompt, athleteSnapshot: undefined };
+    }
     const athleteSnapshot = await loadAthleteSnapshotBlock({
       reader: this.ports.platform.athleteData,
       today: todayInTZ(this.tz, new Date(this.ports.now())),
       sportTypes: this.sport.intervalsActivityTypes,
-      onError: (error) => this.log.warn("athlete_snapshot_read_failed", error),
+      onError: (error) =>
+        this.log.warn("athlete_snapshot_read_failed", error, {
+          reason: error instanceof AthleteSnapshotTimeoutError ? "timeout" : "read",
+        }),
     });
-    const systemPrompt = chatId.startsWith("plan:")
-      ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-          outputLanguage: language,
-          excludeSections: this.excludedSectionNames,
-          athleteSnapshot,
-          planNone,
-        })
-      : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-          outputLanguage: language,
-          excludeSections: this.excludedSectionNames,
-          confirmationGate: this.confirmationGate,
-          athleteSnapshot,
-          planNone,
-        });
+    const systemPrompt = buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
+      outputLanguage: language,
+      excludeSections: this.excludedSectionNames,
+      confirmationGate: this.confirmationGate,
+      athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
+      planNone,
+    });
     return { systemPrompt, athleteSnapshot };
   }
 
