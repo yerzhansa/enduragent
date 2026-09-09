@@ -134,8 +134,26 @@ const journalEntrySchema = z.object({
   newBody: z.string(),
 });
 
-function historyBodySummary(body: string | null): string {
-  return truncateUtf16Safe((body ?? "").trim().replace(/\s+/g, " "), 200);
+const HISTORY_PREVIEW_CHARS = 200;
+
+function historyBodySummary(body: string | null, query?: string): string {
+  const text = (body ?? "").trim().replace(/\s+/g, " ");
+  if (text.length <= HISTORY_PREVIEW_CHARS) return text;
+  const match = query ? text.toLowerCase().indexOf(query) : -1;
+  if (!query || match < 0) return truncateUtf16Safe(text, HISTORY_PREVIEW_CHARS);
+  let start = Math.max(
+    0,
+    Math.min(
+      match + Math.floor(query.length / 2) - HISTORY_PREVIEW_CHARS / 2,
+      text.length - HISTORY_PREVIEW_CHARS,
+    ),
+  );
+  const unit = text.charCodeAt(start);
+  if (unit >= 0xdc00 && unit <= 0xdfff) start -= 1;
+  const window = truncateUtf16Safe(text.slice(start), HISTORY_PREVIEW_CHARS);
+  const leading = start > 0 ? "…" : "";
+  const trailing = start + window.length < text.length ? "…" : "";
+  return `${leading}${window}${trailing}`;
 }
 
 export function createMemoryQueryTool(memory: MemoryStorePort, bindProvenance: boolean = false) {
@@ -209,7 +227,7 @@ export function createMemoryQueryTool(memory: MemoryStorePort, bindProvenance: b
           continue;
         const bucket = byDate.get(date) ?? [];
         bucket.push(
-          `history: ${historyBodySummary(section ?? op)} — was: ${historyBodySummary(oldBody)} / now: ${historyBodySummary(newBody)}`,
+          `history: ${historyBodySummary(section ?? op, q)} — was: ${historyBodySummary(oldBody, q)} / now: ${historyBodySummary(newBody, q)}`,
         );
         byDate.set(date, bucket);
       }
@@ -220,6 +238,7 @@ export function createMemoryQueryTool(memory: MemoryStorePort, bindProvenance: b
       }
       const sections = [...byDate.keys()]
         .sort()
+        .reverse()
         .map((d) => `## ${d}\n${byDate.get(d)!.join("\n")}`);
       const result = [header, ...sections].join("\n\n");
       const truncated = result.length > MEMORY_QUERY_MAX_RESULT_CHARS;
