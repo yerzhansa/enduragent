@@ -242,6 +242,33 @@ describe("LLM dispatch — codex path forwards maxSteps to bridge", () => {
     expect(captured.cacheKey).toBe("deadbeefdeadbeef");
   });
 
+  it("streams chat text through the bridge without re-emitting the assembled reply", async () => {
+    const codexGenerateText = vi.fn(
+      async (o: { onTextDelta?: (delta: string) => void }) => {
+        o.onTextDelta?.("o");
+        o.onTextDelta?.("k");
+        return MINIMAL_RESULT;
+      },
+    );
+    vi.doMock("../src/agent/codex-bridge.js", () => ({ codexGenerateText }));
+    const { LLM } = await import("../src/llm.js");
+    const llm = new LLM(codexConfig(), llmTestPorts());
+
+    const chatDeltas: string[] = [];
+    const result = await llm.generate({
+      messages: [{ role: "user", content: "hi" }],
+      caller: "chat",
+      onTextDelta: (delta) => chatDeltas.push(delta),
+    });
+    expect(chatDeltas).toEqual(["o", "k"]);
+    expect(result.text).toBe("ok");
+
+    const onTextDelta = vi.fn();
+    await llm.generate({ prompt: "background", caller: "flush", onTextDelta });
+    expect(codexGenerateText.mock.calls[1][0].onTextDelta).toBeUndefined();
+    expect(onTextDelta).not.toHaveBeenCalled();
+  });
+
   it("creates the default deadline signal and forwards it to the bridge", async () => {
     const timeoutController = new AbortController();
     const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeoutController.signal);

@@ -634,6 +634,44 @@ describe("codex-bridge", () => {
     expect(JSON.stringify(toolMsg!.content)).toContain("logged 60");
   });
 
+  it("forwards opts.onTextDelta to every step's request", async () => {
+    const tools = {
+      log_ride: {
+        description: "log a ride",
+        inputSchema: zodSchema(z.object({ minutes: z.number() })),
+        execute: vi.fn(async () => "logged"),
+      },
+    };
+    let step = 0;
+    const complete = vi.fn(async (params: { onTextDelta?: (delta: string) => void }) => {
+      step++;
+      if (step === 1) {
+        params.onTextDelta?.("Checking");
+        return asstMsg({
+          text: "Checking",
+          stopReason: "toolUse",
+          toolCalls: [{ id: "c1", name: "log_ride", arguments: { minutes: 60 } }],
+        });
+      }
+      params.onTextDelta?.("Logged ");
+      params.onTextDelta?.("60 min.");
+      return asstMsg({ text: "Logged 60 min." });
+    });
+    const { codexGenerateText } = await loadBridgeWithMocks({ complete });
+    const deltas: string[] = [];
+
+    const result = await codexGenerateText({
+      messages: [{ role: "user", content: "hi" }],
+      tools: tools as never,
+      modelId: "gpt-5.4",
+      profileName: "openai-codex",
+      onTextDelta: (delta) => deltas.push(delta),
+    });
+
+    expect(deltas).toEqual(["Checking", "Logged ", "60 min."]);
+    expect(result.text).toBe("Logged 60 min.");
+  });
+
   it("executes zero tools when a decision call has a sibling", async () => {
     const decide = vi.fn(async () => ({ status: "presented", decisionId: "d1" }));
     const mutate = vi.fn(async () => ({ saved: true }));

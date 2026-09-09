@@ -277,6 +277,7 @@ export async function codexGenerateText(
     cacheKey,
     signal,
     context,
+    onTextDelta,
   } = opts;
   const { getAccessToken, classifyFailure } = ports;
 
@@ -313,6 +314,7 @@ export async function codexGenerateText(
           accessToken,
           sessionId: cacheKey,
           signal,
+          onTextDelta,
         });
         break;
       } catch (err) {
