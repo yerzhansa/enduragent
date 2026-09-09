@@ -466,6 +466,59 @@ describe("ChatStore durable reset — private race-checked targets", () => {
     expect(lstatSync(archive).nlink).toBe(1);
   });
 
+  it("marks a flush-pending archive, serves it oldest first, and clears it on flush or delete", () => {
+    const store = new ChatStore(dataDir);
+    const older = { resetId: "a".repeat(64), boundaryAt: "2026-07-21T01:02:03.000Z" };
+    const ref = (reset: typeof older) =>
+      `${reset.boundaryAt.replace(/:/g, "-")}.${reset.resetId}`;
+    const marker = (reset: typeof older) =>
+      join(sessionsDir, `pending.jsonl.flush-pending.${ref(reset)}`);
+    store.appendTurn("pending", "synthetic older user", "synthetic older coach", LINEAGE);
+    archiveAndResetDurably(store, "pending", { ...older, flushPending: true });
+    store.appendTurn("pending", "synthetic newer user", "synthetic newer coach", LINEAGE);
+    archiveAndResetDurably(store, "pending", { ...DURABLE_RESET, flushPending: true });
+    store.appendTurn("pending", "synthetic flushed user", "synthetic flushed coach", LINEAGE);
+    archiveAndResetDurably(store, "pending", {
+      resetId: "f".repeat(64),
+      boundaryAt: "2026-07-23T01:02:03.000Z",
+    });
+
+    expect(existsSync(marker(older))).toBe(true);
+    expect(existsSync(marker(DURABLE_RESET))).toBe(true);
+    expect(listArchives("pending")).toHaveLength(3);
+    expect(readdirSync(sessionsDir).filter((f) => f.includes("flush-pending"))).toHaveLength(2);
+
+    const first = store.loadUnflushedResetArchive("pending");
+    expect(first?.archiveRef).toBe(ref(older));
+    expect(first?.messages.map((m) => m.content)).toEqual([
+      "synthetic older user",
+      "synthetic older coach",
+    ]);
+
+    store.markResetArchiveFlushed("pending", ref(older));
+    expect(existsSync(marker(older))).toBe(false);
+    expect(store.loadUnflushedResetArchive("pending")?.archiveRef).toBe(ref(DURABLE_RESET));
+
+    expect(
+      store.deleteResetArchive("pending", DURABLE_RESET.resetId, DURABLE_RESET.boundaryAt),
+    ).toBe(true);
+    expect(existsSync(marker(DURABLE_RESET))).toBe(false);
+    expect(store.loadUnflushedResetArchive("pending")).toBeNull();
+    expect(() => store.markResetArchiveFlushed("pending", "../escape")).toThrow(
+      "Reset archive reference is invalid.",
+    );
+  });
+
+  it("drops a flush-pending marker whose archive is gone", () => {
+    const store = new ChatStore(dataDir);
+    store.appendTurn("orphan", "synthetic user", "synthetic coach", LINEAGE);
+    archiveAndResetDurably(store, "orphan", { ...DURABLE_RESET, flushPending: true });
+    rmSync(durableArchivePath("orphan"));
+
+    expect(store.loadUnflushedResetArchive("orphan")).toBeNull();
+    expect(readdirSync(sessionsDir).filter((f) => f.includes("flush-pending"))).toHaveLength(0);
+  });
+
   it("refuses a permissive active file without chmodding or archiving it", () => {
     const store = new ChatStore(dataDir);
     store.appendTurn("permissive", "synthetic user", "synthetic assistant", LINEAGE);

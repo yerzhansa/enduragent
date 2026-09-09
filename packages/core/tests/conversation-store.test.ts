@@ -368,6 +368,39 @@ describe("ConversationStore reset transaction recovery", () => {
     });
   });
 
+  it("marks only a stale-reset archive as flush-pending, including one recovered from an intent", () => {
+    const dataDir = makeDataDir();
+    const chat = new ChatStore(dataDir);
+    const transcript = new TranscriptStore(dataDir);
+    const store = new ConversationStore(chat, transcript, () => RESET_ID);
+    seedSession(chat, "explicit");
+    store.resetConversation({
+      chatId: "explicit",
+      boundaryAt: "2026-07-22T00:00:00.000Z",
+      reason: "explicit-reset",
+    });
+    seedSession(chat, "stale");
+    store.resetConversation({
+      chatId: "stale",
+      boundaryAt: "2026-07-22T00:00:00.000Z",
+      reason: "stale-reset",
+    });
+    const recoveredReset = { ...resetIntent("recovered"), reason: "stale-reset" as const };
+    seedSession(chat, recoveredReset.chatId);
+    transcript.createResetIntent(recoveredReset);
+    const recovered = new ConversationStore(chat, transcript);
+
+    expect(store.loadUnflushedResetArchive("explicit")).toBeNull();
+    const stale = store.loadUnflushedResetArchive("stale");
+    expect(stale?.messages.map((message) => message.content)).toEqual(["athlete", "coach"]);
+    expect(recovered.loadUnflushedResetArchive("recovered")?.archiveRef).toBe(
+      `${recoveredReset.boundaryAt.replace(/:/g, "-")}.${recoveredReset.resetId}`,
+    );
+
+    store.markResetArchiveFlushed("stale", stale!.archiveRef);
+    expect(store.loadUnflushedResetArchive("stale")).toBeNull();
+  });
+
   it("recovers intent-only by ensuring one boundary and archiving the active session", () => {
     const dataDir = makeDataDir();
     const chat = new ChatStore(dataDir);

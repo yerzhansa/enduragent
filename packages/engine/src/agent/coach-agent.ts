@@ -698,6 +698,7 @@ export class CoachAgent {
     chatId: string,
     messages: ModelMessage[],
     trigger: "stale-reset" | "soft-threshold",
+    onFlushed?: () => void,
   ): void {
     void withSessionLock(chatId, async () => {
       try {
@@ -715,6 +716,7 @@ export class CoachAgent {
           );
           await this.flushMemory(messages, trigger);
         }
+        onFlushed?.();
       } catch (err) {
         this.log.warn(`Queued ${trigger} memory flush failed`, err);
       }
@@ -920,10 +922,6 @@ export class CoachAgent {
         let archivedAt: string | undefined;
 
         if (!fresh && !deferDaily) {
-          if (history.length > 0 && !flushedThisTurn) {
-            flushedThisTurn = true;
-            this.queueFlush(chatId, history, "stale-reset");
-          }
           const boundaryAt = new Date(this.ports.now()).toISOString();
           this.chatStore.resetConversation({
             chatId,
@@ -933,6 +931,19 @@ export class CoachAgent {
           this.lastFlushMessageCount.delete(chatId);
           history = [];
           archivedAt = boundaryAt;
+        }
+
+        let recoveryFlushQueued = false;
+        const unflushed = this.chatStore.loadUnflushedResetArchive(chatId);
+        if (unflushed !== null) {
+          const markFlushed = () =>
+            this.chatStore.markResetArchiveFlushed(chatId, unflushed.archiveRef);
+          if (unflushed.messages.length === 0) {
+            markFlushed();
+          } else {
+            recoveryFlushQueued = true;
+            this.queueFlush(chatId, unflushed.messages, "stale-reset", markFlushed);
+          }
         }
 
         if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
@@ -1025,7 +1036,7 @@ export class CoachAgent {
           })
         ) {
           this.lastFlushMessageCount.set(chatId, history.length);
-          if (!flushedThisTurn) {
+          if (!flushedThisTurn && !recoveryFlushQueued) {
             flushedThisTurn = true;
             this.queueFlush(chatId, history, "soft-threshold");
           }

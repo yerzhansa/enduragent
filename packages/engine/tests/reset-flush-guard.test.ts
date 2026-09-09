@@ -31,7 +31,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function setupAgent(complete: ReturnType<typeof vi.fn>, timezone?: string) {
+async function setupAgent(
+  complete: ReturnType<typeof vi.fn>,
+  timezone?: string,
+  now?: () => number,
+) {
   vi.doMock("../src/agent/codex/responses.js", () => ({
     codexResponses: complete,
   }));
@@ -48,11 +52,29 @@ async function setupAgent(complete: ReturnType<typeof vi.fn>, timezone?: string)
 
   const { CoachAgent } = await import("../src/agent/coach-agent.js");
   const base = baseAgentConfig(dataDir);
-  const ports =
+  const withTz =
     timezone === undefined
       ? base
       : { ...base, config: { ...base.config, session: { ...base.config.session, timezone } } };
+  const ports = now === undefined ? withTz : { ...withTz, now };
   return new CoachAgent(cyclingSport as unknown as Sport, ports);
+}
+
+const FLUSH_MARKER = "reviewing a conversation to extract and save important athlete";
+
+function isFlushCall(params: unknown): boolean {
+  const system = (params as { system?: unknown } | undefined)?.system;
+  return typeof system === "string" && system.includes(FLUSH_MARKER);
+}
+
+function flushMessagesText(params: unknown): string {
+  return JSON.stringify((params as { messages: unknown }).messages);
+}
+
+function listFlushMarkers(chatId: string): string[] {
+  return readdirSync(join(dataDir, "sessions")).filter((f) =>
+    f.startsWith(`${chatId}.jsonl.flush-pending.`),
+  );
 }
 
 function mkAssistant(text: string, stopReason: "stop" | "length" = "stop") {
@@ -225,5 +247,143 @@ describe("reset-path flush guards", () => {
     expect(
       warnSpy.mock.calls.some((c) => String(c[0]).includes("Pre-reset memory flush failed")),
     ).toBe(false);
+  });
+});
+
+describe("reset archive re-flush", () => {
+  it("a stale reset marks the archive pending until its queued flush completes", async () => {
+    let releaseFlush: () => void = () => {};
+    const flushGate = new Promise<void>((resolve) => {
+      releaseFlush = resolve;
+    });
+    const complete = vi.fn(async (params: unknown) => {
+      if (!isFlushCall(params)) return mkAssistant("reply");
+      await flushGate;
+      return mkAssistant("noted");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete);
+    seedSession("mark", [
+      { role: "user", content: "yesterday's talk", ts: STALE_TS },
+      { role: "assistant", content: "yesterday's reply", ts: STALE_TS },
+    ]);
+
+    await agent.chat("mark", "morning");
+
+    const archives = listArchives("mark");
+    expect(archives).toHaveLength(1);
+    const archiveRef = archives[0].slice("mark.jsonl.reset.".length);
+    expect(listFlushMarkers("mark")).toEqual([`mark.jsonl.flush-pending.${archiveRef}`]);
+
+    releaseFlush();
+    await drain("mark");
+
+    expect(listFlushMarkers("mark")).toHaveLength(0);
+    expect(listArchives("mark")).toEqual(archives);
+  });
+
+  it("a flush lost to a process exit is re-queued once on the next turn, then never again", async () => {
+    const flushCalls: string[] = [];
+    let replies = 0;
+    const complete = vi.fn(async (params: unknown) => {
+      if (!isFlushCall(params)) return mkAssistant(`reply-${++replies}`);
+      flushCalls.push(flushMessagesText(params));
+      if (flushCalls.length === 1) await new Promise<void>(() => {});
+      return mkAssistant("noted");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const before = await setupAgent(complete);
+    seedSession("lost", [
+      { role: "user", content: "yesterday's talk", ts: STALE_TS },
+      { role: "assistant", content: "yesterday's reply", ts: STALE_TS },
+    ]);
+
+    const first = await before.chat("lost", "morning");
+    expect(first).toContain("reply-1");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(flushCalls).toHaveLength(1);
+    expect(listFlushMarkers("lost")).toHaveLength(1);
+
+    vi.resetModules();
+    const restarted = await setupAgent(complete);
+
+    expect(await restarted.chat("lost", "and another thing")).toBe("reply-2");
+    await drain("lost");
+
+    expect(flushCalls).toHaveLength(2);
+    expect(flushCalls[1]).toContain("yesterday's talk");
+    expect(flushCalls[1]).not.toContain("and another thing");
+    expect(listFlushMarkers("lost")).toHaveLength(0);
+    expect(listArchives("lost")).toHaveLength(1);
+
+    expect(await restarted.chat("lost", "third")).toBe("reply-3");
+    await drain("lost");
+
+    expect(flushCalls).toHaveLength(2);
+    expect(listFlushMarkers("lost")).toHaveLength(0);
+  });
+
+  it("a failed queued flush keeps the marker and the next turn retries it", async () => {
+    const flushCalls: string[] = [];
+    let replies = 0;
+    const complete = vi.fn(async (params: unknown) => {
+      if (!isFlushCall(params)) return mkAssistant(`reply-${++replies}`);
+      flushCalls.push(flushMessagesText(params));
+      if (flushCalls.length <= 2) throw new Error("boom");
+      return mkAssistant("noted");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete);
+    seedSession("retry", [
+      { role: "user", content: "yesterday's talk", ts: STALE_TS },
+      { role: "assistant", content: "yesterday's reply", ts: STALE_TS },
+    ]);
+
+    await agent.chat("retry", "morning");
+    await drain("retry");
+    expect(flushCalls).toHaveLength(2);
+    expect(listFlushMarkers("retry")).toHaveLength(1);
+
+    await agent.chat("retry", "again");
+    await drain("retry");
+    expect(flushCalls).toHaveLength(3);
+    expect(flushCalls[2]).toContain("yesterday's talk");
+    expect(listFlushMarkers("retry")).toHaveLength(0);
+  });
+
+  it("recovers pending archives oldest first, one per turn", async () => {
+    const flushCalls: string[] = [];
+    let replies = 0;
+    const complete = vi.fn(async (params: unknown) => {
+      if (!isFlushCall(params)) return mkAssistant(`reply-${++replies}`);
+      flushCalls.push(flushMessagesText(params));
+      if (flushCalls.length === 1) await new Promise<void>(() => {});
+      return mkAssistant("noted");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let clock = 0;
+    const now = () => (clock += 60_000);
+    const before = await setupAgent(complete, undefined, now);
+    seedSession("oldest", [{ role: "user", content: "day one", ts: STALE_TS }]);
+    await before.chat("oldest", "morning one");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(flushCalls).toHaveLength(1);
+
+    vi.resetModules();
+    const restarted = await setupAgent(complete, undefined, now);
+    seedSession("oldest", [{ role: "user", content: "day two", ts: STALE_TS }]);
+
+    await restarted.chat("oldest", "morning two");
+    await drain("oldest");
+    expect(listArchives("oldest")).toHaveLength(2);
+    expect(flushCalls).toHaveLength(2);
+    expect(flushCalls[1]).toContain("day one");
+    expect(listFlushMarkers("oldest")).toHaveLength(1);
+
+    await restarted.chat("oldest", "later");
+    await drain("oldest");
+    expect(flushCalls).toHaveLength(3);
+    expect(flushCalls[2]).toContain("day two");
+    expect(listFlushMarkers("oldest")).toHaveLength(0);
   });
 });
