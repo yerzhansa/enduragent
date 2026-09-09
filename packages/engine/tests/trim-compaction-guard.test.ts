@@ -153,7 +153,7 @@ describe("trim-path compaction guard", () => {
     expect(warnSpy.mock.calls.some((c) => String(c[0]).includes("flush failed"))).toBe(false);
   });
 
-  it("skips archive and overwrite when the flush fails; the turn still completes", async () => {
+  it("archives and overwrites when the flush fails; the turn still completes", async () => {
     let n = 0;
     const complete = vi.fn(async () => {
       n++;
@@ -169,11 +169,12 @@ describe("trim-path compaction guard", () => {
 
     expect(text).toBe("final-reply");
     expect(complete).toHaveBeenCalledTimes(4);
-    expect(listPrecompact("trim-flush-fail")).toHaveLength(0);
+    expect(listPrecompact("trim-flush-fail")).toHaveLength(1);
 
     const session = readFileSync(join(dataDir, "sessions", "trim-flush-fail.jsonl"), "utf-8");
-    expect(session).toContain("TRIM-MARK-0 ");
-    expect(session).not.toContain("## Coach Stance");
+    expect(session).not.toContain("TRIM-MARK-0 ");
+    expect(session).toContain("## Coach Stance");
+    expect(session).toContain("TRIM-MARK-29 ");
 
     expect(
       warnSpy.mock.calls.some((c) => String(c[0]).includes("Pre-compaction memory flush failed")),

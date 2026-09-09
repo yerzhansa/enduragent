@@ -8,7 +8,6 @@ import {
   createLedgerAppendTool,
   createMemoryReadTool,
   createMemoryTools,
-  MEMORY_READ_FLUSH_DESCRIPTION,
 } from "../../engine/src/sport/memory-tools.js";
 
 const sections = [
@@ -77,8 +76,7 @@ describe("memory retrieval", () => {
     expect(result).not.toContain("Injected profile body");
     expect(result).toContain("Hidden notes body");
     expect(result).toContain("Spring plan");
-    const flush = createMemoryReadTool(memory, MEMORY_READ_FLUSH_DESCRIPTION);
-    const full = await flush.execute!({}, options);
+    const full = await createMemoryReadTool(memory, "Read everything").execute!({}, options);
     expect(full).toContain("Injected profile body");
     expect(full).toContain("Hidden notes body");
     expect(full).toContain("Spring plan");

@@ -198,18 +198,14 @@ describe("runMemoryFlush ledger integration", () => {
     });
   });
 
-  it("the flush toolset exposes exactly the three tools", async () => {
+  it("the flush toolset exposes exactly the two write tools", async () => {
     const memory = new Memory(dataDir);
     const captured: GenerateOpts[] = [];
     const llm = executeToolsLLM([], captured);
 
     await runMemoryFlush({ llm, messages: OVERRIDE_CONVO, memory, memorySections: SECTIONS, tz: "UTC" });
 
-    expect(Object.keys(captured[0].tools ?? {}).sort()).toEqual([
-      "ledger_append",
-      "memory_read",
-      "memory_write",
-    ]);
+    expect(Object.keys(captured[0].tools ?? {}).sort()).toEqual(["ledger_append", "memory_write"]);
   });
 
   it("the flush prompt carries the extraction clause and the date anchor", async () => {

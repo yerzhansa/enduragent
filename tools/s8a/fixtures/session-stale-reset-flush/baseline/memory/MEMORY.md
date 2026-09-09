@@ -5,4 +5,4 @@
 
 ## goals
 _updated: 1998-07-06
-- Target a century ride at the end of August 1998 (athlete, 1998-07-06)
+- Target a century ride at the end of August 1998; exact event/date not yet specified (athlete, 1998-07-06)

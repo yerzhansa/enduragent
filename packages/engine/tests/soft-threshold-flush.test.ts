@@ -238,7 +238,7 @@ describe("soft-threshold flush in chat()", () => {
     expect(complete).toHaveBeenCalledTimes(1);
   });
 
-  it("flush failure warns, the turn completes, the cooldown still advances", async () => {
+  it("flush failure warns, the turn completes, and the next turn retries the same window", async () => {
     let n = 0;
     const complete = vi.fn(async () => {
       n++;
@@ -263,9 +263,22 @@ describe("soft-threshold flush in chat()", () => {
     expect(session).toContain("hello");
     expect(session).toContain("ok-reply");
 
-    const before = complete.mock.calls.length;
     await agent.chat("fail", "again");
-    expect(complete.mock.calls.length).toBe(before + 1);
+    await drain("fail");
+    expect(complete).toHaveBeenCalledTimes(5);
+    const retry = (complete.mock.calls as unknown[][])[4]?.[0] as
+      | { system?: string; messages: unknown }
+      | undefined;
+    expect(retry?.system).toContain("You are reviewing a conversation");
+    const retried = JSON.stringify(retry?.messages);
+    expect(retried).toContain("SOFT-MARK-0 ");
+    expect(retried).toContain("SOFT-MARK-9 ");
+    expect(retried).toContain("hello");
+    expect(retried).toContain("ok-reply");
+
+    await agent.chat("fail", "third");
+    await drain("fail");
+    expect(complete).toHaveBeenCalledTimes(6);
   });
 
   it("a trim turn does not double-flush", async () => {

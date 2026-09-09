@@ -60,9 +60,6 @@ export const PlanSaveInputSchema = z
   })
   .passthrough();
 
-export const MEMORY_READ_FLUSH_DESCRIPTION =
-  "Read current athlete memory before writing — sections are replaced whole, so read first to carry existing facts forward.";
-
 export const MEMORY_READ_CHAT_DESCRIPTION =
   "Read only stored sections that Athlete Context does not show, plus today's notes and plan state.";
 

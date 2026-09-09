@@ -385,6 +385,7 @@ export class CoachAgent {
   // never in this list, so they always inject.
   private readonly excludedSectionNames: readonly string[];
   private lastFlushMessageCount = new Map<string, number>();
+  private pendingFlushMessages = new Map<string, ModelMessage[]>();
   private readonly confirmationGate: boolean;
   // The prompt-template hash is derived from constructor-stable inputs (soul,
   // skills, tool schemas, model, and the compile-time rule-block set), so it is
@@ -689,6 +690,46 @@ export class CoachAgent {
     throw lastError;
   }
 
+  private unflushedMessages(chatId: string, history: ModelMessage[]): ModelMessage[] {
+    return history.slice(this.lastFlushMessageCount.get(chatId) ?? 0);
+  }
+
+  private markFlushed(chatId: string, messageCount: number): void {
+    this.pendingFlushMessages.delete(chatId);
+    this.lastFlushMessageCount.set(chatId, messageCount);
+  }
+
+  private deferUnflushed(chatId: string, history: ModelMessage[], messageCount: number): void {
+    const unflushed = this.unflushedMessages(chatId, history);
+    if (unflushed.length > 0) {
+      this.pendingFlushMessages.set(chatId, [
+        ...(this.pendingFlushMessages.get(chatId) ?? []),
+        ...unflushed,
+      ]);
+    }
+    this.lastFlushMessageCount.set(chatId, messageCount);
+  }
+
+  private async flushNewMessages(
+    chatId: string,
+    history: ModelMessage[],
+    trigger: MemoryFlushTrigger,
+    budget?: Pick<TurnBudget, "chargeGenerateCall">,
+    currentTurn: ModelMessage[] = [],
+  ): Promise<void> {
+    const window = [
+      ...(this.pendingFlushMessages.get(chatId) ?? []),
+      ...this.unflushedMessages(chatId, history),
+      ...currentTurn,
+    ];
+    if (window.length === 0) {
+      this.log.info("memory_flush_skipped", { trigger, reason: "no_new_messages" });
+      return;
+    }
+    await this.flushMemory(window, trigger, budget);
+    this.markFlushed(chatId, history.length);
+  }
+
   settle(chatId?: string): Promise<void> {
     if (chatId === undefined) return drainSessionLocks();
     return withSessionLock(chatId, async () => {});
@@ -701,21 +742,28 @@ export class CoachAgent {
     onFlushed?: () => void,
   ): void {
     void withSessionLock(chatId, async () => {
+      const window = [...(this.pendingFlushMessages.get(chatId) ?? []), ...messages];
+      if (window.length === 0) {
+        this.log.info("memory_flush_skipped", { trigger, reason: "no_new_messages" });
+        onFlushed?.();
+        return;
+      }
       try {
-        const outcome = await this.flushMemory(messages, trigger);
+        const outcome = await this.flushMemory(window, trigger);
         const zeroWrite =
           outcome.writes === 0 &&
           outcome.ledgerAppends === 0 &&
-          messages.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
+          window.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
         if (zeroWrite && trigger === "stale-reset") {
           console.warn(
             JSON.stringify({
               event: "memory_flush_zero_write_retry",
-              messageCount: messages.length,
+              messageCount: window.length,
             }),
           );
-          await this.flushMemory(messages, trigger);
+          await this.flushMemory(window, trigger);
         }
+        this.pendingFlushMessages.delete(chatId);
         onFlushed?.();
       } catch (err) {
         this.log.warn(`Queued ${trigger} memory flush failed`, err);
@@ -977,16 +1025,13 @@ export class CoachAgent {
         let summaryMsg: ModelMessage | undefined;
         let requeued: ModelMessage[] = [];
         if (dropped.length > 0) {
-          this.lastFlushMessageCount.set(chatId, history.length);
-          let flushed = true;
           if (!flushedThisTurn) {
             flushedThisTurn = true;
             try {
-              await this.flushMemory(history, "trim", turnBudget);
+              await this.flushNewMessages(chatId, history, "trim", turnBudget);
             } catch (err) {
-              flushed = false;
               this.log.warn(
-                "Pre-compaction memory flush failed; keeping session file unchanged",
+                "Pre-compaction memory flush failed; the dropped messages stay queued for the next flush",
                 err,
               );
             }
@@ -1005,10 +1050,10 @@ export class CoachAgent {
             this.persistSummaryToDailyNote(summary, summaryProvenance);
             summaryMsg = makeSummaryMessage(summary, summaryProvenance);
             requeued = unsummarized;
-            if (flushed) {
-              this.chatStore.archivePreCompact(chatId);
-              this.chatStore.overwriteHistory(chatId, [summaryMsg, ...requeued, ...kept]);
-            }
+            const compacted = [summaryMsg, ...requeued, ...kept];
+            this.chatStore.archivePreCompact(chatId);
+            this.chatStore.overwriteHistory(chatId, compacted);
+            this.deferUnflushed(chatId, history, compacted.length);
           } catch (err) {
             this.log.warn("Dropped message summarization failed, retaining original messages", err);
             requeued = dropped;
@@ -1035,10 +1080,11 @@ export class CoachAgent {
             currentMessageCount: history.length,
           })
         ) {
-          this.lastFlushMessageCount.set(chatId, history.length);
           if (!flushedThisTurn && !recoveryFlushQueued) {
             flushedThisTurn = true;
-            this.queueFlush(chatId, history, "soft-threshold");
+            this.queueFlush(chatId, this.unflushedMessages(chatId, history), "soft-threshold", () =>
+              this.markFlushed(chatId, history.length),
+            );
           }
         }
 
@@ -1139,7 +1185,9 @@ export class CoachAgent {
               if (!flushedThisTurn) {
                 flushedThisTurn = true;
                 try {
-                  await this.flushMemory(messages, "pre-compaction", turnBudget);
+                  await this.flushNewMessages(chatId, history, "pre-compaction", turnBudget, [
+                    userTurnMessage,
+                  ]);
                 } catch (err) {
                   this.log.warn("In-turn memory flush failed; compacting without flush", err);
                 }
@@ -1422,7 +1470,13 @@ export class CoachAgent {
                   if (!flushedThisTurn) {
                     flushedThisTurn = true;
                     try {
-                      await this.flushMemory(messages, "overflow-recovery", turnBudget);
+                      await this.flushNewMessages(
+                        chatId,
+                        history,
+                        "overflow-recovery",
+                        turnBudget,
+                        [userTurnMessage],
+                      );
                     } catch (flushErr) {
                       this.log.warn(
                         "In-turn memory flush failed; compacting without flush",
@@ -1656,6 +1710,7 @@ export class CoachAgent {
       );
     }
     this.chatStore.overwriteHistory(chatId, messages);
+    this.lastFlushMessageCount.delete(chatId);
   }
 
   stopChat(chatId: string, turnId: string): boolean {
@@ -2145,9 +2200,10 @@ export class CoachAgent {
       }
       if (history.length > 0) {
         try {
-          await this.flushMemory(history, "explicit-reset");
+          await this.flushNewMessages(chatId, history, "explicit-reset");
         } catch (err) {
           memoryFlushed = false;
+          this.deferUnflushed(chatId, history, 0);
           this.log.warn("Pre-reset memory flush failed; archiving session anyway", err);
         }
       }
