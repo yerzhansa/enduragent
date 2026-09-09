@@ -166,7 +166,7 @@ export interface ChatStorePort {
     chatId: string,
   ): { readonly archiveRef: string; readonly messages: ModelMessage[] } | null;
   markResetArchiveFlushed(chatId: string, archiveRef: string): void;
-  archivePreCompact(chatId: string): void;
+  archivePreCompact(chatId: string, options?: { readonly flushPending?: boolean }): void;
   getChatQueue?(chatId: string): ChatQueueSnapshot;
   enqueueChatMessage?(
     chatId: string,

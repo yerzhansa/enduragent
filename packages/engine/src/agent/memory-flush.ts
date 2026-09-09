@@ -69,19 +69,10 @@ write, so include ALL current facts for that section, not just new ones.
 Use the ledger_append tool to record dated events (decisions, overrides,
 illness, experiment outcomes); ledger entries are appended, never replaced.`;
 
-function renderCurrentMemory(memory: MemoryStorePort): {
-  text: string;
-  provenance: SourceProvenance;
-} {
-  const current = memory.getContextWithProvenance?.() ?? {
-    text: memory.getContext(),
-    provenance: EMPTY_PROVENANCE,
-  };
+function renderCurrentMemory(memory: MemoryStorePort): string {
+  const current = memory.getContextWithProvenance?.() ?? { text: memory.getContext() };
   const text = current.text || "No athlete data stored yet.";
-  return {
-    text: wrapAthleteContextFence({ text, maxChars: ATHLETE_CONTEXT_MAX_CHARS }),
-    provenance: current.text ? current.provenance : EMPTY_PROVENANCE,
-  };
+  return wrapAthleteContextFence({ text, maxChars: ATHLETE_CONTEXT_MAX_CHARS });
 }
 
 function buildFlushUserPrompt(
@@ -144,7 +135,7 @@ ${currentMemory}`;
 function createFlushMemoryWriteTool(
   memory: MemoryStorePort,
   sections: readonly MemorySectionSpec[],
-  provenance: () => SourceProvenance,
+  provenanceFor: (section: string) => SourceProvenance,
   onWrite: () => void,
 ) {
   const sectionNames = sections.map((s) => s.name) as [string, ...string[]];
@@ -157,7 +148,7 @@ function createFlushMemoryWriteTool(
       }),
     ),
     execute: async (input: { section: string; content: string }) => {
-      memory.writeSection(input.section, input.content, "flush", provenance());
+      memory.writeSection(input.section, input.content, "flush", provenanceFor(input.section));
       onWrite();
       return { saved: true };
     },
@@ -224,10 +215,7 @@ export async function runMemoryFlush(params: {
   let writes = 0;
   let ledgerAppends = 0;
   const currentMemory = renderCurrentMemory(params.memory);
-  const visibleProvenance = unionProvenance(
-    provenanceOfMessages(params.messages),
-    currentMemory.provenance,
-  );
+  const conversationProvenance = provenanceOfMessages(params.messages);
   const beforeChars = new Map(
     params.memorySections.map((s) => [s.name, (params.memory.readSection(s.name) ?? "").length]),
   );
@@ -235,7 +223,11 @@ export async function runMemoryFlush(params: {
     memory_write: createFlushMemoryWriteTool(
       params.memory,
       params.memorySections,
-      () => visibleProvenance,
+      (section) =>
+        unionProvenance(
+          conversationProvenance,
+          params.memory.provenanceForSection?.(section) ?? EMPTY_PROVENANCE,
+        ),
       () => {
         writes++;
       },
@@ -243,7 +235,7 @@ export async function runMemoryFlush(params: {
     ledger_append: createLedgerAppendTool(
       params.memory,
       "flush",
-      () => visibleProvenance,
+      () => conversationProvenance,
       () => {
         ledgerAppends++;
       },
@@ -259,7 +251,7 @@ export async function runMemoryFlush(params: {
         role: "user" as const,
         content: buildFlushUserPrompt(
           params.memorySections,
-          currentMemory.text,
+          currentMemory,
           todayInTZ(params.tz ?? "UTC"),
         ),
       },

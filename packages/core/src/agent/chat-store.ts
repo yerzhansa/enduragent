@@ -89,6 +89,17 @@ export interface UnflushedResetArchive {
 }
 
 const RESET_ARCHIVE_REF_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z\.[a-f0-9]{64}$/;
+const PRECOMPACT_ARCHIVE_REF_PATTERN = /^precompact\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z$/;
+
+function pendingArchivePath(sessionPath: string, archiveRef: string): string | null {
+  if (RESET_ARCHIVE_REF_PATTERN.test(archiveRef)) {
+    return `${sessionPath}.reset.${archiveRef}`;
+  }
+  if (PRECOMPACT_ARCHIVE_REF_PATTERN.test(archiveRef)) {
+    return `${sessionPath}.${archiveRef}`;
+  }
+  return null;
+}
 
 const DURABLE_RESET_OPERATIONS = new WeakMap<
   ChatStore,
@@ -316,8 +327,8 @@ export class ChatStore {
       .sort();
     for (const marker of markers) {
       const archiveRef = marker.slice(prefix.length);
-      if (!RESET_ARCHIVE_REF_PATTERN.test(archiveRef)) continue;
-      const archivePath = `${path}.reset.${archiveRef}`;
+      const archivePath = pendingArchivePath(path, archiveRef);
+      if (archivePath === null) continue;
       if (!this.sessionExists(archivePath)) {
         this.unlinkSessionPath(marker);
         continue;
@@ -335,7 +346,7 @@ export class ChatStore {
   }
 
   markResetArchiveFlushed(chatId: string, archiveRef: string): void {
-    if (!RESET_ARCHIVE_REF_PATTERN.test(archiveRef)) {
+    if (pendingArchivePath(this.filePath(chatId), archiveRef) === null) {
       throw new TypeError("Reset archive reference is invalid.");
     }
     this.unlinkIfPresent(this.flushPendingPath(chatId, archiveRef));
@@ -1165,12 +1176,16 @@ export class ChatStore {
     return deleted;
   }
 
-  archivePreCompact(chatId: string): void {
+  archivePreCompact(chatId: string, options?: { readonly flushPending?: boolean }): void {
     const path = this.filePath(chatId);
     if (!this.sessionExists(path)) return;
 
     const ts = new Date().toISOString().replace(/:/g, "-");
-    this.copySessionPath(path, `${path}.precompact.${ts}`);
+    const archiveRef = `precompact.${ts}`;
+    this.copySessionPath(path, `${path}.${archiveRef}`);
+    if (options?.flushPending === true) {
+      this.appendSessionContent(this.flushPendingPath(chatId, archiveRef), "");
+    }
     this.pruneArchives(chatId, "precompact");
   }
 

@@ -153,4 +153,90 @@ describe("timeout compaction threshold on a 1M-token window", () => {
     expect(mainTurns).toBe(2);
     expect(reply).toBe("recovered");
   });
+
+  it("still compact-retries a timeout after a tool-step preamble streamed", async () => {
+    const seen: Array<{ system: string; messages: ModelMessage[] }> = [];
+    let mainTurns = 0;
+    const complete = vi.fn(
+      async (params: {
+        system?: string;
+        messages: ModelMessage[];
+        onTextDelta?: (delta: string) => void;
+      }) => {
+        const sys = params.system ?? "";
+        if (sys.includes(FLUSH_MARKER)) return mkAssistant("facts noted");
+        mainTurns++;
+        seen.push({ system: sys, messages: params.messages });
+        if (mainTurns === 1) {
+          params.onTextDelta?.("Checking");
+          return {
+            text: "Checking",
+            toolCalls: [{ id: "c1", name: "missing_tool", arguments: {} }],
+            usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 },
+            stopReason: "toolUse" as const,
+          };
+        }
+        if (mainTurns === 2) throw timeoutError();
+        return mkAssistant("recovered");
+      },
+    );
+    const summarize = vi.fn(async (params: { messages: ModelMessage[] }) => ({
+      messages: params.messages.slice(-2),
+    }));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete, summarize);
+
+    const probeReply = await agent.chat("probe", "hi");
+    expect(probeReply).toBe("recovered");
+    const systemTokens = estimateTokens(seen[0].system);
+    seen.length = 0;
+    mainTurns = 0;
+
+    seedSession("timeout-preamble", Math.floor(0.7 * EFFECTIVE_BUDGET) - systemTokens);
+    const reply = await agent.chat("timeout-preamble", "hello");
+
+    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(mainTurns).toBe(3);
+    expect(reply).toBe("recovered");
+  });
+
+  it("still compact-retries a timeout that follows a live preamble on the same request", async () => {
+    const seen: Array<{ system: string; messages: ModelMessage[] }> = [];
+    let mainTurns = 0;
+    const complete = vi.fn(
+      async (params: {
+        system?: string;
+        messages: ModelMessage[];
+        onTextDelta?: (delta: string) => void;
+      }) => {
+        const sys = params.system ?? "";
+        if (sys.includes(FLUSH_MARKER)) return mkAssistant("facts noted");
+        mainTurns++;
+        seen.push({ system: sys, messages: params.messages });
+        if (mainTurns === 1) {
+          params.onTextDelta?.("Checking");
+          throw timeoutError();
+        }
+        return mkAssistant("recovered");
+      },
+    );
+    const summarize = vi.fn(async (params: { messages: ModelMessage[] }) => ({
+      messages: params.messages.slice(-2),
+    }));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete, summarize);
+
+    const probeReply = await agent.chat("probe", "hi");
+    expect(probeReply).toBe("recovered");
+    const systemTokens = estimateTokens(seen[0].system);
+    seen.length = 0;
+    mainTurns = 0;
+
+    seedSession("timeout-live-preamble", Math.floor(0.7 * EFFECTIVE_BUDGET) - systemTokens);
+    const reply = await agent.chat("timeout-live-preamble", "hello");
+
+    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(mainTurns).toBe(2);
+    expect(reply).toBe("recovered");
+  });
 });

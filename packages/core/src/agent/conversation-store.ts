@@ -160,9 +160,9 @@ export class ConversationStore implements ConversationStorePort {
     this.chatStore.overwriteHistory(chatId, messages);
   }
 
-  archivePreCompact(chatId: string): void {
+  archivePreCompact(chatId: string, options?: { readonly flushPending?: boolean }): void {
     this.recoverBeforeAccess(chatId);
-    this.chatStore.archivePreCompact(chatId);
+    this.chatStore.archivePreCompact(chatId, options);
   }
 
   appendCompletedTurn(input: TranscriptCompletedTurnInput): void {

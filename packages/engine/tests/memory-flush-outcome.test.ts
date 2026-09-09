@@ -173,6 +173,39 @@ describe("runMemoryFlush outcome detection", () => {
     expect(memory.getContextWithProvenance().provenance.garmin).toBe(true);
   });
 
+  it("does not copy Garmin provenance from another section onto a different write", async () => {
+    const memory = new Memory(dataDir);
+    memory.writeSection("goals", "Garmin-derived goal", "chat-tool", {
+      garmin: true,
+      nonGarmin: false,
+      unknown: false,
+    });
+    const llm = drivenLLM([""], async (tools) => {
+      await tools.memory_write.execute!(
+        { section: "medical-history", content: "Asthma, mild" },
+        {} as never,
+      );
+    });
+
+    await runMemoryFlush({
+      llm,
+      messages: TRIVIAL,
+      memory,
+      memorySections: SECTIONS,
+    });
+
+    expect(memory.provenanceForSection("goals")).toEqual({
+      garmin: true,
+      nonGarmin: false,
+      unknown: false,
+    });
+    expect(memory.provenanceForSection("medical-history")).toEqual({
+      garmin: false,
+      nonGarmin: false,
+      unknown: true,
+    });
+  });
+
   it("does not infer Garmin provenance from Garmin-looking text in a write", async () => {
     const memory = new Memory(dataDir);
     const llm = drivenLLM([""], async (tools) => {
