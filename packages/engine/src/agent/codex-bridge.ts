@@ -278,8 +278,10 @@ export async function codexGenerateText(
     signal,
     context,
     onTextDelta,
+    caller,
   } = opts;
   const { getAccessToken, classifyFailure } = ports;
+  const textVerbosity = caller === "chat" ? "low" : "medium";
 
   const initialMessages: ModelMessage[] = prompt
     ? [{ role: "user", content: prompt }]
@@ -313,6 +315,7 @@ export async function codexGenerateText(
           tools,
           accessToken,
           sessionId: cacheKey,
+          textVerbosity,
           signal,
           onTextDelta,
         });

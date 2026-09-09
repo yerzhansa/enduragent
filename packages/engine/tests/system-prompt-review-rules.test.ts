@@ -231,6 +231,12 @@ describe("WORKOUT_REVIEW_RULES content", () => {
     expect(prompt).toContain("For a deeper analysis, type /review deep.");
   });
 
+  it("makes the footer conditional on numbers the reply did not show", () => {
+    expect(prompt).not.toContain("Footer (mandatory)");
+    expect(prompt).not.toContain("The footer appears on every review");
+    expect(prompt).toContain("### Footer (only when the reply rests on numbers it did not show)");
+  });
+
   it("lists all six trademark forbids", () => {
     for (const tok of ["NP", "TSS", "IF", "CTL", "ATL", "TSB"]) {
       expect(prompt).toContain(`**${tok}**`);

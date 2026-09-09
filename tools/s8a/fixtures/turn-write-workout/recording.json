@@ -570,7 +570,7 @@
   ],
   "lineage": {
     "lineageVersion": "unversioned",
-    "templateHash": "12cc41ade33b7f86"
+    "templateHash": "7c6be3129defa785"
   },
   "model": "gpt-5.6-sol",
   "provider": "openai-codex",

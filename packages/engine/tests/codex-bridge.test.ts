@@ -473,6 +473,42 @@ describe("codex-bridge", () => {
     expect(completeNoKey).toHaveBeenCalledWith(expect.objectContaining({ sessionId: undefined }));
   });
 
+  it("sends verbosity low for chat and medium for flush in the request body", async () => {
+    vi.doUnmock("../src/agent/codex/responses.js");
+    const { codexGenerateText } = await import("../src/agent/codex-bridge.js");
+    const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "acct_test" } }),
+    ).toString("base64url");
+    const token = `${header}.${payload}.sig`;
+    const sse = (): Response => {
+      const events = [
+        { type: "response.created", response: { id: "resp_1" } },
+        { type: "response.output_item.done", item: { type: "message", content: [{ type: "output_text", text: "ok" }] } },
+        {
+          type: "response.completed",
+          response: { id: "resp_1", status: "completed", usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } },
+        },
+      ];
+      const text = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("") + "data: [DONE]\n\n";
+      return new Response(text, { status: 200, headers: { "content-type": "text/event-stream" } });
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => sse());
+    const ports = { getAccessToken: async () => token, classifyFailure };
+
+    await codexGenerateText(
+      { messages: [{ role: "user", content: "hi" }], modelId: "gpt-5.4", profileName: "openai-codex", caller: "chat" },
+      ports,
+    );
+    await codexGenerateText(
+      { messages: [{ role: "user", content: "hi" }], modelId: "gpt-5.4", profileName: "openai-codex", caller: "flush" },
+      ports,
+    );
+
+    const bodies = fetchSpy.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+    expect(bodies.map((b) => b.text)).toEqual([{ verbosity: "low" }, { verbosity: "medium" }]);
+  });
+
   it("forwards opts.signal to the codex response request", async () => {
     const complete = vi.fn(async () => asstMsg());
     const { codexGenerateText } = await loadBridgeWithMocks({ complete });

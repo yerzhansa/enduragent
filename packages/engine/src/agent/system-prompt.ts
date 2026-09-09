@@ -230,14 +230,17 @@ lap cells as unavailable.
 
 Keep it compact. The athlete asked for numbers — no prose around the table.
 
-### Footer (mandatory)
-- **Tier A and Tier B**: end the review with TWO lines:
+### Footer (only when the reply rests on numbers it did not show)
+- Add a footer only when the review draws on summary, lap, or stream data the reply
+  does not show — a prose takeaway with the figures behind it left out. When the reply
+  already shows every number it relies on, or follows a show-numbers table, end on the
+  recommendation with no footer.
+- **Tier A and Tier B** with a footer: end the review with TWO lines:
     Reply 'show numbers' for the full breakdown.
     For a deeper analysis, type /review deep.
-- **Tier C** (forced via \`deep\`): end with ONE line:
+- **Tier C** (forced via \`deep\`) with a footer: end with ONE line:
     Reply 'show numbers' for the full breakdown.
   (No \`/review deep\` line — the review is already deep.)
-- The footer appears on every review, including short Tier A ones.
 
 ## Trademark / glossary rules — non-negotiable
 NEVER use these tokens in any review output:
