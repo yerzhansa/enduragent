@@ -69,6 +69,14 @@ Hammerhead, COROS, Suunto and Zwift. Nothing is written to your calendar unless 
 Away from the desk, pair the app with your own Telegram bot: tell it your meeting ran late, and
 the rewritten session lands on the same calendar before you have changed into kit.
 
+### It speaks your language
+
+The app, the Telegram bot and the coach's replies come in English, Spanish, French, Italian,
+German, Dutch, Danish, Swedish, Norwegian, Finnish, Portuguese (Portugal and Brazil), Polish,
+Korean, Japanese and Chinese (Simplified and Traditional). It follows your computer's language
+by default, and the coach answers in whatever language you write in. Pick a fixed language in
+Settings, with `/language` in Telegram, or with `ENDURAGENT_LANGUAGE` for a self-hosted bot.
+
 ## Install
 
 ### macOS app
@@ -187,6 +195,7 @@ it, change it, ship your own version. You pay your model provider, not us.
 | `/workout` | Suggests today's session from current fitness, fatigue and form |
 | `/status` | Fitness, fatigue, form, and coaching notes |
 | `/sync` | Pushes the next 1–2 weeks of planned workouts to intervals.icu |
+| `/language` | Choose the language for the bot and the coach's replies |
 | `/whatsnew` | What changed in the latest release |
 | `/update` | Updates an npm install to the verified registry version |
 
