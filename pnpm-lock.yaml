@@ -175,6 +175,9 @@ importers:
       '@enduragent/coach-contract':
         specifier: workspace:*
         version: link:../../packages/coach-contract
+      '@enduragent/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@enduragent/ui':
         specifier: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.3.0/enduragent-ui-0.3.0.tgz
         version: https://github.com/yerzhansa/enduragent-ui/releases/download/v0.3.0/enduragent-ui-0.3.0.tgz(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)

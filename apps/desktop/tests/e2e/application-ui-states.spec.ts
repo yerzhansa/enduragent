@@ -331,8 +331,8 @@ test.describe.serial("production application UI states", () => {
 
     const original = await structure();
     expect(original.preferences).toHaveLength(1);
-    expect(original.rows).toHaveLength(2);
-    expect(original.labels).toHaveLength(2);
+    expect(original.rows).toHaveLength(3);
+    expect(original.labels).toHaveLength(3);
     expect(checkStructure(original, preferencesContract)).toEqual([]);
     await info.attach("preferences-structure", {
       body: JSON.stringify(original),

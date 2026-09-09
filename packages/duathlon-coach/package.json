@@ -1,6 +1,6 @@
 {
   "name": "duathlon-coach",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "description": "AI duathlon coaching agent (alpha — not yet implemented).",
   "type": "module",

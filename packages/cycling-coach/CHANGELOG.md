@@ -1,5 +1,158 @@
 # cycling-coach
 
+## 2026.9.9
+
+### Minor Changes
+
+- 4ffaf59: Add a language preference and make the coach reply in it.
+
+  User-facing: Choose your language with /language in Telegram and the coach answers in that language. With no choice saved, the coach follows the language you write in. The desktop Settings control arrives with the next release.
+
+### Patch Changes
+
+- 09c5ca3: Refresh runtime dependencies, including XML parser security fixes and desktop updater compatibility updates.
+
+  User-facing: This update improves the safety of imported files and refreshes the libraries used for coaching and app updates.
+
+- 7a005a7: User-facing: Training now shows recently imported ride files immediately without requiring an Intervals.icu sync.
+
+  Credential-free setups no longer run Intervals.icu refreshes or surface their failures.
+
+- 92ca64a: User-facing: Added a standard Coach decision panel for important training choices, with custom answers, Skip, saved consequences, and relaunch recovery.
+
+  Important coaching choices now remain blocked until answered or skipped, and interrupted continuations resume once after relaunch.
+
+- 6f68281: Stop showing the retired file-based plan to the coach once Plans are managed in Chat.
+
+  User-facing: Once you start creating a Plan in Chat, the coach no longer reads your old saved plan file, so its advice is based on the Plan you manage in Chat.
+
+- dfba9a5: User-facing: Redesigned Chat as a calmer Reading room with Training context, a clearer composer, and a Stop control that preserves partial responses.
+
+  Stopped responses now remain in conversation history after relaunch, and the shared Coach connection stays available for the next message.
+
+- f191262: User-facing: After a long conversation is condensed, the coach no longer re-reads the same condensed notes twice on every message that day.
+- 6589ea7: Carry balanced activity visibility summaries from the current intervals.icu reference fetch to sync consumers.
+
+  `SyncRpcResult` now reports `overall` and `recent7Days` windows. Each window includes its raw total, visible count, other malformed rows, and sorted per-source restrictions with the `source-restricted` reason. Both windows must balance, and recent counts cannot exceed their overall counterparts. Detection still uses exact `source === "STRAVA"`; the contract supports additional providers without collapsing them into one source. Counts stay in memory, come from the same fetch that supplies training context, and no longer come from historical backfill. Mid-page capture resumes report a page's dropped rows once. `PROTOCOL_VERSION` moves from 18 to 19. No athlete-facing copy changes.
+
+- 9cfd329: User-facing: Automatic update checks now contact Enduragent at most once per day per installation, while repeated update commands reuse recent results.
+
+  Persist the daily telemetry attempt before sending it, route manual version checks directly to npm, and share successful or in-progress version lookups.
+
+- 795fccf: User-facing: Saved queued Chat messages across app restarts, added explicit recovery actions, and now keeps a queued message visible with an error when removal cannot be saved.
+- 0d27009: User-facing: Activating a Plan now double-checks the Plan it replaces, Chat-created rides reach intervals.icu as Ride events, past and completed Workouts stay untouched by later Changes, and a stopped Plan's final details keep their calendar status fresh with a Retry button.
+- 7a8e703: Plan Changes now respect confirmed commitments for Supporting Events and daily choices, keep Undo consistent with kept Workouts, ignore stale typed requests after a cancel, and give typed requests enough time. Plan creation reads no longer write derived answers, the activation dialog shows the calendar window in the athlete's timezone, legacy Plan authoring is closed, ordinary chat returns after a Change, paused submissions keep the typed text, and Continue resumes a creation while a Change is pending.
+
+  User-facing: Changing your Plan in Chat now honours your confirmed time off, keeps typed requests after a relaunch, and lets you go back to normal chat once a change is done.
+
+- 1151bf1: User-facing: Explained when Strava API restrictions hide activities, with separate recovery steps for future and past rides.
+
+  Show the restricted count after sync on the Training page, in the sidebar, and in Telegram. Direct athletes to connect their recording source to intervals.icu for future rides or use Import All Strava Data with an intervals.icu supporter subscription for history.
+
+- 3627ecd: Distinguish confirmation guard refusals and returned failures from completed changes.
+
+  User-facing: When a workout can no longer be changed, the coach explains why instead of saying it is done.
+
+- 9d86d76: User-facing: The coach answers first and saves notes to memory afterwards, so the first message of the day and long conversations no longer wait on housekeeping.
+- 30ca87f: User-facing: Backups made before the Planning storage update now restore successfully when they contain a replaced Plan. Current backups continue to restore the replacement history safely.
+- 48f6422: User-facing: Diagnostic logs now hide sensitive error text and credential-bearing URLs. Secret helper failures show an exit code and setup guidance without exposing helper output.
+- 3627ecd: Retain unsummarized conversation history after compaction failures and stop when it cannot safely fit.
+
+  User-facing: If a conversation summary fails, the coach keeps the original context or asks you to try again instead of silently forgetting earlier goals and corrections.
+
+- 2a2c852: User-facing: The usage log now counts cached tokens once, so the cost it shows for API-key providers matches what the provider bills.
+- 0aec54a: User-facing: On Linux, Enduragent now starts its local service itself when none is running instead of reporting that it could not reach the service.
+
+  Registration reads treat Linux like Windows: app-supervised with no launchd registration, unless a caller supplies an explicit registration state. The isolated development profile binding also accepts Linux, so the Linux desktop E2E job runs the same startup path as the packaged macOS fixture.
+
+- 3077144: User-facing: Your coach can remember decisions as you share them without saving duplicates, and find earlier versions of your stored information. Memory reads avoid repeating the athlete details already shown to your coach.
+- dcf7366: Mirror Chat-owned Plans to intervals.icu: activation, changes, and stops enqueue calendar work that runs in the background, and the Plan library reports its calendar state.
+
+  User-facing: Workouts from a Plan you start or change in Chat now appear on your intervals.icu calendar for the coming week, and stopping a Plan removes the ones from tomorrow onward.
+
+- ccbecf6: User-facing: Your Plan now shows whether its dated Workouts are up to date on your calendar, still updating, or waiting for a connection. You can retry a failed calendar update and check cleanup after stopping a Plan.
+- 5b5a1c3: Add Plan Change previews and confirmed apply for the five Schedule intents to the coach service.
+
+  User-facing: The coach can now show you exactly which future Workouts would change when you limit a weekday, keep a day free, avoid hard training on a day, cap your weekly hours, or cap your longest ride, and it only changes your Plan after you confirm.
+
+- 79299e5: User-facing: Choose an eligible Workout for today from your flexible Plan, review its date, and confirm when ready. Undo returns the Workout to its undated state.
+- dda55c6: User-facing: Choose an eligible workout for today in a flexible Plan after reviewing the change. Undo returns it to the undated choices.
+- abd69af: User-facing: Add, edit, rename, or remove Supporting Events with a preview before changing your Plan. See the event details and Undo your latest change.
+- dbc5305: User-facing: Preview and confirm supporting event changes to adjust your training around an event. Important events shorten nearby workouts, and Undo restores your previous Plan.
+- 68fc766: Correct your FTP from Chat and see the power each Workout will use.
+
+  User-facing: Choose Correct FTP in the Plan Change editor, enter your watts, and review which Workouts change and which FTP sources the coach compared before you confirm.
+
+- 7cba66d: User-facing: Correct your FTP through a previewed Plan Change to update future workout power guidance and save your FTP. Undo restores the previous Plan values.
+- ae1cbb1: User-facing: When you ask the coach to change your plan in chat, it understands weekdays, session lengths and weekly hours more reliably.
+- 09ddb36: Refuse training increases in the final week before your goal event.
+
+  User-facing: In the final week before your goal event, you can reduce your training but cannot add longer or harder workouts before the event.
+
+- c2d5ea2: Preview and apply Plan Schedule changes from Chat.
+
+  User-facing: Ask for one schedule change to your active Plan, such as a shorter Wednesday or a free weekday, review the exact Workouts it would touch, and apply or cancel it.
+
+- 6eb0b3a: Show why Plan Changes are paused when training data is stale.
+
+  User-facing: When your training data has not synced for over a day, Chat tells you Plan Changes are paused, keeps your pending preview safe, and lets you know when sources are available again.
+
+- 60a0354: Pause Plan Changes while synchronized training is older than 24 hours.
+
+  User-facing: If your connected training data has not synced for more than a day, Plan Changes wait until you refresh the connection, so the coach never changes your Plan on stale information.
+
+- ee26271: User-facing: Type a change while reviewing your Plan changes to preview it before confirming. Requests that cannot be handled explain why, and separate changes must be requested one at a time.
+- 841763b: User-facing: You can preview a Plan change from a written request. Ask for one change at a time and confirm the preview before your Plan changes.
+- 1f1cdbc: Prepare Undo for the latest applied Plan Change as a previewed inverse.
+
+  User-facing: The coach can now work out the exact opposite of your latest applied Plan Change so you can review and confirm it before anything moves back.
+
+- 918f2ae: Undo the latest applied Plan Change from Chat after reviewing the exact reverse.
+
+  User-facing: Your latest applied Plan Change now has an Undo button. It shows you exactly what would move back, leaves completed and past training alone, and changes nothing until you confirm.
+
+- 7d87aae: Add Plan closure, automatic completion after the final day, and final history reads to the coach service.
+
+  User-facing: Your Plan finishes on its own the day after its last week ends, and the coach keeps its final training readable.
+
+- 2871fe2: Add the Stop Plan dialog, closed Plan history reading, and host-driven completion to the Plan page.
+
+  User-facing: You can stop your active Plan from the Plan page, and every closed Plan keeps its final training readable in the library.
+
+- 4f47a7a: User-facing: Review the exact limits understood from your written commitments before confirming them. You can clarify or cancel a correction, and your last confirmed limits stay in place until you confirm.
+- 383312b: Block Plan activation until written commitments are acknowledged.
+
+  User-facing: When you type fixed commitments or time off that the Draft could not fit into Workouts, the Plan waits for you to confirm those limits before it activates.
+
+- e7e53cf: User-facing: Your written scheduling limits and time off now shape your plan after you confirm them. Unclear limits wait for clarification, and cancelling a correction keeps your previous limits.
+- 696f1d4: Plan-in-Chat surfaces now follow the prototype: question cards carry Later in the header, the progress card shows Discard as a button, choice rows omit filler details, the availability weekdays are a labelled fieldset, Draft and Change cards use the prototype's spacing and status pills, compact layouts stack facts, and scroll areas no longer show permanent scrollbars.
+
+  User-facing: Plan cards in Chat use consistent dates, shorter choices, and clear calendar status. Repeated notices and labels have been removed.
+
+- 5da0e88: User-facing: A Plan saved before Plans moved to Chat now appears in the Plan library as a read-only closed Plan, so its name, goal and target stay visible.
+- 2d526d8: Plan creation in Chat starts from the `/plan` command in the composer; the Chat surface no longer shows a Start a Plan button. Pressing Enter on an exactly typed slash command sends it immediately.
+
+  User-facing: Type /plan in the chat box to start a Plan. The Start a Plan button in Chat is gone; the Plan page keeps its own.
+
+- 41f33ec: User-facing: Once you start a Plan in Chat, the app remembers that Chat owns your Plans, even after restarts, backups, or restores. The app no longer copies an older saved Plan into its records at startup, and the old Plan page no longer shows a separate calendar update box.
+- 391ff3f: User-facing: The coach reads a shorter set of instructions on every message, so each reply costs a little less. Power is now called weighted avg power everywhere, and the coach no longer rejects realistic FTP values.
+- 529cbf8: User-facing: Coaching panels now say when hidden source data makes an answer unreliable.
+
+  Refuse adherence after any restricted recent activity, and refuse load, performance, and recent-ride panels when half their activity window is restricted.
+
+- 66f0532: User-facing: Your training history now syncs even when most of your rides came from Strava — the sessions intervals.icu can share are saved instead of the whole sync failing with no data at all.
+
+  intervals.icu cannot expose activity detail for Strava-sourced rows under the Strava API Agreement, so it returns a five-key placeholder with no `type`, `moving_time`, `elapsed_time` or streams. The activity index treated a missing `type` as a fatal transport error and aborted the entire pull, so a single placeholder wiped out every other activity in the same window. Placeholder rows are now dropped from the index; rows that do carry a `type` keep the identical strict validation. The `intervals-icu-api` bump to 0.4.0 makes `Activity.type` nullish so the response array parses at all, and the reference sport-adapter dispatcher guards `null` as well as `undefined`.
+
+- 3627ecd: Prepare explicit Astra selection on the public OpenAI API while retaining existing default models and restricting unverified subscription transports.
+
+  User-facing: You can explicitly choose Astra with an OpenAI API key. Existing model choices stay unchanged, and unavailable cost estimates are not shown as known prices.
+
+- 63a0f54: User-facing: When the coach looks up your recent activities or wellness, it now reads only the fields it needs, so those checks cost fewer tokens and long date ranges no longer flood a reply.
+- 4018b25: Keep Training History freshness and calendar windows anchored to the current successful sync and the athlete's active timezone.
+
+  User-facing: Training History now stays current after a successful sync that finds no new data, and its week boundaries follow your active timezone without requiring a restart.
+
 ## 2026.8.18
 
 ### Patch Changes

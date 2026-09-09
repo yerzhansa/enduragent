@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/core",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Sport-agnostic infrastructure for AI coaching agents (agent loop, memory, secrets, channels, LLM, intervals.icu). Publishes the Sport contract.",
   "type": "module",

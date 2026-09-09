@@ -1,5 +1,13 @@
 # @enduragent/sport-duathlon
 
+## 0.0.7
+
+### Patch Changes
+
+- 09c5ca3: Refresh runtime dependencies, including XML parser security fixes and desktop updater compatibility updates.
+
+  User-facing: This update improves the safety of imported files and refreshes the libraries used for coaching and app updates.
+
 ## 0.0.6
 
 ### Patch Changes

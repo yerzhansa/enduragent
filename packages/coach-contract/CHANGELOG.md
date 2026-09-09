@@ -1,5 +1,46 @@
 # @enduragent/coach-contract
 
+## 0.1.2
+
+### Patch Changes
+
+- 39902fa: User-facing: A reviewed Draft can now become your active Plan. Activating closes any Plan that was running and keeps your answers with the new Plan.
+- 09c5ca3: Refresh runtime dependencies, including XML parser security fixes and desktop updater compatibility updates.
+
+  User-facing: This update improves the safety of imported files and refreshes the libraries used for coaching and app updates.
+
+- b2ddccb: User-facing: Plan creation in Chat can now build a Draft from your answers, with every week and Workout laid out under your confirmed limits. The Draft keeps the answers it was built from when you edit them.
+- 2d0128c: Add the privileged Chat attachment-admission contract and durable queued-Message attachment identities.
+- b38ae00: User-facing: Coach answers can now offer a safe Continue in Plan card, resolve Workout date conflicts, retry failed handoffs without duplicates, and recover a Proposal when a local Plan save fails.
+
+  Chat keeps typed Plan handoffs with their transcript turn, while Plan protects athlete-created Workouts and requires review before applying a new date or replacing a coach-owned Workout.
+
+- d6d960f: Chat can securely rebuild a selected Workout handoff and restore its current Plan status after relaunch.
+
+  The daemon resolves local Workout details instead of trusting renderer-provided snapshots, and durable handoffs can be listed by their source conversation.
+
+- 2d09c46: User-facing: Past chats can now be permanently deleted with clear confirmation while imported activities and Plan work stay intact. Chat also keeps its safety note visible when cards stack up, orders those cards consistently, and closes the compact Training context drawer reliably from the keyboard.
+- 9ed12a5: User-facing: The Plan page can now read your unfinished Plan creation, your active Plan, and your closed Plans together.
+- ae1cbb1: User-facing: When you ask the coach to change your plan in chat, it understands weekdays, session lengths and weekly hours more reliably.
+- 918600a: User-facing: Answer the essential Plan questions one at a time in chat by picking from clear choices or writing your own answer, change an earlier answer with Edit, and come back later to pick up where you left off.
+- 9a9665f: Add a confirmation before discarding unfinished Plan Creation work in Chat.
+
+  User-facing: Discard an unfinished Plan you started in chat without affecting your current Plan or your chat history.
+
+- c507634: End an active Plan locally before removing tomorrow-onward Plan-owned Intervals workouts, with durable retry and verify-only recovery that preserves today and athlete-created events.
+- e649a25: Add display-only Estimated CP from two eligible recent measured-power efforts, including stale and unavailable states, an explanatory tooltip, evidence and route-assumption drawers, and strict isolation from FTP and Plan mutations.
+- f6cacbb: Add forward-only race-readiness projections, explicit unavailable and changed-assumption states, refresh recovery, and taper safety refusal without mutating the active Plan.
+- b02a1e8: User-facing: Plans now end automatically after their final date and let athletes record the race as Completed or Not completed without changing their saved Plan.
+- b87174d: Replace an active Plan atomically while preserving today, verify tomorrow-onward cleanup of the old Plan before writing the replacement’s next seven days, and keep failures recoverable after relaunch.
+- 3ad0c39: Show every active Plan week with phase, purpose, status, and planned time, plus a complete authoritative race-week schedule with separate training, race, and total accounting.
+- a52086c: Add Plan-scoped settings with immediate persistence and safely auto-apply eligible future workout duration reductions.
+- 6546ba5: User-facing: Active Plans can now show one automatic, score-free review of the latest completed week after a successful sync.
+- 2567965: User-facing: Plan coach conversations now collect durable training inputs, show a reviewable summary, and create a complete structured Draft before anything can activate or reach the Intervals calendar.
+
+  The Plan composer stays at the bottom, optional Race Course attachment lives inside it, and interrupted intake saves recover from the conversation after relaunch.
+
+- a415177: Add the internal training-history contract, persisted coverage evidence, calendar-aware capture plan, and state composition wiring.
+
 ## 0.1.1
 
 ### Patch Changes

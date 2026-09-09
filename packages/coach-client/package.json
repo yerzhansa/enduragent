@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/coach-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Narrow WebSocket client for the enduragent coaching contract.",
   "license": "MIT",

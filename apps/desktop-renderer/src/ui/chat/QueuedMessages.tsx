@@ -17,6 +17,7 @@ export function QueuedMessages(): ReactElement | null {
 
   return (
     <QueuedMessageList
+      className="mb-row"
       title="Queued messages"
       count={queued.length}
       announcement={queueLabel}
