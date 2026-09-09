@@ -547,7 +547,7 @@ describe("engine durable chat queue", () => {
     });
     const history = value.ports.chatStore.load("desktop").messages;
     expect(history).toMatchObject([
-      { role: "user", content: "Review this image" },
+      { role: "user", content: expect.stringMatching(/^Review this image\nCurrent time: /) },
       { role: "assistant", content: "Reviewed image" },
     ]);
     expect(JSON.stringify(history)).not.toContain("137,80,78,71");

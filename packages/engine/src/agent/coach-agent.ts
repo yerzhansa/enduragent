@@ -355,6 +355,7 @@ export interface DeferredPlanTurn {
   readonly chatId: string;
   readonly turnId: string;
   readonly athleteText: string;
+  readonly sentAthleteText: string;
   readonly coachText: string;
   readonly transcriptCoachText: string;
   readonly completedAt: string;
@@ -1325,7 +1326,7 @@ export class CoachAgent {
               let persistenceNote = "";
               if (!deferPlanTurn) {
                 try {
-                  this.chatStore.appendTurn(chatId, userMessage, effectiveText, lineage);
+                  this.chatStore.appendTurn(chatId, userMessageWithTime, effectiveText, lineage);
                 } catch (persistErr) {
                   console.warn("Session persistence failed; delivering reply unsaved", persistErr);
                   persistenceNote = noteForPersistenceFailure(persistErr);
@@ -1369,6 +1370,7 @@ export class CoachAgent {
                   turnId,
                   completedAt,
                   athleteText: userMessage,
+                  sentAthleteText: userMessageWithTime,
                   coachText: effectiveText,
                   transcriptCoachText: responseText,
                   lineage,
@@ -1605,7 +1607,7 @@ export class CoachAgent {
             );
             const templateHash = this.templateHashForChat(chatId, turnTools);
             try {
-              this.chatStore.appendTurn(chatId, userMessage, streamedText, {
+              this.chatStore.appendTurn(chatId, userMessageWithTime, streamedText, {
                 templateHash,
                 assembledHash: computeAssembledHash(systemPrompt, providerMessages),
                 provider: this.config.llm.provider,
@@ -1680,11 +1682,12 @@ export class CoachAgent {
       !turn.chatId.startsWith("plan:") ||
       turn.turnId.length === 0 ||
       turn.athleteText.length === 0 ||
+      turn.sentAthleteText.length === 0 ||
       turn.coachText.length === 0
     ) {
       throw new TypeError("Deferred Plan turn is invalid.");
     }
-    this.chatStore.appendTurn(turn.chatId, turn.athleteText, turn.coachText, turn.lineage);
+    this.chatStore.appendTurn(turn.chatId, turn.sentAthleteText, turn.coachText, turn.lineage);
     this.recordCompletedTurn({
       chatId: turn.chatId,
       turnId: turn.turnId,
