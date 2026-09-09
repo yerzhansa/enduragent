@@ -34,6 +34,831 @@
       "saving": "Eenheden opslaan…",
       "title": "Eenheden",
       "unavailable": "Eenhedenvoorkeur niet beschikbaar"
+    },
+    "application": {
+      "check": "Controleren op updates",
+      "checkFailed": "Controleren op updates mislukt. Probeer het opnieuw",
+      "checking": "Controleren op updates",
+      "checkingAction": "Controleren…",
+      "current": "{{product}} is up-to-date",
+      "danger": "Gevaar",
+      "downloadFailed": "Update downloaden mislukt. Probeer het opnieuw",
+      "downloading": "Update {{version}} downloaden",
+      "downloadingAction": "Downloaden…",
+      "downloadTimedOut": "Het downloaden van de update duurde te lang. Sluit {{product}} af en open het opnieuw om het nogmaals te proberen.",
+      "reset": "Gesprek opnieuw instellen",
+      "resetDetail": "Wist het zichtbare gesprek. Trainingsgegevens en het opgeslagen coachgeheugen blijven bewaard.",
+      "restart": "Opnieuw opstarten om bij te werken naar versie {{version}}",
+      "restartAction": "Opnieuw opstarten om bij te werken",
+      "restarting": "Opnieuw opstarten om versie {{version}} te installeren",
+      "restartingAction": "Opnieuw opstarten…",
+      "restartRequired": "Start {{product}} opnieuw op om updates te hervatten",
+      "retry": "Update opnieuw proberen",
+      "startFailed": "Updates konden niet starten. Sluit {{product}} af en open het opnieuw om het nogmaals te proberen.",
+      "title": "Applicatie",
+      "unavailable": "Updates niet beschikbaar",
+      "version": "Versie {{version}}",
+      "versionUnknown": "onbekend"
+    },
+    "athlete": {
+      "credentialMissing": "Er zijn geen toegangsgegevens voor een trainingsaccount gekoppeld. Gebruik het configuratiegedeelte hierboven om ze te koppelen.",
+      "detail": "Hiermee kun je alleen het momenteel gekoppelde trainingsaccount identificeren. Je kunt er niet mee van account wisselen.",
+      "error": {
+        "credentialRequired": "Koppel het trainingsaccount in Configuratie voordat je de atleet-ID opslaat.",
+        "managedByEnvironment": "De atleet-ID wordt buiten {{product}} beheerd en is niet gewijzigd.",
+        "notApplied": "De atleet-ID is niet toegepast. Maak opnieuw verbinding en laad opnieuw voordat je het nogmaals probeert.",
+        "ownershipUnavailable": "Het gekoppelde trainingsaccount kon niet worden geverifieerd. Maak opnieuw verbinding en laad opnieuw voordat je het nogmaals probeert.",
+        "requestFailed": "De atleet-ID kon niet worden opgeslagen. Je wijziging staat er nog.",
+        "runtimeUnavailable": "Het huidige trainingsaccount kon niet opnieuw worden geladen. Je wijziging staat er nog.",
+        "trainingAccountMismatch": "Die atleet-ID hoort niet bij het momenteel gekoppelde trainingsaccount."
+      },
+      "futurePrefix": "Voor toekomstige ritten: ",
+      "help": "Gebruik de exacte ID die hoort bij de toegangsgegevens die al in Configuratie zijn gekoppeld.",
+      "id": "Atleet-ID",
+      "loading": "Trainingsaccountinstellingen laden…",
+      "pastPrefix": "Voor eerdere ritten: ",
+      "refreshing": "Opnieuw verbinden en het huidige trainingsaccount controleren…",
+      "reload": "Opnieuw verbinden en laden",
+      "restriction": {
+        "cause": "Door een API-beperking van {{strava}} kan {{intervalsLower}} activiteiten die van {{strava}} afkomstig zijn niet delen met {{product}}. Je API-sleutel is in orde.",
+        "future": "Koppel je opnamebron rechtstreeks aan {{intervalsLower}} en houd {{strava}} gekoppeld. Dit is gratis en geldt voor toekomstige ritten.",
+        "past": "Gebruik Alle {{strava}}-gegevens importeren in de instellingen van {{intervalsLower}}. Dit geldt voor eerdere ritten en vereist een supporterabonnement op {{intervalsLower}}.",
+        "title_one": "{{restricted}} van {{total}} activiteit is verborgen door {{strava}}",
+        "title_other": "{{restricted}} van {{total}} activiteiten zijn verborgen door {{strava}}"
+      },
+      "reviewSetup": "Configuratie bekijken",
+      "save": "Atleet-ID opslaan",
+      "saved": "Atleet-ID opgeslagen.",
+      "saving": "Atleet-ID opslaan…",
+      "title": "Trainingsaccount",
+      "unavailable": "Trainingsaccountinstellingen zijn niet beschikbaar. Maak opnieuw verbinding en laad opnieuw.",
+      "validation": {
+        "athleteControlCharacters": "Atleet-ID's mogen geen stuurtekens bevatten.",
+        "athleteRequired": "Voer de atleet-ID van het gekoppelde trainingsaccount in.",
+        "athleteTooLong": "Atleet-ID's mogen maximaal 512 tekens bevatten.",
+        "athleteWhitespace": "Atleet-ID's mogen niet beginnen of eindigen met witruimte."
+      },
+      "verificationPending": "Het gekoppelde trainingsaccount verifiëren… Trainingsgegevens blijven gepauzeerd totdat dit is voltooid."
+    },
+    "coach": {
+      "active": "Actief",
+      "activeUnavailable": "De actieve coachinstellingen zijn niet beschikbaar of niet geconfigureerd.",
+      "automatic": "Automatisch",
+      "changeRequired": "Wijziging vereist",
+      "chooseModel": "Kies een model",
+      "chooseProvider": "Kies een aanbieder",
+      "chooseProviderFirst": "Kies eerst een aanbieder",
+      "currentRoute": "Momenteel actief: {{provider}} · {{model}}",
+      "customModel": "Aangepaste modelnaam",
+      "endpoint": "Eindpunt",
+      "endpointDetail": "{{product}} kiest het eindpunt van de aanbieder voor deze route.",
+      "error": {
+        "credentialRequired": "Deze aanbieder heeft opgeslagen toegangsgegevens nodig om je te kunnen coachen. Voeg ze toe in het configuratiegedeelte hierboven.",
+        "invalidInput": "Die aanbieder of dat model is niet geaccepteerd. Controleer de modelnaam en probeer het opnieuw.",
+        "requestFailed": "Coachinstellingen konden nu niet worden opgeslagen. Probeer het opnieuw.",
+        "runtimeUnavailable": "Coachinstellingen konden niet worden geactiveerd. Probeer opnieuw op te slaan."
+      },
+      "inactive": "Niet actief",
+      "loading": "Coachinstellingen laden…",
+      "model": "Model",
+      "notConfigured": "Niet geconfigureerd",
+      "otherModel": "Ander model…",
+      "provider": "Aanbieder",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}}-abonnement",
+        "claude": "{{claude}}-abonnement",
+        "codex": "{{codex}}-agent (experimenteel)"
+      },
+      "retry": "Opnieuw proberen",
+      "reviewSetup": "Configuratie bekijken",
+      "route": "Coachroute",
+      "save": "Coachroute opslaan",
+      "saved": "Coachinstellingen opgeslagen.",
+      "saving": "Coachinstellingen opslaan…",
+      "title": "Coach",
+      "unavailable": "Coachinstellingen zijn nu niet beschikbaar. Probeer het opnieuw.",
+      "unsaved": "Niet opgeslagen",
+      "unsupported": "De {{codex}}-agent wordt niet ondersteund op {{operatingSystem}}. Kies een {{claude}}-abonnement of een aanbieder met een API-sleutel en sla de coachroute op. Je toegangsgegevens, atleetgegevens, gesprekken en andere instellingen blijven ongewijzigd.",
+      "validation": {
+        "modelControlCharacters": "Modelnamen mogen geen stuurtekens bevatten.",
+        "modelRequired": "Voer een modelnaam in.",
+        "modelTooLong": "Modelnamen mogen maximaal 512 tekens bevatten."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Gesprek en tijd",
+      "detail": "Stel in wanneer gesprekken opnieuw beginnen en hoeveel recente context je coach meeneemt.",
+      "error": {
+        "notApplied": "Gespreksinstellingen zijn niet toegepast. Maak opnieuw verbinding en laad opnieuw voordat je het nogmaals probeert.",
+        "requestFailed": "Gespreksinstellingen konden niet worden opgeslagen. Je wijzigingen staan er nog.",
+        "runtimeUnavailable": "De huidige gespreksinstellingen konden niet opnieuw worden geladen. Je wijzigingen staan er nog."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Uur in de lokale tijd van de atleet, van 0 tot 23. Een wijziging kan ervoor zorgen dat je volgende bericht een nieuw gesprek begint.",
+          "label": "Uur voor dagelijks opnieuw instellen"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Deel van de modelcontext dat is gereserveerd voor de gespreksgeschiedenis, meer dan 0% en maximaal 100%.",
+          "label": "Ruimte voor geschiedenis"
+        },
+        "idleMinutes": {
+          "help": "Aantal hele minuten zonder bericht voordat het gesprek opnieuw begint. Gebruik 0 om dit uit te schakelen.",
+          "label": "Opnieuw instellen bij inactiviteit",
+          "suffix": "minuten"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Aantal hele dagen dat archieven van opnieuw ingestelde gesprekken bewaard blijven. Gebruik 0 om ze voor altijd te bewaren. Wijzigingen gelden alleen voor toekomstige opschoning.",
+          "label": "Bewaartermijn archief",
+          "suffix": "dagen"
+        },
+        "timezone": {
+          "help": "Gebruik een IANA-tijdzone, zoals {{timezone}}. {{product}} volgt de tijdzone van deze computer totdat je er hier een opslaat en blijft daarna jouw keuze gebruiken.",
+          "label": "Tijdzone"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Gespreksinstellingen laden…",
+      "refreshing": "Opnieuw verbinden en de huidige instellingen controleren…",
+      "reload": "Opnieuw verbinden en laden",
+      "save": "Gespreksinstellingen opslaan",
+      "saved": "Gespreksinstellingen opgeslagen.",
+      "saving": "Gespreksinstellingen opslaan…",
+      "title": "Gesprek en tijd",
+      "unavailable": "Gespreksinstellingen zijn niet beschikbaar. Maak opnieuw verbinding en laad opnieuw.",
+      "validation": {
+        "dailyResetHour": "Voer een heel uur van 0 tot 23 in.",
+        "historyTokenBudgetRatio": "Voer een ruimte voor geschiedenis in van meer dan 0% en maximaal 100%.",
+        "idleMinutes": "Voer een veilig geheel aantal minuten in, 0 of meer.",
+        "resetArchiveRetentionDays": "Voer een veilig geheel aantal dagen in, 0 of meer.",
+        "timezone": "Voer een geldige IANA-tijdzone in, zoals {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Wijzigen",
+      "changeAria": "Toegangsgegevens voor {{provider}} wijzigen",
+      "claudeProvider": "{{claude}}-abonnement",
+      "codexProvider": "{{codex}}-agent",
+      "delete": {
+        "action": "Verwijderen",
+        "aria": "Toegangsgegevens voor {{provider}} verwijderen",
+        "confirmAria": "Verwijderen van de toegangsgegevens voor {{provider}} bevestigen",
+        "connection": "Verbinding verwijderen",
+        "credential": "Toegangsgegevens verwijderen",
+        "detail": "Dit verwijdert ze alleen van {{computer}}. {{product}} stopt met het gebruik ervan als ze actief zijn. Je account bij de aanbieder blijft ongewijzigd.",
+        "intervalsAria": "De verbinding met {{intervals}} verwijderen",
+        "intervalsDetail": "Je opgeslagen API-sleutel en geïmporteerde verbinding worden verwijderd. Je gesynchroniseerde ritten en eerdere chats blijven op {{computer}}.",
+        "intervalsTitle": "De verbinding met {{intervals}} verwijderen?",
+        "title": "De toegangsgegevens voor {{provider}} verwijderen?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Verwijderen van toegangsgegevens geannuleerd.",
+          "cleanupPending": "Toegangsgegevens lokaal verwijderd. Het opschonen van de beveiligde opslag wordt opnieuw geprobeerd.",
+          "confirmProvider": "Bevestig het verwijderen van de toegangsgegevens voor {{provider}}.",
+          "deleted": "Toegangsgegevens lokaal verwijderd.",
+          "deletingProvider": "Toegangsgegevens voor {{provider}} lokaal verwijderen…",
+          "keyUnverified": "De toegangsgegevens zijn behouden omdat de beveiligde opslag de versleutelingssleutel niet kon bevestigen.",
+          "managed": "Deze toegangsgegevens worden buiten Instellingen beheerd en kunnen hier niet worden verwijderd.",
+          "notStored": "Die toegangsgegevens zijn niet meer opgeslagen. Laad opnieuw om de lijst te vernieuwen.",
+          "reconcileFailed": "De opgeslagen en actieve status van de toegangsgegevens konden niet op elkaar worden afgestemd. Maak opnieuw verbinding en laad opnieuw voordat je het nogmaals probeert.",
+          "refreshFailed": "Toegangsgegevens lokaal verwijderd. De huidige status kon niet worden vernieuwd.",
+          "retained": "De toegangsgegevens blijven opgeslagen. Het verwijderen is niet voltooid. Probeer het opnieuw.",
+          "setupRefreshFailed": "Toegangsgegevens lokaal verwijderd, maar de configuratiestatus kon niet worden vernieuwd. Laad de status van de toegangsgegevens opnieuw.",
+          "stopFailed": "De coach kon niet veilig stoppen met het gebruik van deze toegangsgegevens. Ze zijn niet verwijderd.",
+          "unverified": "Het verwijderen van toegangsgegevens kon niet worden bevestigd omdat de beveiligde opslag niet kon worden geverifieerd. Start {{product}} opnieuw op en laad opnieuw voordat je het nogmaals probeert."
+        },
+        "recovery": {
+          "locked": "Ontgrendel je inlogsleutelhanger buiten {{product}} en kies daarna Opnieuw proberen.",
+          "missing": "De versleutelingssleutel voor toegangsgegevens ontbreekt. Herstel deze indien mogelijk en kies Opnieuw proberen, of verwijder alle toegangsgegevens en begin opnieuw.",
+          "unavailable": "Beveiligde opslag van toegangsgegevens is niet beschikbaar. Probeer het opnieuw, of verwijder alle toegangsgegevens en begin opnieuw.",
+          "unverified": "{{product}} kan sommige opgeslagen toegangsgegevens niet veilig openen. Voer de betreffende toegangsgegevens opnieuw in."
+        },
+        "reset": {
+          "cancelled": "Verwijderen van toegangsgegevens geannuleerd.",
+          "cleanupPending": "Alle toegangsgegevens zijn verwijderd. Het opschonen van de beveiligde opslag wordt opnieuw geprobeerd.",
+          "confirm": "Bevestig het verwijderen van alle toegangsgegevens.",
+          "reloadFailed": "Toegangsgegevens zijn verwijderd, maar Instellingen kon niet opnieuw worden geladen. Maak opnieuw verbinding en laad opnieuw.",
+          "removed": "Alle toegangsgegevens zijn verwijderd. Stel ze opnieuw in wanneer je zover bent.",
+          "removeFailed": "{{product}} kon niet alle opgeslagen toegangsgegevens verwijderen. Probeer het opnieuw.",
+          "removing": "Alle toegangsgegevens verwijderen…",
+          "stopFailed": "{{product}} kon niet stoppen met het gebruik van alle actieve toegangsgegevens. Probeer het opnieuw om het verwijderen af te ronden.",
+          "unverified": "Het verwijderen van toegangsgegevens kon niet worden geverifieerd omdat Instellingen niet opnieuw kon worden geladen. Maak opnieuw verbinding en laad opnieuw."
+        },
+        "unavailable": "Opgeslagen toegangsgegevens zijn niet beschikbaar. Maak opnieuw verbinding en laad opnieuw."
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}}-profiel",
+        "provider": "API-sleutel van aanbieder",
+        "training": "Trainingsaccountsleutel"
+      },
+      "loading": "Opgeslagen toegangsgegevens laden…",
+      "reconnect": "Opnieuw verbinden en laden",
+      "reload": "Status van toegangsgegevens opnieuw laden",
+      "repairRequired": "De status van opgeslagen toegangsgegevens moet opnieuw worden geladen voordat de configuratie kan doorgaan.",
+      "reset": {
+        "confirm": "Alle toegangsgegevens verwijderen",
+        "detail": "Dit verwijdert alle opgeslagen AI-toegangsgegevens, {{chatgpt}}-profielen, {{intervals}}-sleutels, {{telegram}}-tokens en de gedeelde versleutelingssleutel van {{computer}}. Accounts en geïmporteerde gegevens blijven ongewijzigd.",
+        "title": "Alle toegangsgegevens verwijderen?"
+      },
+      "retry": "Opnieuw proberen",
+      "retryEntry": "Opnieuw invoeren",
+      "runtime": {
+        "active": "Actief",
+        "failed": "Aandacht nodig",
+        "storedInactive": "Opgeslagen, niet actief",
+        "verifying": "Verifiëren…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Beheerd door een omgevingsvariabele. Wijzig deze buiten {{product}}.",
+    "palette": {
+      "app": "Kleurenpalet van de app",
+      "use": "Het kleurenpalet {{palette}} gebruiken"
+    },
+    "saving": "Opslaan…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Expliciete caching op deze route.",
+        "none": "Geen cachelezingen",
+        "providerDependent": "Caching afhankelijk van de aanbieder, geen expliciet onderbrekingspunt op deze route.",
+        "savings": "{{tokens}} uit de cache gelezen tokens · {{amount}} bespaard",
+        "unavailable": "caching niet beschikbaar op deze route",
+        "unknown": "{{tokens}} uit de cache gelezen tokens · besparing niet beschikbaar"
+      },
+      "cap": {
+        "aria": "Dagelijkse uitgavenlimiet",
+        "failed": "De daglimiet kon niet worden opgeslagen.",
+        "invalid": "Voer een daglimiet hoger dan $0 in.",
+        "label": "Daglimiet (USD)",
+        "save": "Limiet opslaan",
+        "value": "{{known}} van {{cap}}"
+      },
+      "date": "{{day}} {{month}}",
+      "detail": "Uitgaven aan taalmodellen ten opzichte van de limiet van vandaag",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "apr",
+        "august": "aug",
+        "december": "dec",
+        "february": "feb",
+        "january": "jan",
+        "july": "jul",
+        "june": "jun",
+        "march": "mrt",
+        "may": "mei",
+        "november": "nov",
+        "october": "okt",
+        "september": "sep"
+      },
+      "notice": {
+        "incomplete": "Sommige kosten van aanbieders zijn niet beschikbaar. Het totaal van vandaag is daarom een bekend minimum.",
+        "malformed": "Sommige gebruiksgegevens konden niet worden gelezen.",
+        "saved": "{{amount}} bespaard door cachelezingen",
+        "savedMinimum": "Minstens {{amount}} bespaard door cachelezingen",
+        "stale": "Uitgavengegevens zijn mogelijk verouderd."
+      },
+      "notional": "Het abonnementsgebruik zou via de API {{amount}} hebben gekost. Er is geen geld uitgegeven en het telt niet mee voor je limiet.",
+      "priced": "Kosten van {{priced}}/{{total}} generaties berekend",
+      "routeNotional": "zou via de API {{amount}} hebben gekost",
+      "routes": "Uitgavendetails",
+      "title": "Uitgaven",
+      "today": "Vandaag",
+      "todayDate": "Vandaag · {{date}}",
+      "unavailable": "Uitgavengegevens niet beschikbaar."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "Een andere app of implementatie vraagt deze bot al om updates. Stop dat daar en kies daarna Opnieuw controleren. Verschillende bots kunnen wel tegelijk actief zijn.",
+        "credentialUnavailable": "Het opgeslagen bottoken kon niet uit de beveiligde opslag worden gelezen. Sluit {{product}} af, open het opnieuw en kies Opnieuw controleren. Als het nog steeds niet kan worden gelezen, verwijder dan deze verbinding en koppel een nieuwe bot.",
+        "daemonUnavailable": "De lokale coachservice is niet beschikbaar. Houd {{product}} open en kies Opnieuw controleren.",
+        "drainRequired": "Een antwoord via {{telegram}} wordt nog afgerond. Wacht even en probeer het opnieuw.",
+        "encryption": "Beveiligde tokenopslag is niet beschikbaar. Sluit {{product}} af, open het opnieuw, {{recoveryAction}} en kies daarna Opnieuw controleren.",
+        "homeMismatch": "Desktop is verbonden met een andere atleetomgeving. Start {{product}} opnieuw op en controleer opnieuw.",
+        "identityUnknown": "De opgeslagen verbinding met {{telegram}} kon niet worden geverifieerd. Kies Opnieuw controleren voordat je iets anders probeert.",
+        "invalidToken": "{{telegram}} heeft het opgeslagen token geweigerd. Verwijder deze verbinding en koppel een nieuwe bot met een gekopieerd token van {{botFather}}.",
+        "offline": "{{telegram}} is tijdelijk offline. {{product}} probeert het opnieuw zolang {{computer}} wakker en online is.",
+        "startFailed": "{{telegram}} kon niet starten. Houd {{product}} open, controleer de internetverbinding en kies Opnieuw controleren.",
+        "storageFailed": "De versleutelde toegangsgegevens van de bot konden niet worden opgeslagen. Controleer de toegang tot de lokale schijf en probeer het opnieuw.",
+        "storageUncertain": "De instellingen van {{telegram}} zijn mogelijk niet volledig opgeslagen. Laat {{telegram}} ongewijzigd en kies Opnieuw controleren voordat je iets anders probeert.",
+        "transferRequired": "Deze bot hoort bij een andere installatie of gehoste implementatie van {{product}}. Verwijder de verbinding daar en koppel de bot hier opnieuw met een gekopieerd token.",
+        "unsafeBackend": "Er is geen beveiligde opslag voor toegangsgegevens beschikbaar. Daarom heeft {{product}} de toegang tot het opgeslagen bottoken zonder versleuteling geweigerd. Sluit {{product}} af, open het opnieuw en kies Opnieuw controleren."
+      },
+      "availability": "{{telegram}} werkt alleen zolang {{product}} en de lokale coachservice actief zijn en {{computer}} wakker en online is.",
+      "channel": {
+        "conflict": "Conflict bij ophalen van updates",
+        "connecting": "Verbinden",
+        "failed": "Aandacht nodig",
+        "off": "Uit",
+        "online": "Online",
+        "reconnecting": "Opnieuw verbinden",
+        "suspended": "Gepauzeerd tijdens slaapstand",
+        "tokenRejected": "Token geweigerd",
+        "transferRequired": "Overdracht vereist",
+        "waitingForCredential": "Bottoken nodig"
+      },
+      "check": "Opnieuw controleren",
+      "delete": {
+        "action": "Verwijderen",
+        "confirm": "Verbinding verwijderen",
+        "detail": "Dit schakelt de bot uit en verwijdert het versleutelde token en de toegang voor toegestane gebruikers van {{computer}}. De {{telegram}}-bot en de bijbehorende chat blijven in {{telegram}}.",
+        "title": "@{{botUsername}} van {{computer}} verwijderen?"
+      },
+      "detail": "Een aparte bot wordt aanbevolen. Deze krijgt een nieuwe @username en een nieuwe {{telegram}}-chat. Zichtbare geschiedenis van een vorige bot wordt niet overgenomen. Atleetgeheugen, trainingsgegevens en plannen worden gedeeld.",
+      "disable": "Uitschakelen",
+      "enable": "Inschakelen",
+      "feedback": {
+        "failure": {
+          "change": "De instellingen van {{telegram}} konden niet worden gewijzigd. Probeer het opnieuw.",
+          "changeStorageUnverified": "De wijziging is niet toegepast omdat de opslag niet kon worden geverifieerd. Start {{product}} opnieuw op en controleer deze instelling voordat je het nogmaals probeert.",
+          "changeUncertain": "De wijziging in {{telegram}} is mogelijk gestart, maar {{product}} kon niet bevestigen of deze is voltooid. Start {{product}} opnieuw op en controleer deze instelling voordat je het nogmaals probeert.",
+          "clipboardClearFailed": "Het klembord kon niet worden gewist. Daarom is het gekopieerde token niet gebruikt. De huidige {{telegram}}-bot is ongewijzigd.",
+          "clipboardUnavailable": "Het klembord kon niet worden gelezen. Er is geen {{telegram}}-token gebruikt.",
+          "connectUncertain": "Het verbinden met {{telegram}} is mogelijk gestart, maar {{product}} kon niet bevestigen of dit is voltooid. Start {{product}} opnieuw op en controleer {{telegram}} voordat je het nogmaals probeert.",
+          "invalidToken": "{{telegram}} heeft het gekopieerde token geweigerd. De huidige {{telegram}}-bot is ongewijzigd.",
+          "invalidTokenFormat": "Het klembord bevat geen geldig {{telegram}}-bottoken. De huidige {{telegram}}-bot is ongewijzigd.",
+          "pairing": "Het koppelen kon niet starten. Controleer de botverbinding en probeer het opnieuw.",
+          "pairingUncertain": "De primaire {{telegram}}-gebruiker is mogelijk opgeslagen, maar {{product}} kon de opslag niet verifiëren. Start {{product}} opnieuw op en controleer {{telegram}} voordat je opnieuw koppelt.",
+          "pasteToken": "Het bottoken kon niet worden geverifieerd of opgeslagen. Kopieer een nieuw token van {{botFather}} en probeer het opnieuw.",
+          "removeStorageUnverified": "Het verwijderen van de verbinding met {{telegram}} kon niet worden bevestigd omdat de beveiligde opslag niet kon worden geverifieerd. Start {{product}} opnieuw op en controleer {{telegram}} voordat je het nogmaals probeert.",
+          "removeUncertain": "Het verwijderen van de verbinding met {{telegram}} is mogelijk niet voltooid. Start {{product}} opnieuw op en controleer of de bot nog verbonden is voordat je het nogmaals probeert.",
+          "senders": "De lijst met toegestane gebruikers kon niet worden gewijzigd. Controleer de gebruikers-ID en probeer het opnieuw.",
+          "storageFailed": "Het gekopieerde token kon niet worden opgeslagen. De huidige {{telegram}}-bot is ongewijzigd.",
+          "tokenNotApplied": "Het gekopieerde token is niet toegepast. De huidige {{telegram}}-bot is ongewijzigd.",
+          "tokenStorageUnverified": "Het gekopieerde token is niet toegepast omdat de beveiligde opslag niet kon worden geverifieerd. De huidige {{telegram}}-bot is ongewijzigd. Start {{product}} opnieuw op en controleer {{telegram}} voordat je het nogmaals probeert.",
+          "unsafeAccess": "Er is geen beveiligde opslag voor toegangsgegevens beschikbaar. Daarom heeft {{product}} de toegang tot het opgeslagen bottoken zonder versleuteling geweigerd. Sluit {{product}} af, open het opnieuw en kies Opnieuw controleren.",
+          "unsafeToken": "Er is geen beveiligde opslag voor toegangsgegevens beschikbaar. Daarom heeft {{product}} geweigerd het bottoken zonder versleuteling op te slaan. Sluit {{product}} af, open het opnieuw, kopieer het bottoken opnieuw en probeer het nogmaals.",
+          "unsafeTokenUnchanged": "De huidige {{telegram}}-bot is ongewijzigd omdat er geen beveiligde opslag voor toegangsgegevens beschikbaar is. {{product}} heeft geweigerd het gekopieerde token zonder versleuteling op te slaan. Sluit {{product}} af, open het opnieuw, kopieer het bottoken opnieuw en probeer het nogmaals.",
+          "validationUnavailable": "{{telegram}} kon het gekopieerde token nu niet verifiëren. De huidige {{telegram}}-bot is ongewijzigd.",
+          "webhook": "De webhook kon niet worden verwijderd. Controleer de internetverbinding en probeer het opnieuw.",
+          "webhookRemovalRequired": "De bot van het gekopieerde token gebruikt nog een webhook. Verwijder de webhook, verwijder daarna de huidige verbinding en verbind deze bot."
+        },
+        "health": {
+          "conflict": "Een andere service vraagt deze bot al om updates. Stop die implementatie en controleer opnieuw.",
+          "connecting": "{{telegram}} maakt verbinding.",
+          "failed": "{{telegram}} heeft aandacht nodig. Houd de app open, controleer de verbinding en probeer het opnieuw.",
+          "gap": "{{telegram}} is na een lange onderbreking opnieuw verbonden. Sommige berichten zijn mogelijk niet aangekomen.",
+          "invalidToken": "{{telegram}} heeft dit token geweigerd. Verwijder de verbinding en koppel een nieuwe bot met een nieuw token van {{botFather}}.",
+          "off": "{{telegram}} is uitgeschakeld.",
+          "online": "{{telegram}} is online.",
+          "transferRequired": "Deze bot hoort nog bij een andere Desktop-installatie. Verwijder de verbinding daar voordat je de bot hier verbindt.",
+          "waitingForToken": "Kopieer een bottoken van {{botFather}} en plak het vanaf het klembord."
+        },
+        "pairing": {
+          "cancelled": "Het koppelen met {{telegram}} is geannuleerd.",
+          "connected": "{{telegram}} verbonden met @{{username}}. De koppeling moet nog worden ingesteld.",
+          "expired": "De koppelcode is verlopen voordat deze werd gebruikt. Maak een nieuwe code wanneer je zover bent.",
+          "paired": "{{telegram}} is gekoppeld aan de primaire gebruiker.",
+          "ready": "Koppelcode klaar. Stuur deze naar de bot in {{telegram}}.",
+          "refused": "De koppeling is geweigerd omdat deze bot al een primaire gebruiker heeft.",
+          "replaced": "Er staat een nieuwe {{telegram}}-koppelcode klaar. Stuur deze naar de bot in {{telegram}}.",
+          "storageFailed": "De primaire {{telegram}}-gebruiker kon niet worden opgeslagen. Controleer de toegang tot de lokale schijf en probeer opnieuw te koppelen.",
+          "unavailable": "Koppelen is niet beschikbaar totdat de {{telegram}}-bot verbinding kan maken."
+        },
+        "platform": {
+          "encryptionAccess": "Beveiligde tokenopslag is niet beschikbaar. Sluit {{product}} af, open het opnieuw, {{recoveryAction}} en kies daarna Opnieuw controleren.",
+          "encryptionSave": "Beveiligde tokenopslag is niet beschikbaar. Sluit {{product}} af, open het opnieuw, {{recoveryAction}}, kopieer het bottoken opnieuw en probeer het nogmaals.",
+          "encryptionUnchanged": "De huidige {{telegram}}-bot is ongewijzigd omdat beveiligde tokenopslag niet beschikbaar is. Sluit {{product}} af, open het opnieuw, {{recoveryAction}}, kopieer het bottoken opnieuw en probeer het nogmaals.",
+          "offline": "{{telegram}} is offline. {{product}} blijft het proberen zolang {{computer}} wakker en online is.",
+          "removed": "Verbinding met {{telegram}} verwijderd van {{computer}}.",
+          "suspended": "Het ophalen van {{telegram}}-updates is gepauzeerd terwijl {{computer}} slaapt.",
+          "webhookConnect": "De bot van het gekopieerde token gebruikt nog een webhook. Verwijder de webhook voordat je de bot aan {{computer}} koppelt.",
+          "webhookVerified": "Bot geverifieerd. Verwijder de webhook voordat je de bot aan {{computer}} koppelt."
+        },
+        "sender": {
+          "added": "{{telegram}}-gebruiker toegevoegd.",
+          "daemonUncertain": "De lijst met toegestane gebruikers is mogelijk gewijzigd, maar {{product}} heeft geen bevestiging ontvangen van de lokale coachservice. Start {{product}} opnieuw op en controleer de lijst voordat je het nogmaals probeert.",
+          "removed": "{{telegram}}-gebruiker verwijderd.",
+          "storageUncertain": "De lijst met toegestane gebruikers is mogelijk gewijzigd, maar {{product}} kon de opslag niet verifiëren. Start {{product}} opnieuw op en controleer de lijst voordat je het nogmaals probeert."
+        },
+        "unavailable": "De instellingen van {{telegram}} zijn niet beschikbaar. Houd de app open en probeer het opnieuw.",
+        "working": {
+          "acknowledgeGap": "De bezorgwaarschuwing van {{telegram}} wissen…",
+          "addSender": "Een {{telegram}}-gebruiker toevoegen…",
+          "beginPairing": "Een privékoppelcode maken…",
+          "cancelPairing": "Koppeling annuleren…",
+          "disable": "{{telegram}} uitschakelen…",
+          "enable": "{{telegram}} inschakelen…",
+          "pasteToken": "Het {{telegram}}-token lezen en verifiëren…",
+          "reconcile": "De verbinding met {{telegram}} controleren…",
+          "remove": "De verbinding met {{telegram}} verwijderen…",
+          "removeSender": "De {{telegram}}-gebruiker verwijderen…",
+          "removeWebhook": "De webhook van de bot verwijderen…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Bevestigen",
+        "detail": "De bot is na een lange onderbreking hervat. Berichten die in die tijd zijn verstuurd, hebben {{product}} mogelijk niet bereikt. Controleer de {{telegram}}-chat voordat je deze waarschuwing wist.",
+        "title": "Controleer {{telegram}} op gemiste berichten"
+      },
+      "paired": "Gekoppeld aan een primaire {{telegram}}-gebruiker",
+      "pairing": {
+        "cancel": "Koppeling annuleren",
+        "code": "{{telegram}}-koppelcode",
+        "detail": "Een code die één minuut geldig is, zorgt ervoor dat alleen iemand met toegang tot {{computer}} de bot kan claimen.",
+        "expired": "De koppelcode is verlopen voordat deze werd gebruikt. Maak een nieuwe code wanneer je zover bent.",
+        "expires": "Verloopt om {{time}}",
+        "instruction": "Stuur deze code als privébericht naar @{{username}}. Het eerste account dat de code stuurt, wordt de primaire gebruiker en de bot blijft online.",
+        "primary": "De primaire gebruiker koppelen",
+        "refused": "De koppeling is geweigerd omdat deze bot al een primaire gebruiker heeft.",
+        "restart": "Nieuwe code maken en inschakelen",
+        "start": "Koppeling starten en inschakelen",
+        "storageFailed": "De primaire {{telegram}}-gebruiker kon niet worden opgeslagen. Controleer de toegang tot de lokale schijf en probeer opnieuw te koppelen.",
+        "storageUncertain": "De primaire {{telegram}}-gebruiker is mogelijk opgeslagen, maar {{product}} kon de opslag niet verifiëren. Start {{product}} opnieuw op en controleer {{telegram}} voordat je opnieuw koppelt.",
+        "title": "Je {{telegram}}-account koppelen",
+        "unavailable": "Koppelen is niet beschikbaar totdat de {{telegram}}-bot verbinding kan maken."
+      },
+      "reloadDetail": "Laad de opgeslagen verbindingsstatus opnieuw voordat je iets anders probeert.",
+      "retry": "Opnieuw proberen",
+      "sender": {
+        "add": "Gebruiker toevoegen",
+        "additional": "Extra toegestane gebruiker",
+        "addTitle": "Een {{telegram}}-gebruikers-ID toevoegen",
+        "advanced": "Geavanceerd · toegestane gebruikers",
+        "help": "Voeg alleen mensen toe die je vertrouwt met je coach en gedeelde atleetgegevens.",
+        "list": "Toegestane {{telegram}}-gebruikers",
+        "loadFailed": "Toegestane gebruikers konden niet worden geladen. {{product}} probeert het automatisch opnieuw.",
+        "loading": "Toegestane gebruikers laden…",
+        "primary": "Primaire gebruiker · vereist",
+        "remove": "Verwijderen",
+        "removeAria": "{{telegram}}-gebruiker {{senderId}} verwijderen",
+        "removeConfirm": "Gebruiker verwijderen",
+        "removeDetail": "Deze gebruiker verliest toegang tot je coach en gedeelde atleetgegevens totdat je diegene opnieuw toevoegt met afzender-ID {{senderId}}.",
+        "removeTitle": "{{telegram}}-gebruiker {{senderId}} verwijderen?",
+        "validation": "Voer een numerieke {{telegram}}-gebruikers-ID van minstens twee cijfers in."
+      },
+      "setup": {
+        "afterBotfather": "om een bot, kopieer het token en keer hier terug. {{product}} leest het token rechtstreeks van het klembord. Er is geen invoerveld voor het token.",
+        "ask": "Vraag",
+        "cancel": "Annuleren",
+        "cancelAria": "Configuratie van {{telegram}}-bot annuleren",
+        "connect": "Verbinden",
+        "detail": "Verbind een {{telegram}}-bot met een gekopieerd token.",
+        "paste": "Token vanaf klembord plakken",
+        "title": "Een bot maken met {{botFather}}"
+      },
+      "suspended": "Het ophalen van {{telegram}}-updates wordt hervat wanneer {{computer}} ontwaakt.",
+      "title": "Kanalen",
+      "unavailable": "{{telegram}}-status niet beschikbaar",
+      "verified": "Bot geverifieerd. Start de koppeling om {{telegram}} in te schakelen",
+      "webhook": {
+        "detail": "{{telegram}} kan niet tegelijk aan een webhook en {{computer}} leveren. Deze expliciete actie behoudt wachtende updates en laat Desktop beginnen met het ophalen van updates.",
+        "remove": "Webhook verwijderen",
+        "title": "De bestaande webhook verwijderen"
+      }
+    },
+    "title": "Instellingen"
+  },
+  "archive": {
+    "athlete": "Jij",
+    "back": "Alle eerdere chats",
+    "coach": "Coach",
+    "conversation": "Eerder gesprek",
+    "delete": {
+      "action": "Gesprek verwijderen",
+      "description": "Dit verwijdert dit eerdere gesprek en de oorspronkelijke bijlagen definitief van deze computer. Geïmporteerde activiteiten in Training en werk in Plan blijven bewaard.",
+      "failure": "Het verwijderen is niet voltooid. Probeer het opnieuw om het af te ronden.",
+      "title": "Dit gesprek verwijderen?"
+    },
+    "empty": "Nog geen eerdere gesprekken. Als je een nieuw gesprek begint, blijft het oude hier bewaard.",
+    "emptyConversation": "Dit gesprek bevat geen leesbare berichten.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Eerdere gesprekken zijn tijdelijk niet beschikbaar.",
+    "loadEarlier": "Eerdere berichten laden",
+    "loading": "Eerdere gesprekken laden…",
+    "pageFailure": "Dit gesprek is tijdelijk niet beschikbaar.",
+    "readOnly": "Je kunt eerdere gesprekken alleen lezen.",
+    "reason": {
+      "explicit": "Je bent een nieuw gesprek begonnen",
+      "stale": "Gesloten na een pauze"
+    },
+    "retry": "Opnieuw proberen",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Eerdere chats",
+    "truncated": "Alleen de meest recente eerdere gesprekken worden weergegeven.",
+    "turnCount_one": "{{formattedCount}} bericht",
+    "turnCount_other": "{{formattedCount}} berichten",
+    "unavailable": "Dit gesprek is niet meer beschikbaar."
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Geavanceerd",
+      "announcement": {
+        "apiKey": "De API-sleutelconfiguratie is onder deze rij geopend.",
+        "chatgpt": "Aanmelden bij {{chatgpt}} is onder deze rij geopend."
+      },
+      "apiKeyHint": "Aangemaakt in de console van de aanbieder, afgerekend per gebruik. Meestal enkele centen per gesprek.",
+      "cancelLabel": "API-sleutelconfiguratie annuleren",
+      "change": "Wijzigen",
+      "chatgptActivating": "Aangemeld · Coach activeren…",
+      "choose": "Kiezen",
+      "claude": {
+        "badge": {
+          "absentBinary": "Niet geïnstalleerd",
+          "apiKeyToken": "API-sleutel, geen abonnement",
+          "checking": "Controleren",
+          "disabled": "Uitgeschakeld",
+          "notLoggedIn": "Niet aangemeld",
+          "ready": "Aangemeld",
+          "readyApiKey": "Facturering via API-sleutel",
+          "workingAreaUnavailable": "Kon niet veilig starten"
+        },
+        "checkAgain": "Kies Opnieuw controleren om {{claudeCode}} op deze Mac te verifiëren.",
+        "detail": "Gebruikt de {{claudeCode}}-CLI die al op {{computer}} is geïnstalleerd en aangemeld. Geen API-sleutel nodig.",
+        "identity": {
+          "apiKey": "Facturering via {{anthropic}}-API-sleutel. Het gebruik wordt in rekening gebracht op je API-account.",
+          "email": "Aangemeld als {{email}}",
+          "emailPlan": "Aangemeld als {{email}} · {{claude}} {{plan}}-abonnement",
+          "plan": "Aangemeld · {{claude}} {{plan}}-abonnement",
+          "signedIn": "Aangemeld"
+        },
+        "recheck": "Opnieuw controleren",
+        "statusDetail": {
+          "absentBinary": "De {{claudeCode}}-CLI is niet gevonden of de geïnstalleerde versie is te oud. Installeer of werk deze bij en kies Opnieuw controleren.",
+          "apiKeyToken": "De {{claudeCode}}-CLI is aangemeld met een API-sleutel of token, niet met een abonnement. Meld je met je abonnement aan in {{command}} of schakel facturering via API-sleutel in je configuratie in.",
+          "checking": "De aanmelding van de {{claudeCode}}-CLI op {{computer}} controleren…",
+          "disabled": "De optie voor een {{claude}}-abonnement is uitgeschakeld op {{computer}}. Kies een andere aanbieder.",
+          "notLoggedIn": "De {{claudeCode}}-CLI is niet aangemeld. Open een terminal, voer {{command}} uit en meld je aan met je {{claude}}-abonnement. {{product}} meldt je nooit zelf aan.",
+          "workingAreaUnavailable": "{{product}} kon de privéwerkomgeving van {{claude}} niet voorbereiden. Start {{product}} opnieuw op en kies Opnieuw controleren."
+        }
+      },
+      "connected": "Verbonden · stuurt je coach aan",
+      "credentialLabel": "{{provider}}-API-sleutel",
+      "customModel": "Aangepaste modelnaam",
+      "endpoint": {
+        "automatic": "Huidige behouden of standaard van aanbieder gebruiken",
+        "custom": "Een aangepast eindpunt gebruiken",
+        "customTitle": "Aangepast eindpunt",
+        "default": "Terugzetten naar standaard van aanbieder",
+        "title": "Eindpunt"
+      },
+      "identity": "Stuurt je coach aan · {{identity}}",
+      "lane": {
+        "apiKey": "API-sleutel",
+        "chatgpt": "{{chatgpt}}-abonnement"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} aanbieders · betalen per gebruik",
+        "claudeCli": "Controleert je {{claude}}-abonnement bij selectie",
+        "openaiCodex": "Gebruik het abonnement waarvoor je al betaalt"
+      },
+      "menuLabel": "AI voor je coach",
+      "model": "Model",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "gebalanceerd",
+        "cheap": "goedkoop",
+        "cheaper": "goedkoper",
+        "cheapest": "goedkoopst",
+        "experimental": "experimenteel",
+        "fast": "snel",
+        "fastAndCheap": "snel en goedkoop",
+        "faster": "sneller",
+        "manyModels": "één sleutel, veel modellen",
+        "mostCapable": "meest capabel",
+        "recommended": "aanbevolen"
+      },
+      "modelVia": "{{model}} (via {{provider}})",
+      "otherModel": "Ander model…",
+      "pending": {
+        "activation": "Stuurt je coach aan · aangemeld · activering nodig",
+        "apiKey": "Stuurt je coach aan · voeg een sleutel toe om af te ronden",
+        "chatgpt": "Stuurt je coach aan · meld je aan om af te ronden",
+        "checkingClaude": "Stuurt je coach aan · aanmelding bij {{claudeCode}} controleren",
+        "claude": "Stuurt je coach aan · meld je aan via een terminal om af te ronden"
+      },
+      "provider": "Aanbieder",
+      "saveLabel": "API-sleutel opslaan",
+      "subtitle": "Vereist. {{product}} levert er geen mee",
+      "title": "AI voor je coach",
+      "tooltip": {
+        "body": "Je coach werkt met een {{chatgpt}}-abonnement, een {{claudeCode}}-aanmelding of een API-sleutel die je zelf aanlevert. Wat je ook kiest, het blijft op {{computer}}.",
+        "label": "Over de AI voor je coach",
+        "lead": "{{product}} heeft geen eigen AI"
+      },
+      "trigger": {
+        "set": "De AI voor je coach wijzigen",
+        "unset": "De AI voor je coach kiezen"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Aangemeld, maar de coach kon niet worden geactiveerd. Probeer het opnieuw zonder je opnieuw aan te melden.",
+      "cancelLabel": "{{chatgpt}}-configuratie annuleren",
+      "cancelSignIn": "Aanmelden annuleren",
+      "hint": "Opent de aanmeldpagina van {{openai}} in je browser. Je voert je wachtwoord daar in, niet hier. Vereist een betaald abonnement.",
+      "phase": {
+        "activatingCoach": "Coach activeren…",
+        "completingSignIn": "Aanmelden afronden…",
+        "ready": "Klaar",
+        "signedIn": "Aangemeld",
+        "waitingForBrowser": "Wachten op browser…"
+      },
+      "refusal": {
+        "alreadyInProgress": "Er is al een aanmelding bij {{chatgpt}} bezig.",
+        "callbackUnavailable": "De lokale terugkoppeling voor het aanmelden is niet beschikbaar. Sluit andere aanmeldprocedures en probeer het opnieuw.",
+        "cancelled": "Het aanmelden bij {{chatgpt}} is geannuleerd. Je kunt het opnieuw proberen.",
+        "exchangeFailed": "Het aanmelden bij {{chatgpt}} kon niet worden voltooid. Probeer het opnieuw.",
+        "runtimeUnavailable": "De {{chatgpt}}-aanmelding is opgeslagen, maar de coach kon niet worden geconfigureerd.",
+        "storageFailed": "Het aanmelden bij {{chatgpt}} is voltooid, maar het profiel kon niet worden opgeslagen.",
+        "timedOut": "Het aanmelden bij {{chatgpt}} duurde te lang. Probeer het opnieuw wanneer je zover bent."
+      },
+      "retryActivation": "Activering opnieuw proberen",
+      "signIn": "Aanmelden met {{chatgpt}}"
+    },
+    "chatSubtitle": "Koppel wat je coach nodig heeft. {{telegram}} is optioneel en blokkeert Chat nooit.",
+    "checking": {
+      "heading": "Je configuratie controleren",
+      "rowSubtitle": "Controleren wat al is verbonden…",
+      "status": "Configuratie controleren…",
+      "subtitle": "De verbindingen lezen die al op deze computer zijn opgeslagen. Dit kan vlak na het opstarten even duren."
+    },
+    "error": {
+      "configurationUnavailable": "Coachopties zijn nu niet beschikbaar. Controleer het configuratiegedeelte opnieuw.",
+      "credentialReenterRequired": "Die opgeslagen sleutel kon niet worden gebruikt. Voer deze opnieuw in om door te gaan.",
+      "credentialRequired": "Meld je aan met {{chatgpt}} of voeg minstens één modelsleutel toe om door te gaan.",
+      "credentialSaveFailed": "Die sleutel kon niet worden opgeslagen. Probeer deze opnieuw in te voeren.",
+      "credentialStatusUnavailable": "Die sleutel is opgeslagen, maar de status kon niet worden vernieuwd. Controleer het configuratiegedeelte opnieuw.",
+      "endpointInvalid": "Voer een geldig HTTPS-eindpunt of een HTTP-loopbackeindpunt in.",
+      "intakeIncomplete": "Beantwoord de verplichte veiligheidsvragen om door te gaan.",
+      "intakeSaveFailed": "Je antwoorden konden niet worden opgeslagen. Probeer het opnieuw.",
+      "intervalsClipboardClearFailed": "De API-sleutel is niet opgeslagen omdat {{product}} deze niet veilig van het klembord kon wissen. Kopieer de sleutel opnieuw en probeer het nogmaals.",
+      "intervalsClipboardUnavailable": "{{product}} kon geen API-sleutel van het klembord lezen. Kopieer deze in {{intervals}} en probeer het opnieuw.",
+      "intervalsKeyRejected": "{{intervals}} heeft de gekopieerde API-sleutel niet geaccepteerd. Kopieer een actuele API-sleutel en probeer het opnieuw.",
+      "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat de gekopieerde API-sleutel bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
+      "intervalsRuntimeUnavailable": "De gekopieerde API-sleutel kon niet worden geactiveerd. Kopieer deze in {{intervals}} en probeer het opnieuw.",
+      "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de gekopieerde API-sleutel actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsStorageUncertain": "{{product}} kon niet bevestigen of de gekopieerde API-sleutel is opgeslagen. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsValidationUnavailable": "{{product}} kon de gekopieerde API-sleutel niet bij {{intervals}} verifiëren. Controleer je verbinding en probeer het opnieuw.",
+      "invalidInput": "Die sleutel is niet geaccepteerd. Controleer deze en voer hem opnieuw in.",
+      "modelRuntimeUnavailable": "Je aanbiederkeuze is opgeslagen, maar nog niet actief. Probeer deze opnieuw te activeren.",
+      "modelSelectionRequired": "Kies een model of voer een aangepaste modelnaam in.",
+      "runtimeUnavailable": "Die sleutel is opgeslagen, maar nog niet actief. Kies Opgeslagen sleutels opnieuw proberen om deze te activeren.",
+      "storageFailed": "De app kon niet bevestigen dat die sleutel veilig is opgeslagen. Controleer of beveiligde opslag beschikbaar is en probeer het opnieuw.",
+      "storageUncertain": "De app kon niet vaststellen welke opgeslagen sleutel na opnieuw opstarten behouden blijft. Voer de sleutel opnieuw in voordat je doorgaat.",
+      "trainingAccountMismatch": "Die {{intervalsLower}}-sleutel hoort bij een andere atleet dan de al opgeslagen trainingsgeschiedenis. Wisselen van account wordt nog niet ondersteund.",
+      "trainingDataRequired": "Koppel {{intervalsLower}} of importeer minstens één ritbestand.",
+      "unsafeBackend": "De app kan die sleutel niet veilig opslaan met de huidige opslagvoorziening."
+    },
+    "footerNote": "Alles blijft op {{computer}}.",
+    "heading": "Stel je coach in voordat je kunt chatten",
+    "import": {
+      "available": "Import in de lokale bibliotheek: {{imported}} geïmporteerd. {{quarantined}} in quarantaine geplaatst. De coach heeft toegang tot activiteiten en gegevensreeksen.",
+      "choosing": "Wachten op selectie van ritbestanden…",
+      "failed": "Import in de lokale bibliotheek mislukt. {{imported}} geïmporteerd. {{quarantined}} in quarantaine geplaatst. Er zijn geen nieuwe ritbestanden beschikbaar voor coaching.",
+      "fileCount_one": "{{formattedCount}} ritbestand",
+      "fileCount_other": "{{formattedCount}} ritbestanden",
+      "importing": "Ritbestanden importeren…",
+      "unavailable": "Import in de lokale bibliotheek: {{imported}} geïmporteerd. {{quarantined}} in quarantaine geplaatst. De coach heeft tijdelijk geen toegang tot activiteiten en gegevensreeksen. Probeer de import opnieuw.",
+      "unconfirmed": "Import in de lokale bibliotheek mislukt. Het resultaat kon niet worden bevestigd. Controleer de bibliotheek voordat je het opnieuw probeert."
+    },
+    "intake": {
+      "managing": "Ik heb een blessure",
+      "none": "Geen huidige blessure",
+      "retrySave": "Antwoorden opnieuw opslaan",
+      "returning": "Ik hervat de training na een blessure",
+      "select": "Selecteren…",
+      "subtitle": "Legt je huidige blessure of terugkeer na een blessure vast.",
+      "title": "Huidige blessurestatus"
+    },
+    "requiredReady": "{{ready}} van {{total}} vereiste onderdelen klaar",
+    "retrySavedKeys": "Opgeslagen sleutels opnieuw proberen",
+    "retryStatus": "Configuratiestatus opnieuw proberen",
+    "settingsHeading": "Configuratie",
+    "startCoaching": "Coaching starten",
+    "statusUnavailable": "De configuratiestatus kon niet worden geladen. Controleer of {{product}} actief is en probeer het opnieuw.",
+    "telegram": {
+      "announcement": "De configuratie van de {{telegram}}-bot is onder deze rij geopend.",
+      "ask": "Vraag",
+      "availability": "{{telegram}} werkt zolang {{product}} actief is en {{computer}} wakker en online is.",
+      "cancelLabel": "Configuratie van {{telegram}}-bot annuleren",
+      "checkAgain": "Opnieuw controleren",
+      "connecting": "Verbinden…",
+      "create": "Maken",
+      "createAfterBotFather": "om een bot, kopieer het token en keer hier terug. {{product}} leest en verifieert het token rechtstreeks van het klembord. Het token wordt nooit getoond.",
+      "createCopy": "Vraag {{botFather}} om een bot, kopieer het token en keer hier terug. {{product}} leest en verifieert het token rechtstreeks van het klembord. Het token wordt nooit getoond.",
+      "createLabel": "{{telegram}}-bot maken",
+      "createTitle": "Een bot maken met {{botFather}}",
+      "delete": "Verwijderen",
+      "deleteConnection": "Verbinding verwijderen",
+      "deleteCopy": "Dit schakelt {{telegram}} uit en verwijdert het versleutelde token en de toegang voor toegestane gebruikers van {{computer}}. De {{telegram}}-bot en chat blijven in {{telegram}}.",
+      "deleteLabel": "De verbinding met {{telegram}} verwijderen",
+      "deleteTitle": "De verbinding met {{telegram}} verwijderen?",
+      "deleting": "Verwijderen…",
+      "notDeleted": "De verbinding met {{telegram}} is niet van {{computer}} verwijderd.",
+      "optional": "Optioneel",
+      "unappliedToken": "Het gekopieerde token is niet toegepast. De huidige {{telegram}}-bot is ongewijzigd.",
+      "useToken": "Gekopieerd token gebruiken",
+      "verified": "Bot geverifieerd · @{{username}}",
+      "verifiedPrefix": "Bot geverifieerd"
+    },
+    "training": {
+      "cancelLabel": "{{intervals}}-configuratie annuleren",
+      "connect": "Verbinden",
+      "connecting": "Verbinden…",
+      "connectTitle": "{{intervals}} verbinden",
+      "hint": "Open in {{intervals}} Instellingen → Ontwikkelaarsinstellingen, kopieer de API-sleutel en keer hier terug. {{product}} leest de sleutel zonder deze te tonen.",
+      "importFiles": "In plaats daarvan ritbestanden importeren",
+      "subtitle": {
+        "connected": "Verbonden · de bron van je ritten",
+        "missing": "Verbind of importeer ritbestanden."
+      },
+      "tooltip": {
+        "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Kopieer daarna de API-sleutel van dat account.",
+        "label": "Over {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "{{intervals}} verbinden"
+      },
+      "useCopiedKey": "Gekopieerde API-sleutel gebruiken"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Configuratie controleren…",
+    "loading": {
+      "archive": "Eerdere chats laden…",
+      "chat": "Chat laden…",
+      "plan": "Plan laden…",
+      "settings": "Instellingen laden…",
+      "training": "Training laden…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Versleuteling van {{operatingSystem}} is niet beschikbaar. Zorg dat {{keychain}} beschikbaar is en probeer het opnieuw.",
+        "windows": "Versleuteling van toegangsgegevens door {{operatingSystem}} ({{encryption}}) is niet beschikbaar. Sluit {{product}} af, open het opnieuw en probeer het nogmaals."
+      },
+      "credentialRecoveryAction": {
+        "mac": "ontgrendel je inlogsleutelhanger",
+        "windows": "zorg dat versleuteling van toegangsgegevens door {{operatingSystem}} ({{encryption}}) beschikbaar is"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Hoofdnavigatie",
+    "newChat": "Nieuwe chat",
+    "planAttention_one": "Plan, {{formattedCount}} onderdeel heeft aandacht nodig",
+    "planAttention_other": "Plan, {{formattedCount}} onderdelen hebben aandacht nodig",
+    "sync": {
+      "action": {
+        "again": "Opnieuw synchroniseren",
+        "now": "Nu synchroniseren",
+        "retry": "Opnieuw proberen",
+        "unavailable": "Synchronisatie niet beschikbaar"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synchronisatie heeft aandacht nodig",
+        "loading": "Trainingsgegevens laden",
+        "never": "Nog niet gesynchroniseerd",
+        "synced": "Trainingsgegevens gesynchroniseerd",
+        "syncing": "Synchroniseren",
+        "unavailable": "Trainingsgegevens niet beschikbaar"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Verbinding onderbroken. De synchronisatie wordt mogelijk nog afgerond. {{product}} probeert het niet automatisch opnieuw.",
+        "noChange": "Lokale verwerking van trainingsgegevens voltooid.",
+        "noChangeRestricted_one": "Lokale verwerking van trainingsgegevens voltooid. Door een API-beperking van {{source}} kan {{provider}} één activiteit niet delen. Deze is daarom niet opgenomen.",
+        "noChangeRestricted_other": "Lokale verwerking van trainingsgegevens voltooid. Door een API-beperking van {{source}} kan {{provider}} {{formattedCount}} activiteiten niet delen. Deze zijn daarom niet opgenomen.",
+        "operationFailure": "We konden de controle van trainingsgegevens niet voltooien. Je bestaande gegevens zijn nog beschikbaar.",
+        "partial": "Verwerking van trainingsgegevens gedeeltelijk voltooid. Probeer het opnieuw om af te ronden.",
+        "protocol": "{{product}} kon het synchronisatieresultaat niet verifiëren. Sluit {{product}} af en open het opnieuw.",
+        "published": "Controle van trainingsgegevens voltooid.",
+        "publishedRestricted_one": "Controle van trainingsgegevens voltooid. Door een API-beperking van {{source}} kan {{provider}} één activiteit niet delen. Deze is daarom niet opgenomen.",
+        "publishedRestricted_other": "Controle van trainingsgegevens voltooid. Door een API-beperking van {{source}} kan {{provider}} {{formattedCount}} activiteiten niet delen. Deze zijn daarom niet opgenomen.",
+        "queued": "Synchronisatie in de wachtrij.",
+        "running": "Trainingsgegevens synchroniseren…"
+      },
+      "restriction": {
+        "fixAction": "· Zo los je dit op",
+        "fixLabel": "{{restrictionLabel}}. Zo los je dit op",
+        "label_one": "{{formattedCount}} verborgen door {{source}}",
+        "label_other": "{{formattedCount}} verborgen door {{source}}",
+        "tooltipBody": "Door een API-beperking van {{source}} kan {{provider}} deze activiteiten niet delen met {{product}}.",
+        "tooltipLabel": "Waarom zijn activiteiten verborgen?",
+        "tooltipLead_one": "{{formattedCount}} activiteit verborgen door {{source}}",
+        "tooltipLead_other": "{{formattedCount}} activiteiten verborgen door {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Onbekend synchronisatietijdstip"
+    },
+    "update": {
+      "available": "Update beschikbaar",
+      "availableVersion": "Updateversie {{version}} is beschikbaar",
+      "installVersion": "Updateversie {{version}} installeren",
+      "restarting": "Opnieuw opstarten…",
+      "restartingVersion": "Opnieuw opstarten om updateversie {{version}} te installeren"
+    },
+    "views": {
+      "archive": "Eerdere chats",
+      "chat": "Chat",
+      "plan": "Plan",
+      "settings": "Instellingen",
+      "training": "Training"
     }
   }
 }

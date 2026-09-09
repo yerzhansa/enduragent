@@ -26,7 +26,7 @@ import {
   takeTrainingRestrictionFocusRequest,
 } from "../src/ui/settings/restriction-focus";
 import { emptyPlanLibrary, planReadModel } from "./plan-fixtures";
-import { renderWithLanguage } from "./language-harness";
+import { renderWithLanguage, renderWithCatalog } from "./language-harness";
 
 const REPAIR_REQUIRED_CREDENTIALS: CredentialSettingsState = {
   status: "ready",
@@ -852,4 +852,18 @@ describe("shell", () => {
     await user.click(opener);
     expect(actions.openNewConversation).not.toHaveBeenCalled();
   });
+});
+
+it("reads the startup status from the selected language catalog", async () => {
+  const previous = useEnduragentStore.getState();
+  useEnduragentStore.setState({
+    settings: { ...previous.settings, language: { ...previous.settings.language, value: "it" } },
+    onboarding: { ...CLOSED_ONBOARDING, initialized: false },
+  });
+  await renderWithCatalog(<Shell onReady={() => {}} />, {
+    shell: { checkingSetup: "Verifica della configurazione…" },
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Verifica della configurazione…");
+  expect(screen.getByRole("status")).toHaveAttribute("lang", "it");
+  useEnduragentStore.setState(previous);
 });

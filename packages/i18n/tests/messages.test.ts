@@ -77,7 +77,8 @@ it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => 
       keys(child, prefix ? `${prefix}.${key}` : key),
     );
   }
-  expect(keys(catalog)).toEqual(keys(english));
+  const base = (key: string) => key.replace(/_(zero|one|two|few|many|other)$/u, "");
+  expect(new Set(keys(catalog).map(base))).toEqual(new Set(keys(english).map(base)));
 });
 
 it("derives message and phrasebook keys from the English catalog", () => {

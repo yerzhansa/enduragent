@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Suspense, useEffect, type ReactElement } from "react";
 import { setupDisposition } from "../state/onboarding-slice";
 import { useEnduragentStore } from "../state/store";
@@ -10,6 +11,7 @@ import { languageRequired } from "../language";
 import { LanguageGate } from "../ui/onboarding/LanguageGate";
 
 export function Shell(props: { readonly onReady: () => void }): ReactElement {
+  const { say, tag } = usePhrasebook();
   const activeView = useEnduragentStore((state) => state.activeView);
   const disposition = useEnduragentStore(setupDisposition);
   const needsLanguage = useEnduragentStore(languageRequired);
@@ -50,9 +52,9 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
           role="status"
           aria-live="polite"
           aria-busy="true"
-          lang="en"
+          lang={tag}
         >
-          Checking setup…
+          {say("shell.checkingSetup")}
         </div>
       ) : disposition === "required" ? (
         needsLanguage ? (
@@ -75,9 +77,7 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
                 return (
                   <Suspense
                     key={view.id}
-                    fallback={
-                      <p className="px-8 py-7 text-ink-3">Loading {view.label.toLowerCase()}…</p>
-                    }
+                    fallback={<p className="px-8 py-7 text-ink-3">{say(view.loading)}</p>}
                   >
                     <Page />
                   </Suspense>

@@ -1,6 +1,7 @@
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
@@ -741,4 +742,28 @@ describe("sidebar setup gating", () => {
     await user.click(screen.getByRole("button", { name: "Training" }));
     expect(useEnduragentStore.getState().activeView).toBe("training");
   });
+});
+
+it("reads navigation and accessible labels from the selected language catalog", async () => {
+  const settings = useEnduragentStore.getState().settings;
+  useEnduragentStore.setState({
+    settings: { ...settings, language: { ...settings.language, value: "it" } },
+  });
+  await renderWithCatalog(<Sidebar />, {
+    sidebar: {
+      newChat: "Nuova chat",
+      navigation: "Navigazione principale",
+      views: { archive: "Chat passate" },
+      sync: {
+        headline: { loading: "Caricamento allenamenti" },
+        action: { now: "Sincronizza ora" },
+      },
+    },
+  });
+  expect(screen.getByRole("navigation", { name: "Navigazione principale" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Nuova chat" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Chat passate" })).toBeInTheDocument();
+  expect(screen.getByText("Caricamento allenamenti")).toBeInTheDocument();
+  expect(screen.getByText("Sincronizza ora")).toBeInTheDocument();
+  useEnduragentStore.setState({ settings });
 });

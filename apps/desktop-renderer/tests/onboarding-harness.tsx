@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor, within, type RenderResult } from "@testing-library/react";
+import { renderLocalized as render } from "./language-harness";
+import { act, screen, waitFor, within, type RenderResult } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import type { OnboardingBridge, OnboardingLlmConfiguration } from "../src/onboarding/bridge";

@@ -1,3 +1,5 @@
+import { msg, type Message } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
@@ -11,24 +13,25 @@ import type { SetupPlacement } from "./OnboardingWizard";
 const UNSET = "";
 
 const INJURY_OPTIONS = [
-  [UNSET, "Select…"],
-  ["none", "No current injury"],
-  ["managing", "Managing an injury"],
-  ["returning", "Returning after an injury"],
+  [UNSET, msg("setup.intake.select")],
+  ["none", msg("setup.intake.none")],
+  ["managing", msg("setup.intake.managing")],
+  ["returning", msg("setup.intake.returning")],
 ] as const;
 
 function IntakeSelect(props: {
   readonly id: string;
   readonly value: string;
-  readonly options: ReadonlyArray<readonly [string, string]>;
+  readonly options: ReadonlyArray<readonly [string, Message]>;
   readonly disabled: boolean;
   readonly describedBy?: string;
   readonly onSelect: (value: string) => void;
 }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <Select
       disabled={props.disabled}
-      items={props.options.map(([value, label]) => ({ value, label }))}
+      items={props.options.map(([value, label]) => ({ value, label: say(label) }))}
       value={props.value}
       onValueChange={(value) => {
         if (value !== null) props.onSelect(value);
@@ -44,7 +47,7 @@ function IntakeSelect(props: {
       <SelectContent align="end">
         {props.options.map(([value, label]) => (
           <SelectItem key={value} value={value}>
-            {label}
+            {say(label)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -57,6 +60,7 @@ export function IntakeRows(props: {
   readonly actions: OnboardingActions | null;
   readonly placement: SetupPlacement;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const { surface, actions } = props;
   const wizard = surface.wizard;
   const intake = wizard.intake;
@@ -69,8 +73,8 @@ export function IntakeRows(props: {
       <SetupRow
         id="injury-status"
         status={intake.injuryStatus === null ? "pending" : "ready"}
-        title="Injury status right now"
-        subtitle="Records your current injury or return context."
+        title={say("setup.intake.title")}
+        subtitle={say("setup.intake.subtitle")}
         titleFor="onboarding-injury-status"
         trailing={
           <IntakeSelect
@@ -103,7 +107,7 @@ export function IntakeRows(props: {
                 actions?.retryIntakeSave();
               }}
             >
-              {RETRY_INTAKE_SAVE_LABEL}
+              {say(RETRY_INTAKE_SAVE_LABEL)}
             </Button>
           ) : null}
         </SetupSubPanel>

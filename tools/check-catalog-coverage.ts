@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { LanguageTagSchema, type LanguageTag } from "../packages/coach-contract/src/language.js";
+import { describeLanguage } from "../packages/i18n/src/registry.js";
 import { runGateCli } from "./lint-fs.js";
 
 export interface CatalogFindings {
@@ -23,6 +24,35 @@ const metadataEntrySchema = z.object({
   translatedBy: z.enum(["model", "human"]),
 });
 const translatedTags = LanguageTagSchema.options.filter((tag) => tag !== "en");
+const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/u;
+
+function pluralBase(key: string): string | undefined {
+  return PLURAL_SUFFIX.test(key) ? key.replace(PLURAL_SUFFIX, "") : undefined;
+}
+
+function expectedKeys(
+  english: Map<string, string | null>,
+  tag: LanguageTag,
+): Map<string, string | null> {
+  const rules = new Intl.PluralRules(describeLanguage(tag).defaultLocale);
+  const categories = new Set(
+    Array.from({ length: 101 }, (_, count) => rules.select(count)).concat("other"),
+  );
+  const expected = new Map<string, string | null>();
+  const bases = new Set<string>();
+  for (const [key, source] of english) {
+    const base = pluralBase(key);
+    if (base === undefined) expected.set(key, source);
+    else bases.add(base);
+  }
+  for (const base of bases) {
+    const fallback = english.get(`${base}_other`) ?? null;
+    for (const category of categories) {
+      expected.set(`${base}_${category}`, english.get(`${base}_${category}`) ?? fallback);
+    }
+  }
+  return expected;
+}
 
 function readObject(file: string, errors: string[]): Record<string, unknown> {
   try {
@@ -71,6 +101,23 @@ function placeholders(value: string): string[] {
   ].sort();
 }
 
+function allowedPluralKey(
+  key: string,
+  tag: LanguageTag,
+  english: Map<string, string | null>,
+): boolean {
+  const base = pluralBase(key);
+  if (base === undefined) return false;
+  const hasBase = [...english.keys()].some((candidate) => pluralBase(candidate) === base);
+  const category = key.slice(base.length + 1);
+  return (
+    hasBase &&
+    new Intl.PluralRules(describeLanguage(tag).defaultLocale)
+      .resolvedOptions()
+      .pluralCategories.includes(category as Intl.LDMLPluralRule)
+  );
+}
+
 export function checkCatalogCoverage({
   catalogDirectory = "packages/i18n/catalogs",
   tags = translatedTags,
@@ -89,13 +136,18 @@ export function checkCatalogCoverage({
     const metadata = readObject(metadataPath, errors);
     const metadataKeys = objectSchema.safeParse(metadata.keys);
     if (!metadataKeys.success) errors.push(`${metadataPath}: expected a keys object`);
+    const expected = expectedKeys(english, tag);
     const findings: CatalogFindings = {
       missing: [],
-      extra: [...catalog.keys()].filter((key) => !english.has(key)).sort(),
+      extra: [...catalog.keys()]
+        .filter((key) => !expected.has(key) && !allowedPluralKey(key, tag, english))
+        .sort(),
       behind: [],
       placeholderMismatch: [],
     };
-    for (const [key, source] of [...english].sort(([left], [right]) => left.localeCompare(right))) {
+    for (const [key, source] of [...expected].sort(([left], [right]) =>
+      left.localeCompare(right),
+    )) {
       const translation = catalog.get(key);
       if (translation === undefined || translation === null || translation.trim().length === 0) {
         findings.missing.push(key);

@@ -3,6 +3,7 @@ import { createPhrasebook, type Phrasebook } from "./messages.js";
 
 type LanguageProviderProps = Parameters<typeof createPhrasebook>[0] & {
   readonly children: ReactNode;
+  readonly phrasebook?: Phrasebook;
 };
 
 type LanguageState =
@@ -15,10 +16,11 @@ const LanguageContext = createContext<{
   readonly ready: boolean;
 } | null>(null);
 
-export function LanguageProvider({ tag, locale, children }: LanguageProviderProps) {
+export function LanguageProvider({ tag, locale, children, phrasebook }: LanguageProviderProps) {
   const [state, setState] = useState<LanguageState>({ kind: "loading" });
 
   useEffect(() => {
+    if (phrasebook !== undefined) return;
     let active = true;
     void createPhrasebook({ tag, locale }).then(
       (phrasebook) => {
@@ -31,7 +33,17 @@ export function LanguageProvider({ tag, locale, children }: LanguageProviderProp
     return () => {
       active = false;
     };
-  }, [tag, locale]);
+  }, [tag, locale, phrasebook]);
+
+  if (phrasebook !== undefined) {
+    return (
+      <LanguageContext.Provider
+        value={{ phrasebook, ready: phrasebook.tag === tag && phrasebook.locale === locale }}
+      >
+        {children}
+      </LanguageContext.Provider>
+    );
+  }
 
   if (state.kind === "failed") throw state.error;
   if (state.kind === "loading") return null;

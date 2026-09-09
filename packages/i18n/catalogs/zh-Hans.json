@@ -34,6 +34,823 @@
       "saving": "正在保存单位…",
       "title": "单位",
       "unavailable": "单位偏好不可用"
+    },
+    "application": {
+      "check": "检查更新",
+      "checkFailed": "检查更新失败。请重试",
+      "checking": "正在检查更新",
+      "checkingAction": "正在检查…",
+      "current": "{{product}} 已是最新版本",
+      "danger": "危险操作",
+      "downloadFailed": "下载更新失败。请重试",
+      "downloading": "正在下载更新 {{version}}",
+      "downloadingAction": "正在下载…",
+      "downloadTimedOut": "下载更新超时。请退出并重新打开 {{product}} 后重试。",
+      "reset": "重置对话",
+      "resetDetail": "清除当前显示的对话。训练数据和已保存的教练记忆会保留。",
+      "restart": "重启以更新至 {{version}} 版",
+      "restartAction": "重启并更新",
+      "restarting": "正在重启以安装 {{version}} 版",
+      "restartingAction": "正在重启…",
+      "restartRequired": "重启 {{product}} 以恢复更新",
+      "retry": "重试更新",
+      "startFailed": "无法启动更新。请退出并重新打开 {{product}} 后重试。",
+      "title": "应用",
+      "unavailable": "更新不可用",
+      "version": "版本 {{version}}",
+      "versionUnknown": "未知"
+    },
+    "athlete": {
+      "credentialMissing": "尚未连接训练账号凭据。请在上方的设置区域连接。",
+      "detail": "此处只能填写当前已连接训练账号的标识，不能切换账号。",
+      "error": {
+        "credentialRequired": "请先在初始设置中连接训练账号，再保存其运动员 ID。",
+        "managedByEnvironment": "运动员 ID 由 {{product}} 外部管理，未作更改。",
+        "notApplied": "运动员 ID 未生效。请重新连接并加载后重试。",
+        "ownershipUnavailable": "无法验证已连接的训练账号。请重新连接并加载后重试。",
+        "requestFailed": "无法保存运动员 ID。编辑内容仍保留在此处。",
+        "runtimeUnavailable": "无法重新加载当前训练账号。编辑内容仍保留在此处。",
+        "trainingAccountMismatch": "该运动员 ID 与当前已连接的训练账号不符。"
+      },
+      "futurePrefix": "后续骑行：",
+      "help": "请填写初始设置中已连接凭据所对应的准确标识。",
+      "id": "运动员 ID",
+      "loading": "正在加载训练账号设置…",
+      "pastPrefix": "以往骑行：",
+      "refreshing": "正在重新连接并检查当前训练账号…",
+      "reload": "重新连接并加载",
+      "restriction": {
+        "cause": "由于 {{strava}} 的 API 限制，{{intervalsLower}} 无法向 {{product}} 分享来自 {{strava}} 的活动。API 密钥没有问题。",
+        "future": "将记录活动的数据源直接连接至 {{intervalsLower}}，同时保持 {{strava}} 连接。此方法免费，适用于后续骑行。",
+        "past": "在 {{intervalsLower}} 设置中使用“导入所有 {{strava}} 数据”。此方法适用于以往骑行，需要订阅 {{intervalsLower}} 支持者方案。",
+        "title_other": "共 {{total}} 项活动，其中 {{restricted}} 项被 {{strava}} 隐藏"
+      },
+      "reviewSetup": "查看初始设置",
+      "save": "保存运动员 ID",
+      "saved": "运动员 ID 已保存。",
+      "saving": "正在保存运动员 ID…",
+      "title": "训练账号",
+      "unavailable": "训练账号设置不可用。请重新连接并加载。",
+      "validation": {
+        "athleteControlCharacters": "运动员 ID 不能包含控制字符。",
+        "athleteRequired": "请输入已连接训练账号的运动员 ID。",
+        "athleteTooLong": "运动员 ID 不能超过 512 个字符。",
+        "athleteWhitespace": "运动员 ID 的开头和结尾不能有空白字符。"
+      },
+      "verificationPending": "正在验证已连接的训练账号… 验证完成前，训练数据将保持暂停状态。"
+    },
+    "coach": {
+      "active": "已启用",
+      "activeUnavailable": "当前教练设置不可用或尚未配置。",
+      "automatic": "自动",
+      "changeRequired": "需要更改",
+      "chooseModel": "选择模型",
+      "chooseProvider": "选择服务商",
+      "chooseProviderFirst": "请先选择服务商",
+      "currentRoute": "当前使用：{{provider}} · {{model}}",
+      "customModel": "自定义模型名称",
+      "endpoint": "端点",
+      "endpointDetail": "{{product}} 会为此教练配置选择服务商的端点。",
+      "error": {
+        "credentialRequired": "需要先保存此服务商的凭据才能使用教练。请在上方的设置区域添加。",
+        "invalidInput": "服务商或模型未被接受。请检查模型名称后重试。",
+        "requestFailed": "暂时无法保存教练设置。请重试。",
+        "runtimeUnavailable": "教练设置无法生效。请重新保存。"
+      },
+      "inactive": "未启用",
+      "loading": "正在加载教练设置…",
+      "model": "模型",
+      "notConfigured": "未配置",
+      "otherModel": "其他模型…",
+      "provider": "服务商",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}} 订阅",
+        "claude": "{{claude}} 订阅",
+        "codex": "{{codex}} 智能体（实验性）"
+      },
+      "retry": "重试",
+      "reviewSetup": "查看初始设置",
+      "route": "教练配置",
+      "save": "保存教练配置",
+      "saved": "教练设置已保存。",
+      "saving": "正在保存教练设置…",
+      "title": "教练",
+      "unavailable": "教练设置暂时不可用。请重试。",
+      "unsaved": "未保存",
+      "unsupported": "{{operatingSystem}} 不支持 {{codex}} 智能体。请选择 {{claude}} 订阅或使用 API 密钥的服务商，然后保存教练配置。凭据、运动员数据、对话及其他设置保持不变。",
+      "validation": {
+        "modelControlCharacters": "模型名称不能包含控制字符。",
+        "modelRequired": "请输入模型名称。",
+        "modelTooLong": "模型名称不能超过 512 个字符。"
+      }
+    },
+    "conversation": {
+      "ariaLabel": "对话与时间",
+      "detail": "设置何时开始新对话，以及教练保留多少近期对话内容。",
+      "error": {
+        "notApplied": "对话设置未生效。请重新连接并加载后重试。",
+        "requestFailed": "无法保存对话设置。编辑内容仍保留在此处。",
+        "runtimeUnavailable": "无法重新加载当前对话设置。编辑内容仍保留在此处。"
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "使用运动员当地时间，范围为 0 至 23 时。更改后，下一条消息可能会开启新对话。",
+          "label": "每日重置时间"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "为历史对话预留的模型上下文比例，须大于 0% 且不超过 100%。",
+          "label": "历史对话占比"
+        },
+        "idleMinutes": {
+          "help": "连续多久没有消息后重置对话，以整数分钟计。设为 0 可关闭。",
+          "label": "空闲重置",
+          "suffix": "分钟"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "重置后的对话归档保留天数，须为整数。设为 0 可永久保留；更改仅影响今后的清理。",
+          "label": "归档保留时间",
+          "suffix": "天"
+        },
+        "timezone": {
+          "help": "请使用 IANA 时区，例如 {{timezone}}。在此保存时区前，{{product}} 会跟随此电脑的时区；保存后将使用所设时区。",
+          "label": "时区"
+        }
+      },
+      "fieldSuffix": "（{{suffix}}）",
+      "loading": "正在加载对话设置…",
+      "refreshing": "正在重新连接并检查当前设置…",
+      "reload": "重新连接并加载",
+      "save": "保存对话设置",
+      "saved": "对话设置已保存。",
+      "saving": "正在保存对话设置…",
+      "title": "对话与时间",
+      "unavailable": "对话设置不可用。请重新连接并加载。",
+      "validation": {
+        "dailyResetHour": "请输入 0 至 23 之间的整数小时。",
+        "historyTokenBudgetRatio": "请输入大于 0% 且不超过 100% 的历史对话占比。",
+        "idleMinutes": "请输入 0 或更大的整数分钟数，且不得超出安全范围。",
+        "resetArchiveRetentionDays": "请输入 0 或更大的整数天数，且不得超出安全范围。",
+        "timezone": "请输入有效的 IANA 时区，例如 {{timezone}}。"
+      }
+    },
+    "credentials": {
+      "change": "更改",
+      "changeAria": "更改 {{provider}} 凭据",
+      "claudeProvider": "{{claude}} 订阅",
+      "codexProvider": "{{codex}} 智能体",
+      "delete": {
+        "action": "删除",
+        "aria": "删除 {{provider}} 凭据",
+        "confirmAria": "确认删除 {{provider}} 凭据",
+        "connection": "删除连接",
+        "credential": "删除凭据",
+        "detail": "仅从 {{computer}} 删除此凭据。如果正在使用，{{product}} 将停止使用。服务商账号保持不变。",
+        "intervalsAria": "删除 {{intervals}} 连接",
+        "intervalsDetail": "将移除已保存的 API 密钥和已导入的连接。已同步的骑行和历史聊天会保留在 {{computer}} 上。",
+        "intervalsTitle": "删除 {{intervals}} 连接？",
+        "title": "删除 {{provider}} 凭据？"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "已取消删除凭据。",
+          "cleanupPending": "凭据已在本地删除。将重试清理安全存储。",
+          "confirmProvider": "确认删除 {{provider}} 凭据。",
+          "deleted": "凭据已在本地删除。",
+          "deletingProvider": "正在本地删除 {{provider}} 凭据…",
+          "keyUnverified": "安全存储无法确认此凭据的加密密钥，因此已保留凭据。",
+          "managed": "此凭据由设置之外的方式管理，无法在此删除。",
+          "notStored": "此凭据已不再存储。请重新加载以刷新列表。",
+          "reconcileFailed": "无法使已保存凭据与当前使用的凭据状态保持一致。请重新连接并加载后重试。",
+          "refreshFailed": "凭据已在本地删除。无法刷新当前凭据状态。",
+          "retained": "凭据仍在存储中，未完成删除。请重试。",
+          "setupRefreshFailed": "凭据已在本地删除，但无法刷新初始设置的就绪状态。请重新加载凭据状态。",
+          "stopFailed": "教练无法安全地停止使用此凭据，因此未删除。",
+          "unverified": "无法验证安全存储，因此无法确认凭据是否已删除。请重启 {{product}} 并重新加载后重试。"
+        },
+        "recovery": {
+          "locked": "请在 {{product}} 外解锁登录钥匙串，然后重试。",
+          "missing": "凭据加密密钥缺失。请尽可能恢复密钥后重试，或移除所有凭据并重新设置。",
+          "unavailable": "凭据安全存储不可用。请重试，或移除所有凭据并重新设置。",
+          "unverified": "{{product}} 无法安全地打开部分已保存的凭据。请重新输入每个受影响的凭据。"
+        },
+        "reset": {
+          "cancelled": "已取消移除凭据。",
+          "cleanupPending": "已移除所有凭据。将重试清理安全存储。",
+          "confirm": "确认移除所有凭据。",
+          "reloadFailed": "凭据已移除，但无法重新加载设置。请重新连接并加载。",
+          "removed": "所有凭据已移除。准备好后可重新设置。",
+          "removeFailed": "{{product}} 无法移除全部已存储的凭据。请重试。",
+          "removing": "正在移除所有凭据…",
+          "stopFailed": "{{product}} 无法停止使用全部已启用的凭据。请重试以完成移除。",
+          "unverified": "无法重新加载设置，因此无法验证凭据是否已移除。请重新连接并加载。"
+        },
+        "unavailable": "已保存的凭据不可用。请重新连接并加载。"
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}} 个人资料",
+        "provider": "服务商 API 密钥",
+        "training": "训练账号密钥"
+      },
+      "loading": "正在加载已保存的凭据…",
+      "reconnect": "重新连接并加载",
+      "reload": "重新加载凭据状态",
+      "repairRequired": "请先重新加载已保存的凭据状态，再继续初始设置。",
+      "reset": {
+        "confirm": "移除所有凭据",
+        "detail": "这会从 {{computer}} 移除所有已保存的 AI 凭据、{{chatgpt}} 个人资料、{{intervals}} 密钥、{{telegram}} 令牌及共用加密密钥。账号和已导入的数据保持不变。",
+        "title": "移除所有凭据？"
+      },
+      "retry": "重试",
+      "retryEntry": "重新输入",
+      "runtime": {
+        "active": "已启用",
+        "failed": "需要处理",
+        "storedInactive": "已保存，未启用",
+        "verifying": "正在验证…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "由环境变量管理。请在 {{product}} 外更改。",
+    "palette": {
+      "app": "应用配色",
+      "use": "使用{{palette}}配色"
+    },
+    "saving": "正在保存…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "此配置使用显式缓存。",
+        "none": "未读取缓存",
+        "providerDependent": "缓存由服务商决定；此配置未设置显式缓存断点。",
+        "savings": "从缓存读取 {{tokens}} 个 token · 节省 {{amount}}",
+        "unavailable": "此配置无法使用缓存",
+        "unknown": "从缓存读取 {{tokens}} 个 token · 节省金额不可用"
+      },
+      "cap": {
+        "aria": "每日费用上限",
+        "failed": "无法保存每日上限。",
+        "invalid": "请输入大于 $0 的每日上限。",
+        "label": "每日上限（美元）",
+        "save": "保存上限",
+        "value": "{{known}}，上限 {{cap}}"
+      },
+      "date": "{{month}}{{day}}日",
+      "detail": "语言模型费用与今日上限的对比",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "4月",
+        "august": "8月",
+        "december": "12月",
+        "february": "2月",
+        "january": "1月",
+        "july": "7月",
+        "june": "6月",
+        "march": "3月",
+        "may": "5月",
+        "november": "11月",
+        "october": "10月",
+        "september": "9月"
+      },
+      "notice": {
+        "incomplete": "部分服务商的费用不可用，因此今日总额仅为已知的最低金额。",
+        "malformed": "部分用量记录无法读取。",
+        "saved": "读取缓存节省了 {{amount}}",
+        "savedMinimum": "读取缓存至少节省了 {{amount}}",
+        "stale": "费用数据可能已过期。"
+      },
+      "notional": "订阅用量按 API 计费将花费 {{amount}}。实际未产生扣费，也不计入费用上限。",
+      "priced": "{{priced}}/{{total}} 次生成已计价",
+      "routeNotional": "按 API 计费将花费 {{amount}}",
+      "routes": "费用明细",
+      "title": "费用",
+      "today": "今天",
+      "todayDate": "今天 · {{date}}",
+      "unavailable": "费用数据不可用。"
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "其他应用或部署正在轮询此机器人。请先在该处停止，再选择“重新检查”。不同机器人仍可同时运行。",
+        "credentialUnavailable": "无法从安全存储读取已保存的机器人令牌。请退出并重新打开 {{product}}，然后选择“重新检查”。如果仍无法读取，请删除此连接后连接新机器人。",
+        "daemonUnavailable": "本地教练服务不可用。请保持 {{product}} 打开，然后选择“重新检查”。",
+        "drainRequired": "一条 {{telegram}} 回复尚未完成。请稍等后重试。",
+        "encryption": "令牌安全存储不可用。请退出并重新打开 {{product}}，{{recoveryAction}}，然后选择“重新检查”。",
+        "homeMismatch": "桌面应用连接到了另一个运动员数据目录。请重启 {{product}} 后重新检查。",
+        "identityUnknown": "无法验证已保存的 {{telegram}} 连接。请先选择“重新检查”，再尝试其他操作。",
+        "invalidToken": "{{telegram}} 拒绝了已保存的令牌。请删除此连接，再使用从 {{botFather}} 复制的令牌连接新机器人。",
+        "offline": "{{telegram}} 暂时离线。只要 {{computer}} 保持唤醒并联网，{{product}} 就会重试。",
+        "startFailed": "无法启动 {{telegram}}。请保持 {{product}} 打开，检查网络连接，然后选择“重新检查”。",
+        "storageFailed": "无法保存加密的机器人凭据。请检查本地磁盘访问权限后重试。",
+        "storageUncertain": "{{telegram}} 设置可能未完整保存。请保持 {{telegram}} 不变，先选择“重新检查”，再尝试其他操作。",
+        "transferRequired": "此机器人属于另一个 {{product}} 安装实例或托管部署。请先在该处删除连接，再使用复制的令牌在此重新连接。",
+        "unsafeBackend": "没有可用的安全凭据存储后端，因此 {{product}} 拒绝在未加密的情况下访问已保存的机器人令牌。请退出并重新打开 {{product}}，然后选择“重新检查”。"
+      },
+      "availability": "仅当 {{product}} 及其本地教练服务运行，且 {{computer}} 保持唤醒并联网时，{{telegram}} 才能使用。",
+      "channel": {
+        "conflict": "轮询冲突",
+        "connecting": "正在连接",
+        "failed": "需要处理",
+        "off": "已关闭",
+        "online": "在线",
+        "reconnecting": "正在重新连接",
+        "suspended": "休眠期间已暂停",
+        "tokenRejected": "令牌被拒绝",
+        "transferRequired": "需要转移",
+        "waitingForCredential": "需要机器人令牌"
+      },
+      "check": "重新检查",
+      "delete": {
+        "action": "删除",
+        "confirm": "删除连接",
+        "detail": "这会关闭机器人，并从 {{computer}} 删除其加密令牌及已授权用户的访问权限。{{telegram}} 机器人及其聊天会保留在 {{telegram}} 中。",
+        "title": "从 {{computer}} 删除 @{{botUsername}}？"
+      },
+      "detail": "建议使用专用机器人。它会创建新的 @username 和 {{telegram}} 聊天；原机器人的可见历史记录不会迁移。运动员记忆、训练数据和计划会共享。",
+      "disable": "关闭",
+      "enable": "开启",
+      "feedback": {
+        "failure": {
+          "change": "无法更改 {{telegram}} 设置。请重试。",
+          "changeStorageUnverified": "无法验证存储，因此未应用更改。请重启 {{product}} 并检查此设置后重试。",
+          "changeUncertain": "{{telegram}} 更改可能已开始，但 {{product}} 无法确认是否完成。请重启 {{product}} 并检查此设置后重试。",
+          "clipboardClearFailed": "无法清空剪贴板，因此未使用复制的令牌。当前 {{telegram}} 机器人保持不变。",
+          "clipboardUnavailable": "无法读取剪贴板。未使用任何 {{telegram}} 令牌。",
+          "connectUncertain": "{{telegram}} 连接可能已开始，但 {{product}} 无法确认是否完成。请重启 {{product}} 并检查 {{telegram}} 后重试。",
+          "invalidToken": "{{telegram}} 拒绝了复制的令牌。当前 {{telegram}} 机器人保持不变。",
+          "invalidTokenFormat": "剪贴板中没有有效的 {{telegram}} 机器人令牌。当前 {{telegram}} 机器人保持不变。",
+          "pairing": "无法开始配对。请检查机器人连接后重试。",
+          "pairingUncertain": "主要 {{telegram}} 用户可能已保存，但 {{product}} 无法验证存储。请重启 {{product}} 并检查 {{telegram}} 后重新配对。",
+          "pasteToken": "无法验证或保存机器人令牌。请从 {{botFather}} 复制新令牌后重试。",
+          "removeStorageUnverified": "无法验证安全存储，因此无法确认 {{telegram}} 连接是否已删除。请重启 {{product}} 并检查 {{telegram}} 后重试。",
+          "removeUncertain": "{{telegram}} 连接可能尚未删除完成。请重启 {{product}} 并检查机器人是否仍连接后重试。",
+          "senders": "无法更改已授权用户列表。请检查用户 ID 后重试。",
+          "storageFailed": "无法存储复制的令牌。当前 {{telegram}} 机器人保持不变。",
+          "tokenNotApplied": "复制的令牌未生效。当前 {{telegram}} 机器人保持不变。",
+          "tokenStorageUnverified": "无法验证安全存储，因此复制的令牌未生效。当前 {{telegram}} 机器人保持不变。请重启 {{product}} 并检查 {{telegram}} 后重试。",
+          "unsafeAccess": "没有可用的安全凭据存储后端，因此 {{product}} 拒绝在未加密的情况下访问已保存的机器人令牌。请退出并重新打开 {{product}}，然后选择“重新检查”。",
+          "unsafeToken": "没有可用的安全凭据存储后端，因此 {{product}} 拒绝在未加密的情况下保存机器人令牌。请退出并重新打开 {{product}}，重新复制机器人令牌后重试。",
+          "unsafeTokenUnchanged": "没有可用的安全凭据存储后端，因此当前 {{telegram}} 机器人保持不变。{{product}} 拒绝在未加密的情况下保存复制的令牌。请退出并重新打开 {{product}}，重新复制机器人令牌后重试。",
+          "validationUnavailable": "{{telegram}} 暂时无法验证复制的令牌。当前 {{telegram}} 机器人保持不变。",
+          "webhook": "无法移除 webhook。请检查网络连接后重试。",
+          "webhookRemovalRequired": "复制令牌所对应的机器人仍在使用 webhook。请先移除 webhook，再删除当前连接并连接此机器人。"
+        },
+        "health": {
+          "conflict": "其他服务正在轮询此机器人。请先停止该部署，再重新检查。",
+          "connecting": "{{telegram}} 正在连接。",
+          "failed": "{{telegram}} 需要处理。请保持应用打开，检查连接后重试。",
+          "gap": "{{telegram}} 在长时间中断后已重新连接。部分消息可能未送达。",
+          "invalidToken": "{{telegram}} 拒绝了此令牌。请删除连接，再使用从 {{botFather}} 获取的新令牌连接新机器人。",
+          "off": "{{telegram}} 已关闭。",
+          "online": "{{telegram}} 已上线。",
+          "transferRequired": "此机器人仍属于另一个桌面应用安装实例。请先在该处删除连接，再在此连接。",
+          "waitingForToken": "请从 {{botFather}} 复制机器人令牌，然后从剪贴板粘贴。"
+        },
+        "pairing": {
+          "cancelled": "已取消 {{telegram}} 配对。",
+          "connected": "{{telegram}} 已连接至 @{{username}}。还需设置配对。",
+          "expired": "配对码在使用前已过期。准备好后可创建新配对码。",
+          "paired": "{{telegram}} 已与主要用户配对。",
+          "ready": "配对码已就绪。请在 {{telegram}} 中将其发送给机器人。",
+          "refused": "此机器人已有主要用户，因此配对被拒绝。",
+          "replaced": "新的 {{telegram}} 配对码已就绪。请在 {{telegram}} 中将其发送给机器人。",
+          "storageFailed": "无法保存主要 {{telegram}} 用户。请检查本地磁盘访问权限后重新配对。",
+          "unavailable": "{{telegram}} 机器人连接成功后才能配对。"
+        },
+        "platform": {
+          "encryptionAccess": "令牌安全存储不可用。请退出并重新打开 {{product}}，{{recoveryAction}}，然后选择“重新检查”。",
+          "encryptionSave": "令牌安全存储不可用。请退出并重新打开 {{product}}，{{recoveryAction}}，重新复制机器人令牌后重试。",
+          "encryptionUnchanged": "令牌安全存储不可用，因此当前 {{telegram}} 机器人保持不变。请退出并重新打开 {{product}}，{{recoveryAction}}，重新复制机器人令牌后重试。",
+          "offline": "{{telegram}} 已离线。只要 {{computer}} 保持唤醒并联网，{{product}} 就会继续尝试。",
+          "removed": "已从 {{computer}} 删除 {{telegram}} 连接。",
+          "suspended": "{{computer}} 休眠期间，{{telegram}} 轮询已暂停。",
+          "webhookConnect": "复制令牌所对应的机器人仍在使用 webhook。请先移除 webhook，再与 {{computer}} 配对。",
+          "webhookVerified": "机器人已验证。请先移除其 webhook，再与 {{computer}} 配对。"
+        },
+        "sender": {
+          "added": "已添加 {{telegram}} 用户。",
+          "daemonUncertain": "已授权用户列表可能已更改，但 {{product}} 未收到本地教练服务的确认。请重启 {{product}} 并检查列表后重试。",
+          "removed": "已移除 {{telegram}} 用户。",
+          "storageUncertain": "已授权用户列表可能已更改，但 {{product}} 无法验证存储。请重启 {{product}} 并检查列表后重试。"
+        },
+        "unavailable": "{{telegram}} 设置不可用。请保持应用打开后重试。",
+        "working": {
+          "acknowledgeGap": "正在清除 {{telegram}} 消息送达警告…",
+          "addSender": "正在添加 {{telegram}} 用户…",
+          "beginPairing": "正在创建私密配对码…",
+          "cancelPairing": "正在取消配对…",
+          "disable": "正在关闭 {{telegram}}…",
+          "enable": "正在开启 {{telegram}}…",
+          "pasteToken": "正在读取并验证 {{telegram}} 令牌…",
+          "reconcile": "正在检查 {{telegram}} 连接…",
+          "remove": "正在删除 {{telegram}} 连接…",
+          "removeSender": "正在移除 {{telegram}} 用户…",
+          "removeWebhook": "正在移除机器人的 webhook…"
+        }
+      },
+      "gap": {
+        "acknowledge": "确认已知晓",
+        "detail": "机器人在长时间中断后恢复运行，中断期间发送的消息可能未送达 {{product}}。请先检查 {{telegram}} 聊天，再清除此警告。",
+        "title": "检查 {{telegram}} 中是否有遗漏的消息"
+      },
+      "paired": "已与主要 {{telegram}} 用户配对",
+      "pairing": {
+        "cancel": "取消配对",
+        "code": "{{telegram}} 配对码",
+        "detail": "有效期为一分钟的配对码可确保只有能访问 {{computer}} 的人才能认领机器人。",
+        "expired": "配对码在使用前已过期。准备好后可创建新配对码。",
+        "expires": "{{time}} 过期",
+        "instruction": "请将此配对码私信发送给 @{{username}}。第一个发送配对码的账号将成为主要用户，机器人会保持在线。",
+        "primary": "配对主要用户",
+        "refused": "此机器人已有主要用户，因此配对被拒绝。",
+        "restart": "创建新配对码并开启",
+        "start": "开始配对并开启",
+        "storageFailed": "无法保存主要 {{telegram}} 用户。请检查本地磁盘访问权限后重新配对。",
+        "storageUncertain": "主要 {{telegram}} 用户可能已保存，但 {{product}} 无法验证存储。请重启 {{product}} 并检查 {{telegram}} 后重新配对。",
+        "title": "配对 {{telegram}} 账号",
+        "unavailable": "{{telegram}} 机器人连接成功后才能配对。"
+      },
+      "reloadDetail": "请先重新加载已保存的连接状态，再尝试其他操作。",
+      "retry": "重试",
+      "sender": {
+        "add": "添加用户",
+        "additional": "其他已授权用户",
+        "addTitle": "添加 {{telegram}} 用户 ID",
+        "advanced": "高级 · 已授权用户",
+        "help": "请仅添加您信任的人，允许其使用教练和共享的运动员数据。",
+        "list": "已授权的 {{telegram}} 用户",
+        "loadFailed": "无法加载已授权用户。{{product}} 将自动重试。",
+        "loading": "正在加载已授权用户…",
+        "primary": "主要用户 · 必需",
+        "remove": "移除",
+        "removeAria": "移除 {{telegram}} 用户 {{senderId}}",
+        "removeConfirm": "移除用户",
+        "removeDetail": "此用户将无法访问教练和共享的运动员数据，直到您通过发送者 ID {{senderId}} 将其重新添加。",
+        "removeTitle": "移除 {{telegram}} 用户 {{senderId}}？",
+        "validation": "请输入至少两位数字的 {{telegram}} 用户 ID。"
+      },
+      "setup": {
+        "afterBotfather": "申请机器人，复制其令牌后返回此处。{{product}} 直接从剪贴板读取令牌，无需令牌输入框。",
+        "ask": "向",
+        "cancel": "取消",
+        "cancelAria": "取消 {{telegram}} 机器人设置",
+        "connect": "连接",
+        "detail": "使用复制的令牌连接 {{telegram}} 机器人。",
+        "paste": "从剪贴板粘贴令牌",
+        "title": "通过 {{botFather}} 创建机器人"
+      },
+      "suspended": "{{computer}} 唤醒后，{{telegram}} 轮询将恢复。",
+      "title": "渠道",
+      "unavailable": "{{telegram}} 状态不可用",
+      "verified": "机器人已验证；开始配对将开启 {{telegram}}",
+      "webhook": {
+        "detail": "{{telegram}} 无法同时向 webhook 和 {{computer}} 发送消息。此手动操作会保留待处理的更新，并让桌面应用开始轮询。",
+        "remove": "移除 webhook",
+        "title": "移除现有 webhook"
+      }
+    },
+    "title": "设置"
+  },
+  "archive": {
+    "athlete": "您",
+    "back": "所有历史聊天",
+    "coach": "教练",
+    "conversation": "历史对话",
+    "delete": {
+      "action": "删除对话",
+      "description": "这会从此电脑永久删除这段历史对话及其原始附件。“训练”中已导入的活动和“计划”中的内容会保留。",
+      "failure": "未能完成删除。请重试以完成删除。",
+      "title": "删除这段对话？"
+    },
+    "empty": "暂无历史对话。开始新对话后，原对话会保留在这里。",
+    "emptyConversation": "这段对话没有可读取的消息。",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "历史对话暂时不可用。",
+    "loadEarlier": "加载更早的消息",
+    "loading": "正在加载历史对话…",
+    "pageFailure": "这段对话暂时不可用。",
+    "readOnly": "历史对话仅供查看。",
+    "reason": {
+      "explicit": "您开始了新对话",
+      "stale": "因一段时间未使用而关闭"
+    },
+    "retry": "重试",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "历史聊天",
+    "truncated": "仅列出最近的历史对话。",
+    "turnCount_other": "{{formattedCount}} 条消息",
+    "unavailable": "这段对话已不可用。"
+  },
+  "setup": {
+    "ai": {
+      "advanced": "高级",
+      "announcement": {
+        "apiKey": "已在此行下方打开 API 密钥设置。",
+        "chatgpt": "已在此行下方打开 {{chatgpt}} 登录。"
+      },
+      "apiKeyHint": "在服务商控制台创建，按用量计费，通常每次对话花费几美分。",
+      "cancelLabel": "取消 API 密钥设置",
+      "change": "更改",
+      "chatgptActivating": "已登录 · 正在启用教练…",
+      "choose": "选择",
+      "claude": {
+        "badge": {
+          "absentBinary": "未安装",
+          "apiKeyToken": "API 密钥，非订阅",
+          "checking": "正在检查",
+          "disabled": "已关闭",
+          "notLoggedIn": "未登录",
+          "ready": "已登录",
+          "readyApiKey": "API 密钥计费",
+          "workingAreaUnavailable": "无法安全启动"
+        },
+        "checkAgain": "选择“重新检查”以验证此 Mac 上的 {{claudeCode}}。",
+        "detail": "使用 {{computer}} 上已安装并登录的 {{claudeCode}} CLI。无需 API 密钥。",
+        "identity": {
+          "apiKey": "使用 {{anthropic}} API 密钥计费，用量费用计入 API 账号。",
+          "email": "已登录为 {{email}}",
+          "emailPlan": "已登录为 {{email}} · {{claude}} {{plan}} 订阅",
+          "plan": "已登录 · {{claude}} {{plan}} 订阅",
+          "signedIn": "已登录"
+        },
+        "recheck": "重新检查",
+        "statusDetail": {
+          "absentBinary": "未找到 {{claudeCode}} CLI，或已安装的版本过旧。请安装或更新后选择“重新检查”。",
+          "apiKeyToken": "{{claudeCode}} CLI 使用 API 密钥或令牌进行身份验证，而非订阅。请在 {{command}} 中使用订阅登录，或在配置中选择启用 API 密钥计费。",
+          "checking": "正在检查 {{computer}} 上的 {{claudeCode}} CLI 登录状态…",
+          "disabled": "{{computer}} 上的 {{claude}} 订阅选项已关闭。请选择其他服务商。",
+          "notLoggedIn": "{{claudeCode}} CLI 尚未登录。请打开终端，运行 {{command}}，并使用 {{claude}} 订阅登录。{{product}} 不会代为登录。",
+          "workingAreaUnavailable": "{{product}} 无法准备 {{claude}} 的私有工作区。请重启 {{product}}，然后选择“重新检查”。"
+        }
+      },
+      "connected": "已连接 · 为教练提供 AI",
+      "credentialLabel": "{{provider}} API 密钥",
+      "customModel": "自定义模型名称",
+      "endpoint": {
+        "automatic": "保留当前端点，或使用服务商默认值",
+        "custom": "使用自定义端点",
+        "customTitle": "自定义端点",
+        "default": "恢复服务商默认值",
+        "title": "端点"
+      },
+      "identity": "为教练提供 AI · {{identity}}",
+      "lane": {
+        "apiKey": "API 密钥",
+        "chatgpt": "{{chatgpt}} 订阅"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} 服务商 · 按用量付费",
+        "claudeCli": "选中后检查 {{claude}} 订阅",
+        "openaiCodex": "使用已有的付费方案"
+      },
+      "menuLabel": "教练使用的 AI",
+      "model": "模型",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "均衡",
+        "cheap": "低价",
+        "cheaper": "更低价",
+        "cheapest": "最低价",
+        "experimental": "实验性",
+        "fast": "快速",
+        "fastAndCheap": "快速且低价",
+        "faster": "更快",
+        "manyModels": "一个密钥，多个模型",
+        "mostCapable": "能力最强",
+        "recommended": "推荐"
+      },
+      "modelVia": "{{model}}（通过 {{provider}}）",
+      "otherModel": "其他模型…",
+      "pending": {
+        "activation": "为教练提供 AI · 已登录 · 需要启用",
+        "apiKey": "为教练提供 AI · 添加密钥即可完成",
+        "chatgpt": "为教练提供 AI · 登录即可完成",
+        "checkingClaude": "为教练提供 AI · 正在检查 {{claudeCode}} 登录状态",
+        "claude": "为教练提供 AI · 请在终端登录以完成"
+      },
+      "provider": "服务商",
+      "saveLabel": "保存 API 密钥",
+      "subtitle": "必需 · {{product}} 不包含 AI",
+      "title": "教练使用的 AI",
+      "tooltip": {
+        "body": "可使用 {{chatgpt}} 订阅、{{claudeCode}} 登录或自行提供的 API 密钥。无论选择哪种，其凭据都会保留在 {{computer}} 上。",
+        "label": "关于教练使用的 AI",
+        "lead": "{{product}} 没有自带的 AI"
+      },
+      "trigger": {
+        "set": "更改教练使用的 AI",
+        "unset": "选择教练使用的 AI"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "已登录，但无法启用教练。可直接重试，无需重新登录。",
+      "cancelLabel": "取消 {{chatgpt}} 设置",
+      "cancelSignIn": "取消登录",
+      "hint": "将在浏览器中打开 {{openai}} 登录页面，请在该页面输入密码，无需在此输入。需要付费方案。",
+      "phase": {
+        "activatingCoach": "正在启用教练…",
+        "completingSignIn": "正在完成登录…",
+        "ready": "已就绪",
+        "signedIn": "已登录",
+        "waitingForBrowser": "正在等待浏览器…"
+      },
+      "refusal": {
+        "alreadyInProgress": "{{chatgpt}} 登录已在进行中。",
+        "callbackUnavailable": "本地登录回调不可用。请关闭其他登录流程后重试。",
+        "cancelled": "已取消 {{chatgpt}} 登录。可以重试。",
+        "exchangeFailed": "无法完成 {{chatgpt}} 登录。请重试。",
+        "runtimeUnavailable": "{{chatgpt}} 登录信息已保存，但无法配置教练。",
+        "storageFailed": "{{chatgpt}} 登录已完成，但无法保存个人资料。",
+        "timedOut": "{{chatgpt}} 登录超时。准备好后请重试。"
+      },
+      "retryActivation": "重试启用",
+      "signIn": "使用 {{chatgpt}} 登录"
+    },
+    "chatSubtitle": "连接教练所需的服务。{{telegram}} 为可选项，不会阻止使用聊天。",
+    "checking": {
+      "heading": "正在检查初始设置",
+      "rowSubtitle": "正在检查已连接的服务…",
+      "status": "正在检查初始设置…",
+      "subtitle": "正在读取此电脑上已保存的连接。刚启动时可能需要稍等。"
+    },
+    "error": {
+      "configurationUnavailable": "教练选项暂时不可用。请重新查看初始设置区域。",
+      "credentialReenterRequired": "无法使用该已保存的密钥。请重新输入以继续。",
+      "credentialRequired": "请使用 {{chatgpt}} 登录，或添加至少一个模型密钥以继续。",
+      "credentialSaveFailed": "无法保存该密钥。请重新输入。",
+      "credentialStatusUnavailable": "该密钥已保存，但无法刷新其状态。请重新查看初始设置区域。",
+      "endpointInvalid": "请输入有效的 HTTPS 端点，或使用回环地址的 HTTP 端点。",
+      "intakeIncomplete": "请回答必填的安全问题以继续。",
+      "intakeSaveFailed": "无法保存回答。请重试。",
+      "intervalsClipboardClearFailed": "{{product}} 无法安全地从剪贴板清除 API 密钥，因此未保存。请重新复制后重试。",
+      "intervalsClipboardUnavailable": "{{product}} 无法从剪贴板读取 API 密钥。请在 {{intervals}} 中复制后重试。",
+      "intervalsKeyRejected": "{{intervals}} 未接受复制的 API 密钥。请复制当前有效的 API 密钥后重试。",
+      "intervalsOwnerUnavailable": "{{product}} 无法确认复制的 API 密钥是否与 {{computer}} 上的训练数据匹配。请在训练数据可用后重试。",
+      "intervalsRuntimeUnavailable": "无法启用复制的 API 密钥。请在 {{intervals}} 中复制后重试。",
+      "intervalsRuntimeUncertain": "{{product}} 无法确认复制的 API 密钥是否已启用。请重新加载凭据状态后重试。",
+      "intervalsStorageUncertain": "{{product}} 无法确认复制的 API 密钥是否已保存。请重新加载凭据状态后重试。",
+      "intervalsValidationUnavailable": "{{product}} 无法通过 {{intervals}} 验证复制的 API 密钥。请检查连接后重试。",
+      "invalidInput": "该密钥未被接受。请检查后重新输入。",
+      "modelRuntimeUnavailable": "所选服务商已保存，但尚未启用。请重试启用。",
+      "modelSelectionRequired": "请选择模型或输入自定义模型名称。",
+      "runtimeUnavailable": "该密钥已保存，但尚未启用。请选择“重试已保存的密钥”以启用。",
+      "storageFailed": "应用无法确认该密钥是否已安全保存。请检查安全存储是否可用后重试。",
+      "storageUncertain": "应用无法确认哪个已保存的密钥会在重启后保留。请重新输入密钥后继续。",
+      "trainingAccountMismatch": "该 {{intervalsLower}} 密钥所属的运动员与已存储的训练历史不符。目前尚不支持切换账号。",
+      "trainingDataRequired": "请连接 {{intervalsLower}}，或导入至少一个骑行文件。",
+      "unsafeBackend": "应用无法通过当前存储后端安全地存储该密钥。"
+    },
+    "footerNote": "所有内容都会保留在 {{computer}} 上。",
+    "heading": "请先启用教练，再开始聊天",
+    "import": {
+      "available": "本地资料库导入：已导入 {{imported}} 项，已隔离 {{quarantined}} 项。教练可以访问活动及其数据流。",
+      "choosing": "正在等待选择骑行文件…",
+      "failed": "本地资料库导入失败。已导入 {{imported}} 项，已隔离 {{quarantined}} 项。没有新的骑行文件可供教练使用。",
+      "fileCount_other": "{{formattedCount}} 个骑行文件",
+      "importing": "正在导入骑行文件…",
+      "unavailable": "本地资料库导入：已导入 {{imported}} 项，已隔离 {{quarantined}} 项。教练暂时无法访问活动及其数据流，请重试导入。",
+      "unconfirmed": "本地资料库导入失败。无法确认结果，请检查资料库后重试。"
+    },
+    "intake": {
+      "managing": "正在处理伤病",
+      "none": "目前没有伤病",
+      "retrySave": "重试保存回答",
+      "returning": "伤后恢复训练",
+      "select": "选择…",
+      "subtitle": "记录当前伤病或伤后恢复训练的情况。",
+      "title": "当前伤病状态"
+    },
+    "requiredReady": "{{total}} 项必需设置中，{{ready}} 项已就绪",
+    "retrySavedKeys": "重试已保存的密钥",
+    "retryStatus": "重试获取初始设置状态",
+    "settingsHeading": "初始设置",
+    "startCoaching": "开始指导",
+    "statusUnavailable": "无法加载初始设置状态。请检查 {{product}} 是否正在运行后重试。",
+    "telegram": {
+      "announcement": "已在此行下方打开 {{telegram}} 机器人设置。",
+      "ask": "向",
+      "availability": "当 {{product}} 正在运行，且 {{computer}} 保持唤醒并联网时，{{telegram}} 可用。",
+      "cancelLabel": "取消 {{telegram}} 机器人设置",
+      "checkAgain": "重新检查",
+      "connecting": "正在连接…",
+      "create": "创建",
+      "createAfterBotFather": "申请机器人，复制其令牌后返回此处。{{product}} 直接从剪贴板读取并验证令牌，不会显示令牌。",
+      "createCopy": "向 {{botFather}} 申请机器人，复制其令牌后返回此处。{{product}} 直接从剪贴板读取并验证令牌，不会显示令牌。",
+      "createLabel": "创建 {{telegram}} 机器人",
+      "createTitle": "通过 {{botFather}} 创建机器人",
+      "delete": "删除",
+      "deleteConnection": "删除连接",
+      "deleteCopy": "这会关闭 {{telegram}}，并从 {{computer}} 删除加密令牌及已授权用户的访问权限。{{telegram}} 机器人和聊天会保留在 {{telegram}} 中。",
+      "deleteLabel": "删除 {{telegram}} 连接",
+      "deleteTitle": "删除 {{telegram}} 连接？",
+      "deleting": "正在删除…",
+      "notDeleted": "未从 {{computer}} 删除 {{telegram}} 连接。",
+      "optional": "可选",
+      "unappliedToken": "复制的令牌未生效。当前 {{telegram}} 机器人保持不变。",
+      "useToken": "使用复制的令牌",
+      "verified": "机器人已验证 · @{{username}}",
+      "verifiedPrefix": "机器人已验证"
+    },
+    "training": {
+      "cancelLabel": "取消 {{intervals}} 设置",
+      "connect": "连接",
+      "connecting": "正在连接…",
+      "connectTitle": "连接 {{intervals}}",
+      "hint": "在 {{intervals}} 中打开“设置 → 开发者设置”，复制 API 密钥后返回此处。{{product}} 会读取密钥，但不会显示。",
+      "importFiles": "改为导入骑行文件",
+      "subtitle": {
+        "connected": "已连接 · 骑行数据来源",
+        "missing": "请连接或导入骑行文件。"
+      },
+      "tooltip": {
+        "body": "这是一个存有骑行记录的免费训练网站。{{product}} 从该网站读取记录，无需直接连接手表或码表厂商。需要一个已连接手表或码表的免费账号，然后复制其 API 密钥。",
+        "label": "关于 {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "连接 {{intervals}}"
+      },
+      "useCopiedKey": "使用复制的 API 密钥"
+    }
+  },
+  "shell": {
+    "checkingSetup": "正在检查初始设置…",
+    "loading": {
+      "archive": "正在加载历史聊天…",
+      "chat": "正在加载聊天…",
+      "plan": "正在加载计划…",
+      "settings": "正在加载设置…",
+      "training": "正在加载训练…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "{{operatingSystem}} 加密不可用。请确保 {{keychain}} 可用后重试。",
+        "windows": "{{operatingSystem}} 凭据加密（{{encryption}}）不可用。请退出并重新打开 {{product}} 后重试。"
+      },
+      "credentialRecoveryAction": {
+        "mac": "解锁登录钥匙串",
+        "windows": "确保 {{operatingSystem}} 凭据加密（{{encryption}}）可用"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "主导航",
+    "newChat": "新聊天",
+    "planAttention_other": "计划，{{formattedCount}} 项需要处理",
+    "sync": {
+      "action": {
+        "again": "再次同步",
+        "now": "立即同步",
+        "retry": "重试",
+        "unavailable": "同步不可用"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "同步需要处理",
+        "loading": "正在加载训练数据",
+        "never": "尚未同步",
+        "synced": "训练数据已同步",
+        "syncing": "正在同步",
+        "unavailable": "训练数据不可用"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "连接中断。同步可能仍在完成中。{{product}} 不会自动重试。",
+        "noChange": "本地训练数据处理已完成。",
+        "noChangeRestricted_other": "本地训练数据处理已完成。由于 {{source}} 的 API 限制，{{provider}} 无法分享 {{formattedCount}} 项活动，因此这些活动未包含在内。",
+        "operationFailure": "无法完成训练数据检查。现有数据仍可使用。",
+        "partial": "训练数据已完成部分处理。请重试以完成。",
+        "protocol": "{{product}} 无法验证同步结果。请退出并重新打开 {{product}}。",
+        "published": "训练数据检查已完成。",
+        "publishedRestricted_other": "训练数据检查已完成。由于 {{source}} 的 API 限制，{{provider}} 无法分享 {{formattedCount}} 项活动，因此这些活动未包含在内。",
+        "queued": "同步已加入队列。",
+        "running": "正在同步训练数据…"
+      },
+      "restriction": {
+        "fixAction": "· 如何解决",
+        "fixLabel": "{{restrictionLabel}}。如何解决",
+        "label_other": "{{formattedCount}} 项被 {{source}} 隐藏",
+        "tooltipBody": "由于 {{source}} 的 API 限制，{{provider}} 无法向 {{product}} 分享这些活动。",
+        "tooltipLabel": "为什么活动被隐藏？",
+        "tooltipLead_other": "{{formattedCount}} 项活动被 {{source}} 隐藏"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "同步时间未知"
+    },
+    "update": {
+      "available": "有可用更新",
+      "availableVersion": "有 {{version}} 版更新可用",
+      "installVersion": "安装 {{version}} 版更新",
+      "restarting": "正在重启…",
+      "restartingVersion": "正在重启以安装 {{version}} 版更新"
+    },
+    "views": {
+      "archive": "历史聊天",
+      "chat": "聊天",
+      "plan": "计划",
+      "settings": "设置",
+      "training": "训练"
     }
   }
 }

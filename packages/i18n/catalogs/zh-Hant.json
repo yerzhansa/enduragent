@@ -34,6 +34,823 @@
       "saving": "正在儲存單位…",
       "title": "單位",
       "unavailable": "單位偏好無法使用"
+    },
+    "application": {
+      "check": "檢查更新",
+      "checkFailed": "檢查更新失敗。請重試",
+      "checking": "正在檢查更新",
+      "checkingAction": "正在檢查…",
+      "current": "{{product}} 已是最新版本",
+      "danger": "危險操作",
+      "downloadFailed": "下載更新失敗。請重試",
+      "downloading": "正在下載更新 {{version}}",
+      "downloadingAction": "正在下載…",
+      "downloadTimedOut": "下載更新逾時。請結束並重新開啟 {{product}} 後重試。",
+      "reset": "重設對話",
+      "resetDetail": "清除目前顯示的對話。訓練資料與已儲存的教練記憶會保留。",
+      "restart": "重新啟動以更新至 {{version}} 版",
+      "restartAction": "重新啟動並更新",
+      "restarting": "正在重新啟動以安裝 {{version}} 版",
+      "restartingAction": "正在重新啟動…",
+      "restartRequired": "重新啟動 {{product}} 以恢復更新",
+      "retry": "重試更新",
+      "startFailed": "無法開始更新。請結束並重新開啟 {{product}} 後重試。",
+      "title": "應用程式",
+      "unavailable": "無法使用更新",
+      "version": "版本 {{version}}",
+      "versionUnknown": "未知"
+    },
+    "athlete": {
+      "credentialMissing": "尚未連結訓練帳號憑證。請在上方的初始設定區連結。",
+      "detail": "此欄位只能識別目前連結的訓練帳號，無法切換帳號。",
+      "error": {
+        "credentialRequired": "請先在「初始設定」中連結訓練帳號，再儲存運動員 ID。",
+        "managedByEnvironment": "運動員 ID 由 {{product}} 外部管理，未予變更。",
+        "notApplied": "未套用運動員 ID。請重新連線並重新載入後再試。",
+        "ownershipUnavailable": "無法驗證已連結的訓練帳號。請重新連線並重新載入後再試。",
+        "requestFailed": "無法儲存運動員 ID。編輯內容仍保留在這裡。",
+        "runtimeUnavailable": "無法重新載入目前的訓練帳號。編輯內容仍保留在這裡。",
+        "trainingAccountMismatch": "此運動員 ID 與目前連結的訓練帳號不符。"
+      },
+      "futurePrefix": "日後的騎乘 — ",
+      "help": "請使用與「初始設定」中已連結憑證對應的完整識別碼。",
+      "id": "運動員 ID",
+      "loading": "正在載入訓練帳號設定…",
+      "pastPrefix": "過往的騎乘 — ",
+      "refreshing": "正在重新連線並檢查目前的訓練帳號…",
+      "reload": "重新連線並重新載入",
+      "restriction": {
+        "cause": "由於 {{strava}} API 的限制，{{intervalsLower}} 無法與 {{product}} 分享來自 {{strava}} 的活動。API 金鑰沒有問題。",
+        "future": "將記錄來源直接連結至 {{intervalsLower}}，並保留 {{strava}} 連線。此方式免費，適用於日後的騎乘。",
+        "past": "在 {{intervalsLower}} 設定中使用「匯入所有 {{strava}} 資料」。此方式適用於過往的騎乘，需要訂閱 {{intervalsLower}} 支持者方案。",
+        "title_other": "{{total}} 筆活動中有 {{restricted}} 筆被 {{strava}} 隱藏"
+      },
+      "reviewSetup": "檢查初始設定",
+      "save": "儲存運動員 ID",
+      "saved": "已儲存運動員 ID。",
+      "saving": "正在儲存運動員 ID…",
+      "title": "訓練帳號",
+      "unavailable": "無法使用訓練帳號設定。請重新連線並重新載入。",
+      "validation": {
+        "athleteControlCharacters": "運動員 ID 不可包含控制字元。",
+        "athleteRequired": "請輸入已連結訓練帳號的運動員 ID。",
+        "athleteTooLong": "運動員 ID 不得超過 512 個字元。",
+        "athleteWhitespace": "運動員 ID 的開頭與結尾不可有空白。"
+      },
+      "verificationPending": "正在驗證已連結的訓練帳號… 完成前會暫停訓練資料。"
+    },
+    "coach": {
+      "active": "已啟用",
+      "activeUnavailable": "目前啟用的教練設定無法使用或尚未設定。",
+      "automatic": "自動",
+      "changeRequired": "需要變更",
+      "chooseModel": "選擇模型",
+      "chooseProvider": "選擇供應商",
+      "chooseProviderFirst": "請先選擇供應商",
+      "currentRoute": "目前啟用：{{provider}} · {{model}}",
+      "customModel": "自訂模型名稱",
+      "endpoint": "端點",
+      "endpointDetail": "{{product}} 會為此教練連線選擇供應商的端點。",
+      "error": {
+        "credentialRequired": "此供應商需要已儲存的憑證才能提供指導。請在上方的初始設定區新增。",
+        "invalidInput": "未接受此供應商或模型。請檢查模型名稱後重試。",
+        "requestFailed": "目前無法儲存教練設定。請重試。",
+        "runtimeUnavailable": "無法啟用教練設定。請再次儲存。"
+      },
+      "inactive": "未啟用",
+      "loading": "正在載入教練設定…",
+      "model": "模型",
+      "notConfigured": "尚未設定",
+      "otherModel": "其他模型…",
+      "provider": "供應商",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}} 訂閱",
+        "claude": "{{claude}} 訂閱",
+        "codex": "{{codex}} 代理程式（實驗性）"
+      },
+      "retry": "重試",
+      "reviewSetup": "檢查初始設定",
+      "route": "教練連線",
+      "save": "儲存教練連線",
+      "saved": "已儲存教練設定。",
+      "saving": "正在儲存教練設定…",
+      "title": "教練",
+      "unavailable": "目前無法使用教練設定。請重試。",
+      "unsaved": "未儲存",
+      "unsupported": "{{operatingSystem}} 不支援 {{codex}} 代理程式。請選擇 {{claude}} 訂閱或使用 API 金鑰的供應商，再儲存教練連線。憑證、運動員資料、對話及其他設定不會變更。",
+      "validation": {
+        "modelControlCharacters": "模型名稱不可包含控制字元。",
+        "modelRequired": "請輸入模型名稱。",
+        "modelTooLong": "模型名稱不得超過 512 個字元。"
+      }
+    },
+    "conversation": {
+      "ariaLabel": "對話與時間",
+      "detail": "設定對話何時重新開始，以及教練延續多少近期對話內容。",
+      "error": {
+        "notApplied": "未套用對話設定。請重新連線並重新載入後再試。",
+        "requestFailed": "無法儲存對話設定。編輯內容仍保留在這裡。",
+        "runtimeUnavailable": "無法重新載入目前的對話設定。編輯內容仍保留在這裡。"
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "運動員當地時間的小時數，範圍為 0 至 23。變更後，下一則訊息可能會開始新對話。",
+          "label": "每日重設時間"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "模型上下文中保留給對話記錄的比例，須大於 0% 且不超過 100%。",
+          "label": "對話記錄配額"
+        },
+        "idleMinutes": {
+          "help": "未傳送訊息達到此整數分鐘數後，即重設對話。設為 0 可關閉此功能。",
+          "label": "閒置重設",
+          "suffix": "分鐘"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "保留重設後封存對話的整數天數。設為 0 可永久保留；變更僅適用於日後的清理。",
+          "label": "封存保留時間",
+          "suffix": "天"
+        },
+        "timezone": {
+          "help": "請使用 IANA 時區，例如 {{timezone}}。在此儲存時區前，{{product}} 會依照此電腦的時區；儲存後則會保留您的設定。",
+          "label": "時區"
+        }
+      },
+      "fieldSuffix": "（{{suffix}}）",
+      "loading": "正在載入對話設定…",
+      "refreshing": "正在重新連線並檢查目前設定…",
+      "reload": "重新連線並重新載入",
+      "save": "儲存對話設定",
+      "saved": "已儲存對話設定。",
+      "saving": "正在儲存對話設定…",
+      "title": "對話與時間",
+      "unavailable": "無法使用對話設定。請重新連線並重新載入。",
+      "validation": {
+        "dailyResetHour": "請輸入 0 至 23 的整數小時。",
+        "historyTokenBudgetRatio": "請輸入大於 0% 且不超過 100% 的對話記錄配額。",
+        "idleMinutes": "請輸入安全範圍內大於或等於 0 的整數分鐘數。",
+        "resetArchiveRetentionDays": "請輸入安全範圍內大於或等於 0 的整數天數。",
+        "timezone": "請輸入有效的 IANA 時區，例如 {{timezone}}。"
+      }
+    },
+    "credentials": {
+      "change": "變更",
+      "changeAria": "變更 {{provider}} 憑證",
+      "claudeProvider": "{{claude}} 訂閱",
+      "codexProvider": "{{codex}} 代理程式",
+      "delete": {
+        "action": "刪除",
+        "aria": "刪除 {{provider}} 憑證",
+        "confirmAria": "確認刪除 {{provider}} 憑證",
+        "connection": "刪除連線",
+        "credential": "刪除憑證",
+        "detail": "此操作僅會從 {{computer}} 移除此憑證。若憑證已啟用，{{product}} 將停止使用。供應商帳號不會變更。",
+        "intervalsAria": "刪除 {{intervals}} 連線",
+        "intervalsDetail": "已儲存的 API 金鑰與已匯入的連線將被移除。已同步的騎乘與過往聊天會保留在 {{computer}}。",
+        "intervalsTitle": "要刪除 {{intervals}} 連線嗎？",
+        "title": "要刪除 {{provider}} 憑證嗎？"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "已取消刪除憑證。",
+          "cleanupPending": "已從本機刪除憑證。將重試清理安全儲存空間。",
+          "confirmProvider": "確認刪除 {{provider}} 憑證。",
+          "deleted": "已從本機刪除憑證。",
+          "deletingProvider": "正在從本機刪除 {{provider}} 憑證…",
+          "keyUnverified": "安全儲存空間無法確認加密金鑰，因此已保留憑證。",
+          "managed": "此憑證由「設定」之外的方式管理，無法在這裡刪除。",
+          "notStored": "此憑證已不存在。請重新載入以更新清單。",
+          "reconcileFailed": "無法協調已儲存與已啟用憑證的狀態。請重新連線並重新載入後再試。",
+          "refreshFailed": "已從本機刪除憑證，但無法更新目前的憑證狀態。",
+          "retained": "憑證仍保留在儲存空間中，未完成刪除。請重試。",
+          "setupRefreshFailed": "已從本機刪除憑證，但無法更新初始設定的就緒狀態。請重新載入憑證狀態。",
+          "stopFailed": "教練無法安全地停止使用此憑證，因此未刪除憑證。",
+          "unverified": "無法驗證安全儲存空間，因此無法確認憑證是否已刪除。請重新啟動 {{product}} 並重新載入後再試。"
+        },
+        "recovery": {
+          "locked": "請在 {{product}} 之外解鎖登入鑰匙圈，再按「重試」。",
+          "missing": "缺少憑證加密金鑰。若可還原，請還原後重試；也可以移除所有憑證並重新設定。",
+          "unavailable": "無法使用憑證安全儲存空間。請重試，或移除所有憑證並重新設定。",
+          "unverified": "{{product}} 無法安全地開啟部分已儲存的憑證。請重新輸入每個受影響的憑證。"
+        },
+        "reset": {
+          "cancelled": "已取消移除憑證。",
+          "cleanupPending": "已移除所有憑證。將重試清理安全儲存空間。",
+          "confirm": "確認移除所有憑證。",
+          "reloadFailed": "已移除憑證，但無法重新載入「設定」。請重新連線並重新載入。",
+          "removed": "已移除所有憑證。準備好後可重新設定。",
+          "removeFailed": "{{product}} 無法移除所有已儲存的憑證。請重試。",
+          "removing": "正在移除所有憑證…",
+          "stopFailed": "{{product}} 無法停用所有已啟用的憑證。請重試以完成移除。",
+          "unverified": "無法重新載入「設定」，因此無法驗證憑證是否已移除。請重新連線並重新載入。"
+        },
+        "unavailable": "無法使用已儲存的憑證。請重新連線並重新載入。"
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}} 個人檔案",
+        "provider": "供應商 API 金鑰",
+        "training": "訓練帳號金鑰"
+      },
+      "loading": "正在載入已儲存的憑證…",
+      "reconnect": "重新連線並重新載入",
+      "reload": "重新載入憑證狀態",
+      "repairRequired": "必須重新載入已儲存憑證的狀態，才能繼續初始設定。",
+      "reset": {
+        "confirm": "移除所有憑證",
+        "detail": "這會從 {{computer}} 移除所有已儲存的 AI 憑證、{{chatgpt}} 個人檔案、{{intervals}} 金鑰、{{telegram}} 權杖及共用加密金鑰。帳號與已匯入的資料不會變更。",
+        "title": "要移除所有憑證嗎？"
+      },
+      "retry": "重試",
+      "retryEntry": "重新輸入",
+      "runtime": {
+        "active": "已啟用",
+        "failed": "需要處理",
+        "storedInactive": "已儲存，未啟用",
+        "verifying": "正在驗證…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "由環境變數管理。請在 {{product}} 之外變更。",
+    "palette": {
+      "app": "應用程式配色",
+      "use": "使用 {{palette}} 配色"
+    },
+    "saving": "正在儲存…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "此教練連線使用明確指定的快取。",
+        "none": "沒有快取讀取",
+        "providerDependent": "快取取決於供應商；此教練連線未明確指定快取中斷點。",
+        "savings": "{{tokens}} 個快取讀取 token · 省下 {{amount}}",
+        "unavailable": "此教練連線無法使用快取",
+        "unknown": "{{tokens}} 個快取讀取 token · 無法取得節省金額"
+      },
+      "cap": {
+        "aria": "每日支出上限",
+        "failed": "無法儲存每日上限。",
+        "invalid": "請輸入大於 $0 的每日上限。",
+        "label": "每日上限（美元）",
+        "save": "儲存上限",
+        "value": "{{known}}，上限 {{cap}}"
+      },
+      "date": "{{month}}{{day}} 日",
+      "detail": "語言模型支出與今日上限",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "4 月",
+        "august": "8 月",
+        "december": "12 月",
+        "february": "2 月",
+        "january": "1 月",
+        "july": "7 月",
+        "june": "6 月",
+        "march": "3 月",
+        "may": "5 月",
+        "november": "11 月",
+        "october": "10 月",
+        "september": "9 月"
+      },
+      "notice": {
+        "incomplete": "部分供應商費用無法取得，因此今日總額為目前已知的最低金額。",
+        "malformed": "無法讀取部分用量記錄。",
+        "saved": "透過快取讀取省下 {{amount}}",
+        "savedMinimum": "透過快取讀取至少省下 {{amount}}",
+        "stale": "支出資料可能不是最新的。"
+      },
+      "notional": "若改用 API，此訂閱用量將花費 {{amount}}。此金額未實際扣款，也不計入上限。",
+      "priced": "已計算 {{priced}}/{{total}} 次生成的費用",
+      "routeNotional": "若使用 API，將花費 {{amount}}",
+      "routes": "支出明細",
+      "title": "支出",
+      "today": "今天",
+      "todayDate": "今天 · {{date}}",
+      "unavailable": "無法取得支出資料。"
+    },
+    "title": "設定",
+    "telegram": {
+      "attention": {
+        "conflict": "另一個應用程式或部署正在輪詢此機器人。請先在該處停止，再選擇「再次檢查」。不同的機器人仍可同時執行。",
+        "credentialUnavailable": "無法從安全儲存空間讀取已儲存的機器人權杖。請結束並重新開啟 {{product}}，再選擇「再次檢查」。若仍無法讀取，請刪除此連線，再連結新的機器人。",
+        "daemonUnavailable": "無法使用本機教練服務。請保持 {{product}} 開啟，再選擇「再次檢查」。",
+        "drainRequired": "一則 {{telegram}} 回覆尚未完成。請稍候再試。",
+        "encryption": "無法使用權杖安全儲存空間。請結束並重新開啟 {{product}}，{{recoveryAction}}，再選擇「再次檢查」。",
+        "homeMismatch": "桌面應用程式已連結至另一個運動員主目錄。請重新啟動 {{product}} 後再次檢查。",
+        "identityUnknown": "無法驗證已儲存的 {{telegram}} 連線。請先選擇「再次檢查」，再嘗試其他操作。",
+        "invalidToken": "{{telegram}} 拒絕了已儲存的權杖。請刪除此連線，再使用從 {{botFather}} 複製的權杖連結新的機器人。",
+        "offline": "{{telegram}} 暫時離線。只要 {{computer}} 保持喚醒並連上網路，{{product}} 就會重試。",
+        "startFailed": "無法啟動 {{telegram}}。請保持 {{product}} 開啟、檢查網路連線，再選擇「再次檢查」。",
+        "storageFailed": "無法儲存加密的機器人憑證。請檢查本機磁碟存取權限後重試。",
+        "storageUncertain": "{{telegram}} 設定可能未完整儲存。請保持 {{telegram}} 不變，先選擇「再次檢查」，再嘗試其他操作。",
+        "transferRequired": "此機器人屬於另一個 {{product}} 安裝或代管部署。請先在該處刪除連線，再使用複製的權杖在此重新連結。",
+        "unsafeBackend": "沒有可用的安全憑證儲存後端，因此 {{product}} 拒絕在未加密的情況下存取已儲存的機器人權杖。請結束並重新開啟 {{product}}，再選擇「再次檢查」。"
+      },
+      "availability": "{{telegram}} 只有在 {{product}} 與其本機教練服務執行中，且 {{computer}} 保持喚醒並連上網路時才能運作。",
+      "channel": {
+        "conflict": "輪詢衝突",
+        "connecting": "正在連線",
+        "failed": "需要處理",
+        "off": "已關閉",
+        "online": "線上",
+        "reconnecting": "正在重新連線",
+        "suspended": "睡眠期間暫停",
+        "tokenRejected": "權杖遭拒",
+        "transferRequired": "需要移轉",
+        "waitingForCredential": "需要機器人權杖"
+      },
+      "check": "再次檢查",
+      "delete": {
+        "action": "刪除",
+        "confirm": "刪除連線",
+        "detail": "這會關閉機器人，並從 {{computer}} 刪除其加密權杖與允許使用者的存取權限。{{telegram}} 機器人及其聊天仍會保留在 {{telegram}}。",
+        "title": "要從 {{computer}} 刪除 @{{botUsername}} 嗎？"
+      },
+      "detail": "建議使用專用機器人。這會建立新的 @username 與 {{telegram}} 聊天；先前機器人顯示的記錄不會移轉。運動員記憶、訓練資料與計畫則會共用。",
+      "disable": "關閉",
+      "enable": "開啟",
+      "feedback": {
+        "failure": {
+          "change": "無法變更 {{telegram}} 設定。請重試。",
+          "changeStorageUnverified": "無法驗證儲存狀態，因此未套用變更。請重新啟動 {{product}} 並檢查此設定後再試。",
+          "changeUncertain": "{{telegram}} 變更可能已開始，但 {{product}} 無法確認是否完成。請重新啟動 {{product}} 並檢查此設定後再試。",
+          "clipboardClearFailed": "無法清除剪貼簿，因此未使用複製的權杖。目前的 {{telegram}} 機器人未變更。",
+          "clipboardUnavailable": "無法讀取剪貼簿。未使用任何 {{telegram}} 權杖。",
+          "connectUncertain": "{{telegram}} 連線可能已開始，但 {{product}} 無法確認是否完成。請重新啟動 {{product}} 並檢查 {{telegram}} 後再試。",
+          "invalidToken": "{{telegram}} 拒絕了複製的權杖。目前的 {{telegram}} 機器人未變更。",
+          "invalidTokenFormat": "剪貼簿中沒有有效的 {{telegram}} 機器人權杖。目前的 {{telegram}} 機器人未變更。",
+          "pairing": "無法開始配對。請檢查機器人連線後重試。",
+          "pairingUncertain": "主要 {{telegram}} 使用者可能已儲存，但 {{product}} 無法驗證儲存狀態。請重新啟動 {{product}} 並檢查 {{telegram}} 後再配對。",
+          "pasteToken": "無法驗證或儲存機器人權杖。請從 {{botFather}} 複製新的權杖後重試。",
+          "removeStorageUnverified": "無法驗證安全儲存空間，因此無法確認 {{telegram}} 連線是否已刪除。請重新啟動 {{product}} 並檢查 {{telegram}} 後再試。",
+          "removeUncertain": "{{telegram}} 連線可能尚未刪除完成。請重新啟動 {{product}} 並檢查機器人是否仍連線，再重試。",
+          "senders": "無法變更允許使用者清單。請檢查使用者 ID 後重試。",
+          "storageFailed": "無法儲存複製的權杖。目前的 {{telegram}} 機器人未變更。",
+          "tokenNotApplied": "未套用複製的權杖。目前的 {{telegram}} 機器人未變更。",
+          "tokenStorageUnverified": "無法驗證安全儲存空間，因此未套用複製的權杖。目前的 {{telegram}} 機器人未變更。請重新啟動 {{product}} 並檢查 {{telegram}} 後再試。",
+          "unsafeAccess": "沒有可用的安全憑證儲存後端，因此 {{product}} 拒絕在未加密的情況下存取已儲存的機器人權杖。請結束並重新開啟 {{product}}，再選擇「再次檢查」。",
+          "unsafeToken": "沒有可用的安全憑證儲存後端，因此 {{product}} 拒絕在未加密的情況下儲存機器人權杖。請結束並重新開啟 {{product}}，再次複製機器人權杖後重試。",
+          "unsafeTokenUnchanged": "沒有可用的安全憑證儲存後端，因此目前的 {{telegram}} 機器人未變更。{{product}} 拒絕在未加密的情況下儲存複製的權杖。請結束並重新開啟 {{product}}，再次複製機器人權杖後重試。",
+          "validationUnavailable": "{{telegram}} 目前無法驗證複製的權杖。目前的 {{telegram}} 機器人未變更。",
+          "webhook": "無法移除 webhook。請檢查網路連線後重試。",
+          "webhookRemovalRequired": "複製權杖所屬的機器人仍在使用 webhook。請移除 webhook，再刪除目前的連線並連結此機器人。"
+        },
+        "health": {
+          "conflict": "另一個服務正在輪詢此機器人。請停止該部署後再次檢查。",
+          "connecting": "{{telegram}} 正在連線。",
+          "failed": "{{telegram}} 需要處理。請保持應用程式開啟、檢查連線後重試。",
+          "gap": "{{telegram}} 在長時間中斷後重新連線。部分訊息可能未送達。",
+          "invalidToken": "{{telegram}} 拒絕了此權杖。請刪除連線，再使用從 {{botFather}} 取得的新權杖連結新的機器人。",
+          "off": "{{telegram}} 已關閉。",
+          "online": "{{telegram}} 已上線。",
+          "transferRequired": "此機器人仍屬於另一個桌面應用程式安裝。請先在該處刪除連線，再於此處連結。",
+          "waitingForToken": "請從 {{botFather}} 複製機器人權杖，再從剪貼簿貼上。"
+        },
+        "pairing": {
+          "cancelled": "已取消 {{telegram}} 配對。",
+          "connected": "{{telegram}} 已連結至 @{{username}}。需要設定配對。",
+          "expired": "配對碼尚未使用就已過期。準備好後請建立新配對碼。",
+          "paired": "{{telegram}} 已與主要使用者配對。",
+          "ready": "配對碼已就緒。請在 {{telegram}} 中傳送給機器人。",
+          "refused": "此機器人已有主要使用者，因此已拒絕配對。",
+          "replaced": "新的 {{telegram}} 配對碼已就緒。請在 {{telegram}} 中傳送給機器人。",
+          "storageFailed": "無法儲存主要 {{telegram}} 使用者。請檢查本機磁碟存取權限後再次配對。",
+          "unavailable": "必須等 {{telegram}} 機器人能夠連線後，才能配對。"
+        },
+        "platform": {
+          "encryptionAccess": "無法使用權杖安全儲存空間。請結束並重新開啟 {{product}}，{{recoveryAction}}，再選擇「再次檢查」。",
+          "encryptionSave": "無法使用權杖安全儲存空間。請結束並重新開啟 {{product}}，{{recoveryAction}}，再次複製機器人權杖後重試。",
+          "encryptionUnchanged": "無法使用權杖安全儲存空間，因此目前的 {{telegram}} 機器人未變更。請結束並重新開啟 {{product}}，{{recoveryAction}}，再次複製機器人權杖後重試。",
+          "offline": "{{telegram}} 已離線。只要 {{computer}} 保持喚醒並連上網路，{{product}} 就會持續重試。",
+          "removed": "已從 {{computer}} 刪除 {{telegram}} 連線。",
+          "suspended": "{{computer}} 睡眠期間，{{telegram}} 輪詢會暫停。",
+          "webhookConnect": "複製權杖所屬的機器人仍在使用 webhook。請先移除 webhook，再與 {{computer}} 配對。",
+          "webhookVerified": "機器人已驗證。請先移除其 webhook，再與 {{computer}} 配對。"
+        },
+        "sender": {
+          "added": "已新增 {{telegram}} 使用者。",
+          "daemonUncertain": "允許使用者清單可能已變更，但 {{product}} 未能取得本機教練服務的確認。請重新啟動 {{product}} 並檢查清單後再試。",
+          "removed": "已移除 {{telegram}} 使用者。",
+          "storageUncertain": "允許使用者清單可能已變更，但 {{product}} 無法驗證儲存狀態。請重新啟動 {{product}} 並檢查清單後再試。"
+        },
+        "unavailable": "無法使用 {{telegram}} 設定。請保持應用程式開啟後重試。",
+        "working": {
+          "acknowledgeGap": "正在清除 {{telegram}} 傳送警告…",
+          "addSender": "正在新增 {{telegram}} 使用者…",
+          "beginPairing": "正在建立私人配對碼…",
+          "cancelPairing": "正在取消配對…",
+          "disable": "正在關閉 {{telegram}}…",
+          "enable": "正在開啟 {{telegram}}…",
+          "pasteToken": "正在讀取並驗證 {{telegram}} 權杖…",
+          "reconcile": "正在檢查 {{telegram}} 連線…",
+          "remove": "正在刪除 {{telegram}} 連線…",
+          "removeSender": "正在移除 {{telegram}} 使用者…",
+          "removeWebhook": "正在移除機器人的 webhook…"
+        }
+      },
+      "gap": {
+        "acknowledge": "已知悉",
+        "detail": "機器人在長時間中斷後恢復，因此該段期間傳送的訊息可能未送達 {{product}}。清除此警告前，請先檢查 {{telegram}} 聊天。",
+        "title": "檢查 {{telegram}} 是否有遺漏的訊息"
+      },
+      "paired": "已與主要 {{telegram}} 使用者配對",
+      "pairing": {
+        "cancel": "取消配對",
+        "code": "{{telegram}} 配對碼",
+        "detail": "配對碼有效期限為一分鐘，確保只有能存取 {{computer}} 的人可以取得機器人的使用權。",
+        "expired": "配對碼尚未使用就已過期。準備好後請建立新配對碼。",
+        "expires": "於 {{time}} 到期",
+        "instruction": "請以私人訊息將此配對碼傳送給 @{{username}}。第一個傳送的帳號會成為主要使用者，機器人也會保持上線。",
+        "primary": "配對主要使用者",
+        "refused": "此機器人已有主要使用者，因此已拒絕配對。",
+        "restart": "建立新配對碼並開啟",
+        "start": "開始配對並開啟",
+        "storageFailed": "無法儲存主要 {{telegram}} 使用者。請檢查本機磁碟存取權限後再次配對。",
+        "storageUncertain": "主要 {{telegram}} 使用者可能已儲存，但 {{product}} 無法驗證儲存狀態。請重新啟動 {{product}} 並檢查 {{telegram}} 後再配對。",
+        "title": "配對 {{telegram}} 帳號",
+        "unavailable": "必須等 {{telegram}} 機器人能夠連線後，才能配對。"
+      },
+      "reloadDetail": "請先重新載入已儲存的連線狀態，再嘗試其他操作。",
+      "retry": "重試",
+      "sender": {
+        "add": "新增使用者",
+        "additional": "其他允許的使用者",
+        "addTitle": "新增 {{telegram}} 使用者 ID",
+        "advanced": "進階 · 允許的使用者",
+        "help": "僅新增您信任的人，讓他們使用教練與共用的運動員資料。",
+        "list": "允許的 {{telegram}} 使用者",
+        "loadFailed": "無法載入允許的使用者。{{product}} 將自動重試。",
+        "loading": "正在載入允許的使用者…",
+        "primary": "主要使用者 · 必填",
+        "remove": "移除",
+        "removeAria": "移除 {{telegram}} 使用者 {{senderId}}",
+        "removeConfirm": "移除使用者",
+        "removeDetail": "此使用者將無法使用教練與共用的運動員資料，直到您透過傳送者 ID {{senderId}} 重新新增。",
+        "removeTitle": "要移除 {{telegram}} 使用者 {{senderId}} 嗎？",
+        "validation": "請輸入至少兩位數字的 {{telegram}} 使用者 ID。"
+      },
+      "setup": {
+        "afterBotfather": "建立機器人，複製其權杖後返回這裡。{{product}} 會直接從剪貼簿讀取權杖；此處沒有權杖輸入欄位。",
+        "ask": "請",
+        "cancel": "取消",
+        "cancelAria": "取消 {{telegram}} 機器人設定",
+        "connect": "連結",
+        "detail": "使用複製的權杖連結 {{telegram}} 機器人。",
+        "paste": "從剪貼簿貼上權杖",
+        "title": "透過 {{botFather}} 建立機器人"
+      },
+      "suspended": "{{computer}} 喚醒後，{{telegram}} 輪詢將恢復。",
+      "title": "通訊管道",
+      "unavailable": "無法取得 {{telegram}} 狀態",
+      "verified": "機器人已驗證；開始配對將開啟 {{telegram}}",
+      "webhook": {
+        "detail": "{{telegram}} 無法同時傳送至 webhook 與 {{computer}}。此操作會保留待處理的更新，並讓桌面應用程式開始輪詢。",
+        "remove": "移除 webhook",
+        "title": "移除現有的 webhook"
+      }
+    }
+  },
+  "archive": {
+    "athlete": "您",
+    "back": "所有過往聊天",
+    "coach": "教練",
+    "conversation": "過往對話",
+    "delete": {
+      "action": "刪除對話",
+      "description": "這會從此電腦永久移除此過往對話及其原始附件。「訓練」中已匯入的活動與「計畫」中的內容會保留。",
+      "failure": "未能完成刪除。請重試以完成刪除。",
+      "title": "要刪除此對話嗎？"
+    },
+    "empty": "尚無過往對話。開始新對話後，舊對話會保留在這裡。",
+    "emptyConversation": "此對話沒有可讀取的訊息。",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "暫時無法使用過往對話。",
+    "loadEarlier": "載入更早的訊息",
+    "loading": "正在載入過往對話…",
+    "pageFailure": "暫時無法使用此對話。",
+    "readOnly": "過往對話僅供唯讀。",
+    "reason": {
+      "explicit": "您已開始新對話",
+      "stale": "閒置一段時間後關閉"
+    },
+    "retry": "重試",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "過往聊天",
+    "truncated": "僅列出最近的過往對話。",
+    "turnCount_other": "{{formattedCount}} 則訊息",
+    "unavailable": "此對話已無法使用。"
+  },
+  "setup": {
+    "ai": {
+      "advanced": "進階",
+      "announcement": {
+        "apiKey": "API 金鑰設定已在此列下方開啟。",
+        "chatgpt": "{{chatgpt}} 登入已在此列下方開啟。"
+      },
+      "apiKeyHint": "在供應商控制台建立，依用量計費；每次對話通常只需幾美分。",
+      "cancelLabel": "取消 API 金鑰設定",
+      "change": "變更",
+      "chatgptActivating": "已登入 · 正在啟用教練…",
+      "choose": "選擇",
+      "claude": {
+        "badge": {
+          "absentBinary": "尚未安裝",
+          "apiKeyToken": "使用 API 金鑰，非訂閱",
+          "checking": "正在檢查",
+          "disabled": "已關閉",
+          "notLoggedIn": "尚未登入",
+          "ready": "已登入",
+          "readyApiKey": "API 金鑰計費",
+          "workingAreaUnavailable": "無法安全啟動"
+        },
+        "checkAgain": "選擇「再次檢查」以驗證此 Mac 上的 {{claudeCode}}。",
+        "detail": "使用 {{computer}} 上已安裝並登入的 {{claudeCode}} CLI。不需要 API 金鑰。",
+        "identity": {
+          "apiKey": "使用 {{anthropic}} API 金鑰計費，用量費用將計入 API 帳號。",
+          "email": "已以 {{email}} 登入",
+          "emailPlan": "已以 {{email}} 登入 · {{claude}} {{plan}} 訂閱",
+          "plan": "已登入 · {{claude}} {{plan}} 訂閱",
+          "signedIn": "已登入"
+        },
+        "recheck": "再次檢查",
+        "statusDetail": {
+          "absentBinary": "找不到 {{claudeCode}} CLI，或已安裝的版本過舊。請安裝或更新後選擇「再次檢查」。",
+          "apiKeyToken": "{{claudeCode}} CLI 使用 API 金鑰或權杖驗證，而非訂閱。請在 {{command}} 中使用訂閱登入，或在組態中選擇啟用 API 金鑰計費。",
+          "checking": "正在檢查 {{computer}} 上的 {{claudeCode}} CLI 登入狀態…",
+          "disabled": "{{computer}} 上的 {{claude}} 訂閱選項已關閉。請選擇其他供應商。",
+          "notLoggedIn": "{{claudeCode}} CLI 尚未登入。請開啟終端機、執行 {{command}}，並使用 {{claude}} 訂閱登入。{{product}} 不會代為登入。",
+          "workingAreaUnavailable": "{{product}} 無法準備 {{claude}} 的私人工作區。請重新啟動 {{product}}，再選擇「再次檢查」。"
+        }
+      },
+      "connected": "已連結 · 提供教練所需的 AI",
+      "credentialLabel": "{{provider}} API 金鑰",
+      "customModel": "自訂模型名稱",
+      "endpoint": {
+        "automatic": "保留目前設定，或使用供應商預設值",
+        "custom": "使用自訂端點",
+        "customTitle": "自訂端點",
+        "default": "重設為供應商預設值",
+        "title": "端點"
+      },
+      "identity": "提供教練所需的 AI · {{identity}}",
+      "lane": {
+        "apiKey": "API 金鑰",
+        "chatgpt": "{{chatgpt}} 訂閱"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} 家供應商 · 依用量付費",
+        "claudeCli": "選取時會檢查 {{claude}} 訂閱",
+        "openaiCodex": "使用已付費的方案"
+      },
+      "menuLabel": "教練使用的 AI",
+      "model": "模型",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "均衡",
+        "cheap": "低價",
+        "cheaper": "更便宜",
+        "cheapest": "最便宜",
+        "experimental": "實驗性",
+        "fast": "快速",
+        "fastAndCheap": "快速且低價",
+        "faster": "更快",
+        "manyModels": "一組金鑰，多種模型",
+        "mostCapable": "能力最強",
+        "recommended": "建議"
+      },
+      "modelVia": "{{model}}（透過 {{provider}}）",
+      "otherModel": "其他模型…",
+      "pending": {
+        "activation": "提供教練所需的 AI · 已登入 · 需要啟用",
+        "apiKey": "提供教練所需的 AI · 新增金鑰以完成設定",
+        "chatgpt": "提供教練所需的 AI · 登入以完成設定",
+        "checkingClaude": "提供教練所需的 AI · 正在檢查 {{claudeCode}} 登入狀態",
+        "claude": "提供教練所需的 AI · 從終端機登入以完成設定"
+      },
+      "provider": "供應商",
+      "saveLabel": "儲存 API 金鑰",
+      "subtitle": "必填 — {{product}} 未內含 AI",
+      "title": "教練使用的 AI",
+      "tooltip": {
+        "body": "可使用 {{chatgpt}} 訂閱、{{claudeCode}} 登入，或自行提供的 API 金鑰。無論選擇哪一種，登入資料或金鑰都會保留在 {{computer}}。",
+        "label": "關於教練使用的 AI",
+        "lead": "{{product}} 本身不含 AI"
+      },
+      "trigger": {
+        "set": "變更教練使用的 AI",
+        "unset": "選擇教練使用的 AI"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "已登入，但無法啟用教練。請重試，不必再次登入。",
+      "cancelLabel": "取消 {{chatgpt}} 設定",
+      "cancelSignIn": "取消登入",
+      "hint": "在瀏覽器中開啟 {{openai}} 登入頁面；請在該頁輸入密碼，而非在這裡輸入。需要付費方案。",
+      "phase": {
+        "activatingCoach": "正在啟用教練…",
+        "completingSignIn": "正在完成登入…",
+        "ready": "已就緒",
+        "signedIn": "已登入",
+        "waitingForBrowser": "正在等待瀏覽器…"
+      },
+      "refusal": {
+        "alreadyInProgress": "{{chatgpt}} 登入已在進行中。",
+        "callbackUnavailable": "無法使用本機登入回呼。請關閉其他登入流程後重試。",
+        "cancelled": "已取消 {{chatgpt}} 登入。可以重試。",
+        "exchangeFailed": "無法完成 {{chatgpt}} 登入。請重試。",
+        "runtimeUnavailable": "已儲存 {{chatgpt}} 登入資料，但無法設定教練。",
+        "storageFailed": "已完成 {{chatgpt}} 登入，但無法儲存個人檔案。",
+        "timedOut": "{{chatgpt}} 登入逾時。準備好後請重試。"
+      },
+      "retryActivation": "重試啟用",
+      "signIn": "使用 {{chatgpt}} 登入"
+    },
+    "chatSubtitle": "連結教練需要的服務。{{telegram}} 為選用項目，不會影響聊天功能。",
+    "checking": {
+      "heading": "正在檢查初始設定",
+      "rowSubtitle": "正在檢查已連結的項目…",
+      "status": "正在檢查初始設定…",
+      "subtitle": "正在讀取此電腦上已儲存的連線。剛啟動時可能需要稍候。"
+    },
+    "error": {
+      "configurationUnavailable": "目前無法使用教練選項。請再次檢查初始設定區。",
+      "credentialReenterRequired": "無法使用此已儲存的金鑰。請重新輸入以繼續。",
+      "credentialRequired": "請使用 {{chatgpt}} 登入，或至少新增一組模型金鑰以繼續。",
+      "credentialSaveFailed": "無法儲存此金鑰。請嘗試重新輸入。",
+      "credentialStatusUnavailable": "已儲存此金鑰，但無法更新其狀態。請再次檢查初始設定區。",
+      "endpointInvalid": "請輸入有效的 HTTPS 端點，或本機回環 HTTP 端點。",
+      "intakeIncomplete": "請回答必填的安全問題以繼續。",
+      "intakeSaveFailed": "無法儲存回答。請重試。",
+      "intervalsClipboardClearFailed": "{{product}} 無法安全地從剪貼簿清除 API 金鑰，因此未儲存。請再次複製後重試。",
+      "intervalsClipboardUnavailable": "{{product}} 無法從剪貼簿讀取 API 金鑰。請在 {{intervals}} 中複製後重試。",
+      "intervalsKeyRejected": "{{intervals}} 未接受複製的 API 金鑰。請複製目前有效的 API 金鑰後重試。",
+      "intervalsOwnerUnavailable": "{{product}} 無法確認複製的 API 金鑰是否與 {{computer}} 上的訓練資料相符。請待訓練資料可用時再試。",
+      "intervalsRuntimeUnavailable": "無法啟用複製的 API 金鑰。請在 {{intervals}} 中複製後重試。",
+      "intervalsRuntimeUncertain": "{{product}} 無法確認複製的 API 金鑰是否已啟用。請重新載入憑證狀態後再試。",
+      "intervalsStorageUncertain": "{{product}} 無法確認複製的 API 金鑰是否已儲存。請重新載入憑證狀態後再試。",
+      "intervalsValidationUnavailable": "{{product}} 無法向 {{intervals}} 驗證複製的 API 金鑰。請檢查連線後重試。",
+      "invalidInput": "未接受此金鑰。請檢查後重新輸入。",
+      "modelRuntimeUnavailable": "已儲存選擇的供應商，但尚未啟用。請再次嘗試啟用。",
+      "modelSelectionRequired": "請選擇模型或輸入自訂模型名稱。",
+      "runtimeUnavailable": "已儲存此金鑰，但尚未啟用。請選擇「重試已儲存的金鑰」以啟用。",
+      "storageFailed": "應用程式無法確認此金鑰是否已安全儲存。請確認安全儲存空間可用後重試。",
+      "storageUncertain": "應用程式無法確認哪組已儲存的金鑰會在重新啟動後保留。請重新輸入金鑰後再繼續。",
+      "trainingAccountMismatch": "此 {{intervalsLower}} 金鑰所屬的運動員與已儲存的訓練記錄不同。目前尚不支援切換帳號。",
+      "trainingDataRequired": "請連結 {{intervalsLower}}，或至少匯入一個騎乘檔案。",
+      "unsafeBackend": "應用程式無法使用目前的儲存後端安全地儲存此金鑰。"
+    },
+    "footerNote": "所有內容都會保留在 {{computer}}。",
+    "heading": "先啟用教練，即可開始聊天",
+    "import": {
+      "available": "本機資料庫匯入：已匯入 {{imported}} 個，已隔離 {{quarantined}} 個。教練可以存取活動與資料串流。",
+      "choosing": "正在等待選擇騎乘檔案…",
+      "failed": "本機資料庫匯入失敗。已匯入 {{imported}} 個，已隔離 {{quarantined}} 個。沒有可供教練使用的新騎乘檔案。",
+      "fileCount_other": "{{formattedCount}} 個騎乘檔案",
+      "importing": "正在匯入騎乘檔案…",
+      "unavailable": "本機資料庫匯入：已匯入 {{imported}} 個，已隔離 {{quarantined}} 個。教練暫時無法存取活動與資料串流；請重試匯入。",
+      "unconfirmed": "本機資料庫匯入失敗。無法確認結果；請先檢查資料庫再重試。"
+    },
+    "intake": {
+      "managing": "目前有傷",
+      "none": "目前無傷",
+      "retrySave": "重試儲存回答",
+      "returning": "傷後恢復訓練",
+      "select": "選擇…",
+      "subtitle": "記錄目前傷勢或傷後恢復訓練的情況。",
+      "title": "目前傷勢狀態"
+    },
+    "requiredReady": "{{total}} 個必要項目中，{{ready}} 個已就緒",
+    "retrySavedKeys": "重試已儲存的金鑰",
+    "retryStatus": "重試初始設定狀態",
+    "settingsHeading": "初始設定",
+    "startCoaching": "開始接受指導",
+    "statusUnavailable": "無法載入初始設定狀態。請確認 {{product}} 正在執行後重試。",
+    "telegram": {
+      "announcement": "{{telegram}} 機器人設定已在此列下方開啟。",
+      "ask": "請",
+      "availability": "{{product}} 執行中，且 {{computer}} 保持喚醒並連上網路時，{{telegram}} 才能運作。",
+      "cancelLabel": "取消 {{telegram}} 機器人設定",
+      "checkAgain": "再次檢查",
+      "connecting": "正在連線…",
+      "create": "建立",
+      "createAfterBotFather": "建立機器人，複製其權杖後返回這裡。{{product}} 會直接從剪貼簿讀取並驗證權杖，全程不會顯示權杖。",
+      "createCopy": "請 {{botFather}} 建立機器人，複製其權杖後返回這裡。{{product}} 會直接從剪貼簿讀取並驗證權杖，全程不會顯示權杖。",
+      "createLabel": "建立 {{telegram}} 機器人",
+      "createTitle": "透過 {{botFather}} 建立機器人",
+      "delete": "刪除",
+      "deleteConnection": "刪除連線",
+      "deleteCopy": "這會關閉 {{telegram}}，並從 {{computer}} 刪除加密權杖與允許使用者的存取權限。{{telegram}} 機器人與聊天會保留在 {{telegram}}。",
+      "deleteLabel": "刪除 {{telegram}} 連線",
+      "deleteTitle": "要刪除 {{telegram}} 連線嗎？",
+      "deleting": "正在刪除…",
+      "notDeleted": "未從 {{computer}} 刪除 {{telegram}} 連線。",
+      "optional": "選用",
+      "unappliedToken": "未套用複製的權杖。目前的 {{telegram}} 機器人未變更。",
+      "useToken": "使用複製的權杖",
+      "verified": "機器人已驗證 · @{{username}}",
+      "verifiedPrefix": "機器人已驗證"
+    },
+    "training": {
+      "cancelLabel": "取消 {{intervals}} 設定",
+      "connect": "連結",
+      "connecting": "正在連線…",
+      "connectTitle": "連結 {{intervals}}",
+      "hint": "在 {{intervals}} 中開啟「設定」→「開發者設定」，複製 API 金鑰後返回這裡。{{product}} 會讀取金鑰，但不會顯示。",
+      "importFiles": "改為匯入騎乘檔案",
+      "subtitle": {
+        "connected": "已連結 · 騎乘資料來源",
+        "missing": "連結服務或匯入騎乘檔案。"
+      },
+      "tooltip": {
+        "body": "這是已儲存騎乘資料的免費訓練網站。{{product}} 會從這裡讀取資料，而非直接連接手錶或自行車碼表供應商。需要一個已連結手錶或自行車碼表的免費帳號，再複製該帳號的 API 金鑰。",
+        "label": "關於 {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "連結 {{intervals}}"
+      },
+      "useCopiedKey": "使用複製的 API 金鑰"
+    }
+  },
+  "shell": {
+    "checkingSetup": "正在檢查初始設定…",
+    "loading": {
+      "archive": "正在載入過往聊天…",
+      "chat": "正在載入聊天…",
+      "plan": "正在載入計畫…",
+      "settings": "正在載入設定…",
+      "training": "正在載入訓練…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "無法使用 {{operatingSystem}} 加密。請確認 {{keychain}} 可用後重試。",
+        "windows": "無法使用 {{operatingSystem}} 憑證加密（{{encryption}}）。請結束並重新開啟 {{product}} 後重試。"
+      },
+      "credentialRecoveryAction": {
+        "mac": "解鎖登入鑰匙圈",
+        "windows": "確認 {{operatingSystem}} 憑證加密（{{encryption}}）可用"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "主要導覽",
+    "newChat": "新聊天",
+    "planAttention_other": "計畫，{{formattedCount}} 個項目需要處理",
+    "sync": {
+      "action": {
+        "again": "再次同步",
+        "now": "立即同步",
+        "retry": "重試",
+        "unavailable": "無法同步"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "同步需要處理",
+        "loading": "正在載入訓練資料",
+        "never": "尚未同步",
+        "synced": "訓練資料已同步",
+        "syncing": "正在同步",
+        "unavailable": "無法取得訓練資料"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "連線已中斷。同步可能仍在完成中。{{product}} 不會自動重試。",
+        "noChange": "本機訓練資料處理完成。",
+        "noChangeRestricted_other": "本機訓練資料處理完成。由於 {{source}} API 的限制，{{provider}} 無法分享 {{formattedCount}} 筆活動，因此未納入這些活動。",
+        "operationFailure": "無法完成訓練資料檢查。既有資料仍可使用。",
+        "partial": "訓練資料處理已部分完成。請重試以完成處理。",
+        "protocol": "{{product}} 無法驗證同步結果。請結束並重新開啟 {{product}}。",
+        "published": "訓練資料檢查完成。",
+        "publishedRestricted_other": "訓練資料檢查完成。由於 {{source}} API 的限制，{{provider}} 無法分享 {{formattedCount}} 筆活動，因此未納入這些活動。",
+        "queued": "同步已排入佇列。",
+        "running": "正在同步訓練資料…"
+      },
+      "restriction": {
+        "fixAction": "· 解決方式",
+        "fixLabel": "{{restrictionLabel}}。解決方式",
+        "label_other": "{{formattedCount}} 筆被 {{source}} 隱藏",
+        "tooltipBody": "由於 {{source}} API 的限制，{{provider}} 無法與 {{product}} 分享這些活動。",
+        "tooltipLabel": "為什麼活動被隱藏？",
+        "tooltipLead_other": "{{formattedCount}} 筆活動被 {{source}} 隱藏"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "同步時間未知"
+    },
+    "update": {
+      "available": "有可用更新",
+      "availableVersion": "有 {{version}} 版更新可用",
+      "installVersion": "安裝 {{version}} 版更新",
+      "restarting": "正在重新啟動…",
+      "restartingVersion": "正在重新啟動以安裝 {{version}} 版更新"
+    },
+    "views": {
+      "archive": "過往聊天",
+      "chat": "聊天",
+      "plan": "計畫",
+      "settings": "設定",
+      "training": "訓練"
     }
   }
 }

@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { randomUUID } from "node:crypto";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -8,10 +9,10 @@ import type { OnboardingLlmConfiguration } from "../src/onboarding/bridge";
 import type { CredentialSettingsPort } from "../src/state/settings-slice";
 import { useEnduragentStore } from "../src/state/store";
 import {
-  API_KEY_PANEL_HINT,
-  FOOTER_NOTE,
-  RETRY_INTAKE_SAVE_LABEL,
-  SETUP_MENU_LABEL,
+  API_KEY_PANEL_HINT as API_KEY_PANEL_HINT_MESSAGE,
+  FOOTER_NOTE as FOOTER_NOTE_MESSAGE,
+  RETRY_INTAKE_SAVE_LABEL as RETRY_INTAKE_SAVE_LABEL_MESSAGE,
+  SETUP_MENU_LABEL as SETUP_MENU_LABEL_MESSAGE,
 } from "../src/ui/onboarding/copy";
 import {
   chooseLane,
@@ -40,6 +41,12 @@ import {
   TEST_LLM_CONFIGURATION,
   type TestBridge,
 } from "./onboarding-harness";
+
+const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+const API_KEY_PANEL_HINT = english.say(API_KEY_PANEL_HINT_MESSAGE);
+const FOOTER_NOTE = english.say(FOOTER_NOTE_MESSAGE);
+const RETRY_INTAKE_SAVE_LABEL = english.say(RETRY_INTAKE_SAVE_LABEL_MESSAGE);
+const SETUP_MENU_LABEL = english.say(SETUP_MENU_LABEL_MESSAGE);
 
 const CLAUDE_CONFIGURATION: OnboardingLlmConfiguration = {
   ...TEST_LLM_CONFIGURATION,

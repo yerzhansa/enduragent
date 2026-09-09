@@ -34,6 +34,831 @@
       "saving": "Gemmer enheder…",
       "title": "Enheder",
       "unavailable": "Enhedspræference er ikke tilgængelig"
+    },
+    "application": {
+      "check": "Søg efter opdateringer",
+      "checkFailed": "Søgning efter opdateringer mislykkedes. Prøv igen",
+      "checking": "Søger efter opdateringer",
+      "checkingAction": "Søger…",
+      "current": "{{product}} er opdateret",
+      "danger": "Fare",
+      "downloadFailed": "Opdateringen kunne ikke hentes. Prøv igen",
+      "downloading": "Henter opdatering {{version}}",
+      "downloadingAction": "Henter…",
+      "downloadTimedOut": "Tidsgrænsen for at hente opdateringen blev overskredet. Luk og åbn {{product}} igen for at prøve igen.",
+      "reset": "Nulstil samtale",
+      "resetDetail": "Rydder den synlige samtale. Træningsdata og trænerens gemte hukommelse bevares.",
+      "restart": "Genstart for at opdatere til version {{version}}",
+      "restartAction": "Genstart for at opdatere",
+      "restarting": "Genstarter for at installere version {{version}}",
+      "restartingAction": "Genstarter…",
+      "restartRequired": "Genstart {{product}} for at genoptage opdateringer",
+      "retry": "Prøv opdateringen igen",
+      "startFailed": "Opdateringer kunne ikke starte. Luk og åbn {{product}} igen for at prøve igen.",
+      "title": "Program",
+      "unavailable": "Opdateringer er utilgængelige",
+      "version": "Version {{version}}",
+      "versionUnknown": "ukendt"
+    },
+    "athlete": {
+      "credentialMissing": "Der er ikke tilknyttet adgangsoplysninger til en træningskonto. Brug opsætningsområdet ovenfor til at tilknytte dem.",
+      "detail": "Dette kan kun identificere den aktuelt tilknyttede træningskonto. Det kan ikke skifte konto.",
+      "error": {
+        "credentialRequired": "Tilknyt træningskontoen i Opsætning, før du gemmer dens atlet-ID.",
+        "managedByEnvironment": "Atlet-ID'et administreres uden for {{product}} og blev ikke ændret.",
+        "notApplied": "Atlet-ID'et blev ikke anvendt. Opret forbindelse igen, og genindlæs, før du prøver igen.",
+        "ownershipUnavailable": "Den tilknyttede træningskonto kunne ikke bekræftes. Opret forbindelse igen, og genindlæs, før du prøver igen.",
+        "requestFailed": "Atlet-ID'et kunne ikke gemmes. Din ændring er her stadig.",
+        "runtimeUnavailable": "Den aktuelle træningskonto kunne ikke genindlæses. Din ændring er her stadig.",
+        "trainingAccountMismatch": "Dette atlet-ID identificerer ikke den aktuelt tilknyttede træningskonto."
+      },
+      "futurePrefix": "For fremtidige ture: ",
+      "help": "Brug det præcise ID, der hører til de adgangsoplysninger, som allerede er tilknyttet i Opsætning.",
+      "id": "Atlet-ID",
+      "loading": "Indlæser indstillinger for træningskonto…",
+      "pastPrefix": "For tidligere ture: ",
+      "refreshing": "Opretter forbindelse igen og kontrollerer den aktuelle træningskonto…",
+      "reload": "Opret forbindelse igen og genindlæs",
+      "restriction": {
+        "cause": "En API-begrænsning hos {{strava}} forhindrer {{intervalsLower}} i at dele aktiviteter fra {{strava}} med {{product}}. Din API-nøgle er i orden.",
+        "future": "Forbind din optagelseskilde direkte med {{intervalsLower}}, og behold forbindelsen til {{strava}}. Det er gratis og gælder fremtidige ture.",
+        "past": "Brug Importér alle {{strava}}-data i indstillingerne i {{intervalsLower}}. Det gælder tidligere ture og kræver et supporterabonnement hos {{intervalsLower}}.",
+        "title_one": "{{restricted}} af {{total}} aktivitet er skjult af {{strava}}",
+        "title_other": "{{restricted}} af {{total}} aktiviteter er skjult af {{strava}}"
+      },
+      "reviewSetup": "Gennemgå opsætning",
+      "save": "Gem atlet-ID",
+      "saved": "Atlet-ID gemt.",
+      "saving": "Gemmer atlet-ID…",
+      "title": "Træningskonto",
+      "unavailable": "Indstillinger for træningskontoen er utilgængelige. Opret forbindelse igen, og genindlæs.",
+      "validation": {
+        "athleteControlCharacters": "Atlet-ID'er må ikke indeholde kontroltegn.",
+        "athleteRequired": "Indtast atlet-ID'et for den tilknyttede træningskonto.",
+        "athleteTooLong": "Atlet-ID'er må højst indeholde 512 tegn.",
+        "athleteWhitespace": "Atlet-ID'er må ikke begynde eller slutte med blanktegn."
+      },
+      "verificationPending": "Bekræfter den tilknyttede træningskonto… Træningsdata forbliver sat på pause, indtil det er fuldført."
+    },
+    "coach": {
+      "active": "Aktiv",
+      "activeUnavailable": "Aktive trænerindstillinger er utilgængelige eller ikke konfigureret.",
+      "automatic": "Automatisk",
+      "changeRequired": "Ændring påkrævet",
+      "chooseModel": "Vælg en model",
+      "chooseProvider": "Vælg en udbyder",
+      "chooseProviderFirst": "Vælg først en udbyder",
+      "currentRoute": "Aktiv nu: {{provider}} · {{model}}",
+      "customModel": "Brugerdefineret modelnavn",
+      "endpoint": "Slutpunkt",
+      "endpointDetail": "{{product}} vælger udbyderens slutpunkt til denne rute.",
+      "error": {
+        "credentialRequired": "Denne udbyder kræver gemte adgangsoplysninger for at kunne træne dig. Tilføj dem i opsætningsområdet ovenfor.",
+        "invalidInput": "Udbyderen eller modellen blev ikke accepteret. Kontrollér modelnavnet, og prøv igen.",
+        "requestFailed": "Trænerindstillingerne kunne ikke gemmes lige nu. Prøv igen.",
+        "runtimeUnavailable": "Trænerindstillingerne kunne ikke aktiveres. Prøv at gemme igen."
+      },
+      "inactive": "Ikke aktiv",
+      "loading": "Indlæser trænerindstillinger…",
+      "model": "Model",
+      "notConfigured": "Ikke konfigureret",
+      "otherModel": "Anden model…",
+      "provider": "Udbyder",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}}-abonnement",
+        "claude": "{{claude}}-abonnement",
+        "codex": "{{codex}}-agent (eksperimentel)"
+      },
+      "retry": "Prøv igen",
+      "reviewSetup": "Gennemgå opsætning",
+      "route": "Trænerrute",
+      "save": "Gem trænerrute",
+      "saved": "Trænerindstillinger gemt.",
+      "saving": "Gemmer trænerindstillinger…",
+      "title": "Træner",
+      "unavailable": "Trænerindstillingerne er utilgængelige lige nu. Prøv igen.",
+      "unsaved": "Ikke gemt",
+      "unsupported": "{{codex}}-agenten understøttes ikke på {{operatingSystem}}. Vælg et {{claude}}-abonnement eller en udbyder med API-nøgle, og gem trænerruten. Dine adgangsoplysninger, atletdata, samtaler og andre indstillinger forbliver uændrede.",
+      "validation": {
+        "modelControlCharacters": "Modelnavne må ikke indeholde kontroltegn.",
+        "modelRequired": "Indtast et modelnavn.",
+        "modelTooLong": "Modelnavne må højst indeholde 512 tegn."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Samtale og tid",
+      "detail": "Indstil, hvornår samtaler starter forfra, og hvor meget nylig kontekst din træner tager med videre.",
+      "error": {
+        "notApplied": "Samtaleindstillingerne blev ikke anvendt. Opret forbindelse igen, og genindlæs, før du prøver igen.",
+        "requestFailed": "Samtaleindstillingerne kunne ikke gemmes. Dine ændringer er her stadig.",
+        "runtimeUnavailable": "De aktuelle samtaleindstillinger kunne ikke genindlæses. Dine ændringer er her stadig."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Time i atletens lokale tid, fra 0 til 23. En ændring kan få din næste besked til at starte en ny samtale.",
+          "label": "Time for daglig nulstilling"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Andel af modellens kontekst, der er reserveret til samtalehistorik, over 0 % og op til 100 %.",
+          "label": "Plads til historik"
+        },
+        "idleMinutes": {
+          "help": "Hele minutter uden en besked, før samtalen nulstilles. Brug 0 for at slå dette fra.",
+          "label": "Nulstilling ved inaktivitet",
+          "suffix": "minutter"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Hele dage, som arkiver fra nulstillede samtaler skal gemmes. Brug 0 for at beholde dem for altid. Ændringer gælder kun fremtidig oprydning.",
+          "label": "Opbevaring af arkiv",
+          "suffix": "dage"
+        },
+        "timezone": {
+          "help": "Brug en IANA-tidszone, f.eks. {{timezone}}. {{product}} følger denne computers tidszone, indtil du gemmer en her, og beholder derefter dit valg.",
+          "label": "Tidszone"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Indlæser samtaleindstillinger…",
+      "refreshing": "Opretter forbindelse igen og kontrollerer de aktuelle indstillinger…",
+      "reload": "Opret forbindelse igen og genindlæs",
+      "save": "Gem samtaleindstillinger",
+      "saved": "Samtaleindstillinger gemt.",
+      "saving": "Gemmer samtaleindstillinger…",
+      "title": "Samtale og tid",
+      "unavailable": "Samtaleindstillingerne er utilgængelige. Opret forbindelse igen, og genindlæs.",
+      "validation": {
+        "dailyResetHour": "Indtast en hel time fra 0 til 23.",
+        "historyTokenBudgetRatio": "Angiv en plads til historik på over 0 % og højst 100 %.",
+        "idleMinutes": "Indtast et sikkert helt antal minutter, 0 eller mere.",
+        "resetArchiveRetentionDays": "Indtast et sikkert helt antal dage, 0 eller mere.",
+        "timezone": "Indtast en gyldig IANA-tidszone, f.eks. {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Skift",
+      "changeAria": "Skift adgangsoplysningerne til {{provider}}",
+      "claudeProvider": "{{claude}}-abonnement",
+      "codexProvider": "{{codex}}-agent",
+      "delete": {
+        "action": "Slet",
+        "aria": "Slet adgangsoplysningerne til {{provider}}",
+        "confirmAria": "Bekræft sletning af adgangsoplysningerne til {{provider}}",
+        "connection": "Slet forbindelse",
+        "credential": "Slet adgangsoplysninger",
+        "detail": "Dette fjerner dem kun fra {{computer}}. {{product}} holder op med at bruge dem, hvis de er aktive. Din konto hos udbyderen er uændret.",
+        "intervalsAria": "Slet forbindelsen til {{intervals}}",
+        "intervalsDetail": "Din gemte API-nøgle og importerede forbindelse fjernes. Dine synkroniserede ture og tidligere chats bliver på {{computer}}.",
+        "intervalsTitle": "Slet forbindelsen til {{intervals}}?",
+        "title": "Slet adgangsoplysningerne til {{provider}}?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Sletning af adgangsoplysninger annulleret.",
+          "cleanupPending": "Adgangsoplysninger slettet lokalt. Oprydning i sikker lagring forsøges igen.",
+          "confirmProvider": "Bekræft sletning af adgangsoplysningerne til {{provider}}.",
+          "deleted": "Adgangsoplysninger slettet lokalt.",
+          "deletingProvider": "Sletter adgangsoplysningerne til {{provider}} lokalt…",
+          "keyUnverified": "Adgangsoplysningerne blev bevaret, fordi den sikre lagring ikke kunne bekræfte krypteringsnøglen.",
+          "managed": "Disse adgangsoplysninger administreres uden for Indstillinger og kan ikke slettes her.",
+          "notStored": "Disse adgangsoplysninger er ikke længere gemt. Genindlæs for at opdatere listen.",
+          "reconcileFailed": "De gemte og aktive adgangsoplysningers tilstand kunne ikke afstemmes. Opret forbindelse igen, og genindlæs, før du prøver igen.",
+          "refreshFailed": "Adgangsoplysninger slettet lokalt. Den aktuelle status kunne ikke opdateres.",
+          "retained": "Adgangsoplysningerne er stadig gemt. Ingen sletning blev fuldført. Prøv igen.",
+          "setupRefreshFailed": "Adgangsoplysninger slettet lokalt, men opsætningens status kunne ikke opdateres. Genindlæs adgangsoplysningernes status.",
+          "stopFailed": "Træneren kunne ikke stoppe med at bruge disse adgangsoplysninger på en sikker måde. De blev ikke slettet.",
+          "unverified": "Sletningen af adgangsoplysninger kunne ikke bekræftes, fordi den sikre lagring ikke kunne kontrolleres. Genstart {{product}}, og genindlæs, før du prøver igen."
+        },
+        "recovery": {
+          "locked": "Lås din login-nøglering op uden for {{product}}, og vælg derefter Prøv igen.",
+          "missing": "Krypteringsnøglen til adgangsoplysninger mangler. Gendan den, hvis det er muligt, og vælg Prøv igen, eller fjern alle adgangsoplysninger, og start forfra.",
+          "unavailable": "Sikker lagring af adgangsoplysninger er utilgængelig. Prøv igen, eller fjern alle adgangsoplysninger, og start forfra.",
+          "unverified": "{{product}} kan ikke åbne nogle af de gemte adgangsoplysninger sikkert. Indtast de berørte adgangsoplysninger igen."
+        },
+        "reset": {
+          "cancelled": "Fjernelse af adgangsoplysninger annulleret.",
+          "cleanupPending": "Alle adgangsoplysninger blev fjernet. Oprydning i sikker lagring forsøges igen.",
+          "confirm": "Bekræft fjernelse af alle adgangsoplysninger.",
+          "reloadFailed": "Adgangsoplysningerne blev fjernet, men Indstillinger kunne ikke genindlæses. Opret forbindelse igen, og genindlæs.",
+          "removed": "Alle adgangsoplysninger blev fjernet. Sæt dem op igen, når du er klar.",
+          "removeFailed": "{{product}} kunne ikke fjerne alle gemte adgangsoplysninger. Prøv igen.",
+          "removing": "Fjerner alle adgangsoplysninger…",
+          "stopFailed": "{{product}} kunne ikke stoppe brugen af alle aktive adgangsoplysninger. Prøv igen for at afslutte fjernelsen.",
+          "unverified": "Fjernelsen af adgangsoplysninger kunne ikke bekræftes, fordi Indstillinger ikke kunne genindlæses. Opret forbindelse igen, og genindlæs."
+        },
+        "unavailable": "Gemte adgangsoplysninger er utilgængelige. Opret forbindelse igen, og genindlæs."
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}}-profil",
+        "provider": "Udbyderens API-nøgle",
+        "training": "Nøgle til træningskonto"
+      },
+      "loading": "Indlæser gemte adgangsoplysninger…",
+      "reconnect": "Opret forbindelse igen og genindlæs",
+      "reload": "Genindlæs adgangsoplysningernes status",
+      "repairRequired": "Status for gemte adgangsoplysninger skal genindlæses, før opsætningen kan fortsætte.",
+      "reset": {
+        "confirm": "Fjern alle adgangsoplysninger",
+        "detail": "Dette fjerner alle gemte AI-adgangsoplysninger, {{chatgpt}}-profiler, {{intervals}}-nøgler, {{telegram}}-tokens og den fælles krypteringsnøgle fra {{computer}}. Konti og importerede data forbliver uændrede.",
+        "title": "Fjern alle adgangsoplysninger?"
+      },
+      "retry": "Prøv igen",
+      "retryEntry": "Indtast igen",
+      "runtime": {
+        "active": "Aktiv",
+        "failed": "Kræver opmærksomhed",
+        "storedInactive": "Gemt, ikke aktiv",
+        "verifying": "Kontrollerer…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Administreres af en miljøvariabel. Ret den uden for {{product}}.",
+    "palette": {
+      "app": "Appens farvepalet",
+      "use": "Brug farvepaletten {{palette}}"
+    },
+    "saving": "Gemmer…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Eksplicit caching på denne rute.",
+        "none": "Ingen læsninger fra cache",
+        "providerDependent": "Udbyderafhængig caching. Intet eksplicit brudpunkt på denne rute.",
+        "savings": "{{tokens}} tokens læst fra cache · Sparet {{amount}}",
+        "unavailable": "caching er utilgængelig på denne rute",
+        "unknown": "{{tokens}} tokens læst fra cache · besparelse utilgængelig"
+      },
+      "cap": {
+        "aria": "Daglig forbrugsgrænse",
+        "failed": "Den daglige grænse kunne ikke gemmes.",
+        "invalid": "Indtast en daglig grænse over $0.",
+        "label": "Daglig grænse (USD)",
+        "save": "Gem grænse",
+        "value": "{{known}} af {{cap}}"
+      },
+      "date": "{{day}}. {{month}}",
+      "detail": "Sprogmodelforbrug i forhold til dagens grænse",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "apr.",
+        "august": "aug.",
+        "december": "dec.",
+        "february": "feb.",
+        "january": "jan.",
+        "july": "jul.",
+        "june": "jun.",
+        "march": "mar.",
+        "may": "maj",
+        "november": "nov.",
+        "october": "okt.",
+        "september": "sep."
+      },
+      "notice": {
+        "incomplete": "Nogle udbyderomkostninger er utilgængelige, så dagens samlede beløb er et kendt minimum.",
+        "malformed": "Nogle forbrugsregistreringer kunne ikke læses.",
+        "saved": "Sparet {{amount}} ved læsning fra cache",
+        "savedMinimum": "Sparet mindst {{amount}} ved læsning fra cache",
+        "stale": "Forbrugsdata kan være forældede."
+      },
+      "notional": "Abonnementsforbruget ville have kostet {{amount}} via API'en. Der er ikke betalt noget, og det tæller ikke med i din grænse.",
+      "priced": "Pris beregnet for {{priced}}/{{total}} genereringer",
+      "routeNotional": "ville have kostet {{amount}} via API'en",
+      "routes": "Forbrugsdetaljer",
+      "title": "Forbrug",
+      "today": "I dag",
+      "todayDate": "I dag · {{date}}",
+      "unavailable": "Forbrugsdata er utilgængelige."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "En anden app eller installation henter opdateringer fra denne bot. Stop det dér, og vælg derefter Kontrollér igen. Forskellige bots kan stadig køre samtidig.",
+        "credentialUnavailable": "Det gemte bottoken kunne ikke læses fra sikker lagring. Luk og åbn {{product}} igen, og vælg derefter Kontrollér igen. Hvis det stadig ikke kan læses, skal du slette denne forbindelse og forbinde en ny bot.",
+        "daemonUnavailable": "Den lokale trænertjeneste er utilgængelig. Hold {{product}} åben, og vælg derefter Kontrollér igen.",
+        "drainRequired": "Et svar i {{telegram}} er stadig ved at blive afsluttet. Vent et øjeblik, og prøv igen.",
+        "encryption": "Sikker lagring af tokens er utilgængelig. Luk og åbn {{product}} igen, {{recoveryAction}}, og vælg derefter Kontrollér igen.",
+        "homeMismatch": "Desktop er forbundet til et andet atletmiljø. Genstart {{product}}, og kontrollér igen.",
+        "identityUnknown": "Den gemte forbindelse til {{telegram}} kunne ikke bekræftes. Vælg Kontrollér igen, før du prøver en anden handling.",
+        "invalidToken": "{{telegram}} afviste det gemte token. Slet denne forbindelse, og forbind en ny bot med et kopieret token fra {{botFather}}.",
+        "offline": "{{telegram}} er midlertidigt offline. {{product}} prøver igen, mens {{computer}} er vågen og online.",
+        "startFailed": "{{telegram}} kunne ikke starte. Hold {{product}} åben, kontrollér internetforbindelsen, og vælg derefter Kontrollér igen.",
+        "storageFailed": "De krypterede adgangsoplysninger til botten kunne ikke gemmes. Kontrollér adgang til den lokale disk, og prøv igen.",
+        "storageUncertain": "Indstillingerne for {{telegram}} er muligvis ikke gemt fuldstændigt. Lad {{telegram}} være uændret, og vælg Kontrollér igen, før du prøver en anden handling.",
+        "transferRequired": "Denne bot tilhører en anden installation eller hostet udgave af {{product}}. Slet forbindelsen dér, og forbind den derefter her igen med et kopieret token.",
+        "unsafeBackend": "Der er ingen sikker lagring af adgangsoplysninger tilgængelig, så {{product}} afviste at tilgå det gemte bottoken uden kryptering. Luk og åbn {{product}} igen, og vælg derefter Kontrollér igen."
+      },
+      "availability": "{{telegram}} virker kun, mens {{product}} og den lokale trænertjeneste kører, og {{computer}} er vågen og online.",
+      "channel": {
+        "conflict": "Konflikt ved hentning af opdateringer",
+        "connecting": "Opretter forbindelse",
+        "failed": "Kræver opmærksomhed",
+        "off": "Slået fra",
+        "online": "Online",
+        "reconnecting": "Genopretter forbindelse",
+        "suspended": "Sat på pause under dvale",
+        "tokenRejected": "Token afvist",
+        "transferRequired": "Overførsel påkrævet",
+        "waitingForCredential": "Kræver bottoken"
+      },
+      "check": "Kontrollér igen",
+      "delete": {
+        "action": "Slet",
+        "confirm": "Slet forbindelse",
+        "detail": "Dette slår botten fra og sletter dens krypterede token og tilladte brugeres adgang fra {{computer}}. {{telegram}}-botten og dens chat bliver i {{telegram}}.",
+        "title": "Slet @{{botUsername}} fra {{computer}}?"
+      },
+      "detail": "En særskilt bot anbefales. Den opretter et nyt @username og en ny {{telegram}}-chat. Synlig historik fra en tidligere bot flyttes ikke med. Atlethukommelse, træningsdata og planer deles.",
+      "disable": "Slå fra",
+      "enable": "Slå til",
+      "feedback": {
+        "failure": {
+          "change": "Indstillingerne for {{telegram}} kunne ikke ændres. Prøv igen.",
+          "changeStorageUnverified": "Ændringen blev ikke anvendt, fordi lagringen ikke kunne kontrolleres. Genstart {{product}}, og kontrollér denne indstilling, før du prøver igen.",
+          "changeUncertain": "Ændringen i {{telegram}} kan være startet, men {{product}} kunne ikke bekræfte, om den blev fuldført. Genstart {{product}}, og kontrollér denne indstilling, før du prøver igen.",
+          "clipboardClearFailed": "Udklipsholderen kunne ikke ryddes, så det kopierede token blev ikke brugt. Den aktuelle {{telegram}}-bot er uændret.",
+          "clipboardUnavailable": "Udklipsholderen kunne ikke læses. Intet {{telegram}}-token blev brugt.",
+          "connectUncertain": "Forbindelsen til {{telegram}} kan være startet, men {{product}} kunne ikke bekræfte, om den blev fuldført. Genstart {{product}}, og kontrollér {{telegram}}, før du prøver igen.",
+          "invalidToken": "{{telegram}} afviste det kopierede token. Den aktuelle {{telegram}}-bot er uændret.",
+          "invalidTokenFormat": "Udklipsholderen indeholder ikke et gyldigt {{telegram}}-bottoken. Den aktuelle {{telegram}}-bot er uændret.",
+          "pairing": "Parringen kunne ikke starte. Kontrollér forbindelsen til botten, og prøv igen.",
+          "pairingUncertain": "Den primære {{telegram}}-bruger kan være gemt, men {{product}} kunne ikke kontrollere lagringen. Genstart {{product}}, og kontrollér {{telegram}}, før du parrer igen.",
+          "pasteToken": "Bottokenet kunne ikke bekræftes eller gemmes. Kopiér et nyt token fra {{botFather}}, og prøv igen.",
+          "removeStorageUnverified": "Sletningen af forbindelsen til {{telegram}} kunne ikke bekræftes, fordi den sikre lagring ikke kunne kontrolleres. Genstart {{product}}, og kontrollér {{telegram}}, før du prøver igen.",
+          "removeUncertain": "Sletningen af forbindelsen til {{telegram}} er muligvis ikke fuldført. Genstart {{product}}, og kontrollér, om botten stadig er forbundet, før du prøver igen.",
+          "senders": "Listen over tilladte brugere kunne ikke ændres. Kontrollér bruger-ID'et, og prøv igen.",
+          "storageFailed": "Det kopierede token kunne ikke gemmes. Den aktuelle {{telegram}}-bot er uændret.",
+          "tokenNotApplied": "Det kopierede token blev ikke anvendt. Den aktuelle {{telegram}}-bot er uændret.",
+          "tokenStorageUnverified": "Det kopierede token blev ikke anvendt, fordi den sikre lagring ikke kunne kontrolleres. Den aktuelle {{telegram}}-bot er uændret. Genstart {{product}}, og kontrollér {{telegram}}, før du prøver igen.",
+          "unsafeAccess": "Der er ingen sikker lagring af adgangsoplysninger tilgængelig, så {{product}} afviste at tilgå det gemte bottoken uden kryptering. Luk og åbn {{product}} igen, og vælg derefter Kontrollér igen.",
+          "unsafeToken": "Der er ingen sikker lagring af adgangsoplysninger tilgængelig, så {{product}} afviste at gemme bottokenet uden kryptering. Luk og åbn {{product}} igen, kopiér bottokenet igen, og prøv igen.",
+          "unsafeTokenUnchanged": "Den aktuelle {{telegram}}-bot er uændret, fordi der ikke er sikker lagring af adgangsoplysninger tilgængelig. {{product}} afviste at gemme det kopierede token uden kryptering. Luk og åbn {{product}} igen, kopiér bottokenet igen, og prøv igen.",
+          "validationUnavailable": "{{telegram}} kunne ikke bekræfte det kopierede token lige nu. Den aktuelle {{telegram}}-bot er uændret.",
+          "webhook": "Webhooken kunne ikke fjernes. Kontrollér internetforbindelsen, og prøv igen.",
+          "webhookRemovalRequired": "Botten fra det kopierede token bruger stadig en webhook. Fjern webhooken, slet derefter den aktuelle forbindelse, og forbind denne bot."
+        },
+        "health": {
+          "conflict": "En anden tjeneste henter opdateringer fra denne bot. Stop den installation, og kontrollér igen.",
+          "connecting": "{{telegram}} opretter forbindelse.",
+          "failed": "{{telegram}} kræver opmærksomhed. Hold appen åben, kontrollér forbindelsen, og prøv igen.",
+          "gap": "{{telegram}} genoprettede forbindelsen efter en lang afbrydelse. Nogle beskeder er muligvis ikke nået frem.",
+          "invalidToken": "{{telegram}} afviste dette token. Slet forbindelsen, og forbind derefter en ny bot med et nyt token fra {{botFather}}.",
+          "off": "{{telegram}} er slået fra.",
+          "online": "{{telegram}} er online.",
+          "transferRequired": "Denne bot tilhører stadig en anden Desktop-installation. Slet forbindelsen dér, før du forbinder den her.",
+          "waitingForToken": "Kopiér et bottoken fra {{botFather}}, og indsæt det derefter fra udklipsholderen."
+        },
+        "pairing": {
+          "cancelled": "Parring med {{telegram}} blev annulleret.",
+          "connected": "{{telegram}} forbundet til @{{username}}. Parring skal sættes op.",
+          "expired": "Parringskoden udløb, før den blev brugt. Opret en ny kode, når du er klar.",
+          "paired": "{{telegram}} er parret med sin primære bruger.",
+          "ready": "Parringskoden er klar. Send den til botten i {{telegram}}.",
+          "refused": "Parringen blev afvist, fordi denne bot allerede har en primær bruger.",
+          "replaced": "En ny {{telegram}}-parringskode er klar. Send den til botten i {{telegram}}.",
+          "storageFailed": "Den primære {{telegram}}-bruger kunne ikke gemmes. Kontrollér adgang til den lokale disk, og prøv at parre igen.",
+          "unavailable": "Parring er utilgængelig, indtil {{telegram}}-botten kan oprette forbindelse."
+        },
+        "platform": {
+          "encryptionAccess": "Sikker lagring af tokens er utilgængelig. Luk og åbn {{product}} igen, {{recoveryAction}}, og vælg derefter Kontrollér igen.",
+          "encryptionSave": "Sikker lagring af tokens er utilgængelig. Luk og åbn {{product}} igen, {{recoveryAction}}, kopiér bottokenet igen, og prøv igen.",
+          "encryptionUnchanged": "Den aktuelle {{telegram}}-bot er uændret, fordi sikker lagring af tokens er utilgængelig. Luk og åbn {{product}} igen, {{recoveryAction}}, kopiér bottokenet igen, og prøv igen.",
+          "offline": "{{telegram}} er offline. {{product}} bliver ved med at prøve, mens {{computer}} er vågen og online.",
+          "removed": "Forbindelsen til {{telegram}} er slettet fra {{computer}}.",
+          "suspended": "Hentning af {{telegram}}-opdateringer er sat på pause, mens {{computer}} er i dvale.",
+          "webhookConnect": "Botten fra det kopierede token bruger stadig en webhook. Fjern webhooken, før du parrer den med {{computer}}.",
+          "webhookVerified": "Bot bekræftet. Fjern dens webhook, før du parrer den med {{computer}}."
+        },
+        "sender": {
+          "added": "{{telegram}}-bruger tilføjet.",
+          "daemonUncertain": "Listen over tilladte brugere kan være ændret, men {{product}} mistede bekræftelsen fra den lokale trænertjeneste. Genstart {{product}}, og kontrollér listen, før du prøver igen.",
+          "removed": "{{telegram}}-bruger fjernet.",
+          "storageUncertain": "Listen over tilladte brugere kan være ændret, men {{product}} kunne ikke kontrollere lagringen. Genstart {{product}}, og kontrollér listen, før du prøver igen."
+        },
+        "unavailable": "Indstillingerne for {{telegram}} er utilgængelige. Hold appen åben, og prøv igen.",
+        "working": {
+          "acknowledgeGap": "Rydder leveringsadvarslen for {{telegram}}…",
+          "addSender": "Tilføjer en {{telegram}}-bruger…",
+          "beginPairing": "Opretter en privat parringskode…",
+          "cancelPairing": "Annullerer parring…",
+          "disable": "Slår {{telegram}} fra…",
+          "enable": "Slår {{telegram}} til…",
+          "pasteToken": "Læser og kontrollerer {{telegram}}-tokenet…",
+          "reconcile": "Kontrollerer forbindelsen til {{telegram}}…",
+          "remove": "Sletter forbindelsen til {{telegram}}…",
+          "removeSender": "Fjerner {{telegram}}-brugeren…",
+          "removeWebhook": "Fjerner bottens webhook…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Bekræft",
+        "detail": "Botten startede igen efter en lang afbrydelse, så beskeder sendt i den periode er muligvis ikke nået frem til {{product}}. Kontrollér {{telegram}}-chatten, før du rydder denne advarsel.",
+        "title": "Kontrollér {{telegram}} for manglende beskeder"
+      },
+      "paired": "Parret med en primær {{telegram}}-bruger",
+      "pairing": {
+        "cancel": "Annuller parring",
+        "code": "{{telegram}}-parringskode",
+        "detail": "En kode, der er gyldig i ét minut, sikrer, at kun en person med adgang til {{computer}} kan overtage botten.",
+        "expired": "Parringskoden udløb, før den blev brugt. Opret en ny kode, når du er klar.",
+        "expires": "Udløber {{time}}",
+        "instruction": "Send denne kode som en privat besked til @{{username}}. Den første konto, der sender den, bliver primær bruger, og botten forbliver online.",
+        "primary": "Par den primære bruger",
+        "refused": "Parringen blev afvist, fordi denne bot allerede har en primær bruger.",
+        "restart": "Opret ny kode og slå til",
+        "start": "Start parring og slå til",
+        "storageFailed": "Den primære {{telegram}}-bruger kunne ikke gemmes. Kontrollér adgang til den lokale disk, og prøv at parre igen.",
+        "storageUncertain": "Den primære {{telegram}}-bruger kan være gemt, men {{product}} kunne ikke kontrollere lagringen. Genstart {{product}}, og kontrollér {{telegram}}, før du parrer igen.",
+        "title": "Par din {{telegram}}-konto",
+        "unavailable": "Parring er utilgængelig, indtil {{telegram}}-botten kan oprette forbindelse."
+      },
+      "reloadDetail": "Genindlæs den gemte forbindelsesstatus, før du prøver en anden handling.",
+      "retry": "Prøv igen",
+      "sender": {
+        "add": "Tilføj bruger",
+        "additional": "Yderligere tilladt bruger",
+        "addTitle": "Tilføj et {{telegram}}-bruger-ID",
+        "advanced": "Avanceret · tilladte brugere",
+        "help": "Tilføj kun personer, du stoler på til at bruge din træner og dine delte atletdata.",
+        "list": "Tilladte {{telegram}}-brugere",
+        "loadFailed": "Tilladte brugere kunne ikke indlæses. {{product}} prøver automatisk igen.",
+        "loading": "Indlæser tilladte brugere…",
+        "primary": "Primær bruger · påkrævet",
+        "remove": "Fjern",
+        "removeAria": "Fjern {{telegram}}-bruger {{senderId}}",
+        "removeConfirm": "Fjern bruger",
+        "removeDetail": "Denne bruger mister adgang til din træner og dine delte atletdata, indtil du tilføjer vedkommende igen med afsender-ID {{senderId}}.",
+        "removeTitle": "Fjern {{telegram}}-bruger {{senderId}}?",
+        "validation": "Indtast et numerisk {{telegram}}-bruger-ID med mindst to cifre."
+      },
+      "setup": {
+        "afterBotfather": "om en bot, kopiér dens token, og vend tilbage hertil. {{product}} læser tokenet direkte fra udklipsholderen. Der er intet tokenfelt.",
+        "ask": "Bed",
+        "cancel": "Annuller",
+        "cancelAria": "Annuller opsætning af {{telegram}}-bot",
+        "connect": "Opret forbindelse",
+        "detail": "Forbind en {{telegram}}-bot med et kopieret token.",
+        "paste": "Indsæt token fra udklipsholder",
+        "title": "Opret en bot med {{botFather}}"
+      },
+      "suspended": "Hentning af {{telegram}}-opdateringer genoptages, når {{computer}} vågner.",
+      "title": "Kanaler",
+      "unavailable": "{{telegram}}-status er utilgængelig",
+      "verified": "Bot bekræftet. Start parring for at slå {{telegram}} til",
+      "webhook": {
+        "detail": "{{telegram}} kan ikke levere til en webhook og {{computer}} samtidig. Denne udtrykkelige handling bevarer ventende opdateringer og lader Desktop begynde at hente opdateringer.",
+        "remove": "Fjern webhook",
+        "title": "Fjern den eksisterende webhook"
+      }
+    },
+    "title": "Indstillinger"
+  },
+  "archive": {
+    "athlete": "Du",
+    "back": "Alle tidligere chats",
+    "coach": "Træner",
+    "conversation": "Tidligere samtale",
+    "delete": {
+      "action": "Slet samtale",
+      "description": "Dette fjerner denne tidligere samtale og dens oprindelige vedhæftede filer permanent fra denne computer. Importerede aktiviteter i Træning og arbejde i Plan bliver bevaret.",
+      "failure": "Sletningen kunne ikke fuldføres. Prøv igen for at afslutte den.",
+      "title": "Slet denne samtale?"
+    },
+    "empty": "Ingen tidligere samtaler endnu. Når du starter en ny samtale, bliver den gamle gemt her.",
+    "emptyConversation": "Denne samtale har ingen læsbare beskeder.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Tidligere samtaler er midlertidigt utilgængelige.",
+    "loadEarlier": "Indlæs tidligere beskeder",
+    "loading": "Indlæser tidligere samtaler…",
+    "pageFailure": "Denne samtale er midlertidigt utilgængelig.",
+    "readOnly": "Tidligere samtaler kan kun læses.",
+    "reason": {
+      "explicit": "Du startede en ny samtale",
+      "stale": "Lukket efter en pause"
+    },
+    "retry": "Prøv igen",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Tidligere chats",
+    "truncated": "Kun de seneste tidligere samtaler vises.",
+    "turnCount_one": "{{formattedCount}} besked",
+    "turnCount_other": "{{formattedCount}} beskeder",
+    "unavailable": "Denne samtale er ikke længere tilgængelig."
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Avanceret",
+      "announcement": {
+        "apiKey": "Opsætning af API-nøgle er åbnet under denne række.",
+        "chatgpt": "Login til {{chatgpt}} er åbnet under denne række."
+      },
+      "apiKeyHint": "Oprettes i udbyderens konsol og afregnes efter forbrug. Normalt få cent pr. samtale.",
+      "cancelLabel": "Annuller opsætning af API-nøgle",
+      "change": "Skift",
+      "chatgptActivating": "Logget ind · Aktiverer træner…",
+      "choose": "Vælg",
+      "claude": {
+        "badge": {
+          "absentBinary": "Ikke installeret",
+          "apiKeyToken": "API-nøgle, ikke et abonnement",
+          "checking": "Kontrollerer",
+          "disabled": "Slået fra",
+          "notLoggedIn": "Ikke logget ind",
+          "ready": "Logget ind",
+          "readyApiKey": "Afregning via API-nøgle",
+          "workingAreaUnavailable": "Kunne ikke starte sikkert"
+        },
+        "checkAgain": "Vælg Kontrollér igen for at kontrollere {{claudeCode}} på denne Mac.",
+        "detail": "Bruger {{claudeCode}}-CLI'en, som allerede er installeret og logget ind på {{computer}}. Ingen API-nøgle nødvendig.",
+        "identity": {
+          "apiKey": "Bruger afregning via {{anthropic}}-API-nøgle. Forbruget faktureres på din API-konto.",
+          "email": "Logget ind som {{email}}",
+          "emailPlan": "Logget ind som {{email}} · {{claude}} {{plan}}-abonnement",
+          "plan": "Logget ind · {{claude}} {{plan}}-abonnement",
+          "signedIn": "Logget ind"
+        },
+        "recheck": "Kontrollér igen",
+        "statusDetail": {
+          "absentBinary": "{{claudeCode}}-CLI'en blev ikke fundet, eller den installerede version er for gammel. Installér eller opdatér den, og vælg derefter Kontrollér igen.",
+          "apiKeyToken": "{{claudeCode}}-CLI'en er godkendt med en API-nøgle eller et token, ikke et abonnement. Log ind med dit abonnement i {{command}}, eller slå afregning via API-nøgle til i din konfiguration.",
+          "checking": "Kontrollerer login til {{claudeCode}}-CLI'en på {{computer}}…",
+          "disabled": "Muligheden for {{claude}}-abonnement er slået fra på {{computer}}. Vælg en anden udbyder.",
+          "notLoggedIn": "{{claudeCode}}-CLI'en er ikke logget ind. Åbn en terminal, kør {{command}}, og log ind med dit {{claude}}-abonnement. {{product}} logger aldrig ind for dig.",
+          "workingAreaUnavailable": "{{product}} kunne ikke klargøre det private arbejdsområde til {{claude}}. Genstart {{product}}, og vælg derefter Kontrollér igen."
+        }
+      },
+      "connected": "Forbundet · driver din træner",
+      "credentialLabel": "{{provider}}-API-nøgle",
+      "customModel": "Brugerdefineret modelnavn",
+      "endpoint": {
+        "automatic": "Behold det aktuelle, eller brug udbyderens standard",
+        "custom": "Brug et brugerdefineret slutpunkt",
+        "customTitle": "Brugerdefineret slutpunkt",
+        "default": "Nulstil til udbyderens standard",
+        "title": "Slutpunkt"
+      },
+      "identity": "Driver din træner · {{identity}}",
+      "lane": {
+        "apiKey": "API-nøgle",
+        "chatgpt": "{{chatgpt}}-abonnement"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} udbydere · betal efter forbrug",
+        "claudeCli": "Kontrollerer dit {{claude}}-abonnement, når du vælger det",
+        "openaiCodex": "Brug det abonnement, du allerede betaler for"
+      },
+      "menuLabel": "AI, der driver din træner",
+      "model": "Model",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "balanceret",
+        "cheap": "billig",
+        "cheaper": "billigere",
+        "cheapest": "billigst",
+        "experimental": "eksperimentel",
+        "fast": "hurtig",
+        "fastAndCheap": "hurtig og billig",
+        "faster": "hurtigere",
+        "manyModels": "én nøgle, mange modeller",
+        "mostCapable": "mest kapabel",
+        "recommended": "anbefalet"
+      },
+      "modelVia": "{{model}} (via {{provider}})",
+      "otherModel": "Anden model…",
+      "pending": {
+        "activation": "Driver din træner · logget ind · aktivering nødvendig",
+        "apiKey": "Driver din træner · tilføj en nøgle for at afslutte",
+        "chatgpt": "Driver din træner · log ind for at afslutte",
+        "checkingClaude": "Driver din træner · kontrollerer login til {{claudeCode}}",
+        "claude": "Driver din træner · log ind fra en terminal for at afslutte"
+      },
+      "provider": "Udbyder",
+      "saveLabel": "Gem API-nøgle",
+      "subtitle": "Påkrævet. {{product}} inkluderer ikke en",
+      "title": "AI, der driver din træner",
+      "tooltip": {
+        "body": "Den bruger et {{chatgpt}}-abonnement, et {{claudeCode}}-login eller en API-nøgle, du selv angiver. Uanset hvad du vælger, bliver det på {{computer}}.",
+        "label": "Om den AI, der driver din træner",
+        "lead": "{{product}} har ikke sin egen AI"
+      },
+      "trigger": {
+        "set": "Skift det, der driver din træner",
+        "unset": "Vælg det, der driver din træner"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Logget ind, men træneren kunne ikke aktiveres. Prøv igen uden at logge ind igen.",
+      "cancelLabel": "Annuller opsætning af {{chatgpt}}",
+      "cancelSignIn": "Annuller login",
+      "hint": "Åbner loginsiden hos {{openai}} i din browser. Du skriver din adgangskode dér, ikke her. Kræver et betalt abonnement.",
+      "phase": {
+        "activatingCoach": "Aktiverer træner…",
+        "completingSignIn": "Afslutter login…",
+        "ready": "Klar",
+        "signedIn": "Logget ind",
+        "waitingForBrowser": "Venter på browser…"
+      },
+      "refusal": {
+        "alreadyInProgress": "Et login til {{chatgpt}} er allerede i gang.",
+        "callbackUnavailable": "Den lokale tilbagemelding fra login er utilgængelig. Luk andre loginforløb, og prøv igen.",
+        "cancelled": "Login til {{chatgpt}} blev annulleret. Du kan prøve igen.",
+        "exchangeFailed": "Login til {{chatgpt}} kunne ikke fuldføres. Prøv igen.",
+        "runtimeUnavailable": "Login til {{chatgpt}} blev gemt, men træneren kunne ikke konfigureres.",
+        "storageFailed": "Login til {{chatgpt}} blev fuldført, men profilen kunne ikke gemmes.",
+        "timedOut": "Tidsgrænsen for login til {{chatgpt}} blev overskredet. Prøv igen, når du er klar."
+      },
+      "retryActivation": "Prøv aktivering igen",
+      "signIn": "Log ind med {{chatgpt}}"
+    },
+    "chatSubtitle": "Tilknyt det, din træner har brug for. {{telegram}} er valgfri og blokerer aldrig Chat.",
+    "checking": {
+      "heading": "Kontrollerer din opsætning",
+      "rowSubtitle": "Kontrollerer, hvad der allerede er forbundet…",
+      "status": "Kontrollerer opsætning…",
+      "subtitle": "Læser de forbindelser, der allerede er gemt på denne computer. Det kan tage et øjeblik lige efter start."
+    },
+    "error": {
+      "configurationUnavailable": "Trænervalg er utilgængelige lige nu. Kontrollér opsætningsområdet igen.",
+      "credentialReenterRequired": "Den gemte nøgle kunne ikke bruges. Indtast den igen for at fortsætte.",
+      "credentialRequired": "Log ind med {{chatgpt}}, eller tilføj mindst én modelnøgle for at fortsætte.",
+      "credentialSaveFailed": "Nøglen kunne ikke gemmes. Prøv at indtaste den igen.",
+      "credentialStatusUnavailable": "Nøglen blev gemt, men dens status kunne ikke opdateres. Kontrollér opsætningsområdet igen.",
+      "endpointInvalid": "Indtast et gyldigt HTTPS-slutpunkt eller et HTTP-loopbackslutpunkt.",
+      "intakeIncomplete": "Besvar de obligatoriske sikkerhedsspørgsmål for at fortsætte.",
+      "intakeSaveFailed": "Dine svar kunne ikke gemmes. Prøv igen.",
+      "intervalsClipboardClearFailed": "API-nøglen blev ikke gemt, fordi {{product}} ikke kunne fjerne den sikkert fra udklipsholderen. Kopiér den igen, og prøv igen.",
+      "intervalsClipboardUnavailable": "{{product}} kunne ikke læse en API-nøgle fra udklipsholderen. Kopiér den i {{intervals}}, og prøv igen.",
+      "intervalsKeyRejected": "{{intervals}} accepterede ikke den kopierede API-nøgle. Kopiér en aktuel API-nøgle, og prøv igen.",
+      "intervalsOwnerUnavailable": "{{product}} kunne ikke bekræfte, at den kopierede API-nøgle passer til træningsdataene på {{computer}}. Prøv igen, når træningsdata er tilgængelige.",
+      "intervalsRuntimeUnavailable": "Den kopierede API-nøgle kunne ikke aktiveres. Kopiér den i {{intervals}}, og prøv igen.",
+      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekræfte, om den kopierede API-nøgle er aktiv. Genindlæs adgangsoplysningernes status, før du prøver igen.",
+      "intervalsStorageUncertain": "{{product}} kunne ikke bekræfte, om den kopierede API-nøgle blev gemt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
+      "intervalsValidationUnavailable": "{{product}} kunne ikke kontrollere den kopierede API-nøgle hos {{intervals}}. Kontrollér din forbindelse, og prøv igen.",
+      "invalidInput": "Nøglen blev ikke accepteret. Kontrollér den, og indtast den igen.",
+      "modelRuntimeUnavailable": "Dit valg af udbyder er gemt, men er endnu ikke aktivt. Prøv at aktivere det igen.",
+      "modelSelectionRequired": "Vælg en model, eller indtast et brugerdefineret modelnavn.",
+      "runtimeUnavailable": "Nøglen blev gemt, men er endnu ikke aktiv. Vælg Prøv gemte nøgler igen for at aktivere den.",
+      "storageFailed": "Appen kunne ikke bekræfte, at nøglen blev gemt sikkert. Kontrollér, at sikker lagring er tilgængelig, og prøv igen.",
+      "storageUncertain": "Appen kunne ikke fastslå, hvilken gemt nøgle der bevares efter en genstart. Indtast nøglen igen, før du fortsætter.",
+      "trainingAccountMismatch": "Denne {{intervalsLower}}-nøgle tilhører en anden atlet end den allerede gemte træningshistorik. Kontoskift understøttes endnu ikke.",
+      "trainingDataRequired": "Tilknyt {{intervalsLower}}, eller importér mindst én turfil.",
+      "unsafeBackend": "Appen kan ikke gemme nøglen sikkert med den aktuelle lagringsløsning."
+    },
+    "footerNote": "Alt bliver på {{computer}}.",
+    "heading": "Få din træner i gang, før du kan chatte",
+    "import": {
+      "available": "Import til lokalt bibliotek: {{imported}} importeret. {{quarantined}} sat i karantæne. Træneren har adgang til aktiviteter og dataserier.",
+      "choosing": "Venter på valg af turfiler…",
+      "failed": "Import til lokalt bibliotek mislykkedes. {{imported}} importeret. {{quarantined}} sat i karantæne. Ingen nye turfiler er tilgængelige for træneren.",
+      "fileCount_one": "{{formattedCount}} turfil",
+      "fileCount_other": "{{formattedCount}} turfiler",
+      "importing": "Importerer turfiler…",
+      "unavailable": "Import til lokalt bibliotek: {{imported}} importeret. {{quarantined}} sat i karantæne. Trænerens adgang til aktiviteter og dataserier er midlertidigt utilgængelig. Prøv importen igen.",
+      "unconfirmed": "Import til lokalt bibliotek mislykkedes. Resultatet kunne ikke bekræftes. Kontrollér biblioteket, før du prøver igen."
+    },
+    "intake": {
+      "managing": "Jeg har en skade",
+      "none": "Ingen aktuel skade",
+      "retrySave": "Prøv at gemme svar igen",
+      "returning": "Jeg vender tilbage efter en skade",
+      "select": "Vælg…",
+      "subtitle": "Registrerer din aktuelle skade eller tilbagevenden efter en skade.",
+      "title": "Aktuel skadesstatus"
+    },
+    "requiredReady": "{{ready}} af {{total}} påkrævede dele klar",
+    "retrySavedKeys": "Prøv gemte nøgler igen",
+    "retryStatus": "Prøv opsætningsstatus igen",
+    "settingsHeading": "Opsætning",
+    "startCoaching": "Start coaching",
+    "statusUnavailable": "Opsætningsstatus kunne ikke indlæses. Kontrollér, at {{product}} kører, og prøv igen.",
+    "telegram": {
+      "announcement": "Opsætning af {{telegram}}-bot er åbnet under denne række.",
+      "ask": "Bed",
+      "availability": "{{telegram}} virker, mens {{product}} kører, og {{computer}} er vågen og online.",
+      "cancelLabel": "Annuller opsætning af {{telegram}}-bot",
+      "checkAgain": "Kontrollér igen",
+      "connecting": "Opretter forbindelse…",
+      "create": "Opret",
+      "createAfterBotFather": "om en bot, kopiér dens token, og vend tilbage hertil. {{product}} læser og kontrollerer tokenet direkte fra udklipsholderen. Tokenet vises aldrig.",
+      "createCopy": "Bed {{botFather}} om en bot, kopiér dens token, og vend tilbage hertil. {{product}} læser og kontrollerer tokenet direkte fra udklipsholderen. Tokenet vises aldrig.",
+      "createLabel": "Opret {{telegram}}-bot",
+      "createTitle": "Opret en bot med {{botFather}}",
+      "delete": "Slet",
+      "deleteConnection": "Slet forbindelse",
+      "deleteCopy": "Dette slår {{telegram}} fra og sletter det krypterede token og tilladte brugeres adgang fra {{computer}}. {{telegram}}-botten og chatten bliver i {{telegram}}.",
+      "deleteLabel": "Slet forbindelsen til {{telegram}}",
+      "deleteTitle": "Slet forbindelsen til {{telegram}}?",
+      "deleting": "Sletter…",
+      "notDeleted": "Forbindelsen til {{telegram}} blev ikke slettet fra {{computer}}.",
+      "optional": "Valgfri",
+      "unappliedToken": "Det kopierede token blev ikke anvendt. Den aktuelle {{telegram}}-bot er uændret.",
+      "useToken": "Brug kopieret token",
+      "verified": "Bot bekræftet · @{{username}}",
+      "verifiedPrefix": "Bot bekræftet"
+    },
+    "training": {
+      "cancelLabel": "Annuller opsætning af {{intervals}}",
+      "connect": "Opret forbindelse",
+      "connecting": "Opretter forbindelse…",
+      "connectTitle": "Forbind {{intervals}}",
+      "hint": "Åbn Indstillinger → Udviklerindstillinger i {{intervals}}, kopiér API-nøglen, og vend tilbage hertil. {{product}} læser den uden at vise den.",
+      "importFiles": "Importér turfiler i stedet",
+      "subtitle": {
+        "connected": "Forbundet · hvor dine ture kommer fra",
+        "missing": "Opret forbindelse, eller importér turfiler."
+      },
+      "tooltip": {
+        "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter kopiere kontoens API-nøgle.",
+        "label": "Om {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Forbind {{intervals}}"
+      },
+      "useCopiedKey": "Brug kopieret API-nøgle"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Kontrollerer opsætning…",
+    "loading": {
+      "archive": "Indlæser tidligere chats…",
+      "chat": "Indlæser chat…",
+      "plan": "Indlæser plan…",
+      "settings": "Indlæser indstillinger…",
+      "training": "Indlæser træning…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Kryptering i {{operatingSystem}} er utilgængelig. Sørg for, at {{keychain}} er tilgængelig, og prøv igen.",
+        "windows": "Kryptering af adgangsoplysninger i {{operatingSystem}} ({{encryption}}) er utilgængelig. Luk og åbn {{product}} igen, og prøv igen."
+      },
+      "credentialRecoveryAction": {
+        "mac": "lås din login-nøglering op",
+        "windows": "sørg for, at kryptering af adgangsoplysninger i {{operatingSystem}} ({{encryption}}) er tilgængelig"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Hovednavigation",
+    "newChat": "Ny chat",
+    "planAttention_one": "Plan, {{formattedCount}} punkt kræver opmærksomhed",
+    "planAttention_other": "Plan, {{formattedCount}} punkter kræver opmærksomhed",
+    "sync": {
+      "action": {
+        "again": "Synkroniser igen",
+        "now": "Synkroniser nu",
+        "retry": "Prøv igen",
+        "unavailable": "Synkronisering er utilgængelig"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synkronisering kræver opmærksomhed",
+        "loading": "Indlæser træningsdata",
+        "never": "Endnu ikke synkroniseret",
+        "synced": "Træningsdata synkroniseret",
+        "syncing": "Synkroniserer",
+        "unavailable": "Træningsdata er utilgængelige"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Forbindelsen blev afbrudt. Synkroniseringen er muligvis stadig ved at blive afsluttet. {{product}} prøver ikke automatisk igen.",
+        "noChange": "Lokal behandling af træningsdata fuldført.",
+        "noChangeRestricted_one": "Lokal behandling af træningsdata fuldført. En API-begrænsning hos {{source}} forhindrer {{provider}} i at dele én aktivitet, så den er ikke med.",
+        "noChangeRestricted_other": "Lokal behandling af træningsdata fuldført. En API-begrænsning hos {{source}} forhindrer {{provider}} i at dele {{formattedCount}} aktiviteter, så de er ikke med.",
+        "operationFailure": "Vi kunne ikke fuldføre kontrollen af træningsdata. Dine eksisterende data er stadig tilgængelige.",
+        "partial": "Behandling af træningsdata delvist fuldført. Prøv igen for at afslutte.",
+        "protocol": "{{product}} kunne ikke bekræfte resultatet af synkroniseringen. Luk og åbn {{product}} igen.",
+        "published": "Kontrol af træningsdata fuldført.",
+        "publishedRestricted_one": "Kontrol af træningsdata fuldført. En API-begrænsning hos {{source}} forhindrer {{provider}} i at dele én aktivitet, så den er ikke med.",
+        "publishedRestricted_other": "Kontrol af træningsdata fuldført. En API-begrænsning hos {{source}} forhindrer {{provider}} i at dele {{formattedCount}} aktiviteter, så de er ikke med.",
+        "queued": "Synkronisering sat i kø.",
+        "running": "Synkroniserer træningsdata…"
+      },
+      "restriction": {
+        "fixAction": "· Sådan løser du det",
+        "fixLabel": "{{restrictionLabel}}. Sådan løser du det",
+        "label_one": "{{formattedCount}} skjult af {{source}}",
+        "label_other": "{{formattedCount}} skjult af {{source}}",
+        "tooltipBody": "En API-begrænsning hos {{source}} forhindrer {{provider}} i at dele disse aktiviteter med {{product}}.",
+        "tooltipLabel": "Hvorfor er aktiviteter skjult?",
+        "tooltipLead_one": "{{formattedCount}} aktivitet skjult af {{source}}",
+        "tooltipLead_other": "{{formattedCount}} aktiviteter skjult af {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Ukendt synkroniseringstidspunkt"
+    },
+    "update": {
+      "available": "Opdatering tilgængelig",
+      "availableVersion": "Opdatering til version {{version}} er tilgængelig",
+      "installVersion": "Installér opdatering til version {{version}}",
+      "restarting": "Genstarter…",
+      "restartingVersion": "Genstarter for at installere opdatering til version {{version}}"
+    },
+    "views": {
+      "archive": "Tidligere chats",
+      "chat": "Chat",
+      "plan": "Plan",
+      "settings": "Indstillinger",
+      "training": "Træning"
     }
   }
 }
