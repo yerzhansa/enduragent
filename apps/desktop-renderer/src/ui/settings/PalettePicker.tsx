@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { cn } from "@enduragent/ui";
@@ -5,6 +6,7 @@ import { useEnduragentStore } from "../../state/store";
 import { PALETTES } from "@enduragent/ui";
 
 export function PalettePicker(): ReactElement {
+  const { say } = usePhrasebook();
   const paletteId = useEnduragentStore((state) => state.paletteId);
   const setPaletteId = useEnduragentStore((state) => state.setPaletteId);
 
@@ -12,7 +14,7 @@ export function PalettePicker(): ReactElement {
     <div
       className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-3 px-4 py-3.5"
       role="group"
-      aria-label="App palette"
+      aria-label={say("settings.palette.app")}
     >
       {PALETTES.map((palette) => (
         <Button
@@ -21,7 +23,7 @@ export function PalettePicker(): ReactElement {
           variant="ghost"
           className="flex h-auto cursor-pointer flex-col items-stretch gap-1.5 rounded-ctl border-0 bg-transparent p-0 font-inherit"
           aria-pressed={palette.id === paletteId}
-          aria-label={`Use the ${palette.name} palette`}
+          aria-label={say("settings.palette.use", { palette: palette.name })}
           onClick={() => {
             setPaletteId(palette.id);
           }}

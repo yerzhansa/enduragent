@@ -4,7 +4,7 @@ import type { LanguageTag, RuntimeConfigSnapshot, SpendSummary } from "@endurage
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithLanguage as render } from "./language-harness";
+import { renderWithLanguage as render, renderWithCatalog } from "./language-harness";
 import { App } from "../src/app/App";
 import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describeLanguage } from "@enduragent/i18n";
@@ -558,7 +558,7 @@ afterEach(() => {
 async function renderSettings(options: HarnessOptions = {}) {
   harness = createHarness(options);
   await render(<SettingsView />);
-  await screen.findByRole("button", { name: "Save coach route" });
+  await screen.findByRole("button", { name: /Save coach route|Salva configurazione del coach/ });
   await waitFor(() => {
     expect(useEnduragentStore.getState().settings.coach.status).toBe("ready");
     expect(useEnduragentStore.getState().settings.conversation.status).toBe("ready");
@@ -601,7 +601,9 @@ describe("training restriction repair", () => {
       });
     });
 
-    expect(settings.querySelector("#strava-restricted-activities")).toBeNull();
+    await waitFor(() => {
+      expect(settings.querySelector("#strava-restricted-activities")).toBeNull();
+    });
   });
 
   it("focuses the Settings heading when a pending request has no repair card", async () => {
@@ -966,8 +968,13 @@ describe("conversation settings", () => {
     const retention = CONVERSATION_FIELDS.find(
       (field) => field.field === "resetArchiveRetentionDays",
     );
-    expect(resetHour?.help).toContain("may make your next message start a fresh conversation");
-    expect(retention?.help).toContain("changes apply only to future pruning");
+    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(resetHour === undefined ? "" : english.say(resetHour.help)).toContain(
+      "may make your next message start a fresh conversation",
+    );
+    expect(retention === undefined ? "" : english.say(retention.help)).toContain(
+      "changes apply only to future pruning",
+    );
 
     expect(
       screen.getByText(/may make your next message start a fresh conversation/u),
@@ -2098,6 +2105,7 @@ describe("spending", () => {
       "You’ve reached today’s $0.50 spend cap. You can keep chatting; this is a warning, not a block.",
     );
     expect(screen.getByText("$0.60+ / $0.50")).toBeInTheDocument();
+    expect(screen.getByText("Today · Jul 6")).toBeInTheDocument();
 
     const cap = screen.getByLabelText("Daily cap (USD)");
     await user.clear(cap);
@@ -2342,5 +2350,34 @@ describe("first launch language", () => {
       useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: null } }),
     );
     expect(document.documentElement.lang).toBe("it");
+  });
+});
+
+describe("settings catalog", () => {
+  it("renders settings and accessible labels from an injected Italian catalog", async () => {
+    useEnduragentStore.setState((state) => ({
+      settings: { ...state.settings, language: { status: "ready", value: "it" } },
+    }));
+    await renderWithCatalog(<SettingsView />, {
+      settings: {
+        title: "Impostazioni di prova",
+        coach: { title: "Allenatore di prova", loading: "Caricamento allenatore di prova…" },
+        conversation: {
+          title: "Conversazioni di prova",
+          ariaLabel: "Conversazioni e orari di prova",
+        },
+        application: { title: "Applicazione di prova", reset: "Azzera conversazione di prova" },
+        palette: { app: "Tavolozza di prova" },
+        spend: { title: "Spesa di prova", cap: { aria: "Limite giornaliero di prova" } },
+      },
+    });
+    expect(useEnduragentStore.getState().settings.language.value).toBe("it");
+    expect(screen.getByRole("heading", { name: "Impostazioni di prova" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Allenatore di prova" })).toBeVisible();
+    expect(screen.getByText("Caricamento allenatore di prova…")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Conversazioni e orari di prova" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Azzera conversazione di prova" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Tavolozza di prova" })).toBeVisible();
+    expect(screen.getByRole("progressbar", { name: "Limite giornaliero di prova" })).toBeVisible();
   });
 });

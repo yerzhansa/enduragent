@@ -1,12 +1,15 @@
+import { telegramFeedbackMessage } from "../settings/copy";
+import { msg, type Message } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import type {
   TelegramControlStatus,
-  TelegramSettingsFeedback,
+  TelegramSettingsFeedback as ControllerTelegramSettingsFeedback,
   TelegramSettingsState,
 } from "../../settings/telegram-controller";
 import { credentialChangesBlocked } from "../../settings/credential-controller";
-import { PLATFORM_COPY } from "../../platform-copy";
+import { PLATFORM_COPY, platformCredentialRecoveryAction } from "../../platform-copy";
 import { settingsMutationActive, type TelegramSettingsPort } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import {
@@ -17,10 +20,13 @@ import {
   TELEGRAM_DELETE_TITLE,
   TELEGRAM_OPTIONAL_LABEL,
   TELEGRAM_ROW_TITLE,
-  TELEGRAM_VERIFIED_PREFIX,
 } from "./copy";
 import { InlineConfirmation, type InlineConfirmationFocus } from "@enduragent/ui";
 import { SetupRow, SetupSubPanel } from "./SetupRow";
+
+type TelegramSettingsFeedback = Omit<ControllerTelegramSettingsFeedback, "message"> & {
+  readonly message: string | Message;
+};
 
 type TelegramPanel = "closed" | "token" | "delete";
 type TelegramAction = "paste-token" | "remove";
@@ -67,8 +73,11 @@ function fallbackFeedback(action: TelegramAction): TelegramSettingsFeedback {
     tone: "error",
     message:
       action === "paste-token"
-        ? "The copied token was not applied. The current Telegram bot is unchanged."
-        : `The Telegram connection was not deleted from ${PLATFORM_COPY.computer}.`,
+        ? msg("setup.telegram.unappliedToken", { telegram: "Telegram" })
+        : msg("setup.telegram.notDeleted", {
+            telegram: "Telegram",
+            computer: PLATFORM_COPY.computer,
+          }),
   };
 }
 
@@ -143,6 +152,7 @@ function restoreAttempt(
 }
 
 export function TelegramRow(): ReactElement {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.telegram);
   const settings = useEnduragentStore((store) => store.settings);
   const setupReadyForFocus = useEnduragentStore(
@@ -405,6 +415,10 @@ export function TelegramRow(): ReactElement {
     queueMicrotask(() => trigger.current?.focus());
   };
 
+  const feedbackMessage =
+    typeof panelFeedback?.message === "string"
+      ? telegramFeedbackMessage(panelFeedback.message, say(platformCredentialRecoveryAction()))
+      : panelFeedback?.message;
   const feedbackNode =
     panelFeedback === null ? null : (
       <p
@@ -413,7 +427,11 @@ export function TelegramRow(): ReactElement {
         aria-live={panelFeedback.tone === "error" ? undefined : "polite"}
         data-telegram-feedback={panelFeedback.tone}
       >
-        {panelFeedback.message}
+        {feedbackMessage == null
+          ? typeof panelFeedback.message === "string"
+            ? panelFeedback.message
+            : say(panelFeedback.message)
+          : say(feedbackMessage)}
       </p>
     );
 
@@ -425,10 +443,10 @@ export function TelegramRow(): ReactElement {
         title={TELEGRAM_ROW_TITLE}
         subtitle={
           <>
-            {TELEGRAM_AVAILABILITY_COPY}
+            {say(TELEGRAM_AVAILABILITY_COPY)}
             {configured ? (
               <span className="mt-1 block text-ok" data-telegram-identity="">
-                {TELEGRAM_VERIFIED_PREFIX} · @{username}
+                {say("setup.telegram.verified", { username })}
               </span>
             ) : null}
           </>
@@ -438,10 +456,12 @@ export function TelegramRow(): ReactElement {
             className="rounded-full bg-[color-mix(in_srgb,var(--brand)_10%,transparent)] px-[7px] py-0.5 text-xs font-semibold text-brand"
             data-telegram-optional=""
           >
-            {TELEGRAM_OPTIONAL_LABEL}
+            {say(TELEGRAM_OPTIONAL_LABEL)}
           </span>
         }
-        announce={panel === "token" ? "Telegram bot setup opened below this row." : ""}
+        announce={
+          panel === "token" ? say("setup.telegram.announcement", { telegram: "Telegram" }) : ""
+        }
         trailing={
           configured ? (
             <Button
@@ -456,10 +476,10 @@ export function TelegramRow(): ReactElement {
                 (authoritativeCheckRequired && attempt?.action === "paste-token")
               }
               aria-expanded={panel === "delete"}
-              aria-label="Delete the Telegram connection"
+              aria-label={say("setup.telegram.deleteLabel", { telegram: "Telegram" })}
               onClick={openDeletePanel}
             >
-              Delete
+              {say("setup.telegram.delete")}
             </Button>
           ) : (
             <Button
@@ -470,11 +490,11 @@ export function TelegramRow(): ReactElement {
               data-setup-trigger="telegram"
               disabled={busy || credentialMutationBlocked}
               aria-expanded={panel === "token"}
-              aria-label="Create Telegram bot"
+              aria-label={say("setup.telegram.createLabel", { telegram: "Telegram" })}
               {...(panel === "closed" ? {} : { "aria-controls": panelId })}
               onClick={openTokenPanel}
             >
-              Create
+              {say("setup.telegram.create")}
             </Button>
           )
         }
@@ -493,10 +513,10 @@ export function TelegramRow(): ReactElement {
                 tabIndex={-1}
                 className="m-0 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-ink"
               >
-                {TELEGRAM_CREATE_TITLE}
+                {say(TELEGRAM_CREATE_TITLE)}
               </h3>
               <p className="mt-1 mb-0 max-w-[525px] text-xs text-ink-2">
-                Ask{" "}
+                {say("setup.telegram.ask")}{" "}
                 <a
                   className="font-medium underline underline-offset-[3px] hover:text-ink"
                   href="https://t.me/BotFather"
@@ -505,7 +525,7 @@ export function TelegramRow(): ReactElement {
                 >
                   @BotFather
                 </a>{" "}
-                {TELEGRAM_CREATE_COPY_AFTER_BOTFATHER}
+                {say(TELEGRAM_CREATE_COPY_AFTER_BOTFATHER)}
               </p>
               {feedbackNode}
             </div>
@@ -515,10 +535,10 @@ export function TelegramRow(): ReactElement {
                 variant="ghost"
                 size="sm"
                 disabled={busy}
-                aria-label="Cancel Telegram bot setup"
+                aria-label={say("setup.telegram.cancelLabel", { telegram: "Telegram" })}
                 onClick={closeTokenPanel}
               >
-                Cancel
+                {say("common.cancel")}
               </Button>
               {mutationUnsafe ? (
                 <Button
@@ -529,7 +549,7 @@ export function TelegramRow(): ReactElement {
                   disabled={busy}
                   onClick={checkAgain}
                 >
-                  Check again
+                  {say("setup.telegram.checkAgain")}
                 </Button>
               ) : null}
               <Button
@@ -541,12 +561,12 @@ export function TelegramRow(): ReactElement {
                 disabled={busy || credentialMutationBlocked || mutationUnsafe}
                 onClick={() => begin("paste-token")}
               >
-                {connecting ? "Connecting…" : "Use copied token"}
+                {connecting ? say("setup.telegram.connecting") : say("setup.telegram.useToken")}
               </Button>
             </div>
           </div>
           <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {connecting ? "Connecting…" : ""}
+            {connecting ? say("setup.telegram.connecting") : ""}
           </span>
         </SetupSubPanel>
       ) : null}
@@ -566,7 +586,7 @@ export function TelegramRow(): ReactElement {
               disabled={busy}
               onClick={checkAgain}
             >
-              Check again
+              {say("setup.telegram.checkAgain")}
             </Button>
           ) : null}
         </SetupSubPanel>
@@ -576,9 +596,9 @@ export function TelegramRow(): ReactElement {
           <InlineConfirmation
             key={confirmationVersion}
             name="delete-telegram"
-            title={TELEGRAM_DELETE_TITLE}
-            copy={TELEGRAM_DELETE_COPY}
-            confirmLabel="Delete connection"
+            title={say(TELEGRAM_DELETE_TITLE)}
+            copy={say(TELEGRAM_DELETE_COPY)}
+            confirmLabel={say("setup.telegram.deleteConnection")}
             focusTarget={confirmationFocus}
             cancelDisabled={busy}
             confirmDisabled={busy || credentialMutationBlocked || mutationUnsafe}
@@ -599,13 +619,13 @@ export function TelegramRow(): ReactElement {
                   disabled={busy}
                   onClick={checkAgain}
                 >
-                  Check again
+                  {say("setup.telegram.checkAgain")}
                 </Button>
               ) : null}
             </SetupSubPanel>
           )}
           <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {removing ? "Deleting…" : ""}
+            {removing ? say("setup.telegram.deleting") : ""}
           </span>
         </>
       ) : null}

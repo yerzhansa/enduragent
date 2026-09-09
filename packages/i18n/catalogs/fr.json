@@ -34,6 +34,831 @@
       "saving": "Enregistrement des unités…",
       "title": "Unités",
       "unavailable": "Préférence d’unités indisponible"
+    },
+    "application": {
+      "check": "Rechercher des mises à jour",
+      "checkFailed": "La recherche de mises à jour a échoué. Réessaie",
+      "checking": "Recherche de mises à jour",
+      "checkingAction": "Recherche…",
+      "current": "{{product}} est à jour",
+      "danger": "Danger",
+      "downloadFailed": "Le téléchargement de la mise à jour a échoué. Réessaie",
+      "downloading": "Téléchargement de la mise à jour {{version}}",
+      "downloadingAction": "Téléchargement…",
+      "downloadTimedOut": "Le téléchargement de la mise à jour a expiré. Quitte et rouvre {{product}} pour réessayer.",
+      "reset": "Réinitialiser la conversation",
+      "resetDetail": "Efface la conversation visible. Les données d’entraînement et la mémoire enregistrée du coach sont conservées.",
+      "restart": "Redémarrer pour installer la version {{version}}",
+      "restartAction": "Redémarrer pour mettre à jour",
+      "restarting": "Redémarrage pour installer la version {{version}}",
+      "restartingAction": "Redémarrage…",
+      "restartRequired": "Redémarre {{product}} pour reprendre les mises à jour",
+      "retry": "Réessayer la mise à jour",
+      "startFailed": "Les mises à jour n’ont pas pu démarrer. Quitte et rouvre {{product}} pour réessayer.",
+      "title": "Application",
+      "unavailable": "Mises à jour indisponibles",
+      "version": "Version {{version}}",
+      "versionUnknown": "inconnue"
+    },
+    "athlete": {
+      "credentialMissing": "Aucune donnée d’authentification de compte d’entraînement n’est connectée. Utilise la zone de configuration ci-dessus pour en connecter une.",
+      "detail": "Ce champ peut uniquement identifier le compte d’entraînement actuellement connecté. Il ne permet pas de changer de compte.",
+      "error": {
+        "credentialRequired": "Connecte le compte d’entraînement dans Configuration avant d’enregistrer son identifiant d’athlète.",
+        "managedByEnvironment": "L’identifiant d’athlète est géré en dehors de {{product}} et n’a pas été modifié.",
+        "notApplied": "L’identifiant d’athlète n’a pas été appliqué. Reconnecte et recharge avant de réessayer.",
+        "ownershipUnavailable": "Le compte d’entraînement connecté n’a pas pu être vérifié. Reconnecte et recharge avant de réessayer.",
+        "requestFailed": "L’identifiant d’athlète n’a pas pu être enregistré. Ta modification est toujours ici.",
+        "runtimeUnavailable": "Le compte d’entraînement actuel n’a pas pu être rechargé. Ta modification est toujours ici.",
+        "trainingAccountMismatch": "Cet identifiant d’athlète ne correspond pas au compte d’entraînement actuellement connecté."
+      },
+      "futurePrefix": "Pour les sorties à venir — ",
+      "help": "Utilise l’identifiant exact associé à la donnée d’authentification déjà connectée dans Configuration.",
+      "id": "Identifiant d’athlète",
+      "loading": "Chargement des paramètres du compte d’entraînement…",
+      "pastPrefix": "Pour les sorties passées — ",
+      "refreshing": "Reconnexion et vérification du compte d’entraînement actuel…",
+      "reload": "Reconnecter et recharger",
+      "restriction": {
+        "cause": "Une restriction de l’API {{strava}} empêche {{intervalsLower}} de partager avec {{product}} les activités provenant de {{strava}}. Ta clé API fonctionne.",
+        "future": "Connecte directement la source qui enregistre tes sorties à {{intervalsLower}} et garde {{strava}} connecté. C’est gratuit et cela couvre les sorties à venir.",
+        "past": "Utilise Importer toutes les données {{strava}} dans les paramètres de {{intervalsLower}}. Cela couvre les sorties passées et nécessite un abonnement de soutien à {{intervalsLower}}.",
+        "title_one": "{{restricted}} activité sur {{total}} est masquée par {{strava}}",
+        "title_other": "{{restricted}} activités sur {{total}} sont masquées par {{strava}}"
+      },
+      "reviewSetup": "Vérifier la configuration",
+      "save": "Enregistrer l’identifiant d’athlète",
+      "saved": "Identifiant d’athlète enregistré.",
+      "saving": "Enregistrement de l’identifiant d’athlète…",
+      "title": "Compte d’entraînement",
+      "unavailable": "Les paramètres du compte d’entraînement sont indisponibles. Reconnecte et recharge.",
+      "validation": {
+        "athleteControlCharacters": "Les identifiants d’athlète ne peuvent pas contenir de caractères de contrôle.",
+        "athleteRequired": "Saisis l’identifiant d’athlète du compte d’entraînement connecté.",
+        "athleteTooLong": "Les identifiants d’athlète doivent contenir au maximum 512 caractères.",
+        "athleteWhitespace": "Les identifiants d’athlète ne peuvent pas commencer ou se terminer par des espaces."
+      },
+      "verificationPending": "Vérification du compte d’entraînement connecté… Les données d’entraînement restent en pause jusqu’à la fin de la vérification."
+    },
+    "coach": {
+      "active": "Actif",
+      "activeUnavailable": "Les paramètres du coach actif sont indisponibles ou ne sont pas configurés.",
+      "automatic": "Automatique",
+      "changeRequired": "Modification nécessaire",
+      "chooseModel": "Choisis un modèle",
+      "chooseProvider": "Choisis un fournisseur",
+      "chooseProviderFirst": "Choisis d’abord un fournisseur",
+      "currentRoute": "Actuellement actif : {{provider}} · {{model}}",
+      "customModel": "Nom du modèle personnalisé",
+      "endpoint": "Point de terminaison",
+      "endpointDetail": "{{product}} choisit le point de terminaison du fournisseur pour cette configuration.",
+      "error": {
+        "credentialRequired": "Ce fournisseur a besoin d’une donnée d’authentification enregistrée pour te coacher. Utilise la zone de configuration ci-dessus pour en ajouter une.",
+        "invalidInput": "Ce fournisseur ou ce modèle n’a pas été accepté. Vérifie le nom du modèle et réessaie.",
+        "requestFailed": "Les paramètres du coach n’ont pas pu être enregistrés pour le moment. Réessaie.",
+        "runtimeUnavailable": "Les paramètres du coach n’ont pas pu être activés. Réessaie de les enregistrer."
+      },
+      "inactive": "Inactif",
+      "loading": "Chargement des paramètres du coach…",
+      "model": "Modèle",
+      "notConfigured": "Non configuré",
+      "otherModel": "Autre modèle…",
+      "provider": "Fournisseur",
+      "providerLabel": {
+        "chatgpt": "Abonnement {{chatgpt}}",
+        "claude": "Abonnement {{claude}}",
+        "codex": "Agent {{codex}} (expérimental)"
+      },
+      "retry": "Réessayer",
+      "reviewSetup": "Vérifier la configuration",
+      "route": "Configuration du coach",
+      "save": "Enregistrer la configuration du coach",
+      "saved": "Paramètres du coach enregistrés.",
+      "saving": "Enregistrement des paramètres du coach…",
+      "title": "Coach",
+      "unavailable": "Les paramètres du coach sont indisponibles pour le moment. Réessaie.",
+      "unsaved": "Non enregistré",
+      "unsupported": "L’agent {{codex}} n’est pas pris en charge sur {{operatingSystem}}. Choisis l’abonnement {{claude}} ou un fournisseur avec clé API, puis enregistre la configuration du coach. Tes données d’authentification, tes données d’athlète, tes conversations et tes autres paramètres restent inchangés.",
+      "validation": {
+        "modelControlCharacters": "Les noms de modèles ne peuvent pas contenir de caractères de contrôle.",
+        "modelRequired": "Saisis un nom de modèle.",
+        "modelTooLong": "Les noms de modèles doivent contenir au maximum 512 caractères."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Conversation et heure",
+      "detail": "Définis quand les conversations se renouvellent et quelle quantité de contexte récent ton coach conserve.",
+      "error": {
+        "notApplied": "Les paramètres de conversation n’ont pas été appliqués. Reconnecte et recharge avant de réessayer.",
+        "requestFailed": "Les paramètres de conversation n’ont pas pu être enregistrés. Tes modifications sont toujours ici.",
+        "runtimeUnavailable": "Les paramètres de conversation actuels n’ont pas pu être rechargés. Tes modifications sont toujours ici."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Heure locale de l’athlète, de 0 à 23. Une modification peut faire démarrer une nouvelle conversation à ton prochain message.",
+          "label": "Heure de réinitialisation quotidienne"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Part du contexte du modèle réservée à l’historique de conversation, supérieure à 0 % et jusqu’à 100 %.",
+          "label": "Budget de l’historique"
+        },
+        "idleMinutes": {
+          "help": "Nombre entier de minutes sans message avant la réinitialisation de la conversation. Utilise 0 pour désactiver cette option.",
+          "label": "Réinitialisation après inactivité",
+          "suffix": "minutes"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Nombre entier de jours de conservation des archives de réinitialisation. Utilise 0 pour les garder indéfiniment ; les modifications s’appliquent uniquement aux prochaines suppressions automatiques.",
+          "label": "Conservation des archives",
+          "suffix": "jours"
+        },
+        "timezone": {
+          "help": "Utilise un fuseau horaire IANA, comme {{timezone}}. {{product}} suit le fuseau horaire de cet ordinateur jusqu’à ce que tu en enregistres un ici, puis conserve le tien.",
+          "label": "Fuseau horaire"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Chargement des paramètres de conversation…",
+      "refreshing": "Reconnexion et vérification des paramètres actuels…",
+      "reload": "Reconnecter et recharger",
+      "save": "Enregistrer les paramètres de conversation",
+      "saved": "Paramètres de conversation enregistrés.",
+      "saving": "Enregistrement des paramètres de conversation…",
+      "title": "Conversation et heure",
+      "unavailable": "Les paramètres de conversation sont indisponibles. Reconnecte et recharge.",
+      "validation": {
+        "dailyResetHour": "Saisis une heure entière de 0 à 23.",
+        "historyTokenBudgetRatio": "Saisis un budget d’historique supérieur à 0 % et inférieur ou égal à 100 %.",
+        "idleMinutes": "Saisis un nombre entier valide de minutes, supérieur ou égal à 0.",
+        "resetArchiveRetentionDays": "Saisis un nombre entier valide de jours, supérieur ou égal à 0.",
+        "timezone": "Saisis un fuseau horaire IANA valide, comme {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Modifier",
+      "changeAria": "Modifier la donnée d’authentification {{provider}}",
+      "claudeProvider": "Abonnement {{claude}}",
+      "codexProvider": "Agent {{codex}}",
+      "delete": {
+        "action": "Supprimer",
+        "aria": "Supprimer la donnée d’authentification {{provider}}",
+        "confirmAria": "Confirmer la suppression de la donnée d’authentification {{provider}}",
+        "connection": "Supprimer la connexion",
+        "credential": "Supprimer la donnée d’authentification",
+        "detail": "Cette action la supprime uniquement de {{computer}}. {{product}} cessera de l’utiliser si elle est active. Ton compte chez le fournisseur reste inchangé.",
+        "intervalsAria": "Supprimer la connexion {{intervals}}",
+        "intervalsDetail": "Ta clé API enregistrée et ta connexion importée seront supprimées. Tes sorties synchronisées et tes conversations passées restent sur {{computer}}.",
+        "intervalsTitle": "Supprimer la connexion {{intervals}} ?",
+        "title": "Supprimer la donnée d’authentification {{provider}} ?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Suppression de la donnée d’authentification annulée.",
+          "cleanupPending": "Donnée d’authentification supprimée localement. Le nettoyage du stockage sécurisé sera réessayé.",
+          "confirmProvider": "Confirme la suppression de la donnée d’authentification {{provider}}.",
+          "deleted": "Donnée d’authentification supprimée localement.",
+          "deletingProvider": "Suppression locale de la donnée d’authentification {{provider}}…",
+          "keyUnverified": "La donnée d’authentification a été conservée, car le stockage sécurisé n’a pas pu confirmer sa clé de chiffrement.",
+          "managed": "Cette donnée d’authentification est gérée en dehors des Paramètres et ne peut pas être supprimée ici.",
+          "notStored": "Cette donnée d’authentification n’est plus enregistrée. Recharge pour actualiser la liste.",
+          "reconcileFailed": "Les données d’authentification enregistrées et actives n’ont pas pu être mises en cohérence. Reconnecte et recharge avant de réessayer.",
+          "refreshFailed": "Donnée d’authentification supprimée localement. Son état actuel n’a pas pu être actualisé.",
+          "retained": "La donnée d’authentification reste enregistrée. Aucune suppression n’a été effectuée. Réessaie.",
+          "setupRefreshFailed": "Donnée d’authentification supprimée localement, mais l’état de la configuration n’a pas pu être actualisé. Recharge l’état des données d’authentification.",
+          "stopFailed": "Le coach n’a pas pu cesser d’utiliser cette donnée d’authentification en toute sécurité. Elle n’a pas été supprimée.",
+          "unverified": "La suppression de la donnée d’authentification n’a pas pu être confirmée, car le stockage sécurisé n’a pas pu être vérifié. Redémarre {{product}} et recharge avant de réessayer."
+        },
+        "recovery": {
+          "locked": "Déverrouille ton trousseau de session en dehors de {{product}}, puis choisis Réessayer.",
+          "missing": "La clé de chiffrement des données d’authentification est absente. Restaure-la si possible, puis choisis Réessayer, ou supprime toutes les données d’authentification et recommence.",
+          "unavailable": "Le stockage sécurisé des données d’authentification est indisponible. Réessaie, ou supprime toutes les données d’authentification et recommence.",
+          "unverified": "{{product}} ne peut pas ouvrir certaines données d’authentification enregistrées en toute sécurité. Saisis à nouveau chaque donnée concernée."
+        },
+        "reset": {
+          "cancelled": "Suppression des données d’authentification annulée.",
+          "cleanupPending": "Toutes les données d’authentification ont été supprimées. Le nettoyage du stockage sécurisé sera réessayé.",
+          "confirm": "Confirme la suppression de toutes les données d’authentification.",
+          "reloadFailed": "Les données d’authentification ont été supprimées, mais les Paramètres n’ont pas pu être rechargés. Reconnecte et recharge.",
+          "removed": "Toutes les données d’authentification ont été supprimées. Configure-les à nouveau quand tu le souhaites.",
+          "removeFailed": "{{product}} n’a pas pu supprimer toutes les données d’authentification enregistrées. Réessaie.",
+          "removing": "Suppression de toutes les données d’authentification…",
+          "stopFailed": "{{product}} n’a pas pu désactiver toutes les données d’authentification actives. Réessaie pour terminer leur suppression.",
+          "unverified": "La suppression des données d’authentification n’a pas pu être vérifiée, car les Paramètres n’ont pas pu être rechargés. Reconnecte et recharge."
+        },
+        "unavailable": "Les données d’authentification enregistrées sont indisponibles. Reconnecte et recharge."
+      },
+      "kind": {
+        "chatgpt": "Profil {{chatgpt}}",
+        "provider": "Clé API du fournisseur",
+        "training": "Clé du compte d’entraînement"
+      },
+      "loading": "Chargement des données d’authentification enregistrées…",
+      "reconnect": "Reconnecter et recharger",
+      "reload": "Recharger l’état des données d’authentification",
+      "repairRequired": "L’état des données d’authentification enregistrées doit être rechargé pour poursuivre la configuration.",
+      "reset": {
+        "confirm": "Supprimer toutes les données d’authentification",
+        "detail": "Cette action supprime de {{computer}} toutes les données d’authentification IA enregistrées, les profils {{chatgpt}}, les clés {{intervals}}, les jetons {{telegram}} et la clé de chiffrement partagée. Les comptes et les données importées restent inchangés.",
+        "title": "Supprimer toutes les données d’authentification ?"
+      },
+      "retry": "Réessayer",
+      "retryEntry": "Saisir à nouveau",
+      "runtime": {
+        "active": "Active",
+        "failed": "À vérifier",
+        "storedInactive": "Enregistrée, inactive",
+        "verifying": "Vérification…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Géré par une variable d’environnement. Modifie-la en dehors de {{product}}.",
+    "palette": {
+      "app": "Palette de l’application",
+      "use": "Utiliser la palette {{palette}}"
+    },
+    "saving": "Enregistrement…",
+    "spend": {
+      "amount": "{{amount}} $",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<{{amount}} $",
+      "cache": {
+        "explicit": "Mise en cache explicite pour cette configuration.",
+        "none": "Aucune lecture du cache",
+        "providerDependent": "Mise en cache selon le fournisseur ; aucun point de rupture explicite pour cette configuration.",
+        "savings": "{{tokens}} jetons lus dans le cache · {{amount}} économisés",
+        "unavailable": "mise en cache indisponible pour cette configuration",
+        "unknown": "{{tokens}} jetons lus dans le cache · économies indisponibles"
+      },
+      "cap": {
+        "aria": "Plafond de dépenses quotidien",
+        "failed": "Le plafond quotidien n’a pas pu être enregistré.",
+        "invalid": "Saisis un plafond quotidien supérieur à 0 $.",
+        "label": "Plafond quotidien (USD)",
+        "save": "Enregistrer le plafond",
+        "value": "{{known}} sur {{cap}}"
+      },
+      "date": "{{day}} {{month}}",
+      "detail": "Dépenses des modèles de langage par rapport au plafond du jour",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "avr.",
+        "august": "août",
+        "december": "déc.",
+        "february": "févr.",
+        "january": "janv.",
+        "july": "juil.",
+        "june": "juin",
+        "march": "mars",
+        "may": "mai",
+        "november": "nov.",
+        "october": "oct.",
+        "september": "sept."
+      },
+      "notice": {
+        "incomplete": "Certains coûts des fournisseurs sont indisponibles. Le total du jour est donc un minimum connu.",
+        "malformed": "Certains relevés d’utilisation n’ont pas pu être lus.",
+        "saved": "{{amount}} économisés grâce aux lectures du cache",
+        "savedMinimum": "Au moins {{amount}} économisés grâce aux lectures du cache",
+        "stale": "Les données de dépenses ne sont peut-être pas à jour."
+      },
+      "notional": "L’utilisation de l’abonnement aurait coûté {{amount}} via l’API. Aucun montant n’a été débité et cela ne compte pas dans ton plafond.",
+      "priced": "Coût connu pour {{priced}}/{{total}} générations",
+      "routeNotional": "aurait coûté {{amount}} via l’API",
+      "routes": "Détail des dépenses",
+      "title": "Dépenses",
+      "today": "Aujourd’hui",
+      "todayDate": "Aujourd’hui · {{date}}",
+      "unavailable": "Données de dépenses indisponibles."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "Une autre application ou un autre déploiement interroge ce bot. Arrête-le là-bas, puis choisis Vérifier à nouveau. Des bots différents peuvent toujours fonctionner en même temps.",
+        "credentialUnavailable": "Le jeton du bot enregistré n’a pas pu être lu dans le stockage sécurisé. Quitte et rouvre {{product}}, puis choisis Vérifier à nouveau. S’il reste illisible, supprime cette connexion, puis connecte un nouveau bot.",
+        "daemonUnavailable": "Le service de coaching local est indisponible. Garde {{product}} ouvert, puis choisis Vérifier à nouveau.",
+        "drainRequired": "Une réponse {{telegram}} est encore en cours. Patiente un instant, puis réessaie.",
+        "encryption": "Le stockage sécurisé des jetons est indisponible. Quitte et rouvre {{product}}, {{recoveryAction}}, puis choisis Vérifier à nouveau.",
+        "homeMismatch": "L’application de bureau est connectée à un autre dossier d’athlète. Redémarre {{product}}, puis vérifie à nouveau.",
+        "identityUnknown": "La connexion {{telegram}} enregistrée n’a pas pu être vérifiée. Choisis Vérifier à nouveau avant d’essayer une autre action.",
+        "invalidToken": "{{telegram}} a refusé le jeton enregistré. Supprime cette connexion, puis connecte un nouveau bot avec un jeton copié depuis {{botFather}}.",
+        "offline": "{{telegram}} est temporairement hors ligne. {{product}} réessaiera tant que {{computer}} est en éveil et en ligne.",
+        "startFailed": "{{telegram}} n’a pas pu démarrer. Garde {{product}} ouvert, vérifie la connexion Internet, puis choisis Vérifier à nouveau.",
+        "storageFailed": "La donnée d’authentification chiffrée du bot n’a pas pu être enregistrée. Vérifie l’accès au disque local et réessaie.",
+        "storageUncertain": "Les paramètres {{telegram}} n’ont peut-être pas été entièrement enregistrés. Ne modifie pas {{telegram}} et choisis Vérifier à nouveau avant d’essayer une autre action.",
+        "transferRequired": "Ce bot appartient à une autre installation de {{product}} ou à un déploiement hébergé. Supprime sa connexion là-bas, puis reconnecte-le ici avec un jeton copié.",
+        "unsafeBackend": "Aucun système de stockage sécurisé des données d’authentification n’est disponible. {{product}} a donc refusé d’accéder au jeton du bot enregistré sans chiffrement. Quitte et rouvre {{product}}, puis choisis Vérifier à nouveau."
+      },
+      "availability": "{{telegram}} fonctionne uniquement lorsque {{product}} et son service de coaching local sont en cours d’exécution, et que {{computer}} est en éveil et en ligne.",
+      "channel": {
+        "conflict": "Conflit d’interrogation",
+        "connecting": "Connexion",
+        "failed": "À vérifier",
+        "off": "Désactivé",
+        "online": "En ligne",
+        "reconnecting": "Reconnexion",
+        "suspended": "En pause pendant la veille",
+        "tokenRejected": "Jeton refusé",
+        "transferRequired": "Transfert nécessaire",
+        "waitingForCredential": "Jeton du bot nécessaire"
+      },
+      "check": "Vérifier à nouveau",
+      "delete": {
+        "action": "Supprimer",
+        "confirm": "Supprimer la connexion",
+        "detail": "Cette action désactive le bot et supprime son jeton chiffré et les accès des utilisateurs autorisés de {{computer}}. Le bot {{telegram}} et sa conversation restent dans {{telegram}}.",
+        "title": "Supprimer @{{botUsername}} de {{computer}} ?"
+      },
+      "detail": "Un bot dédié est recommandé. Il crée un nouveau @username et une conversation {{telegram}} ; l’historique visible d’un ancien bot n’est pas transféré. La mémoire de l’athlète, les données d’entraînement et les plans sont partagés.",
+      "disable": "Désactiver",
+      "enable": "Activer",
+      "feedback": {
+        "failure": {
+          "change": "Les paramètres {{telegram}} n’ont pas pu être modifiés. Réessaie.",
+          "changeStorageUnverified": "La modification n’a pas été appliquée, car le stockage n’a pas pu être vérifié. Redémarre {{product}} et vérifie ce paramètre avant de réessayer.",
+          "changeUncertain": "La modification de {{telegram}} a peut-être commencé, mais {{product}} n’a pas pu confirmer qu’elle était terminée. Redémarre {{product}} et vérifie ce paramètre avant de réessayer.",
+          "clipboardClearFailed": "Le presse-papiers n’a pas pu être effacé, donc le jeton copié n’a pas été utilisé. Le bot {{telegram}} actuel reste inchangé.",
+          "clipboardUnavailable": "Le presse-papiers n’a pas pu être lu. Aucun jeton {{telegram}} n’a été utilisé.",
+          "connectUncertain": "La connexion {{telegram}} a peut-être commencé, mais {{product}} n’a pas pu confirmer qu’elle était terminée. Redémarre {{product}} et vérifie {{telegram}} avant de réessayer.",
+          "invalidToken": "{{telegram}} a refusé le jeton copié. Le bot {{telegram}} actuel reste inchangé.",
+          "invalidTokenFormat": "Le presse-papiers ne contient pas de jeton de bot {{telegram}} valide. Le bot {{telegram}} actuel reste inchangé.",
+          "pairing": "L’association n’a pas pu démarrer. Vérifie la connexion du bot et réessaie.",
+          "pairingUncertain": "L’utilisateur principal de {{telegram}} a peut-être été enregistré, mais {{product}} n’a pas pu vérifier le stockage. Redémarre {{product}} et vérifie {{telegram}} avant de relancer l’association.",
+          "pasteToken": "Le jeton du bot n’a pas pu être vérifié ou enregistré. Copie un nouveau jeton depuis {{botFather}} et réessaie.",
+          "removeStorageUnverified": "La suppression de la connexion {{telegram}} n’a pas pu être confirmée, car le stockage sécurisé n’a pas pu être vérifié. Redémarre {{product}} et vérifie {{telegram}} avant de réessayer.",
+          "removeUncertain": "La suppression de la connexion {{telegram}} n’est peut-être pas terminée. Redémarre {{product}} et vérifie si le bot est toujours connecté avant de réessayer.",
+          "senders": "La liste des utilisateurs autorisés n’a pas pu être modifiée. Vérifie l’identifiant d’utilisateur et réessaie.",
+          "storageFailed": "Le jeton copié n’a pas pu être enregistré. Le bot {{telegram}} actuel reste inchangé.",
+          "tokenNotApplied": "Le jeton copié n’a pas été appliqué. Le bot {{telegram}} actuel reste inchangé.",
+          "tokenStorageUnverified": "Le jeton copié n’a pas été appliqué, car le stockage sécurisé n’a pas pu être vérifié. Le bot {{telegram}} actuel reste inchangé. Redémarre {{product}} et vérifie {{telegram}} avant de réessayer.",
+          "unsafeAccess": "Aucun système de stockage sécurisé des données d’authentification n’est disponible. {{product}} a donc refusé d’accéder au jeton du bot enregistré sans chiffrement. Quitte et rouvre {{product}}, puis choisis Vérifier à nouveau.",
+          "unsafeToken": "Aucun système de stockage sécurisé des données d’authentification n’est disponible. {{product}} a donc refusé d’enregistrer le jeton du bot sans chiffrement. Quitte et rouvre {{product}}, copie à nouveau le jeton du bot, puis réessaie.",
+          "unsafeTokenUnchanged": "Le bot {{telegram}} actuel reste inchangé, car aucun système de stockage sécurisé des données d’authentification n’est disponible. {{product}} a refusé d’enregistrer le jeton copié sans chiffrement. Quitte et rouvre {{product}}, copie à nouveau le jeton du bot, puis réessaie.",
+          "validationUnavailable": "{{telegram}} n’a pas pu vérifier le jeton copié pour le moment. Le bot {{telegram}} actuel reste inchangé.",
+          "webhook": "Le webhook n’a pas pu être supprimé. Vérifie la connexion Internet et réessaie.",
+          "webhookRemovalRequired": "Le bot dont tu as copié le jeton utilise encore un webhook. Supprime le webhook, puis supprime la connexion actuelle et connecte ce bot."
+        },
+        "health": {
+          "conflict": "Un autre service interroge ce bot. Arrête ce déploiement, puis vérifie à nouveau.",
+          "connecting": "{{telegram}} est en cours de connexion.",
+          "failed": "{{telegram}} nécessite une vérification. Garde l’application ouverte, vérifie la connexion et réessaie.",
+          "gap": "{{telegram}} s’est reconnecté après une longue interruption. Certains messages n’ont peut-être pas été reçus.",
+          "invalidToken": "{{telegram}} a refusé ce jeton. Supprime la connexion, puis connecte un nouveau bot avec un nouveau jeton provenant de {{botFather}}.",
+          "off": "{{telegram}} est désactivé.",
+          "online": "{{telegram}} est en ligne.",
+          "transferRequired": "Ce bot appartient toujours à une autre installation de l’application de bureau. Supprime sa connexion là-bas avant de le connecter ici.",
+          "waitingForToken": "Copie un jeton de bot depuis {{botFather}}, puis colle-le depuis le presse-papiers."
+        },
+        "pairing": {
+          "cancelled": "L’association {{telegram}} a été annulée.",
+          "connected": "{{telegram}} est connecté à @{{username}}. L’association doit être configurée.",
+          "expired": "Le code d’association a expiré avant d’être utilisé. Crée un nouveau code quand tu le souhaites.",
+          "paired": "{{telegram}} est associé à son utilisateur principal.",
+          "ready": "Code d’association prêt. Envoie-le au bot dans {{telegram}}.",
+          "refused": "L’association a été refusée, car ce bot a déjà un utilisateur principal.",
+          "replaced": "Un nouveau code d’association {{telegram}} est prêt. Envoie-le au bot dans {{telegram}}.",
+          "storageFailed": "L’utilisateur principal de {{telegram}} n’a pas pu être enregistré. Vérifie l’accès au disque local et réessaie l’association.",
+          "unavailable": "L’association est indisponible tant que le bot {{telegram}} ne peut pas se connecter."
+        },
+        "platform": {
+          "encryptionAccess": "Le stockage sécurisé des jetons est indisponible. Quitte et rouvre {{product}}, {{recoveryAction}}, puis choisis Vérifier à nouveau.",
+          "encryptionSave": "Le stockage sécurisé des jetons est indisponible. Quitte et rouvre {{product}}, {{recoveryAction}}, copie à nouveau le jeton du bot, puis réessaie.",
+          "encryptionUnchanged": "Le bot {{telegram}} actuel reste inchangé, car le stockage sécurisé des jetons est indisponible. Quitte et rouvre {{product}}, {{recoveryAction}}, copie à nouveau le jeton du bot, puis réessaie.",
+          "offline": "{{telegram}} est hors ligne. {{product}} continuera de réessayer tant que {{computer}} est en éveil et en ligne.",
+          "removed": "Connexion {{telegram}} supprimée de {{computer}}.",
+          "suspended": "L’interrogation de {{telegram}} est en pause pendant la veille de {{computer}}.",
+          "webhookConnect": "Le bot dont tu as copié le jeton utilise encore un webhook. Supprime le webhook avant de l’associer à {{computer}}.",
+          "webhookVerified": "Bot vérifié. Supprime son webhook avant de l’associer à {{computer}}."
+        },
+        "sender": {
+          "added": "Utilisateur {{telegram}} ajouté.",
+          "daemonUncertain": "La liste des utilisateurs autorisés a peut-être changé, mais {{product}} a perdu la confirmation du service de coaching local. Redémarre {{product}} et vérifie la liste avant de réessayer.",
+          "removed": "Utilisateur {{telegram}} supprimé.",
+          "storageUncertain": "La liste des utilisateurs autorisés a peut-être changé, mais {{product}} n’a pas pu vérifier le stockage. Redémarre {{product}} et vérifie la liste avant de réessayer."
+        },
+        "unavailable": "Les paramètres {{telegram}} sont indisponibles. Garde l’application ouverte et réessaie.",
+        "working": {
+          "acknowledgeGap": "Effacement de l’avertissement de réception {{telegram}}…",
+          "addSender": "Ajout d’un utilisateur {{telegram}}…",
+          "beginPairing": "Création d’un code d’association privé…",
+          "cancelPairing": "Annulation de l’association…",
+          "disable": "Désactivation de {{telegram}}…",
+          "enable": "Activation de {{telegram}}…",
+          "pasteToken": "Lecture et vérification du jeton {{telegram}}…",
+          "reconcile": "Vérification de la connexion {{telegram}}…",
+          "remove": "Suppression de la connexion {{telegram}}…",
+          "removeSender": "Suppression de l’utilisateur {{telegram}}…",
+          "removeWebhook": "Suppression du webhook du bot…"
+        }
+      },
+      "gap": {
+        "acknowledge": "J’ai compris",
+        "detail": "Le bot a repris après une longue interruption. Les messages envoyés pendant ce temps n’ont peut-être pas atteint {{product}}. Vérifie la conversation {{telegram}} avant d’effacer cet avertissement.",
+        "title": "Vérifie {{telegram}} pour les messages manqués"
+      },
+      "paired": "Associé à un utilisateur principal de {{telegram}}",
+      "pairing": {
+        "cancel": "Annuler l’association",
+        "code": "Code d’association {{telegram}}",
+        "detail": "Un code valable une minute garantit que seule la personne ayant accès à {{computer}} peut prendre le contrôle du bot.",
+        "expired": "Le code d’association a expiré avant d’être utilisé. Crée un nouveau code quand tu le souhaites.",
+        "expires": "Expire {{time}}",
+        "instruction": "Envoie ce code par message privé à @{{username}}. Le premier compte à l’envoyer devient l’utilisateur principal et le bot reste en ligne.",
+        "primary": "Associer l’utilisateur principal",
+        "refused": "L’association a été refusée, car ce bot a déjà un utilisateur principal.",
+        "restart": "Créer un nouveau code et activer",
+        "start": "Démarrer l’association et activer",
+        "storageFailed": "L’utilisateur principal de {{telegram}} n’a pas pu être enregistré. Vérifie l’accès au disque local et réessaie l’association.",
+        "storageUncertain": "L’utilisateur principal de {{telegram}} a peut-être été enregistré, mais {{product}} n’a pas pu vérifier le stockage. Redémarre {{product}} et vérifie {{telegram}} avant de relancer l’association.",
+        "title": "Associer ton compte {{telegram}}",
+        "unavailable": "L’association est indisponible tant que le bot {{telegram}} ne peut pas se connecter."
+      },
+      "reloadDetail": "Recharge l’état de la connexion enregistrée avant d’essayer une autre action.",
+      "retry": "Réessayer",
+      "sender": {
+        "add": "Ajouter un utilisateur",
+        "additional": "Utilisateur autorisé supplémentaire",
+        "addTitle": "Ajouter un identifiant d’utilisateur {{telegram}}",
+        "advanced": "Avancé · utilisateurs autorisés",
+        "help": "Ajoute uniquement des personnes à qui tu fais confiance pour utiliser ton coach et les données d’athlète partagées.",
+        "list": "Utilisateurs {{telegram}} autorisés",
+        "loadFailed": "Les utilisateurs autorisés n’ont pas pu être chargés. {{product}} réessaiera automatiquement.",
+        "loading": "Chargement des utilisateurs autorisés…",
+        "primary": "Utilisateur principal · obligatoire",
+        "remove": "Supprimer",
+        "removeAria": "Supprimer l’utilisateur {{telegram}} {{senderId}}",
+        "removeConfirm": "Supprimer l’utilisateur",
+        "removeDetail": "Cet utilisateur perdra l’accès à ton coach et aux données d’athlète partagées jusqu’à ce que tu l’ajoutes à nouveau avec l’identifiant d’expéditeur {{senderId}}.",
+        "removeTitle": "Supprimer l’utilisateur {{telegram}} {{senderId}} ?",
+        "validation": "Saisis un identifiant d’utilisateur {{telegram}} numérique d’au moins deux chiffres."
+      },
+      "setup": {
+        "afterBotfather": "de créer un bot, copie son jeton, puis reviens ici. {{product}} lit le jeton directement dans le presse-papiers ; il n’y a aucun champ de saisie du jeton.",
+        "ask": "Demande à",
+        "cancel": "Annuler",
+        "cancelAria": "Annuler la configuration du bot {{telegram}}",
+        "connect": "Connecter",
+        "detail": "Connecte un bot {{telegram}} avec un jeton copié.",
+        "paste": "Coller le jeton depuis le presse-papiers",
+        "title": "Créer un bot avec {{botFather}}"
+      },
+      "suspended": "L’interrogation de {{telegram}} reprend lorsque {{computer}} sort de veille.",
+      "title": "Canaux",
+      "unavailable": "État de {{telegram}} indisponible",
+      "verified": "Bot vérifié ; démarrer l’association active {{telegram}}",
+      "webhook": {
+        "detail": "{{telegram}} ne peut pas transmettre à un webhook et à {{computer}} en même temps. Cette action explicite conserve les mises à jour en attente et permet à l’application de bureau de commencer l’interrogation.",
+        "remove": "Supprimer le webhook",
+        "title": "Supprimer le webhook existant"
+      }
+    },
+    "title": "Paramètres"
+  },
+  "archive": {
+    "athlete": "Toi",
+    "back": "Toutes les conversations passées",
+    "coach": "Coach",
+    "conversation": "Conversation passée",
+    "delete": {
+      "action": "Supprimer la conversation",
+      "description": "Cette action supprime définitivement cette conversation passée et ses pièces jointes d’origine de cet ordinateur. Les activités importées dans Entraînement et le travail dans Plan sont conservés.",
+      "failure": "La suppression n’a pas pu se terminer. Réessaie pour la terminer.",
+      "title": "Supprimer cette conversation ?"
+    },
+    "empty": "Aucune conversation passée pour le moment. Quand tu démarres une nouvelle conversation, l’ancienne est conservée ici.",
+    "emptyConversation": "Cette conversation ne contient aucun message lisible.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Les conversations passées sont temporairement indisponibles.",
+    "loadEarlier": "Charger les messages précédents",
+    "loading": "Chargement des conversations passées…",
+    "pageFailure": "Cette conversation est temporairement indisponible.",
+    "readOnly": "Les conversations passées sont en lecture seule.",
+    "reason": {
+      "explicit": "Tu as démarré une nouvelle conversation",
+      "stale": "Fermée après une pause"
+    },
+    "retry": "Réessayer",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Conversations passées",
+    "truncated": "Seules les conversations passées les plus récentes sont affichées.",
+    "turnCount_one": "{{formattedCount}} message",
+    "turnCount_other": "{{formattedCount}} messages",
+    "unavailable": "Cette conversation n’est plus disponible."
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Avancé",
+      "announcement": {
+        "apiKey": "La configuration de la clé API s’est ouverte sous cette ligne.",
+        "chatgpt": "La connexion à {{chatgpt}} s’est ouverte sous cette ligne."
+      },
+      "apiKeyHint": "Créée dans la console du fournisseur, facturée à l’usage — généralement quelques centimes par conversation.",
+      "cancelLabel": "Annuler la configuration de la clé API",
+      "change": "Modifier",
+      "chatgptActivating": "Connecté · Activation du coach…",
+      "choose": "Choisir",
+      "claude": {
+        "badge": {
+          "absentBinary": "Non installé",
+          "apiKeyToken": "Clé API, pas un abonnement",
+          "checking": "Vérification",
+          "disabled": "Désactivé",
+          "notLoggedIn": "Non connecté",
+          "ready": "Connecté",
+          "readyApiKey": "Facturation par clé API",
+          "workingAreaUnavailable": "Démarrage sécurisé impossible"
+        },
+        "checkAgain": "Choisis Vérifier à nouveau pour vérifier {{claudeCode}} sur ce Mac.",
+        "detail": "Utilise l’outil en ligne de commande {{claudeCode}} déjà installé et connecté sur {{computer}}. Aucune clé API nécessaire.",
+        "identity": {
+          "apiKey": "Facturation par clé API {{anthropic}} — l’utilisation est facturée à ton compte API.",
+          "email": "Connecté avec {{email}}",
+          "emailPlan": "Connecté avec {{email}} — abonnement {{claude}} {{plan}}",
+          "plan": "Connecté — abonnement {{claude}} {{plan}}",
+          "signedIn": "Connecté"
+        },
+        "recheck": "Vérifier à nouveau",
+        "statusDetail": {
+          "absentBinary": "L’outil en ligne de commande {{claudeCode}} est introuvable ou sa version installée est trop ancienne. Installe-le ou mets-le à jour, puis choisis Vérifier à nouveau.",
+          "apiKeyToken": "L’outil en ligne de commande {{claudeCode}} est authentifié avec une clé API ou un jeton, pas avec un abonnement. Connecte-toi avec ton abonnement dans {{command}}, ou active la facturation par clé API dans ta configuration.",
+          "checking": "Vérification de la connexion à l’outil en ligne de commande {{claudeCode}} sur {{computer}}…",
+          "disabled": "L’option d’abonnement {{claude}} est désactivée sur {{computer}}. Choisis un autre fournisseur.",
+          "notLoggedIn": "L’outil en ligne de commande {{claudeCode}} n’est pas connecté. Ouvre un terminal, exécute {{command}} et connecte-toi avec ton abonnement {{claude}}. {{product}} ne se connecte jamais à ta place.",
+          "workingAreaUnavailable": "{{product}} n’a pas pu préparer l’espace de travail privé de {{claude}}. Redémarre {{product}}, puis choisis Vérifier à nouveau."
+        }
+      },
+      "connected": "Connecté · fait fonctionner ton coach",
+      "credentialLabel": "Clé API {{provider}}",
+      "customModel": "Nom du modèle personnalisé",
+      "endpoint": {
+        "automatic": "Conserver l’actuel ou utiliser celui du fournisseur par défaut",
+        "custom": "Utiliser un point de terminaison personnalisé",
+        "customTitle": "Point de terminaison personnalisé",
+        "default": "Rétablir la valeur par défaut du fournisseur",
+        "title": "Point de terminaison"
+      },
+      "identity": "Fait fonctionner ton coach · {{identity}}",
+      "lane": {
+        "apiKey": "Clé API",
+        "chatgpt": "Abonnement {{chatgpt}}"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} fournisseurs · paiement à l’usage",
+        "claudeCli": "Vérifie ton abonnement {{claude}} à la sélection",
+        "openaiCodex": "Utilise l’abonnement que tu paies déjà"
+      },
+      "menuLabel": "IA qui fait fonctionner ton coach",
+      "model": "Modèle",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "équilibré",
+        "cheap": "peu coûteux",
+        "cheaper": "moins coûteux",
+        "cheapest": "le moins coûteux",
+        "experimental": "expérimental",
+        "fast": "rapide",
+        "fastAndCheap": "rapide et peu coûteux",
+        "faster": "plus rapide",
+        "manyModels": "une clé, plusieurs modèles",
+        "mostCapable": "le plus performant",
+        "recommended": "recommandé"
+      },
+      "modelVia": "{{model}} (via {{provider}})",
+      "otherModel": "Autre modèle…",
+      "pending": {
+        "activation": "Fait fonctionner ton coach · connecté · activation nécessaire",
+        "apiKey": "Fait fonctionner ton coach · ajoute une clé pour terminer",
+        "chatgpt": "Fait fonctionner ton coach · connecte-toi pour terminer",
+        "checkingClaude": "Fait fonctionner ton coach · vérification de la connexion {{claudeCode}}",
+        "claude": "Fait fonctionner ton coach · connecte-toi depuis un terminal pour terminer"
+      },
+      "provider": "Fournisseur",
+      "saveLabel": "Enregistrer la clé API",
+      "subtitle": "Obligatoire — {{product}} n’en inclut pas",
+      "title": "IA qui fait fonctionner ton coach",
+      "tooltip": {
+        "body": "Il utilise un abonnement {{chatgpt}}, une connexion {{claudeCode}} ou une clé API que tu fournis. Quel que soit ton choix, ces données restent sur {{computer}}.",
+        "label": "À propos de l’IA qui fait fonctionner ton coach",
+        "lead": "{{product}} n’a pas d’IA propre"
+      },
+      "trigger": {
+        "set": "Changer ce qui fait fonctionner ton coach",
+        "unset": "Choisir ce qui fait fonctionner ton coach"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Connecté, mais le coach n’a pas pu être activé. Réessaie sans te reconnecter.",
+      "cancelLabel": "Annuler la configuration de {{chatgpt}}",
+      "cancelSignIn": "Annuler la connexion",
+      "hint": "Ouvre la page de connexion {{openai}} dans ton navigateur — tu y saisis ton mot de passe, pas ici. Un abonnement payant est nécessaire.",
+      "phase": {
+        "activatingCoach": "Activation du coach…",
+        "completingSignIn": "Finalisation de la connexion…",
+        "ready": "Prêt",
+        "signedIn": "Connecté",
+        "waitingForBrowser": "En attente du navigateur…"
+      },
+      "refusal": {
+        "alreadyInProgress": "Une connexion à {{chatgpt}} est déjà en cours.",
+        "callbackUnavailable": "Le retour local de connexion est indisponible. Ferme les autres procédures de connexion et réessaie.",
+        "cancelled": "La connexion à {{chatgpt}} a été annulée. Tu peux réessayer.",
+        "exchangeFailed": "La connexion à {{chatgpt}} n’a pas pu se terminer. Réessaie.",
+        "runtimeUnavailable": "La connexion à {{chatgpt}} a été enregistrée, mais le coach n’a pas pu être configuré.",
+        "storageFailed": "La connexion à {{chatgpt}} est terminée, mais le profil n’a pas pu être enregistré.",
+        "timedOut": "La connexion à {{chatgpt}} a expiré. Réessaie quand tu le souhaites."
+      },
+      "retryActivation": "Réessayer l’activation",
+      "signIn": "Se connecter avec {{chatgpt}}"
+    },
+    "chatSubtitle": "Connecte ce dont ton coach a besoin. {{telegram}} est facultatif et ne bloque jamais la Discussion.",
+    "checking": {
+      "heading": "Vérification de ta configuration",
+      "rowSubtitle": "Vérification des connexions existantes…",
+      "status": "Vérification de la configuration…",
+      "subtitle": "Lecture des connexions déjà enregistrées sur cet ordinateur. Cela peut prendre un moment juste après le démarrage."
+    },
+    "error": {
+      "configurationUnavailable": "Les choix du coach sont indisponibles pour le moment. Vérifie à nouveau la zone de configuration.",
+      "credentialReenterRequired": "Cette clé enregistrée n’a pas pu être utilisée. Saisis-la à nouveau pour continuer.",
+      "credentialRequired": "Connecte-toi avec {{chatgpt}} ou ajoute au moins une clé de modèle pour continuer.",
+      "credentialSaveFailed": "Cette clé n’a pas pu être enregistrée. Essaie de la saisir à nouveau.",
+      "credentialStatusUnavailable": "Cette clé a été enregistrée, mais son état n’a pas pu être actualisé. Vérifie à nouveau la zone de configuration.",
+      "endpointInvalid": "Saisis un point de terminaison HTTPS valide, ou un point de terminaison HTTP de bouclage local.",
+      "intakeIncomplete": "Réponds aux questions de sécurité obligatoires pour continuer.",
+      "intakeSaveFailed": "Tes réponses n’ont pas pu être enregistrées. Réessaie.",
+      "intervalsClipboardClearFailed": "La clé API n’a pas été enregistrée, car {{product}} n’a pas pu l’effacer du presse-papiers en toute sécurité. Copie-la à nouveau, puis réessaie.",
+      "intervalsClipboardUnavailable": "{{product}} n’a pas pu lire de clé API dans le presse-papiers. Copie-la dans {{intervals}}, puis réessaie.",
+      "intervalsKeyRejected": "{{intervals}} n’a pas accepté la clé API copiée. Copie une clé API actuelle, puis réessaie.",
+      "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que la clé API copiée correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
+      "intervalsRuntimeUnavailable": "La clé API copiée n’a pas pu être activée. Copie-la dans {{intervals}}, puis réessaie.",
+      "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la clé API copiée est active. Recharge l’état des données d’authentification avant de réessayer.",
+      "intervalsStorageUncertain": "{{product}} n’a pas pu confirmer si la clé API copiée a été enregistrée. Recharge l’état des données d’authentification avant de réessayer.",
+      "intervalsValidationUnavailable": "{{product}} n’a pas pu vérifier la clé API copiée auprès de {{intervals}}. Vérifie ta connexion, puis réessaie.",
+      "invalidInput": "Cette clé n’a pas été acceptée. Vérifie-la et saisis-la à nouveau.",
+      "modelRuntimeUnavailable": "Ton choix de fournisseur est enregistré, mais il n’est pas encore actif. Réessaie de l’activer.",
+      "modelSelectionRequired": "Choisis un modèle ou saisis un nom de modèle personnalisé.",
+      "runtimeUnavailable": "Cette clé a été enregistrée, mais elle n’est pas encore active. Choisis Réessayer les clés enregistrées pour l’activer.",
+      "storageFailed": "L’application n’a pas pu confirmer que cette clé a été enregistrée en toute sécurité. Vérifie que le stockage sécurisé est disponible et réessaie.",
+      "storageUncertain": "L’application n’a pas pu déterminer quelle clé enregistrée sera conservée après un redémarrage. Saisis à nouveau la clé avant de continuer.",
+      "trainingAccountMismatch": "Cette clé {{intervalsLower}} appartient à un autre athlète que celui de l’historique d’entraînement déjà enregistré. Le changement de compte n’est pas encore pris en charge.",
+      "trainingDataRequired": "Connecte {{intervalsLower}} ou importe au moins un fichier de sortie.",
+      "unsafeBackend": "L’application ne peut pas enregistrer cette clé en toute sécurité avec le système de stockage actuel."
+    },
+    "footerNote": "Tout reste sur {{computer}}.",
+    "heading": "Mets ton coach en service avant de discuter",
+    "import": {
+      "available": "Import dans la bibliothèque locale : {{imported}} importés. {{quarantined}} mis en quarantaine. Le coach peut accéder aux activités et aux séries de données.",
+      "choosing": "En attente de la sélection des fichiers de sortie…",
+      "failed": "L’import dans la bibliothèque locale a échoué. {{imported}} importés. {{quarantined}} mis en quarantaine. Aucun nouveau fichier de sortie n’est disponible pour le coaching.",
+      "fileCount_one": "{{formattedCount}} fichier de sortie",
+      "fileCount_other": "{{formattedCount}} fichiers de sortie",
+      "importing": "Import des fichiers de sortie…",
+      "unavailable": "Import dans la bibliothèque locale : {{imported}} importés. {{quarantined}} mis en quarantaine. L’accès du coach aux activités et aux séries de données est temporairement indisponible ; réessaie l’import.",
+      "unconfirmed": "L’import dans la bibliothèque locale a échoué. Le résultat n’a pas pu être confirmé ; vérifie la bibliothèque avant de réessayer."
+    },
+    "intake": {
+      "managing": "Blessure en cours",
+      "none": "Aucune blessure actuelle",
+      "retrySave": "Réessayer d’enregistrer les réponses",
+      "returning": "Reprise après une blessure",
+      "select": "Sélectionner…",
+      "subtitle": "Enregistre le contexte de ta blessure actuelle ou de ta reprise.",
+      "title": "État actuel des blessures"
+    },
+    "requiredReady": "{{ready}} éléments obligatoires prêts sur {{total}}",
+    "retrySavedKeys": "Réessayer les clés enregistrées",
+    "retryStatus": "Revérifier l’état de la configuration",
+    "settingsHeading": "Configuration",
+    "startCoaching": "Démarrer le coaching",
+    "statusUnavailable": "L’état de la configuration n’a pas pu être chargé. Vérifie que {{product}} est en cours d’exécution, puis réessaie.",
+    "telegram": {
+      "announcement": "La configuration du bot {{telegram}} s’est ouverte sous cette ligne.",
+      "ask": "Demande à",
+      "availability": "{{telegram}} fonctionne tant que {{product}} est en cours d’exécution et que {{computer}} est en éveil et en ligne.",
+      "cancelLabel": "Annuler la configuration du bot {{telegram}}",
+      "checkAgain": "Vérifier à nouveau",
+      "connecting": "Connexion…",
+      "create": "Créer",
+      "createAfterBotFather": "de créer un bot, copie son jeton, puis reviens ici. {{product}} lit et vérifie le jeton directement dans le presse-papiers ; le jeton n’est jamais affiché.",
+      "createCopy": "Demande à {{botFather}} de créer un bot, copie son jeton, puis reviens ici. {{product}} lit et vérifie le jeton directement dans le presse-papiers ; le jeton n’est jamais affiché.",
+      "createLabel": "Créer un bot {{telegram}}",
+      "createTitle": "Créer un bot avec {{botFather}}",
+      "delete": "Supprimer",
+      "deleteConnection": "Supprimer la connexion",
+      "deleteCopy": "Cette action désactive {{telegram}} et supprime le jeton chiffré et les accès des utilisateurs autorisés de {{computer}}. Le bot {{telegram}} et la conversation restent dans {{telegram}}.",
+      "deleteLabel": "Supprimer la connexion {{telegram}}",
+      "deleteTitle": "Supprimer la connexion {{telegram}} ?",
+      "deleting": "Suppression…",
+      "notDeleted": "La connexion {{telegram}} n’a pas été supprimée de {{computer}}.",
+      "optional": "Facultatif",
+      "unappliedToken": "Le jeton copié n’a pas été appliqué. Le bot {{telegram}} actuel reste inchangé.",
+      "useToken": "Utiliser le jeton copié",
+      "verified": "Bot vérifié · @{{username}}",
+      "verifiedPrefix": "Bot vérifié"
+    },
+    "training": {
+      "cancelLabel": "Annuler la configuration de {{intervals}}",
+      "connect": "Connecter",
+      "connecting": "Connexion…",
+      "connectTitle": "Connecter {{intervals}}",
+      "hint": "Dans {{intervals}}, ouvre Paramètres → Paramètres développeur, copie la clé API, puis reviens ici. {{product}} la lit sans l’afficher.",
+      "importFiles": "Importer plutôt des fichiers de sortie",
+      "subtitle": {
+        "connected": "Connecté · source de tes sorties",
+        "missing": "Connecte un compte ou importe des fichiers de sortie."
+      },
+      "tooltip": {
+        "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu dois copier sa clé API.",
+        "label": "À propos de {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Connecter {{intervals}}"
+      },
+      "useCopiedKey": "Utiliser la clé API copiée"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Vérification de la configuration…",
+    "loading": {
+      "archive": "Chargement des conversations passées…",
+      "chat": "Chargement de la discussion…",
+      "plan": "Chargement du plan…",
+      "settings": "Chargement des paramètres…",
+      "training": "Chargement de l’entraînement…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Le chiffrement de {{operatingSystem}} est indisponible. Vérifie que {{keychain}} est disponible, puis réessaie.",
+        "windows": "Le chiffrement des données d’authentification de {{operatingSystem}} ({{encryption}}) est indisponible. Quitte et rouvre {{product}}, puis réessaie."
+      },
+      "credentialRecoveryAction": {
+        "mac": "déverrouille ton trousseau de session",
+        "windows": "vérifie que le chiffrement des données d’authentification de {{operatingSystem}} ({{encryption}}) est disponible"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Navigation principale",
+    "newChat": "Nouvelle discussion",
+    "planAttention_one": "Plan, {{formattedCount}} élément à vérifier",
+    "planAttention_other": "Plan, {{formattedCount}} éléments à vérifier",
+    "sync": {
+      "action": {
+        "again": "Synchroniser à nouveau",
+        "now": "Synchroniser maintenant",
+        "retry": "Réessayer",
+        "unavailable": "Synchronisation indisponible"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synchronisation à vérifier",
+        "loading": "Chargement des données d’entraînement",
+        "never": "Pas encore synchronisé",
+        "synced": "Données d’entraînement synchronisées",
+        "syncing": "Synchronisation",
+        "unavailable": "Données d’entraînement indisponibles"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Connexion interrompue. La synchronisation est peut-être encore en cours. {{product}} ne la relancera pas automatiquement.",
+        "noChange": "Traitement local des données d’entraînement terminé.",
+        "noChangeRestricted_one": "Traitement local des données d’entraînement terminé. Une restriction de l’API {{source}} empêche {{provider}} de partager une activité ; elle n’est donc pas incluse.",
+        "noChangeRestricted_other": "Traitement local des données d’entraînement terminé. Une restriction de l’API {{source}} empêche {{provider}} de partager {{formattedCount}} activités ; elles ne sont donc pas incluses.",
+        "operationFailure": "La vérification des données d’entraînement n’a pas pu être terminée. Tes données existantes sont toujours disponibles.",
+        "partial": "Traitement des données d’entraînement partiellement terminé. Réessaie pour le terminer.",
+        "protocol": "{{product}} n’a pas pu vérifier le résultat de la synchronisation. Quitte et rouvre {{product}}.",
+        "published": "Vérification des données d’entraînement terminée.",
+        "publishedRestricted_one": "Vérification des données d’entraînement terminée. Une restriction de l’API {{source}} empêche {{provider}} de partager une activité ; elle n’est donc pas incluse.",
+        "publishedRestricted_other": "Vérification des données d’entraînement terminée. Une restriction de l’API {{source}} empêche {{provider}} de partager {{formattedCount}} activités ; elles ne sont donc pas incluses.",
+        "queued": "Synchronisation en attente.",
+        "running": "Synchronisation des données d’entraînement…"
+      },
+      "restriction": {
+        "fixAction": "· Comment résoudre ce problème",
+        "fixLabel": "{{restrictionLabel}}. Comment résoudre ce problème",
+        "label_one": "{{formattedCount}} masquée par {{source}}",
+        "label_other": "{{formattedCount}} masquées par {{source}}",
+        "tooltipBody": "Une restriction de l’API {{source}} empêche {{provider}} de partager ces activités avec {{product}}.",
+        "tooltipLabel": "Pourquoi des activités sont-elles masquées ?",
+        "tooltipLead_one": "{{formattedCount}} activité masquée par {{source}}",
+        "tooltipLead_other": "{{formattedCount}} activités masquées par {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Heure de synchronisation inconnue"
+    },
+    "update": {
+      "available": "Mise à jour disponible",
+      "availableVersion": "La mise à jour {{version}} est disponible",
+      "installVersion": "Installer la mise à jour {{version}}",
+      "restarting": "Redémarrage…",
+      "restartingVersion": "Redémarrage pour installer la mise à jour {{version}}"
+    },
+    "views": {
+      "archive": "Conversations passées",
+      "chat": "Discussion",
+      "plan": "Plan",
+      "settings": "Paramètres",
+      "training": "Entraînement"
     }
   }
 }

@@ -34,6 +34,831 @@
       "saving": "Tallennetaan yksiköitä…",
       "title": "Yksiköt",
       "unavailable": "Yksikköasetus ei ole käytettävissä"
+    },
+    "application": {
+      "check": "Tarkista päivitykset",
+      "checkFailed": "Päivitysten tarkistus epäonnistui. Yritä uudelleen",
+      "checking": "Tarkistetaan päivityksiä",
+      "checkingAction": "Tarkistetaan…",
+      "current": "{{product}} on ajan tasalla",
+      "danger": "Vaara",
+      "downloadFailed": "Päivityksen lataus epäonnistui. Yritä uudelleen",
+      "downloading": "Ladataan päivitystä {{version}}",
+      "downloadingAction": "Ladataan…",
+      "downloadTimedOut": "Päivityksen lataus aikakatkaistiin. Sulje {{product}} ja avaa se uudelleen yrittääksesi uudelleen.",
+      "reset": "Nollaa keskustelu",
+      "resetDetail": "Tyhjentää näkyvän keskustelun. Harjoitustiedot ja valmentajan tallennettu muisti säilyvät.",
+      "restart": "Käynnistä uudelleen päivittääksesi versioon {{version}}",
+      "restartAction": "Käynnistä uudelleen ja päivitä",
+      "restarting": "Käynnistetään uudelleen version {{version}} asentamiseksi",
+      "restartingAction": "Käynnistetään uudelleen…",
+      "restartRequired": "Käynnistä {{product}} uudelleen jatkaaksesi päivityksiä",
+      "retry": "Yritä päivitystä uudelleen",
+      "startFailed": "Päivityksiä ei voitu aloittaa. Sulje {{product}} ja avaa se uudelleen yrittääksesi uudelleen.",
+      "title": "Sovellus",
+      "unavailable": "Päivitykset eivät ole käytettävissä",
+      "version": "Versio {{version}}",
+      "versionUnknown": "tuntematon"
+    },
+    "athlete": {
+      "credentialMissing": "Harjoittelutilin tunnistautumistietoa ei ole yhdistetty. Yhdistä se yllä olevassa käyttöönotto-osiossa.",
+      "detail": "Tällä voi vain tunnistaa tällä hetkellä yhdistetyn harjoittelutilin. Tiliä ei voi vaihtaa.",
+      "error": {
+        "credentialRequired": "Yhdistä harjoittelutili käyttöönotossa ennen urheilijatunnuksen tallentamista.",
+        "managedByEnvironment": "Urheilijatunnusta hallitaan sovelluksen {{product}} ulkopuolella, eikä sitä muutettu.",
+        "notApplied": "Urheilijatunnusta ei otettu käyttöön. Yhdistä ja lataa uudelleen ennen uutta yritystä.",
+        "ownershipUnavailable": "Yhdistettyä harjoittelutiliä ei voitu vahvistaa. Yhdistä ja lataa uudelleen ennen uutta yritystä.",
+        "requestFailed": "Urheilijatunnusta ei voitu tallentaa. Muutoksesi on yhä tässä.",
+        "runtimeUnavailable": "Nykyistä harjoittelutiliä ei voitu ladata uudelleen. Muutoksesi on yhä tässä.",
+        "trainingAccountMismatch": "Tämä urheilijatunnus ei vastaa tällä hetkellä yhdistettyä harjoittelutiliä."
+      },
+      "futurePrefix": "Tuleville lenkeille: ",
+      "help": "Käytä täsmälleen sitä tunnusta, joka liittyy käyttöönotossa jo yhdistettyyn tunnistautumistietoon.",
+      "id": "Urheilijatunnus",
+      "loading": "Ladataan harjoittelutilin asetuksia…",
+      "pastPrefix": "Aiemmille lenkeille: ",
+      "refreshing": "Yhdistetään uudelleen ja tarkistetaan nykyinen harjoittelutili…",
+      "reload": "Yhdistä ja lataa uudelleen",
+      "restriction": {
+        "cause": "Palvelun {{strava}} API-rajoitus estää palvelua {{intervalsLower}} jakamasta palvelusta {{strava}} saatuja suorituksia sovellukselle {{product}}. API-avaimesi on kunnossa.",
+        "future": "Yhdistä tallennuslähteesi suoraan palveluun {{intervalsLower}} ja pidä {{strava}} yhdistettynä. Tämä on maksutonta ja kattaa tulevat lenkit.",
+        "past": "Käytä palvelun {{intervalsLower}} asetuksissa toimintoa Tuo kaikki {{strava}}-tiedot. Tämä kattaa aiemmat lenkit ja vaatii palvelun {{intervalsLower}} tukijatilauksen.",
+        "title_one": "{{strava}} piilottaa {{restricted}} suorituksen yhteensä {{total}} suorituksesta",
+        "title_other": "{{strava}} piilottaa {{restricted}} suoritusta yhteensä {{total}} suorituksesta"
+      },
+      "reviewSetup": "Tarkista käyttöönotto",
+      "save": "Tallenna urheilijatunnus",
+      "saved": "Urheilijatunnus tallennettu.",
+      "saving": "Tallennetaan urheilijatunnusta…",
+      "title": "Harjoittelutili",
+      "unavailable": "Harjoittelutilin asetukset eivät ole käytettävissä. Yhdistä ja lataa uudelleen.",
+      "validation": {
+        "athleteControlCharacters": "Urheilijatunnuksissa ei voi olla ohjausmerkkejä.",
+        "athleteRequired": "Anna yhdistetyn harjoittelutilin urheilijatunnus.",
+        "athleteTooLong": "Urheilijatunnuksessa saa olla enintään 512 merkkiä.",
+        "athleteWhitespace": "Urheilijatunnuksen alussa tai lopussa ei saa olla tyhjemerkkejä."
+      },
+      "verificationPending": "Vahvistetaan yhdistettyä harjoittelutiliä… Harjoitustietojen käsittely pysyy keskeytettynä vahvistuksen valmistumiseen asti."
+    },
+    "coach": {
+      "active": "Käytössä",
+      "activeUnavailable": "Käytössä olevan valmentajan asetukset eivät ole saatavilla tai niitä ei ole määritetty.",
+      "automatic": "Automaattinen",
+      "changeRequired": "Muutos vaaditaan",
+      "chooseModel": "Valitse malli",
+      "chooseProvider": "Valitse palveluntarjoaja",
+      "chooseProviderFirst": "Valitse ensin palveluntarjoaja",
+      "currentRoute": "Tällä hetkellä käytössä: {{provider}} · {{model}}",
+      "customModel": "Mukautetun mallin nimi",
+      "endpoint": "Yhteysosoite",
+      "endpointDetail": "{{product}} valitsee palveluntarjoajan yhteysosoitteen tälle yhteydelle.",
+      "error": {
+        "credentialRequired": "Tämä palveluntarjoaja tarvitsee tallennetun tunnistautumistiedon voidakseen valmentaa sinua. Lisää se yllä olevassa käyttöönotto-osiossa.",
+        "invalidInput": "Palveluntarjoajaa tai mallia ei hyväksytty. Tarkista mallin nimi ja yritä uudelleen.",
+        "requestFailed": "Valmentajan asetuksia ei voitu juuri nyt tallentaa. Yritä uudelleen.",
+        "runtimeUnavailable": "Valmentajan asetuksia ei voitu ottaa käyttöön. Yritä tallentaa uudelleen."
+      },
+      "inactive": "Ei käytössä",
+      "loading": "Ladataan valmentajan asetuksia…",
+      "model": "Malli",
+      "notConfigured": "Ei määritetty",
+      "otherModel": "Muu malli…",
+      "provider": "Palveluntarjoaja",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}}-tilaus",
+        "claude": "{{claude}}-tilaus",
+        "codex": "{{codex}}-agentti (kokeellinen)"
+      },
+      "retry": "Yritä uudelleen",
+      "reviewSetup": "Tarkista käyttöönotto",
+      "route": "Valmentajan yhteys",
+      "save": "Tallenna valmentajan yhteys",
+      "saved": "Valmentajan asetukset tallennettu.",
+      "saving": "Tallennetaan valmentajan asetuksia…",
+      "title": "Valmentaja",
+      "unavailable": "Valmentajan asetukset eivät ole juuri nyt käytettävissä. Yritä uudelleen.",
+      "unsaved": "Tallentamatta",
+      "unsupported": "{{codex}}-agenttia ei tueta käyttöjärjestelmässä {{operatingSystem}}. Valitse {{claude}}-tilaus tai API-avainta käyttävä palveluntarjoaja ja tallenna sitten valmentajan yhteys. Tunnistautumistietosi, urheilijatietosi, keskustelusi ja muut asetuksesi säilyvät ennallaan.",
+      "validation": {
+        "modelControlCharacters": "Mallien nimissä ei voi olla ohjausmerkkejä.",
+        "modelRequired": "Anna mallin nimi.",
+        "modelTooLong": "Mallin nimessä saa olla enintään 512 merkkiä."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Keskustelu ja aika",
+      "detail": "Määritä, milloin keskustelut alkavat alusta ja kuinka paljon viimeaikaista keskustelua valmentajasi muistaa.",
+      "error": {
+        "notApplied": "Keskusteluasetuksia ei otettu käyttöön. Yhdistä ja lataa uudelleen ennen uutta yritystä.",
+        "requestFailed": "Keskusteluasetuksia ei voitu tallentaa. Muutoksesi ovat yhä tässä.",
+        "runtimeUnavailable": "Nykyisiä keskusteluasetuksia ei voitu ladata uudelleen. Muutoksesi ovat yhä tässä."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Tunti urheilijan paikallista aikaa, välillä 0–23. Muutoksen jälkeen seuraava viestisi voi aloittaa uuden keskustelun.",
+          "label": "Päivittäinen nollausaika"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Keskusteluhistorialle varattu osuus mallin kontekstista, yli 0 % ja enintään 100 %.",
+          "label": "Historian osuus"
+        },
+        "idleMinutes": {
+          "help": "Kokonaiset minuutit ilman viestiä ennen keskustelun nollausta. Poista käytöstä arvolla 0.",
+          "label": "Nollaus tauon jälkeen",
+          "suffix": "minuuttia"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Kokonaiset päivät, joina nollattujen keskustelujen arkistoja säilytetään. Säilytä pysyvästi arvolla 0. Muutokset koskevat vain tulevia siivouksia.",
+          "label": "Arkiston säilytysaika",
+          "suffix": "päivää"
+        },
+        "timezone": {
+          "help": "Käytä IANA-aikavyöhykettä, esimerkiksi {{timezone}}. {{product}} käyttää tämän tietokoneen aikavyöhykettä, kunnes tallennat tähän oman valintasi. Sen jälkeen se säilyttää valintasi.",
+          "label": "Aikavyöhyke"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Ladataan keskusteluasetuksia…",
+      "refreshing": "Yhdistetään uudelleen ja tarkistetaan nykyiset asetukset…",
+      "reload": "Yhdistä ja lataa uudelleen",
+      "save": "Tallenna keskusteluasetukset",
+      "saved": "Keskusteluasetukset tallennettu.",
+      "saving": "Tallennetaan keskusteluasetuksia…",
+      "title": "Keskustelu ja aika",
+      "unavailable": "Keskusteluasetukset eivät ole käytettävissä. Yhdistä ja lataa uudelleen.",
+      "validation": {
+        "dailyResetHour": "Anna kokonainen tunti väliltä 0–23.",
+        "historyTokenBudgetRatio": "Anna historian osuudeksi yli 0 % ja enintään 100 %.",
+        "idleMinutes": "Anna minuuttimääräksi sallittu kokonaisluku, vähintään 0.",
+        "resetArchiveRetentionDays": "Anna päivien määräksi sallittu kokonaisluku, vähintään 0.",
+        "timezone": "Anna kelvollinen IANA-aikavyöhyke, esimerkiksi {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Vaihda",
+      "changeAria": "Vaihda palveluntarjoajan {{provider}} tunnistautumistieto",
+      "claudeProvider": "{{claude}}-tilaus",
+      "codexProvider": "{{codex}}-agentti",
+      "delete": {
+        "action": "Poista",
+        "aria": "Poista palveluntarjoajan {{provider}} tunnistautumistieto",
+        "confirmAria": "Vahvista palveluntarjoajan {{provider}} tunnistautumistiedon poisto",
+        "connection": "Poista yhteys",
+        "credential": "Poista tunnistautumistieto",
+        "detail": "Tämä poistaa sen vain tietokoneelta {{computer}}. {{product}} lopettaa sen käytön, jos se on käytössä. Palveluntarjoajan tilisi säilyy ennallaan.",
+        "intervalsAria": "Poista {{intervals}}-yhteys",
+        "intervalsDetail": "Tallennettu API-avaimesi ja tuotu yhteys poistetaan. Synkronoidut lenkkisi ja aiemmat keskustelusi säilyvät tietokoneella {{computer}}.",
+        "intervalsTitle": "Poistetaanko {{intervals}}-yhteys?",
+        "title": "Poistetaanko palveluntarjoajan {{provider}} tunnistautumistieto?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Tunnistautumistiedon poisto peruutettu.",
+          "cleanupPending": "Tunnistautumistieto poistettu paikallisesti. Suojatun tallennustilan siivousta yritetään uudelleen.",
+          "confirmProvider": "Vahvista palveluntarjoajan {{provider}} tunnistautumistiedon poisto.",
+          "deleted": "Tunnistautumistieto poistettu paikallisesti.",
+          "deletingProvider": "Poistetaan palveluntarjoajan {{provider}} tunnistautumistietoa paikallisesti…",
+          "keyUnverified": "Tunnistautumistieto säilytettiin, koska suojattu tallennustila ei voinut vahvistaa salausavaintaan.",
+          "managed": "Tätä tunnistautumistietoa hallitaan asetusten ulkopuolella, eikä sitä voi poistaa täällä.",
+          "notStored": "Tätä tunnistautumistietoa ei enää ole tallennettuna. Päivitä luettelo lataamalla uudelleen.",
+          "reconcileFailed": "Tallennetun ja käytössä olevan tunnistautumistiedon tiloja ei voitu sovittaa yhteen. Yhdistä ja lataa uudelleen ennen uutta yritystä.",
+          "refreshFailed": "Tunnistautumistieto poistettu paikallisesti. Sen nykyistä tilaa ei voitu päivittää.",
+          "retained": "Tunnistautumistieto säilyy tallennettuna. Poistoa ei suoritettu loppuun. Yritä uudelleen.",
+          "setupRefreshFailed": "Tunnistautumistieto poistettu paikallisesti, mutta käyttöönoton valmiustilaa ei voitu päivittää. Lataa tunnistautumistietojen tila uudelleen.",
+          "stopFailed": "Valmentaja ei voinut lopettaa tämän tunnistautumistiedon käyttöä turvallisesti. Sitä ei poistettu.",
+          "unverified": "Tunnistautumistiedon poistoa ei voitu vahvistaa, koska suojattua tallennustilaa ei voitu varmistaa. Käynnistä {{product}} uudelleen ja lataa tiedot uudelleen ennen uutta yritystä."
+        },
+        "recovery": {
+          "locked": "Avaa kirjautumisavainnippusi lukitus sovelluksen {{product}} ulkopuolella ja valitse sitten Yritä uudelleen.",
+          "missing": "Tunnistautumistietojen salausavain puuttuu. Palauta se, jos mahdollista, ja valitse Yritä uudelleen, tai poista kaikki tunnistautumistiedot ja aloita alusta.",
+          "unavailable": "Tunnistautumistietojen suojattu tallennustila ei ole käytettävissä. Yritä uudelleen tai poista kaikki tunnistautumistiedot ja aloita alusta.",
+          "unverified": "{{product}} ei voi avata kaikkia tallennettuja tunnistautumistietoja turvallisesti. Anna jokainen kyseinen tunnistautumistieto uudelleen."
+        },
+        "reset": {
+          "cancelled": "Tunnistautumistietojen poisto peruutettu.",
+          "cleanupPending": "Kaikki tunnistautumistiedot poistettiin. Suojatun tallennustilan siivousta yritetään uudelleen.",
+          "confirm": "Vahvista kaikkien tunnistautumistietojen poisto.",
+          "reloadFailed": "Tunnistautumistiedot poistettiin, mutta asetuksia ei voitu ladata uudelleen. Yhdistä ja lataa uudelleen.",
+          "removed": "Kaikki tunnistautumistiedot poistettiin. Ota ne uudelleen käyttöön, kun olet valmis.",
+          "removeFailed": "{{product}} ei voinut poistaa kaikkia tallennettuja tunnistautumistietoja. Yritä uudelleen.",
+          "removing": "Poistetaan kaikkia tunnistautumistietoja…",
+          "stopFailed": "{{product}} ei voinut lopettaa kaikkien käytössä olevien tunnistautumistietojen käyttöä. Viimeistele poisto yrittämällä uudelleen.",
+          "unverified": "Tunnistautumistietojen poistoa ei voitu varmistaa, koska asetuksia ei voitu ladata uudelleen. Yhdistä ja lataa uudelleen."
+        },
+        "unavailable": "Tallennetut tunnistautumistiedot eivät ole käytettävissä. Yhdistä ja lataa uudelleen."
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}}-profiili",
+        "provider": "Palveluntarjoajan API-avain",
+        "training": "Harjoittelutilin avain"
+      },
+      "loading": "Ladataan tallennettuja tunnistautumistietoja…",
+      "reconnect": "Yhdistä ja lataa uudelleen",
+      "reload": "Lataa tunnistautumistietojen tila uudelleen",
+      "repairRequired": "Tallennettujen tunnistautumistietojen tila on ladattava uudelleen ennen käyttöönoton jatkamista.",
+      "reset": {
+        "confirm": "Poista kaikki tunnistautumistiedot",
+        "detail": "Tämä poistaa kaikki tallennetut tekoälyn tunnistautumistiedot, {{chatgpt}}-profiilit, {{intervals}}-avaimet, {{telegram}}-tunnisteet ja yhteisen salausavaimen tietokoneelta {{computer}}. Tilit ja tuodut tiedot säilyvät ennallaan.",
+        "title": "Poistetaanko kaikki tunnistautumistiedot?"
+      },
+      "retry": "Yritä uudelleen",
+      "retryEntry": "Anna uudelleen",
+      "runtime": {
+        "active": "Käytössä",
+        "failed": "Vaatii huomiota",
+        "storedInactive": "Tallennettu, ei käytössä",
+        "verifying": "Vahvistetaan…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Hallitaan ympäristömuuttujalla. Muuta sitä sovelluksen {{product}} ulkopuolella.",
+    "palette": {
+      "app": "Sovelluksen väripaletti",
+      "use": "Käytä väripalettia {{palette}}"
+    },
+    "saving": "Tallennetaan…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Tämä yhteys käyttää erikseen määritettyä välimuistia.",
+        "none": "Ei lukuja välimuistista",
+        "providerDependent": "Välimuistin käyttö riippuu palveluntarjoajasta. Tälle yhteydelle ei ole määritetty välimuistin katkaisukohtaa.",
+        "savings": "{{tokens}} välimuistista luettua tokenia · Säästö {{amount}}",
+        "unavailable": "välimuisti ei ole käytettävissä tälle yhteydelle",
+        "unknown": "{{tokens}} välimuistista luettua tokenia · säästö ei saatavilla"
+      },
+      "cap": {
+        "aria": "Päivittäinen kulutusraja",
+        "failed": "Päivittäistä rajaa ei voitu tallentaa.",
+        "invalid": "Anna päivittäinen raja, joka on suurempi kuin 0 $.",
+        "label": "Päivittäinen raja (USD)",
+        "save": "Tallenna raja",
+        "value": "{{known}} / {{cap}}"
+      },
+      "date": "{{day}}. {{month}}",
+      "detail": "Kielimallin kulutus suhteessa tämän päivän rajaan",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "huhtik.",
+        "august": "elok.",
+        "december": "jouluk.",
+        "february": "helmik.",
+        "january": "tammik.",
+        "july": "heinäk.",
+        "june": "kesäk.",
+        "march": "maalisk.",
+        "may": "toukok.",
+        "november": "marrask.",
+        "october": "lokak.",
+        "september": "syysk."
+      },
+      "notice": {
+        "incomplete": "Osa palveluntarjoajien kustannuksista ei ole saatavilla, joten tämän päivän summa on tiedossa oleva vähimmäismäärä.",
+        "malformed": "Osaa käyttötiedoista ei voitu lukea.",
+        "saved": "Säästö {{amount}} välimuistista lukemalla",
+        "savedMinimum": "Säästö vähintään {{amount}} välimuistista lukemalla",
+        "stale": "Kulutustiedot voivat olla vanhentuneita."
+      },
+      "notional": "Tilauksen käyttö olisi maksanut API:n kautta {{amount}}. Rahaa ei veloitettu, eikä tätä lasketa kulutusrajaasi.",
+      "priced": "Hinnoitellut vastaukset: {{priced}}/{{total}}",
+      "routeNotional": "olisi maksanut API:n kautta {{amount}}",
+      "routes": "Kulutuksen tiedot",
+      "title": "Kulutus",
+      "today": "Tänään",
+      "todayDate": "Tänään · {{date}}",
+      "unavailable": "Kulutustiedot eivät ole saatavilla."
+    },
+    "title": "Asetukset",
+    "telegram": {
+      "attention": {
+        "conflict": "Toinen sovellus tai palvelinasennus hakee tämän botin viestejä. Pysäytä se siellä ja valitse sitten Tarkista uudelleen. Eri botit voivat silti toimia samanaikaisesti.",
+        "credentialUnavailable": "Tallennettua botin tunnistetta ei voitu lukea suojatusta tallennustilasta. Sulje {{product}} ja avaa se uudelleen. Valitse sitten Tarkista uudelleen. Jos tunnistetta ei vieläkään voi lukea, poista tämä yhteys ja yhdistä uusi botti.",
+        "daemonUnavailable": "Paikallinen valmennuspalvelu ei ole käytettävissä. Pidä {{product}} auki ja valitse sitten Tarkista uudelleen.",
+        "drainRequired": "{{telegram}}-vastausta viimeistellään vielä. Odota hetki ja yritä uudelleen.",
+        "encryption": "Tunnisteen suojattu tallennustila ei ole käytettävissä. Sulje {{product}} ja avaa se uudelleen, {{recoveryAction}} ja valitse sitten Tarkista uudelleen.",
+        "homeMismatch": "Työpöytäsovellus on yhdistetty eri urheilijan kotihakemistoon. Käynnistä {{product}} uudelleen ja tarkista sitten uudelleen.",
+        "identityUnknown": "Tallennettua {{telegram}}-yhteyttä ei voitu vahvistaa. Valitse Tarkista uudelleen ennen muun toiminnon yrittämistä.",
+        "invalidToken": "{{telegram}} hylkäsi tallennetun tunnisteen. Poista tämä yhteys ja yhdistä sitten uusi botti palvelusta {{botFather}} kopioidulla tunnisteella.",
+        "offline": "{{telegram}} on tilapäisesti poissa verkosta. {{product}} yrittää uudelleen, kun {{computer}} on hereillä ja verkossa.",
+        "startFailed": "{{telegram}} ei käynnistynyt. Pidä {{product}} auki, tarkista internetyhteys ja valitse sitten Tarkista uudelleen.",
+        "storageFailed": "Botin salattua tunnistautumistietoa ei voitu tallentaa. Tarkista paikallisen levyn käyttöoikeudet ja yritä uudelleen.",
+        "storageUncertain": "{{telegram}}-asetukset eivät ehkä tallentuneet kokonaan. Pidä {{telegram}} ennallaan ja valitse Tarkista uudelleen ennen muun toiminnon yrittämistä.",
+        "transferRequired": "Tämä botti kuuluu toiseen sovelluksen {{product}} asennukseen tai palvelinasennukseen. Poista yhteys siellä ja yhdistä se sitten tänne kopioidulla tunnisteella.",
+        "unsafeBackend": "Suojattua tunnistautumistietojen tallennusjärjestelmää ei ole käytettävissä, joten {{product}} kieltäytyi käyttämästä tallennettua botin tunnistetta ilman salausta. Sulje {{product}} ja avaa se uudelleen. Valitse sitten Tarkista uudelleen."
+      },
+      "availability": "{{telegram}} toimii vain, kun {{product}} ja sen paikallinen valmennuspalvelu ovat käynnissä ja {{computer}} on hereillä ja verkossa.",
+      "channel": {
+        "conflict": "Viestien hakuristiriita",
+        "connecting": "Yhdistetään",
+        "failed": "Vaatii huomiota",
+        "off": "Pois päältä",
+        "online": "Verkossa",
+        "reconnecting": "Yhdistetään uudelleen",
+        "suspended": "Keskeytetty lepotilan ajaksi",
+        "tokenRejected": "Tunniste hylätty",
+        "transferRequired": "Siirto vaaditaan",
+        "waitingForCredential": "Botin tunniste tarvitaan"
+      },
+      "check": "Tarkista uudelleen",
+      "delete": {
+        "action": "Poista",
+        "confirm": "Poista yhteys",
+        "detail": "Tämä sammuttaa botin ja poistaa sen salatun tunnisteen sekä sallittujen käyttäjien käyttöoikeudet tietokoneelta {{computer}}. {{telegram}}-botti ja sen keskustelu säilyvät palvelussa {{telegram}}.",
+        "title": "Poistetaanko @{{botUsername}} tietokoneelta {{computer}}?"
+      },
+      "detail": "Suosittelemme erillistä bottia. Se luo uuden @username-tunnuksen ja {{telegram}}-keskustelun. Edellisen botin näkyvä historia ei siirry. Urheilijaa koskeva muisti, harjoitustiedot ja suunnitelmat ovat yhteisiä.",
+      "disable": "Poista käytöstä",
+      "enable": "Ota käyttöön",
+      "feedback": {
+        "failure": {
+          "change": "{{telegram}}-asetuksia ei voitu muuttaa. Yritä uudelleen.",
+          "changeStorageUnverified": "Muutosta ei otettu käyttöön, koska tallennustilaa ei voitu varmistaa. Käynnistä {{product}} uudelleen ja tarkista tämä asetus ennen uutta yritystä.",
+          "changeUncertain": "{{telegram}}-muutos saattoi käynnistyä, mutta {{product}} ei voinut vahvistaa sen valmistumista. Käynnistä {{product}} uudelleen ja tarkista tämä asetus ennen uutta yritystä.",
+          "clipboardClearFailed": "Leikepöytää ei voitu tyhjentää, joten kopioitua tunnistetta ei käytetty. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "clipboardUnavailable": "Leikepöytää ei voitu lukea. Yhtään {{telegram}}-tunnistetta ei käytetty.",
+          "connectUncertain": "{{telegram}}-yhteyden muodostaminen saattoi käynnistyä, mutta {{product}} ei voinut vahvistaa sen valmistumista. Käynnistä {{product}} uudelleen ja tarkista {{telegram}} ennen uutta yritystä.",
+          "invalidToken": "{{telegram}} hylkäsi kopioidun tunnisteen. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "invalidTokenFormat": "Leikepöydällä ei ole kelvollista {{telegram}}-botin tunnistetta. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "pairing": "Pariliitosta ei voitu aloittaa. Tarkista botin yhteys ja yritä uudelleen.",
+          "pairingUncertain": "Ensisijainen {{telegram}}-käyttäjä on ehkä tallennettu, mutta {{product}} ei voinut varmistaa tallennustilaa. Käynnistä {{product}} uudelleen ja tarkista {{telegram}} ennen uutta pariliitosta.",
+          "pasteToken": "Botin tunnistetta ei voitu vahvistaa tai tallentaa. Kopioi uusi tunniste palvelusta {{botFather}} ja yritä uudelleen.",
+          "removeStorageUnverified": "{{telegram}}-yhteyden poistoa ei voitu vahvistaa, koska suojattua tallennustilaa ei voitu varmistaa. Käynnistä {{product}} uudelleen ja tarkista {{telegram}} ennen uutta yritystä.",
+          "removeUncertain": "{{telegram}}-yhteyden poisto ei ehkä valmistunut. Käynnistä {{product}} uudelleen ja tarkista, onko botti yhä yhdistetty, ennen uutta yritystä.",
+          "senders": "Sallittujen käyttäjien luetteloa ei voitu muuttaa. Tarkista käyttäjätunnus ja yritä uudelleen.",
+          "storageFailed": "Kopioitua tunnistetta ei voitu tallentaa. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "tokenNotApplied": "Kopioitua tunnistetta ei otettu käyttöön. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "tokenStorageUnverified": "Kopioitua tunnistetta ei otettu käyttöön, koska suojattua tallennustilaa ei voitu varmistaa. Nykyinen {{telegram}}-botti säilyy ennallaan. Käynnistä {{product}} uudelleen ja tarkista {{telegram}} ennen uutta yritystä.",
+          "unsafeAccess": "Suojattua tunnistautumistietojen tallennusjärjestelmää ei ole käytettävissä, joten {{product}} kieltäytyi käyttämästä tallennettua botin tunnistetta ilman salausta. Sulje {{product}} ja avaa se uudelleen. Valitse sitten Tarkista uudelleen.",
+          "unsafeToken": "Suojattua tunnistautumistietojen tallennusjärjestelmää ei ole käytettävissä, joten {{product}} kieltäytyi tallentamasta botin tunnistetta ilman salausta. Sulje {{product}} ja avaa se uudelleen, kopioi botin tunniste uudelleen ja yritä sitten uudelleen.",
+          "unsafeTokenUnchanged": "Nykyinen {{telegram}}-botti säilyy ennallaan, koska suojattua tunnistautumistietojen tallennusjärjestelmää ei ole käytettävissä. {{product}} kieltäytyi tallentamasta kopioitua tunnistetta ilman salausta. Sulje {{product}} ja avaa se uudelleen, kopioi botin tunniste uudelleen ja yritä sitten uudelleen.",
+          "validationUnavailable": "{{telegram}} ei voinut juuri nyt vahvistaa kopioitua tunnistetta. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+          "webhook": "Webhookia ei voitu poistaa. Tarkista internetyhteys ja yritä uudelleen.",
+          "webhookRemovalRequired": "Kopioitua tunnistetta käyttävä botti käyttää yhä webhookia. Poista webhook, poista sitten nykyinen yhteys ja yhdistä tämä botti."
+        },
+        "health": {
+          "conflict": "Toinen palvelu hakee tämän botin viestejä. Pysäytä kyseinen palvelinasennus ja tarkista sitten uudelleen.",
+          "connecting": "{{telegram}} yhdistää.",
+          "failed": "{{telegram}} vaatii huomiota. Pidä sovellus auki, tarkista yhteys ja yritä uudelleen.",
+          "gap": "{{telegram}} yhdistyi uudelleen pitkän katkoksen jälkeen. Osa viesteistä ei ehkä saapunut.",
+          "invalidToken": "{{telegram}} hylkäsi tämän tunnisteen. Poista yhteys ja yhdistä sitten uusi botti palvelusta {{botFather}} saadulla uudella tunnisteella.",
+          "off": "{{telegram}} on pois päältä.",
+          "online": "{{telegram}} on verkossa.",
+          "transferRequired": "Tämä botti kuuluu yhä toiseen työpöytäsovelluksen asennukseen. Poista yhteys siellä ennen sen yhdistämistä tänne.",
+          "waitingForToken": "Kopioi botin tunniste palvelusta {{botFather}} ja liitä se sitten leikepöydältä."
+        },
+        "pairing": {
+          "cancelled": "{{telegram}}-pariliitos peruutettiin.",
+          "connected": "{{telegram}} yhdistetty bottiin @{{username}}. Pariliitos on määritettävä.",
+          "expired": "Pariliitoskoodi vanheni ennen käyttöä. Luo uusi koodi, kun olet valmis.",
+          "paired": "{{telegram}} on liitetty ensisijaiseen käyttäjään.",
+          "ready": "Pariliitoskoodi on valmis. Lähetä se botille palvelussa {{telegram}}.",
+          "refused": "Pariliitos hylättiin, koska tällä botilla on jo ensisijainen käyttäjä.",
+          "replaced": "Uusi {{telegram}}-pariliitoskoodi on valmis. Lähetä se botille palvelussa {{telegram}}.",
+          "storageFailed": "Ensisijaista {{telegram}}-käyttäjää ei voitu tallentaa. Tarkista paikallisen levyn käyttöoikeudet ja yritä pariliitosta uudelleen.",
+          "unavailable": "Pariliitos ei ole käytettävissä ennen kuin {{telegram}}-botti voi muodostaa yhteyden."
+        },
+        "platform": {
+          "encryptionAccess": "Tunnisteen suojattu tallennustila ei ole käytettävissä. Sulje {{product}} ja avaa se uudelleen, {{recoveryAction}} ja valitse sitten Tarkista uudelleen.",
+          "encryptionSave": "Tunnisteen suojattu tallennustila ei ole käytettävissä. Sulje {{product}} ja avaa se uudelleen, {{recoveryAction}}, kopioi botin tunniste uudelleen ja yritä sitten uudelleen.",
+          "encryptionUnchanged": "Nykyinen {{telegram}}-botti säilyy ennallaan, koska tunnisteen suojattu tallennustila ei ole käytettävissä. Sulje {{product}} ja avaa se uudelleen, {{recoveryAction}}, kopioi botin tunniste uudelleen ja yritä sitten uudelleen.",
+          "offline": "{{telegram}} on poissa verkosta. {{product}} jatkaa yrittämistä, kun {{computer}} on hereillä ja verkossa.",
+          "removed": "{{telegram}}-yhteys poistettu tietokoneelta {{computer}}.",
+          "suspended": "{{telegram}}-viestien haku on keskeytetty, kun {{computer}} on lepotilassa.",
+          "webhookConnect": "Kopioitua tunnistetta käyttävä botti käyttää yhä webhookia. Poista webhook ennen botin liittämistä tietokoneeseen {{computer}}.",
+          "webhookVerified": "Botti vahvistettu. Poista sen webhook ennen botin liittämistä tietokoneeseen {{computer}}."
+        },
+        "sender": {
+          "added": "{{telegram}}-käyttäjä lisätty.",
+          "daemonUncertain": "Sallittujen käyttäjien luettelo on ehkä muuttunut, mutta {{product}} ei saanut vahvistusta paikalliselta valmennuspalvelulta. Käynnistä {{product}} uudelleen ja tarkista luettelo ennen uutta yritystä.",
+          "removed": "{{telegram}}-käyttäjä poistettu.",
+          "storageUncertain": "Sallittujen käyttäjien luettelo on ehkä muuttunut, mutta {{product}} ei voinut varmistaa tallennustilaa. Käynnistä {{product}} uudelleen ja tarkista luettelo ennen uutta yritystä."
+        },
+        "unavailable": "{{telegram}}-asetukset eivät ole käytettävissä. Pidä sovellus auki ja yritä uudelleen.",
+        "working": {
+          "acknowledgeGap": "Poistetaan {{telegram}}-viestien toimitusvaroitusta…",
+          "addSender": "Lisätään {{telegram}}-käyttäjää…",
+          "beginPairing": "Luodaan yksityistä pariliitoskoodia…",
+          "cancelPairing": "Peruutetaan pariliitosta…",
+          "disable": "Poistetaan {{telegram}} käytöstä…",
+          "enable": "Otetaan {{telegram}} käyttöön…",
+          "pasteToken": "Luetaan ja vahvistetaan {{telegram}}-tunnistetta…",
+          "reconcile": "Tarkistetaan {{telegram}}-yhteyttä…",
+          "remove": "Poistetaan {{telegram}}-yhteyttä…",
+          "removeSender": "Poistetaan {{telegram}}-käyttäjää…",
+          "removeWebhook": "Poistetaan botin webhookia…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Kuittaa",
+        "detail": "Botti jatkoi toimintaansa pitkän katkoksen jälkeen, joten sen aikana lähetetyt viestit eivät ehkä saavuttaneet sovellusta {{product}}. Tarkista {{telegram}}-keskustelu ennen tämän varoituksen poistamista.",
+        "title": "Tarkista puuttuvat viestit palvelusta {{telegram}}"
+      },
+      "paired": "Liitetty ensisijaiseen {{telegram}}-käyttäjään",
+      "pairing": {
+        "cancel": "Peruuta pariliitos",
+        "code": "{{telegram}}-pariliitoskoodi",
+        "detail": "Minuutin voimassa oleva koodi varmistaa, että vain henkilö, jolla on pääsy tietokoneelle {{computer}}, voi ottaa botin käyttöön.",
+        "expired": "Pariliitoskoodi vanheni ennen käyttöä. Luo uusi koodi, kun olet valmis.",
+        "expires": "Vanhenee {{time}}",
+        "instruction": "Lähetä tämä koodi yksityisviestinä käyttäjälle @{{username}}. Ensimmäisenä koodin lähettävästä tilistä tulee ensisijainen käyttäjä, ja botti pysyy verkossa.",
+        "primary": "Liitä ensisijainen käyttäjä",
+        "refused": "Pariliitos hylättiin, koska tällä botilla on jo ensisijainen käyttäjä.",
+        "restart": "Luo uusi koodi ja ota käyttöön",
+        "start": "Aloita pariliitos ja ota käyttöön",
+        "storageFailed": "Ensisijaista {{telegram}}-käyttäjää ei voitu tallentaa. Tarkista paikallisen levyn käyttöoikeudet ja yritä pariliitosta uudelleen.",
+        "storageUncertain": "Ensisijainen {{telegram}}-käyttäjä on ehkä tallennettu, mutta {{product}} ei voinut varmistaa tallennustilaa. Käynnistä {{product}} uudelleen ja tarkista {{telegram}} ennen uutta pariliitosta.",
+        "title": "Liitä {{telegram}}-tilisi",
+        "unavailable": "Pariliitos ei ole käytettävissä ennen kuin {{telegram}}-botti voi muodostaa yhteyden."
+      },
+      "reloadDetail": "Lataa tallennetun yhteyden tila uudelleen ennen muun toiminnon yrittämistä.",
+      "retry": "Yritä uudelleen",
+      "sender": {
+        "add": "Lisää käyttäjä",
+        "additional": "Muu sallittu käyttäjä",
+        "addTitle": "Lisää {{telegram}}-käyttäjätunnus",
+        "advanced": "Lisäasetukset · sallitut käyttäjät",
+        "help": "Lisää vain henkilöitä, joiden luotat käyttävän valmentajaasi ja yhteisiä urheilijatietoja.",
+        "list": "Sallitut {{telegram}}-käyttäjät",
+        "loadFailed": "Sallittuja käyttäjiä ei voitu ladata. {{product}} yrittää uudelleen automaattisesti.",
+        "loading": "Ladataan sallittuja käyttäjiä…",
+        "primary": "Ensisijainen käyttäjä · pakollinen",
+        "remove": "Poista",
+        "removeAria": "Poista {{telegram}}-käyttäjä {{senderId}}",
+        "removeConfirm": "Poista käyttäjä",
+        "removeDetail": "Tämä käyttäjä menettää pääsyn valmentajaasi ja yhteisiin urheilijatietoihin, kunnes lisäät hänet uudelleen lähettäjätunnuksella {{senderId}}.",
+        "removeTitle": "Poistetaanko {{telegram}}-käyttäjä {{senderId}}?",
+        "validation": "Anna numeerinen {{telegram}}-käyttäjätunnus, jossa on vähintään kaksi numeroa."
+      },
+      "setup": {
+        "afterBotfather": "luomaan botti, kopioi sen tunniste ja palaa sitten tänne. {{product}} lukee tunnisteen suoraan leikepöydältä. Tunnisteelle ei ole kenttää.",
+        "ask": "Pyydä palvelua",
+        "cancel": "Peruuta",
+        "cancelAria": "Peruuta {{telegram}}-botin käyttöönotto",
+        "connect": "Yhdistä",
+        "detail": "Yhdistä {{telegram}}-botti kopioidulla tunnisteella.",
+        "paste": "Liitä tunniste leikepöydältä",
+        "title": "Luo botti palvelussa {{botFather}}"
+      },
+      "suspended": "{{telegram}}-viestien haku jatkuu, kun {{computer}} herää.",
+      "title": "Kanavat",
+      "unavailable": "{{telegram}}-tila ei ole saatavilla",
+      "verified": "Botti vahvistettu. Pariliitoksen aloittaminen ottaa palvelun {{telegram}} käyttöön",
+      "webhook": {
+        "detail": "{{telegram}} ei voi toimittaa viestejä webhookiin ja tietokoneelle {{computer}} samanaikaisesti. Tämä toiminto säilyttää odottavat päivitykset ja antaa työpöytäsovelluksen aloittaa viestien haun.",
+        "remove": "Poista webhook",
+        "title": "Poista nykyinen webhook"
+      }
+    }
+  },
+  "archive": {
+    "athlete": "Sinä",
+    "back": "Kaikki aiemmat keskustelut",
+    "coach": "Valmentaja",
+    "conversation": "Aiempi keskustelu",
+    "delete": {
+      "action": "Poista keskustelu",
+      "description": "Tämä poistaa tämän aiemman keskustelun ja sen alkuperäiset liitteet pysyvästi tältä tietokoneelta. Harjoittelu-näkymään tuodut suoritukset ja Suunnitelma-näkymässä tehty työ säilyvät.",
+      "failure": "Poistoa ei voitu suorittaa loppuun. Viimeistele se yrittämällä uudelleen.",
+      "title": "Poistetaanko tämä keskustelu?"
+    },
+    "empty": "Ei vielä aiempia keskusteluja. Kun aloitat uuden keskustelun, vanha säilyy täällä.",
+    "emptyConversation": "Tässä keskustelussa ei ole luettavia viestejä.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Aiemmat keskustelut eivät ole tilapäisesti käytettävissä.",
+    "loadEarlier": "Lataa aiempia viestejä",
+    "loading": "Ladataan aiempia keskusteluja…",
+    "pageFailure": "Tämä keskustelu ei ole tilapäisesti käytettävissä.",
+    "readOnly": "Aiempia keskusteluja voi vain lukea.",
+    "reason": {
+      "explicit": "Aloitit uuden keskustelun",
+      "stale": "Suljettu tauon jälkeen"
+    },
+    "retry": "Yritä uudelleen",
+    "timestamp": "{{day}}.{{month}}.{{year}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Aiemmat keskustelut",
+    "truncated": "Luettelossa näkyvät vain uusimmat aiemmat keskustelut.",
+    "turnCount_one": "{{formattedCount}} viesti",
+    "turnCount_other": "{{formattedCount}} viestiä",
+    "unavailable": "Tämä keskustelu ei ole enää käytettävissä."
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Lisäasetukset",
+      "announcement": {
+        "apiKey": "API-avaimen käyttöönotto avautui tämän rivin alle.",
+        "chatgpt": "{{chatgpt}}-kirjautuminen avautui tämän rivin alle."
+      },
+      "apiKeyHint": "Luodaan palveluntarjoajan hallintapaneelissa, laskutetaan käytön mukaan. Yleensä muutamia senttejä keskustelulta.",
+      "cancelLabel": "Peruuta API-avaimen käyttöönotto",
+      "change": "Vaihda",
+      "chatgptActivating": "Kirjautunut · Otetaan valmentajaa käyttöön…",
+      "choose": "Valitse",
+      "claude": {
+        "badge": {
+          "absentBinary": "Ei asennettu",
+          "apiKeyToken": "API-avain, ei tilausta",
+          "checking": "Tarkistetaan",
+          "disabled": "Pois käytöstä",
+          "notLoggedIn": "Ei kirjautunut",
+          "ready": "Kirjautunut",
+          "readyApiKey": "API-avainlaskutus",
+          "workingAreaUnavailable": "Turvallinen käynnistys ei onnistunut"
+        },
+        "checkAgain": "Vahvista {{claudeCode}} tällä Macilla valitsemalla Tarkista uudelleen.",
+        "detail": "Käyttää tietokoneelle {{computer}} jo asennettua ja kirjautunutta {{claudeCode}}-komentorivityökalua. API-avainta ei tarvita.",
+        "identity": {
+          "apiKey": "Käytössä on palvelun {{anthropic}} API-avainlaskutus. Käyttö veloitetaan API-tililtäsi.",
+          "email": "Kirjautunut tunnuksella {{email}}",
+          "emailPlan": "Kirjautunut tunnuksella {{email}} · {{claude}} {{plan}} -tilaus",
+          "plan": "Kirjautunut · {{claude}} {{plan}} -tilaus",
+          "signedIn": "Kirjautunut"
+        },
+        "recheck": "Tarkista uudelleen",
+        "statusDetail": {
+          "absentBinary": "{{claudeCode}}-komentorivityökalua ei löytynyt tai asennettu versio on liian vanha. Asenna tai päivitä se ja valitse sitten Tarkista uudelleen.",
+          "apiKeyToken": "{{claudeCode}}-komentorivityökalu on tunnistautunut API-avaimella tai tunnisteella, ei tilauksella. Kirjaudu tilauksellasi komennolla {{command}} tai ota API-avainlaskutus käyttöön määrityksissäsi.",
+          "checking": "Tarkistetaan {{claudeCode}}-komentorivityökalun kirjautumista tietokoneella {{computer}}…",
+          "disabled": "{{claude}}-tilauksen käyttö on poistettu käytöstä tietokoneella {{computer}}. Valitse toinen palveluntarjoaja.",
+          "notLoggedIn": "{{claudeCode}}-komentorivityökalu ei ole kirjautunut. Avaa pääte, suorita {{command}} ja kirjaudu {{claude}}-tilauksellasi. {{product}} ei koskaan kirjaudu puolestasi.",
+          "workingAreaUnavailable": "{{product}} ei voinut valmistella yksityistä työtilaa palvelulle {{claude}}. Käynnistä {{product}} uudelleen ja valitse sitten Tarkista uudelleen."
+        }
+      },
+      "connected": "Yhdistetty · valmentajasi tekoäly",
+      "credentialLabel": "Palveluntarjoajan {{provider}} API-avain",
+      "customModel": "Mukautetun mallin nimi",
+      "endpoint": {
+        "automatic": "Säilytä nykyinen tai käytä palveluntarjoajan oletusta",
+        "custom": "Käytä mukautettua yhteysosoitetta",
+        "customTitle": "Mukautettu yhteysosoite",
+        "default": "Palauta palveluntarjoajan oletus",
+        "title": "Yhteysosoite"
+      },
+      "identity": "Valmentajasi tekoäly · {{identity}}",
+      "lane": {
+        "apiKey": "API-avain",
+        "chatgpt": "{{chatgpt}}-tilaus"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} palveluntarjoajaa · maksa käytön mukaan",
+        "claudeCli": "Tarkistaa {{claude}}-tilauksesi, kun valitset tämän",
+        "openaiCodex": "Käytä tilausta, josta jo maksat"
+      },
+      "menuLabel": "Valmentajasi käyttämä tekoäly",
+      "model": "Malli",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "tasapainoinen",
+        "cheap": "edullinen",
+        "cheaper": "edullisempi",
+        "cheapest": "edullisin",
+        "experimental": "kokeellinen",
+        "fast": "nopea",
+        "fastAndCheap": "nopea ja edullinen",
+        "faster": "nopeampi",
+        "manyModels": "yksi avain, monta mallia",
+        "mostCapable": "kyvykkäin",
+        "recommended": "suositeltu"
+      },
+      "modelVia": "{{model}} (palveluntarjoaja {{provider}})",
+      "otherModel": "Muu malli…",
+      "pending": {
+        "activation": "Valmentajasi tekoäly · kirjautunut · käyttöönotto tarvitaan",
+        "apiKey": "Valmentajasi tekoäly · viimeistele lisäämällä avain",
+        "chatgpt": "Valmentajasi tekoäly · viimeistele kirjautumalla",
+        "checkingClaude": "Valmentajasi tekoäly · tarkistetaan {{claudeCode}}-kirjautumista",
+        "claude": "Valmentajasi tekoäly · viimeistele kirjautumalla päätteessä"
+      },
+      "provider": "Palveluntarjoaja",
+      "saveLabel": "Tallenna API-avain",
+      "subtitle": "Pakollinen · {{product}} ei sisällä omaa tekoälyä",
+      "title": "Valmentajasi käyttämä tekoäly",
+      "tooltip": {
+        "body": "Se käyttää {{chatgpt}}-tilausta, {{claudeCode}}-kirjautumista tai antamaasi API-avainta. Valitsemasi tunnistautumistiedot säilyvät tietokoneella {{computer}}.",
+        "label": "Tietoa valmentajasi käyttämästä tekoälystä",
+        "lead": "Sovelluksella {{product}} ei ole omaa tekoälyä"
+      },
+      "trigger": {
+        "set": "Vaihda valmentajasi käyttämä tekoäly",
+        "unset": "Valitse valmentajasi käyttämä tekoäly"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Kirjautuminen onnistui, mutta valmentajaa ei voitu ottaa käyttöön. Yritä uudelleen kirjautumatta uudelleen.",
+      "cancelLabel": "Peruuta palvelun {{chatgpt}} käyttöönotto",
+      "cancelSignIn": "Peruuta kirjautuminen",
+      "hint": "Avaa palvelun {{openai}} kirjautumissivun selaimessasi. Kirjoitat salasanasi siellä, et täällä. Vaatii maksullisen tilauksen.",
+      "phase": {
+        "activatingCoach": "Otetaan valmentajaa käyttöön…",
+        "completingSignIn": "Viimeistellään kirjautumista…",
+        "ready": "Valmis",
+        "signedIn": "Kirjautunut",
+        "waitingForBrowser": "Odotetaan selainta…"
+      },
+      "refusal": {
+        "alreadyInProgress": "{{chatgpt}}-kirjautuminen on jo käynnissä.",
+        "callbackUnavailable": "Kirjautumisen paikallinen paluuosoite ei ole käytettävissä. Sulje muut kirjautumiset ja yritä uudelleen.",
+        "cancelled": "{{chatgpt}}-kirjautuminen peruutettiin. Voit yrittää uudelleen.",
+        "exchangeFailed": "{{chatgpt}}-kirjautumista ei voitu viimeistellä. Yritä uudelleen.",
+        "runtimeUnavailable": "{{chatgpt}}-kirjautuminen tallennettiin, mutta valmentajaa ei voitu määrittää.",
+        "storageFailed": "{{chatgpt}}-kirjautuminen onnistui, mutta profiilia ei voitu tallentaa.",
+        "timedOut": "{{chatgpt}}-kirjautuminen aikakatkaistiin. Yritä uudelleen, kun olet valmis."
+      },
+      "retryActivation": "Yritä käyttöönottoa uudelleen",
+      "signIn": "Kirjaudu palvelulla {{chatgpt}}"
+    },
+    "chatSubtitle": "Yhdistä valmentajasi tarvitsemat palvelut. {{telegram}} on valinnainen eikä koskaan estä keskustelua.",
+    "checking": {
+      "heading": "Tarkistetaan käyttöönottoasi",
+      "rowSubtitle": "Tarkistetaan jo yhdistettyjä palveluja…",
+      "status": "Tarkistetaan käyttöönottoa…",
+      "subtitle": "Luetaan tälle tietokoneelle jo tallennettuja yhteyksiä. Tämä voi kestää hetken heti käynnistyksen jälkeen."
+    },
+    "error": {
+      "configurationUnavailable": "Valmentajan valinnat eivät ole juuri nyt käytettävissä. Tarkista käyttöönotto-osio uudelleen.",
+      "credentialReenterRequired": "Tallennettua avainta ei voitu käyttää. Anna se uudelleen jatkaaksesi.",
+      "credentialRequired": "Kirjaudu palvelulla {{chatgpt}} tai lisää vähintään yksi mallin avain jatkaaksesi.",
+      "credentialSaveFailed": "Avainta ei voitu tallentaa. Yritä antaa se uudelleen.",
+      "credentialStatusUnavailable": "Avain tallennettiin, mutta sen tilaa ei voitu päivittää. Tarkista käyttöönotto-osio uudelleen.",
+      "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
+      "intakeIncomplete": "Vastaa pakollisiin turvallisuuskysymyksiin jatkaaksesi.",
+      "intakeSaveFailed": "Vastauksiasi ei voitu tallentaa. Yritä uudelleen.",
+      "intervalsClipboardClearFailed": "API-avainta ei tallennettu, koska {{product}} ei voinut poistaa sitä turvallisesti leikepöydältä. Kopioi se uudelleen ja yritä sitten uudelleen.",
+      "intervalsClipboardUnavailable": "{{product}} ei voinut lukea API-avainta leikepöydältä. Kopioi se palvelussa {{intervals}} ja yritä sitten uudelleen.",
+      "intervalsKeyRejected": "{{intervals}} ei hyväksynyt kopioitua API-avainta. Kopioi voimassa oleva API-avain ja yritä sitten uudelleen.",
+      "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että kopioitu API-avain vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
+      "intervalsRuntimeUnavailable": "Kopioitua API-avainta ei voitu ottaa käyttöön. Kopioi se palvelussa {{intervals}} ja yritä sitten uudelleen.",
+      "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kopioitu API-avain käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsStorageUncertain": "{{product}} ei voinut vahvistaa, tallennettiinko kopioitu API-avain. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsValidationUnavailable": "{{product}} ei voinut vahvistaa kopioitua API-avainta palvelussa {{intervals}}. Tarkista yhteytesi ja yritä sitten uudelleen.",
+      "invalidInput": "Avainta ei hyväksytty. Tarkista se ja anna se uudelleen.",
+      "modelRuntimeUnavailable": "Palveluntarjoajan valinta on tallennettu, mutta se ei ole vielä käytössä. Yritä ottaa se käyttöön uudelleen.",
+      "modelSelectionRequired": "Valitse malli tai anna mukautetun mallin nimi.",
+      "runtimeUnavailable": "Avain tallennettiin, mutta se ei ole vielä käytössä. Ota se käyttöön valitsemalla Yritä tallennettuja avaimia uudelleen.",
+      "storageFailed": "Sovellus ei voinut vahvistaa, että avain tallennettiin turvallisesti. Tarkista, että suojattu tallennustila on käytettävissä, ja yritä uudelleen.",
+      "storageUncertain": "Sovellus ei voinut varmistaa, mikä tallennettu avain säilyy uudelleenkäynnistyksen jälkeen. Anna avain uudelleen ennen jatkamista.",
+      "trainingAccountMismatch": "Tämä {{intervalsLower}}-avain kuuluu eri urheilijalle kuin jo tallennettu harjoitushistoria. Tilien vaihtamista ei vielä tueta.",
+      "trainingDataRequired": "Yhdistä {{intervalsLower}} tai tuo vähintään yksi lenkkitiedosto.",
+      "unsafeBackend": "Sovellus ei voi tallentaa tätä avainta turvallisesti nykyisellä tallennusjärjestelmällä."
+    },
+    "footerNote": "Kaikki säilyy tietokoneella {{computer}}.",
+    "heading": "Ota valmentajasi käyttöön ennen keskustelun aloittamista",
+    "import": {
+      "available": "Tuonti paikalliseen kirjastoon: {{imported}} tuotu. {{quarantined}} karanteenissa. Valmentaja voi käyttää suorituksia ja niiden aikasarjoja.",
+      "choosing": "Odotetaan lenkkitiedostojen valintaa…",
+      "failed": "Tuonti paikalliseen kirjastoon epäonnistui. {{imported}} tuotu. {{quarantined}} karanteenissa. Uusia lenkkitiedostoja ei ole valmentajan käytettävissä.",
+      "fileCount_one": "{{formattedCount}} lenkkitiedosto",
+      "fileCount_other": "{{formattedCount}} lenkkitiedostoa",
+      "importing": "Tuodaan lenkkitiedostoja…",
+      "unavailable": "Tuonti paikalliseen kirjastoon: {{imported}} tuotu. {{quarantined}} karanteenissa. Valmentaja ei tilapäisesti voi käyttää suorituksia ja niiden aikasarjoja. Yritä tuontia uudelleen.",
+      "unconfirmed": "Tuonti paikalliseen kirjastoon epäonnistui. Tulosta ei voitu vahvistaa. Tarkista kirjasto ennen uutta yritystä."
+    },
+    "intake": {
+      "managing": "Minulla on hoidettava vamma",
+      "none": "Ei tämänhetkistä vammaa",
+      "retrySave": "Yritä vastausten tallennusta uudelleen",
+      "returning": "Palaan harjoitteluun vamman jälkeen",
+      "select": "Valitse…",
+      "subtitle": "Tallentaa tiedot tämänhetkisestä vammastasi tai harjoitteluun paluustasi.",
+      "title": "Vammatilanne juuri nyt"
+    },
+    "requiredReady": "{{ready}}/{{total}} pakollista kohtaa valmiina",
+    "retrySavedKeys": "Yritä tallennettuja avaimia uudelleen",
+    "retryStatus": "Tarkista käyttöönoton tila uudelleen",
+    "settingsHeading": "Käyttöönotto",
+    "startCoaching": "Aloita valmennus",
+    "statusUnavailable": "Käyttöönoton tilaa ei voitu ladata. Tarkista, että {{product}} on käynnissä, ja yritä sitten uudelleen.",
+    "telegram": {
+      "announcement": "{{telegram}}-botin käyttöönotto avautui tämän rivin alle.",
+      "ask": "Pyydä palvelua",
+      "availability": "{{telegram}} toimii, kun {{product}} on käynnissä ja {{computer}} on hereillä ja verkossa.",
+      "cancelLabel": "Peruuta {{telegram}}-botin käyttöönotto",
+      "checkAgain": "Tarkista uudelleen",
+      "connecting": "Yhdistetään…",
+      "create": "Luo",
+      "createAfterBotFather": "luomaan botti, kopioi sen tunniste ja palaa sitten tänne. {{product}} lukee ja vahvistaa tunnisteen suoraan leikepöydältä. Tunnistetta ei koskaan näytetä.",
+      "createCopy": "Pyydä palvelua {{botFather}} luomaan botti, kopioi sen tunniste ja palaa sitten tänne. {{product}} lukee ja vahvistaa tunnisteen suoraan leikepöydältä. Tunnistetta ei koskaan näytetä.",
+      "createLabel": "Luo {{telegram}}-botti",
+      "createTitle": "Luo botti palvelussa {{botFather}}",
+      "delete": "Poista",
+      "deleteConnection": "Poista yhteys",
+      "deleteCopy": "Tämä poistaa palvelun {{telegram}} käytöstä sekä salatun tunnisteen ja sallittujen käyttäjien käyttöoikeudet tietokoneelta {{computer}}. {{telegram}}-botti ja keskustelu säilyvät palvelussa {{telegram}}.",
+      "deleteLabel": "Poista {{telegram}}-yhteys",
+      "deleteTitle": "Poistetaanko {{telegram}}-yhteys?",
+      "deleting": "Poistetaan…",
+      "notDeleted": "{{telegram}}-yhteyttä ei poistettu tietokoneelta {{computer}}.",
+      "optional": "Valinnainen",
+      "unappliedToken": "Kopioitua tunnistetta ei otettu käyttöön. Nykyinen {{telegram}}-botti säilyy ennallaan.",
+      "useToken": "Käytä kopioitua tunnistetta",
+      "verified": "Botti vahvistettu · @{{username}}",
+      "verifiedPrefix": "Botti vahvistettu"
+    },
+    "training": {
+      "cancelLabel": "Peruuta palvelun {{intervals}} käyttöönotto",
+      "connect": "Yhdistä",
+      "connecting": "Yhdistetään…",
+      "connectTitle": "Yhdistä {{intervals}}",
+      "hint": "Avaa palvelussa {{intervals}} Asetukset → Kehittäjäasetukset, kopioi API-avain ja palaa sitten tänne. {{product}} lukee sen näyttämättä sitä.",
+      "importFiles": "Tuo lenkkitiedostoja sen sijaan",
+      "subtitle": {
+        "connected": "Yhdistetty · lenkkiesi lähde",
+        "missing": "Yhdistä tai tuo lenkkitiedostoja."
+      },
+      "tooltip": {
+        "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kopioi sitten tilin API-avain.",
+        "label": "Tietoa palvelusta {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Yhdistä {{intervals}}"
+      },
+      "useCopiedKey": "Käytä kopioitua API-avainta"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Tarkistetaan käyttöönottoa…",
+    "loading": {
+      "archive": "Ladataan aiempia keskusteluja…",
+      "chat": "Ladataan keskustelua…",
+      "plan": "Ladataan suunnitelmaa…",
+      "settings": "Ladataan asetuksia…",
+      "training": "Ladataan harjoittelua…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Käyttöjärjestelmän {{operatingSystem}} salaus ei ole käytettävissä. Varmista, että {{keychain}} on käytettävissä, ja yritä sitten uudelleen.",
+        "windows": "Käyttöjärjestelmän {{operatingSystem}} tunnistautumistietojen salaus ({{encryption}}) ei ole käytettävissä. Sulje {{product}} ja avaa se uudelleen. Yritä sitten uudelleen."
+      },
+      "credentialRecoveryAction": {
+        "mac": "avaa kirjautumisavainnippusi lukitus",
+        "windows": "varmista, että käyttöjärjestelmän {{operatingSystem}} tunnistautumistietojen salaus ({{encryption}}) on käytettävissä"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Päänavigointi",
+    "newChat": "Uusi keskustelu",
+    "planAttention_one": "Suunnitelma, {{formattedCount}} kohta vaatii huomiota",
+    "planAttention_other": "Suunnitelma, {{formattedCount}} kohtaa vaatii huomiota",
+    "sync": {
+      "action": {
+        "again": "Synkronoi uudelleen",
+        "now": "Synkronoi nyt",
+        "retry": "Yritä uudelleen",
+        "unavailable": "Synkronointi ei ole käytettävissä"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synkronointi vaatii huomiota",
+        "loading": "Ladataan harjoitustietoja",
+        "never": "Ei vielä synkronoitu",
+        "synced": "Harjoitustiedot synkronoitu",
+        "syncing": "Synkronoidaan",
+        "unavailable": "Harjoitustiedot eivät ole käytettävissä"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Yhteys katkesi. Synkronointi saattaa vielä olla valmistumassa. {{product}} ei yritä sitä uudelleen automaattisesti.",
+        "noChange": "Harjoitustietojen paikallinen käsittely valmistui.",
+        "noChangeRestricted_one": "Harjoitustietojen paikallinen käsittely valmistui. Palvelun {{source}} API-rajoitus estää palvelua {{provider}} jakamasta yhtä suoritusta, joten se ei ole mukana.",
+        "noChangeRestricted_other": "Harjoitustietojen paikallinen käsittely valmistui. Palvelun {{source}} API-rajoitus estää palvelua {{provider}} jakamasta {{formattedCount}} suoritusta, joten ne eivät ole mukana.",
+        "operationFailure": "Harjoitustietojen tarkistusta ei voitu suorittaa loppuun. Nykyiset tietosi ovat yhä käytettävissä.",
+        "partial": "Harjoitustietojen käsittely valmistui osittain. Viimeistele yrittämällä uudelleen.",
+        "protocol": "{{product}} ei voinut vahvistaa synkronoinnin tulosta. Sulje {{product}} ja avaa se uudelleen.",
+        "published": "Harjoitustietojen tarkistus valmistui.",
+        "publishedRestricted_one": "Harjoitustietojen tarkistus valmistui. Palvelun {{source}} API-rajoitus estää palvelua {{provider}} jakamasta yhtä suoritusta, joten se ei ole mukana.",
+        "publishedRestricted_other": "Harjoitustietojen tarkistus valmistui. Palvelun {{source}} API-rajoitus estää palvelua {{provider}} jakamasta {{formattedCount}} suoritusta, joten ne eivät ole mukana.",
+        "queued": "Synkronointi jonossa.",
+        "running": "Synkronoidaan harjoitustietoja…"
+      },
+      "restriction": {
+        "fixAction": "· Näin korjaat tämän",
+        "fixLabel": "{{restrictionLabel}}. Näin korjaat tämän",
+        "label_one": "{{formattedCount}} piilotettu palvelun {{source}} vuoksi",
+        "label_other": "{{formattedCount}} piilotettu palvelun {{source}} vuoksi",
+        "tooltipBody": "Palvelun {{source}} API-rajoitus estää palvelua {{provider}} jakamasta näitä suorituksia sovellukselle {{product}}.",
+        "tooltipLabel": "Miksi suorituksia on piilotettu?",
+        "tooltipLead_one": "{{formattedCount}} suoritus piilotettu palvelun {{source}} vuoksi",
+        "tooltipLead_other": "{{formattedCount}} suoritusta piilotettu palvelun {{source}} vuoksi"
+      },
+      "timestamp": "{{day}}.{{month}}.{{year}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Synkronointiaika tuntematon"
+    },
+    "update": {
+      "available": "Päivitys saatavilla",
+      "availableVersion": "Päivitysversio {{version}} on saatavilla",
+      "installVersion": "Asenna päivitysversio {{version}}",
+      "restarting": "Käynnistetään uudelleen…",
+      "restartingVersion": "Käynnistetään uudelleen päivitysversion {{version}} asentamiseksi"
+    },
+    "views": {
+      "archive": "Aiemmat keskustelut",
+      "chat": "Keskustelu",
+      "plan": "Suunnitelma",
+      "settings": "Asetukset",
+      "training": "Harjoittelu"
     }
   }
 }

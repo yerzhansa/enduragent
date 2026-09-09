@@ -1,4 +1,36 @@
 {
+  "archive": {
+    "athlete": "You",
+    "back": "All past chats",
+    "coach": "Coach",
+    "conversation": "Past conversation",
+    "delete": {
+      "action": "Delete conversation",
+      "description": "This permanently removes this past conversation and its original attachments from this computer. Imported activities in Training and work in Plan stay.",
+      "failure": "Deletion could not finish. Try again to complete it.",
+      "title": "Delete this conversation?"
+    },
+    "empty": "No past conversations yet. Starting a new conversation keeps the old one here.",
+    "emptyConversation": "This conversation has no readable messages.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Past conversations are temporarily unavailable.",
+    "loadEarlier": "Load earlier messages",
+    "loading": "Loading past conversations…",
+    "pageFailure": "This conversation is temporarily unavailable.",
+    "readOnly": "Past conversations are read-only.",
+    "reason": {
+      "explicit": "You started a new conversation",
+      "stale": "Closed after a break"
+    },
+    "retry": "Try again",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Past chats",
+    "truncated": "Only the most recent past conversations are listed.",
+    "turnCount_one": "{{formattedCount}} message",
+    "turnCount_other": "{{formattedCount}} messages",
+    "unavailable": "This conversation is no longer available."
+  },
   "common": {
     "automatic": "Automatic",
     "back": "Back",
@@ -18,6 +50,242 @@
       "system": "System",
       "title": "Appearance"
     },
+    "application": {
+      "check": "Check for updates",
+      "checkFailed": "Update check failed. Try again",
+      "checking": "Checking for updates",
+      "checkingAction": "Checking…",
+      "current": "{{product}} is up to date",
+      "danger": "Danger",
+      "downloadFailed": "Update download failed. Try again",
+      "downloading": "Downloading update {{version}}",
+      "downloadingAction": "Downloading…",
+      "downloadTimedOut": "Update download timed out. Quit and reopen {{product}} to try again.",
+      "reset": "Reset conversation",
+      "resetDetail": "Clears the visible conversation. Training data and saved coach memory remain.",
+      "restart": "Restart to update to version {{version}}",
+      "restartAction": "Restart to update",
+      "restarting": "Restarting to install version {{version}}",
+      "restartingAction": "Restarting…",
+      "restartRequired": "Restart {{product}} to resume updates",
+      "retry": "Try update again",
+      "startFailed": "Updates could not start. Quit and reopen {{product}} to try again.",
+      "title": "Application",
+      "unavailable": "Updates unavailable",
+      "version": "Version {{version}}",
+      "versionUnknown": "unknown"
+    },
+    "athlete": {
+      "credentialMissing": "No training account credential is connected. Use the setup area above to connect one.",
+      "detail": "This may only identify the currently connected training account. It cannot switch accounts.",
+      "error": {
+        "credentialRequired": "Connect the training account in Setup before saving its athlete ID.",
+        "managedByEnvironment": "The athlete ID is managed outside {{product}} and wasn’t changed.",
+        "notApplied": "The athlete ID wasn’t applied. Reconnect and reload before trying again.",
+        "ownershipUnavailable": "The connected training account couldn’t be verified. Reconnect and reload before trying again.",
+        "requestFailed": "The athlete ID couldn’t be saved. Your edit is still here.",
+        "runtimeUnavailable": "The current training account couldn’t be reloaded. Your edit is still here.",
+        "trainingAccountMismatch": "That athlete ID does not identify the currently connected training account."
+      },
+      "futurePrefix": "For future rides — ",
+      "help": "Use the exact identifier associated with the credential already connected in Setup.",
+      "id": "Athlete ID",
+      "loading": "Loading training account settings…",
+      "pastPrefix": "For past rides — ",
+      "refreshing": "Reconnecting and checking the current training account…",
+      "reload": "Reconnect & reload",
+      "restriction": {
+        "cause": "A {{strava}} API restriction prevents {{intervalsLower}} from sharing activities that came from {{strava}} with {{product}}. Your API key is fine.",
+        "future": "Connect your recording source directly to {{intervalsLower}} and keep {{strava}} connected. This is free and covers future rides.",
+        "past": "Use Import All {{strava}} Data in {{intervalsLower}} settings. This covers past rides and requires an {{intervalsLower}} supporter subscription.",
+        "title_one": "{{restricted}} of {{total}} activity is hidden by {{strava}}",
+        "title_other": "{{restricted}} of {{total}} activities are hidden by {{strava}}"
+      },
+      "reviewSetup": "Review setup",
+      "save": "Save athlete ID",
+      "saved": "Athlete ID saved.",
+      "saving": "Saving athlete ID…",
+      "title": "Training account",
+      "unavailable": "Training account settings aren’t available. Reconnect and reload.",
+      "validation": {
+        "athleteControlCharacters": "Athlete IDs can’t contain control characters.",
+        "athleteRequired": "Enter the athlete ID for the connected training account.",
+        "athleteTooLong": "Athlete IDs must be 512 characters or fewer.",
+        "athleteWhitespace": "Athlete IDs cannot begin or end with whitespace."
+      },
+      "verificationPending": "Verifying the connected training account… Training data stays paused until it completes."
+    },
+    "coach": {
+      "active": "Active",
+      "activeUnavailable": "Active coach settings are unavailable or not configured.",
+      "automatic": "Automatic",
+      "changeRequired": "Change required",
+      "chooseModel": "Choose a model",
+      "chooseProvider": "Choose a provider",
+      "chooseProviderFirst": "Choose a provider first",
+      "currentRoute": "Currently active: {{provider}} · {{model}}",
+      "customModel": "Custom model name",
+      "endpoint": "Endpoint",
+      "endpointDetail": "{{product}} picks the provider’s endpoint for this route.",
+      "error": {
+        "credentialRequired": "This provider needs a saved credential before it can coach you. Use the setup area above to add one.",
+        "invalidInput": "That provider or model wasn’t accepted. Check the model name and try again.",
+        "requestFailed": "Coach settings couldn’t be saved right now. Try again.",
+        "runtimeUnavailable": "Coach settings couldn’t become active. Try saving again."
+      },
+      "inactive": "Not active",
+      "loading": "Loading coach settings…",
+      "model": "Model",
+      "notConfigured": "Not configured",
+      "otherModel": "Other model…",
+      "provider": "Provider",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}} subscription",
+        "claude": "{{claude}} subscription",
+        "codex": "{{codex}} agent (experimental)"
+      },
+      "retry": "Retry",
+      "reviewSetup": "Review setup",
+      "route": "Coach route",
+      "save": "Save coach route",
+      "saved": "Coach settings saved.",
+      "saving": "Saving coach settings…",
+      "title": "Coach",
+      "unavailable": "Coach settings aren’t available right now. Try again.",
+      "unsaved": "Unsaved",
+      "unsupported": "{{codex}} agent isn’t supported on {{operatingSystem}}. Choose {{claude}} subscription or an API-key provider, then save the coach route. Your credentials, athlete data, conversations, and other settings stay unchanged.",
+      "validation": {
+        "modelControlCharacters": "Model names can’t contain control characters.",
+        "modelRequired": "Enter a model name.",
+        "modelTooLong": "Model names must be 512 characters or fewer."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Conversation and time",
+      "detail": "Set when conversations renew and how much recent context your coach carries forward.",
+      "error": {
+        "notApplied": "Conversation settings weren’t applied. Reconnect and reload before trying again.",
+        "requestFailed": "Conversation settings couldn’t be saved. Your edits are still here.",
+        "runtimeUnavailable": "Current conversation settings couldn’t be reloaded. Your edits are still here."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Athlete-local hour, from 0 to 23. A change may make your next message start a fresh conversation.",
+          "label": "Daily reset hour"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Share of the model context reserved for conversation history, above 0% and up to 100%.",
+          "label": "History budget"
+        },
+        "idleMinutes": {
+          "help": "Whole minutes without a message before the conversation resets. Use 0 to turn this off.",
+          "label": "Idle reset",
+          "suffix": "minutes"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Whole days to keep reset archives. Use 0 to keep them forever; changes apply only to future pruning.",
+          "label": "Archive retention",
+          "suffix": "days"
+        },
+        "timezone": {
+          "help": "Use an IANA timezone, such as {{timezone}}. {{product}} follows this computer’s timezone until you save one here, and keeps yours after that.",
+          "label": "Timezone"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Loading conversation settings…",
+      "refreshing": "Reconnecting and checking current settings…",
+      "reload": "Reconnect & reload",
+      "save": "Save conversation settings",
+      "saved": "Conversation settings saved.",
+      "saving": "Saving conversation settings…",
+      "title": "Conversation & time",
+      "unavailable": "Conversation settings aren’t available. Reconnect and reload.",
+      "validation": {
+        "dailyResetHour": "Enter a whole hour from 0 to 23.",
+        "historyTokenBudgetRatio": "Enter a history budget above 0% and no more than 100%.",
+        "idleMinutes": "Enter a safe whole number of minutes, 0 or more.",
+        "resetArchiveRetentionDays": "Enter a safe whole number of days, 0 or more.",
+        "timezone": "Enter a valid IANA timezone, such as {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Change",
+      "changeAria": "Change the {{provider}} credential",
+      "claudeProvider": "{{claude}} subscription",
+      "codexProvider": "{{codex}} agent",
+      "delete": {
+        "action": "Delete",
+        "aria": "Delete the {{provider}} credential",
+        "confirmAria": "Confirm deletion of the {{provider}} credential",
+        "connection": "Delete connection",
+        "credential": "Delete credential",
+        "detail": "This removes it from {{computer}} only. {{product}} will stop using it if it is active. Your provider account is unchanged.",
+        "intervalsAria": "Delete the {{intervals}} connection",
+        "intervalsDetail": "Your saved API key and imported connection will be removed. Your synced rides and past chats stay on {{computer}}.",
+        "intervalsTitle": "Delete the {{intervals}} connection?",
+        "title": "Delete the {{provider}} credential?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Credential deletion cancelled.",
+          "cleanupPending": "Credential deleted locally. Secure storage cleanup will be retried.",
+          "confirmProvider": "Confirm deletion of the {{provider}} credential.",
+          "deleted": "Credential deleted locally.",
+          "deletingProvider": "Deleting the {{provider}} credential locally…",
+          "keyUnverified": "The credential was retained because secure storage could not confirm its encryption key.",
+          "managed": "This credential is managed outside Settings and can’t be deleted here.",
+          "notStored": "That credential is no longer stored. Reload to refresh the list.",
+          "reconcileFailed": "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.",
+          "refreshFailed": "Credential deleted locally. Current credential status couldn’t be refreshed.",
+          "retained": "The credential remains stored. No deletion was completed. Try again.",
+          "setupRefreshFailed": "Credential deleted locally, but setup readiness couldn’t be refreshed. Reload credential status.",
+          "stopFailed": "The coach could not stop using this credential safely. It was not deleted.",
+          "unverified": "Credential deletion could not be confirmed because secure storage could not be verified. Restart {{product}} and reload before trying again."
+        },
+        "recovery": {
+          "locked": "Unlock your login Keychain outside {{product}}, then Retry.",
+          "missing": "The credential encryption key is missing. Restore it if possible, then Retry, or remove all credentials and start again.",
+          "unavailable": "Secure credential storage is unavailable. Retry, or remove all credentials and start again.",
+          "unverified": "{{product}} can’t open some saved credentials safely. Enter each affected credential again."
+        },
+        "reset": {
+          "cancelled": "Credential removal cancelled.",
+          "cleanupPending": "All credentials were removed. Secure storage cleanup will be retried.",
+          "confirm": "Confirm removal of all credentials.",
+          "reloadFailed": "Credentials were removed, but Settings could not reload. Reconnect and reload.",
+          "removed": "All credentials were removed. Set them up again when you’re ready.",
+          "removeFailed": "{{product}} could not remove every stored credential. Retry.",
+          "removing": "Removing all credentials…",
+          "stopFailed": "{{product}} could not stop every active credential. Retry to finish removing credentials.",
+          "unverified": "Credential removal could not be verified because Settings could not reload. Reconnect and reload."
+        },
+        "unavailable": "Saved credentials aren’t available. Reconnect and reload."
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}} profile",
+        "provider": "Provider API key",
+        "training": "Training account key"
+      },
+      "loading": "Loading saved credentials…",
+      "reconnect": "Reconnect & reload",
+      "reload": "Reload credential status",
+      "repairRequired": "Saved credential status needs to be reloaded before setup can continue.",
+      "reset": {
+        "confirm": "Remove all credentials",
+        "detail": "This removes every saved AI credential, {{chatgpt}} profile, {{intervals}} key, {{telegram}} token, and the shared encryption key from {{computer}}. Accounts and imported data remain unchanged.",
+        "title": "Remove all credentials?"
+      },
+      "retry": "Retry",
+      "retryEntry": "Enter again",
+      "runtime": {
+        "active": "Active",
+        "failed": "Needs attention",
+        "storedInactive": "Saved, not active",
+        "verifying": "Verifying…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
     "language": {
       "automaticDetail": "Automatic follows your {{operatingSystem}} language. The coach replies in the language you write in.",
       "explicitDetail": "The app and the coach use this language.",
@@ -25,7 +293,247 @@
       "title": "Language",
       "unavailable": "Language preference unavailable"
     },
+    "managedByEnvironment": "Managed by an environment variable. Change it outside {{product}}.",
+    "palette": {
+      "app": "App palette",
+      "use": "Use the {{palette}} palette"
+    },
     "preferences": "Preferences",
+    "saving": "Saving…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Explicit caching on this route.",
+        "none": "No cache reads",
+        "providerDependent": "Provider-dependent caching; no explicit breakpoint on this route.",
+        "savings": "{{tokens}} cache-read tokens · Saved {{amount}}",
+        "unavailable": "caching unavailable on this route",
+        "unknown": "{{tokens}} cache-read tokens · savings unavailable"
+      },
+      "cap": {
+        "aria": "Daily spend cap",
+        "failed": "The daily cap could not be saved.",
+        "invalid": "Enter a daily cap greater than $0.",
+        "label": "Daily cap (USD)",
+        "save": "Save cap",
+        "value": "{{known}} of {{cap}}"
+      },
+      "date": "{{month}} {{day}}",
+      "detail": "Language model spend against today’s cap",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "Apr",
+        "august": "Aug",
+        "december": "Dec",
+        "february": "Feb",
+        "january": "Jan",
+        "july": "Jul",
+        "june": "Jun",
+        "march": "Mar",
+        "may": "May",
+        "november": "Nov",
+        "october": "Oct",
+        "september": "Sep"
+      },
+      "notice": {
+        "incomplete": "Some provider costs are unavailable, so today’s total is a known minimum.",
+        "malformed": "Some usage records could not be read.",
+        "saved": "Saved {{amount}} with cache reads",
+        "savedMinimum": "Saved at least {{amount}} with cache reads",
+        "stale": "Spend data may be out of date."
+      },
+      "notional": "Subscription usage would have cost {{amount}} on the API. No money moved, and it does not count toward your cap.",
+      "priced": "{{priced}}/{{total}} generations priced",
+      "routeNotional": "would have cost {{amount}} on the API",
+      "routes": "Spend details",
+      "title": "Spending",
+      "today": "Today",
+      "todayDate": "Today · {{date}}",
+      "unavailable": "Spend data unavailable."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "Another app or deployment is polling this bot. Stop it there, then choose Check again. Different bots can still run at the same time.",
+        "credentialUnavailable": "The saved bot token could not be read from secure storage. Quit and reopen {{product}}, then choose Check again. If it still cannot be read, delete this connection, then connect a new bot.",
+        "daemonUnavailable": "The local coaching service is unavailable. Keep {{product}} open, then choose Check again.",
+        "drainRequired": "A {{telegram}} reply is still finishing. Wait a moment, then try again.",
+        "encryption": "Secure token storage is unavailable. Quit and reopen {{product}}, {{recoveryAction}}, then choose Check again.",
+        "homeMismatch": "Desktop is connected to a different athlete home. Restart {{product}}, then check again.",
+        "identityUnknown": "The saved {{telegram}} connection could not be verified. Choose Check again before trying another action.",
+        "invalidToken": "{{telegram}} rejected the saved token. Delete this connection, then connect a new bot with a copied token from {{botFather}}.",
+        "offline": "{{telegram}} is temporarily offline. {{product}} will retry while {{computer}} is awake and online.",
+        "startFailed": "{{telegram}} could not start. Keep {{product}} open, check the internet connection, then choose Check again.",
+        "storageFailed": "The encrypted bot credential could not be saved. Check local disk access and try again.",
+        "storageUncertain": "{{telegram}} settings may not have been saved completely. Keep {{telegram}} unchanged and choose Check again before trying another action.",
+        "transferRequired": "This bot belongs to another {{product}} installation or hosted deployment. Delete the connection there, then reconnect it here with a copied token.",
+        "unsafeBackend": "No secure credential backend is available, so {{product}} refused to access the saved bot token without encryption. Quit and reopen {{product}}, then choose Check again."
+      },
+      "availability": "{{telegram}} works only while {{product}} and its local coaching service are running, and {{computer}} is awake and online.",
+      "channel": {
+        "conflict": "Polling conflict",
+        "connecting": "Connecting",
+        "failed": "Needs attention",
+        "off": "Off",
+        "online": "Online",
+        "reconnecting": "Reconnecting",
+        "suspended": "Paused while asleep",
+        "tokenRejected": "Token rejected",
+        "transferRequired": "Transfer required",
+        "waitingForCredential": "Needs bot token"
+      },
+      "check": "Check again",
+      "delete": {
+        "action": "Delete",
+        "confirm": "Delete connection",
+        "detail": "This turns the bot off, deletes its encrypted token and allowed-user access from {{computer}}. The {{telegram}} bot and its chat remain in {{telegram}}.",
+        "title": "Delete @{{botUsername}} from {{computer}}?"
+      },
+      "detail": "A dedicated bot is recommended. It creates a new @username and {{telegram}} chat; visible history from a previous bot does not move. Athlete memory, training data and plans are shared.",
+      "disable": "Turn off",
+      "enable": "Turn on",
+      "feedback": {
+        "failure": {
+          "change": "{{telegram}} settings could not be changed. Try again.",
+          "changeStorageUnverified": "The change was not applied because storage could not be verified. Restart {{product}} and check this setting before trying again.",
+          "changeUncertain": "The {{telegram}} change may have started, but {{product}} could not confirm whether it finished. Restart {{product}} and check this setting before trying again.",
+          "clipboardClearFailed": "The clipboard could not be cleared, so the copied token was not used. The current {{telegram}} bot is unchanged.",
+          "clipboardUnavailable": "The clipboard could not be read. No {{telegram}} token was used.",
+          "connectUncertain": "The {{telegram}} connection may have started, but {{product}} could not confirm whether it finished. Restart {{product}} and check {{telegram}} before trying again.",
+          "invalidToken": "{{telegram}} rejected the copied token. The current {{telegram}} bot is unchanged.",
+          "invalidTokenFormat": "The clipboard does not contain a valid {{telegram}} bot token. The current {{telegram}} bot is unchanged.",
+          "pairing": "Pairing could not start. Check the bot connection and try again.",
+          "pairingUncertain": "The primary {{telegram}} user may have been saved, but {{product}} could not verify storage. Restart {{product}} and check {{telegram}} before pairing again.",
+          "pasteToken": "The bot token could not be verified or saved. Copy a fresh token from {{botFather}} and try again.",
+          "removeStorageUnverified": "{{telegram}} connection deletion could not be confirmed because secure storage could not be verified. Restart {{product}} and check {{telegram}} before trying again.",
+          "removeUncertain": "{{telegram}} connection deletion may not have completed. Restart {{product}} and check whether the bot is still connected before trying again.",
+          "senders": "The allowed-user list could not be changed. Check the user ID and try again.",
+          "storageFailed": "The copied token could not be stored. The current {{telegram}} bot is unchanged.",
+          "tokenNotApplied": "The copied token was not applied. The current {{telegram}} bot is unchanged.",
+          "tokenStorageUnverified": "The copied token was not applied because secure storage could not be verified. The current {{telegram}} bot is unchanged. Restart {{product}} and check {{telegram}} before trying again.",
+          "unsafeAccess": "No secure credential backend is available, so {{product}} refused to access the saved bot token without encryption. Quit and reopen {{product}}, then choose Check again.",
+          "unsafeToken": "No secure credential backend is available, so {{product}} refused to save the bot token without encryption. Quit and reopen {{product}}, copy the bot token again, then retry.",
+          "unsafeTokenUnchanged": "The current {{telegram}} bot is unchanged because no secure credential backend is available. {{product}} refused to save the copied token without encryption. Quit and reopen {{product}}, copy the bot token again, then retry.",
+          "validationUnavailable": "{{telegram}} could not verify the copied token right now. The current {{telegram}} bot is unchanged.",
+          "webhook": "The webhook could not be removed. Check the internet connection and try again.",
+          "webhookRemovalRequired": "The copied bot still uses a webhook. Remove the webhook, then delete the current connection and connect this bot."
+        },
+        "health": {
+          "conflict": "Another service is polling this bot. Stop that deployment, then check again.",
+          "connecting": "{{telegram}} is connecting.",
+          "failed": "{{telegram}} needs attention. Keep the app open, check the connection, and try again.",
+          "gap": "{{telegram}} reconnected after a long gap. Some messages may not have arrived.",
+          "invalidToken": "{{telegram}} rejected this token. Delete the connection, then connect a new bot with a fresh token from {{botFather}}.",
+          "off": "{{telegram}} is off.",
+          "online": "{{telegram}} is online.",
+          "transferRequired": "This bot is still owned by another Desktop installation. Delete the connection there before connecting it here.",
+          "waitingForToken": "Copy a bot token from {{botFather}}, then paste it from the clipboard."
+        },
+        "pairing": {
+          "cancelled": "{{telegram}} pairing was cancelled.",
+          "connected": "{{telegram}} connected to @{{username}}. Pairing needs to be set up.",
+          "expired": "The pairing code expired before it was used. Create a new code when you are ready.",
+          "paired": "{{telegram}} is paired with its primary user.",
+          "ready": "Pairing code ready. Send it to the bot in {{telegram}}.",
+          "refused": "Pairing was refused because this bot already has a primary user.",
+          "replaced": "A new {{telegram}} pairing code is ready. Send it to the bot in {{telegram}}.",
+          "storageFailed": "The primary {{telegram}} user could not be saved. Check local disk access and try pairing again.",
+          "unavailable": "Pairing is unavailable until the {{telegram}} bot can connect."
+        },
+        "platform": {
+          "encryptionAccess": "Secure token storage is unavailable. Quit and reopen {{product}}, {{recoveryAction}}, then choose Check again.",
+          "encryptionSave": "Secure token storage is unavailable. Quit and reopen {{product}}, {{recoveryAction}}, copy the bot token again, then retry.",
+          "encryptionUnchanged": "The current {{telegram}} bot is unchanged because secure token storage is unavailable. Quit and reopen {{product}}, {{recoveryAction}}, copy the bot token again, then retry.",
+          "offline": "{{telegram}} is offline. {{product}} will keep trying while {{computer}} is awake and online.",
+          "removed": "{{telegram}} connection deleted from {{computer}}.",
+          "suspended": "{{telegram}} polling is paused while {{computer}} sleeps.",
+          "webhookConnect": "The copied bot still uses a webhook. Remove the webhook before pairing it with {{computer}}.",
+          "webhookVerified": "Bot verified. Remove its webhook before pairing it with {{computer}}."
+        },
+        "sender": {
+          "added": "{{telegram}} user added.",
+          "daemonUncertain": "The allowed-user list may have changed, but {{product}} lost confirmation from the local coaching service. Restart {{product}} and check the list before trying again.",
+          "removed": "{{telegram}} user removed.",
+          "storageUncertain": "The allowed-user list may have changed, but {{product}} could not verify storage. Restart {{product}} and check the list before trying again."
+        },
+        "unavailable": "{{telegram}} settings aren’t available. Keep the app open and try again.",
+        "working": {
+          "acknowledgeGap": "Clearing the {{telegram}} delivery warning…",
+          "addSender": "Adding a {{telegram}} user…",
+          "beginPairing": "Creating a private pairing code…",
+          "cancelPairing": "Cancelling pairing…",
+          "disable": "Turning {{telegram}} off…",
+          "enable": "Turning {{telegram}} on…",
+          "pasteToken": "Reading and verifying the {{telegram}} token…",
+          "reconcile": "Checking the {{telegram}} connection…",
+          "remove": "Deleting the {{telegram}} connection…",
+          "removeSender": "Removing the {{telegram}} user…",
+          "removeWebhook": "Removing the bot’s webhook…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Acknowledge",
+        "detail": "The bot resumed after a long gap, so messages sent during that time may not have reached {{product}}. Check the {{telegram}} chat before clearing this warning.",
+        "title": "Check {{telegram}} for missed messages"
+      },
+      "paired": "Paired with a primary {{telegram}} user",
+      "pairing": {
+        "cancel": "Cancel pairing",
+        "code": "{{telegram}} pairing code",
+        "detail": "A one-minute code ensures only the person with access to {{computer}} can claim the bot.",
+        "expired": "The pairing code expired before it was used. Create a new code when you are ready.",
+        "expires": "Expires {{time}}",
+        "instruction": "Send this code as a private message to @{{username}}. The first account to send it becomes the primary user, and the bot stays online.",
+        "primary": "Pair the primary user",
+        "refused": "Pairing was refused because this bot already has a primary user.",
+        "restart": "Create new code and turn on",
+        "start": "Start pairing and turn on",
+        "storageFailed": "The primary {{telegram}} user could not be saved. Check local disk access and try pairing again.",
+        "storageUncertain": "The primary {{telegram}} user may have been saved, but {{product}} could not verify storage. Restart {{product}} and check {{telegram}} before pairing again.",
+        "title": "Pair your {{telegram}} account",
+        "unavailable": "Pairing is unavailable until the {{telegram}} bot can connect."
+      },
+      "reloadDetail": "Reload the saved connection status before trying another action.",
+      "retry": "Retry",
+      "sender": {
+        "add": "Add user",
+        "additional": "Additional allowed user",
+        "addTitle": "Add a {{telegram}} user ID",
+        "advanced": "Advanced · allowed users",
+        "help": "Add only people you trust to use your coach and shared athlete data.",
+        "list": "Allowed {{telegram}} users",
+        "loadFailed": "Allowed users could not be loaded. {{product}} will try again automatically.",
+        "loading": "Loading allowed users…",
+        "primary": "Primary user · required",
+        "remove": "Remove",
+        "removeAria": "Remove {{telegram}} user {{senderId}}",
+        "removeConfirm": "Remove user",
+        "removeDetail": "This user will lose access to your coach and shared athlete data until you re-add them by sender ID {{senderId}}.",
+        "removeTitle": "Remove {{telegram}} user {{senderId}}?",
+        "validation": "Enter a numeric {{telegram}} user ID with at least two digits."
+      },
+      "setup": {
+        "afterBotfather": "for a bot, copy its token, then return here. {{product}} reads the token directly from the clipboard; there is no token field.",
+        "ask": "Ask",
+        "cancel": "Cancel",
+        "cancelAria": "Cancel {{telegram}} bot setup",
+        "connect": "Connect",
+        "detail": "Connect a {{telegram}} bot with a copied token.",
+        "paste": "Paste token from clipboard",
+        "title": "Create a bot with {{botFather}}"
+      },
+      "suspended": "{{telegram}} polling resumes when {{computer}} wakes.",
+      "title": "Channels",
+      "unavailable": "{{telegram}} status unavailable",
+      "verified": "Bot verified; starting pairing turns {{telegram}} on",
+      "webhook": {
+        "detail": "{{telegram}} cannot deliver to a webhook and {{computer}} at the same time. This explicit action keeps pending updates and lets Desktop begin polling.",
+        "remove": "Remove webhook",
+        "title": "Remove the existing webhook"
+      }
+    },
+    "title": "Settings",
     "units": {
       "detail": "Distance and body mass follow this setting. Cycling power-to-weight remains W/kg.",
       "displayUnits": "Display units",
@@ -34,6 +542,323 @@
       "saving": "Saving units…",
       "title": "Units",
       "unavailable": "Units preference unavailable"
+    }
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Advanced",
+      "announcement": {
+        "apiKey": "API key setup opened below this row.",
+        "chatgpt": "{{chatgpt}} sign-in opened below this row."
+      },
+      "apiKeyHint": "Created in the provider's console, billed per use — usually cents per conversation.",
+      "cancelLabel": "Cancel API key setup",
+      "change": "Change",
+      "chatgptActivating": "Signed in · Activating coach…",
+      "choose": "Choose",
+      "claude": {
+        "badge": {
+          "absentBinary": "Not installed",
+          "apiKeyToken": "API key, not a subscription",
+          "checking": "Checking",
+          "disabled": "Turned off",
+          "notLoggedIn": "Not signed in",
+          "ready": "Signed in",
+          "readyApiKey": "API key billing",
+          "workingAreaUnavailable": "Could not start safely"
+        },
+        "checkAgain": "Choose Check again to verify {{claudeCode}} on this Mac.",
+        "detail": "Uses the {{claudeCode}} CLI already installed and signed in on {{computer}}. No API key needed.",
+        "identity": {
+          "apiKey": "Using {{anthropic}} API key billing - usage is charged to your API account.",
+          "email": "Signed in as {{email}}",
+          "emailPlan": "Signed in as {{email}} - {{claude}} {{plan}} subscription",
+          "plan": "Signed in - {{claude}} {{plan}} subscription",
+          "signedIn": "Signed in"
+        },
+        "recheck": "Check again",
+        "statusDetail": {
+          "absentBinary": "{{claudeCode}} CLI was not found, or the installed version is too old. Install or update it, then choose Check again.",
+          "apiKeyToken": "{{claudeCode}} CLI is authenticated with an API key or token, not a subscription. Sign in with your subscription in {{command}}, or opt in to API key billing in your configuration.",
+          "checking": "Checking the {{claudeCode}} CLI sign-in on {{computer}}…",
+          "disabled": "The {{claude}} subscription lane is turned off on {{computer}}. Choose another provider.",
+          "notLoggedIn": "{{claudeCode}} CLI is not signed in. Open a terminal, run {{command}}, and sign in with your {{claude}} subscription. {{product}} never signs in for you.",
+          "workingAreaUnavailable": "{{product}} could not prepare {{claude}}'s private working area. Restart {{product}}, then choose Check again."
+        }
+      },
+      "connected": "Connected · powers your coach",
+      "credentialLabel": "{{provider}} API key",
+      "customModel": "Custom model name",
+      "endpoint": {
+        "automatic": "Keep current, or use provider default",
+        "custom": "Use a custom endpoint",
+        "customTitle": "Custom endpoint",
+        "default": "Reset to provider default",
+        "title": "Endpoint"
+      },
+      "identity": "Powers your coach · {{identity}}",
+      "lane": {
+        "apiKey": "API key",
+        "chatgpt": "{{chatgpt}} subscription"
+      },
+      "laneHint": {
+        "apiKey": "{{providers}} providers · pay per use",
+        "claudeCli": "Checks your {{claude}} subscription when selected",
+        "openaiCodex": "Use the plan you already pay for"
+      },
+      "menuLabel": "AI that powers your coach",
+      "model": "Model",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "balanced",
+        "cheap": "cheap",
+        "cheaper": "cheaper",
+        "cheapest": "cheapest",
+        "experimental": "experimental",
+        "fast": "fast",
+        "fastAndCheap": "fast & cheap",
+        "faster": "faster",
+        "manyModels": "one key, many models",
+        "mostCapable": "most capable",
+        "recommended": "recommended"
+      },
+      "modelVia": "{{model}} (via {{provider}})",
+      "otherModel": "Other model…",
+      "pending": {
+        "activation": "Powers your coach · signed in · activation needed",
+        "apiKey": "Powers your coach · add a key to finish",
+        "chatgpt": "Powers your coach · sign in to finish",
+        "checkingClaude": "Powers your coach · checking {{claudeCode}} sign-in",
+        "claude": "Powers your coach · sign in from a terminal to finish"
+      },
+      "provider": "Provider",
+      "saveLabel": "Save API key",
+      "subtitle": "Required — {{product}} doesn't include one",
+      "title": "AI that powers your coach",
+      "tooltip": {
+        "body": "It runs on a {{chatgpt}} subscription, a {{claudeCode}} sign-in, or an API key you supply. Whichever you pick stays on {{computer}}.",
+        "label": "About the AI that powers your coach",
+        "lead": "{{product}} has no AI of its own"
+      },
+      "trigger": {
+        "set": "Change what powers your coach",
+        "unset": "Choose what powers your coach"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Signed in, but the coach could not be activated. Retry without signing in again.",
+      "cancelLabel": "Cancel {{chatgpt}} setup",
+      "cancelSignIn": "Cancel sign-in",
+      "hint": "Opens {{openai}}'s sign-in page in your browser — you type your password there, not here. Needs a paid plan.",
+      "phase": {
+        "activatingCoach": "Activating coach…",
+        "completingSignIn": "Completing sign-in…",
+        "ready": "Ready",
+        "signedIn": "Signed in",
+        "waitingForBrowser": "Waiting for browser…"
+      },
+      "refusal": {
+        "alreadyInProgress": "A {{chatgpt}} sign-in is already in progress.",
+        "callbackUnavailable": "The local sign-in callback is unavailable. Close other sign-in flows and retry.",
+        "cancelled": "{{chatgpt}} sign-in was cancelled. You can retry.",
+        "exchangeFailed": "{{chatgpt}} sign-in could not be completed. Please retry.",
+        "runtimeUnavailable": "{{chatgpt}} sign-in was saved, but the coach could not be configured.",
+        "storageFailed": "{{chatgpt}} sign-in completed, but the profile could not be saved.",
+        "timedOut": "{{chatgpt}} sign-in timed out. Retry when you are ready."
+      },
+      "retryActivation": "Retry activation",
+      "signIn": "Sign in with {{chatgpt}}"
+    },
+    "chatSubtitle": "Connect what your coach needs. {{telegram}} is optional and never blocks Chat.",
+    "checking": {
+      "heading": "Checking your setup",
+      "rowSubtitle": "Checking what is already connected…",
+      "status": "Checking setup…",
+      "subtitle": "Reading the connections already saved on this computer. This can take a moment right after launch."
+    },
+    "error": {
+      "configurationUnavailable": "Coach choices are unavailable right now. Check the setup area again.",
+      "credentialReenterRequired": "That saved key could not be used. Enter it again to continue.",
+      "credentialRequired": "Sign in with {{chatgpt}} or add at least one model key to continue.",
+      "credentialSaveFailed": "That key could not be saved. Try entering it again.",
+      "credentialStatusUnavailable": "That key was saved, but its status could not be refreshed. Check the setup area again.",
+      "endpointInvalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
+      "intakeIncomplete": "Answer the required safety questions to continue.",
+      "intakeSaveFailed": "Your answers could not be saved. Please try again.",
+      "intervalsClipboardClearFailed": "The API key wasn’t saved because {{product}} couldn’t safely clear it from the clipboard. Copy it again, then try again.",
+      "intervalsClipboardUnavailable": "{{product}} couldn’t read an API key from the clipboard. Copy it in {{intervals}}, then try again.",
+      "intervalsKeyRejected": "{{intervals}} didn’t accept the copied API key. Copy a current API key, then try again.",
+      "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that the copied API key matches the training data on {{computer}}. Try again when training data is available.",
+      "intervalsRuntimeUnavailable": "The copied API key couldn’t be activated. Copy it in {{intervals}}, then try again.",
+      "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the copied API key is active. Reload credential status before trying again.",
+      "intervalsStorageUncertain": "{{product}} couldn’t confirm whether the copied API key was saved. Reload credential status before trying again.",
+      "intervalsValidationUnavailable": "{{product}} couldn’t verify the copied API key with {{intervals}}. Check your connection, then try again.",
+      "invalidInput": "That key was not accepted. Check it and enter it again.",
+      "modelRuntimeUnavailable": "Your provider choice is saved, but it is not active yet. Try activating it again.",
+      "modelSelectionRequired": "Choose a model or enter a custom model name.",
+      "runtimeUnavailable": "That key was saved, but it is not active yet. Choose Retry saved keys to activate it.",
+      "storageFailed": "The app could not confirm that key was saved securely. Check that secure storage is available and try again.",
+      "storageUncertain": "The app could not prove which saved key will survive a restart. Re-enter the key before continuing.",
+      "trainingAccountMismatch": "That {{intervalsLower}} key belongs to a different athlete than the training history already stored. Switching accounts is not supported yet.",
+      "trainingDataRequired": "Connect {{intervalsLower}} or import at least one ride file.",
+      "unsafeBackend": "The app cannot safely store that key with the current storage backend."
+    },
+    "footerNote": "Everything stays on {{computer}}.",
+    "heading": "Get your coach running before you can chat",
+    "import": {
+      "available": "Local library import: {{imported}} imported. {{quarantined}} quarantined. Coaching access to activities and streams is available.",
+      "choosing": "Waiting for ride file selection…",
+      "failed": "Local library import failed. {{imported}} imported. {{quarantined}} quarantined. No new ride files are available for coaching.",
+      "fileCount_one": "{{formattedCount}} ride file",
+      "fileCount_other": "{{formattedCount}} ride files",
+      "importing": "Importing ride files…",
+      "unavailable": "Local library import: {{imported}} imported. {{quarantined}} quarantined. Coaching access to activities and streams is temporarily unavailable; retry the import.",
+      "unconfirmed": "Local library import failed. The result could not be confirmed; check the library before trying again."
+    },
+    "intake": {
+      "managing": "Managing an injury",
+      "none": "No current injury",
+      "retrySave": "Retry saving answers",
+      "returning": "Returning after an injury",
+      "select": "Select…",
+      "subtitle": "Records your current injury or return context.",
+      "title": "Injury status right now"
+    },
+    "requiredReady": "{{ready}} of {{total}} required ready",
+    "retrySavedKeys": "Retry saved keys",
+    "retryStatus": "Retry setup status",
+    "settingsHeading": "Setup",
+    "startCoaching": "Start coaching",
+    "statusUnavailable": "Setup status couldn’t be loaded. Check that {{product}} is running, then try again.",
+    "telegram": {
+      "announcement": "{{telegram}} bot setup opened below this row.",
+      "ask": "Ask",
+      "availability": "{{telegram}} works while {{product}} is running and {{computer}} is awake and online.",
+      "cancelLabel": "Cancel {{telegram}} bot setup",
+      "checkAgain": "Check again",
+      "connecting": "Connecting…",
+      "create": "Create",
+      "createAfterBotFather": "for a bot, copy its token, then return here. {{product}} reads and verifies the token directly from the clipboard; the token is never shown.",
+      "createCopy": "Ask {{botFather}} for a bot, copy its token, then return here. {{product}} reads and verifies the token directly from the clipboard; the token is never shown.",
+      "createLabel": "Create {{telegram}} bot",
+      "createTitle": "Create a bot with {{botFather}}",
+      "delete": "Delete",
+      "deleteConnection": "Delete connection",
+      "deleteCopy": "This turns {{telegram}} off and deletes the encrypted token and allowed-user access from {{computer}}. The {{telegram}} bot and chat remain in {{telegram}}.",
+      "deleteLabel": "Delete the {{telegram}} connection",
+      "deleteTitle": "Delete the {{telegram}} connection?",
+      "deleting": "Deleting…",
+      "notDeleted": "The {{telegram}} connection was not deleted from {{computer}}.",
+      "optional": "Optional",
+      "unappliedToken": "The copied token was not applied. The current {{telegram}} bot is unchanged.",
+      "useToken": "Use copied token",
+      "verified": "Bot verified · @{{username}}",
+      "verifiedPrefix": "Bot verified"
+    },
+    "training": {
+      "cancelLabel": "Cancel {{intervals}} setup",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connectTitle": "Connect {{intervals}}",
+      "hint": "In {{intervals}}, open Settings → Developer Settings, copy the API key, then return here. {{product}} reads it without showing it.",
+      "importFiles": "Import ride files instead",
+      "subtitle": {
+        "connected": "Connected · where your rides come from",
+        "missing": "Connect or import ride files."
+      },
+      "tooltip": {
+        "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then copy its API key.",
+        "label": "About {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Connect {{intervals}}"
+      },
+      "useCopiedKey": "Use copied API key"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Checking setup…",
+    "loading": {
+      "archive": "Loading past chats…",
+      "chat": "Loading chat…",
+      "plan": "Loading plan…",
+      "settings": "Loading settings…",
+      "training": "Loading training…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "{{operatingSystem}} encryption is unavailable. Make sure {{keychain}} is available, then try again.",
+        "windows": "{{operatingSystem}} credential encryption ({{encryption}}) is unavailable. Quit and reopen {{product}}, then try again."
+      },
+      "credentialRecoveryAction": {
+        "mac": "unlock your login keychain",
+        "windows": "make sure {{operatingSystem}} credential encryption ({{encryption}}) is available"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Main navigation",
+    "newChat": "New chat",
+    "planAttention_one": "Plan, {{formattedCount}} item needs attention",
+    "planAttention_other": "Plan, {{formattedCount}} items need attention",
+    "sync": {
+      "action": {
+        "again": "Sync again",
+        "now": "Sync now",
+        "retry": "Try again",
+        "unavailable": "Sync unavailable"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Sync needs attention",
+        "loading": "Loading training data",
+        "never": "Not synced yet",
+        "synced": "Training data synced",
+        "syncing": "Syncing",
+        "unavailable": "Training data unavailable"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Connection interrupted. The sync may still be finishing. {{product}} won’t retry it automatically.",
+        "noChange": "Local training-data processing completed.",
+        "noChangeRestricted_one": "Local training-data processing completed. A {{source}} API restriction prevents {{provider}} from sharing one activity, so it isn’t included.",
+        "noChangeRestricted_other": "Local training-data processing completed. A {{source}} API restriction prevents {{provider}} from sharing {{formattedCount}} activities, so they aren’t included.",
+        "operationFailure": "We couldn’t complete the training-data check. Your existing data is still available.",
+        "partial": "Training-data processing partially completed. Try again to finish.",
+        "protocol": "{{product}} couldn’t verify the sync result. Quit and reopen {{product}}.",
+        "published": "Training-data check completed.",
+        "publishedRestricted_one": "Training-data check completed. A {{source}} API restriction prevents {{provider}} from sharing one activity, so it isn’t included.",
+        "publishedRestricted_other": "Training-data check completed. A {{source}} API restriction prevents {{provider}} from sharing {{formattedCount}} activities, so they aren’t included.",
+        "queued": "Sync queued.",
+        "running": "Syncing training data…"
+      },
+      "restriction": {
+        "fixAction": "· How to fix this",
+        "fixLabel": "{{restrictionLabel}}. How to fix this",
+        "label_one": "{{formattedCount}} hidden by {{source}}",
+        "label_other": "{{formattedCount}} hidden by {{source}}",
+        "tooltipBody": "A {{source}} API restriction prevents {{provider}} from sharing these activities with {{product}}.",
+        "tooltipLabel": "Why are activities hidden?",
+        "tooltipLead_one": "{{formattedCount}} activity hidden by {{source}}",
+        "tooltipLead_other": "{{formattedCount}} activities hidden by {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Unknown sync time"
+    },
+    "update": {
+      "available": "Update available",
+      "availableVersion": "Update version {{version}} is available",
+      "installVersion": "Install update version {{version}}",
+      "restarting": "Restarting…",
+      "restartingVersion": "Restarting to install update version {{version}}"
+    },
+    "views": {
+      "archive": "Past chats",
+      "chat": "Chat",
+      "plan": "Plan",
+      "settings": "Settings",
+      "training": "Training"
     }
   }
 }

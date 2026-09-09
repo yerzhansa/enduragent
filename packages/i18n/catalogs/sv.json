@@ -34,6 +34,831 @@
       "saving": "Sparar enheter…",
       "title": "Enheter",
       "unavailable": "Enhetsinställningen är inte tillgänglig"
+    },
+    "application": {
+      "check": "Sök efter uppdateringar",
+      "checkFailed": "Det gick inte att söka efter uppdateringar. Försök igen",
+      "checking": "Söker efter uppdateringar",
+      "checkingAction": "Söker…",
+      "current": "{{product}} är uppdaterat",
+      "danger": "Riskfyllda åtgärder",
+      "downloadFailed": "Uppdateringen kunde inte hämtas. Försök igen",
+      "downloading": "Hämtar uppdatering {{version}}",
+      "downloadingAction": "Hämtar…",
+      "downloadTimedOut": "Tidsgränsen för hämtningen av uppdateringen överskreds. Avsluta och öppna {{product}} igen för att försöka på nytt.",
+      "reset": "Återställ samtal",
+      "resetDetail": "Rensar det synliga samtalet. Träningsdata och tränarens sparade minne finns kvar.",
+      "restart": "Starta om för att uppdatera till version {{version}}",
+      "restartAction": "Starta om och uppdatera",
+      "restarting": "Startar om för att installera version {{version}}",
+      "restartingAction": "Startar om…",
+      "restartRequired": "Starta om {{product}} för att återuppta uppdateringar",
+      "retry": "Försök uppdatera igen",
+      "startFailed": "Uppdateringar kunde inte starta. Avsluta och öppna {{product}} igen för att försöka på nytt.",
+      "title": "App",
+      "unavailable": "Uppdateringar är inte tillgängliga",
+      "version": "Version {{version}}",
+      "versionUnknown": "okänd"
+    },
+    "athlete": {
+      "credentialMissing": "Inga inloggningsuppgifter för ett träningskonto är anslutna. Använd konfigurationen ovan för att ansluta ett konto.",
+      "detail": "Det här får bara identifiera det träningskonto som är anslutet nu. Det går inte att byta konto här.",
+      "error": {
+        "credentialRequired": "Anslut träningskontot under Konfiguration innan du sparar dess idrotts-ID.",
+        "managedByEnvironment": "Idrotts-ID:t hanteras utanför {{product}} och ändrades inte.",
+        "notApplied": "Idrotts-ID:t tillämpades inte. Anslut på nytt och läs in igen innan du försöker på nytt.",
+        "ownershipUnavailable": "Det anslutna träningskontot kunde inte verifieras. Anslut på nytt och läs in igen innan du försöker på nytt.",
+        "requestFailed": "Idrotts-ID:t kunde inte sparas. Din ändring finns kvar här.",
+        "runtimeUnavailable": "Det aktuella träningskontot kunde inte läsas in igen. Din ändring finns kvar här.",
+        "trainingAccountMismatch": "Det idrotts-ID:t tillhör inte det träningskonto som är anslutet nu."
+      },
+      "futurePrefix": "För framtida cykelturer: ",
+      "help": "Använd exakt det ID som hör till de inloggningsuppgifter som redan är anslutna under Konfiguration.",
+      "id": "Idrotts-ID",
+      "loading": "Läser in träningskontots inställningar…",
+      "pastPrefix": "För tidigare cykelturer: ",
+      "refreshing": "Ansluter på nytt och kontrollerar det aktuella träningskontot…",
+      "reload": "Anslut på nytt och läs in igen",
+      "restriction": {
+        "cause": "En API-begränsning hos {{strava}} hindrar {{intervalsLower}} från att dela aktiviteter från {{strava}} med {{product}}. Din API-nyckel fungerar.",
+        "future": "Anslut enheten eller tjänsten som registrerar dina pass direkt till {{intervalsLower}} och behåll anslutningen till {{strava}}. Det är gratis och gäller framtida cykelturer.",
+        "past": "Använd Import All {{strava}} Data i inställningarna för {{intervalsLower}}. Det gäller tidigare cykelturer och kräver ett supporterabonnemang på {{intervalsLower}}.",
+        "title_one": "{{restricted}} av {{total}} aktivitet döljs av {{strava}}",
+        "title_other": "{{restricted}} av {{total}} aktiviteter döljs av {{strava}}"
+      },
+      "reviewSetup": "Granska konfigurationen",
+      "save": "Spara idrotts-ID",
+      "saved": "Idrotts-ID sparat.",
+      "saving": "Sparar idrotts-ID…",
+      "title": "Träningskonto",
+      "unavailable": "Träningskontots inställningar är inte tillgängliga. Anslut på nytt och läs in igen.",
+      "validation": {
+        "athleteControlCharacters": "Idrotts-ID får inte innehålla kontrolltecken.",
+        "athleteRequired": "Ange idrotts-ID för det anslutna träningskontot.",
+        "athleteTooLong": "Idrotts-ID får innehålla högst 512 tecken.",
+        "athleteWhitespace": "Idrotts-ID får inte börja eller sluta med blanktecken."
+      },
+      "verificationPending": "Verifierar det anslutna träningskontot… Träningsdata förblir pausade tills verifieringen är klar."
+    },
+    "coach": {
+      "active": "Aktiv",
+      "activeUnavailable": "Den aktiva tränarens inställningar är inte tillgängliga eller har inte konfigurerats.",
+      "automatic": "Automatiskt",
+      "changeRequired": "Ändring krävs",
+      "chooseModel": "Välj en modell",
+      "chooseProvider": "Välj en leverantör",
+      "chooseProviderFirst": "Välj en leverantör först",
+      "currentRoute": "Aktiv nu: {{provider}} · {{model}}",
+      "customModel": "Eget modellnamn",
+      "endpoint": "Slutpunkt",
+      "endpointDetail": "{{product}} väljer leverantörens slutpunkt för den här anslutningen.",
+      "error": {
+        "credentialRequired": "Den här leverantören behöver sparade inloggningsuppgifter för att kunna träna dig. Lägg till dem i konfigurationen ovan.",
+        "invalidInput": "Leverantören eller modellen godkändes inte. Kontrollera modellnamnet och försök igen.",
+        "requestFailed": "Tränarinställningarna kunde inte sparas just nu. Försök igen.",
+        "runtimeUnavailable": "Tränarinställningarna kunde inte aktiveras. Försök spara igen."
+      },
+      "inactive": "Inte aktiv",
+      "loading": "Läser in tränarinställningar…",
+      "model": "Modell",
+      "notConfigured": "Inte konfigurerad",
+      "otherModel": "Annan modell…",
+      "provider": "Leverantör",
+      "providerLabel": {
+        "chatgpt": "{{chatgpt}}-abonnemang",
+        "claude": "{{claude}}-abonnemang",
+        "codex": "{{codex}}-agent (experimentell)"
+      },
+      "retry": "Försök igen",
+      "reviewSetup": "Granska konfigurationen",
+      "route": "Tränaranslutning",
+      "save": "Spara tränaranslutning",
+      "saved": "Tränarinställningar sparade.",
+      "saving": "Sparar tränarinställningar…",
+      "title": "Tränare",
+      "unavailable": "Tränarinställningarna är inte tillgängliga just nu. Försök igen.",
+      "unsaved": "Osparat",
+      "unsupported": "{{codex}}-agenten stöds inte på {{operatingSystem}}. Välj ett {{claude}}-abonnemang eller en leverantör med API-nyckel och spara sedan tränaranslutningen. Dina inloggningsuppgifter, träningsdata, samtal och övriga inställningar förblir oförändrade.",
+      "validation": {
+        "modelControlCharacters": "Modellnamn får inte innehålla kontrolltecken.",
+        "modelRequired": "Ange ett modellnamn.",
+        "modelTooLong": "Modellnamn får innehålla högst 512 tecken."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Samtal och tid",
+      "detail": "Ange när ett nytt samtal börjar och hur mycket av det senaste sammanhanget tränaren tar med sig.",
+      "error": {
+        "notApplied": "Samtalsinställningarna tillämpades inte. Anslut på nytt och läs in igen innan du försöker på nytt.",
+        "requestFailed": "Samtalsinställningarna kunde inte sparas. Dina ändringar finns kvar här.",
+        "runtimeUnavailable": "De aktuella samtalsinställningarna kunde inte läsas in igen. Dina ändringar finns kvar här."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Timme i din lokala tid, från 0 till 23. En ändring kan göra att ditt nästa meddelande startar ett nytt samtal.",
+          "label": "Timme för daglig återställning"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Andel av modellens kontext som reserveras för samtalshistorik, över 0 % och upp till 100 %.",
+          "label": "Utrymme för historik"
+        },
+        "idleMinutes": {
+          "help": "Hela minuter utan meddelanden innan samtalet återställs. Ange 0 för att stänga av detta.",
+          "label": "Återställning vid inaktivitet",
+          "suffix": "minuter"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Antal hela dagar som arkiv från återställda samtal sparas. Ange 0 för att behålla dem för alltid. Ändringar gäller bara framtida rensning.",
+          "label": "Lagringstid för arkiv",
+          "suffix": "dagar"
+        },
+        "timezone": {
+          "help": "Använd en IANA-tidszon, till exempel {{timezone}}. {{product}} följer datorns tidszon tills du sparar en här och behåller sedan ditt val.",
+          "label": "Tidszon"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Läser in samtalsinställningar…",
+      "refreshing": "Ansluter på nytt och kontrollerar aktuella inställningar…",
+      "reload": "Anslut på nytt och läs in igen",
+      "save": "Spara samtalsinställningar",
+      "saved": "Samtalsinställningar sparade.",
+      "saving": "Sparar samtalsinställningar…",
+      "title": "Samtal och tid",
+      "unavailable": "Samtalsinställningarna är inte tillgängliga. Anslut på nytt och läs in igen.",
+      "validation": {
+        "dailyResetHour": "Ange en hel timme från 0 till 23.",
+        "historyTokenBudgetRatio": "Ange ett utrymme för historik över 0 % och högst 100 %.",
+        "idleMinutes": "Ange ett säkert heltalsvärde för antal minuter, minst 0.",
+        "resetArchiveRetentionDays": "Ange ett säkert heltalsvärde för antal dagar, minst 0.",
+        "timezone": "Ange en giltig IANA-tidszon, till exempel {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Ändra",
+      "changeAria": "Ändra inloggningsuppgifterna för {{provider}}",
+      "claudeProvider": "{{claude}}-abonnemang",
+      "codexProvider": "{{codex}}-agent",
+      "delete": {
+        "action": "Ta bort",
+        "aria": "Ta bort inloggningsuppgifterna för {{provider}}",
+        "confirmAria": "Bekräfta borttagning av inloggningsuppgifterna för {{provider}}",
+        "connection": "Ta bort anslutning",
+        "credential": "Ta bort inloggningsuppgifter",
+        "detail": "Det här tar bara bort dem från {{computer}}. {{product}} slutar använda dem om de är aktiva. Ditt konto hos leverantören ändras inte.",
+        "intervalsAria": "Ta bort anslutningen till {{intervals}}",
+        "intervalsDetail": "Din sparade API-nyckel och importerade anslutning tas bort. Dina synkroniserade cykelturer och tidigare chattar finns kvar på {{computer}}.",
+        "intervalsTitle": "Ta bort anslutningen till {{intervals}}?",
+        "title": "Ta bort inloggningsuppgifterna för {{provider}}?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Borttagningen av inloggningsuppgifter avbröts.",
+          "cleanupPending": "Inloggningsuppgifterna har tagits bort lokalt. Rensningen av den säkra lagringen kommer att försökas igen.",
+          "confirmProvider": "Bekräfta borttagning av inloggningsuppgifterna för {{provider}}.",
+          "deleted": "Inloggningsuppgifterna har tagits bort lokalt.",
+          "deletingProvider": "Tar bort inloggningsuppgifterna för {{provider}} lokalt…",
+          "keyUnverified": "Inloggningsuppgifterna behölls eftersom den säkra lagringen inte kunde bekräfta sin krypteringsnyckel.",
+          "managed": "De här inloggningsuppgifterna hanteras utanför Inställningar och kan inte tas bort här.",
+          "notStored": "De inloggningsuppgifterna är inte längre lagrade. Läs in igen för att uppdatera listan.",
+          "reconcileFailed": "De sparade och aktiva inloggningsuppgifterna kunde inte samordnas. Anslut på nytt och läs in igen innan du försöker på nytt.",
+          "refreshFailed": "Inloggningsuppgifterna har tagits bort lokalt. Deras aktuella status kunde inte uppdateras.",
+          "retained": "Inloggningsuppgifterna finns kvar. Ingen borttagning slutfördes. Försök igen.",
+          "setupRefreshFailed": "Inloggningsuppgifterna har tagits bort lokalt, men konfigurationens status kunde inte uppdateras. Läs in inloggningsuppgifternas status igen.",
+          "stopFailed": "Tränaren kunde inte sluta använda de här inloggningsuppgifterna på ett säkert sätt. De togs inte bort.",
+          "unverified": "Borttagningen av inloggningsuppgifter kunde inte bekräftas eftersom den säkra lagringen inte kunde verifieras. Starta om {{product}} och läs in igen innan du försöker på nytt."
+        },
+        "recovery": {
+          "locked": "Lås upp din inloggningsnyckelring utanför {{product}} och välj sedan Försök igen.",
+          "missing": "Krypteringsnyckeln för inloggningsuppgifterna saknas. Återställ den om möjligt och välj sedan Försök igen, eller ta bort alla inloggningsuppgifter och börja om.",
+          "unavailable": "Säker lagring av inloggningsuppgifter är inte tillgänglig. Försök igen eller ta bort alla inloggningsuppgifter och börja om.",
+          "unverified": "{{product}} kan inte öppna vissa sparade inloggningsuppgifter på ett säkert sätt. Ange varje berörd inloggningsuppgift igen."
+        },
+        "reset": {
+          "cancelled": "Borttagningen av inloggningsuppgifter avbröts.",
+          "cleanupPending": "Alla inloggningsuppgifter har tagits bort. Rensningen av den säkra lagringen kommer att försökas igen.",
+          "confirm": "Bekräfta borttagning av alla inloggningsuppgifter.",
+          "reloadFailed": "Inloggningsuppgifterna har tagits bort, men Inställningar kunde inte läsas in igen. Anslut på nytt och läs in igen.",
+          "removed": "Alla inloggningsuppgifter har tagits bort. Konfigurera dem igen när du är redo.",
+          "removeFailed": "{{product}} kunde inte ta bort alla lagrade inloggningsuppgifter. Försök igen.",
+          "removing": "Tar bort alla inloggningsuppgifter…",
+          "stopFailed": "{{product}} kunde inte sluta använda alla aktiva inloggningsuppgifter. Försök igen för att slutföra borttagningen.",
+          "unverified": "Borttagningen av inloggningsuppgifter kunde inte verifieras eftersom Inställningar inte kunde läsas in igen. Anslut på nytt och läs in igen."
+        },
+        "unavailable": "Sparade inloggningsuppgifter är inte tillgängliga. Anslut på nytt och läs in igen."
+      },
+      "kind": {
+        "chatgpt": "{{chatgpt}}-profil",
+        "provider": "Leverantörens API-nyckel",
+        "training": "Träningskontots nyckel"
+      },
+      "loading": "Läser in sparade inloggningsuppgifter…",
+      "reconnect": "Anslut på nytt och läs in igen",
+      "reload": "Läs in inloggningsuppgifternas status igen",
+      "repairRequired": "Inloggningsuppgifternas sparade status måste läsas in igen innan konfigurationen kan fortsätta.",
+      "reset": {
+        "confirm": "Ta bort alla inloggningsuppgifter",
+        "detail": "Det här tar bort alla sparade AI-inloggningsuppgifter, {{chatgpt}}-profiler, {{intervals}}-nycklar, {{telegram}}-token och den gemensamma krypteringsnyckeln från {{computer}}. Konton och importerade data ändras inte.",
+        "title": "Ta bort alla inloggningsuppgifter?"
+      },
+      "retry": "Försök igen",
+      "retryEntry": "Ange igen",
+      "runtime": {
+        "active": "Aktiva",
+        "failed": "Behöver åtgärdas",
+        "storedInactive": "Sparade, inte aktiva",
+        "verifying": "Verifierar…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Hanteras av en miljövariabel. Ändra den utanför {{product}}.",
+    "palette": {
+      "app": "Appens färgpalett",
+      "use": "Använd färgpaletten {{palette}}"
+    },
+    "saving": "Sparar…",
+    "title": "Inställningar",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Explicit cachelagring används för den här anslutningen.",
+        "none": "Inga läsningar från cache",
+        "providerDependent": "Cachelagringen beror på leverantören. Ingen explicit brytpunkt har angetts för den här anslutningen.",
+        "savings": "{{tokens}} token lästa från cache · Sparat {{amount}}",
+        "unavailable": "cachelagring är inte tillgänglig för den här anslutningen",
+        "unknown": "{{tokens}} token lästa från cache · besparingen är inte tillgänglig"
+      },
+      "cap": {
+        "aria": "Daglig kostnadsgräns",
+        "failed": "Den dagliga gränsen kunde inte sparas.",
+        "invalid": "Ange en daglig gräns över $0.",
+        "label": "Daglig gräns (USD)",
+        "save": "Spara gräns",
+        "value": "{{known}} av {{cap}}"
+      },
+      "date": "{{day}} {{month}}",
+      "detail": "Kostnader för språkmodellen jämfört med dagens gräns",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "apr",
+        "august": "aug",
+        "december": "dec",
+        "february": "feb",
+        "january": "jan",
+        "july": "jul",
+        "june": "jun",
+        "march": "mars",
+        "may": "maj",
+        "november": "nov",
+        "october": "okt",
+        "september": "sep"
+      },
+      "notice": {
+        "incomplete": "Vissa leverantörskostnader är inte tillgängliga, så dagens totalsumma är ett känt minimibelopp.",
+        "malformed": "Vissa användningsposter kunde inte läsas.",
+        "saved": "Sparat {{amount}} genom läsningar från cache",
+        "savedMinimum": "Sparat minst {{amount}} genom läsningar från cache",
+        "stale": "Kostnadsuppgifterna kan vara inaktuella."
+      },
+      "notional": "Abonnemangets användning skulle ha kostat {{amount}} via API:et. Inga pengar har dragits och det räknas inte mot din gräns.",
+      "priced": "{{priced}}/{{total}} genereringar med prisuppgift",
+      "routeNotional": "skulle ha kostat {{amount}} via API:et",
+      "routes": "Kostnadsdetaljer",
+      "title": "Kostnader",
+      "today": "I dag",
+      "todayDate": "I dag · {{date}}",
+      "unavailable": "Kostnadsuppgifter är inte tillgängliga."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "En annan app eller installation hämtar meddelanden för den här boten. Stoppa den där och välj sedan Kontrollera igen. Olika botar kan fortfarande köras samtidigt.",
+        "credentialUnavailable": "Botens sparade token kunde inte läsas från den säkra lagringen. Avsluta och öppna {{product}} igen och välj sedan Kontrollera igen. Om den fortfarande inte går att läsa tar du bort den här anslutningen och ansluter en ny bot.",
+        "daemonUnavailable": "Den lokala tränartjänsten är inte tillgänglig. Låt {{product}} vara öppet och välj sedan Kontrollera igen.",
+        "drainRequired": "Ett {{telegram}}-svar håller fortfarande på att slutföras. Vänta en stund och försök igen.",
+        "encryption": "Säker lagring av token är inte tillgänglig. Avsluta och öppna {{product}} igen, {{recoveryAction}} och välj sedan Kontrollera igen.",
+        "homeMismatch": "Datorappen är ansluten till en annan lokal idrottsprofil. Starta om {{product}} och kontrollera igen.",
+        "identityUnknown": "Den sparade {{telegram}}-anslutningen kunde inte verifieras. Välj Kontrollera igen innan du försöker med en annan åtgärd.",
+        "invalidToken": "{{telegram}} avvisade den sparade token. Ta bort den här anslutningen och anslut sedan en ny bot med en kopierad token från {{botFather}}.",
+        "offline": "{{telegram}} är tillfälligt offline. {{product}} försöker igen medan {{computer}} är vaken och har internetanslutning.",
+        "startFailed": "{{telegram}} kunde inte starta. Låt {{product}} vara öppet, kontrollera internetanslutningen och välj sedan Kontrollera igen.",
+        "storageFailed": "Botens krypterade inloggningsuppgifter kunde inte sparas. Kontrollera åtkomsten till den lokala disken och försök igen.",
+        "storageUncertain": "{{telegram}}-inställningarna kanske inte har sparats helt. Låt {{telegram}} vara oförändrat och välj Kontrollera igen innan du försöker med en annan åtgärd.",
+        "transferRequired": "Den här boten tillhör en annan {{product}}-installation eller en installation på en server. Ta bort anslutningen där och anslut den sedan här med en kopierad token.",
+        "unsafeBackend": "Ingen säker lagring av inloggningsuppgifter är tillgänglig, så {{product}} vägrade komma åt botens sparade token utan kryptering. Avsluta och öppna {{product}} igen och välj sedan Kontrollera igen."
+      },
+      "availability": "{{telegram}} fungerar bara när {{product}} och dess lokala tränartjänst körs och {{computer}} är vaken och har internetanslutning.",
+      "channel": {
+        "conflict": "Konflikt vid meddelandehämtning",
+        "connecting": "Ansluter",
+        "failed": "Behöver åtgärdas",
+        "off": "Av",
+        "online": "Online",
+        "reconnecting": "Ansluter på nytt",
+        "suspended": "Pausad i viloläge",
+        "tokenRejected": "Token avvisad",
+        "transferRequired": "Överföring krävs",
+        "waitingForCredential": "Behöver botens token"
+      },
+      "check": "Kontrollera igen",
+      "delete": {
+        "action": "Ta bort",
+        "confirm": "Ta bort anslutning",
+        "detail": "Det här stänger av boten och tar bort dess krypterade token och behöriga användares åtkomst från {{computer}}. {{telegram}}-boten och dess chatt finns kvar i {{telegram}}.",
+        "title": "Ta bort @{{botUsername}} från {{computer}}?"
+      },
+      "detail": "En separat bot rekommenderas. Den får ett nytt @username och en ny {{telegram}}-chatt. Den synliga historiken från en tidigare bot flyttas inte. Minnet om dig, träningsdata och planer delas.",
+      "disable": "Stäng av",
+      "enable": "Slå på",
+      "feedback": {
+        "failure": {
+          "change": "{{telegram}}-inställningarna kunde inte ändras. Försök igen.",
+          "changeStorageUnverified": "Ändringen tillämpades inte eftersom lagringen inte kunde verifieras. Starta om {{product}} och kontrollera den här inställningen innan du försöker igen.",
+          "changeUncertain": "Ändringen av {{telegram}} kan ha påbörjats, men {{product}} kunde inte bekräfta att den slutfördes. Starta om {{product}} och kontrollera den här inställningen innan du försöker igen.",
+          "clipboardClearFailed": "Urklipp kunde inte rensas, så den kopierade token användes inte. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "clipboardUnavailable": "Urklipp kunde inte läsas. Ingen {{telegram}}-token användes.",
+          "connectUncertain": "Anslutningen till {{telegram}} kan ha påbörjats, men {{product}} kunde inte bekräfta att den slutfördes. Starta om {{product}} och kontrollera {{telegram}} innan du försöker igen.",
+          "invalidToken": "{{telegram}} avvisade den kopierade token. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "invalidTokenFormat": "Urklipp innehåller ingen giltig token för en {{telegram}}-bot. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "pairing": "Parkopplingen kunde inte starta. Kontrollera botens anslutning och försök igen.",
+          "pairingUncertain": "Den primära {{telegram}}-användaren kan ha sparats, men {{product}} kunde inte verifiera lagringen. Starta om {{product}} och kontrollera {{telegram}} innan du parkopplar igen.",
+          "pasteToken": "Botens token kunde inte verifieras eller sparas. Kopiera en ny token från {{botFather}} och försök igen.",
+          "removeStorageUnverified": "Borttagningen av {{telegram}}-anslutningen kunde inte bekräftas eftersom den säkra lagringen inte kunde verifieras. Starta om {{product}} och kontrollera {{telegram}} innan du försöker igen.",
+          "removeUncertain": "Borttagningen av {{telegram}}-anslutningen kanske inte slutfördes. Starta om {{product}} och kontrollera om boten fortfarande är ansluten innan du försöker igen.",
+          "senders": "Listan över behöriga användare kunde inte ändras. Kontrollera användar-ID:t och försök igen.",
+          "storageFailed": "Den kopierade token kunde inte lagras. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "tokenNotApplied": "Den kopierade token tillämpades inte. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "tokenStorageUnverified": "Den kopierade token tillämpades inte eftersom den säkra lagringen inte kunde verifieras. Den nuvarande {{telegram}}-boten är oförändrad. Starta om {{product}} och kontrollera {{telegram}} innan du försöker igen.",
+          "unsafeAccess": "Ingen säker lagring av inloggningsuppgifter är tillgänglig, så {{product}} vägrade komma åt botens sparade token utan kryptering. Avsluta och öppna {{product}} igen och välj sedan Kontrollera igen.",
+          "unsafeToken": "Ingen säker lagring av inloggningsuppgifter är tillgänglig, så {{product}} vägrade spara botens token utan kryptering. Avsluta och öppna {{product}} igen, kopiera botens token igen och försök på nytt.",
+          "unsafeTokenUnchanged": "Den nuvarande {{telegram}}-boten är oförändrad eftersom ingen säker lagring av inloggningsuppgifter är tillgänglig. {{product}} vägrade spara den kopierade token utan kryptering. Avsluta och öppna {{product}} igen, kopiera botens token igen och försök på nytt.",
+          "validationUnavailable": "{{telegram}} kunde inte verifiera den kopierade token just nu. Den nuvarande {{telegram}}-boten är oförändrad.",
+          "webhook": "Webhooken kunde inte tas bort. Kontrollera internetanslutningen och försök igen.",
+          "webhookRemovalRequired": "Boten vars token du kopierade använder fortfarande en webhook. Ta bort webhooken, ta sedan bort den nuvarande anslutningen och anslut den här boten."
+        },
+        "health": {
+          "conflict": "En annan tjänst hämtar meddelanden för den här boten. Stoppa den installationen och kontrollera sedan igen.",
+          "connecting": "{{telegram}} ansluter.",
+          "failed": "{{telegram}} behöver åtgärdas. Låt appen vara öppen, kontrollera anslutningen och försök igen.",
+          "gap": "{{telegram}} anslöt igen efter ett långt avbrott. Vissa meddelanden kanske inte kom fram.",
+          "invalidToken": "{{telegram}} avvisade den här token. Ta bort anslutningen och anslut sedan en ny bot med en ny token från {{botFather}}.",
+          "off": "{{telegram}} är avstängt.",
+          "online": "{{telegram}} är online.",
+          "transferRequired": "Den här boten tillhör fortfarande en annan installation av datorappen. Ta bort anslutningen där innan du ansluter den här.",
+          "waitingForToken": "Kopiera en bottoken från {{botFather}} och klistra sedan in den från urklipp."
+        },
+        "pairing": {
+          "cancelled": "Parkopplingen med {{telegram}} avbröts.",
+          "connected": "{{telegram}} anslöts till @{{username}}. Parkoppling behöver konfigureras.",
+          "expired": "Parkopplingskoden gick ut innan den användes. Skapa en ny kod när du är redo.",
+          "paired": "{{telegram}} är parkopplat med sin primära användare.",
+          "ready": "Parkopplingskoden är klar. Skicka den till boten i {{telegram}}.",
+          "refused": "Parkopplingen nekades eftersom den här boten redan har en primär användare.",
+          "replaced": "En ny parkopplingskod för {{telegram}} är klar. Skicka den till boten i {{telegram}}.",
+          "storageFailed": "Den primära {{telegram}}-användaren kunde inte sparas. Kontrollera åtkomsten till den lokala disken och försök parkoppla igen.",
+          "unavailable": "Parkoppling är inte tillgänglig förrän {{telegram}}-boten kan ansluta."
+        },
+        "platform": {
+          "encryptionAccess": "Säker lagring av token är inte tillgänglig. Avsluta och öppna {{product}} igen, {{recoveryAction}} och välj sedan Kontrollera igen.",
+          "encryptionSave": "Säker lagring av token är inte tillgänglig. Avsluta och öppna {{product}} igen, {{recoveryAction}}, kopiera botens token igen och försök på nytt.",
+          "encryptionUnchanged": "Den nuvarande {{telegram}}-boten är oförändrad eftersom säker lagring av token inte är tillgänglig. Avsluta och öppna {{product}} igen, {{recoveryAction}}, kopiera botens token igen och försök på nytt.",
+          "offline": "{{telegram}} är offline. {{product}} fortsätter försöka medan {{computer}} är vaken och har internetanslutning.",
+          "removed": "{{telegram}}-anslutningen har tagits bort från {{computer}}.",
+          "suspended": "Hämtningen av {{telegram}}-meddelanden är pausad medan {{computer}} är i viloläge.",
+          "webhookConnect": "Boten vars token du kopierade använder fortfarande en webhook. Ta bort webhooken innan du parkopplar boten med {{computer}}.",
+          "webhookVerified": "Boten är verifierad. Ta bort dess webhook innan du parkopplar den med {{computer}}."
+        },
+        "sender": {
+          "added": "{{telegram}}-användare tillagd.",
+          "daemonUncertain": "Listan över behöriga användare kan ha ändrats, men {{product}} fick ingen bekräftelse från den lokala tränartjänsten. Starta om {{product}} och kontrollera listan innan du försöker igen.",
+          "removed": "{{telegram}}-användare borttagen.",
+          "storageUncertain": "Listan över behöriga användare kan ha ändrats, men {{product}} kunde inte verifiera lagringen. Starta om {{product}} och kontrollera listan innan du försöker igen."
+        },
+        "unavailable": "{{telegram}}-inställningarna är inte tillgängliga. Låt appen vara öppen och försök igen.",
+        "working": {
+          "acknowledgeGap": "Rensar leveransvarningen för {{telegram}}…",
+          "addSender": "Lägger till en {{telegram}}-användare…",
+          "beginPairing": "Skapar en privat parkopplingskod…",
+          "cancelPairing": "Avbryter parkoppling…",
+          "disable": "Stänger av {{telegram}}…",
+          "enable": "Slår på {{telegram}}…",
+          "pasteToken": "Läser och verifierar {{telegram}}-token…",
+          "reconcile": "Kontrollerar {{telegram}}-anslutningen…",
+          "remove": "Tar bort {{telegram}}-anslutningen…",
+          "removeSender": "Tar bort {{telegram}}-användaren…",
+          "removeWebhook": "Tar bort botens webhook…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Bekräfta",
+        "detail": "Boten återupptog arbetet efter ett långt avbrott, så meddelanden som skickades under avbrottet kanske inte nådde {{product}}. Kontrollera {{telegram}}-chatten innan du rensar den här varningen.",
+        "title": "Kontrollera {{telegram}} efter missade meddelanden"
+      },
+      "paired": "Parkopplad med en primär {{telegram}}-användare",
+      "pairing": {
+        "cancel": "Avbryt parkoppling",
+        "code": "Parkopplingskod för {{telegram}}",
+        "detail": "En kod som gäller i en minut säkerställer att bara den som har åtkomst till {{computer}} kan ta boten i bruk.",
+        "expired": "Parkopplingskoden gick ut innan den användes. Skapa en ny kod när du är redo.",
+        "expires": "Går ut {{time}}",
+        "instruction": "Skicka den här koden i ett privat meddelande till @{{username}}. Det första kontot som skickar den blir primär användare och boten förblir online.",
+        "primary": "Parkoppla den primära användaren",
+        "refused": "Parkopplingen nekades eftersom den här boten redan har en primär användare.",
+        "restart": "Skapa ny kod och slå på",
+        "start": "Starta parkoppling och slå på",
+        "storageFailed": "Den primära {{telegram}}-användaren kunde inte sparas. Kontrollera åtkomsten till den lokala disken och försök parkoppla igen.",
+        "storageUncertain": "Den primära {{telegram}}-användaren kan ha sparats, men {{product}} kunde inte verifiera lagringen. Starta om {{product}} och kontrollera {{telegram}} innan du parkopplar igen.",
+        "title": "Parkoppla ditt {{telegram}}-konto",
+        "unavailable": "Parkoppling är inte tillgänglig förrän {{telegram}}-boten kan ansluta."
+      },
+      "reloadDetail": "Läs in den sparade anslutningsstatusen igen innan du försöker med en annan åtgärd.",
+      "retry": "Försök igen",
+      "sender": {
+        "add": "Lägg till användare",
+        "additional": "Ytterligare behörig användare",
+        "addTitle": "Lägg till ett {{telegram}}-användar-ID",
+        "advanced": "Avancerat · behöriga användare",
+        "help": "Lägg bara till personer som du litar på kan använda din tränare och dina delade träningsdata.",
+        "list": "Behöriga {{telegram}}-användare",
+        "loadFailed": "Behöriga användare kunde inte läsas in. {{product}} försöker igen automatiskt.",
+        "loading": "Läser in behöriga användare…",
+        "primary": "Primär användare · krävs",
+        "remove": "Ta bort",
+        "removeAria": "Ta bort {{telegram}}-användaren {{senderId}}",
+        "removeConfirm": "Ta bort användare",
+        "removeDetail": "Den här användaren förlorar åtkomsten till din tränare och dina delade träningsdata tills du lägger till användaren igen med avsändar-ID {{senderId}}.",
+        "removeTitle": "Ta bort {{telegram}}-användaren {{senderId}}?",
+        "validation": "Ange ett numeriskt {{telegram}}-användar-ID med minst två siffror."
+      },
+      "setup": {
+        "afterBotfather": "om en bot, kopiera dess token och återvänd sedan hit. {{product}} läser token direkt från urklipp. Det finns inget tokenfält.",
+        "ask": "Be",
+        "cancel": "Avbryt",
+        "cancelAria": "Avbryt konfigurationen av {{telegram}}-boten",
+        "connect": "Anslut",
+        "detail": "Anslut en {{telegram}}-bot med en kopierad token.",
+        "paste": "Klistra in token från urklipp",
+        "title": "Skapa en bot med {{botFather}}"
+      },
+      "suspended": "Hämtningen av {{telegram}}-meddelanden återupptas när {{computer}} vaknar.",
+      "title": "Kanaler",
+      "unavailable": "{{telegram}}-status är inte tillgänglig",
+      "verified": "Boten är verifierad. När du startar parkoppling slås {{telegram}} på.",
+      "webhook": {
+        "detail": "{{telegram}} kan inte leverera till en webhook och {{computer}} samtidigt. Den här åtgärden behåller väntande uppdateringar och låter datorappen börja hämta meddelanden.",
+        "remove": "Ta bort webhook",
+        "title": "Ta bort den befintliga webhooken"
+      }
+    }
+  },
+  "archive": {
+    "athlete": "Du",
+    "back": "Alla tidigare chattar",
+    "coach": "Tränare",
+    "conversation": "Tidigare samtal",
+    "delete": {
+      "action": "Ta bort samtal",
+      "description": "Det här tar permanent bort det tidigare samtalet och dess ursprungliga bilagor från den här datorn. Importerade aktiviteter i Träning och arbete i Plan finns kvar.",
+      "failure": "Borttagningen kunde inte slutföras. Försök igen för att slutföra den.",
+      "title": "Ta bort det här samtalet?"
+    },
+    "empty": "Inga tidigare samtal än. När du startar ett nytt samtal sparas det gamla här.",
+    "emptyConversation": "Det här samtalet har inga läsbara meddelanden.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Tidigare samtal är tillfälligt otillgängliga.",
+    "loadEarlier": "Läs in äldre meddelanden",
+    "loading": "Läser in tidigare samtal…",
+    "pageFailure": "Det här samtalet är tillfälligt otillgängligt.",
+    "readOnly": "Tidigare samtal går bara att läsa.",
+    "reason": {
+      "explicit": "Du startade ett nytt samtal",
+      "stale": "Avslutades efter en paus"
+    },
+    "retry": "Försök igen",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Tidigare chattar",
+    "truncated": "Endast de senaste tidigare samtalen visas.",
+    "turnCount_one": "{{formattedCount}} meddelande",
+    "turnCount_other": "{{formattedCount}} meddelanden",
+    "unavailable": "Det här samtalet är inte längre tillgängligt."
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Avancerat",
+      "announcement": {
+        "apiKey": "Konfigurationen av API-nyckel öppnades under den här raden.",
+        "chatgpt": "Inloggning med {{chatgpt}} öppnades under den här raden."
+      },
+      "apiKeyHint": "Skapas i leverantörens konsol och debiteras efter användning, vanligtvis några cent per samtal.",
+      "cancelLabel": "Avbryt konfigurationen av API-nyckel",
+      "change": "Ändra",
+      "chatgptActivating": "Inloggad · Aktiverar tränaren…",
+      "choose": "Välj",
+      "claude": {
+        "badge": {
+          "absentBinary": "Inte installerat",
+          "apiKeyToken": "API-nyckel, inte abonnemang",
+          "checking": "Kontrollerar",
+          "disabled": "Avstängt",
+          "notLoggedIn": "Inte inloggad",
+          "ready": "Inloggad",
+          "readyApiKey": "Debitering via API-nyckel",
+          "workingAreaUnavailable": "Kunde inte starta säkert"
+        },
+        "checkAgain": "Välj Kontrollera igen för att verifiera {{claudeCode}} på den här Mac-datorn.",
+        "detail": "Använder kommandoradsverktyget {{claudeCode}} som redan är installerat och inloggat på {{computer}}. Ingen API-nyckel behövs.",
+        "identity": {
+          "apiKey": "Använder debitering via API-nyckel hos {{anthropic}}. Användningen debiteras ditt API-konto.",
+          "email": "Inloggad som {{email}}",
+          "emailPlan": "Inloggad som {{email}} · {{claude}} {{plan}}-abonnemang",
+          "plan": "Inloggad · {{claude}} {{plan}}-abonnemang",
+          "signedIn": "Inloggad"
+        },
+        "recheck": "Kontrollera igen",
+        "statusDetail": {
+          "absentBinary": "Kommandoradsverktyget {{claudeCode}} hittades inte eller så är den installerade versionen för gammal. Installera eller uppdatera det och välj sedan Kontrollera igen.",
+          "apiKeyToken": "Kommandoradsverktyget {{claudeCode}} är autentiserat med en API-nyckel eller token, inte med ett abonnemang. Logga in med ditt abonnemang i {{command}} eller aktivera debitering via API-nyckel i din konfiguration.",
+          "checking": "Kontrollerar inloggningen i kommandoradsverktyget {{claudeCode}} på {{computer}}…",
+          "disabled": "Alternativet {{claude}}-abonnemang är avstängt på {{computer}}. Välj en annan leverantör.",
+          "notLoggedIn": "Kommandoradsverktyget {{claudeCode}} är inte inloggat. Öppna en terminal, kör {{command}} och logga in med ditt {{claude}}-abonnemang. {{product}} loggar aldrig in åt dig.",
+          "workingAreaUnavailable": "{{product}} kunde inte förbereda det privata arbetsområdet för {{claude}}. Starta om {{product}} och välj sedan Kontrollera igen."
+        }
+      },
+      "connected": "Ansluten · driver din tränare",
+      "credentialLabel": "API-nyckel för {{provider}}",
+      "customModel": "Eget modellnamn",
+      "endpoint": {
+        "automatic": "Behåll nuvarande eller använd leverantörens standard",
+        "custom": "Använd en egen slutpunkt",
+        "customTitle": "Egen slutpunkt",
+        "default": "Återställ till leverantörens standard",
+        "title": "Slutpunkt"
+      },
+      "identity": "Driver din tränare · {{identity}}",
+      "lane": {
+        "apiKey": "API-nyckel",
+        "chatgpt": "{{chatgpt}}-abonnemang"
+      },
+      "laneHint": {
+        "apiKey": "Leverantörer: {{providers}} · betala efter användning",
+        "claudeCli": "Kontrollerar ditt {{claude}}-abonnemang när du väljer det",
+        "openaiCodex": "Använd abonnemanget du redan betalar för"
+      },
+      "menuLabel": "AI som driver din tränare",
+      "model": "Modell",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "balanserad",
+        "cheap": "billig",
+        "cheaper": "billigare",
+        "cheapest": "billigast",
+        "experimental": "experimentell",
+        "fast": "snabb",
+        "fastAndCheap": "snabb och billig",
+        "faster": "snabbare",
+        "manyModels": "en nyckel, många modeller",
+        "mostCapable": "mest kapabel",
+        "recommended": "rekommenderad"
+      },
+      "modelVia": "{{model}} (via {{provider}})",
+      "otherModel": "Annan modell…",
+      "pending": {
+        "activation": "Driver din tränare · inloggad · aktivering krävs",
+        "apiKey": "Driver din tränare · lägg till en nyckel för att slutföra",
+        "chatgpt": "Driver din tränare · logga in för att slutföra",
+        "checkingClaude": "Driver din tränare · kontrollerar inloggning i {{claudeCode}}",
+        "claude": "Driver din tränare · logga in från en terminal för att slutföra"
+      },
+      "provider": "Leverantör",
+      "saveLabel": "Spara API-nyckel",
+      "subtitle": "Krävs. Ingen AI ingår i {{product}}.",
+      "title": "AI som driver din tränare",
+      "tooltip": {
+        "body": "Den använder ett {{chatgpt}}-abonnemang, en {{claudeCode}}-inloggning eller en API-nyckel som du anger. Det du väljer stannar på {{computer}}.",
+        "label": "Om AI:n som driver din tränare",
+        "lead": "{{product}} har ingen egen AI"
+      },
+      "trigger": {
+        "set": "Ändra vad som driver din tränare",
+        "unset": "Välj vad som driver din tränare"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Du är inloggad, men tränaren kunde inte aktiveras. Försök igen utan att logga in på nytt.",
+      "cancelLabel": "Avbryt konfigurationen av {{chatgpt}}",
+      "cancelSignIn": "Avbryt inloggning",
+      "hint": "Öppnar inloggningssidan för {{openai}} i din webbläsare. Du skriver ditt lösenord där, inte här. Kräver ett betalabonnemang.",
+      "phase": {
+        "activatingCoach": "Aktiverar tränaren…",
+        "completingSignIn": "Slutför inloggning…",
+        "ready": "Klart",
+        "signedIn": "Inloggad",
+        "waitingForBrowser": "Väntar på webbläsaren…"
+      },
+      "refusal": {
+        "alreadyInProgress": "En {{chatgpt}}-inloggning pågår redan.",
+        "callbackUnavailable": "Den lokala återkopplingen för inloggning är inte tillgänglig. Stäng andra inloggningsflöden och försök igen.",
+        "cancelled": "{{chatgpt}}-inloggningen avbröts. Du kan försöka igen.",
+        "exchangeFailed": "{{chatgpt}}-inloggningen kunde inte slutföras. Försök igen.",
+        "runtimeUnavailable": "{{chatgpt}}-inloggningen sparades, men tränaren kunde inte konfigureras.",
+        "storageFailed": "{{chatgpt}}-inloggningen slutfördes, men profilen kunde inte sparas.",
+        "timedOut": "Tidsgränsen för {{chatgpt}}-inloggningen överskreds. Försök igen när du är redo."
+      },
+      "retryActivation": "Försök aktivera igen",
+      "signIn": "Logga in med {{chatgpt}}"
+    },
+    "chatSubtitle": "Anslut det din tränare behöver. {{telegram}} är valfritt och blockerar aldrig chatten.",
+    "checking": {
+      "heading": "Kontrollerar din konfiguration",
+      "rowSubtitle": "Kontrollerar vad som redan är anslutet…",
+      "status": "Kontrollerar konfigurationen…",
+      "subtitle": "Läser anslutningarna som redan är sparade på den här datorn. Det kan ta en stund direkt efter start."
+    },
+    "error": {
+      "configurationUnavailable": "Tränaralternativen är inte tillgängliga just nu. Kontrollera konfigurationen igen.",
+      "credentialReenterRequired": "Den sparade nyckeln kunde inte användas. Ange den igen för att fortsätta.",
+      "credentialRequired": "Logga in med {{chatgpt}} eller lägg till minst en modellnyckel för att fortsätta.",
+      "credentialSaveFailed": "Nyckeln kunde inte sparas. Försök ange den igen.",
+      "credentialStatusUnavailable": "Nyckeln sparades, men dess status kunde inte uppdateras. Kontrollera konfigurationen igen.",
+      "endpointInvalid": "Ange en giltig HTTPS-slutpunkt eller en HTTP-slutpunkt med loopback-adress.",
+      "intakeIncomplete": "Svara på de obligatoriska säkerhetsfrågorna för att fortsätta.",
+      "intakeSaveFailed": "Dina svar kunde inte sparas. Försök igen.",
+      "intervalsClipboardClearFailed": "API-nyckeln sparades inte eftersom {{product}} inte kunde rensa den från urklipp på ett säkert sätt. Kopiera den igen och försök på nytt.",
+      "intervalsClipboardUnavailable": "{{product}} kunde inte läsa en API-nyckel från urklipp. Kopiera den i {{intervals}} och försök igen.",
+      "intervalsKeyRejected": "{{intervals}} godkände inte den kopierade API-nyckeln. Kopiera en aktuell API-nyckel och försök igen.",
+      "intervalsOwnerUnavailable": "{{product}} kunde inte bekräfta att den kopierade API-nyckeln matchar träningsdata på {{computer}}. Försök igen när träningsdata är tillgängliga.",
+      "intervalsRuntimeUnavailable": "Den kopierade API-nyckeln kunde inte aktiveras. Kopiera den i {{intervals}} och försök igen.",
+      "intervalsRuntimeUncertain": "{{product}} kunde inte bekräfta om den kopierade API-nyckeln är aktiv. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
+      "intervalsStorageUncertain": "{{product}} kunde inte bekräfta om den kopierade API-nyckeln sparades. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
+      "intervalsValidationUnavailable": "{{product}} kunde inte verifiera den kopierade API-nyckeln hos {{intervals}}. Kontrollera anslutningen och försök igen.",
+      "invalidInput": "Nyckeln godkändes inte. Kontrollera den och ange den igen.",
+      "modelRuntimeUnavailable": "Ditt val av leverantör är sparat, men är inte aktivt än. Försök aktivera det igen.",
+      "modelSelectionRequired": "Välj en modell eller ange ett eget modellnamn.",
+      "runtimeUnavailable": "Nyckeln sparades, men är inte aktiv än. Välj Försök med sparade nycklar igen för att aktivera den.",
+      "storageFailed": "Appen kunde inte bekräfta att nyckeln sparades säkert. Kontrollera att säker lagring är tillgänglig och försök igen.",
+      "storageUncertain": "Appen kunde inte säkerställa vilken sparad nyckel som kommer att finnas kvar efter en omstart. Ange nyckeln igen innan du fortsätter.",
+      "trainingAccountMismatch": "Nyckeln för {{intervalsLower}} tillhör en annan idrottare än den redan sparade träningshistoriken. Det går ännu inte att byta konto.",
+      "trainingDataRequired": "Anslut {{intervalsLower}} eller importera minst en fil från en cykeltur.",
+      "unsafeBackend": "Appen kan inte lagra nyckeln säkert med den nuvarande lagringslösningen."
+    },
+    "footerNote": "Allt stannar på {{computer}}.",
+    "heading": "Starta din tränare innan du kan chatta",
+    "import": {
+      "available": "Import till lokalt bibliotek: {{imported}} importerade. {{quarantined}} i karantän. Tränaren har åtkomst till aktiviteter och dataserier.",
+      "choosing": "Väntar på att du väljer filer från cykelturer…",
+      "failed": "Importen till det lokala biblioteket misslyckades. {{imported}} importerade. {{quarantined}} i karantän. Inga nya filer från cykelturer är tillgängliga för tränaren.",
+      "fileCount_one": "{{formattedCount}} fil från en cykeltur",
+      "fileCount_other": "{{formattedCount}} filer från cykelturer",
+      "importing": "Importerar filer från cykelturer…",
+      "unavailable": "Import till lokalt bibliotek: {{imported}} importerade. {{quarantined}} i karantän. Tränarens åtkomst till aktiviteter och dataserier är tillfälligt otillgänglig. Försök importera igen.",
+      "unconfirmed": "Importen till det lokala biblioteket misslyckades. Resultatet kunde inte bekräftas. Kontrollera biblioteket innan du försöker igen."
+    },
+    "intake": {
+      "managing": "Har en skada",
+      "none": "Ingen skada just nu",
+      "retrySave": "Försök spara svaren igen",
+      "returning": "På väg tillbaka efter en skada",
+      "select": "Välj…",
+      "subtitle": "Registrerar din nuvarande skada eller återgång efter skada.",
+      "title": "Skadestatus just nu"
+    },
+    "requiredReady": "{{ready}} av {{total}} obligatoriska delar klara",
+    "retrySavedKeys": "Försök med sparade nycklar igen",
+    "retryStatus": "Kontrollera konfigurationsstatus igen",
+    "settingsHeading": "Konfiguration",
+    "startCoaching": "Börja med din tränare",
+    "statusUnavailable": "Konfigurationsstatus kunde inte läsas in. Kontrollera att {{product}} körs och försök igen.",
+    "telegram": {
+      "announcement": "Konfigurationen av {{telegram}}-boten öppnades under den här raden.",
+      "ask": "Be",
+      "availability": "{{telegram}} fungerar när {{product}} körs och {{computer}} är vaken och har internetanslutning.",
+      "cancelLabel": "Avbryt konfigurationen av {{telegram}}-boten",
+      "checkAgain": "Kontrollera igen",
+      "connecting": "Ansluter…",
+      "create": "Skapa",
+      "createAfterBotFather": "om en bot, kopiera dess token och återvänd sedan hit. {{product}} läser och verifierar token direkt från urklipp. Token visas aldrig.",
+      "createCopy": "Be {{botFather}} om en bot, kopiera dess token och återvänd sedan hit. {{product}} läser och verifierar token direkt från urklipp. Token visas aldrig.",
+      "createLabel": "Skapa {{telegram}}-bot",
+      "createTitle": "Skapa en bot med {{botFather}}",
+      "delete": "Ta bort",
+      "deleteConnection": "Ta bort anslutning",
+      "deleteCopy": "Det här stänger av {{telegram}} och tar bort den krypterade token och behöriga användares åtkomst från {{computer}}. {{telegram}}-boten och chatten finns kvar i {{telegram}}.",
+      "deleteLabel": "Ta bort {{telegram}}-anslutningen",
+      "deleteTitle": "Ta bort {{telegram}}-anslutningen?",
+      "deleting": "Tar bort…",
+      "notDeleted": "{{telegram}}-anslutningen togs inte bort från {{computer}}.",
+      "optional": "Valfritt",
+      "unappliedToken": "Den kopierade token tillämpades inte. Den nuvarande {{telegram}}-boten är oförändrad.",
+      "useToken": "Använd kopierad token",
+      "verified": "Boten är verifierad · @{{username}}",
+      "verifiedPrefix": "Boten är verifierad"
+    },
+    "training": {
+      "cancelLabel": "Avbryt konfigurationen av {{intervals}}",
+      "connect": "Anslut",
+      "connecting": "Ansluter…",
+      "connectTitle": "Anslut {{intervals}}",
+      "hint": "Öppna Settings → Developer Settings i {{intervals}}, kopiera API-nyckeln och återvänd sedan hit. {{product}} läser den utan att visa den.",
+      "importFiles": "Importera filer från cykelturer i stället",
+      "subtitle": {
+        "connected": "Ansluten · källan till dina cykelturer",
+        "missing": "Anslut eller importera filer från cykelturer."
+      },
+      "tooltip": {
+        "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Kopiera sedan kontots API-nyckel.",
+        "label": "Om {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Anslut {{intervals}}"
+      },
+      "useCopiedKey": "Använd kopierad API-nyckel"
+    }
+  },
+  "shell": {
+    "checkingSetup": "Kontrollerar konfigurationen…",
+    "loading": {
+      "archive": "Läser in tidigare chattar…",
+      "chat": "Läser in chatten…",
+      "plan": "Läser in planen…",
+      "settings": "Läser in inställningar…",
+      "training": "Läser in träning…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Kryptering i {{operatingSystem}} är inte tillgänglig. Kontrollera att {{keychain}} är tillgänglig och försök igen.",
+        "windows": "Kryptering av inloggningsuppgifter i {{operatingSystem}} ({{encryption}}) är inte tillgänglig. Avsluta och öppna {{product}} igen och försök på nytt."
+      },
+      "credentialRecoveryAction": {
+        "mac": "lås upp din inloggningsnyckelring",
+        "windows": "kontrollera att kryptering av inloggningsuppgifter i {{operatingSystem}} ({{encryption}}) är tillgänglig"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Huvudnavigering",
+    "newChat": "Ny chatt",
+    "planAttention_one": "Plan, {{formattedCount}} punkt behöver åtgärdas",
+    "planAttention_other": "Plan, {{formattedCount}} punkter behöver åtgärdas",
+    "sync": {
+      "action": {
+        "again": "Synkronisera igen",
+        "now": "Synkronisera nu",
+        "retry": "Försök igen",
+        "unavailable": "Synkronisering är inte tillgänglig"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synkroniseringen behöver åtgärdas",
+        "loading": "Läser in träningsdata",
+        "never": "Inte synkroniserat än",
+        "synced": "Träningsdata har synkroniserats",
+        "syncing": "Synkroniserar",
+        "unavailable": "Träningsdata är inte tillgängliga"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Anslutningen avbröts. Synkroniseringen kanske fortfarande håller på att slutföras. {{product}} försöker inte igen automatiskt.",
+        "noChange": "Den lokala bearbetningen av träningsdata är klar.",
+        "noChangeRestricted_one": "Den lokala bearbetningen av träningsdata är klar. En API-begränsning hos {{source}} hindrar {{provider}} från att dela en aktivitet, så den ingår inte.",
+        "noChangeRestricted_other": "Den lokala bearbetningen av träningsdata är klar. En API-begränsning hos {{source}} hindrar {{provider}} från att dela {{formattedCount}} aktiviteter, så de ingår inte.",
+        "operationFailure": "Vi kunde inte slutföra kontrollen av träningsdata. Dina befintliga data är fortfarande tillgängliga.",
+        "partial": "Bearbetningen av träningsdata är delvis klar. Försök igen för att slutföra den.",
+        "protocol": "{{product}} kunde inte verifiera resultatet av synkroniseringen. Avsluta och öppna {{product}} igen.",
+        "published": "Kontrollen av träningsdata är klar.",
+        "publishedRestricted_one": "Kontrollen av träningsdata är klar. En API-begränsning hos {{source}} hindrar {{provider}} från att dela en aktivitet, så den ingår inte.",
+        "publishedRestricted_other": "Kontrollen av träningsdata är klar. En API-begränsning hos {{source}} hindrar {{provider}} från att dela {{formattedCount}} aktiviteter, så de ingår inte.",
+        "queued": "Synkroniseringen står i kö.",
+        "running": "Synkroniserar träningsdata…"
+      },
+      "restriction": {
+        "fixAction": "· Så åtgärdar du detta",
+        "fixLabel": "{{restrictionLabel}}. Så åtgärdar du detta",
+        "label_one": "{{formattedCount}} dold av {{source}}",
+        "label_other": "{{formattedCount}} dolda av {{source}}",
+        "tooltipBody": "En API-begränsning hos {{source}} hindrar {{provider}} från att dela de här aktiviteterna med {{product}}.",
+        "tooltipLabel": "Varför döljs aktiviteter?",
+        "tooltipLead_one": "{{formattedCount}} aktivitet dold av {{source}}",
+        "tooltipLead_other": "{{formattedCount}} aktiviteter dolda av {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Okänd synkroniseringstid"
+    },
+    "update": {
+      "available": "Uppdatering tillgänglig",
+      "availableVersion": "Uppdatering till version {{version}} är tillgänglig",
+      "installVersion": "Installera uppdatering till version {{version}}",
+      "restarting": "Startar om…",
+      "restartingVersion": "Startar om för att installera uppdatering till version {{version}}"
+    },
+    "views": {
+      "archive": "Tidigare chattar",
+      "chat": "Chatt",
+      "plan": "Plan",
+      "settings": "Inställningar",
+      "training": "Träning"
     }
   }
 }

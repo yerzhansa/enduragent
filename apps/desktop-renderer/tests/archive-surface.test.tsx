@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -405,4 +406,19 @@ describe("past chats navigation", () => {
     await user.click(screen.getByRole("button", { name: "Chat" }));
     expect(useEnduragentStore.getState().activeView).toBe("chat");
   });
+});
+
+it("reads past-chat labels from the selected language catalog", async () => {
+  const settings = useEnduragentStore.getState().settings;
+  useEnduragentStore.setState({
+    settings: { ...settings, language: { ...settings.language, value: "it" } },
+    archive: LISTED,
+    archiveActions: archiveActions(),
+  });
+  await renderWithCatalog(<ArchiveView />, {
+    archive: { title: "Conversazioni passate", readOnly: "Le conversazioni sono di sola lettura." },
+  });
+  expect(screen.getByRole("region", { name: "Conversazioni passate" })).toBeInTheDocument();
+  expect(screen.getByText("Le conversazioni sono di sola lettura.")).toBeInTheDocument();
+  useEnduragentStore.setState({ settings });
 });

@@ -34,6 +34,847 @@
       "saving": "Zapisywanie jednostek…",
       "title": "Jednostki",
       "unavailable": "Preferencja jednostek niedostępna"
+    },
+    "application": {
+      "check": "Sprawdź aktualizacje",
+      "checkFailed": "Nie udało się sprawdzić aktualizacji. Spróbuj ponownie",
+      "checking": "Sprawdzanie aktualizacji",
+      "checkingAction": "Sprawdzanie…",
+      "current": "{{product}} jest aktualny",
+      "danger": "Niebezpieczne działania",
+      "downloadFailed": "Nie udało się pobrać aktualizacji. Spróbuj ponownie",
+      "downloading": "Pobieranie aktualizacji {{version}}",
+      "downloadingAction": "Pobieranie…",
+      "downloadTimedOut": "Upłynął limit czasu pobierania aktualizacji. Zamknij i otwórz ponownie {{product}}, aby spróbować jeszcze raz.",
+      "reset": "Zresetuj rozmowę",
+      "resetDetail": "Czyści widoczną rozmowę. Dane treningowe i zapisana pamięć trenera pozostają.",
+      "restart": "Uruchom ponownie, aby zaktualizować do wersji {{version}}",
+      "restartAction": "Uruchom ponownie, aby zaktualizować",
+      "restarting": "Ponowne uruchamianie w celu instalacji wersji {{version}}",
+      "restartingAction": "Ponowne uruchamianie…",
+      "restartRequired": "Uruchom ponownie {{product}}, aby wznowić aktualizacje",
+      "retry": "Ponów aktualizację",
+      "startFailed": "Nie udało się uruchomić aktualizacji. Zamknij i otwórz ponownie {{product}}, aby spróbować jeszcze raz.",
+      "title": "Aplikacja",
+      "unavailable": "Aktualizacje niedostępne",
+      "version": "Wersja {{version}}",
+      "versionUnknown": "nieznana"
+    },
+    "athlete": {
+      "credentialMissing": "Nie połączono danych dostępowych konta treningowego. Połącz je w sekcji konfiguracji powyżej.",
+      "detail": "Możesz tu wskazać tylko obecnie połączone konto treningowe. Nie możesz przełączać kont.",
+      "error": {
+        "credentialRequired": "Połącz konto treningowe w Konfiguracji przed zapisaniem identyfikatora sportowca.",
+        "managedByEnvironment": "Identyfikator sportowca jest zarządzany poza {{product}} i nie został zmieniony.",
+        "notApplied": "Nie zastosowano identyfikatora sportowca. Połącz ponownie i odśwież dane przed kolejną próbą.",
+        "ownershipUnavailable": "Nie udało się zweryfikować połączonego konta treningowego. Połącz ponownie i odśwież dane przed kolejną próbą.",
+        "requestFailed": "Nie udało się zapisać identyfikatora sportowca. Twoja zmiana nadal tu jest.",
+        "runtimeUnavailable": "Nie udało się ponownie wczytać bieżącego konta treningowego. Twoja zmiana nadal tu jest.",
+        "trainingAccountMismatch": "Ten identyfikator sportowca nie wskazuje obecnie połączonego konta treningowego."
+      },
+      "futurePrefix": "Przyszłe przejazdy — ",
+      "help": "Użyj dokładnego identyfikatora powiązanego z danymi dostępowymi połączonymi już w Konfiguracji.",
+      "id": "Identyfikator sportowca",
+      "loading": "Wczytywanie ustawień konta treningowego…",
+      "pastPrefix": "Wcześniejsze przejazdy — ",
+      "refreshing": "Ponowne łączenie i sprawdzanie bieżącego konta treningowego…",
+      "reload": "Połącz ponownie i odśwież",
+      "restriction": {
+        "cause": "Ograniczenie API {{strava}} uniemożliwia {{intervalsLower}} udostępnianie w {{product}} aktywności pochodzących z {{strava}}. Twój klucz API jest prawidłowy.",
+        "future": "Połącz źródło rejestrowania aktywności bezpośrednio z {{intervalsLower}} i zachowaj połączenie z {{strava}}. Jest to bezpłatne i obejmuje przyszłe przejazdy.",
+        "past": "W ustawieniach {{intervalsLower}} użyj opcji importowania wszystkich danych z {{strava}}. Obejmuje ona wcześniejsze przejazdy i wymaga subskrypcji wspierającej {{intervalsLower}}.",
+        "title_one": "{{strava}} ukrywa {{restricted}} z {{total}} aktywności",
+        "title_other": "{{strava}} ukrywa {{restricted}} z {{total}} aktywności",
+        "title_few": "{{strava}} ukrywa {{restricted}} z {{total}} aktywności",
+        "title_many": "{{strava}} ukrywa {{restricted}} z {{total}} aktywności"
+      },
+      "reviewSetup": "Sprawdź konfigurację",
+      "save": "Zapisz identyfikator sportowca",
+      "saved": "Zapisano identyfikator sportowca.",
+      "saving": "Zapisywanie identyfikatora sportowca…",
+      "title": "Konto treningowe",
+      "unavailable": "Ustawienia konta treningowego są niedostępne. Połącz ponownie i odśwież dane.",
+      "validation": {
+        "athleteControlCharacters": "Identyfikatory sportowca nie mogą zawierać znaków sterujących.",
+        "athleteRequired": "Wpisz identyfikator sportowca dla połączonego konta treningowego.",
+        "athleteTooLong": "Identyfikatory sportowca mogą mieć najwyżej 512 znaków.",
+        "athleteWhitespace": "Identyfikatory sportowca nie mogą zaczynać się ani kończyć białymi znakami."
+      },
+      "verificationPending": "Weryfikowanie połączonego konta treningowego… Dane treningowe pozostają wstrzymane do zakończenia weryfikacji."
+    },
+    "coach": {
+      "active": "Aktywne",
+      "activeUnavailable": "Ustawienia aktywnego trenera są niedostępne lub nie zostały skonfigurowane.",
+      "automatic": "Automatycznie",
+      "changeRequired": "Wymagana zmiana",
+      "chooseModel": "Wybierz model",
+      "chooseProvider": "Wybierz dostawcę",
+      "chooseProviderFirst": "Najpierw wybierz dostawcę",
+      "currentRoute": "Obecnie aktywne: {{provider}} · {{model}}",
+      "customModel": "Własna nazwa modelu",
+      "endpoint": "Punkt końcowy",
+      "endpointDetail": "{{product}} wybiera punkt końcowy dostawcy dla tego połączenia.",
+      "error": {
+        "credentialRequired": "Ten dostawca wymaga zapisanych danych dostępowych, zanim będzie mógł cię trenować. Dodaj je w sekcji konfiguracji powyżej.",
+        "invalidInput": "Ten dostawca lub model nie został zaakceptowany. Sprawdź nazwę modelu i spróbuj ponownie.",
+        "requestFailed": "Nie można teraz zapisać ustawień trenera. Spróbuj ponownie.",
+        "runtimeUnavailable": "Nie udało się aktywować ustawień trenera. Spróbuj zapisać ponownie."
+      },
+      "inactive": "Nieaktywne",
+      "loading": "Wczytywanie ustawień trenera…",
+      "model": "Model",
+      "notConfigured": "Nieskonfigurowane",
+      "otherModel": "Inny model…",
+      "provider": "Dostawca",
+      "providerLabel": {
+        "chatgpt": "Subskrypcja {{chatgpt}}",
+        "claude": "Subskrypcja {{claude}}",
+        "codex": "Agent {{codex}} (eksperymentalny)"
+      },
+      "retry": "Spróbuj ponownie",
+      "reviewSetup": "Sprawdź konfigurację",
+      "route": "Połączenie trenera",
+      "save": "Zapisz połączenie trenera",
+      "saved": "Zapisano ustawienia trenera.",
+      "saving": "Zapisywanie ustawień trenera…",
+      "title": "Trener",
+      "unavailable": "Ustawienia trenera są teraz niedostępne. Spróbuj ponownie.",
+      "unsaved": "Niezapisane",
+      "unsupported": "Agent {{codex}} nie jest obsługiwany w {{operatingSystem}}. Wybierz subskrypcję {{claude}} lub dostawcę z kluczem API, a następnie zapisz połączenie trenera. Twoje dane dostępowe, dane sportowca, rozmowy i pozostałe ustawienia pozostaną bez zmian.",
+      "validation": {
+        "modelControlCharacters": "Nazwy modeli nie mogą zawierać znaków sterujących.",
+        "modelRequired": "Wpisz nazwę modelu.",
+        "modelTooLong": "Nazwy modeli mogą mieć najwyżej 512 znaków."
+      }
+    },
+    "conversation": {
+      "ariaLabel": "Rozmowa i czas",
+      "detail": "Ustaw, kiedy rozmowy zaczynają się od nowa i ile kontekstu z ostatnich rozmów zachowuje trener.",
+      "error": {
+        "notApplied": "Nie zastosowano ustawień rozmowy. Połącz ponownie i odśwież dane przed kolejną próbą.",
+        "requestFailed": "Nie udało się zapisać ustawień rozmowy. Twoje zmiany nadal tu są.",
+        "runtimeUnavailable": "Nie udało się ponownie wczytać bieżących ustawień rozmowy. Twoje zmiany nadal tu są."
+      },
+      "fields": {
+        "dailyResetHour": {
+          "help": "Godzina w lokalnej strefie czasowej sportowca, od 0 do 23. Po zmianie następna wiadomość może rozpocząć nową rozmowę.",
+          "label": "Godzina codziennego resetowania"
+        },
+        "historyTokenBudgetRatio": {
+          "help": "Część kontekstu modelu zarezerwowana na historię rozmowy, powyżej 0% i do 100%.",
+          "label": "Limit historii"
+        },
+        "idleMinutes": {
+          "help": "Liczba pełnych minut bez wiadomości, po której rozmowa jest resetowana. Wpisz 0, aby wyłączyć tę opcję.",
+          "label": "Resetowanie po bezczynności",
+          "suffix": "minuty"
+        },
+        "resetArchiveRetentionDays": {
+          "help": "Liczba pełnych dni przechowywania archiwów zresetowanych rozmów. Wpisz 0, aby zachować je na zawsze; zmiany dotyczą tylko przyszłego usuwania.",
+          "label": "Przechowywanie archiwum",
+          "suffix": "dni"
+        },
+        "timezone": {
+          "help": "Użyj strefy czasowej IANA, np. {{timezone}}. {{product}} korzysta ze strefy tego komputera, dopóki nie zapiszesz tutaj własnej. Potem zachowuje twój wybór.",
+          "label": "Strefa czasowa"
+        }
+      },
+      "fieldSuffix": " ({{suffix}})",
+      "loading": "Wczytywanie ustawień rozmowy…",
+      "refreshing": "Ponowne łączenie i sprawdzanie bieżących ustawień…",
+      "reload": "Połącz ponownie i odśwież",
+      "save": "Zapisz ustawienia rozmowy",
+      "saved": "Zapisano ustawienia rozmowy.",
+      "saving": "Zapisywanie ustawień rozmowy…",
+      "title": "Rozmowa i czas",
+      "unavailable": "Ustawienia rozmowy są niedostępne. Połącz ponownie i odśwież dane.",
+      "validation": {
+        "dailyResetHour": "Wpisz pełną godzinę od 0 do 23.",
+        "historyTokenBudgetRatio": "Wpisz limit historii większy niż 0% i nie większy niż 100%.",
+        "idleMinutes": "Wpisz bezpieczną całkowitą liczbę minut, co najmniej 0.",
+        "resetArchiveRetentionDays": "Wpisz bezpieczną całkowitą liczbę dni, co najmniej 0.",
+        "timezone": "Wpisz prawidłową strefę czasową IANA, np. {{timezone}}."
+      }
+    },
+    "credentials": {
+      "change": "Zmień",
+      "changeAria": "Zmień dane dostępowe {{provider}}",
+      "claudeProvider": "Subskrypcja {{claude}}",
+      "codexProvider": "Agent {{codex}}",
+      "delete": {
+        "action": "Usuń",
+        "aria": "Usuń dane dostępowe {{provider}}",
+        "confirmAria": "Potwierdź usunięcie danych dostępowych {{provider}}",
+        "connection": "Usuń połączenie",
+        "credential": "Usuń dane dostępowe",
+        "detail": "Spowoduje to usunięcie tylko z {{computer}}. {{product}} przestanie z nich korzystać, jeśli są aktywne. Twoje konto u dostawcy pozostanie bez zmian.",
+        "intervalsAria": "Usuń połączenie z {{intervals}}",
+        "intervalsDetail": "Zapisany klucz API i zaimportowane połączenie zostaną usunięte. Zsynchronizowane przejazdy i wcześniejsze rozmowy pozostaną na {{computer}}.",
+        "intervalsTitle": "Usunąć połączenie z {{intervals}}?",
+        "title": "Usunąć dane dostępowe {{provider}}?"
+      },
+      "feedback": {
+        "delete": {
+          "cancelled": "Anulowano usuwanie danych dostępowych.",
+          "cleanupPending": "Dane dostępowe usunięto lokalnie. Czyszczenie bezpiecznego magazynu zostanie ponowione.",
+          "confirmProvider": "Potwierdź usunięcie danych dostępowych {{provider}}.",
+          "deleted": "Dane dostępowe usunięto lokalnie.",
+          "deletingProvider": "Lokalne usuwanie danych dostępowych {{provider}}…",
+          "keyUnverified": "Dane dostępowe zachowano, ponieważ bezpieczny magazyn nie mógł potwierdzić ich klucza szyfrowania.",
+          "managed": "Te dane dostępowe są zarządzane poza Ustawieniami i nie można ich tutaj usunąć.",
+          "notStored": "Te dane dostępowe nie są już przechowywane. Wczytaj ponownie, aby odświeżyć listę.",
+          "reconcileFailed": "Nie udało się uzgodnić stanu zapisanych i aktywnych danych dostępowych. Połącz ponownie i odśwież dane przed kolejną próbą.",
+          "refreshFailed": "Dane dostępowe usunięto lokalnie. Nie udało się odświeżyć ich bieżącego statusu.",
+          "retained": "Dane dostępowe nadal są przechowywane. Nie ukończono usuwania. Spróbuj ponownie.",
+          "setupRefreshFailed": "Dane dostępowe usunięto lokalnie, ale nie udało się odświeżyć gotowości konfiguracji. Wczytaj ponownie status danych dostępowych.",
+          "stopFailed": "Trener nie mógł bezpiecznie przestać korzystać z tych danych dostępowych. Nie zostały usunięte.",
+          "unverified": "Nie można potwierdzić usunięcia danych dostępowych, ponieważ nie udało się zweryfikować bezpiecznego magazynu. Uruchom ponownie {{product}} i odśwież dane przed kolejną próbą."
+        },
+        "recovery": {
+          "locked": "Odblokuj pęk kluczy logowania poza {{product}}, a następnie spróbuj ponownie.",
+          "missing": "Brakuje klucza szyfrowania danych dostępowych. Jeśli to możliwe, przywróć go i spróbuj ponownie lub usuń wszystkie dane dostępowe i zacznij od nowa.",
+          "unavailable": "Bezpieczny magazyn danych dostępowych jest niedostępny. Spróbuj ponownie lub usuń wszystkie dane dostępowe i zacznij od nowa.",
+          "unverified": "{{product}} nie może bezpiecznie otworzyć niektórych zapisanych danych dostępowych. Wpisz ponownie każde dane, których dotyczy problem."
+        },
+        "reset": {
+          "cancelled": "Anulowano usuwanie danych dostępowych.",
+          "cleanupPending": "Usunięto wszystkie dane dostępowe. Czyszczenie bezpiecznego magazynu zostanie ponowione.",
+          "confirm": "Potwierdź usunięcie wszystkich danych dostępowych.",
+          "reloadFailed": "Dane dostępowe usunięto, ale nie udało się ponownie wczytać Ustawień. Połącz ponownie i odśwież dane.",
+          "removed": "Usunięto wszystkie dane dostępowe. Skonfiguruj je ponownie, gdy zechcesz.",
+          "removeFailed": "{{product}} nie mógł usunąć wszystkich zapisanych danych dostępowych. Spróbuj ponownie.",
+          "removing": "Usuwanie wszystkich danych dostępowych…",
+          "stopFailed": "{{product}} nie mógł zatrzymać korzystania ze wszystkich aktywnych danych dostępowych. Spróbuj ponownie, aby dokończyć usuwanie.",
+          "unverified": "Nie udało się zweryfikować usunięcia danych dostępowych, ponieważ nie można ponownie wczytać Ustawień. Połącz ponownie i odśwież dane."
+        },
+        "unavailable": "Zapisane dane dostępowe są niedostępne. Połącz ponownie i odśwież dane."
+      },
+      "kind": {
+        "chatgpt": "Profil {{chatgpt}}",
+        "provider": "Klucz API dostawcy",
+        "training": "Klucz konta treningowego"
+      },
+      "loading": "Wczytywanie zapisanych danych dostępowych…",
+      "reconnect": "Połącz ponownie i odśwież",
+      "reload": "Wczytaj ponownie status danych dostępowych",
+      "repairRequired": "Przed kontynuowaniem konfiguracji trzeba ponownie wczytać status zapisanych danych dostępowych.",
+      "reset": {
+        "confirm": "Usuń wszystkie dane dostępowe",
+        "detail": "Spowoduje to usunięcie wszystkich zapisanych danych dostępowych AI, profili {{chatgpt}}, kluczy {{intervals}}, tokenów {{telegram}} i wspólnego klucza szyfrowania z {{computer}}. Konta i zaimportowane dane pozostaną bez zmian.",
+        "title": "Usunąć wszystkie dane dostępowe?"
+      },
+      "retry": "Spróbuj ponownie",
+      "retryEntry": "Wpisz ponownie",
+      "runtime": {
+        "active": "Aktywne",
+        "failed": "Wymagają uwagi",
+        "storedInactive": "Zapisane, nieaktywne",
+        "verifying": "Weryfikowanie…"
+      },
+      "summary": "{{kind}} · {{state}}"
+    },
+    "managedByEnvironment": "Zarządzane przez zmienną środowiskową. Zmień ją poza {{product}}.",
+    "palette": {
+      "app": "Paleta aplikacji",
+      "use": "Użyj palety {{palette}}"
+    },
+    "saving": "Zapisywanie…",
+    "spend": {
+      "amount": "${{amount}}",
+      "amountAgainstCap": "{{known}} / {{cap}}",
+      "amountBelow": "<${{amount}}",
+      "cache": {
+        "explicit": "Jawne buforowanie w tym połączeniu.",
+        "none": "Brak odczytów z pamięci podręcznej",
+        "providerDependent": "Buforowanie zależy od dostawcy; brak jawnego punktu podziału w tym połączeniu.",
+        "savings": "{{tokens}} tokenów odczytanych z pamięci podręcznej · Oszczędność {{amount}}",
+        "unavailable": "buforowanie niedostępne w tym połączeniu",
+        "unknown": "{{tokens}} tokenów odczytanych z pamięci podręcznej · oszczędności niedostępne"
+      },
+      "cap": {
+        "aria": "Dzienny limit wydatków",
+        "failed": "Nie udało się zapisać dziennego limitu.",
+        "invalid": "Wpisz dzienny limit większy niż 0 USD.",
+        "label": "Dzienny limit (USD)",
+        "save": "Zapisz limit",
+        "value": "{{known}} z {{cap}}"
+      },
+      "date": "{{day}} {{month}}",
+      "detail": "Wydatki na model językowy względem dzisiejszego limitu",
+      "minimumAmount": "{{amount}}+",
+      "month": {
+        "april": "kwi",
+        "august": "sie",
+        "december": "gru",
+        "february": "lut",
+        "january": "sty",
+        "july": "lip",
+        "june": "cze",
+        "march": "mar",
+        "may": "maj",
+        "november": "lis",
+        "october": "paź",
+        "september": "wrz"
+      },
+      "notice": {
+        "incomplete": "Niektóre koszty dostawców są niedostępne, więc dzisiejsza suma jest znaną kwotą minimalną.",
+        "malformed": "Nie udało się odczytać niektórych zapisów użycia.",
+        "saved": "Zaoszczędzono {{amount}} dzięki odczytom z pamięci podręcznej",
+        "savedMinimum": "Zaoszczędzono co najmniej {{amount}} dzięki odczytom z pamięci podręcznej",
+        "stale": "Dane o wydatkach mogą być nieaktualne."
+      },
+      "notional": "To użycie w ramach subskrypcji kosztowałoby {{amount}} przez API. Nie pobrano żadnej opłaty i nie wlicza się to do twojego limitu.",
+      "priced": "Wycenione generowania: {{priced}}/{{total}}",
+      "routeNotional": "kosztowałoby {{amount}} przez API",
+      "routes": "Szczegóły wydatków",
+      "title": "Wydatki",
+      "today": "Dzisiaj",
+      "todayDate": "Dzisiaj · {{date}}",
+      "unavailable": "Dane o wydatkach niedostępne."
+    },
+    "telegram": {
+      "attention": {
+        "conflict": "Inna aplikacja lub uruchomiona instancja odpytuje tego bota. Zatrzymaj ją tam, a następnie wybierz Sprawdź ponownie. Różne boty nadal mogą działać jednocześnie.",
+        "credentialUnavailable": "Nie udało się odczytać zapisanego tokena bota z bezpiecznego magazynu. Zamknij i otwórz ponownie {{product}}, a następnie wybierz Sprawdź ponownie. Jeśli nadal nie można go odczytać, usuń to połączenie i połącz nowego bota.",
+        "daemonUnavailable": "Lokalna usługa trenera jest niedostępna. Pozostaw {{product}} otwarty, a następnie wybierz Sprawdź ponownie.",
+        "drainRequired": "Odpowiedź w {{telegram}} jest jeszcze kończona. Poczekaj chwilę i spróbuj ponownie.",
+        "encryption": "Bezpieczny magazyn tokenów jest niedostępny. Zamknij i otwórz ponownie {{product}}, {{recoveryAction}}, a następnie wybierz Sprawdź ponownie.",
+        "homeMismatch": "Aplikacja komputerowa jest połączona z innym katalogiem sportowca. Uruchom ponownie {{product}} i sprawdź ponownie.",
+        "identityUnknown": "Nie udało się zweryfikować zapisanego połączenia z {{telegram}}. Wybierz Sprawdź ponownie przed wykonaniem innej czynności.",
+        "invalidToken": "{{telegram}} odrzucił zapisany token. Usuń to połączenie, a następnie połącz nowego bota za pomocą tokena skopiowanego z {{botFather}}.",
+        "offline": "{{telegram}} jest tymczasowo offline. {{product}} będzie ponawiać próby, gdy {{computer}} będzie wybudzony i połączony z internetem.",
+        "startFailed": "Nie udało się uruchomić {{telegram}}. Pozostaw {{product}} otwarty, sprawdź połączenie z internetem, a następnie wybierz Sprawdź ponownie.",
+        "storageFailed": "Nie udało się zapisać zaszyfrowanych danych dostępowych bota. Sprawdź dostęp do lokalnego dysku i spróbuj ponownie.",
+        "storageUncertain": "Ustawienia {{telegram}} mogły nie zostać w pełni zapisane. Pozostaw {{telegram}} bez zmian i wybierz Sprawdź ponownie przed wykonaniem innej czynności.",
+        "transferRequired": "Ten bot należy do innej instalacji {{product}} lub instancji na serwerze. Usuń tam połączenie, a następnie połącz go tutaj ponownie za pomocą skopiowanego tokena.",
+        "unsafeBackend": "Brak bezpiecznego magazynu danych dostępowych, więc {{product}} odmówił dostępu do zapisanego tokena bota bez szyfrowania. Zamknij i otwórz ponownie {{product}}, a następnie wybierz Sprawdź ponownie."
+      },
+      "availability": "{{telegram}} działa tylko wtedy, gdy {{product}} i lokalna usługa trenera są uruchomione, a {{computer}} jest wybudzony i połączony z internetem.",
+      "channel": {
+        "conflict": "Konflikt odpytywania",
+        "connecting": "Łączenie",
+        "failed": "Wymaga uwagi",
+        "off": "Wyłączony",
+        "online": "Online",
+        "reconnecting": "Ponowne łączenie",
+        "suspended": "Wstrzymany podczas uśpienia",
+        "tokenRejected": "Token odrzucony",
+        "transferRequired": "Wymagane przeniesienie",
+        "waitingForCredential": "Wymagany token bota"
+      },
+      "check": "Sprawdź ponownie",
+      "delete": {
+        "action": "Usuń",
+        "confirm": "Usuń połączenie",
+        "detail": "Spowoduje to wyłączenie bota oraz usunięcie jego zaszyfrowanego tokena i dostępu dozwolonych użytkowników z {{computer}}. Bot {{telegram}} i jego czat pozostaną w {{telegram}}.",
+        "title": "Usunąć @{{botUsername}} z {{computer}}?"
+      },
+      "detail": "Zalecany jest osobny bot. Powstaje nowa nazwa @username i czat {{telegram}}; widoczna historia poprzedniego bota nie jest przenoszona. Pamięć o sportowcu, dane treningowe i plany są wspólne.",
+      "disable": "Wyłącz",
+      "enable": "Włącz",
+      "feedback": {
+        "failure": {
+          "change": "Nie udało się zmienić ustawień {{telegram}}. Spróbuj ponownie.",
+          "changeStorageUnverified": "Nie zastosowano zmiany, ponieważ nie udało się zweryfikować magazynu. Uruchom ponownie {{product}} i sprawdź to ustawienie przed kolejną próbą.",
+          "changeUncertain": "Zmiana {{telegram}} mogła się rozpocząć, ale {{product}} nie mógł potwierdzić jej zakończenia. Uruchom ponownie {{product}} i sprawdź to ustawienie przed kolejną próbą.",
+          "clipboardClearFailed": "Nie udało się wyczyścić schowka, więc skopiowany token nie został użyty. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "clipboardUnavailable": "Nie udało się odczytać schowka. Nie użyto żadnego tokena {{telegram}}.",
+          "connectUncertain": "Łączenie z {{telegram}} mogło się rozpocząć, ale {{product}} nie mógł potwierdzić jego zakończenia. Uruchom ponownie {{product}} i sprawdź {{telegram}} przed kolejną próbą.",
+          "invalidToken": "{{telegram}} odrzucił skopiowany token. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "invalidTokenFormat": "Schowek nie zawiera prawidłowego tokena bota {{telegram}}. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "pairing": "Nie udało się rozpocząć parowania. Sprawdź połączenie bota i spróbuj ponownie.",
+          "pairingUncertain": "Główny użytkownik {{telegram}} mógł zostać zapisany, ale {{product}} nie mógł zweryfikować magazynu. Uruchom ponownie {{product}} i sprawdź {{telegram}} przed ponownym parowaniem.",
+          "pasteToken": "Nie udało się zweryfikować ani zapisać tokena bota. Skopiuj nowy token z {{botFather}} i spróbuj ponownie.",
+          "removeStorageUnverified": "Nie można potwierdzić usunięcia połączenia z {{telegram}}, ponieważ nie udało się zweryfikować bezpiecznego magazynu. Uruchom ponownie {{product}} i sprawdź {{telegram}} przed kolejną próbą.",
+          "removeUncertain": "Usuwanie połączenia z {{telegram}} mogło się nie zakończyć. Uruchom ponownie {{product}} i sprawdź, czy bot jest nadal połączony, przed kolejną próbą.",
+          "senders": "Nie udało się zmienić listy dozwolonych użytkowników. Sprawdź identyfikator użytkownika i spróbuj ponownie.",
+          "storageFailed": "Nie udało się zapisać skopiowanego tokena. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "tokenNotApplied": "Nie zastosowano skopiowanego tokena. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "tokenStorageUnverified": "Nie zastosowano skopiowanego tokena, ponieważ nie udało się zweryfikować bezpiecznego magazynu. Bieżący bot {{telegram}} pozostaje bez zmian. Uruchom ponownie {{product}} i sprawdź {{telegram}} przed kolejną próbą.",
+          "unsafeAccess": "Brak bezpiecznego magazynu danych dostępowych, więc {{product}} odmówił dostępu do zapisanego tokena bota bez szyfrowania. Zamknij i otwórz ponownie {{product}}, a następnie wybierz Sprawdź ponownie.",
+          "unsafeToken": "Brak bezpiecznego magazynu danych dostępowych, więc {{product}} odmówił zapisania tokena bota bez szyfrowania. Zamknij i otwórz ponownie {{product}}, skopiuj ponownie token bota i spróbuj jeszcze raz.",
+          "unsafeTokenUnchanged": "Bieżący bot {{telegram}} pozostaje bez zmian, ponieważ brak bezpiecznego magazynu danych dostępowych. {{product}} odmówił zapisania skopiowanego tokena bez szyfrowania. Zamknij i otwórz ponownie {{product}}, skopiuj ponownie token bota i spróbuj jeszcze raz.",
+          "validationUnavailable": "{{telegram}} nie mógł teraz zweryfikować skopiowanego tokena. Bieżący bot {{telegram}} pozostaje bez zmian.",
+          "webhook": "Nie udało się usunąć webhooka. Sprawdź połączenie z internetem i spróbuj ponownie.",
+          "webhookRemovalRequired": "Bot ze skopiowanego tokena nadal używa webhooka. Usuń webhook, a następnie usuń bieżące połączenie i połącz tego bota."
+        },
+        "health": {
+          "conflict": "Inna usługa odpytuje tego bota. Zatrzymaj tę instancję i sprawdź ponownie.",
+          "connecting": "{{telegram}} łączy się.",
+          "failed": "{{telegram}} wymaga uwagi. Pozostaw aplikację otwartą, sprawdź połączenie i spróbuj ponownie.",
+          "gap": "{{telegram}} połączył się ponownie po długiej przerwie. Niektóre wiadomości mogły nie dotrzeć.",
+          "invalidToken": "{{telegram}} odrzucił ten token. Usuń połączenie, a następnie połącz nowego bota za pomocą nowego tokena z {{botFather}}.",
+          "off": "{{telegram}} jest wyłączony.",
+          "online": "{{telegram}} jest online.",
+          "transferRequired": "Ten bot nadal należy do innej instalacji aplikacji komputerowej. Usuń tam połączenie, zanim połączysz go tutaj.",
+          "waitingForToken": "Skopiuj token bota z {{botFather}}, a następnie wklej go ze schowka."
+        },
+        "pairing": {
+          "cancelled": "Anulowano parowanie {{telegram}}.",
+          "connected": "Połączono {{telegram}} z @{{username}}. Trzeba skonfigurować parowanie.",
+          "expired": "Kod parowania wygasł przed użyciem. Utwórz nowy kod, gdy zechcesz.",
+          "paired": "{{telegram}} jest sparowany z głównym użytkownikiem.",
+          "ready": "Kod parowania jest gotowy. Wyślij go do bota w {{telegram}}.",
+          "refused": "Odmówiono parowania, ponieważ ten bot ma już głównego użytkownika.",
+          "replaced": "Nowy kod parowania {{telegram}} jest gotowy. Wyślij go do bota w {{telegram}}.",
+          "storageFailed": "Nie udało się zapisać głównego użytkownika {{telegram}}. Sprawdź dostęp do lokalnego dysku i spróbuj ponownie sparować.",
+          "unavailable": "Parowanie jest niedostępne, dopóki bot {{telegram}} nie może się połączyć."
+        },
+        "platform": {
+          "encryptionAccess": "Bezpieczny magazyn tokenów jest niedostępny. Zamknij i otwórz ponownie {{product}}, {{recoveryAction}}, a następnie wybierz Sprawdź ponownie.",
+          "encryptionSave": "Bezpieczny magazyn tokenów jest niedostępny. Zamknij i otwórz ponownie {{product}}, {{recoveryAction}}, skopiuj ponownie token bota i spróbuj jeszcze raz.",
+          "encryptionUnchanged": "Bieżący bot {{telegram}} pozostaje bez zmian, ponieważ bezpieczny magazyn tokenów jest niedostępny. Zamknij i otwórz ponownie {{product}}, {{recoveryAction}}, skopiuj ponownie token bota i spróbuj jeszcze raz.",
+          "offline": "{{telegram}} jest offline. {{product}} będzie ponawiać próby, gdy {{computer}} będzie wybudzony i połączony z internetem.",
+          "removed": "Usunięto połączenie z {{telegram}} z {{computer}}.",
+          "suspended": "Odpytywanie {{telegram}} jest wstrzymane, gdy {{computer}} jest uśpiony.",
+          "webhookConnect": "Bot ze skopiowanego tokena nadal używa webhooka. Usuń webhook przed sparowaniem go z {{computer}}.",
+          "webhookVerified": "Bot zweryfikowany. Usuń jego webhook przed sparowaniem go z {{computer}}."
+        },
+        "sender": {
+          "added": "Dodano użytkownika {{telegram}}.",
+          "daemonUncertain": "Lista dozwolonych użytkowników mogła się zmienić, ale {{product}} utracił potwierdzenie z lokalnej usługi trenera. Uruchom ponownie {{product}} i sprawdź listę przed kolejną próbą.",
+          "removed": "Usunięto użytkownika {{telegram}}.",
+          "storageUncertain": "Lista dozwolonych użytkowników mogła się zmienić, ale {{product}} nie mógł zweryfikować magazynu. Uruchom ponownie {{product}} i sprawdź listę przed kolejną próbą."
+        },
+        "unavailable": "Ustawienia {{telegram}} są niedostępne. Pozostaw aplikację otwartą i spróbuj ponownie.",
+        "working": {
+          "acknowledgeGap": "Usuwanie ostrzeżenia o dostarczaniu wiadomości {{telegram}}…",
+          "addSender": "Dodawanie użytkownika {{telegram}}…",
+          "beginPairing": "Tworzenie prywatnego kodu parowania…",
+          "cancelPairing": "Anulowanie parowania…",
+          "disable": "Wyłączanie {{telegram}}…",
+          "enable": "Włączanie {{telegram}}…",
+          "pasteToken": "Odczytywanie i weryfikowanie tokena {{telegram}}…",
+          "reconcile": "Sprawdzanie połączenia z {{telegram}}…",
+          "remove": "Usuwanie połączenia z {{telegram}}…",
+          "removeSender": "Usuwanie użytkownika {{telegram}}…",
+          "removeWebhook": "Usuwanie webhooka bota…"
+        }
+      },
+      "gap": {
+        "acknowledge": "Potwierdź",
+        "detail": "Bot wznowił działanie po długiej przerwie, więc wiadomości wysłane w tym czasie mogły nie dotrzeć do {{product}}. Sprawdź czat {{telegram}} przed usunięciem tego ostrzeżenia.",
+        "title": "Sprawdź {{telegram}} pod kątem pominiętych wiadomości"
+      },
+      "paired": "Sparowano z głównym użytkownikiem {{telegram}}",
+      "pairing": {
+        "cancel": "Anuluj parowanie",
+        "code": "Kod parowania {{telegram}}",
+        "detail": "Kod ważny przez minutę zapewnia, że tylko osoba z dostępem do {{computer}} może przejąć bota.",
+        "expired": "Kod parowania wygasł przed użyciem. Utwórz nowy kod, gdy zechcesz.",
+        "expires": "Wygasa {{time}}",
+        "instruction": "Wyślij ten kod w prywatnej wiadomości do @{{username}}. Pierwsze konto, które go wyśle, stanie się głównym użytkownikiem, a bot pozostanie online.",
+        "primary": "Sparuj głównego użytkownika",
+        "refused": "Odmówiono parowania, ponieważ ten bot ma już głównego użytkownika.",
+        "restart": "Utwórz nowy kod i włącz",
+        "start": "Rozpocznij parowanie i włącz",
+        "storageFailed": "Nie udało się zapisać głównego użytkownika {{telegram}}. Sprawdź dostęp do lokalnego dysku i spróbuj ponownie sparować.",
+        "storageUncertain": "Główny użytkownik {{telegram}} mógł zostać zapisany, ale {{product}} nie mógł zweryfikować magazynu. Uruchom ponownie {{product}} i sprawdź {{telegram}} przed ponownym parowaniem.",
+        "title": "Sparuj swoje konto {{telegram}}",
+        "unavailable": "Parowanie jest niedostępne, dopóki bot {{telegram}} nie może się połączyć."
+      },
+      "reloadDetail": "Wczytaj ponownie status zapisanego połączenia przed wykonaniem innej czynności.",
+      "retry": "Spróbuj ponownie",
+      "sender": {
+        "add": "Dodaj użytkownika",
+        "additional": "Dodatkowy dozwolony użytkownik",
+        "addTitle": "Dodaj identyfikator użytkownika {{telegram}}",
+        "advanced": "Zaawansowane · dozwoleni użytkownicy",
+        "help": "Dodawaj tylko osoby, którym ufasz na tyle, by korzystały z twojego trenera i wspólnych danych sportowca.",
+        "list": "Dozwoleni użytkownicy {{telegram}}",
+        "loadFailed": "Nie udało się wczytać dozwolonych użytkowników. {{product}} automatycznie spróbuje ponownie.",
+        "loading": "Wczytywanie dozwolonych użytkowników…",
+        "primary": "Główny użytkownik · wymagany",
+        "remove": "Usuń",
+        "removeAria": "Usuń użytkownika {{telegram}} {{senderId}}",
+        "removeConfirm": "Usuń użytkownika",
+        "removeDetail": "Ten użytkownik utraci dostęp do twojego trenera i wspólnych danych sportowca, dopóki nie dodasz go ponownie za pomocą identyfikatora nadawcy {{senderId}}.",
+        "removeTitle": "Usunąć użytkownika {{telegram}} {{senderId}}?",
+        "validation": "Wpisz liczbowy identyfikator użytkownika {{telegram}} zawierający co najmniej dwie cyfry."
+      },
+      "setup": {
+        "afterBotfather": "o bota, skopiuj jego token i wróć tutaj. {{product}} odczytuje token bezpośrednio ze schowka; nie ma pola na token.",
+        "ask": "Poproś",
+        "cancel": "Anuluj",
+        "cancelAria": "Anuluj konfigurację bota {{telegram}}",
+        "connect": "Połącz",
+        "detail": "Połącz bota {{telegram}} za pomocą skopiowanego tokena.",
+        "paste": "Wklej token ze schowka",
+        "title": "Utwórz bota za pomocą {{botFather}}"
+      },
+      "suspended": "Odpytywanie {{telegram}} zostanie wznowione po wybudzeniu {{computer}}.",
+      "title": "Kanały",
+      "unavailable": "Status {{telegram}} niedostępny",
+      "verified": "Bot zweryfikowany; rozpoczęcie parowania włącza {{telegram}}",
+      "webhook": {
+        "detail": "{{telegram}} nie może dostarczać wiadomości do webhooka i {{computer}} jednocześnie. Ta czynność zachowuje oczekujące aktualizacje i pozwala aplikacji komputerowej rozpocząć odpytywanie.",
+        "remove": "Usuń webhook",
+        "title": "Usuń istniejący webhook"
+      }
+    },
+    "title": "Ustawienia"
+  },
+  "archive": {
+    "athlete": "Ty",
+    "back": "Wszystkie wcześniejsze rozmowy",
+    "coach": "Trener",
+    "conversation": "Wcześniejsza rozmowa",
+    "delete": {
+      "action": "Usuń rozmowę",
+      "description": "Spowoduje to trwałe usunięcie tej wcześniejszej rozmowy i jej oryginalnych załączników z tego komputera. Zaimportowane aktywności w Treningu i praca w Planie pozostaną.",
+      "failure": "Nie udało się dokończyć usuwania. Spróbuj ponownie, aby je ukończyć.",
+      "title": "Usunąć tę rozmowę?"
+    },
+    "empty": "Nie ma jeszcze wcześniejszych rozmów. Gdy rozpoczniesz nową rozmowę, poprzednia zostanie zachowana tutaj.",
+    "emptyConversation": "Ta rozmowa nie zawiera wiadomości, które można odczytać.",
+    "entryDetail": "{{turnCount}} · {{reason}}",
+    "entryLabel": "{{timestamp}} · {{turnCount}} · {{reason}}",
+    "listFailure": "Wcześniejsze rozmowy są tymczasowo niedostępne.",
+    "loadEarlier": "Wczytaj wcześniejsze wiadomości",
+    "loading": "Wczytywanie wcześniejszych rozmów…",
+    "pageFailure": "Ta rozmowa jest tymczasowo niedostępna.",
+    "readOnly": "Wcześniejsze rozmowy są tylko do odczytu.",
+    "reason": {
+      "explicit": "Rozpoczęcie nowej rozmowy",
+      "stale": "Zamknięta po przerwie"
+    },
+    "retry": "Spróbuj ponownie",
+    "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}} {{timezone}}",
+    "title": "Wcześniejsze rozmowy",
+    "truncated": "Lista zawiera tylko najnowsze wcześniejsze rozmowy.",
+    "turnCount_one": "{{formattedCount}} wiadomość",
+    "turnCount_other": "{{formattedCount}} wiadomości",
+    "unavailable": "Ta rozmowa nie jest już dostępna.",
+    "turnCount_few": "{{formattedCount}} wiadomości",
+    "turnCount_many": "{{formattedCount}} wiadomości"
+  },
+  "setup": {
+    "ai": {
+      "advanced": "Zaawansowane",
+      "announcement": {
+        "apiKey": "Konfiguracja klucza API została otwarta poniżej tego wiersza.",
+        "chatgpt": "Logowanie do {{chatgpt}} zostało otwarte poniżej tego wiersza."
+      },
+      "apiKeyHint": "Tworzony w konsoli dostawcy, opłaty za użycie — zwykle kilka centów za rozmowę.",
+      "cancelLabel": "Anuluj konfigurację klucza API",
+      "change": "Zmień",
+      "chatgptActivating": "Zalogowano · Aktywowanie trenera…",
+      "choose": "Wybierz",
+      "claude": {
+        "badge": {
+          "absentBinary": "Niezainstalowany",
+          "apiKeyToken": "Klucz API, nie subskrypcja",
+          "checking": "Sprawdzanie",
+          "disabled": "Wyłączone",
+          "notLoggedIn": "Nie zalogowano",
+          "ready": "Zalogowano",
+          "readyApiKey": "Rozliczanie przez klucz API",
+          "workingAreaUnavailable": "Nie udało się bezpiecznie uruchomić"
+        },
+        "checkAgain": "Wybierz Sprawdź ponownie, aby zweryfikować {{claudeCode}} na tym Macu.",
+        "detail": "Korzysta z narzędzia CLI {{claudeCode}}, które jest już zainstalowane i zalogowane na {{computer}}. Klucz API nie jest potrzebny.",
+        "identity": {
+          "apiKey": "Rozliczanie przez klucz API {{anthropic}} — opłaty za użycie trafiają na twoje konto API.",
+          "email": "Zalogowano jako {{email}}",
+          "emailPlan": "Zalogowano jako {{email}} — subskrypcja {{claude}} {{plan}}",
+          "plan": "Zalogowano — subskrypcja {{claude}} {{plan}}",
+          "signedIn": "Zalogowano"
+        },
+        "recheck": "Sprawdź ponownie",
+        "statusDetail": {
+          "absentBinary": "Nie znaleziono narzędzia CLI {{claudeCode}} lub zainstalowana wersja jest zbyt stara. Zainstaluj je lub zaktualizuj, a następnie wybierz Sprawdź ponownie.",
+          "apiKeyToken": "Narzędzie CLI {{claudeCode}} jest uwierzytelnione kluczem API lub tokenem, a nie subskrypcją. Zaloguj się przy użyciu subskrypcji w {{command}} lub włącz rozliczanie przez klucz API w konfiguracji.",
+          "checking": "Sprawdzanie logowania w narzędziu CLI {{claudeCode}} na {{computer}}…",
+          "disabled": "Opcja subskrypcji {{claude}} jest wyłączona na {{computer}}. Wybierz innego dostawcę.",
+          "notLoggedIn": "Narzędzie CLI {{claudeCode}} nie jest zalogowane. Otwórz terminal, uruchom {{command}} i zaloguj się przy użyciu subskrypcji {{claude}}. {{product}} nigdy nie loguje się za ciebie.",
+          "workingAreaUnavailable": "{{product}} nie mógł przygotować prywatnego obszaru roboczego {{claude}}. Uruchom ponownie {{product}}, a następnie wybierz Sprawdź ponownie."
+        }
+      },
+      "connected": "Połączono · obsługuje twojego trenera",
+      "credentialLabel": "Klucz API {{provider}}",
+      "customModel": "Własna nazwa modelu",
+      "endpoint": {
+        "automatic": "Zachowaj bieżący punkt lub użyj domyślnego punktu dostawcy",
+        "custom": "Użyj własnego punktu końcowego",
+        "customTitle": "Własny punkt końcowy",
+        "default": "Przywróć domyślny punkt dostawcy",
+        "title": "Punkt końcowy"
+      },
+      "identity": "Obsługuje twojego trenera · {{identity}}",
+      "lane": {
+        "apiKey": "Klucz API",
+        "chatgpt": "Subskrypcja {{chatgpt}}"
+      },
+      "laneHint": {
+        "apiKey": "Dostawcy: {{providers}} · opłaty za użycie",
+        "claudeCli": "Po wybraniu sprawdza twoją subskrypcję {{claude}}",
+        "openaiCodex": "Użyj planu, za który już płacisz"
+      },
+      "menuLabel": "AI obsługujące twojego trenera",
+      "model": "Model",
+      "modelHint": "{{model}} · {{hint}}",
+      "modelHints": {
+        "balanced": "zrównoważony",
+        "cheap": "tani",
+        "cheaper": "tańszy",
+        "cheapest": "najtańszy",
+        "experimental": "eksperymentalny",
+        "fast": "szybki",
+        "fastAndCheap": "szybki i tani",
+        "faster": "szybszy",
+        "manyModels": "jeden klucz, wiele modeli",
+        "mostCapable": "największe możliwości",
+        "recommended": "zalecany"
+      },
+      "modelVia": "{{model}} (przez {{provider}})",
+      "otherModel": "Inny model…",
+      "pending": {
+        "activation": "Obsługuje twojego trenera · zalogowano · wymagana aktywacja",
+        "apiKey": "Obsługuje twojego trenera · dodaj klucz, aby zakończyć",
+        "chatgpt": "Obsługuje twojego trenera · zaloguj się, aby zakończyć",
+        "checkingClaude": "Obsługuje twojego trenera · sprawdzanie logowania {{claudeCode}}",
+        "claude": "Obsługuje twojego trenera · zaloguj się w terminalu, aby zakończyć"
+      },
+      "provider": "Dostawca",
+      "saveLabel": "Zapisz klucz API",
+      "subtitle": "Wymagane — {{product}} go nie zawiera",
+      "title": "AI obsługujące twojego trenera",
+      "tooltip": {
+        "body": "Korzysta z subskrypcji {{chatgpt}}, logowania {{claudeCode}} lub podanego przez ciebie klucza API. Wybrana opcja pozostaje na {{computer}}.",
+        "label": "O AI obsługującym twojego trenera",
+        "lead": "{{product}} nie ma własnego AI"
+      },
+      "trigger": {
+        "set": "Zmień AI obsługujące twojego trenera",
+        "unset": "Wybierz AI obsługujące twojego trenera"
+      }
+    },
+    "chatgpt": {
+      "activationFailure": "Zalogowano, ale nie udało się aktywować trenera. Spróbuj ponownie bez ponownego logowania.",
+      "cancelLabel": "Anuluj konfigurację {{chatgpt}}",
+      "cancelSignIn": "Anuluj logowanie",
+      "hint": "Otwiera stronę logowania {{openai}} w przeglądarce — hasło wpisujesz tam, a nie tutaj. Wymaga płatnego planu.",
+      "phase": {
+        "activatingCoach": "Aktywowanie trenera…",
+        "completingSignIn": "Kończenie logowania…",
+        "ready": "Gotowe",
+        "signedIn": "Zalogowano",
+        "waitingForBrowser": "Oczekiwanie na przeglądarkę…"
+      },
+      "refusal": {
+        "alreadyInProgress": "Logowanie do {{chatgpt}} już trwa.",
+        "callbackUnavailable": "Lokalne wywołanie zwrotne logowania jest niedostępne. Zamknij inne procesy logowania i spróbuj ponownie.",
+        "cancelled": "Anulowano logowanie do {{chatgpt}}. Możesz spróbować ponownie.",
+        "exchangeFailed": "Nie udało się dokończyć logowania do {{chatgpt}}. Spróbuj ponownie.",
+        "runtimeUnavailable": "Zapisano logowanie do {{chatgpt}}, ale nie udało się skonfigurować trenera.",
+        "storageFailed": "Zakończono logowanie do {{chatgpt}}, ale nie udało się zapisać profilu.",
+        "timedOut": "Upłynął limit czasu logowania do {{chatgpt}}. Spróbuj ponownie, gdy zechcesz."
+      },
+      "retryActivation": "Ponów aktywację",
+      "signIn": "Zaloguj się przez {{chatgpt}}"
+    },
+    "chatSubtitle": "Połącz to, czego potrzebuje trener. {{telegram}} jest opcjonalny i nigdy nie blokuje Czatu.",
+    "checking": {
+      "heading": "Sprawdzanie twojej konfiguracji",
+      "rowSubtitle": "Sprawdzanie istniejących połączeń…",
+      "status": "Sprawdzanie konfiguracji…",
+      "subtitle": "Odczytywanie połączeń zapisanych już na tym komputerze. Tuż po uruchomieniu może to chwilę potrwać."
+    },
+    "error": {
+      "configurationUnavailable": "Opcje trenera są teraz niedostępne. Sprawdź ponownie sekcję konfiguracji.",
+      "credentialReenterRequired": "Nie udało się użyć tego zapisanego klucza. Wpisz go ponownie, aby kontynuować.",
+      "credentialRequired": "Zaloguj się przez {{chatgpt}} lub dodaj co najmniej jeden klucz modelu, aby kontynuować.",
+      "credentialSaveFailed": "Nie udało się zapisać tego klucza. Spróbuj wpisać go ponownie.",
+      "credentialStatusUnavailable": "Klucz zapisano, ale nie udało się odświeżyć jego statusu. Sprawdź ponownie sekcję konfiguracji.",
+      "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
+      "intakeIncomplete": "Odpowiedz na wymagane pytania dotyczące bezpieczeństwa, aby kontynuować.",
+      "intakeSaveFailed": "Nie udało się zapisać twoich odpowiedzi. Spróbuj ponownie.",
+      "intervalsClipboardClearFailed": "Klucz API nie został zapisany, ponieważ {{product}} nie mógł bezpiecznie usunąć go ze schowka. Skopiuj go ponownie i spróbuj jeszcze raz.",
+      "intervalsClipboardUnavailable": "{{product}} nie mógł odczytać klucza API ze schowka. Skopiuj go w {{intervals}} i spróbuj ponownie.",
+      "intervalsKeyRejected": "{{intervals}} nie zaakceptował skopiowanego klucza API. Skopiuj aktualny klucz API i spróbuj ponownie.",
+      "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że skopiowany klucz API odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
+      "intervalsRuntimeUnavailable": "Nie udało się aktywować skopiowanego klucza API. Skopiuj go w {{intervals}} i spróbuj ponownie.",
+      "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy skopiowany klucz API jest aktywny. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsStorageUncertain": "{{product}} nie mógł potwierdzić, czy skopiowany klucz API został zapisany. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsValidationUnavailable": "{{product}} nie mógł zweryfikować skopiowanego klucza API w {{intervals}}. Sprawdź połączenie i spróbuj ponownie.",
+      "invalidInput": "Ten klucz nie został zaakceptowany. Sprawdź go i wpisz ponownie.",
+      "modelRuntimeUnavailable": "Twój wybór dostawcy został zapisany, ale nie jest jeszcze aktywny. Spróbuj aktywować go ponownie.",
+      "modelSelectionRequired": "Wybierz model lub wpisz własną nazwę modelu.",
+      "runtimeUnavailable": "Klucz zapisano, ale nie jest jeszcze aktywny. Wybierz Ponów zapisane klucze, aby go aktywować.",
+      "storageFailed": "Aplikacja nie mogła potwierdzić, że klucz został bezpiecznie zapisany. Sprawdź dostępność bezpiecznego magazynu i spróbuj ponownie.",
+      "storageUncertain": "Aplikacja nie mogła ustalić, który zapisany klucz przetrwa ponowne uruchomienie. Wpisz klucz ponownie przed kontynuowaniem.",
+      "trainingAccountMismatch": "Ten klucz {{intervalsLower}} należy do innego sportowca niż zapisana już historia treningowa. Przełączanie kont nie jest jeszcze obsługiwane.",
+      "trainingDataRequired": "Połącz {{intervalsLower}} lub zaimportuj co najmniej jeden plik przejazdu.",
+      "unsafeBackend": "Aplikacja nie może bezpiecznie przechowywać tego klucza w obecnym magazynie."
+    },
+    "footerNote": "Wszystko pozostaje na {{computer}}.",
+    "heading": "Uruchom trenera, zanim zaczniesz rozmawiać",
+    "import": {
+      "available": "Import do lokalnej biblioteki: zaimportowano {{imported}}. Poddano kwarantannie {{quarantined}}. Trener ma dostęp do aktywności i strumieni danych.",
+      "choosing": "Oczekiwanie na wybór plików przejazdów…",
+      "failed": "Import do lokalnej biblioteki nie powiódł się. Zaimportowano {{imported}}. Poddano kwarantannie {{quarantined}}. Żadne nowe pliki przejazdów nie są dostępne dla trenera.",
+      "fileCount_one": "{{formattedCount}} plik przejazdu",
+      "fileCount_other": "{{formattedCount}} pliku przejazdu",
+      "importing": "Importowanie plików przejazdów…",
+      "unavailable": "Import do lokalnej biblioteki: zaimportowano {{imported}}. Poddano kwarantannie {{quarantined}}. Dostęp trenera do aktywności i strumieni danych jest tymczasowo niedostępny; ponów import.",
+      "unconfirmed": "Import do lokalnej biblioteki nie powiódł się. Nie udało się potwierdzić wyniku; sprawdź bibliotekę przed kolejną próbą.",
+      "fileCount_few": "{{formattedCount}} pliki przejazdów",
+      "fileCount_many": "{{formattedCount}} plików przejazdów"
+    },
+    "intake": {
+      "managing": "Leczę kontuzję",
+      "none": "Obecnie bez kontuzji",
+      "retrySave": "Ponów zapis odpowiedzi",
+      "returning": "Wracam po kontuzji",
+      "select": "Wybierz…",
+      "subtitle": "Zapisuje informacje o obecnej kontuzji lub powrocie po niej.",
+      "title": "Obecny stan kontuzji"
+    },
+    "requiredReady": "Gotowe: {{ready}} z {{total}} wymaganych",
+    "retrySavedKeys": "Ponów zapisane klucze",
+    "retryStatus": "Sprawdź ponownie status konfiguracji",
+    "settingsHeading": "Konfiguracja",
+    "startCoaching": "Rozpocznij pracę z trenerem",
+    "statusUnavailable": "Nie udało się wczytać statusu konfiguracji. Sprawdź, czy {{product}} jest uruchomiony, i spróbuj ponownie.",
+    "telegram": {
+      "announcement": "Konfiguracja bota {{telegram}} została otwarta poniżej tego wiersza.",
+      "ask": "Poproś",
+      "availability": "{{telegram}} działa, gdy {{product}} jest uruchomiony, a {{computer}} jest wybudzony i połączony z internetem.",
+      "cancelLabel": "Anuluj konfigurację bota {{telegram}}",
+      "checkAgain": "Sprawdź ponownie",
+      "connecting": "Łączenie…",
+      "create": "Utwórz",
+      "createAfterBotFather": "o bota, skopiuj jego token i wróć tutaj. {{product}} odczytuje i weryfikuje token bezpośrednio ze schowka; token nigdy nie jest wyświetlany.",
+      "createCopy": "Poproś {{botFather}} o bota, skopiuj jego token i wróć tutaj. {{product}} odczytuje i weryfikuje token bezpośrednio ze schowka; token nigdy nie jest wyświetlany.",
+      "createLabel": "Utwórz bota {{telegram}}",
+      "createTitle": "Utwórz bota za pomocą {{botFather}}",
+      "delete": "Usuń",
+      "deleteConnection": "Usuń połączenie",
+      "deleteCopy": "Spowoduje to wyłączenie {{telegram}} oraz usunięcie zaszyfrowanego tokena i dostępu dozwolonych użytkowników z {{computer}}. Bot {{telegram}} i czat pozostaną w {{telegram}}.",
+      "deleteLabel": "Usuń połączenie z {{telegram}}",
+      "deleteTitle": "Usunąć połączenie z {{telegram}}?",
+      "deleting": "Usuwanie…",
+      "notDeleted": "Połączenie z {{telegram}} nie zostało usunięte z {{computer}}.",
+      "optional": "Opcjonalne",
+      "unappliedToken": "Nie zastosowano skopiowanego tokena. Bieżący bot {{telegram}} pozostaje bez zmian.",
+      "useToken": "Użyj skopiowanego tokena",
+      "verified": "Bot zweryfikowany · @{{username}}",
+      "verifiedPrefix": "Bot zweryfikowany"
+    },
+    "training": {
+      "cancelLabel": "Anuluj konfigurację {{intervals}}",
+      "connect": "Połącz",
+      "connecting": "Łączenie…",
+      "connectTitle": "Połącz {{intervals}}",
+      "hint": "W {{intervals}} otwórz Ustawienia → Ustawienia programisty, skopiuj klucz API i wróć tutaj. {{product}} odczytuje go bez wyświetlania.",
+      "importFiles": "Zamiast tego zaimportuj pliki przejazdów",
+      "subtitle": {
+        "connected": "Połączono · źródło twoich przejazdów",
+        "missing": "Połącz lub zaimportuj pliki przejazdów."
+      },
+      "tooltip": {
+        "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie skopiuj klucz API tego konta.",
+        "label": "O {{intervals}}"
+      },
+      "trigger": {
+        "disconnected": "Połącz {{intervals}}"
+      },
+      "useCopiedKey": "Użyj skopiowanego klucza API"
     }
+  },
+  "shell": {
+    "checkingSetup": "Sprawdzanie konfiguracji…",
+    "loading": {
+      "archive": "Wczytywanie wcześniejszych rozmów…",
+      "chat": "Wczytywanie czatu…",
+      "plan": "Wczytywanie planu…",
+      "settings": "Wczytywanie ustawień…",
+      "training": "Wczytywanie treningu…"
+    },
+    "platform": {
+      "credentialEncryptionUnavailable": {
+        "mac": "Szyfrowanie {{operatingSystem}} jest niedostępne. Upewnij się, że {{keychain}} jest dostępny, i spróbuj ponownie.",
+        "windows": "Szyfrowanie danych dostępowych {{operatingSystem}} ({{encryption}}) jest niedostępne. Zamknij i otwórz ponownie {{product}}, a następnie spróbuj ponownie."
+      },
+      "credentialRecoveryAction": {
+        "mac": "odblokuj pęk kluczy logowania",
+        "windows": "upewnij się, że szyfrowanie danych dostępowych {{operatingSystem}} ({{encryption}}) jest dostępne"
+      }
+    }
+  },
+  "sidebar": {
+    "navigation": "Nawigacja główna",
+    "newChat": "Nowa rozmowa",
+    "planAttention_one": "Plan, {{formattedCount}} element wymaga uwagi",
+    "planAttention_other": "Plan, {{formattedCount}} elementu wymaga uwagi",
+    "sync": {
+      "action": {
+        "again": "Synchronizuj ponownie",
+        "now": "Synchronizuj teraz",
+        "retry": "Spróbuj ponownie",
+        "unavailable": "Synchronizacja niedostępna"
+      },
+      "ariaLabel": "{{action}} · {{headline}}",
+      "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
+      "headline": {
+        "attention": "Synchronizacja wymaga uwagi",
+        "loading": "Wczytywanie danych treningowych",
+        "never": "Jeszcze nie zsynchronizowano",
+        "synced": "Dane treningowe zsynchronizowane",
+        "syncing": "Synchronizowanie",
+        "unavailable": "Dane treningowe niedostępne"
+      },
+      "message": {
+        "external": "{{message}}",
+        "indeterminate": "Połączenie przerwane. Synchronizacja może jeszcze dobiegać końca. {{product}} nie ponowi jej automatycznie.",
+        "noChange": "Zakończono lokalne przetwarzanie danych treningowych.",
+        "noChangeRestricted_one": "Zakończono lokalne przetwarzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie jednej aktywności, więc nie została uwzględniona.",
+        "noChangeRestricted_other": "Zakończono lokalne przetwarzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione.",
+        "operationFailure": "Nie udało się ukończyć sprawdzania danych treningowych. Twoje istniejące dane są nadal dostępne.",
+        "partial": "Częściowo ukończono przetwarzanie danych treningowych. Spróbuj ponownie, aby zakończyć.",
+        "protocol": "{{product}} nie mógł zweryfikować wyniku synchronizacji. Zamknij i otwórz ponownie {{product}}.",
+        "published": "Zakończono sprawdzanie danych treningowych.",
+        "publishedRestricted_one": "Zakończono sprawdzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie jednej aktywności, więc nie została uwzględniona.",
+        "publishedRestricted_other": "Zakończono sprawdzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione.",
+        "queued": "Synchronizacja w kolejce.",
+        "running": "Synchronizowanie danych treningowych…",
+        "noChangeRestricted_few": "Zakończono lokalne przetwarzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione.",
+        "noChangeRestricted_many": "Zakończono lokalne przetwarzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione.",
+        "publishedRestricted_few": "Zakończono sprawdzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione.",
+        "publishedRestricted_many": "Zakończono sprawdzanie danych treningowych. Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnienie {{formattedCount}} aktywności, więc nie zostały uwzględnione."
+      },
+      "restriction": {
+        "fixAction": "· Jak to naprawić",
+        "fixLabel": "{{restrictionLabel}}. Jak to naprawić",
+        "label_one": "{{formattedCount}} ukryta przez {{source}}",
+        "label_other": "{{formattedCount}} ukrytej przez {{source}}",
+        "tooltipBody": "Ograniczenie API {{source}} uniemożliwia {{provider}} udostępnianie tych aktywności w {{product}}.",
+        "tooltipLabel": "Dlaczego aktywności są ukryte?",
+        "tooltipLead_one": "{{formattedCount}} aktywność ukryta przez {{source}}",
+        "tooltipLead_other": "{{formattedCount}} aktywności ukrytej przez {{source}}",
+        "label_few": "{{formattedCount}} ukryte przez {{source}}",
+        "label_many": "{{formattedCount}} ukrytych przez {{source}}",
+        "tooltipLead_few": "{{formattedCount}} aktywności ukryte przez {{source}}",
+        "tooltipLead_many": "{{formattedCount}} aktywności ukrytych przez {{source}}"
+      },
+      "timestamp": "{{year}}-{{month}}-{{day}} {{hour}}:{{minute}}:{{second}} {{timezone}}",
+      "unknownTimestamp": "Nieznany czas synchronizacji"
+    },
+    "update": {
+      "available": "Aktualizacja dostępna",
+      "availableVersion": "Dostępna jest aktualizacja do wersji {{version}}",
+      "installVersion": "Zainstaluj aktualizację do wersji {{version}}",
+      "restarting": "Ponowne uruchamianie…",
+      "restartingVersion": "Ponowne uruchamianie w celu instalacji aktualizacji do wersji {{version}}"
+    },
+    "views": {
+      "archive": "Wcześniejsze rozmowy",
+      "chat": "Czat",
+      "plan": "Plan",
+      "settings": "Ustawienia",
+      "training": "Trening"
+    },
+    "planAttention_few": "Plan, {{formattedCount}} elementy wymagają uwagi",
+    "planAttention_many": "Plan, {{formattedCount}} elementów wymaga uwagi"
   }
 }

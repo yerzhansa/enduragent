@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
@@ -13,6 +14,7 @@ import { TelegramSection } from "./TelegramSection";
 import { TrainingAccountSection } from "./TrainingAccountSection";
 
 export function SettingsView(): ReactElement {
+  const { say } = usePhrasebook();
   const ports = useEnduragentStore((store) => store.settingsPorts);
   const busy = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const closeSettingsPanes = useEnduragentStore((store) => store.closeSettingsPanes);
@@ -34,7 +36,12 @@ export function SettingsView(): ReactElement {
   }, [closeSettingsPanes, ports]);
 
   return (
-    <Page title="Settings" titleRef={title} subtitle={busy ? "Saving…" : undefined} busy={busy}>
+    <Page
+      title={say("settings.title")}
+      titleRef={title}
+      subtitle={busy ? say("settings.saving") : undefined}
+      busy={busy}
+    >
       <SetupPanel placement="settings" />
       <TelegramSection />
       <CoachSection />

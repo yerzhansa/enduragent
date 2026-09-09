@@ -1,3 +1,7 @@
+import type { Message } from "@enduragent/i18n";
+import { msg } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { cn } from "@enduragent/ui";
@@ -9,7 +13,6 @@ import { useEnduragentStore } from "../../state/store";
 import type { TrainingContextViewState } from "../../training-context/controller";
 import {
   sourceRestrictionSummary,
-  STRAVA_RESTRICTION_DESKTOP_COPY,
   type ManualSyncViewState,
 } from "../../training-context/manual-sync";
 import { formatUtcTimestamp } from "../../training-context/format";
@@ -19,6 +22,8 @@ import {
   requestTrainingRestrictionFocus,
   STRAVA_RESTRICTION_CARD_ID,
 } from "../settings/restriction-focus";
+
+import { manualSyncActionMessage, manualSyncStatusMessage } from "./copy";
 
 type SyncChipStatus = "loading" | "syncing" | "attention" | "synced" | "never" | "unavailable";
 
@@ -35,16 +40,35 @@ function syncChipStatus(
   return "never";
 }
 
-const HEADLINE: Readonly<Record<SyncChipStatus, string>> = {
-  loading: "Loading training data",
-  syncing: "Syncing",
-  attention: "Sync needs attention",
-  synced: "Training data synced",
-  never: "Not synced yet",
-  unavailable: "Training data unavailable",
+const HEADLINE: Readonly<Record<SyncChipStatus, Message>> = {
+  loading: msg("sidebar.sync.headline.loading"),
+  syncing: msg("sidebar.sync.headline.syncing"),
+  attention: msg("sidebar.sync.headline.attention"),
+  synced: msg("sidebar.sync.headline.synced"),
+  never: msg("sidebar.sync.headline.never"),
+  unavailable: msg("sidebar.sync.headline.unavailable"),
 };
 
+function syncTimestamp(value: string, { say, format }: Phrasebook): string {
+  const normalized = formatUtcTimestamp(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) UTC$/u.exec(normalized);
+  if (match === null) return say("sidebar.sync.unknownTimestamp");
+  const component = (index: number, digits = 2): string =>
+    format.number(Number(match[index]), { minimumIntegerDigits: digits, useGrouping: false });
+  return say("sidebar.sync.timestamp", {
+    year: component(1, 4),
+    month: component(2),
+    day: component(3),
+    hour: component(4),
+    minute: component(5),
+    second: component(6),
+    timezone: "UTC",
+  });
+}
+
 export function SyncChip(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const training = useEnduragentStore((store) => store.training);
   const sync = useEnduragentStore((store) => store.sync);
   const actions = useEnduragentStore((store) => store.syncActions);
@@ -53,15 +77,21 @@ export function SyncChip(): ReactElement {
   const wrapper = useRef<HTMLDivElement>(null);
   const status = syncChipStatus(training, sync);
   const synced = training.metadata?.lastSynced ?? null;
-  const syncedDetail = status === "synced" && synced !== null ? formatUtcTimestamp(synced) : null;
-  const detail = sync.message === "" ? syncedDetail : sync.message;
+  const syncedDetail =
+    status === "synced" && synced !== null ? syncTimestamp(synced, phrasebook) : null;
   const restriction = sourceRestrictionSummary(sync.droppedActivities, "STRAVA");
+  const formattedCount = format.number(restriction?.count ?? 0, { useGrouping: false });
+  const message = manualSyncStatusMessage(sync, formattedCount);
+  const detail = message === null ? syncedDetail : say(message);
+  const action = say(manualSyncActionMessage(sync.label));
+  const headline = say(HEADLINE[status]);
+  const restrictionVars = { count: restriction?.count ?? 0, formattedCount, source: "Strava" };
   const restrictionLabel =
     restriction === null
       ? null
       : restriction.count === 1
-        ? "1 hidden by Strava"
-        : `${restriction.count} hidden by Strava`;
+        ? say("sidebar.sync.restriction.label_one", restrictionVars)
+        : say("sidebar.sync.restriction.label_other", restrictionVars);
 
   useEffect(() => {
     setManualSyncFocusFallback(wrapper.current);
@@ -85,7 +115,11 @@ export function SyncChip(): ReactElement {
         data-status={status}
         title={restriction === null || syncedDetail === null ? undefined : syncedDetail}
         disabled={sync.disabled || actions === null}
-        aria-label={[sync.label, HEADLINE[status], detail].filter(Boolean).join(" · ")}
+        aria-label={
+          detail === null
+            ? say("sidebar.sync.ariaLabel", { action, headline })
+            : say("sidebar.sync.ariaLabelDetail", { action, headline, detail })
+        }
         onClick={(event) => {
           const keyboard = event.detail === 0;
           setManualSyncFocusTarget(keyboard ? chip.current : null);
@@ -104,7 +138,7 @@ export function SyncChip(): ReactElement {
       />
       <span className="pointer-events-none relative z-[1] min-w-0">
         <span className="block whitespace-normal" data-sync-headline="" aria-hidden="true">
-          {HEADLINE[status]}
+          {headline}
         </span>
         <span
           className={cn(detail === null ? "sr-only" : "mt-px block whitespace-normal text-ink-3")}
@@ -117,12 +151,18 @@ export function SyncChip(): ReactElement {
         </span>
         {restriction === null ? null : (
           <InfoTip
-            label="Why are activities hidden?"
-            lead={STRAVA_RESTRICTION_DESKTOP_COPY.tooltipLead(restriction.count)}
+            label={say("sidebar.sync.restriction.tooltipLabel")}
+            lead={
+              restriction.count === 1
+                ? say("sidebar.sync.restriction.tooltipLead_one", restrictionVars)
+                : say("sidebar.sync.restriction.tooltipLead_other", restrictionVars)
+            }
             trigger={
               <a
                 href={`#${STRAVA_RESTRICTION_CARD_ID}`}
-                aria-label={`${restrictionLabel}. How to fix this`}
+                aria-label={say("sidebar.sync.restriction.fixLabel", {
+                  restrictionLabel: restrictionLabel ?? "",
+                })}
                 className="pointer-events-auto mt-px flex w-full min-w-0 flex-wrap items-center gap-x-1 text-[11px] leading-4 no-underline"
                 data-sync-restriction=""
                 onClick={() => {
@@ -138,11 +178,15 @@ export function SyncChip(): ReactElement {
               <>
                 <span className="text-warn">{restrictionLabel}</span>
                 <span className="font-sans text-brand underline-offset-2 hover:underline">
-                  · How to fix this
+                  {say("sidebar.sync.restriction.fixAction")}
                 </span>
               </>
             }
-            body={STRAVA_RESTRICTION_DESKTOP_COPY.tooltipBody}
+            body={say("sidebar.sync.restriction.tooltipBody", {
+              source: "Strava",
+              provider: "intervals.icu",
+              product: "Enduragent",
+            })}
           />
         )}
         <span
@@ -150,7 +194,7 @@ export function SyncChip(): ReactElement {
           data-sync-action=""
           aria-hidden="true"
         >
-          {sync.label}
+          {action}
         </span>
       </span>
     </div>
