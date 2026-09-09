@@ -3,16 +3,13 @@ import type { ModelMessage } from "ai";
 import { z } from "zod";
 import type { MemorySectionSpec } from "../sport.js";
 import type { MemoryStorePort } from "../host-ports.js";
-import {
-  createLedgerAppendTool,
-  createMemoryReadTool,
-  MEMORY_READ_FLUSH_DESCRIPTION,
-} from "../sport/memory-tools.js";
+import { createLedgerAppendTool } from "../sport/memory-tools.js";
 import type { LLM } from "../llm.js";
 import type { GenerateResult } from "../sport.js";
 import type { TurnBudget } from "./turn-budget.js";
 import { warnOrphanSections } from "../sport/orphan-sections.js";
 import {
+  EMPTY_PROVENANCE,
   provenanceOfMessages,
   unionProvenance,
   type SourceProvenance,
@@ -70,10 +67,26 @@ write, so include ALL current facts for that section, not just new ones.
 Use the ledger_append tool to record dated events (decisions, overrides,
 illness, experiment outcomes); ledger entries are appended, never replaced.`;
 
-function buildFlushUserPrompt(sections: readonly MemorySectionSpec[], today: string): string {
+function renderCurrentMemory(memory: MemoryStorePort): {
+  text: string;
+  provenance: SourceProvenance;
+} {
+  const current = memory.getContextWithProvenance?.() ?? {
+    text: memory.getContext(),
+    provenance: EMPTY_PROVENANCE,
+  };
+  if (current.text) return current;
+  return { text: "No athlete data stored yet.", provenance: EMPTY_PROVENANCE };
+}
+
+function buildFlushUserPrompt(
+  sections: readonly MemorySectionSpec[],
+  currentMemory: string,
+  today: string,
+): string {
   const sectionList = sections.map((s) => `- "${s.name}": ${s.description}`).join("\n");
-  return `Review this conversation and save athlete details to structured memory
-sections. First read existing memory with memory_read, then write each
+  return `Review the new conversation messages above and save athlete details to
+structured memory sections. The current memory is shown below; write each
 section that has new or updated information.
 
 Write to these sections using memory_write:
@@ -112,7 +125,11 @@ Date each event (YYYY-MM-DD) with the day it happened, which may be earlier
 than today. Record only events from this conversation; never re-record
 events that earlier reviews already saved.
 
-Only write sections that have new or changed information.`;
+Only write sections that have new or changed information.
+
+Current memory:
+
+${currentMemory}`;
 }
 
 // ============================================================================
@@ -192,7 +209,6 @@ export async function runMemoryFlush(params: {
   memorySections: readonly MemorySectionSpec[];
   tz?: string;
   budget?: Pick<TurnBudget, "chargeGenerateCall">;
-  provenanceForMemoryRead?: (visibleResult: string) => SourceProvenance;
 }): Promise<MemoryFlushOutcome> {
   if (params.memorySections.length === 0) {
     throw new Error(
@@ -202,7 +218,11 @@ export async function runMemoryFlush(params: {
   }
   let writes = 0;
   let ledgerAppends = 0;
-  let visibleProvenance = provenanceOfMessages(params.messages);
+  const currentMemory = renderCurrentMemory(params.memory);
+  const visibleProvenance = unionProvenance(
+    provenanceOfMessages(params.messages),
+    currentMemory.provenance,
+  );
   const beforeChars = new Map(
     params.memorySections.map((s) => [s.name, (params.memory.readSection(s.name) ?? "").length]),
   );
@@ -213,16 +233,6 @@ export async function runMemoryFlush(params: {
       () => visibleProvenance,
       () => {
         writes++;
-      },
-    ),
-    memory_read: createMemoryReadTool(
-      params.memory,
-      MEMORY_READ_FLUSH_DESCRIPTION,
-      (visibleResult) => {
-        visibleProvenance = unionProvenance(
-          visibleProvenance,
-          params.provenanceForMemoryRead?.(visibleResult),
-        );
       },
     ),
     ledger_append: createLedgerAppendTool(
@@ -242,7 +252,11 @@ export async function runMemoryFlush(params: {
       ...params.messages,
       {
         role: "user" as const,
-        content: buildFlushUserPrompt(params.memorySections, todayInTZ(params.tz ?? "UTC")),
+        content: buildFlushUserPrompt(
+          params.memorySections,
+          currentMemory.text,
+          todayInTZ(params.tz ?? "UTC"),
+        ),
       },
     ],
     tools: flushTools,

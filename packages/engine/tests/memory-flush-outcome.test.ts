@@ -144,7 +144,7 @@ describe("runMemoryFlush outcome detection", () => {
     expect(eventsNamed("memory_flush_zero_writes")).toHaveLength(0);
   });
 
-  it("preserves Garmin provenance when a flush reads and rewrites labeled memory", async () => {
+  it("preserves Garmin provenance when a flush rewrites labeled memory shown in its prompt", async () => {
     const memory = new Memory(dataDir);
     memory.writeSection("goals", "Garmin-derived goal", "chat-tool", {
       garmin: true,
@@ -152,7 +152,6 @@ describe("runMemoryFlush outcome detection", () => {
       unknown: false,
     });
     const llm = drivenLLM([""], async (tools) => {
-      await tools.memory_read.execute!({}, {} as never);
       await tools.memory_write.execute!(
         { section: "goals", content: "Garmin-derived goal" },
         {} as never,
@@ -164,14 +163,12 @@ describe("runMemoryFlush outcome detection", () => {
       messages: TRIVIAL,
       memory,
       memorySections: SECTIONS,
-      provenanceForMemoryRead: (visibleResult) =>
-        memory.provenanceForToolRead("memory_read", {}, visibleResult),
     });
 
     expect(memory.getContextWithProvenance().provenance.garmin).toBe(true);
   });
 
-  it("does not infer Garmin provenance when a flush writes without reading it", async () => {
+  it("does not infer Garmin provenance from Garmin-looking text in a write", async () => {
     const memory = new Memory(dataDir);
     const llm = drivenLLM([""], async (tools) => {
       await tools.memory_write.execute!(
@@ -185,8 +182,6 @@ describe("runMemoryFlush outcome detection", () => {
       messages: TRIVIAL,
       memory,
       memorySections: SECTIONS,
-      provenanceForMemoryRead: (visibleResult) =>
-        memory.provenanceForToolRead("memory_read", {}, visibleResult),
     });
 
     expect(memory.getContextWithProvenance().provenance).toEqual({
@@ -314,14 +309,33 @@ describe("runMemoryFlush outcome detection", () => {
     expect(orphan[0].names).toEqual(["random-legacy"]);
   });
 
-  it("flush toolset's memory_read carries the read-role description, not the chat nudge", async () => {
+  it("flush prompt inlines the current memory and registers no memory_read tool", async () => {
+    writeFileSync(
+      memoryFile,
+      "## goals\nTarget FTP 280W by August\n\n## legacy-notes\nOld knee issue\n",
+      "utf-8",
+    );
+    const memory = new Memory(dataDir);
+    const llm = createFakeLLM([""]);
+    await runMemoryFlush({ llm, messages: NON_TRIVIAL, memory, memorySections: SECTIONS });
+    const tools = llm.capturedOpts[0].tools as ToolSet;
+    expect(Object.keys(tools).sort()).toEqual(["ledger_append", "memory_write"]);
+    const messages = llm.capturedOpts[0].messages ?? [];
+    expect(messages).toHaveLength(NON_TRIVIAL.length + 1);
+    const flushPrompt = String(messages[messages.length - 1]?.content ?? "");
+    expect(flushPrompt).not.toContain("memory_read");
+    expect(flushPrompt).toContain(memory.getContext());
+    expect(flushPrompt).toContain("Target FTP 280W by August");
+    expect(flushPrompt).toContain("Old knee issue");
+  });
+
+  it("flush prompt says when no memory is stored yet", async () => {
     const memory = new Memory(dataDir);
     const llm = createFakeLLM([""]);
     await runMemoryFlush({ llm, messages: TRIVIAL, memory, memorySections: SECTIONS });
-    const tools = llm.capturedOpts[0].tools as ToolSet;
-    const desc = (tools.memory_read as { description?: string }).description ?? "";
-    expect(desc).toContain("read first to carry existing facts forward");
-    expect(desc).not.toContain("do not call this to re-read");
+    const messages = llm.capturedOpts[0].messages ?? [];
+    const flushPrompt = String(messages[messages.length - 1]?.content ?? "");
+    expect(flushPrompt).toContain("Current memory:\n\nNo athlete data stored yet.");
   });
 
   it("flush user prompt carries the section-budget nudge with the budget value", async () => {
