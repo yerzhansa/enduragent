@@ -6,7 +6,7 @@ import { Card, CardContent } from "@enduragent/ui";
 import { creationTitle } from "../../plan/creation-title";
 import { useEnduragentStore } from "../../state/store";
 
-import { commitmentSummaryId } from "./PlanCreationDraftCards";
+import { commitmentSummaryId, resolvedAnswerSummaries } from "./PlanCreationDraftCards";
 
 export function PlanCreationSummary(props: {
   readonly model: PlanCreationCardModel;
@@ -19,6 +19,7 @@ export function PlanCreationSummary(props: {
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discardButton = useRef<HTMLButtonElement>(null);
+  const summaries = resolvedAnswerSummaries(props.model.answeredSummaries);
   const ready = props.model.readiness === "ready";
   const canContinue = paused && props.model.openQuestion !== null;
   const total =
@@ -32,9 +33,9 @@ export function PlanCreationSummary(props: {
   }, [focusRequest?.revision, focusRequest?.target]);
   return (
     <section className="grid min-w-0 gap-4" aria-label="Plan Creation progress">
-      {props.model.answeredSummaries.length === 0 ? null : (
+      {summaries.length === 0 ? null : (
         <ul className="m-0 grid list-none gap-2 p-0" role="list">
-          {props.model.answeredSummaries.map((summary) => (
+          {summaries.map((summary) => (
             <li
               key={summary.answerKey}
               className="grid min-w-0 grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)_auto] items-center gap-row rounded-card border border-line bg-surface px-ctl-px py-3 text-sm"
@@ -114,7 +115,7 @@ export function PlanCreationSummary(props: {
             >
               {ready
                 ? "The essentials are complete."
-                : `${props.model.answeredSummaries.length} of ${total} answered.${library === null ? "" : ` ${library.active ? `${library.active.name} keeps running.` : "No Plan is active."}`}`}
+                : `${summaries.length} of ${total} answered.${library === null ? "" : ` ${library.active ? `${library.active.name} keeps running.` : "No Plan is active."}`}`}
             </p>
             <div className="mt-4 flex flex-wrap gap-inset" data-parity="progress.actions">
               <Button

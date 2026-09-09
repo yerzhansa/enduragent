@@ -3122,9 +3122,53 @@ describe("chat controller", () => {
         expect.objectContaining({ answer: { kind } }),
       );
       expect(controls.at(-1)?.planCreation?.value?.pendingCommitment).toBeNull();
+      expect(controls.at(-1)?.planCreation?.focusRequest).toMatchObject({ target: "composer" });
       controller.dispose();
     },
   );
+
+  it("leaves focus with the next question when a resolved correction reopens one", async () => {
+    const question: NonNullable<PlanCreationCardModel["openQuestion"]> = {
+      kind: "plan-length-question",
+      step: { current: 2, total: 9 },
+      prompt: "How long should this Fitness Plan be?",
+      options: [{ weeks: 4, label: "4 weeks", detail: "A short block." }],
+    };
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 10,
+      status: "in-progress",
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: null,
+      calendarWindow: null,
+      draftStale: false,
+      pendingCommitment: {
+        text: "Some evenings are busy",
+        rules: [],
+        status: "clarify",
+        unparsed: ["Some evenings are busy"],
+      },
+    };
+    const answerPlanCreation = vi
+      .fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>()
+      .mockResolvedValue({
+        status: "answered",
+        planCreation: { ...card, version: 11, pendingCommitment: null, openQuestion: question },
+      });
+    const { controller, controls } = subject(
+      client(replies(), {
+        listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+        answerPlanCreation,
+      }),
+    );
+    await controller.start();
+    await controller.answerPlanCreation({ kind: "commitments-cancel" });
+    expect(controls.at(-1)?.planCreation?.value?.openQuestion?.kind).toBe("plan-length-question");
+    expect(controls.at(-1)?.planCreation?.focusRequest?.target).not.toBe("composer");
+    controller.dispose();
+  });
 
   it("rereads pending correction and displays the daemon explanation after rejected Draft build", async () => {
     const card: PlanCreationCardModel = {

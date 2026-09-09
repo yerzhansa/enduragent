@@ -3269,10 +3269,13 @@ describe("chat surface", () => {
         setChat({
           planCreationLoaded: true,
           planCreation: model,
+          inputDisabled: true,
+          sendDisabled: true,
+          composerPlaceholder: "Finish the correction above",
           timeline: [{ kind: "plan-creation", model }],
         });
         render(<Harness />);
-        const correction = screen.getByRole("region", { name: "Confirm these limits" });
+        const correction = screen.getByRole("region", { name: "Did I read this right?" });
         for (const text of [
           "Wed · at most 45 min",
           "Sat · unavailable",
@@ -3281,9 +3284,9 @@ describe("chat surface", () => {
         ]) {
           expect(within(correction).getByText(text)).toBeVisible();
         }
-        expect(
-          within(correction).getAllByRole("rowheader", { name: "Interpreted limit" }),
-        ).toHaveLength(4);
+        expect(within(correction).getAllByRole("rowheader", { name: "I understood" })).toHaveLength(
+          4,
+        );
         const blocked = screen.getByRole("button", {
           name:
             stage === "question"
@@ -3294,16 +3297,38 @@ describe("chat surface", () => {
         });
         expect(blocked).toBeDisabled();
         expect(blocked).toHaveAccessibleDescription(
-          "Your last confirmed limits remain effective. Draft building and activation wait for this correction.",
+          "I understood your note as this limit. Confirm it and your other confirmed limits stay as they are.",
         );
-        await userEvent.click(within(correction).getByRole("button", { name: "Confirm limits" }));
+        const dock = screen.getByRole("region", { name: "Plan creation dock" });
+        expect(dock).toContainElement(correction);
+        expect(
+          within(screen.getByRole("region", { name: "Plan creation" })).queryByRole("region", {
+            name: "Did I read this right?",
+          }),
+        ).toBeNull();
+        expect(composer()).toBeDisabled();
+        expect(composer()).toHaveAttribute("placeholder", "Finish the correction above");
+        expect(
+          within(correction)
+            .getAllByRole("button")
+            .map((button) => button.textContent),
+        ).toEqual(["Change it", "Confirm"]);
+        await userEvent.click(within(correction).getByRole("button", { name: "Change it" }));
+        expect(actions.editPlanCreation).toHaveBeenLastCalledWith("commitments");
+        vi.mocked(actions.answerPlanCreation).mockImplementation(async () => {
+          setChat({
+            planCreation: { ...model, pendingCommitment: null },
+            planCreationFocusRequest: { target: "composer", revision: 1 },
+            inputDisabled: false,
+            sendDisabled: false,
+            composerPlaceholder: "Message your coach",
+          });
+        });
+        await userEvent.click(within(correction).getByRole("button", { name: "Confirm" }));
         expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
           kind: "commitments-confirm",
         });
-        await userEvent.click(
-          within(correction).getByRole("button", { name: "Cancel correction" }),
-        );
-        expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({ kind: "commitments-cancel" });
+        await waitFor(() => expect(composer()).toHaveFocus());
       },
     );
 
@@ -3324,18 +3349,47 @@ describe("chat surface", () => {
       setChat({
         planCreationLoaded: true,
         planCreation: model,
+        inputDisabled: true,
+        sendDisabled: true,
+        composerPlaceholder: "Finish the correction above",
         timeline: [{ kind: "plan-creation", model }],
       });
       render(<Harness />);
-      const correction = screen.getByRole("region", { name: "Clarify your commitment" });
-      const progress = screen.getByRole("region", { name: "Plan Creation progress" });
+      const correction = screen.getByRole("region", { name: "I could not use that answer" });
+      expect(screen.getByRole("region", { name: "Plan creation dock" })).toContainElement(
+        correction,
+      );
       expect(
-        progress.compareDocumentPosition(correction) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).not.toBe(0);
-      expect(within(correction).getByRole("rowheader", { name: "Not understood" })).toBeVisible();
-      expect(within(correction).queryByRole("button", { name: "Confirm limits" })).toBeNull();
+        within(screen.getByRole("region", { name: "Plan creation" })).queryByRole("region", {
+          name: "I could not use that answer",
+        }),
+      ).toBeNull();
+      expect(within(correction).getAllByRole("row")).toHaveLength(1);
+      expect(within(correction).getByRole("rowheader", { name: "You wrote" })).toBeVisible();
+      expect(within(correction).getByText("Plan creation · Commitments")).toBeVisible();
+      expect(correction.querySelector("[data-plan-card-status]")).toBeNull();
+      expect(
+        within(correction).getByText(
+          "Tell me again in a different way, with weekdays, time limits, or exact dates.",
+        ),
+      ).toBeVisible();
+      expect(
+        within(correction)
+          .getAllByRole("button")
+          .map((button) => button.textContent),
+      ).toEqual(["Skip for now", "Answer"]);
+      expect(screen.queryByRole("textbox", { name: "Commitments or time off" })).toBeNull();
+      expect(composer()).toBeDisabled();
+      expect(composer()).toHaveAttribute("placeholder", "Finish the correction above");
+      vi.mocked(actions.editPlanCreation).mockImplementation(() => {
+        setChat({ planCreationEditingKey: "commitments" });
+      });
+      await userEvent.click(within(correction).getByRole("button", { name: "Answer" }));
+      expect(actions.editPlanCreation).toHaveBeenLastCalledWith("commitments");
+      expect(screen.queryByRole("region", { name: "I could not use that answer" })).toBeNull();
       const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
       expect(editor).toHaveValue("Some evenings are busy");
+      await waitFor(() => expect(editor).toHaveFocus());
       expect(editor).toHaveAccessibleDescription(
         "Give the weekday and exact limit, or the exact time-off dates.",
       );
@@ -3347,6 +3401,245 @@ describe("chat surface", () => {
         commitments: { kind: "interpreted", text: "Wed 45 min" },
       });
     });
+
+    it("shows a failed correction in the active editor and preserves the answer for retry", async () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(
+          commitmentsQuestion("Any fixed commitments or time off?", "Add scheduling details"),
+        ),
+        pendingCommitment: {
+          text: "Some evenings are busy",
+          rules: [],
+          status: "clarify",
+          unparsed: ["Some evenings are busy"],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        planCreationEditingKey: "commitments",
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      vi.mocked(actions.answerPlanCreation).mockImplementation(async () => {
+        setChat({ planCreationError: "Could not save that answer. Try again." });
+      });
+      render(<Harness />);
+      const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
+      await userEvent.clear(editor);
+      await userEvent.type(editor, "Wed 45 min");
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      const dock = screen.getByRole("region", { name: "Plan creation dock" });
+      expect(within(dock).getByRole("alert")).toHaveTextContent(
+        "Could not save that answer. Try again.",
+      );
+      expect(editor).toHaveValue("Wed 45 min");
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      expect(actions.answerPlanCreation).toHaveBeenCalledTimes(2);
+      expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
+        kind: "commitments",
+        commitments: { kind: "interpreted", text: "Wed 45 min" },
+      });
+    });
+
+    it("replaces a pending confirmation with the commitments editor", async () => {
+      const question = commitmentsQuestion(
+        "Any fixed commitments or time off?",
+        "Add scheduling details",
+      );
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(question),
+        pendingCommitment: {
+          text: "Wednesday at most 45 minutes",
+          rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
+          status: "confirm",
+          unparsed: [],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      vi.mocked(actions.editPlanCreation).mockImplementation(() => {
+        setChat({ planCreationEditingKey: "commitments" });
+      });
+      render(<Harness />);
+      const dock = screen.getByRole("region", { name: "Plan creation dock" });
+      expect(within(dock).getAllByRole("region")).toHaveLength(1);
+      expect(screen.queryByText(question.prompt)).toBeNull();
+      await userEvent.click(within(dock).getByRole("button", { name: "Change it" }));
+      const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
+      expect(editor).toHaveValue("Wednesday at most 45 minutes");
+      await waitFor(() => expect(editor).toHaveFocus());
+      expect(screen.queryByRole("region", { name: "Did I read this right?" })).toBeNull();
+      expect(document.querySelector("#message")).toBeNull();
+    });
+
+    it("returns focus to the composer and enables building after skipping a pending answer", async () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        pendingCommitment: {
+          text: "Some evenings are busy",
+          rules: [],
+          status: "clarify",
+          unparsed: ["Some evenings are busy"],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      vi.mocked(actions.answerPlanCreation).mockImplementation(async () => {
+        const resolved = { ...model, pendingCommitment: null };
+        setChat({
+          planCreation: resolved,
+          planCreationFocusRequest: { target: "composer", revision: 1 },
+          timeline: [{ kind: "plan-creation", model: resolved }],
+        });
+      });
+      render(<Harness />);
+      expect(screen.getByRole("button", { name: "Build Draft" })).toBeDisabled();
+      await userEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+      expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({ kind: "commitments-cancel" });
+      await waitFor(() => expect(composer()).toHaveFocus());
+      expect(composer()).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Build Draft" })).toBeEnabled();
+    });
+
+    it("focuses the docked check card when a typed commitment could not be used", () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        readiness: "ready",
+        pendingCommitment: {
+          text: "Some evenings are busy",
+          status: "clarify",
+          rules: [],
+          unparsed: ["Some evenings are busy"],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        planCreationFocusRevision: 1,
+        inputDisabled: true,
+        sendDisabled: true,
+        composerPlaceholder: "Finish the correction above",
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+      expect(screen.getByRole("heading", { name: "I could not use that answer" })).toHaveFocus();
+    });
+
+    it("keeps an unresolved typed commitment out of the Changed answers card", () => {
+      const original = planCreationModel(null, { readiness: "ready" });
+      const unresolved = {
+        answerKey: "commitments",
+        title: "Commitments",
+        detail: "Some evenings are busy",
+        question: commitmentsQuestion(
+          "Any fixed commitments or time off?",
+          "Add scheduling details",
+        ),
+        source: { kind: "athlete" },
+        answer: {
+          kind: "commitments",
+          commitments: {
+            kind: "interpreted",
+            text: "Some evenings are busy",
+            status: "clarify",
+            rules: [],
+          },
+        },
+      } satisfies PlanCreationCardModel["answeredSummaries"][number];
+      const model: PlanCreationCardModel = {
+        ...original,
+        version: 3,
+        status: "review",
+        draft: planCreationDraft(original.answeredSummaries),
+        draftStale: true,
+        answeredSummaries: [...original.answeredSummaries, unresolved],
+        pendingCommitment: {
+          text: "Some evenings are busy",
+          status: "clarify",
+          rules: [],
+          unparsed: ["Some evenings are busy"],
+        },
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        inputDisabled: true,
+        sendDisabled: true,
+        composerPlaceholder: "Finish the correction above",
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+      const transcript = screen.getByRole("region", { name: "Plan creation" });
+      expect(within(transcript).queryByText("Some evenings are busy")).toBeNull();
+      expect(
+        within(screen.getByRole("region", { name: "Plan creation dock" })).getByText(
+          "Some evenings are busy",
+        ),
+      ).toBeVisible();
+    });
+
+    it.each(["confirmed", "unresolved"] as const)(
+      "hides an unresolved commitments summary row and keeps a %s one",
+      (source) => {
+        const question = commitmentsQuestion(
+          "Any fixed commitments or time off?",
+          "Add scheduling details",
+        );
+        const confirmed = {
+          answerKey: "commitments",
+          title: "Commitments",
+          detail: "Friday off",
+          question,
+          source: { kind: "athlete" },
+          answer: {
+            kind: "commitments",
+            commitments: {
+              kind: "interpreted",
+              text: "Friday off",
+              status: "confirmed",
+              rules: [{ kind: "weekday-unavailable", day: 5 }],
+            },
+          },
+        } satisfies PlanCreationCardModel["answeredSummaries"][number];
+        const unresolved = {
+          ...confirmed,
+          detail: "Some evenings are busy",
+          answer: {
+            kind: "commitments",
+            commitments: {
+              kind: "interpreted",
+              text: "Some evenings are busy",
+              status: "clarify",
+              rules: [],
+            },
+          },
+        } satisfies PlanCreationCardModel["answeredSummaries"][number];
+        const model: PlanCreationCardModel = {
+          ...planCreationModel(null),
+          answeredSummaries: [source === "confirmed" ? confirmed : unresolved],
+          pendingCommitment: {
+            text: "Some evenings are busy",
+            status: "clarify",
+            rules: [],
+            unparsed: ["Some evenings are busy"],
+          },
+        };
+        render(<PlanCreationSummary model={model} />);
+        expect(screen.queryByText("Some evenings are busy")).toBeNull();
+        if (source === "unresolved")
+          expect(screen.queryByRole("listitem", { name: "Commitments answer" })).toBeNull();
+        else
+          expect(screen.getByRole("listitem", { name: "Commitments answer" })).toHaveTextContent(
+            "Friday off",
+          );
+      },
+    );
 
     it("keeps fixed Workout dates and pinned status visible during Draft review", () => {
       const draft = planCreationDraft();

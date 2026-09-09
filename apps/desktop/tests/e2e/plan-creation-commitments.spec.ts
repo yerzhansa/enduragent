@@ -9,7 +9,7 @@ import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
 const commitments = "Wednesday at most 45 minutes";
 const ambiguousCommitment = "Keep my evenings free";
 const pendingSummary =
-  "Your last confirmed limits remain effective. Draft building and activation wait for this correction.";
+  "I understood your note as this limit. Confirm it and your other confirmed limits stay as they are.";
 const previews = fileURLToPath(new URL("./previews/plan-creation-commitments/", import.meta.url));
 
 type Playwright = PlaywrightWorkerArgs["playwright"];
@@ -51,6 +51,33 @@ async function capture(page: Page, name: string): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
+async function expectAboveComposer(
+  page: Page,
+  correction: ReturnType<Page["getByRole"]>,
+): Promise<void> {
+  const name = (await correction.getAttribute("aria-label")) ?? "";
+  await expect(
+    page
+      .getByRole("region", { name: "Plan creation dock", exact: true })
+      .getByRole("region", { name, exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    page
+      .getByRole("region", { name: "Plan creation", exact: true })
+      .getByRole("region", { name, exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator("#message")).toBeDisabled();
+  await expect(page.locator("#message")).toHaveAttribute(
+    "placeholder",
+    "Finish the correction above",
+  );
+  const cardBox = await correction.boundingBox();
+  const composerBox = await page.locator("#message").boundingBox();
+  if (cardBox === null || composerBox === null)
+    throw new TypeError("Correction or composer is unavailable");
+  expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(composerBox.y);
+}
+
 async function card(backend: PlanCreationBackend) {
   const model = await backend.card();
   if (model === null) throw new TypeError("Plan Creation is unavailable");
@@ -77,13 +104,29 @@ for (const appearance of [
     test.setTimeout(180_000);
     const scratch = await mkdtemp(join(tmpdir(), "plan-commitments-"));
     const backend = new PlanCreationBackend(join(scratch, "store.db"), false, true);
+    let failNextAnswer = false;
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
     try {
       await backend.open();
-      await backend.seedTrainingCreation({ kind: "interpreted", text: commitments });
+      await backend.seedTrainingCreation({ kind: "interpreted", text: ambiguousCommitment });
       fixture = await launchDesktopFixture({
-        script: backend.script,
+        script: {
+          ...backend.script,
+          onRequest: (request) => {
+            if (
+              failNextAnswer &&
+              typeof request === "object" &&
+              request !== null &&
+              "method" in request &&
+              request.method === "plan_creation.answer"
+            ) {
+              failNextAnswer = false;
+              throw new Error("Synthetic answer failure");
+            }
+            return backend.script.onRequest(request);
+          },
+        },
         token: "d".repeat(43),
         width: appearance.width,
         height: 1000,
@@ -99,14 +142,20 @@ for (const appearance of [
       const screenshot = (name: string) =>
         capture(page, `${name}-${appearance.width}-${appearance.colorScheme}`);
       const build = page.getByRole("button", { name: "Build Draft", exact: true });
-      await expect(
-        page.getByRole("heading", { name: "Confirm these limits", exact: true }),
-      ).toBeVisible();
+      const initialCorrection = page.getByRole("region", {
+        name: "I could not use that answer",
+        exact: true,
+      });
+      await expect(initialCorrection).toBeVisible();
+      await expectAboveComposer(page, initialCorrection);
       await expect(build).toBeDisabled();
-      await expect(build).toHaveAccessibleDescription(pendingSummary);
+      await expect(build).toHaveAccessibleDescription(
+        "Tell me again in a different way, with weekdays, time limits, or exact dates.",
+      );
       await screenshot("pending-before-draft");
-      await page.getByRole("button", { name: "Cancel correction", exact: true }).click();
+      await page.getByRole("button", { name: "Skip for now", exact: true }).click();
       await expect(build).toBeEnabled();
+      await expect(page.locator("#message")).toBeFocused();
       await build.click();
       await expect(page.getByRole("button", { name: "Activate Plan", exact: true })).toBeEnabled();
       const original = await card(backend);
@@ -121,16 +170,22 @@ for (const appearance of [
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill(commitments);
       await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
-      const confirmation = page.getByRole("region", { name: "Confirm these limits", exact: true });
+      const confirmation = page.getByRole("region", {
+        name: "Did I read this right?",
+        exact: true,
+      });
       await expect(confirmation).toBeVisible();
-      await expect(confirmation.getByText("Schedule correction", { exact: true })).toBeVisible();
-      await expect(confirmation.getByText("Not yet confirmed", { exact: true })).toBeVisible();
       await expect(
-        confirmation.getByRole("row", { name: `Submitted ${commitments}`, exact: true }),
+        confirmation.getByText("Plan creation · Commitments", { exact: true }),
+      ).toBeVisible();
+      await expect(confirmation.locator("[data-plan-card-status]")).toHaveCount(0);
+      await expectAboveComposer(page, confirmation);
+      await expect(
+        confirmation.getByRole("row", { name: `You wrote ${commitments}`, exact: true }),
       ).toBeVisible();
       await expect(
         confirmation.getByRole("row", {
-          name: "Interpreted limit Wed · at most 45 min",
+          name: "I understood Wed · at most 45 min",
           exact: true,
         }),
       ).toBeVisible();
@@ -153,13 +208,14 @@ for (const appearance of [
       browser = connected.browser;
       page = connected.page;
       await expect(
-        page.getByRole("heading", { name: "Confirm these limits", exact: true }),
+        page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
       expect(await card(backend)).toEqual(pending);
       await expect(page.getByRole("button", { name: "Activate Plan", exact: true })).toBeDisabled();
       await screenshot("pending-restored");
-      await page.getByRole("button", { name: "Confirm limits", exact: true }).click();
+      await page.getByRole("button", { name: "Confirm", exact: true }).click();
       await expect.poll(async () => (await backend.card())?.pendingCommitment).toBeNull();
+      await expect(page.locator("#message")).toBeFocused();
       expect(await card(backend)).toMatchObject({ draft: original.draft, draftStale: true });
       await page.getByRole("button", { name: "Rebuild Draft", exact: true }).click();
       await expect(page.getByRole("button", { name: "Activate Plan", exact: true })).toBeEnabled();
@@ -192,19 +248,23 @@ for (const appearance of [
       await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
       await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
       const clarification = page.getByRole("region", {
-        name: "Clarify your commitment",
+        name: "I could not use that answer",
         exact: true,
       });
       await expect(clarification).toBeVisible();
-      await expect(clarification.getByText("Not understood", { exact: true })).toBeVisible();
       await expect(
-        clarification.getByRole("button", { name: "Confirm limits", exact: true }),
-      ).toHaveCount(0);
+        clarification.getByRole("row", { name: `You wrote ${ambiguousCommitment}`, exact: true }),
+      ).toBeVisible();
+      await expect(clarification.getByRole("row")).toHaveCount(1);
+      await expectAboveComposer(page, clarification);
+      await expect(clarification.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(
+        0,
+      );
       await expect(page.getByRole("button", { name: "Activate Plan", exact: true })).toBeDisabled();
       expect((await card(backend)).draft).toEqual(rebuilt.draft);
       await clarification.scrollIntoViewIfNeeded();
       await screenshot("clarify-pending");
-      await page.getByRole("button", { name: "Clarify", exact: true }).click();
+      await page.getByRole("button", { name: "Answer", exact: true }).click();
       await expect(page.locator('[data-parity="custom.textarea"]')).toHaveValue(
         ambiguousCommitment,
       );
@@ -214,7 +274,25 @@ for (const appearance of [
         }),
       ).toBeVisible();
       await screenshot("clarify-editor");
+      failNextAnswer = true;
+      await page.locator('[data-parity="custom.textarea"]').fill("Some evenings are busy");
+      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await expect(
+        page.getByRole("region", { name: "Plan creation dock", exact: true }).getByRole("alert"),
+      ).toHaveText("Plan Creation couldn’t save that. Try again.");
+      await expect(page.locator('[data-parity="custom.textarea"]')).toHaveValue(
+        "Some evenings are busy",
+      );
+      await screenshot("clarify-editor-error");
+      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await expect(clarification).toBeVisible();
+      await expect(
+        clarification.getByText("Some evenings are busy", { exact: true }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Answer", exact: true }).click();
       await page.getByRole("button", { name: "Back to answers", exact: true }).click();
+      await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+      await expect(page.locator("#message")).toBeFocused();
       const clarificationBeforeChat = await card(backend);
       await page
         .getByRole("combobox", { name: "Message your coach" })
@@ -226,16 +304,25 @@ for (const appearance of [
           .getByText("Keep the effort conversational and finish feeling fresh.", { exact: true }),
       ).toBeVisible();
       expect(await card(backend)).toEqual(clarificationBeforeChat);
-      await page.getByRole("combobox", { name: "Message your coach" }).fill("Saturday unavailable");
-      await page.getByRole("button", { name: "Send message" }).click();
+      await editCommitments(page);
+      await page.locator('[data-parity="custom.textarea"]').fill("Saturday unavailable");
+      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
       await expect(
-        page.getByRole("heading", { name: "Confirm these limits", exact: true }),
+        page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
       await expect
         .poll(async () => (await backend.card())?.pendingCommitment?.text)
         .toBe("Saturday unavailable");
-      await page.getByRole("button", { name: "Cancel correction", exact: true }).click();
+      await page.getByRole("button", { name: "Change it", exact: true }).click();
+      await expect(page.locator('[data-parity="custom.textarea"]')).toBeFocused();
+      await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
+      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page
+        .getByRole("region", { name: "I could not use that answer", exact: true })
+        .getByRole("button", { name: "Skip for now", exact: true })
+        .click();
       await expect.poll(async () => (await backend.card())?.pendingCommitment).toBeNull();
+      await expect(page.locator("#message")).toBeFocused();
       expect(await card(backend)).toMatchObject({
         draft: rebuilt.draft,
         draftStale: false,
