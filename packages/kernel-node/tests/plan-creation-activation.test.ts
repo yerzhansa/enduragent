@@ -202,11 +202,19 @@ describe("Plan Creation activation repository", () => {
   it("closes both incumbent rows and replays the original result after another activation", async () => {
     await review();
     const first = await repository.activate(activationInput());
+    await store.run("UPDATE planning_plan SET pending_check_json='{}' WHERE plan_id=?", [
+      first.planId,
+    ]);
     await review("2");
     const second = await repository.activate(
       activationInput("2", { planId: id("11"), version: 1 }),
     );
     expect(second.closedPlanId).toBe(first.planId);
+    expect(
+      await store.get("SELECT pending_check_json FROM planning_plan WHERE plan_id=?", [
+        first.planId,
+      ]),
+    ).toEqual({ pending_check_json: null });
     expect(
       await store.get(
         "SELECT status,version,close_reason,close_actor,closed_at_ms FROM planning_plan WHERE plan_id=?",
