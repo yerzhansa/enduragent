@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/sport-running",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Running sport package — critical-speed-anchored pace zones, soul, skills, tools. Implements the Sport contract from @enduragent/core.",
   "type": "module",
