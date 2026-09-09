@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { readFile } from "node:fs/promises";
 import type { CoachClient, CoachClientCallOptions } from "@enduragent/coach-client";
 import type {
@@ -633,24 +634,30 @@ describe("first sync controller", () => {
       readFile(new URL("../src/ui/chat/FirstSyncCard.tsx", import.meta.url), "utf8"),
       readFile(new URL("../src/first-sync.ts", import.meta.url), "utf8"),
     ]);
-    for (const copy of [
-      "Getting your coach ready",
-      "Syncing your training history…",
-      "You can keep Enduragent open while rides, wellness, and calendar data are added.",
-      "We couldn’t finish syncing",
-      "Your saved progress is safe.",
-      "Retry sync",
-      "Enduragent needs to reconnect safely",
-      "Quit and reopen Enduragent.",
-    ]) {
-      expect(card).toContain(copy);
+    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+    for (const [key, copy] of [
+      ["chat.firstSync.eyebrow", "Getting your coach ready"],
+      ["chat.firstSync.syncingTitle", "Syncing your training history…"],
+      [
+        "chat.firstSync.syncingDetail",
+        "You can keep Enduragent open while rides, wellness, and calendar data are added.",
+      ],
+      ["chat.firstSync.failedTitle", "We couldn’t finish syncing"],
+      ["chat.firstSync.failedDetail", "Your saved progress is safe."],
+      ["chat.firstSync.retry", "Retry sync"],
+      ["chat.firstSync.reconnectTitle", "Enduragent needs to reconnect safely"],
+      ["chat.firstSync.reconnectDetail", "Quit and reopen Enduragent."],
+    ] as const) {
+      expect(card).toContain(key);
+      expect(english.say(key, { product: "Enduragent" })).toBe(copy);
     }
     expect(card).toContain('if (status === "idle" || status === "ready") return null;');
     expect(card).not.toContain("Training history is ready");
     expect(card).not.toContain("Your coach is ready when you are.");
     expect(card).toContain('aria-labelledby="first-sync-title"');
     expect(card).toContain("ProgressDisplay");
-    expect(card).toContain('label="Syncing training history"');
+    expect(card).toContain('label={say("chat.firstSync.progress")}');
+    expect(english.say("chat.firstSync.progress")).toBe("Syncing training history");
     expect(host).toContain("coordinator: trainingSyncCoordinator");
     expect(host).not.toContain("syncNeedsReconnect");
     expect(controller).not.toMatch(/onNotificationEnvelope|requestId|chat|transcript/u);

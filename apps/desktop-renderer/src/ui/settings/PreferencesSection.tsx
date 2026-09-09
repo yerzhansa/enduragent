@@ -59,13 +59,13 @@ export function PreferencesSection(): ReactElement {
           <AppearanceControl />
         </div>
       </section>
-      <h2 className={styles.heading}>Palette</h2>
-      <section className={styles.group} aria-label="Palette">
+      <h2 className={styles.heading}>{say("settings.palette.title")}</h2>
+      <section className={styles.group} aria-label={say("settings.palette.title")}>
         <div className={styles.row}>
           <div className={styles.label}>
-            <div className={styles.rowTitle}>App palette</div>
+            <div className={styles.rowTitle}>{say("settings.palette.app")}</div>
             <div className={styles.rowDetail}>
-              Changes both themes immediately · Patrol is the default
+              {say("settings.palette.detail", { palette: "Patrol" })}
             </div>
           </div>
         </div>

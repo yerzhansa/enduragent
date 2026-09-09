@@ -1,5 +1,6 @@
+import { renderLocalized as render } from "./language-harness";
 import type { ListPlansResult, PlanCalendarStatus } from "@enduragent/coach-contract";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";

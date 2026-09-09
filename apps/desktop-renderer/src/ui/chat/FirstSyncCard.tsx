@@ -1,9 +1,11 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useState, type ReactElement } from "react";
 import { Button, ProgressDisplay } from "@enduragent/ui";
 import { Card } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 
 export function FirstSyncCard(): ReactElement | null {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.firstSync);
   const actions = useEnduragentStore((store) => store.chatActions);
   const [retrying, setRetrying] = useState(false);
@@ -27,26 +29,26 @@ export function FirstSyncCard(): ReactElement | null {
     >
       <div className="first-sync__body min-w-0">
         <p className="first-sync__eyebrow m-0 text-xs font-semibold tracking-[0.08em] text-ink-2 uppercase">
-          Getting your coach ready
+          {say("chat.firstSync.eyebrow")}
         </p>
         <h2 id="first-sync-title" className="mt-inset mb-[calc(var(--inset)/2)] text-lg">
           {syncing
-            ? "Syncing your training history…"
+            ? say("chat.firstSync.syncingTitle")
             : unreachable
-              ? "Enduragent needs to reconnect safely"
-              : "We couldn’t finish syncing"}
+              ? say("chat.firstSync.reconnectTitle", { product: "Enduragent" })
+              : say("chat.firstSync.failedTitle")}
         </h2>
         <p className="first-sync__detail m-0 text-sm text-ink-2">
           {syncing
-            ? "You can keep Enduragent open while rides, wellness, and calendar data are added."
+            ? say("chat.firstSync.syncingDetail", { product: "Enduragent" })
             : unreachable
-              ? "Quit and reopen Enduragent."
-              : "Your saved progress is safe."}
+              ? say("chat.firstSync.reconnectDetail", { product: "Enduragent" })
+              : say("chat.firstSync.failedDetail")}
         </p>
         {syncing ? (
           <ProgressDisplay
             className="first-sync__track mt-row"
-            label="Syncing training history"
+            label={say("chat.firstSync.progress")}
             value={{ kind: "indeterminate" }}
           />
         ) : null}
@@ -60,7 +62,7 @@ export function FirstSyncCard(): ReactElement | null {
               actions?.retryFirstSync();
             }}
           >
-            Retry sync
+            {say("chat.firstSync.retry")}
           </Button>
         ) : null}
       </div>

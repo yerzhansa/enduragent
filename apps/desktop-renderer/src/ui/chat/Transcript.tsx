@@ -1,3 +1,5 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { msg, type Message } from "@enduragent/i18n";
 import { ChatTurn } from "@enduragent/ui";
 import {
   Activity,
@@ -25,20 +27,21 @@ import { PlanReferenceCard } from "./PlanReferenceCard";
 import { StreamingMessage } from "./StreamingMessage";
 import { PlanCreationConversation, PlanCreationDiscardConsequence } from "./PlanCreationCards";
 
-function planHandoffSummary(suggestion: PlanHandoffSuggestion): string {
+function planHandoffSummary(suggestion: PlanHandoffSuggestion): Message {
   if (suggestion.kind === "plan_creation") {
-    return "Answer the remaining details in Plan, then review the Draft before applying it.";
+    return msg("chat.transcript.handoff.creation");
   }
   if (suggestion.kind === "plan_change") {
-    return "Review a structured Proposal in Plan. Nothing changes until you approve it.";
+    return msg("chat.transcript.handoff.change");
   }
-  return "Open Plan with this question and the relevant Chat context attached.";
+  return msg("chat.transcript.handoff.question");
 }
 
 function PlanHandoffCard(props: {
   readonly messageId: string;
   readonly suggestion: PlanHandoffSuggestion;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
   const loaded = useEnduragentStore((state) => state.chat.planningRequestsLoaded);
   const busyId = useEnduragentStore((state) => state.chat.planningRequestBusyId);
@@ -46,10 +49,12 @@ function PlanHandoffCard(props: {
     <aside className="mt-row grid gap-row rounded-card border border-line-2 bg-surface p-5 shadow-elev-1">
       <div className="grid gap-inset">
         <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-          Continue in Plan
+          {say("chat.transcript.continue")}
         </p>
         <h3 className="m-0 text-base font-semibold leading-6">{props.suggestion.title}</h3>
-        <p className="m-0 text-sm leading-5 text-ink-2">{planHandoffSummary(props.suggestion)}</p>
+        <p className="m-0 text-sm leading-5 text-ink-2">
+          {say(planHandoffSummary(props.suggestion))}
+        </p>
       </div>
       <div className="flex justify-end">
         <Button
@@ -57,7 +62,7 @@ function PlanHandoffCard(props: {
           disabled={actions === null || !loaded || busyId !== null}
           onClick={() => actions?.continueMessageInPlan(props.messageId, props.suggestion)}
         >
-          Continue in Plan
+          {say("chat.transcript.continue")}
         </Button>
       </div>
     </aside>
@@ -68,6 +73,7 @@ function MessageRow(props: {
   readonly message: ChatMessageView;
   readonly bufferedStreaming: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const message = props.message;
   const sourceMessageId = message.turnId ?? message.id;
   const handoffDelivery = useEnduragentStore((state) =>
@@ -83,7 +89,11 @@ function MessageRow(props: {
   return (
     <ChatTurn
       speaker={message.role}
-      label={message.role === "athlete" ? "Your message" : "Coach response"}
+      label={
+        message.role === "athlete"
+          ? say("chat.transcript.athleteLabel")
+          : say("chat.transcript.coachLabel")
+      }
       data-message-id={message.id}
       data-delivery={message.delivery}
       aria-live={silent ? "off" : undefined}
@@ -142,11 +152,12 @@ function MessageRow(props: {
 }
 
 function ChoiceRow(props: { readonly choice: ChatChoiceView }): ReactElement {
+  const { say } = usePhrasebook();
   const choice = props.choice;
   return (
     <article
       className="grid grid-cols-[var(--ctl-h-sm)_minmax(0,1fr)] items-center gap-2.5 rounded-card bg-sunk p-3"
-      aria-label="Choice consequence"
+      aria-label={say("chat.transcript.choice")}
       aria-live={choice.historical ? "off" : undefined}
     >
       <span
@@ -162,84 +173,92 @@ function ChoiceRow(props: { readonly choice: ChatChoiceView }): ReactElement {
         )}
       </span>
       <div className="grid gap-[calc(var(--inset)/2)]">
-        <p className="m-0 text-xs font-semibold leading-4 text-ink-2">Choice consequence</p>
-        <strong className="text-sm font-medium leading-5">{choice.label}</strong>
+        <p className="m-0 text-xs font-semibold leading-4 text-ink-2">
+          {say("chat.transcript.choice")}
+        </p>
+        <strong className="text-sm font-medium leading-5">
+          {choice.skipped ? say("chat.notice.questionSkipped") : choice.label}
+        </strong>
         {choice.consequence === null ? null : (
-          <p className="m-0 text-xs leading-4 text-ink-2">{choice.consequence}</p>
+          <p className="m-0 text-xs leading-4 text-ink-2">
+            {choice.skipped ? say("chat.notice.choiceUnchanged") : choice.consequence}
+          </p>
         )}
       </div>
     </article>
   );
 }
 
-function planningRequestStatus(delivery: PlanningRequestDelivery): string {
-  if (delivery.state === "pending") return "Opening";
-  if (delivery.state === "failed") return "Couldn’t open";
+function planningRequestStatus(delivery: PlanningRequestDelivery): Message {
+  if (delivery.state === "pending") return msg("chat.transcript.status.opening");
+  if (delivery.state === "failed") return msg("chat.transcript.status.failed");
   const request = delivery.planningRequest;
-  if (request === null) return "Plan request";
-  if (request.lifecycle === "applied") return "Added to Plan";
-  if (request.lifecycle === "rejected" || request.lifecycle === "ended") return "Not added";
-  if (request.attention === "date_conflict") return "Date conflict";
-  if (request.attention === "revalidating") return "Checking";
-  if (request.attention === "stale_base") return "Updated review";
-  if (request.attention === "apply_failed") return "Save failed";
-  if (request.proposalId !== null) return "Needs review";
-  return "Continue in Plan";
+  if (request === null) return msg("chat.transcript.request");
+  if (request.lifecycle === "applied") return msg("chat.transcript.status.applied");
+  if (request.lifecycle === "rejected" || request.lifecycle === "ended")
+    return msg("chat.transcript.status.notAdded");
+  if (request.attention === "date_conflict") return msg("chat.transcript.status.dateConflict");
+  if (request.attention === "revalidating") return msg("chat.transcript.status.checking");
+  if (request.attention === "stale_base") return msg("chat.transcript.status.updated");
+  if (request.attention === "apply_failed") return msg("chat.transcript.status.saveFailed");
+  if (request.proposalId !== null) return msg("chat.transcript.status.review");
+  return msg("chat.transcript.continue");
 }
 
-function planningRequestSummary(delivery: PlanningRequestDelivery): string {
+function planningRequestSummary(delivery: PlanningRequestDelivery): Message | string {
   const request = delivery.planningRequest;
-  if (delivery.state === "pending")
-    return "The workout and your Chat context are staying together.";
+  if (delivery.state === "pending") return msg("chat.transcript.summary.opening");
   if (delivery.state === "failed") {
     return delivery.retryable
-      ? "The request is saved. Trying again will not create a duplicate."
-      : "The request could not be delivered safely.";
+      ? msg("chat.transcript.summary.retry")
+      : msg("chat.transcript.summary.failed");
   }
   if (request?.terminalResult !== null && request?.terminalResult !== undefined) {
     return request.terminalResult.detail;
   }
   if (request?.attention === "apply_failed") {
-    return "The Proposal is preserved and the active Plan is unchanged.";
+    return msg("chat.transcript.summary.applyFailed");
   }
   if (request?.target === "draft") {
-    return "The workout is available to the unapplied Draft.";
+    return msg("chat.transcript.summary.draft");
   }
   if (request?.target === "plan_creation") {
-    return "Plan is waiting for the details needed to build a Draft.";
+    return msg("chat.transcript.summary.creation");
   }
-  return "Review the structured Proposal in Plan; the active Plan is unchanged.";
+  return msg("chat.transcript.summary.review");
 }
 
 function PlanningRequestRow(props: { readonly delivery: PlanningRequestDelivery }): ReactElement {
+  const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
   const busyId = useEnduragentStore((state) => state.chat.planningRequestBusyId);
   const delivery = props.delivery;
+  const summary = planningRequestSummary(delivery);
   const request = delivery.planningRequest;
   const pending = delivery.state === "pending";
   const failed = delivery.state === "failed";
   const terminal = request !== null && request.lifecycle !== "open";
   const buttonLabel = failed
-    ? "Try again"
+    ? say("chat.transcript.retry")
     : terminal
-      ? "Open Plan"
+      ? say("chat.transcript.openPlan")
       : request?.proposalId !== null && request?.proposalId !== undefined
-        ? "Review in Plan"
-        : "Continue in Plan";
+        ? say("chat.transcript.reviewPlan")
+        : say("chat.transcript.continue");
   return (
     <article
       className="grid gap-row rounded-card border border-line-2 bg-surface p-5 shadow-elev-1 outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-planning-request-id={delivery.requestId}
       tabIndex={-1}
-      aria-label="Plan request"
+      aria-label={say("chat.transcript.request")}
     >
       <div className="flex items-start justify-between gap-row">
         <div className="min-w-0">
           <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-            {terminal ? "Plan result" : "Plan request"}
+            {terminal ? say("chat.transcript.result") : say("chat.transcript.request")}
           </p>
           <h3 className="mt-inset mb-0 text-base font-semibold">
-            {delivery.source?.intent ?? request?.intent ?? "Plan request"}
+            {delivery.source?.intent ?? request?.intent ?? say("chat.transcript.request")}
           </h3>
         </div>
         <span
@@ -258,10 +277,12 @@ function PlanningRequestRow(props: { readonly delivery: PlanningRequestDelivery 
               aria-hidden="true"
             />
           ) : null}
-          {planningRequestStatus(delivery)}
+          {say(planningRequestStatus(delivery))}
         </span>
       </div>
-      <p className="m-0 text-sm leading-5 text-ink-2">{planningRequestSummary(delivery)}</p>
+      <p className="m-0 text-sm leading-5 text-ink-2">
+        {typeof summary === "string" ? summary : say(summary)}
+      </p>
       {pending ? null : (
         <div className="flex justify-end">
           <Button
@@ -288,6 +309,7 @@ export function ConversationTranscript(props: {
   readonly historyControls?: boolean;
   readonly bufferedStreaming?: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const timeline = props.timeline ?? [];
   const messages = props.messages;
   const items =
@@ -302,7 +324,7 @@ export function ConversationTranscript(props: {
       aria-live="polite"
       aria-relevant="additions text"
       aria-atomic="false"
-      aria-label="Coach conversation"
+      aria-label={say("chat.transcript.label")}
     >
       {props.historyControls === false ? null : <HistoryControls />}
       <div className="chat-messages grid gap-7">

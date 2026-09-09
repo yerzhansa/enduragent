@@ -1,4 +1,6 @@
-import { formatCivilDate } from "@enduragent/coach-contract";
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { useChatDate } from "./use-chat-date";
 import type { PlanCreationAnswerInput, PlanCreationOpenQuestion } from "@enduragent/coach-contract";
 import {
   useEffect,
@@ -41,6 +43,7 @@ function ChoiceRow(props: {
   readonly buttonRef?: RefObject<HTMLButtonElement | null>;
   readonly onClick: () => void;
 }): ReactElement {
+  const { format } = usePhrasebook();
   return (
     <button
       ref={props.buttonRef}
@@ -61,7 +64,11 @@ function ChoiceRow(props: {
         }
         data-parity="choice.row.number"
       >
-        {props.number === undefined ? <Plus className="size-4" aria-hidden="true" /> : props.number}
+        {props.number === undefined ? (
+          <Plus className="size-4" aria-hidden="true" />
+        ) : (
+          format.number(props.number, { useGrouping: false })
+        )}
       </span>
       <span className="block min-w-0">
         <strong className="block text-sm font-medium leading-5" data-parity="choice.row.label">
@@ -95,6 +102,7 @@ function ChoiceList(props: {
 }
 
 function ChoiceActions(props: QuestionFormProps): ReactElement | null {
+  const { say } = usePhrasebook();
   if (!props.editing) return null;
   return (
     <Button
@@ -104,7 +112,7 @@ function ChoiceActions(props: QuestionFormProps): ReactElement | null {
       disabled={props.busy}
       onClick={props.onCancel}
     >
-      Back to answers
+      {say("chat.planCreation.backToAnswers")}
     </Button>
   );
 }
@@ -117,6 +125,7 @@ function CustomActions(props: {
   readonly continueDisabled: boolean;
   readonly onBack: () => void;
 }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <div className="flex flex-wrap justify-end gap-inset" data-parity="custom.actions">
       {props.editing ? (
@@ -127,7 +136,7 @@ function CustomActions(props: {
           disabled={props.busy}
           onClick={props.onCancel}
         >
-          Back to answers
+          {say("chat.planCreation.backToAnswers")}
         </Button>
       ) : null}
       <div className="flex gap-inset">
@@ -138,10 +147,10 @@ function CustomActions(props: {
           disabled={props.busy}
           onClick={props.onBack}
         >
-          Back
+          {say("chat.planCreation.back")}
         </Button>
         <Button type="submit" disabled={props.busy || props.continueDisabled}>
-          {props.submitLabel ?? "Continue"}
+          {props.submitLabel ?? say("chat.planCreation.continue")}
         </Button>
       </div>
     </div>
@@ -160,6 +169,8 @@ function ErrorText(props: {
 }
 
 function GoalForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
+  const formatDate = useChatDate();
   const question = props.question.kind === "goal-question" ? props.question : null;
   if (question === null) throw new TypeError("goal question required");
   const currentGoal = props.currentAnswer?.kind === "goal" ? props.currentAnswer.goal : null;
@@ -186,8 +197,8 @@ function GoalForm(props: QuestionFormProps): ReactElement {
     const submit = (event: FormEvent<HTMLFormElement>): void => {
       event.preventDefault();
       const nextErrors = {
-        ...(name.trim().length === 0 ? { name: "Enter the event name." } : {}),
-        ...(date.length === 0 ? { date: "Choose the event date." } : {}),
+        ...(name.trim().length === 0 ? { name: say("chat.planCreation.eventNameRequired") } : {}),
+        ...(date.length === 0 ? { date: say("chat.planCreation.eventDateRequired") } : {}),
       };
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
@@ -255,7 +266,10 @@ function GoalForm(props: QuestionFormProps): ReactElement {
               key={candidate.candidateId}
               answerId={candidate.candidateId}
               number={index + 1}
-              label={`${candidate.name} · ${formatCivilDate(candidate.date)}`}
+              label={say("chat.planCreation.eventDate", {
+                name: candidate.name,
+                date: formatDate(candidate.date),
+              })}
               detail={candidate.sourceLabel}
               selected={candidate.candidateId === selectedCandidate}
               disabled={props.busy}
@@ -272,7 +286,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
             buttonRef={eventNotListedTrigger}
             answerId="event-not-listed"
             number={question.candidates.length + 1}
-            label={question.eventNotListedOption.label}
+            label={say("chat.planCreation.eventNotListed")}
             detail={question.eventNotListedOption.detail}
             selected={currentGoal?.kind === "event-manual"}
             disabled={props.busy}
@@ -296,6 +310,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
 }
 
 function SuccessForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
   const question = props.question.kind === "success-question" ? props.question : null;
   if (question === null) throw new TypeError("success question required");
   const currentSuccess =
@@ -328,7 +343,7 @@ function SuccessForm(props: QuestionFormProps): ReactElement {
         onSubmit={(event) => {
           event.preventDefault();
           if (!/\S/u.test(text)) {
-            setError("Describe what success means.");
+            setError(say("chat.planCreation.successRequired"));
             return;
           }
           setError(undefined);
@@ -345,7 +360,7 @@ function SuccessForm(props: QuestionFormProps): ReactElement {
           <span data-parity="custom.label">{custom.editorLabel}</span>
           <textarea
             ref={editor}
-            aria-label="Success meaning"
+            aria-label={say("chat.planCreation.successLabel")}
             className={`${fieldClass} resize-y`}
             data-parity="custom.textarea"
             value={text}
@@ -418,7 +433,11 @@ function SuccessForm(props: QuestionFormProps): ReactElement {
             key="custom"
             buttonRef={customTrigger}
             answerId="custom"
-            label={authoredOption.label}
+            label={
+              authoredOption.label === "Something else"
+                ? say("chat.planCreation.customAnswer")
+                : say("chat.planCreation.addCommitments")
+            }
             detail={authoredOption.detail}
             custom
             disabled={props.busy}
@@ -482,6 +501,7 @@ function ScheduleModeForm(props: QuestionFormProps): ReactElement {
 }
 
 function AvailabilityForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
   const question = props.question.kind === "availability-question" ? props.question : null;
   if (question === null) throw new TypeError("availability question required");
   const initial = props.currentAnswer?.kind === "availability" ? props.currentAnswer : null;
@@ -495,15 +515,15 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
     const data = new FormData(event.currentTarget);
     const longestWorkoutHours = Number(data.get("longestWorkoutHours"));
     const nextErrors: Record<string, string> = {};
-    if (weeklyHours === null) nextErrors.weekly = "Choose weekly hours.";
+    if (weeklyHours === null) nextErrors.weekly = say("chat.planCreation.weeklyHoursRequired");
     if (!Number.isFinite(longestWorkoutHours) || longestWorkoutHours <= 0) {
-      nextErrors.longest = "Enter a longest ride greater than 0 hours.";
+      nextErrors.longest = say("chat.planCreation.longestRidePositive");
     } else if (weeklyHours !== null && longestWorkoutHours > weeklyHours) {
-      nextErrors.longest = "The longest ride cannot exceed the weekly limit.";
+      nextErrors.longest = say("chat.planCreation.longestRideLimit");
     }
     const usableWeekdays = data.getAll("usableWeekdays").map(Number);
     if (question.mode === "fixed" && usableWeekdays.length === 0) {
-      nextErrors.weekdays = "Choose at least one usable weekday.";
+      nextErrors.weekdays = say("chat.planCreation.weekdayRequired");
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || weeklyHours === null) return;
@@ -563,7 +583,7 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
           aria-describedby={weekdaysErrorId}
         >
           <legend className="mb-inset px-0.5 text-sm font-normal leading-5 text-ink">
-            Usable weekdays
+            {say("chat.planCreation.usableWeekdays")}
           </legend>
           <div className="flex flex-wrap gap-inset">
             {question.weekdayOptions.map((option) => (
@@ -600,11 +620,11 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
             disabled={props.busy}
             onClick={props.onCancel}
           >
-            Back to answers
+            {say("chat.planCreation.backToAnswers")}
           </Button>
         ) : null}
         <Button type="submit" disabled={props.busy}>
-          Continue
+          {say("chat.planCreation.continue")}
         </Button>
       </div>
     </form>
@@ -612,6 +632,8 @@ function AvailabilityForm(props: QuestionFormProps): ReactElement {
 }
 
 function StartTimingForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
+  const formatDate = useChatDate();
   const question = props.question.kind === "start-timing-question" ? props.question : null;
   if (question === null) throw new TypeError("start timing question required");
   const current = props.currentAnswer?.kind === "start-timing" ? props.currentAnswer.timing : null;
@@ -629,11 +651,15 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
       onSubmit={(event) => {
         event.preventDefault();
         if (timing === null) {
-          setError("Choose when this Plan can start.");
+          setError(say("chat.planCreation.startTimingRequired"));
           return;
         }
         if (date.length === 0 || date < question.earliestAllowed) {
-          setError(`Choose a date on or after ${formatCivilDate(question.earliestAllowed)}.`);
+          setError(
+            say("chat.planCreation.startDateMinimum", {
+              date: formatDate(question.earliestAllowed),
+            }),
+          );
           return;
         }
         setError(undefined);
@@ -694,12 +720,12 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
             disabled={props.busy}
             onClick={props.onCancel}
           >
-            Back to answers
+            {say("chat.planCreation.backToAnswers")}
           </Button>
         ) : null}
         {timing === "earliest" ? (
           <Button type="submit" disabled={props.busy}>
-            Continue
+            {say("chat.planCreation.continue")}
           </Button>
         ) : null}
       </div>
@@ -708,6 +734,7 @@ function StartTimingForm(props: QuestionFormProps): ReactElement {
 }
 
 function CommitmentsForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
   const question = props.question.kind === "commitments-question" ? props.question : null;
   if (question === null) throw new TypeError("commitments question required");
   const current =
@@ -738,7 +765,7 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
         onSubmit={(event) => {
           event.preventDefault();
           if (!/\S/u.test(text)) {
-            setError("Add the scheduling details or choose Nothing fixed.");
+            setError(say("chat.planCreation.commitmentRequired"));
             return;
           }
           setError(undefined);
@@ -755,7 +782,7 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
         noValidate
       >
         <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
-          <span data-parity="custom.label">Commitments or time off</span>
+          <span data-parity="custom.label">{say("chat.planCreation.commitmentsLabel")}</span>
           <textarea
             ref={editor}
             className={`${fieldClass} resize-y`}
@@ -775,12 +802,12 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
         </label>
         {clarify ? (
           <p id={hintId} className="m-0 text-sm leading-5 text-ink-2">
-            Give the weekday and exact limit, or the exact time-off dates.
+            {say("chat.planCreation.commitmentsHint")}
           </p>
         ) : null}
         <ErrorText id={errorId}>{error}</ErrorText>
         <CustomActions
-          submitLabel="Review interpretation"
+          submitLabel={say("chat.planCreation.reviewInterpretation")}
           editing={props.editing}
           onCancel={props.onCancel}
           busy={props.busy}
@@ -808,7 +835,11 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
             key="custom"
             buttonRef={customTrigger}
             answerId="custom"
-            label={question.authoredOption.label}
+            label={
+              question.authoredOption.label === "Something else"
+                ? say("chat.planCreation.customAnswer")
+                : say("chat.planCreation.addCommitments")
+            }
             detail={question.authoredOption.detail}
             custom
             disabled={props.busy}
@@ -849,6 +880,7 @@ function BaselineForm(props: QuestionFormProps): ReactElement {
 type RestrictionKind = "none" | "no-training" | "no-hard-training" | "max-duration";
 
 function RestrictionForm(props: QuestionFormProps): ReactElement {
+  const { say } = usePhrasebook();
   const question = props.question.kind === "restriction-question" ? props.question : null;
   if (question === null) throw new TypeError("restriction question required");
   const current =
@@ -868,14 +900,14 @@ function RestrictionForm(props: QuestionFormProps): ReactElement {
       onSubmit={(event) => {
         event.preventDefault();
         if (kind === null) {
-          setError("Choose a Training Restriction.");
+          setError(say("chat.planCreation.restrictionRequired"));
           return;
         }
         setError(undefined);
         if (kind === "max-duration") {
           const duration = Number(hours);
           if (!Number.isFinite(duration) || duration <= 0) {
-            setError("Enter a duration greater than 0 hours.");
+            setError(say("chat.planCreation.durationPositive"));
             return;
           }
           props.onAnswer({
@@ -925,7 +957,7 @@ function RestrictionForm(props: QuestionFormProps): ReactElement {
         <div className="grid gap-inset px-4">
           {kind === "max-duration" ? (
             <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
-              Maximum duration hours
+              {say("chat.planCreation.maximumDuration")}
               <input
                 className={fieldClass}
                 type="number"
@@ -937,7 +969,7 @@ function RestrictionForm(props: QuestionFormProps): ReactElement {
             </label>
           ) : null}
           <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
-            Optional end date
+            {say("chat.planCreation.optionalEndDate")}
             <input
               className={fieldClass}
               type="date"
@@ -957,12 +989,12 @@ function RestrictionForm(props: QuestionFormProps): ReactElement {
             disabled={props.busy}
             onClick={props.onCancel}
           >
-            Back to answers
+            {say("chat.planCreation.backToAnswers")}
           </Button>
         ) : null}
         {kind === null ? null : (
           <Button type="submit" disabled={props.busy}>
-            Continue
+            {say("chat.planCreation.continue")}
           </Button>
         )}
       </div>
@@ -1019,6 +1051,8 @@ const questionAnswerKey = (question: PlanCreationOpenQuestion): PlanCreationAnsw
 export function PlanCreationQuestionCard(
   props: QuestionFormProps & { readonly error: string | null; readonly focusRevision: number },
 ): ReactElement {
+  const { say, format } = usePhrasebook();
+  const errorMessage = props.error === null ? null : chatFeedbackMessage(props.error);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
@@ -1040,7 +1074,10 @@ export function PlanCreationQuestionCard(
             className="m-0 mb-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2"
             data-parity="question.eyebrow"
           >
-            Plan creation · question {props.question.step.current} of {props.question.step.total}
+            {say("chat.planCreation.questionProgress", {
+              current: format.number(props.question.step.current, { useGrouping: false }),
+              total: format.number(props.question.step.total, { useGrouping: false }),
+            })}
           </p>
           <CardTitle>
             <h2
@@ -1057,18 +1094,18 @@ export function PlanCreationQuestionCard(
           type="button"
           variant="outline"
           className="border-line bg-surface"
-          aria-label="Later"
+          aria-label={say("chat.planCreation.later")}
           disabled={props.busy}
           onClick={props.onLater}
         >
-          Later
+          {say("chat.planCreation.later")}
         </Button>
       </CardHeader>
       <CardContent className="grid min-w-0 gap-inset p-0">
         <QuestionForm {...props} />
         {props.error === null ? null : (
           <p className="m-0 px-4 pb-4 text-xs leading-4 text-danger" role="alert">
-            {props.error}
+            {errorMessage === null ? props.error : say(errorMessage)}
           </p>
         )}
       </CardContent>

@@ -1,4 +1,7 @@
-import { formatCivilDate } from "@enduragent/coach-contract";
+import { chatFeedbackMessage } from "./copy";
+import { msg, type CatalogKey } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { useChatDate } from "./use-chat-date";
 import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
@@ -10,16 +13,23 @@ import { Button } from "@enduragent/ui";
 import { Fact, PlanCard } from "../plan/plan-card";
 import { useEnduragentStore } from "../../state/store";
 
-const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], string]> = [
-  ["goal", "Main Goal"],
-  ["plan-length", "Plan length"],
-  ["schedule-mode", "Schedule mode"],
-  ["availability", "Availability"],
-  ["start-timing", "Start timing"],
-  ["commitments", "Commitments"],
-  ["baseline", "Recent training"],
-  ["success", "Success"],
-  ["restriction", "Training restriction"],
+const spanLabels: Record<PlanCreationDraft["spanKind"], CatalogKey> = {
+  "Short block": "chat.planCreation.spanKind.shortBlock",
+  "Event preparation": "chat.planCreation.spanKind.eventPreparation",
+  "Base Plan": "chat.planCreation.spanKind.basePlan",
+  "Fitness Plan": "chat.planCreation.spanKind.fitnessPlan",
+};
+
+const answerLabels: ReadonlyArray<readonly [PlanCreationAnswerSummary["answerKey"], CatalogKey]> = [
+  ["goal", "chat.planCreation.goalLabel"],
+  ["plan-length", "chat.planCreation.lengthLabel"],
+  ["schedule-mode", "chat.planCreation.modeLabel"],
+  ["availability", "chat.planCreation.availabilityLabel"],
+  ["start-timing", "chat.planCreation.startLabel"],
+  ["commitments", "chat.planCreation.commitmentsLabelShort"],
+  ["baseline", "chat.planCreation.baselineLabel"],
+  ["success", "chat.planCreation.successLabelShort"],
+  ["restriction", "chat.planCreation.restrictionLabel"],
 ];
 
 function AnswerFacts(props: {
@@ -27,18 +37,22 @@ function AnswerFacts(props: {
   readonly current?: boolean;
   readonly omitGoal?: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <>
       {answerLabels.map(([key, label]) => {
         const summary = props.summaries.find((answer) => answer.answerKey === key);
         if (summary === undefined || (props.omitGoal && key === "goal")) return null;
         const source = props.current
-          ? "current answer"
+          ? say("chat.planCreation.currentAnswer")
           : summary.source.kind === "athlete"
-            ? "your answer"
+            ? say("chat.planCreation.yourAnswer")
             : summary.source.label;
         return (
-          <Fact key={key} label={`${label} · ${source}`}>
+          <Fact
+            key={key}
+            label={say("chat.planCreation.answerSource", { title: say(label), source })}
+          >
             {summary.detail}
           </Fact>
         );
@@ -64,9 +78,12 @@ export function PlanCreationDraftCards(props: {
   readonly draft: PlanCreationDraft;
   readonly onEditAnswers: () => void;
 }): ReactElement {
+  const { say, format } = usePhrasebook();
+  const formatDate = useChatDate();
   const actions = useEnduragentStore((state) => state.chatActions);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
+  const errorMessage = error === null ? null : chatFeedbackMessage(error);
   const confirmationOpen = useEnduragentStore(
     (state) =>
       state.chat.planCreationActivateConfirmationOpen ||
@@ -88,51 +105,88 @@ export function PlanCreationDraftCards(props: {
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =
-    draft.goal.kind === "event" ? draft.goal.name : (draft.goal.outcome ?? "Improve fitness");
+    draft.goal.kind === "event"
+      ? draft.goal.name
+      : (draft.goal.outcome ?? say("chat.planCreation.improveFitness"));
   return (
-    <section className="grid min-w-0 gap-4" aria-label="Plan Draft review">
+    <section className="grid min-w-0 gap-4" aria-label={say("chat.planCreation.draftReview")}>
       {stale ? (
-        <ReviewCard title="Changed answers">
-          <div role="table" className="border-t border-line" aria-label="Changed answers">
+        <ReviewCard title={say("chat.planCreation.changedAnswers")}>
+          <div
+            role="table"
+            className="border-t border-line"
+            aria-label={say("chat.planCreation.changedAnswers")}
+          >
             <AnswerFacts summaries={props.model.answeredSummaries} current />
           </div>
         </ReviewCard>
       ) : null}
       <ReviewCard
-        eyebrow="Draft inputs"
-        aria-label="Draft inputs"
+        eyebrow={say("chat.planCreation.draftInputs")}
+        aria-label={say("chat.planCreation.draftInputs")}
         title={title}
-        status={stale ? "Stale" : "Needs review"}
+        status={stale ? say("chat.planCreation.stale") : say("chat.planCreation.needsReview")}
         summary={
-          stale
-            ? "This Draft preserves the earlier answers and Workouts. Rebuild before activation."
-            : "Review the whole Draft before activating."
+          stale ? say("chat.planCreation.staleDetail") : say("chat.planCreation.reviewDetail")
         }
       >
-        <div role="table" className="border-t border-line" aria-label="Draft inputs">
+        <div
+          role="table"
+          className="border-t border-line"
+          aria-label={say("chat.planCreation.draftInputs")}
+        >
           <Fact
-            label={`Main Goal · ${goal?.source.kind === "derived" ? goal.source.label : "your answer"}`}
+            label={say("chat.planCreation.answerSource", {
+              title: say("chat.planCreation.goalLabel"),
+              source:
+                goal?.source.kind === "derived"
+                  ? goal.source.label
+                  : say("chat.planCreation.yourAnswer"),
+            })}
           >
             {draft.goal.kind === "event"
-              ? `${draft.goal.name} · ${formatCivilDate(draft.goal.date)}`
+              ? say("chat.planCreation.eventDate", {
+                  name: draft.goal.name,
+                  date: formatDate(draft.goal.date),
+                })
               : title}
           </Fact>
-          <Fact label="Calendar">Local review only</Fact>
-          <Fact label="Plan span">
-            {formatCivilDate(draft.start)} to {formatCivilDate(draft.end)} · {draft.weeks.length}{" "}
-            weeks · {draft.spanKind}
+          <Fact label={say("chat.planCreation.calendarLabel")}>
+            {say("chat.planCreation.localReview")}
+          </Fact>
+          <Fact label={say("chat.planCreation.spanLabel")}>
+            {say(
+              draft.weeks.length === 1
+                ? "chat.planCreation.span_one"
+                : "chat.planCreation.span_other",
+              {
+                count: draft.weeks.length,
+                start: formatDate(draft.start),
+                end: formatDate(draft.end),
+                weeks: format.number(draft.weeks.length, { useGrouping: false }),
+                kind: say(spanLabels[draft.spanKind]),
+              },
+            )}
           </Fact>
           <AnswerFacts summaries={draft.answeredSummaries} omitGoal />
         </div>
         <details className="mt-row border-t border-line">
           <summary className="cursor-pointer py-inset text-sm font-normal text-ink-2">
-            How this Plan was built
+            {say("chat.planCreation.builtTitle")}
           </summary>
-          <div role="table" className="border-t border-line" aria-label="How this Plan was built">
-            <Fact label="Guidance">Heart rate or perceived effort. No FTP test.</Fact>
-            <Fact label="Training approach">Balanced · default</Fact>
+          <div
+            role="table"
+            className="border-t border-line"
+            aria-label={say("chat.planCreation.builtTitle")}
+          >
+            <Fact label={say("chat.planCreation.guidanceLabel")}>
+              {say("chat.planCreation.guidance")}
+            </Fact>
+            <Fact label={say("chat.planCreation.approachLabel")}>
+              {say("chat.planCreation.approach")}
+            </Fact>
             {draft.notes.map((note, index) => (
-              <Fact key={`${index}:${note}`} label="Confirmed limits">
+              <Fact key={`${index}:${note}`} label={say("chat.planCreation.limitsLabel")}>
                 {note}
               </Fact>
             ))}
@@ -140,24 +194,48 @@ export function PlanCreationDraftCards(props: {
         </details>
       </ReviewCard>
       <ReviewCard
-        eyebrow="Training outline"
-        title="Every week and Workout"
-        status={stale ? "Out of date" : "Draft"}
-        summary={`${draft.weeks.length} weeks · ${workouts.length} Workouts · ${workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min`}
+        eyebrow={say("chat.planCreation.outlineLabel")}
+        title={say("chat.planCreation.outlineTitle")}
+        status={stale ? say("chat.planCreation.outOfDate") : say("chat.planCreation.draft")}
+        summary={say(
+          workouts.length === 1
+            ? "chat.planCreation.outlineSummary_one"
+            : "chat.planCreation.outlineSummary_other",
+          {
+            count: workouts.length,
+            weeks: format.number(draft.weeks.length, { useGrouping: false }),
+            workouts: format.number(workouts.length, { useGrouping: false }),
+            minutes: format.number(
+              workouts.reduce((minutes, workout) => minutes + workout.minutes, 0),
+              { useGrouping: false },
+            ),
+          },
+        )}
       >
         {draft.weeks.map((week) => (
           <div key={week.number} className="min-w-0 [&:not(:first-child)]:pt-4">
             <p className="m-0 pb-inset text-xs font-semibold uppercase tracking-wide text-ink-2">
-              Week {week.number} · {formatCivilDate(week.start)} to {formatCivilDate(week.end)} ·{" "}
-              {week.workouts.reduce((minutes, workout) => minutes + workout.minutes, 0)} min
+              {say("chat.planCreation.weekSummary", {
+                week: format.number(week.number, { useGrouping: false }),
+                start: formatDate(week.start),
+                end: formatDate(week.end),
+                minutes: format.number(
+                  week.workouts.reduce((minutes, workout) => minutes + workout.minutes, 0),
+                  { useGrouping: false },
+                ),
+              })}
             </p>
             <div
               role="list"
               className="border-t border-line"
-              aria-label={`Week ${week.number} Workouts`}
+              aria-label={say("chat.planCreation.weekWorkouts", {
+                week: format.number(week.number, { useGrouping: false }),
+              })}
             >
               {week.workouts.length === 0 ? (
-                <p className="m-0 text-sm leading-5 text-ink">No Workouts this week.</p>
+                <p className="m-0 text-sm leading-5 text-ink">
+                  {say("chat.planCreation.noWorkouts")}
+                </p>
               ) : (
                 week.workouts.map((workout, index) => (
                   <div
@@ -167,14 +245,22 @@ export function PlanCreationDraftCards(props: {
                   >
                     <span className="text-xs leading-4 text-ink-2">
                       {workout.date === null
-                        ? `Priority ${index + 1} · Undated`
-                        : formatCivilDate(workout.date)}
+                        ? say("chat.planCreation.undatedPriority", {
+                            priority: format.number(index + 1, { useGrouping: false }),
+                          })
+                        : formatDate(workout.date)}
                     </span>
                     <strong className="text-sm leading-5 font-semibold [overflow-wrap:anywhere]">
-                      {workout.name} · {workout.minutes} min · {workout.guidance}
+                      {say("chat.planCreation.workoutSummary", {
+                        name: workout.name,
+                        minutes: format.number(workout.minutes, { useGrouping: false }),
+                        guidance: workout.guidance,
+                      })}
                     </strong>
                     <span className="inline-flex shrink-0 items-center justify-self-start gap-[calc(var(--row-inset)/2)] rounded-full bg-sunk px-2 py-0.75 text-xs font-normal whitespace-nowrap text-ink-2">
-                      planned{workout.pinned ? " · Pinned" : ""}
+                      {workout.pinned
+                        ? say("chat.planCreation.plannedPinned")
+                        : say("chat.planCreation.planned")}
                     </span>
                   </div>
                 ))
@@ -189,7 +275,7 @@ export function PlanCreationDraftCards(props: {
         ))}
         {error === null || confirmationOpen || pending ? null : (
           <p className="m-0 text-xs text-danger" role="alert">
-            {error}
+            {errorMessage === null ? error : say(errorMessage)}
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-inset">
@@ -202,7 +288,7 @@ export function PlanCreationDraftCards(props: {
             disabled={busy || actions === null}
             onClick={() => actions?.openPlanCreationDiscard()}
           >
-            Discard
+            {say("chat.planCreation.discard")}
           </Button>
           <Button
             variant="outline"
@@ -211,7 +297,7 @@ export function PlanCreationDraftCards(props: {
             disabled={busy || actions === null || editingKey !== null}
             onClick={props.onEditAnswers}
           >
-            Edit answers
+            {say("chat.planCreation.editAnswers")}
           </Button>
           {stale ? (
             <Button
@@ -225,7 +311,7 @@ export function PlanCreationDraftCards(props: {
               aria-describedby={pending ? commitmentSummaryId(props.model) : undefined}
               onClick={() => actions?.buildPlanCreationDraft()}
             >
-              Rebuild Draft
+              {say("chat.planCreation.rebuildDraft")}
             </Button>
           ) : (
             <Button
@@ -235,7 +321,7 @@ export function PlanCreationDraftCards(props: {
               disabled={busy || actions === null || workouts.length === 0 || pending}
               onClick={() => actions?.openPlanCreationActivate()}
             >
-              Activate Plan
+              {say("chat.planCreation.activate")}
             </Button>
           )}
         </div>
@@ -244,32 +330,55 @@ export function PlanCreationDraftCards(props: {
   );
 }
 
-export const pendingCommitmentSummary =
-  "Your last confirmed limits remain effective. Draft building and activation wait for this correction.";
+export const pendingCommitmentSummary = msg("chat.planCreation.pendingCommitment");
 
 export function commitmentSummaryId(model: PlanCreationCardModel): string {
   return `commitment-summary-${model.creationId}`;
 }
 
-function commitmentRuleText(rule: PlanCreationCommitmentRule): string {
-  const days = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function CommitmentRuleText({ rule }: { readonly rule: PlanCreationCommitmentRule }): ReactElement {
+  const { say, format } = usePhrasebook();
+  const formatDate = useChatDate();
+  const day =
+    rule.kind === "time-off"
+      ? ""
+      : format.date(new Date(Date.UTC(1998, 0, 4 + rule.day)), {
+          weekday: "short",
+          timeZone: "UTC",
+        });
   switch (rule.kind) {
     case "weekday-duration":
-      return `${days[rule.day]} · at most ${rule.minutes} min`;
+      return (
+        <>
+          {say("chat.planCreation.weekdayDuration", {
+            day,
+            minutes: format.number(rule.minutes, { useGrouping: false }),
+          })}
+        </>
+      );
     case "weekday-unavailable":
-      return `${days[rule.day]} · unavailable`;
+      return <>{say("chat.planCreation.weekdayUnavailable", { day })}</>;
     case "hard-weekday":
-      return `${days[rule.day]} · no hard training`;
+      return <>{say("chat.planCreation.weekdayNoHardTraining", { day })}</>;
     case "time-off":
-      return `Off ${formatCivilDate(rule.start)} to ${formatCivilDate(rule.end)}`;
+      return (
+        <>
+          {say("chat.planCreation.timeOff", {
+            start: formatDate(rule.start),
+            end: formatDate(rule.end),
+          })}
+        </>
+      );
   }
 }
 
 export function PlanCreationCommitmentCard(props: {
   readonly model: PlanCreationCardModel;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.chatActions);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
+  const errorMessage = error === null ? null : chatFeedbackMessage(error);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const pending = props.model.pendingCommitment;
@@ -277,21 +386,29 @@ export function PlanCreationCommitmentCard(props: {
   const disabled = busy || actions === null;
   return (
     <ReviewCard
-      eyebrow="Schedule correction"
-      title={pending.status === "clarify" ? "Clarify your commitment" : "Confirm these limits"}
-      status="Not yet confirmed"
-      summary={pendingCommitmentSummary}
+      eyebrow={say("chat.planCreation.correctionLabel")}
+      title={
+        pending.status === "clarify"
+          ? say("chat.planCreation.clarifyTitle")
+          : say("chat.planCreation.confirmTitle")
+      }
+      status={say("chat.planCreation.notConfirmed")}
+      summary={say(pendingCommitmentSummary)}
       summaryId={commitmentSummaryId(props.model)}
     >
-      <div role="table" className="border-t border-line" aria-label="Schedule correction">
-        <Fact label="Submitted">{pending.text}</Fact>
+      <div
+        role="table"
+        className="border-t border-line"
+        aria-label={say("chat.planCreation.correctionLabel")}
+      >
+        <Fact label={say("chat.planCreation.submittedLabel")}>{pending.text}</Fact>
         {pending.rules.map((rule, index) => (
-          <Fact key={index} label="Interpreted limit">
-            {commitmentRuleText(rule)}
+          <Fact key={index} label={say("chat.planCreation.interpretedLabel")}>
+            <CommitmentRuleText rule={rule} />
           </Fact>
         ))}
         {pending.unparsed.length === 0 ? null : (
-          <Fact label="Not understood">
+          <Fact label={say("chat.planCreation.notUnderstood")}>
             <ul className="m-0 grid list-none gap-1 p-0">
               {pending.unparsed.map((fragment, index) => (
                 <li key={index}>{fragment}</li>
@@ -302,7 +419,7 @@ export function PlanCreationCommitmentCard(props: {
       </div>
       {error === null ? null : (
         <p role="alert" className="m-0 text-xs text-danger">
-          {error}
+          {errorMessage === null ? error : say(errorMessage)}
         </p>
       )}
       <div className="mt-inset flex flex-wrap gap-inset">
@@ -312,7 +429,7 @@ export function PlanCreationCommitmentCard(props: {
           disabled={disabled}
           onClick={() => actions?.answerPlanCreation({ kind: "commitments-cancel" })}
         >
-          Cancel correction
+          {say("chat.planCreation.cancelCorrection")}
         </Button>
         <Button
           variant="outline"
@@ -320,14 +437,14 @@ export function PlanCreationCommitmentCard(props: {
           disabled={disabled || editingKey !== null}
           onClick={() => actions?.editPlanCreation("commitments")}
         >
-          Clarify
+          {say("chat.planCreation.clarify")}
         </Button>
         {pending.status === "confirm" ? (
           <Button
             disabled={disabled}
             onClick={() => actions?.answerPlanCreation({ kind: "commitments-confirm" })}
           >
-            Confirm limits
+            {say("chat.planCreation.confirmLimits")}
           </Button>
         ) : null}
       </div>

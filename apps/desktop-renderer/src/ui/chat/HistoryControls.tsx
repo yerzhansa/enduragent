@@ -1,9 +1,11 @@
+import { TRANSCRIPT_HYDRATION_FAILURE_COPY } from "../../chat/hydration";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import { TRANSCRIPT_HYDRATION_FAILURE_COPY } from "../../chat/hydration";
 import { useEnduragentStore } from "../../state/store";
 
 export function HistoryControls(): ReactElement {
+  const { say } = usePhrasebook();
   const status = useEnduragentStore((state) => state.chat.hydrationStatus);
   const hasEarlier = useEnduragentStore((state) => state.chat.hydrationHasEarlier);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
@@ -31,10 +33,10 @@ export function HistoryControls(): ReactElement {
           actions?.loadEarlier();
         }}
       >
-        Load earlier messages
+        {say("chat.history.loadEarlier")}
       </Button>
       <p className="chat-history-failure m-0 text-sm text-ink-2" hidden={!failed}>
-        {TRANSCRIPT_HYDRATION_FAILURE_COPY}
+        {say(TRANSCRIPT_HYDRATION_FAILURE_COPY)}
       </p>
       <Button
         type="button"
@@ -48,7 +50,7 @@ export function HistoryControls(): ReactElement {
           actions?.retryHydration();
         }}
       >
-        Retry history
+        {say("chat.history.retry")}
       </Button>
     </div>
   );

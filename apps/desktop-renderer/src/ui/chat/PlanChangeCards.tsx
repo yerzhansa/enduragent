@@ -1,5 +1,8 @@
-import { calendarStatusLabel } from "../plan/PlanLibrary";
-import { formatCivilDate } from "@enduragent/coach-contract";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { CatalogKey } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { chatFeedbackMessage } from "./copy";
+import { useChatDate } from "./use-chat-date";
 import type {
   ListPlansResult,
   PlanChangeIntent,
@@ -16,29 +19,64 @@ import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Re
 import { Button } from "@enduragent/ui";
 import { Fact, PlanCard } from "../plan/plan-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
-import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 
 import { SupportingEventFields } from "./SupportingEventFields";
 import { currentSupportingEvents, supportingEventDifference } from "../../plan/supporting-events";
 
-const changeOptions = [
-  { value: "weekday-duration", label: "Weekday duration cap" },
-  { value: "weekday-unavailable", label: "Weekday unavailable" },
-  { value: "hard-weekday", label: "No hard training on a weekday" },
-  { value: "weekly-duration", label: "Weekly duration cap" },
-  { value: "longest-workout", label: "Longest-Workout cap" },
-  { value: "ftp", label: "Correct FTP" },
-  { value: "supporting-event", label: "Supporting Event" },
-] satisfies Array<{ value: PlanChangeIntent["kind"]; label: string }>;
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const days: readonly CatalogKey[] = [
+  "chat.planChange.day.mon",
+  "chat.planChange.day.tue",
+  "chat.planChange.day.wed",
+  "chat.planChange.day.thu",
+  "chat.planChange.day.fri",
+  "chat.planChange.day.sat",
+  "chat.planChange.day.sun",
+];
 const statusLabels = {
-  pending: "Pending",
-  applied: "Applied",
-  cancelled: "Cancelled",
-  superseded: "Superseded",
-  stale: "Stale",
-} satisfies Record<PlanChangeModel["status"], string>;
+  pending: "chat.planChange.status.pending",
+  applied: "chat.planChange.status.applied",
+  cancelled: "chat.planChange.status.cancelled",
+  superseded: "chat.planChange.status.superseded",
+  stale: "chat.planChange.status.stale",
+} satisfies Record<PlanChangeModel["status"], CatalogKey>;
+
+function calendarStatusLabel(
+  calendar: NonNullable<ListPlansResult["active"]>["calendar"],
+  { say }: Phrasebook,
+  formatCivilDate: (value: string) => string,
+): string {
+  switch (calendar.status) {
+    case "verified":
+      return calendar.window === null
+        ? say("chat.planChange.calendar.current")
+        : say("chat.planChange.calendar.window", {
+            start: formatCivilDate(calendar.window.start),
+            end: formatCivilDate(calendar.window.end),
+          });
+    case "pending":
+      return say(
+        calendar.window === null
+          ? "chat.planChange.calendar.local"
+          : "chat.planChange.calendar.updating",
+      );
+    case "running":
+      return say("chat.planChange.calendar.updating");
+    case "not-connected":
+      return say("chat.planChange.calendar.connect");
+    case "failed":
+      return say(
+        calendar.error.endsWith("Retry available.")
+          ? "chat.planChange.calendar.failedRetry"
+          : "chat.planChange.calendar.failed",
+      );
+  }
+}
+
+function sayFeedback(value: string, say: Phrasebook["say"]): string {
+  const message = chatFeedbackMessage(value);
+  return message === null ? value : say(message);
+}
 
 function ChangeCard(props: {
   eyebrow: string;
@@ -58,10 +96,22 @@ function ChangeCard(props: {
   );
 }
 
-function workoutValue(workout: PlanChangeWorkout | null): string {
-  if (workout === null) return "Not in Plan";
-  const date = workout.date === null ? "Undated" : formatCivilDate(workout.date);
-  return `${date} · ${workout.minutes} min${workout.power === null ? "" : ` · ${workout.power} W`}`;
+function workoutValue(
+  workout: PlanChangeWorkout | null,
+  { say, format }: Phrasebook,
+  formatCivilDate: (value: string) => string,
+): string {
+  if (workout === null) return say("chat.planChange.notInPlan");
+  const date =
+    workout.date === null ? say("chat.planChange.undated") : formatCivilDate(workout.date);
+  return say(
+    workout.power === null ? "chat.planChange.workoutValue" : "chat.planChange.workoutPower",
+    {
+      date,
+      minutes: format.number(workout.minutes, { useGrouping: false }),
+      watts: workout.power === null ? "" : format.number(workout.power, { useGrouping: false }),
+    },
+  );
 }
 
 function SupportingEventFacts({
@@ -71,18 +121,41 @@ function SupportingEventFacts({
   change: PlanChangeModel;
   library: ListPlansResult;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+  const formatCivilDate = useChatDate();
   const events = supportingEventDifference(library, change);
   return (
     <>
-      <Fact valueAs="div" label="Supporting Events before">
+      <Fact valueAs="div" label={say("chat.planChange.eventsBefore")}>
         {events.before
-          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
-          .join("; ") || "None"}
+          .map((event) =>
+            say("chat.planChange.eventValue", {
+              name: event.name,
+              date: formatCivilDate(event.date),
+              role: say(
+                event.role === "Important"
+                  ? "chat.supportingEvent.role.important"
+                  : "chat.supportingEvent.role.training",
+              ),
+            }),
+          )
+          .join("; ") || say("chat.planChange.none")}
       </Fact>
-      <Fact valueAs="div" label="Supporting Events after">
+      <Fact valueAs="div" label={say("chat.planChange.eventsAfter")}>
         {events.after
-          .map((event) => `${event.name} · ${formatCivilDate(event.date)} · ${event.role}`)
-          .join("; ") || "None"}
+          .map((event) =>
+            say("chat.planChange.eventValue", {
+              name: event.name,
+              date: formatCivilDate(event.date),
+              role: say(
+                event.role === "Important"
+                  ? "chat.supportingEvent.role.important"
+                  : "chat.supportingEvent.role.training",
+              ),
+            }),
+          )
+          .join("; ") || say("chat.planChange.none")}
       </Fact>
     </>
   );
@@ -97,6 +170,9 @@ function Difference({
   library: ListPlansResult;
   showSupportingEvents?: boolean;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const formatCivilDate = useChatDate();
   const events = supportingEventDifference(library, change);
   const weekNumbers = [
     ...new Set(
@@ -112,7 +188,7 @@ function Difference({
         <div
           role="table"
           className="border-t border-line [&+[role=table]]:border-t-0"
-          aria-label="Supporting Events"
+          aria-label={say("chat.planChange.events")}
         >
           <SupportingEventFacts change={change} library={library} />
         </div>
@@ -120,48 +196,75 @@ function Difference({
       <div
         role="table"
         className="border-t border-line [&+[role=table]]:border-t-0"
-        aria-label="Affected individual Workouts"
+        aria-label={say("chat.planChange.affectedWorkouts")}
       >
         {change.diff.map((row) => (
           <Fact
             valueAs="div"
             key={row.workoutId}
-            label={row.before?.name ?? row.after?.name ?? "Workout"}
+            label={row.before?.name ?? row.after?.name ?? say("chat.planChange.workout")}
           >
-            {workoutValue(row.before)} → {workoutValue(row.after)}
-            {row.before && row.after && row.before.name !== row.after.name
-              ? ` · ${row.after.name}`
-              : ""}
+            {say(
+              row.before && row.after && row.before.name !== row.after.name
+                ? "chat.planChange.renamedDifference"
+                : "chat.planChange.difference",
+              {
+                before: workoutValue(row.before, phrasebook, formatCivilDate),
+                after: workoutValue(row.after, phrasebook, formatCivilDate),
+                name: row.after?.name ?? "",
+              },
+            )}
           </Fact>
         ))}
       </div>
       <div
         role="table"
         className="border-t border-line [&+[role=table]]:border-t-0"
-        aria-label="Before and after totals"
+        aria-label={say("chat.planChange.totals")}
       >
-        <Fact valueAs="div" label="Plan totals">
-          {change.totals.before.plan} min → {change.totals.after.plan} min
+        <Fact valueAs="div" label={say("chat.planChange.planTotals")}>
+          {say("chat.planChange.minuteDifference", {
+            before: format.number(change.totals.before.plan, { useGrouping: false }),
+            after: format.number(change.totals.after.plan, { useGrouping: false }),
+          })}
         </Fact>
-        {weekNumbers.map((number) => (
-          <Fact valueAs="div" key={number} label={`Week ${number}`}>
-            {change.totals.before.weeks.find((week) => week.number === number)?.minutes ??
-              "Not in Plan"}{" "}
-            min →{" "}
-            {change.totals.after.weeks.find((week) => week.number === number)?.minutes ??
-              "Not in Plan"}{" "}
-            min
-          </Fact>
-        ))}
+        {weekNumbers.map((number) => {
+          const before = change.totals.before.weeks.find((week) => week.number === number);
+          const after = change.totals.after.weeks.find((week) => week.number === number);
+          return (
+            <Fact
+              valueAs="div"
+              key={number}
+              label={say("chat.planChange.week", {
+                number: format.number(number, { useGrouping: false }),
+              })}
+            >
+              {say("chat.planChange.minuteDifference", {
+                before:
+                  before === undefined
+                    ? say("chat.planChange.notInPlan")
+                    : format.number(before.minutes, { useGrouping: false }),
+                after:
+                  after === undefined
+                    ? say("chat.planChange.notInPlan")
+                    : format.number(after.minutes, { useGrouping: false }),
+              })}
+            </Fact>
+          );
+        })}
       </div>
       {change.diff.length === 0 ? (
-        <p className="m-0 text-sm text-ink-2">No Workout changes.</p>
+        <p className="m-0 text-sm text-ink-2">{say("chat.planChange.noChanges")}</p>
       ) : null}
     </>
   );
 }
 
-function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
+function premiseValue(
+  premise: PlanChangeModel["premises"][number],
+  { say, format }: Phrasebook,
+  formatCivilDate: (value: string) => string,
+): ReactNode {
   if (premise.id === "confirmed-limits") {
     return typeof premise.value === "string" && premise.value.trim() ? premise.value : null;
   }
@@ -173,20 +276,31 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
     const parsed = PlanChangeFtpSourcesSchema.safeParse(premise.value);
     if (!parsed.success) return null;
     const labels = {
-      manual: "Saved athlete FTP",
-      "intervals-ftp": "Intervals.icu FTP",
-      "intervals-eftp": "Intervals.icu eFTP",
+      manual: say("chat.planChange.ftpSource.manual"),
+      "intervals-ftp": say("chat.planChange.ftpSource.intervalsFtp", { provider: "Intervals.icu" }),
+      "intervals-eftp": say("chat.planChange.ftpSource.intervalsEftp", {
+        provider: "Intervals.icu",
+      }),
     };
     return (
       <ul className="m-0 grid list-none gap-1 p-0">
         {parsed.data.candidates.map((candidate) => (
           <li key={candidate.source}>
-            {labels[candidate.source]} · {candidate.watts} W
-            {candidate.selected ? " · selected" : ""}
+            {say(
+              candidate.selected ? "chat.planChange.ftpSelected" : "chat.planChange.ftpCandidate",
+              {
+                source: labels[candidate.source],
+                watts: format.number(candidate.watts, { useGrouping: false }),
+              },
+            )}
           </li>
         ))}
         {parsed.data.requestedFtp !== null ? (
-          <li>Your entry · {parsed.data.requestedFtp} W</li>
+          <li>
+            {say("chat.planChange.ftpEntry", {
+              watts: format.number(parsed.data.requestedFtp, { useGrouping: false }),
+            })}
+          </li>
         ) : null}
       </ul>
     );
@@ -194,7 +308,11 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
   if (premise.id === "event-source") {
     const parsed = PlanChangeEventSourceSchema.safeParse(premise.value);
     return parsed.success
-      ? `${parsed.data.name} · ${formatCivilDate(parsed.data.date)} · ${parsed.data.category}`
+      ? say("chat.planChange.eventValue", {
+          name: parsed.data.name,
+          date: formatCivilDate(parsed.data.date),
+          role: parsed.data.category,
+        })
       : null;
   }
   if (premise.id === "undone-change") {
@@ -211,25 +329,49 @@ function premiseValue(premise: PlanChangeModel["premises"][number]): ReactNode {
   const intent = parsed.data;
   switch (intent.kind) {
     case "weekday-duration":
-      return `${days[intent.day - 1]} · ${intent.minutes} min`;
+      return say("chat.planChange.weekdayMinutes", {
+        day: say(days[intent.day - 1]!),
+        minutes: format.number(intent.minutes, { useGrouping: false }),
+      });
     case "weekday-unavailable":
-      return `${days[intent.day - 1]} · Unavailable`;
+      return say("chat.planChange.weekdayBlocked", { day: say(days[intent.day - 1]!) });
     case "hard-weekday":
-      return `${days[intent.day - 1]} · No hard training`;
+      return say("chat.planChange.weekdayEasy", { day: say(days[intent.day - 1]!) });
     case "weekly-duration":
-      return `${intent.hours} hours each week`;
+      return say(
+        intent.hours === 1
+          ? "chat.planChange.weeklyHours_one"
+          : "chat.planChange.weeklyHours_other",
+        { count: intent.hours, hours: format.number(intent.hours, { useGrouping: false }) },
+      );
     case "longest-workout":
-      return `${intent.minutes} min`;
+      return say("chat.planChange.minutes", {
+        minutes: format.number(intent.minutes, { useGrouping: false }),
+      });
     case "choose-workout":
     case "inverse":
     case "supporting-event":
       return null;
     case "ftp":
-      return `${intent.watts} W`;
+      return say("chat.planChange.watts", {
+        watts: format.number(intent.watts, { useGrouping: false }),
+      });
   }
 }
 
 function ChangeEditor(): ReactElement {
+  const { say } = usePhrasebook();
+  const changeOptions = [
+    { value: "weekday-duration", label: say("chat.planChange.option.weekdayDuration") },
+    { value: "weekday-unavailable", label: say("chat.planChange.option.weekdayUnavailable") },
+    { value: "hard-weekday", label: say("chat.planChange.option.hardWeekday") },
+    { value: "weekly-duration", label: say("chat.planChange.option.weeklyDuration") },
+    { value: "longest-workout", label: say("chat.planChange.option.longestWorkout") },
+    { value: "ftp", label: say("chat.planChange.option.ftp") },
+    { value: "supporting-event", label: say("chat.planChange.option.supportingEvent") },
+  ] satisfies Array<{ value: PlanChangeIntent["kind"]; label: string }>;
+
+  const dayLabels = days.map((key) => say(key));
   const [kind, setKind] = useState<(typeof changeOptions)[number]["value"]>("weekday-duration");
   const library = useEnduragentStore((store) => store.planLibrary.value);
   const [eventIntent, setEventIntent] = useState<
@@ -248,7 +390,7 @@ function ChangeEditor(): ReactElement {
   const weekday =
     kind === "weekday-duration" || kind === "weekday-unavailable" || kind === "hard-weekday";
   return (
-    <ChangeCard eyebrow="Plan Change" title="What needs to change?">
+    <ChangeCard eyebrow={say("chat.planChange.title")} title={say("chat.planChange.editorTitle")}>
       <form
         className="grid gap-inset"
         noValidate
@@ -281,7 +423,7 @@ function ChangeEditor(): ReactElement {
       >
         <div className="grid gap-[calc(var(--inset)/2)]">
           <label htmlFor="plan-change-kind" className="text-xs text-ink-2">
-            Change
+            {say("chat.planChange.change")}
           </label>
           <Select
             value={kind}
@@ -320,11 +462,11 @@ function ChangeEditor(): ReactElement {
         {weekday ? (
           <div className="grid gap-[calc(var(--inset)/2)]">
             <label htmlFor="plan-change-day" className="text-xs text-ink-2">
-              Weekday
+              {say("chat.planChange.weekday")}
             </label>
             <Select
               value={day}
-              items={days.map((label, index) => ({ value: index + 1, label }))}
+              items={dayLabels.map((label, index) => ({ value: index + 1, label }))}
               disabled={state.busy}
               onValueChange={(value) => {
                 if (value !== null) setDay(value);
@@ -334,7 +476,7 @@ function ChangeEditor(): ReactElement {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {days.map((label, index) => (
+                {dayLabels.map((label, index) => (
                   <SelectItem key={label} value={index + 1}>
                     {label}
                   </SelectItem>
@@ -346,7 +488,7 @@ function ChangeEditor(): ReactElement {
         {kind === "weekday-duration" || kind === "longest-workout" ? (
           <div className="grid gap-[calc(var(--inset)/2)]">
             <label htmlFor="plan-change-minutes" className="text-xs text-ink-2">
-              Duration limit in minutes
+              {say("chat.planChange.durationLimit")}
             </label>
             <input
               className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
@@ -362,7 +504,7 @@ function ChangeEditor(): ReactElement {
         {kind === "weekly-duration" ? (
           <div className="grid gap-[calc(var(--inset)/2)]">
             <label htmlFor="plan-change-hours" className="text-xs text-ink-2">
-              Weekly limit in hours
+              {say("chat.planChange.weeklyLimit")}
             </label>
             <input
               className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
@@ -379,7 +521,7 @@ function ChangeEditor(): ReactElement {
         {kind === "ftp" ? (
           <div className="grid gap-[calc(var(--inset)/2)]">
             <label htmlFor="plan-change-watts" className="text-xs text-ink-2">
-              FTP in watts
+              {say("chat.planChange.ftpWatts")}
             </label>
             <input
               className="min-h-[var(--ctl-h-lg)] rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-normal leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
@@ -395,7 +537,7 @@ function ChangeEditor(): ReactElement {
         ) : null}
         {state.error ? (
           <p role="alert" className="m-0 text-xs text-danger">
-            {state.error}
+            {sayFeedback(state.error, say)}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-inset">
@@ -406,10 +548,10 @@ function ChangeEditor(): ReactElement {
             disabled={state.busy}
             onClick={() => actions?.backFromPlanChangeEditor()}
           >
-            Back
+            {say("common.back")}
           </Button>
           <Button type="submit" disabled={state.busy || actions === null}>
-            Preview change
+            {say("chat.planChange.preview")}
           </Button>
         </div>
       </form>
@@ -418,6 +560,9 @@ function ChangeEditor(): ReactElement {
 }
 
 export function PlanChangeCards(): ReactElement | null {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const formatCivilDate = useChatDate();
   const library = useEnduragentStore((store) => store.planLibrary.value);
   const state = useEnduragentStore((store) => store.planChange);
   const actions = useEnduragentStore((store) => store.chatActions);
@@ -467,11 +612,11 @@ export function PlanChangeCards(): ReactElement | null {
     setSource({ change, difference });
   };
   const notice = paused
-    ? PLAN_CHANGES_PAUSED_NOTICE
-    : (state.notice ?? (pending ? "Review the exact changes before confirming." : null));
+    ? say("chat.planChange.paused", { hours: format.number(24, { useGrouping: false }) })
+    : (state.notice ?? (pending ? say("chat.planChange.reviewNotice") : null));
   const pausedReason = paused ? "plan-changes-notice" : undefined;
   return (
-    <section aria-label="Plan Changes" className="grid min-w-0 gap-4">
+    <section aria-label={say("chat.planChange.section")} className="grid min-w-0 gap-4">
       {notice ? (
         <div
           ref={pauseNotice}
@@ -480,25 +625,25 @@ export function PlanChangeCards(): ReactElement | null {
           tabIndex={-1}
           className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink"
         >
-          <p className="m-0 text-xs leading-4 text-ink-2">{notice}</p>
+          <p className="m-0 text-xs leading-4 text-ink-2">{sayFeedback(notice, say)}</p>
         </div>
       ) : null}
       {!state.editorOpen && state.error ? (
         <p role="alert" className="m-0 text-xs text-danger">
-          {state.error}
+          {sayFeedback(state.error, say)}
         </p>
       ) : null}
       <ChangeCard
-        eyebrow="Active Plan"
+        eyebrow={say("chat.planChange.activePlan")}
         title={library.active.name}
         summary={
           library.creation
-            ? "Your separate Plan creation is still open."
-            : "Changes affect future, uncompleted training."
+            ? say("chat.planChange.separateCreation")
+            : say("chat.planChange.futureChanges")
         }
       >
         <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
-          {calendarStatusLabel(library.active.calendar)}
+          {calendarStatusLabel(library.active.calendar, phrasebook, formatCivilDate)}
         </p>
         <div className="flex flex-wrap gap-inset">
           <Button
@@ -509,20 +654,23 @@ export function PlanChangeCards(): ReactElement | null {
             aria-describedby={pausedReason}
             onClick={() => actions?.openPlanChangeEditor()}
           >
-            Change one thing
+            {say("chat.planChange.changeOne")}
           </Button>
           <Button
             variant="outline"
             className="border-line bg-surface"
             onClick={() => setActiveView("plan")}
           >
-            Open Plan
+            {say("chat.planChange.openPlan")}
           </Button>
         </div>
       </ChangeCard>
       {state.editorOpen && !paused ? <ChangeEditor /> : null}
       {library.active.todayChoice ? (
-        <ChangeCard eyebrow="Today" title="Choose one eligible Workout">
+        <ChangeCard
+          eyebrow={say("chat.planChange.today")}
+          title={say("chat.planChange.chooseWorkout")}
+        >
           <ul className="m-0 grid list-none p-0">
             {library.active.todayChoice.eligible.map((workout) => (
               <li
@@ -530,7 +678,10 @@ export function PlanChangeCards(): ReactElement | null {
                 className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-start gap-3 border-b border-line py-[calc(var(--row-inset)+1px)] last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
               >
                 <span className="text-sm leading-5">
-                  {workout.name} · {workout.minutes} min
+                  {say("chat.planChange.workoutOption", {
+                    name: workout.name,
+                    minutes: format.number(workout.minutes, { useGrouping: false }),
+                  })}
                 </span>
                 <Button
                   variant="outline"
@@ -544,7 +695,7 @@ export function PlanChangeCards(): ReactElement | null {
                     })
                   }
                 >
-                  Review {workout.name}
+                  {say("chat.planChange.reviewWorkout", { name: workout.name })}
                 </Button>
               </li>
             ))}
@@ -565,14 +716,14 @@ export function PlanChangeCards(): ReactElement | null {
       ) : null}
       {pending ? (
         <ChangeCard
-          eyebrow="Plan Change"
+          eyebrow={say("chat.planChange.title")}
           title={pending.title}
-          status="Pending"
+          status={say("chat.planChange.status.pending")}
           headingRef={previewHeading}
           summary={
             pending.intent.kind === "inverse"
-              ? "Restore the previewed future training. Completed and past training stays unchanged."
-              : "Review this exact difference. Training stays unchanged until you confirm."
+              ? say("chat.planChange.restoreSummary")
+              : say("chat.planChange.reviewSummary")
           }
         >
           {pending.details ? (
@@ -587,13 +738,13 @@ export function PlanChangeCards(): ReactElement | null {
           <div
             role="table"
             className="border-t border-line [&+[role=table]]:border-t-0"
-            aria-label="Facts"
+            aria-label={say("chat.planChange.facts")}
           >
-            <Fact valueAs="div" label="Main Goal">
+            <Fact valueAs="div" label={say("chat.planChange.mainGoal")}>
               {library.active.name}
             </Fact>
             <SupportingEventFacts change={pending} library={library} />
-            <Fact valueAs="div" label="Confidence">
+            <Fact valueAs="div" label={say("chat.planChange.confidence")}>
               {pending.confidence}
             </Fact>
           </div>
@@ -603,7 +754,7 @@ export function PlanChangeCards(): ReactElement | null {
               className="border-line bg-surface"
               onClick={(event) => openSource(pending, false, event.currentTarget)}
             >
-              View evidence
+              {say("chat.planChange.viewEvidence")}
             </Button>
           </div>
           <div className="mt-row flex flex-wrap gap-inset">
@@ -613,14 +764,14 @@ export function PlanChangeCards(): ReactElement | null {
               disabled={state.busy || actions === null}
               onClick={() => actions?.applyPlanChange("cancel")}
             >
-              Cancel
+              {say("common.cancel")}
             </Button>
             <Button
               disabled={paused || state.busy || actions === null}
               aria-describedby={pausedReason}
               onClick={() => actions?.applyPlanChange("apply")}
             >
-              Apply to Plan
+              {say("chat.planChange.apply")}
             </Button>
           </div>
         </ChangeCard>
@@ -630,10 +781,10 @@ export function PlanChangeCards(): ReactElement | null {
         .map((change) => (
           <ChangeCard
             key={change.changeId}
-            eyebrow="Plan Change history"
+            eyebrow={say("chat.planChange.history")}
             title={change.title}
-            status={statusLabels[change.status]}
-            summary="Earlier decisions remain readable."
+            status={say(statusLabels[change.status])}
+            summary={say("chat.planChange.historySummary")}
           >
             <div className="flex flex-wrap gap-inset">
               <Button
@@ -641,7 +792,7 @@ export function PlanChangeCards(): ReactElement | null {
                 className="border-line bg-surface"
                 onClick={(event) => openSource(change, false, event.currentTarget)}
               >
-                Read historical evidence
+                {say("chat.planChange.historicalEvidence")}
               </Button>
               {change.status === "applied" && change.undo?.eligible ? (
                 <Button
@@ -653,7 +804,7 @@ export function PlanChangeCards(): ReactElement | null {
                     actions?.previewPlanChange({ kind: "inverse", changeId: change.changeId })
                   }
                 >
-                  Undo
+                  {say("chat.planChange.undo")}
                 </Button>
               ) : null}
               <Button
@@ -661,28 +812,39 @@ export function PlanChangeCards(): ReactElement | null {
                 className="border-line bg-surface"
                 onClick={(event) => openSource(change, true, event.currentTarget)}
               >
-                Read this difference
+                {say("chat.planChange.readDifference")}
               </Button>
             </div>
           </ChangeCard>
         ))}
       {source ? (
-        <ChangeCard eyebrow="Evidence" title="Source details" headingRef={sourceHeading}>
+        <ChangeCard
+          eyebrow={say("chat.planChange.evidence")}
+          title={say("chat.planChange.sourceDetails")}
+          headingRef={sourceHeading}
+        >
           {source.difference ? (
             <>
-              <p className="m-0 text-sm text-ink-2">{statusLabels[source.change.status]}</p>
+              <p className="m-0 text-sm text-ink-2">{say(statusLabels[source.change.status])}</p>
               <Difference change={source.change} library={library} />
             </>
           ) : null}
           <div
             role="table"
             className="border-t border-line [&+[role=table]]:border-t-0"
-            aria-label="Source details"
+            aria-label={say("chat.planChange.sourceDetails")}
           >
             {source.change.premises.map((premise) => {
-              const value = premiseValue(premise);
+              const value = premiseValue(premise, phrasebook, formatCivilDate);
               return value === null ? null : (
-                <Fact valueAs="div" key={premise.id} label={`${premise.label} · ${premise.source}`}>
+                <Fact
+                  valueAs="div"
+                  key={premise.id}
+                  label={say("chat.planChange.premiseLabel", {
+                    label: premise.label,
+                    source: premise.source,
+                  })}
+                >
                   {value}
                 </Fact>
               );
@@ -697,7 +859,7 @@ export function PlanChangeCards(): ReactElement | null {
                 sourceOpener.current?.focus();
               }}
             >
-              Back
+              {say("common.back")}
             </Button>
           </div>
         </ChangeCard>
