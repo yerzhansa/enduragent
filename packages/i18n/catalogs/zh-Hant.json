@@ -2753,5 +2753,90 @@
     "workout": {
       "working": "正在查看狀態（TSB）和訓練計畫…"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "解鎖登入鑰匙圈",
+      "macUnavailable": "無法使用 {{operatingSystem}} 加密。請確認鑰匙圈可用後再試。",
+      "windowsIdentityFailed": "{{operatingSystem}} 桌面應用程式身分繫結失敗",
+      "windowsRecovery": "確認 {{operatingSystem}} 憑證加密（DPAPI）可用",
+      "windowsUnavailable": "無法使用 {{operatingSystem}} 憑證加密（DPAPI）。請結束並重新開啟 {{product}} 後再試。",
+      "windowsUserDataFailed": "{{operatingSystem}} 使用者資料繫結失敗"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}} 活動",
+      "attach": "附加",
+      "attachTitle": "將檔案附加至聊天",
+      "exportRideTitle": "將騎乘匯出為 {{format}}",
+      "exportWorkoutsTitle": "將已安排的訓練課表匯出為 {{format}}",
+      "pastedImage": "貼上的圖片{{extension}}",
+      "raceCourse": "比賽路線",
+      "rideFiles": "騎乘檔案",
+      "rideImportDescription": "從 {{computer}} 新增 FIT、TCX 或 GPX 檔案。也可以將檔案拖放至視窗中。",
+      "supportedFiles": "支援的檔案",
+      "workoutArchive": "訓練課表壓縮檔"
+    },
+    "lifecycle": {
+      "contentionContent": "另一個 {{product}} 程序已在執行或已停止回應。請結束該程序，再重新開啟 {{product}}。若找不到該程序，請登出後重新登入。",
+      "contentionTitle": "{{product}} 無法連線至背景服務",
+      "malformedContent": "請修正或替換無效的 {{configFile}} 檔案，再重新開啟 {{product}}。",
+      "malformedTitle": "{{product}} 無法使用組態",
+      "notConfiguredContent": "缺少組態檔。請執行 {{product}} 初始設定或還原 {{configFile}}，再重新開啟 {{product}}。",
+      "notConfiguredTitle": "{{product}} 尚未完成設定",
+      "restartExhaustedContent": "背景服務反覆停止，{{product}} 無法將其重新啟動。請結束並重新開啟 {{product}}。若仍未解決，請登出後重新登入。",
+      "restartExhaustedTitle": "{{product}} 的背景服務已停止",
+      "unavailableContent": "無法啟動背景服務，或無法讀取已儲存的連線狀態。請結束並重新開啟 {{product}}。若問題持續發生，請先{{restartComputer}}，再重試。",
+      "unavailableTitle": "{{product}} 無法啟動背景服務",
+      "unexpectedContent": "{{product}} 啟動時遇到非預期的問題。請結束 {{product}} 後再試。若問題反覆發生，請登出並重新登入，再重新開啟應用程式。",
+      "unexpectedTitle": "{{product}} 無法開啟",
+      "unreadableContent": "請確認 {{configFile}} 是可讀取的檔案，且可存取其所在資料夾，再重新開啟 {{product}}。",
+      "unreadableTitle": "{{product}} 無法讀取組態",
+      "versionMismatchContent": "CLI 或先前的安裝正在執行另一個版本的 {{product}} 背景服務。請結束該服務，再重新開啟 {{product}}。",
+      "versionMismatchTitle": "{{product}} 偵測到不同版本的背景服務"
+    },
+    "platform": {
+      "computerMac": "這台 Mac",
+      "computerPc": "這台 PC",
+      "restartMac": "重新啟動 Mac",
+      "restartPc": "重新啟動 PC"
+    },
+    "tray": {
+      "checkingConnection": "正在檢查連線",
+      "closeHint": "關閉視窗，應用程式會繼續執行。以滑鼠右鍵按一下選單列圖示可查看更多選項。",
+      "coach": "自行車教練",
+      "menuBarStatus": "{{product}} 選單列狀態",
+      "open": "開啟 {{product}}",
+      "quit": "結束 {{product}}",
+      "ready": "隨時可以開始",
+      "residency": "背景執行",
+      "running": "{{product}} 正在執行",
+      "runningInMenuBar": "正在選單列中執行",
+      "settings": "設定…",
+      "startAtLogin": "登入時在背景啟動",
+      "tag": {
+        "active": "執行中",
+        "attention": "需要處理",
+        "checking": "檢查中",
+        "conflict": "衝突",
+        "off": "已關閉",
+        "online": "線上",
+        "paused": "已暫停",
+        "retrying": "重試中",
+        "starting": "啟動中",
+        "warning": "警告"
+      },
+      "telegram": {
+        "conflict": "另一個輪詢程序正在使用此機器人",
+        "connected": "已連線至 Telegram",
+        "connecting": "正在連線至 Telegram",
+        "missedMessages": "檢查遺漏的訊息",
+        "needsAttention": "Telegram 需要處理",
+        "off": "Telegram 已關閉",
+        "reconnecting": "Telegram 正在重新連線",
+        "suspended": "這台 Mac 睡眠期間，Telegram 會暫停",
+        "tokenRejected": "Telegram 權杖遭拒",
+        "transferRequired": "需要移轉機器人"
+      }
+    }
   }
 }

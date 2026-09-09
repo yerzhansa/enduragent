@@ -2861,5 +2861,90 @@
     "workout": {
       "working": "Sprawdzam twoją formę i plan…"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "odblokuj pęk kluczy logowania",
+      "macUnavailable": "Szyfrowanie w systemie {{operatingSystem}} jest niedostępne. Upewnij się, że pęk kluczy jest dostępny, a następnie spróbuj ponownie.",
+      "windowsIdentityFailed": "Nie udało się powiązać tożsamości aplikacji komputerowej w systemie {{operatingSystem}}",
+      "windowsRecovery": "upewnij się, że szyfrowanie danych dostępowych (DPAPI) w systemie {{operatingSystem}} jest dostępne",
+      "windowsUnavailable": "Szyfrowanie danych dostępowych (DPAPI) w systemie {{operatingSystem}} jest niedostępne. Zamknij {{product}}, otwórz ponownie i spróbuj jeszcze raz.",
+      "windowsUserDataFailed": "Nie udało się powiązać danych użytkownika w systemie {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "Aktywność {{format}}",
+      "attach": "Załącz",
+      "attachTitle": "Załącz pliki do czatu",
+      "exportRideTitle": "Eksportuj jazdę jako {{format}}",
+      "exportWorkoutsTitle": "Eksportuj zaplanowane treningi jako {{format}}",
+      "pastedImage": "Wklejony obraz{{extension}}",
+      "raceCourse": "Trasa wyścigu",
+      "rideFiles": "Pliki jazd",
+      "rideImportDescription": "Dodaj pliki FIT, TCX lub GPX z komputera ({{computer}}). Możesz też upuścić je w oknie.",
+      "supportedFiles": "Obsługiwane pliki",
+      "workoutArchive": "Archiwum treningów"
+    },
+    "lifecycle": {
+      "contentionContent": "Inny proces {{product}} już działa lub się zawiesił. Zakończ ten proces, a następnie otwórz ponownie {{product}}. Jeśli nie możesz go znaleźć, wyloguj się i zaloguj ponownie.",
+      "contentionTitle": "{{product}} nie może połączyć się ze swoją usługą w tle",
+      "malformedContent": "Popraw lub zastąp nieprawidłowy plik {{configFile}}, a następnie otwórz ponownie {{product}}.",
+      "malformedTitle": "{{product}} nie może użyć swojej konfiguracji",
+      "notConfiguredContent": "Brakuje pliku konfiguracyjnego. Uruchom konfigurację {{product}} lub przywróć {{configFile}}, a następnie otwórz ponownie {{product}}.",
+      "notConfiguredTitle": "{{product}} nie jest skonfigurowany",
+      "restartExhaustedContent": "Usługa w tle wielokrotnie się zatrzymała i {{product}} nie zdołał jej ponownie uruchomić. Zamknij {{product}} i otwórz go ponownie. Jeśli to nie pomoże, wyloguj się i zaloguj ponownie.",
+      "restartExhaustedTitle": "Usługa {{product}} działająca w tle zatrzymała się",
+      "unavailableContent": "Nie udało się uruchomić usługi w tle lub odczytać zapisanego stanu jej połączenia. Zamknij {{product}} i otwórz go ponownie. Jeśli problem nadal występuje, {{restartComputer}} przed kolejną próbą.",
+      "unavailableTitle": "{{product}} nie może uruchomić swojej usługi w tle",
+      "unexpectedContent": "Podczas uruchamiania {{product}} wystąpił nieoczekiwany problem. Zamknij {{product}} i spróbuj ponownie. Jeśli problem się powtarza, wyloguj się i zaloguj ponownie przed kolejnym otwarciem aplikacji.",
+      "unexpectedTitle": "Nie udało się otworzyć {{product}}",
+      "unreadableContent": "Sprawdź, czy plik {{configFile}} można odczytać i czy jego folder jest dostępny, a następnie otwórz ponownie {{product}}.",
+      "unreadableTitle": "{{product}} nie może odczytać swojej konfiguracji",
+      "versionMismatchContent": "Działa inna wersja usługi {{product}} w tle, uruchomiona z wiersza poleceń lub wcześniejszej instalacji. Zatrzymaj tę usługę, a następnie otwórz ponownie {{product}}.",
+      "versionMismatchTitle": "{{product}} wykrył inną wersję usługi w tle"
+    },
+    "platform": {
+      "computerMac": "ten Mac",
+      "computerPc": "ten komputer PC",
+      "restartMac": "uruchom ponownie swojego Maca",
+      "restartPc": "uruchom ponownie swój komputer PC"
+    },
+    "tray": {
+      "checkingConnection": "Sprawdzanie połączenia",
+      "closeHint": "Zamknij okno bez zamykania aplikacji. Kliknij prawym przyciskiem myszy ikonę na pasku menu, aby zobaczyć więcej opcji.",
+      "coach": "Trener kolarski",
+      "menuBarStatus": "Stan {{product}} na pasku menu",
+      "open": "Otwórz {{product}}",
+      "quit": "Zamknij {{product}}",
+      "ready": "Możemy zacząć, kiedy chcesz",
+      "residency": "Działanie w tle",
+      "running": "{{product}} działa",
+      "runningInMenuBar": "Działa na pasku menu",
+      "settings": "Ustawienia…",
+      "startAtLogin": "Uruchamiaj w tle po zalogowaniu",
+      "tag": {
+        "active": "aktywny",
+        "attention": "uwaga",
+        "checking": "sprawdzanie",
+        "conflict": "konflikt",
+        "off": "wyłączony",
+        "online": "online",
+        "paused": "wstrzymany",
+        "retrying": "ponawianie",
+        "starting": "uruchamianie",
+        "warning": "ostrzeżenie"
+      },
+      "telegram": {
+        "conflict": "Inna usługa odbierająca wiadomości kontroluje bota",
+        "connected": "Połączono z usługą Telegram",
+        "connecting": "Łączenie z usługą Telegram",
+        "missedMessages": "Sprawdź, czy nie brakuje wiadomości",
+        "needsAttention": "Telegram wymaga uwagi",
+        "off": "Telegram jest wyłączony",
+        "reconnecting": "Telegram łączy się ponownie",
+        "suspended": "Telegram jest wstrzymany, gdy ten Mac jest uśpiony",
+        "tokenRejected": "Token usługi Telegram został odrzucony",
+        "transferRequired": "Wymagane przeniesienie bota"
+      }
+    }
   }
 }

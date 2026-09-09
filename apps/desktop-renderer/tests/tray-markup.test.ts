@@ -42,7 +42,7 @@ describe("tray popover markup", () => {
     expect(script).toContain("window.enduragentTray.onTelegramStatus");
     expect(script).toContain('event.key === "Escape"');
     expect(source).not.toMatch(
-      /fetch\s*\(|WebSocket|ipcRenderer|contextBridge|localStorage|sessionStorage|console\.|@enduragent\/|https?:|[?#]token/iu,
+      /fetch\s*\(|WebSocket|ipcRenderer|contextBridge|localStorage|sessionStorage|console\.|@enduragent\/(?!i18n)|https?:|[?#]token/iu,
     );
     expect(source).not.toMatch(
       /\b(?:Fitness|Fatigue|Load|Intensity|workout|wellness|plan|spend|onboarding|chat)\b/iu,

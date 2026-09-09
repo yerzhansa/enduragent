@@ -2789,5 +2789,90 @@
       "unnamed": "Naamloze training",
       "update": "Training \"{{name}}\" op {{date}} bijwerken: {{detail}}"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "ontgrendel je inlogsleutelhanger",
+      "macUnavailable": "Versleuteling in {{operatingSystem}} is niet beschikbaar. Zorg dat Sleutelhanger beschikbaar is en probeer het opnieuw.",
+      "windowsIdentityFailed": "Het koppelen van de identiteit van de desktopapp in {{operatingSystem}} is mislukt",
+      "windowsRecovery": "zorg dat versleuteling van toegangsgegevens (DPAPI) in {{operatingSystem}} beschikbaar is",
+      "windowsUnavailable": "Versleuteling van toegangsgegevens (DPAPI) in {{operatingSystem}} is niet beschikbaar. Sluit {{product}} af, open het opnieuw en probeer het nogmaals.",
+      "windowsUserDataFailed": "Het koppelen van gebruikersgegevens in {{operatingSystem}} is mislukt"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-activiteit",
+      "attach": "Bijvoegen",
+      "attachTitle": "Bestanden bijvoegen in Chat",
+      "exportRideTitle": "Rit exporteren als {{format}}",
+      "exportWorkoutsTitle": "Geplande trainingen exporteren als {{format}}",
+      "pastedImage": "Geplakte afbeelding{{extension}}",
+      "raceCourse": "Wedstrijdparcours",
+      "rideFiles": "Ritbestanden",
+      "rideImportDescription": "Voeg FIT-, TCX- of GPX-bestanden toe vanaf {{computer}}. Je kunt ze ook naar het venster slepen.",
+      "supportedFiles": "Ondersteunde bestanden",
+      "workoutArchive": "Trainingsarchief"
+    },
+    "lifecycle": {
+      "contentionContent": "Een ander proces van {{product}} is al actief of loopt vast. Sluit dat proces af en open {{product}} opnieuw. Kun je het niet vinden, log dan uit en weer in.",
+      "contentionTitle": "{{product}} kon geen verbinding maken met de achtergrondservice",
+      "malformedContent": "Corrigeer of vervang het ongeldige bestand {{configFile}} en open {{product}} opnieuw.",
+      "malformedTitle": "{{product}} kon de configuratie niet gebruiken",
+      "notConfiguredContent": "Het configuratiebestand ontbreekt. Voer de configuratie van {{product}} uit of herstel {{configFile}} en open {{product}} opnieuw.",
+      "notConfiguredTitle": "{{product}} is niet geconfigureerd",
+      "restartExhaustedContent": "De achtergrondservice is herhaaldelijk gestopt en {{product}} kon deze niet opnieuw starten. Sluit {{product}} af en open het opnieuw. Helpt dat niet, log dan uit en weer in.",
+      "restartExhaustedTitle": "De achtergrondservice van {{product}} is gestopt",
+      "unavailableContent": "De achtergrondservice kon niet starten of de opgeslagen verbindingsstatus kon niet worden gelezen. Sluit {{product}} af en open het opnieuw. Blijft het probleem bestaan, {{restartComputer}} voordat je het opnieuw probeert.",
+      "unavailableTitle": "{{product}} kon de achtergrondservice niet starten",
+      "unexpectedContent": "Er is een onverwacht probleem opgetreden bij het starten van {{product}}. Sluit {{product}} af en probeer het opnieuw. Blijft dit gebeuren, log dan uit en weer in voordat je het opnieuw opent.",
+      "unexpectedTitle": "{{product}} kon niet worden geopend",
+      "unreadableContent": "Controleer of {{configFile}} een leesbaar bestand is en of de map toegankelijk is. Open daarna {{product}} opnieuw.",
+      "unreadableTitle": "{{product}} kon de configuratie niet lezen",
+      "versionMismatchContent": "Er is een andere versie van de achtergrondservice van {{product}} actief vanuit de CLI of een eerdere installatie. Sluit die service af en open {{product}} opnieuw.",
+      "versionMismatchTitle": "{{product}} heeft een andere versie van de achtergrondservice gevonden"
+    },
+    "platform": {
+      "computerMac": "deze Mac",
+      "computerPc": "deze pc",
+      "restartMac": "start je Mac opnieuw op",
+      "restartPc": "start je pc opnieuw op"
+    },
+    "tray": {
+      "checkingConnection": "Verbinding controleren",
+      "closeHint": "Sluit het venster zonder de app af te sluiten. Klik met de rechtermuisknop op het pictogram in de menubalk voor meer opties.",
+      "coach": "Wielercoach",
+      "menuBarStatus": "Status van {{product}} in de menubalk",
+      "open": "{{product}} openen",
+      "quit": "{{product}} afsluiten",
+      "ready": "Klaar wanneer jij dat bent",
+      "residency": "Op de achtergrond actief",
+      "running": "{{product}} is actief",
+      "runningInMenuBar": "Actief in de menubalk",
+      "settings": "Instellingen…",
+      "startAtLogin": "Op de achtergrond starten bij inloggen",
+      "tag": {
+        "active": "actief",
+        "attention": "aandacht nodig",
+        "checking": "controleren",
+        "conflict": "conflict",
+        "off": "uit",
+        "online": "online",
+        "paused": "gepauzeerd",
+        "retrying": "opnieuw proberen",
+        "starting": "starten",
+        "warning": "waarschuwing"
+      },
+      "telegram": {
+        "conflict": "Een ander proces haalt berichten op voor de bot",
+        "connected": "Verbonden met Telegram",
+        "connecting": "Verbinding maken met Telegram",
+        "missedMessages": "Controleer op gemiste berichten",
+        "needsAttention": "Telegram heeft aandacht nodig",
+        "off": "Telegram staat uit",
+        "reconnecting": "Telegram maakt opnieuw verbinding",
+        "suspended": "Telegram is gepauzeerd zolang deze Mac in de sluimerstand staat",
+        "tokenRejected": "Telegram-token geweigerd",
+        "transferRequired": "Botoverdracht vereist"
+      }
+    }
   }
 }

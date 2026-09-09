@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { homedir } from "node:os";
 import type { IpcMainInvokeEvent } from "electron";
 import { describe, expect, it, vi } from "vitest";
@@ -220,6 +221,8 @@ function harness(
     invoke,
   };
 }
+
+await initializeDesktopLanguage();
 
 describe("desktop onboarding IPC", () => {
   it("exposes trusted recovery, retry, and explicit reset operations", async () => {

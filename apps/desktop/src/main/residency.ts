@@ -1,3 +1,5 @@
+import { desktopPlatformTokens } from "./platform-copy.js";
+import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
 import {
   Menu,
   Tray,
@@ -166,21 +168,24 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       () => undefined,
     );
   };
-  const showContextMenu = (): void => {
+  const showContextMenu = async (): Promise<void> => {
+    await refreshDesktopLanguage();
     if (closed || tray === undefined) return;
     const state = readLoginState();
     const template: MenuItemConstructorOptions[] = [
       {
-        label: "Open Enduragent",
+        label: desktopPhrasebook().say("desktop.tray.open", {
+          product: desktopPlatformTokens().product,
+        }),
         click: () => void showMainWindow(),
       },
       { type: "separator" },
       {
-        label: "Settings…",
+        label: desktopPhrasebook().say("desktop.tray.settings"),
         click: () => void showMainWindow("settings"),
       },
       {
-        label: "Start in background at login",
+        label: desktopPhrasebook().say("desktop.tray.startAtLogin"),
         type: "checkbox",
         checked: state === undefined ? false : isLoginItemResidencyEnabled(state, platform),
         enabled: state !== undefined,
@@ -188,7 +193,9 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       },
       { type: "separator" },
       {
-        label: "Quit Enduragent",
+        label: desktopPhrasebook().say("desktop.tray.quit", {
+          product: desktopPlatformTokens().product,
+        }),
         click: () => {
           if (!closed) residency.quit();
         },
@@ -208,7 +215,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
           tray.setToolTip(TRAY_TOOLTIP);
           tray.on("click", () => {
             if (platform === "win32") void showMainWindow();
-            else showContextMenu();
+            else return showContextMenu();
           });
           tray.on("right-click", showContextMenu);
           input.observe?.({ type: "tray-created" });

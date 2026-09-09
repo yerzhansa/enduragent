@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "Sto controllando la tua forma e il piano..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "sblocca il tuo portachiavi di login",
+      "macUnavailable": "La crittografia di {{operatingSystem}} non è disponibile. Assicurati che il portachiavi sia accessibile, poi riprova.",
+      "windowsIdentityFailed": "Associazione dell'identità dell'app desktop non riuscita su {{operatingSystem}}",
+      "windowsRecovery": "assicurati che la crittografia delle credenziali di {{operatingSystem}} (DPAPI) sia disponibile",
+      "windowsUnavailable": "La crittografia delle credenziali di {{operatingSystem}} (DPAPI) non è disponibile. Chiudi e riapri {{product}}, poi riprova.",
+      "windowsUserDataFailed": "Associazione dei dati utente non riuscita su {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "Attività {{format}}",
+      "attach": "Allega",
+      "attachTitle": "Allega file alla chat",
+      "exportRideTitle": "Esporta uscita in formato {{format}}",
+      "exportWorkoutsTitle": "Esporta allenamenti pianificati in formato {{format}}",
+      "pastedImage": "Immagine incollata{{extension}}",
+      "raceCourse": "Percorso di gara",
+      "rideFiles": "File delle uscite",
+      "rideImportDescription": "Aggiungi file FIT, TCX o GPX da {{computer}}. Puoi anche trascinarli nella finestra.",
+      "supportedFiles": "File supportati",
+      "workoutArchive": "Archivio di allenamenti"
+    },
+    "lifecycle": {
+      "contentionContent": "Un altro processo di {{product}} è già in esecuzione o si è bloccato. Termina quel processo, poi riapri {{product}}. Se non lo trovi, esci dalla sessione e accedi di nuovo.",
+      "contentionTitle": "{{product}} non è riuscito a connettersi al servizio in background",
+      "malformedContent": "Correggi o sostituisci il file {{configFile}} non valido, poi riapri {{product}}.",
+      "malformedTitle": "{{product}} non è riuscito a usare la configurazione",
+      "notConfiguredContent": "Il file di configurazione è mancante. Esegui la configurazione iniziale di {{product}} o ripristina {{configFile}}, poi riapri {{product}}.",
+      "notConfiguredTitle": "{{product}} non è configurato",
+      "restartExhaustedContent": "Il servizio in background si è interrotto più volte e {{product}} non è riuscito a riavviarlo. Chiudi {{product}} e riaprilo. Se il problema persiste, esci dalla sessione e accedi di nuovo.",
+      "restartExhaustedTitle": "Il servizio in background di {{product}} si è interrotto",
+      "unavailableContent": "Non è stato possibile avviare il servizio in background o leggere lo stato di connessione salvato. Chiudi {{product}} e riaprilo. Se il problema persiste, {{restartComputer}} prima di riprovare.",
+      "unavailableTitle": "{{product}} non è riuscito ad avviare il servizio in background",
+      "unexpectedContent": "{{product}} ha riscontrato un problema imprevisto all'avvio. Chiudi {{product}} e riprova. Se il problema persiste, esci dalla sessione e accedi di nuovo prima di riaprirlo.",
+      "unexpectedTitle": "{{product}} non è riuscito ad aprirsi",
+      "unreadableContent": "Verifica che il file {{configFile}} sia leggibile e che la sua cartella sia accessibile, poi riapri {{product}}.",
+      "unreadableTitle": "{{product}} non è riuscito a leggere la configurazione",
+      "versionMismatchContent": "È in esecuzione una versione diversa del servizio in background di {{product}}, avviata dalla CLI o da un'installazione precedente. Termina quel servizio, poi riapri {{product}}.",
+      "versionMismatchTitle": "{{product}} ha rilevato una versione diversa del servizio in background"
+    },
+    "platform": {
+      "computerMac": "questo Mac",
+      "computerPc": "questo PC",
+      "restartMac": "riavvia il tuo Mac",
+      "restartPc": "riavvia il tuo PC"
+    },
+    "tray": {
+      "checkingConnection": "Verifica della connessione",
+      "closeHint": "Chiudi la finestra senza uscire dall'app. Fai clic destro sull'icona nella barra dei menu per altre opzioni.",
+      "coach": "Coach di ciclismo",
+      "menuBarStatus": "Stato di {{product}} nella barra dei menu",
+      "open": "Apri {{product}}",
+      "quit": "Esci da {{product}}",
+      "ready": "Pronto quando vuoi",
+      "residency": "Esecuzione in background",
+      "running": "{{product}} è in esecuzione",
+      "runningInMenuBar": "In esecuzione nella barra dei menu",
+      "settings": "Preferenze…",
+      "startAtLogin": "Avvia in background all'accesso",
+      "tag": {
+        "active": "attivo",
+        "attention": "attenzione",
+        "checking": "verifica",
+        "conflict": "conflitto",
+        "off": "disattivato",
+        "online": "online",
+        "paused": "in pausa",
+        "retrying": "nuovo tentativo",
+        "starting": "avvio",
+        "warning": "avviso"
+      },
+      "telegram": {
+        "conflict": "Un altro processo controlla il bot",
+        "connected": "Connesso a Telegram",
+        "connecting": "Connessione a Telegram",
+        "missedMessages": "Controlla se ci sono messaggi non ricevuti",
+        "needsAttention": "Telegram richiede attenzione",
+        "off": "Telegram è disattivato",
+        "reconnecting": "Telegram si sta riconnettendo",
+        "suspended": "Telegram è in pausa mentre questo Mac è in stop",
+        "tokenRejected": "Token di Telegram rifiutato",
+        "transferRequired": "È necessario trasferire il bot"
+      }
+    }
   }
 }

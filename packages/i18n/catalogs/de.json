@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "Ich prüfe deine Form und deinen Plan..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "entsperre deinen Anmeldeschlüsselbund",
+      "macUnavailable": "Die Verschlüsselung unter {{operatingSystem}} ist nicht verfügbar. Stelle sicher, dass der Schlüsselbund zugänglich ist, und versuche es erneut.",
+      "windowsIdentityFailed": "Bindung der Desktop-Identität unter {{operatingSystem}} fehlgeschlagen",
+      "windowsRecovery": "stelle sicher, dass die Verschlüsselung der Anmeldedaten unter {{operatingSystem}} (DPAPI) verfügbar ist",
+      "windowsUnavailable": "Die Verschlüsselung der Anmeldedaten unter {{operatingSystem}} (DPAPI) ist nicht verfügbar. Beende {{product}}, öffne es erneut und versuche es noch einmal.",
+      "windowsUserDataFailed": "Bindung der Benutzerdaten unter {{operatingSystem}} fehlgeschlagen"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-Aktivität",
+      "attach": "Anhängen",
+      "attachTitle": "Dateien an den Chat anhängen",
+      "exportRideTitle": "Fahrt als {{format}} exportieren",
+      "exportWorkoutsTitle": "Geplante Trainings als {{format}} exportieren",
+      "pastedImage": "Eingefügtes Bild{{extension}}",
+      "raceCourse": "Rennstrecke",
+      "rideFiles": "Fahrtdateien",
+      "rideImportDescription": "Füge FIT-, TCX- oder GPX-Dateien von {{computer}} hinzu. Du kannst sie auch in das Fenster ziehen.",
+      "supportedFiles": "Unterstützte Dateien",
+      "workoutArchive": "Trainingsarchiv"
+    },
+    "lifecycle": {
+      "contentionContent": "Ein anderer Prozess von {{product}} läuft bereits oder reagiert nicht mehr. Beende diesen Prozess und öffne {{product}} erneut. Wenn du ihn nicht findest, melde dich ab und wieder an.",
+      "contentionTitle": "{{product}} konnte keine Verbindung zum Hintergrunddienst herstellen",
+      "malformedContent": "Korrigiere oder ersetze die ungültige Datei {{configFile}} und öffne {{product}} erneut.",
+      "malformedTitle": "{{product}} konnte seine Konfiguration nicht verwenden",
+      "notConfiguredContent": "Die Konfigurationsdatei fehlt. Führe die Einrichtung von {{product}} aus oder stelle {{configFile}} wieder her und öffne {{product}} erneut.",
+      "notConfiguredTitle": "{{product}} ist nicht eingerichtet",
+      "restartExhaustedContent": "Der Hintergrunddienst wurde wiederholt beendet und {{product}} konnte ihn nicht neu starten. Beende {{product}} und öffne es erneut. Wenn das nicht hilft, melde dich ab und wieder an.",
+      "restartExhaustedTitle": "Der Hintergrunddienst von {{product}} wurde beendet",
+      "unavailableContent": "Der Hintergrunddienst konnte nicht gestartet oder sein gespeicherter Verbindungsstatus nicht gelesen werden. Beende {{product}} und öffne es erneut. Wenn das Problem weiterhin besteht, {{restartComputer}}, bevor du es erneut versuchst.",
+      "unavailableTitle": "{{product}} konnte seinen Hintergrunddienst nicht starten",
+      "unexpectedContent": "Beim Starten von {{product}} ist ein unerwartetes Problem aufgetreten. Beende {{product}} und versuche es erneut. Wenn das Problem weiterhin auftritt, melde dich ab und wieder an, bevor du es erneut öffnest.",
+      "unexpectedTitle": "{{product}} konnte nicht geöffnet werden",
+      "unreadableContent": "Prüfe, ob die Datei {{configFile}} lesbar und ihr Ordner zugänglich ist, und öffne {{product}} erneut.",
+      "unreadableTitle": "{{product}} konnte seine Konfiguration nicht lesen",
+      "versionMismatchContent": "Eine andere Version des Hintergrunddienstes von {{product}} läuft bereits. Sie wurde über die CLI oder eine frühere Installation gestartet. Beende diesen Dienst und öffne {{product}} erneut.",
+      "versionMismatchTitle": "{{product}} hat eine andere Version des Hintergrunddienstes gefunden"
+    },
+    "platform": {
+      "computerMac": "diesem Mac",
+      "computerPc": "diesem PC",
+      "restartMac": "starte deinen Mac neu",
+      "restartPc": "starte deinen PC neu"
+    },
+    "tray": {
+      "checkingConnection": "Verbindung wird geprüft",
+      "closeHint": "Schließe das Fenster, ohne die App zu beenden. Klicke mit der rechten Maustaste auf das Symbol in der Menüleiste, um weitere Optionen anzuzeigen.",
+      "coach": "Radsport-Coach",
+      "menuBarStatus": "Status von {{product}} in der Menüleiste",
+      "open": "{{product}} öffnen",
+      "quit": "{{product}} beenden",
+      "ready": "Bereit, wenn du es bist",
+      "residency": "Hintergrundbetrieb",
+      "running": "{{product}} läuft",
+      "runningInMenuBar": "Läuft in der Menüleiste",
+      "settings": "Einstellungen…",
+      "startAtLogin": "Bei der Anmeldung im Hintergrund starten",
+      "tag": {
+        "active": "aktiv",
+        "attention": "Handlungsbedarf",
+        "checking": "wird geprüft",
+        "conflict": "Konflikt",
+        "off": "aus",
+        "online": "online",
+        "paused": "pausiert",
+        "retrying": "erneuter Versuch",
+        "starting": "wird gestartet",
+        "warning": "Warnung"
+      },
+      "telegram": {
+        "conflict": "Ein anderer Prozess steuert den Bot",
+        "connected": "Mit Telegram verbunden",
+        "connecting": "Verbindung zu Telegram wird hergestellt",
+        "missedMessages": "Prüfe, ob Nachrichten verpasst wurden",
+        "needsAttention": "Telegram braucht deine Aufmerksamkeit",
+        "off": "Telegram ist ausgeschaltet",
+        "reconnecting": "Telegram stellt die Verbindung wieder her",
+        "suspended": "Telegram pausiert, während dieser Mac im Ruhezustand ist",
+        "tokenRejected": "Telegram-Token abgelehnt",
+        "transferRequired": "Bot-Übertragung erforderlich"
+      }
+    }
   }
 }
