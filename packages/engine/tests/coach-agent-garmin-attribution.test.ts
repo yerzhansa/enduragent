@@ -189,6 +189,8 @@ async function setupAgentWithStore(
     resetConversation() {
       messages = [];
     },
+    loadUnflushedResetArchive: () => null,
+    markResetArchiveFlushed() {},
     archivePreCompact() {},
   };
   const ports: EngineHostPorts = {

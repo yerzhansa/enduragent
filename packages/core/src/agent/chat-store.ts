@@ -80,7 +80,15 @@ type DirectoryDescriptor = number | null;
 interface DurableChatReset {
   readonly resetId: string;
   readonly boundaryAt: string;
+  readonly flushPending?: boolean;
 }
+
+export interface UnflushedResetArchive {
+  readonly archiveRef: string;
+  readonly messages: ModelMessage[];
+}
+
+const RESET_ARCHIVE_REF_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z\.[a-f0-9]{64}$/;
 
 const DURABLE_RESET_OPERATIONS = new WeakMap<
   ChatStore,
@@ -186,6 +194,15 @@ function parseSessionLine(line: string): JsonlLine | null {
   return value as JsonlLine;
 }
 
+function messagesOf(lines: readonly JsonlLine[]): ModelMessage[] {
+  return lines.map((p) =>
+    setMessageProvenance(
+      { role: p.role, content: p.content } as ModelMessage,
+      p.role === "user" ? UNKNOWN_PROVENANCE : (p.provenance ?? UNKNOWN_PROVENANCE),
+    ),
+  );
+}
+
 function sameProvenance(left: SourceProvenance, right: SourceProvenance): boolean {
   return (
     left.garmin === right.garmin &&
@@ -267,8 +284,61 @@ export class ChatStore {
       const ts = reset.boundaryAt.replace(/:/g, "-");
       const archivePath = `${path}.reset.${ts}.${reset.resetId}`;
       this.completeDurableReset(path, archivePath);
+      if (reset.flushPending === true && this.sessionExists(archivePath)) {
+        this.appendSessionContent(this.flushPendingPath(chatId, `${ts}.${reset.resetId}`), "");
+      }
       this.pruneArchives(chatId, "reset");
     });
+  }
+
+  private flushPendingPath(chatId: string, archiveRef: string): string {
+    return `${this.filePath(chatId)}.flush-pending.${archiveRef}`;
+  }
+
+  private unlinkIfPresent(path: string): void {
+    if (this.sessionExists(path)) this.unlinkSessionPath(path);
+  }
+
+  loadUnflushedResetArchive(chatId: string): UnflushedResetArchive | null {
+    const path = this.filePath(chatId);
+    const prefix = `${path}.flush-pending.`;
+    let names: string[];
+    try {
+      names = readdirSync(this.sessionsDir);
+    } catch (error) {
+      throw this.platform === "win32"
+        ? classifyWindowsPrivatePathFailure("read-check", error)
+        : error;
+    }
+    const markers = names
+      .map((name) => join(this.sessionsDir, name))
+      .filter((candidate) => candidate.startsWith(prefix))
+      .sort();
+    for (const marker of markers) {
+      const archiveRef = marker.slice(prefix.length);
+      if (!RESET_ARCHIVE_REF_PATTERN.test(archiveRef)) continue;
+      const archivePath = `${path}.reset.${archiveRef}`;
+      if (!this.sessionExists(archivePath)) {
+        this.unlinkSessionPath(marker);
+        continue;
+      }
+      const contents = this.readSessionText(archivePath);
+      if (this.platform === "win32") this.assertWindowsSessionContent(contents);
+      const parsed = contents
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map(parseSessionLine)
+        .filter((line): line is JsonlLine => line !== null);
+      return { archiveRef, messages: messagesOf(parsed) };
+    }
+    return null;
+  }
+
+  markResetArchiveFlushed(chatId: string, archiveRef: string): void {
+    if (!RESET_ARCHIVE_REF_PATTERN.test(archiveRef)) {
+      throw new TypeError("Reset archive reference is invalid.");
+    }
+    this.unlinkIfPresent(this.flushPendingPath(chatId, archiveRef));
   }
 
   private filePath(chatId: string): string {
@@ -763,12 +833,7 @@ export class ChatStore {
       }
     }
 
-    const messages = parsed.map((p) =>
-      setMessageProvenance(
-        { role: p.role, content: p.content } as ModelMessage,
-        p.role === "user" ? UNKNOWN_PROVENANCE : (p.provenance ?? UNKNOWN_PROVENANCE),
-      ),
-    );
+    const messages = messagesOf(parsed);
 
     let lastMessageTime: string | null = null;
     for (let i = parsed.length - 1; i >= 0; i--) {
@@ -1035,8 +1100,9 @@ export class ChatStore {
     ) {
       throw new TypeError("Reset archive deletion metadata is invalid.");
     }
-    const path = `${this.filePath(chatId)}.reset.${boundaryAt.replace(/:/g, "-")}.${boundaryRef}`;
-    return this.withSessionsDirectory((directoryDescriptor) => {
+    const archiveRef = `${boundaryAt.replace(/:/g, "-")}.${boundaryRef}`;
+    const path = `${this.filePath(chatId)}.reset.${archiveRef}`;
+    const deleted = this.withSessionsDirectory((directoryDescriptor) => {
       let beforeOpen: import("node:fs").Stats;
       try {
         beforeOpen = lstatSync(path);
@@ -1095,6 +1161,8 @@ export class ChatStore {
         closeSync(descriptor);
       }
     }, "rename");
+    if (deleted) this.unlinkIfPresent(this.flushPendingPath(chatId, archiveRef));
+    return deleted;
   }
 
   archivePreCompact(chatId: string): void {
