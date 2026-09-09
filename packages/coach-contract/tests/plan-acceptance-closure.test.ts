@@ -321,6 +321,7 @@ describe("Plan acceptance closure", () => {
       "apps/desktop-renderer/src/ui/plan/PlanView.tsx",
       "apps/desktop-renderer/src/state/adapters/plan.ts",
       "apps/desktop-renderer/src/app/views.ts",
+      "packages/i18n/catalogs/en.json",
     ]
       .map(readRepositoryFile)
       .join("\n");

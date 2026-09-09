@@ -1,3 +1,4 @@
+import { renderLocalized, renderWithCatalog } from "./language-harness";
 import type {
   CompletedActivityWeek,
   CyclingTrainingContext,
@@ -7,7 +8,7 @@ import type {
   TrainingHistoryPanel,
   TrainingHistoryRide,
 } from "@enduragent/coach-contract";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RIDE_ANALYSIS } from "../src/activity-analysis/controller";
@@ -355,7 +356,7 @@ afterEach(() => {
 
 describe("training landing page", () => {
   it("renders the week-first section order and ignores the rollback fields", () => {
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Training" })).toBeInTheDocument();
     expect(screen.getByText("Jul 6–12")).toBeInTheDocument();
@@ -391,7 +392,7 @@ describe("training landing page", () => {
     vi.restoreAllMocks();
     pinDefaultLocale(locale);
     setTraining(ready(history({ anchorWeek: week("anchor", { window: { start, end } }) })));
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />, locale);
 
     expect(screen.getByText(label)).toBeInTheDocument();
   });
@@ -411,7 +412,7 @@ describe("training landing page", () => {
         }),
       ),
     );
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const group = screen.getByRole("group", {
       name: "Completed riding period",
@@ -453,7 +454,7 @@ describe("training landing page", () => {
 
   it("keeps focus inside the period group after chevron navigation", async () => {
     const user = userEvent.setup();
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const group = screen.getByRole("group", { name: "Completed riding period" });
     await user.click(within(group).getByRole("button", { name: "Previous week" }));
@@ -465,7 +466,7 @@ describe("training landing page", () => {
 
   it("moves focus into the period group after the post-list period button unmounts", async () => {
     const user = userEvent.setup();
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const group = screen.getByRole("group", { name: "Completed riding period" });
     const previous = document.querySelector<HTMLButtonElement>(
@@ -492,7 +493,7 @@ describe("training landing page", () => {
         load: { kind: "unavailable", reason: "invalid-recorded-value" },
       },
     });
-    const { unmount } = render(<TrainingView />);
+    const { unmount } = renderLocalized(<TrainingView />);
     setTraining(ready(history({ anchorWeek: partialWeek })));
 
     expect(document.querySelector('[data-summary-metric="riding-time"]')).toHaveTextContent(
@@ -526,7 +527,7 @@ describe("training landing page", () => {
     useEnduragentStore.setState({
       training: ready(history({ anchorWeek: zeroWeek })),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(document.querySelector('[data-summary-metric="riding-time"]')).toHaveTextContent("0m");
     expect(document.querySelector('[data-summary-metric="ride-count"]')).toHaveTextContent(
@@ -538,7 +539,7 @@ describe("training landing page", () => {
   });
 
   it("renders six bars from a visible baseline and a complete accessible data table", () => {
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const figure = screen.getByRole("figure", {
       name: "Weekly time 6 weeks",
@@ -570,7 +571,7 @@ describe("training landing page", () => {
     useEnduragentStore.setState({
       training: ready(history({ anchorWeek: unavailable })),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByText("Trend unavailable")).toBeInTheDocument();
     expect(screen.getByText(copy)).toBeInTheDocument();
@@ -578,7 +579,7 @@ describe("training landing page", () => {
   });
 
   it("renders recorded ride facts, one scoped callout, fallback title, and omitted local time", () => {
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const recent = screen.getByRole("region", { name: "Recent rides" });
     const firstRide = within(recent).getByRole("button", {
@@ -653,7 +654,7 @@ describe("training landing page", () => {
         unitsPreference: { status: "ready", value: "imperial", source: "athlete" },
       }),
     );
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(document.querySelector('[data-summary-metric="distance"]')).toHaveTextContent("41.4 mi");
     expect(
@@ -691,7 +692,7 @@ describe("training landing page", () => {
     useEnduragentStore.setState({
       training: ready(history({ anchorWeek: truncated })),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByText(expected)).toBeInTheDocument();
   });
@@ -709,7 +710,7 @@ describe("training landing page", () => {
       rides: { count: { kind: "exact", value: 57 }, items, truncated: true },
       callout: null,
     });
-    const { unmount } = render(<TrainingView />);
+    const { unmount } = renderLocalized(<TrainingView />);
     setTraining(ready(history({ anchorWeek: truncated })));
 
     expect(screen.getByText("Showing 7 of 57 recorded rides.")).toBeInTheDocument();
@@ -725,7 +726,7 @@ describe("training landing page", () => {
         }),
       ),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByText("No recorded rides this week.")).toBeInTheDocument();
     expect(screen.queryByText(/Showing .* recorded rides\./u)).not.toBeInTheDocument();
@@ -735,7 +736,7 @@ describe("training landing page", () => {
 describe("ride review", () => {
   it.each(["{Enter}", " "])("opens by keyboard %s and restores row focus", async (key) => {
     const user = userEvent.setup();
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     const opener = screen.getByRole("button", {
       name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
     });
@@ -757,7 +758,7 @@ describe("ride review", () => {
     const start = vi.fn();
     const refresh = vi.fn();
     useEnduragentStore.setState({ rideAnalysisActions: { start, refresh } });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
         name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
@@ -838,14 +839,14 @@ describe("ride review", () => {
   });
 
   it("uses the prototype label weight for workout archive export", () => {
-    render(<WorkoutArchiveExportControl oldest="1998-07-06" newest="1998-07-12" />);
+    renderLocalized(<WorkoutArchiveExportControl oldest="1998-07-06" newest="1998-07-12" />);
 
     expect(screen.getByText("Workout format")).toHaveClass("font-medium");
   });
 
   it("shows elapsed fallback as secondary metadata", async () => {
     const user = userEvent.setup();
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
         name: "Open ride review: Indoor ride, Jul 8, 1998",
@@ -905,7 +906,7 @@ describe("ride review", () => {
         },
       },
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     await openFirstRideAnalysis(user);
 
@@ -1033,7 +1034,7 @@ describe("ride review", () => {
         },
       },
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     await openFirstRideAnalysis(user);
 
@@ -1116,7 +1117,7 @@ describe("ride review", () => {
         },
       },
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     await openFirstRideAnalysis(user);
 
@@ -1182,7 +1183,7 @@ describe("ride review", () => {
       },
       rideAnalysisActions: { start: vi.fn(), refresh: vi.fn() },
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
         name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
@@ -1196,7 +1197,7 @@ describe("ride review", () => {
 
   it("clears a deleted ride and focuses the Training heading", async () => {
     const user = userEvent.setup();
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     await user.click(
       screen.getByRole("button", {
         name: "Open ride review: River tempo, Jul 9, 1998 · 10:00 PM",
@@ -1260,7 +1261,7 @@ describe("ride review", () => {
         }),
       ),
     );
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(useEnduragentStore.getState().selectedRide).toEqual(selected);
     expect(
@@ -1321,7 +1322,7 @@ describe("ride review", () => {
     act(() => useEnduragentStore.getState().openRide(selected));
 
     setTraining(ready(panel));
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(useEnduragentStore.getState().selectedRide).toEqual(selected);
     expect(screen.getByRole("heading", { level: 2, name: "River tempo" })).toBeInTheDocument();
@@ -1330,7 +1331,7 @@ describe("ride review", () => {
 
 describe("power progress", () => {
   it("keeps Power progress hidden for computed, stale, and unavailable data", () => {
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     for (const performanceProgress of [
       computedPowerProgress,
@@ -1356,7 +1357,7 @@ describe("power progress", () => {
 describe("training history states and import status", () => {
   it("sets Page busy only while training status is loading", () => {
     setTraining(ready(history(), { status: "loading" }));
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const page = screen.getByRole("region", { name: "Training" });
     expect(page).toHaveAttribute("aria-busy", "true");
@@ -1389,7 +1390,7 @@ describe("training history states and import status", () => {
         },
       }),
     );
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByText("Refresh unavailable")).toBeVisible();
     expect(
@@ -1439,7 +1440,7 @@ describe("training history states and import status", () => {
         lastGood,
       }),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const periodGroup = screen.getByRole("group", { name: "Completed riding period" });
     const lastRecorded = within(periodGroup).getByRole("button", {
@@ -1465,7 +1466,7 @@ describe("training history states and import status", () => {
 
   it("leads a complete last-recorded notice with its recorded-through date", () => {
     setTraining(ready(history({ displayMode: "last-recorded" })));
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     const coverage = screen.getByText("Recorded through Jul 12, 1998");
     const notice = screen.getByText("Training may be out of date.");
@@ -1495,7 +1496,7 @@ describe("training history states and import status", () => {
       }),
     });
     useEnduragentStore.setState({ training: ready(panel) });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
 
     expect(screen.getByText("Recorded through Jul 9, 1998")).toBeInTheDocument();
     expect(
@@ -1526,7 +1527,7 @@ describe("training history states and import status", () => {
         callout: null,
       }),
     });
-    const { unmount } = render(<TrainingView />);
+    const { unmount } = renderLocalized(<TrainingView />);
     setTraining(ready(sparse));
     expect(
       screen.getByText("Showing imported rides only. Earlier rides may be missing."),
@@ -1536,7 +1537,7 @@ describe("training history states and import status", () => {
     useEnduragentStore.setState({
       training: ready({ kind: "unavailable", reason: "coverage-unavailable" }),
     });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     expect(screen.getByText("Training history is not available yet.")).toBeInTheDocument();
     expect(screen.getByText("Recent rides are not available for this period.")).toBeInTheDocument();
     expect(screen.queryByText("Mountain bike ride")).not.toBeInTheDocument();
@@ -1547,7 +1548,7 @@ describe("training history states and import status", () => {
     const user = userEvent.setup();
     const choose = vi.fn();
     useEnduragentStore.setState({ rideImportActions: { choose } });
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     expect(screen.queryByRole("region", { name: "Import ride files" })).not.toBeInTheDocument();
     const importButton = screen.getByRole("button", { name: "Import ride files" });
     expect(importButton).toBeEnabled();
@@ -1618,7 +1619,7 @@ describe("training history states and import status", () => {
   });
 
   it("suppresses the resident status while onboarding presents the import flow", () => {
-    render(<TrainingView />);
+    renderLocalized(<TrainingView />);
     setRideImport({
       status: "running",
       owner: "onboarding",
@@ -1645,4 +1646,34 @@ describe("training history states and import status", () => {
     expect(status).toHaveTextContent("Importing ride files…");
     expect(screen.getByRole("region", { name: "Import ride files" })).toBeInTheDocument();
   });
+});
+
+it("reads Training headings and accessibility labels from a supplied Italian catalog", async () => {
+  useEnduragentStore.setState((state) => ({
+    settings: {
+      ...state.settings,
+      language: { ...state.settings.language, status: "ready", value: "it" },
+    },
+  }));
+  useEnduragentStore.setState({ training: EMPTY_TRAINING_SURFACE });
+  await renderWithCatalog(<TrainingView />, {
+    training: {
+      view: {
+        title: "Allenamento",
+        import: "Importa corse",
+        weeklySummary: "Riepilogo settimanale",
+        history: {
+          recentRides: "Corse recenti",
+          unavailable: "Riepilogo non disponibile.",
+          unknownRides: "Corse non disponibili.",
+        },
+      },
+    },
+  });
+  expect(screen.getByRole("heading", { level: 1, name: "Allenamento" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Importa corse" })).toHaveAttribute(
+    "title",
+    "Importa corse",
+  );
+  expect(screen.getByRole("heading", { name: "Riepilogo settimanale" })).toBeInTheDocument();
 });

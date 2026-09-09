@@ -23,10 +23,7 @@ export function archiveReasonCopy(reason: "explicit-reset" | "stale-reset"): Mes
 }
 
 export function archiveTurnCountCopy(turnCount: number, formattedCount: string): Message {
-  return msg(turnCount === 1 ? "archive.turnCount_one" : "archive.turnCount_other", {
-    count: turnCount,
-    formattedCount,
-  });
+  return msg("archive.turnCount", { count: turnCount, formattedCount });
 }
 
 export function archiveTimestampCopy(value: string, format: Phrasebook["format"]): Message {

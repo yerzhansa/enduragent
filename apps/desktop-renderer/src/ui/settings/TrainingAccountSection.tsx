@@ -211,9 +211,10 @@ export function TrainingAccountSection(props: {
             />
             <div className="min-w-0">
               <p className="m-0 text-sm font-semibold text-ink">
-                {restriction.count === 1 && restriction.total === 1
-                  ? say("settings.athlete.restriction.title_one", restrictionVars)
-                  : say("settings.athlete.restriction.title_other", restrictionVars)}
+                {say("settings.athlete.restriction.title", {
+                  ...restrictionVars,
+                  count: restriction.count === 1 && restriction.total === 1 ? 1 : restriction.total,
+                })}
               </p>
               <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
                 {say("settings.athlete.restriction.cause", {

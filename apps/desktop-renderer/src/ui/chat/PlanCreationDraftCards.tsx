@@ -155,18 +155,13 @@ export function PlanCreationDraftCards(props: {
             {say("chat.planCreation.localReview")}
           </Fact>
           <Fact label={say("chat.planCreation.spanLabel")}>
-            {say(
-              draft.weeks.length === 1
-                ? "chat.planCreation.span_one"
-                : "chat.planCreation.span_other",
-              {
-                count: draft.weeks.length,
-                start: formatDate(draft.start),
-                end: formatDate(draft.end),
-                weeks: format.number(draft.weeks.length, { useGrouping: false }),
-                kind: say(spanLabels[draft.spanKind]),
-              },
-            )}
+            {say("chat.planCreation.span", {
+              count: draft.weeks.length,
+              start: formatDate(draft.start),
+              end: formatDate(draft.end),
+              weeks: format.number(draft.weeks.length, { useGrouping: false }),
+              kind: say(spanLabels[draft.spanKind]),
+            })}
           </Fact>
           <AnswerFacts summaries={draft.answeredSummaries} omitGoal />
         </div>
@@ -197,20 +192,15 @@ export function PlanCreationDraftCards(props: {
         eyebrow={say("chat.planCreation.outlineLabel")}
         title={say("chat.planCreation.outlineTitle")}
         status={stale ? say("chat.planCreation.outOfDate") : say("chat.planCreation.draft")}
-        summary={say(
-          workouts.length === 1
-            ? "chat.planCreation.outlineSummary_one"
-            : "chat.planCreation.outlineSummary_other",
-          {
-            count: workouts.length,
-            weeks: format.number(draft.weeks.length, { useGrouping: false }),
-            workouts: format.number(workouts.length, { useGrouping: false }),
-            minutes: format.number(
-              workouts.reduce((minutes, workout) => minutes + workout.minutes, 0),
-              { useGrouping: false },
-            ),
-          },
-        )}
+        summary={say("chat.planCreation.outlineSummary", {
+          count: workouts.length,
+          weeks: format.number(draft.weeks.length, { useGrouping: false }),
+          workouts: format.number(workouts.length, { useGrouping: false }),
+          minutes: format.number(
+            workouts.reduce((minutes, workout) => minutes + workout.minutes, 0),
+            { useGrouping: false },
+          ),
+        })}
       >
         {draft.weeks.map((week) => (
           <div key={week.number} className="min-w-0 [&:not(:first-child)]:pt-4">

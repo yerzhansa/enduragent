@@ -129,18 +129,13 @@ export function TrainingContextPanel(props: {
             }
             detail={
               context.cyclingLoad.kind === "computed"
-                ? say(
-                    context.cyclingLoad.activityCount === 1
-                      ? "chat.trainingContext.activities_one"
-                      : "chat.trainingContext.activities_other",
-                    {
-                      count: context.cyclingLoad.activityCount,
-                      formattedCount: format.number(context.cyclingLoad.activityCount, {
-                        useGrouping: false,
-                      }),
-                      days: format.number(7, { useGrouping: false }),
-                    },
-                  )
+                ? say("chat.trainingContext.activities", {
+                    count: context.cyclingLoad.activityCount,
+                    formattedCount: format.number(context.cyclingLoad.activityCount, {
+                      useGrouping: false,
+                    }),
+                    days: format.number(7, { useGrouping: false }),
+                  })
                 : undefined
             }
           />

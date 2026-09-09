@@ -86,7 +86,12 @@ export async function createPhrasebook(input: {
     say(message: Message | CatalogKey, vars?: Message["vars"]) {
       const key = typeof message === "string" ? message : message.key;
       const values = typeof message === "string" ? vars : message.vars;
-      return translate(key, { interpolation: { escapeValue: false }, replace: values });
+      const count = values?.count;
+      return translate(key, {
+        interpolation: { escapeValue: false },
+        replace: values,
+        ...(typeof count === "number" ? { count } : {}),
+      });
     },
     format: {
       date: (value, options) => new Intl.DateTimeFormat(locale, options).format(value),

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { LANGUAGE_OPTIONS } from "../src/registry.js";
 import { msg, type CatalogKey } from "../src/message.js";
@@ -82,13 +83,41 @@ it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => 
 });
 
 it("derives message and phrasebook keys from the English catalog", () => {
-  type Leaves<T> = {
-    [K in keyof T & string]: T[K] extends string ? K : `${K}.${Leaves<T[K]>}`;
-  }[keyof T & string];
-  expectTypeOf<CatalogKey>().toEqualTypeOf<Leaves<typeof english>>();
+  const generated = readFileSync(new URL("../src/catalog-keys.ts", import.meta.url), "utf8");
+  const generatedKeys = [...generated.matchAll(/^ {2}\| "([^"]+)";?$/gmu)].map(([, key]) => key);
+  const leaves = (value: unknown, prefix = ""): string[] =>
+    typeof value === "string"
+      ? [prefix]
+      : Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
+          leaves(child, prefix ? `${prefix}.${key}` : key),
+        );
+  const englishLeaves = leaves(english);
+  const bases = englishLeaves
+    .filter((key) => /_(one|other)$/u.test(key))
+    .map((key) => key.replace(/_(one|other)$/u, ""));
+  expect(generatedKeys).toEqual([...new Set([...englishLeaves, ...bases])].sort());
   expectTypeOf<Parameters<typeof msg>[0]>().toEqualTypeOf<CatalogKey>();
   expectTypeOf<"settings.language.automaticDetail">().toExtend<CatalogKey>();
   expectTypeOf<"settings.language">().not.toExtend<CatalogKey>();
   expectTypeOf<"unknown.key">().not.toExtend<CatalogKey>();
   expect(msg("common.save")).toEqual({ key: "common.save" });
+});
+
+describe("plural selection", () => {
+  it("chooses the form from count using the language's plural rules", async () => {
+    const polish = await createPhrasebook({ tag: "pl", locale: "pl-PL" });
+    const japanese = await createPhrasebook({ tag: "ja", locale: "ja-JP" });
+    const english = await createPhrasebook({ tag: "en", locale: "en-GB" });
+    const catalogs = await Promise.all([loadCatalog("pl"), loadCatalog("ja")]);
+    const key = "archive.turnCount";
+    const pl = catalogs[0].archive as Record<string, string>;
+    const ja = catalogs[1].archive as Record<string, string>;
+    const vars = (count: number) => ({ count, formattedCount: String(count) });
+    expect(english.say(key, vars(1))).toBe("1 message");
+    expect(english.say(key, vars(3))).toBe("3 messages");
+    expect(polish.say(key, vars(1))).toBe(pl.turnCount_one.replace("{{formattedCount}}", "1"));
+    expect(polish.say(key, vars(3))).toBe(pl.turnCount_few.replace("{{formattedCount}}", "3"));
+    expect(polish.say(key, vars(7))).toBe(pl.turnCount_many.replace("{{formattedCount}}", "7"));
+    expect(japanese.say(key, vars(1))).toBe(ja.turnCount_other.replace("{{formattedCount}}", "1"));
+  });
 });

@@ -60,14 +60,10 @@ export function manualSyncStatusMessage(
       provider: "intervals.icu",
     };
     if (sync.message === `${SYNC_PUBLISHED_COPY} ${suffix}`) {
-      return restriction.count === 1
-        ? msg("sidebar.sync.message.publishedRestricted_one", vars)
-        : msg("sidebar.sync.message.publishedRestricted_other", vars);
+      return msg("sidebar.sync.message.publishedRestricted", { ...vars, count: restriction.count });
     }
     if (sync.message === `${SYNC_NO_CHANGE_COPY} ${suffix}`) {
-      return restriction.count === 1
-        ? msg("sidebar.sync.message.noChangeRestricted_one", vars)
-        : msg("sidebar.sync.message.noChangeRestricted_other", vars);
+      return msg("sidebar.sync.message.noChangeRestricted", { ...vars, count: restriction.count });
     }
   }
   return msg("sidebar.sync.message.external", { message: sync.message });

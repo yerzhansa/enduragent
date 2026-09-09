@@ -192,9 +192,7 @@ export function rideImportStatusCopy(state: RideImportState): string {
 
 export function rideFileCountMessage(count: number, formattedCount: string): Message {
   const vars = { count, formattedCount };
-  return count === 1
-    ? msg("setup.import.fileCount_one", vars)
-    : msg("setup.import.fileCount_other", vars);
+  return msg("setup.import.fileCount", { ...vars, count: count });
 }
 
 export function rideImportStatusMessage(
