@@ -2,6 +2,7 @@ import { createPhrasebook } from "@enduragent/i18n/messages";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setImmediate as yieldEventLoop } from "node:timers/promises";
 import { msg, telegramRegistrationCodes } from "@enduragent/i18n";
 import type { Api } from "grammy";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,6 +20,40 @@ afterEach(() => {
 });
 
 describe("Telegram command menu registration", () => {
+  it("waits for every locale to settle before reporting a registration failure", async () => {
+    const failure = new Error("registration failed");
+    let finish!: (value: true) => void;
+    const pending = new Promise<true>((resolve) => {
+      finish = resolve;
+    });
+    const setMyCommands = vi.fn<Api["setMyCommands"]>(async (_commands, options) => {
+      if (options === undefined) throw failure;
+      return pending;
+    });
+    let settled = false;
+    const registration = registerTelegramCommandMenus({
+      api: { setMyCommands },
+      dataDir,
+      token: "123:TEST",
+      syncEnabled: true,
+      updateDescription: msg("telegram.menu.update"),
+    }).catch((error: unknown) => {
+      settled = true;
+      return error;
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(setMyCommands).toHaveBeenCalledTimes(telegramRegistrationCodes().length + 1),
+      );
+      await yieldEventLoop();
+      expect(settled).toBe(false);
+    } finally {
+      finish(true);
+      await expect(registration).resolves.toBe(failure);
+    }
+  });
+
   it("registers English and every distinct registry code, then skips an unchanged restart", async () => {
     const setMyCommands = vi.fn<Api["setMyCommands"]>(async () => true);
     const input = {

@@ -391,7 +391,7 @@ describe("inbound coalescing (fake timers)", () => {
   });
 
   it("registration order: auth → handler tracking → flush → update guard → commands", async () => {
-    const { bot } = await buildBot();
+    const { bot, drainPending } = await buildBot();
     expect(bot.use).toHaveBeenCalledTimes(4);
     const authOrder = bot.use.mock.invocationCallOrder[0];
     const trackingOrder = bot.use.mock.invocationCallOrder[1];
@@ -404,6 +404,7 @@ describe("inbound coalescing (fake timers)", () => {
     for (const commandOrder of bot.command.mock.invocationCallOrder) {
       expect(guardOrder).toBeLessThan(commandOrder);
     }
+    await drainPending();
   });
 
   it("drainPending flushes buffered text immediately — no debounce-timer wait", async () => {
@@ -569,7 +570,7 @@ describe("inbound coalescing (fake timers)", () => {
 
 describe("inbound coalescing (timer plumbing)", () => {
   it("debounce timers are unref'd; a reset clears exactly the previous timer", async () => {
-    const { bot } = await buildBot();
+    const { bot, drainPending } = await buildBot();
     const handler = getMessageText(bot);
 
     const unrefA = vi.fn();
@@ -591,6 +592,7 @@ describe("inbound coalescing (timer plumbing)", () => {
       expect(clearTimeoutSpy).toHaveBeenCalledWith(timers[0]);
     } finally {
       vi.unstubAllGlobals();
+      await drainPending();
     }
   });
 });

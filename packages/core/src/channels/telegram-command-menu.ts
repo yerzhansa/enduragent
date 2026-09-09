@@ -49,7 +49,7 @@ export async function registerTelegramCommandMenus(input: {
     { code: "" as const, representative: "en" as const },
     ...telegramRegistrationCodes(),
   ];
-  await Promise.all(
+  const results = await Promise.allSettled(
     registrations.map(async ({ code, representative }) => {
       const book = await createPhrasebook({
         tag: representative,
@@ -64,6 +64,9 @@ export async function registerTelegramCommandMenus(input: {
       await writeFile(path, hash, { mode: 0o600 });
     }),
   );
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason;
+  }
 }
 
 export async function registerTelegramChatCommandMenu(input: {

@@ -434,7 +434,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
 
   const drainPending = async (): Promise<void> => {
-    await menuRegistration;
     while (true) {
       const snapshot = ledger.captureAllGenerations();
       flushSnapshotBuffers(snapshot);
@@ -443,7 +442,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     }
   };
 
-  const menuRegistration = ledger
+  void ledger
     .track(() =>
       registerTelegramCommandMenus({
         api: bot.api,

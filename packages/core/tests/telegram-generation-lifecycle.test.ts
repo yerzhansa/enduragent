@@ -340,6 +340,57 @@ describe("Telegram polling generation release", () => {
     expect(drained).toBe(true);
   });
 
+  it("flushes buffered text while command menu registration is still pending", async () => {
+    vi.useFakeTimers();
+    const commands = deferred<unknown>();
+    const bot = createComposingBot({
+      rawApi: (method) =>
+        method === "setMyCommands" ? commands.promise : Promise.resolve({ ok: true, result: true }),
+    });
+    vi.doMock("grammy", () => ({
+      Bot: function FakeBot() {
+        return bot;
+      },
+      InputFile: class {},
+    }));
+    vi.doMock("@grammyjs/auto-retry", () => ({
+      autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
+        previous(method, payload),
+    }));
+    const { createTelegramBot } = await import("../src/channels/telegram.js");
+    const input = makeRuntimeInput();
+    const chat = vi.fn(async () => ({ text: "ready" }));
+    const runtime = createTelegramBot({
+      ...input,
+      engine: {
+        ...input.engine,
+        hasSession: vi.fn(async () => ({ hasSession: true })),
+        chat,
+      },
+    });
+    await bot.dispatch({
+      update: { update_id: 9 },
+      chat: { id: 12345, type: "private" },
+      from: { id: 12345, first_name: "Athlete" },
+      message: { text: "about to shut down", message_id: 90 },
+      reply: (text: string) => bot.api.sendMessage(12345, text),
+      replyWithChatAction: (action: string) => bot.api.sendChatAction(12345, action),
+    });
+    let drained = false;
+    const draining = runtime.drainPending().then(() => {
+      drained = true;
+    });
+
+    try {
+      await vi.waitFor(() => expect(chat).toHaveBeenCalledOnce());
+      expect(drained).toBe(false);
+    } finally {
+      commands.resolve({ ok: true, result: true });
+      await draining;
+    }
+    expect(drained).toBe(true);
+  });
+
   it("keeps a direct send admitted before stop in the sealed generation", async () => {
     const send = deferred<unknown>();
     const bot = createComposingBot({
@@ -622,6 +673,7 @@ describe("Telegram polling generation release", () => {
     await expect(runtime.stop()).rejects.toBe(stopFailure);
     expect(bot.isRunning).toHaveBeenCalledOnce();
     expect(() => runtime.captureDrain()).toThrow(/must stop before/);
+    await runtime.drainPending();
   });
 
   it("tracks a retry-wrapped 429 request through its final API attempt", async () => {
@@ -831,7 +883,7 @@ describe("Telegram polling generation release", () => {
     }));
     const { createTelegramBot } = await import("../src/channels/telegram.js");
     const input = makeRuntimeInput();
-    createTelegramBot({
+    const runtime = createTelegramBot({
       ...input,
       host: {
         ...input.host,
@@ -869,6 +921,7 @@ describe("Telegram polling generation release", () => {
       chatId: "telegram:12345",
     });
     expect(JSON.stringify(logError.mock.calls)).not.toContain("private stop failure");
+    await runtime.drainPending();
   });
 
   it("does not send or record a notification that begins after generation sealing", async () => {
@@ -916,6 +969,7 @@ describe("Telegram polling generation release", () => {
 
     expect(bot.rawApi).toHaveBeenCalledTimes(apiCallsBeforeNotification);
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();
+    await runtime.captureDrain().wait();
   });
 });
 
