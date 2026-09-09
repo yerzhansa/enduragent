@@ -1,4 +1,9 @@
 import { describe, it, expect } from "vitest";
+import { createLegacyWriterFence } from "@enduragent/kernel/planning";
+import { runMigrations, type MigratorStore, type SqlStore } from "@enduragent/kernel/store";
+import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
+import { openSqliteStorage } from "../../kernel-node/src/sqlite/index.js";
+import { createSqliteImportSink } from "../../kernel-node/src/store-export/sqlite-import.js";
 import {
   buildExport,
   importExport,
@@ -114,6 +119,19 @@ function makeSource(data: Populated): { source: ExportSource; calls: SourceCall[
     },
   };
   return { source, calls };
+}
+
+function makeSqliteSource(store: SqlStore & MigratorStore): ExportSource {
+  const tables = new Set<string>([...PURE_AUTHORED_TABLES, ...MIXED_AUTHORED_TABLES]);
+  return {
+    readUserVersion: () => store.getUserVersion(),
+    async readAuthoredTable(table, { manualOnly }) {
+      if (!tables.has(table)) throw new Error("Table is not exportable");
+      return store.all(
+        `SELECT * FROM "${table}"${manualOnly ? " WHERE provenance = 'manual'" : ""}`,
+      );
+    },
+  };
 }
 
 function makeManifest(data: Populated): ArchiveManifestReader {
@@ -259,6 +277,107 @@ describe("store export op", () => {
     expect(imported.manifest.total).toBe(data.artifacts.length);
   });
 
+  it("restores planning authority into SQLite and keeps repeated restores idempotent", async () => {
+    const sourceStore = openSqliteStorage(":memory:");
+    const restoredStore = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(sourceStore, MIGRATIONS);
+      await runMigrations(restoredStore, MIGRATIONS);
+      await sourceStore.run(
+        `UPDATE planning_authority SET chat_authority_since_ms = 900,
+         device_id = 'synthetic-device', hlc_physical_ms = 900, hlc_counter = 2
+         WHERE singleton = 1`,
+      );
+      const authority = await sourceStore.get("SELECT * FROM planning_authority");
+      const crypto = new FakeCrypto();
+      const built = await buildExport(
+        {
+          source: makeSqliteSource(sourceStore),
+          manifest: { listArtifacts: async () => [] },
+          crypto,
+          codec,
+        },
+        {},
+      );
+      const dependencies = {
+        sink: createSqliteImportSink(restoredStore),
+        presence: makePresence(),
+        crypto,
+        codec,
+        targetUserVersion: await restoredStore.getUserVersion(),
+      };
+      const first = await importExport(dependencies, { container: built.container });
+      expect(first.restored.find(({ table }) => table === "planning_authority")).toEqual({
+        table: "planning_authority",
+        inserted: 1,
+        skipped: 0,
+      });
+      expect(await restoredStore.get("SELECT * FROM planning_authority")).toEqual(authority);
+      expect(await createLegacyWriterFence(restoredStore).fenced()).toBe(true);
+
+      const second = await importExport(dependencies, { container: built.container });
+
+      expect(second.restored.every(({ inserted }) => inserted === 0)).toBe(true);
+      expect(second.restored.find(({ table }) => table === "planning_authority")).toEqual({
+        table: "planning_authority",
+        inserted: 0,
+        skipped: 1,
+      });
+      expect(await restoredStore.get("SELECT * FROM planning_authority")).toEqual(authority);
+      expect(await createLegacyWriterFence(restoredStore).fenced()).toBe(true);
+    } finally {
+      await sourceStore.close();
+      await restoredStore.close();
+    }
+  });
+
+  it("keeps existing planning authority when restoring an archive with no Chat authority", async () => {
+    const sourceStore = openSqliteStorage(":memory:");
+    const restoredStore = openSqliteStorage(":memory:");
+    try {
+      await runMigrations(sourceStore, MIGRATIONS);
+      await runMigrations(restoredStore, MIGRATIONS);
+      await restoredStore.run(
+        `UPDATE planning_authority SET chat_authority_since_ms = 900,
+         device_id = 'synthetic-device', hlc_physical_ms = 900, hlc_counter = 2
+         WHERE singleton = 1`,
+      );
+      const authority = await restoredStore.get("SELECT * FROM planning_authority");
+      const crypto = new FakeCrypto();
+      const built = await buildExport(
+        {
+          source: makeSqliteSource(sourceStore),
+          manifest: { listArtifacts: async () => [] },
+          crypto,
+          codec,
+        },
+        {},
+      );
+
+      const imported = await importExport(
+        {
+          sink: createSqliteImportSink(restoredStore),
+          presence: makePresence(),
+          crypto,
+          codec,
+          targetUserVersion: await restoredStore.getUserVersion(),
+        },
+        { container: built.container },
+      );
+
+      expect(imported.restored.find(({ table }) => table === "planning_authority")).toEqual({
+        table: "planning_authority",
+        inserted: 0,
+        skipped: 1,
+      });
+      expect(await restoredStore.get("SELECT * FROM planning_authority")).toEqual(authority);
+      expect(await createLegacyWriterFence(restoredStore).fenced()).toBe(true);
+    } finally {
+      await sourceStore.close();
+      await restoredStore.close();
+    }
+  });
+
   it("orders every revision history parent-first before restore", async () => {
     const data = populated();
     data.rows.plan_draft_revision = [
@@ -296,6 +415,7 @@ describe("store export op", () => {
   it("restores planning domain tables in dependency-safe order", () => {
     const planning = [
       "plan",
+      "planning_authority",
       "planning_plan",
       "plan_revision",
       "plan_creation",

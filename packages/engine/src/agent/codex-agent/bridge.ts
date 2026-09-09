@@ -102,7 +102,7 @@ export interface CodexAgentBridgePorts {
 export type CodexAgentGenerateOpts = GenerateOpts & { modelId: string };
 
 export function isStatelessCaller(caller: GenerateOpts["caller"]): boolean {
-  return caller === "flush" || caller === "compact";
+  return caller === "flush" || caller === "compact" || caller === "intent-translation";
 }
 
 function messageText(message: ModelMessage): string {

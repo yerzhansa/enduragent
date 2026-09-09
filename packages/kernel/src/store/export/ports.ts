@@ -96,6 +96,7 @@ export const PURE_AUTHORED_TABLES = [
   "chat_plan_outbox",
   "plan",
   "plan_reconciliation_job",
+  "planning_authority",
   "planning_plan",
   "plan_revision",
   "plan_creation",

@@ -2,6 +2,8 @@ import type { CoachLanguage } from "@enduragent/i18n";
 import type {
   CoachEngine,
   CoachOperations,
+  PlanChangeOperations,
+  PlanCreationOperations,
   PlanningReadOperations,
   PlanningRequestOperations,
 } from "@enduragent/coach-contract";
@@ -17,7 +19,11 @@ export interface LocalCoachLifecycle {
   readonly language: CoachLanguage;
   readonly home: AthleteHome;
   readonly engine: CoachEngine;
-  readonly operations: CoachOperations & PlanningReadOperations & PlanningRequestOperations;
+  readonly operations: CoachOperations &
+    PlanningReadOperations &
+    PlanningRequestOperations &
+    PlanCreationOperations &
+    PlanChangeOperations;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
   readonly listener: WriterProtocolListener;

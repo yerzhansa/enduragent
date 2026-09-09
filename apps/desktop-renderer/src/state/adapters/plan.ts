@@ -7,6 +7,12 @@ import {
   type ExecutePlanTransitionRpcResult,
   type GetPlanStateRpcResult,
   type PlanError,
+  type PlanCloseRpcParams,
+  type PlanCloseResult,
+  type PlanHistoryResult,
+  type PlanChangePreviewRpcParams,
+  type PlanChangeApplyRpcParams,
+  type ListPlansResult,
   type PlanHydrationState,
   type PlanProgressEvent,
   type PlanReadModel,
@@ -24,6 +30,44 @@ import type { PlanSurfaceState, PlanTransitionState } from "../plan-slice";
 import { planReadModel } from "../plan-slice";
 import { createChatViewAdapter } from "./chat";
 
+export async function listPlans(clients: DesktopCoachClientProvider): Promise<ListPlansResult> {
+  return (await clients.getClient()).call("plan.list", {});
+}
+
+export async function readPlanHistory(
+  clients: DesktopCoachClientProvider,
+  planId: string,
+): Promise<PlanHistoryResult> {
+  return (await clients.getClient()).call("plan.history", { planId });
+}
+
+export async function closePlan(
+  clients: DesktopCoachClientProvider,
+  input: PlanCloseRpcParams,
+): Promise<PlanCloseResult> {
+  return (await clients.getClient()).call("plan.close", {
+    ...input,
+  });
+}
+
+export async function previewPlanChange(
+  clients: DesktopCoachClientProvider,
+  input: PlanChangePreviewRpcParams,
+) {
+  return (await clients.getClient()).call("plan_change.preview", {
+    ...input,
+  });
+}
+
+export async function applyPlanChange(
+  clients: DesktopCoachClientProvider,
+  input: PlanChangeApplyRpcParams,
+) {
+  return (await clients.getClient()).call("plan_change.apply", {
+    ...input,
+  });
+}
+
 export interface PlanBridge {
   getPlanState(): Promise<GetPlanStateRpcResult>;
   choosePlanRaceCourseFile(): Promise<string | null>;
@@ -37,7 +81,6 @@ export interface PlanViewAdapter {
   start(): void;
   open(): void;
   openChatRequest(sourceConversationId: string, requestId: string): void;
-  startPlan(): void;
   closeCoach(): void;
   submitCoach(message: string): Promise<boolean>;
   stopCoach(): void;
@@ -113,6 +156,7 @@ export interface PlanViewAdapter {
   closeEndedConversation(): void;
   openAttention(attentionId: string): void;
   returnToCoach(): void;
+  reload(): void;
   retry(): void;
   dispose(): void;
 }
@@ -122,12 +166,6 @@ const UNAVAILABLE_ERROR: PlanError = Object.freeze({
   message: "Plan could not connect. Try again.",
   retryable: true,
 });
-
-function addCivilDate(value: string, days: number): string {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 function hydrationFromResult(result: GetPlanStateRpcResult): PlanHydrationState {
   return result;
@@ -193,7 +231,6 @@ export function createPlanViewAdapter(input: {
   let autoResumingCleanupPlanId: string | null = null;
   let autoResumingReplacementId: string | null = null;
   let attemptedWeeklyReviewSyncAtMs: number | null = null;
-  let autoCompletingPlanId: string | null = null;
   let active: {
     readonly commandId: string;
     readonly transitionId: PlanTransitionId;
@@ -262,33 +299,6 @@ export function createPlanViewAdapter(input: {
     input.publishHydration(next);
     if (next.status === "ready" || next.status === "stale") {
       syncCoach(next.state);
-      const activeData = PlanActiveProjectionDataSchema.safeParse(next.state.data);
-      const finalPlanDate = activeData.success
-        ? (activeData.data.plan.targetDate ??
-          addCivilDate(activeData.data.plan.startDate, activeData.data.plan.totalWeeks * 7 - 1))
-        : null;
-      if (
-        next.state.lifecycle === "active" &&
-        next.state.planId !== null &&
-        activeData.success &&
-        finalPlanDate !== null &&
-        activeData.data.today > finalPlanDate &&
-        autoCompletingPlanId !== next.state.planId &&
-        active === null
-      ) {
-        const planId = next.state.planId;
-        autoCompletingPlanId = planId;
-        queueMicrotask(() => {
-          if (disposed || active !== null) return;
-          void execute({
-            transitionId: "PL-T29",
-            commandId: createCommandId(),
-            planId,
-            asOf: activeData.data.today,
-          });
-        });
-        return;
-      }
       if (
         (next.state.scenarioId === "PL-S037" || next.state.scenarioId === "PL-S042") &&
         next.state.planId !== null &&
@@ -441,23 +451,6 @@ export function createPlanViewAdapter(input: {
       active = null;
       if (command.transitionId === "PL-T22") input.publishSettingPending(null);
       input.publishTransition({ status: "idle" });
-      if (
-        command.transitionId === "PL-T29" &&
-        result.state.scenarioId === "PL-S094" &&
-        result.state.planId !== null
-      ) {
-        const planId = result.state.planId;
-        autoResumingCleanupPlanId = planId;
-        queueMicrotask(() => {
-          if (disposed || active !== null) return;
-          void execute({
-            transitionId: "PL-T24",
-            commandId: createCommandId(),
-            planId,
-            mode: "cleanup",
-          });
-        });
-      }
       if (command.transitionId === "PL-T24" && result.state.scenarioId === "PL-S056") {
         queueMicrotask(() => void refresh(false));
       }
@@ -598,15 +591,6 @@ export function createPlanViewAdapter(input: {
     }
   };
 
-  const startPlan = (): void => {
-    if (active !== null) return;
-    void execute({
-      transitionId: "PL-T01",
-      commandId: createCommandId(),
-      sourceConversationId: null,
-    });
-  };
-
   const open = (): void => {
     if (active !== null) return;
     const model = planReadModel(input.read());
@@ -638,7 +622,6 @@ export function createPlanViewAdapter(input: {
         requestId,
       });
     },
-    startPlan,
     closeCoach() {
       const model = planReadModel(input.read());
       if (
@@ -655,7 +638,7 @@ export function createPlanViewAdapter(input: {
         sourceScenarioId: model.scenarioId,
         destinationScenarioId: model.scenarioId === "PL-S079" ? "PL-S004" : "PL-S001",
         returnFocusId:
-          model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "plan-start-coach",
+          model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "start-plan",
       });
     },
     async submitCoach(message) {
@@ -1452,6 +1435,9 @@ export function createPlanViewAdapter(input: {
     returnToCoach() {
       if (active !== null) return;
       lastCommand = null;
+      void refresh(false);
+    },
+    reload() {
       void refresh(false);
     },
     retry() {

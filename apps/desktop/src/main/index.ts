@@ -148,6 +148,7 @@ import {
 } from "./security.js";
 import { DesktopDaemonSupervisor, isUtilityTerminalFrame } from "./supervisor.js";
 import { logDesktopStartupFailure } from "./startup-failure.js";
+import { traceDesktopStartupStage } from "./startup-trace.js";
 import {
   createDesktopQuitCoordinator,
   installDesktopTerminationSignalHandler,
@@ -198,6 +199,7 @@ import {
   type DesktopPlanningReader,
 } from "./planning-read-ipc.js";
 
+traceDesktopStartupStage("main-start");
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
 bindWindowsUserData(app);
@@ -287,6 +289,7 @@ async function runDesktop(): Promise<void> {
     else void residency?.showMainWindow();
   });
   app.on("window-all-closed", () => {});
+  traceDesktopStartupStage("app-ready");
   await app.whenReady();
   if (desktopAcceptanceHidden) app.dock?.hide();
   const desktopPreferencesRoot = join(
@@ -297,6 +300,7 @@ async function runDesktop(): Promise<void> {
   const backgroundAtLoginPreference = createBackgroundAtLoginPreferenceStore({
     root: desktopPreferencesRoot,
   });
+  traceDesktopStartupStage("background-at-login");
   desktopStartedInBackground =
     !securitySmokeMode && (await shouldStartInBackgroundAtLogin(app, backgroundAtLoginPreference));
   const controller = new AbortController();
@@ -315,9 +319,12 @@ async function runDesktop(): Promise<void> {
     environment.ELECTRON_RENDERER_URL,
   );
   try {
+    traceDesktopStartupStage("prepare-athlete-home");
     const preparedHome = await prepareDesktopAthleteHome(environment);
     environment.ENDURAGENT_HOME = preparedHome.root;
+    traceDesktopStartupStage("seed-first-run-config");
     await seedFirstRunConfig({ env: environment });
+    traceDesktopStartupStage("adopt-device-timezone");
     await adoptDeviceTimezoneAtStart({
       configPath: join(preparedHome.root, "config", "config.yaml"),
       stateRoot: desktopPreferencesRoot,
@@ -479,6 +486,7 @@ async function runDesktop(): Promise<void> {
     });
   }
   try {
+    traceDesktopStartupStage("resolve-daemon");
     const resolution = await supervisor.resolve();
     if (resolution.status === "refused") {
       if (!controller.signal.aborted && resolution.cause !== "cancelled") {
@@ -498,10 +506,12 @@ async function runDesktop(): Promise<void> {
           dialog.showErrorBox(copy.title, copy.content);
         }
       }
+      traceDesktopStartupStage("shutdown-refused");
       await shutdown();
       if (!quitRequested) app.exit(resolution.exitCode);
       return;
     }
+    traceDesktopStartupStage("resolve-athlete-home");
     const selectedAthleteHome = AthleteHomeIdentitySchema.parse(
       await realpath(resolveDesktopAthleteHome(environment)),
     );
@@ -524,6 +534,7 @@ async function runDesktop(): Promise<void> {
       disposableContext:
         environment.CI === "true" || environment.ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT === "1",
     });
+    traceDesktopStartupStage("prepare-credential-encryption");
     const credentialEncryption = await prepareDesktopCredentialEncryption({
       credentialRoot,
       telegramRoot: telegramCredentialRoot,
@@ -1112,17 +1123,20 @@ async function runDesktop(): Promise<void> {
       },
     });
     daemonLifecycle.start();
+    traceDesktopStartupStage("reapply-credentials");
     await vault.reapplyConfigured();
     const initialTelegramConnection = daemonLifecycle.connection();
     activeTelegramBinding = createTelegramDaemonBinding(
       initialTelegramConnection,
       selectedAthleteHome,
     );
+    traceDesktopStartupStage("start-telegram");
     await startDesktopTelegram({
       supervision: initialTelegramConnection.supervision,
       coordinator: telegramCoordinator,
       power: telegramPower,
     });
+    traceDesktopStartupStage("install-protocol");
     await installDesktopProtocol({
       session: session.defaultSession,
       currentDaemonPort: () => daemonLifecycle!.currentPort(),
@@ -1156,6 +1170,7 @@ async function runDesktop(): Promise<void> {
               backgroundThrottling: false,
             };
           }
+          traceDesktopStartupStage("create-browser-window");
           const created = new BrowserWindow(windowOptions);
           creating = created;
           window = created;
@@ -1251,8 +1266,10 @@ async function runDesktop(): Promise<void> {
             created,
             navigationGeneration,
           );
+          traceDesktopStartupStage("navigate-main-window");
           const initialNavigation = startRendererNavigation(created, navigationUrl);
           await rendererNavigationTracker.waitForCurrent(initialNavigation);
+          traceDesktopStartupStage("main-window-navigated");
           if (!desktopAcceptanceHidden) {
             if (created.isMinimized()) created.restore();
             created.show();
@@ -1407,7 +1424,11 @@ async function runDesktop(): Promise<void> {
         process.stderr.write(`desktop-residency-failure ${operation}\n`);
       },
     });
-    if (process.platform === "win32") await activation.bind(residency);
+    if (process.platform === "win32") {
+      traceDesktopStartupStage("bind-activation");
+      await activation.bind(residency);
+    }
+    traceDesktopStartupStage("start-residency");
     await residency.start();
     if (
       desktopStartedInBackground &&
@@ -1416,6 +1437,7 @@ async function runDesktop(): Promise<void> {
     ) {
       void initialRefreshCoordinator.releaseCurrent();
     }
+    traceDesktopStartupStage(desktopStartedInBackground ? "background-ready" : "show-main-window");
     const initialWindow = desktopStartedInBackground ? undefined : await mainWindow.show();
     void updateController.start();
     void desktopUsagePingController?.start();
@@ -1530,6 +1552,7 @@ async function runDesktop(): Promise<void> {
       app.exit(0);
     }
   } catch (error) {
+    traceDesktopStartupStage("shutdown-failed");
     await shutdown();
     throw error;
   } finally {
@@ -1555,6 +1578,7 @@ async function exitSecondaryDesktop(): Promise<void> {
 if (process.argv.includes("--desktop-keychain-binding-probe")) {
   void runKeychainBindingProbe().catch(() => app.exit(1));
 } else {
+  traceDesktopStartupStage("single-instance-lock");
   const primaryInstance = app.requestSingleInstanceLock();
   if (!primaryInstance) {
     void exitSecondaryDesktop();

@@ -50,7 +50,7 @@ import {
   sha256_16,
 } from "./prompt-lineage.js";
 import { drainSessionLocks, withSessionLock } from "./session-lock.js";
-import { capToolResult, TOOL_RESULT_SHARE } from "./tool-result-cap.js";
+import { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
 import {
@@ -87,6 +87,7 @@ import {
 import type { MemoryFlushOutcome } from "./memory-flush.js";
 import { evaluateSessionFreshness, shouldDeferDailyReset } from "./session-freshness.js";
 import { LLM } from "../llm.js";
+import { createIntentTranslator, type IntentTranslationPort } from "../intent-translation.js";
 import { usageFieldsFromResult } from "../llm-types.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
 import { resolveUserTimezone, appendCurrentTimeLine } from "../sport/user-time.js";
@@ -138,13 +139,14 @@ const REPLAY_UNSAFE_TOOL_NAMES = new Set([
   "intervals_delete_workout",
   "intervals_update_workout",
   "memory_write",
+  "ledger_append",
   "plan_save",
 ]);
 
 // The subset of write tools that mutate the state behind the memoized memory
 // read tools (memory_read / memory_query / plan_load); their execution evicts
 // those cache entries so a same-turn re-read sees the write.
-const MEMORY_MUTATING_TOOL_NAMES = new Set(["memory_write", "plan_save"]);
+const MEMORY_MUTATING_TOOL_NAMES = new Set(["memory_write", "ledger_append", "plan_save"]);
 // Eviction runs inside wrapWriteTool, which early-returns for tools outside
 // REPLAY_UNSAFE_TOOL_NAMES — so a memory mutator outside that set would never
 // evict. Assert the subset relation at module load so the gap can't open silently.
@@ -294,6 +296,7 @@ function committedWriteSummary(name: string, result: unknown): string | undefine
     created?: unknown;
     deleted?: unknown;
     saved?: unknown;
+    recorded?: unknown;
     updated?: unknown;
   };
   if (out.created === true) return "created a workout on the calendar";
@@ -302,6 +305,7 @@ function committedWriteSummary(name: string, result: unknown): string | undefine
     return "updated a scheduled workout";
   }
   if (out.saved === true && name === "memory_write") return "saved athlete memory";
+  if (out.recorded === true && name === "ledger_append") return "recorded an athlete event";
   if (out.saved === true && name === "plan_save") return "saved the training plan";
   return undefined;
 }
@@ -355,6 +359,7 @@ export interface DeferredPlanTurn {
 }
 
 export class CoachAgent {
+  readonly translateIntent: IntentTranslationPort["translateIntent"];
   private sport: Sport;
   private llm: LLM;
   private flushLlm: LLM;
@@ -397,6 +402,7 @@ export class CoachAgent {
     this.config = config;
     this.ports = ports;
     this.llm = new LLM(config, ports);
+    this.translateIntent = createIntentTranslator(this.llm).translateIntent;
     // Per-role lanes share one LLM instance per distinct model, so adding a
     // lane never needs pairwise equality checks against the existing ones.
     const llmByModel = new Map<string, LLM>([[config.llm.model, this.llm]]);
@@ -437,7 +443,7 @@ export class CoachAgent {
     this.excludedSectionNames = sections.filter((s) => s.inject === false).map((s) => s.name);
 
     const registrations = sport.tools(runtimePorts);
-    const maxResultTokens = Math.floor(this.config.contextWindowTokens * TOOL_RESULT_SHARE);
+    const maxResultTokens = TOOL_RESULT_MAX_TOKENS;
     const prepareConfirmedRun = (
       name: string,
       ctx: TurnContext | undefined,
@@ -925,6 +931,7 @@ export class CoachAgent {
           archivedAt = boundaryAt;
         }
 
+        if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
         const turnTools = this.toolsForChat(chatId);
         const systemPrompt = chatId.startsWith("plan:")
           ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
@@ -1899,6 +1906,7 @@ export class CoachAgent {
               : { [COACH_DECISION_TOOL_NAME]: this.decisionTool },
           model: this.config.llm.model,
         });
+    if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
     const system =
       (isPlan
         ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {

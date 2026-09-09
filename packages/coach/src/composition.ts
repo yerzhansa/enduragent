@@ -4,6 +4,7 @@ import {
   asLanguagePreferenceStore,
   createLanguagePreferenceService,
 } from "./language-preference.js";
+import { createPlanCalendarDrain } from "./plan-calendar-drain.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -54,6 +55,7 @@ import {
   createCoachEngine,
   transportForProvider,
   type CreateCoachEngineInput,
+  type IntentTranslationPort,
   type EngineConfig,
   type EngineHostPorts,
   type ChatAttachmentTurnPort,
@@ -94,9 +96,10 @@ import { createNodeCrypto, createNodeImportRuntime } from "@enduragent/kernel-no
 import {
   createLegacyPlanRepository,
   createLegacyPlanRowWriter,
-  importLegacyCurrentPlan,
+  readLegacyCurrentPlanSummary,
 } from "@enduragent/kernel-node/planning";
 import {
+  createLegacyWriterFence,
   createPlanDraftBuildRepository,
   createPlanIntakeRepository,
 } from "@enduragent/kernel/planning";
@@ -117,6 +120,8 @@ import {
   type GetRuntimeConfigRpcResult,
   type PlanningReadOperations,
   type CreatePlanningRequestPayload,
+  type PlanCreationOperations,
+  type PlanChangeOperations,
   type PlanningRequestOperations,
   type PlanningOperations,
   type VerifyIntervalsCredentialRpcParams,
@@ -149,6 +154,9 @@ import {
   normalizeIntervalsAthleteSelector,
 } from "./intervals-credential-approval.js";
 import { createCoachEngineAdapter } from "./coach-engine-adapter.js";
+import { createPlanChangeOperations } from "./plan-change-operations.js";
+import { createPlanChangeEventSourceReader } from "./plan-change-event-source-reader.js";
+import { createPlanCreationOperations } from "./plan-creation-operations.js";
 import {
   createStoreRuntime,
   type StoreRuntime,
@@ -207,6 +215,8 @@ import { createPlanningRequestDeliveryService } from "./planning-request-deliver
 import { createPlanningRequestSourceCleanup } from "./planning-request-source-cleanup.js";
 import {
   createPlanConversationRepository,
+  createPlanCreationRepository,
+  createPlanLifecycleRepository,
   createPlanningRequestIntakeRepository,
   createPlanningRequestRepository,
   createPlanRepository,
@@ -231,6 +241,8 @@ export interface LocalCoachComposition {
   readonly operations: CoachOperations &
     PlanningReadOperations &
     PlanningRequestOperations &
+    PlanCreationOperations &
+    PlanChangeOperations &
     PlanningOperations;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -254,7 +266,9 @@ export interface LocalCoachCompositionDependencies {
   ) => Promise<LocalReferenceRuntime>;
   readonly createRuntime?: (options: LocalStoreRuntimeOptions) => LocalStoreRuntime;
   readonly runtimeDependencies?: StoreRuntimeDependencies;
-  readonly createBackend?: typeof createCoachEngine;
+  readonly createBackend?: (
+    input: CreateCoachEngineInput,
+  ) => CoachEngine & Partial<IntentTranslationPort>;
   readonly createRepository?: (store: CoachStoreWriterContext["store"]) => AnchorRepository;
   readonly createResolver?: (repository: AnchorRepository) => CyclingFtpAnchorResolver;
   readonly now?: () => number;
@@ -579,6 +593,7 @@ function runtimeConfigSnapshot(
 }
 
 interface RuntimeBundle {
+  readonly intentTranslator?: IntentTranslationPort;
   readonly engine: CoachEngine;
   readonly memory: Memory;
   readonly chatStore: ConversationStorePort;
@@ -588,6 +603,7 @@ interface RuntimeBundle {
 }
 
 function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
+  readonly intentTranslator: IntentTranslationPort;
   readonly engine: CoachEngine;
   readonly spendMeter: SpendMeterService;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -630,6 +646,12 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
   };
 
   return {
+    intentTranslator: {
+      translateIntent: (text, schema, context) =>
+        run(
+          async (bundle) => bundle.intentTranslator?.translateIntent(text, schema, context) ?? null,
+        ),
+    },
     engine: {
       chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),
       stopChat: (request) =>
@@ -875,18 +897,35 @@ export async function createLocalCoachComposition(
   const now = dependencies.now ?? Date.now;
   const logger = createSubsystemLogger("agent", input.home.root);
   const planningIdentity = createAuthoredIdentity(input.home.configDir, { now });
-  const planningRepository = createLegacyPlanRepository(input.context.store);
   const planningTimezone = resolveUserTimezone(input.config.session.timezone);
   const planningDateKey = (): number =>
     Number(todayInTZ(planningTimezone, new Date(now())).replaceAll("-", ""));
-  await importLegacyCurrentPlan({
-    home: input.home,
-    store: input.context.store,
-    identity: planningIdentity,
-    importDateKey: planningDateKey(),
-    importTimestampMs: now(),
-    logger: { warn: () => logger.warn("legacy_plan_import_skipped") },
+  const planLifecycle = createPlanLifecycleRepository(input.context.store, {
+    newId: () => planningIdentity.newUlid(),
   });
+  const planCreationOperations = createPlanCreationOperations({
+    store: input.context.store,
+    repository: createPlanCreationRepository(input.context.store),
+    identity: planningIdentity,
+    crypto: globalThis.crypto,
+    eventCandidates: { read: async () => [] },
+    eventSources: createPlanChangeEventSourceReader({
+      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+      readLatest: () => readLatestReference(input.home.root),
+    }),
+    baselineEvidence: { read: async () => undefined },
+    calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+    legacyPlan: () =>
+      readLegacyCurrentPlanSummary({
+        home: input.home,
+        logger: { warn: () => logger.warn("legacy_plan_summary_skipped") },
+      }),
+    today: () => todayInTZ(planningTimezone, new Date(now())),
+    todayDateKey: planningDateKey,
+    now,
+  });
+  const planningRepository = createLegacyPlanRepository(input.context.store);
+  const legacyWriterFence = createLegacyWriterFence(input.context.store);
   const persistPlan = await createLegacyPlanRowWriter({
     repository: planningRepository,
     identity: planningIdentity,
@@ -903,8 +942,7 @@ export async function createLocalCoachComposition(
   let intervalsConfigRevision = 0;
   const ownerLookup = (config: Config) => ({
     apiKey: config.intervals.apiKey,
-    athleteId:
-      config.intervals.athleteId.length === 0 ? "0" : config.intervals.athleteId,
+    athleteId: config.intervals.athleteId.length === 0 ? "0" : config.intervals.athleteId,
     historyNewestDate: referencePlan(config).window.newest,
     clock: ownerClock,
   });
@@ -1003,6 +1041,7 @@ export async function createLocalCoachComposition(
   let runtime: LocalStoreRuntime | undefined;
   let reference: LocalReferenceRuntime | undefined;
   let initialRefreshPromise: Promise<void> | undefined;
+  let initialPlanCompletion: Promise<unknown> | undefined;
   let initialRefreshRetryTimer: ReturnType<typeof setTimeout> | undefined;
   let initialRefreshFailedAttempts = 0;
   const initialRefreshController = new AbortController();
@@ -1294,7 +1333,7 @@ export async function createLocalCoachComposition(
       calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
       droppedActivitiesSource: () => runtime!.currentDroppedActivities(),
     });
-    const buildBundle = (config: Config): RuntimeBundle => {
+    const buildBundle = async (config: Config): Promise<RuntimeBundle> => {
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
         timezone === config.session.timezone
@@ -1306,7 +1345,16 @@ export async function createLocalCoachComposition(
       const memory = new Memory(input.home.root, timezone, {
         platform: dependencies.platform,
         persistPlan,
+        planReadGate: async () =>
+          (await legacyWriterFence.read()).chatAuthoritySinceMs !== null
+            ? "This Plan is managed in Chat. Open the Plan page or ask in Chat about your Plan."
+            : null,
+        planWriteGate: async () =>
+          (await legacyWriterFence.fenced())
+            ? "This Plan is managed in Chat. Change or stop it from Chat or the Plan library."
+            : null,
       });
+      await memory.refreshPlanReadGate?.();
       const conversationStore = createConversationStore(
         input.home.root,
         config.session.resetArchiveRetentionDays,
@@ -1458,6 +1506,10 @@ export async function createLocalCoachComposition(
       const engineInput = { sport: cyclingSport, ports } satisfies CreateCoachEngineInput;
       const backend = (dependencies.createBackend ?? createCoachEngine)(engineInput);
       return {
+        ...(runtimeCredentialConfigured(input.home.configDir, config) &&
+        backend.translateIntent !== undefined
+          ? { intentTranslator: { translateIntent: backend.translateIntent.bind(backend) } }
+          : {}),
         memory,
         chatStore: conversationStore,
         timezone,
@@ -1477,7 +1529,7 @@ export async function createLocalCoachComposition(
         }),
       };
     };
-    const initialBundle = buildBundle(approvedConfig());
+    const initialBundle = await buildBundle(approvedConfig());
     let activeTimezone = initialBundle.timezone;
     const reconfigurable = createReconfigurableRuntimeBundle(initialBundle);
     const persistConfig = dependencies.persistRuntimeConfig ?? persistRuntimeConfig;
@@ -1632,7 +1684,7 @@ export async function createLocalCoachComposition(
         request.llm?.clear_credential === true && unapprovedConfig.llm.provider === "openai-codex";
       signal.throwIfAborted();
       await reconfigurable.replace(
-        () => {
+        async () => {
           signal.throwIfAborted();
           const latestCandidate = mergedRuntimeConfig(unapprovedConfig, effectiveRequest);
           if (
@@ -1653,7 +1705,9 @@ export async function createLocalCoachComposition(
             latestCandidate,
             latestIntervalsChanged,
             replacementOwnerReady,
-            replacement: buildBundle(approvedRuntimeConfig(latestCandidate, replacementOwnerReady)),
+            replacement: await buildBundle(
+              approvedRuntimeConfig(latestCandidate, replacementOwnerReady),
+            ),
           };
         },
         async ({ latestCandidate, latestIntervalsChanged, replacementOwnerReady, replacement }) => {
@@ -1724,8 +1778,22 @@ export async function createLocalCoachComposition(
     };
     const startInitialRefresh = (): Promise<void> => {
       if (initialRefreshPromise !== undefined) return initialRefreshPromise;
+      initialPlanCompletion ??= planLifecycle
+        .completeExpired({ todayDateKey: planningDateKey(), nowMs: now() })
+        .then(() => {
+          if (!closing) void drain.kick({ reclaimRunning: true });
+        })
+        .catch((error: unknown) => {
+          initialPlanCompletion = undefined;
+          throw error;
+        });
       if (!input.deferInitialRefresh) {
-        initialRefreshPromise = Promise.resolve();
+        initialRefreshPromise = initialPlanCompletion
+          .then(() => undefined)
+          .catch((error: unknown) => {
+            initialRefreshPromise = undefined;
+            throw error;
+          });
         return initialRefreshPromise;
       }
       if (initialRefreshRetryTimer !== undefined) {
@@ -1735,37 +1803,41 @@ export async function createLocalCoachComposition(
       initialRefreshStarted = true;
       const refreshRevision = intervalsConfigRevision;
       let ownerSucceeded = false;
-      initialRefreshPromise = runtime!
-        .runWindowAfter(async (signal) => {
-          const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
-          initializationSignal.throwIfAborted();
-          initialRefreshConfigCaptured = true;
-          const initialConfig = copyConfig(unapprovedConfig);
-          if (initialConfig.intervals.apiKey.length > 0 && !intervalsOwnerReady) {
-            const ownerClaim = await assertIntervalsOwner(
-              initialConfig,
-              initialConfig,
-              initializationSignal,
+      initialRefreshPromise = initialPlanCompletion
+        .then(() =>
+          runtime!.runWindowAfter(async (signal) => {
+            const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
+            initializationSignal.throwIfAborted();
+            initialRefreshConfigCaptured = true;
+            const initialConfig = copyConfig(unapprovedConfig);
+            if (initialConfig.intervals.apiKey.length > 0 && !intervalsOwnerReady) {
+              const ownerClaim = await assertIntervalsOwner(
+                initialConfig,
+                initialConfig,
+                initializationSignal,
+              );
+              initializationSignal.throwIfAborted();
+              await ownerClaim?.claim();
+              initializationSignal.throwIfAborted();
+            }
+            await reconfigurable.replace(
+              () => {
+                initializationSignal.throwIfAborted();
+                return buildBundle(approvedRuntimeConfig(unapprovedConfig, true));
+              },
+              (replacement) => {
+                initializationSignal.throwIfAborted();
+                intervalsOwnerReady = true;
+                activeTimezone = replacement.timezone;
+                ownerSucceeded = true;
+                return replacement;
+              },
             );
-            initializationSignal.throwIfAborted();
-            await ownerClaim?.claim();
-            initializationSignal.throwIfAborted();
-          }
-          await reconfigurable.replace(
-            () => {
-              initializationSignal.throwIfAborted();
-              return buildBundle(approvedRuntimeConfig(unapprovedConfig, true));
-            },
-            (replacement) => {
-              initializationSignal.throwIfAborted();
-              intervalsOwnerReady = true;
-              activeTimezone = replacement.timezone;
-              ownerSucceeded = true;
-              return replacement;
-            },
-          );
+          }),
+        )
+        .then(() => {
+          if (!closing) void drain.kick();
         })
-        .then(() => undefined)
         .finally(() => {
           if (ownerSucceeded && unapprovedConfig.intervals.apiKey.length > 0) {
             ensureSchedulerStarted();
@@ -1878,8 +1950,7 @@ export async function createLocalCoachComposition(
         runtime,
         intervalsCredentials: options.liveIntervals,
         historyNewestDate: () => referencePlan(approvedConfig()).window.newest,
-        calendarTimeZone: () =>
-          resolveUserTimezone(approvedConfig().session.timezone),
+        calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
         readTranscriptPage: (request) => reconfigurable.getTranscriptPage(request),
         readArchivedConversations: (request) => reconfigurable.listArchivedConversations(request),
         readArchivedTranscriptPage: (request) => reconfigurable.getArchivedTranscriptPage(request),
@@ -1997,12 +2068,49 @@ export async function createLocalCoachComposition(
         await coachOperations.sync({});
       },
     });
+    const planChangeOperations = createPlanChangeOperations({
+      translator: reconfigurable.intentTranslator,
+      ftp,
+      eventSources: createPlanChangeEventSourceReader({
+        calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+        readLatest: () => readLatestReference(input.home.root),
+      }),
+      logger,
+      store: input.context.store,
+      identity: planningIdentity,
+      crypto: globalThis.crypto,
+      todayDateKey: planningDateKey,
+      now,
+      calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
+    });
     const planCalendar = createPlanMirrorCalendarAdapter(() => {
       const intervals = approvedConfig().intervals;
       return intervals.apiKey.length === 0
         ? null
         : makeChatClient({ apiKey: intervals.apiKey, athleteId: intervals.athleteId });
     });
+    const drain = createPlanCalendarDrain({
+      store: input.context.store,
+      calendar: planCalendar,
+      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+      identity: planningIdentity,
+      todayDateKey: planningDateKey,
+      now,
+      logger,
+    });
+    const runWindow = runtime.runWindow.bind(runtime);
+    runtime.runWindow = async () => {
+      const result = await runWindow();
+      if (!closing) void drain.kick();
+      return result;
+    };
+    const kickAfter =
+      <Params, Result>(operation: (params: Params) => Promise<Result>) =>
+      async (params: Params): Promise<Result> => {
+        const result = await operation(params);
+        if (!closing) void drain.kick();
+        return result;
+      };
     const readiness = {
       async read({
         plan,
@@ -2125,6 +2233,7 @@ export async function createLocalCoachComposition(
         outbox: chatPlanOutboxRepository,
         requests: planningRequestRepository,
         identity: planningIdentity,
+        readPlanCreationCard: planCreationOperations.readCard,
         async resolveTarget() {
           const latest = await planRepository.readLatest();
           if (latest?.status === "active") return "active_plan";
@@ -2262,10 +2371,28 @@ export async function createLocalCoachComposition(
         activityAnalysis.getActivityAnalysis(request, signal),
       exportTrainingFile: (request, signal) => trainingExport.export(request, signal),
       ...planningRequestOperations,
+      "plan.list": async (params) => {
+        const result = await planCreationOperations["plan.list"](params);
+        if (!closing) void drain.kick();
+        return result;
+      },
+      "plan.close": kickAfter(planCreationOperations["plan.close"]),
+      ...planChangeOperations,
+      "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
+      "plan.history": planCreationOperations["plan.history"],
+      "plan_creation.interpretCommitments":
+        planCreationOperations["plan_creation.interpretCommitments"],
+      "plan_creation.start": planCreationOperations["plan_creation.start"],
+      "plan_creation.answer": planCreationOperations["plan_creation.answer"],
+      "plan_creation.preview": planCreationOperations["plan_creation.preview"],
+      "plan_creation.discard": planCreationOperations["plan_creation.discard"],
+      "plan_creation.activate": kickAfter(planCreationOperations["plan_creation.activate"]),
       ...planningOperations,
     } satisfies CoachOperations &
       PlanningReadOperations &
       PlanningRequestOperations &
+      PlanCreationOperations &
+      PlanChangeOperations &
       PlanningOperations;
     return {
       language: coachLanguage,
@@ -2292,6 +2419,7 @@ export async function createLocalCoachComposition(
           };
           await attempt(() => dependencies.closeHostAdapters?.());
           await attempt(() => reference!.scheduler.stop());
+          await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
           await attempt(() => runtime!.close());
           await initialRefreshPromise?.catch(() => {});

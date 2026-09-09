@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatQueueSnapshot,
+  PlanCreationAnswerInput,
   CoachEngine,
   PlanProgressEvent,
   TurnEvent,
 } from "@enduragent/coach-contract";
 import {
   createPlanConversationRepository,
+  createPlanCreationRepository,
   createPlanReconciliationRepository,
   createPlanRepository,
   createPlanSettingsRepository,
@@ -41,6 +43,7 @@ import {
   type PlanMirrorCalendarPort,
 } from "@enduragent/engine";
 import { createPlanningOperations, type PlanDraftBuilder } from "../src/planning-operations.js";
+import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
 import type { PlanRaceCourseAdapter } from "../src/planning-race-course.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
 
@@ -245,7 +248,275 @@ describe("Plan operations", () => {
     await store.close();
   });
 
-  it("persists and relaunches a dedicated streamed Plan conversation", async () => {
+  async function restoreLegacyConversation(
+    operations: ReturnType<typeof createPlanningOperations>,
+  ) {
+    await createPlanConversationRepository(store).saveConversation({
+      id: `${"0".repeat(25)}Z`,
+      planId: null,
+      replacesPlanId: null,
+      courseChoiceStatus: "undecided",
+      raceCourseJson: null,
+      status: "open",
+      endedAtMs: null,
+      createdAtMs: 100,
+      updatedAtMs: 100,
+      deviceId: "device-1",
+      hlcPhysicalMs: 100,
+      hlcCounter: 0,
+    });
+    const result = await operations.getPlanState?.({});
+    if (result?.status !== "ready") throw new Error("Expected restored Plan conversation");
+    return { status: "completed" as const, state: result.state };
+  }
+
+  async function planningRows() {
+    const tables = await store.all(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'plan%' AND name != 'planning_authority' ORDER BY name",
+    );
+    return Promise.all(
+      tables.map(async ({ name }) => {
+        if (typeof name !== "string" || !/^[a-z_]+$/.test(name))
+          throw new Error("Invalid table name");
+        return { name, rows: await store.all(`SELECT * FROM ${name} ORDER BY 1`) };
+      }),
+    );
+  }
+
+  it("rejects retired Plan conversation creation on a fresh store without writes", async () => {
+    const operations = createPlanningOperations({
+      context,
+      engine: engine(),
+      identity: identity(),
+    });
+    const before = await planningRows();
+    await expect(
+      operations.executePlanTransition?.({
+        transitionId: "PL-T01",
+        commandId: "retired-start",
+        sourceConversationId: null,
+      }),
+    ).resolves.toMatchObject({
+      status: "rejected",
+      error: {
+        code: "conflict",
+        message: "This Plan is managed in Chat. Change or stop it from Chat or the Plan library.",
+        retryable: false,
+      },
+    });
+    expect(await planningRows()).toEqual(before);
+  });
+
+  it("rejects retired replacement creation for a preserved active Plan without writes", async () => {
+    const previous = { ...plan(`${"0".repeat(25)}Y`, 100), status: "active" as const };
+    await createPlanRepository(store).replace(previous, []);
+    const operations = createPlanningOperations({
+      context,
+      engine: engine(),
+      identity: identity(),
+    });
+    const before = await planningRows();
+    await expect(
+      operations.executePlanTransition?.({
+        transitionId: "PL-T25",
+        commandId: "retired-replacement",
+        planId: previous.id,
+      }),
+    ).resolves.toMatchObject({
+      status: "rejected",
+      error: {
+        code: "conflict",
+        message: "This Plan is managed in Chat. Change or stop it from Chat or the Plan library.",
+        retryable: false,
+      },
+    });
+    expect(await planningRows()).toEqual(before);
+  });
+
+  it("restores read-only state when Chat takes authority before an intake projection write", async () => {
+    const operations = createPlanningOperations({
+      context,
+      engine: engine(),
+      identity: identity(),
+    });
+    await restoreLegacyConversation(operations);
+    await store.run("DELETE FROM plan_intake");
+    const before = await planningRows();
+    const transaction = store.transaction.bind(store);
+    vi.spyOn(store, "transaction").mockImplementationOnce(async (operation) => {
+      await store.run(
+        "UPDATE planning_authority SET chat_authority_since_ms = 101 WHERE singleton = 1",
+      );
+      return transaction(operation);
+    });
+    await expect(operations.getPlanState?.({})).resolves.toMatchObject({ status: "ready" });
+    expect(await planningRows()).toEqual(before);
+  });
+
+  it.each(["PL-T03", "PL-T11", "PL-T22"] as const)(
+    "rejects %s without writes when Chat takes authority after the precheck",
+    async (transitionId) => {
+      const authored = identity();
+      const conversations = createPlanConversationRepository(store);
+      const settings = createPlanSettingsRepository(store);
+      const operations = createPlanningOperations(
+        { context, engine: engine(), identity: authored },
+        { conversations, settings },
+      );
+      const restored = await restoreLegacyConversation(operations);
+      const conversationId = String(restored.state.data.conversationId);
+      const draftPlan = plan(`${"0".repeat(25)}Y`, 100);
+      if (transitionId === "PL-T11") {
+        await createPlanRepository(store).replace(draftPlan, []);
+        await createPlanConversationRepository(store).saveDraftRevision({
+          id: `${"0".repeat(25)}X`,
+          conversationId,
+          planId: draftPlan.id,
+          revision: 1,
+          parentRevisionId: null,
+          status: "ready",
+          snapshotJson: "{}",
+          raceCourseJson: null,
+          createdAtMs: 100,
+          updatedAtMs: 100,
+          deviceId: "device-1",
+          hlcPhysicalMs: 100,
+          hlcCounter: 0,
+        });
+      }
+      if (transitionId === "PL-T22") {
+        await createPlanRepository(store).replace({ ...draftPlan, status: "active" }, []);
+      }
+      const before = await planningRows();
+      const transaction = store.transaction.bind(store);
+      vi.spyOn(store, "transaction").mockImplementationOnce(async (operation) => {
+        await store.run(
+          "UPDATE planning_authority SET chat_authority_since_ms = 101 WHERE singleton = 1",
+        );
+        return transaction(operation);
+      });
+      const result = await operations.executePlanTransition?.(
+        transitionId === "PL-T03"
+          ? {
+              transitionId,
+              commandId: "racing-course",
+              conversationId,
+            }
+          : transitionId === "PL-T22"
+            ? {
+                transitionId,
+                commandId: "racing-settings",
+                planId: draftPlan.id,
+                setting: "weekly-review",
+                value: false,
+              }
+            : {
+                transitionId,
+                commandId: "racing-approval",
+                draftId: `${"0".repeat(25)}X`,
+                expectedRevision: 1,
+              },
+      );
+      expect(result).toMatchObject({
+        status: "rejected",
+        error: {
+          code: "conflict",
+          message: "This Plan is managed in Chat. Change or stop it from Chat or the Plan library.",
+          retryable: false,
+        },
+      });
+      expect(await planningRows()).toEqual(before);
+    },
+  );
+
+  it("reads an activated creation and its dated Workouts without legacy phases", async () => {
+    let sequence = 100;
+    const authored: AuthoredIdentity = {
+      deviceId: async () => "activation-test-device",
+      newUlid: () => `${"0".repeat(23)}${++sequence}`,
+      hlcStamp: () => ({ physicalMs: 904_780_800_000, counter: 0 }),
+    };
+    const creation = createPlanCreationOperations({
+      store,
+      repository: createPlanCreationRepository(store),
+      identity: authored,
+      crypto: globalThis.crypto,
+      eventCandidates: { read: async () => [] },
+      eventSources: { read: async () => [] },
+      today: () => "1998-09-02",
+    });
+    const started = await creation["plan_creation.start"]({ commandId: "start" });
+    if (started.status !== "started") throw new Error("Expected creation");
+    let card = started.planCreation;
+    const answers: readonly PlanCreationAnswerInput[] = [
+      { kind: "goal", goal: { kind: "fitness" } },
+      { kind: "plan-length", weeks: 4 },
+      { kind: "schedule-mode", mode: "fixed" },
+      {
+        kind: "availability",
+        mode: "fixed",
+        weeklyHoursLimit: 8,
+        longestWorkoutHours: 3,
+        usableWeekdays: [2, 4, 6],
+      },
+      { kind: "start-timing", timing: { kind: "as-soon-as-possible" } },
+      { kind: "commitments", commitments: { kind: "none" } },
+      { kind: "baseline", baseline: "regular" },
+      { kind: "success", success: { kind: "fitness-choice", choice: "climb-stronger" } },
+      { kind: "restriction", restriction: { kind: "none" } },
+    ];
+    for (const answer of answers) {
+      const result = await creation["plan_creation.answer"]({
+        commandId: `answer-${++sequence}`,
+        creationId: card.creationId,
+        expectedVersion: card.version,
+        answer,
+      });
+      if (result.status !== "answered") throw new Error("Expected confirmed answer");
+      card = result.planCreation;
+    }
+    const reviewed = await creation["plan_creation.preview"]({
+      commandId: "preview",
+      creationId: card.creationId,
+      expectedVersion: card.version,
+    });
+    if (reviewed.status !== "previewed" || reviewed.planCreation.draft === null)
+      throw new Error("Expected Draft");
+    const activated = await creation["plan_creation.activate"]({
+      commandId: "activate",
+      creationId: card.creationId,
+      expectedVersion: reviewed.planCreation.version,
+      incumbent: null,
+    });
+    const operations = createPlanningOperations(
+      { context, engine: engine(), identity: authored },
+      { todayDateKey: () => 19980902 },
+    );
+    const result = await operations.getPlanState?.({});
+    expect(result).toMatchObject({
+      status: "ready",
+      state: {
+        projection: "active",
+        data: {
+          plan: { id: activated.planId, name: "Improve fitness" },
+          workouts: expect.any(Array),
+        },
+      },
+    });
+    if (result?.status !== "ready") throw new Error("Expected active Plan state");
+    const draftWorkouts = reviewed.planCreation.draft.weeks[0]?.workouts ?? [];
+    expect(result.state.data.workouts).toEqual(
+      draftWorkouts.map((workout) =>
+        expect.objectContaining({
+          date: workout.date,
+          name: workout.name,
+          durationS: workout.minutes * 60,
+        }),
+      ),
+    );
+  });
+
+  it("continues and relaunches a preserved streamed Plan conversation", async () => {
     const coach = engine();
     const authored = identity();
     const readiness = {
@@ -255,11 +526,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: authored },
       readiness,
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     expect(started).toMatchObject({
       status: "completed",
       state: { scenarioId: "PL-S017", projection: "coach" },
@@ -467,11 +734,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: authored },
       { requests },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-start-plan",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     const created = await requests.createOrGet({
@@ -563,11 +826,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: authored },
       { ftp, todayDateKey: () => 20260709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "intake-start",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -665,11 +924,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: identity() },
       { ftp, draftBuilder: builder, todayDateKey: () => 20260709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "expired-date-start",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -783,11 +1038,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: identity() },
       { ftp, todayDateKey: () => 19980709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "decision-start",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -876,11 +1127,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: authored },
       { ftp, intakes: interruptedIntakes, todayDateKey: () => 20260709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "recovery-start",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -956,11 +1203,7 @@ describe("Plan operations", () => {
         todayDateKey: () => 20260709,
       },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "atomic-start",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -1057,11 +1300,7 @@ describe("Plan operations", () => {
       { context, engine: coach, identity: authored },
       { draftBuilder: builder, isReady: () => true, todayDateKey: () => 20260709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -1152,11 +1391,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: identity() },
       { ftp, isReady: () => true },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     expect(started).toMatchObject({ status: "completed", state: { scenarioId: "PL-S003" } });
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
@@ -1215,11 +1450,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: identity() },
       { ftp },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await expect(
@@ -1272,11 +1503,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: identity() },
       readiness,
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
 
@@ -1375,11 +1602,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: identity() },
       { conversations, isReady: () => true },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     vi.spyOn(conversations, "saveConversation").mockRejectedValueOnce(new Error("disk full"));
@@ -1449,11 +1672,7 @@ describe("Plan operations", () => {
         todayDateKey: () => 20260709,
       },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -1566,11 +1785,7 @@ describe("Plan operations", () => {
       { context, engine: engine(), identity: identity() },
       { draftBuilder: builder, isReady: () => true, todayDateKey: () => 20260709 },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -1713,11 +1928,7 @@ describe("Plan operations", () => {
         calendar,
       },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -2088,11 +2299,7 @@ describe("Plan operations", () => {
         },
       },
     );
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
     await operations.executePlanTransition?.({
@@ -2173,11 +2380,7 @@ describe("Plan operations", () => {
       retryQueuedTurn,
     } as unknown as CoachEngine;
     const operations = createPlanningOperations({ context, engine: coach, identity: identity() });
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T01",
-      commandId: "command-1",
-      sourceConversationId: null,
-    });
+    const started = await restoreLegacyConversation(operations);
     if (started?.status !== "completed") throw new TypeError("Plan conversation did not start.");
     const conversationId = String(started.state.data.conversationId);
 
@@ -4595,11 +4798,23 @@ describe("Plan operations", () => {
       { plans, calendar, todayDateKey: () => todayDateKey },
     );
 
-    const started = await operations.executePlanTransition?.({
-      transitionId: "PL-T25",
-      commandId: "replacement-start",
-      planId: previousPlanId,
+    await conversations.saveConversation({
+      id: `${"0".repeat(25)}Z`,
+      planId: null,
+      replacesPlanId: previousPlanId,
+      courseChoiceStatus: "undecided",
+      raceCourseJson: null,
+      status: "open",
+      endedAtMs: null,
+      createdAtMs: 100,
+      updatedAtMs: 100,
+      deviceId: "device-1",
+      hlcPhysicalMs: 100,
+      hlcCounter: 0,
     });
+    const restored = await operations.getPlanState?.({});
+    if (restored?.status !== "ready") throw new Error("Expected restored replacement conversation");
+    const started = { status: "completed" as const, state: restored.state };
     expect(started).toMatchObject({
       status: "completed",
       state: {

@@ -1,5 +1,5 @@
 import type { CoachDecisionReadModel, TranscriptPageEntry } from "@enduragent/coach-contract";
-import type { ChatView, ChatViewControls } from "../../chat/controller";
+import type { ChatView, ChatViewControls, PlanCreationDiscardEvent } from "../../chat/controller";
 import type { ChatState } from "../../turn-state";
 import {
   EMPTY_CHAT_SURFACE,
@@ -184,6 +184,36 @@ function historicalTimeline(
   return timeline;
 }
 
+function conversationTimelineWithDiscardEvents(
+  historicalItems: readonly ChatTranscriptItemView[],
+  liveItems: readonly ChatTranscriptItemView[],
+  events: readonly PlanCreationDiscardEvent[],
+): readonly ChatTranscriptItemView[] {
+  const appended = new Set<string>();
+  const timeline: ChatTranscriptItemView[] = [];
+  const appendEvents = (afterMessageId: string | null): void => {
+    for (const event of events) {
+      if (event.afterMessageId !== afterMessageId || appended.has(event.eventId)) continue;
+      timeline.push({ kind: "plan-creation-discard", eventId: event.eventId });
+      appended.add(event.eventId);
+    }
+  };
+  const appendItems = (items: readonly ChatTranscriptItemView[]): void => {
+    for (const item of items) {
+      timeline.push(item);
+      if (item.kind === "message") appendEvents(item.message.id);
+    }
+  };
+  appendItems(historicalItems);
+  appendEvents(null);
+  appendItems(liveItems);
+  for (const event of events) {
+    if (appended.has(event.eventId)) continue;
+    timeline.push({ kind: "plan-creation-discard", eventId: event.eventId });
+  }
+  return timeline;
+}
+
 export function createChatViewAdapter(input: {
   readonly publish: (next: ChatSurfaceState) => void;
   readonly buffer?: ChatStreamBuffer;
@@ -266,10 +296,38 @@ export function createChatViewAdapter(input: {
     const planningItems: ChatTranscriptItemView[] = planningRequests
       .filter((delivery) => delivery.state !== "cancelled")
       .map((delivery) => ({ kind: "planning-request", delivery }));
-    const timeline = [...historicalItems, ...liveItems, ...planningItems];
+    const planCreation = controls?.planCreation;
+    const conversationItems = conversationTimelineWithDiscardEvents(
+      historicalItems,
+      liveItems,
+      planCreation?.discardEvents ?? [],
+    );
+    const planActivated = planCreation?.notice === "Plan activated locally.";
+    const timeline = [
+      ...conversationItems,
+      ...planningItems,
+      ...(planCreation?.loaded === true && (planCreation.value !== null || planActivated)
+        ? ([{ kind: "plan-creation", model: planCreation.value }] as const)
+        : []),
+    ];
     const decisionBlocksWork =
       decision?.value?.status === "unanswered" ||
       (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
+    const planCreationPaused = planCreation?.paused ?? false;
+    const planCreationEditingKey = planCreation?.editingKey ?? null;
+    const planCreationBlocksWork =
+      planCreation?.discardConfirmationOpen === true ||
+      planCreation?.activateConfirmationOpen === true ||
+      (!planCreationPaused &&
+        planCreation?.value !== null &&
+        planCreation?.value !== undefined &&
+        planCreation.value.pendingCommitment === null &&
+        planCreationEditingKey !== "commitments" &&
+        !(
+          planCreationEditingKey === null &&
+          planCreation.value.openQuestion?.kind === "commitments-question"
+        ) &&
+        (planCreationEditingKey !== null || planCreation.value.openQuestion !== null));
     const decisionLoading = controls?.decisionLoading === true;
     const decisionLoadError = controls?.queueLoadError ?? controls?.decisionLoadError ?? null;
     const decisionUnavailable = decisionLoading || decisionLoadError !== null;
@@ -305,19 +363,40 @@ export function createChatViewAdapter(input: {
       planningRequestBusyId: controls?.planningRequests?.busyId ?? null,
       planningRequestError: controls?.planningRequests?.error ?? null,
       planningRequestFocusId: controls?.planningRequests?.focusId ?? null,
+      planCreation: planCreation?.value ?? null,
+      planCreationLoaded: planCreation?.loaded ?? false,
+      planCreationBusy: planCreation?.busy ?? false,
+      planCreationError: planCreation?.error ?? null,
+      planCreationPaused,
+      planCreationEditingKey,
+      planCreationFocusRevision: planCreation?.focusRevision ?? 0,
+      planCreationDiscardConfirmationOpen: planCreation?.discardConfirmationOpen ?? false,
+      planCreationActivateConfirmationOpen: planCreation?.activateConfirmationOpen ?? false,
+      planCreationActivePlanKnowledge:
+        planCreation?.activePlanKnowledge ?? EMPTY_CHAT_SURFACE.planCreationActivePlanKnowledge,
+      planCreationFocusRequest: planCreation?.focusRequest ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
       notice: decisionBlocksWork
         ? null
         : (state.activeTurn?.error?.athleteMessage ??
+          (planActivated ? null : planCreation?.notice) ??
+          (planCreation?.value == null ? planCreation?.error : null) ??
           (state.status === "streaming" ? null : state.progress)),
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,
-      interrupted: state.status === "interrupted" && !decisionBlocksWork,
+      interrupted: state.status === "interrupted" && !decisionBlocksWork && !planCreationBlocksWork,
       workBlocked,
       sendDisabled:
-        workBlocked || decisionBlocksWork || decisionUnavailable || attachmentUnavailable,
-      inputDisabled: workBlocked,
+        workBlocked ||
+        decisionBlocksWork ||
+        decisionUnavailable ||
+        attachmentUnavailable ||
+        planCreationBlocksWork,
+      inputDisabled: workBlocked || planCreationBlocksWork,
+      composerPlaceholder: planCreationBlocksWork
+        ? "Finish the Plan question above"
+        : "Message your coach",
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,

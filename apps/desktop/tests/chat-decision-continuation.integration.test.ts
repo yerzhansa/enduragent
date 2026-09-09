@@ -175,11 +175,9 @@ class DecisionContinuationBackend {
             this.requireConversation().readCurrentConversationPage(chatId, { cursor, limit }),
           );
         }
-        if (
-          request.method === "resumePlanningRequests" ||
-          request.method === "listPlanningRequests"
-        ) {
-          return response({ deliveries: [] });
+        if (request.method === "resumePlanningRequests") return response({ deliveries: [] });
+        if (request.method === "listPlanningRequests") {
+          return response({ deliveries: [], planCreation: null });
         }
         return base.onRequest(value);
       },

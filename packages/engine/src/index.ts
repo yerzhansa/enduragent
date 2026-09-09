@@ -13,6 +13,9 @@ import type { ChatAttachmentActivitySummary, EngineHostPorts } from "./host-port
 import type { Sport } from "./sport.js";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
 import type { SourceProvenance } from "./provenance.js";
+import type { IntentTranslationPort } from "./intent-translation.js";
+
+export type { IntentTranslationPort } from "./intent-translation.js";
 
 export type { CoachEngine } from "@enduragent/coach-contract";
 export type { ChatStreamTimeouts } from "./host-ports.js";
@@ -100,7 +103,9 @@ interface QueueRetryRun {
   readonly subscribers: Set<(event: TurnEvent) => void>;
 }
 
-export function createCoachEngine(input: CreateCoachEngineInput): CoachEngine {
+export function createCoachEngine(
+  input: CreateCoachEngineInput,
+): CoachEngine & IntentTranslationPort {
   const agent = new CoachAgent(input.sport, input.ports);
   const queueRuns = new Map<string, Promise<ChatQueueRunResult>>();
   const queueRetryRuns = new Map<string, QueueRetryRun>();
@@ -382,6 +387,7 @@ export function createCoachEngine(input: CreateCoachEngineInput): CoachEngine {
     return task;
   };
   return {
+    translateIntent: agent.translateIntent,
     chat: async (request, onEvent) => {
       let decision;
       let planIntakePatch: PlanIntakePatch | undefined;
@@ -580,8 +586,9 @@ export {
 export { makeSummaryMessage, splitHistoryByBudget, SUMMARY_PREFIX } from "./agent/history-limit.js";
 export { truncateUtf16Safe } from "./text-truncate.js";
 export { warnOrphanSections, _resetOrphanWarnCacheForTesting } from "./sport/orphan-sections.js";
-export { capToolResult, TOOL_RESULT_SHARE } from "./agent/tool-result-cap.js";
+export { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./agent/tool-result-cap.js";
 export {
+  COMPACTION_SUMMARY_END_MARKER,
   COMPACTION_SUMMARY_MARKER,
   demoteSummaryHeadings,
   formatCompactionNote,

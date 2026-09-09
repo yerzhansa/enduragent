@@ -49,6 +49,7 @@ export { CyclingRaceCourseError, interpretCyclingRaceCourse } from "./race-cours
 export type { CyclingRaceCourseInterpretation } from "./race-course.js";
 export {
   createCyclingPlanFtpAdapter,
+  readCyclingPlanFtpCandidates,
   validateManualPlanFtp,
   type CyclingPlanFtpSourcePorts,
 } from "./plan-ftp.js";
@@ -59,3 +60,30 @@ export {
   projectDfaSummary,
   projectPowerCurveDelta,
 } from "./reference/index.js";
+
+export { buildCreationDraft } from "./creation-draft-builder.js";
+export {
+  applyScheduleIntent,
+  applySupportingEventIntent,
+  supportingEventWorkoutLimitExplanation,
+  planChangeRaceWindow,
+  PLAN_CHANGE_RACE_WINDOW_DAYS,
+} from "./plan-change.js";
+export type {
+  ScheduleIntent,
+  ScheduleChangeDiff,
+  ScheduleChangeTotals,
+  SupportingEventIntent,
+  SupportingEventRules,
+  SupportingEventSourceCandidate,
+} from "./plan-change.js";
+export type {
+  SupportingEvent,
+  CreationDraftInput,
+  CreationDraft,
+  CreationDraftResult,
+} from "./creation-draft-builder.js";
+
+export { readTodayChoice, type TodayChoice } from "./today-choice.js";
+export { interpretCommitments } from "./commitments.js";
+export type { CommitmentRule, CommitmentsInterpretation } from "./commitments.js";

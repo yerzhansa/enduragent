@@ -28,6 +28,7 @@ import {
 import { createCoachRpcServer } from "../src/daemon/rpc-server.js";
 import type { UpgradeFenceHandle } from "../src/daemon/upgrade-fence.js";
 import type { DesktopTelegramController } from "../src/desktop-telegram-controller.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const roots: string[] = [];
 const disabledTelegramSnapshot: TelegramControlSnapshot = {
@@ -275,6 +276,7 @@ describe.skipIf(!hasLoopback)("production peer observations", () => {
         }),
       },
       operations: {
+        ...planCreationOperationStubs,
         importFiles: async ({ paths }) => ({
           schemaVersion: 2,
           files: { total: paths.length, imported: paths.length, quarantined: 0 },

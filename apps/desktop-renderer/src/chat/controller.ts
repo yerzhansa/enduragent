@@ -8,21 +8,42 @@ import {
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientProtocolError,
+  CoachRpcRemoteError,
 } from "@enduragent/coach-client";
-import type {
-  AttachmentAdmissionReadModel,
-  ChatAttachmentComposerReadModel,
-  CoachDecisionAnswer,
-  CoachDecisionReadModel,
-  ChatQueueSnapshot,
-  CoachTurnEventNotificationEnvelope,
-  CreatePlanningRequestRpcParams,
-  CreateWorkoutPlanningRequestRpcParams,
-  PlanHandoffSuggestion,
-  PlanningRequestDelivery,
-  TranscriptPageEntry,
-  TurnEvent,
+import {
+  PLAN_CREATION_ANSWER_KEYS,
+  PlanChangeIntentSchema,
+  PlanActiveProjectionDataSchema,
+  type AttachmentAdmissionReadModel,
+  type ChatAttachmentComposerReadModel,
+  type CoachDecisionAnswer,
+  type CoachDecisionReadModel,
+  type ChatQueueSnapshot,
+  type CoachTurnEventNotificationEnvelope,
+  type CreatePlanningRequestRpcParams,
+  type CreateWorkoutPlanningRequestRpcParams,
+  type PlanHandoffSuggestion,
+  type ListPlansResult,
+  type PlanChangeIntent,
+  PlanChangeRequestSchema,
+  type PlanChangeRequest,
+  type PlanChangePreviewRpcParams,
+  type PlanChangeApplyRpcParams,
+  type PlanCreationActivateRpcParams,
+  type PlanCreationAnswerInput,
+  type PlanCreationAnswerSummary,
+  type PlanCreationCardModel,
+  type PlanCreationOpenQuestion,
+  type PlanningRequestDelivery,
+  type TranscriptPageEntry,
+  type TurnEvent,
 } from "@enduragent/coach-contract";
+import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
+import {
+  EMPTY_PLAN_CHANGE_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  type PlanChangeSurfaceState,
+} from "../state/chat-slice";
 import type { DesktopCoachClientProvider } from "../coach-client";
 import {
   DESKTOP_CHAT_ID,
@@ -43,6 +64,13 @@ import {
 } from "./hydration";
 import { COACH_RESPONSE_CODE_UNIT_LIMIT, COACH_TURN_EVENT_LIMIT } from "./limits";
 
+export type ActivePlanKnowledge =
+  | { readonly kind: "unknown" }
+  | { readonly kind: "none" }
+  | { readonly kind: "active"; readonly name: string };
+
+export const CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY =
+  "This creation is no longer unfinished. Open the Plan library for its current result.";
 export const CHAT_CONNECTION_INTERRUPTED_COPY =
   "Connection interrupted. Your partial response is preserved.";
 export const CHAT_RESPONSE_STOPPED_COPY = "Response stopped. Your partial response is preserved.";
@@ -64,17 +92,83 @@ export const CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY =
   "We couldn’t check saved Plan requests. Reconnect and try again.";
 export const CHAT_PLANNING_REQUEST_FAILURE_COPY =
   "Plan couldn’t receive this request. Your request is preserved and nothing changed in Plan.";
+export const CHAT_PLAN_CREATION_FAILURE_COPY = "Plan Creation couldn’t save that. Try again.";
+export const CHAT_PLAN_CREATION_DISCARD_STALE_COPY =
+  "Plan Creation changed before it could be discarded. The latest version is shown.";
+export const CHAT_PLAN_CREATION_DISCARD_CONFLICT_COPY =
+  "Plan Creation wasn’t discarded. Try again.";
+export const CHAT_PLAN_CREATION_DISCARD_MISSING_COPY =
+  "There is no unfinished Plan Creation to discard.";
 export const NEW_CONVERSATION_SUCCESS_COPY = "New conversation started.";
 export const NEW_CONVERSATION_MEMORY_WARNING_COPY =
   "New conversation started. Some recent details may not have been saved to coach memory.";
 export const NEW_CONVERSATION_UNCERTAIN_COPY =
   "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
 
+const PLAN_CREATION_PAUSE_STORAGE_KEY = "enduragent.plan-creation.pause";
+
+interface PlanCreationPauseIdentity {
+  readonly creationId: string;
+  readonly answerKey: PlanCreationAnswerSummary["answerKey"];
+}
+
+function pauseStorage(): Storage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+function readPlanCreationPause(): PlanCreationPauseIdentity | null {
+  try {
+    const value = pauseStorage()?.getItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
+    if (value === undefined || value === null) return null;
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    if (
+      typeof parsed.creationId !== "string" ||
+      typeof parsed.answerKey !== "string" ||
+      !(PLAN_CREATION_ANSWER_KEYS as readonly string[]).includes(parsed.answerKey)
+    ) {
+      return null;
+    }
+    return {
+      creationId: parsed.creationId,
+      answerKey: parsed.answerKey as PlanCreationAnswerSummary["answerKey"],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePlanCreationPause(identity: PlanCreationPauseIdentity): void {
+  try {
+    pauseStorage()?.setItem(PLAN_CREATION_PAUSE_STORAGE_KEY, JSON.stringify(identity));
+  } catch {}
+}
+
+function clearPlanCreationPause(): void {
+  try {
+    pauseStorage()?.removeItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
+  } catch {}
+}
+
+function planCreationQuestionKey(
+  question: PlanCreationOpenQuestion,
+): PlanCreationAnswerSummary["answerKey"] {
+  return question.kind.replace(/-question$/u, "") as PlanCreationAnswerSummary["answerKey"];
+}
+
 export interface ChatAppendDelta {
   readonly messageId: string;
   readonly previousTextLength: number;
   readonly nextTextLength: number;
   readonly delta: string;
+}
+
+export interface PlanCreationDiscardEvent {
+  readonly eventId: string;
+  readonly afterMessageId: string | null;
 }
 
 export interface ChatViewControls {
@@ -97,6 +191,25 @@ export interface ChatViewControls {
     readonly error: string | null;
     readonly focusId: string | null;
   };
+  readonly planCreation?: {
+    readonly value: PlanCreationCardModel | null;
+    readonly loaded: boolean;
+    readonly busy: boolean;
+    readonly error: string | null;
+    readonly paused: boolean;
+    readonly editingKey: PlanCreationAnswerSummary["answerKey"] | null;
+    readonly focusRevision: number;
+    readonly discardConfirmationOpen: boolean;
+    readonly activateConfirmationOpen: boolean;
+    readonly activePlanKnowledge: ActivePlanKnowledge;
+    readonly discardEvents: readonly PlanCreationDiscardEvent[];
+    readonly notice: string | null;
+    readonly focusRequest: {
+      readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
+      readonly libraryTarget?: "continue" | "change";
+      readonly revision: number;
+    } | null;
+  };
   readonly appendDelta?: ChatAppendDelta;
   readonly hydration?: {
     readonly status: TranscriptHydrationStatus;
@@ -118,6 +231,12 @@ export interface ChatView {
 }
 
 export interface ChatController {
+  openPlanChangeEditor(): void;
+  backFromPlanChangeEditor(): void;
+  previewPlanChange(
+    intent: PlanChangeIntent | Extract<PlanChangeRequest, { kind: "text" }>,
+  ): Promise<void>;
+  applyPlanChange(decision: "apply" | "cancel"): Promise<void>;
   start(): Promise<void>;
   resume(): Promise<void>;
   refreshAttachments(): Promise<void>;
@@ -142,6 +261,22 @@ export interface ChatController {
   refreshPlanningRequests(): void;
   focusPlanningRequest(requestId: string): void;
   clearPlanningRequestFocus(): void;
+  requestPlanLibraryFocus(target: "continue" | "change"): void;
+  resumeCreation(model: PlanCreationCardModel | null): void;
+  continueCreationFromLibrary(creationId: string): Promise<void>;
+  startPlanCreation(): Promise<void>;
+  answerPlanCreation(answer: PlanCreationAnswerInput): Promise<void>;
+  buildPlanCreationDraft(): Promise<void>;
+  pausePlanCreation(): void;
+  continuePlanCreation(): void;
+  editPlanCreation(answerKey: PlanCreationAnswerSummary["answerKey"]): void;
+  cancelPlanCreationEdit(returnFocus?: "edit"): void;
+  openPlanCreationDiscard(): void;
+  cancelPlanCreationDiscard(): void;
+  confirmPlanCreationDiscard(): Promise<void>;
+  openPlanCreationActivate(): Promise<void>;
+  cancelPlanCreationActivate(): void;
+  confirmPlanCreationActivate(): Promise<void>;
   stop(): void;
   removeQueued(id: string): void;
   runQueuedCommand(id: string): Promise<void>;
@@ -207,6 +342,12 @@ export function createChatController(input: {
   readonly view: ChatView;
   readonly refreshTrainingContext: () => Promise<void>;
   readonly refreshSpend: () => Promise<void>;
+  readonly refreshPlan?: () => Promise<void>;
+  readonly readPlanLibrary?: () => ListPlansResult | null;
+  readonly readPlanChange?: () => PlanChangeSurfaceState;
+  readonly publishPlanChange?: (next: PlanChangeSurfaceState) => void;
+  readonly refreshPlanLibrary?: () => Promise<void>;
+  readonly openChat?: () => void;
   readonly readTranscriptPage?: (request: {
     readonly cursor: string | null;
     readonly limit: number;
@@ -271,7 +412,31 @@ export function createChatController(input: {
   let planningRequestBusyId: string | null = null;
   let planningRequestError: string | null = null;
   let planningRequestFocusId: string | null = null;
+  let planningRequestLoadTask: Promise<void> | undefined;
   let pendingPlanningRequestCreate: PendingPlanningRequestCreate | null = null;
+  let planCreation: PlanCreationCardModel | null = null;
+  let planCreationLoaded = false;
+  let planCreationBusy = false;
+  let activationAttempt: PlanCreationActivateRpcParams | null = null;
+  let previewAttempt: PlanChangePreviewRpcParams | null = null;
+  let applyAttempt: PlanChangeApplyRpcParams | null = null;
+  let planCreationError: string | null = null;
+  let planCreationPaused = false;
+  let planCreationEditingKey: PlanCreationAnswerSummary["answerKey"] | null = null;
+  let planCreationEditReturnPaused = false;
+  let planCreationFocusRevision = 0;
+  let planCreationDiscardConfirmationOpen = false;
+  let planCreationActivateConfirmationOpen = false;
+  let activePlanKnowledge: ActivePlanKnowledge = { kind: "unknown" };
+  let planCreationDiscardEvents: readonly PlanCreationDiscardEvent[] = [];
+  let planCreationNotice: string | null = null;
+  let planCreationFocusRequest: {
+    readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
+    readonly libraryTarget?: "continue" | "change";
+    readonly revision: number;
+  } | null = null;
+  let planCreationActionFocusRevision = 0;
+  let pendingPlanCreationCommand: { readonly key: string; readonly id: string } | null = null;
   let decisionContinuationTask: Promise<void> | undefined;
   let epoch = 0;
   const canChat = input.canChat ?? (() => true);
@@ -283,6 +448,20 @@ export function createChatController(input: {
     !decisionLoaded ||
     decision?.status === "unanswered" ||
     (decision?.status === "answered" && decision.continuation.status === "pending");
+  const acceptsCommitmentMessage = (): boolean =>
+    planCreation !== null &&
+    (planCreation.pendingCommitment !== null ||
+      (!planCreationPaused &&
+        (planCreationEditingKey === "commitments" ||
+          (planCreationEditingKey === null &&
+            planCreation.openQuestion?.kind === "commitments-question"))));
+  const planCreationBlocksWork = (): boolean =>
+    planCreationDiscardConfirmationOpen ||
+    planCreationActivateConfirmationOpen ||
+    (!planCreationPaused &&
+      planCreation !== null &&
+      !acceptsCommitmentMessage() &&
+      (planCreationEditingKey !== null || planCreation.openQuestion !== null));
   const decisionBlocksReset = (): boolean =>
     !decisionLoaded ||
     (decision?.status === "answered" && decision.continuation.status === "pending");
@@ -333,6 +512,21 @@ export function createChatController(input: {
             busyId: planningRequestBusyId,
             error: planningRequestError,
             focusId: planningRequestFocusId,
+          },
+          planCreation: {
+            value: planCreation,
+            loaded: planCreationLoaded,
+            busy: planCreationBusy,
+            error: planCreationError,
+            paused: planCreationPaused,
+            editingKey: planCreationEditingKey,
+            focusRevision: planCreationFocusRevision,
+            discardConfirmationOpen: planCreationDiscardConfirmationOpen,
+            activateConfirmationOpen: planCreationActivateConfirmationOpen,
+            activePlanKnowledge,
+            discardEvents: planCreationDiscardEvents,
+            notice: planCreationNotice,
+            focusRequest: planCreationFocusRequest,
           },
           ...(appendDelta === undefined ? {} : { appendDelta }),
           hydration: {
@@ -914,9 +1108,118 @@ export function createChatController(input: {
     const result = await activeClient.call("listPlanningRequests", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return;
     planningRequests = result.deliveries;
+    installPlanCreation(result.planCreation);
+    planCreationLoaded = true;
     planningRequestsLoaded = true;
     planningRequestError = null;
     render();
+    if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
+  };
+
+  const installPlanCreation = (
+    next: PlanCreationCardModel | null,
+    focusTarget?: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+  ): void => {
+    const previous = planCreation;
+    let actionFocusRequested = false;
+    const requestActionFocus = (
+      target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+    ): void => {
+      requestPlanCreationFocus(target);
+      actionFocusRequested = true;
+    };
+    if (focusTarget !== undefined) requestActionFocus(focusTarget);
+    let installed = false;
+    if (next === null) {
+      planCreation = null;
+      planCreationActivateConfirmationOpen = false;
+      installed = true;
+      if (planCreationDiscardConfirmationOpen) {
+        planCreationDiscardConfirmationOpen = false;
+        planCreationNotice = CHAT_PLAN_CREATION_DISCARD_MISSING_COPY;
+        if (!actionFocusRequested) requestActionFocus("start");
+      }
+    } else if (
+      planCreation === null ||
+      next.creationId !== planCreation.creationId ||
+      next.version >= planCreation.version
+    ) {
+      planCreation = next;
+      installed = true;
+    }
+    if (installed) {
+      const modelIdentityChanged =
+        previous?.creationId !== planCreation?.creationId ||
+        previous?.version !== planCreation?.version;
+      const editedAnswerRemoved =
+        planCreationEditingKey !== null &&
+        planCreation?.answeredSummaries.some(
+          (summary) => summary.answerKey === planCreationEditingKey,
+        ) !== true;
+      const resetInteraction = modelIdentityChanged || editedAnswerRemoved;
+      if (!resetInteraction) return;
+      planCreationEditingKey = null;
+      planCreationEditReturnPaused = false;
+      const pausedIdentity = readPlanCreationPause();
+      if (planCreation === null) {
+        planCreationPaused = false;
+        clearPlanCreationPause();
+      } else if (
+        pausedIdentity?.creationId === planCreation.creationId &&
+        (planCreation.openQuestion === null
+          ? null
+          : planCreationQuestionKey(planCreation.openQuestion)) === pausedIdentity.answerKey
+      ) {
+        planCreationPaused = true;
+      } else {
+        planCreationPaused = false;
+        clearPlanCreationPause();
+      }
+      if (!actionFocusRequested) planCreationFocusRevision += 1;
+    }
+  };
+  const latestMessageId = (): string | null =>
+    mergeHydratedMessages(hydration.turns, state.messages, hydration.entries)
+      .filter((message) => message.role === "athlete" || message.text.length > 0)
+      .at(-1)?.id ?? null;
+  const requestPlanCreationFocus = (
+    target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+  ): void => {
+    planCreationFocusRequest = {
+      ...(target === "start" || planCreationFocusRequest?.libraryTarget === undefined
+        ? {}
+        : { libraryTarget: planCreationFocusRequest.libraryTarget }),
+      target,
+      revision: ++planCreationActionFocusRevision,
+    };
+  };
+  const planCreationDiscardNotice = (
+    reason: "stale-version" | "command-conflict" | "no-unfinished-creation",
+  ): string => {
+    if (reason === "stale-version") return CHAT_PLAN_CREATION_DISCARD_STALE_COPY;
+    if (reason === "command-conflict") return CHAT_PLAN_CREATION_DISCARD_CONFLICT_COPY;
+    return CHAT_PLAN_CREATION_DISCARD_MISSING_COPY;
+  };
+  const trackPlanningRequestLoad = (task: Promise<void>): Promise<void> => {
+    planningRequestLoadTask = task;
+    void task.then(
+      () => {
+        if (planningRequestLoadTask === task) planningRequestLoadTask = undefined;
+      },
+      () => {
+        if (planningRequestLoadTask === task) planningRequestLoadTask = undefined;
+      },
+    );
+    return task;
+  };
+  const waitForPlanningRequestLoad = async (): Promise<void> => {
+    while (planningRequestLoadTask !== undefined) await planningRequestLoadTask;
+  };
+  const planCommandId = (key: string): string => {
+    if (pendingPlanCreationCommand?.key !== key) {
+      pendingPlanCreationCommand = { key, id: globalThis.crypto.randomUUID() };
+    }
+    return pendingPlanCreationCommand.id;
   };
 
   const recoverPlanningRequests = async (): Promise<void> => {
@@ -1371,18 +1674,20 @@ export function createChatController(input: {
       if (decisionContinuationTask === task) decisionContinuationTask = undefined;
       if (activeTask === task) activeTask = undefined;
       render();
-      if (!decisionBlocksWork()) void drain();
+      if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
     });
     return task;
   };
 
-  const drain = (): Promise<void> => {
+  const drain = async (): Promise<void> => {
+    await waitForPlanningRequestLoad();
     if (
       !canChat() ||
       !queueLoaded ||
       disposed ||
       resetBlocksWork() ||
       decisionBlocksWork() ||
+      planCreationBlocksWork() ||
       state.status === "streaming"
     ) {
       return Promise.resolve();
@@ -1430,7 +1735,7 @@ export function createChatController(input: {
     void loadTask.finally(() => {
       if (decisionLoadTask === loadTask) decisionLoadTask = undefined;
       render();
-      if (!decisionBlocksWork()) void drain();
+      if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
     });
     const probeEpoch = epoch;
     const sessionProbeTask = (async () => {
@@ -1452,29 +1757,409 @@ export function createChatController(input: {
     })();
     const attachmentLoadGeneration = attachmentGeneration;
     const attachmentLoadTask = refreshAttachments(undefined, attachmentLoadGeneration);
-    const planningRequestLoadTask = recoverPlanningRequests().catch(() => {
-      if (!disposed) {
-        planningRequestsLoaded = false;
-        planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-        render();
-      }
-    });
+    const planningLoadTask = trackPlanningRequestLoad(
+      recoverPlanningRequests().catch(() => {
+        if (!disposed) {
+          planningRequestsLoaded = false;
+          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
+          render();
+        }
+      }),
+    );
     const task = Promise.all([
       transcriptLoadTask,
       sessionProbeTask,
       loadTask,
       queueLoadTask,
       attachmentLoadTask,
-      planningRequestLoadTask,
+      planningLoadTask,
     ]).then(async () => {
-      if (!decisionBlocksWork()) await drain();
+      if (!decisionBlocksWork() && !planCreationBlocksWork()) await drain();
     });
     probeTask = task;
     return task;
   };
 
+  let implicitPlanChangeRouting = true;
+  const readChange = (): PlanChangeSurfaceState =>
+    input.readPlanChange?.() ?? EMPTY_PLAN_CHANGE_SURFACE;
+  const publishChange = (patch: Partial<PlanChangeSurfaceState>): void => {
+    if (!disposed) input.publishPlanChange?.({ ...readChange(), ...patch });
+  };
+  const routesTextToPlanChange = (): boolean => {
+    const library = input.readPlanLibrary?.();
+    const surface = readChange();
+    return Boolean(
+      library?.active &&
+      ((surface.textRouting && surface.planId === library.active.planId) ||
+        (implicitPlanChangeRouting &&
+          library.changes.some(
+            (change) => change.status === "pending" && change.planId === library.active?.planId,
+          ))),
+    );
+  };
+  const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
+  const changeFocus = (target: "editor" | "preview" | "change") => ({
+    target,
+    revision: (readChange().focusRequest?.revision ?? 0) + 1,
+  });
+
   render();
-  return {
+  function saveAttachmentDraftText(text: string): void {
+    const ownership = beginAttachmentWrite(false);
+    if (ownership === null) return;
+    const textRevision = ++attachmentTextRevision;
+    let surfaceRevision = attachmentSurfaceRevision;
+    const task = attachmentTextSaveTask
+      .then(async () => {
+        try {
+          const client = await input.clients.getClient();
+          surfaceRevision = claimAttachmentSurface();
+          const surface = await client.call("saveChatAttachmentDraftText", {
+            chatId: DESKTOP_CHAT_ID,
+            text,
+          });
+          if (
+            !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
+            textRevision !== attachmentTextRevision
+          ) {
+            return;
+          }
+          attachmentSurface = surface;
+          attachmentError = null;
+          render();
+        } catch {
+          if (
+            !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
+            textRevision !== attachmentTextRevision
+          ) {
+            return;
+          }
+          attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
+          render();
+        }
+      })
+      .finally(() => {
+        finishAttachmentWrite(ownership.token);
+      });
+    attachmentTextSaveTask = task;
+  }
+
+  async function answerPlanCreation(answer: PlanCreationAnswerInput): Promise<void> {
+    if (
+      disposed ||
+      planCreationBusy ||
+      planCreationDiscardConfirmationOpen ||
+      planCreationActivateConfirmationOpen ||
+      planCreation === null ||
+      (!(
+        !planCreationPaused &&
+        (planCreationEditingKey !== null || planCreation.openQuestion !== null)
+      ) &&
+        !(
+          planCreation.pendingCommitment !== null &&
+          (answer.kind === "commitments" ||
+            answer.kind === "commitments-confirm" ||
+            answer.kind === "commitments-cancel")
+        ))
+    )
+      return;
+    const key = JSON.stringify({
+      creationId: planCreation.creationId,
+      expectedVersion: planCreation.version,
+      answer,
+    });
+    const submittedEditingKey = planCreationEditingKey;
+    const submittedEditReturnPaused = planCreationEditReturnPaused;
+    planCreationBusy = true;
+    planCreationError = null;
+    planCreationNotice = null;
+    render();
+    try {
+      const result = await (
+        await input.clients.getClient()
+      ).call("plan_creation.answer", {
+        commandId: planCommandId(key),
+        creationId: planCreation.creationId,
+        expectedVersion: planCreation.version,
+        answer,
+      });
+      pendingPlanCreationCommand = null;
+      installPlanCreation(result.planCreation);
+      if (result.status === "rejected") {
+        if (
+          submittedEditingKey !== null &&
+          planCreation?.answeredSummaries.some(
+            (summary) => summary.answerKey === submittedEditingKey,
+          ) === true
+        ) {
+          planCreationEditingKey = submittedEditingKey;
+          planCreationEditReturnPaused = submittedEditReturnPaused;
+          planCreationPaused = false;
+        }
+        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      }
+    } catch {
+      planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+    } finally {
+      planCreationBusy = false;
+      render();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+    }
+  }
+
+  const controller: ChatController = {
+    requestPlanLibraryFocus(target) {
+      if (disposed) return;
+      planCreationFocusRequest = {
+        target,
+        libraryTarget: target,
+        revision: ++planCreationActionFocusRevision,
+      };
+      render();
+    },
+    openPlanChangeEditor() {
+      const active = input.readPlanLibrary?.()?.active;
+      if (disposed || readChange().busy || !active || changesPaused()) return;
+      publishChange({
+        open: true,
+        textRouting: true,
+        planId: active.planId,
+        editorOpen: true,
+        error: null,
+        focusRequest: changeFocus("editor"),
+      });
+    },
+    backFromPlanChangeEditor() {
+      if (disposed || readChange().busy) return;
+      implicitPlanChangeRouting = false;
+      publishChange({
+        open: false,
+        textRouting: false,
+        editorOpen: false,
+        error: null,
+        focusRequest: changeFocus("change"),
+      });
+    },
+    async previewPlanChange(intent) {
+      const library = input.readPlanLibrary?.();
+      const active = library?.active;
+      if (disposed || readChange().busy || !active || changesPaused()) return;
+      const parameterCopy =
+        intent.kind === "text"
+          ? "Keep your change request to 500 characters or fewer."
+          : intent.kind === "choose-workout"
+            ? "This Workout is no longer eligible."
+            : intent.kind === "ftp"
+              ? "Enter FTP above zero."
+              : intent.kind === "supporting-event"
+                ? "eventId" in intent && !intent.eventId.trim()
+                  ? "Choose a Supporting Event already accepted in this Plan."
+                  : "Enter the event name and exact date."
+                : intent.kind === "weekly-duration"
+                  ? Number.isFinite(intent.hours) &&
+                    intent.hours > 0 &&
+                    !Number.isInteger(intent.hours * 4)
+                    ? "Enter weekly hours in quarter-hour steps, like 2.25."
+                    : "Enter a weekly duration above zero."
+                  : "day" in intent &&
+                      (!Number.isInteger(intent.day) || intent.day < 1 || intent.day > 7)
+                    ? "Choose the weekday to change."
+                    : intent.kind === "weekday-unavailable" || intent.kind === "hard-weekday"
+                      ? "Choose the weekday to change."
+                      : "Enter a duration above zero.";
+      const parsedIntent =
+        intent.kind === "text"
+          ? PlanChangeRequestSchema.options[1].safeParse(intent)
+          : PlanChangeIntentSchema.safeParse(intent);
+      if (!parsedIntent.success) {
+        publishChange({ error: parameterCopy });
+        return;
+      }
+      if (
+        previewAttempt?.planId !== active.planId ||
+        JSON.stringify(
+          "request" in previewAttempt ? previewAttempt.request : previewAttempt.intent,
+        ) !== JSON.stringify(parsedIntent.data)
+      ) {
+        previewAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
+          planId: active.planId,
+          expectedVersion: active.version,
+          ...(parsedIntent.data.kind === "text"
+            ? { request: parsedIntent.data }
+            : { intent: parsedIntent.data }),
+        };
+      }
+      const previewEpoch = epoch;
+      publishChange({
+        busy: true,
+        textRouting: true,
+        planId: active.planId,
+        error: null,
+        notice: null,
+      });
+      try {
+        const result = await previewPlanChange(input.clients, previewAttempt);
+        if (disposed || epoch !== previewEpoch) return;
+        previewAttempt = null;
+        if (result.status === "rejected") {
+          if (result.reason === "unsupported-request") {
+            publishChange({ editorOpen: false, error: null, notice: result.explanation });
+            return;
+          }
+          if (result.reason === "sync-stale") {
+            publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
+          if (result.reason === "race-window") {
+            publishChange({
+              notice:
+                "Only training reductions are allowed during this race window. Training is unchanged.",
+            });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
+          if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
+            publishChange({ notice: "The latest Change is no longer eligible for Undo." });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
+          const rejectionCopy =
+            result.reason === "stale-version"
+              ? "This request used an older Plan revision. Request a fresh preview."
+              : result.reason === "invalid-intent"
+                ? (result.explanation ?? result.message ?? parameterCopy)
+                : "This Change could not be previewed. Training is unchanged.";
+          publishChange(
+            parsedIntent.data.kind === "text"
+              ? { editorOpen: false, error: null, notice: rejectionCopy }
+              : { error: rejectionCopy },
+          );
+          if (result.reason === "stale-version") {
+            await input.refreshPlanLibrary?.().catch(() => {});
+          }
+          return;
+        }
+        const superseded = library.changes.find(
+          (change) => change.changeId === result.change.supersedes,
+        );
+        publishChange({
+          open: true,
+          planId: active.planId,
+          editorOpen: false,
+          notice: superseded
+            ? `This preview supersedes “${superseded.title}”. Training is unchanged until confirmation.`
+            : "Review the exact changes before confirming.",
+        });
+        await input.refreshPlanLibrary?.().catch(() => {});
+        if (epoch !== previewEpoch) return;
+        publishChange({ focusRequest: changeFocus("preview") });
+      } catch (error) {
+        if (disposed || epoch !== previewEpoch) return;
+        publishChange({
+          error:
+            error instanceof CoachRpcRemoteError && parsedIntent.data.kind === "ftp"
+              ? error.message
+              : "The preview result could not be confirmed. The Plan library will show the current state after refresh.",
+        });
+        await input.refreshPlanLibrary?.().catch(() => {});
+      } finally {
+        if (!disposed) publishChange({ busy: false });
+      }
+    },
+    async applyPlanChange(decision) {
+      const library = input.readPlanLibrary?.();
+      const active = library?.active;
+      if (disposed || readChange().busy || !active || (decision === "apply" && changesPaused()))
+        return;
+      const pending = library.changes.find((change) => change.status === "pending");
+      const retry =
+        applyAttempt?.decision === decision &&
+        applyAttempt.planId === active.planId &&
+        (!pending || pending.changeId === applyAttempt.changeId)
+          ? applyAttempt
+          : null;
+      if (!pending && retry === null) {
+        publishChange({ notice: "This preview is no longer pending. Training is unchanged." });
+        return;
+      }
+      if (retry !== null) applyAttempt = retry;
+      else if (pending) {
+        applyAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
+          planId: active.planId,
+          changeId: pending.changeId,
+          expectedVersion: active.version,
+          decision,
+        };
+      }
+      if (applyAttempt === null) return;
+      publishChange({ busy: true, error: null, notice: null });
+      try {
+        const result = await applyPlanChange(input.clients, applyAttempt);
+        applyAttempt = null;
+        if (disposed) return;
+        if (result.status === "rejected") {
+          if (result.reason === "sync-stale") {
+            publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
+            await input.refreshPlanLibrary?.().catch(() => {});
+            return;
+          }
+          publishChange({
+            notice:
+              result.reason === "day-changed"
+                ? "The day changed while this choice was open. Request a fresh choice for today; no date was assigned."
+                : result.reason === "not-eligible"
+                  ? "This Workout is no longer eligible."
+                  : result.reason === "event-source-changed"
+                    ? "The synchronized event changed. Request a fresh preview before applying."
+                    : result.reason === "race-window"
+                      ? "Only training reductions are allowed in the current race window. This Change was not applied."
+                      : result.reason === "ftp-sources-changed"
+                        ? "The FTP sources changed. Request a fresh preview before applying this correction."
+                        : result.reason === "stale-version"
+                          ? "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed."
+                          : result.reason === "not-pending"
+                            ? "This preview is no longer pending. Training is unchanged."
+                            : "This Change could not be applied. Training and the pending preview are unchanged.",
+          });
+          if (
+            result.reason === "stale-version" ||
+            result.reason === "not-pending" ||
+            result.reason === "race-window" ||
+            result.reason === "ftp-sources-changed" ||
+            result.reason === "event-source-changed" ||
+            result.reason === "day-changed" ||
+            result.reason === "not-eligible"
+          ) {
+            await input.refreshPlanLibrary?.().catch(() => {});
+          }
+          return;
+        }
+        publishChange({
+          open: true,
+          planId: active.planId,
+          editorOpen: false,
+          notice:
+            result.status === "applied"
+              ? "Change applied locally. Training now matches the confirmed preview."
+              : "Change cancelled. Training is unchanged; the preview remains in history.",
+        });
+        await input.refreshPlanLibrary?.().catch(() => {});
+        implicitPlanChangeRouting = true;
+        publishChange({ textRouting: false, focusRequest: changeFocus("change") });
+      } catch {
+        publishChange({
+          notice:
+            "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
+        });
+        await input.refreshPlanLibrary?.().catch(() => {});
+      } finally {
+        publishChange({ busy: false });
+      }
+    },
     start() {
       return start();
     },
@@ -1504,7 +2189,32 @@ export function createChatController(input: {
       }
       finishAttachmentWrite(ownership.token);
     },
-    submit(message, attachmentIds = []) {
+    async submit(message, attachmentIds = []) {
+      const submittedTextRevision = attachmentTextRevision;
+      const submittedAttachmentGeneration = attachmentGeneration;
+      await waitForPlanningRequestLoad();
+      if (
+        message.trim().toLowerCase() === "/plan" &&
+        attachmentIds.length === 0 &&
+        canChat() &&
+        queueLoaded &&
+        !disposed &&
+        !resetBlocksWork() &&
+        !decisionBlocksWork()
+      ) {
+        if (planCreation === null) await controller.startPlanCreation();
+        else if (planCreationPaused) controller.continuePlanCreation();
+        else return false;
+        if (planCreation === null) return false;
+        if (
+          attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+          submittedTextRevision === attachmentTextRevision
+        ) {
+          saveAttachmentDraftText("");
+          await attachmentTextSaveTask;
+        }
+        return true;
+      }
       if (
         !canChat() ||
         !queueLoaded ||
@@ -1512,9 +2222,71 @@ export function createChatController(input: {
         (/^\s*\//u.test(message) && attachmentIds.length > 0) ||
         disposed ||
         resetBlocksWork() ||
-        decisionBlocksWork()
+        decisionBlocksWork() ||
+        planCreationBlocksWork()
       ) {
         return Promise.resolve(false);
+      }
+      const changeSurface = readChange();
+      if (routesTextToPlanChange() && attachmentIds.length === 0) {
+        if (changeSurface.busy) return false;
+        if (changesPaused()) {
+          publishChange({ notice: PLAN_CHANGES_PAUSED_NOTICE });
+          return false;
+        }
+        publishChange({ busy: true, error: null, notice: null });
+        reduce({ type: "append-athlete-message", id: nextId("message"), text: message });
+        if (
+          attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+          submittedTextRevision === attachmentTextRevision
+        ) {
+          controller.saveAttachmentDraftText("");
+          await attachmentTextSaveTask;
+        }
+        publishChange({ busy: false });
+        await controller.previewPlanChange({ kind: "text", text: message });
+        return true;
+      }
+      if (
+        attachmentIds.length === 0 &&
+        message.length > 0 &&
+        message.length <= 2_000 &&
+        acceptsCommitmentMessage() &&
+        !routesTextToPlanChange()
+      ) {
+        if (planCreationBusy) return false;
+        const submittedCreation = planCreation;
+        planCreationBusy = true;
+        render();
+        let interpretation;
+        try {
+          interpretation = await (
+            await input.clients.getClient()
+          ).call("plan_creation.interpretCommitments", { text: message });
+        } catch {
+          planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+          return false;
+        } finally {
+          planCreationBusy = false;
+          render();
+        }
+        if (disposed || planCreation !== submittedCreation || routesTextToPlanChange())
+          return false;
+        if (interpretation.status === "confirm") {
+          await answerPlanCreation({
+            kind: "commitments",
+            commitments: { kind: "interpreted", text: message },
+          });
+          if (planCreationError !== null) return false;
+          if (
+            attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+            submittedTextRevision === attachmentTextRevision
+          ) {
+            saveAttachmentDraftText("");
+            await attachmentTextSaveTask;
+          }
+          return true;
+        }
       }
       const ownership = beginAttachmentWrite(false);
       if (ownership === null) return Promise.resolve(false);
@@ -1547,6 +2319,7 @@ export function createChatController(input: {
               attachmentSurface =
                 attachmentSurface === null ? null : { ...attachmentSurface, draft: null };
             }
+            planCreationNotice = null;
             applyQueueSnapshot(acknowledged);
             void drain();
             void refreshAttachments(client, ownership.generation, false);
@@ -1571,45 +2344,7 @@ export function createChatController(input: {
       if (disposed || resetBlocksWork() || attachmentBusyTokens.size > 0) return;
       receiveAdmissions(results);
     },
-    saveAttachmentDraftText(text) {
-      const ownership = beginAttachmentWrite(false);
-      if (ownership === null) return;
-      const textRevision = ++attachmentTextRevision;
-      let surfaceRevision = attachmentSurfaceRevision;
-      const task = attachmentTextSaveTask
-        .then(async () => {
-          try {
-            const client = await input.clients.getClient();
-            surfaceRevision = claimAttachmentSurface();
-            const surface = await client.call("saveChatAttachmentDraftText", {
-              chatId: DESKTOP_CHAT_ID,
-              text,
-            });
-            if (
-              !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
-              textRevision !== attachmentTextRevision
-            ) {
-              return;
-            }
-            attachmentSurface = surface;
-            attachmentError = null;
-            render();
-          } catch {
-            if (
-              !attachmentSurfaceIsCurrent(ownership.generation, surfaceRevision) ||
-              textRevision !== attachmentTextRevision
-            ) {
-              return;
-            }
-            attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
-            render();
-          }
-        })
-        .finally(() => {
-          finishAttachmentWrite(ownership.token);
-        });
-      attachmentTextSaveTask = task;
-    },
+    saveAttachmentDraftText,
     removeAttachment(attachmentId) {
       void mutateAttachment((client) =>
         client.call("removeChatAttachment", { chatId: DESKTOP_CHAT_ID, attachmentId }),
@@ -1734,21 +2469,25 @@ export function createChatController(input: {
       }
       planningRequestError = null;
       render();
-      void recoverPlanningRequests().catch(() => {
-        if (disposed) return;
-        planningRequestsLoaded = false;
-        planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-        render();
-      });
+      void trackPlanningRequestLoad(
+        recoverPlanningRequests().catch(() => {
+          if (disposed) return;
+          planningRequestsLoaded = false;
+          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
+          render();
+        }),
+      );
     },
     refreshPlanningRequests() {
       if (disposed || planningRequestBusyId !== null) return;
-      void loadPlanningRequests().catch(() => {
-        if (disposed) return;
-        planningRequestsLoaded = false;
-        planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
-        render();
-      });
+      void trackPlanningRequestLoad(
+        loadPlanningRequests().catch(() => {
+          if (disposed) return;
+          planningRequestsLoaded = false;
+          planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
+          render();
+        }),
+      );
     },
     focusPlanningRequest(requestId) {
       if (disposed) return;
@@ -1759,6 +2498,423 @@ export function createChatController(input: {
       if (disposed || planningRequestFocusId === null) return;
       planningRequestFocusId = null;
       render();
+    },
+    resumeCreation(model) {
+      if (disposed || planCreationBusy) return;
+      installPlanCreation(model);
+      planCreationLoaded = true;
+      planCreationEditingKey = null;
+      clearPlanCreationPause();
+      implicitPlanChangeRouting = false;
+      publishChange({ textRouting: false });
+      planCreationPaused = false;
+      planCreationFocusRevision += 1;
+      if (planCreation?.draft !== null && planCreation?.draft !== undefined) {
+        requestPlanCreationFocus("activate");
+      }
+      render();
+    },
+    async continueCreationFromLibrary(creationId) {
+      if (disposed || planCreationBusy) return;
+      planCreationBusy = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+      try {
+        const result = await (
+          await input.clients.getClient()
+        ).call("listPlanningRequests", {
+          chatId: DESKTOP_CHAT_ID,
+        });
+        if (disposed) return;
+        if (result.planCreation?.creationId !== creationId) {
+          planCreationNotice = CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY;
+          render();
+          await input.refreshPlan?.();
+          if (disposed) return;
+          installPlanCreation(result.planCreation);
+          planCreationLoaded = true;
+          return;
+        }
+        input.openChat?.();
+        installPlanCreation(result.planCreation);
+        planCreationLoaded = true;
+        planCreationEditingKey = null;
+        clearPlanCreationPause();
+        implicitPlanChangeRouting = false;
+        publishChange({ textRouting: false });
+        planCreationPaused = false;
+        planCreationFocusRevision += 1;
+        if (result.planCreation.draft !== null) requestPlanCreationFocus("activate");
+        render();
+      } catch {
+        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      } finally {
+        planCreationBusy = false;
+        render();
+      }
+    },
+    async startPlanCreation() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        !planCreationLoaded ||
+        planCreation !== null ||
+        decisionBlocksWork()
+      ) {
+        return;
+      }
+      planCreationBusy = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+      try {
+        const result = await (
+          await input.clients.getClient()
+        ).call("plan_creation.start", {
+          commandId: planCommandId("start"),
+        });
+        pendingPlanCreationCommand = null;
+        if (result.status === "started") installPlanCreation(result.planCreation);
+        else planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      } catch {
+        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      } finally {
+        planCreationBusy = false;
+        render();
+      }
+    },
+    async buildPlanCreationDraft() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        planCreationDiscardConfirmationOpen ||
+        planCreationActivateConfirmationOpen ||
+        planCreation === null ||
+        planCreation.readiness !== "ready" ||
+        planCreation.pendingCommitment !== null ||
+        planCreationEditingKey !== null
+      )
+        return;
+      const creationId = planCreation.creationId;
+      const expectedVersion = planCreation.version;
+      const key = JSON.stringify({ operation: "preview", creationId, expectedVersion });
+      planCreationBusy = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+      try {
+        const result = await (
+          await input.clients.getClient()
+        ).call("plan_creation.preview", {
+          commandId: planCommandId(key),
+          creationId,
+          expectedVersion,
+        });
+        pendingPlanCreationCommand = null;
+        installPlanCreation(result.planCreation);
+        if (result.status === "rejected" && result.reason === "commitments-pending") {
+          planCreationError = result.explanation;
+          await loadPlanningRequests().catch(() => {});
+        } else if (result.status === "rejected") {
+          planCreationNotice =
+            result.reason === "no-workouts"
+              ? "No Workouts fit anywhere in this Plan under your confirmed limits. Edit those limits to continue."
+              : result.reason === "not-ready"
+                ? "Answer the remaining question before building."
+                : result.reason === "stale-version"
+                  ? "The answers changed. Start a fresh build."
+                  : "Build failed. Your answers and last complete Draft are preserved.";
+        }
+      } catch (error) {
+        if (
+          error instanceof CoachRpcRemoteError &&
+          error.data !== null &&
+          typeof error.data === "object" &&
+          "code" in error.data &&
+          error.data.code === "commitments-pending"
+        ) {
+          pendingPlanCreationCommand = null;
+          planCreationError = error.message;
+          await loadPlanningRequests().catch(() => {});
+        } else {
+          planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
+        }
+      } finally {
+        planCreationBusy = false;
+        render();
+      }
+    },
+    answerPlanCreation,
+    pausePlanCreation() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        planCreation === null ||
+        planCreationPaused ||
+        (planCreationEditingKey === null && planCreation.openQuestion === null)
+      )
+        return;
+      planCreationEditingKey = null;
+      planCreationEditReturnPaused = false;
+      if (planCreation?.openQuestion !== null && planCreation?.openQuestion !== undefined) {
+        writePlanCreationPause({
+          creationId: planCreation.creationId,
+          answerKey: planCreationQuestionKey(planCreation.openQuestion),
+        });
+        planCreationPaused = true;
+      } else {
+        clearPlanCreationPause();
+        planCreationPaused = false;
+      }
+      render();
+      if (!decisionBlocksWork()) void drain();
+    },
+    continuePlanCreation() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        planCreation === null ||
+        !planCreationPaused ||
+        planCreation.openQuestion === null
+      ) {
+        return;
+      }
+      clearPlanCreationPause();
+      implicitPlanChangeRouting = false;
+      publishChange({ textRouting: false });
+      planCreationPaused = false;
+      planCreationFocusRevision += 1;
+      render();
+    },
+    editPlanCreation(answerKey) {
+      if (
+        disposed ||
+        planCreationBusy ||
+        planCreation === null ||
+        (!(answerKey === "commitments" && planCreation.pendingCommitment !== null) &&
+          !planCreation.answeredSummaries.some((summary) => summary.answerKey === answerKey))
+      ) {
+        return;
+      }
+      planCreationEditReturnPaused = planCreationPaused;
+      planCreationEditingKey = answerKey;
+      planCreationPaused = false;
+      planCreationFocusRevision += 1;
+      render();
+    },
+    cancelPlanCreationEdit(returnFocus) {
+      if (disposed || planCreationBusy || (planCreationEditingKey === null && !returnFocus)) return;
+      if (planCreationEditingKey !== null) {
+        planCreationEditingKey = null;
+        planCreationPaused = planCreationEditReturnPaused;
+        planCreationEditReturnPaused = false;
+        planCreationFocusRevision += 1;
+      }
+      if (returnFocus) requestPlanCreationFocus(returnFocus);
+      render();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+    },
+    openPlanCreationDiscard() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        !planCreationLoaded ||
+        planCreation === null ||
+        planCreationDiscardConfirmationOpen ||
+        planCreationActivateConfirmationOpen
+      ) {
+        return;
+      }
+      planCreationDiscardConfirmationOpen = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+    },
+    cancelPlanCreationDiscard() {
+      if (disposed || planCreationBusy || !planCreationDiscardConfirmationOpen) return;
+      planCreationDiscardConfirmationOpen = false;
+      requestPlanCreationFocus("discard");
+      render();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+    },
+    async confirmPlanCreationDiscard() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        !planCreationDiscardConfirmationOpen ||
+        planCreation === null
+      ) {
+        return;
+      }
+      const target = planCreation;
+      const key = JSON.stringify({
+        action: "discard",
+        creationId: target.creationId,
+        expectedVersion: target.version,
+      });
+      planCreationBusy = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+      try {
+        const result = await (
+          await input.clients.getClient()
+        ).call("plan_creation.discard", {
+          commandId: planCommandId(key),
+          creationId: target.creationId,
+          expectedVersion: target.version,
+        });
+        pendingPlanCreationCommand = null;
+        planCreationDiscardConfirmationOpen = false;
+        if (result.status === "discarded") {
+          input.openChat?.();
+          installPlanCreation(null, "start");
+          if (!planCreationDiscardEvents.some((event) => event.eventId === target.creationId)) {
+            planCreationDiscardEvents = [
+              ...planCreationDiscardEvents,
+              { eventId: target.creationId, afterMessageId: latestMessageId() },
+            ];
+          }
+        } else {
+          installPlanCreation(
+            result.planCreation,
+            result.planCreation === null ? "start" : "discard",
+          );
+          planCreationNotice = planCreationDiscardNotice(result.reason);
+        }
+      } catch {
+        planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
+      } finally {
+        planCreationBusy = false;
+        render();
+        if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+      }
+    },
+    async openPlanCreationActivate() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        !planCreationLoaded ||
+        planCreationDiscardConfirmationOpen ||
+        planCreationActivateConfirmationOpen ||
+        planCreation === null ||
+        planCreation.draft === null ||
+        planCreation.draftStale ||
+        planCreation.pendingCommitment !== null ||
+        !planCreation.draft.weeks.some((week) => week.workouts.length > 0)
+      )
+        return;
+      const knowledge: ActivePlanKnowledge = { kind: "unknown" };
+      activePlanKnowledge = knowledge;
+      planCreationBusy = true;
+      planCreationError = null;
+      planCreationNotice = null;
+      render();
+      try {
+        const result = await (await input.clients.getClient()).call("getPlanState", {});
+        if (disposed || activePlanKnowledge !== knowledge) return;
+        if (result.status !== "ready") throw new Error("plan-state-unavailable");
+        activePlanKnowledge =
+          result.state.lifecycle === "active"
+            ? {
+                kind: "active",
+                name: PlanActiveProjectionDataSchema.parse(result.state.data).plan.name,
+              }
+            : { kind: "none" };
+        planCreationActivateConfirmationOpen = true;
+      } catch {
+        if (disposed || activePlanKnowledge !== knowledge) return;
+        planCreationError =
+          "The current Plan could not be read. Refresh the Plan library before activating.";
+      }
+      planCreationBusy = false;
+      render();
+    },
+    cancelPlanCreationActivate() {
+      if (disposed || planCreationBusy || !planCreationActivateConfirmationOpen) return;
+      planCreationActivateConfirmationOpen = false;
+      planCreationError = null;
+      requestPlanCreationFocus("activate");
+      render();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
+    },
+    async confirmPlanCreationActivate() {
+      if (
+        disposed ||
+        planCreationBusy ||
+        !planCreationActivateConfirmationOpen ||
+        activePlanKnowledge.kind === "unknown" ||
+        planCreation === null
+      )
+        return;
+      const library = input.readPlanLibrary?.();
+      if (library == null) {
+        planCreationError = "Read the Plan library and confirm again.";
+        render();
+        return;
+      }
+      const incumbent =
+        library.active === null
+          ? null
+          : { planId: library.active.planId, version: library.active.version };
+      const target = planCreation;
+      if (
+        activationAttempt?.creationId !== target.creationId ||
+        activationAttempt.expectedVersion !== target.version
+      ) {
+        activationAttempt = {
+          commandId: globalThis.crypto.randomUUID(),
+          creationId: target.creationId,
+          expectedVersion: target.version,
+          incumbent,
+        };
+      }
+      planCreationBusy = true;
+      planCreationError = null;
+      render();
+      try {
+        await (await input.clients.getClient()).call("plan_creation.activate", activationAttempt);
+        activationAttempt = null;
+      } catch (error) {
+        const rejection =
+          error instanceof CoachRpcRemoteError &&
+          error.data !== null &&
+          typeof error.data === "object" &&
+          "code" in error.data
+            ? error.data.code
+            : null;
+        if (rejection === "commitments-pending" && error instanceof CoachRpcRemoteError) {
+          activationAttempt = null;
+          planCreationActivateConfirmationOpen = false;
+          planCreationError = error.message;
+          await loadPlanningRequests().catch(() => {});
+        } else if (
+          rejection === "version-conflict" ||
+          rejection === "not-ready" ||
+          rejection === "command-conflict"
+        ) {
+          activationAttempt = null;
+          planCreationError =
+            rejection === "version-conflict"
+              ? "The Plan changed. Read the Plan library and confirm again."
+              : "Activation could not be saved locally. Your previous Plan is unchanged.";
+        } else {
+          planCreationError =
+            "The activation result could not be confirmed. The Plan library will show the current state after refresh.";
+        }
+        await input.refreshPlanLibrary?.().catch(() => {});
+        planCreationBusy = false;
+        render();
+        return;
+      }
+      planCreationActivateConfirmationOpen = false;
+      installPlanCreation(null, "start");
+      planCreationNotice = "Plan activated locally.";
+      planCreationBusy = false;
+      render();
+      await input.refreshPlan?.();
+      if (!planCreationBlocksWork() && !decisionBlocksWork()) void drain();
     },
     stop() {
       if (disposed || state.status !== "streaming" || state.activeTurn === null) return;
@@ -1807,6 +2963,7 @@ export function createChatController(input: {
         !queueLoaded ||
         resetBlocksWork() ||
         decisionBlocksWork() ||
+        planCreationBlocksWork() ||
         state.status !== "idle"
       ) {
         return activeTask ?? Promise.resolve();
@@ -1825,6 +2982,7 @@ export function createChatController(input: {
         !queueLoaded ||
         resetBlocksWork() ||
         decisionBlocksWork() ||
+        planCreationBlocksWork() ||
         (state.status !== "idle" && state.status !== "interrupted")
       ) {
         return activeTask ?? Promise.resolve();
@@ -1849,7 +3007,8 @@ export function createChatController(input: {
         state.status !== "interrupted" ||
         state.retryRequired != null ||
         state.activeTurn === null ||
-        resetBlocksWork()
+        resetBlocksWork() ||
+        planCreationBlocksWork()
       ) {
         return activeTask ?? Promise.resolve();
       }
@@ -1869,7 +3028,8 @@ export function createChatController(input: {
             !canChat() ||
             disposed ||
             state.status !== "interrupted" ||
-            state.activeTurn?.requestKey !== requestKey
+            state.activeTurn?.requestKey !== requestKey ||
+            planCreationBlocksWork()
           ) {
             return;
           }
@@ -1921,7 +3081,7 @@ export function createChatController(input: {
       await task.finally(() => {
         if (decisionLoadTask === task) decisionLoadTask = undefined;
         render();
-        if (!decisionBlocksWork()) void drain();
+        if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
       });
     },
     openNewConversation() {
@@ -2000,6 +3160,9 @@ export function createChatController(input: {
           decisionAnswerLabel = null;
           decisionError = null;
           attachmentSummaries.clear();
+          planCreationDiscardEvents = [];
+          implicitPlanChangeRouting = false;
+          publishChange(EMPTY_PLAN_CHANGE_SURFACE);
           updateReset(() => hydrator.resetSucceeded(), {
             type: "reset-succeeded",
             announcement: result.memoryFlushed
@@ -2074,7 +3237,7 @@ export function createChatController(input: {
         decisionError = CHAT_DECISION_SKIP_FAILURE_COPY;
       }
       render();
-      if (!decisionBlocksWork()) void drain();
+      if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
     },
     dispose() {
       disposed = true;
@@ -2094,4 +3257,5 @@ export function createChatController(input: {
       sequence += 1;
     },
   };
+  return controller;
 }

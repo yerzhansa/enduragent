@@ -277,9 +277,12 @@ async function verifyMirrorItems(
   deps: PlanReconcilerDeps,
   job: PlanReconciliationJobRecord,
   grouped: ReadonlyMap<string, readonly PlanMirrorEvent[]>,
+  firstEligibleDateKey = Number.NEGATIVE_INFINITY,
 ): Promise<void> {
   for (const item of await deps.repository.readItems(job.id)) {
-    const matches = grouped.get(item.externalId) ?? [];
+    const matches = (grouped.get(item.externalId) ?? []).filter(
+      (event) => item.operation !== "delete" || event.dateKey >= firstEligibleDateKey,
+    );
     if (item.operation === "delete" && matches.length === 0) {
       await deps.repository.verifyItem(item.id, null, deps.now());
     } else if (
@@ -299,11 +302,16 @@ export async function reconcileActivePlanWindow(
     readonly plan: PlanRecord;
     readonly workouts: readonly PlanWorkoutRecord[];
     readonly todayDateKey: number;
+    readonly firstEligibleDateKey?: number;
   },
   deps: PlanReconcilerDeps,
 ): Promise<PlanReconciliationProjection> {
   if (input.plan.status !== "active") throw new PlanReconciliationError("plan-not-active");
   const windowEndDateKey = addCivilDays(input.todayDateKey, PLAN_MIRROR_DAYS - 1);
+  const firstEligibleDateKey = Math.max(
+    input.todayDateKey,
+    input.firstEligibleDateKey ?? input.todayDateKey,
+  );
   const now = deps.now();
   const job = await deps.repository.createOrGetJob({
     id: deps.identity.newId(),
@@ -317,7 +325,7 @@ export async function reconcileActivePlanWindow(
     if (workout.planId !== input.plan.id) throw new PlanReconciliationError("invalid-workout");
     return (
       workout.origin === "coach" &&
-      workout.dateKey >= input.todayDateKey &&
+      workout.dateKey >= firstEligibleDateKey &&
       workout.dateKey <= windowEndDateKey
     );
   });
@@ -354,24 +362,20 @@ export async function reconcileActivePlanWindow(
   const prefix = planMirrorExternalIdPrefix(input.plan.id);
   for (const [externalId, events] of before) {
     if (!externalId.startsWith(prefix) || selectedExternalIds.has(externalId)) continue;
+    const eligible = events.filter((event) => event.dateKey >= firstEligibleDateKey);
+    if (eligible.length === 0) continue;
     const workoutId = externalId.slice(prefix.length);
     if (!ULID.test(workoutId)) continue;
     const workout = workoutById.get(workoutId);
-    if (
-      workout !== undefined &&
-      (workout.origin !== "coach" ||
-        (workout.dateKey >= input.todayDateKey && workout.dateKey <= windowEndDateKey))
-    ) {
-      continue;
-    }
+    if (workout !== undefined && workout.origin !== "coach") continue;
     await deps.repository.prepareItem({
       id: deps.identity.newId(),
       jobId: job.id,
       planWorkoutId: null,
       operation: "delete",
-      dateKey: events[0]!.dateKey,
+      dateKey: eligible[0]!.dateKey,
       externalId,
-      expectedJson: JSON.stringify(events.map((event) => ({ eventId: event.id }))),
+      expectedJson: JSON.stringify(eligible.map((event) => ({ eventId: event.id }))),
       createdAtMs: deps.now(),
     });
   }
@@ -379,13 +383,18 @@ export async function reconcileActivePlanWindow(
   for (const item of await deps.repository.readItems(job.id)) {
     const matches = before.get(item.externalId) ?? [];
     if (item.operation === "delete") {
-      if (matches.length === 0) {
+      if (selectedExternalIds.has(item.externalId)) {
+        await deps.repository.deleteItem(item.id);
+        continue;
+      }
+      const eligible = matches.filter((event) => event.dateKey >= firstEligibleDateKey);
+      if (eligible.length === 0) {
         await deps.repository.verifyItem(item.id, null, deps.now());
         continue;
       }
       await deps.repository.startItem(item.id, deps.now());
       let failed = false;
-      for (const event of matches) {
+      for (const event of eligible) {
         try {
           await deps.calendar.deleteEvent({ eventId: event.id });
         } catch {
@@ -395,13 +404,16 @@ export async function reconcileActivePlanWindow(
       if (failed) await deps.repository.failItem(item.id, "calendar-delete-failed", deps.now());
       continue;
     }
+    const workout =
+      item.planWorkoutId === null ? undefined : selectedWorkoutById.get(item.planWorkoutId);
+    if (workout === undefined) {
+      await deps.repository.deleteItem(item.id);
+      continue;
+    }
     if (matches.length > 1) {
       await deps.repository.failItem(item.id, "calendar-verification-failed", deps.now());
       continue;
     }
-    const workout =
-      item.planWorkoutId === null ? undefined : selectedWorkoutById.get(item.planWorkoutId);
-    if (workout === undefined) throw new PlanReconciliationError("invalid-workout");
     if (matches.length === 1) {
       if (canVerifyMirrorEvent(item, matches[0]!)) {
         await deps.repository.verifyItem(item.id, matches[0]!.id, deps.now());
@@ -468,7 +480,7 @@ export async function reconcileActivePlanWindow(
     }
     return failListedJob(deps, running);
   }
-  await verifyMirrorItems(deps, job, after);
+  await verifyMirrorItems(deps, job, after, firstEligibleDateKey);
   return finishJob(deps, running);
 }
 

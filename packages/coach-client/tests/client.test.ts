@@ -2,6 +2,7 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { WebSocketServer, type WebSocket as ServerWebSocket } from "ws";
 import {
   COACH_RPC_METHOD_REGISTRY,
+  PLAN_CHANGE_TRANSLATION_BUDGET_MS,
   PROTOCOL_VERSION,
   createAcceptedServerHandshakeFrame,
   createVersionMismatchServerHandshakeFrame,
@@ -124,6 +125,34 @@ const rpcDeadlineCases = [
   ["getArchivedTranscriptPage", { boundaryRef: "a".repeat(64), cursor: null, limit: 25 }, 30_000],
   ["getAthleteState", {}, 30_000],
   ["getPlanningReadModel", {}, 30_000],
+  ["plan.list", {}, 30_000],
+  [
+    "plan.close",
+    { commandId: "close-1", planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", expectedVersion: 1 },
+    30_000,
+  ],
+  [
+    "plan_change.preview",
+    {
+      commandId: "change-preview",
+      planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      expectedVersion: 1,
+      intent: { kind: "longest-workout", minutes: 60 },
+    },
+    60_000,
+  ],
+  [
+    "plan_change.apply",
+    {
+      commandId: "change-apply",
+      planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      changeId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+      expectedVersion: 1,
+      decision: "apply",
+    },
+    30_000,
+  ],
+  ["plan.history", { planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV" }, 30_000],
   [
     "getActivityAnalysis",
     { canonicalActivityId: "a".repeat(64), sections: ["aerobic-drift"] },
@@ -223,6 +252,46 @@ const rpcDeadlineCases = [
   ["retryPlanningRequest", { requestId: "request-1" }, 30_000],
   ["resumePlanningRequests", {}, 30_000],
   ["listPlanningRequests", { chatId: "chat-1" }, 30_000],
+  ["plan_creation.interpretCommitments", { text: "Wed 45 min" }, 30_000],
+  ["plan_creation.start", { commandId: "plan-start" }, 30_000],
+  [
+    "plan_creation.answer",
+    {
+      commandId: "plan-answer",
+      creationId: "00000000000000000000000000",
+      expectedVersion: 1,
+      answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build power" } },
+    },
+    30_000,
+  ],
+  [
+    "plan_creation.preview",
+    {
+      commandId: "plan-preview",
+      creationId: "00000000000000000000000000",
+      expectedVersion: 1,
+    },
+    30_000,
+  ],
+  [
+    "plan_creation.discard",
+    {
+      commandId: "plan-discard",
+      creationId: "00000000000000000000000000",
+      expectedVersion: 1,
+    },
+    30_000,
+  ],
+  [
+    "plan_creation.activate",
+    {
+      commandId: "plan-activate",
+      incumbent: null,
+      creationId: "00000000000000000000000000",
+      expectedVersion: 1,
+    },
+    30_000,
+  ],
 ] as const satisfies ReadonlyArray<readonly [CoachRpcMethodName, unknown, number]>;
 
 class ControllableSocket extends EventTarget {
@@ -993,6 +1062,19 @@ describe("RPC receive and observers", () => {
           plannedWorkouts: [],
           wellness: {},
         },
+        "plan.list": {
+          calendarConnected: false,
+          changesPaused: null,
+          legacy: null,
+          creation: null,
+          active: null,
+          closed: [],
+          changes: [],
+        },
+        "plan.close": { status: "rejected", reason: "no-active-plan" },
+        "plan_change.preview": { status: "rejected", reason: "no-active-plan" },
+        "plan_change.apply": { status: "rejected", reason: "no-active-plan" },
+        "plan.history": null,
         getPlanningReadModel: {
           schemaVersion: 1,
           status: "no-plan",
@@ -1176,7 +1258,26 @@ describe("RPC receive and observers", () => {
         getPlanningRequest: { status: "missing" },
         retryPlanningRequest: { status: "missing" },
         resumePlanningRequests: { deliveries: [] },
-        listPlanningRequests: { deliveries: [] },
+        listPlanningRequests: { deliveries: [], planCreation: null },
+        "plan_creation.interpretCommitments": { rules: [], unparsed: ["busy"], status: "clarify" },
+        "plan_creation.start": { status: "rejected", reason: "command-conflict" },
+        "plan_creation.answer": {
+          status: "rejected",
+          reason: "no-unfinished-creation",
+          planCreation: null,
+        },
+        "plan_creation.preview": {
+          status: "rejected",
+          reason: "not-ready",
+          planCreation: null,
+        },
+        "plan_creation.discard": { status: "discarded" },
+        "plan_creation.activate": {
+          creationId: "01J00000000000000000000000",
+          planId: "01J00000000000000000000001",
+          closedPlanId: null,
+          activatedAt: "1998-09-07",
+        },
       };
       socket.emitMessage(
         serializeCoachRpcEnvelope({
@@ -2039,6 +2140,35 @@ describe("disconnect, close, and send bounds", () => {
       expect(socket.closeCalls).toHaveLength(1);
     },
   );
+
+  it("keeps a preview connection open through the full translation budget", async () => {
+    vi.useFakeTimers();
+    const { socket, connecting } = acceptedSocket();
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const preview = client.call("plan_change.preview", {
+      commandId: "change-preview",
+      planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      expectedVersion: 1,
+      request: { kind: "text", text: "make the long ride shorter" },
+    });
+
+    await vi.advanceTimersByTimeAsync(PLAN_CHANGE_TRANSLATION_BUDGET_MS);
+    expect(socket.closeCalls).toEqual([]);
+    const request = parseCoachRpcEnvelope(socket.sent.at(-1)!);
+    if (!("id" in request)) throw new Error("Expected a preview request");
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: { status: "rejected", reason: "no-active-plan" },
+      }),
+    );
+    await expect(preview).resolves.toEqual({ status: "rejected", reason: "no-active-plan" });
+    expect(socket.closeCalls).toEqual([]);
+    socket.closeSynchronously = true;
+    await client.close();
+  });
 
   it("lets a response just before the deadline win and times out at the exact boundary", async () => {
     vi.useFakeTimers();

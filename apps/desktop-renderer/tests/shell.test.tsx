@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Shell } from "../src/app/Shell";
+import { loadSettingsView } from "../src/app/views";
 import type { OnboardingController } from "../src/onboarding/controller";
 import type { CredentialSettingsState } from "../src/settings/credential-controller";
 import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
@@ -24,7 +25,7 @@ import {
   requestTrainingRestrictionFocus,
   takeTrainingRestrictionFocusRequest,
 } from "../src/ui/settings/restriction-focus";
-import { planReadModel } from "./plan-fixtures";
+import { emptyPlanLibrary, planReadModel } from "./plan-fixtures";
 
 const REPAIR_REQUIRED_CREDENTIALS: CredentialSettingsState = {
   status: "ready",
@@ -99,6 +100,10 @@ const SELECTED_RIDE_HISTORY = {
 
 function stubActions(): ChatActions {
   return {
+    openPlanChangeEditor: vi.fn(),
+    backFromPlanChangeEditor: vi.fn(),
+    previewPlanChange: vi.fn(),
+    applyPlanChange: vi.fn(),
     submit: vi.fn(),
     chooseAttachments: vi.fn(),
     pasteAttachment: vi.fn(),
@@ -113,6 +118,19 @@ function stubActions(): ChatActions {
     retryPlanningRequest: vi.fn(),
     retryPlanningRequestLoad: vi.fn(),
     clearPlanningRequestFocus: vi.fn(),
+    startPlanCreation: vi.fn(),
+    buildPlanCreationDraft: vi.fn(),
+    answerPlanCreation: vi.fn(),
+    pausePlanCreation: vi.fn(),
+    continuePlanCreation: vi.fn(),
+    editPlanCreation: vi.fn(),
+    cancelPlanCreationEdit: vi.fn(),
+    openPlanCreationDiscard: vi.fn(),
+    cancelPlanCreationDiscard: vi.fn(),
+    confirmPlanCreationDiscard: vi.fn(),
+    openPlanCreationActivate: vi.fn(),
+    cancelPlanCreationActivate: vi.fn(),
+    confirmPlanCreationActivate: vi.fn(),
     stop: vi.fn(),
     removeQueued: vi.fn(),
     runQueuedCommand: vi.fn(),
@@ -230,7 +248,7 @@ async function preloadLazyViews(): Promise<void> {
     import("../src/ui/archive/ArchiveView"),
     import("../src/ui/training/TrainingView"),
     import("../src/ui/plan/PlanView"),
-    import("../src/ui/settings/SettingsView"),
+    loadSettingsView(),
   ]);
 }
 
@@ -251,6 +269,7 @@ describe("shell", () => {
       onboardingActions: null,
       onboardingStartupSettled: true,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planActions: stubPlanActions(),
       settings: {
         ...useEnduragentStore.getState().settings,
@@ -271,6 +290,7 @@ describe("shell", () => {
       onboardingActions: null,
       onboardingStartupSettled: false,
       plan: EMPTY_PLAN_SURFACE,
+      planLibrary: { status: "loading", value: null },
       planActions: null,
       settings: {
         ...useEnduragentStore.getState().settings,
@@ -338,13 +358,17 @@ describe("shell", () => {
           hydration: { status: "ready", state: planState },
           lastReady: planState,
         },
+        planLibrary: { status: "ready", value: emptyPlanLibrary() },
       });
     });
     await user.click(screen.getByRole("button", { name: "Plan" }));
     expect(await screen.findByRole("region", { name: "Plan" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Train toward one clear goal" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No active Plan", level: 3 })).toBeInTheDocument();
+    expect(screen.getByText("Create a Plan when you are ready.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start a Plan" })).toHaveAttribute(
+      "id",
+      "start-plan",
+    );
     expect(document.querySelector("div.thread")).not.toBeNull();
     const conversation = screen.getByLabelText("Coaching conversation");
     expect(conversation.closest(".hidden")).not.toBeNull();

@@ -5,12 +5,23 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import {
+  ListPlansResultSchema,
+  PlanCreationInterpretCommitmentsRpcResultSchema,
+  PlanCloseResultSchema,
+  PlanChangePreviewResultSchema,
+  PlanChangeApplyResultSchema,
+  PlanHistoryResultSchema,
+} from "@enduragent/coach-contract";
 import type {
   CoachEngine,
   CoachOperations,
   SpendOperations,
   OperationProgressEvent,
+  PlanCreationOperations,
+  PlanChangeOperations,
   PlanningOperations,
+  PlanningReadOperations,
   PlanningRequestOperations,
   PlanProgressEvent,
   TelegramControlSnapshot,
@@ -22,6 +33,7 @@ import type { DesktopTelegramController } from "../../../../packages/coach/src/d
 import { connectCdp, reservePort, waitForPage } from "../../scripts/support/desktop-cdp.js";
 import { BACKGROUND_AT_LOGIN_PREFERENCE_DIRECTORY_NAME } from "../../src/main/login-item.js";
 import { SESSION_TIMEZONE_PIN_FILE_NAME } from "../../src/main/session-timezone-contract.js";
+import { desktopFixtureLaunchArgs } from "./desktop-fixture-launch-args.js";
 
 export interface DesktopFixtureScript {
   readonly onRequest: (request: unknown) => readonly string[] | Promise<readonly string[]>;
@@ -391,7 +403,12 @@ export async function launchDesktopFixture(input: {
       >;
     },
   };
-  const operations: CoachOperations & PlanningOperations & PlanningRequestOperations = {
+  const operations: CoachOperations &
+    PlanningOperations &
+    PlanningReadOperations &
+    PlanningRequestOperations &
+    PlanCreationOperations &
+    PlanChangeOperations = {
     async importFiles(request, onEvent) {
       const frames = await invoke("importFiles", request);
       for (const event of eventFrames(frames)) onEvent?.(event as OperationProgressEvent);
@@ -573,6 +590,55 @@ export async function launchDesktopFixture(input: {
         ReturnType<NonNullable<PlanningRequestOperations["listPlanningRequests"]>>
       >;
     },
+    async "plan.list"(request) {
+      return ListPlansResultSchema.parse(finalFrame(await invoke("plan.list", request)));
+    },
+    async "plan_change.preview"(request) {
+      return PlanChangePreviewResultSchema.parse(
+        finalFrame(await invoke("plan_change.preview", request)),
+      );
+    },
+    async "plan_change.apply"(request) {
+      return PlanChangeApplyResultSchema.parse(
+        finalFrame(await invoke("plan_change.apply", request)),
+      );
+    },
+    async "plan.close"(request) {
+      return PlanCloseResultSchema.parse(finalFrame(await invoke("plan.close", request)));
+    },
+    async "plan.history"(request) {
+      return PlanHistoryResultSchema.parse(finalFrame(await invoke("plan.history", request)));
+    },
+    async "plan_creation.interpretCommitments"(request) {
+      return PlanCreationInterpretCommitmentsRpcResultSchema.parse(
+        finalFrame(await invoke("plan_creation.interpretCommitments", request)),
+      );
+    },
+    async "plan_creation.start"(request) {
+      return finalFrame(await invoke("plan_creation.start", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.start"]>
+      >;
+    },
+    async "plan_creation.answer"(request) {
+      return finalFrame(await invoke("plan_creation.answer", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.answer"]>
+      >;
+    },
+    async "plan_creation.preview"(request) {
+      return finalFrame(await invoke("plan_creation.preview", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.preview"]>
+      >;
+    },
+    async "plan_creation.discard"(request) {
+      return finalFrame(await invoke("plan_creation.discard", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.discard"]>
+      >;
+    },
+    async "plan_creation.activate"(request) {
+      return finalFrame(await invoke("plan_creation.activate", request)) as Awaited<
+        ReturnType<PlanCreationOperations["plan_creation.activate"]>
+      >;
+    },
     async getPlanState(request) {
       return finalFrame(await invoke("getPlanState", request)) as Awaited<
         ReturnType<NonNullable<PlanningOperations["getPlanState"]>>
@@ -685,6 +751,7 @@ export async function launchDesktopFixture(input: {
       [
         ...(mainDebuggerPort === undefined ? [] : [`--inspect=${mainDebuggerPort}`]),
         ...applicationArgs,
+        ...desktopFixtureLaunchArgs(process.platform, process.env.CI),
         `--remote-debugging-port=${debuggerPort}`,
         `--user-data-dir=${userData}`,
       ],
@@ -694,6 +761,7 @@ export async function launchDesktopFixture(input: {
           ...input.extraEnv,
           ENDURAGENT_HOME: athleteHome,
           ENDURAGENT_ACCEPTANCE_HIDDEN: input.hidden === false ? "0" : "1",
+          ENDURAGENT_STARTUP_TRACE: "1",
           ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
           ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT: "1",
           FORCE_COLOR: undefined,
@@ -713,6 +781,12 @@ export async function launchDesktopFixture(input: {
     });
     const debuggerUrl = await waitForPage(debuggerPort, {
       timeoutMs: DESKTOP_FIXTURE_LAUNCH_TIMEOUT_MS,
+      readLaunchDiagnostics: () => ({
+        stdout,
+        stderr,
+        exitCode: nextChild.exitCode,
+        signalCode: nextChild.signalCode,
+      }),
     });
     if (mainDebuggerPort !== undefined) {
       const deadline = Date.now() + DESKTOP_FIXTURE_LAUNCH_TIMEOUT_MS;

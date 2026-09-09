@@ -4,9 +4,17 @@ import type {
   PlanHydrationState,
   PlanProgressEvent,
 } from "@enduragent/coach-contract";
+import type { CoachClient } from "@enduragent/coach-client";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPlanViewAdapter, type PlanBridge } from "../src/state/adapters/plan";
+import {
+  closePlan,
+  createPlanViewAdapter,
+  readPlanHistory,
+  previewPlanChange,
+  applyPlanChange,
+  type PlanBridge,
+} from "../src/state/adapters/plan";
 import {
   EMPTY_PLAN_SURFACE,
   type PlanSurfaceState,
@@ -150,22 +158,23 @@ describe("Plan view adapter", () => {
     expect(getPlanState).toHaveBeenCalledTimes(2);
   });
 
-  it("dispatches PL-T01 with one stable command identifier", async () => {
+  it("dispatches PL-T36 with one stable command identifier", async () => {
     const execute = deferred<ExecutePlanTransitionRpcResult>();
     const subject = harness({
       ids: ["create-draft-command"],
       executePlanTransition: () => execute.promise,
     });
 
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     expect(subject.executePlanTransition).toHaveBeenCalledWith({
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "create-draft-command",
-      sourceConversationId: null,
+      sourceConversationId: "chat-1",
+      requestId: "request-1",
     });
     expect(subject.surface.transition).toEqual({
       status: "submitting",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "create-draft-command",
     });
 
@@ -342,7 +351,7 @@ describe("Plan view adapter", () => {
       action: "close",
       sourceScenarioId: "PL-S017",
       destinationScenarioId: "PL-S001",
-      returnFocusId: "plan-start-coach",
+      returnFocusId: "start-plan",
     });
   });
 
@@ -504,21 +513,22 @@ describe("Plan view adapter", () => {
       }),
     });
 
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     await settle();
     expect(subject.surface.transition).toEqual({
       status: "failed",
       commandId: "rejected-command",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       error: PLAN_ERROR,
     });
 
     subject.adapter.retry();
     await settle();
     expect(subject.executePlanTransition).toHaveBeenLastCalledWith({
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       commandId: "retry-command",
-      sourceConversationId: null,
+      sourceConversationId: "chat-1",
+      requestId: "request-1",
     });
   });
 
@@ -1708,7 +1718,7 @@ describe("Plan view adapter", () => {
     });
   });
 
-  it("ends an active Plan after its final civil date and resumes ordinary cleanup", async () => {
+  it("hydrates an expired active Plan without issuing a completion command", async () => {
     const planId = "00000000000000000000000003";
     const active = planReadModel({
       lifecycle: "active",
@@ -1734,66 +1744,17 @@ describe("Plan view adapter", () => {
         workouts: [],
       },
     });
-    const ended = planReadModel({
-      lifecycle: "ended",
-      scenarioId: "PL-S094",
-      projection: "ended",
-      planId,
-      reconciliation: {
-        status: "not-started",
-        created: 0,
-        pending: 0,
-        failed: 0,
-        total: 0,
-        currentThrough: null,
-        error: null,
-      },
-      data: {},
-    });
-    const cleaned = planReadModel({
-      lifecycle: "ended",
-      scenarioId: "PL-S056",
-      projection: "ended",
-      planId,
-      reconciliation: {
-        status: "verified",
-        created: 0,
-        pending: 0,
-        failed: 0,
-        total: 0,
-        currentThrough: "1998-10-06",
-        error: null,
-      },
-      data: {},
-    });
     const subject = harness({
-      ids: ["natural-completion", "natural-cleanup"],
       getPlanState: async () => ({ status: "ready", state: active }),
-      executePlanTransition: async (command) => ({
-        status: "completed",
-        state: command.transitionId === "PL-T29" ? ended : cleaned,
-      }),
     });
 
     subject.adapter.start();
     await settle();
-    await settle();
+    subject.adapter.open();
     await settle();
 
-    expect(subject.executePlanTransition.mock.calls.map(([command]) => command)).toEqual([
-      {
-        transitionId: "PL-T29",
-        commandId: "natural-completion",
-        planId,
-        asOf: "1998-10-05",
-      },
-      {
-        transitionId: "PL-T24",
-        commandId: "natural-cleanup",
-        planId,
-        mode: "cleanup",
-      },
-    ]);
+    expect(subject.surface.hydration).toEqual({ status: "ready", state: active });
+    expect(subject.executePlanTransition).not.toHaveBeenCalled();
   });
 
   it("opens and records the separate race outcome", async () => {
@@ -2053,12 +2014,12 @@ describe("Plan view adapter", () => {
     });
     subject.adapter.start();
     await settle();
-    subject.adapter.startPlan();
+    subject.adapter.openChatRequest("chat-1", "request-1");
     await settle();
 
     const matching: PlanProgressEvent = {
       commandId: "command-1",
-      transitionId: "PL-T01",
+      transitionId: "PL-T36",
       operationId: "operation-1",
       phase: "running",
       completed: 1,
@@ -2086,5 +2047,109 @@ describe("Plan view adapter", () => {
 
     expect(subject.disposeProgress).toHaveBeenCalledOnce();
     expect(subject.surface.hydration).toEqual({ status: "loading" });
+  });
+
+  it("reloads the Plan state on demand", async () => {
+    const subject = harness();
+    subject.adapter.start();
+    await settle();
+    expect(subject.getPlanState).toHaveBeenCalledTimes(1);
+
+    subject.adapter.reload();
+    await settle();
+
+    expect(subject.getPlanState).toHaveBeenCalledTimes(2);
+    expect(subject.surface.hydration.status).toBe("ready");
+  });
+});
+
+describe("Plan library RPC adapters", () => {
+  function clientProvider() {
+    const client: CoachClient = {
+      call: async () => {
+        throw new Error("Unexpected RPC call");
+      },
+      get handshake(): CoachClient["handshake"] {
+        throw new Error("Unexpected handshake read");
+      },
+      close: async () => undefined,
+    };
+    const clients: DesktopCoachClientProvider = {
+      getClient: async () => client,
+      reconnect: async () => client,
+      close: async () => undefined,
+    };
+    return { clients, call: vi.spyOn(client, "call") };
+  }
+
+  it("reads the final history for the selected Plan", async () => {
+    const { clients, call } = clientProvider();
+    call.mockResolvedValue(null);
+    expect(await readPlanHistory(clients, "00000000000000000000000003")).toBeNull();
+    expect(call).toHaveBeenCalledWith("plan.history", {
+      planId: "00000000000000000000000003",
+    });
+  });
+
+  it("closes the confirmed version with its supplied command id", async () => {
+    const commandId = "12345678-1234-1234-1234-123456789012";
+    const result = {
+      status: "closed" as const,
+      planId: "00000000000000000000000003",
+      closedAt: 907459200000,
+      cleanupJobId: "00000000000000000000000004",
+    };
+    const { clients, call } = clientProvider();
+    call.mockResolvedValue(result);
+    expect(
+      await closePlan(clients, { commandId, planId: result.planId, expectedVersion: 7 }),
+    ).toEqual(result);
+    expect(call).toHaveBeenCalledWith("plan.close", {
+      commandId,
+      planId: result.planId,
+      expectedVersion: 7,
+    });
+  });
+});
+
+describe("Plan Change RPC adapters", () => {
+  it("preserves confirmed command ids and preview and decision payloads", async () => {
+    const call = vi.fn().mockResolvedValue({ status: "rejected", reason: "stale-version" });
+    const clients = { getClient: async () => ({ call }) } as unknown as DesktopCoachClientProvider;
+    const preview = {
+      commandId: "preview-command",
+      planId: "plan-active",
+      expectedVersion: 4,
+      intent: { kind: "weekly-duration", hours: 6 },
+    } as const;
+    const decision = {
+      commandId: "apply-command",
+      planId: "plan-active",
+      expectedVersion: 5,
+      changeId: "change-pending",
+      decision: "apply",
+    } as const;
+    expect(await previewPlanChange(clients, preview)).toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    await applyPlanChange(clients, decision);
+    await applyPlanChange(clients, {
+      ...decision,
+      commandId: "cancel-command",
+      decision: "cancel",
+    });
+    expect(call).toHaveBeenNthCalledWith(1, "plan_change.preview", {
+      ...preview,
+    });
+    expect(call).toHaveBeenNthCalledWith(2, "plan_change.apply", {
+      ...decision,
+    });
+    expect(call).toHaveBeenNthCalledWith(3, "plan_change.apply", {
+      ...decision,
+      decision: "cancel",
+      commandId: "cancel-command",
+    });
+    expect(new Set(call.mock.calls.map(([, request]) => request.commandId)).size).toBe(3);
   });
 });

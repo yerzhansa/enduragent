@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import type { ChatView, ChatViewControls } from "../src/chat/controller";
 import { mergeHydratedMessages } from "../src/chat/hydration";
 import { createChatViewAdapter } from "../src/state/adapters/chat";
@@ -104,6 +105,17 @@ describe("chat view adapter", () => {
       planningRequestBusyId: null,
       planningRequestError: null,
       planningRequestFocusId: null,
+      planCreation: null,
+      planCreationLoaded: false,
+      planCreationBusy: false,
+      planCreationError: null,
+      planCreationPaused: false,
+      planCreationEditingKey: null,
+      planCreationFocusRevision: 0,
+      planCreationDiscardConfirmationOpen: false,
+      planCreationActivateConfirmationOpen: false,
+      planCreationActivePlanKnowledge: { kind: "unknown" },
+      planCreationFocusRequest: null,
       timeline: [
         {
           kind: "message",
@@ -123,6 +135,7 @@ describe("chat view adapter", () => {
       workBlocked: true,
       sendDisabled: true,
       inputDisabled: true,
+      composerPlaceholder: "Message your coach",
       newConversationUnavailable: false,
       resetPhase: "idle",
       resetCount: 0,
@@ -215,6 +228,400 @@ describe("chat view adapter", () => {
       inputDisabled: false,
       newConversationUnavailable: true,
     });
+  });
+
+  it("projects a Plan Creation conversation item and blocks the composer for an open question", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const model = {
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      creationId: "01J00000000000000000000000",
+      version: 1,
+      status: "in-progress" as const,
+      readiness: "incomplete" as const,
+      answeredSummaries: [],
+      openQuestion: {
+        kind: "goal-question" as const,
+        step: { current: 1, total: 9 },
+        prompt: "Goal?",
+        candidates: [],
+        eventNotListedOption: {
+          label: "Event not listed" as const,
+          detail: "Tell me the event name and its exact date.",
+          placeholder: "Event name",
+          nameLabel: "Event name",
+          dateLabel: "Event date",
+        },
+        fitnessOption: {
+          label: "Improve without an event",
+          detail: "Build fitness for a fixed number of weeks.",
+        },
+      },
+    };
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: model,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 1,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      planCreation: model,
+      planCreationLoaded: true,
+      sendDisabled: true,
+      inputDisabled: true,
+      composerPlaceholder: "Finish the Plan question above",
+      timeline: [{ kind: "plan-creation", model }],
+    });
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: model,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: true,
+          editingKey: null,
+          focusRevision: 1,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: false,
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: { ...model, version: 2, readiness: "ready", openQuestion: null },
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 2,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: false,
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: { ...model, version: 2, readiness: "ready", openQuestion: null },
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: "goal",
+          focusRevision: 3,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: true,
+      composerPlaceholder: "Finish the Plan question above",
+    });
+  });
+
+  it("blocks work during activation and retains its completed transcript notice once", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const planCreation: NonNullable<ChatViewControls["planCreation"]> = {
+      value: null,
+      loaded: true,
+      busy: false,
+      error: null,
+      paused: false,
+      editingKey: null,
+      focusRevision: 0,
+      discardConfirmationOpen: false,
+      activateConfirmationOpen: true,
+      activePlanKnowledge: { kind: "none" },
+      discardEvents: [],
+      notice: null,
+      focusRequest: null,
+    };
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation }));
+    expect(published.at(-1)).toMatchObject({
+      planCreationActivateConfirmationOpen: true,
+      sendDisabled: true,
+      inputDisabled: true,
+    });
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          ...planCreation,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          notice: "Plan activated locally.",
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      planCreationActivateConfirmationOpen: false,
+      planCreationActivePlanKnowledge: { kind: "unknown" },
+      sendDisabled: false,
+      inputDisabled: false,
+      notice: null,
+      timeline: [{ kind: "plan-creation", model: null }],
+    });
+  });
+
+  it("blocks Send for discard confirmation and projects its notice and focus request", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const model: PlanCreationCardModel = {
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      creationId: "01J00000000000000000000000",
+      version: 3,
+      status: "in-progress",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+    };
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: model,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 0,
+          discardConfirmationOpen: true,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      planCreationDiscardConfirmationOpen: true,
+      sendDisabled: true,
+      inputDisabled: true,
+      composerPlaceholder: "Finish the Plan question above",
+    });
+
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: { ...model, version: 4 },
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 0,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: "Plan Creation changed before it could be discarded.",
+          focusRequest: { target: "discard", revision: 2 },
+        },
+      }),
+    );
+    expect(published.at(-1)).toMatchObject({
+      planCreationDiscardConfirmationOpen: false,
+      planCreationActivateConfirmationOpen: false,
+      planCreationActivePlanKnowledge: { kind: "unknown" },
+      planCreationFocusRequest: { target: "discard", revision: 2 },
+      notice: "Plan Creation changed before it could be discarded.",
+      sendDisabled: false,
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+  });
+
+  it("keeps keyed discard consequences before later messages and Plan Creations", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const discardEvents = [{ eventId: "01J00000000000000000000000", afterMessageId: null }];
+
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        planCreation: {
+          value: null,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 0,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents,
+          notice: null,
+          focusRequest: { target: "start", revision: 1 },
+        },
+      }),
+    );
+
+    expect(published.at(-1)).toMatchObject({
+      planCreation: null,
+      planCreationFocusRequest: { target: "start", revision: 1 },
+      inputDisabled: false,
+      timeline: [{ kind: "plan-creation-discard", eventId: "01J00000000000000000000000" }],
+    });
+
+    const nextModel: PlanCreationCardModel = {
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      creationId: "01J00000000000000000000001",
+      version: 1,
+      status: "in-progress",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+    };
+    adapter.view.render(
+      submitted("Later Chat message"),
+      controls({
+        planCreation: {
+          value: nextModel,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 0,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents,
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+
+    expect(published.at(-1)?.timeline).toMatchObject([
+      { kind: "plan-creation-discard", eventId: "01J00000000000000000000000" },
+      { kind: "message", message: { text: "Later Chat message" } },
+      { kind: "plan-creation", model: nextModel },
+    ]);
+  });
+
+  it("suppresses interrupted recovery while a Plan Creation question is open", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    let stopped = submitted();
+    stopped = reduceChatState(stopped, {
+      type: "event",
+      requestKey: 1,
+      event: {
+        type: "interrupted",
+        turnId: "turn-stopped",
+        chatId: "desktop",
+        text: "Partial response",
+      },
+    });
+
+    adapter.view.render(
+      stopped,
+      controls({
+        planCreation: {
+          value: {
+            draft: null,
+            draftStale: false,
+            calendarWindow: null,
+            pendingCommitment: null,
+            creationId: "01J00000000000000000000000",
+            version: 1,
+            status: "in-progress",
+            readiness: "incomplete",
+            answeredSummaries: [],
+            openQuestion: {
+              kind: "goal-question",
+              step: { current: 1, total: 9 },
+              prompt: "Goal?",
+              candidates: [],
+              eventNotListedOption: {
+                label: "Event not listed",
+                detail: "Tell me the event name and its exact date.",
+                placeholder: "Event name",
+                nameLabel: "Event name",
+                dateLabel: "Event date",
+              },
+              fitnessOption: {
+                label: "Improve without an event",
+                detail: "Build fitness for a fixed number of weeks.",
+              },
+            },
+          },
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 1,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+
+    expect(published.at(-1)).toMatchObject({ status: "interrupted", interrupted: false });
   });
 
   it("keeps v2 decision consequences between the athlete request and Coach continuation", () => {
@@ -550,6 +957,8 @@ describe("chat view adapter", () => {
       published.at(-1)?.timeline.map((item) => {
         if (item.kind === "choice") return "choice";
         if (item.kind === "planning-request") return "planning-request";
+        if (item.kind === "plan-creation") return "plan-creation";
+        if (item.kind === "plan-creation-discard") return "plan-creation-discard";
         return item.message.role === "athlete" ? "athlete" : item.message.delivery;
       }),
     ).toEqual(["athlete", "interrupted", "choice", "complete"]);

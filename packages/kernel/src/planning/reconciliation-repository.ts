@@ -4,7 +4,12 @@ import { addCivilDays } from "./date-keys.js";
 
 export type PlanReconciliationKind = "mirror" | "cleanup";
 export type PlanReconciliationStatus = "pending" | "running" | "retrying" | "failed" | "verified";
-export type PlanReconciliationItemStatus = "pending" | "running" | "created" | "failed" | "verified";
+export type PlanReconciliationItemStatus =
+  | "pending"
+  | "running"
+  | "created"
+  | "failed"
+  | "verified";
 export type PlanReconciliationOperation = "create" | "delete";
 export type PlanReconciliationErrorCode =
   | "calendar-list-failed"
@@ -73,7 +78,23 @@ export interface PlanReconciliationRepository {
     planId: string,
     kind: PlanReconciliationKind,
   ): Promise<PlanReconciliationJobRecord | undefined>;
+  listRunnable(input: {
+    nowMs: number;
+    leaseMs: number;
+    maxFailures: number;
+  }): Promise<readonly PlanReconciliationJobRecord[]>;
+  claim(
+    id: string,
+    nowMs: number,
+    leaseMs: number,
+  ): Promise<PlanReconciliationJobRecord | undefined>;
+  readLatestJobByWindow(
+    planId: string,
+    kind: PlanReconciliationKind,
+  ): Promise<PlanReconciliationJobRecord | undefined>;
+  readLatestJobsForLibrary(): Promise<readonly PlanReconciliationJobRecord[]>;
   beginAttempt(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
+  reopenJob(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord>;
   failJob(
     id: string,
     errorCode: PlanReconciliationErrorCode,
@@ -94,6 +115,7 @@ export interface PlanReconciliationRepository {
     providerEventId: number | null,
     updatedAtMs: number,
   ): Promise<PlanReconciliationItemRecord>;
+  deleteItem(id: string): Promise<void>;
 }
 
 export class PlanReconciliationValidationError extends Error {
@@ -131,7 +153,11 @@ const ITEM_ERROR_CODE = new Set<unknown>([
 ]);
 
 function validDateKey(value: unknown): value is number {
-  if (!Number.isSafeInteger(value) || (value as number) < 10_101 || (value as number) > 99_991_231) {
+  if (
+    !Number.isSafeInteger(value) ||
+    (value as number) < 10_101 ||
+    (value as number) > 99_991_231
+  ) {
     return false;
   }
   try {
@@ -158,13 +184,13 @@ function validJson(value: unknown): value is string {
 
 function validateNewJob(record: NewPlanReconciliationJob): void {
   if (
-    !ULID.test(record.id)
-    || !ULID.test(record.planId)
-    || !JOB_KIND.has(record.kind)
-    || !validDateKey(record.windowStartDateKey)
-    || !validDateKey(record.windowEndDateKey)
-    || record.windowEndDateKey < record.windowStartDateKey
-    || !validTimestamp(record.createdAtMs)
+    !ULID.test(record.id) ||
+    !ULID.test(record.planId) ||
+    !JOB_KIND.has(record.kind) ||
+    !validDateKey(record.windowStartDateKey) ||
+    !validDateKey(record.windowEndDateKey) ||
+    record.windowEndDateKey < record.windowStartDateKey ||
+    !validTimestamp(record.createdAtMs)
   ) {
     throw new PlanReconciliationValidationError("invalid-job");
   }
@@ -172,17 +198,17 @@ function validateNewJob(record: NewPlanReconciliationJob): void {
 
 function validateNewItem(record: NewPlanReconciliationItem): void {
   if (
-    !ULID.test(record.id)
-    || !ULID.test(record.jobId)
-    || (record.planWorkoutId !== null && !ULID.test(record.planWorkoutId))
-    || !OPERATION.has(record.operation)
-    || (record.operation === "create" && record.planWorkoutId === null)
-    || !validDateKey(record.dateKey)
-    || typeof record.externalId !== "string"
-    || record.externalId.length < 1
-    || record.externalId.length > 256
-    || !validJson(record.expectedJson)
-    || !validTimestamp(record.createdAtMs)
+    !ULID.test(record.id) ||
+    !ULID.test(record.jobId) ||
+    (record.planWorkoutId !== null && !ULID.test(record.planWorkoutId)) ||
+    !OPERATION.has(record.operation) ||
+    (record.operation === "create" && record.planWorkoutId === null) ||
+    !validDateKey(record.dateKey) ||
+    typeof record.externalId !== "string" ||
+    record.externalId.length < 1 ||
+    record.externalId.length > 256 ||
+    !validJson(record.expectedJson) ||
+    !validTimestamp(record.createdAtMs)
   ) {
     throw new PlanReconciliationValidationError("invalid-item");
   }
@@ -206,29 +232,30 @@ function jobFromRow(row: Row): PlanReconciliationJobRecord {
     completedAtMs: row.completed_at_ms as number | null,
   };
   if (
-    !ULID.test(value.id)
-    || !ULID.test(value.planId)
-    || !JOB_KIND.has(value.kind)
-    || !STATUS.has(value.status)
-    || !validDateKey(value.windowStartDateKey)
-    || !validDateKey(value.windowEndDateKey)
-    || value.windowEndDateKey < value.windowStartDateKey
-    || !Number.isSafeInteger(value.attemptCount)
-    || value.attemptCount < 0
-    || !Number.isSafeInteger(value.resumedCount)
-    || value.resumedCount < 0
-    || !Number.isSafeInteger(value.failureCount)
-    || value.failureCount < 0
-    || value.resumedCount > value.attemptCount
-    || (value.lastResumedAttempt !== null
-      && (!Number.isSafeInteger(value.lastResumedAttempt)
-        || value.lastResumedAttempt <= 0
-        || value.lastResumedAttempt > value.attemptCount))
-    || (value.lastErrorCode !== null && !ERROR_CODE.has(value.lastErrorCode))
-    || !validTimestamp(value.createdAtMs)
-    || !validTimestamp(value.updatedAtMs)
-    || value.updatedAtMs < value.createdAtMs
-    || (value.completedAtMs !== null && (!validTimestamp(value.completedAtMs) || value.completedAtMs < value.createdAtMs))
+    !ULID.test(value.id) ||
+    !ULID.test(value.planId) ||
+    !JOB_KIND.has(value.kind) ||
+    !STATUS.has(value.status) ||
+    !validDateKey(value.windowStartDateKey) ||
+    !validDateKey(value.windowEndDateKey) ||
+    value.windowEndDateKey < value.windowStartDateKey ||
+    !Number.isSafeInteger(value.attemptCount) ||
+    value.attemptCount < 0 ||
+    !Number.isSafeInteger(value.resumedCount) ||
+    value.resumedCount < 0 ||
+    !Number.isSafeInteger(value.failureCount) ||
+    value.failureCount < 0 ||
+    value.resumedCount > value.attemptCount ||
+    (value.lastResumedAttempt !== null &&
+      (!Number.isSafeInteger(value.lastResumedAttempt) ||
+        value.lastResumedAttempt <= 0 ||
+        value.lastResumedAttempt > value.attemptCount)) ||
+    (value.lastErrorCode !== null && !ERROR_CODE.has(value.lastErrorCode)) ||
+    !validTimestamp(value.createdAtMs) ||
+    !validTimestamp(value.updatedAtMs) ||
+    value.updatedAtMs < value.createdAtMs ||
+    (value.completedAtMs !== null &&
+      (!validTimestamp(value.completedAtMs) || value.completedAtMs < value.createdAtMs))
   ) {
     throw new PlanReconciliationValidationError("invalid-job");
   }
@@ -253,30 +280,34 @@ function itemFromRow(row: Row): PlanReconciliationItemRecord {
     completedAtMs: row.completed_at_ms as number | null,
   };
   if (
-    !ULID.test(value.id)
-    || !ULID.test(value.jobId)
-    || (value.planWorkoutId !== null && !ULID.test(value.planWorkoutId))
-    || !OPERATION.has(value.operation)
-    || !ITEM_STATUS.has(value.status)
-    || (value.operation === "create" && value.planWorkoutId === null)
-    || (value.operation === "delete" && value.planWorkoutId !== null)
-    || (value.status === "created" && value.operation !== "create")
-    || !validDateKey(value.dateKey)
-    || typeof value.externalId !== "string"
-    || value.externalId.length < 1
-    || value.externalId.length > 256
-    || (value.providerEventId !== null && (!Number.isSafeInteger(value.providerEventId) || value.providerEventId <= 0))
-    || (value.operation === "create" && value.status === "verified" && value.providerEventId === null)
-    || (value.operation === "delete" && value.providerEventId !== null)
-    || (value.status !== "verified" && value.providerEventId !== null)
-    || !validJson(value.expectedJson)
-    || !Number.isSafeInteger(value.attemptCount)
-    || value.attemptCount < 0
-    || (value.lastErrorCode !== null && !ITEM_ERROR_CODE.has(value.lastErrorCode))
-    || !validTimestamp(value.createdAtMs)
-    || !validTimestamp(value.updatedAtMs)
-    || value.updatedAtMs < value.createdAtMs
-    || (value.completedAtMs !== null && (!validTimestamp(value.completedAtMs) || value.completedAtMs < value.createdAtMs))
+    !ULID.test(value.id) ||
+    !ULID.test(value.jobId) ||
+    (value.planWorkoutId !== null && !ULID.test(value.planWorkoutId)) ||
+    !OPERATION.has(value.operation) ||
+    !ITEM_STATUS.has(value.status) ||
+    (value.operation === "create" && value.planWorkoutId === null) ||
+    (value.operation === "delete" && value.planWorkoutId !== null) ||
+    (value.status === "created" && value.operation !== "create") ||
+    !validDateKey(value.dateKey) ||
+    typeof value.externalId !== "string" ||
+    value.externalId.length < 1 ||
+    value.externalId.length > 256 ||
+    (value.providerEventId !== null &&
+      (!Number.isSafeInteger(value.providerEventId) || value.providerEventId <= 0)) ||
+    (value.operation === "create" &&
+      value.status === "verified" &&
+      value.providerEventId === null) ||
+    (value.operation === "delete" && value.providerEventId !== null) ||
+    (value.status !== "verified" && value.providerEventId !== null) ||
+    !validJson(value.expectedJson) ||
+    !Number.isSafeInteger(value.attemptCount) ||
+    value.attemptCount < 0 ||
+    (value.lastErrorCode !== null && !ITEM_ERROR_CODE.has(value.lastErrorCode)) ||
+    !validTimestamp(value.createdAtMs) ||
+    !validTimestamp(value.updatedAtMs) ||
+    value.updatedAtMs < value.createdAtMs ||
+    (value.completedAtMs !== null &&
+      (!validTimestamp(value.completedAtMs) || value.completedAtMs < value.createdAtMs))
   ) {
     throw new PlanReconciliationValidationError("invalid-item");
   }
@@ -293,15 +324,47 @@ export function createPlanReconciliationRepository(
   store: ReconciliationStore,
 ): PlanReconciliationRepository {
   async function requireJob(id: string): Promise<PlanReconciliationJobRecord> {
-    const row = await store.get(`SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job WHERE id=?`, [id]);
+    const row = await store.get(`SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job WHERE id=?`, [
+      id,
+    ]);
     if (row === undefined) throw new PlanReconciliationValidationError("missing-job");
     return jobFromRow(row);
   }
 
   async function requireItem(id: string): Promise<PlanReconciliationItemRecord> {
-    const row = await store.get(`SELECT ${ITEM_COLUMNS} FROM plan_reconciliation_item WHERE id=?`, [id]);
+    const row = await store.get(`SELECT ${ITEM_COLUMNS} FROM plan_reconciliation_item WHERE id=?`, [
+      id,
+    ]);
     if (row === undefined) throw new PlanReconciliationValidationError("missing-item");
     return itemFromRow(row);
+  }
+
+  async function persistAttempt(
+    current: PlanReconciliationJobRecord,
+    updatedAtMs: number,
+  ): Promise<void> {
+    if (updatedAtMs < current.updatedAtMs) {
+      throw new PlanReconciliationValidationError("invalid-job");
+    }
+    const nextAttempt = current.attemptCount + 1;
+    const resumed = current.status === "running" || current.status === "retrying";
+    const nextStatus =
+      current.status === "failed" || current.status === "retrying" ? "retrying" : "running";
+    await store.run(
+      `UPDATE plan_reconciliation_job SET
+         status=?,attempt_count=?,resumed_count=resumed_count+?,
+         last_resumed_attempt=?,last_error_code=NULL,
+         updated_at_ms=?,completed_at_ms=NULL
+       WHERE id=?`,
+      [
+        nextStatus,
+        nextAttempt,
+        resumed ? 1 : 0,
+        resumed ? nextAttempt : null,
+        updatedAtMs,
+        current.id,
+      ],
+    );
   }
 
   const repository: PlanReconciliationRepository = {
@@ -314,8 +377,15 @@ export function createPlanReconciliationRepository(
           created_at_ms,updated_at_ms,completed_at_ms
         ) VALUES (?,?,?,'pending',?,?,0,0,0,NULL,NULL,?,?,NULL)
         ON CONFLICT(plan_id,kind,window_start_date_key,window_end_date_key) DO NOTHING`,
-        [record.id, record.planId, record.kind, record.windowStartDateKey,
-          record.windowEndDateKey, record.createdAtMs, record.createdAtMs],
+        [
+          record.id,
+          record.planId,
+          record.kind,
+          record.windowStartDateKey,
+          record.windowEndDateKey,
+          record.createdAtMs,
+          record.createdAtMs,
+        ],
       );
       const row = await store.get(
         `SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job
@@ -327,7 +397,9 @@ export function createPlanReconciliationRepository(
     },
     async readJob(id) {
       if (!ULID.test(id)) throw new PlanReconciliationValidationError("invalid-job");
-      const row = await store.get(`SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job WHERE id=?`, [id]);
+      const row = await store.get(`SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job WHERE id=?`, [
+        id,
+      ]);
       return row === undefined ? undefined : jobFromRow(row);
     },
     async readLatestJob(planId, kind) {
@@ -341,29 +413,81 @@ export function createPlanReconciliationRepository(
       );
       return row === undefined ? undefined : jobFromRow(row);
     },
+    async listRunnable({ nowMs, leaseMs, maxFailures }) {
+      if (!validTimestamp(nowMs) || !validTimestamp(leaseMs) || !validTimestamp(maxFailures)) {
+        throw new PlanReconciliationValidationError("invalid-job");
+      }
+      const rows = await store.all(
+        `SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job
+         WHERE (kind='cleanup' OR (kind='mirror' AND plan_id IN (
+           SELECT plan_id FROM planning_plan WHERE status='active'
+         ))) AND (status IN ('pending','retrying')
+           OR (status='failed' AND failure_count<?)
+           OR (status='running' AND updated_at_ms+?<=?))
+         ORDER BY window_start_date_key ASC,created_at_ms ASC,id ASC`,
+        [maxFailures, leaseMs, nowMs],
+      );
+      return Object.freeze(rows.map(jobFromRow));
+    },
+    async claim(id, nowMs, leaseMs) {
+      if (!ULID.test(id) || !validTimestamp(nowMs) || !validTimestamp(leaseMs)) {
+        throw new PlanReconciliationValidationError("invalid-job");
+      }
+      return store.transaction(async () => {
+        const current = await requireJob(id);
+        if (
+          current.status === "verified" ||
+          ((current.status === "running" || current.status === "retrying") &&
+            current.updatedAtMs + leaseMs > nowMs)
+        ) {
+          return undefined;
+        }
+        await persistAttempt(current, nowMs);
+        return requireJob(id);
+      });
+    },
+    async readLatestJobByWindow(planId, kind) {
+      if (!ULID.test(planId) || !JOB_KIND.has(kind)) {
+        throw new PlanReconciliationValidationError("invalid-job");
+      }
+      const row = await store.get(
+        `SELECT ${JOB_COLUMNS} FROM plan_reconciliation_job
+         WHERE plan_id=? AND kind=?
+         ORDER BY window_start_date_key DESC,window_end_date_key DESC,id DESC LIMIT 1`,
+        [planId, kind],
+      );
+      return row === undefined ? undefined : jobFromRow(row);
+    },
+    async readLatestJobsForLibrary() {
+      const rows = await store.all(
+        `SELECT ${JOB_COLUMNS} FROM (
+           SELECT ${JOB_COLUMNS},ROW_NUMBER() OVER (
+             PARTITION BY plan_id,kind
+             ORDER BY window_start_date_key DESC,window_end_date_key DESC,id DESC
+           ) AS job_rank FROM plan_reconciliation_job
+         ) WHERE job_rank=1 ORDER BY plan_id,kind`,
+      );
+      return Object.freeze(rows.map(jobFromRow));
+    },
     async beginAttempt(id, updatedAtMs) {
       if (!ULID.test(id) || !validTimestamp(updatedAtMs)) {
         throw new PlanReconciliationValidationError("invalid-job");
       }
       await store.transaction(async () => {
         const current = await requireJob(id);
-        if (updatedAtMs < current.updatedAtMs) {
-          throw new PlanReconciliationValidationError("invalid-job");
-        }
-        const nextAttempt = current.attemptCount + 1;
-        const resumed = current.status === "running" || current.status === "retrying";
-        const nextStatus = current.status === "failed" || current.status === "retrying"
-          ? "retrying"
-          : "running";
-        await store.run(
-          `UPDATE plan_reconciliation_job SET
-             status=?,attempt_count=?,resumed_count=resumed_count+?,
-             last_resumed_attempt=?,last_error_code=NULL,
-             updated_at_ms=?,completed_at_ms=NULL
-           WHERE id=?`,
-          [nextStatus, nextAttempt, resumed ? 1 : 0, resumed ? nextAttempt : null, updatedAtMs, id],
-        );
+        await persistAttempt(current, updatedAtMs);
       });
+      return requireJob(id);
+    },
+    async reopenJob(id, updatedAtMs) {
+      if (!ULID.test(id) || !validTimestamp(updatedAtMs)) {
+        throw new PlanReconciliationValidationError("invalid-job");
+      }
+      await store.run(
+        `UPDATE plan_reconciliation_job SET status='pending',last_error_code=NULL,
+         completed_at_ms=NULL,updated_at_ms=? WHERE id=?`,
+        [updatedAtMs, id],
+      );
       return requireJob(id);
     },
     async failJob(id, errorCode, updatedAtMs) {
@@ -372,8 +496,8 @@ export function createPlanReconciliationRepository(
       }
       const current = await requireJob(id);
       if (
-        (current.status !== "running" && current.status !== "retrying")
-        || updatedAtMs < current.updatedAtMs
+        (current.status !== "running" && current.status !== "retrying") ||
+        updatedAtMs < current.updatedAtMs
       ) {
         throw new PlanReconciliationValidationError("invalid-job");
       }
@@ -391,8 +515,8 @@ export function createPlanReconciliationRepository(
       }
       const current = await requireJob(id);
       if (
-        (current.status !== "running" && current.status !== "retrying")
-        || updatedAtMs < current.updatedAtMs
+        (current.status !== "running" && current.status !== "retrying") ||
+        updatedAtMs < current.updatedAtMs
       ) {
         throw new PlanReconciliationValidationError("invalid-job");
       }
@@ -423,8 +547,17 @@ export function createPlanReconciliationRepository(
             provider_event_id,expected_json,attempt_count,last_error_code,
             created_at_ms,updated_at_ms,completed_at_ms
           ) VALUES (?,?,?,?,'pending',?,?,NULL,?,0,NULL,?,?,NULL)`,
-          [record.id, record.jobId, record.planWorkoutId, record.operation, record.dateKey,
-            record.externalId, record.expectedJson, record.createdAtMs, record.createdAtMs],
+          [
+            record.id,
+            record.jobId,
+            record.planWorkoutId,
+            record.operation,
+            record.dateKey,
+            record.externalId,
+            record.expectedJson,
+            record.createdAtMs,
+            record.createdAtMs,
+          ],
         );
       } else {
         const current = itemFromRow(existing);
@@ -432,16 +565,22 @@ export function createPlanReconciliationRepository(
           throw new PlanReconciliationValidationError("invalid-item");
         }
         if (
-          current.planWorkoutId !== record.planWorkoutId
-          || current.dateKey !== record.dateKey
-          || current.expectedJson !== record.expectedJson
+          current.planWorkoutId !== record.planWorkoutId ||
+          current.dateKey !== record.dateKey ||
+          current.expectedJson !== record.expectedJson
         ) {
           await store.run(
             `UPDATE plan_reconciliation_item SET
                plan_workout_id=?,date_key=?,expected_json=?,status='pending',
                provider_event_id=NULL,last_error_code=NULL,updated_at_ms=?,completed_at_ms=NULL
              WHERE id=?`,
-            [record.planWorkoutId, record.dateKey, record.expectedJson, record.createdAtMs, current.id],
+            [
+              record.planWorkoutId,
+              record.dateKey,
+              record.expectedJson,
+              record.createdAtMs,
+              current.id,
+            ],
           );
         }
       }
@@ -467,7 +606,8 @@ export function createPlanReconciliationRepository(
         throw new PlanReconciliationValidationError("invalid-item");
       }
       const current = await requireItem(id);
-      if (updatedAtMs < current.updatedAtMs) throw new PlanReconciliationValidationError("invalid-item");
+      if (updatedAtMs < current.updatedAtMs)
+        throw new PlanReconciliationValidationError("invalid-item");
       await store.run(
         `UPDATE plan_reconciliation_item SET
            status='running',attempt_count=attempt_count+1,last_error_code=NULL,
@@ -482,9 +622,9 @@ export function createPlanReconciliationRepository(
       }
       const current = await requireItem(id);
       if (
-        current.operation !== "create"
-        || current.status !== "running"
-        || updatedAtMs < current.updatedAtMs
+        current.operation !== "create" ||
+        current.status !== "running" ||
+        updatedAtMs < current.updatedAtMs
       ) {
         throw new PlanReconciliationValidationError("invalid-item");
       }
@@ -497,15 +637,12 @@ export function createPlanReconciliationRepository(
       return requireItem(id);
     },
     async failItem(id, errorCode, updatedAtMs) {
-      if (
-        !ULID.test(id)
-        || !ITEM_ERROR_CODE.has(errorCode)
-        || !validTimestamp(updatedAtMs)
-      ) {
+      if (!ULID.test(id) || !ITEM_ERROR_CODE.has(errorCode) || !validTimestamp(updatedAtMs)) {
         throw new PlanReconciliationValidationError("invalid-item");
       }
       const current = await requireItem(id);
-      if (updatedAtMs < current.updatedAtMs) throw new PlanReconciliationValidationError("invalid-item");
+      if (updatedAtMs < current.updatedAtMs)
+        throw new PlanReconciliationValidationError("invalid-item");
       await store.run(
         `UPDATE plan_reconciliation_item SET
            status='failed',provider_event_id=NULL,last_error_code=?,
@@ -514,19 +651,24 @@ export function createPlanReconciliationRepository(
       );
       return requireItem(id);
     },
+    async deleteItem(id) {
+      if (!ULID.test(id)) throw new PlanReconciliationValidationError("invalid-item");
+      await store.run("DELETE FROM plan_reconciliation_item WHERE id=?", [id]);
+    },
     async verifyItem(id, providerEventId, updatedAtMs) {
       if (
-        !ULID.test(id)
-        || (providerEventId !== null && (!Number.isSafeInteger(providerEventId) || providerEventId <= 0))
-        || !validTimestamp(updatedAtMs)
+        !ULID.test(id) ||
+        (providerEventId !== null &&
+          (!Number.isSafeInteger(providerEventId) || providerEventId <= 0)) ||
+        !validTimestamp(updatedAtMs)
       ) {
         throw new PlanReconciliationValidationError("invalid-item");
       }
       const current = await requireItem(id);
       if (
-        (current.operation === "create" && providerEventId === null)
-        || (current.operation === "delete" && providerEventId !== null)
-        || updatedAtMs < current.updatedAtMs
+        (current.operation === "create" && providerEventId === null) ||
+        (current.operation === "delete" && providerEventId !== null) ||
+        updatedAtMs < current.updatedAtMs
       ) {
         throw new PlanReconciliationValidationError("invalid-item");
       }

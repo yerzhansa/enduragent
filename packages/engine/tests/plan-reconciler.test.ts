@@ -104,6 +104,18 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
       .at(-1);
   }
 
+  async reopenJob(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord> {
+    const job: PlanReconciliationJobRecord = {
+      ...this.jobs.get(id)!,
+      status: "pending",
+      lastErrorCode: null,
+      completedAtMs: null,
+      updatedAtMs,
+    };
+    this.jobs.set(id, job);
+    return job;
+  }
+
   async beginAttempt(id: string, updatedAtMs: number): Promise<PlanReconciliationJobRecord> {
     const current = this.jobs.get(id)!;
     const job: PlanReconciliationJobRecord = {
@@ -123,6 +135,73 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
     };
     this.jobs.set(id, job);
     return job;
+  }
+
+  async listRunnable(input: {
+    nowMs: number;
+    leaseMs: number;
+    maxFailures: number;
+  }): Promise<readonly PlanReconciliationJobRecord[]> {
+    return [...this.jobs.values()]
+      .filter(
+        (job) =>
+          job.status === "pending" ||
+          job.status === "retrying" ||
+          (job.status === "failed" && job.failureCount < input.maxFailures) ||
+          (job.status === "running" && job.updatedAtMs + input.leaseMs <= input.nowMs),
+      )
+      .sort(
+        (left, right) =>
+          left.windowStartDateKey - right.windowStartDateKey ||
+          left.createdAtMs - right.createdAtMs ||
+          left.id.localeCompare(right.id),
+      );
+  }
+
+  async claim(
+    id: string,
+    nowMs: number,
+    leaseMs: number,
+  ): Promise<PlanReconciliationJobRecord | undefined> {
+    const job = this.jobs.get(id);
+    if (
+      job === undefined ||
+      job.status === "verified" ||
+      (job.status === "running" && job.updatedAtMs + leaseMs > nowMs)
+    ) {
+      return undefined;
+    }
+    return this.beginAttempt(id, nowMs);
+  }
+
+  async readLatestJobsForLibrary(): Promise<readonly PlanReconciliationJobRecord[]> {
+    const latest = new Map<string, PlanReconciliationJobRecord>();
+    for (const job of [...this.jobs.values()].sort(
+      (left, right) =>
+        left.planId.localeCompare(right.planId) ||
+        left.kind.localeCompare(right.kind) ||
+        right.windowStartDateKey - left.windowStartDateKey ||
+        right.windowEndDateKey - left.windowEndDateKey ||
+        right.id.localeCompare(left.id),
+    )) {
+      const key = `${job.planId}:${job.kind}`;
+      if (!latest.has(key)) latest.set(key, job);
+    }
+    return Object.freeze([...latest.values()]);
+  }
+
+  async readLatestJobByWindow(
+    planId: string,
+    kind: PlanReconciliationKind,
+  ): Promise<PlanReconciliationJobRecord | undefined> {
+    return [...this.jobs.values()]
+      .filter((job) => job.planId === planId && job.kind === kind)
+      .sort(
+        (left, right) =>
+          right.windowStartDateKey - left.windowStartDateKey ||
+          right.windowEndDateKey - left.windowEndDateKey ||
+          right.id.localeCompare(left.id),
+      )[0];
   }
 
   async failJob(
@@ -240,6 +319,10 @@ class MemoryReconciliationRepository implements PlanReconciliationRepository {
     };
     this.items.set(id, item);
     return item;
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    this.items.delete(id);
   }
 
   async verifyItem(
@@ -429,6 +512,293 @@ describe("Plan reconciler", () => {
       value.deps,
     );
     expect(value.calendar.creates).toHaveLength(1);
+  });
+
+  it("preserves today's events when eligibility starts tomorrow without shifting the window", async () => {
+    const value = harness();
+    const activePlan = { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 };
+    const today = workout("01K00000000000000000000101", 19980831);
+    const tomorrow = workout("01K00000000000000000000102", 19980901);
+    const daySix = workout("01K00000000000000000000103", 19980906);
+    const outside = workout("01K00000000000000000000104", 19980907);
+    const otherPlanToday = {
+      id: 42,
+      dateKey: today.dateKey,
+      externalId: planMirrorExternalId(OTHER_PLAN_ID, "01K00000000000000000000105"),
+    };
+    const staleToday = {
+      id: 43,
+      dateKey: today.dateKey,
+      externalId: planMirrorExternalId(PLAN_ID, "01K00000000000000000000106"),
+    };
+    const staleTomorrow = {
+      id: 44,
+      dateKey: tomorrow.dateKey,
+      externalId: planMirrorExternalId(PLAN_ID, "01K00000000000000000000107"),
+    };
+    value.calendar.events.push(otherPlanToday, staleToday, staleTomorrow);
+    const input = {
+      plan: activePlan,
+      workouts: [today, tomorrow, daySix, outside],
+      todayDateKey: today.dateKey,
+    };
+    const first = await reconcileActivePlanWindow(
+      { ...input, firstEligibleDateKey: tomorrow.dateKey },
+      value.deps,
+    );
+    expect(first.state).toBe("reconcile-verified");
+    expect([...value.repository.jobs.values()]).toMatchObject([
+      { windowStartDateKey: today.dateKey, windowEndDateKey: daySix.dateKey },
+    ]);
+    expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([
+      tomorrow.id,
+      daySix.id,
+    ]);
+    expect(value.calendar.deletes).toEqual([staleTomorrow.id]);
+    expect(value.calendar.events).toEqual(expect.arrayContaining([otherPlanToday, staleToday]));
+    expect([...value.repository.items.values()].map((item) => item.dateKey)).toEqual([
+      tomorrow.dateKey,
+      daySix.dateKey,
+      tomorrow.dateKey,
+    ]);
+    const second = await reconcileActivePlanWindow(input, value.deps);
+    expect(second.state).toBe("reconcile-verified");
+    expect(value.repository.jobs.size).toBe(1);
+    expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([
+      tomorrow.id,
+      daySix.id,
+      today.id,
+    ]);
+    expect(value.calendar.events).toContainEqual(otherPlanToday);
+  });
+
+  it.each([true, false])(
+    "verifies today's retained delete without touching its pre-eligibility event: %s",
+    async (eventExists) => {
+      const value = harness();
+      const tomorrow = workout("01K00000000000000000000102", 19980901);
+      const event = {
+        id: 43,
+        dateKey: 19980831,
+        externalId: planMirrorExternalId(PLAN_ID, "01K00000000000000000000106"),
+      };
+      const job = await value.repository.createOrGetJob({
+        id: "01K00000000000000000000201",
+        planId: PLAN_ID,
+        kind: "mirror",
+        windowStartDateKey: event.dateKey,
+        windowEndDateKey: 19980906,
+        createdAtMs: 1,
+      });
+      const retained = await value.repository.prepareItem({
+        id: "01K00000000000000000000202",
+        jobId: job.id,
+        planWorkoutId: null,
+        operation: "delete",
+        dateKey: event.dateKey,
+        externalId: event.externalId,
+        expectedJson: JSON.stringify([{ eventId: event.id }]),
+        createdAtMs: 1,
+      });
+      if (eventExists) value.calendar.events.push(event);
+
+      const result = await reconcileActivePlanWindow(
+        {
+          plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+          workouts: [tomorrow],
+          todayDateKey: event.dateKey,
+          firstEligibleDateKey: tomorrow.dateKey,
+        },
+        value.deps,
+      );
+
+      expect(result).toMatchObject({ state: "reconcile-verified", pending: 0 });
+      expect(value.repository.items.get(retained.id)).toMatchObject({ status: "verified" });
+      expect(await value.repository.readJob(job.id)).toMatchObject({ status: "verified" });
+      expect(value.calendar.deletes).toEqual([]);
+      if (eventExists) expect(value.calendar.events).toContainEqual(event);
+      expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([tomorrow.id]);
+    },
+  );
+
+  it("removes an obsolete retained delete when its Workout is selected again", async () => {
+    const value = harness();
+    const restored = workout("01K00000000000000000000102", 19980903);
+    const externalId = planMirrorExternalId(PLAN_ID, restored.id);
+    const event = { id: 46, dateKey: restored.dateKey, externalId };
+    const job = await value.repository.createOrGetJob({
+      id: "01K00000000000000000000201",
+      planId: PLAN_ID,
+      kind: "mirror",
+      windowStartDateKey: 19980831,
+      windowEndDateKey: 19980906,
+      createdAtMs: 1,
+    });
+    const obsolete = await value.repository.prepareItem({
+      id: "01K00000000000000000000202",
+      jobId: job.id,
+      planWorkoutId: null,
+      operation: "delete",
+      dateKey: event.dateKey,
+      externalId,
+      expectedJson: JSON.stringify([{ eventId: event.id }]),
+      createdAtMs: 1,
+    });
+    value.calendar.events.push(event);
+
+    const result = await reconcileActivePlanWindow(
+      {
+        plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+        workouts: [restored],
+        todayDateKey: 19980831,
+      },
+      value.deps,
+    );
+
+    expect(result).toMatchObject({ state: "reconcile-verified", pending: 0 });
+    expect(value.repository.items.has(obsolete.id)).toBe(false);
+    expect(value.calendar.deletes).toEqual([]);
+    expect(value.calendar.events.filter((row) => row.externalId === externalId)).toHaveLength(1);
+  });
+
+  it("deletes an unwanted future duplicate while keeping today's owned event under tomorrow eligibility", async () => {
+    const value = harness();
+    const tomorrow = workout("01K00000000000000000000102", 19980901);
+    const externalId = planMirrorExternalId(PLAN_ID, "01K00000000000000000000106");
+    const todayEvent = { id: 47, dateKey: 19980831, externalId };
+    const futureEvent = { id: 48, dateKey: 19980902, externalId };
+    value.calendar.events.push(todayEvent, futureEvent);
+
+    const result = await reconcileActivePlanWindow(
+      {
+        plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+        workouts: [tomorrow],
+        todayDateKey: 19980831,
+        firstEligibleDateKey: tomorrow.dateKey,
+      },
+      value.deps,
+    );
+
+    expect(result).toMatchObject({ state: "reconcile-verified", pending: 0 });
+    expect(value.calendar.deletes).toEqual([futureEvent.id]);
+    expect(value.calendar.events).toContainEqual(todayEvent);
+    expect(value.calendar.events).not.toContainEqual(futureEvent);
+    expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([tomorrow.id]);
+  });
+
+  it("retires a retained create whose Workout moved to an excluded today and deletes its event", async () => {
+    const value = harness();
+    const moved = workout("01K00000000000000000000102", 19980831);
+    const tomorrow = workout("01K00000000000000000000103", 19980901);
+    const event = {
+      id: 45,
+      dateKey: 19980902,
+      externalId: planMirrorExternalId(PLAN_ID, moved.id),
+    };
+    const job = await value.repository.createOrGetJob({
+      id: "01K00000000000000000000201",
+      planId: PLAN_ID,
+      kind: "mirror",
+      windowStartDateKey: 19980831,
+      windowEndDateKey: 19980906,
+      createdAtMs: 1,
+    });
+    const retained = await value.repository.prepareItem({
+      id: "01K00000000000000000000202",
+      jobId: job.id,
+      planWorkoutId: moved.id,
+      operation: "create",
+      dateKey: event.dateKey,
+      externalId: event.externalId,
+      expectedJson: JSON.stringify({ dateKey: event.dateKey }),
+      createdAtMs: 1,
+    });
+    value.calendar.events.push(event);
+
+    const result = await reconcileActivePlanWindow(
+      {
+        plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+        workouts: [moved, tomorrow],
+        todayDateKey: 19980831,
+        firstEligibleDateKey: tomorrow.dateKey,
+      },
+      value.deps,
+    );
+
+    expect(result).toMatchObject({ state: "reconcile-verified" });
+    expect(value.repository.items.has(retained.id)).toBe(false);
+    expect(value.calendar.deletes).toEqual([event.id]);
+    expect(value.calendar.events.some((row) => row.externalId === event.externalId)).toBe(false);
+    expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([tomorrow.id]);
+  });
+
+  it.each([false, true])(
+    "deletes only eligible matches of a retained delete and keeps its pre-eligibility event: %s",
+    async (hasEligibleMatch) => {
+      const value = harness();
+      const tomorrow = workout("01K00000000000000000000102", 19980901);
+      const event = {
+        id: 43,
+        dateKey: 19980831,
+        externalId: planMirrorExternalId(PLAN_ID, "01K00000000000000000000106"),
+      };
+      const eligibleEvent = { ...event, id: 44, dateKey: tomorrow.dateKey };
+      const job = await value.repository.createOrGetJob({
+        id: "01K00000000000000000000201",
+        planId: PLAN_ID,
+        kind: "mirror",
+        windowStartDateKey: event.dateKey,
+        windowEndDateKey: 19980906,
+        createdAtMs: 1,
+      });
+      const retained = await value.repository.prepareItem({
+        id: "01K00000000000000000000202",
+        jobId: job.id,
+        planWorkoutId: null,
+        operation: "delete",
+        dateKey: tomorrow.dateKey,
+        externalId: event.externalId,
+        expectedJson: JSON.stringify([{ eventId: event.id }]),
+        createdAtMs: 1,
+      });
+      value.calendar.events.push(event);
+      if (hasEligibleMatch) value.calendar.events.push(eligibleEvent);
+
+      const result = await reconcileActivePlanWindow(
+        {
+          plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+          workouts: [tomorrow],
+          todayDateKey: event.dateKey,
+          firstEligibleDateKey: tomorrow.dateKey,
+        },
+        value.deps,
+      );
+
+      expect(result).toMatchObject({ state: "reconcile-verified", pending: 0 });
+      expect(value.repository.items.get(retained.id)).toMatchObject({ status: "verified" });
+      expect(await value.repository.readJob(job.id)).toMatchObject({ status: "verified" });
+      expect(value.calendar.deletes).toEqual(hasEligibleMatch ? [eligibleEvent.id] : []);
+      expect(value.calendar.events).toContainEqual(event);
+      expect(value.calendar.events).not.toContainEqual(eligibleEvent);
+      expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([tomorrow.id]);
+    },
+  );
+
+  it("keeps today as the selection start when first eligibility is earlier", async () => {
+    const value = harness();
+    const today = workout("01K00000000000000000000101", 19980901);
+    const yesterday = workout("01K00000000000000000000102", 19980831);
+    const result = await reconcileActivePlanWindow(
+      {
+        plan: { ...plan(), startDateKey: 19980824, targetDateKey: 19981115 },
+        workouts: [yesterday, today],
+        todayDateKey: today.dateKey,
+        firstEligibleDateKey: yesterday.dateKey,
+      },
+      value.deps,
+    );
+    expect(result.state).toBe("reconcile-verified");
+    expect(value.calendar.creates.map((created) => created.planWorkoutId)).toEqual([today.id]);
   });
 
   it("lists again immediately before create and skips an event that appeared after the batch precheck", async () => {

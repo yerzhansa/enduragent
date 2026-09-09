@@ -23,7 +23,8 @@ function dateKey(value: string): number {
 
 function eventType(sport: string): NonNullable<EventInput["type"]> {
   const normalized = sport.toLowerCase();
-  if (normalized.includes("cycl") || normalized.includes("bike")) return "Ride";
+  if (normalized.includes("cycl") || normalized.includes("bike") || normalized.includes("ride"))
+    return "Ride";
   if (normalized.includes("run")) return "Run";
   if (normalized.includes("swim")) return "Swim";
   return "Workout";

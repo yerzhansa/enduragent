@@ -35,7 +35,7 @@ vi.mock("grammy", async (importOriginal) => {
           ...args[1],
           client: {
             ...args[1]?.client,
-            fetch: async (url: string | URL | Request) => {
+            fetch: (async (url: unknown) => {
               const body = JSON.stringify(
                 captured.unchangedMarkup && String(url).endsWith("/editMessageReplyMarkup")
                   ? {
@@ -69,7 +69,7 @@ vi.mock("grammy", async (importOriginal) => {
                 clone: () => result,
               };
               return result;
-            },
+            }) as NonNullable<ApiClientOptions["fetch"]>,
           },
         });
         captured.bot = this;

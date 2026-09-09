@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { Duplex } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
+import { PlanCreationStoreError } from "@enduragent/kernel/planning";
 import {
   WindowsPrivatePathPolicyError,
   type CreateTelegramChannelInput,
@@ -32,6 +33,9 @@ import {
   type CoachDecisionReadModel,
   type CoachEngine,
   type CoachOperations,
+  type PlanCreationCardModel,
+  type PlanCreationOperations,
+  type PlanChangeOperations,
   type PlanningReadOperations,
   type PlanningOperations,
   type PlanReadModel,
@@ -52,6 +56,7 @@ import type { DesktopTelegramController } from "../src/desktop-telegram-controll
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { LocalCoachLifecycle } from "../src/local-runner.js";
 import { createTestCoachLanguage } from "./language-fixture.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const roots: string[] = [];
 
@@ -134,7 +139,11 @@ const completedDecision = {
   },
 } satisfies CoachDecisionReadModel;
 
-const operations: CoachOperations & PlanningReadOperations = {
+const operations: CoachOperations &
+  PlanningReadOperations &
+  PlanCreationOperations &
+  PlanChangeOperations = {
+  ...planCreationOperationStubs,
   exportTrainingFile: async () => ({
     status: "exported",
     byteLength: 4_096,
@@ -205,6 +214,19 @@ const operations: CoachOperations & PlanningReadOperations = {
     turns: [],
     nextCursor: null,
   }),
+  "plan.list": async () => ({
+    calendarConnected: false,
+    legacy: null,
+    creation: null,
+    active: null,
+    closed: [],
+    changes: [],
+    changesPaused: null,
+  }),
+  "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
+  "plan_change.preview": async () => ({ status: "rejected", reason: "no-active-plan" }),
+  "plan_change.apply": async () => ({ status: "rejected", reason: "no-active-plan" }),
+  "plan.history": async () => null,
   getPlanningReadModel: async () => ({
     schemaVersion: 1,
     status: "no-plan",
@@ -844,6 +866,34 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       }),
       operations: {
         ...operations,
+        "plan.list": async () => {
+          calls.push("plan.list");
+          return {
+            calendarConnected: false,
+            legacy: null,
+            creation: null,
+            active: null,
+            closed: [],
+            changes: [],
+            changesPaused: null,
+          };
+        },
+        "plan.close": async () => {
+          calls.push("plan.close");
+          return { status: "rejected", reason: "no-active-plan" };
+        },
+        "plan_change.preview": async () => {
+          calls.push("plan_change.preview");
+          return { status: "rejected", reason: "no-active-plan" };
+        },
+        "plan_change.apply": async () => {
+          calls.push("plan_change.apply");
+          return { status: "rejected", reason: "no-active-plan" };
+        },
+        "plan.history": async () => {
+          calls.push("plan.history");
+          return null;
+        },
         getPlanningReadModel: async () => {
           calls.push("getPlanningReadModel");
           return { schemaVersion: 1, status: "no-plan", asOfDateKey: 20260826, plan: null };
@@ -934,6 +984,34 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       { id: 40, method: "retryQueuedTurn", params: { chatId: "chat", claimId: "claim-1" } },
       { id: 4, method: "getAthleteState", params: {} },
       { id: 41, method: "getPlanningReadModel", params: {} },
+      { id: 42, method: "plan.list", params: {} },
+      {
+        id: 43,
+        method: "plan.close",
+        params: { commandId: "close-1", planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", expectedVersion: 1 },
+      },
+      {
+        id: 45,
+        method: "plan_change.preview",
+        params: {
+          commandId: "change-preview",
+          planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          expectedVersion: 1,
+          intent: { kind: "longest-workout", minutes: 60 },
+        },
+      },
+      {
+        id: 46,
+        method: "plan_change.apply",
+        params: {
+          commandId: "change-apply",
+          planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          changeId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+          expectedVersion: 1,
+          decision: "apply",
+        },
+      },
+      { id: 44, method: "plan.history", params: { planId: "01ARZ3NDEKTSV4RRFFQ69G5FAV" } },
       {
         id: 5,
         method: "getActivityAnalysis",
@@ -971,6 +1049,11 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       "retryQueuedTurn:chat",
       "getAthleteState",
       "getPlanningReadModel",
+      "plan.list",
+      "plan.close",
+      "plan_change.preview",
+      "plan_change.apply",
+      "plan.history",
       "getActivityAnalysis",
       "exportTrainingFile",
     ]);
@@ -2178,7 +2261,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     const getPlanningRequest = vi.fn(async () => ({ status: "missing" as const }));
     const retryPlanningRequest = vi.fn(async () => ({ status: "missing" as const }));
     const resumePlanningRequests = vi.fn(async () => ({ deliveries: [] }));
-    const listPlanningRequests = vi.fn(async () => ({ deliveries: [] }));
+    const listPlanningRequests = vi.fn(async () => ({ deliveries: [], planCreation: null }));
     const rpc = createCoachRpcServer({
       engine: engine(),
       operations: {
@@ -2270,6 +2353,448 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     });
     expect(resumePlanningRequests).toHaveBeenCalledOnce();
     await client.close();
+  });
+
+  it.each([
+    ["not-ready", "Build a current complete Draft and resolve pending answers before activation."],
+    ["commitments-pending", "Clarify or cancel the pending commitment correction."],
+    ["version-conflict", "version-conflict"],
+    ["command-conflict", "command-conflict"],
+  ] as const)(
+    "preserves the safe activation %s rejection for the renderer",
+    async (code, message) => {
+      const failure = new PlanCreationStoreError(code);
+      failure.message = "Private unexpected error text";
+      const rpc = createCoachRpcServer({
+        engine: engine(),
+        operations: {
+          ...operations,
+          "plan_creation.activate": async () => {
+            throw failure;
+          },
+        },
+        token: "x".repeat(43),
+        owner: "app-supervised",
+      });
+      const renderer = await openSocket(rpc);
+      renderer.ws.send(
+        JSON.stringify(
+          createClientHandshakeFrame(TEST_RENDERER_CAPABILITY_BYTES.toString("base64url")),
+        ),
+      );
+      await renderer.frames.next();
+      renderer.ws.send(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: "activate",
+          method: "plan_creation.activate",
+          params: {
+            commandId: "activate",
+            incumbent: null,
+            creationId: "01J00000000000000000000000",
+            expectedVersion: 2,
+          },
+        }),
+      );
+      expect(parseCoachRpcEnvelope(await renderer.frames.next())).toEqual({
+        jsonrpc: "2.0",
+        id: "activate",
+        error: { code: -32000, message, data: { code } },
+      });
+      await renderer.close();
+    },
+  );
+
+  it("dispatches strict Plan library and creation operations for the renderer", async () => {
+    const token = "x".repeat(43);
+    const creationId = "01J00000000000000000000000";
+    const startedCard: PlanCreationCardModel = {
+      creationId,
+      version: 1,
+      status: "in-progress",
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: {
+        kind: "goal-question",
+        step: { current: 1, total: 9 },
+        prompt: "Goal?",
+        candidates: [],
+        eventNotListedOption: {
+          label: "Event not listed",
+          detail: "Tell me the event name and its exact date.",
+          placeholder: "Event name",
+          nameLabel: "Event name",
+          dateLabel: "Event date",
+        },
+        fitnessOption: {
+          label: "Improve without an event",
+          detail: "Build fitness for a fixed number of weeks.",
+        },
+      },
+    };
+    const answeredCard: PlanCreationCardModel = {
+      creationId,
+      version: 2,
+      status: "in-progress",
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      readiness: "incomplete",
+      answeredSummaries: [
+        {
+          answerKey: "goal",
+          title: "Main Goal",
+          detail: "Build power",
+          source: { kind: "athlete" },
+          question: {
+            kind: "goal-question",
+            step: { current: 1, total: 9 },
+            prompt: "Goal?",
+            candidates: [],
+            eventNotListedOption: {
+              label: "Event not listed",
+              detail: "Tell me the event name and its exact date.",
+              placeholder: "Event name",
+              nameLabel: "Event name",
+              dateLabel: "Event date",
+            },
+            fitnessOption: {
+              label: "Improve without an event",
+              detail: "Build fitness for a fixed number of weeks.",
+            },
+          },
+          answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build power" } },
+        },
+      ],
+      openQuestion: {
+        kind: "success-question",
+        step: { current: 2, total: 9 },
+        prompt: "Success?",
+        input: {
+          kind: "fitness-choice",
+          options: [
+            {
+              choice: "train-consistently",
+              label: "Train consistently",
+              detail: "Complete most planned weeks without forcing missed Workouts back in.",
+            },
+            {
+              choice: "climb-stronger",
+              label: "Climb stronger",
+              detail: "Hold a steadier effort on longer climbs.",
+            },
+            {
+              choice: "ride-farther",
+              label: "Ride farther comfortably",
+              detail: "Finish longer rides with stable energy and form.",
+            },
+          ],
+          authored: {
+            label: "Something else",
+            detail: "Describe what success should feel like.",
+            editorLabel: "Write your answer.",
+          },
+          placeholder: "Describe success",
+        },
+      },
+    };
+    const interpretation = {
+      rules: [{ kind: "weekday-unavailable" as const, day: 6 }],
+      unparsed: [],
+      status: "confirm" as const,
+    };
+    const interpretCommitments = vi.fn<
+      PlanCreationOperations["plan_creation.interpretCommitments"]
+    >(async () => interpretation);
+    const startPlanCreation = vi.fn<PlanCreationOperations["plan_creation.start"]>(async () => ({
+      status: "started",
+      outcome: "created",
+      planCreation: startedCard,
+    }));
+    const answerPlanCreation = vi.fn<PlanCreationOperations["plan_creation.answer"]>(async () => ({
+      status: "answered",
+      planCreation: answeredCard,
+    }));
+    const previewPlanCreation = vi.fn<PlanCreationOperations["plan_creation.preview"]>(
+      async () => ({ status: "rejected", reason: "not-ready", planCreation: answeredCard }),
+    );
+    const discardPlanCreation = vi.fn<PlanCreationOperations["plan_creation.discard"]>(
+      async () => ({ status: "discarded" }),
+    );
+    const activationResult = {
+      creationId,
+      planId: "01J00000000000000000000001",
+      closedPlanId: null,
+      activatedAt: "1998-09-07",
+    };
+    const listPlans = vi.fn(async () => ({
+      calendarConnected: false,
+      legacy: null,
+      creation: startedCard,
+      active: null,
+      closed: [],
+      changes: [],
+      changesPaused: null,
+    }));
+    const closePlan = vi.fn<PlanCreationOperations["plan.close"]>(async () => ({
+      status: "closed",
+      planId: activationResult.planId,
+      closedAt: 904_953_600_000,
+      cleanupJobId: "01J00000000000000000000002",
+    }));
+    const previewPlanChange = vi.fn<PlanChangeOperations["plan_change.preview"]>(async () => ({
+      status: "rejected",
+      reason: "no-active-plan",
+    }));
+    const applyPlanChange = vi.fn<PlanChangeOperations["plan_change.apply"]>(async () => ({
+      status: "rejected",
+      reason: "no-active-plan",
+    }));
+    const readHistory = vi.fn(async () => null);
+    const activatePlanCreation = vi.fn<PlanCreationOperations["plan_creation.activate"]>(
+      async () => activationResult,
+    );
+    const rpc = createCoachRpcServer({
+      engine: engine(),
+      operations: {
+        ...operations,
+        "plan.list": listPlans,
+        "plan.close": closePlan,
+        "plan_change.preview": previewPlanChange,
+        "plan_change.apply": applyPlanChange,
+        "plan.history": readHistory,
+        "plan_creation.interpretCommitments": interpretCommitments,
+        "plan_creation.start": startPlanCreation,
+        "plan_creation.answer": answerPlanCreation,
+        "plan_creation.preview": previewPlanCreation,
+        "plan_creation.discard": discardPlanCreation,
+        "plan_creation.activate": activatePlanCreation,
+      },
+      token,
+      owner: "app-supervised",
+    });
+    const renderer = await openSocket(rpc);
+    renderer.ws.send(
+      JSON.stringify(
+        createClientHandshakeFrame(TEST_RENDERER_CAPABILITY_BYTES.toString("base64url")),
+      ),
+    );
+    await renderer.frames.next();
+    const changePreviewParams = {
+      commandId: "change-preview",
+      planId: activationResult.planId,
+      expectedVersion: 1,
+      intent: { kind: "longest-workout", minutes: 60 },
+    };
+    const changeApplyParams = {
+      commandId: "change-apply",
+      planId: activationResult.planId,
+      changeId: "01J00000000000000000000003",
+      expectedVersion: 1,
+      decision: "apply",
+    };
+    const startParams = { commandId: "start-1" };
+    const answerParams = {
+      commandId: "answer-1",
+      creationId,
+      expectedVersion: 1,
+      answer: { kind: "goal" as const, goal: { kind: "fitness" as const, outcome: "Build power" } },
+    };
+    const previewParams = { commandId: "preview-1", creationId, expectedVersion: 2 };
+    const discardParams = { commandId: "discard-1", creationId, expectedVersion: 2 };
+    const activateParams = {
+      commandId: "activate-1",
+      incumbent: null,
+      creationId,
+      expectedVersion: 2,
+    };
+    const closeParams = {
+      commandId: "close-1",
+      planId: activationResult.planId,
+      expectedVersion: 1,
+    };
+    const historyParams = { planId: activationResult.planId };
+    for (const { result, ...request } of [
+      {
+        id: "interpret",
+        method: "plan_creation.interpretCommitments",
+        params: { text: "Saturday unavailable" },
+        result: interpretation,
+      },
+      {
+        id: "start",
+        method: "plan_creation.start",
+        params: startParams,
+        result: { status: "started", outcome: "created", planCreation: startedCard },
+      },
+      {
+        id: "answer",
+        method: "plan_creation.answer",
+        params: answerParams,
+        result: { status: "answered", planCreation: answeredCard },
+      },
+      {
+        id: "preview",
+        method: "plan_creation.preview",
+        params: previewParams,
+        result: { status: "rejected", reason: "not-ready", planCreation: answeredCard },
+      },
+      {
+        id: "discard",
+        method: "plan_creation.discard",
+        params: discardParams,
+        result: { status: "discarded" },
+      },
+      {
+        id: "activate",
+        method: "plan_creation.activate",
+        params: activateParams,
+        result: activationResult,
+      },
+      {
+        id: "list",
+        method: "plan.list",
+        params: {},
+        result: {
+          calendarConnected: false,
+          legacy: null,
+          creation: startedCard,
+          active: null,
+          closed: [],
+          changes: [],
+          changesPaused: null,
+        },
+      },
+      {
+        id: "close",
+        method: "plan.close",
+        params: closeParams,
+        result: {
+          status: "closed",
+          planId: activationResult.planId,
+          closedAt: 904_953_600_000,
+          cleanupJobId: "01J00000000000000000000002",
+        },
+      },
+      {
+        id: "change-preview",
+        method: "plan_change.preview",
+        params: changePreviewParams,
+        result: { status: "rejected", reason: "no-active-plan" },
+      },
+      {
+        id: "change-apply",
+        method: "plan_change.apply",
+        params: changeApplyParams,
+        result: { status: "rejected", reason: "no-active-plan" },
+      },
+      {
+        id: "history",
+        method: "plan.history",
+        params: historyParams,
+        result: null,
+      },
+    ]) {
+      renderer.ws.send(JSON.stringify({ jsonrpc: "2.0", ...request }));
+      expect(parseCoachRpcEnvelope(await renderer.frames.next())).toEqual({
+        jsonrpc: "2.0",
+        id: request.id,
+        result,
+      });
+    }
+    expect(interpretCommitments).toHaveBeenCalledExactlyOnceWith({ text: "Saturday unavailable" });
+    expect(startPlanCreation).toHaveBeenCalledWith(startParams);
+    expect(answerPlanCreation).toHaveBeenCalledWith(answerParams);
+    expect(previewPlanCreation).toHaveBeenCalledWith(previewParams);
+    expect(discardPlanCreation).toHaveBeenCalledWith(discardParams);
+    expect(activatePlanCreation).toHaveBeenCalledWith(activateParams);
+    expect(listPlans).toHaveBeenCalledWith({});
+    expect(closePlan).toHaveBeenCalledWith(closeParams);
+    expect(previewPlanChange).toHaveBeenCalledWith(changePreviewParams);
+    expect(applyPlanChange).toHaveBeenCalledWith(changeApplyParams);
+    expect(readHistory).toHaveBeenCalledWith(historyParams);
+
+    for (const request of [
+      {
+        id: "invalid-interpret",
+        method: "plan_creation.interpretCommitments",
+        params: { text: "Saturday unavailable", commandId: "not-a-command" },
+      },
+      {
+        id: "invalid-start",
+        method: "plan_creation.start",
+        params: { ...startParams, extra: true },
+      },
+      {
+        id: "invalid-answer",
+        method: "plan_creation.answer",
+        params: { ...answerParams, extra: true },
+      },
+      {
+        id: "invalid-preview",
+        method: "plan_creation.preview",
+        params: { ...previewParams, extra: true },
+      },
+      {
+        id: "invalid-discard",
+        method: "plan_creation.discard",
+        params: { ...discardParams, extra: true },
+      },
+      {
+        id: "invalid-activate",
+        method: "plan_creation.activate",
+        params: { ...activateParams, extra: true },
+      },
+      {
+        id: "invalid-list",
+        method: "plan.list",
+        params: { extra: true },
+      },
+      {
+        id: "invalid-close",
+        method: "plan.close",
+        params: { ...closeParams, closeActor: "system:plan-completion" },
+      },
+      {
+        id: "invalid-completion",
+        method: "plan.close",
+        params: { ...closeParams, closeReason: "completed" },
+      },
+      {
+        id: "invalid-change-preview",
+        method: "plan_change.preview",
+        params: { ...changePreviewParams, extra: true },
+      },
+      {
+        id: "invalid-change-apply",
+        method: "plan_change.apply",
+        params: { ...changeApplyParams, extra: true },
+      },
+      {
+        id: "invalid-history",
+        method: "plan.history",
+        params: { ...historyParams, extra: true },
+      },
+    ]) {
+      renderer.ws.send(JSON.stringify({ jsonrpc: "2.0", ...request }));
+      expect(parseCoachRpcEnvelope(await renderer.frames.next())).toMatchObject({
+        id: request.id,
+        error: { code: -32602, message: "Invalid params" },
+      });
+    }
+    expect(startPlanCreation).toHaveBeenCalledOnce();
+    expect(answerPlanCreation).toHaveBeenCalledOnce();
+    expect(previewPlanCreation).toHaveBeenCalledOnce();
+    expect(discardPlanCreation).toHaveBeenCalledOnce();
+    expect(activatePlanCreation).toHaveBeenCalledOnce();
+    expect(previewPlanChange).toHaveBeenCalledOnce();
+    expect(applyPlanChange).toHaveBeenCalledOnce();
+    await renderer.close();
   });
 
   it.each([

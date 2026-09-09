@@ -1,5 +1,10 @@
 import type {
   CoachDecisionAnswer,
+  ListPlansResult,
+  PlanCreationCardModel,
+  PlanCloseResult,
+  PlanCloseRpcParams,
+  PlanHistoryResult,
   PlanError,
   PlanHydrationState,
   PlanNavigationTarget,
@@ -10,7 +15,12 @@ import type {
 } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
 import type { EnduragentState } from "./store";
-import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "./chat-slice";
+import {
+  EMPTY_CHAT_SURFACE,
+  PLAN_CHANGES_PAUSED_NOTICE,
+  PLAN_CHANGES_RESUMED_NOTICE,
+  type ChatSurfaceState,
+} from "./chat-slice";
 
 export type PlanTransitionState =
   | { readonly status: "idle" }
@@ -52,6 +62,20 @@ export type PlanReadSurfaceState =
   | { readonly status: "loading"; readonly value: null }
   | { readonly status: "ready"; readonly value: PlanningReadModel }
   | { readonly status: "unavailable"; readonly value: PlanningReadModel | null };
+
+export type PlanLibraryState =
+  | { readonly status: "loading"; readonly value: null }
+  | { readonly status: "ready"; readonly value: ListPlansResult }
+  | { readonly status: "unavailable"; readonly value: ListPlansResult | null };
+
+export interface PlanLibraryActions {
+  closePlan(input: PlanCloseRpcParams): Promise<PlanCloseResult>;
+  readPlanHistory(planId: string): Promise<PlanHistoryResult>;
+  refresh(): Promise<void>;
+  startCreation(): void;
+  continueCreation(creation: PlanCreationCardModel): void;
+  changeInChat(): void;
+}
 
 export interface PlanningReadActions {
   refresh(): void;
@@ -144,6 +168,15 @@ export interface PlanActions {
 export interface PlanSlice {
   readonly plan: PlanSurfaceState;
   readonly planSurface: PlanReadSurfaceState;
+  readonly planLibrary: PlanLibraryState;
+  readonly planCloseAttempt: {
+    readonly command: PlanCloseRpcParams;
+    readonly busy: boolean;
+  } | null;
+  setPlanCloseAttempt: (attempt: PlanSlice["planCloseAttempt"]) => void;
+  readonly planLibraryActions: PlanLibraryActions | null;
+  setPlanLibrary: (value: PlanLibraryState) => void;
+  bindPlanLibraryActions: (actions: PlanLibraryActions | null) => void;
   readonly planFocus: PlanNavigationTarget | null;
   readonly planReturnToChat: boolean;
   readonly planActions: PlanActions | null;
@@ -187,6 +220,46 @@ export function planAttentionCount(plan: PlanSurfaceState): number {
 
 export const createPlanSlice: StateCreator<EnduragentState, [], [], PlanSlice> = (set) => ({
   plan: EMPTY_PLAN_SURFACE,
+  planLibrary: { status: "loading", value: null },
+  planLibraryActions: null,
+  planCloseAttempt: null,
+  setPlanCloseAttempt(attempt) {
+    set({ planCloseAttempt: attempt });
+  },
+  setPlanLibrary(value) {
+    set((state) => {
+      if (value.status !== "ready") return { planLibrary: value };
+      const activePlanId = value.value.active?.planId;
+      const surfaceOpen =
+        activePlanId !== undefined &&
+        ((state.planChange.open && state.planChange.planId === activePlanId) ||
+          value.value.changes.some((change) => change.status === "pending"));
+      if (!surfaceOpen) return { planLibrary: value };
+      if (value.value.changesPaused !== null) {
+        return {
+          planLibrary: value,
+          planChange: {
+            ...state.planChange,
+            editorOpen: false,
+            error: null,
+            notice: PLAN_CHANGES_PAUSED_NOTICE,
+          },
+        };
+      }
+      const wasPaused =
+        state.planChange.notice === PLAN_CHANGES_PAUSED_NOTICE ||
+        (state.planLibrary.status === "ready" && state.planLibrary.value.changesPaused !== null);
+      return {
+        planLibrary: value,
+        ...(wasPaused
+          ? { planChange: { ...state.planChange, notice: PLAN_CHANGES_RESUMED_NOTICE } }
+          : {}),
+      };
+    });
+  },
+  bindPlanLibraryActions(actions) {
+    set({ planLibraryActions: actions });
+  },
   planSurface: { status: "loading", value: null },
   planFocus: null,
   planReturnToChat: false,

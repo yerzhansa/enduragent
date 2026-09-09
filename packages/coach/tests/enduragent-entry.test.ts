@@ -18,6 +18,8 @@ import {
   type AthleteState,
   type CoachEngine,
   type CoachOperations,
+  type PlanCreationOperations,
+  type PlanChangeOperations,
 } from "@enduragent/coach-contract";
 import type { CoachClient, CoachClientCallOptions } from "@enduragent/coach-client";
 import {
@@ -45,6 +47,7 @@ import {
 } from "../src/local-runner.js";
 import { CoachStoreWriterError, withCoachStoreWriter } from "../src/runtime.js";
 import type { SpendMeterService } from "../src/spend-meter.js";
+import { planCreationOperationStubs } from "./helpers/plan-creation-operation-stubs.js";
 
 const state: AthleteState = {
   schemaVersion: "3",
@@ -60,7 +63,8 @@ const state: AthleteState = {
   wellness: {},
 };
 
-const operations: CoachOperations = {
+const operations: CoachOperations & PlanCreationOperations & PlanChangeOperations = {
+  ...planCreationOperationStubs,
   importFiles: async ({ paths }) => ({
     schemaVersion: 2,
     files: { total: paths.length, imported: paths.length, quarantined: 0 },
@@ -306,7 +310,7 @@ afterEach(async () => {
 
 describe("enduragent executable composition", () => {
   it("starts initial refresh through one authenticated control socket and closes it", async () => {
-    expect(PROTOCOL_VERSION).toBe(33);
+    expect(PROTOCOL_VERSION).toBe(36);
     const startInitialRefresh = vi.fn(async () => ({ status: "accepted" as const }));
     const close = vi.fn(async () => {});
     const openControl = vi.fn(async () => ({ startInitialRefresh, close }));

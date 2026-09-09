@@ -31,6 +31,7 @@ import {
   type PlanFtpProjection,
   type PlanFtpSourceValue,
   type PlanHistoryEntry,
+  type PlanHistoryResult,
   type PlanPlanningRequestContext,
   type PlanRaceCourseProjection,
   type PlanRaceCourseSummary,
@@ -47,12 +48,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@enduragent/ui";
-import { formatCivilDate } from "../../lib/date";
+import {
+  requestPlanCalendarRetry,
+  subscribePlanFinalDetailsRefresh,
+} from "../../plan/library-refresh";
+import { formatCivilDate } from "@enduragent/coach-contract";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "../chat/CoachDecisionPanel";
 import { Composer, type ComposerHandle } from "../chat/Composer";
 import { ConversationTranscript } from "../chat/Transcript";
+import { PlanLibrary } from "./PlanLibrary";
+import { PlanFinalDetails } from "./PlanFinalDetails";
 import { Page } from "@enduragent/ui";
 import { WorkoutArchiveExportControl } from "../training/TrainingExportControls";
 
@@ -877,63 +884,6 @@ function CoursePickerDialog(): ReactElement {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function NoPlan(): ReactElement {
-  const actions = useEnduragentStore((state) => state.planActions);
-  const transition = useEnduragentStore((state) => state.plan.transition);
-  const model = useEnduragentStore((state) => planReadModel(state.plan));
-  const startGuard = model?.transitions.find((guard) => guard.transitionId === "PL-T01");
-  const startBlocked = startGuard?.status === "blocked";
-  const busy = transition.status === "submitting" || transition.status === "running";
-  const failed = transition.status === "failed";
-
-  return (
-    <div className="grid gap-6" data-plan-scenario="PL-S001">
-      <section className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-lg font-semibold">Train toward one clear goal</h2>
-        <p className="m-0 text-ink-2">
-          Your coach will ask here for your Goal Event, optional GPX/FIT Race Course, weekly
-          availability, and FTP. Nothing writes until you approve.
-        </p>
-      </section>
-      <section className="grid gap-inset">
-        <h2 className="m-0 text-sm font-medium">What the draft needs</h2>
-        <div className="overflow-hidden rounded-card bg-surface px-5 shadow-elev-1">
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">Goal event + Race Course</h3>
-            <p className="m-0 text-ink-2">Race date, priority, and optional GPX/FIT file</p>
-          </div>
-          <div className="h-px bg-line" />
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">Current training</h3>
-            <p className="m-0 text-ink-2">Recent workouts, recovery, and weekly availability</p>
-          </div>
-          <div className="h-px bg-line" />
-          <div className={`${SUPPORT_PAIR} py-3.5`}>
-            <h3 className="m-0 text-sm font-medium">FTP</h3>
-            <p className="m-0 text-ink-2">Athlete-entered FTP, Intervals FTP, or Intervals eFTP</p>
-          </div>
-        </div>
-      </section>
-      {failed ? <StaleNotice message={transition.error.message} /> : null}
-      {startBlocked && startGuard.reason !== null ? (
-        <StaleNotice message={startGuard.reason} />
-      ) : null}
-      <div className="flex flex-wrap gap-inset">
-        <Button
-          id="plan-start-coach"
-          type="button"
-          disabled={actions === null || busy || startBlocked}
-          aria-busy={busy ? "true" : undefined}
-          onClick={() => actions?.startPlan()}
-        >
-          {busy ? "Opening coach…" : "Build a plan with coach"}
-        </Button>
-        {failed ? <RetryButton /> : null}
-      </div>
-    </div>
   );
 }
 
@@ -3522,39 +3472,6 @@ function ActiveProjection(): ReactElement {
   if (model.scenarioId === "PL-S026" || model.scenarioId === "PL-S027") {
     return <HistoryResultProjection scenarioId={model.scenarioId} entry={selectedHistoryEntry} />;
   }
-  const reconciling =
-    (transition.status === "submitting" || transition.status === "running") &&
-    transition.transitionId === "PL-T12";
-  const failed = model.reconciliation.status === "failed";
-  const verified = model.reconciliation.status === "verified";
-  const retrying = reconciling && failed;
-  const running = reconciling || model.reconciliation.status === "running";
-  const completed = model.reconciliation.created;
-  const total = model.reconciliation.total;
-  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
-  const showReconciliation = [
-    "PL-S010",
-    "PL-S037",
-    "PL-S038",
-    "PL-S039",
-    "PL-S040",
-    "PL-S041",
-    "PL-S042",
-    "PL-S043",
-  ].includes(model.scenarioId);
-  const calendarTitle = verified
-    ? `Intervals · current through ${formatCivilDate(model.reconciliation.currentThrough!)}`
-    : retrying
-      ? "Retrying Intervals update"
-      : running
-        ? model.scenarioId === "PL-S042"
-          ? "Resuming Intervals update"
-          : "Updating Intervals"
-        : failed
-          ? model.scenarioId === "PL-S041"
-            ? "Intervals still needs attention"
-            : "Intervals update needs attention"
-          : "Update Intervals for the next seven days";
   const selectedWorkout =
     data.selectedWorkoutId === undefined || data.selectedWorkoutId === null
       ? null
@@ -3657,78 +3574,6 @@ function ActiveProjection(): ReactElement {
       </section>
 
       <PredictionsSummary readiness={data.readiness} />
-
-      {showReconciliation ? (
-        <section
-          className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1"
-          aria-live="polite"
-        >
-          <div className="flex items-start gap-row">
-            {failed && !retrying ? (
-              <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
-            ) : verified ? (
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
-            ) : running ? (
-              <LoaderCircle
-                className="mt-0.5 size-5 shrink-0 animate-spin text-primary"
-                aria-hidden="true"
-              />
-            ) : (
-              <CalendarDays className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-            )}
-            <div className={`${SUPPORT_PAIR} min-w-0 flex-1`}>
-              <h2 className="m-0 text-base font-semibold">{calendarTitle}</h2>
-              <p className="m-0 text-ink-2">
-                {total > 0
-                  ? `Created ${completed} · Pending ${model.reconciliation.pending} · Failed ${model.reconciliation.failed} · Total ${total}`
-                  : "Only today plus the next six civil dates will be written."}
-              </p>
-            </div>
-            {verified ? (
-              <span className="rounded-full border border-ok px-3 py-1 text-sm text-ok">
-                Verified
-              </span>
-            ) : null}
-          </div>
-          {total > 0 ? (
-            <div
-              className="h-2 overflow-hidden rounded-full bg-sunk"
-              role="progressbar"
-              aria-label="Intervals calendar update"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={percent}
-            >
-              <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-            </div>
-          ) : null}
-          {!running && !verified ? (
-            <div className="flex flex-wrap justify-end gap-inset">
-              {failed ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={actions === null}
-                  onClick={() => actions?.verifyReconciliation()}
-                >
-                  Verify again
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                disabled={actions === null}
-                onClick={() => actions?.reconcilePlan()}
-              >
-                {failed
-                  ? "Retry"
-                  : model.scenarioId === "PL-S037"
-                    ? "View calendar progress"
-                    : "Update Intervals"}
-              </Button>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className="overflow-hidden rounded-card bg-surface shadow-elev-1">
         <div className="flex items-start justify-between gap-row px-5 py-row">
@@ -4540,7 +4385,7 @@ function EndedProjection(): ReactElement {
   );
 }
 
-function ReadyProjection(): ReactElement {
+function ReadyProjection(): ReactElement | null {
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   if (
@@ -4558,7 +4403,7 @@ function ReadyProjection(): ReactElement {
       <StatusCard title={model.title} support={model.summary} />
     );
   }
-  if (model.lifecycle === "none" || model.projection === "no-plan") return <NoPlan />;
+  if (model.lifecycle === "none" || model.projection === "no-plan") return null;
   if (model.projection === "coach") return <PlanCoach />;
   if (model.projection === "draft") return <DraftProjection />;
   if (model.projection === "active") return <ActiveProjection />;
@@ -4573,6 +4418,61 @@ function ReadyProjection(): ReactElement {
 }
 
 export function PlanView(): ReactElement {
+  const [finalDetails, setFinalDetails] = useState<
+    | { status: "library" }
+    | { status: "loading"; planId: string; justClosed: boolean }
+    | { status: "ready"; history: PlanHistoryResult; justClosed: boolean }
+    | { status: "unavailable"; planId: string; justClosed: boolean }
+  >({ status: "library" });
+  const historyRequest = useRef(0);
+  const stopHistoryRefresh = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      historyRequest.current += 1;
+      stopHistoryRefresh.current?.();
+    },
+    [],
+  );
+  const library = useEnduragentStore((state) => state.planLibrary);
+  const libraryActions = useEnduragentStore((state) => state.planLibraryActions);
+  const readFinalDetails = (planId: string, justClosed = false): void => {
+    if (libraryActions === null) return;
+    const request = ++historyRequest.current;
+    stopHistoryRefresh.current?.();
+    setFinalDetails({ status: "loading", planId, justClosed });
+    void libraryActions.readPlanHistory(planId).then(
+      (history) => {
+        if (request !== historyRequest.current) return;
+        setFinalDetails({ status: "ready", history, justClosed });
+        if (history !== null) {
+          stopHistoryRefresh.current = subscribePlanFinalDetailsRefresh({
+            history,
+            readHistory: (id) => libraryActions.readPlanHistory(id),
+            onHistory: (value) => {
+              if (request === historyRequest.current)
+                setFinalDetails({ status: "ready", history: value, justClosed });
+            },
+          });
+        }
+      },
+      () => {
+        if (request === historyRequest.current)
+          setFinalDetails({ status: "unavailable", planId, justClosed });
+      },
+    );
+  };
+  const backToLibrary = (): void => {
+    historyRequest.current += 1;
+    stopHistoryRefresh.current?.();
+    setFinalDetails({ status: "library" });
+  };
+  const planningActions = useEnduragentStore((state) => state.planningReadActions);
+  const creationFocus = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
+  const details = useRef<HTMLDivElement>(null);
+  const startButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (creationFocus?.target === "start") startButton.current?.focus();
+  }, [creationFocus, library.value?.creation]);
   const plan = useEnduragentStore((state) => state.plan);
   const actions = useEnduragentStore((state) => state.planActions);
   const model = planReadModel(plan);
@@ -4595,20 +4495,75 @@ export function PlanView(): ReactElement {
     ? "Loading…"
     : historyPage
       ? `${activeData.plan.name} · active Plan · mutation and recovery log`
-      : activeOverview && activeData !== null
-        ? `${activeData.plan.name}${
-            activeData.plan.targetDate === null
-              ? ""
-              : ` · ${formatCivilDate(activeData.plan.targetDate)}`
-          } · Active`
-        : model?.lifecycle === "none"
-          ? "No active plan"
-          : undefined;
+      : undefined;
 
   useEffect(() => {
-    if (returnFocusId === null) return;
+    if (returnFocusId === null || finalDetails.status !== "library") return;
     requestAnimationFrame(() => document.getElementById(returnFocusId)?.focus());
-  }, [model?.scenarioId, returnFocusId]);
+  }, [model?.scenarioId, returnFocusId, finalDetails.status]);
+
+  if (finalDetails.status !== "library") {
+    const notice = finalDetails.justClosed
+      ? finalDetails.status === "ready" && finalDetails.history?.cleanup === "complete"
+        ? "Plan closed. Cleanup complete."
+        : "Plan closed. Calendar cleanup pending."
+      : null;
+    return (
+      <Page
+        title="Plan"
+        className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
+        busy={finalDetails.status === "loading"}
+      >
+        {finalDetails.status === "ready" && finalDetails.history !== null ? (
+          <PlanFinalDetails
+            history={finalDetails.history}
+            notice={notice}
+            backToLibrary={backToLibrary}
+            retryCalendar={
+              libraryActions === null
+                ? undefined
+                : async () => {
+                    if (finalDetails.history === null) return;
+                    requestPlanCalendarRetry(finalDetails.history.plan.planId);
+                    await libraryActions.refresh();
+                  }
+            }
+          />
+        ) : (
+          <div className="grid gap-inset">
+            {notice === null ? null : (
+              <p role="status" className="m-0 text-sm text-ink-2">
+                {notice}
+              </p>
+            )}
+            {finalDetails.status === "loading" ? (
+              <p role="status" className="m-0 text-sm text-ink-2">
+                Loading final Plan details…
+              </p>
+            ) : null}
+            {finalDetails.status === "unavailable" ? (
+              <>
+                <p role="alert" className="m-0 text-sm text-danger">
+                  Final Plan details could not load. Try again.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => readFinalDetails(finalDetails.planId, finalDetails.justClosed)}
+                >
+                  Try again
+                </Button>
+              </>
+            ) : null}
+            <div>
+              <Button variant="outline" onClick={backToLibrary}>
+                Back to library
+              </Button>
+            </div>
+          </div>
+        )}
+      </Page>
+    );
+  }
 
   return (
     <Page
@@ -4616,7 +4571,18 @@ export function PlanView(): ReactElement {
       subtitle={subtitle}
       busy={loading}
       action={
-        coachWorkspace ? (
+        library.value !== null && !coachWorkspace && !historyPage ? (
+          library.value.creation === null ? (
+            <Button
+              ref={startButton}
+              id="start-plan"
+              disabled={libraryActions === null}
+              onClick={() => libraryActions?.startCreation()}
+            >
+              {library.value.active === null ? "Start a Plan" : "Start a new Plan"}
+            </Button>
+          ) : undefined
+        ) : coachWorkspace ? (
           <Button
             id="plan-coach-close"
             type="button"
@@ -4642,31 +4608,68 @@ export function PlanView(): ReactElement {
           </Button>
         ) : undefined
       }
-      className="plan-view"
+      className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
       contentMode={coachWorkspace ? "workspace" : "scroll"}
     >
       <div className={coachWorkspace ? "h-full min-h-0" : "grid gap-6"}>
-        {plan.hydration.status === "stale" ? (
-          <StaleNotice message={plan.hydration.error.message} />
+        {library.status === "unavailable" ? (
+          <div role="alert" className="grid gap-inset">
+            <StaleNotice message="Plan library could not load. Try again." />
+            <Button variant="outline" onClick={() => planningActions?.refresh()}>
+              Try again
+            </Button>
+          </div>
         ) : null}
-        {plan.hydration.status === "loading" ? (
-          <p className="m-0 text-ink-2" role="status" aria-live="polite">
-            Loading your Plan…
-          </p>
-        ) : plan.hydration.status === "failed" ? (
-          <StatusCard
-            title="Plan could not load"
-            support={plan.hydration.error.message}
-            retry={plan.hydration.error.retryable}
+        {library.value !== null && !coachWorkspace && !historyPage ? (
+          <PlanLibrary
+            library={library.value}
+            readFinalDetails={readFinalDetails}
+            readDetails={() => {
+              details.current?.scrollIntoView({ block: "start", behavior: "instant" });
+              details.current?.focus({ preventScroll: true });
+            }}
           />
-        ) : plan.hydration.status === "unsupported-capability" ? (
-          <StatusCard
-            title="Plan is not available yet"
-            support="Update Enduragent and its local service to use Plan."
-          />
-        ) : (
-          <ReadyProjection />
-        )}
+        ) : null}
+        <div
+          ref={details}
+          tabIndex={-1}
+          className={coachWorkspace ? "h-full min-h-0" : "grid gap-6"}
+        >
+          {library.value !== null && activeOverview ? (
+            <div className="flex justify-end">
+              <Button
+                id="plan-history-trigger"
+                type="button"
+                variant="outline"
+                onClick={() => actions?.openHistory()}
+              >
+                <History className="size-4" aria-hidden="true" />
+                Plan history
+              </Button>
+            </div>
+          ) : null}
+          {plan.hydration.status === "stale" ? (
+            <StaleNotice message={plan.hydration.error.message} />
+          ) : null}
+          {plan.hydration.status === "loading" ? (
+            <p className="m-0 text-ink-2" role="status" aria-live="polite">
+              Loading your Plan…
+            </p>
+          ) : plan.hydration.status === "failed" ? (
+            <StatusCard
+              title="Plan could not load"
+              support={plan.hydration.error.message}
+              retry={plan.hydration.error.retryable}
+            />
+          ) : plan.hydration.status === "unsupported-capability" ? (
+            <StatusCard
+              title="Plan is not available yet"
+              support="Update Enduragent and its local service to use Plan."
+            />
+          ) : (
+            <ReadyProjection />
+          )}
+        </div>
         <CoursePickerDialog />
       </div>
     </Page>

@@ -1,6 +1,7 @@
 import {
   AthleteHomeIdentitySchema,
   COACH_RPC_METHOD_REGISTRY,
+  PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
   parseCoachRpcEnvelope,
   serializeCoachRpcEnvelope,
   type AcceptedServerHandshakeFrame,
@@ -143,6 +144,11 @@ const COACH_RPC_CALL_TIMEOUT_MS: Record<CoachRpcMethodName, number> = {
   getArchivedTranscriptPage: 30_000,
   getAthleteState: 30_000,
   getPlanningReadModel: 30_000,
+  "plan.list": 30_000,
+  "plan.close": 30_000,
+  "plan_change.preview": PLAN_CHANGE_PREVIEW_TIMEOUT_MS,
+  "plan_change.apply": 30_000,
+  "plan.history": 30_000,
   getActivityAnalysis: 90_000,
   exportTrainingFile: 120_000,
   importFiles: 60 * 60_000,
@@ -185,6 +191,12 @@ const COACH_RPC_CALL_TIMEOUT_MS: Record<CoachRpcMethodName, number> = {
   retryPlanningRequest: 30_000,
   resumePlanningRequests: 30_000,
   listPlanningRequests: 30_000,
+  "plan_creation.interpretCommitments": 30_000,
+  "plan_creation.start": 30_000,
+  "plan_creation.answer": 30_000,
+  "plan_creation.preview": 30_000,
+  "plan_creation.discard": 30_000,
+  "plan_creation.activate": 30_000,
 };
 
 function positiveSafeInteger(value: unknown): value is number {

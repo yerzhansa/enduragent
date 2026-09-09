@@ -182,11 +182,11 @@ class ApplicationStateBackend {
       if (request.method === "deleteArchivedConversation") {
         return response({ schemaVersion: 1, status: "not-found" });
       }
-      if (
-        request.method === "resumePlanningRequests" ||
-        request.method === "listPlanningRequests"
-      ) {
+      if (request.method === "resumePlanningRequests") {
         return response({ deliveries: [] });
+      }
+      if (request.method === "listPlanningRequests") {
+        return response({ deliveries: [], planCreation: null });
       }
       if (request.method === "getSpendSummary") {
         return response({

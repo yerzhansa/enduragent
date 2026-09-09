@@ -676,7 +676,7 @@ function isResumeFailure(err: unknown): boolean {
 }
 
 export function isStatelessCaller(caller: GenerateOpts["caller"]): boolean {
-  return caller === "flush" || caller === "compact";
+  return caller === "flush" || caller === "compact" || caller === "intent-translation";
 }
 
 function assistantReply(text: string): ModelMessage {
@@ -705,7 +705,12 @@ export async function claudeCliGenerateText(
     try {
       return await runGeneration(opts, ports, runtime, plan);
     } catch (err) {
-      if (!isSubprocessDeath(err) || opts.signal?.aborted === true) throw err;
+      if (
+        opts.caller === "intent-translation" ||
+        !isSubprocessDeath(err) ||
+        opts.signal?.aborted === true
+      )
+        throw err;
       return await runGeneration(opts, ports, runtime, plan, {}, "retry");
     }
   }
