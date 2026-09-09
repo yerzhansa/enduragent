@@ -1,5 +1,17 @@
 # @enduragent/desktop
 
+## 0.3.0
+
+### Minor Changes
+
+- be70e9b: Add a Language row to desktop Settings preferences.
+
+  User-facing: Settings now has a Language choice above Units. Automatic follows your computer's language, or pick one of 17 languages for the app and the coach.
+
+### Patch Changes
+
+- 68151cd: The macOS release lane reads the Electron fuse constants through the package's CommonJS entry points and exits non-zero when any release stage fails.
+
 ## 0.2.0
 
 ### Minor Changes
