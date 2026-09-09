@@ -4,7 +4,6 @@
 "@enduragent/coach": patch
 "@enduragent/coach-client": patch
 "@enduragent/kernel": patch
-"@enduragent/sport-cycling": patch
 "@enduragent/desktop": patch
 "cycling-coach": patch
 ---

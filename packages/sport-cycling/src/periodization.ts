@@ -199,7 +199,7 @@ export function selectPeriodizationModel(
 /**
  * Compute total plan duration in weeks.
  *
- * - Race + date: ceil(daysUntil / 7), clamped 1-24
+ * - Race + date: ceil(daysUntil / 7), clamped 8-24
  * - Race + no date: lookup by race type
  * - General: lookup by experience
  *
@@ -210,7 +210,7 @@ export function computeTotalWeeks(profile: AthleteProfile, tz: string = "UTC"): 
   if (profile.goalType === "race" && profile.raceDate) {
     const daysUntil = daysBetweenLocal(todayInTZ(tz), profile.raceDate);
     const weeks = Math.ceil(daysUntil / 7);
-    return Math.max(1, Math.min(24, weeks));
+    return Math.max(8, Math.min(24, weeks));
   }
 
   if (profile.goalType === "race" && profile.raceType) {
