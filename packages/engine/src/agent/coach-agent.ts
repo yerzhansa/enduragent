@@ -54,6 +54,8 @@ import { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
 import {
+  ATTACHMENT_TEXT_MAX_CHARS,
+  ATTACHMENT_TEXT_TRUNCATION_NOTICE,
   isUntrustedEnvelope,
   markUntrustedResult,
   wrapAthleteContextFence,
@@ -1037,7 +1039,8 @@ export class CoachAgent {
             ? userMessageWithTime
             : `${userMessageWithTime}\n\n${wrapAthleteContextFence({
                 text: turn.untrustedAttachmentText,
-                maxChars: 200_000,
+                maxChars: ATTACHMENT_TEXT_MAX_CHARS,
+                truncationNotice: ATTACHMENT_TEXT_TRUNCATION_NOTICE,
               })}`;
 
         // One-turn model-visible archive marker: after an automatic reset, tell

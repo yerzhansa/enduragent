@@ -96,7 +96,6 @@ async function readPlainText(bytes, limits) {
   await assertDetectedType(bytes, "txt");
   return {
     ...boundedText(normalizeText(strictUtf8(bytes)), limits.extractedTextChars),
-    pageText: [],
     visualPageNumbers: [],
   };
 }
@@ -152,7 +151,6 @@ async function readCsv(bytes, limits) {
   return {
     text: output.trimEnd(),
     truncated,
-    pageText: [],
     visualPageNumbers: [],
   };
 }
@@ -287,7 +285,7 @@ async function readDocx(bytes, limits) {
     reject("validation_failed");
   }
   const result = boundedText(normalizeText(extracted.value), limits.extractedTextChars);
-  return { ...result, pageText: [], visualPageNumbers: [] };
+  return { ...result, visualPageNumbers: [] };
 }
 
 function usefulPdfText(text) {
@@ -306,7 +304,6 @@ async function readPdf(bytes, limits) {
     }
     let text = "";
     let truncated = false;
-    const pageText = [];
     const visualPageNumbers = [];
     for (let pageNumber = 1; pageNumber <= pdf.pageCount; pageNumber += 1) {
       const extracted = await pdf.extract({
@@ -322,13 +319,10 @@ async function readPdf(bytes, limits) {
       const prefix = `${text.length === 0 ? "" : "\n\n"}[Page ${pageNumber}]\n`;
       const available = Math.max(0, limits.extractedTextChars - text.length - prefix.length);
       const included = normalized.slice(0, available);
-      if (included.length > 0) {
-        text += prefix + included;
-        pageText.push({ pageNumber, text: included });
-      }
+      if (included.length > 0) text += prefix + included;
       if (included.length < normalized.length || extracted.truncated.text) truncated = true;
     }
-    return { text, pageText, visualPageNumbers, truncated };
+    return { text, visualPageNumbers, truncated };
   } catch (error) {
     if (error instanceof ReaderFailure) throw error;
     if (error instanceof PdfPasswordError || error instanceof PdfSecurityError) {
