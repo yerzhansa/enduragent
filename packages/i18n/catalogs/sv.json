@@ -25,11 +25,15 @@
       "title": "Språk",
       "unavailable": "Språkinställningen är inte tillgänglig"
     },
+    "preferences": "Inställningar",
     "units": {
       "detail": "Distans och kroppsvikt följer den här inställningen. Förhållandet mellan effekt och vikt vid cykling visas fortfarande i W/kg.",
+      "displayUnits": "Visningsenheter",
       "imperial": "Brittiska enheter",
       "metric": "Metriskt",
-      "title": "Enheter"
+      "saving": "Sparar enheter…",
+      "title": "Enheter",
+      "unavailable": "Enhetsinställningen är inte tillgänglig"
     }
   }
 }

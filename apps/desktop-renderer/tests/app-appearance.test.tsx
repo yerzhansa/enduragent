@@ -22,6 +22,8 @@ function background(): string {
 }
 
 beforeEach(() => {
+  vi.spyOn(navigator, "languages", "get").mockReturnValue(["en"]);
+  vi.spyOn(navigator, "language", "get").mockReturnValue("en-US");
   useEnduragentStore.setState({
     activeView: "chat",
     runtimeReady: true,
@@ -34,6 +36,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   useEnduragentStore.setState({
     activeView: "chat",
     chat: EMPTY_CHAT_SURFACE,
@@ -44,9 +47,10 @@ afterEach(() => {
 });
 
 describe("app appearance", () => {
-  it("re-stamps the palette when the operating system flips scheme under System", () => {
+  it("re-stamps the palette when the operating system flips scheme under System", async () => {
     const onReady = vi.fn();
     render(<App onReady={onReady} />);
+    await screen.findByLabelText("Coaching conversation");
     act(() => {
       useEnduragentStore.getState().setAppearance("system");
     });
@@ -72,8 +76,9 @@ describe("app appearance", () => {
     expect(background()).toBe(stamped("light"));
   });
 
-  it("stops listening to the operating system once the athlete pins an appearance", () => {
+  it("stops listening to the operating system once the athlete pins an appearance", async () => {
     render(<App onReady={vi.fn()} />);
+    await screen.findByLabelText("Coaching conversation");
     act(() => {
       useEnduragentStore.getState().setAppearance("system");
     });
@@ -91,8 +96,9 @@ describe("app appearance", () => {
     expect(background()).toBe(stamped("light"));
   });
 
-  it("drops the operating-system listener when the app unmounts", () => {
+  it("drops the operating-system listener when the app unmounts", async () => {
     const view = render(<App onReady={vi.fn()} />);
+    await screen.findByLabelText("Coaching conversation");
     expect(matchMediaListenerCount()).toBe(1);
 
     view.unmount();

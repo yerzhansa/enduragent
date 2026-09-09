@@ -1,9 +1,13 @@
 import { LANGUAGE_OPTIONS } from "@enduragent/i18n";
 import type { CoachClient } from "@enduragent/coach-client";
-import type { RuntimeConfigSnapshot, SpendSummary } from "@enduragent/coach-contract";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import type { LanguageTag, RuntimeConfigSnapshot, SpendSummary } from "@enduragent/coach-contract";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithLanguage as render } from "./language-harness";
+import { App } from "../src/app/App";
+import { createPhrasebook } from "@enduragent/i18n/messages";
+import { describeLanguage } from "@enduragent/i18n";
 import { Shell } from "../src/app/Shell";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import type {
@@ -49,7 +53,7 @@ import { createTelegramSettingsAdapter } from "../src/state/adapters/telegram";
 import { createUpdateSettingsAdapter } from "../src/state/adapters/update";
 import { credentialDrafts } from "../src/state/credential-drafts";
 import { CLOSED_PANE, EMPTY_SETTINGS_SURFACE } from "../src/state/settings-slice";
-import { READY_ONBOARDING, setupReady } from "../src/state/onboarding-slice";
+import { CLOSED_ONBOARDING, READY_ONBOARDING, setupReady } from "../src/state/onboarding-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { IDLE_MANUAL_SYNC } from "../src/state/sync-slice";
 import type { TrainingSyncDroppedActivities } from "../src/training-sync";
@@ -247,9 +251,10 @@ function createHarness(options: HarnessOptions = {}) {
     close: async () => {},
   };
 
-  const restartToUpdate = vi.fn(
-    async (): Promise<DesktopUpdateState> => ({ status: "installing", version: "9.9.9" }),
-  );
+  const restartToUpdate = vi.fn(async (): Promise<DesktopUpdateState> => ({
+    status: "installing",
+    version: "9.9.9",
+  }));
   const checkForUpdates = vi.fn(async (): Promise<DesktopUpdateState> => ({ status: "current" }));
   const applyLlmSelection = vi.fn(
     options.applyLlmSelection ??
@@ -479,6 +484,8 @@ function createHarness(options: HarnessOptions = {}) {
 let harness: ReturnType<typeof createHarness> | undefined;
 
 beforeEach(() => {
+  vi.spyOn(navigator, "languages", "get").mockReturnValue(["en"]);
+  vi.spyOn(navigator, "language", "get").mockReturnValue("en-GB");
   const configuration = llmConfiguration();
   const provider = configuration.providers[0]!;
   const statuses = [
@@ -536,6 +543,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   harness?.dispose();
   harness = undefined;
   useEnduragentStore.setState({
@@ -549,7 +557,7 @@ afterEach(() => {
 
 async function renderSettings(options: HarnessOptions = {}) {
   harness = createHarness(options);
-  render(<SettingsView />);
+  await render(<SettingsView />);
   await screen.findByRole("button", { name: "Save coach route" });
   await waitFor(() => {
     expect(useEnduragentStore.getState().settings.coach.status).toBe("ready");
@@ -560,7 +568,7 @@ async function renderSettings(options: HarnessOptions = {}) {
 }
 
 describe("training restriction repair", () => {
-  it("shows the repair card only while Strava restrictions exist", () => {
+  it("shows the repair card only while Strava restrictions exist", async () => {
     useEnduragentStore.setState({
       sync: toManualSyncViewState({
         status: "succeeded",
@@ -569,7 +577,7 @@ describe("training restriction repair", () => {
         droppedActivities: stravaDroppedActivities(),
       }),
     });
-    render(<SettingsView />);
+    await render(<SettingsView />);
 
     const settings = screen.getByRole("region", { name: "Settings" });
     const notice = settings.querySelector("#strava-restricted-activities");
@@ -598,7 +606,7 @@ describe("training restriction repair", () => {
 
   it("focuses the Settings heading when a pending request has no repair card", async () => {
     requestTrainingRestrictionFocus();
-    render(<SettingsView />);
+    await render(<SettingsView />);
 
     const heading = screen.getByRole("heading", { level: 1, name: "Settings" });
     await waitFor(() => {
@@ -606,8 +614,8 @@ describe("training restriction repair", () => {
     });
   });
 
-  it("leaves focus alone on an ordinary Settings mount", () => {
-    render(<SettingsView />);
+  it("leaves focus alone on an ordinary Settings mount", async () => {
+    await render(<SettingsView />);
 
     const heading = screen.getByRole("heading", { level: 1, name: "Settings" });
     expect(heading).not.toHaveFocus();
@@ -618,14 +626,12 @@ describe("settings setup inventory", () => {
   it("reloads a stale credential inventory before confirming an Intervals deletion", async () => {
     const user = userEvent.setup();
     let intervalsConnected = false;
-    const loadCredentialStatuses = vi.fn(
-      async (): Promise<readonly CredentialSlotStatus[]> => [
-        { slot: "anthropic", state: "configured", runtimeState: "active" },
-        ...(intervalsConnected
-          ? ([{ slot: "intervals-icu", state: "configured", runtimeState: "active" }] as const)
-          : []),
-      ],
-    );
+    const loadCredentialStatuses = vi.fn(async (): Promise<readonly CredentialSlotStatus[]> => [
+      { slot: "anthropic", state: "configured", runtimeState: "active" },
+      ...(intervalsConnected
+        ? ([{ slot: "intervals-icu", state: "configured", runtimeState: "active" }] as const)
+        : []),
+    ]);
     const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
     bridge.credentialStatuses.mockImplementation(loadCredentialStatuses);
     bridge.pasteIntervalsApiKeyFromClipboard.mockImplementation(async () => {
@@ -1060,7 +1066,7 @@ describe("settings lifecycle", () => {
           await resetContinuation.promise;
         },
       });
-      render(<Shell onReady={() => {}} />);
+      await render(<Shell onReady={() => {}} />);
       await screen.findByRole("button", { name: "Save coach route" });
 
       await user.click(screen.getByRole("button", { name: "Remove all credentials" }));
@@ -1141,7 +1147,7 @@ describe("settings lifecycle", () => {
 
   it("keeps the resident Telegram controller active when Settings unmounts and remounts", async () => {
     harness = createHarness();
-    const view = render(<SettingsView />);
+    const view = await render(<SettingsView />);
     await screen.findByRole("button", { name: "Save coach route" });
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.conversation.status).toBe("ready");
@@ -1167,7 +1173,7 @@ describe("settings lifecycle", () => {
     expect(harness.telegramController.state()).toBe(telegram);
     expect(harness.cancelTelegramPoll).not.toHaveBeenCalled();
 
-    render(<SettingsView />);
+    await render(<SettingsView />);
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.conversation.status).toBe("ready");
     });
@@ -1813,7 +1819,7 @@ describe("credential deletion", () => {
         reason: "storage-uncertain",
       }),
     });
-    const firstVisit = render(<SettingsView />);
+    const firstVisit = await render(<SettingsView />);
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.credentials.status).toBe("ready");
     });
@@ -1831,7 +1837,7 @@ describe("credential deletion", () => {
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
-    render(<SettingsView />);
+    await render(<SettingsView />);
     await waitFor(() => expect(loadCredentialStatuses).toHaveBeenCalledTimes(2));
     expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
       status: "loading",
@@ -2161,9 +2167,7 @@ it("renders Language above Units with Automatic and registry endonyms", async ()
     useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: null } }),
   );
   const preferences = screen.getByRole("region", { name: "Preferences" });
-  expect(
-    within(preferences).getByText(/^Automatic follows your macOS language/),
-  ).toBeVisible();
+  expect(within(preferences).getByText(/^Automatic follows your macOS language/)).toBeVisible();
   expect(
     [...preferences.querySelectorAll(".settings-row-title")].map((row) => row.textContent),
   ).toEqual(["Language", "Units", "Appearance"]);
@@ -2183,7 +2187,7 @@ it("renders Language above Units with Automatic and registry endonyms", async ()
   );
   expect(select).toHaveTextContent("Français");
   await userEvent.click(select);
-  await userEvent.click(await screen.findByRole("option", { name: "Automatic" }));
+  await userEvent.click(await screen.findByRole("option", { name: "Automatique" }));
   expect(port?.set).toHaveBeenLastCalledWith(null);
 });
 
@@ -2205,4 +2209,138 @@ it("disables Language while loading, saving, or unbound and preserves unavailabl
   expect(select).toHaveTextContent("日本語");
   act(() => useEnduragentStore.getState().bindSettingsPorts(null));
   expect(select).toBeDisabled();
+});
+
+describe("catalog preferences", () => {
+  it.each([
+    { value: "it", languages: ["en"], tag: "it" },
+    { value: null, languages: ["en"], tag: "en" },
+    { value: null, languages: ["it-IT"], tag: "it" },
+  ] satisfies { value: LanguageTag | null; languages: string[]; tag: LanguageTag }[])(
+    "renders $tag preferences with saved $value and OS $languages",
+    async ({ value, languages, tag }) => {
+      vi.spyOn(navigator, "languages", "get").mockReturnValue(languages);
+      useEnduragentStore.getState().patchSettings({ language: { status: "ready", value } });
+      await renderSettings();
+      const { say } = await createPhrasebook({ tag, locale: describeLanguage(tag).defaultLocale });
+      const preferences = within(screen.getByRole("region", { name: say("settings.preferences") }));
+      expect(preferences.getByText(say("settings.language.title"))).toBeVisible();
+      expect(preferences.getByText(say("settings.units.title"))).toBeVisible();
+      expect(preferences.getByText(say("settings.appearance.title"))).toBeVisible();
+      expect(preferences.getByRole("button", { name: say("settings.units.metric") })).toBeVisible();
+      expect(
+        preferences.getByRole("button", { name: say("settings.appearance.dark") }),
+      ).toBeVisible();
+      expect(preferences.getByRole("combobox")).toHaveTextContent(
+        value === null ? say("common.automatic") : describeLanguage(value).endonym,
+      );
+      expect(useEnduragentStore.getState().settings.language.value).toBe(value);
+      expect(useEnduragentStore.getState().settingsPorts?.language.set).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("first launch language", () => {
+  it.each([
+    { disposition: "required", value: null, languages: ["uk"], shell: "language" },
+    { disposition: "required", value: null, languages: ["it"], shell: "gate" },
+    { disposition: "required", value: null, languages: ["it-IT"], shell: "gate" },
+    { disposition: "required", value: "ja", languages: ["uk"], shell: "gate" },
+    { disposition: "satisfied", value: null, languages: ["uk"], shell: "app" },
+    { disposition: "unknown", value: null, languages: ["uk"], shell: "unknown" },
+  ] satisfies {
+    disposition: "required" | "satisfied" | "unknown";
+    value: LanguageTag | null;
+    languages: string[];
+    shell: string;
+  }[])(
+    "shows $shell for $disposition, $value, $languages",
+    async ({ disposition, value, languages, shell }) => {
+      vi.spyOn(navigator, "languages", "get").mockReturnValue(languages);
+      useEnduragentStore.setState({
+        activeView: "chat",
+        onboarding:
+          disposition === "unknown"
+            ? CLOSED_ONBOARDING
+            : { ...READY_ONBOARDING, completionRequired: disposition === "required" },
+      });
+      useEnduragentStore.getState().patchSettings({ language: { status: "ready", value } });
+      harness = createHarness();
+      await render(<Shell onReady={() => {}} />);
+      expect(document.querySelector("[data-shell]")).toHaveAttribute("data-shell", shell);
+      if (shell === "language") {
+        expect(await screen.findByRole("heading", { name: "Choose your language" })).toBeVisible();
+        expect(screen.getByRole("combobox")).toHaveTextContent("English");
+        expect(screen.getAllByRole("button")).toHaveLength(1);
+        expect(screen.queryByText("Automatic")).toBeNull();
+      } else {
+        expect(screen.queryByRole("heading", { name: "Choose your language" })).toBeNull();
+      }
+      expect(useEnduragentStore.getState().settingsPorts?.language.set).not.toHaveBeenCalled();
+      expect(useEnduragentStore.getState().settings.language.value).toBe(value);
+    },
+  );
+
+  it.each(["ja", "it"] satisfies LanguageTag[])(
+    "previews and saves %s before showing setup",
+    async (tag) => {
+      vi.spyOn(navigator, "languages", "get").mockReturnValue(["uk"]);
+      useEnduragentStore.setState({
+        onboarding: { ...READY_ONBOARDING, completionRequired: true },
+      });
+      useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: null } });
+      harness = createHarness();
+      const port = useEnduragentStore.getState().settingsPorts?.language;
+      if (port === undefined) throw new Error("Language port missing");
+      const saved = deferred<void>();
+      vi.mocked(port.set).mockImplementation((value) => {
+        useEnduragentStore
+          .getState()
+          .patchSettings({ language: { status: "saving", value: null } });
+        void saved.promise.then(() => {
+          useEnduragentStore.getState().patchSettings({ language: { status: "ready", value } });
+        });
+      });
+      await render(<App onReady={() => {}} />);
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("combobox", { name: "Language" }));
+      expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual(
+        LANGUAGE_OPTIONS.map(({ endonym }) => endonym),
+      );
+      await user.click(screen.getByRole("option", { name: describeLanguage(tag).endonym }));
+      const { say } = await createPhrasebook({ tag, locale: describeLanguage(tag).defaultLocale });
+      expect(
+        await screen.findByRole("heading", { name: say("language.chooseTitle") }),
+      ).toBeVisible();
+      expect(port.set).not.toHaveBeenCalled();
+      const button = screen.getByRole("button", { name: say("language.continue") });
+      await user.click(button);
+      expect(port.set).toHaveBeenCalledExactlyOnceWith(tag);
+      expect(button).toBeDisabled();
+      expect(screen.getByRole("combobox")).toBeDisabled();
+      expect(document.querySelector("[data-shell]")).toHaveAttribute("data-shell", "language");
+      await act(async () => saved.resolve());
+      await waitFor(() =>
+        expect(document.querySelector("[data-shell]")).toHaveAttribute("data-shell", "gate"),
+      );
+      expect(document.querySelector('[data-setup-host="gate"]')).toBeVisible();
+      expect(useEnduragentStore.getState().settings.language.value).toBe(tag);
+      expect(document.documentElement.lang).toBe(tag);
+    },
+  );
+
+  it("updates the document language as the saved preference changes", async () => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["it-IT"]);
+    useEnduragentStore.getState().patchSettings({ language: { status: "loading", value: null } });
+    await render(<App onReady={() => {}} />);
+    expect(document.documentElement.lang).toBe("it");
+    act(() =>
+      useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: "ja" } }),
+    );
+    expect(document.documentElement.lang).toBe("ja");
+    act(() =>
+      useEnduragentStore.getState().patchSettings({ language: { status: "ready", value: null } }),
+    );
+    expect(document.documentElement.lang).toBe("it");
+  });
 });

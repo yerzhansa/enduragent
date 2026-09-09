@@ -25,11 +25,15 @@
       "title": "Idioma",
       "unavailable": "Preferência de idioma indisponível"
     },
+    "preferences": "Preferências",
     "units": {
       "detail": "A distância e a massa corporal seguem esta definição. A relação potência-peso no ciclismo mantém-se em W/kg.",
+      "displayUnits": "Unidades de apresentação",
       "imperial": "Imperial",
       "metric": "Métrico",
-      "title": "Unidades"
+      "saving": "A guardar unidades…",
+      "title": "Unidades",
+      "unavailable": "Preferência de unidades indisponível"
     }
   }
 }

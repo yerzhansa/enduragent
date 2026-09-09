@@ -97,10 +97,7 @@ function isSameTrainingSyncState(left: TrainingSyncState, right: TrainingSyncSta
         right.status === "succeeded" &&
         right.operation === left.operation &&
         right.kind === left.kind &&
-        isSameRestrictionWindow(
-          right.droppedActivities.overall,
-          left.droppedActivities.overall,
-        ) &&
+        isSameRestrictionWindow(right.droppedActivities.overall, left.droppedActivities.overall) &&
         isSameRestrictionWindow(
           right.droppedActivities.recent7Days,
           left.droppedActivities.recent7Days,

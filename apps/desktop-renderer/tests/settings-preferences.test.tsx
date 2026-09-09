@@ -1,11 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsView } from "../src/ui/settings/SettingsView";
 import { useEnduragentStore } from "../src/state/store";
 import { PALETTES } from "@enduragent/ui";
 import { APPEARANCE_STORAGE_KEY, PALETTE_STORAGE_KEY } from "../src/theme/preferences";
 import { setPrefersDark } from "./matchmedia";
+import { renderWithLanguage } from "./language-harness";
 
 function resetStore(): void {
   useEnduragentStore.setState({ paletteId: "patrol", appearance: "system", theme: "light" });
@@ -13,11 +14,17 @@ function resetStore(): void {
 
 describe("settings preferences", () => {
   beforeEach(() => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["en"]);
+    vi.spyOn(navigator, "language", "get").mockReturnValue("en-US");
     resetStore();
   });
 
-  it("offers one swatch per palette and marks the active one", () => {
-    render(<SettingsView />);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("offers one swatch per palette and marks the active one", async () => {
+    await renderWithLanguage(<SettingsView />);
 
     const swatches = screen.getAllByRole("button", { name: /^Use the .+ palette$/u });
     expect(swatches).toHaveLength(PALETTES.length);
@@ -34,7 +41,7 @@ describe("settings preferences", () => {
 
   it("applies and persists a palette choice", async () => {
     const user = userEvent.setup();
-    render(<SettingsView />);
+    await renderWithLanguage(<SettingsView />);
 
     await user.click(screen.getByRole("button", { name: "Use the Cobalt palette" }));
 
@@ -53,7 +60,7 @@ describe("settings preferences", () => {
 
   it("applies and persists an appearance choice", async () => {
     const user = userEvent.setup();
-    render(<SettingsView />);
+    await renderWithLanguage(<SettingsView />);
     const group = screen.getByRole("group", { name: "Appearance" });
 
     await user.click(screen.getByRole("button", { name: "Dark" }));
@@ -72,7 +79,7 @@ describe("settings preferences", () => {
 
   it("follows the system colour scheme when the appearance is System", async () => {
     const user = userEvent.setup();
-    render(<SettingsView />);
+    await renderWithLanguage(<SettingsView />);
 
     setPrefersDark(true);
     await user.click(screen.getByRole("button", { name: "System" }));

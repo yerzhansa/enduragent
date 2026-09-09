@@ -25,11 +25,15 @@
       "title": "言語",
       "unavailable": "言語設定を利用できません"
     },
+    "preferences": "環境設定",
     "units": {
       "detail": "距離と体重はこの設定に従います。サイクリングのパワーウェイトレシオはW/kgのままです。",
+      "displayUnits": "表示単位",
       "imperial": "ヤード・ポンド法",
       "metric": "メートル法",
-      "title": "単位"
+      "saving": "単位を保存中…",
+      "title": "単位",
+      "unavailable": "単位設定を利用できません"
     }
   }
 }

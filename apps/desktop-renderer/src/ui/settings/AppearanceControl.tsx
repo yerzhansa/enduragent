@@ -1,15 +1,16 @@
 import type { ReactElement } from "react";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import type { Appearance } from "@enduragent/ui";
 
-const OPTIONS: readonly { readonly value: Appearance; readonly label: string }[] = Object.freeze([
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-]);
-
 export function AppearanceControl(): ReactElement {
+  const { say } = usePhrasebook();
+  const options: readonly { readonly value: Appearance; readonly label: string }[] = [
+    { value: "system", label: say("settings.appearance.system") },
+    { value: "light", label: say("settings.appearance.light") },
+    { value: "dark", label: say("settings.appearance.dark") },
+  ];
   const appearance = useEnduragentStore((state) => state.appearance);
   const setAppearance = useEnduragentStore((state) => state.setAppearance);
 
@@ -17,9 +18,9 @@ export function AppearanceControl(): ReactElement {
     <div
       className="flex shrink-0 rounded-ctl border border-line bg-sunk p-0.5"
       role="group"
-      aria-label="Appearance"
+      aria-label={say("settings.appearance.title")}
     >
-      {OPTIONS.map((option) => (
+      {options.map((option) => (
         <Button
           key={option.value}
           type="button"

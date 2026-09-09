@@ -25,11 +25,15 @@
       "title": "Taal",
       "unavailable": "Taalvoorkeur niet beschikbaar"
     },
+    "preferences": "Voorkeuren",
     "units": {
       "detail": "Afstand en lichaamsgewicht volgen deze instelling. De verhouding tussen vermogen en gewicht bij het fietsen blijft in W/kg.",
+      "displayUnits": "Weergave-eenheden",
       "imperial": "Imperiaal",
       "metric": "Metrisch",
-      "title": "Eenheden"
+      "saving": "Eenheden opslaan…",
+      "title": "Eenheden",
+      "unavailable": "Eenhedenvoorkeur niet beschikbaar"
     }
   }
 }

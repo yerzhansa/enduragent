@@ -92,10 +92,13 @@ describe("built i18n dependency boundaries", () => {
     ]);
   });
 
-  it("requires both built entries and permits i18next only from messages", () => {
-    expect(checkI18nBuiltDependencies(fixture)).toHaveLength(2);
+  it("requires all built entries and permits React only from the React entry", () => {
+    expect(checkI18nBuiltDependencies(fixture)).toHaveLength(3);
     write("packages/i18n/dist/index.js", "export const msg = () => null;");
     write("packages/i18n/dist/messages.js", 'import "i18next";');
+    write("packages/i18n/dist/react.js", 'import "react";');
+    write("packages/i18n/node_modules/react/package.json", '{"name":"react","exports":"./index.js"}');
+    write("packages/i18n/node_modules/react/index.js", "export const createContext = () => null;");
     write("packages/i18n/node_modules/i18next/package.json", '{"name":"i18next","exports":"./index.js"}');
     write("packages/i18n/node_modules/i18next/index.js", "export const createInstance = () => null;");
 

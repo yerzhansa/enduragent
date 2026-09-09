@@ -57,7 +57,7 @@ function sources(file: URL): string[] {
 }
 
 describe("built package", () => {
-  it.each(["index.js", "node.js", "messages.js"])("ships the %s entry", (entry) => {
+  it.each(["index.js", "node.js", "messages.js", "react.js"])("ships the %s entry", (entry) => {
     expect(statSync(new URL(entry, dist)).isFile()).toBe(true);
   });
 

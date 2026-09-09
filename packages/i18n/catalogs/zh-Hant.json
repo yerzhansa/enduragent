@@ -25,11 +25,15 @@
       "title": "語言",
       "unavailable": "無法使用語言偏好設定"
     },
+    "preferences": "偏好設定",
     "units": {
       "detail": "距離和體重會遵循此設定。自行車功率體重比仍使用W/kg。",
+      "displayUnits": "顯示單位",
       "imperial": "英制",
       "metric": "公制",
-      "title": "單位"
+      "saving": "正在儲存單位…",
+      "title": "單位",
+      "unavailable": "單位偏好無法使用"
     }
   }
 }

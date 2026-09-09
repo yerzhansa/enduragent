@@ -25,11 +25,15 @@
       "title": "Sprog",
       "unavailable": "Sprogindstilling er ikke tilgængelig"
     },
+    "preferences": "Præferencer",
     "units": {
       "detail": "Distance og kropsvægt følger denne indstilling. Forholdet mellem effekt og vægt i cykling vises fortsat i W/kg.",
+      "displayUnits": "Visningsenheder",
       "imperial": "Imperial",
       "metric": "Metrisk",
-      "title": "Enheder"
+      "saving": "Gemmer enheder…",
+      "title": "Enheder",
+      "unavailable": "Enhedspræference er ikke tilgængelig"
     }
   }
 }

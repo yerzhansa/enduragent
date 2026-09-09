@@ -565,6 +565,9 @@ importers:
       i18next:
         specifier: ^25.10.10
         version: 25.10.10(typescript@6.0.3)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.8
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -572,6 +575,9 @@ importers:
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
       tsup:
         specifier: ^8.4.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.12)(supports-color@7.2.0)(tsx@4.23.13)(typescript@6.0.3)(yaml@2.9.0)

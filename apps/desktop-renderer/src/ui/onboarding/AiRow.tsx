@@ -25,13 +25,7 @@ import {
   type SetupLane,
 } from "../../onboarding/lanes";
 import { llmSelectionFromDraft, type LlmSelectionDraft } from "../../onboarding/selection";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,

@@ -1,22 +1,13 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import {
-  CUSTOM_MODEL_SELECTION,
-  ONBOARDING_LLM_PROVIDER_LABELS,
-} from "../../onboarding/constants";
+import { CUSTOM_MODEL_SELECTION, ONBOARDING_LLM_PROVIDER_LABELS } from "../../onboarding/constants";
 import type {
   ProviderModelFormState,
   ProviderModelSettingsState,
 } from "../../settings/provider-model-controller";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { COACH_SAVE_ERROR_COPY, COACH_VALIDATION_COPY } from "./copy";
 import { settingsStyles as styles } from "./styles";
 

@@ -52,78 +52,68 @@ function setup(options: { readonly credentialMutationsBlocked?: () => boolean } 
   const release = vi.fn();
   const bridge = {
     status: vi.fn(async (): Promise<TelegramControlStatus> => DISABLED),
-    pasteTokenFromClipboard: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({
-        outcome: "applied" as const,
-        current: {
-          ...DISABLED,
-          bot: { state: "ready" as const, username: "synthetic_bot" },
-          credentialConfigured: true,
-        },
-      }),
-    ),
-    enable: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({ outcome: "applied", current: PAIRED }),
-    ),
-    disable: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({
-        outcome: "applied" as const,
-        current: {
-          ...PAIRED,
-          channel: { desiredState: "disabled" as const, state: "disabled" as const },
-        },
-      }),
-    ),
-    remove: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({ outcome: "applied", current: DISABLED }),
-    ),
-    reconcile: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({ outcome: "applied", current: DISABLED }),
-    ),
-    removeWebhook: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({
-        outcome: "applied" as const,
-        current: {
-          ...PAIRED,
-          pairing: { state: "unpaired" as const },
-          channel: { desiredState: "disabled" as const, state: "disabled" as const },
-        },
-      }),
-    ),
-    beginPairing: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({
-        outcome: "applied" as const,
-        current: AWAITING,
-      }),
-    ),
-    cancelPairing: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({
-        outcome: "applied" as const,
-        current: {
-          ...PAIRED,
-          pairing: { state: "unpaired" as const },
-          channel: { desiredState: "disabled" as const, state: "disabled" as const },
-        },
-      }),
-    ),
-    acknowledgeGapWarning: vi.fn(
-      async (): Promise<TelegramMutationResult> => ({ outcome: "applied", current: PAIRED }),
-    ),
+    pasteTokenFromClipboard: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied" as const,
+      current: {
+        ...DISABLED,
+        bot: { state: "ready" as const, username: "synthetic_bot" },
+        credentialConfigured: true,
+      },
+    })),
+    enable: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied",
+      current: PAIRED,
+    })),
+    disable: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied" as const,
+      current: {
+        ...PAIRED,
+        channel: { desiredState: "disabled" as const, state: "disabled" as const },
+      },
+    })),
+    remove: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied",
+      current: DISABLED,
+    })),
+    reconcile: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied",
+      current: DISABLED,
+    })),
+    removeWebhook: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied" as const,
+      current: {
+        ...PAIRED,
+        pairing: { state: "unpaired" as const },
+        channel: { desiredState: "disabled" as const, state: "disabled" as const },
+      },
+    })),
+    beginPairing: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied" as const,
+      current: AWAITING,
+    })),
+    cancelPairing: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied" as const,
+      current: {
+        ...PAIRED,
+        pairing: { state: "unpaired" as const },
+        channel: { desiredState: "disabled" as const, state: "disabled" as const },
+      },
+    })),
+    acknowledgeGapWarning: vi.fn(async (): Promise<TelegramMutationResult> => ({
+      outcome: "applied",
+      current: PAIRED,
+    })),
     listAllowedSenders: vi.fn(async (): Promise<TelegramAllowedSenders> => SENDERS),
-    addAllowedSender: vi.fn(
-      async (): Promise<TelegramAllowedSendersMutationResult> => ({
-        outcome: "applied",
-        current: {
-          senders: [...SENDERS.senders, { senderId: 202, role: "additional" }],
-        },
-      }),
-    ),
-    removeAllowedSender: vi.fn(
-      async (): Promise<TelegramAllowedSendersMutationResult> => ({
-        outcome: "applied",
-        current: SENDERS,
-      }),
-    ),
+    addAllowedSender: vi.fn(async (): Promise<TelegramAllowedSendersMutationResult> => ({
+      outcome: "applied",
+      current: {
+        senders: [...SENDERS.senders, { senderId: 202, role: "additional" }],
+      },
+    })),
+    removeAllowedSender: vi.fn(async (): Promise<TelegramAllowedSendersMutationResult> => ({
+      outcome: "applied",
+      current: SENDERS,
+    })),
   } satisfies TelegramSettingsBridge;
   const view: TelegramSettingsView = {
     bind: (next) => {

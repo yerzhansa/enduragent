@@ -25,11 +25,15 @@
       "title": "Sprache",
       "unavailable": "Spracheinstellung nicht verfügbar"
     },
+    "preferences": "Einstellungen",
     "units": {
       "detail": "Distanz und Körpergewicht richten sich nach dieser Einstellung. Das Leistungsgewicht beim Radfahren bleibt in W/kg.",
+      "displayUnits": "Anzeigeeinheiten",
       "imperial": "Imperial",
       "metric": "Metrisch",
-      "title": "Einheiten"
+      "saving": "Einheiten werden gespeichert…",
+      "title": "Einheiten",
+      "unavailable": "Einheiten-Einstellung nicht verfügbar"
     }
   }
 }

@@ -22,6 +22,10 @@
     "./messages": {
       "types": "./dist/messages.d.ts",
       "default": "./dist/messages.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
     }
   },
   "scripts": {
@@ -36,9 +40,13 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/react": "19.2.18",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
   },
   "engines": {
     "node": ">=24"

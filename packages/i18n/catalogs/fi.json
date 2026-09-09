@@ -25,11 +25,15 @@
       "title": "Kieli",
       "unavailable": "Kieliasetus ei ole käytettävissä"
     },
+    "preferences": "Asetukset",
     "units": {
       "detail": "Matka ja kehonpaino noudattavat tätä asetusta. Pyöräilyn teho-painosuhteen yksikkö on edelleen W/kg.",
+      "displayUnits": "Näyttöyksiköt",
       "imperial": "Brittiläinen",
       "metric": "Metrinen",
-      "title": "Yksiköt"
+      "saving": "Tallennetaan yksiköitä…",
+      "title": "Yksiköt",
+      "unavailable": "Yksikköasetus ei ole käytettävissä"
     }
   }
 }

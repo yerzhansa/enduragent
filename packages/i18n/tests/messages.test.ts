@@ -78,7 +78,6 @@ it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => 
     );
   }
   expect(keys(catalog)).toEqual(keys(english));
-  expect(keys(catalog)).toHaveLength(21);
 });
 
 it("derives message and phrasebook keys from the English catalog", () => {

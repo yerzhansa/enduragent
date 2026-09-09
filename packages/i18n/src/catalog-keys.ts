@@ -16,7 +16,11 @@ export type CatalogKey =
   | "settings.language.saving"
   | "settings.language.title"
   | "settings.language.unavailable"
+  | "settings.preferences"
   | "settings.units.detail"
+  | "settings.units.displayUnits"
   | "settings.units.imperial"
   | "settings.units.metric"
-  | "settings.units.title";
+  | "settings.units.saving"
+  | "settings.units.title"
+  | "settings.units.unavailable";

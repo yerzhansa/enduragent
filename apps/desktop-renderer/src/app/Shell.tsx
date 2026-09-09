@@ -6,10 +6,13 @@ import { clearTrainingRestrictionFocusRequest } from "../ui/settings/restriction
 import { Sidebar } from "../ui/sidebar/Sidebar";
 import { SetupGate } from "./SetupGate";
 import { REACT_CHAT_REGION, VIEWS } from "./views";
+import { languageRequired } from "../language";
+import { LanguageGate } from "../ui/onboarding/LanguageGate";
 
 export function Shell(props: { readonly onReady: () => void }): ReactElement {
   const activeView = useEnduragentStore((state) => state.activeView);
   const disposition = useEnduragentStore(setupDisposition);
+  const needsLanguage = useEnduragentStore(languageRequired);
   const onboardingStartupSettled = useEnduragentStore((state) => state.onboardingStartupSettled);
   const onReady = props.onReady;
   const onboardingState = onboardingStartupSettled ? "settled" : "pending";
@@ -32,7 +35,13 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
       data-view={activeView}
       data-onboarding={onboardingState}
       data-shell={
-        disposition === "unknown" ? "unknown" : disposition === "required" ? "gate" : "app"
+        needsLanguage
+          ? "language"
+          : disposition === "unknown"
+            ? "unknown"
+            : disposition === "required"
+              ? "gate"
+              : "app"
       }
     >
       {disposition === "unknown" ? (
@@ -41,11 +50,16 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
           role="status"
           aria-live="polite"
           aria-busy="true"
+          lang="en"
         >
           Checking setup…
         </div>
       ) : disposition === "required" ? (
-        <SetupGate />
+        needsLanguage ? (
+          <LanguageGate />
+        ) : (
+          <SetupGate />
+        )
       ) : (
         <>
           <Sidebar />

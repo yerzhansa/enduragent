@@ -1,9 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { ActivityAnalysisSection } from "@enduragent/coach-contract";
-import {
-  EMPTY_RIDE_ANALYSIS,
-  type RideAnalysisViewState,
-} from "../activity-analysis/controller";
+import { EMPTY_RIDE_ANALYSIS, type RideAnalysisViewState } from "../activity-analysis/controller";
 import type { EnduragentState } from "./store";
 
 export interface RideAnalysisActions {

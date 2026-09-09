@@ -26,10 +26,7 @@ export interface TrainingSlice {
   closeRide: () => void;
 }
 
-function provesRideAbsent(
-  week: CompletedActivityWeek | null,
-  localDate: string,
-): boolean {
+function provesRideAbsent(week: CompletedActivityWeek | null, localDate: string): boolean {
   return (
     week !== null &&
     localDate >= week.window.start &&
