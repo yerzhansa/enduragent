@@ -25,11 +25,15 @@
       "title": "Lingua",
       "unavailable": "Preferenza della lingua non disponibile"
     },
+    "preferences": "Preferenze",
     "units": {
       "detail": "La distanza e la massa corporea seguono questa impostazione. Il rapporto potenza-peso nel ciclismo resta in W/kg.",
+      "displayUnits": "Unità di visualizzazione",
       "imperial": "Imperiale",
       "metric": "Metrico",
-      "title": "Unità"
+      "saving": "Salvataggio delle unità…",
+      "title": "Unità",
+      "unavailable": "Preferenza delle unità non disponibile"
     }
   }
 }

@@ -1,12 +1,6 @@
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import type { OnboardingActions, OnboardingSurfaceState } from "../../onboarding/controller";
 import { errorSection } from "../../onboarding/lanes";
 import { RETRY_INTAKE_SAVE_LABEL } from "./copy";

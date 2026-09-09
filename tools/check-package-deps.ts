@@ -159,7 +159,7 @@ export const RULES: readonly PackageDepRule[] = [
     srcOnly: true,
     allowedWorkspace: ["@enduragent/coach-contract"],
     transitionalWorkspace: [],
-    allowedExternal: ["zod", "i18next"],
+    allowedExternal: ["zod", "i18next", "react"],
     forbidNode: false,
   },
   {
@@ -411,6 +411,7 @@ export function checkI18nBuiltDependencies(root: string): BuiltDependencyViolati
   return [
     { name: "index", forbiddenPackages: ["i18next", "react", "react-i18next"] },
     { name: "messages", forbiddenPackages: ["react", "react-i18next"] },
+    { name: "react", forbiddenPackages: ["react-i18next"] },
   ].flatMap(({ name, forbiddenPackages }) =>
     checkBuiltDependencyGraph({
       entry: join(root, "packages/i18n/dist", `${name}.js`),
@@ -832,7 +833,7 @@ export function main(argv: readonly string[]): number {
       `check-package-deps: ${result.scannedFileCount} source file(s) across the governed package graph clean.`,
     );
     if (existsSync(join(root, "packages/i18n"))) {
-      console.log("check-package-deps: i18n built index and messages dependency graphs clean.");
+      console.log("check-package-deps: i18n built index, messages, and react dependency graphs clean.");
     }
     return 0;
   }

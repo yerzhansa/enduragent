@@ -421,12 +421,10 @@ describe("provider and model settings controller", () => {
   it("closes Settings before opening Setup for credential recovery", async () => {
     const sequence: string[] = [];
     const { controller, subject } = createSubject({
-      apply: vi.fn(
-        async (): Promise<OnboardingLlmSelectionResult> => ({
-          status: "refused",
-          reason: "credential-required",
-        }),
-      ),
+      apply: vi.fn(async (): Promise<OnboardingLlmSelectionResult> => ({
+        status: "refused",
+        reason: "credential-required",
+      })),
       openSetup: () => sequence.push("setup"),
     });
     vi.mocked(subject.view.close).mockImplementation(() => sequence.push("close"));

@@ -25,11 +25,15 @@
       "title": "Język",
       "unavailable": "Ustawienie języka jest niedostępne"
     },
+    "preferences": "Preferencje",
     "units": {
       "detail": "Dystans i masa ciała są wyświetlane zgodnie z tym ustawieniem. Stosunek mocy do masy w kolarstwie pozostaje w W/kg.",
+      "displayUnits": "Jednostki wyświetlania",
       "imperial": "Imperialne",
       "metric": "Metryczne",
-      "title": "Jednostki"
+      "saving": "Zapisywanie jednostek…",
+      "title": "Jednostki",
+      "unavailable": "Preferencja jednostek niedostępna"
     }
   }
 }

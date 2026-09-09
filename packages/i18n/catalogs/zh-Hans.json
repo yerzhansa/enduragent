@@ -25,11 +25,15 @@
       "title": "语言",
       "unavailable": "语言偏好设置不可用"
     },
+    "preferences": "偏好设置",
     "units": {
       "detail": "距离和体重会遵循此设置。骑行功率体重比仍使用W/kg。",
+      "displayUnits": "显示单位",
       "imperial": "英制",
       "metric": "公制",
-      "title": "单位"
+      "saving": "正在保存单位…",
+      "title": "单位",
+      "unavailable": "单位偏好不可用"
     }
   }
 }

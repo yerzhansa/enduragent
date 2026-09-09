@@ -25,11 +25,15 @@
       "title": "언어",
       "unavailable": "언어 설정을 사용할 수 없습니다"
     },
+    "preferences": "환경설정",
     "units": {
       "detail": "거리와 체중은 이 설정을 따릅니다. 사이클링의 체중 대비 파워는 W/kg으로 유지됩니다.",
+      "displayUnits": "표시 단위",
       "imperial": "야드파운드법",
       "metric": "미터법",
-      "title": "단위"
+      "saving": "단위 저장 중…",
+      "title": "단위",
+      "unavailable": "단위 설정을 사용할 수 없습니다"
     }
   }
 }

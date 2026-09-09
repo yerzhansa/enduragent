@@ -68,8 +68,16 @@
       "sourceHash": "8356674617e3491f6829bb5bad117bcd371c0c2a8ab2c4e2c4731827590723f0",
       "translatedBy": "model"
     },
+    "settings.preferences": {
+      "sourceHash": "66962f72a08883733c35df6f82a049b929f9579f19c4bc083ac99bead602eab3",
+      "translatedBy": "model"
+    },
     "settings.units.detail": {
       "sourceHash": "afe796c5de44a9293493c9191bfa0f0f5d49d80026d6ec3cb73bf9c5333a9954",
+      "translatedBy": "model"
+    },
+    "settings.units.displayUnits": {
+      "sourceHash": "4ab38c5d62e3c820427b2db40ad4f31c76fb38cbdbbfab0c924fde87b4769990",
       "translatedBy": "model"
     },
     "settings.units.imperial": {
@@ -80,8 +88,16 @@
       "sourceHash": "2d275a74912cca2e02e6d41f9cae3a75ceef3ed0ef734eff3710e10eb7112228",
       "translatedBy": "model"
     },
+    "settings.units.saving": {
+      "sourceHash": "03ed41b4c22491ab7d50f07a0dcea5b58466b38d9f07db1c24fc474170d11c08",
+      "translatedBy": "model"
+    },
     "settings.units.title": {
       "sourceHash": "9fb6669a77ea48bb4c080ead0e145a11f0dea709af0d542f6ad87d27958a61a1",
+      "translatedBy": "model"
+    },
+    "settings.units.unavailable": {
+      "sourceHash": "32f3aee072558d15b378fb02c7efe88dd38ae2d4c0702f6463e76fa4fac2b5f6",
       "translatedBy": "model"
     }
   }

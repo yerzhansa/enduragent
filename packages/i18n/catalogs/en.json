@@ -25,11 +25,15 @@
       "title": "Language",
       "unavailable": "Language preference unavailable"
     },
+    "preferences": "Preferences",
     "units": {
       "detail": "Distance and body mass follow this setting. Cycling power-to-weight remains W/kg.",
+      "displayUnits": "Display units",
       "imperial": "Imperial",
       "metric": "Metric",
-      "title": "Units"
+      "saving": "Saving units…",
+      "title": "Units",
+      "unavailable": "Units preference unavailable"
     }
   }
 }
