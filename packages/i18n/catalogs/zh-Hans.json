@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "自动",
+    "back": "返回",
+    "cancel": "取消",
+    "continue": "继续",
+    "save": "保存"
+  },
+  "language": {
+    "chooseTitle": "选择语言",
+    "continue": "继续"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "深色",
+      "detail": "系统会跟随{{operatingSystem}}的浅色和深色模式设置",
+      "light": "浅色",
+      "system": "系统",
+      "title": "外观"
+    },
+    "language": {
+      "automaticDetail": "自动会跟随{{operatingSystem}}的语言。教练会使用您输入的语言回复。",
+      "explicitDetail": "应用和教练会使用此语言。",
+      "saving": "正在保存语言…",
+      "title": "语言",
+      "unavailable": "语言偏好设置不可用"
+    },
+    "units": {
+      "detail": "距离和体重会遵循此设置。骑行功率体重比仍使用W/kg。",
+      "imperial": "英制",
+      "metric": "公制",
+      "title": "单位"
+    }
+  }
+}

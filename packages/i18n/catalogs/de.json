@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automatisch",
+    "back": "Zurück",
+    "cancel": "Abbrechen",
+    "continue": "Weiter",
+    "save": "Speichern"
+  },
+  "language": {
+    "chooseTitle": "Wähle deine Sprache",
+    "continue": "Weiter"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Dunkel",
+      "detail": "System übernimmt die Einstellung für den hellen und dunklen Modus von {{operatingSystem}}",
+      "light": "Hell",
+      "system": "System",
+      "title": "Darstellung"
+    },
+    "language": {
+      "automaticDetail": "Automatisch übernimmt die Sprache von {{operatingSystem}}. Der Coach antwortet in der Sprache, in der du schreibst.",
+      "explicitDetail": "Die App und der Coach verwenden diese Sprache.",
+      "saving": "Sprache wird gespeichert…",
+      "title": "Sprache",
+      "unavailable": "Spracheinstellung nicht verfügbar"
+    },
+    "units": {
+      "detail": "Distanz und Körpergewicht richten sich nach dieser Einstellung. Das Leistungsgewicht beim Radfahren bleibt in W/kg.",
+      "imperial": "Imperial",
+      "metric": "Metrisch",
+      "title": "Einheiten"
+    }
+  }
+}

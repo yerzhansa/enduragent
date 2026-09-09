@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automatic",
+    "back": "Back",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "save": "Save"
+  },
+  "language": {
+    "chooseTitle": "Choose your language",
+    "continue": "Continue"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Dark",
+      "detail": "System follows your {{operatingSystem}} light and dark setting",
+      "light": "Light",
+      "system": "System",
+      "title": "Appearance"
+    },
+    "language": {
+      "automaticDetail": "Automatic follows your {{operatingSystem}} language. The coach replies in the language you write in.",
+      "explicitDetail": "The app and the coach use this language.",
+      "saving": "Saving language…",
+      "title": "Language",
+      "unavailable": "Language preference unavailable"
+    },
+    "units": {
+      "detail": "Distance and body mass follow this setting. Cycling power-to-weight remains W/kg.",
+      "imperial": "Imperial",
+      "metric": "Metric",
+      "title": "Units"
+    }
+  }
+}

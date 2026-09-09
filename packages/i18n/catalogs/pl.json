@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automatycznie",
+    "back": "Wstecz",
+    "cancel": "Anuluj",
+    "continue": "Kontynuuj",
+    "save": "Zapisz"
+  },
+  "language": {
+    "chooseTitle": "Wybierz swój język",
+    "continue": "Kontynuuj"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Ciemny",
+      "detail": "System używa ustawienia jasnego i ciemnego motywu z {{operatingSystem}}",
+      "light": "Jasny",
+      "system": "System",
+      "title": "Wygląd"
+    },
+    "language": {
+      "automaticDetail": "Automatycznie używa języka systemu {{operatingSystem}}. Trener odpowiada w języku, w którym piszesz.",
+      "explicitDetail": "Aplikacja i trener używają tego języka.",
+      "saving": "Zapisywanie języka…",
+      "title": "Język",
+      "unavailable": "Ustawienie języka jest niedostępne"
+    },
+    "units": {
+      "detail": "Dystans i masa ciała są wyświetlane zgodnie z tym ustawieniem. Stosunek mocy do masy w kolarstwie pozostaje w W/kg.",
+      "imperial": "Imperialne",
+      "metric": "Metryczne",
+      "title": "Jednostki"
+    }
+  }
+}

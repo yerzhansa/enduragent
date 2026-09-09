@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "自動",
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "continue": "続ける",
+    "save": "保存"
+  },
+  "language": {
+    "chooseTitle": "言語を選んでください",
+    "continue": "続ける"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "ダーク",
+      "detail": "システムは{{operatingSystem}}のライトモードとダークモードの設定に従います",
+      "light": "ライト",
+      "system": "システム",
+      "title": "外観"
+    },
+    "language": {
+      "automaticDetail": "自動は{{operatingSystem}}の言語に従います。コーチは入力された言語で返信します。",
+      "explicitDetail": "アプリとコーチはこの言語を使用します。",
+      "saving": "言語を保存中…",
+      "title": "言語",
+      "unavailable": "言語設定を利用できません"
+    },
+    "units": {
+      "detail": "距離と体重はこの設定に従います。サイクリングのパワーウェイトレシオはW/kgのままです。",
+      "imperial": "ヤード・ポンド法",
+      "metric": "メートル法",
+      "title": "単位"
+    }
+  }
+}

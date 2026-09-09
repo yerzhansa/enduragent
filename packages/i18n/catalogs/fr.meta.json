@@ -1,0 +1,88 @@
+{
+  "keys": {
+    "common.automatic": {
+      "sourceHash": "d461a493a3753877c9486cffa3444265a33370af8a7fff242fb119b71750839c",
+      "translatedBy": "model"
+    },
+    "common.back": {
+      "sourceHash": "76900f1bfd16c8d4dd3d25e6f46638d7165aee23883ccea6bfe071c514421769",
+      "translatedBy": "model"
+    },
+    "common.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "common.continue": {
+      "sourceHash": "31fbef162594de01bab0cd525c51f74de7bcb15063029fa1a54b2cf5944c80d8",
+      "translatedBy": "model"
+    },
+    "common.save": {
+      "sourceHash": "1509f561f2416598629b886ad7d3c05a7e221e4e0675c84bbff4ee6d9e03913d",
+      "translatedBy": "model"
+    },
+    "language.chooseTitle": {
+      "sourceHash": "8e2d0664dbbb529de872582461068f7f7f752fc226a03a1b8439a4299dbf5e74",
+      "translatedBy": "model"
+    },
+    "language.continue": {
+      "sourceHash": "31fbef162594de01bab0cd525c51f74de7bcb15063029fa1a54b2cf5944c80d8",
+      "translatedBy": "model"
+    },
+    "settings.appearance.dark": {
+      "sourceHash": "60acc53f13a5d1bf115878c4a785e9a43e8286c4139a8402a6ac7d23966f9153",
+      "translatedBy": "model"
+    },
+    "settings.appearance.detail": {
+      "sourceHash": "8b8c60154d1ce19fe860b822719034a0c6b983598f9c6db46ad9c9e9d43c8508",
+      "translatedBy": "model"
+    },
+    "settings.appearance.light": {
+      "sourceHash": "dbcd5e7bb7a0f538810de44c3efbd813037ee3fa358747bb71fa58e157af45f7",
+      "translatedBy": "model"
+    },
+    "settings.appearance.system": {
+      "sourceHash": "6725e7bbcd28f3a8a586fa34bf191fd72dde8b61756932cd3237c17a6f196f1a",
+      "translatedBy": "model"
+    },
+    "settings.appearance.title": {
+      "sourceHash": "3907fa7f80722a6fc58cd8c1bd30abf7638095d6774f183b6e831b7093957d1b",
+      "translatedBy": "model"
+    },
+    "settings.language.automaticDetail": {
+      "sourceHash": "21c12f42adbddab548b318fcf9c35fdb6c180835d75b1b0bb09d1818e6f838ac",
+      "translatedBy": "model"
+    },
+    "settings.language.explicitDetail": {
+      "sourceHash": "99c15c0ed85a553d8594c00ff0f9d61960c5bb69b30c1fef484dea296c6c3356",
+      "translatedBy": "model"
+    },
+    "settings.language.saving": {
+      "sourceHash": "9c8a1b86cd7979a598f3ab6a2a6eb912f5ff40426b6c1ce970f2933e2c6bb5bf",
+      "translatedBy": "model"
+    },
+    "settings.language.title": {
+      "sourceHash": "a4fe65264ef7dbb38d104b1e81eb3350f3142f3d16f32bdec39b1d9b42c1b8d1",
+      "translatedBy": "model"
+    },
+    "settings.language.unavailable": {
+      "sourceHash": "8356674617e3491f6829bb5bad117bcd371c0c2a8ab2c4e2c4731827590723f0",
+      "translatedBy": "model"
+    },
+    "settings.units.detail": {
+      "sourceHash": "afe796c5de44a9293493c9191bfa0f0f5d49d80026d6ec3cb73bf9c5333a9954",
+      "translatedBy": "model"
+    },
+    "settings.units.imperial": {
+      "sourceHash": "55a867fb93eee6949669361fceb2c4df327a5de7edaa955ef8664edde66bf910",
+      "translatedBy": "model"
+    },
+    "settings.units.metric": {
+      "sourceHash": "2d275a74912cca2e02e6d41f9cae3a75ceef3ed0ef734eff3710e10eb7112228",
+      "translatedBy": "model"
+    },
+    "settings.units.title": {
+      "sourceHash": "9fb6669a77ea48bb4c080ead0e145a11f0dea709af0d542f6ad87d27958a61a1",
+      "translatedBy": "model"
+    }
+  }
+}

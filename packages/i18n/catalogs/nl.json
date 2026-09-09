@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automatisch",
+    "back": "Terug",
+    "cancel": "Annuleren",
+    "continue": "Doorgaan",
+    "save": "Opslaan"
+  },
+  "language": {
+    "chooseTitle": "Kies je taal",
+    "continue": "Doorgaan"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Donker",
+      "detail": "Systeem volgt de instelling voor de lichte en donkere modus van {{operatingSystem}}",
+      "light": "Licht",
+      "system": "Systeem",
+      "title": "Weergave"
+    },
+    "language": {
+      "automaticDetail": "Automatisch volgt de taal van {{operatingSystem}}. De coach antwoordt in de taal waarin je schrijft.",
+      "explicitDetail": "De app en de coach gebruiken deze taal.",
+      "saving": "Taal opslaan…",
+      "title": "Taal",
+      "unavailable": "Taalvoorkeur niet beschikbaar"
+    },
+    "units": {
+      "detail": "Afstand en lichaamsgewicht volgen deze instelling. De verhouding tussen vermogen en gewicht bij het fietsen blijft in W/kg.",
+      "imperial": "Imperiaal",
+      "metric": "Metrisch",
+      "title": "Eenheden"
+    }
+  }
+}

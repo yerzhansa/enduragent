@@ -159,7 +159,7 @@ export const RULES: readonly PackageDepRule[] = [
     srcOnly: true,
     allowedWorkspace: ["@enduragent/coach-contract"],
     transitionalWorkspace: [],
-    allowedExternal: ["zod"],
+    allowedExternal: ["zod", "i18next"],
     forbidNode: false,
   },
   {
@@ -249,6 +249,7 @@ interface SpecifierRef {
   readonly line: number;
   readonly column: number;
   readonly specifier: string;
+  readonly resolutionMode: ts.ResolutionMode;
 }
 
 function isNodeSpecifier(spec: string): boolean {
@@ -293,15 +294,19 @@ function classifyManifestWorkspace(
   return "violation";
 }
 
-function collectSpecifiers(file: string): SpecifierRef[] {
+function collectSpecifiers(file: string, honorSkipDirective = true): SpecifierRef[] {
   const source = readFileSync(file, "utf-8");
-  if (isSkippedFile(source)) return [];
+  if (honorSkipDirective && isSkippedFile(source)) return [];
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.ESNext, /*setParentNodes*/ true);
   const refs: SpecifierRef[] = [];
 
-  function record(node: ts.Node, specifier: string): void {
+  function record(
+    node: ts.Node,
+    specifier: string,
+    resolutionMode: ts.ResolutionMode = ts.ModuleKind.ESNext,
+  ): void {
     const lc = sf.getLineAndCharacterOfPosition(node.getStart(sf));
-    refs.push({ line: lc.line + 1, column: lc.character + 1, specifier });
+    refs.push({ line: lc.line + 1, column: lc.character + 1, specifier, resolutionMode });
   }
 
   function visit(node: ts.Node): void {
@@ -318,13 +323,100 @@ function collectSpecifiers(file: string): SpecifierRef[] {
       const isRequire = ts.isIdentifier(node.expression) && node.expression.text === "require";
       if ((isDynamicImport || isRequire) && node.arguments.length > 0) {
         const arg = node.arguments[0];
-        if (ts.isStringLiteral(arg)) record(arg, arg.text);
+        if (ts.isStringLiteralLike(arg)) {
+          record(arg, arg.text, isRequire ? ts.ModuleKind.CommonJS : ts.ModuleKind.ESNext);
+        }
       }
     }
     ts.forEachChild(node, visit);
   }
   visit(sf);
   return refs;
+}
+
+export interface BuiltDependencyViolation extends SpecifierRef {
+  readonly file: string;
+  readonly message: string;
+}
+
+export function checkBuiltDependencyGraph({
+  entry,
+  forbiddenPackages,
+}: {
+  readonly entry: string;
+  readonly forbiddenPackages: readonly string[];
+}): { violations: BuiltDependencyViolation[]; scannedFileCount: number } {
+  const violations: BuiltDependencyViolation[] = [];
+  const visited = new Set<string>();
+  const pending = [resolve(entry)];
+  const options: ts.CompilerOptions = {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    allowJs: true,
+    resolveJsonModule: true,
+  };
+  const host: ts.ModuleResolutionHost = {
+    ...ts.sys,
+    fileExists: (file) => !/\.[cm]?tsx?$/.test(file) && ts.sys.fileExists(file),
+  };
+  const cache = ts.createModuleResolutionCache(dirname(resolve(entry)), (file) => file, options);
+
+  if (!existsSync(entry)) {
+    return {
+      violations: [{
+        file: entry,
+        line: 1,
+        column: 1,
+        specifier: entry,
+        resolutionMode: ts.ModuleKind.ESNext,
+        message: "Missing built entry; build @enduragent/i18n before checking dependencies",
+      }],
+      scannedFileCount: 0,
+    };
+  }
+
+  while (pending.length > 0) {
+    const file = pending.pop();
+    if (file === undefined || visited.has(file)) continue;
+    visited.add(file);
+    if (ext(file) === ".json") continue;
+    for (const ref of collectSpecifiers(file, false)) {
+      if (
+        isNodeSpecifier(ref.specifier) ||
+        forbiddenPackages.some((name) => matchesEntry(ref.specifier, name))
+      ) {
+        violations.push({ ...ref, file, message: `Forbidden dependency reached from ${entry}` });
+        continue;
+      }
+      const target = ts.resolveModuleName(
+        ref.specifier,
+        file,
+        options,
+        host,
+        cache,
+        undefined,
+        ref.resolutionMode,
+      ).resolvedModule;
+      if (target === undefined) {
+        violations.push({ ...ref, file, message: `Unresolved runtime dependency from ${entry}` });
+        continue;
+      }
+      pending.push(target.resolvedFileName);
+    }
+  }
+  return { violations, scannedFileCount: visited.size };
+}
+
+export function checkI18nBuiltDependencies(root: string): BuiltDependencyViolation[] {
+  return [
+    { name: "index", forbiddenPackages: ["i18next", "react", "react-i18next"] },
+    { name: "messages", forbiddenPackages: ["react", "react-i18next"] },
+  ].flatMap(({ name, forbiddenPackages }) =>
+    checkBuiltDependencyGraph({
+      entry: join(root, "packages/i18n/dist", `${name}.js`),
+      forbiddenPackages,
+    }).violations,
+  );
 }
 
 interface ManifestDep {
@@ -720,6 +812,9 @@ export function main(argv: readonly string[]): number {
 
   const result = runRulesAgainst(root, RULES);
   const privateViolations = checkPrivatePackages(root);
+  const builtViolations = existsSync(join(root, "packages/i18n"))
+    ? checkI18nBuiltDependencies(root)
+    : [];
 
   for (const dir of result.notPresent) {
     console.log(`check-package-deps: ${dir} (not present yet)`);
@@ -730,16 +825,20 @@ export function main(argv: readonly string[]): number {
     );
   }
 
-  const hasViolations = result.violations.length > 0 || privateViolations.length > 0;
+  const hasViolations =
+    result.violations.length > 0 || privateViolations.length > 0 || builtViolations.length > 0;
   if (!hasViolations) {
     console.log(
       `check-package-deps: ${result.scannedFileCount} source file(s) across the governed package graph clean.`,
     );
+    if (existsSync(join(root, "packages/i18n"))) {
+      console.log("check-package-deps: i18n built index and messages dependency graphs clean.");
+    }
     return 0;
   }
 
   console.error(
-    `check-package-deps: ${result.violations.length + privateViolations.length} forbidden package edge(s) found:`,
+    `check-package-deps: ${result.violations.length + privateViolations.length + builtViolations.length} forbidden package edge(s) found:`,
   );
   for (const v of result.violations) {
     console.error(
@@ -750,6 +849,11 @@ export function main(argv: readonly string[]): number {
   for (const pv of privateViolations) {
     console.error(
       `  ${pv.file}:1:1  R7: ${pv.name} is @enduragent/*-named but not "private": true`,
+    );
+  }
+  for (const violation of builtViolations) {
+    console.error(
+      `  ${violation.file}:${violation.line}:${violation.column}  R6: ${violation.message}: "${violation.specifier}"`,
     );
   }
   return 1;

@@ -4,7 +4,7 @@ This repo is a multi-package monorepo for the enduragent AI coaching agent platf
 
 ## Contexts
 
-- [I18n](./packages/i18n/CONTEXT.md) — shared language registry, resolution, and athlete-wide language preference.
+- [I18n](./packages/i18n/CONTEXT.md) — shared language registry, resolution, athlete-wide language preference, catalogs, phrasebooks, and training-term glossaries.
 - [Core](./packages/core/CONTEXT.md) — shared CLI entry point, setup, memory, secrets, and channels. Defines `BinaryConfig` and re-exports Engine’s sport contract. Depends on Engine and Kernel through transitional edges.
 - [Engine](./packages/engine/src/sport.ts) — defines `Sport`, `SportRuntimePorts`, and the `CoreDeps` alias at `@enduragent/engine/sport`.
 - [Kernel](./packages/kernel/package.json) — declares portable compute, store, planning, and Reference exports. Its dependency rule forbids workspace imports and Node builtins.

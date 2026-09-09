@@ -1,0 +1,35 @@
+{
+  "common": {
+    "automatic": "Automatisk",
+    "back": "Tilbage",
+    "cancel": "Annuller",
+    "continue": "Fortsæt",
+    "save": "Gem"
+  },
+  "language": {
+    "chooseTitle": "Vælg dit sprog",
+    "continue": "Fortsæt"
+  },
+  "settings": {
+    "appearance": {
+      "dark": "Mørk",
+      "detail": "System følger indstillingen for lys og mørk tilstand i {{operatingSystem}}",
+      "light": "Lys",
+      "system": "System",
+      "title": "Udseende"
+    },
+    "language": {
+      "automaticDetail": "Automatisk følger sproget i {{operatingSystem}}. Træneren svarer på det sprog, du skriver på.",
+      "explicitDetail": "Appen og træneren bruger dette sprog.",
+      "saving": "Gemmer sprog…",
+      "title": "Sprog",
+      "unavailable": "Sprogindstilling er ikke tilgængelig"
+    },
+    "units": {
+      "detail": "Distance og kropsvægt følger denne indstilling. Forholdet mellem effekt og vægt i cykling vises fortsat i W/kg.",
+      "imperial": "Imperial",
+      "metric": "Metrisk",
+      "title": "Enheder"
+    }
+  }
+}
