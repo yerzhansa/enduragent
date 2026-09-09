@@ -61,9 +61,7 @@ describe("validateRecommendation", () => {
 
   it("returns a missing-source failure naming the absent field", () => {
     const snapshot = makeSnapshot({ acwr: { value: 1.42 } });
-    const meta = makeMetadata([
-      { field: "current_status.monotony.value", value: 1.1 },
-    ]);
+    const meta = makeMetadata([{ field: "current_status.monotony.value", value: 1.1 }]);
     const result = validateRecommendation("reply", meta, snapshot);
     expect(result.ok).toBe(false);
     expect(result.failures).toHaveLength(1);
@@ -110,9 +108,7 @@ describe("validateRecommendation", () => {
   it("fails when metadata violates RecommendationMetadataSchema", () => {
     const snapshot = makeSnapshot({ acwr: { value: 1.42 } });
     const badMeta = {
-      citations: [
-        { field: "current_status.acwr.value", value: 1.42, source: "history.json" },
-      ],
+      citations: [{ field: "current_status.acwr.value", value: 1.42, source: "history.json" }],
       confidence: "high",
       frameworks: ["fitness-fatigue"],
       phase_tag: "base",
@@ -135,10 +131,7 @@ describe("validateRecommendation", () => {
     const result = validateRecommendation("reply", meta, snapshot);
     expect(result.ok).toBe(false);
     expect(result.failures).toHaveLength(2);
-    expect(result.failures.map((f) => f.check)).toEqual([
-      "citation_source",
-      "citation_value",
-    ]);
+    expect(result.failures.map((f) => f.check)).toEqual(["citation_source", "citation_value"]);
   });
 });
 

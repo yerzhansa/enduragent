@@ -198,6 +198,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "one\ntwo\nthree",
       }),
+      expect.any(Function),
     );
 
     // The flushed answer threads to the LAST fragment's message id, on the
@@ -230,6 +231,7 @@ describe("inbound coalescing (fake timers)", () => {
     expect(engine.chat).toHaveBeenCalledTimes(1);
     expect(engine.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:777", message: "a\nb\nc" }),
+      expect.any(Function),
     );
   });
 
@@ -245,9 +247,11 @@ describe("inbound coalescing (fake timers)", () => {
     expect(engine.chat).toHaveBeenCalledTimes(2);
     expect(engine.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:1", message: "left" }),
+      expect.any(Function),
     );
     expect(engine.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:2", message: "right" }),
+      expect.any(Function),
     );
   });
 
@@ -263,7 +267,7 @@ describe("inbound coalescing (fake timers)", () => {
     const first = handler(makeCtx({ message: { text: "first", message_id: 41 } }));
     const second = handler(makeCtx({ message: { text: "second", message_id: 42 } }));
 
-    expect(hasSession).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(hasSession).toHaveBeenCalledOnce());
     expect(hasSession).toHaveBeenCalledWith({ chatId: "telegram:777" });
     resolveSession({ hasSession: true });
     await Promise.all([first, second]);
@@ -276,6 +280,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "first\nsecond",
       }),
+      expect.any(Function),
     );
   });
 
@@ -297,6 +302,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "pending thought",
       }),
+      expect.any(Function),
     );
 
     // The flush cleared the debounce timer: the window elapsing later must not
@@ -334,8 +340,8 @@ describe("inbound coalescing (fake timers)", () => {
 
     expect(resolveTurnContext).toHaveBeenCalledTimes(2);
     expect(engine.chat.mock.calls).toMatchObject([
-      [{ chatId: "telegram:777", message: "pending thought" }],
-      [{ chatId: "telegram:777", message: "/status" }],
+      [{ chatId: "telegram:777", message: "pending thought" }, expect.any(Function)],
+      [{ chatId: "telegram:777", message: "/status" }, expect.any(Function)],
     ]);
   });
 
@@ -376,6 +382,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "pending thought",
       }),
+      expect.any(Function),
     );
     expect(engine.resetSession).toHaveBeenCalledWith({ chatId: "telegram:777" });
     expect(engine.chat.mock.invocationCallOrder[0]).toBeLessThan(
@@ -384,7 +391,7 @@ describe("inbound coalescing (fake timers)", () => {
   });
 
   it("registration order: auth → handler tracking → flush → update guard → commands", async () => {
-    const { bot } = await buildBot();
+    const { bot, drainPending } = await buildBot();
     expect(bot.use).toHaveBeenCalledTimes(4);
     const authOrder = bot.use.mock.invocationCallOrder[0];
     const trackingOrder = bot.use.mock.invocationCallOrder[1];
@@ -397,6 +404,7 @@ describe("inbound coalescing (fake timers)", () => {
     for (const commandOrder of bot.command.mock.invocationCallOrder) {
       expect(guardOrder).toBeLessThan(commandOrder);
     }
+    await drainPending();
   });
 
   it("drainPending flushes buffered text immediately — no debounce-timer wait", async () => {
@@ -412,6 +420,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "about to shut down",
       }),
+      expect.any(Function),
     );
   });
 
@@ -447,6 +456,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "accepted before shutdown\nand still accepted",
       }),
+      expect.any(Function),
     );
     expect(cancel).not.toHaveBeenCalled();
 
@@ -479,7 +489,7 @@ describe("inbound coalescing (fake timers)", () => {
     expect(reserve).toHaveBeenCalledOnce();
     expect(run).toHaveBeenCalledOnce();
     expect(cancel).not.toHaveBeenCalled();
-    expect(hasSession).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(hasSession).toHaveBeenCalledOnce());
     expect(engine.chat).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(
       "Sorry, something went wrong. Please try again.",
@@ -522,6 +532,7 @@ describe("inbound coalescing (fake timers)", () => {
     await drainPending();
     expect(engine.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:777", message: "hello" }),
+      expect.any(Function),
     );
   });
 
@@ -541,6 +552,7 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "/unknowncmd",
       }),
+      expect.any(Function),
     );
 
     await vi.advanceTimersByTimeAsync(CHAT_COALESCE_MS);
@@ -551,13 +563,14 @@ describe("inbound coalescing (fake timers)", () => {
         chatId: "telegram:777",
         message: "a buffered thought",
       }),
+      expect.any(Function),
     );
   });
 });
 
 describe("inbound coalescing (timer plumbing)", () => {
   it("debounce timers are unref'd; a reset clears exactly the previous timer", async () => {
-    const { bot } = await buildBot();
+    const { bot, drainPending } = await buildBot();
     const handler = getMessageText(bot);
 
     const unrefA = vi.fn();
@@ -579,6 +592,7 @@ describe("inbound coalescing (timer plumbing)", () => {
       expect(clearTimeoutSpy).toHaveBeenCalledWith(timers[0]);
     } finally {
       vi.unstubAllGlobals();
+      await drainPending();
     }
   });
 });
@@ -661,6 +675,7 @@ describe("in-handler drain tracking", () => {
           chatId: "telegram:777",
           message: "arrived during drain",
         }),
+        expect.any(Function),
       );
     } finally {
       await drainPending();

@@ -1,4 +1,5 @@
-import type { CoachLanguage } from "@enduragent/i18n";
+import { cliPhrasebook, say } from "../cli-copy.js";
+import { msg, type CoachLanguage } from "@enduragent/i18n";
 import type { BinaryConfig } from "../binary.js";
 import type { ConfirmationGate } from "../agent/confirmation-gate.js";
 import { buildWhatsNewMessage } from "../release-notes.js";
@@ -32,39 +33,51 @@ export interface CreateNpmTelegramHostInput {
 
 function logSecurityStartup(dataDir: string, binaryName: string): void {
   const { state, source } = loadAllowedSendersWithSource(dataDir);
-  const primary = state.primaryOperator ?? "none";
+  const primary = state.primaryOperator ?? say("telegram.security.none");
   if (state.dmPolicy === "open") {
     console.error(
-      "[security] WARNING: DM policy is OPEN — this bot will answer ANY Telegram user who finds it.\n" +
-        "[security] WARNING: Unset CYCLING_COACH_DM_POLICY to restore allowlist/pairing.\n" +
-        `[security] Allowlist on record: ${state.allowFrom.length} senders (primary: ${primary}). Source: ${source}.`,
+      say("telegram.security.open", {
+        service: "Telegram",
+        variable: "CYCLING_COACH_DM_POLICY",
+        count: state.allowFrom.length,
+        formattedCount: cliPhrasebook().format.number(state.allowFrom.length, {
+          useGrouping: false,
+        }),
+        primary,
+        source,
+      }),
     );
     return;
   }
   console.error(
-    `[security] Telegram allowlist: ${state.dmPolicy} mode (${state.allowFrom.length} allowed senders, primary: ${primary}). Source: ${source}.`,
+    say("telegram.security.allowlist", {
+      service: "Telegram",
+      policy: state.dmPolicy,
+      count: state.allowFrom.length,
+      formattedCount: cliPhrasebook().format.number(state.allowFrom.length, { useGrouping: false }),
+      primary,
+      source,
+    }),
   );
   if (state.dmPolicy === "pairing" && state.allowFrom.length === 0) {
-    console.error(
-      `[security] No allowed senders configured. DM the bot to receive your user-ID, then run \`${binaryName} add-sender <id>\` to authorize yourself.`,
-    );
+    console.error(say("telegram.security.noSenders", { command: `${binaryName} add-sender <id>` }));
   }
 }
 
 export function createNpmTelegramHost(input: CreateNpmTelegramHostInput): TelegramHostCapabilities {
   logSecurityStartup(input.dataDir, input.binary.binaryName);
   const releaseBase = {
-    updateDescription: "Check for and install updates",
-    whatsNewUnavailableText: "Couldn't reach npm to check the latest version. Try again later.",
+    updateDescription: msg("telegram.menu.update"),
+    whatsNewUnavailableText: msg("telegram.release.unavailable", { service: "npm" }),
     version: async () =>
       `${input.binary.displayName} v${getCurrentVersion(input.binary.binaryName)}`,
-    whatsNew: async () => {
+    whatsNew: async (phrasebook?: import("@enduragent/i18n/messages").Phrasebook) => {
       const info = await checkForUpdate(input.binary.binaryName);
       return info === null
         ? ({ kind: "unavailable" } as const)
         : ({
             kind: "available",
-            text: await buildWhatsNewMessage(input.binary.binaryName, info),
+            text: await buildWhatsNewMessage(input.binary.binaryName, info, phrasebook),
           } as const);
     },
   };
@@ -88,14 +101,16 @@ export function createNpmTelegramHost(input: CreateNpmTelegramHostInput): Telegr
     access: {
       middleware: createAuthMiddleware({
         dataDir: input.dataDir,
+        language: input.language,
         binaryName: input.binary.binaryName,
         challengeRateLimit: new Map(),
         challengeMinIntervalMs: 60_000,
       }),
     },
     confirmations: {
-      peek: async ({ chatId }) => input.confirmations.peek(chatId),
-      confirm: ({ chatId, nonce }) => input.confirmations.confirm(chatId, nonce),
+      peek: async ({ chatId, phrasebook }) => input.confirmations.peek(chatId, phrasebook),
+      confirm: ({ chatId, nonce, phrasebook }) =>
+        input.confirmations.confirm(chatId, nonce, phrasebook),
       cancel: async ({ chatId, nonce }) => input.confirmations.cancel(chatId, nonce),
     },
     ...(reference === undefined
@@ -112,12 +127,13 @@ export function createNpmTelegramHost(input: CreateNpmTelegramHostInput): Telegr
                     : provenanceForLatestSection(latest, "athlete_profile"),
               };
             },
-            sync: async ({ chatId }) => ({
-              text: formatSyncReply(await reference.runSync({ chatId })),
+            sync: async ({ chatId, phrasebook }) => ({
+              text: formatSyncReply(await reference.runSync({ chatId }), undefined, phrasebook),
             }),
           },
           diagnostics: {
-            rawSnapshot: async ({ section }) => formatSnapshotRaw(reference.loadLatest(), section),
+            rawSnapshot: async ({ section, phrasebook }) =>
+              formatSnapshotRaw(reference.loadLatest(), section, phrasebook),
           },
         }),
     authorization: {
@@ -136,6 +152,7 @@ export async function notifyNpmTelegramUpdate(
   sender: TelegramUpdateMessageSender,
   dataDir: string,
   binary: BinaryConfig,
+  language: CoachLanguage,
 ): Promise<void> {
   try {
     const info = await checkForUpdateWithDailyTelemetry(binary.binaryName, dataDir);
@@ -146,14 +163,32 @@ export async function notifyNpmTelegramUpdate(
     const knownChats = getKnownTelegramChatIds(dataDir);
     const chatIds =
       allowed.dmPolicy === "open" ? knownChats : knownChats.filter((id) => allowSet.has(id));
-    const updateInstruction = isManagedDeploy(binary.binaryName)
-      ? `Send /whatsnew to see what changed. ${MANAGED_DEPLOY_UPDATE_NOTICE}`
-      : "Send /whatsnew to see what changed, /update to install.";
-    const message = `Update available: ${info.current} → ${info.latest}\n${updateInstruction}\n\nDesktop app for macOS is available: https://enduragent.icu\n\nWant the bot running 24/7 without keeping your computer on? Deploy the Railway template: https://railway.com/deploy/cycling-coach`;
-
     let delivered = false;
     for (const chatId of chatIds) {
       try {
+        const book = await language.phrasebookFor({ chatId: `telegram:${chatId}` });
+        const updateInstruction = isManagedDeploy(binary.binaryName)
+          ? book.say(
+              msg("telegram.update.managedInstruction", {
+                whatsnew: "/whatsnew",
+                notice: book.say(MANAGED_DEPLOY_UPDATE_NOTICE),
+              }),
+            )
+          : book.say(
+              msg("telegram.update.instruction", { whatsnew: "/whatsnew", update: "/update" }),
+            );
+        const message = book.say(
+          msg("telegram.update.available", {
+            current: info.current,
+            latest: info.latest,
+            updateInstruction,
+            availability: `${book.format.number(24)}/${book.format.number(7)}`,
+            desktopUrl: "https://enduragent.icu",
+            railwayUrl: "https://railway.com/deploy/cycling-coach",
+            platform: "macOS",
+            provider: "Railway",
+          }),
+        );
         await sender.sendMessage(chatId, message);
         delivered = true;
       } catch {}

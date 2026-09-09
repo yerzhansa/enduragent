@@ -1,3 +1,6 @@
+import { msg } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { createNpmCoachLanguage } from "../language-preference.js";
 import { randomBytes } from "node:crypto";
 import { Bot } from "grammy";
 import type { BinaryConfig } from "../binary.js";
@@ -32,6 +35,7 @@ export interface ConfirmInfo {
 }
 
 export interface CaptureOpts {
+  phrasebook?: Phrasebook;
   botToken: string;
   binary: BinaryConfig;
   dataDir: string;
@@ -47,6 +51,7 @@ interface CapturedFrom {
 }
 
 export async function captureAndPersistOperator(opts: CaptureOpts): Promise<CaptureResult> {
+  const book = opts.phrasebook ?? (await createNpmCoachLanguage(opts.dataDir).phrasebookFor({}));
   const log = opts.log ?? ((s: string) => console.log(s));
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const bot = new Bot(opts.botToken);
@@ -65,13 +70,13 @@ export async function captureAndPersistOperator(opts: CaptureOpts): Promise<Capt
   if (!me.is_bot || !me.username) {
     return {
       status: "getme-failed",
-      reason: "Bot token does not resolve to a valid Telegram bot.",
+      reason: book.say(msg("telegram.capture.invalidBot", { service: "Telegram" })),
     };
   }
   const botUsername = me.username;
   const pairingCode = randomBytes(3).toString("hex").toUpperCase();
-  log(`Capturing for @${botUsername}. Pairing code: ${pairingCode}`);
-  log("Send this code to the bot from your own account.");
+  log(book.say(msg("telegram.capture.code", { username: `@${botUsername}`, code: pairingCode })));
+  log(book.say(msg("telegram.capture.sendCode")));
 
   let capturedFrom: CapturedFrom | undefined;
 

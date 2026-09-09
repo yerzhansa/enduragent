@@ -104,12 +104,33 @@ describe("makeBotShutdown — graceful shutdown ordering", () => {
 
   it("stops the selected timer, closes Reference, then closes prepared composition exactly once", async () => {
     const order: string[] = [];
-    const shutdown = makeBotShutdown({ stop: async () => { order.push("stop"); },
-      drainPending: async () => { order.push("drain"); }, dataDir: "synthetic-data",
-      stopTimer: () => { order.push("timer"); }, closeReference: () => { order.push("reference"); },
-      closePrepared: async () => { order.push("prepared"); }, markCleanShutdown: () => { order.push("clean"); },
-      exit: () => { order.push("exit"); }, log: () => {} });
-    await shutdown(); await shutdown();
+    const shutdown = makeBotShutdown({
+      stop: async () => {
+        order.push("stop");
+      },
+      drainPending: async () => {
+        order.push("drain");
+      },
+      dataDir: "synthetic-data",
+      stopTimer: () => {
+        order.push("timer");
+      },
+      closeReference: () => {
+        order.push("reference");
+      },
+      closePrepared: async () => {
+        order.push("prepared");
+      },
+      markCleanShutdown: () => {
+        order.push("clean");
+      },
+      exit: () => {
+        order.push("exit");
+      },
+      log: () => {},
+    });
+    await shutdown();
+    await shutdown();
     expect(order).toEqual(["stop", "drain", "timer", "reference", "prepared", "clean", "exit"]);
   });
 });

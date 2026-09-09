@@ -159,9 +159,21 @@ function defaultAthlete(overrides: Partial<MockAthlete> = {}): MockAthlete {
         ],
         hr_zones: [
           { name: "Z1", min: restHr, max: Math.round(restHr + (maxHr - restHr) * 0.6) },
-          { name: "Z2", min: Math.round(restHr + (maxHr - restHr) * 0.6), max: Math.round(restHr + (maxHr - restHr) * 0.7) },
-          { name: "Z3", min: Math.round(restHr + (maxHr - restHr) * 0.7), max: Math.round(restHr + (maxHr - restHr) * 0.8) },
-          { name: "Z4", min: Math.round(restHr + (maxHr - restHr) * 0.8), max: Math.round(restHr + (maxHr - restHr) * 0.9) },
+          {
+            name: "Z2",
+            min: Math.round(restHr + (maxHr - restHr) * 0.6),
+            max: Math.round(restHr + (maxHr - restHr) * 0.7),
+          },
+          {
+            name: "Z3",
+            min: Math.round(restHr + (maxHr - restHr) * 0.7),
+            max: Math.round(restHr + (maxHr - restHr) * 0.8),
+          },
+          {
+            name: "Z4",
+            min: Math.round(restHr + (maxHr - restHr) * 0.8),
+            max: Math.round(restHr + (maxHr - restHr) * 0.9),
+          },
           { name: "Z5", min: Math.round(restHr + (maxHr - restHr) * 0.9), max: maxHr },
         ],
       },
@@ -260,8 +272,8 @@ function defaultWellness(overrides?: Partial<MockWellness>[]): MockWellness[] {
     const atlBase = 48;
     return {
       id: isoDateNDaysAgo(day),
-      ctl: ctlBase + Math.round((Math.sin(i * 0.8) * 2) * 10) / 10,
-      atl: atlBase + Math.round((Math.sin(i * 1.2) * 4) * 10) / 10,
+      ctl: ctlBase + Math.round(Math.sin(i * 0.8) * 2 * 10) / 10,
+      atl: atlBase + Math.round(Math.sin(i * 1.2) * 4 * 10) / 10,
       rampRate: Math.round((0.3 + Math.sin(i * 0.5) * 0.3) * 10) / 10,
       ctlLoad: ctlBase + Math.round(Math.sin(i * 0.8) * 2 * 10) / 10,
       atlLoad: atlBase + Math.round(Math.sin(i * 1.2) * 4 * 10) / 10,
@@ -374,17 +386,14 @@ export function createMockIntervalsServer(options: MockIntervalsOptions = {}) {
 
     // GET /api/v1/athlete/:id/events/:eventId — fetch single event (used by the
     // delete tool to read the authoritative date before deciding whether to delete)
-    http.get(
-      "https://intervals.icu/api/v1/athlete/:id/events/:eventId",
-      ({ params }) => {
-        const eventId = Number(params.eventId);
-        const workout = createdWorkouts.find((w) => w.id === eventId);
-        if (!workout) {
-          return HttpResponse.json({ error: "not_found" }, { status: 404 });
-        }
-        return HttpResponse.json(workout);
-      },
-    ),
+    http.get("https://intervals.icu/api/v1/athlete/:id/events/:eventId", ({ params }) => {
+      const eventId = Number(params.eventId);
+      const workout = createdWorkouts.find((w) => w.id === eventId);
+      if (!workout) {
+        return HttpResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      return HttpResponse.json(workout);
+    }),
 
     http.put(
       "https://intervals.icu/api/v1/athlete/:id/events/:eventId",
@@ -404,19 +413,16 @@ export function createMockIntervalsServer(options: MockIntervalsOptions = {}) {
     // DELETE /api/v1/athlete/:id/events/:eventId — delete scheduled event
     // (no notBefore enforcement — the real API's notBefore only caps the `others`
     // cascade, not the target event, so protection lives client-side in the tool)
-    http.delete(
-      "https://intervals.icu/api/v1/athlete/:id/events/:eventId",
-      ({ params }) => {
-        const eventId = Number(params.eventId);
-        const idx = createdWorkouts.findIndex((w) => w.id === eventId);
-        if (idx === -1) {
-          return HttpResponse.json({ error: "not_found" }, { status: 404 });
-        }
-        createdWorkouts.splice(idx, 1);
-        deletedEventIds.push(eventId);
-        return new HttpResponse(null, { status: 200 });
-      },
-    ),
+    http.delete("https://intervals.icu/api/v1/athlete/:id/events/:eventId", ({ params }) => {
+      const eventId = Number(params.eventId);
+      const idx = createdWorkouts.findIndex((w) => w.id === eventId);
+      if (idx === -1) {
+        return HttpResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      createdWorkouts.splice(idx, 1);
+      deletedEventIds.push(eventId);
+      return new HttpResponse(null, { status: 200 });
+    }),
   ];
 
   const server = setupServer(...handlers);

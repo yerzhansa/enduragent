@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  _detectBackendsWithOverrides,
-  findInPath,
-} from "../../../src/secrets/backends/detect.js";
+import { _detectBackendsWithOverrides, findInPath } from "../../../src/secrets/backends/detect.js";
 
 const tempDirs: string[] = [];
 

@@ -353,6 +353,7 @@ export type {
   RemoveSecondarySenderResult,
 } from "./channels/allowed-senders.js";
 export { createAuthMiddleware } from "./channels/telegram-access.js";
+export { escapeHtmlText } from "./channels/html-escape.js";
 export type { CreateAuthMiddlewareOpts } from "./channels/telegram-access.js";
 
 // ─── Updater ──────────────────────────────────────────────────────────

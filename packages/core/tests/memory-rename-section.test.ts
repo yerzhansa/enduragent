@@ -1,12 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Memory } from "../src/memory/store.js";
@@ -64,7 +57,7 @@ describe("Memory.renameSection", () => {
     expect(readFileSync(path, "utf-8")).toBe(original);
   });
 
-  it('renames a section in the middle of the file, preserving header order and neighbors', () => {
+  it("renames a section in the middle of the file, preserving header order and neighbors", () => {
     const memory = new Memory(dataDir);
     const path = join(dataDir, "memory", "MEMORY.md");
     writeFileSync(
@@ -79,7 +72,7 @@ describe("Memory.renameSection", () => {
     );
   });
 
-  it('renames the last section, matching writeSection trailing-newline style', () => {
+  it("renames the last section, matching writeSection trailing-newline style", () => {
     const memory = new Memory(dataDir);
     const path = join(dataDir, "memory", "MEMORY.md");
     // writeSection writes "## section\ncontent\n" — trailing \n on each block.
@@ -91,12 +84,14 @@ describe("Memory.renameSection", () => {
 
     expect(memory.renameSection("health", "cycling-history")).toBe("renamed");
     const after = readFileSync(path, "utf-8");
-    expect(after).toMatch(/## cycling-history\n_updated: \d{4}-\d{2}-\d{2}\nKnee twinge resolved\n$/);
+    expect(after).toMatch(
+      /## cycling-history\n_updated: \d{4}-\d{2}-\d{2}\nKnee twinge resolved\n$/,
+    );
     // schedule (the prior section) should be untouched
     expect(after).toMatch(/## schedule\n_updated: \d{4}-\d{2}-\d{2}\nMon, Wed, Fri\n/);
   });
 
-  it('merges bodies under `to` when both sections exist; `from` block removed', () => {
+  it("merges bodies under `to` when both sections exist; `from` block removed", () => {
     const memory = new Memory(dataDir);
     const path = join(dataDir, "memory", "MEMORY.md");
     writeFileSync(
@@ -127,19 +122,17 @@ describe("Memory.renameSection", () => {
     expect(afterSecond).toBe(afterFirst);
   });
 
-  it('renames a section with empty body correctly', () => {
+  it("renames a section with empty body correctly", () => {
     const memory = new Memory(dataDir);
     const path = join(dataDir, "memory", "MEMORY.md");
     // Empty body: header line, then immediately the next section's header.
     writeFileSync(path, "## profile\n## schedule\nMon, Wed, Fri\n", "utf-8");
 
     expect(memory.renameSection("profile", "cycling-profile")).toBe("renamed");
-    expect(readFileSync(path, "utf-8")).toBe(
-      "## cycling-profile\n## schedule\nMon, Wed, Fri\n",
-    );
+    expect(readFileSync(path, "utf-8")).toBe("## cycling-profile\n## schedule\nMon, Wed, Fri\n");
   });
 
-  it('renames a CRLF-encoded MEMORY.md (Windows-authored or pasted from Word)', () => {
+  it("renames a CRLF-encoded MEMORY.md (Windows-authored or pasted from Word)", () => {
     const memory = new Memory(dataDir);
     const path = join(dataDir, "memory", "MEMORY.md");
     // Real-world failure mode: file written with CRLF line endings. Without

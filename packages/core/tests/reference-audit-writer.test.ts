@@ -1,11 +1,4 @@
-import {
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  existsSync,
-  writeFileSync,
-  statSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,9 +17,7 @@ import {
 const BINARY = "cycling-coach";
 
 const metadata: RecommendationMetadata = {
-  citations: [
-    { field: "current_status.acwr.value", value: 1.12, source: "latest.json" },
-  ],
+  citations: [{ field: "current_status.acwr.value", value: 1.12, source: "latest.json" }],
   confidence: "high",
   frameworks: ["polarized"],
   phase_tag: "build",

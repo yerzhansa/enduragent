@@ -4,10 +4,7 @@
 // a vacuously-valid subset of `intervalsActivityTypes`.
 import type { IntervalsActivityType, ReferenceSportAdapter, Sport } from "../../../../src/index.js";
 
-export const emptyArrayShape: Pick<
-  Sport,
-  "id" | "intervalsActivityTypes" | "referenceAdapters"
-> = {
+export const emptyArrayShape: Pick<Sport, "id" | "intervalsActivityTypes" | "referenceAdapters"> = {
   id: "running",
   intervalsActivityTypes: ["Run", "TrailRun"] as readonly IntervalsActivityType[],
   referenceAdapters: (): readonly ReferenceSportAdapter[] => [],

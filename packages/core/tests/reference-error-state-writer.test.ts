@@ -6,10 +6,7 @@ import {
   ERROR_STATE_SCHEMA_VERSION,
   ErrorStateSchema,
 } from "../src/reference/schemas/error-state.js";
-import {
-  clearErrorState,
-  writeErrorState,
-} from "../src/reference/sync/error-state-writer.js";
+import { clearErrorState, writeErrorState } from "../src/reference/sync/error-state-writer.js";
 import { enqueueCommit } from "../src/io/atomic-write-json.js";
 
 describe("writeErrorState", () => {
@@ -76,11 +73,7 @@ describe("writeErrorState", () => {
     const aborted = new AbortController();
     aborted.abort();
 
-    await writeErrorState(
-      dir,
-      { step: "gate_rejected", detail: "x" },
-      { signal: aborted.signal },
-    );
+    await writeErrorState(dir, { step: "gate_rejected", detail: "x" }, { signal: aborted.signal });
     expect(existsSync(join(dir, "error_state.json"))).toBe(false);
 
     // A fresh, non-aborted write lands the file — proving the seam threads the
@@ -107,10 +100,8 @@ describe("clearErrorState", () => {
     vi.resetModules();
     vi.doMock("node:fs/promises", () => ({ ...actual, unlink }));
     try {
-      const {
-        clearErrorState: isolatedClearErrorState,
-        writeErrorState: isolatedWriteErrorState,
-      } = await import("../src/reference/sync/error-state-writer.js");
+      const { clearErrorState: isolatedClearErrorState, writeErrorState: isolatedWriteErrorState } =
+        await import("../src/reference/sync/error-state-writer.js");
       await isolatedWriteErrorState(dir, { step: "gate_rejected", detail: "x" });
       unlink.mockClear();
       await isolatedClearErrorState(dir);

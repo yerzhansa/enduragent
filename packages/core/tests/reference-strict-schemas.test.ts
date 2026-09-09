@@ -138,15 +138,12 @@ describe("metrics/ re-export discipline (metrics/README.md Rule 1)", () => {
     return;
   }
 
-  it.each(declared)(
-    "%s declares export const %s — barrel re-exports it",
-    (file, name) => {
-      expect(
-        barrelExports.has(name),
-        `${file} declares \`export const ${name}\` but it is missing from metrics/index.ts. ` +
-          `Add the re-export in the same PR per metrics/README.md Rule 1, or the schema bypasses ` +
-          `the strict-gate above.`,
-      ).toBe(true);
-    },
-  );
+  it.each(declared)("%s declares export const %s — barrel re-exports it", (file, name) => {
+    expect(
+      barrelExports.has(name),
+      `${file} declares \`export const ${name}\` but it is missing from metrics/index.ts. ` +
+        `Add the re-export in the same PR per metrics/README.md Rule 1, or the schema bypasses ` +
+        `the strict-gate above.`,
+    ).toBe(true);
+  });
 });

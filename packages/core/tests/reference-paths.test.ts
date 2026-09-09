@@ -33,9 +33,7 @@ afterEach(() => {
 describe("referenceDataDir — composes via getCoachHome", () => {
   it("returns <legacy>/data when ~/.cycling-coach/ exists for the cycling-coach binary", () => {
     mkdirSync(join(tempHome, ".cycling-coach"), { recursive: true });
-    expect(referenceDataDir("cycling-coach")).toBe(
-      join(tempHome, ".cycling-coach", "data"),
-    );
+    expect(referenceDataDir("cycling-coach")).toBe(join(tempHome, ".cycling-coach", "data"));
   });
 
   it("returns <fresh-install>/data for cycling-coach when legacy is absent", () => {

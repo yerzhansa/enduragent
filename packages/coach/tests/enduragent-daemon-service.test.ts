@@ -82,15 +82,18 @@ describe("service-aware arbitration", () => {
   it("maps the landed classifier and authenticated handshake without preserving transport", async () => {
     const peer = { status: "peer-healthy" as const, pid: 7, port: 43_210, peerVersion: "0.1.0" };
     const classify = vi.fn(async () => ({ status: "peer-healthy" as const, peer }));
-    const handshake = vi.fn(async () => ({
-      type: "handshake" as const,
-      status: "accepted" as const,
-      clientProtocolVersion: PROTOCOL_VERSION,
-      serverProtocolVersion: PROTOCOL_VERSION,
-      owner: "service-managed" as const,
-      athleteHome: home.root,
-      rendererCapability,
-    } as const));
+    const handshake = vi.fn(
+      async () =>
+        ({
+          type: "handshake" as const,
+          status: "accepted" as const,
+          clientProtocolVersion: PROTOCOL_VERSION,
+          serverProtocolVersion: PROTOCOL_VERSION,
+          owner: "service-managed" as const,
+          athleteHome: home.root,
+          rendererCapability,
+        }) as const,
+    );
     await expect(
       observeDaemonState(
         { home },

@@ -1,3 +1,4 @@
+import { say } from "../src/cli-copy.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -91,8 +92,10 @@ describe("run-binary CLI exit + cold-start banner", () => {
 
   it("prints the verbatim cold-start banner before the awaited bootstrap", () => {
     const banner = "syncing training data from intervals.icu…";
-    expect(countOccurrences(src, banner)).toBe(1);
-    expect(src.indexOf(banner)).toBeLessThan(src.indexOf("await bootstrapReference("));
+    const key = "cli.startup.syncingTrainingDataFromIntervalsIcu";
+    expect(say(key, { platform: "intervals.icu" })).toBe(banner);
+    expect(countOccurrences(src, key)).toBe(1);
+    expect(src.indexOf(key)).toBeLessThan(src.indexOf("await bootstrapReference("));
   });
 
   it("registers a close handler that stops the scheduler and exits 0", () => {

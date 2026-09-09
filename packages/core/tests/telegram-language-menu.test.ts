@@ -1,6 +1,10 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { LANGUAGE_OPTIONS } from "@enduragent/i18n";
 import { describe, expect, it } from "vitest";
-import { languageKeyboard, parseLanguageCallback } from "../src/channels/telegram-language-menu.js";
+import {
+  languageKeyboard as buildLanguageKeyboard,
+  parseLanguageCallback,
+} from "../src/channels/telegram-language-menu.js";
 
 describe("Telegram language keyboard", () => {
   it("places Automatic and the ordered endonyms in six rows of three", () => {
@@ -65,3 +69,7 @@ describe("Telegram language callback parser", () => {
     expect(parseLanguageCallback(data)).toBeUndefined();
   });
 });
+
+const englishBook = await createPhrasebook({ tag: "en", locale: "en-GB" });
+const languageKeyboard = (state: Parameters<typeof buildLanguageKeyboard>[0]) =>
+  buildLanguageKeyboard(state, englishBook);

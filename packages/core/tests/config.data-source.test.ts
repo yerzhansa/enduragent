@@ -21,14 +21,18 @@ describe("data_source config", () => {
     expect(resolveDataSource("store")).toBe("store");
   });
 
-  it.each([null, "", "Platform", "local", 1, [], {}])("rejects %j with the exact error", (value) => {
-    expect(() => resolveDataSource(value)).toThrowError(
-      new TypeError('Config field data_source must be "platform" or "store".'),
-    );
-  });
+  it.each([null, "", "Platform", "local", 1, [], {}])(
+    "rejects %j with the exact error",
+    (value) => {
+      expect(() => resolveDataSource(value)).toThrowError(
+        new TypeError('Config field data_source must be "platform" or "store".'),
+      );
+    },
+  );
 
   it("loads the YAML value without an environment override", async () => {
-    const root = await mkdtemp(join(await realpath(tmpdir()), "cc-data-source-")); roots.push(root);
+    const root = await mkdtemp(join(await realpath(tmpdir()), "cc-data-source-"));
+    roots.push(root);
     await mkdir(root, { recursive: true });
     await writeFile(join(root, "config.yaml"), "data_source: store\n", { mode: 0o600 });
     process.env.DATA_SOURCE = "platform";
@@ -40,7 +44,8 @@ describe("data_source config", () => {
   });
 
   it("rejects a preserved future-source YAML value with the exact error", async () => {
-    const root = await mkdtemp(join(await realpath(tmpdir()), "cc-data-source-")); roots.push(root);
+    const root = await mkdtemp(join(await realpath(tmpdir()), "cc-data-source-"));
+    roots.push(root);
     await mkdir(root, { recursive: true });
     await writeFile(join(root, "config.yaml"), "data_source: future-source\n", { mode: 0o600 });
     process.env.CYCLING_COACH_HOME = root;

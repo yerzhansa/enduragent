@@ -4,11 +4,7 @@ import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  REPO_ROOT,
-  section11Available,
-  tryRunHarness,
-} from "./helpers/snapshot-harness";
+import { REPO_ROOT, section11Available, tryRunHarness } from "./helpers/snapshot-harness";
 
 /**
  * Renaming a top-level fixture key the harness reads must fail loud
@@ -25,10 +21,7 @@ const GOLDEN_FIXTURE = resolve(
 function corruptFixture(): string {
   const dir = mkdtempSync(join(tmpdir(), "snapshot-section-11-corrupt-"));
   const path = join(dir, "corrupt.json");
-  const raw = JSON.parse(readFileSync(GOLDEN_FIXTURE, "utf8")) as Record<
-    string,
-    unknown
-  >;
+  const raw = JSON.parse(readFileSync(GOLDEN_FIXTURE, "utf8")) as Record<string, unknown>;
   if (!("activities" in raw)) {
     throw new Error("golden fixture has no top-level 'activities' key");
   }
@@ -43,9 +36,7 @@ describe("section-11 snapshot harness contract validation", () => {
     "fails loud with the missing-key path when sync.py reads a None fixture field",
     () => {
       const corrupt = corruptFixture();
-      const outDir = mkdtempSync(
-        join(tmpdir(), "snapshot-section-11-corrupt-out-"),
-      );
+      const outDir = mkdtempSync(join(tmpdir(), "snapshot-section-11-corrupt-out-"));
 
       const result = tryRunHarness({ fixturePath: corrupt, outDir });
 

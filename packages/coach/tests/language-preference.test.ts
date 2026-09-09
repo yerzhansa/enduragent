@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCoachLanguage } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import {
   asLanguagePreferenceStore,
   createLanguagePreferenceService,
@@ -51,6 +52,7 @@ describe("language preference service", () => {
   it("lets the shared language resolver observe preference changes and clearing", async () => {
     const { service } = fixture();
     const language = createCoachLanguage({
+      phrasebooks: createPhrasebook,
       store: asLanguagePreferenceStore(service),
       surface: { language: "fr", locale: "fr-BE" },
     });

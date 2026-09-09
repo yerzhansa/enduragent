@@ -6,8 +6,12 @@ import { join } from "node:path";
 // The real serializeError is the redaction surface this module delegates to;
 // keep it real so the "no payload keys leak" assertion is meaningful, but
 // capture every emitted line so tests can assert on shape without a log file.
-const captured: Array<{ level: string; component: string; event: string; line: Record<string, unknown> }> =
-  [];
+const captured: Array<{
+  level: string;
+  component: string;
+  event: string;
+  line: Record<string, unknown>;
+}> = [];
 
 vi.mock("../src/logging/index.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/logging/index.js")>();
@@ -23,7 +27,11 @@ vi.mock("../src/logging/index.js", async (importOriginal) => {
           level: "warn",
           component,
           event,
-          line: { event, err: err === undefined ? undefined : actual.serializeError(err), ...fields },
+          line: {
+            event,
+            err: err === undefined ? undefined : actual.serializeError(err),
+            ...fields,
+          },
         });
       },
       error: (event: string, err?: unknown, fields?: Record<string, unknown>) => {
@@ -31,7 +39,11 @@ vi.mock("../src/logging/index.js", async (importOriginal) => {
           level: "error",
           component,
           event,
-          line: { event, err: err === undefined ? undefined : actual.serializeError(err), ...fields },
+          line: {
+            event,
+            err: err === undefined ? undefined : actual.serializeError(err),
+            ...fields,
+          },
         });
       },
     }),
@@ -187,10 +199,12 @@ describe("logBootLine + breadcrumb lifecycle", () => {
 describe("reportFatal", () => {
   it("prints actionable 401 copy, writes the last-gasp line once, exits non-zero", async () => {
     const { reportFatal } = await loadGuard();
-    expect(() => reportFatal({ error_code: 401, description: "Unauthorized" }, { dataDir: tempHome })).toThrow(
-      "__exit_1",
-    );
-    expect(errSpy.mock.calls.some((c: unknown[]) => /revoked|invalid|@BotFather/i.test(String(c[0])))).toBe(true);
+    expect(() =>
+      reportFatal({ error_code: 401, description: "Unauthorized" }, { dataDir: tempHome }),
+    ).toThrow("__exit_1");
+    expect(
+      errSpy.mock.calls.some((c: unknown[]) => /revoked|invalid|@BotFather/i.test(String(c[0]))),
+    ).toBe(true);
     expect(captured).toHaveLength(1);
     expect(captured[0]!.event).toBe("fatal");
     expect(exitSpy).toHaveBeenCalledWith(1);
@@ -198,21 +212,23 @@ describe("reportFatal", () => {
 
   it("prints actionable 409 copy and exits non-zero", async () => {
     const { reportFatal } = await loadGuard();
-    expect(() => reportFatal({ error_code: 409, description: "Conflict" }, { dataDir: tempHome })).toThrow(
-      "__exit_1",
-    );
-    expect(errSpy.mock.calls.some((c: unknown[]) => /409|conflict|another instance/i.test(String(c[0])))).toBe(
-      true,
-    );
+    expect(() =>
+      reportFatal({ error_code: 409, description: "Conflict" }, { dataDir: tempHome }),
+    ).toThrow("__exit_1");
+    expect(
+      errSpy.mock.calls.some((c: unknown[]) => /409|conflict|another instance/i.test(String(c[0]))),
+    ).toBe(true);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it("a generic error exits non-zero but prints no token-specific copy", async () => {
     const { reportFatal } = await loadGuard();
     expect(() => reportFatal(new Error("nope"), { dataDir: tempHome })).toThrow("__exit_1");
-    expect(errSpy.mock.calls.some((c: unknown[]) => /revoked|409|conflict|@BotFather/i.test(String(c[0])))).toBe(
-      false,
-    );
+    expect(
+      errSpy.mock.calls.some((c: unknown[]) =>
+        /revoked|409|conflict|@BotFather/i.test(String(c[0])),
+      ),
+    ).toBe(false);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 

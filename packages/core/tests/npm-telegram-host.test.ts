@@ -117,8 +117,8 @@ describe("createNpmTelegramHost", () => {
     await expect(host.confirmations.cancel({ chatId: "telegram:73", nonce: "n" })).resolves.toBe(
       "canceled",
     );
-    expect(confirmations.peek).toHaveBeenCalledWith("telegram:73");
-    expect(confirmations.confirm).toHaveBeenCalledWith("telegram:73", "n");
+    expect(confirmations.peek).toHaveBeenCalledWith("telegram:73", undefined);
+    expect(confirmations.confirm).toHaveBeenCalledWith("telegram:73", "n", undefined);
     expect(confirmations.cancel).toHaveBeenCalledWith("telegram:73", "n");
 
     await expect(host.operations?.resolveTurnContext()).resolves.toEqual({
@@ -178,7 +178,9 @@ describe("createNpmTelegramHost", () => {
     expect(host.release.updatePolicy).toBe("managed-deploy");
     expect("install" in host.release).toBe(false);
     if (host.release.updatePolicy === "npm-self-update") throw new Error("unexpected npm policy");
-    await expect(host.release.updateNotice()).resolves.toContain("container image");
+    const notice = await host.release.updateNotice();
+    const book = await host.language.phrasebookFor({});
+    expect(typeof notice === "string" ? notice : book.say(notice)).toContain("container image");
   });
 
   it("records a notified version exactly once when one configured destination succeeds", async () => {
@@ -194,7 +196,12 @@ describe("createNpmTelegramHost", () => {
     });
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
 
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     expect(checkForUpdateWithDailyTelemetry).toHaveBeenCalledWith("cycling-coach", dataDir);
     expect(checkForUpdate).not.toHaveBeenCalled();
@@ -216,7 +223,12 @@ describe("createNpmTelegramHost", () => {
     });
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
 
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     expect(sendMessage).toHaveBeenCalledTimes(2);
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();

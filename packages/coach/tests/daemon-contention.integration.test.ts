@@ -83,7 +83,7 @@ function message<T>(child: ChildProcess, type: string): Promise<T> {
 
 function send(child: ChildProcess, value: Parameters<ChildProcess["send"]>[0]): Promise<void> {
   return new Promise((resolve, reject) => {
-    child.send(value, (error) => error === null ? resolve() : reject(error));
+    child.send(value, (error) => (error === null ? resolve() : reject(error)));
   });
 }
 
@@ -107,73 +107,77 @@ async function loopbackAvailable(): Promise<boolean> {
 const hasLoopback = await loopbackAvailable();
 
 describe.skipIf(!hasLoopback)("real daemon contention matrix", () => {
-  it("covers healthy, SIGKILL-stale, bound-unresponsive, and foreign-port processes", { timeout: 20_000 }, async () => {
-    const healthyHome = await syntheticHome("contention-healthy");
-    const healthy = spawn("writer", healthyHome);
-    const healthyReadyPromise = message<{
-      readonly rawPort: number;
-      readonly protocolPort: number;
-      readonly pid: number;
-    }>(healthy, "ready");
-    await send(healthy, { type: "start", home: healthyHome, mode: "healthy" });
-    const healthyReady = await healthyReadyPromise;
-    expect(healthyReady.rawPort).not.toBe(healthyReady.protocolPort);
-    const healthyStarter = spawn("classify", healthyHome);
-    const healthyClassification = message<{
-      readonly result: { readonly status: string; readonly peer?: { readonly port: number } };
-    }>(healthyStarter, "classification");
-    await send(healthyStarter, { type: "start", home: healthyHome });
-    await expect(healthyClassification).resolves.toMatchObject({
-      result: { status: "peer-healthy", peer: { port: healthyReady.protocolPort } },
-    });
-    const healthyExit = exit(healthy);
-    await send(healthy, { type: "stop" });
-    await healthyExit;
+  it(
+    "covers healthy, SIGKILL-stale, bound-unresponsive, and foreign-port processes",
+    { timeout: 20_000 },
+    async () => {
+      const healthyHome = await syntheticHome("contention-healthy");
+      const healthy = spawn("writer", healthyHome);
+      const healthyReadyPromise = message<{
+        readonly rawPort: number;
+        readonly protocolPort: number;
+        readonly pid: number;
+      }>(healthy, "ready");
+      await send(healthy, { type: "start", home: healthyHome, mode: "healthy" });
+      const healthyReady = await healthyReadyPromise;
+      expect(healthyReady.rawPort).not.toBe(healthyReady.protocolPort);
+      const healthyStarter = spawn("classify", healthyHome);
+      const healthyClassification = message<{
+        readonly result: { readonly status: string; readonly peer?: { readonly port: number } };
+      }>(healthyStarter, "classification");
+      await send(healthyStarter, { type: "start", home: healthyHome });
+      await expect(healthyClassification).resolves.toMatchObject({
+        result: { status: "peer-healthy", peer: { port: healthyReady.protocolPort } },
+      });
+      const healthyExit = exit(healthy);
+      await send(healthy, { type: "stop" });
+      await healthyExit;
 
-    const staleHome = await syntheticHome("contention-stale");
-    const killed = spawn("writer", staleHome);
-    const killedReady = message(killed, "ready");
-    await send(killed, { type: "start", home: staleHome, mode: "healthy" });
-    await killedReady;
-    const killedExit = exit(killed);
-    killed.kill("SIGKILL");
-    await killedExit;
-    const successor = spawn("writer", staleHome);
-    const successorReady = message<{ readonly rw: string }>(successor, "ready");
-    await send(successor, { type: "start", home: staleHome, mode: "healthy" });
-    await expect(successorReady).resolves.toMatchObject({ rw: "open" });
-    const successorExit = exit(successor);
-    await send(successor, { type: "stop" });
-    await successorExit;
+      const staleHome = await syntheticHome("contention-stale");
+      const killed = spawn("writer", staleHome);
+      const killedReady = message(killed, "ready");
+      await send(killed, { type: "start", home: staleHome, mode: "healthy" });
+      await killedReady;
+      const killedExit = exit(killed);
+      killed.kill("SIGKILL");
+      await killedExit;
+      const successor = spawn("writer", staleHome);
+      const successorReady = message<{ readonly rw: string }>(successor, "ready");
+      await send(successor, { type: "start", home: staleHome, mode: "healthy" });
+      await expect(successorReady).resolves.toMatchObject({ rw: "open" });
+      const successorExit = exit(successor);
+      await send(successor, { type: "stop" });
+      await successorExit;
 
-    const boundHome = await syntheticHome("contention-bound");
-    const bound = spawn("writer", boundHome);
-    const boundReady = message(bound, "ready");
-    await send(bound, { type: "start", home: boundHome, mode: "bound" });
-    await boundReady;
-    const boundStarter = spawn("classify", boundHome);
-    const boundClassification = message(boundStarter, "classification");
-    await send(boundStarter, { type: "start", home: boundHome });
-    await expect(boundClassification).resolves.toMatchObject({
-      result: { status: "bound-unresponsive", stdout: "" },
-    });
-    const boundExit = exit(bound);
-    await send(bound, { type: "stop" });
-    await boundExit;
+      const boundHome = await syntheticHome("contention-bound");
+      const bound = spawn("writer", boundHome);
+      const boundReady = message(bound, "ready");
+      await send(bound, { type: "start", home: boundHome, mode: "bound" });
+      await boundReady;
+      const boundStarter = spawn("classify", boundHome);
+      const boundClassification = message(boundStarter, "classification");
+      await send(boundStarter, { type: "start", home: boundHome });
+      await expect(boundClassification).resolves.toMatchObject({
+        result: { status: "bound-unresponsive", stdout: "" },
+      });
+      const boundExit = exit(bound);
+      await send(bound, { type: "stop" });
+      await boundExit;
 
-    const foreignHome = await syntheticHome("contention-foreign");
-    const foreign = spawn("writer", foreignHome);
-    const foreignReady = message(foreign, "ready");
-    await send(foreign, { type: "start", home: foreignHome, mode: "foreign" });
-    await foreignReady;
-    const foreignStarter = spawn("classify", foreignHome);
-    const foreignClassification = message(foreignStarter, "classification");
-    await send(foreignStarter, { type: "start", home: foreignHome });
-    await expect(foreignClassification).resolves.toMatchObject({
-      result: { status: "foreign-port", stdout: "" },
-    });
-    const foreignExit = exit(foreign);
-    await send(foreign, { type: "stop" });
-    await foreignExit;
-  });
+      const foreignHome = await syntheticHome("contention-foreign");
+      const foreign = spawn("writer", foreignHome);
+      const foreignReady = message(foreign, "ready");
+      await send(foreign, { type: "start", home: foreignHome, mode: "foreign" });
+      await foreignReady;
+      const foreignStarter = spawn("classify", foreignHome);
+      const foreignClassification = message(foreignStarter, "classification");
+      await send(foreignStarter, { type: "start", home: foreignHome });
+      await expect(foreignClassification).resolves.toMatchObject({
+        result: { status: "foreign-port", stdout: "" },
+      });
+      const foreignExit = exit(foreign);
+      await send(foreign, { type: "stop" });
+      await foreignExit;
+    },
+  );
 });

@@ -6,6 +6,24 @@ import type { Message } from "./message.js";
 export type { CatalogKey } from "./catalog-keys.js";
 export type Catalog = { readonly [key: string]: string | Catalog };
 
+function catalogContains(catalog: Catalog, key: string): key is CatalogKey {
+  const path = key.split(".");
+  let value: string | Catalog | undefined = catalog;
+  for (const [index, part] of path.entries()) {
+    if (typeof value !== "object") return false;
+    value = value[part] ?? (index === path.length - 1 ? value[`${part}_other`] : undefined);
+  }
+  return typeof value === "string";
+}
+
+export async function messageFromWire(input: {
+  readonly key: string;
+  readonly vars?: Record<string, string | number>;
+}): Promise<Message | undefined> {
+  if (!catalogContains(await loadCatalog("en"), input.key)) return undefined;
+  return input.vars === undefined ? { key: input.key } : { key: input.key, vars: input.vars };
+}
+
 export interface Phrasebook {
   readonly tag: LanguageTag;
   readonly locale: string;
@@ -70,6 +88,7 @@ export async function createPhrasebook(input: {
   const [english, catalog] = await Promise.all([loadCatalog("en"), loadCatalog(tag)]);
   const instance = createInstance();
   await instance.init({
+    showSupportNotice: false,
     lng: tag,
     initImmediate: false,
     fallbackLng: "en",

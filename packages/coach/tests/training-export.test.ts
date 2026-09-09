@@ -642,7 +642,6 @@ describe("durable training export writer", () => {
     expect(openFile).toHaveBeenCalledWith(temporary, "wx", 0o600);
     expect(renameFile).toHaveBeenCalledWith(temporary, destination);
     expect(removeFile).toHaveBeenCalledWith(temporary, { force: true });
-
   });
 
   it.each([
@@ -658,9 +657,9 @@ describe("durable training export writer", () => {
       openFile: openFile as never,
     });
 
-    await expect(
-      writer.write({ destinationPath, bytes: Uint8Array.from([1]) }),
-    ).resolves.toBe("failed");
+    await expect(writer.write({ destinationPath, bytes: Uint8Array.from([1]) })).resolves.toBe(
+      "failed",
+    );
     expect(openFile).not.toHaveBeenCalled();
   });
 

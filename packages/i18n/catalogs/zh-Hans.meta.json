@@ -8035,6 +8035,1174 @@
     "training.view.weekRange": {
       "sourceHash": "bae613ce75f08bb93409e6b66e0901c136d0ffb4b3635b631e6c3f49fa90396c",
       "translatedBy": "model"
+    },
+    "cli.language.choose": {
+      "sourceHash": "8e2d0664dbbb529de872582461068f7f7f752fc226a03a1b8439a4299dbf5e74",
+      "translatedBy": "model"
+    },
+    "cli.setup.allowlistLockfileIsHeldByAnother": {
+      "sourceHash": "a51657bfa14ca5ee0944162af41bd0ee64866e416de78fb8ca8410b4a984edea",
+      "translatedBy": "model"
+    },
+    "cli.setup.apiKey": {
+      "sourceHash": "fad7ae6b940a0c577684ccf1a8e924f188fcc3db90bc533a30be778d0d4cb851",
+      "translatedBy": "model"
+    },
+    "cli.setup.baseUrlEnterForDefault": {
+      "sourceHash": "a8b0dc70fffb4aa7ec5c27910846bab763ab6148f3e11b6dfeae7ee10d369ba8",
+      "translatedBy": "model"
+    },
+    "cli.setup.botTokenDidNotResolveTo": {
+      "sourceHash": "511b7daefc97cd912d7c282772c3620858b15608b47328733259b730b562b589",
+      "translatedBy": "model"
+    },
+    "cli.setup.cancelSetup": {
+      "sourceHash": "c17bac18b5a6250d0f1b9919516de8d9f155d87af5e80d2ffd30d799bad0102e",
+      "translatedBy": "model"
+    },
+    "cli.setup.captureDiscardedRunAddSenderId": {
+      "sourceHash": "b2c7058dcda85fb10b2b97539544f1bab689fbc421ee50ec04b9bf1593f6fe5c",
+      "translatedBy": "model"
+    },
+    "cli.setup.capturedOperatorIdTelegramNameFor": {
+      "sourceHash": "b0470e1fa768be4c7a87eddfd9cb831f530ec7409267504a78fdbe6e16dcbfc6",
+      "translatedBy": "model"
+    },
+    "cli.setup.claudeCodeCliSetupCheckFailed": {
+      "sourceHash": "7b5f26ccb263a9357896bb7a3a85a13e94d5dbf88b653fc0a1c7c06d12780e97",
+      "translatedBy": "model"
+    },
+    "cli.setup.claudeProvider": {
+      "sourceHash": "7e468bb901cb65ede1d2c9a8679dca3650e7e1316caab429c4fb2de467834d86",
+      "translatedBy": "model"
+    },
+    "cli.setup.codexProvider": {
+      "sourceHash": "1fd1ea5d1457c39a5ec017abf8f295cf109f46590d48d7f2c989485742d5b422",
+      "translatedBy": "model"
+    },
+    "cli.setup.configWrittenToRunToStart": {
+      "sourceHash": "9459d48870b530544081086bc7fd715fb6abdc1cbf0f59f9ecd5694680f51814",
+      "translatedBy": "model"
+    },
+    "cli.setup.deletedKeychainItem": {
+      "sourceHash": "099038b0b45ec57fff5900feed290f8e57dbdb2cf51be444ce93fde65ae18db8",
+      "translatedBy": "model"
+    },
+    "cli.setup.deletedPasswordItem": {
+      "sourceHash": "8eb7627e34888b4f2842cfe954e6b97fdd89cc4231a83be87aed1a7d09decaf8",
+      "translatedBy": "model"
+    },
+    "cli.setup.deleteTheOrphanItemSNow_other": {
+      "sourceHash": "d296fb12d11abce63ea08e2f3f475217fc54b36868dffa1113c19995b0c787b3",
+      "translatedBy": "model"
+    },
+    "cli.setup.enterToKeepExisting": {
+      "sourceHash": "b557feca178b2e074fd886d8ab7065c2be273fbc115cc161c0e891194fb0e6ca",
+      "translatedBy": "model"
+    },
+    "cli.setup.enterToSkip": {
+      "sourceHash": "efebc161b2e04ae76d549894f93ff6540e18096001a9252e37a413e7b111b15a",
+      "translatedBy": "model"
+    },
+    "cli.setup.existingCodexOauthProfileFoundRe": {
+      "sourceHash": "227874e5ff0f15c5f13c5815f1c4108be4371de417c3a4ce2b36994ed7c398e0",
+      "translatedBy": "model"
+    },
+    "cli.setup.failedToDeleteItem": {
+      "sourceHash": "c2c08d43abf02063c9854db2b20173be1fa26f2ebbd3d561c85ef054df9ab959",
+      "translatedBy": "model"
+    },
+    "cli.setup.failedToPersistAllowlistRunAdd": {
+      "sourceHash": "218bd6d717879f4f07f3467fb4bdff7ad9f06d041b79a334eda412b6885a823c",
+      "translatedBy": "model"
+    },
+    "cli.setup.failedToSaveOauthProfile": {
+      "sourceHash": "00d8d4ff4af02c1d47878620108c7be5b612cd809cb07f12ee31e9551fb195b8",
+      "translatedBy": "model"
+    },
+    "cli.setup.intervalsIcuApiKey": {
+      "sourceHash": "139e376fc738035a5bfc7d7d75d58c602048b8ca8894f0c3ce3512dbb544d5e3",
+      "translatedBy": "model"
+    },
+    "cli.setup.intervalsIcuAthleteId": {
+      "sourceHash": "1ec83f9728fa9bb70352d1680db717402f510e5a8abeee46b41a7a92d55b8f07",
+      "translatedBy": "model"
+    },
+    "cli.setup.isRequired": {
+      "sourceHash": "3b6621ddb5fc80569f52f5b1c6e3b555671e52734f8bf8db3ba4ec62824ecc6d",
+      "translatedBy": "model"
+    },
+    "cli.setup.isRequiredWhenMigrating": {
+      "sourceHash": "514525af0019de56c81b239b662ff2b03f27bcc1b4ebeb18d8f887b760317c37",
+      "translatedBy": "model"
+    },
+    "cli.setup.keepExistingNoWrite": {
+      "sourceHash": "d085441741c874cabbc0c23d7aa71bf57b7a4d28280f0bfc63b91d3e58470ddd",
+      "translatedBy": "model"
+    },
+    "cli.setup.keepingTheRestOfSetupContinues": {
+      "sourceHash": "1f33a88a0cefeee79b56938c10d1476d595f8c424a3be6d6edcc8d5613c6a686",
+      "translatedBy": "model"
+    },
+    "cli.setup.keepInYamlUnchanged": {
+      "sourceHash": "a2a308702e4c17437bec7bed3e5b800089a3e0b7b3dfa76c3bb640d7f09b5f59",
+      "translatedBy": "model"
+    },
+    "cli.setup.leftOnSubscriptionBillingSignIn": {
+      "sourceHash": "dfd176cf750849612a35d451d7eeda79db6d627fd9dfd522b56afaae99b83a9e",
+      "translatedBy": "model"
+    },
+    "cli.setup.model": {
+      "sourceHash": "5e2c614c23f02239bc03c6c04fcb681950f9e72bf8fdff6be79c79841cbb10c0",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.balanced": {
+      "sourceHash": "c0905088ba5b80677849d4824f21b8b075ab49c6a7f58b5b84815ccd69f3b0a5",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.cheap": {
+      "sourceHash": "c6f556046e0c00469fe2824aa5fb9fd02c66d154aafc80fdc0f365841c271e12",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.cheaper": {
+      "sourceHash": "b0fa1bce872f36c92471e405c4dacfc8242b56e1d6ecd64e4b5fc39b0b0e7d66",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.cheapest": {
+      "sourceHash": "a422b05a81b9fa6b52eba7d7f67f8f0afde60c191f9f30636692172feb615c28",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.experimental": {
+      "sourceHash": "748be63c87c9fad252fbd0a2e16d0bdd446d2f7acb456b820ed417e9b1f451df",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.fast": {
+      "sourceHash": "115dc3606fbf8691fb69f2aefec86f2ecd302362a0502b3a9648bf2c4dc8290f",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.fastAndCheap": {
+      "sourceHash": "e898c007746eb6850b9f9a9aabe86c27e5bd18e54882c754ce012c336e6dced1",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.faster": {
+      "sourceHash": "cb7a5742346e1c8560443d0d9b4bb7e1d3426500709d924a2e9fa7dd36984907",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.manyModels": {
+      "sourceHash": "feeb2423a05dca3e327de10ed22f797f4095f10a3797d1412d4578b72d53e70d",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.mostCapable": {
+      "sourceHash": "503961653922880562a07a9dd60a2d9456a5c66f803a54be4b37b96d83e40fbf",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelHints.recommended": {
+      "sourceHash": "dd6d876548037ec722252b45795206575e7040eba1ca076cf1732a4a903cadba",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelName": {
+      "sourceHash": "a3c3370cc7323c7127109bab88721b47e604949a462c19a5d5c3e38237ccc817",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelNameIsRequired": {
+      "sourceHash": "5844ed7b28d7259bcac411eb3399bd30a8ae7567c74334eba59ab9f307df2e5a",
+      "translatedBy": "model"
+    },
+    "cli.setup.modelVia": {
+      "sourceHash": "cb76a48e2a44142c2da98686c876b7ffff3e87d7b90b1f74a9fc320ec8641201",
+      "translatedBy": "model"
+    },
+    "cli.setup.multiplePasswordVaultsPickOne": {
+      "sourceHash": "5185dfba883f2b9dee55f830edde22ac6ce6100339d237040d6089ed21203378",
+      "translatedBy": "model"
+    },
+    "cli.setup.needsSignIn": {
+      "sourceHash": "1b555143cb8504f1afd1002a8bd40da673deae900e1da60f36022e26244b355c",
+      "translatedBy": "model"
+    },
+    "cli.setup.noAccountConfigured": {
+      "sourceHash": "460f4daf72de69d1b603072dafbf46d232403dabc70d021a4502055004092b6d",
+      "translatedBy": "model"
+    },
+    "cli.setup.noChangesWritten": {
+      "sourceHash": "63dbba7941aa3c988a7afab28889f41c3192a8056a3cbaf592769184e8c9bc86",
+      "translatedBy": "model"
+    },
+    "cli.setup.noPairingCodeReceivedWithinThe": {
+      "sourceHash": "c665fccb4f00417050b8514f130ab8a484cb1288cc9ea0d13531bde87ae1dfc6",
+      "translatedBy": "model"
+    },
+    "cli.setup.notInstalled": {
+      "sourceHash": "e9363f76e1145505f670e682d00a8497f163aa9aa81034d513260edf155923c9",
+      "translatedBy": "model"
+    },
+    "cli.setup.oauthSignInFailed": {
+      "sourceHash": "026cf96fafc4a2ce095072688a0a55bec447f28c93683874aa2400fb139cf4ac",
+      "translatedBy": "model"
+    },
+    "cli.setup.opCliError": {
+      "sourceHash": "5ea40e54401018adbf9120b67a8c676da1d5381ac3d9c3c8f3a37e44d92664dd",
+      "translatedBy": "model"
+    },
+    "cli.setup.openaiCodexOauthComplete": {
+      "sourceHash": "24acd6af3a515b4d087e1d68e6ddfd5009844a95b10a4b3e4fe11ce8e04ca8bb",
+      "translatedBy": "model"
+    },
+    "cli.setup.operatorAlreadyConfiguredIdAllowfromHas_other": {
+      "sourceHash": "a71231d7870b7be956e081664e31048e81f1e3aca3e362b947be1af8f165080d",
+      "translatedBy": "model"
+    },
+    "cli.setup.operatorRegisteredId": {
+      "sourceHash": "cfd3b04a34ddf2b3d91522c8aa8fe09ead5e29ef9b1e53250ae84eb27f88a8f4",
+      "translatedBy": "model"
+    },
+    "cli.setup.opSigninDidNotCompleteSuccessfully": {
+      "sourceHash": "fc3621071f31f9efa45e6e035b47f3adde7f503ad0e398c67e3f3489cedaddc3",
+      "translatedBy": "model"
+    },
+    "cli.setup.optInToAnthropicApiKey": {
+      "sourceHash": "bf3764644774a12a2c0bf7c5ba76cdf4222a581b394d118ef54d031a1e6318fe",
+      "translatedBy": "model"
+    },
+    "cli.setup.otherTypeModelName": {
+      "sourceHash": "69a9c7d83c7f42b558dc32ba7b61dd9ca504a061c402e81985348d96bc4b9288",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordBackendBecameUnavailableMidWizard": {
+      "sourceHash": "3f9b2bd98aa910f968c6fccf528c28e4942b9e6dede4dc8f0fb48671f1a89c74",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordBackendNotOffered": {
+      "sourceHash": "067e30a9af505a979a8d376af659dd365834b022befb2ae43d9403e0cd4bad14",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordCliSignedInAs": {
+      "sourceHash": "0de65b1cf078aff572df7f527545ce77813258211aa7a4982759d3573194aa4f",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordCliSignInFirst": {
+      "sourceHash": "1e7114eb2ae0b4e852c5907c243d8313b5b8dc9ba4a9020c7858b05d612ece1b",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordDesktopAppIntegrationUnavailableQuit": {
+      "sourceHash": "761aa9d3c9043e94c846ff0c7370df6b0e6a6d62353dd2e9c0ed69b98ea79306",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordIsLockedUnlockTheDesktop": {
+      "sourceHash": "eb24ea7fa5466910f7ea7f5027731f5b2e5f10a4e6a2ad1f17a04cd18e78eb44",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordItemAlreadyExistsInVault": {
+      "sourceHash": "fcf33fccec733b549e20adc6a264b3d8689f6a24ca93b0b538ac49c49d1c0389",
+      "translatedBy": "model"
+    },
+    "cli.setup.passwordStillUnavailablePickAnotherBackend": {
+      "sourceHash": "306b25696054c24377308de41967cb726027676e4126d947a990da4b40dd5e2e",
+      "translatedBy": "model"
+    },
+    "cli.setup.pasteANewValueToMigrate": {
+      "sourceHash": "e782e8769d562c10340702f42c46134bea871cc2c80a16f895cb25ac7b310fbf",
+      "translatedBy": "model"
+    },
+    "cli.setup.pasteNewValue": {
+      "sourceHash": "bedb88f7b9dc6693d685f2106d3ef0dc97c9b5ffc909182a1f89fcd2353b0e78",
+      "translatedBy": "model"
+    },
+    "cli.setup.plainConfigYaml": {
+      "sourceHash": "e341284749594a33ec3d16bf4890049b2a8e84254123e612ddf51410aa5da020",
+      "translatedBy": "model"
+    },
+    "cli.setup.provider": {
+      "sourceHash": "93cd443564cb63d405633d792daea364ff3bee5e0a65e3ab6f1638088cbce176",
+      "translatedBy": "model"
+    },
+    "cli.setup.replaceWithAProviderFromThis": {
+      "sourceHash": "1e6e49817f13742988340856a5beb3f3946aad12783e03725ab61ff4dbb74cb0",
+      "translatedBy": "model"
+    },
+    "cli.setup.runClaudeOnceInYourTerminal": {
+      "sourceHash": "f07d9ef0e1a9a27f35e0cd68062e51cbc515c2e01fccd23b294d75ccb68f2c33",
+      "translatedBy": "model"
+    },
+    "cli.setup.runningOpSigninCompleteThePrompt": {
+      "sourceHash": "88d0bcd0e74b04edce41df38f943a5b2559736c0e5283544c96bcc63186c6442",
+      "translatedBy": "model"
+    },
+    "cli.setup.setup": {
+      "sourceHash": "c88b877a0fe16232e343be3b025bc40060906042b09459b424f2e3d6486efd3d",
+      "translatedBy": "model"
+    },
+    "cli.setup.setupCancelled": {
+      "sourceHash": "68817f9bc395dd8151a1d214efd000e4e2b8ea9e12264c2917a9a1a48b4d7528",
+      "translatedBy": "model"
+    },
+    "cli.setup.setupFailed": {
+      "sourceHash": "5f4765d383cfcfa8c51e9e5cbc574228064914f51eff78295063ebff7bdfa14b",
+      "translatedBy": "model"
+    },
+    "cli.setup.setupRequiresAnInteractiveTtySee": {
+      "sourceHash": "19b5d7bef0c9c0c9594a6c42614a312a96e76ca536334f0bd3f4d93537e2bbac",
+      "translatedBy": "model"
+    },
+    "cli.setup.setupWillRegisterYourTelegramAccount": {
+      "sourceHash": "eb1547b66a08d984ab6a964a862273dcf3158f591b9e9e9760b0a8bff2498f41",
+      "translatedBy": "model"
+    },
+    "cli.setup.signedInAs": {
+      "sourceHash": "5ec37bdc5a17ac0cb473b401e112d2974d475cbbf95d66a0fa2d96174d777a8f",
+      "translatedBy": "model"
+    },
+    "cli.setup.skippingOperatorCaptureExistingAllowlistPreserved": {
+      "sourceHash": "bece983b1c09f874617aabc3652f2c791137d79cff9ba118c4616b3d69c17224",
+      "translatedBy": "model"
+    },
+    "cli.setup.startingOauthSignInChatgptPlus": {
+      "sourceHash": "b8258811ff1c8c98a75a75988afb2c2a8e8ddf4439f7b907af04b7652bbbe7cf",
+      "translatedBy": "model"
+    },
+    "cli.setup.storedInKeychain": {
+      "sourceHash": "44b46fac3ff4c09c05ee65a25a3d3918b4f363d7e3c99bc24f447054dbf03495",
+      "translatedBy": "model"
+    },
+    "cli.setup.storedInPasswordVault": {
+      "sourceHash": "c0bb4872b3451a27ea46cd4ac264c89403a1dbf44e90bef52e0aaebb9b2fbe5e",
+      "translatedBy": "model"
+    },
+    "cli.setup.storedUnencryptedOnDiskMode": {
+      "sourceHash": "94fd8be8214905f282a2d5baf347a8ba086e03d96bda6b3e715f78b9ea2cf5e6",
+      "translatedBy": "model"
+    },
+    "cli.setup.switchBackendFromTo": {
+      "sourceHash": "5b02d680319403475f3d3b1b294f5180e0b58d1a5a5267b290c6658c29b89c80",
+      "translatedBy": "model"
+    },
+    "cli.setup.telegramBotToken": {
+      "sourceHash": "84a7f655955993adceda9cba3d7aa274855a58b7f31bb4bb54dc48963a4fdef9",
+      "translatedBy": "model"
+    },
+    "cli.setup.trimmedWhitespaceFromPasted": {
+      "sourceHash": "fb22a090c5559db97cd543b335f02a04b3f4559d22d53218612ebaa018e34b83",
+      "translatedBy": "model"
+    },
+    "cli.setup.unknown": {
+      "sourceHash": "b23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc",
+      "translatedBy": "model"
+    },
+    "cli.setup.unknownError": {
+      "sourceHash": "3e4443e52275a9a092994d93853ea05b985abc67238b4b482c7b90b3a76e6098",
+      "translatedBy": "model"
+    },
+    "cli.setup.update": {
+      "sourceHash": "dd77294dc6b30bda6882c923cb8f0ea816d48eb21c9923b57d006bbda46cb076",
+      "translatedBy": "model"
+    },
+    "cli.setup.updatedInKeychain": {
+      "sourceHash": "c3abc6bb329dd8e3b59e40721610b9084ac88acaf29503e6e90c967585fb85c2",
+      "translatedBy": "model"
+    },
+    "cli.setup.updatedInPasswordVault": {
+      "sourceHash": "1bc270327669bc203952c394ea1aa96e4609bee558e6277fc451e04b6e27bce7",
+      "translatedBy": "model"
+    },
+    "cli.setup.updateWithNewValue": {
+      "sourceHash": "248431aa5af6bbc68de0c7fdd4f648430a09a82e32c6fe33d2653c2897f10650",
+      "translatedBy": "model"
+    },
+    "cli.setup.whereToStoreSecrets": {
+      "sourceHash": "99dcb54584293a05ca2af97c4593744e4f737fc78900a2031d4100904328868a",
+      "translatedBy": "model"
+    },
+    "cli.setup.wizardFailedAfterCreatingNewBackend_other": {
+      "sourceHash": "612a29b6f5682d9884fd38dfa329881972ed456eea248d7522485185c6cb7edd",
+      "translatedBy": "model"
+    },
+    "cli.setup.wizardOrphanedBackendItemsCreatedThis": {
+      "sourceHash": "d2b6dff6338f315b10b901f2a3ed56949d4753104bc5765cd2a0812b4b13f23a",
+      "translatedBy": "model"
+    },
+    "cli.setup.yourCurrentProviderIsNotOffered": {
+      "sourceHash": "e965710f579644f3e2527bee0944274370494f379cc9b834ccb6e5ced31217e5",
+      "translatedBy": "model"
+    },
+    "cli.startup.allowedSenders_other": {
+      "sourceHash": "1351963f3ec117d9d91697e63bd25d6b7b73620ecb03e764eeb003c6a6215036",
+      "translatedBy": "model"
+    },
+    "cli.startup.botPollingConflict": {
+      "sourceHash": "44806aa89a7f51c04fd8ef5cc837430c2a731d1af3eabb608971fc078f411b9e",
+      "translatedBy": "model"
+    },
+    "cli.startup.botTokenRejected": {
+      "sourceHash": "2d616faef01697803a32ea7cde82a8bcd6eb5e6ade74c416b2eb8213235c1eae",
+      "translatedBy": "model"
+    },
+    "cli.startup.canceled": {
+      "sourceHash": "b5056801e52a3578578a5b6179cc7c67101f53954f8ed508a38062cfddab27fa",
+      "translatedBy": "model"
+    },
+    "cli.startup.capturedOperatorIdFor": {
+      "sourceHash": "3c031c831ffa31c82254936dba54444e1624e5cb54d63a0a91244dfddd89515e",
+      "translatedBy": "model"
+    },
+    "cli.startup.cliModeTypeYourMessage": {
+      "sourceHash": "08913975708736bae620e3f2ab9789e1b32ccd4218992e11d98bcde540855853",
+      "translatedBy": "model"
+    },
+    "cli.startup.codexCheckFailed": {
+      "sourceHash": "f387426c3010d4eb55e79dd8ae84498b45fc8f14e15d7aaa290b3ac31d517de6",
+      "translatedBy": "model"
+    },
+    "cli.startup.codexDisabled": {
+      "sourceHash": "d6985065c855651633436a3448102f71ed584ccb2adfb865f3164abc530deada",
+      "translatedBy": "model"
+    },
+    "cli.startup.codexWindowsUnsupported": {
+      "sourceHash": "d45294e155ca6ea8a27b214e55465d2ae862e368b1fc04ab56e001cb57373c51",
+      "translatedBy": "model"
+    },
+    "cli.startup.configError": {
+      "sourceHash": "87fa4af336bfe49dfa7d5d6f903361d78228ad9f964ca8231bc12dbf004ef40d",
+      "translatedBy": "model"
+    },
+    "cli.startup.confirmYN": {
+      "sourceHash": "c20f74fbdf50d675b00313f342405ed5756e30b276a69521eab4319889a6ab52",
+      "translatedBy": "model"
+    },
+    "cli.startup.displayName": {
+      "sourceHash": "f53bef11d210ada71643455b1366fbc4440c9633cde29bfa9ebe4f78b3b846fb",
+      "translatedBy": "model"
+    },
+    "cli.startup.error": {
+      "sourceHash": "75f63c10d2451deb03746734a44b1a782c521227994cee17c7811d1617dcd1b5",
+      "translatedBy": "model"
+    },
+    "cli.startup.errorDetail": {
+      "sourceHash": "1b1e448cb15d82c4d1a1c3b071df06748b0b2810b9ac9d9a0d1dabd203525a83",
+      "translatedBy": "model"
+    },
+    "cli.startup.hasNoAllowedSendersConfigured": {
+      "sourceHash": "4512ee4b386e47a16b98d90526dd87c412849a1140084defd75aac84eff2a41e",
+      "translatedBy": "model"
+    },
+    "cli.startup.linesLastModified_other": {
+      "sourceHash": "ae5832e5ab7a9040d84c395ff06436fe9a927535700da6e3a85e14b006241424",
+      "translatedBy": "model"
+    },
+    "cli.startup.memoryFlushDidNotFinishBefore": {
+      "sourceHash": "945a7058ff221ca5ec45daab2062f2dca5426e69bb93902d619c549dc32439b7",
+      "translatedBy": "model"
+    },
+    "cli.startup.noLlmApiKeyFoundRun": {
+      "sourceHash": "e32a49fc3d0092f786bfdc094cb06cd22bff15e2b88147065b5de34f132fcc25",
+      "translatedBy": "model"
+    },
+    "cli.startup.operatorNotCapturedBotWillStart": {
+      "sourceHash": "e6fdd0838496905fcedfcfda91d9c113f4004e958456598727c668b041b19422",
+      "translatedBy": "model"
+    },
+    "cli.startup.operatorRegisteredIdStartingBot": {
+      "sourceHash": "c5ca8ba380011afddb1b9cd61893700b06e064ff056d7c96d9b669637feef49f",
+      "translatedBy": "model"
+    },
+    "cli.startup.policy": {
+      "sourceHash": "2bcabc0bd28909fd27968d939ca90138e3070824ae3e51a60e9ce69f99f881d2",
+      "translatedBy": "model"
+    },
+    "cli.startup.pressCtrlCToSkipYou": {
+      "sourceHash": "45599e45f9471e741d05516156a2e1687e6cb14d16be2503b190e6110d9bb35e",
+      "translatedBy": "model"
+    },
+    "cli.startup.primaryOperator": {
+      "sourceHash": "acc891db0047acc66a21bba0049e1bd7d2727220140f5367af3b52d57c5b4247",
+      "translatedBy": "model"
+    },
+    "cli.startup.saveThisAsThePrimaryOperator": {
+      "sourceHash": "3e81ac4b9c54ef252067711aaab415cf4c7c65f10b25a97e948762a4baa2e7f2",
+      "translatedBy": "model"
+    },
+    "cli.startup.senderAdded": {
+      "sourceHash": "b72e8c254b11c855a76dea77070a88772816ba82db61b0aec320f95efb907e0d",
+      "translatedBy": "model"
+    },
+    "cli.startup.senderAddedAt": {
+      "sourceHash": "86b9c8b179d88fcba9fc2c727b5c708be3c0405a0ae4c6ef5f1ee693598ba984",
+      "translatedBy": "model"
+    },
+    "cli.startup.senderRemoved": {
+      "sourceHash": "01edf574908b551d0408229dd34ebea09133cbf0480fdd5f942cf2b61646e0d3",
+      "translatedBy": "model"
+    },
+    "cli.startup.sendYourBotThePairingCode": {
+      "sourceHash": "468cbe7a503478cc73a7ff3c2629be3a1bdb7a674362655fb451225eaad11e39",
+      "translatedBy": "model"
+    },
+    "cli.startup.sessionCandidates_other": {
+      "sourceHash": "0c4b9c4d3a13381edd9a5cf2af327fd155879e8175256733dd255ea9d1ceeaee",
+      "translatedBy": "model"
+    },
+    "cli.startup.shutdownEncounteredAnError": {
+      "sourceHash": "fcf5df5400a41488b863f87580a54b1f3fd965f4cc3057665e911def8b806ee8",
+      "translatedBy": "model"
+    },
+    "cli.startup.shuttingDownFinishingInFlightMessages": {
+      "sourceHash": "ae0a2f8ab59f76661ec7a220c4e39baadc6a29929729328044c5e8c399424766",
+      "translatedBy": "model"
+    },
+    "cli.startup.startupHookFailedContinuingWithBinary": {
+      "sourceHash": "ed0eba63354ba56d92056c0196d9264415d085f46bc8b004a4c0110f9c63a7b3",
+      "translatedBy": "model"
+    },
+    "cli.startup.syncingTrainingDataFromIntervalsIcu": {
+      "sourceHash": "7f7a104689ced64fe5b3a2f456317e441c8d78df6a4986be5ef8b260a728f31d",
+      "translatedBy": "model"
+    },
+    "cli.startup.telegram": {
+      "sourceHash": "723ca493b7bf0a2d4c72aeef78b3ec4f18bc3aeb7dd1a645698c65b6e4e2d50e",
+      "translatedBy": "model"
+    },
+    "cli.startup.telegramModeIsRunningOpenTelegram": {
+      "sourceHash": "a35f35c16ebae0159ba31aedd6012d39c227db39c3284252f030f467a0244dc1",
+      "translatedBy": "model"
+    },
+    "cli.startup.telegramShutdownDrainIsUnavailable": {
+      "sourceHash": "14f0ecd1d74aca7b77a85097565fea55bc4c00b910131b490b11097df220923c",
+      "translatedBy": "model"
+    },
+    "cli.startup.text": {
+      "sourceHash": "7235d88a8e6e66fe3c22a4aec1f54edea6d4b866d78e55e10fc85900d242cba8",
+      "translatedBy": "model"
+    },
+    "cli.startup.unknownCommand": {
+      "sourceHash": "d86a173a0966770faef003e08539886dceea62915d3cb29a4f6056008e7fba32",
+      "translatedBy": "model"
+    },
+    "cli.startup.usageCommandCommandsSetupInteractiveWizard": {
+      "sourceHash": "cc6fabdd427e759946479f470420e713bcf6ce362868d4278e250e8df765c1d4",
+      "translatedBy": "model"
+    },
+    "cli.startup.usageUserid": {
+      "sourceHash": "924b201ac3e91668bab603a2d69c026fcba0b8d8eb378d239957761ac01994c5",
+      "translatedBy": "model"
+    },
+    "cli.startup.userId": {
+      "sourceHash": "5c02cab33b6e74e7b3559361bb107c2b5018434282027cdbf015a34576e5cc61",
+      "translatedBy": "model"
+    },
+    "cli.update.installing": {
+      "sourceHash": "1b589c46a62d5cac71cd407f0a55403713feaa378673e98e01492ae9514e045d",
+      "translatedBy": "model"
+    },
+    "cli.update.managedDeployment": {
+      "sourceHash": "bb31f4e2470079681fc46a835a0901517327ab5b88a15069aafb49dbfacf762e",
+      "translatedBy": "model"
+    },
+    "coach.confirmation.executed": {
+      "sourceHash": "c146ae574fed90a8d6629358a8ad292183661745116f6716371de05b8426a960",
+      "translatedBy": "model"
+    },
+    "coach.confirmation.expired": {
+      "sourceHash": "40f1810517e06fb51359131ca0e257011dd915b65d8a3517dcec23d048ae40e6",
+      "translatedBy": "model"
+    },
+    "coach.confirmation.failed": {
+      "sourceHash": "a68df1a2814dae7e51ab81a58011f92ca8c62c7c6070d5eff007769c74a0f07a",
+      "translatedBy": "model"
+    },
+    "coach.confirmation.refused": {
+      "sourceHash": "2b4dca4e1a2f7873b44cbc3d1eab6f46b7867277a62ef05269c41e35db004223",
+      "translatedBy": "model"
+    },
+    "coach.error.intervalsCredentials": {
+      "sourceHash": "59064d54203edf640729d971e775000c612e61da7078ac43935765fcb1caa10f",
+      "translatedBy": "model"
+    },
+    "coach.error.intervalsTransient": {
+      "sourceHash": "31cdc8cede5b33da9cacd49ae55f6d507ff7e006173fe7db520f5120b2b39b3d",
+      "translatedBy": "model"
+    },
+    "coach.error.providerCredentials": {
+      "sourceHash": "625d067d866b6b23e35edc521364a93b450d441406575b353feab5be41f38bb0",
+      "translatedBy": "model"
+    },
+    "coach.error.providerDown": {
+      "sourceHash": "e087773eca4b33cdf97e85fb52553a017fcfc2b7977c088131d7568875563b08",
+      "translatedBy": "model"
+    },
+    "coach.error.rateLimit": {
+      "sourceHash": "95d25e8f55a3a4ca9c7b41aba0200a1a29d74042b41458fb874d95c6ad9b51bc",
+      "translatedBy": "model"
+    },
+    "coach.error.rateLimitDefault": {
+      "sourceHash": "8d911f64c62b2e9821dfb0d87328a5db7b2b1fb073510fb7e8a1107b924a03bb",
+      "translatedBy": "model"
+    },
+    "coach.error.rateLimitMinutes_other": {
+      "sourceHash": "b3dd3a519354f1b204101e41aaaf06334eb947841c9b56c22832239f14c233ef",
+      "translatedBy": "model"
+    },
+    "coach.error.rateLimitSeconds_other": {
+      "sourceHash": "2da887f59f43f1708c9c098c2e213e2c820c2a8036a4740ab0c8e2f5740a4f66",
+      "translatedBy": "model"
+    },
+    "coach.error.reauth": {
+      "sourceHash": "4b6981dee9ec43da0d316a02769e35a7bb56aa9b6d33d6c8cce0e42c582521cf",
+      "translatedBy": "model"
+    },
+    "coach.error.reauthSetup": {
+      "sourceHash": "839c441c3d6f9aaa8dd9b94b257f53feff279ee2d9b0435abd642e74aaa9c1e0",
+      "translatedBy": "model"
+    },
+    "coach.error.unknown": {
+      "sourceHash": "23363ca27cf91ee1a9e32b65d3f9f082e4e6c6e36d121bf714e5fea84f046f31",
+      "translatedBy": "model"
+    },
+    "coach.fallback.stepLimit": {
+      "sourceHash": "fc4fb4d9178e1f149a6fc99a895192d73474f67d3e2f128031e67db0bc3db5c6",
+      "translatedBy": "model"
+    },
+    "coach.fallback.writesSaved": {
+      "sourceHash": "5c00f551bfb3a0ac3518debad9bc812f55e98aaedfd77745473f34d1ce40258b",
+      "translatedBy": "model"
+    },
+    "coach.history.diskFull": {
+      "sourceHash": "1c2dd8b7e7642a40cb149fcc0e3b74f49357aa181e94a7688b2ec4753ddcce77",
+      "translatedBy": "model"
+    },
+    "coach.history.reset": {
+      "sourceHash": "cc68656028b610be5c37608cf54b2ca1a9db1e631590b8f146db5615504c2148",
+      "translatedBy": "model"
+    },
+    "coach.history.resetReply": {
+      "sourceHash": "05069bde13c65554b681d47ff6a610ff0e5a554ae94c685c78493f341e5723f5",
+      "translatedBy": "model"
+    },
+    "coach.history.resetStepLimit": {
+      "sourceHash": "97c3c73f404da41c43a973e549cc0e400612ebd4f34b6a9520b30bd7b72f3150",
+      "translatedBy": "model"
+    },
+    "coach.history.resetUnsavedReply": {
+      "sourceHash": "8b61a6e30522c368351e1337a81c62cfbc153c9189c1224ee70b305b928d96da",
+      "translatedBy": "model"
+    },
+    "coach.history.resetUnsavedStepLimit": {
+      "sourceHash": "f6331666840cbc09be84eaf2ab171f929905d0e8cdc697c9b023a063fe0341a4",
+      "translatedBy": "model"
+    },
+    "coach.history.unsavedReply": {
+      "sourceHash": "6ffae2139565844c1bcf0ea11bf7b00ca1769755aa5ec226c48eee6b1099707a",
+      "translatedBy": "model"
+    },
+    "coach.history.unsavedStepLimit": {
+      "sourceHash": "d52103e284d4a5c69a45b17c8b72c5bed3e6816ee3577149d258c1d203ee211a",
+      "translatedBy": "model"
+    },
+    "coach.proposal.create": {
+      "sourceHash": "abfe325a00e584f3a78c9fb51fd1ac60e60e05f43b813571891a9f76e63c6d9c",
+      "translatedBy": "model"
+    },
+    "coach.proposal.createFallback": {
+      "sourceHash": "c70b91aaa64cc8af639cd9ab9bab0b93774df6bd1496c98a04b67cec7db8e726",
+      "translatedBy": "model"
+    },
+    "coach.proposal.createStrength": {
+      "sourceHash": "48814414f2d500eef2dcaa5f27432f0cf57d19fa905c537b83000d2b584441dc",
+      "translatedBy": "model"
+    },
+    "coach.proposal.createStrengthFallback": {
+      "sourceHash": "6631a80cb101f55f3a1b4a156d60e2c7b16a1ae458781af46f4131644a4e620e",
+      "translatedBy": "model"
+    },
+    "coach.proposal.date": {
+      "sourceHash": "bba3dc77979db2591a5b20472b3ad76bfbe993b4ce7e3e403865e597374d0065",
+      "translatedBy": "model"
+    },
+    "coach.proposal.delete": {
+      "sourceHash": "4ea75fca6d0fc368808386e42a59ae026d70c25d1961f824b4d7e80f5e4ef934",
+      "translatedBy": "model"
+    },
+    "coach.proposal.description": {
+      "sourceHash": "c9046f7a37ad0ea7cee73355984fa5428982f8b37c8f7bcec91f7ac71a7cd104",
+      "translatedBy": "model"
+    },
+    "coach.proposal.duration_other": {
+      "sourceHash": "3381cad8f64de5ac4fbc0dc8d06240014af7b1098c2361445151ad2b76fcedec",
+      "translatedBy": "model"
+    },
+    "coach.proposal.name": {
+      "sourceHash": "54abba122da804c3c9d4d503fae903dad9d46e5347cbe65d7e0ccc4c7f2b8c07",
+      "translatedBy": "model"
+    },
+    "coach.proposal.savePlan": {
+      "sourceHash": "11d2f3bb967c63a9f5e6ae441a2169dfc2a04800158da35031fb657ad8fc71cb",
+      "translatedBy": "model"
+    },
+    "coach.proposal.savePlanDetail": {
+      "sourceHash": "8041e5dafad1b53bd334cd8e88716cff9bdb8d849f003b85ae7efea8779cb374",
+      "translatedBy": "model"
+    },
+    "coach.proposal.selectedFields": {
+      "sourceHash": "500d53f8c0ef14ee396d078bae35e5f5e6e62a9b80f388f74754fa9ab99be384",
+      "translatedBy": "model"
+    },
+    "coach.proposal.structure": {
+      "sourceHash": "9f9bd60c469d2fcb2b85247bbacdd16f64ede4b635dfe1c32cec1bfa1259d693",
+      "translatedBy": "model"
+    },
+    "coach.proposal.trainingLoad": {
+      "sourceHash": "73f08291255cfff7689560f6e6d6d063f5955915e9c48b7f61aa36a07a027ee5",
+      "translatedBy": "model"
+    },
+    "coach.proposal.unnamed": {
+      "sourceHash": "d6d136069ff6f3337856615981d4ced4c968648c7122fe05a3ace5f91fa7f5a6",
+      "translatedBy": "model"
+    },
+    "coach.proposal.update": {
+      "sourceHash": "7512657492d27c8cfffa78985e66af29dca5838f6ef7f8c3b2177ca07cc17ce1",
+      "translatedBy": "model"
+    },
+    "telegram.capture.code": {
+      "sourceHash": "ffc421520a31e71a61e2e35f4d268b35980403170fa37e1e2b1b17cdc4bdea83",
+      "translatedBy": "model"
+    },
+    "telegram.capture.invalidBot": {
+      "sourceHash": "c4a26f8436535a1159a9efe406ef8765fc316427dfb2f1c51bed05f5f5a58e28",
+      "translatedBy": "model"
+    },
+    "telegram.capture.sendCode": {
+      "sourceHash": "ab547ddf14babbddabb38d1a00db22a4e11592595644bd5192123bfb86f56446",
+      "translatedBy": "model"
+    },
+    "telegram.confirmation.cancel": {
+      "sourceHash": "19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27",
+      "translatedBy": "model"
+    },
+    "telegram.confirmation.canceled": {
+      "sourceHash": "5c81ffc824a8fc421dd305912dc01768599b5e3aac0aa8fa5b869be17f4316b7",
+      "translatedBy": "model"
+    },
+    "telegram.confirmation.confirm": {
+      "sourceHash": "eebdd24a77d9ad32222660c07777163bf5f6732df2b172351f3f8d5783e4f529",
+      "translatedBy": "model"
+    },
+    "telegram.confirmation.expired": {
+      "sourceHash": "40f1810517e06fb51359131ca0e257011dd915b65d8a3517dcec23d048ae40e6",
+      "translatedBy": "model"
+    },
+    "telegram.error.delivery": {
+      "sourceHash": "456075f9bf906a1f5bb76bc2c774bdb9aed2b0a461dd612573dce99f6583f6ff",
+      "translatedBy": "model"
+    },
+    "telegram.error.transport": {
+      "sourceHash": "23363ca27cf91ee1a9e32b65d3f9f082e4e6c6e36d121bf714e5fea84f046f31",
+      "translatedBy": "model"
+    },
+    "telegram.language.automatic": {
+      "sourceHash": "d461a493a3753877c9486cffa3444265a33370af8a7fff242fb119b71750839c",
+      "translatedBy": "model"
+    },
+    "telegram.language.choose": {
+      "sourceHash": "8e2d0664dbbb529de872582461068f7f7f752fc226a03a1b8439a4299dbf5e74",
+      "translatedBy": "model"
+    },
+    "telegram.language.environment": {
+      "sourceHash": "d5af95832a6fa11c9379f3b175f469a6b8fe969dfdcf04a6795e89eb2140543d",
+      "translatedBy": "model"
+    },
+    "telegram.language.environmentWins": {
+      "sourceHash": "36a617d123129047414888324a9badc6574faa04bc32d80daca9b1541ab2a112",
+      "translatedBy": "model"
+    },
+    "telegram.menu.plan": {
+      "sourceHash": "fb6d4f7ab01bd482a3b76a69f359d340c7fe962feba9f4f8882cff96c3255d8c",
+      "translatedBy": "model"
+    },
+    "telegram.menu.review": {
+      "sourceHash": "bb77d7268da2a6c3f314a223452582ea7cc7b6b2937ac26ce4fb2c067d60e1d2",
+      "translatedBy": "model"
+    },
+    "telegram.menu.start": {
+      "sourceHash": "0ffdb207588f838d5b5c0ff75f8eeb1db8fbeb7b76c7026b2374ac35e81ae0af",
+      "translatedBy": "model"
+    },
+    "telegram.menu.status": {
+      "sourceHash": "cfc52f3d2563a4db30013be26573cd277f58c648c0d74937c1583c30da6bd431",
+      "translatedBy": "model"
+    },
+    "telegram.menu.sync": {
+      "sourceHash": "6a4b5799841fe08ed5cbd3dfa60209f6af7c099f565615e73385ea46c65f3d09",
+      "translatedBy": "model"
+    },
+    "telegram.menu.update": {
+      "sourceHash": "1655cfad64e3ff694401df3e56e72dc71c88c87aed4c4a0feaedf5a88c9fd34e",
+      "translatedBy": "model"
+    },
+    "telegram.menu.version": {
+      "sourceHash": "95630a48e5b1b55ae4e838f771874a0f2cb7a585845b07712f33da0c7adc1971",
+      "translatedBy": "model"
+    },
+    "telegram.menu.whatsnew": {
+      "sourceHash": "c620a4c8b99e2cdecb167a8049fa8f4eb4674ff5b8b49d638c7bde35cb38e03e",
+      "translatedBy": "model"
+    },
+    "telegram.menu.workout": {
+      "sourceHash": "df0bb840751a33db510ee28bc8cc5501f998e8ecf3a2299693c4f2439c910b93",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.askOwner": {
+      "sourceHash": "cfc59680becb8f65ae067bd868ede57ce42521c75e393ced1dbd13adc10002bb",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.desktopApproval": {
+      "sourceHash": "6ad0d3a1fdeb6cb0ca475ff008894c4b26cb7e0d63ff87146fd265b4a0d86bc6",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.desktopIdentity": {
+      "sourceHash": "5952a910019871ef53918573b9286c619ab63f8e273a0a43615415f264ffd88a",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.identity": {
+      "sourceHash": "824087bbe536b29d6c19709f7b69c0e19af1c852ddc08d18575e48d899323250",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.owner": {
+      "sourceHash": "629f3d3d130822b89aee25a4bd2784cebdfd930a9a123374344970714287c380",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.private": {
+      "sourceHash": "6fa3f7d29852e987b1d71c3b7e647118f68dae6834ce4af0e9f2d42051df7c4c",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.run": {
+      "sourceHash": "acba25512100f80b56fc3ccd14c65be55d94800cda77585c5f41a887e398f9be",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.shell": {
+      "sourceHash": "91a6b69494615775446d200f269e3e78784bbd20bff79fe52b68087d9cdd914e",
+      "translatedBy": "model"
+    },
+    "telegram.pairing.unnamed": {
+      "sourceHash": "e244f187f696561d5fd7e00f618e7ba641dc52e3c137380f6fa23a854b773aac",
+      "translatedBy": "model"
+    },
+    "telegram.plan.failed": {
+      "sourceHash": "635c691894662ea20d61cbe09274738ac147121c4520414debec167c18bf53d0",
+      "translatedBy": "model"
+    },
+    "telegram.plan.working": {
+      "sourceHash": "d45f1f67f6724ad42f5765c4f23909140c046141ba6cee1264824bd01a20e8ba",
+      "translatedBy": "model"
+    },
+    "telegram.release.desktopReleaseNotes": {
+      "sourceHash": "fec736bf157f8718b7970ecb583c8f635178199e683d52de115eaca1e246bb42",
+      "translatedBy": "model"
+    },
+    "telegram.release.desktopUpdateDescription": {
+      "sourceHash": "94cb9b0d7ed9c43bfa030ef7a27ca85b1ab410e71371c39028d9160b49c9e920",
+      "translatedBy": "model"
+    },
+    "telegram.release.desktopUpdateNotice": {
+      "sourceHash": "61a6c9535e4e21913a4e44f86b014187c9d2ec38e82139a392171c6c4af10b36",
+      "translatedBy": "model"
+    },
+    "telegram.release.failed": {
+      "sourceHash": "673e05c5673fb2e031e0f05432b122da2296602904d980196c83ad49d0b96d1b",
+      "translatedBy": "model"
+    },
+    "telegram.release.fetchUnavailable": {
+      "sourceHash": "ea8992f55d9f4f86ffedc873dfe3d0096864b8667daef40b14753f11bef5f3f1",
+      "translatedBy": "model"
+    },
+    "telegram.release.fullNotes": {
+      "sourceHash": "3942e866e211309a9034a64a1d468b001484b021f09a2843fb0985e04efc01f2",
+      "translatedBy": "model"
+    },
+    "telegram.release.heading": {
+      "sourceHash": "66667c18ab00cc10c407196a0183537f1fb5fe5ec5a4b90996efca61067f7db8",
+      "translatedBy": "model"
+    },
+    "telegram.release.install": {
+      "sourceHash": "0ce07eb7f51935958fcbc848016a96b9dae6edb64b4b0ae10fae5543aa86c9cb",
+      "translatedBy": "model"
+    },
+    "telegram.release.noSummary": {
+      "sourceHash": "5a3b49001bf14bf80272cba3cda8d5a4f190663c30d6b8487bdca4a953044562",
+      "translatedBy": "model"
+    },
+    "telegram.release.repositoryMissing": {
+      "sourceHash": "e0884c5937e3a136ac4e3f50fb6cd7325f326c80e7e35ab8bbd7927ca713938b",
+      "translatedBy": "model"
+    },
+    "telegram.release.unavailable": {
+      "sourceHash": "530f81e21454e67982301fc94b2df379a6d70f8054f730f7bd032d3705a3fdf7",
+      "translatedBy": "model"
+    },
+    "telegram.release.upToDate": {
+      "sourceHash": "e0ea3f4dbf64b077a6ff5c2e709e33e907fc4b19432a67b39efd8a595bb91e06",
+      "translatedBy": "model"
+    },
+    "telegram.release.working": {
+      "sourceHash": "e57c433f9acabd8b3ca80518528e7d0557490b5878beec082c22623a9db23fad",
+      "translatedBy": "model"
+    },
+    "telegram.resend.missing": {
+      "sourceHash": "fcaadc6a0f9ac90cf56569a101fb451eed43e390e04f016fe4308e7ead431a34",
+      "translatedBy": "model"
+    },
+    "telegram.review.failed": {
+      "sourceHash": "be65cb40dd8ba5272ebc256e6bff13777c5293e8b08a37639f5080fa903d1bc8",
+      "translatedBy": "model"
+    },
+    "telegram.review.working": {
+      "sourceHash": "1ebf79ff863c0425f2e8d8cccf4cbb96e4cf0964343bf3afc98a1de60ce90dbd",
+      "translatedBy": "model"
+    },
+    "telegram.review.workingWithArgs": {
+      "sourceHash": "ddddad8422b8d41045cf1423734f0423ccf9428cae2fad6a00a6f1909304c976",
+      "translatedBy": "model"
+    },
+    "telegram.security.allowlist_other": {
+      "sourceHash": "3f7f18cda8785a0ab5c282bbfe4c683ca6fd626e011bad071767dd999512c4a1",
+      "translatedBy": "model"
+    },
+    "telegram.security.authorization": {
+      "sourceHash": "cbddfb65f5ea07c84541305cdf105e0f67c033f4f6a3cb4feab9f7d2fea47308",
+      "translatedBy": "model"
+    },
+    "telegram.security.commitUncertain": {
+      "sourceHash": "dd43cad1388ad27330b5d33e596b92398d163b34bdcb01749ab4ce0b912a2b4e",
+      "translatedBy": "model"
+    },
+    "telegram.security.commitUncertainAt": {
+      "sourceHash": "dae4499deab666ec82888ce99b1fb22f24809d4757e2bc5a954d8a4b381b4581",
+      "translatedBy": "model"
+    },
+    "telegram.security.emptyAllowlist": {
+      "sourceHash": "4c38c9ef0942b5c4899aed463392365578cb58655d3be11938477577125b678a",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidEntry": {
+      "sourceHash": "78d72427fb399145a02df0518cbaac626e6080ccfabbf003b55cac2ac63fec4b",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidEntryPrivate": {
+      "sourceHash": "8baed0711d32e5382635c52caa2544a6715b4b6885637763f3d89c362244bdae",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidEnvironment": {
+      "sourceHash": "09b50b85c9e8f8fbf96179fbc0a16081c78c7dc5625fc4f67c05608d311a5906",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidField": {
+      "sourceHash": "7c6a3cb2a26c270758590e4ccbe79449c6c9a03652db5e9bfbecd58a5f303541",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidJson": {
+      "sourceHash": "870e405986d3c4e68f27514f395067f0f77a2e471bd6ae59216b31d7835fcecc",
+      "translatedBy": "model"
+    },
+    "telegram.security.invalidSender": {
+      "sourceHash": "b8b57fd4b13f9a1c0fbb85ed8d041875c3157cac851eeedb0c979226d9dff0be",
+      "translatedBy": "model"
+    },
+    "telegram.security.lockFailed": {
+      "sourceHash": "69dd82e1852e838d9082f43ecca8faf9d32d952c1828a6d4d79eb1a15836dcfb",
+      "translatedBy": "model"
+    },
+    "telegram.security.lockHeld": {
+      "sourceHash": "d419b953c4a7ae48687ced1af8d02b5c9911112428d43f31d5ea1db777ece0b0",
+      "translatedBy": "model"
+    },
+    "telegram.security.lockHeldByProcess": {
+      "sourceHash": "b39e669dd6a523398644f6664612b94f2460a0e8a1ae32e6e26679e04bea2ae1",
+      "translatedBy": "model"
+    },
+    "telegram.security.middlewareError": {
+      "sourceHash": "c78177307b08e67f479d6b9d25424b33eaa4edf0a13dfdeb8ba86f333dae52e5",
+      "translatedBy": "model"
+    },
+    "telegram.security.mutationNotWritten": {
+      "sourceHash": "064bd9c82917cfcbb455230fd8c026dc9ec88f67c41c156977db248e3366ec19",
+      "translatedBy": "model"
+    },
+    "telegram.security.none": {
+      "sourceHash": "140bedbf9c3f6d56a9846d2ba7088798683f4da0c248231336e6a05679e4fdfe",
+      "translatedBy": "model"
+    },
+    "telegram.security.noSenders": {
+      "sourceHash": "1759fffcb9b9af0c4b9348a4f46e74c0a87101bd4d62eec06e351b06b4cf4170",
+      "translatedBy": "model"
+    },
+    "telegram.security.open_other": {
+      "sourceHash": "2da954ec7b878af7a9176dee7cac40490b62fef9af0a27a0596cd87326c0035d",
+      "translatedBy": "model"
+    },
+    "telegram.security.permissions": {
+      "sourceHash": "d0a4f19b9c7ad6a792e224988bc3f7312aeb08a7c3f29ca734d74b6db450e1dd",
+      "translatedBy": "model"
+    },
+    "telegram.security.recoveryRequired": {
+      "sourceHash": "1296ed04a3569aec840a064438b1d23374095c40bc16755e4b635fb46c371daa",
+      "translatedBy": "model"
+    },
+    "telegram.security.recoveryRequiredAt": {
+      "sourceHash": "b2402447dec03ccdd8dddec4061a98ab57faa8480cfafc298dc6c8a63f9fcf5e",
+      "translatedBy": "model"
+    },
+    "telegram.security.serving": {
+      "sourceHash": "89bdd91336ba4b42678b01c6ba010350a1a2db0f5bf499626226f6ca50db2655",
+      "translatedBy": "model"
+    },
+    "telegram.session.resetCaveat": {
+      "sourceHash": "b07eb8d755639834725f0e64e1548dc80ddd4c29e931bc43fcbfad2193c01264",
+      "translatedBy": "model"
+    },
+    "telegram.session.resetFailed": {
+      "sourceHash": "8fcde7a800a685bdd6dd43142d4ffacccc50caf7303b66768ebbe25775d650ea",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.failed": {
+      "sourceHash": "9ab8322ca1f1913a4d0678651595949b934f5c616e113f6bdf1a977535269b6b",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.help": {
+      "sourceHash": "642da4bf11dacd2bfe5387eed937dd7a0ccefd5875aed57f856b83c4e29af46e",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.interrupted": {
+      "sourceHash": "bac5e9c535d80fe3577e5b60809c108076a5c748f984d70370dd8a4881b0d02e",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.notSynced": {
+      "sourceHash": "62fce98c6a1c08a1a6293322277140ad87833326e8d9f900fecb1528cc05c3a4",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.operatorOnly": {
+      "sourceHash": "fb7017300c07ef7dd43cad8ee7d4188f42cd26a6e2c4b951e7b52884469de7b0",
+      "translatedBy": "model"
+    },
+    "telegram.snapshot.unknownSection": {
+      "sourceHash": "6e741f9c06651e95e450e726e94725f38e86b67053f1f48de431147fcc91e82d",
+      "translatedBy": "model"
+    },
+    "telegram.status.working": {
+      "sourceHash": "254e40f2aa22f8f9a8894b328ca195ba18ec10d1072d9f2fca6e73455ce910ba",
+      "translatedBy": "model"
+    },
+    "telegram.sync.complete": {
+      "sourceHash": "294d7f0a94f4a06c5bf07caf04c8be47c63f07347803daa1e4199287ffb18a24",
+      "translatedBy": "model"
+    },
+    "telegram.sync.cooldown": {
+      "sourceHash": "ae85faf7b48b392710a05d79d3f75d2d1d376ea4aa3ff1b16112ecb7d2cfb6d4",
+      "translatedBy": "model"
+    },
+    "telegram.sync.desktopComplete": {
+      "sourceHash": "9a77d1d0280beb1adb85f7de60b61e8a30c075e12c9ad309a8b168479a20963e",
+      "translatedBy": "model"
+    },
+    "telegram.sync.desktopReferenceFailed": {
+      "sourceHash": "c78535d854b949e74210ed70863617098d144ce811150b61545fe36c0e2252c4",
+      "translatedBy": "model"
+    },
+    "telegram.sync.desktopUnchanged": {
+      "sourceHash": "75828c5353e050ecac39a5f91ee3f28cbb1627403fb510aef3c31cc55e8e396e",
+      "translatedBy": "model"
+    },
+    "telegram.sync.elapsed": {
+      "sourceHash": "7f996d39ed50f21a1a081c392474969df65c1226ccb9b271915b5e92e778a9b3",
+      "translatedBy": "model"
+    },
+    "telegram.sync.failed": {
+      "sourceHash": "e8581289a500ed1b732d4012196820137214ab84f8616380914d7e4207647bdf",
+      "translatedBy": "model"
+    },
+    "telegram.sync.future": {
+      "sourceHash": "1ee91431df21f2afd50e0cfbe39fd5ba1d09661fd016152f5f0c6b826942e0a4",
+      "translatedBy": "model"
+    },
+    "telegram.sync.hoursAgo": {
+      "sourceHash": "fe26f7d52d821ccd67f97f50db97d01aa9b4c3f0892a57d3976e97242b05500b",
+      "translatedBy": "model"
+    },
+    "telegram.sync.lastSync": {
+      "sourceHash": "12567b35f274391b1f5d77f30337597be326fc049ab339e254efab17a64d5190",
+      "translatedBy": "model"
+    },
+    "telegram.sync.minutesAgo": {
+      "sourceHash": "20959eff49f2c89cff425372ad8eedfd14e85184d2b657a649f7baace800c958",
+      "translatedBy": "model"
+    },
+    "telegram.sync.refreshed": {
+      "sourceHash": "7b59f77b7befaa1c463d299d2d58a39b6e33bdd28c0bda14aebdb6036c553639",
+      "translatedBy": "model"
+    },
+    "telegram.sync.restricted_other": {
+      "sourceHash": "71f8683ea974ec3e52ef34fd9a3ab4dae386dd3ed1dee09ee7ebf56d301af5ea",
+      "translatedBy": "model"
+    },
+    "telegram.sync.running": {
+      "sourceHash": "60479e19c9bfd8f94db0314997ae3d886255ebef1e28e60c8563aa6d869635d8",
+      "translatedBy": "model"
+    },
+    "telegram.sync.secondsAgo": {
+      "sourceHash": "cb2bc4af0a32ca24bcf9b080564a5ddc300919a4656322427eefefc4884697c8",
+      "translatedBy": "model"
+    },
+    "telegram.sync.unchanged": {
+      "sourceHash": "23a5ab1a4b616b5b55d2d5f779cb4c032971f86bddfaf26444c1607c279cd16f",
+      "translatedBy": "model"
+    },
+    "telegram.sync.unreachable": {
+      "sourceHash": "697f02ba98cb5c9693d8342a3e2d2647d25d7af6c8580fda291e6fcf38037025",
+      "translatedBy": "model"
+    },
+    "telegram.sync.working": {
+      "sourceHash": "3eb30a93eeffa5963ca214265e5fd2b230fa53c8b2917d78b3da2664a7d392ca",
+      "translatedBy": "model"
+    },
+    "telegram.update.available": {
+      "sourceHash": "d7bf8062a050abd57c3c5bfcf4a8b244727ab957afe50d65142b16def277d97f",
+      "translatedBy": "model"
+    },
+    "telegram.update.checkFailed": {
+      "sourceHash": "bf1dd0e03b2c54737e692ee962459612fed67cebb5784f054109a7a50624416f",
+      "translatedBy": "model"
+    },
+    "telegram.update.checking": {
+      "sourceHash": "8bcaee3c780fc5a57e1cc37ba143c1837d5bb4461cbdb00e6d2dec2c892cf6d0",
+      "translatedBy": "model"
+    },
+    "telegram.update.failed": {
+      "sourceHash": "55b81a7de5086d80a0e3013f900b024910c2778865e686bb867582e21b5e152a",
+      "translatedBy": "model"
+    },
+    "telegram.update.installing": {
+      "sourceHash": "e3da5b55a07543101ac9a8fd343940b4b394d9add738e5d40c70e51f600ac18f",
+      "translatedBy": "model"
+    },
+    "telegram.update.instruction": {
+      "sourceHash": "d8e9d4c5c8344f1b4c2c0e225105f1faf1c6814de092a0473f89275d77d93d6f",
+      "translatedBy": "model"
+    },
+    "telegram.update.latest": {
+      "sourceHash": "2c49060a9791ebfd7b94b1be3f196d50e471db2c94328815864bfd0c2e246ee0",
+      "translatedBy": "model"
+    },
+    "telegram.update.managedInstruction": {
+      "sourceHash": "03a0505882e1e40a693226a6950ac04e0eb74813c5d800120f55ad07bf489df7",
+      "translatedBy": "model"
+    },
+    "telegram.update.prepareFailed": {
+      "sourceHash": "8f63bdc28ed73a62569883a2d1e59de2448e9fb5d634e827b7c73f03391e75cf",
+      "translatedBy": "model"
+    },
+    "telegram.welcome": {
+      "sourceHash": "24b9e0bc99ffe04e87342e870e260695248413888a563e387819b8c785652071",
+      "translatedBy": "model"
+    },
+    "telegram.workout.working": {
+      "sourceHash": "cf66947eb34d8f79666dcb178debbf07e3ffb6061746f9ac6c161940ad7968e4",
+      "translatedBy": "model"
     }
   }
 }

@@ -336,8 +336,18 @@ describe("Plan acceptance closure", () => {
     ]) {
       expect(productionCorpus).not.toContain(excluded);
     }
-    for (const productAction of ["Retry", "Verify again", "Cancel"]) {
-      expect(productionCorpus).toContain(productAction);
+    const english: unknown = JSON.parse(readRepositoryFile("packages/i18n/catalogs/en.json"));
+    for (const [key, productAction] of [
+      ["plan.view.ended.retry", "Retry"],
+      ["plan.view.ended.verifyAgain", "Verify again"],
+      ["common.cancel", "Cancel"],
+    ] satisfies readonly (readonly [string, string])[]) {
+      expect(productionCorpus).toContain(`say("${key}")`);
+      const label = key.split(".").reduce<unknown>((value, segment) => {
+        if (typeof value !== "object" || value === null) return undefined;
+        return Reflect.get(value, segment);
+      }, english);
+      expect(label).toBe(productAction);
     }
   });
 

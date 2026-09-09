@@ -1,4 +1,6 @@
 import { readBinaryPackageJson, type UpdateInfo } from "./updater.js";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { cliPhrasebook } from "./cli-copy.js";
 
 export interface RepoInfo {
   owner: string;
@@ -341,10 +343,17 @@ export async function fetchReleaseBody(
  * from the GitHub Release body; engineering details and changeset hashes never
  * surface to athletes.
  */
-export async function buildWhatsNewMessage(binaryName: string, info: UpdateInfo): Promise<string> {
+export async function buildWhatsNewMessage(
+  binaryName: string,
+  info: UpdateInfo,
+  book: Phrasebook = cliPhrasebook(),
+): Promise<string> {
   const repo = getRepoForBinary(binaryName);
   if (!repo) {
-    return `Couldn't locate the GitHub repository for ${binaryName}.`;
+    return book.say("telegram.release.repositoryMissing", {
+      service: "GitHub",
+      binary: binaryName,
+    });
   }
 
   const tag = `${binaryName}@${info.latest}`;
@@ -352,26 +361,34 @@ export async function buildWhatsNewMessage(binaryName: string, info: UpdateInfo)
   const body = await fetchReleaseBody(repo, tag);
 
   const lines: string[] = [];
-  lines.push(`**What's new in ${info.latest}**`);
+  lines.push(book.say("telegram.release.heading", { version: info.latest }));
   lines.push("");
 
   if (body === null) {
-    lines.push(`Couldn't fetch release notes from GitHub. See ${releaseUrl}`);
+    lines.push(
+      book.say("telegram.release.fetchUnavailable", { service: "GitHub", url: releaseUrl }),
+    );
   } else {
     const userFacing = parseUserFacing(body);
     if (userFacing.length > 0) {
       for (const line of userFacing) lines.push(`- ${line}`);
     } else {
-      lines.push(`_No athlete-facing summary written for this release._`);
-      lines.push(`Full notes: ${releaseUrl}`);
+      lines.push(book.say("telegram.release.noSummary"));
+      lines.push(book.say("telegram.release.fullNotes", { url: releaseUrl }));
     }
   }
 
   lines.push("");
   if (info.updateAvailable) {
-    lines.push(`You're on ${info.current}. Send /update to install ${info.latest}.`);
+    lines.push(
+      book.say("telegram.release.install", {
+        current: info.current,
+        command: "/update",
+        latest: info.latest,
+      }),
+    );
   } else {
-    lines.push(`You're up to date.`);
+    lines.push(book.say("telegram.release.upToDate"));
   }
 
   return lines.join("\n");

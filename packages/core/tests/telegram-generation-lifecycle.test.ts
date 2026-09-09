@@ -1,3 +1,4 @@
+import { setImmediate as yieldEventLoop } from "node:timers/promises";
 import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -30,11 +31,11 @@ function deferred<T>() {
 }
 
 async function waitUntil(predicate: () => boolean): Promise<void> {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    if (predicate()) return;
-    await Promise.resolve();
+  const deadline = Date.now() + 5000;
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error("Expected asynchronous condition was not reached");
+    await yieldEventLoop();
   }
-  throw new Error("Expected asynchronous condition was not reached");
 }
 
 function createComposingBot(
@@ -256,9 +257,15 @@ describe("Telegram polling generation release", () => {
 
   it("accounts for command registration and treats its rejection as settled drain work", async () => {
     const commands = deferred<unknown>();
+    let registrationStarted = false;
     const bot = createComposingBot({
-      rawApi: (method) =>
-        method === "setMyCommands" ? commands.promise : Promise.resolve({ ok: true, result: true }),
+      rawApi: (method) => {
+        if (method === "setMyCommands") {
+          registrationStarted = true;
+          return commands.promise;
+        }
+        return Promise.resolve({ ok: true, result: true });
+      },
     });
     vi.doMock("grammy", () => ({
       Bot: function FakeBot() {
@@ -289,6 +296,7 @@ describe("Telegram polling generation release", () => {
     await Promise.resolve();
     expect(state).toBe("pending");
 
+    await vi.waitFor(() => expect(registrationStarted).toBe(true));
     commands.resolve(Promise.reject(new Error("registration failed")));
     await draining;
     expect(state).toBe("resolved");
@@ -329,6 +337,57 @@ describe("Telegram polling generation release", () => {
     expect(drained).toBe(false);
     polling.resolve();
     await draining;
+    expect(drained).toBe(true);
+  });
+
+  it("flushes buffered text while command menu registration is still pending", async () => {
+    vi.useFakeTimers();
+    const commands = deferred<unknown>();
+    const bot = createComposingBot({
+      rawApi: (method) =>
+        method === "setMyCommands" ? commands.promise : Promise.resolve({ ok: true, result: true }),
+    });
+    vi.doMock("grammy", () => ({
+      Bot: function FakeBot() {
+        return bot;
+      },
+      InputFile: class {},
+    }));
+    vi.doMock("@grammyjs/auto-retry", () => ({
+      autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
+        previous(method, payload),
+    }));
+    const { createTelegramBot } = await import("../src/channels/telegram.js");
+    const input = makeRuntimeInput();
+    const chat = vi.fn(async () => ({ text: "ready" }));
+    const runtime = createTelegramBot({
+      ...input,
+      engine: {
+        ...input.engine,
+        hasSession: vi.fn(async () => ({ hasSession: true })),
+        chat,
+      },
+    });
+    await bot.dispatch({
+      update: { update_id: 9 },
+      chat: { id: 12345, type: "private" },
+      from: { id: 12345, first_name: "Athlete" },
+      message: { text: "about to shut down", message_id: 90 },
+      reply: (text: string) => bot.api.sendMessage(12345, text),
+      replyWithChatAction: (action: string) => bot.api.sendChatAction(12345, action),
+    });
+    let drained = false;
+    const draining = runtime.drainPending().then(() => {
+      drained = true;
+    });
+
+    try {
+      await vi.waitFor(() => expect(chat).toHaveBeenCalledOnce());
+      expect(drained).toBe(false);
+    } finally {
+      commands.resolve({ ok: true, result: true });
+      await draining;
+    }
     expect(drained).toBe(true);
   });
 
@@ -614,6 +673,7 @@ describe("Telegram polling generation release", () => {
     await expect(runtime.stop()).rejects.toBe(stopFailure);
     expect(bot.isRunning).toHaveBeenCalledOnce();
     expect(() => runtime.captureDrain()).toThrow(/must stop before/);
+    await runtime.drainPending();
   });
 
   it("tracks a retry-wrapped 429 request through its final API attempt", async () => {
@@ -717,7 +777,8 @@ describe("Telegram polling generation release", () => {
 
   it("detaches /update without letting a timeout bypass generation release", async () => {
     vi.useFakeTimers();
-    const install = vi.fn(async () => undefined);
+    const installed = deferred<void>();
+    const install = vi.fn(async () => installed.resolve());
     const generationWork = deferred<unknown>();
     const bot = createComposingBot({
       rawApi: (method, payload) =>
@@ -784,7 +845,7 @@ describe("Telegram polling generation release", () => {
 
     generationWork.resolve({ ok: true });
     await sending;
-    await waitUntil(() => install.mock.calls.length === 1);
+    await installed.promise;
     expect(install).toHaveBeenCalledWith("2026.5.10");
     await runtime.drainPending();
   });
@@ -822,7 +883,7 @@ describe("Telegram polling generation release", () => {
     }));
     const { createTelegramBot } = await import("../src/channels/telegram.js");
     const input = makeRuntimeInput();
-    createTelegramBot({
+    const runtime = createTelegramBot({
       ...input,
       host: {
         ...input.host,
@@ -860,6 +921,7 @@ describe("Telegram polling generation release", () => {
       chatId: "telegram:12345",
     });
     expect(JSON.stringify(logError.mock.calls)).not.toContain("private stop failure");
+    await runtime.drainPending();
   });
 
   it("does not send or record a notification that begins after generation sealing", async () => {
@@ -903,10 +965,11 @@ describe("Telegram polling generation release", () => {
     await runtime.stop();
     const apiCallsBeforeNotification = bot.rawApi.mock.calls.length;
 
-    await notifyNpmTelegramUpdate(runtime, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(runtime, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
 
     expect(bot.rawApi).toHaveBeenCalledTimes(apiCallsBeforeNotification);
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();
+    await runtime.captureDrain().wait();
   });
 });
 
