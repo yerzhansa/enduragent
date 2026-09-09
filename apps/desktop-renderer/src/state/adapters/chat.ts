@@ -328,6 +328,10 @@ export function createChatViewAdapter(input: {
           planCreation.value.openQuestion?.kind === "commitments-question"
         ) &&
         (planCreationEditingKey !== null || planCreation.value.openQuestion !== null));
+    const pendingCommitmentDocked =
+      !planCreationPaused &&
+      planCreation?.value?.pendingCommitment != null &&
+      planCreationEditingKey === null;
     const decisionLoading = controls?.decisionLoading === true;
     const decisionLoadError = controls?.queueLoadError ?? controls?.decisionLoadError ?? null;
     const decisionUnavailable = decisionLoading || decisionLoadError !== null;
@@ -392,11 +396,14 @@ export function createChatViewAdapter(input: {
         decisionBlocksWork ||
         decisionUnavailable ||
         attachmentUnavailable ||
-        planCreationBlocksWork,
-      inputDisabled: workBlocked || planCreationBlocksWork,
-      composerPlaceholder: planCreationBlocksWork
-        ? "Finish the Plan question above"
-        : "Message your coach",
+        planCreationBlocksWork ||
+        pendingCommitmentDocked,
+      inputDisabled: workBlocked || planCreationBlocksWork || pendingCommitmentDocked,
+      composerPlaceholder: pendingCommitmentDocked
+        ? "Finish the correction above"
+        : planCreationBlocksWork
+          ? "Finish the Plan question above"
+          : "Message your coach",
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,

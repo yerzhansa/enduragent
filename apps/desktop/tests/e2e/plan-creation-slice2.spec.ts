@@ -535,7 +535,7 @@ for (const appearance of [
         .getByRole("button", { name: "Review interpretation", exact: true })
         .click();
       await expect(
-        scenario.page.getByRole("heading", { name: "Confirm these limits", exact: true }),
+        scenario.page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
       const pending = await waitForVersion(scenario.backend, 6);
       expect(pending.pendingCommitment).toEqual({
@@ -546,7 +546,7 @@ for (const appearance of [
       });
       expect(pending.answeredSummaries).toHaveLength(5);
       expect(await scenario.backend.answers()).toHaveLength(5);
-      await scenario.page.getByRole("button", { name: "Confirm limits", exact: true }).click();
+      await scenario.page.getByRole("button", { name: "Confirm", exact: true }).click();
       const confirmed = await waitForVersion(scenario.backend, 7);
       expect(confirmed.pendingCommitment).toBeNull();
       expect(confirmed.answeredSummaries).toHaveLength(5);

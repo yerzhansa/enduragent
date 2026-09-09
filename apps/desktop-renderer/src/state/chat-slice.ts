@@ -85,7 +85,7 @@ export interface ChatSurfaceState {
   readonly planCreationActivateConfirmationOpen: boolean;
   readonly planCreationActivePlanKnowledge: ActivePlanKnowledge;
   readonly planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "start" | "continue" | "change" | "edit";
+    readonly target: "discard" | "activate" | "start" | "continue" | "change" | "edit" | "composer";
     readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null;

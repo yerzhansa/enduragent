@@ -5,7 +5,7 @@ import type {
   PlanCreationDraft,
   PlanCreationCommitmentRule,
 } from "@enduragent/coach-contract";
-import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
 import { Fact, PlanCard } from "../plan/plan-card";
 import { useEnduragentStore } from "../../state/store";
@@ -47,6 +47,17 @@ function AnswerFacts(props: {
   );
 }
 
+export function resolvedAnswerSummaries(
+  summaries: readonly PlanCreationAnswerSummary[],
+): PlanCreationAnswerSummary[] {
+  return summaries.filter(
+    ({ answer }) =>
+      answer.kind !== "commitments" ||
+      answer.commitments.kind !== "interpreted" ||
+      answer.commitments.status === "confirmed",
+  );
+}
+
 function ReviewCard(props: {
   readonly eyebrow?: string;
   readonly title: string;
@@ -54,6 +65,8 @@ function ReviewCard(props: {
   readonly summary?: string;
   readonly summaryId?: string;
   readonly "aria-label"?: string;
+  readonly headingRef?: Ref<HTMLHeadingElement>;
+  readonly headingTabIndex?: number;
   readonly children: ReactNode;
 }): ReactElement {
   return <PlanCard {...props} aria-label={props["aria-label"] ?? props.title} />;
@@ -94,7 +107,7 @@ export function PlanCreationDraftCards(props: {
       {stale ? (
         <ReviewCard title="Changed answers">
           <div role="table" className="border-t border-line" aria-label="Changed answers">
-            <AnswerFacts summaries={props.model.answeredSummaries} current />
+            <AnswerFacts summaries={resolvedAnswerSummaries(props.model.answeredSummaries)} current />
           </div>
         </ReviewCard>
       ) : null}
@@ -244,9 +257,6 @@ export function PlanCreationDraftCards(props: {
   );
 }
 
-export const pendingCommitmentSummary =
-  "Your last confirmed limits remain effective. Draft building and activation wait for this correction.";
-
 export function commitmentSummaryId(model: PlanCreationCardModel): string {
   return `commitment-summary-${model.creationId}`;
 }
@@ -271,34 +281,43 @@ export function PlanCreationCommitmentCard(props: {
   const actions = useEnduragentStore((state) => state.chatActions);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
-  const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
+  const focusRevision = useEnduragentStore((state) => state.chat.planCreationFocusRevision);
+  const heading = useRef<HTMLHeadingElement>(null);
   const pending = props.model.pendingCommitment;
+  const pendingText = pending?.text ?? null;
+  useEffect(() => {
+    if (pendingText !== null) heading.current?.focus();
+  }, [focusRevision, pendingText]);
   if (pending === null) return null;
   const disabled = busy || actions === null;
+  const clarify = pending.status === "clarify";
+  const resolve = (): void => {
+    void actions?.answerPlanCreation({
+      kind: clarify ? "commitments-cancel" : "commitments-confirm",
+    });
+  };
   return (
     <ReviewCard
-      eyebrow="Schedule correction"
-      title={pending.status === "clarify" ? "Clarify your commitment" : "Confirm these limits"}
-      status="Not yet confirmed"
-      summary={pendingCommitmentSummary}
+      eyebrow="Plan creation · Commitments"
+      title={clarify ? "I could not use that answer" : "Did I read this right?"}
+      summary={
+        clarify
+          ? "Tell me again in a different way, with weekdays, time limits, or exact dates."
+          : "I understood your note as this limit. Confirm it and your other confirmed limits stay as they are."
+      }
       summaryId={commitmentSummaryId(props.model)}
+      headingRef={heading}
+      headingTabIndex={-1}
     >
-      <div role="table" className="border-t border-line" aria-label="Schedule correction">
-        <Fact label="Submitted">{pending.text}</Fact>
-        {pending.rules.map((rule, index) => (
-          <Fact key={index} label="Interpreted limit">
-            {commitmentRuleText(rule)}
-          </Fact>
-        ))}
-        {pending.unparsed.length === 0 ? null : (
-          <Fact label="Not understood">
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {pending.unparsed.map((fragment, index) => (
-                <li key={index}>{fragment}</li>
-              ))}
-            </ul>
-          </Fact>
-        )}
+      <div role="table" className="border-t border-line" aria-label="Commitments">
+        <Fact label="You wrote">{pending.text}</Fact>
+        {clarify
+          ? null
+          : pending.rules.map((rule, index) => (
+              <Fact key={index} label="I understood">
+                {commitmentRuleText(rule)}
+              </Fact>
+            ))}
       </div>
       {error === null ? null : (
         <p role="alert" className="m-0 text-xs text-danger">
@@ -310,26 +329,16 @@ export function PlanCreationCommitmentCard(props: {
           variant="outline"
           className="border-line bg-surface"
           disabled={disabled}
-          onClick={() => actions?.answerPlanCreation({ kind: "commitments-cancel" })}
+          onClick={clarify ? resolve : () => actions?.editPlanCreation("commitments")}
         >
-          Cancel correction
+          {clarify ? "Skip for now" : "Change it"}
         </Button>
         <Button
-          variant="outline"
-          className="border-line bg-surface"
-          disabled={disabled || editingKey !== null}
-          onClick={() => actions?.editPlanCreation("commitments")}
+          disabled={disabled}
+          onClick={clarify ? () => actions?.editPlanCreation("commitments") : resolve}
         >
-          Clarify
+          {clarify ? "Answer" : "Confirm"}
         </Button>
-        {pending.status === "confirm" ? (
-          <Button
-            disabled={disabled}
-            onClick={() => actions?.answerPlanCreation({ kind: "commitments-confirm" })}
-          >
-            Confirm limits
-          </Button>
-        ) : null}
       </div>
     </ReviewCard>
   );
