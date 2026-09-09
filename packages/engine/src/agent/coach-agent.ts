@@ -929,6 +929,7 @@ export class CoachAgent {
           archivedAt = boundaryAt;
         }
 
+        let recoveryFlushQueued = false;
         const unflushed = this.chatStore.loadUnflushedResetArchive(chatId);
         if (unflushed !== null) {
           const markFlushed = () =>
@@ -936,7 +937,7 @@ export class CoachAgent {
           if (unflushed.messages.length === 0) {
             markFlushed();
           } else {
-            flushedThisTurn = true;
+            recoveryFlushQueued = true;
             this.queueFlush(chatId, unflushed.messages, "stale-reset", markFlushed);
           }
         }
@@ -1031,7 +1032,7 @@ export class CoachAgent {
           })
         ) {
           this.lastFlushMessageCount.set(chatId, history.length);
-          if (!flushedThisTurn) {
+          if (!flushedThisTurn && !recoveryFlushQueued) {
             flushedThisTurn = true;
             this.queueFlush(chatId, history, "soft-threshold");
           }
