@@ -8,7 +8,7 @@ import type { Sport } from "../src/sport.js";
 import {
   createTurnBudget,
   TurnBudgetExceededError,
-  MAX_TURN_MODEL_CALLS,
+  MAX_TURN_GENERATE_CALLS,
   MAX_TURN_GENERATE_ATTEMPTS,
   TURN_WALL_CLOCK_MS,
 } from "../src/agent/turn-budget.js";
@@ -86,17 +86,17 @@ async function settle<T>(p: Promise<T>): Promise<{ ok: true; value: T } | { ok: 
 }
 
 describe("createTurnBudget (unit)", () => {
-  it("charges model calls up to the cap then throws a classified model_calls error", () => {
+  it("charges generate calls up to the cap then throws a classified generate_calls error", () => {
     const budget = createTurnBudget(() => 0);
-    for (let i = 0; i < MAX_TURN_MODEL_CALLS; i++) budget.chargeModelCall();
+    for (let i = 0; i < MAX_TURN_GENERATE_CALLS; i++) budget.chargeGenerateCall();
     let thrown: unknown;
     try {
-      budget.chargeModelCall();
+      budget.chargeGenerateCall();
     } catch (err) {
       thrown = err;
     }
     expect(thrown).toBeInstanceOf(TurnBudgetExceededError);
-    expect((thrown as TurnBudgetExceededError).kind).toBe("model_calls");
+    expect((thrown as TurnBudgetExceededError).kind).toBe("generate_calls");
   });
 
   it("charges attempts up to the cap then throws a classified generate_attempts error", () => {
@@ -141,7 +141,7 @@ describe("createTurnBudget (unit)", () => {
 });
 
 describe("per-turn budget through chat() (behavioral)", () => {
-  it("stops a brownout turn at the attempt cap with a classified generate_attempts error and <= 40 model calls", async () => {
+  it("stops a brownout turn at the attempt cap with a classified generate_attempts error and <= 40 generate calls", async () => {
     // Mix error classes so the per-class caps (3 overflow / 2 timeout / 3
     // rate-limit) never exhaust before the total attempt cap of 4 fires: three
     // overflows then rate-limits. Attempt 5's charge throws before any spend.
@@ -172,10 +172,10 @@ describe("per-turn budget through chat() (behavioral)", () => {
       expect((outcome.error as TurnBudgetExceededError).kind).toBe("generate_attempts");
     }
     expect(countMainTurns(complete)).toBeLessThanOrEqual(MAX_TURN_GENERATE_ATTEMPTS);
-    expect(complete.mock.calls.length).toBeLessThanOrEqual(MAX_TURN_MODEL_CALLS);
+    expect(complete.mock.calls.length).toBeLessThanOrEqual(MAX_TURN_GENERATE_CALLS);
   });
 
-  it("a normal turn under budget returns its text and charges exactly one model call", async () => {
+  it("a normal turn under budget returns its text and charges exactly one generate call", async () => {
     const complete = vi.fn(async (params: { system?: string }) => {
       const sys = params.system ?? "";
       if (sys.includes(FLUSH_MARKER)) return mkAssistant("facts noted");

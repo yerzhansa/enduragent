@@ -74,7 +74,9 @@ import {
   computeHistoryTokenBudget,
   effectiveEstimatorWindowTokens,
   estimateMessagesTokens,
+  estimatePromptTokens,
   isWindowExceededFinish,
+  RESERVE_TOKENS,
   TIMEOUT_COMPACTION_THRESHOLD,
 } from "./token-utils.js";
 import { summarizeInStages, summarizeDroppedMessages } from "./compaction.js";
@@ -656,7 +658,7 @@ export class CoachAgent {
   private async flushMemory(
     messages: ModelMessage[],
     trigger: MemoryFlushTrigger,
-    budget?: Pick<TurnBudget, "chargeModelCall">,
+    budget?: Pick<TurnBudget, "chargeGenerateCall">,
   ): Promise<MemoryFlushOutcome> {
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_FLUSH_ATTEMPTS; attempt++) {
@@ -739,7 +741,7 @@ export class CoachAgent {
     // Charge OUTSIDE the recovery try/catch: a TurnBudgetExceededError is
     // terminal everywhere else in the turn loop, so it must propagate to the
     // outer terminal-budget handler, not degrade to the static floor.
-    turnBudget.chargeModelCall();
+    turnBudget.chargeGenerateCall();
     try {
       const recovery = await this.llm.generate({
         system: systemPrompt,
@@ -761,7 +763,7 @@ export class CoachAgent {
     }
   }
 
-  private compactionParams(budget?: Pick<TurnBudget, "chargeModelCall">) {
+  private compactionParams(budget?: Pick<TurnBudget, "chargeGenerateCall">) {
     return {
       llm: this.compactLlm,
       caller: "compact" as const,
@@ -1140,7 +1142,7 @@ export class CoachAgent {
             };
 
             try {
-              turnBudget.chargeModelCall();
+              turnBudget.chargeGenerateCall();
               ctx.provenance.value = unionProvenance(
                 contextProvenance,
                 provenanceOfMessages(messages),
@@ -1430,7 +1432,10 @@ export class CoachAgent {
               }
               // Timeout with high context usage → compact + retry (no flush)
               if (failure === "timeout" && timeoutAttempts < MAX_TIMEOUT_ATTEMPTS) {
-                const ratio = estimateMessagesTokens(messages) / this.config.contextWindowTokens;
+                const ratio =
+                  estimatePromptTokens({ messages, systemPrompt }) /
+                  (effectiveEstimatorWindowTokens(this.config.contextWindowTokens) -
+                    RESERVE_TOKENS);
                 if (ratio > TIMEOUT_COMPACTION_THRESHOLD) {
                   timeoutAttempts++;
                   try {

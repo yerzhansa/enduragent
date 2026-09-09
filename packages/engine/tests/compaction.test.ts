@@ -68,6 +68,20 @@ const REQUIRED_HEADINGS = [
 // rides `opts.system`, and the per-chunk transcript rides the user message.
 
 describe("compaction (sport-parameterized)", () => {
+  it("every summarization call carries the 120s deadline for the provider to enforce", async () => {
+    const spy = createFakeLLM([VALID_FIVE_SECTION_SUMMARY], { repeatLast: true });
+
+    await summarizeDroppedMessages({
+      dropped: REPRESENTATIVE_CONVERSATION,
+      llm: spy,
+      mustPreserveTokens: CYCLING_VOCABULARY,
+      memory: EMPTY_SNAPSHOT,
+    });
+
+    expect(spy.capturedOpts.length).toBeGreaterThan(0);
+    for (const opts of spy.capturedOpts) expect(opts.deadlineMs).toBe(120_000);
+  });
+
   it("summarizeDroppedMessages carries MUST-PRESERVE + sport tokens in system and transcript data in the user message", async () => {
     const spy = createFakeLLM([VALID_FIVE_SECTION_SUMMARY], { repeatLast: true });
 

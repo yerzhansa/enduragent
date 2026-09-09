@@ -156,7 +156,7 @@ const rpcDeadlineCases = [
   [
     "getActivityAnalysis",
     { canonicalActivityId: "a".repeat(64), sections: ["aerobic-drift"] },
-    90_000,
+    120_000,
   ],
   [
     "exportTrainingFile",

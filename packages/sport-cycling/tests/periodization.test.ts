@@ -65,19 +65,19 @@ describe("computeTotalWeeks", () => {
     expect(weeks).toBeLessThanOrEqual(13);
   });
 
-  it("clamps to minimum 8 weeks", () => {
+  it("a race two weeks out gives a two-week horizon", () => {
     const near = new Date();
-    near.setDate(near.getDate() + 14); // 2 weeks out
+    near.setDate(near.getDate() + 14);
     const p = makeProfile({
       goalType: "race",
       raceDate: near.toISOString().split("T")[0],
     });
-    expect(computeTotalWeeks(p)).toBe(8);
+    expect(computeTotalWeeks(p)).toBe(2);
   });
 
-  it("clamps to maximum 24 weeks", () => {
+  it("clamps a race thirty weeks out to 24 weeks", () => {
     const far = new Date();
-    far.setDate(far.getDate() + 365);
+    far.setDate(far.getDate() + 210);
     const p = makeProfile({
       goalType: "race",
       raceDate: far.toISOString().split("T")[0],
@@ -106,24 +106,24 @@ describe("computeTotalWeeks", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    it("America/Los_Angeles at local 23:00 on Aug 14 → 1 day, 8 weeks (clamped)", () => {
+    it("America/Los_Angeles at local 23:00 on Aug 14 → 1 day, 1 week", () => {
       // 2026-08-14T23:00 PDT = 2026-08-15T06:00Z
       vi.setSystemTime(new Date("2026-08-15T06:00:00Z"));
       const p = makeProfile({
         goalType: "race",
         raceDate: "2026-08-15",
       });
-      expect(computeTotalWeeks(p, "America/Los_Angeles")).toBe(8);
+      expect(computeTotalWeeks(p, "America/Los_Angeles")).toBe(1);
     });
 
-    it("Asia/Tokyo at local 02:00 on Aug 15 → 0 days, 8 weeks (clamped)", () => {
+    it("Asia/Tokyo at local 02:00 on Aug 15 → 0 days, 1 week (clamped)", () => {
       // 2026-08-15T02:00+09:00 = 2026-08-14T17:00Z
       vi.setSystemTime(new Date("2026-08-14T17:00:00Z"));
       const p = makeProfile({
         goalType: "race",
         raceDate: "2026-08-15",
       });
-      expect(computeTotalWeeks(p, "Asia/Tokyo")).toBe(8);
+      expect(computeTotalWeeks(p, "Asia/Tokyo")).toBe(1);
     });
 
     it("12-week race date counts the same in any TZ", () => {

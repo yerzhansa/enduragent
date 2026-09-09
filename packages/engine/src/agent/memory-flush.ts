@@ -191,7 +191,7 @@ export async function runMemoryFlush(params: {
   memory: MemoryStorePort;
   memorySections: readonly MemorySectionSpec[];
   tz?: string;
-  budget?: Pick<TurnBudget, "chargeModelCall">;
+  budget?: Pick<TurnBudget, "chargeGenerateCall">;
   provenanceForMemoryRead?: (visibleResult: string) => SourceProvenance;
 }): Promise<MemoryFlushOutcome> {
   if (params.memorySections.length === 0) {
@@ -235,7 +235,7 @@ export async function runMemoryFlush(params: {
     ),
   };
 
-  params.budget?.chargeModelCall();
+  params.budget?.chargeGenerateCall();
   const result = await params.llm.generate({
     system: MEMORY_FLUSH_SYSTEM_PROMPT,
     messages: [

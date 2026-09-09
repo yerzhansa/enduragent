@@ -1,8 +1,8 @@
-export const MAX_TURN_MODEL_CALLS = 40;
+export const MAX_TURN_GENERATE_CALLS = 40;
 export const MAX_TURN_GENERATE_ATTEMPTS = 4;
 export const TURN_WALL_CLOCK_MS = 10 * 60_000;
 
-export type BudgetExceededKind = "model_calls" | "generate_attempts" | "wall_clock";
+export type BudgetExceededKind = "generate_calls" | "generate_attempts" | "wall_clock";
 
 export class TurnBudgetExceededError extends Error {
   readonly kind: BudgetExceededKind;
@@ -14,8 +14,8 @@ export class TurnBudgetExceededError extends Error {
 }
 
 export interface TurnBudget {
-  /** Throws TurnBudgetExceededError("model_calls") if a model call would exceed the cap. Call BEFORE every llm.generate. */
-  chargeModelCall(): void;
+  /** Charge one llm.generate call; the provider steps a call runs internally are not counted. Throws TurnBudgetExceededError("generate_calls") past the cap. Call BEFORE every llm.generate. */
+  chargeGenerateCall(): void;
   /** Charge one outer generate attempt. Throws "generate_attempts" past the attempt cap. */
   chargeAttempt(): void;
   /** Between-attempt deadline check (never mid-attempt). Throws "wall_clock" on overrun. */
@@ -26,15 +26,15 @@ export interface TurnBudget {
 
 export function createTurnBudget(now: () => number): TurnBudget {
   const turnStart = now();
-  let modelCalls = 0;
+  let generateCalls = 0;
   let attempts = 0;
   return {
-    chargeModelCall() {
-      modelCalls++;
-      if (modelCalls > MAX_TURN_MODEL_CALLS) {
+    chargeGenerateCall() {
+      generateCalls++;
+      if (generateCalls > MAX_TURN_GENERATE_CALLS) {
         throw new TurnBudgetExceededError(
-          "model_calls",
-          `Per-turn model-call budget exceeded (${MAX_TURN_MODEL_CALLS}).`,
+          "generate_calls",
+          `Per-turn generate-call budget exceeded (${MAX_TURN_GENERATE_CALLS}).`,
         );
       }
     },
