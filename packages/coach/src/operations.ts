@@ -13,14 +13,18 @@ import {
   GetTranscriptPageRpcResultSchema,
   ListArchivedConversationsRpcParamsSchema,
   ListArchivedConversationsRpcResultSchema,
+  GetLanguagePreferenceRpcParamsSchema,
   GetUnitsPreferenceRpcParamsSchema,
+  GetLanguagePreferenceRpcResultSchema,
   GetUnitsPreferenceRpcResultSchema,
   ImportFilesRpcParamsSchema,
   ImportFilesRpcResultSchema,
   OperationProgressEventSchema,
   SaveIntakeRpcParamsSchema,
   SaveIntakeRpcResultSchema,
+  SetLanguagePreferenceRpcParamsSchema,
   SetUnitsPreferenceRpcParamsSchema,
+  SetLanguagePreferenceRpcResultSchema,
   SetUnitsPreferenceRpcResultSchema,
   SyncRpcParamsSchema,
   SyncRpcResultSchema,
@@ -41,7 +45,9 @@ import {
   type GetTranscriptPageRpcResult,
   type ListArchivedConversationsRpcParams,
   type ListArchivedConversationsRpcResult,
+  type GetLanguagePreferenceRpcParams,
   type GetUnitsPreferenceRpcParams,
+  type GetLanguagePreferenceRpcResult,
   type GetUnitsPreferenceRpcResult,
   type CoachOperations,
   type ImportFilesRpcParams,
@@ -49,14 +55,20 @@ import {
   type OperationProgressEvent,
   type SaveIntakeRpcParams,
   type SaveIntakeRpcResult,
+  type SetLanguagePreferenceRpcParams,
   type SetUnitsPreferenceRpcParams,
+  type SetLanguagePreferenceRpcResult,
   type SetUnitsPreferenceRpcResult,
   type SyncRpcParams,
   type SyncRpcResult,
   type VerifyIntervalsCredentialRpcParams,
   type VerifyIntervalsCredentialRpcResult,
 } from "@enduragent/coach-contract";
-import { createIntakeRepository, createUnitsPreferenceRepository } from "@enduragent/kernel/store";
+import {
+  createIntakeRepository,
+  createLanguagePreferenceRepository,
+  createUnitsPreferenceRepository,
+} from "@enduragent/kernel/store";
 import {
   createAuthoredIdentity,
   type AthleteHome,
@@ -69,7 +81,13 @@ import type { LocalStoreRuntime } from "./composition.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { createUnitsPreferenceService } from "./units-preference.js";
 
+import {
+  createLanguagePreferenceService,
+  type LanguagePreferenceService,
+} from "./language-preference.js";
+
 export interface CreateCoachOperationsInput {
+  readonly languagePreference?: LanguagePreferenceService;
   readonly home: AthleteHome;
   readonly context: CoachStoreWriterContext;
   readonly runtime: Pick<LocalStoreRuntime, "runWindowAfter" | "runExclusive" | "runActivityWrite">;
@@ -168,6 +186,9 @@ export function createCoachOperations(
   const archiveDir = input.home.archiveDir;
   const identity = (dependencies.createIdentity ?? createAuthoredIdentity)(input.home.configDir);
   const intake = (dependencies.createIntakeRepository ?? createIntakeRepository)(store);
+  const languagePreference =
+    input.languagePreference ??
+    createLanguagePreferenceService(createLanguagePreferenceRepository(store));
   const unitsPreference = createUnitsPreferenceService(createUnitsPreferenceRepository(store));
   const importFiles = dependencies.importFiles ?? importFilesWithReport;
   const backfill = dependencies.backfill ?? runIntervalsBackfillInWriter;
@@ -416,6 +437,24 @@ export function createCoachOperations(
         }
         return GetRuntimeConfigRpcResultSchema.parse(input.readRuntimeConfig());
       });
+    },
+    getLanguagePreference(
+      request: GetLanguagePreferenceRpcParams,
+    ): Promise<GetLanguagePreferenceRpcResult> {
+      GetLanguagePreferenceRpcParamsSchema.parse(request);
+      return input.runtime.runExclusive(async () =>
+        GetLanguagePreferenceRpcResultSchema.parse(await languagePreference.get()),
+      );
+    },
+    setLanguagePreference(
+      request: SetLanguagePreferenceRpcParams,
+    ): Promise<SetLanguagePreferenceRpcResult> {
+      const parsedRequest = SetLanguagePreferenceRpcParamsSchema.parse(request);
+      return input.runtime.runExclusive(async () =>
+        SetLanguagePreferenceRpcResultSchema.parse(
+          await languagePreference.set(parsedRequest.value),
+        ),
+      );
     },
     getUnitsPreference(request: GetUnitsPreferenceRpcParams): Promise<GetUnitsPreferenceRpcResult> {
       GetUnitsPreferenceRpcParamsSchema.parse(request);

@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,6 +45,7 @@ interface FakeBot {
     config: { use: ReturnType<typeof vi.fn> };
   };
   use: ReturnType<typeof vi.fn>;
+  callbackQuery: ReturnType<typeof vi.fn>;
   command: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
@@ -87,6 +89,7 @@ async function buildBot(opts?: {
       config: { use: vi.fn() },
     },
     use: vi.fn(),
+    callbackQuery: vi.fn(),
     command: vi.fn(),
     on: vi.fn(),
     stop: vi.fn(opts?.stop ?? (async () => undefined)),
@@ -116,6 +119,7 @@ async function buildBot(opts?: {
   const { createTelegramBot } = await import("../src/channels/telegram.js");
   const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
   const host = createNpmTelegramHost({
+    language: createNpmCoachLanguage(dataDir),
     binary: cyclingBinary,
     confirmations: agent.confirmations as never,
     dataDir,
@@ -145,9 +149,18 @@ function getMessageText(bot: FakeBot) {
 }
 
 function getCallbackQueryData(bot: FakeBot) {
-  const call = bot.on.mock.calls.find((c: unknown[]) => c[0] === "callback_query:data");
-  if (!call) throw new Error("callback_query:data handler not registered");
-  return call[1] as (ctx: unknown) => Promise<void>;
+  const handlers = bot.on.mock.calls
+    .filter((c: unknown[]) => c[0] === "callback_query:data")
+    .map((c: unknown[]) => c[1] as (ctx: unknown, next: () => Promise<void>) => Promise<void>);
+  if (handlers.length === 0) throw new Error("callback_query:data handler not registered");
+  return async (ctx: unknown): Promise<void> => {
+    const run = async (index: number): Promise<void> => {
+      const handler = handlers[index];
+      if (handler === undefined) return;
+      await handler(ctx, () => run(index + 1));
+    };
+    await run(0);
+  };
 }
 
 function getBotCatch(bot: FakeBot) {
@@ -303,10 +316,12 @@ describe("agent-backed commands", () => {
       await getCommand(bot, name)(ctx);
       await drainPending();
       // No reference wired in this buildBot() → no per-turn anchor passed.
-      expect(agent.chat).toHaveBeenCalledWith({
-        chatId: "telegram:777",
-        message: messageFor[name],
-      });
+      expect(agent.chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: "telegram:777",
+          message: messageFor[name],
+        }),
+      );
       const htmlReply = ctx.reply.mock.calls.find(
         (c: unknown[]) =>
           String(c[0]).includes("ok") &&
@@ -347,10 +362,12 @@ describe("agent-backed commands", () => {
     const ctx = makeCtx({ match: "2026-05-01" });
     await getCommand(bot, "review")(ctx);
     await drainPending();
-    expect(agent.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "/review 2026-05-01",
-    });
+    expect(agent.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "/review 2026-05-01",
+      }),
+    );
     expect(someReply(ctx, "Reviewing your last session (2026-05-01)...")).toBe(true);
   });
 
@@ -368,14 +385,16 @@ describe("agent-backed commands", () => {
     const ctx = makeCtx();
     await getCommand(bot, "plan")(ctx);
     await drainPending();
-    expect(agent.chat).toHaveBeenCalledWith({
-      chatId: "telegram:777",
-      message: "/plan",
-      turn: {
-        resolvedCs: { criticalSpeedMps: 4.0, source: "platform", confidence: "high" },
-        referenceProvenance: { garmin: false, nonGarmin: false, unknown: true },
-      },
-    });
+    expect(agent.chat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: "telegram:777",
+        message: "/plan",
+        turn: expect.objectContaining({
+          resolvedCs: { criticalSpeedMps: 4.0, source: "platform", confidence: "high" },
+          referenceProvenance: { garmin: false, nonGarmin: false, unknown: true },
+        }),
+      }),
+    );
   });
 });
 
@@ -448,7 +467,11 @@ describe("confirmation callbacks", () => {
       }),
     );
     await wrapped.execute!({ eventId: 42, changes: { name: "Revised workout" } }, {
-      experimental_context: createTurnContext(null, "telegram:777"),
+      experimental_context: createTurnContext({
+        resolvedCs: null,
+        chatId: "telegram:777",
+        language: { language: "en", source: "default", locale: "en-GB" },
+      }),
     } as never);
     const proposal = gate.peek("telegram:777")!;
     agent.confirmations.confirm.mockImplementation((chatId: string, nonce: string) =>

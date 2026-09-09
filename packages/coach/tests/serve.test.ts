@@ -1,3 +1,4 @@
+import { createTestCoachLanguage } from "./language-fixture.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -197,6 +198,7 @@ function harness(
     trace.push("initial-refresh");
   });
   const lifecycle: LocalCoachLifecycle = {
+    language: createTestCoachLanguage(),
     home,
     engine,
     operations,

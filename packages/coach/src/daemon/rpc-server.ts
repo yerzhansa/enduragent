@@ -542,6 +542,8 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "saveIntake",
   "configureRuntime",
   "getRuntimeConfig",
+  "getLanguagePreference",
+  "setLanguagePreference",
   "getUnitsPreference",
   "setUnitsPreference",
   "getSpendSummary",
@@ -1569,6 +1571,32 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
                 generic.data.params,
               );
               result = await input.operations.getRuntimeConfig(request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "getLanguagePreference":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY.getLanguagePreference.requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations.getLanguagePreference === undefined) {
+                throw new TypeError("Units preference operation is unavailable.");
+              }
+              result = await input.operations.getLanguagePreference(request);
+            } catch (error) {
+              invocationFailure = { error };
+            }
+            break;
+          case "setLanguagePreference":
+            try {
+              const request = COACH_RPC_METHOD_REGISTRY.setLanguagePreference.requestSchema.parse(
+                generic.data.params,
+              );
+              if (input.operations.setLanguagePreference === undefined) {
+                throw new TypeError("Units preference operation is unavailable.");
+              }
+              result = await input.operations.setLanguagePreference(request);
             } catch (error) {
               invocationFailure = { error };
             }

@@ -15,6 +15,7 @@ const parentPort = process.parentPort;
 
 type UtilityStartFrame = {
   readonly type: "start";
+  readonly preferredLanguages: string[];
   readonly homeRoot: string;
   readonly appVersion: string;
   readonly handoffCapability?: string;
@@ -22,9 +23,17 @@ type UtilityStartFrame = {
 function startFrame(value: unknown): UtilityStartFrame | undefined {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
+  const preferredLanguages =
+    record.preferredLanguages === undefined ? [] : record.preferredLanguages;
+  const keys = Object.keys(record)
+    .filter((key) => key !== "preferredLanguages")
+    .sort();
   const optionalCapability = keys.length === 4 && keys[1] === "handoffCapability";
   if (
+    !Array.isArray(preferredLanguages) ||
+    !preferredLanguages.every(
+      (entry: unknown) => typeof entry === "string" && entry.length > 0 && entry.length <= 128,
+    ) ||
     record.type !== "start" ||
     typeof record.homeRoot !== "string" ||
     !isAbsolute(record.homeRoot) ||
@@ -47,6 +56,7 @@ function startFrame(value: unknown): UtilityStartFrame | undefined {
     type: "start",
     homeRoot: record.homeRoot,
     appVersion: record.appVersion,
+    preferredLanguages,
     ...(optionalCapability ? { handoffCapability: record.handoffCapability as string } : {}),
   };
 }
@@ -156,6 +166,7 @@ async function run(): Promise<void> {
       },
       signal: controller.signal,
       appVersion: frame.appVersion,
+      preferredLanguages: frame.preferredLanguages,
       ...(frame.handoffCapability === undefined
         ? {}
         : { handoffCapability: frame.handoffCapability }),

@@ -147,11 +147,12 @@ describe("legacy v11 store upgrade and startup", () => {
     const result = await runMigrations(store, MIGRATIONS);
 
     expect(result.applied).toEqual([
-      12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+      12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
     ]);
     expect(await dumpLegacyV11Tables(store)).toEqual(before);
     const newTables = (await tableNames()).filter((name) => !previousTables.has(name));
     expect(newTables).toEqual([
+      "athlete_language",
       "athlete_preference",
       "chat_attachment",
       "chat_attachment_draft",
@@ -206,7 +207,7 @@ describe("legacy v11 store upgrade and startup", () => {
         hlc_counter: null,
       },
     ]);
-    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 32 });
+    expect(await store.get("PRAGMA user_version")).toEqual({ user_version: 33 });
   });
 
   it("creates no Plan or startup marker when the legacy JSON is absent", async () => {

@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -68,6 +69,7 @@ function createComposingBot(
       config: { use: (transformer: Transformer) => transformers.push(transformer) },
     },
     use: (handler: Middleware) => middleware.push(handler),
+    callbackQuery: vi.fn(),
     command: vi.fn((name: string, handler: (ctx: any) => Promise<void>) => {
       commands.set(name, handler);
     }),
@@ -150,6 +152,7 @@ describe("Telegram polling generation release", () => {
       ...input,
       host: {
         ...input.host,
+        language: createNpmCoachLanguage(dataDir),
         access: {
           middleware: createAuthMiddleware({
             dataDir,
@@ -213,6 +216,7 @@ describe("Telegram polling generation release", () => {
       ...input,
       host: {
         ...input.host,
+        language: createNpmCoachLanguage(dataDir),
         access: {
           middleware: createAuthMiddleware({
             dataDir,
@@ -440,6 +444,7 @@ describe("Telegram polling generation release", () => {
       ...input,
       host: {
         ...input.host,
+        language: createNpmCoachLanguage(dataDir),
         access: {
           middleware: async (_ctx: unknown, next: () => Promise<void>) => {
             await next();
@@ -736,6 +741,7 @@ describe("Telegram polling generation release", () => {
       ...input,
       host: {
         ...input.host,
+        language: createNpmCoachLanguage(dataDir),
         release: {
           updatePolicy: "npm-self-update",
           updateDescription: "Update",
@@ -820,6 +826,7 @@ describe("Telegram polling generation release", () => {
       ...input,
       host: {
         ...input.host,
+        language: createNpmCoachLanguage(dataDir),
         release: {
           updatePolicy: "npm-self-update",
           updateDescription: "Update",
@@ -919,6 +926,7 @@ function makeRuntimeInput(): CreateTelegramChannelInput {
       getAthleteState: vi.fn(),
     },
     host: {
+      language: createNpmCoachLanguage(dataDir),
       access: { middleware: async (_ctx: unknown, next: () => Promise<void>) => next() },
       confirmations: {
         peek: vi.fn(async () => undefined),

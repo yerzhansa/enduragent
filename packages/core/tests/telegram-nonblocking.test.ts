@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,6 +27,7 @@ interface FakeBot {
     config: { use: ReturnType<typeof vi.fn> };
   };
   use: ReturnType<typeof vi.fn>;
+  callbackQuery: ReturnType<typeof vi.fn>;
   command: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
@@ -59,6 +61,7 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
       config: { use: vi.fn() },
     },
     use: vi.fn(),
+    callbackQuery: vi.fn(),
     command: vi.fn(),
     on: vi.fn(),
     stop: vi.fn(async () => undefined),
@@ -83,6 +86,7 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
     import("../src/channels/npm-telegram-host.js"),
   ]);
   const host = createNpmTelegramHost({
+    language: createNpmCoachLanguage(dataDir),
     binary: cyclingBinary,
     confirmations: {
       peek: vi.fn(),
@@ -247,8 +251,12 @@ describe("non-blocking dispatch", () => {
       vi.useRealTimers();
     }
 
-    expect(agent.chat).toHaveBeenCalledWith({ chatId: "telegram:333", message: "first" });
-    expect(agent.chat).toHaveBeenCalledWith({ chatId: "telegram:333", message: "second" });
+    expect(agent.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:333", message: "first" }),
+    );
+    expect(agent.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:333", message: "second" }),
+    );
     // The synchronous handler prologue captures each message before dispatching,
     // so the two turns must reach agent.chat in send order. A future change that
     // awaited anything before capturing the text (reordering the prologue) would

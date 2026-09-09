@@ -1,3 +1,4 @@
+import { createTestCoachLanguage } from "./language-fixture.js";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -240,6 +241,7 @@ beforeEach(async () => {
   mocks.composition.mockImplementation(async () => {
     trace.push("engine-open");
     return {
+      language: createTestCoachLanguage(),
       engine,
       operations,
       spendMeter,
@@ -308,6 +310,7 @@ describe("local coach runner", () => {
   it("publishes deferred initialization without starting it before the operation", async () => {
     const startInitialRefresh = vi.fn(async () => {});
     mocks.composition.mockImplementationOnce(async () => ({
+      language: createTestCoachLanguage(),
       engine,
       operations,
       spendMeter,
@@ -323,12 +326,16 @@ describe("local coach runner", () => {
           await lifecycle.startInitialRefresh();
           return "done";
         }),
+        preferredLanguages: ["fr-BE", "en-US"],
         deferInitialRefresh: true,
       }),
     ).resolves.toEqual({ status: "completed", value: "done" });
 
     expect(mocks.composition).toHaveBeenCalledWith(
-      expect.objectContaining({ deferInitialRefresh: true }),
+      expect.objectContaining({
+        deferInitialRefresh: true,
+        preferredLanguages: ["fr-BE", "en-US"],
+      }),
     );
     expect(startInitialRefresh).toHaveBeenCalledOnce();
   });

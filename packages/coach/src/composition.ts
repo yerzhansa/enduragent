@@ -1,3 +1,9 @@
+import { createCoachLanguage, normalizeLocaleHint, type CoachLanguage } from "@enduragent/i18n";
+import { createLanguagePreferenceRepository } from "@enduragent/kernel/store";
+import {
+  asLanguagePreferenceStore,
+  createLanguagePreferenceService,
+} from "./language-preference.js";
 import { createPlanCalendarDrain } from "./plan-calendar-drain.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
@@ -230,6 +236,7 @@ interface OAuthCredential extends StoredProfile {
 }
 
 export interface LocalCoachComposition {
+  readonly language: CoachLanguage;
   readonly engine: CoachEngine;
   readonly operations: CoachOperations &
     PlanningReadOperations &
@@ -249,6 +256,7 @@ export interface LocalCoachCompositionInput {
   readonly context: CoachStoreWriterContext;
   readonly config: Config;
   readonly engineConfig: EngineConfig;
+  readonly preferredLanguages?: readonly string[];
   readonly deferInitialRefresh?: boolean;
 }
 
@@ -1100,6 +1108,23 @@ export async function createLocalCoachComposition(
     let cleanupPlanningRequestSources:
       | ReturnType<typeof createPlanningRequestSourceCleanup>
       | undefined;
+    const languagePreference = createLanguagePreferenceService(
+      createLanguagePreferenceRepository(input.context.store),
+      { now },
+    );
+    const systemLocale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const locale = input.preferredLanguages?.[0] ?? systemLocale;
+    const coachLanguage = createCoachLanguage({
+      store: asLanguagePreferenceStore({
+        get: () => runtime!.runExclusive(() => languagePreference.get()),
+        set: (value) => runtime!.runExclusive(() => languagePreference.set(value)),
+      }),
+      surface: {
+        language:
+          normalizeLocaleHint(input.preferredLanguages) ?? normalizeLocaleHint(systemLocale),
+        locale,
+      },
+    });
     const attachmentRepository = createChatAttachmentRepository(input.context.store);
     const attachmentObjects = createManagedChatAttachmentStore({
       archiveDir: input.home.archiveDir,
@@ -1427,6 +1452,7 @@ export async function createLocalCoachComposition(
         },
       };
       const ports: EngineHostPorts = {
+        language: { resolveFor: ({ athleteText }) => coachLanguage.resolveFor({ athleteText }) },
         config: projectedConfig,
         memory,
         chatStore: conversationStore,
@@ -1495,6 +1521,7 @@ export async function createLocalCoachComposition(
         }),
         confirmations,
         engine: createCoachEngineAdapter({
+          coachLanguage,
           backend,
           getAthleteState: () => stateReader.getAthleteState(),
           cyclingFtpAnchorResolver,
@@ -1917,6 +1944,7 @@ export async function createLocalCoachComposition(
     });
     const coachOperations = createCoachOperations(
       {
+        languagePreference,
         home: input.home,
         context: input.context,
         runtime,
@@ -2367,6 +2395,7 @@ export async function createLocalCoachComposition(
       PlanChangeOperations &
       PlanningOperations;
     return {
+      language: coachLanguage,
       engine: reconfigurable.engine,
       operations,
       spendMeter: reconfigurable.spendMeter,

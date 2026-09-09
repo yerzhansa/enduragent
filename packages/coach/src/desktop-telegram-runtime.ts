@@ -5,6 +5,7 @@ import {
   type TelegramHostCapabilities,
 } from "@enduragent/core";
 import type { LocalCoachLifecycle } from "./local-runner.js";
+import { withTrustedTurnLanguage } from "./coach-engine-adapter.js";
 import type { InvocationCoordinator } from "./daemon/invocation-coordinator.js";
 import type {
   DesktopTelegramRuntime,
@@ -12,7 +13,10 @@ import type {
 } from "./desktop-telegram-controller.js";
 
 export interface CreateDesktopTelegramRuntimeFactoryInput {
-  readonly lifecycle: Pick<LocalCoachLifecycle, "home" | "engine" | "operations" | "confirmations">;
+  readonly lifecycle: Pick<
+    LocalCoachLifecycle,
+    "home" | "engine" | "operations" | "confirmations" | "language"
+  >;
   readonly invocations: InvocationCoordinator;
   readonly appVersion: string;
 }
@@ -52,6 +56,7 @@ function createDesktopTelegramHost(
     consumePairing,
   });
   return {
+    language: input.lifecycle.language,
     access: {
       middleware: async (context, next) => {
         if (canAdmit()) {
@@ -98,7 +103,7 @@ export function createDesktopTelegramRuntimeFactory(
     return (dependencies.createBot ?? createTelegramBot)({
       webhookPolicy: "preserve",
       token,
-      engine: input.lifecycle.engine,
+      engine: withTrustedTurnLanguage(input.lifecycle.engine),
       host,
       dataDir: input.lifecycle.home.root,
       onStart: onStarted,

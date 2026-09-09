@@ -605,6 +605,9 @@ class AttachmentLifecycleBackend {
     const conversation = this.requireConversation();
     const capabilities = this.requireCapabilities();
     const ports: EngineHostPorts = {
+      language: {
+        resolveFor: async () => ({ language: "en", source: "default", locale: "en-GB" }),
+      },
       config: {
         dataSource: "platform",
         llm: { provider: "openai", model: this.activeModel, apiKey: "fixture" },

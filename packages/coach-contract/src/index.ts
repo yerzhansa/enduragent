@@ -18,6 +18,7 @@ export * from "./chat-attachment.js";
 export * from "./planning-read.js";
 export * from "./plan-chat-card.js";
 export * from "./planning-request.js";
+export * from "./language.js";
 export * from "./plan-creation.js";
 export * from "./plan-change.js";
 export * from "./format-civil-date.js";

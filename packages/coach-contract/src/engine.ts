@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LanguageTagSchema, LanguageSourceSchema } from "./language.js";
 import type { TurnEvent } from "./turn-event.js";
 import type { AthleteState } from "./athlete-state.js";
 import {
@@ -75,6 +76,8 @@ export const ChatRequestSchema = z
         resolvedCs: z.unknown().optional(),
         /** Source labels of the reference snapshot the anchor was resolved from. */
         referenceProvenance: z.unknown().optional(),
+        language: LanguageTagSchema.optional(),
+        languageSource: LanguageSourceSchema.optional(),
       })
       .strict()
       .optional(),

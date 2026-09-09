@@ -24,7 +24,13 @@ function fakeTool(execute: (input: unknown) => unknown): Tool {
 }
 
 function turnOptions(chatId: string): unknown {
-  return { experimental_context: createTurnContext(null, chatId) };
+  return {
+    experimental_context: createTurnContext({
+      resolvedCs: null,
+      chatId,
+      language: { language: "en", source: "default", locale: "en-GB" },
+    }),
+  };
 }
 
 function port(gate: ConfirmationGate, summarizers: Record<string, ProposalSummarizer>) {

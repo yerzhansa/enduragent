@@ -79,7 +79,10 @@ describe("the agent injects only the inject-tiered sections into the assembled p
     const memory = new Memory(dataDir);
     await capturedSystemPrompt(dataDir, memory, async (tools) => {
       expect(tools).toHaveProperty("ledger_append");
-      const context = createTurnContext(null);
+      const context = createTurnContext({
+        language: { language: "en", source: "default", locale: "en-GB" },
+        resolvedCs: null,
+      });
       const options = { toolCallId: "memory-wiring", messages: [], experimental_context: context };
       const result = JSON.stringify(await tools.memory_read.execute?.({}, options));
       expect(result).not.toContain("Name: Sam; weight 72kg");

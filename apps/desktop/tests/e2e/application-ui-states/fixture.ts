@@ -143,6 +143,12 @@ class ApplicationStateBackend {
           durableTrainingData: this.durableTrainingData,
         });
       }
+      if (request.method === "getLanguagePreference") {
+        return response({ value: null });
+      }
+      if (request.method === "setLanguagePreference") {
+        return response(request.params);
+      }
       if (request.method === "getUnitsPreference") {
         return response({ value: "metric", source: "default" });
       }

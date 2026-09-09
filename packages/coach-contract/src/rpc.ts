@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LanguageTagSchema } from "./language.js";
 import { AthleteStateSchema } from "./athlete-state.js";
 import { isActiveIanaZone } from "./time-zone.js";
 import {
@@ -303,6 +304,8 @@ export const COACH_RPC_METHOD_NAMES = [
   "getRuntimeConfig",
   "getUnitsPreference",
   "setUnitsPreference",
+  "getLanguagePreference",
+  "setLanguagePreference",
   "configureTelegram",
   "enableTelegram",
   "disableTelegram",
@@ -1211,6 +1214,20 @@ export const SetUnitsPreferenceRpcResultSchema = z
   .strict();
 export type SetUnitsPreferenceRpcResult = z.infer<typeof SetUnitsPreferenceRpcResultSchema>;
 
+export const GetLanguagePreferenceRpcParamsSchema = EmptyRpcParamsSchema;
+export type GetLanguagePreferenceRpcParams = z.infer<typeof GetLanguagePreferenceRpcParamsSchema>;
+export const GetLanguagePreferenceRpcResultSchema = z
+  .object({ value: LanguageTagSchema.nullable() })
+  .strict();
+export type GetLanguagePreferenceRpcResult = z.infer<typeof GetLanguagePreferenceRpcResultSchema>;
+
+export const SetLanguagePreferenceRpcParamsSchema = z
+  .object({ value: LanguageTagSchema.nullable() })
+  .strict();
+export type SetLanguagePreferenceRpcParams = z.infer<typeof SetLanguagePreferenceRpcParamsSchema>;
+export const SetLanguagePreferenceRpcResultSchema = GetLanguagePreferenceRpcResultSchema;
+export type SetLanguagePreferenceRpcResult = z.infer<typeof SetLanguagePreferenceRpcResultSchema>;
+
 export const OperationProgressEventSchema = z
   .object({
     phase: z.enum(["started", "completed"]),
@@ -1311,6 +1328,12 @@ export interface CoachOperations {
   getRuntimeConfig(request: GetRuntimeConfigRpcParams): Promise<GetRuntimeConfigRpcResult>;
   getUnitsPreference?(request: GetUnitsPreferenceRpcParams): Promise<GetUnitsPreferenceRpcResult>;
   setUnitsPreference?(request: SetUnitsPreferenceRpcParams): Promise<SetUnitsPreferenceRpcResult>;
+  getLanguagePreference?(
+    request: GetLanguagePreferenceRpcParams,
+  ): Promise<GetLanguagePreferenceRpcResult>;
+  setLanguagePreference?(
+    request: SetLanguagePreferenceRpcParams,
+  ): Promise<SetLanguagePreferenceRpcResult>;
 }
 
 export interface CoachSelfTestOperations {
@@ -1692,6 +1715,22 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       id: JsonRpcIdSchema,
       method: z.literal("setUnitsPreference"),
       params: SetUnitsPreferenceRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("getLanguagePreference"),
+      params: GetLanguagePreferenceRpcParamsSchema,
+    })
+    .strict(),
+  z
+    .object({
+      jsonrpc: z.literal("2.0"),
+      id: JsonRpcIdSchema,
+      method: z.literal("setLanguagePreference"),
+      params: SetLanguagePreferenceRpcParamsSchema,
     })
     .strict(),
   z
@@ -2352,6 +2391,18 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "setUnitsPreference",
     requestSchema: SetUnitsPreferenceRpcParamsSchema,
     responseSchema: SetUnitsPreferenceRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  getLanguagePreference: {
+    wireName: "getLanguagePreference",
+    requestSchema: GetLanguagePreferenceRpcParamsSchema,
+    responseSchema: GetLanguagePreferenceRpcResultSchema,
+    eventSchema: NoRpcEventSchema,
+  },
+  setLanguagePreference: {
+    wireName: "setLanguagePreference",
+    requestSchema: SetLanguagePreferenceRpcParamsSchema,
+    responseSchema: SetLanguagePreferenceRpcResultSchema,
     eventSchema: NoRpcEventSchema,
   },
   configureTelegram: {

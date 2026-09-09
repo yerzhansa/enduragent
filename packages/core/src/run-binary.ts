@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "./language-preference.js";
 import { serializeError } from "./logging/serialize-error.js";
 import { parseArgs } from "node:util";
 import { createInterface as createReadlineInterface } from "node:readline";
@@ -393,7 +394,9 @@ export async function runBinary(
   const bootStart = Date.now();
   const prepared = (await hooks.prepare?.({ config, sport })) ?? {};
   const { createCoachEngine } = await import("./agent/coach-engine.js");
+  const coachLanguage = createNpmCoachLanguage(config.dataDir);
   const engine = createCoachEngine(sport, config, {
+    language: coachLanguage,
     athleteData: prepared.athleteData,
     calendarMutations: prepared.calendarMutations,
   });
@@ -466,6 +469,7 @@ export async function runBinary(
       webhookPolicy: "delete-before-polling",
       engine,
       host: createNpmTelegramHost({
+        language: coachLanguage,
         binary,
         confirmations: engine.confirmations,
         dataDir: config.dataDir,
@@ -554,7 +558,14 @@ export async function runBinary(
       }
 
       try {
-        const response = await engine.chat({ chatId: "cli", message: input });
+        const { language, source: languageSource } = await coachLanguage.resolveFor({
+          athleteText: input,
+        });
+        const response = await engine.chat({
+          chatId: "cli",
+          message: input,
+          turn: { language, languageSource },
+        });
         console.log("\n" + response.text + "\n");
         await _promptProposalConfirm(rl, engine);
       } catch (err) {

@@ -7,6 +7,7 @@ import type {
   TurnEvent,
 } from "@enduragent/coach-contract";
 import { CoachAgent, type DeferredPlanTurn } from "./agent/coach-agent.js";
+import { describeLanguage } from "@enduragent/i18n";
 import { extractAccountId } from "./agent/codex/jwt.js";
 import type { ChatAttachmentActivitySummary, EngineHostPorts } from "./host-ports.js";
 import type { Sport } from "./sport.js";
@@ -293,29 +294,26 @@ export function createCoachEngine(
           .join("\n\n");
         let decision;
         let planIntakePatch: PlanIntakePatch | undefined;
+        const languageDetectionText = selected.at(-1)?.text ?? "";
         const text = await agent.chat(
           chatId,
           queueText(selected),
-          normalizedAttachmentContext.length === 0 &&
-            attachmentPreparation?.untrustedAttachmentText === undefined &&
-            (attachmentPreparation?.nativeMedia?.length ?? 0) === 0 &&
-            (attachmentPreparation?.attachments?.length ?? 0) === 0
-            ? undefined
-            : {
-                ...(normalizedAttachmentContext.length === 0
-                  ? {}
-                  : { attachmentContext: normalizedAttachmentContext }),
-                ...(attachmentPreparation?.nativeMedia === undefined
-                  ? {}
-                  : { nativeMedia: attachmentPreparation.nativeMedia }),
-                ...(attachmentPreparation?.untrustedAttachmentText === undefined
-                  ? {}
-                  : { untrustedAttachmentText: attachmentPreparation.untrustedAttachmentText }),
-                ...(attachmentPreparation?.attachments === undefined ||
-                attachmentPreparation.attachments.length === 0
-                  ? {}
-                  : { attachments: attachmentPreparation.attachments }),
-              },
+          {
+            languageDetectionText,
+            ...(normalizedAttachmentContext.length === 0
+              ? {}
+              : { attachmentContext: normalizedAttachmentContext }),
+            ...(attachmentPreparation?.nativeMedia === undefined
+              ? {}
+              : { nativeMedia: attachmentPreparation.nativeMedia }),
+            ...(attachmentPreparation?.untrustedAttachmentText === undefined
+              ? {}
+              : { untrustedAttachmentText: attachmentPreparation.untrustedAttachmentText }),
+            ...(attachmentPreparation?.attachments === undefined ||
+            attachmentPreparation.attachments.length === 0
+              ? {}
+              : { attachments: attachmentPreparation.attachments }),
+          },
           (event) => {
             if (event.type === "interrupted") interrupted = true;
             if (retryRun === undefined) onEvent?.(event);
@@ -396,9 +394,19 @@ export function createCoachEngine(
       const text = await agent.chat(
         request.chatId,
         request.message,
-        request.turn as
-          | { resolvedCs?: ResolvedCs | null; referenceProvenance?: SourceProvenance }
-          | undefined,
+        {
+          ...(request.turn as
+            | { resolvedCs?: ResolvedCs | null; referenceProvenance?: SourceProvenance }
+            | undefined),
+          language:
+            request.turn?.language === undefined
+              ? undefined
+              : {
+                  language: request.turn.language,
+                  source: request.turn.languageSource ?? "default",
+                  locale: describeLanguage(request.turn.language).defaultLocale,
+                },
+        },
         onEvent,
         (requested) => {
           decision = requested;

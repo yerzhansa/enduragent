@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import {
   createCoachEngine as createCanonicalCoachEngine,
   type ModelTransportDecorator,
@@ -31,6 +32,7 @@ import { createEngineHostAdapter } from "./engine-host-adapter.js";
 import { legacyStateReader } from "./legacy-athlete-state-reader.js";
 
 export interface LegacyAgentOverrides {
+  readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;
   readonly modelTransportDecorator?: ModelTransportDecorator;

@@ -1,6 +1,8 @@
-import { Bot, InputFile } from "grammy";
+import { languageKeyboard, parseLanguageCallback } from "./telegram-language-menu.js";
+import { Bot, GrammyError, InputFile } from "grammy";
 import { autoRetry } from "@grammyjs/auto-retry";
 import type { CoachEngine } from "@enduragent/coach-contract";
+import { describeLanguage } from "@enduragent/i18n";
 import { classifyAgentError } from "../agent/error-classify.js";
 import { TelegramUpdateOffsetStore } from "./telegram-update-offsets.js";
 import { escapeHtmlText } from "./html-escape.js";
@@ -133,6 +135,7 @@ function buildCommandMenu(
     { command: "workout", description: "Get today's workout" },
     { command: "status", description: "Check current fitness, fatigue, and form" },
     { command: "review", description: "Review your last session" },
+    { command: "language", description: "Choose your language" },
   ];
   if (syncEnabled) {
     menu.push({ command: "sync", description: "Force-refresh training data from intervals.icu" });
@@ -361,6 +364,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   // answers on a live ctx, and threads to the last fragment's message id.
   interface ChatBuffer {
     fragments: string[];
+    athleteText: string;
     scope: TelegramWorkScope;
     reservation: TelegramInvocationReservation;
     reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
@@ -442,6 +446,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     command: string;
     chatId: string;
     message: string;
+    athleteText?: string;
     genericReply: string;
     reservation: TelegramInvocationReservation;
     greetingChatId?: number;
@@ -460,21 +465,15 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
             await ensureGreeting({ chat: { id: opts.greetingChatId }, reply: opts.ctx.reply });
           }
           const request = { chatId: opts.chatId, message: opts.message };
-          const operations = host.operations;
-          const chatResponse = await enqueueEngineStart(
-            opts.chatId,
-            operations === undefined
-              ? () => ({ result: engine.chat(request) })
-              : async () => {
-                  const turn = await operations.resolveTurnContext();
-                  return {
-                    result: engine.chat({
-                      ...request,
-                      ...(turn === undefined ? {} : { turn }),
-                    }),
-                  };
-                },
-          );
+          const chatResponse = await enqueueEngineStart(opts.chatId, async () => {
+            const turn = await host.operations?.resolveTurnContext();
+            const { language, source: languageSource } = await host.language.resolveFor({
+              athleteText: opts.athleteText ?? opts.message,
+            });
+            return {
+              result: engine.chat({ ...request, turn: { ...turn, language, languageSource } }),
+            };
+          });
           return chatResponse.text;
         });
       } catch (err) {
@@ -522,6 +521,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       command: "chat",
       chatId: `telegram:${chatId}`,
       message: buf.fragments.join("\n"),
+      athleteText: buf.athleteText,
       genericReply: "Sorry, something went wrong. Please try again.",
       reservation: buf.reservation,
       greetingChatId: host.invocations === undefined ? undefined : chatId,
@@ -586,6 +586,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     timer.unref?.();
     chatBuffers.set(chatId, {
       fragments,
+      athleteText: text,
       scope: existing?.scope ?? ledger.currentScope(),
       reservation: existing?.reservation ?? reservation,
       reply: (t, o) => ctx.reply(t, o),
@@ -616,6 +617,17 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   });
 
   // ── Commands ────────────────────────────────────────────────────────────
+
+  bot.command("language", async (ctx) => {
+    const current = await host.language.current();
+    const message =
+      current.origin === "environment"
+        ? `Language is set by ENDURAGENT_LANGUAGE to ${describeLanguage(current.resolved.language).endonym}. Choices below are saved but stay inactive until the variable is removed.`
+        : "Choose your language";
+    await ctx.reply(message, {
+      reply_markup: languageKeyboard(current),
+    });
+  });
 
   bot.command("start", async (ctx) => {
     greeted.add(ctx.chat.id);
@@ -851,6 +863,36 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       log.error("command_failed", err, { command: "update", chatId: `telegram:${ctx.chat.id}` });
       await ctx.reply(
         `Update failed. Please run \`npm install -g ${release.binaryName}@${latest ?? "latest"} --ignore-scripts\` manually.`,
+      );
+    }
+  });
+
+  bot.on("callback_query:data", async (ctx, next) => {
+    const data = ctx.callbackQuery.data;
+    if (!data.startsWith("lang:")) {
+      await next();
+      return;
+    }
+    const value = parseLanguageCallback(data);
+    if (value === undefined) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    const state = await host.language.set(value);
+    try {
+      await ctx.editMessageReplyMarkup({ reply_markup: languageKeyboard(state) });
+    } catch (error) {
+      if (
+        !(error instanceof GrammyError) ||
+        !error.description.includes("message is not modified")
+      ) {
+        throw error;
+      }
+    } finally {
+      await ctx.answerCallbackQuery(
+        state.origin === "environment"
+          ? { text: "Saved. ENDURAGENT_LANGUAGE currently wins." }
+          : {},
       );
     }
   });

@@ -3,8 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TurnEvent } from "@enduragent/coach-contract";
+import type { LanguageResolution } from "@enduragent/i18n";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { createCoachEngine } from "../src/index.js";
+import { createCoachDecisionTool } from "../src/agent/coach-decision-tool.js";
+import { getTurnContext } from "../src/agent/turn-context.js";
 import type { EngineHostPorts, ModelTransportRequest } from "../src/host-ports.js";
 import type { AttachmentCapabilitiesPort, ChatAttachmentTurnPort } from "../src/host-ports.js";
 import type { GenerateResult, Sport } from "../src/sport.js";
@@ -53,6 +56,183 @@ function setup(
 }
 
 describe("engine durable chat queue", () => {
+  it("persists the full queued message through a decision continuation", async () => {
+    const requests: ModelTransportRequest[] = [];
+    const { engine, ports } = setup(undefined, async (request) => {
+      requests.push(request);
+      if (requests.length === 1) {
+        if (ports.coachDecisions === undefined) throw new Error("Missing decision store");
+        const decisionTool = createCoachDecisionTool({
+          store: ports.coachDecisions,
+          randomId: ports.randomId,
+          now: () => 0,
+        });
+        if (decisionTool?.execute === undefined) throw new Error("Missing decision tool");
+        await decisionTool.execute(
+          {
+            question: "Choose tomorrow's priority.",
+            options: [
+              {
+                label: "Recovery",
+                description: "Ride easy.",
+                recommended: true,
+                consequence: "Tomorrow becomes a recovery day.",
+              },
+              {
+                label: "Tempo",
+                description: "Keep the planned work.",
+                recommended: false,
+                consequence: "Tomorrow keeps the tempo session.",
+              },
+            ],
+          },
+          {
+            toolCallId: "decision-tool",
+            messages: [],
+            experimental_context: request.options.context,
+          },
+        );
+        return generated("");
+      }
+      return generated("Keep tomorrow easy.");
+    });
+    const resolveFor = vi.spyOn(ports.language, "resolveFor");
+    for (const [submissionId, text] of [
+      ["earlier-message", "How was my ride?"],
+      ["latest-message", "Come recupero domani?"],
+    ] as const) {
+      await engine.enqueueChatMessage!({ chatId: "desktop", submissionId, text });
+    }
+
+    await engine.resumeChatQueue!({ chatId: "desktop" });
+
+    expect(resolveFor).toHaveBeenCalledExactlyOnceWith({
+      chatId: "desktop",
+      athleteText: "Come recupero domani?",
+    });
+    const decision = ports.coachDecisions?.getDecision("desktop");
+    const option = decision?.options[0];
+    if (decision == null || option === undefined) throw new Error("Missing queued decision");
+    expect(
+      getTurnContext({ experimental_context: requests[0]?.options.context })?.athleteText,
+    ).toBe("How was my ride?\n\nCome recupero domani?");
+
+    await expect(
+      engine.answerCoachDecision({
+        chatId: "desktop",
+        decisionId: decision.decisionId,
+        answer: { kind: "option", optionId: option.id },
+      }),
+    ).resolves.toMatchObject({
+      decision: {
+        status: "answered",
+        continuation: { status: "completed", coachText: "Keep tomorrow easy." },
+      },
+    });
+    expect(resolveFor).toHaveBeenLastCalledWith({
+      chatId: "desktop",
+      athleteText: "How was my ride?\n\nCome recupero domani?",
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("waits for the active chat before resolving a queued turn's language", async () => {
+    let markStarted!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const requests: ModelTransportRequest[] = [];
+    const { engine, ports } = setup(undefined, async (request) => {
+      requests.push(request);
+      if (requests.length === 1) {
+        markStarted();
+        await gate;
+      }
+      return generated("Done");
+    });
+    const resolveFor = vi.spyOn(ports.language, "resolveFor");
+    const claim = vi.spyOn(ports.chatStore, "claimChatQueue");
+    let language: LanguageResolution = { language: "it", source: "preference", locale: "it-IT" };
+    resolveFor.mockImplementation(async () => language);
+    const active = engine.chat({
+      chatId: "desktop",
+      message: "Earlier turn",
+      turn: { language: "en", languageSource: "preference" },
+    });
+    await started;
+    await engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "later",
+      text: "Come recupero?",
+    });
+    const queued = engine.resumeChatQueue!({ chatId: "desktop" });
+    try {
+      await vi.waitFor(() => expect(claim).toHaveBeenCalledOnce());
+      expect(resolveFor).not.toHaveBeenCalled();
+      language = { language: "ja", source: "preference", locale: "ja-JP" };
+    } finally {
+      release();
+      await active;
+      await queued;
+    }
+    expect(resolveFor).toHaveBeenCalledExactlyOnceWith({
+      chatId: "desktop",
+      athleteText: "Come recupero?",
+    });
+    expect(requests.at(-1)?.options.system).toContain("The athlete chose Japanese (日本語).");
+  });
+
+  it("resolves the latest queued athlete message at execution and again on retry", async () => {
+    const requests: ModelTransportRequest[] = [];
+    const { engine, ports } = setup(undefined, async (request) => {
+      requests.push(request);
+      if (requests.length === 1) throw new Error("failed turn");
+      return generated("Done");
+    });
+    const resolveFor = vi.spyOn(ports.language, "resolveFor");
+    let language: LanguageResolution = { language: "it", source: "preference", locale: "it-IT" };
+    resolveFor.mockImplementation(async () => language);
+    await engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "earlier-message",
+      text: "How was my ride?",
+    });
+    await engine.enqueueChatMessage!({
+      chatId: "desktop",
+      submissionId: "latest-message",
+      text: "Come recupero domani?",
+    });
+    expect(resolveFor).not.toHaveBeenCalled();
+    await expect(engine.resumeChatQueue!({ chatId: "desktop" })).rejects.toThrow("failed turn");
+    expect(resolveFor).toHaveBeenCalledExactlyOnceWith({
+      chatId: "desktop",
+      athleteText: "Come recupero domani?",
+    });
+    expect(requests[0]?.options.system).toContain("The athlete chose Italian (Italiano).");
+    expect(
+      getTurnContext({ experimental_context: requests[0]?.options.context })?.athleteText,
+    ).toBe("How was my ride?\n\nCome recupero domani?");
+    const failed = await engine.getChatQueue!({ chatId: "desktop" });
+    const claimId = failed.retryRequired?.claimId;
+    expect(claimId).toBeDefined();
+    if (claimId === undefined) throw new Error("Expected a retry claim");
+    language = { language: "ja", source: "preference", locale: "ja-JP" };
+    await engine.retryQueuedTurn!({ chatId: "desktop", claimId });
+    expect(resolveFor).toHaveBeenCalledTimes(2);
+    expect(resolveFor).toHaveBeenLastCalledWith({
+      chatId: "desktop",
+      athleteText: "Come recupero domani?",
+    });
+    expect(requests.at(-1)?.options.system).toContain("The athlete chose Japanese (日本語).");
+    expect(JSON.stringify(requests.at(-1)?.options.messages)).toContain(
+      "How was my ride?\\n\\nCome recupero domani?",
+    );
+  });
+
   it("assigns host-owned Message identities and preserves ordinary attachment references", async () => {
     const { engine } = setup();
     const queued = await engine.enqueueChatMessage!({

@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import {
   AnswerCoachDecisionRpcParamsSchema,
   AnswerCoachDecisionRpcResultSchema,
@@ -32,7 +33,25 @@ import {
 } from "@enduragent/coach-contract";
 import type { CyclingFtpAnchorResolver } from "@enduragent/kernel/anchors";
 
+const trustedLanguageRequests = new WeakSet<object>();
+
+export function withTrustedTurnLanguage(engine: CoachEngine): CoachEngine {
+  return {
+    ...engine,
+    async chat(request, onEvent) {
+      const trustedRequest = { ...request };
+      trustedLanguageRequests.add(trustedRequest);
+      try {
+        return await engine.chat(trustedRequest, onEvent);
+      } finally {
+        trustedLanguageRequests.delete(trustedRequest);
+      }
+    },
+  };
+}
+
 export interface CoachEngineAdapterInput {
+  readonly coachLanguage: CoachLanguage;
   readonly backend: CoachEngine;
   readonly getAthleteState: () => Promise<AthleteState>;
   readonly cyclingFtpAnchorResolver: CyclingFtpAnchorResolver;
@@ -67,11 +86,17 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
         effectiveAtEpochS: callEpochS,
         evaluatedAtEpochS: callEpochS,
       });
+      const language =
+        trustedLanguageRequests.has(request) && parsed.turn?.language !== undefined
+          ? { language: parsed.turn.language, source: parsed.turn.languageSource }
+          : await input.coachLanguage.resolveFor({ athleteText: parsed.message });
       const resolvedRequest = {
         ...parsed,
         turn: {
           ...parsed.turn,
           resolvedCs,
+          language: language.language,
+          languageSource: language.source,
         },
       };
       let firstEventValidationError: unknown | undefined;

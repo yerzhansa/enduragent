@@ -755,23 +755,30 @@ describe("local coach composition", () => {
 
   it("constructs the complete object-shaped engine input from named host owners", async () => {
     const home = await freshHome();
+    const store = openSqliteStorage(":memory:");
+    stores.push(store);
+    await runMigrations(store, MIGRATIONS);
     const selectedRuntime = runtime();
     let received: CreateCoachEngineInput | undefined;
-    const lifecycle = await compose(home, {
-      bootstrap: async () => reference(),
-      createRuntime: () => selectedRuntime,
-      createBackend: (input) => {
-        received = input;
-        return backend();
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => selectedRuntime,
+        createBackend: (input) => {
+          received = input;
+          return backend();
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+        now: () => 1000,
+        randomId: () => "synthetic-id",
       },
-      createRepository: () => ({
-        insertIfAbsent: async () => false,
-        readCurrent: async () => undefined,
-      }),
-      createResolver: () => missingResolver(),
-      now: () => 1000,
-      randomId: () => "synthetic-id",
-    });
+      { ...fakeContext(home), store },
+    );
     expect(received?.sport.id).toBe("cycling");
     expect(Object.keys(received!.ports).sort()).toEqual([
       "attachmentCapabilities",
@@ -782,6 +789,7 @@ describe("local coach composition", () => {
       "config",
       "extractRetryAfterMs",
       "getAccessToken",
+      "language",
       "logger",
       "memory",
       "modelTransportDecorator",
@@ -797,6 +805,16 @@ describe("local coach composition", () => {
       "transcriptWriter",
       "usage",
     ]);
+    await expect(lifecycle.language.set("it")).resolves.toEqual({ value: "it", origin: "stored" });
+    await expect(lifecycle.operations.getLanguagePreference!({})).resolves.toEqual({ value: "it" });
+    await expect(
+      received!.ports.language.resolveFor({ chatId: "desktop", athleteText: "ok" }),
+    ).resolves.toMatchObject({ language: "it", source: "preference" });
+    await lifecycle.operations.setLanguagePreference!({ value: "fr" });
+    await expect(lifecycle.language.current()).resolves.toMatchObject({
+      value: "fr",
+      origin: "stored",
+    });
     expect(received?.ports.platform.legacyClient).toBeNull();
     expect(received?.ports.platform.athleteData).toBe(selectedRuntime.athleteData);
     expect(received?.ports.config).toEqual(engineConfigFromConfig(config(home)));

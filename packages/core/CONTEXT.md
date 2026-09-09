@@ -59,6 +59,12 @@ One user's chat state with one Binary, persisted to disk and locked in-process p
 **Channel**:
 A delivery surface (currently only Telegram); sport-agnostic.
 
+**Language**:
+The athlete's chosen interface and coach-reply language: one of the supported catalogs, or Automatic when none is saved. One value per install, shared by every Channel and the desktop. Avoid: Locale, region, country.
+
+**Locale**:
+The BCP-47 tag that drives date, number, and plural formatting. Comes from the OS or the Channel's region hint, never from Language. Avoid: Language, i18n.
+
 **Static Prefix**:
 The turn-invariant head of the system prompt — SOUL, the joined skill prompts, the rule blocks (untrusted-data, recall, workout-review, data-grounding) — that forms one frozen cache prefix; only the Athlete Context block is volatile and renders last. **Boundary policy:** SOUL and always-needed rules stay preloaded in this prefix. Future skill growth that is not needed every turn (e.g., nutrition depth, race-prep depth) ships tool-retrievable rather than preloaded — but never via per-turn conditional injection, which would reshape the prefix and defeat the cache. A guardrail test fails if the prefix's estimated token count exceeds its ceiling, forcing a conscious preload-vs-retrieve decision instead of silent bloat.
 

@@ -1,3 +1,4 @@
+import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -61,6 +62,7 @@ function installTelegramBotMock() {
       config: { use: vi.fn() },
     },
     use: vi.fn(),
+    callbackQuery: vi.fn(),
     command: vi.fn((name: string, handler: (ctx: unknown) => Promise<void>) => {
       commandHandlers.set(name, handler);
     }),
@@ -115,6 +117,7 @@ async function createTestTelegramBot(
     webhookPolicy,
     engine: agent as never,
     host: createNpmTelegramHost({
+      language: createNpmCoachLanguage(dataDir),
       binary: cyclingBinary,
       confirmations: confirmations as never,
       dataDir,
@@ -140,6 +143,7 @@ describe("createTelegramBot — webhook ownership", () => {
         },
       },
       use: vi.fn(),
+      callbackQuery: vi.fn(),
       command: vi.fn(),
       on: vi.fn(),
       catch: vi.fn(),
@@ -195,6 +199,7 @@ describe("createTelegramBot — webhook ownership", () => {
         },
       },
       use: vi.fn(),
+      callbackQuery: vi.fn(),
       command: vi.fn(),
       on: vi.fn(),
       catch: vi.fn(),
@@ -271,7 +276,9 @@ describe("createTelegramBot — Garmin attribution carriage", () => {
     await commandHandlers.get("status")!(ctx);
     await handle.drainPending();
 
-    expect(agent.chat).toHaveBeenCalledWith({ chatId: "telegram:73", message: "/status" });
+    expect(agent.chat).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: "telegram:73", message: "/status" }),
+    );
     expect(replies).toContain(attributedAnswer);
 
     ctx.message = { text: "resend", message_id: 11 };
@@ -573,6 +580,7 @@ describe("createTelegramBot — startup diagnostic + no security broadcast", () 
     const bot = {
       api: { sendMessage, setMyCommands: vi.fn(async () => true), config: { use: vi.fn() } },
       use,
+      callbackQuery: vi.fn(),
       command,
       on,
       catch: vi.fn(),
@@ -598,6 +606,7 @@ describe("createTelegramBot — startup diagnostic + no security broadcast", () 
       import("../src/channels/npm-telegram-host.js"),
     ]);
     const host = createNpmTelegramHost({
+      language: createNpmCoachLanguage(dataDir),
       binary: cyclingBinary,
       confirmations: agent.confirmations,
       dataDir,
@@ -639,6 +648,7 @@ describe("createTelegramBot — startup diagnostic + no security broadcast", () 
     const bot = {
       api: { sendMessage, setMyCommands: vi.fn(async () => true), config: { use: vi.fn() } },
       use: vi.fn(),
+      callbackQuery: vi.fn(),
       command: vi.fn(),
       on: vi.fn(),
       catch: vi.fn(),

@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import type { ChatRequest } from "@enduragent/coach-contract";
 import type { Context, MiddlewareFn } from "grammy";
 import type { ConfirmOutcome } from "../agent/confirmation-gate.js";
@@ -66,6 +67,7 @@ export type TelegramReleaseCapabilities =
     });
 
 export interface TelegramHostCapabilities {
+  readonly language: CoachLanguage;
   readonly access: TelegramAccessCapabilities;
   readonly confirmations: TelegramConfirmationCapabilities;
   readonly invocations?: TelegramInvocationCapabilities;

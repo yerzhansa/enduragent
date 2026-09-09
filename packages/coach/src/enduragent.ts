@@ -2172,6 +2172,7 @@ async function runServeInvocation(input: {
   readonly invocationOwner: DaemonOwner;
   readonly starterCapability?: string;
   readonly runInput: RunEnduragentInput;
+  readonly preferredLanguages?: readonly string[];
   readonly home: AthleteHome;
   readonly appVersion: string;
   readonly dependencies: EnduragentDependencies;
@@ -2200,6 +2201,9 @@ async function runServeInvocation(input: {
         env: input.runInput.env,
         home: input.home,
         deferInitialRefresh: true,
+        ...(input.preferredLanguages === undefined
+          ? {}
+          : { preferredLanguages: input.preferredLanguages }),
         operation: async (lifecycle) =>
           successor === undefined
             ? runCoachServe({
@@ -2289,6 +2293,7 @@ async function runServeInvocation(input: {
 }
 
 export interface RunAppSupervisedEnduragentInput {
+  readonly preferredLanguages?: readonly string[];
   readonly env: Record<string, string | undefined>;
   readonly terminal: CoachCliTerminal;
   readonly signal: AbortSignal;
@@ -2364,6 +2369,9 @@ export async function runAppSupervisedEnduragent(
     let readinessFailure: ReadinessFailureStatus | undefined;
     const exitCode = await runServeInvocation({
       invocationOwner: "app-supervised",
+      ...(input.preferredLanguages === undefined
+        ? {}
+        : { preferredLanguages: input.preferredLanguages }),
       ...(input.handoffCapability === undefined
         ? {}
         : { starterCapability: input.handoffCapability }),

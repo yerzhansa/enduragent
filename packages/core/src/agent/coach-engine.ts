@@ -1,3 +1,4 @@
+import type { CoachLanguage } from "@enduragent/i18n";
 import type { Config } from "../config.js";
 import type { Sport } from "../sport.js";
 import type { Memory } from "../memory/store.js";
@@ -19,6 +20,7 @@ export interface LocalCoachEngine extends CoachEngine {
 }
 
 export interface LegacyEngineOverrides {
+  readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;
   readonly modelTransportDecorator?: ModelTransportDecorator;
