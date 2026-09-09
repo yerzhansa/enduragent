@@ -1,19 +1,13 @@
-## preferences
-_updated: 1998-07-06
-- Prefers recovery spins from the park side of town because the route has fewer junctions and makes genuinely easy effort easier to maintain (athlete/coach, 1998-07-06)
-- Easy/recovery rides should remain protected when the schedule gets busy, using relaxed, conversational breathing as the key effort cue (athlete/coach, 1998-07-06)
-- On rolling endurance rides, prefers steady climbing without surges, guided by conversational breathing and comfortable cadence (athlete/coach, 1998-07-06)
-- Bike comfort is prioritized as weekly volume rises; monitor hands and shoulders after prolonged time in a lower position (athlete/coach, 1998-07-06)
-
 ## notes
 _updated: 1998-07-06
-- For rides over two hours: target one bottle per hour and a bite of food every 30 minutes; eat a slightly larger breakfast before routes with sustained climbing (athlete/coach, 1998-07-06)
-- Practice the fueling routine first on easy rides so eating on the bike is familiar before longer weekend rides (athlete/coach, 1998-07-06)
-- In headwinds on exposed stretches, use a lower position on the bars and move snacks earlier to stabilize energy through the final hour (athlete/coach, 1998-07-06)
-- If second-day leg heaviness persists beyond the first 30 minutes, shorten that ride rather than pushing through accumulating fatigue (athlete/coach, 1998-07-06)
+- On rolling terrain, hold a steady endurance effort on climbs rather than surging; use conversational breathing and comfortable cadence through the middle hours (coach, 1998-07-06).
+- In exposed headwinds, tuck lower on the bars; monitor hand and shoulder comfort during longer low-position stints as weekly volume rises (coach, 1998-07-06).
+- For rides over two hours: target one bottle per hour and a bite of food every 30 minutes; eat a slightly larger breakfast when sustained climbing is planned. Practice the routine on easy rides before longer weekends (coach, 1998-07-06).
+- Move snacks earlier on windy rides to stabilize energy through the final hour (coach, 1998-07-06).
+- Recovery spins should start from the park side of town because that route has fewer junctions and supports genuinely easy effort; protect easy days even when busy, using relaxed breathing as the key cue (coach, 1998-07-06).
 
 ## cycling-history
 _updated: 1998-07-06
-- On the second day of back-to-back rides, mild leg heaviness has cleared after about 20 minutes of easy spinning; this is currently considered a normal build-phase response and does not require a plan adjustment (athlete/coach, 1998-07-06)
-- A final riser once felt harder than usual after a long day on the feet and into a headwind; this was attributed to situational fatigue and conditions, not declining fitness (athlete/coach, 1998-07-06)
-- Relaxed breathing was maintained throughout the lower-junction park-side recovery route, confirming it supports genuinely easy riding (athlete, 1998-07-06)
+- On the second day of back-to-back rides, mild leg heaviness has cleared after about 20 minutes of easy spinning, considered a normal response at this stage of the build (athlete, 1998-07-06).
+- Current recovery rule: if second-day leg heaviness persists beyond the first 30 minutes, shorten the ride rather than push through (coach, 1998-07-06).
+- A final riser recently felt harder than usual after a long day on the feet and into a headwind; this was attributed to situational fatigue and conditions, not declining fitness (athlete, 1998-07-06).
