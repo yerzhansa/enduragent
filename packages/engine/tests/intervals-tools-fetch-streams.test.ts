@@ -259,7 +259,8 @@ describe("intervals_fetch_streams", () => {
     expect(description).toMatch(/legacy or canonical ID/i);
     expect(description).toContain("Store-backed reads accept up to 16 unique public channels");
     expect(description).toContain("platform-backed");
-    expect(description).toContain("not timestamp-aligned");
+    expect(description).toContain("plus the sample count; no per-second data");
+    expect(description).not.toMatch(/\bbins?\b/);
     expect(description).toContain("Use only minimum, maximum, and mean as descriptive recorded observations.");
     expect(description).toContain("cannot establish session quality");
     expect(description).toContain("quartile trends, decoupling");

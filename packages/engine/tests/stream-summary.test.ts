@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AthleteDataReaderPort, AthleteReadResult } from "../src/host-ports.js";
-import {
-  downsampleStreams,
-  STREAM_BIN_SECONDS,
-  STREAM_RESULT_TARGET_TOKENS,
-} from "../src/sport/stream-downsample.js";
-import { estimateTokens } from "../src/agent/token-utils.js";
+import { summarizeStreams } from "../src/sport/stream-summary.js";
 import { createPureCoreIntervalsTools } from "../src/sport/platform-tools.js";
 
 type AnyResult = { ok: true; value: unknown } | { ok: false; error: unknown };
@@ -34,29 +29,31 @@ function makeFakeReader(result: AnyResult): AthleteDataReaderPort {
   };
 }
 
-describe("downsampleStreams", () => {
-  it("constants pin the configured values", () => {
-    expect(STREAM_BIN_SECONDS).toBe(10);
-    expect(STREAM_RESULT_TARGET_TOKENS).toBe(7000);
+const threeHourRide = () => ({
+  watts: Array(10800).fill(250),
+  heartrate: Array(10800).fill(150),
+  cadence: Array(10800).fill(90),
+  time: Array.from({ length: 10800 }, (_, i) => i),
+  altitude: Array(10800).fill(500),
+});
+
+describe("summarizeStreams", () => {
+  it("reports min, max, mean and the sample count for a channel", () => {
+    const out = summarizeStreams({ watts: [100, 200, 300, 400] });
+    expect(out.channels.watts).toEqual({ min: 100, max: 400, mean: 250 });
+    expect(out.sampleCount).toBe(4);
   });
 
-  it("bin reduction shrinks the per-channel series", () => {
-    const watts = Array(600).fill(200);
-    const out = downsampleStreams({ watts });
-    expect(out.bins).toBe(60);
-    expect(out.channels.watts.samples).toHaveLength(60);
-    expect(out.sampleCount).toBe(600);
-  });
-
-  it("the stats header preserves true peaks over the full channel", () => {
+  it("preserves true peaks over the full channel", () => {
     const watts = [...Array(599).fill(100), 900];
-    const out = downsampleStreams({ watts });
+    const out = summarizeStreams({ watts });
     expect(out.channels.watts.max).toBe(900);
-    expect(out.channels.watts.samples.every((v) => v < 900)).toBe(true);
+    expect(out.channels.watts.min).toBe(100);
+    expect(out.channels.watts.mean).toBe(101.3);
   });
 
   it("missing or non-array channels do not throw (manual-entry activity)", () => {
-    const out = downsampleStreams({
+    const out = summarizeStreams({
       heartrate: [120, 121, 122],
       watts: undefined as unknown as number[],
       cadence: "nope" as unknown as number[],
@@ -66,63 +63,57 @@ describe("downsampleStreams", () => {
     expect(out.channels.cadence).toBeUndefined();
   });
 
-  it("a channel survives null gaps without NaN (dropped sensor packets)", () => {
-    const out = downsampleStreams({
-      watts: [100, null as unknown as number, 102],
+  it("a channel with a null gap reports the mean over present samples only", () => {
+    const out = summarizeStreams({
+      watts: [100, null as unknown as number, 104],
     });
-    expect(out.channels.watts).toBeDefined();
-    expect(out.channels.watts.min).toBe(100);
-    expect(out.channels.watts.max).toBe(102);
-    expect(Number.isNaN(out.channels.watts.mean)).toBe(false);
-    expect(out.channels.watts.samples.every((v) => Number.isFinite(v))).toBe(true);
+    expect(out.channels.watts).toEqual({ min: 100, max: 104, mean: 102 });
+    expect(out.sampleCount).toBe(3);
+  });
+
+  it("an all-null channel is dropped instead of producing NaN", () => {
+    const out = summarizeStreams({ watts: [null, null] as unknown as number[] });
+    expect(out.channels.watts).toBeUndefined();
+    expect(out.sampleCount).toBe(0);
   });
 
   it("accepts the live array-of-channel shape from the streams endpoint", () => {
-    const out = downsampleStreams([
+    const out = summarizeStreams([
       { type: "watts", data: Array(600).fill(200) },
       { type: "heartrate", data: Array(600).fill(150) },
     ]);
-    expect(out.channels.watts).toBeDefined();
-    expect(out.channels.heartrate).toBeDefined();
-    expect(out.channels.watts.samples).toHaveLength(60);
+    expect(out.channels.watts).toEqual({ min: 200, max: 200, mean: 200 });
+    expect(out.channels.heartrate).toEqual({ min: 150, max: 150, mean: 150 });
     expect(out.sampleCount).toBe(600);
   });
 
-  it("a 3 h-ride payload fits the per-result target after shaping (fits)", () => {
-    const big = {
-      watts: Array(10800).fill(250),
-      heartrate: Array(10800).fill(150),
-      cadence: Array(10800).fill(90),
-      time: Array.from({ length: 10800 }, (_, i) => i),
-      altitude: Array(10800).fill(500),
-    };
-    expect(estimateTokens(JSON.stringify(big))).toBeGreaterThan(STREAM_RESULT_TARGET_TOKENS);
-    expect(estimateTokens(JSON.stringify(downsampleStreams(big)))).toBeLessThanOrEqual(
-      STREAM_RESULT_TARGET_TOKENS,
-    );
+  it("a 3 h five-channel ride serializes to well under 1,000 characters", () => {
+    const serialized = JSON.stringify(summarizeStreams(threeHourRide()));
+    expect(serialized.length).toBeLessThan(1_000);
+    expect(serialized).not.toContain("samples");
+    expect(serialized).not.toContain("bins");
   });
 
-  it("the shaped streams tool returns the downsampled object, not the raw value (shaped tool)", async () => {
-    const big = {
-      watts: Array(10800).fill(250),
-      heartrate: Array(10800).fill(150),
-      cadence: Array(10800).fill(90),
-      time: Array.from({ length: 10800 }, (_, i) => i),
-      altitude: Array(10800).fill(500),
-    };
-    const reader = makeFakeReader({ ok: true, value: big });
+  it("the streams tool returns the summary, not the raw value", async () => {
+    const reader = makeFakeReader({ ok: true, value: threeHourRide() });
     const tools = createPureCoreIntervalsTools(null, "UTC", reader);
     const out = (await tools.intervals_fetch_streams!.execute!(
       { activityId: 12345 },
       {} as never,
-    )) as { bins: number; sampleCount: number; channels: Record<string, unknown> };
-    expect(out.bins).toBeGreaterThan(0);
-    expect(out.sampleCount).toBe(10800);
-    expect(out.channels.watts).toBeDefined();
-    expect(Array.isArray((out as { watts?: unknown }).watts)).toBe(false);
+    )) as Record<string, unknown>;
+    expect(out).toEqual({
+      sampleCount: 10800,
+      channels: {
+        watts: { min: 250, max: 250, mean: 250 },
+        heartrate: { min: 150, max: 150, mean: 150 },
+        cadence: { min: 90, max: 90, mean: 90 },
+        time: { min: 0, max: 10799, mean: 5399.5 },
+        altitude: { min: 500, max: 500, mean: 500 },
+      },
+    });
   });
 
-  it("shaped tool downsamples the live array-of-channel payload", async () => {
+  it("the streams tool summarizes the live array-of-channel payload", async () => {
     const live = [
       { type: "watts", data: Array(10800).fill(250) },
       { type: "heartrate", data: Array(10800).fill(150) },
@@ -132,11 +123,10 @@ describe("downsampleStreams", () => {
     const out = (await tools.intervals_fetch_streams!.execute!(
       { activityId: 12345 },
       {} as never,
-    )) as { bins: number; sampleCount: number; channels: Record<string, unknown> };
+    )) as { sampleCount: number; channels: Record<string, unknown> };
     expect(out.sampleCount).toBe(10800);
-    expect(out.bins).toBeGreaterThan(0);
-    expect(out.channels.watts).toBeDefined();
-    expect(out.channels.heartrate).toBeDefined();
+    expect(Object.keys(out.channels)).toEqual(["watts", "heartrate"]);
+    expect(out).not.toHaveProperty("bins");
   });
 
   it("typed error object on the streams failure path", async () => {

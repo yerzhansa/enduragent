@@ -2,7 +2,7 @@ import { tool, zodSchema } from "ai";
 import { z } from "zod";
 import type { ApiError, IntervalsClient } from "intervals-icu-api";
 import type { IntervalsActivityType } from "../sport.js";
-import { downsampleStreams } from "./stream-downsample.js";
+import { summarizeStreams } from "./stream-summary.js";
 import { projectActivity, projectWellness } from "./list-projection.js";
 import {
   guardDeletableEvent,
@@ -165,14 +165,14 @@ export function createPureCoreIntervalsTools(
               "Fetch time-series channels for an activity by legacy or canonical ID. " +
               "Store-backed reads accept up to 16 unique public channels; platform-backed " +
               "reads also accept provider-specific channels such as smooth_grade. " +
-              "Returns per-channel min/max/mean over the full series plus ten-sample-average " +
-              "bins that are not timestamp-aligned across channels; do not use them for pacing, " +
+              "Returns only per-channel min/max/mean over the full series plus the sample count; " +
+              "no per-second data; do not use it for pacing, " +
               "duration-based best efforts, quartile trends, decoupling, " +
               "HR recovery, fade patterns, or indoor/outdoor comparisons. " +
               "Use only minimum, maximum, and mean as descriptive recorded observations. " +
               "They alone cannot establish session quality, recovery, or readiness, " +
               "or justify changing the next session. " +
-              "Expensive (~10,800 samples per type for a 3-hour ride): call it only for Tier C " +
+              "Expensive to fetch (~10,800 samples per type for a 3-hour ride): call it only for Tier C " +
               "deep reviews the athlete explicitly requests. For Tier A/B use " +
               "`intervals_fetch_activities` and `intervals_fetch_activity`. " +
               "Default types: watts, heartrate, cadence, time, altitude.",
@@ -199,7 +199,7 @@ export function createPureCoreIntervalsTools(
                   keys: types,
                 });
                 if (!result.ok) return readResult(result);
-                const value = downsampleStreams(
+                const value = summarizeStreams(
                   result.value as Record<string, unknown> | unknown[],
                 );
                 return result.freshness === undefined
