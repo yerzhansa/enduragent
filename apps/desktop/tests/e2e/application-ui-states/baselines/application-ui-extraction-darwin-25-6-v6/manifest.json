@@ -3,12 +3,12 @@
   "version": "application-ui-extraction-darwin-25-6-v6",
   "reviewedBy": "Claude Fable 5.1",
   "review": "native-application-regression-reference",
-  "reviewNote": "Inspected the four settings-preferences captures from CI run 34313146223 on feature/language-settings-row: a Language row (Automatic + 17 endonyms) now sits above Units in Preferences, matching the reviewed prototype. The other 16 captures are retained from darwin-25-6-v5. The captures record current rendering and do not approve feature behaviour.",
+  "reviewNote": "Inspected the four settings-preferences captures from CI run 34313146223 on feature/language-settings-row: a Language row (Automatic + 17 endonyms) now sits above Units in Preferences, matching the reviewed prototype. The other 16 captures are retained from darwin-25-6-v5. The captures record current rendering and do not approve feature behaviour. Verified green by CI run 34314196620.",
   "coverage": {
     "projects": 4,
     "scenarios": 5,
     "screenshots": 20,
-    "executions": 1,
+    "executions": 2,
     "structuralNegativeControls": 0
   },
   "sourceRevision": {
