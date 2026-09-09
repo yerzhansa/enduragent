@@ -1,3 +1,6 @@
+import type { Message } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type {
   CompletedActivityWeek,
   TrainingHistoryComputed,
@@ -8,7 +11,6 @@ import type {
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactElement,
@@ -24,8 +26,7 @@ import {
   SectionHeading,
   NoticeRow,
 } from "@enduragent/ui";
-import { formatCivilDate } from "../../lib/date";
-import { rideImportStatusCopy } from "../../ride-import";
+import { rideFileCountMessage, rideImportStatusMessage } from "../../ride-import";
 import { rideImportStatusSuppressed } from "../../state/onboarding-slice";
 import { useEnduragentStore } from "../../state/store";
 import {
@@ -52,7 +53,7 @@ function selectedWeek(history: TrainingHistoryComputed, period: Period): Complet
     : history.anchorWeek;
 }
 
-function periodLabel(history: TrainingHistoryComputed, period: Period, retained: boolean): string {
+function periodLabel(history: TrainingHistoryComputed, period: Period, retained: boolean): Message {
   if (period === "previous") return TRAINING_HISTORY_COPY.previous;
   return retained || history.displayMode === "last-recorded"
     ? TRAINING_HISTORY_COPY.lastRecorded
@@ -69,7 +70,7 @@ function dataWarning(
   panel: TrainingHistoryPanel,
   history: TrainingHistoryComputed,
   week: CompletedActivityWeek,
-): string | null {
+): Message | null {
   if (panel.kind === "stale") return TRAINING_HISTORY_COPY.refreshFailure;
   if (history.coverage.kind === "sparse") return TRAINING_HISTORY_COPY.sparse;
   if (history.displayMode === "last-recorded") {
@@ -87,33 +88,60 @@ function metricCopy(
   metric: WeekMetric,
   format: (value: number) => string,
   ridesExist: boolean,
+  say: Phrasebook["say"],
 ): string {
-  if (metric.kind === "unavailable") return ridesExist ? "Not recorded" : "Unavailable";
+  if (metric.kind === "unavailable")
+    return say(ridesExist ? "training.view.notRecorded" : "training.view.unavailable");
   const value = format(metric.value);
-  return metric.kind === "partial" ? `At least ${value}` : value;
+  return metric.kind === "partial" ? say("training.view.partialValue", { value }) : value;
 }
 
-function rideCountCopy(value: number): string {
-  return `${formatWholeNumber(value)} ${value === 1 ? "ride" : "rides"}`;
+function rideCountCopy(value: number, { say, format }: Phrasebook): string {
+  return say("training.view.rideCount", { count: value, number: formatWholeNumber(value, format) });
 }
 
-function weekRangeLabel(week: CompletedActivityWeek): string {
+function formatCivilDate(
+  value: string,
+  { say, format }: Phrasebook,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/u.test(value) ||
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+  )
+    return say("chat.date.unknown");
+  return format.date(date, {
+    dateStyle: options === undefined ? "medium" : undefined,
+    ...options,
+    timeZone: "UTC",
+  });
+}
+
+function weekRangeLabel(week: CompletedActivityWeek, phrasebook: Phrasebook): string {
   const year =
     week.window.start.slice(0, 4) === week.window.end.slice(0, 4) ? undefined : "numeric";
-  const startMonth = formatCivilDate(week.window.start, { month: "short" });
-  const endMonth = formatCivilDate(week.window.end, { month: "short" });
-  const start = formatCivilDate(week.window.start, { day: "numeric", month: "short", year });
+  const startMonth = formatCivilDate(week.window.start, phrasebook, { month: "short" });
+  const endMonth = formatCivilDate(week.window.end, phrasebook, { month: "short" });
+  const start = formatCivilDate(week.window.start, phrasebook, {
+    day: "numeric",
+    month: "short",
+    year,
+  });
   const end = formatCivilDate(
     week.window.end,
+    phrasebook,
     startMonth === endMonth ? { day: "numeric", year } : { day: "numeric", month: "short", year },
   );
-  return `${start}–${end}`;
+  return phrasebook.say("training.view.weekRange", { start, end });
 }
 
 function noticeCoverage(
   panel: TrainingHistoryPanel,
   history: TrainingHistoryComputed,
   week: CompletedActivityWeek,
+  phrasebook: Phrasebook,
 ): string | null {
   const through =
     week.coverage.kind === "incomplete"
@@ -121,36 +149,52 @@ function noticeCoverage(
       : panel.kind === "stale" || history.displayMode === "last-recorded"
         ? coverageDate(history)
         : null;
-  return through === null ? null : `${TRAINING_HISTORY_COPY.coverage} ${formatCivilDate(through)}`;
+  return through === null
+    ? null
+    : phrasebook.say("training.view.recordedThrough", {
+        date: formatCivilDate(through, phrasebook),
+      });
 }
 
 function Trend(props: { readonly week: CompletedActivityWeek }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const trend = props.week.trend;
   return (
     <CompactTrend
-      title={TRAINING_HISTORY_COPY.trendLabel}
-      period={TRAINING_HISTORY_COPY.trendPeriod}
+      title={say(TRAINING_HISTORY_COPY.trendLabel)}
+      period={say(TRAINING_HISTORY_COPY.trendPeriod)}
       content={
         trend.kind === "unavailable"
           ? {
               kind: "unavailable",
-              message: TRAINING_HISTORY_COPY.trendUnavailable,
+              message: say(TRAINING_HISTORY_COPY.trendUnavailable),
               reason: {
-                "limited-history": TRAINING_HISTORY_COPY.limitedHistory,
-                "incomplete-source": TRAINING_HISTORY_COPY.incompleteTrend,
-                "missing-duration": TRAINING_HISTORY_COPY.missingDuration,
+                "limited-history": say(TRAINING_HISTORY_COPY.limitedHistory),
+                "incomplete-source": say(TRAINING_HISTORY_COPY.incompleteTrend),
+                "missing-duration": say(TRAINING_HISTORY_COPY.missingDuration),
               }[trend.reason],
             }
           : {
               kind: "ready",
-              headings: ["Week", "Rides", "Riding time"],
+              headings: [
+                say("training.view.week"),
+                say("training.view.rides"),
+                say("training.view.ridingTime"),
+              ],
               buckets: trend.buckets.map((bucket) => ({
                 id: bucket.window.start,
                 value: bucket.ridingSeconds,
-                label: formatCivilDate(bucket.window.start, { day: "numeric", month: "numeric" }),
-                range: `${formatCivilDate(bucket.window.start)} to ${formatCivilDate(bucket.window.end)}`,
-                count: rideCountCopy(bucket.rideCount),
-                formattedValue: formatRidingDuration(bucket.ridingSeconds),
+                label: formatCivilDate(bucket.window.start, phrasebook, {
+                  day: "numeric",
+                  month: "numeric",
+                }),
+                range: say("training.view.trendRange", {
+                  start: formatCivilDate(bucket.window.start, phrasebook),
+                  end: formatCivilDate(bucket.window.end, phrasebook),
+                }),
+                count: rideCountCopy(bucket.rideCount, phrasebook),
+                formattedValue: say(formatRidingDuration(bucket.ridingSeconds, format)),
               })),
             }
       }
@@ -165,35 +209,68 @@ function WeeklySummary(props: {
   readonly week: CompletedActivityWeek;
   readonly units: UnitsPreference;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const ridesExist = props.week.rides.items.length > 0 || props.week.rides.count.value > 0;
   const label = periodLabel(props.history, props.period, props.retained);
   return (
     <WeeklySummaryPresentation
       data-panel="weekly-summary"
-      label={label}
-      ridingTime={metricCopy(props.week.totals.ridingSeconds, formatRidingDuration, ridesExist)}
-      rideCount={metricCopy(props.week.totals.rideCount, rideCountCopy, ridesExist)}
+      label={say(label)}
+      ridingTime={metricCopy(
+        props.week.totals.ridingSeconds,
+        (value) => say(formatRidingDuration(value, format)),
+        ridesExist,
+        say,
+      )}
+      rideCount={metricCopy(
+        props.week.totals.rideCount,
+        (value) => rideCountCopy(value, phrasebook),
+        ridesExist,
+        say,
+      )}
       distance={metricCopy(
         props.week.totals.distanceMeters,
-        (value) => formatDistance(value, props.units),
+        (value) => say(formatDistance(value, props.units, format)),
         ridesExist,
+        say,
       )}
-      load={`Load ${metricCopy(props.week.totals.load, formatWholeNumber, ridesExist)}`}
+      load={say("training.view.load", {
+        value: metricCopy(
+          props.week.totals.load,
+          (value) => formatWholeNumber(value, format),
+          ridesExist,
+          say,
+        ),
+      })}
       trend={<Trend week={props.week} />}
     />
   );
 }
 
-function calloutReason(week: CompletedActivityWeek, rideId: string): string | null {
+function calloutReason(
+  week: CompletedActivityWeek,
+  rideId: string,
+  phrasebook: Phrasebook,
+): string | null {
   const callout = week.callout;
   if (callout === null || callout.rideId !== rideId) return null;
-  return `Longest recorded ride in the 28 days ending ${formatCivilDate(callout.window.end)}`;
+  return phrasebook.say("training.view.longestRide", {
+    date: formatCivilDate(callout.window.end, phrasebook),
+  });
 }
 
-function historyRideMeta(ride: TrainingHistoryRide, units: UnitsPreference): string {
-  if (ride.distanceMeters === null) return trainingRideDateTime(ride);
-  const kind = trainingRideKind(ride).replace(/ ride$/u, "");
-  return `${kind} · ${formatDistance(ride.distanceMeters, units)}`;
+function historyRideMeta(
+  ride: TrainingHistoryRide,
+  units: UnitsPreference,
+  phrasebook: Phrasebook,
+): string {
+  if (ride.distanceMeters === null) return trainingRideDateTime(ride, phrasebook);
+  const kind = phrasebook.say(trainingRideKind(ride, true));
+  return phrasebook.say("training.view.rideMeta", {
+    kind,
+    distance: phrasebook.say(formatDistance(ride.distanceMeters, units, phrasebook.format)),
+  });
 }
 
 function RideRow(props: {
@@ -203,23 +280,35 @@ function RideRow(props: {
   readonly onOpen: () => void;
   readonly register: (node: HTMLButtonElement | null) => void;
 }): ReactElement {
-  const title = props.ride.title ?? trainingRideKind(props.ride);
-  const dateTime = trainingRideDateTime(props.ride);
-  const weekday = formatCivilDate(props.ride.localDate, { weekday: "short" });
-  const day = formatCivilDate(props.ride.localDate, { day: "numeric" });
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const title = props.ride.title ?? say(trainingRideKind(props.ride));
+  const dateTime = trainingRideDateTime(props.ride, phrasebook);
+  const weekday = formatCivilDate(props.ride.localDate, phrasebook, { weekday: "short" });
+  const day = formatCivilDate(props.ride.localDate, phrasebook, { day: "numeric" });
   return (
     <SelectableRideRow
       ref={props.register}
-      aria-label={`Open ride review: ${title}, ${dateTime}`}
+      aria-label={say("training.view.openRide", { title, dateTime })}
       onClick={props.onOpen}
       date={{ iso: props.ride.localDate, weekday, day }}
       title={title}
-      meta={historyRideMeta(props.ride, props.units)}
+      meta={historyRideMeta(props.ride, props.units, phrasebook)}
       duration={
-        props.ride.ridingSeconds === null ? null : formatRidingDuration(props.ride.ridingSeconds)
+        props.ride.ridingSeconds === null
+          ? null
+          : say(formatRidingDuration(props.ride.ridingSeconds, format))
       }
-      load={props.ride.load === null ? null : `Load ${formatWholeNumber(props.ride.load)}`}
-      callout={props.reason === null ? undefined : { label: "Worth a look", reason: props.reason }}
+      load={
+        props.ride.load === null
+          ? null
+          : say("training.view.load", { value: formatWholeNumber(props.ride.load, format) })
+      }
+      callout={
+        props.reason === null
+          ? undefined
+          : { label: say("training.view.callout"), reason: props.reason }
+      }
     />
   );
 }
@@ -228,7 +317,7 @@ function emptyRidesCopy(
   history: TrainingHistoryComputed,
   retained: boolean,
   period: Period,
-): string {
+): Message {
   if (period === "previous") return TRAINING_HISTORY_COPY.previousEmpty;
   return retained || history.displayMode === "last-recorded"
     ? TRAINING_HISTORY_COPY.lastRecordedEmpty
@@ -245,6 +334,8 @@ function RecentRides(props: {
   readonly onPreviousWeek: () => void;
   readonly registerButton: (id: string, node: HTMLButtonElement | null) => void;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const heading = props.retained
     ? TRAINING_HISTORY_COPY.recordedRides
     : props.history.coverage.kind === "incomplete"
@@ -253,8 +344,14 @@ function RecentRides(props: {
   const truncation =
     props.week.rides.truncated && props.week.rides.items.length > 0
       ? props.week.rides.count.kind === "at-least"
-        ? `Showing ${props.week.rides.items.length} of at least ${props.week.rides.count.value} recorded rides.`
-        : `Showing ${props.week.rides.items.length} of ${props.week.rides.count.value} recorded rides.`
+        ? say("training.view.truncatedMinimum", {
+            shown: formatWholeNumber(props.week.rides.items.length, format),
+            total: formatWholeNumber(props.week.rides.count.value, format),
+          })
+        : say("training.view.truncated", {
+            shown: formatWholeNumber(props.week.rides.items.length, format),
+            total: formatWholeNumber(props.week.rides.count.value, format),
+          })
       : null;
   return (
     <section
@@ -264,12 +361,12 @@ function RecentRides(props: {
     >
       <SectionHeading
         headingId="recent-rides-title"
-        title={heading}
-        meta={props.week.rides.items.length === 0 ? null : TRAINING_HISTORY_COPY.newestFirst}
+        title={say(heading)}
+        meta={props.week.rides.items.length === 0 ? null : say(TRAINING_HISTORY_COPY.newestFirst)}
       />
       {props.week.rides.items.length === 0 ? (
         <p className={styles.historyEmpty}>
-          {emptyRidesCopy(props.history, props.retained, props.period)}
+          {say(emptyRidesCopy(props.history, props.retained, props.period))}
         </p>
       ) : (
         <ol className={styles.historyRideList}>
@@ -277,7 +374,7 @@ function RecentRides(props: {
             <RideRow
               key={ride.id}
               ride={ride}
-              reason={calloutReason(props.week, ride.id)}
+              reason={calloutReason(props.week, ride.id, phrasebook)}
               units={props.units}
               onOpen={() => props.onOpen(ride)}
               register={(node) => props.registerButton(ride.id, node)}
@@ -295,7 +392,7 @@ function RecentRides(props: {
             data-parity="rides-previous-week"
             onClick={props.onPreviousWeek}
           >
-            {TRAINING_HISTORY_COPY.previous}
+            {say(TRAINING_HISTORY_COPY.previous)}
           </Button>
         </div>
       )}
@@ -310,11 +407,13 @@ function PeriodNavigation(props: {
   readonly currentButtonRef: Ref<HTMLButtonElement>;
   readonly onChange: (period: Period) => void;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   return (
-    <div className={styles.periodGroup} role="group" aria-label="Completed riding period">
+    <div className={styles.periodGroup} role="group" aria-label={say("training.view.period")}>
       {props.retained ? (
         <Button type="button" variant="outline" size="xs" className={styles.periodButton} disabled>
-          {TRAINING_HISTORY_COPY.lastRecorded}
+          {say(TRAINING_HISTORY_COPY.lastRecorded)}
         </Button>
       ) : (
         <>
@@ -323,7 +422,7 @@ function PeriodNavigation(props: {
             variant="outline"
             size="icon-xs"
             className={styles.periodButton}
-            aria-label={TRAINING_HISTORY_COPY.previous}
+            aria-label={say(TRAINING_HISTORY_COPY.previous)}
             disabled={props.period === "previous" || props.history.previousWeek === null}
             onClick={() => props.onChange("previous")}
           >
@@ -338,14 +437,14 @@ function PeriodNavigation(props: {
             aria-pressed={props.period === "anchor"}
             onClick={() => props.onChange("anchor")}
           >
-            {periodLabel(props.history, "anchor", props.retained)}
+            {say(periodLabel(props.history, "anchor", props.retained))}
           </Button>
           <Button
             type="button"
             variant="outline"
             size="icon-xs"
             className={styles.periodButton}
-            aria-label={TRAINING_HISTORY_COPY.next}
+            aria-label={say(TRAINING_HISTORY_COPY.next)}
             disabled={props.period === "anchor"}
             onClick={() => props.onChange("anchor")}
           >
@@ -369,6 +468,8 @@ function DataNotice(props: {
 }
 
 function RideImportAction(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   const state = useEnduragentStore((store) => store.rideImport);
   const actions = useEnduragentStore((store) => store.rideImportActions);
   return (
@@ -377,8 +478,8 @@ function RideImportAction(): ReactElement {
       variant="outline"
       size="icon-xs"
       className={styles.periodButton}
-      aria-label="Import ride files"
-      title="Import ride files"
+      aria-label={say("training.view.import")}
+      title={say("training.view.import")}
       disabled={actions === null || state.status === "running"}
       aria-describedby={state.status === "idle" ? undefined : "ride-import-status"}
       onClick={() => actions?.choose()}
@@ -389,24 +490,45 @@ function RideImportAction(): ReactElement {
 }
 
 function RideImportStatus(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const state = useEnduragentStore((store) => store.rideImport);
   const suppressed = useEnduragentStore(rideImportStatusSuppressed);
   const active = state.status !== "idle" && !suppressed;
   const visible = active && (state.status !== "running" || state.stage !== "choosing");
   const progress = visible && state.status === "running" ? state.progress : null;
-  const copy = active ? rideImportStatusCopy(state) : "";
+  const importMessage = active
+    ? rideImportStatusMessage(state, {
+        imported: say(
+          rideFileCountMessage(
+            state.result?.files.imported ?? 0,
+            formatWholeNumber(state.result?.files.imported ?? 0, format),
+          ),
+        ),
+        quarantined: say(
+          rideFileCountMessage(
+            state.result?.files.quarantined ?? 0,
+            formatWholeNumber(state.result?.files.quarantined ?? 0, format),
+          ),
+        ),
+      })
+    : null;
+  const copy = importMessage === null ? "" : say(importMessage);
   return (
     <>
       {visible ? (
         <section
           className={styles.importStatus}
           data-panel="ride-import"
-          aria-label="Import ride files"
+          aria-label={say("training.view.import")}
         >
-          <h2>Import ride files</h2>
+          <h2>{say("training.view.import")}</h2>
           {progress === null ? null : (
             <p className={styles.meta}>
-              {progress.params.event.completed} of {progress.params.event.total} files processed
+              {say("training.view.importProgress", {
+                completed: formatWholeNumber(progress.params.event.completed, format),
+                total: formatWholeNumber(progress.params.event.total, format),
+              })}
             </p>
           )}
           <p className={styles.support} aria-hidden="true">
@@ -429,6 +551,8 @@ function RideImportStatus(): ReactElement {
 }
 
 function UnavailableHistory(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   return (
     <>
       <section
@@ -437,29 +561,40 @@ function UnavailableHistory(): ReactElement {
         aria-labelledby="weekly-summary-title"
       >
         <h2 id="weekly-summary-title" className={styles.srOnly}>
-          Weekly summary
+          {say("training.view.weeklySummary")}
         </h2>
-        <p className={styles.historyEmpty}>{TRAINING_HISTORY_COPY.unavailable}</p>
+        <p className={styles.historyEmpty}>{say(TRAINING_HISTORY_COPY.unavailable)}</p>
       </section>
       <section
         className={styles.ridesSection}
         data-panel="recent-rides"
         aria-labelledby="recent-rides-title"
       >
-        <SectionHeading headingId="recent-rides-title" title={TRAINING_HISTORY_COPY.recentRides} />
-        <p className={styles.historyEmpty}>{TRAINING_HISTORY_COPY.unknownRides}</p>
+        <SectionHeading
+          headingId="recent-rides-title"
+          title={say(TRAINING_HISTORY_COPY.recentRides)}
+        />
+        <p className={styles.historyEmpty}>{say(TRAINING_HISTORY_COPY.unknownRides)}</p>
       </section>
     </>
   );
 }
 
-function reviewCalloutReason(history: TrainingHistoryComputed, rideId: string): string | null {
-  const anchor = calloutReason(history.anchorWeek, rideId);
+function reviewCalloutReason(
+  history: TrainingHistoryComputed,
+  rideId: string,
+  phrasebook: Phrasebook,
+): string | null {
+  const anchor = calloutReason(history.anchorWeek, rideId, phrasebook);
   if (anchor !== null) return anchor;
-  return history.previousWeek === null ? null : calloutReason(history.previousWeek, rideId);
+  return history.previousWeek === null
+    ? null
+    : calloutReason(history.previousWeek, rideId, phrasebook);
 }
 
 export function TrainingView(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   const training = useEnduragentStore((store) => store.training);
   const selectedRide = useEnduragentStore((store) => store.selectedRide);
   const openRide = useEnduragentStore((store) => store.openRide);
@@ -511,12 +646,16 @@ export function TrainingView(): ReactElement {
     warning ??
     (training.metadata?.degraded === true ? TRAINING_DEGRADED_COPY : null);
   const coverage =
-    history === null || activeWeek === null ? null : noticeCoverage(panel, history, activeWeek);
+    history === null || activeWeek === null
+      ? null
+      : noticeCoverage(panel, history, activeWeek, phrasebook);
   const label = history === null ? null : periodLabel(history, period, retained);
-  const announcement = useMemo(
-    () => (label === null ? null : notice === null ? label : `${label}. ${notice}`),
-    [label, notice],
-  );
+  const announcement =
+    label === null
+      ? null
+      : notice === null
+        ? say(label)
+        : say("training.view.announcement", { period: say(label), notice: say(notice) });
   const changePeriod = (nextPeriod: Period): void => {
     setPeriod(nextPeriod);
     currentPeriodButton.current?.focus();
@@ -529,7 +668,9 @@ export function TrainingView(): ReactElement {
         ride={resolvedRide}
         units={training.unitsPreference.value}
         analysis={rideAnalysis}
-        calloutReason={history === null ? null : reviewCalloutReason(history, resolvedRide.id)}
+        calloutReason={
+          history === null ? null : reviewCalloutReason(history, resolvedRide.id, phrasebook)
+        }
         onStartAnalysis={rideAnalysisActions === null ? null : () => rideAnalysisActions.start()}
         onRefreshAnalysis={
           rideAnalysisActions === null ? null : (sections) => rideAnalysisActions.refresh(sections)
@@ -544,7 +685,7 @@ export function TrainingView(): ReactElement {
   if (history === null || activeWeek === null) {
     historyContent = (
       <>
-        {notice === null ? null : <DataNotice coverage={coverage} notice={notice} />}
+        {notice === null ? null : <DataNotice coverage={coverage} notice={say(notice)} />}
         <UnavailableHistory />
       </>
     );
@@ -554,7 +695,7 @@ export function TrainingView(): ReactElement {
         <p className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
           {announcement}
         </p>
-        {notice === null ? null : <DataNotice coverage={coverage} notice={notice} />}
+        {notice === null ? null : <DataNotice coverage={coverage} notice={say(notice)} />}
         <WeeklySummary
           history={history}
           retained={retained}
@@ -581,8 +722,8 @@ export function TrainingView(): ReactElement {
 
   return (
     <Page
-      title="Training"
-      subtitle={activeWeek === null ? undefined : weekRangeLabel(activeWeek)}
+      title={say("training.view.title")}
+      subtitle={activeWeek === null ? undefined : weekRangeLabel(activeWeek, phrasebook)}
       titleRef={title}
       busy={training.status === "loading"}
       action={

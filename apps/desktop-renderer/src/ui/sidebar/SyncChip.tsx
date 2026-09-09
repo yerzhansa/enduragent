@@ -89,9 +89,7 @@ export function SyncChip(): ReactElement {
   const restrictionLabel =
     restriction === null
       ? null
-      : restriction.count === 1
-        ? say("sidebar.sync.restriction.label_one", restrictionVars)
-        : say("sidebar.sync.restriction.label_other", restrictionVars);
+      : say("sidebar.sync.restriction.label", { ...restrictionVars, count: restriction.count });
 
   useEffect(() => {
     setManualSyncFocusFallback(wrapper.current);
@@ -152,11 +150,10 @@ export function SyncChip(): ReactElement {
         {restriction === null ? null : (
           <InfoTip
             label={say("sidebar.sync.restriction.tooltipLabel")}
-            lead={
-              restriction.count === 1
-                ? say("sidebar.sync.restriction.tooltipLead_one", restrictionVars)
-                : say("sidebar.sync.restriction.tooltipLead_other", restrictionVars)
-            }
+            lead={say("sidebar.sync.restriction.tooltipLead", {
+              ...restrictionVars,
+              count: restriction.count,
+            })}
             trigger={
               <a
                 href={`#${STRAVA_RESTRICTION_CARD_ID}`}

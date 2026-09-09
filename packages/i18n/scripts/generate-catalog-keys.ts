@@ -14,7 +14,11 @@ function leafKeys(value: unknown, prefix = ""): string[] {
 const source = new URL("../catalogs/en.json", import.meta.url);
 const target = new URL("../src/catalog-keys.ts", import.meta.url);
 const catalog: unknown = JSON.parse(readFileSync(source, "utf8"));
-const keys = leafKeys(catalog).sort();
+const leaves = leafKeys(catalog);
+const pluralBases = leaves
+  .filter((key) => /_(one|other)$/u.test(key))
+  .map((key) => key.replace(/_(one|other)$/u, ""));
+const keys = [...new Set([...leaves, ...pluralBases])].sort();
 if (keys.length === 0) throw new Error("English catalog has no keys");
 const output = `export type CatalogKey =\n${keys.map((key) => `  | ${JSON.stringify(key)}`).join("\n")};\n`;
 let previous: string | undefined;

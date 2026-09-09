@@ -64,15 +64,10 @@ export function Sidebar(): ReactElement {
           const active = view.id === activeView;
           const planAttentionLabel =
             view.id === "plan" && attentionCount > 0
-              ? say(
-                  attentionCount === 1
-                    ? "sidebar.planAttention_one"
-                    : "sidebar.planAttention_other",
-                  {
-                    count: attentionCount,
-                    formattedCount: format.number(attentionCount, { useGrouping: false }),
-                  },
-                )
+              ? say("sidebar.planAttention", {
+                  count: attentionCount,
+                  formattedCount: format.number(attentionCount, { useGrouping: false }),
+                })
               : undefined;
           return (
             <Button

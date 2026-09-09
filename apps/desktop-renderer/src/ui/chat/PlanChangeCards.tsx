@@ -338,12 +338,10 @@ function premiseValue(
     case "hard-weekday":
       return say("chat.planChange.weekdayEasy", { day: say(days[intent.day - 1]!) });
     case "weekly-duration":
-      return say(
-        intent.hours === 1
-          ? "chat.planChange.weeklyHours_one"
-          : "chat.planChange.weeklyHours_other",
-        { count: intent.hours, hours: format.number(intent.hours, { useGrouping: false }) },
-      );
+      return say("chat.planChange.weeklyHours", {
+        count: intent.hours,
+        hours: format.number(intent.hours, { useGrouping: false }),
+      });
     case "longest-workout":
       return say("chat.planChange.minutes", {
         minutes: format.number(intent.minutes, { useGrouping: false }),

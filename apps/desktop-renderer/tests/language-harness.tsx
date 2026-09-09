@@ -24,10 +24,19 @@ export async function renderWithLanguage(element: ReactElement): Promise<RenderR
 
 const englishPhrasebook = await createPhrasebook({ tag: "en", locale: "en-US" });
 
-export function renderLocalized(element: ReactElement): RenderResult {
+export function renderLocalized(element: ReactElement, locale = "en-US"): RenderResult {
+  const phrasebook: Phrasebook = {
+    ...englishPhrasebook,
+    locale,
+    format: {
+      ...englishPhrasebook.format,
+      date: (value, options) => new Intl.DateTimeFormat(locale, options).format(value),
+      number: (value, options) => new Intl.NumberFormat(locale, options).format(value),
+    },
+  };
   return render(element, {
     wrapper: ({ children }) => (
-      <LanguageProvider tag="en" locale="en-US" phrasebook={englishPhrasebook}>
+      <LanguageProvider tag="en" locale={locale} phrasebook={phrasebook}>
         {children}
       </LanguageProvider>
     ),
@@ -52,7 +61,11 @@ export async function renderWithCatalog(
     say(message: Message | CatalogKey, vars?: Message["vars"]) {
       const key = typeof message === "string" ? message : message.key;
       const values = typeof message === "string" ? vars : message.vars;
-      const translated = find(key);
+      const count = values?.count;
+      const translated =
+        typeof count === "number"
+          ? (find(`${key}_${new Intl.PluralRules("it-IT").select(count)}`) ?? find(key))
+          : find(key);
       return translated !== undefined
         ? translated.replace(/\{\{(\w+)\}\}/gu, (_, name: string) => String(values?.[name] ?? ""))
         : typeof message === "string"

@@ -18,10 +18,10 @@ export function QueuedMessages(): ReactElement | null {
   const canChat = useEnduragentStore(setupReady);
 
   if (queued.length === 0) return null;
-  const queueLabel = say(
-    queued.length === 1 ? "chat.queued.count_one" : "chat.queued.count_other",
-    { count: queued.length, number: format.number(queued.length) },
-  );
+  const queueLabel = say("chat.queued.count", {
+    count: queued.length,
+    number: format.number(queued.length),
+  });
 
   return (
     <QueuedMessageList
