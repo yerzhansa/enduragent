@@ -1,3 +1,5 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
+import { createCoachLanguage } from "@enduragent/i18n";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Context } from "grammy";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -5,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   evaluateAccess,
-  buildPairingChallenge,
+  buildPairingChallenge as pairingChallenge,
   createAuthMiddleware,
 } from "../src/channels/telegram-access.js";
 import {
@@ -136,9 +138,9 @@ describe("buildPairingChallenge — HTML body", () => {
     expect(html).toContain("&lt;bin&gt;");
   });
 
-  it("handles undefined senderName (service-message edge)", () => {
-    const html = buildPairingChallenge("99999", undefined, "cycling-coach");
-    expect(html).toContain("99999");
+  it.each([undefined, ""])("preserves the greeting for an absent sender name: %s", (senderName) => {
+    const html = buildPairingChallenge("99999", senderName, "cycling-coach");
+    expect(html).toContain("Hi there — your Telegram user ID is <code>99999</code>.");
   });
 
   it("accepts numeric senderId and stringifies it", () => {
@@ -218,6 +220,14 @@ describe("createAuthMiddleware — gating", () => {
   });
 
   it("supports a host-owned pairing prompt and authorization source", async () => {
+    const language = createCoachLanguage({
+      phrasebooks: createPhrasebook,
+      store: {
+        read: async () => ({ value: null, origin: "unset" }),
+        write: async (value) => ({ value, origin: "stored" }),
+      },
+      surface: { language: "en", locale: "en-US" },
+    });
     const loadAllowedSenders = vi.fn(() => defaultPairingState());
     const pairingChallenge = vi.fn(
       ({ senderId }: { senderId: string }) =>
@@ -226,12 +236,17 @@ describe("createAuthMiddleware — gating", () => {
     const mw = createAuthMiddleware({
       dataDir,
       binaryName: "unused",
+      language,
       challengeRateLimit: new Map(),
       challengeMinIntervalMs: 60_000,
       loadAllowedSenders,
       pairingChallenge,
     });
-    const ctx = makeMwCtx({ chatType: "private", fromId: 99999 });
+    const ctx = makeMwCtx({
+      chatType: "private",
+      fromId: 99999,
+      messageText: "明日のトレーニングについて詳しく教えてください。",
+    });
 
     await mw(ctx, vi.fn());
 
@@ -239,6 +254,7 @@ describe("createAuthMiddleware — gating", () => {
     expect(pairingChallenge).toHaveBeenCalledWith({
       senderId: "99999",
       senderName: undefined,
+      phrasebook: expect.objectContaining({ tag: "ja" }),
     });
     expect(ctx.reply).toHaveBeenCalledWith(
       "<b>Approve <code>99999</code> in Desktop Settings.</b>",
@@ -667,3 +683,10 @@ describe("createAuthMiddleware — gating", () => {
     expect(next).not.toHaveBeenCalled();
   });
 });
+
+const englishBook = await createPhrasebook({ tag: "en", locale: "en-GB" });
+const buildPairingChallenge = (
+  senderId: string | number,
+  senderName: string | undefined,
+  binaryName: string,
+) => pairingChallenge(senderId, senderName, binaryName, englishBook);

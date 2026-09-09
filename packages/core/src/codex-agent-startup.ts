@@ -5,11 +5,8 @@ import {
   type CodexAgentReadinessResult,
 } from "@enduragent/engine";
 
-import {
-  CODEX_AGENT_DISABLED_MESSAGE,
-  CODEX_AGENT_WINDOWS_MESSAGE,
-  type CodexAgentRuntimeSettings,
-} from "./runtime-config.js";
+import { type CodexAgentRuntimeSettings } from "./runtime-config.js";
+import { say } from "./cli-copy.js";
 
 export interface CodexAgentStartupGateInput {
   readonly settings: CodexAgentRuntimeSettings | undefined;
@@ -27,7 +24,7 @@ export interface CodexAgentStartupGateDeps {
 function refusalMessage(err: unknown): string {
   if (err instanceof CodexAgentConfigError) return err.message;
   const detail = err instanceof Error ? err.message : String(err);
-  return `Codex CLI startup check failed: ${detail}`;
+  return say("cli.startup.codexCheckFailed", { provider: "Codex", detail });
 }
 
 export async function runCodexAgentStartupGate(
@@ -45,13 +42,26 @@ export async function runCodexAgentStartupGate(
 
   const platform = deps.platform ?? process.platform;
   if (platform === "win32") {
-    refuse(CODEX_AGENT_WINDOWS_MESSAGE);
+    refuse(
+      say("cli.startup.codexWindowsUnsupported", {
+        provider: "Codex",
+        windows: "Windows",
+        macos: "macOS",
+        linux: "Linux",
+      }),
+    );
     return null;
   }
 
   const settings = input.settings;
   if (settings?.enabled !== true) {
-    refuse(CODEX_AGENT_DISABLED_MESSAGE);
+    refuse(
+      say("cli.startup.codexDisabled", {
+        provider: "Codex",
+        setting: "llm.codex_agent.enabled: true",
+        config: "config.yaml",
+      }),
+    );
     return null;
   }
 

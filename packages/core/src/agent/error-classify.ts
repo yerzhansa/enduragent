@@ -1,11 +1,8 @@
+import { msg, type Message } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { ApiError } from "intervals-icu-api";
 import { readRefreshFailureReason } from "../auth/refresh-failure.js";
-import {
-  classifyFailure,
-  extractRetryAfterMs,
-  formatRateLimitWaitMs,
-  isRateLimitError,
-} from "./token-utils.js";
+import { classifyFailure, extractRetryAfterMs, isRateLimitError } from "./token-utils.js";
 
 export type AgentErrorKind =
   | "rate_limit"
@@ -14,10 +11,13 @@ export type AgentErrorKind =
   | "intervals"
   | "unknown";
 
-const PROVIDER_DOWN_MESSAGE = "The model provider is having trouble — try again in a few minutes.";
-const INTERVALS_TRANSIENT_MESSAGE = "Couldn't reach intervals.icu right now — try again shortly.";
-const INTERVALS_CREDENTIALS_MESSAGE =
-  "intervals.icu rejected the request — check your intervals.icu connection or API key.";
+const PROVIDER_DOWN_MESSAGE = msg("coach.error.providerDown");
+const INTERVALS_TRANSIENT_MESSAGE = msg("coach.error.intervalsTransient", {
+  service: "intervals.icu",
+});
+const INTERVALS_CREDENTIALS_MESSAGE = msg("coach.error.intervalsCredentials", {
+  service: "intervals.icu",
+});
 
 // Routing for intervals' ApiError, whose `kind` is a type-only discriminated
 // union (no importable class) we mirror here. The `satisfies Record<ApiError
@@ -54,11 +54,21 @@ function carriedRetryAfterMs(err: unknown): number | null {
   return typeof carried === "number" && Number.isFinite(carried) && carried > 0 ? carried : null;
 }
 
-function rateLimited(err: unknown): { kind: AgentErrorKind; athleteMessage: string } {
+function rateLimited(
+  err: unknown,
+  format?: Pick<Phrasebook["format"], "number">,
+): { kind: AgentErrorKind; athleteMessage: Message } {
   const ms = extractRetryAfterMs(err) ?? carriedRetryAfterMs(err);
+  if (!ms) return { kind: "rate_limit", athleteMessage: msg("coach.error.rateLimitDefault") };
+  const seconds = Math.ceil(ms / 1000);
+  const count = seconds < 60 ? seconds : Math.ceil(seconds / 60);
+  const value = format?.number(count, { useGrouping: false }) ?? count;
   return {
     kind: "rate_limit",
-    athleteMessage: `Rate limited — please try again in ${formatRateLimitWaitMs(ms)}.`,
+    athleteMessage:
+      seconds < 60
+        ? msg("coach.error.rateLimitSeconds", { count, seconds: value })
+        : msg("coach.error.rateLimitMinutes", { count, minutes: value }),
   };
 }
 
@@ -66,19 +76,22 @@ function assertNever(value: never): never {
   throw new TypeError(`Unhandled failure reason: ${String(value)}`);
 }
 
-export function classifyAgentError(err: unknown): {
+export function classifyAgentError(
+  err: unknown,
+  format?: Pick<Phrasebook["format"], "number">,
+): {
   kind: AgentErrorKind;
-  athleteMessage: string;
+  athleteMessage: Message;
 } {
   const refreshFailureReason = readRefreshFailureReason(err);
   switch (refreshFailureReason) {
     case "reauth":
       return {
         kind: "provider-auth",
-        athleteMessage: "Your ChatGPT sign-in is no longer valid. Sign in again to continue.",
+        athleteMessage: msg("coach.error.reauth", { provider: "ChatGPT" }),
       };
     case "rate_limit":
-      return rateLimited(err);
+      return rateLimited(err, format);
     case "server_error":
     case "network":
       return {
@@ -88,7 +101,7 @@ export function classifyAgentError(err: unknown): {
     case "unknown":
       return {
         kind: "unknown",
-        athleteMessage: "Sorry, something went wrong. Please try again.",
+        athleteMessage: msg("coach.error.unknown"),
       };
     case null:
       break;
@@ -97,12 +110,12 @@ export function classifyAgentError(err: unknown): {
   }
 
   if (isRateLimitError(err)) {
-    return rateLimited(err);
+    return rateLimited(err, format);
   }
 
   if (isIntervalsApiError(err)) {
     if (INTERVALS_KIND_ROUTING[err.kind] === "rate_limit") {
-      return rateLimited(err);
+      return rateLimited(err, format);
     }
     if (err.kind === "Unauthorized" || err.kind === "Forbidden") {
       return {
@@ -121,15 +134,14 @@ export function classifyAgentError(err: unknown): {
     case "reauth":
       return {
         kind: "provider-auth",
-        athleteMessage: "Your ChatGPT sign-in is no longer valid. Sign in again to continue.",
+        athleteMessage: msg("coach.error.reauth", { provider: "ChatGPT" }),
       };
     case "rate_limit":
-      return rateLimited(err);
+      return rateLimited(err, format);
     case "auth":
       return {
         kind: "provider-auth",
-        athleteMessage:
-          "The model provider rejected the API key — check your provider credentials.",
+        athleteMessage: msg("coach.error.providerCredentials"),
       };
     case "server_error":
     case "network":
@@ -143,7 +155,7 @@ export function classifyAgentError(err: unknown): {
     case "unknown":
       return {
         kind: "unknown",
-        athleteMessage: "Sorry, something went wrong. Please try again.",
+        athleteMessage: msg("coach.error.unknown"),
       };
     default:
       return assertNever(failure);

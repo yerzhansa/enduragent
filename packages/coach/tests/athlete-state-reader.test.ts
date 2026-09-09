@@ -163,11 +163,7 @@ function computedTrainingHistory(): TrainingHistoryComputed {
       committedAt: T0,
     },
     anchorWeek: week("anchor", { start: "1998-07-13", end: "1998-07-19" }, anchorRide),
-    previousWeek: week(
-      "previous",
-      { start: "1998-07-06", end: "1998-07-12" },
-      previousRide,
-    ),
+    previousWeek: week("previous", { start: "1998-07-06", end: "1998-07-12" }, previousRide),
   };
 }
 
@@ -186,8 +182,7 @@ describe("persisted athlete state source", () => {
   it("returns a stale last-good panel for thrown and malformed section reads", async () => {
     const root = await home();
     await writeJson(root, "latest.json", latest("fresh", T1));
-    let response: TrainingHistoryProjection | "throw" | "malformed" =
-      computedTrainingHistory();
+    let response: TrainingHistoryProjection | "throw" | "malformed" = computedTrainingHistory();
     const readTrainingHistory = vi.fn(async (): Promise<TrainingHistoryProjection> => {
       if (response === "throw") throw new Error("private training history failure");
       if (response === "malformed") return { kind: "computed" } as never;
@@ -293,9 +288,7 @@ describe("persisted athlete state source", () => {
     await reader.getAthleteState();
     for (const reason of ["coverage-unavailable", "invalid-data"] as const) {
       response = { kind: "unavailable", reason };
-      expect((await reader.getAthleteState()).trainingContext?.trainingHistory).toEqual(
-        response,
-      );
+      expect((await reader.getAthleteState()).trainingContext?.trainingHistory).toEqual(response);
     }
     response = { kind: "unavailable", reason: "temporary-failure" };
     expect((await reader.getAthleteState()).trainingContext?.trainingHistory).toMatchObject({
@@ -305,9 +298,7 @@ describe("persisted athlete state source", () => {
       lastGood: { anchorWeek: { callout: null }, previousWeek: { callout: null } },
     });
     response = "throw";
-    expect((await reader.getAthleteState()).trainingContext?.trainingHistory.kind).toBe(
-      "stale",
-    );
+    expect((await reader.getAthleteState()).trainingContext?.trainingHistory.kind).toBe("stale");
 
     const withoutCache = createPersistedAthleteStateSource({
       dataDir: root,

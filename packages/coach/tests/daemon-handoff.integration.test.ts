@@ -81,7 +81,7 @@ function nextMessage<T>(child: ChildProcess, type: string): Promise<T> {
 
 function send(child: ChildProcess, value: Parameters<ChildProcess["send"]>[0]): Promise<void> {
   return new Promise((resolve, reject) => {
-    child.send(value, (error) => error === null ? resolve() : reject(error));
+    child.send(value, (error) => (error === null ? resolve() : reject(error)));
   });
 }
 
@@ -162,7 +162,7 @@ describe.skipIf(!hasUnixSockets)("real successor-held handoff fence", () => {
       send(concurrentController, { type: "start", home }),
     ]);
     await expect(replayResult).resolves.toMatchObject({ result: { status: "reserved" } });
-    const losing = await concurrentResult as {
+    const losing = (await concurrentResult) as {
       readonly result: { readonly status: string; readonly message: string };
     };
     expect(losing.result).toMatchObject({
@@ -186,6 +186,8 @@ describe.skipIf(!hasUnixSockets)("real successor-held handoff fence", () => {
       "fence-crashed",
       "recovery-clear",
     ]);
-    expect(events.every((event, index) => index === 0 || event.at >= events[index - 1]!.at)).toBe(true);
+    expect(events.every((event, index) => index === 0 || event.at >= events[index - 1]!.at)).toBe(
+      true,
+    );
   });
 });

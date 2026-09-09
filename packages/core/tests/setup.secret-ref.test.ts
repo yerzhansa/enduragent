@@ -24,6 +24,9 @@ let stderrWrites: string[];
 let origStderrWrite: typeof process.stderr.write;
 
 beforeEach(() => {
+  for (const key of ["ENDURAGENT_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"])
+    vi.stubEnv(key, undefined);
+  vi.stubEnv("LANG", "en_US.UTF-8");
   tempHome = mkdtempSync(join(tmpdir(), "cc-ref-"));
   origHome = process.env.HOME;
   process.env.HOME = tempHome;
@@ -42,6 +45,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env.HOME = origHome;
   Object.defineProperty(process.stdin, "isTTY", { value: origStdinTTY, configurable: true });
   Object.defineProperty(process.stdout, "isTTY", { value: origStdoutTTY, configurable: true });
@@ -86,9 +90,7 @@ describe("_detectPrevBackend", () => {
         args: ["read", "op://Personal/x/credential"],
       }),
     ).toBe("op");
-    expect(
-      _detectPrevBackend({ source: "exec", command: "op", args: [] }),
-    ).toBe("op");
+    expect(_detectPrevBackend({ source: "exec", command: "op", args: [] })).toBe("op");
   });
 
   it("returns keychain for SecretRef with security command", async () => {
@@ -120,9 +122,7 @@ describe("_detectPrevBackend", () => {
 
   it("returns unknown for env-source SecretRef (wizard does not manage env refs)", async () => {
     const { _detectPrevBackend } = await import("../src/setup.js");
-    expect(
-      _detectPrevBackend({ source: "env", var: "ANTHROPIC_API_KEY" }),
-    ).toBe("unknown");
+    expect(_detectPrevBackend({ source: "env", var: "ANTHROPIC_API_KEY" })).toBe("unknown");
   });
 });
 
@@ -134,34 +134,40 @@ describe("_formatOrphanCleanup", () => {
 
   it("lists op item delete commands for op orphans", async () => {
     const { _formatOrphanCleanup } = await import("../src/setup.js");
-    const out = _formatOrphanCleanup({
-      createdThisRun: [
-        {
-          backend: "op",
-          field: "llm.api_key",
-          title: "cycling-coach · llm_api_key",
-          vaultName: "Personal",
-          opAbsPath: "/usr/local/bin/op",
-          preExistedBeforeWizard: false,
-        },
-      ],
-    }, cyclingBinary);
+    const out = _formatOrphanCleanup(
+      {
+        createdThisRun: [
+          {
+            backend: "op",
+            field: "llm.api_key",
+            title: "cycling-coach · llm_api_key",
+            vaultName: "Personal",
+            opAbsPath: "/usr/local/bin/op",
+            preExistedBeforeWizard: false,
+          },
+        ],
+      },
+      cyclingBinary,
+    );
     expect(out).toContain('op item delete "cycling-coach · llm_api_key" --vault "Personal"');
   });
 
   it("lists security delete commands for keychain orphans", async () => {
     const { _formatOrphanCleanup } = await import("../src/setup.js");
-    const out = _formatOrphanCleanup({
-      createdThisRun: [
-        {
-          backend: "keychain",
-          field: "llm.api_key",
-          title: "llm_api_key",
-          keychainPath: "/Users/x/Library/Keychains/login.keychain-db",
-          preExistedBeforeWizard: false,
-        },
-      ],
-    }, cyclingBinary);
+    const out = _formatOrphanCleanup(
+      {
+        createdThisRun: [
+          {
+            backend: "keychain",
+            field: "llm.api_key",
+            title: "llm_api_key",
+            keychainPath: "/Users/x/Library/Keychains/login.keychain-db",
+            preExistedBeforeWizard: false,
+          },
+        ],
+      },
+      cyclingBinary,
+    );
     expect(out).toContain(
       'security delete-generic-password -s cycling-coach -a "llm_api_key" "/Users/x/Library/Keychains/login.keychain-db"',
     );
@@ -169,26 +175,29 @@ describe("_formatOrphanCleanup", () => {
 
   it("excludes pre-existing items from cleanup output", async () => {
     const { _formatOrphanCleanup } = await import("../src/setup.js");
-    const out = _formatOrphanCleanup({
-      createdThisRun: [
-        {
-          backend: "op",
-          field: "llm.api_key",
-          title: "pre-existing",
-          vaultName: "Personal",
-          opAbsPath: "/usr/local/bin/op",
-          preExistedBeforeWizard: true,
-        },
-        {
-          backend: "op",
-          field: "intervals.api_key",
-          title: "new-this-run",
-          vaultName: "Personal",
-          opAbsPath: "/usr/local/bin/op",
-          preExistedBeforeWizard: false,
-        },
-      ],
-    }, cyclingBinary);
+    const out = _formatOrphanCleanup(
+      {
+        createdThisRun: [
+          {
+            backend: "op",
+            field: "llm.api_key",
+            title: "pre-existing",
+            vaultName: "Personal",
+            opAbsPath: "/usr/local/bin/op",
+            preExistedBeforeWizard: true,
+          },
+          {
+            backend: "op",
+            field: "intervals.api_key",
+            title: "new-this-run",
+            vaultName: "Personal",
+            opAbsPath: "/usr/local/bin/op",
+            preExistedBeforeWizard: false,
+          },
+        ],
+      },
+      cyclingBinary,
+    );
     expect(out).not.toContain("pre-existing");
     expect(out).toContain("new-this-run");
   });
@@ -290,9 +299,7 @@ describe("process.once signal registration (double-Ctrl+C safety)", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new Error(`__exit_${code}`);
     }) as never);
-    const handler = vi.fn(
-      _createSignalHandler({ createdThisRun: [] }, "SIGINT", cyclingBinary),
-    );
+    const handler = vi.fn(_createSignalHandler({ createdThisRun: [] }, "SIGINT", cyclingBinary));
     process.once("SIGINT", handler);
     try {
       expect(() => process.emit("SIGINT")).toThrow("__exit_130");
@@ -789,16 +796,18 @@ describe("1Password backend", () => {
       keychain: { available: false },
     }));
     let createCalls = 0;
-    const createSpy = vi.fn(async (_opPath: string, _title: string, _value: string, vault?: string) => {
-      createCalls++;
-      if (createCalls === 1 && vault === undefined) {
-        const err = new (await import("../src/secrets/backends/op.js")).OpVaultAmbiguousError(
-          "more than one vault",
-        );
-        throw err;
-      }
-      return { vaultName: vault ?? "Personal" };
-    });
+    const createSpy = vi.fn(
+      async (_opPath: string, _title: string, _value: string, vault?: string) => {
+        createCalls++;
+        if (createCalls === 1 && vault === undefined) {
+          const err = new (await import("../src/secrets/backends/op.js")).OpVaultAmbiguousError(
+            "more than one vault",
+          );
+          throw err;
+        }
+        return { vaultName: vault ?? "Personal" };
+      },
+    );
     vi.doMock("../src/secrets/backends/op.js", async () => {
       const actual = await vi.importActual<Record<string, unknown>>(
         "../src/secrets/backends/op.js",
@@ -1357,9 +1366,7 @@ describe("SecretRef uses discovered vault from opItemCreate", () => {
     const { runSetup } = await import("../src/setup.js");
     await runSetup(cyclingBinary);
     const after = parseYaml(readFileSync(CONFIG(), "utf-8"));
-    expect(after.llm.api_key.args[1]).toBe(
-      "op://Personal/cycling-coach · llm_api_key/credential",
-    );
+    expect(after.llm.api_key.args[1]).toBe("op://Personal/cycling-coach · llm_api_key/credential");
     expect(after.llm.api_key.args[1]).not.toContain("Private");
   });
 });

@@ -1,4 +1,5 @@
-import type { CoachLanguage } from "@enduragent/i18n";
+import type { CoachLanguage, Message } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { ChatRequest } from "@enduragent/coach-contract";
 import type { Context, MiddlewareFn } from "grammy";
 import type { ConfirmOutcome } from "../agent/confirmation-gate.js";
@@ -7,8 +8,13 @@ import type { SnapshotOutput } from "../reference/sync/snapshot-debug.js";
 export interface TelegramConfirmationCapabilities {
   peek(request: {
     readonly chatId: string;
+    readonly phrasebook?: Phrasebook;
   }): Promise<{ readonly nonce: string; readonly summary: string } | undefined>;
-  confirm(request: { readonly chatId: string; readonly nonce: string }): Promise<ConfirmOutcome>;
+  confirm(request: {
+    readonly chatId: string;
+    readonly nonce: string;
+    readonly phrasebook?: Phrasebook;
+  }): Promise<ConfirmOutcome>;
   cancel(request: {
     readonly chatId: string;
     readonly nonce: string;
@@ -17,7 +23,10 @@ export interface TelegramConfirmationCapabilities {
 
 export interface TelegramOperationsCapabilities {
   resolveTurnContext(): Promise<ChatRequest["turn"] | undefined>;
-  sync(request: { readonly chatId: string }): Promise<{ readonly text: string }>;
+  sync(request: {
+    readonly chatId: string;
+    readonly phrasebook?: Phrasebook;
+  }): Promise<{ readonly text: string }>;
 }
 
 export interface TelegramInvocationReservation {
@@ -30,7 +39,10 @@ export interface TelegramInvocationCapabilities {
 }
 
 export interface TelegramDiagnosticsCapabilities {
-  rawSnapshot(request: { readonly section?: string }): Promise<SnapshotOutput>;
+  rawSnapshot(request: {
+    readonly section?: string;
+    readonly phrasebook?: Phrasebook;
+  }): Promise<SnapshotOutput>;
 }
 
 export interface TelegramAuthorizationCapabilities {
@@ -42,10 +54,12 @@ export interface TelegramAccessCapabilities {
 }
 
 export interface TelegramReleaseBase {
-  readonly updateDescription: string;
-  readonly whatsNewUnavailableText: string;
+  readonly updateDescription: string | Message;
+  readonly whatsNewUnavailableText: string | Message;
   version(): Promise<string>;
-  whatsNew(): Promise<
+  whatsNew(
+    phrasebook?: Phrasebook,
+  ): Promise<
     { readonly kind: "available"; readonly text: string } | { readonly kind: "unavailable" }
   >;
 }
@@ -63,7 +77,7 @@ export type TelegramReleaseCapabilities =
     })
   | (TelegramReleaseBase & {
       readonly updatePolicy: "managed-deploy" | "desktop-owned";
-      updateNotice(): Promise<string>;
+      updateNotice(): Promise<string | Message>;
     });
 
 export interface TelegramHostCapabilities {

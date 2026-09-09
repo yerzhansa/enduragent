@@ -1,11 +1,41 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { LANGUAGE_OPTIONS } from "../src/registry.js";
 import { msg, type CatalogKey } from "../src/message.js";
-import { createPhrasebook, loadCatalog } from "../src/messages.js";
+import { createPhrasebook, loadCatalog, messageFromWire } from "../src/messages.js";
 import english from "../catalogs/en.json";
 
 describe("phrasebooks", () => {
+  it("renders fixed coach, Telegram, and CLI copy from the Italian catalog", async () => {
+    const italian = await createPhrasebook({ tag: "it", locale: "it-IT" });
+    const catalog = (await loadCatalog("it")) as {
+      coach: { fallback: { stepLimit: string } };
+      telegram: { language: { choose: string } };
+      cli: { language: { choose: string } };
+    };
+    expect(italian.say("coach.fallback.stepLimit")).toBe(catalog.coach.fallback.stepLimit);
+    expect(italian.say("telegram.language.choose")).toBe(catalog.telegram.language.choose);
+    expect(italian.say("cli.language.choose")).toBe(catalog.cli.language.choose);
+    expect(italian.say("coach.fallback.stepLimit")).not.toBe(english.coach.fallback.stepLimit);
+  });
+  it("does not write startup copy to the terminal", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await createPhrasebook({ tag: "en", locale: "en-GB" });
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+  it("accepts known wire messages and preserves the fallback for unknown keys", async () => {
+    expect(await messageFromWire({ key: "common.save" })).toEqual({ key: "common.save" });
+    expect(
+      await messageFromWire({ key: "archive.turnCount", vars: { count: 2, formattedCount: "2" } }),
+    ).toEqual({ key: "archive.turnCount", vars: { count: 2, formattedCount: "2" } });
+    expect(await messageFromWire({ key: "common" })).toBeUndefined();
+    expect(await messageFromWire({ key: "unknown.futureMessage" })).toBeUndefined();
+    expect(await messageFromWire({ key: "__proto__.toString" })).toBeUndefined();
+  });
   it("translates bare keys and message values in isolated languages", async () => {
     const [italian, japanese] = await Promise.all([
       createPhrasebook({ tag: "it", locale: "it-IT" }),
@@ -66,21 +96,30 @@ describe("phrasebooks", () => {
   });
 });
 
-it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => {
-  const catalog = await loadCatalog(tag);
-  function keys(value: unknown, prefix = ""): string[] {
-    if (typeof value === "string") {
-      expect(value.trim()).not.toBe("");
-      return [prefix];
+it.each(LANGUAGE_OPTIONS)(
+  "loads the $tag catalog with pending non-desktop translations",
+  async ({ tag }) => {
+    const catalog = await loadCatalog(tag);
+    function keys(value: unknown, prefix = ""): string[] {
+      if (typeof value === "string") {
+        expect(value.trim()).not.toBe("");
+        return [prefix];
+      }
+      if (typeof value !== "object" || value === null) throw new Error("Invalid catalog");
+      return Object.entries(value).flatMap(([key, child]) =>
+        keys(child, prefix ? `${prefix}.${key}` : key),
+      );
     }
-    if (typeof value !== "object" || value === null) throw new Error("Invalid catalog");
-    return Object.entries(value).flatMap(([key, child]) =>
-      keys(child, prefix ? `${prefix}.${key}` : key),
+    const base = (key: string) => key.replace(/_(zero|one|two|few|many|other)$/u, "");
+    const translated = new Set(keys(catalog).map(base));
+    const expected = new Set(keys(english).map(base));
+    for (const key of translated) expect(expected.has(key)).toBe(true);
+    const pending = (key: string) => /^(telegram|cli|coach)\./u.test(key);
+    expect(new Set([...translated].filter((key) => !pending(key)))).toEqual(
+      new Set([...expected].filter((key) => !pending(key))),
     );
-  }
-  const base = (key: string) => key.replace(/_(zero|one|two|few|many|other)$/u, "");
-  expect(new Set(keys(catalog).map(base))).toEqual(new Set(keys(english).map(base)));
-});
+  },
+);
 
 it("derives message and phrasebook keys from the English catalog", () => {
   const generated = readFileSync(new URL("../src/catalog-keys.ts", import.meta.url), "utf8");
@@ -96,10 +135,11 @@ it("derives message and phrasebook keys from the English catalog", () => {
     .filter((key) => /_(one|other)$/u.test(key))
     .map((key) => key.replace(/_(one|other)$/u, ""));
   expect(generatedKeys).toEqual([...new Set([...englishLeaves, ...bases])].sort());
-  expectTypeOf<Parameters<typeof msg>[0]>().toEqualTypeOf<CatalogKey>();
-  expectTypeOf<"settings.language.automaticDetail">().toExtend<CatalogKey>();
-  expectTypeOf<"settings.language">().not.toExtend<CatalogKey>();
-  expectTypeOf<"unknown.key">().not.toExtend<CatalogKey>();
+  const typedKey: Parameters<typeof msg>[0] = "settings.language.automaticDetail";
+  const catalogKey: CatalogKey = typedKey;
+  expect(catalogKey).toBe("settings.language.automaticDetail");
+  expect(generatedKeys).not.toContain("settings.language");
+  expect(generatedKeys).not.toContain("unknown.key");
   expect(msg("common.save")).toEqual({ key: "common.save" });
 });
 

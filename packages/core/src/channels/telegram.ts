@@ -1,8 +1,14 @@
+import { telegramReleaseMessage } from "./telegram-copy.js";
 import { languageKeyboard, parseLanguageCallback } from "./telegram-language-menu.js";
 import { Bot, GrammyError, InputFile } from "grammy";
 import { autoRetry } from "@grammyjs/auto-retry";
 import type { CoachEngine } from "@enduragent/coach-contract";
-import { describeLanguage } from "@enduragent/i18n";
+import { describeLanguage, msg, normalizeLocaleHint, type Message } from "@enduragent/i18n";
+import { messageFromWire, type Phrasebook } from "@enduragent/i18n/messages";
+import {
+  registerTelegramCommandMenus,
+  registerTelegramChatCommandMenu,
+} from "./telegram-command-menu.js";
 import { classifyAgentError } from "../agent/error-classify.js";
 import { TelegramUpdateOffsetStore } from "./telegram-update-offsets.js";
 import { escapeHtmlText } from "./html-escape.js";
@@ -33,18 +39,20 @@ const RESEND_KEYWORD = "resend";
 // Shown when generation succeeded but Telegram couldn't deliver the answer.
 // Used by both the runTurn delivery catch and the resend-dispatch catch so the
 // two delivery-failure paths can never drift apart.
-const DELIVERY_FAILURE_HINT = `I generated the answer, but Telegram had trouble delivering it. Send "${RESEND_KEYWORD}" and I'll send the same answer again.`;
+const DELIVERY_FAILURE_HINT = msg("telegram.error.delivery", {
+  keyword: RESEND_KEYWORD,
+  service: "Telegram",
+});
 
 // Neutral apology for synchronous handler/ack failures surfaced through
 // bot.catch — those are Telegram transport errors, not LLM/tool errors, so they
 // must not be dressed in provider-specific vocabulary.
-const GENERIC_TRANSPORT_APOLOGY = "Sorry, something went wrong. Please try again.";
+const GENERIC_TRANSPORT_APOLOGY = msg("telegram.error.transport");
 
 // Shown when /update can't durably record the self-update marker. Without that
 // marker a restart could re-trigger /update in a loop, so we decline to stop and
 // tell the athlete to retry rather than risk the loop.
-const SELF_UPDATE_MARKER_FAILURE =
-  "Couldn't safely prepare the update just now. Please try /update again in a moment.";
+const SELF_UPDATE_MARKER_FAILURE = msg("telegram.update.prepareFailed", { command: "/update" });
 
 // How often to re-emit Telegram's native "typing" indicator while a turn is in
 // flight. Telegram auto-clears the indicator ~5s after each sendChatAction, so we
@@ -96,57 +104,30 @@ export function startTypingHeartbeat(
 // TELEGRAM BOT
 // ============================================================================
 
-const buildWelcomeMessage = (updateDescription: string): string =>
-  "Welcome to Cycling Coach!\n\n" +
-  "I'm your AI cycling coach. I can build training plans, suggest workouts, " +
-  "and track your fitness using intervals.icu data.\n\n" +
-  "Commands:\n" +
-  "/plan — Generate a training plan\n" +
-  "/workout — Get today's workout\n" +
-  "/status — Check current fitness, fatigue, and form\n" +
-  "/review — Review your last session\n" +
-  "/sync — Force-refresh training data from intervals.icu\n" +
-  "/version — Show current version\n" +
-  "/whatsnew — See what changed in the latest version\n" +
-  `/update — ${updateDescription}\n\n` +
-  "Or just chat with me about your training!";
+const buildWelcomeMessage = (updateDescription: string): Message =>
+  msg("telegram.welcome", {
+    product: "Cycling Coach",
+    service: "intervals.icu",
+    plan: "/plan",
+    workout: "/workout",
+    status: "/status",
+    review: "/review",
+    sync: "/sync",
+    version: "/version",
+    whatsnew: "/whatsnew",
+    update: "/update",
+    updateDescription,
+  });
 
-const RESET_CAVEAT_NOTE =
-  "Note: I couldn't fully reset our previous session, so some earlier context may still apply.";
+const RESET_CAVEAT_NOTE = msg("telegram.session.resetCaveat");
 
-const SNAPSHOT_HELP =
-  "/snapshot raw [section]    — dump pre-curation latest.json (or one section)\n" +
-  "/snapshot help             — show this list\n\n" +
-  "Future variants of /snapshot will surface metrics, activities, wellness,\n" +
-  "intervals, routes, history, FTP, and validation cuts. For now, only\n" +
-  "/snapshot raw is wired.";
-
-// Descriptions mirror the command one-liners in the welcome message so the native
-// "/" menu and the welcome card never drift. /sync is conditional on the same
-// reference predicate the command registration uses; /snapshot is excluded by
-// construction (operator-only debug). /start is included as an athlete command.
-function buildCommandMenu(
-  syncEnabled: boolean,
-  updateDescription: string,
-): { command: string; description: string }[] {
-  const menu = [
-    { command: "start", description: "Start a fresh session" },
-    { command: "plan", description: "Generate a training plan" },
-    { command: "workout", description: "Get today's workout" },
-    { command: "status", description: "Check current fitness, fatigue, and form" },
-    { command: "review", description: "Review your last session" },
-    { command: "language", description: "Choose your language" },
-  ];
-  if (syncEnabled) {
-    menu.push({ command: "sync", description: "Force-refresh training data from intervals.icu" });
-  }
-  menu.push(
-    { command: "version", description: "Show current version" },
-    { command: "whatsnew", description: "See what changed in the latest version" },
-    { command: "update", description: updateDescription },
-  );
-  return menu;
-}
+const SNAPSHOT_HELP = msg("telegram.snapshot.help", {
+  raw: "/snapshot raw [section]",
+  help: "/snapshot help",
+  command: "/snapshot",
+  rawCommand: "/snapshot raw",
+  file: "latest.json",
+});
 
 // Module-private factory: every Bot in this module is constructed here, with the
 // root ledger wrapper first and authentication as the first functional gate.
@@ -263,7 +244,40 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   });
   const { engine, host } = input;
   const { dataDir } = input;
-  const welcomeMessage = buildWelcomeMessage(host.release.updateDescription);
+  const phrasebookForContext = (ctx: {
+    chat?: { id: number };
+    message?: { text?: string };
+    from?: { language_code?: string };
+  }): Promise<Phrasebook> =>
+    host.language.phrasebookFor({
+      chatId: ctx.chat === undefined ? undefined : `telegram:${ctx.chat.id}`,
+      athleteText: ctx.message?.text,
+      ...(ctx.from?.language_code === undefined
+        ? {}
+        : {
+            surfaceHint: {
+              language: normalizeLocaleHint(ctx.from.language_code),
+              locale: ctx.from.language_code,
+            },
+          }),
+    });
+  const releaseText = (book: Phrasebook, value: string | Message): string => {
+    const message = telegramReleaseMessage(value);
+    return typeof message === "string" ? message : book.say(message);
+  };
+  const registerChatMenu = (chatId: number, book: Phrasebook, automatic: boolean): Promise<void> =>
+    registerTelegramChatCommandMenu({
+      api: bot.api,
+      dataDir,
+      token: input.token,
+      chatId,
+      book,
+      automatic,
+      syncEnabled: host.operations !== undefined,
+      updateDescription: telegramReleaseMessage(host.release.updateDescription),
+    }).catch((error) => log.error("set_chat_commands_failed", error, {}));
+  const welcomeFor = (book: Phrasebook): string =>
+    book.say(buildWelcomeMessage(releaseText(book, host.release.updateDescription)));
   const log = createSubsystemLogger("telegram", dataDir);
   const greeted = new Set<number>();
   const greetingChecks = new Map<number, Promise<void>>();
@@ -370,6 +384,8 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
     replyWithChatAction: (action: "typing") => Promise<unknown>;
     replyToMessageId?: number;
+    phrasebook: Phrasebook;
+    from?: { language_code?: string };
     timer: ReturnType<typeof setTimeout>;
   }
   const chatBuffers = new Map<number, ChatBuffer>();
@@ -418,6 +434,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
 
   const drainPending = async (): Promise<void> => {
+    await menuRegistration;
     while (true) {
       const snapshot = ledger.captureAllGenerations();
       flushSnapshotBuffers(snapshot);
@@ -426,11 +443,17 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     }
   };
 
-  void bot.api
-    .setMyCommands(buildCommandMenu(host.operations !== undefined, host.release.updateDescription))
-    .catch((err) => {
-      log.error("set_commands_failed", err, {});
-    });
+  const menuRegistration = ledger
+    .track(() =>
+      registerTelegramCommandMenus({
+        api: bot.api,
+        dataDir,
+        token: input.token,
+        syncEnabled: host.operations !== undefined,
+        updateDescription: telegramReleaseMessage(host.release.updateDescription),
+      }),
+    )
+    .catch((err) => log.error("set_commands_failed", err, {}));
 
   // Shared turn skeleton: every chat-bearing handler captures its deps/message
   // synchronously, then hands the LLM turn here to run on the fire-and-forget
@@ -440,6 +463,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   // name, reply-to id) are passed in rather than re-templated.
   function runTurn(opts: {
     ctx: {
+      from?: { language_code?: string };
       reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
       replyWithChatAction: (action: "typing") => Promise<unknown>;
     };
@@ -447,12 +471,14 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     chatId: string;
     message: string;
     athleteText?: string;
-    genericReply: string;
+    genericReply: Message;
+    phrasebook: Phrasebook;
     reservation: TelegramInvocationReservation;
     greetingChatId?: number;
     replyToMessageId?: number;
   }): void {
     dispatch(async () => {
+      const phrasebook = opts.phrasebook;
       const stopHeartbeat = startTypingHeartbeat(
         () => opts.ctx.replyWithChatAction("typing"),
         TYPING_HEARTBEAT_MS,
@@ -462,24 +488,47 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       try {
         response = await opts.reservation.run(async () => {
           if (opts.greetingChatId !== undefined) {
-            await ensureGreeting({ chat: { id: opts.greetingChatId }, reply: opts.ctx.reply });
+            await ensureGreeting(
+              { chat: { id: opts.greetingChatId }, reply: opts.ctx.reply },
+              phrasebook,
+            );
           }
+          let fixedMessage: { key: string; vars?: Record<string, string | number> } | undefined;
           const request = { chatId: opts.chatId, message: opts.message };
           const chatResponse = await enqueueEngineStart(opts.chatId, async () => {
             const turn = await host.operations?.resolveTurnContext();
             const { language, source: languageSource } = await host.language.resolveFor({
+              chatId: opts.chatId,
               athleteText: opts.athleteText ?? opts.message,
+              ...(opts.ctx.from?.language_code === undefined
+                ? {}
+                : {
+                    surfaceHint: {
+                      language: normalizeLocaleHint(opts.ctx.from.language_code),
+                      locale: opts.ctx.from.language_code,
+                    },
+                  }),
             });
             return {
-              result: engine.chat({ ...request, turn: { ...turn, language, languageSource } }),
+              result: engine.chat(
+                { ...request, turn: { ...turn, language, languageSource } },
+                (event) => {
+                  if (event.type === "final-text") fixedMessage = event.message;
+                },
+              ),
             };
           });
-          return chatResponse.text;
+          const wireMessage = chatResponse.message ?? fixedMessage;
+          const message =
+            wireMessage === undefined ? undefined : await messageFromWire(wireMessage);
+          return message === undefined ? chatResponse.text : phrasebook.say(message);
         });
       } catch (err) {
         log.error("command_failed", err, { command: opts.command, chatId: opts.chatId });
-        const { kind, athleteMessage } = classifyAgentError(err);
-        await opts.ctx.reply(kind === "unknown" ? opts.genericReply : athleteMessage);
+        const { kind, athleteMessage } = classifyAgentError(err, phrasebook.format);
+        await opts.ctx.reply(
+          phrasebook.say(kind === "unknown" ? opts.genericReply : athleteMessage),
+        );
         return;
       } finally {
         await stopHeartbeat();
@@ -487,14 +536,20 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       writeResend(opts.chatId, response);
       try {
         await sendLongMessage(opts.ctx, response, opts.replyToMessageId);
-        const proposal = await host.confirmations.peek({ chatId: opts.chatId });
+        const proposal = await host.confirmations.peek({ chatId: opts.chatId, phrasebook });
         if (proposal !== undefined) {
           await opts.ctx.reply(proposal.summary, {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: "Confirm", callback_data: `cg:y:${proposal.nonce}` },
-                  { text: "Cancel", callback_data: `cg:n:${proposal.nonce}` },
+                  {
+                    text: phrasebook.say(msg("telegram.confirmation.confirm")),
+                    callback_data: `cg:y:${proposal.nonce}`,
+                  },
+                  {
+                    text: phrasebook.say(msg("telegram.confirmation.cancel")),
+                    callback_data: `cg:n:${proposal.nonce}`,
+                  },
                 ],
               ],
             },
@@ -502,7 +557,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         }
       } catch (err) {
         log.error("delivery_failed", err, { command: opts.command, chatId: opts.chatId });
-        await opts.ctx.reply(DELIVERY_FAILURE_HINT);
+        await opts.ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
       }
     });
   }
@@ -517,29 +572,33 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     chatBuffers.delete(chatId);
     clearTimeout(buf.timer);
     runTurn({
-      ctx: { reply: buf.reply, replyWithChatAction: buf.replyWithChatAction },
+      ctx: { reply: buf.reply, replyWithChatAction: buf.replyWithChatAction, from: buf.from },
+      phrasebook: buf.phrasebook,
       command: "chat",
       chatId: `telegram:${chatId}`,
       message: buf.fragments.join("\n"),
       athleteText: buf.athleteText,
-      genericReply: "Sorry, something went wrong. Please try again.",
+      genericReply: msg("telegram.error.transport"),
       reservation: buf.reservation,
       greetingChatId: host.invocations === undefined ? undefined : chatId,
       replyToMessageId: buf.replyToMessageId,
     });
   }
 
-  async function ensureGreeting(ctx: {
-    chat: { id: number };
-    reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
-  }): Promise<void> {
+  async function ensureGreeting(
+    ctx: {
+      chat: { id: number };
+      reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+    },
+    phrasebook: Phrasebook,
+  ): Promise<void> {
     if (greeted.has(ctx.chat.id)) return;
     let check = greetingChecks.get(ctx.chat.id);
     if (check === undefined) {
       const chatId = `telegram:${ctx.chat.id}`;
       check = (async () => {
         const { hasSession } = await engine.hasSession({ chatId });
-        if (!hasSession) await ctx.reply(welcomeMessage);
+        if (!hasSession) await ctx.reply(welcomeFor(phrasebook));
         greeted.add(ctx.chat.id);
       })();
       greetingChecks.set(ctx.chat.id, check);
@@ -554,11 +613,13 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   function bufferChatMessage(
     ctx: {
       chat: { id: number };
+      from?: { language_code?: string };
       message: { text: string; message_id?: number };
       reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
       replyWithChatAction: (action: "typing") => Promise<unknown>;
     },
     reservation: TelegramInvocationReservation,
+    phrasebook: Phrasebook,
   ): void {
     const text = ctx.message.text;
     const chatId = ctx.chat.id;
@@ -568,10 +629,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       // immediately so a command can never be coalesced into free-form text.
       runTurn({
         ctx,
+        phrasebook,
         command: "chat",
         chatId: invocationChatId,
         message: text,
-        genericReply: "Sorry, something went wrong. Please try again.",
+        genericReply: msg("telegram.error.transport"),
         reservation,
         greetingChatId: host.invocations === undefined ? undefined : chatId,
         replyToMessageId: ctx.message.message_id,
@@ -586,6 +648,8 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     timer.unref?.();
     chatBuffers.set(chatId, {
       fragments,
+      phrasebook,
+      from: ctx.from,
       athleteText: text,
       scope: existing?.scope ?? ledger.currentScope(),
       reservation: existing?.reservation ?? reservation,
@@ -619,17 +683,25 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   // ── Commands ────────────────────────────────────────────────────────────
 
   bot.command("language", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const current = await host.language.current();
+    await registerChatMenu(ctx.chat.id, phrasebook, current.value === null);
     const message =
       current.origin === "environment"
-        ? `Language is set by ENDURAGENT_LANGUAGE to ${describeLanguage(current.resolved.language).endonym}. Choices below are saved but stay inactive until the variable is removed.`
-        : "Choose your language";
+        ? phrasebook.say(
+            msg("telegram.language.environment", {
+              variable: "ENDURAGENT_LANGUAGE",
+              language: describeLanguage(current.resolved.language).endonym,
+            }),
+          )
+        : phrasebook.say(msg("telegram.language.choose"));
     await ctx.reply(message, {
-      reply_markup: languageKeyboard(current),
+      reply_markup: languageKeyboard(current, phrasebook),
     });
   });
 
   bot.command("start", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     greeted.add(ctx.chat.id);
     let memoryFlushed = true;
     const chatId = `telegram:${ctx.chat.id}`;
@@ -643,60 +715,67 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       resendCache.delete(chatId);
     } catch (err) {
       log.error("command_failed", err, { command: "start", chatId });
-      await ctx.reply(
-        "Something went wrong resetting your session — your history is untouched. Please try /start again.",
-      );
+      await ctx.reply(phrasebook.say(msg("telegram.session.resetFailed", { command: "/start" })));
       return;
     }
-    await ctx.reply(memoryFlushed ? welcomeMessage : `${welcomeMessage}\n\n${RESET_CAVEAT_NOTE}`);
+    const welcomeMessage = welcomeFor(phrasebook);
+    await ctx.reply(
+      memoryFlushed ? welcomeMessage : `${welcomeMessage}\n\n${phrasebook.say(RESET_CAVEAT_NOTE)}`,
+    );
   });
 
   bot.command("plan", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const chatId = `telegram:${ctx.chat.id}`;
     const reservation = reserveInvocation(chatId);
     await acknowledgeBeforeInvocation(reservation, () =>
-      ctx.reply("Analyzing your data and building a plan..."),
+      ctx.reply(phrasebook.say(msg("telegram.plan.working"))),
     );
     runTurn({
       ctx,
+      phrasebook,
       command: "plan",
       chatId,
       message: "/plan",
-      genericReply: "Sorry, something went wrong generating your plan. Please try again.",
+      genericReply: msg("telegram.plan.failed"),
       reservation,
       replyToMessageId: ctx.message?.message_id,
     });
   });
 
   bot.command("workout", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const chatId = `telegram:${ctx.chat.id}`;
     const reservation = reserveInvocation(chatId);
     await acknowledgeBeforeInvocation(reservation, () =>
-      ctx.reply("Checking your form and plan..."),
+      ctx.reply(phrasebook.say(msg("telegram.workout.working"))),
     );
     runTurn({
       ctx,
+      phrasebook,
       command: "workout",
       chatId,
       message: "/workout",
-      genericReply: "Sorry, something went wrong. Please try again.",
+      genericReply: msg("telegram.error.transport"),
       reservation,
       replyToMessageId: ctx.message?.message_id,
     });
   });
 
   bot.command("status", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const chatId = `telegram:${ctx.chat.id}`;
     const reservation = reserveInvocation(chatId);
     await acknowledgeBeforeInvocation(reservation, () =>
-      ctx.reply("Fetching your fitness data..."),
+      ctx.reply(phrasebook.say(msg("telegram.status.working"))),
     );
     runTurn({
       ctx,
+      phrasebook,
       command: "status",
       chatId,
       message: "/status",
-      genericReply: "Sorry, something went wrong. Please try again.",
+      genericReply: msg("telegram.error.transport"),
       reservation,
       replyToMessageId: ctx.message?.message_id,
     });
@@ -704,28 +783,30 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
 
   if (host.operations !== undefined) {
     bot.command("sync", async (ctx) => {
+      const phrasebook = await phrasebookForContext(ctx);
       const chatId = `telegram:${ctx.chat.id}`;
       const reservation = reserveInvocation(chatId);
       await acknowledgeBeforeInvocation(reservation, () =>
-        ctx.reply("Syncing training data from intervals.icu..."),
+        ctx.reply(phrasebook.say(msg("telegram.sync.working", { service: "intervals.icu" }))),
       );
       try {
-        const result = await reservation.run(() => host.operations!.sync({ chatId }));
+        const result = await reservation.run(() => host.operations!.sync({ chatId, phrasebook }));
         await ctx.reply(result.text);
       } catch (err) {
         log.error("command_failed", err, { command: "sync", chatId });
-        await ctx.reply("Sorry, something went wrong syncing. Please try again.");
+        await ctx.reply(phrasebook.say(msg("telegram.sync.failed")));
       }
     });
   }
 
   if (host.diagnostics !== undefined) {
     bot.command("snapshot", async (ctx) => {
+      const phrasebook = await phrasebookForContext(ctx);
       const args = (ctx.match ?? "").trim().split(/\s+/).filter(Boolean);
       const sub = args[0]?.toLowerCase() ?? "help";
 
       if (sub === "help") {
-        await ctx.reply(SNAPSHOT_HELP);
+        await ctx.reply(phrasebook.say(SNAPSHOT_HELP));
         return;
       }
 
@@ -735,15 +816,16 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
           typeof senderId !== "number" ||
           !(await host.authorization.isPrimaryOperator({ senderId: String(senderId) }))
         ) {
-          await ctx.reply("Raw snapshots are available only to the primary operator.");
+          await ctx.reply(phrasebook.say(msg("telegram.snapshot.operatorOnly")));
           return;
         }
         const section = args[1];
         const output = await host.diagnostics!.rawSnapshot(
-          section === undefined ? {} : { section },
+          section === undefined ? { phrasebook } : { section, phrasebook },
         );
         try {
           await sendSnapshotOutput(output, {
+            book: phrasebook,
             reply: (text) => sendLongMessage(ctx, text) as Promise<unknown>,
             replyHtml: (html) => ctx.reply(html, { parse_mode: "HTML" }) as Promise<unknown>,
             sendDocument: (buffer, filename, caption) =>
@@ -757,72 +839,79 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
             command: "snapshot",
             chatId: `telegram:${ctx.chat.id}`,
           });
-          await ctx.reply("Sorry, something went wrong rendering the snapshot.");
+          await ctx.reply(phrasebook.say(msg("telegram.snapshot.failed")));
         }
         return;
       }
 
-      await ctx.reply(SNAPSHOT_HELP);
+      await ctx.reply(phrasebook.say(SNAPSHOT_HELP));
     });
   }
 
   bot.command("review", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const args = (ctx.match ?? "").trim();
     const chatId = `telegram:${ctx.chat.id}`;
     const reservation = reserveInvocation(chatId);
     await acknowledgeBeforeInvocation(reservation, () =>
       ctx.reply(
-        args ? `Reviewing your last session (${args})...` : "Reviewing your last session...",
+        args
+          ? phrasebook.say(msg("telegram.review.workingWithArgs", { args }))
+          : phrasebook.say(msg("telegram.review.working")),
       ),
     );
     const message = args ? `/review ${args}` : "/review";
     runTurn({
       ctx,
+      phrasebook,
       command: "review",
       chatId,
       message,
-      genericReply: "Sorry, something went wrong reviewing your session. Please try again.",
+      genericReply: msg("telegram.review.failed"),
       reservation,
       replyToMessageId: ctx.message?.message_id,
     });
   });
 
   bot.command("version", async (ctx) => {
+    await phrasebookForContext(ctx);
     await ctx.reply(await host.release.version());
   });
 
   bot.command("whatsnew", async (ctx) => {
-    await ctx.reply("Fetching release notes...");
+    const phrasebook = await phrasebookForContext(ctx);
+    await ctx.reply(phrasebook.say(msg("telegram.release.working")));
     try {
-      const result = await host.release.whatsNew();
+      const result = await host.release.whatsNew(phrasebook);
       if (result.kind === "unavailable") {
-        await ctx.reply(host.release.whatsNewUnavailableText);
+        await ctx.reply(releaseText(phrasebook, host.release.whatsNewUnavailableText));
         return;
       }
       await sendLongMessage(ctx, result.text);
     } catch (err) {
       log.error("command_failed", err, { command: "whatsnew", chatId: `telegram:${ctx.chat.id}` });
-      await ctx.reply("Sorry, couldn't fetch release notes. Please try again.");
+      await ctx.reply(phrasebook.say(msg("telegram.release.failed")));
     }
   });
 
   bot.command("update", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const release = host.release;
     if (release.updatePolicy !== "npm-self-update") {
-      await ctx.reply(await release.updateNotice());
+      await ctx.reply(releaseText(phrasebook, await release.updateNotice()));
       return;
     }
 
-    await ctx.reply("Checking for updates...");
+    await ctx.reply(phrasebook.say(msg("telegram.update.checking")));
     let latest: string | undefined;
     try {
       const info = await release.check();
       if (!info) {
-        await ctx.reply("Could not check for updates. Try again later.");
+        await ctx.reply(phrasebook.say(msg("telegram.update.checkFailed")));
         return;
       }
       if (!info.updateAvailable) {
-        await ctx.reply(`You're on the latest version (${info.current}).`);
+        await ctx.reply(phrasebook.say(msg("telegram.update.latest", { version: info.current })));
         return;
       }
       latest = info.latest;
@@ -841,11 +930,17 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         log.error("self_update_marker_failed", undefined, {
           chatId: `telegram:${ctx.chat.id}`,
         });
-        await ctx.reply(SELF_UPDATE_MARKER_FAILURE);
+        await ctx.reply(phrasebook.say(SELF_UPDATE_MARKER_FAILURE));
         return;
       }
       await ctx.reply(
-        `Updating ${info.current} → ${info.latest}...\nThe bot will stop after installation. Run \`${release.binaryName}\` to start it again.`,
+        phrasebook.say(
+          msg("telegram.update.installing", {
+            current: info.current,
+            latest: info.latest,
+            command: release.binaryName,
+          }),
+        ),
       );
       // Stop polling first so Telegram commits the /update offset — otherwise
       // Telegram re-sends /update on next startup and we loop forever — then let
@@ -862,7 +957,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     } catch (err) {
       log.error("command_failed", err, { command: "update", chatId: `telegram:${ctx.chat.id}` });
       await ctx.reply(
-        `Update failed. Please run \`npm install -g ${release.binaryName}@${latest ?? "latest"} --ignore-scripts\` manually.`,
+        phrasebook.say(
+          msg("telegram.update.failed", {
+            command: `npm install -g ${release.binaryName}@${latest ?? "latest"} --ignore-scripts`,
+          }),
+        ),
       );
     }
   });
@@ -879,8 +978,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       return;
     }
     const state = await host.language.set(value);
+    const selectedBook = await phrasebookForContext(ctx);
+    if (ctx.chat !== undefined)
+      await registerChatMenu(ctx.chat.id, selectedBook, state.value === null);
     try {
-      await ctx.editMessageReplyMarkup({ reply_markup: languageKeyboard(state) });
+      await ctx.editMessageReplyMarkup({ reply_markup: languageKeyboard(state, selectedBook) });
     } catch (error) {
       if (
         !(error instanceof GrammyError) ||
@@ -891,13 +993,18 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     } finally {
       await ctx.answerCallbackQuery(
         state.origin === "environment"
-          ? { text: "Saved. ENDURAGENT_LANGUAGE currently wins." }
+          ? {
+              text: selectedBook.say(
+                msg("telegram.language.environmentWins", { variable: "ENDURAGENT_LANGUAGE" }),
+              ),
+            }
           : {},
       );
     }
   });
 
   bot.on("callback_query:data", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const match = /^cg:(y|n):(.+)$/.exec(ctx.callbackQuery.data);
     if (match === null || ctx.chat === undefined) {
       await ctx.answerCallbackQuery();
@@ -918,11 +1025,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         if (choice === "n") {
           const outcome = await host.confirmations.cancel({ chatId, nonce });
           return outcome === "canceled"
-            ? "Canceled — nothing was changed."
-            : "That proposal expired — ask me again and I'll re-propose.";
+            ? phrasebook.say(msg("telegram.confirmation.canceled"))
+            : phrasebook.say(msg("telegram.confirmation.expired"));
         }
-        const outcome = await host.confirmations.confirm({ chatId, nonce });
-        return formatConfirmOutcome(outcome);
+        const outcome = await host.confirmations.confirm({ chatId, nonce, phrasebook });
+        return phrasebook.say(formatConfirmOutcome(outcome));
       });
       await ctx.reply(reply);
     });
@@ -931,6 +1038,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   // ── Free-form chat ──────────────────────────────────────────────────────
 
   bot.on("message:text", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
     const chatId = `telegram:${ctx.chat.id}`;
     const text = ctx.message.text;
 
@@ -948,15 +1056,15 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
             await sendLongMessage(ctx, cached);
           } catch (err) {
             log.error("delivery_failed", err, { command: "resend", chatId });
-            await ctx.reply(DELIVERY_FAILURE_HINT);
+            await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
           }
         });
-      } else await ctx.reply("I don't have a recent answer to resend.");
+      } else await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
       return;
     }
 
     const reservation = reserveMessageInvocation(ctx.chat.id);
-    if (host.invocations === undefined) await ensureGreeting(ctx);
+    if (host.invocations === undefined) await ensureGreeting(ctx, phrasebook);
     // One best-effort typing action per fragment so the athlete sees activity
     // during the debounce window; only the LLM turn is debounced, never the
     // signal. Fire-and-forget: a failure can never reach the handler's failure
@@ -964,7 +1072,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     void Promise.resolve()
       .then(() => ctx.replyWithChatAction("typing"))
       .catch(() => log.debug("typing_action_failed", { command: "chat", chatId }));
-    bufferChatMessage(ctx, reservation);
+    bufferChatMessage(ctx, reservation, phrasebook);
   });
 
   bot.catch(async (botError) => {
@@ -975,7 +1083,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     log.error("bot_catch", botError.error, {});
     const c = botError.ctx;
     try {
-      if (c?.chat) await c.reply(GENERIC_TRANSPORT_APOLOGY);
+      if (c?.chat) await c.reply((await phrasebookForContext(c)).say(GENERIC_TRANSPORT_APOLOGY));
     } catch (replyErr) {
       log.error("bot_catch_reply_failed", replyErr, {});
     }

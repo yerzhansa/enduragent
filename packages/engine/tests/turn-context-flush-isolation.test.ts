@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +8,10 @@ import { tool } from "ai";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 import type { CoreDeps, MemorySectionSpec, Sport, ToolRegistration } from "../src/sport.js";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
-import { TAINTED_BY_WRITES_MESSAGE } from "../src/agent/coach-agent-copy.js";
+import { TAINTED_BY_WRITES_MESSAGE as TAINTED_BY_WRITES_DESCRIPTOR } from "../src/agent/coach-agent-copy.js";
+
+const english = await createPhrasebook({ tag: "en", locale: "en-GB" });
+const TAINTED_BY_WRITES_MESSAGE = english.say(TAINTED_BY_WRITES_DESCRIPTOR);
 
 const FLUSH_MARKER = "reviewing a conversation to extract and save important athlete";
 

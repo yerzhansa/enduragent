@@ -64,8 +64,9 @@ describe("session request queue", () => {
     const pre = new AbortController();
     pre.abort();
     const preRun = vi.fn(async () => "unused");
-    await expect(queue.run({ key: "pre", signal: pre.signal, run: preRun }))
-      .rejects.toBeInstanceOf(DetachedSessionRequestError);
+    await expect(queue.run({ key: "pre", signal: pre.signal, run: preRun })).rejects.toBeInstanceOf(
+      DetachedSessionRequestError,
+    );
     expect(preRun).not.toHaveBeenCalled();
 
     const first = deferred<void>();
@@ -106,18 +107,22 @@ describe("session request queue", () => {
     const controller = new AbortController();
     const add = vi.spyOn(controller.signal, "addEventListener");
     const remove = vi.spyOn(controller.signal, "removeEventListener");
-    await expect(queue.run({
-      key: "result",
-      signal: controller.signal,
-      run: async () => result,
-    })).resolves.toBe(result);
-    await expect(queue.run({
-      key: "error",
-      signal: new AbortController().signal,
-      run: async () => {
-        throw failure;
-      },
-    })).rejects.toBe(failure);
+    await expect(
+      queue.run({
+        key: "result",
+        signal: controller.signal,
+        run: async () => result,
+      }),
+    ).resolves.toBe(result);
+    await expect(
+      queue.run({
+        key: "error",
+        signal: new AbortController().signal,
+        run: async () => {
+          throw failure;
+        },
+      }),
+    ).rejects.toBe(failure);
     expect(add).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(remove.mock.calls[0]?.[1]).toBe(add.mock.calls[0]?.[1]);

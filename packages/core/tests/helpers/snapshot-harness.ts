@@ -6,8 +6,7 @@ import { promisify } from "node:util";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = resolve(__dirname, "../../../..");
-export const SECTION_11_REPO =
-  process.env.SECTION_11_REPO ?? resolve(REPO_ROOT, "../section-11");
+export const SECTION_11_REPO = process.env.SECTION_11_REPO ?? resolve(REPO_ROOT, "../section-11");
 
 const execAsync = promisify(exec);
 

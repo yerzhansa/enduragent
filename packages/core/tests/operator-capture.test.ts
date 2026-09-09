@@ -170,9 +170,7 @@ describe("captureAndPersistOperator — capture flow", () => {
       log: pairing.log,
     });
     expect(result.status).toBe("captured");
-    expect(bot.start).toHaveBeenCalledWith(
-      expect.objectContaining({ drop_pending_updates: true }),
-    );
+    expect(bot.start).toHaveBeenCalledWith(expect.objectContaining({ drop_pending_updates: true }));
     expect(result.capturedId).toBe("12345");
     expect(result.botUsername).toBe("testbot");
     expect(confirm).toHaveBeenCalledWith(

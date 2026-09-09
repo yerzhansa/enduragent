@@ -278,6 +278,7 @@ describe("createTelegramBot — Garmin attribution carriage", () => {
 
     expect(agent.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:73", message: "/status" }),
+      expect.any(Function),
     );
     expect(replies).toContain(attributedAnswer);
 
@@ -371,6 +372,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       { sendMessage: vi.fn(async () => Promise.reject(new Error("sealed"))) },
       dataDir,
       cyclingBinary,
+      createNpmCoachLanguage(dataDir),
     );
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();
 
@@ -382,6 +384,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       },
       dataDir,
       cyclingBinary,
+      createNpmCoachLanguage(dataDir),
     );
     expect(setLastNotifiedVersion).toHaveBeenCalledOnce();
     expect(setLastNotifiedVersion).toHaveBeenCalledWith(dataDir, "2026.5.10");
@@ -415,7 +418,12 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "22222"]);
@@ -452,10 +460,10 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
     const sender = { sendMessage };
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
@@ -487,7 +495,12 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "99999"]);
@@ -513,7 +526,12 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     expect(sendMessage).not.toHaveBeenCalled();
   });
@@ -545,7 +563,12 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      createNpmCoachLanguage(dataDir),
+    );
 
     const message = sendMessage.mock.calls[0]?.[1] ?? "";
     expect(message).toContain("Update available: 2026.5.5");

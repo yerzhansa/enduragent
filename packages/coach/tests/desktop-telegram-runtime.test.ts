@@ -1,6 +1,7 @@
 import { createTestCoachLanguage } from "./language-fixture.js";
 import { describe, expect, it, vi } from "vitest";
 import type { CoachEngine } from "@enduragent/coach-contract";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import type { CreateTelegramChannelInput, TelegramChannelRuntime } from "@enduragent/core";
 import { createDesktopTelegramRuntimeFactory } from "../src/desktop-telegram-runtime.js";
 import type { InvocationCoordinator } from "../src/daemon/invocation-coordinator.js";
@@ -131,22 +132,66 @@ describe("Desktop Telegram runtime projection", () => {
     expect(next).toHaveBeenCalledOnce();
 
     const accessInput = createAccessMiddleware.mock.calls[0]![0];
+    expect(accessInput.language).toBe(lifecycle.language);
     expect(accessInput.loadAllowedSenders).toBe(loadAllowedSenders);
     expect(accessInput.consumePairing).toBe(consumePairing);
-    expect(accessInput.pairingChallenge!({ senderId: "73", senderName: "Athlete" })).toContain(
-      "Desktop → Settings → Telegram",
+    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(
+      accessInput.pairingChallenge!({ senderId: "73", senderName: "Athlete", phrasebook: english }),
+    ).toBe(
+      "<b>This bot is private.</b>\n\nYour Telegram user ID is <code>73</code>. Open Cycling Coach Desktop → Settings → Telegram to approve it.",
+    );
+    const phrasebook = await lifecycle.language.phrasebookFor({
+      chatId: "telegram:73",
+      athleteText: "明日のトレーニングについて詳しく教えてください。",
+    });
+    expect(phrasebook.tag).toBe("ja");
+    const say = vi.spyOn(phrasebook, "say").mockReturnValue("翻訳 <文字> & 内容");
+    expect(
+      accessInput.pairingChallenge!({
+        senderId: "<73>&",
+        senderName: "Athlete",
+        phrasebook,
+      }),
+    ).toBe(
+      "<b>翻訳 &lt;文字&gt; &amp; 内容</b>\n\n翻訳 &lt;文字&gt; &amp; 内容 <code>&lt;73&gt;&amp;</code>. 翻訳 &lt;文字&gt; &amp; 内容",
     );
     expect(await projected.host.authorization.isPrimaryOperator({ senderId: "73" })).toBe(true);
     expect(projected.host.invocations?.reserve("telegram:73")).toBe(reservation);
     expect(reserve).toHaveBeenCalledWith({ key: "telegram:73" });
-    await expect(projected.host.confirmations.peek({ chatId: "telegram:73" })).resolves.toEqual({
+    await expect(
+      projected.host.confirmations.peek({ chatId: "telegram:73", phrasebook }),
+    ).resolves.toEqual({
       nonce: "n",
       summary: "Save plan",
     });
+    expect(confirmations.peek).toHaveBeenCalledWith("telegram:73", phrasebook);
+    await projected.host.confirmations.confirm({ chatId: "telegram:73", nonce: "n", phrasebook });
+    expect(confirmations.confirm).toHaveBeenCalledWith("telegram:73", "n", phrasebook);
     await expect(projected.host.operations?.sync({ chatId: "telegram:73" })).resolves.toEqual({
       text: "Sync complete — your training data is up to date.",
     });
     expect(sync).toHaveBeenCalledWith({});
+    const syncResult = await sync();
+    sync.mockResolvedValueOnce({ ...syncResult, published: false });
+    await expect(
+      projected.host.operations?.sync({ chatId: "telegram:73", phrasebook: english }),
+    ).resolves.toEqual({
+      text: "Already up to date — no new training data was found.",
+    });
+    sync.mockResolvedValueOnce({ ...syncResult, referenceSucceeded: false });
+    await expect(
+      projected.host.operations?.sync({ chatId: "telegram:73", phrasebook: english }),
+    ).resolves.toEqual({
+      text: "Training data synced, but coaching data could not refresh. Try /sync again.",
+    });
+    await expect(
+      projected.host.operations?.sync({ chatId: "telegram:73", phrasebook }),
+    ).resolves.toEqual({
+      text: "翻訳 <文字> & 内容",
+    });
+    expect(say).toHaveBeenLastCalledWith({ key: "telegram.sync.desktopComplete" });
+    say.mockRestore();
     await expect(projected.host.release.version()).resolves.toBe("Cycling Coach Desktop v1.2.3");
 
     projected.onStart?.();

@@ -428,15 +428,16 @@ describe("fetchLiveBundle — real lib stream shapes + edge cases", () => {
         camelActivity({ id: 1, startDateLocal: daysAgo(1) }),
         camelActivity({ id: 2, startDateLocal: daysAgo(2) }),
       ],
-      streamFor: (id) => id === "1"
-        ? {
-            ok: true,
-            value: [
-              { type: "athlete_custom_stream", data: [1] },
-              { type: "athlete_custom_stream", data: [2] },
-            ],
-          }
-        : STREAM_OK,
+      streamFor: (id) =>
+        id === "1"
+          ? {
+              ok: true,
+              value: [
+                { type: "athlete_custom_stream", data: [1] },
+                { type: "athlete_custom_stream", data: [2] },
+              ],
+            }
+          : STREAM_OK,
     });
     const res = await fetchLiveBundle({
       client,
@@ -646,11 +647,20 @@ describe("fetchLiveBundle — real lib stream shapes + edge cases", () => {
       startDateLocal: daysAgo(index < 4 ? 2 : 20),
       source: "STRAVA",
     });
-    const foreign = { id: 8001, icuAthleteId: "i12345", startDateLocal: daysAgo(20), source: "GARMIN_CONNECT" };
+    const foreign = {
+      id: 8001,
+      icuAthleteId: "i12345",
+      startDateLocal: daysAgo(20),
+      source: "GARMIN_CONNECT",
+    };
     const visible = Array.from({ length: 6 }, (_, index) =>
       camelActivity({ id: index + 1, startDateLocal: daysAgo(index === 0 ? 2 : 20) }),
     );
-    const activities = [...Array.from({ length: 60 }, (_, index) => stub(index)), foreign, ...visible];
+    const activities = [
+      ...Array.from({ length: 60 }, (_, index) => stub(index)),
+      foreign,
+      ...visible,
+    ];
     const { client } = fakeClient({ activities });
 
     const res = await fetchLiveBundle({

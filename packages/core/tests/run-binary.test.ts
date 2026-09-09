@@ -269,7 +269,11 @@ describe("_promptProposalConfirm", () => {
       "Confirm: Save the training plan? [y/N]: ",
       expect.any(Function),
     );
-    expect(confirm).toHaveBeenCalledWith("cli", "server-nonce");
+    expect(confirm).toHaveBeenCalledWith(
+      "cli",
+      "server-nonce",
+      expect.objectContaining({ tag: "en", say: expect.any(Function) }),
+    );
     expect(cancel).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith("Done — Save the training plan.");
   });
@@ -346,7 +350,11 @@ describe("_promptProposalConfirm", () => {
 
       expect(lineDispatch).not.toHaveBeenCalled();
       if (confirmed) {
-        expect(confirm).toHaveBeenCalledWith("cli", "server-nonce");
+        expect(confirm).toHaveBeenCalledWith(
+          "cli",
+          "server-nonce",
+          expect.objectContaining({ tag: "en", say: expect.any(Function) }),
+        );
         expect(cancel).not.toHaveBeenCalled();
       } else {
         expect(cancel).toHaveBeenCalledWith("cli", "server-nonce");

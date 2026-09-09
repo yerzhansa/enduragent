@@ -1,3 +1,14 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import {
+  msg,
+  type Message,
+  type CoachLanguage,
+  type SurfaceHint,
+  type LanguageTag,
+} from "@enduragent/i18n";
+import { readEnvironmentSurfaceHint } from "@enduragent/i18n/node";
+import { createNpmCoachLanguage } from "./language-preference.js";
+import { say, cliPhrasebook, withCliPhrasebook } from "./cli-copy.js";
 import {
   intro,
   outro,
@@ -48,22 +59,63 @@ import {
 // TYPES
 // ============================================================================
 
-const PROVIDERS = LLM_MODEL_CATALOGUE.map(({ provider, label, hint }) => ({
-  value: provider,
-  label,
-  ...(hint === undefined ? {} : { hint }),
-}));
+function modelHintMessage(hint: string): Message | undefined {
+  switch (hint) {
+    case "recommended":
+      return msg("cli.setup.modelHints.recommended");
+    case "fast & cheap":
+      return msg("cli.setup.modelHints.fastAndCheap");
+    case "most capable":
+      return msg("cli.setup.modelHints.mostCapable");
+    case "balanced":
+      return msg("cli.setup.modelHints.balanced");
+    case "cheapest":
+      return msg("cli.setup.modelHints.cheapest");
+    case "experimental":
+      return msg("cli.setup.modelHints.experimental");
+    case "faster":
+      return msg("cli.setup.modelHints.faster");
+    case "fast":
+      return msg("cli.setup.modelHints.fast");
+    case "cheaper":
+      return msg("cli.setup.modelHints.cheaper");
+    case "one key, many models":
+      return msg("cli.setup.modelHints.manyModels");
+    case "cheap":
+      return msg("cli.setup.modelHints.cheap");
+    default:
+      return undefined;
+  }
+}
 
-const API_KEY_LABELS: Record<string, string> = {
-  anthropic: "Anthropic API key",
-  openai: "OpenAI API key",
-  google: "Google AI API key",
-  deepseek: "DeepSeek API key",
-  qwen: "Alibaba (Model Studio) API key",
-  minimax: "MiniMax API key",
-  kimi: "Moonshot API key",
-  zai: "Z.AI API key",
-  openrouter: "OpenRouter API key",
+function setupOption(input: { value: string; label: string; hint?: string }): {
+  value: string;
+  label: string;
+  hint?: string;
+} {
+  let label = input.label;
+  if (input.value === "openai-codex") {
+    label = say("cli.setup.codexProvider", { provider: "OpenAI Codex", subscription: "ChatGPT" });
+  } else if (input.value === "claude-cli") {
+    label = say("cli.setup.claudeProvider", { provider: "Claude", cli: "Claude Code CLI" });
+  } else {
+    const via = /^(.*) \(via (.*)\)$/.exec(label);
+    if (via !== null) label = say("cli.setup.modelVia", { model: via[1], provider: via[2] });
+  }
+  const hint = input.hint === undefined ? undefined : modelHintMessage(input.hint);
+  return { value: input.value, label, ...(hint === undefined ? {} : { hint: say(hint) }) };
+}
+
+const API_KEY_LABELS: Record<string, Message> = {
+  anthropic: msg("cli.setup.apiKey", { provider: "Anthropic" }),
+  openai: msg("cli.setup.apiKey", { provider: "OpenAI" }),
+  google: msg("cli.setup.apiKey", { provider: "Google AI" }),
+  deepseek: msg("cli.setup.apiKey", { provider: "DeepSeek" }),
+  qwen: msg("cli.setup.apiKey", { provider: "Alibaba (Model Studio)" }),
+  minimax: msg("cli.setup.apiKey", { provider: "MiniMax" }),
+  kimi: msg("cli.setup.apiKey", { provider: "Moonshot" }),
+  zai: msg("cli.setup.apiKey", { provider: "Z.AI" }),
+  openrouter: msg("cli.setup.apiKey", { provider: "OpenRouter" }),
 };
 
 const CUSTOM_MODEL_SENTINEL = "__custom__";
@@ -115,7 +167,7 @@ export function _detectPrevBackend(value: unknown): BackendChoice | "unknown" {
 export function _processSecretInput(raw: string, field: string): string {
   const cleaned = raw.trim();
   if (cleaned !== raw) {
-    log.info(`Trimmed whitespace from pasted ${field}.`);
+    log.info(say("cli.setup.trimmedWhitespaceFromPasted", { field: field }));
   }
   const bytes = Buffer.byteLength(cleaned, "utf-8");
   if (bytes > 65_536) {
@@ -127,10 +179,7 @@ export function _processSecretInput(raw: string, field: string): string {
 export function _formatOrphanCleanup(ctx: WizardCtx, binary: BinaryConfig): string {
   const orphans = ctx.createdThisRun.filter((e) => !e.preExistedBeforeWizard);
   if (orphans.length === 0) return "";
-  const lines: string[] = [
-    "",
-    "[wizard] Orphaned backend items created this run — delete manually if desired:",
-  ];
+  const lines: string[] = ["", say("cli.setup.wizardOrphanedBackendItemsCreatedThis")];
   for (const o of orphans) {
     if (o.backend === "op") {
       lines.push(`  op item delete "${o.title}" --vault "${o.vaultName ?? ""}"`);
@@ -155,17 +204,20 @@ export function _createSignalHandler(
   signal: "SIGINT" | "SIGTERM",
   binary: BinaryConfig,
 ): () => void {
-  return () => {
+  return AsyncLocalStorage.bind(() => {
     _printOrphanCleanup(ctx, binary);
     const code = signal === "SIGINT" ? 130 : 143;
     process.exit(code);
-  };
+  });
 }
 
 export function _assertTTY(binary: BinaryConfig): void {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     process.stderr.write(
-      `${binary.binaryName} setup requires an interactive TTY. See README 'Non-interactive setup' for hand-editing YAML directly.\n`,
+      say("cli.setup.setupRequiresAnInteractiveTtySee", {
+        binaryName: binary.binaryName,
+        setupCommand: `${binary.binaryName} setup`,
+      }),
     );
     process.exit(2);
   }
@@ -178,7 +230,7 @@ export function _assertTTY(binary: BinaryConfig): void {
 function handleCancel(value: unknown, ctx: WizardCtx, binary: BinaryConfig): void {
   if (isCancel(value)) {
     _printOrphanCleanup(ctx, binary);
-    cancel("Setup cancelled.");
+    cancel(say("cli.setup.setupCancelled"));
     process.exit(0);
   }
 }
@@ -219,9 +271,37 @@ async function runOpSignin(opPath: string): Promise<boolean> {
 // WIZARD FLOW
 // ============================================================================
 
-export async function runSetup(binary: BinaryConfig): Promise<void> {
-  _assertTTY(binary);
+export async function selectSetupLanguage(
+  language: CoachLanguage,
+  surface: SurfaceHint,
+): Promise<void> {
+  const current = await language.current();
+  if (current.origin !== "unset" || surface.language !== undefined) return;
+  const selected = await select<LanguageTag>({
+    message: say("cli.language.choose"),
+    options: language.options.map(({ tag, endonym }) => ({ value: tag, label: endonym })),
+    initialValue: surface.language ?? "en",
+  });
+  if (typeof selected === "symbol") {
+    cancel(say("cli.setup.setupCancelled"));
+    process.exit(0);
+  }
+  await language.set(selected);
+}
 
+export async function runSetup(binary: BinaryConfig): Promise<void> {
+  const previous = readConfigYaml();
+  const dataDir = typeof previous.data_dir === "string" ? previous.data_dir : CONFIG_DIR;
+  const language = createNpmCoachLanguage(dataDir);
+  const phrasebook = await language.phrasebookFor({});
+  await withCliPhrasebook(phrasebook, async () => {
+    _assertTTY(binary);
+    await selectSetupLanguage(language, readEnvironmentSurfaceHint(process.env));
+    await withCliPhrasebook(await language.phrasebookFor({}), () => runSetupWizard(binary));
+  });
+}
+
+async function runSetupWizard(binary: BinaryConfig): Promise<void> {
   const ctx: WizardCtx = { createdThisRun: [] };
   const sigintHandler = _createSignalHandler(ctx, "SIGINT", binary);
   const sigtermHandler = _createSignalHandler(ctx, "SIGTERM", binary);
@@ -232,7 +312,9 @@ export async function runSetup(binary: BinaryConfig): Promise<void> {
     await _runWizardCore(ctx, binary);
   } catch (err) {
     await _guardedCleanup(ctx, binary);
-    cancel(`Setup failed: ${err instanceof Error ? err.message : String(err)}`);
+    cancel(
+      say("cli.setup.setupFailed", { value1: err instanceof Error ? err.message : String(err) }),
+    );
     process.exit(1);
   } finally {
     process.removeListener("SIGINT", sigintHandler);
@@ -257,8 +339,10 @@ async function _runLlmPrompts(
 ): Promise<LlmPromptOutcome> {
   // Provider
   const providerResp = await select({
-    message: "LLM provider",
-    options: PROVIDERS,
+    message: say("cli.setup.provider"),
+    options: LLM_MODEL_CATALOGUE.map(({ provider, label, hint }) =>
+      setupOption({ value: provider, label, ...(hint === undefined ? {} : { hint }) }),
+    ),
     initialValue: prevProvider ?? "anthropic",
   });
   handleCancel(providerResp, ctx, binary);
@@ -275,10 +359,10 @@ async function _runLlmPrompts(
         : CUSTOM_MODEL_SENTINEL
       : catalogue?.defaultModel;
   const modelResp = await select({
-    message: "Model",
+    message: say("cli.setup.model"),
     options: [
-      ...(catalogue?.models ?? []),
-      { value: CUSTOM_MODEL_SENTINEL, label: "Other (type model name)" },
+      ...(catalogue?.models.map(setupOption) ?? []),
+      { value: CUSTOM_MODEL_SENTINEL, label: say("cli.setup.otherTypeModelName") },
     ],
     initialValue: initialModel,
   });
@@ -287,10 +371,11 @@ async function _runLlmPrompts(
 
   if (model === CUSTOM_MODEL_SENTINEL) {
     const custom = await text({
-      message: "Model name",
+      message: say("cli.setup.modelName"),
       defaultValue: sameProvider ? prevModel : undefined,
       placeholder: sameProvider ? prevModel : undefined,
-      validate: (v) => (!v && !(sameProvider && prevModel) ? "Model name is required" : undefined),
+      validate: (v) =>
+        !v && !(sameProvider && prevModel) ? say("cli.setup.modelNameIsRequired") : undefined,
     });
     handleCancel(custom, ctx, binary);
     model = (typeof custom === "string" && custom) || prevModel || "";
@@ -304,7 +389,7 @@ async function _runLlmPrompts(
   if (defaultBaseUrl) {
     const prevBaseUrl = getString(previous, "llm", "base_url");
     const baseUrlResp = await text({
-      message: "Base URL (Enter for default)",
+      message: say("cli.setup.baseUrlEnterForDefault"),
       defaultValue: prevBaseUrl ?? defaultBaseUrl,
       placeholder: defaultBaseUrl,
     });
@@ -319,19 +404,25 @@ async function _runLlmPrompts(
     let doLogin = true;
     if (existing) {
       const reuse = await confirm({
-        message: "Existing Codex OAuth profile found. Re-login?",
+        message: say("cli.setup.existingCodexOauthProfileFoundRe", { codex: "Codex" }),
         initialValue: false,
       });
       handleCancel(reuse, ctx, binary);
       doLogin = Boolean(reuse);
     }
     if (doLogin) {
-      log.info("Starting OAuth sign-in. ChatGPT Plus or higher required.");
+      log.info(say("cli.setup.startingOauthSignInChatgptPlus", { subscription: "ChatGPT Plus" }));
       try {
         freshCodexCreds = await runCodexLogin();
-        log.success("OpenAI Codex OAuth complete.");
+        log.success(
+          say("cli.setup.openaiCodexOauthComplete", { provider: "OpenAI", codex: "Codex" }),
+        );
       } catch (err) {
-        cancel(`OAuth sign-in failed: ${err instanceof Error ? err.message : String(err)}`);
+        cancel(
+          say("cli.setup.oauthSignInFailed", {
+            value1: err instanceof Error ? err.message : String(err),
+          }),
+        );
         process.exit(1);
       }
     }
@@ -368,7 +459,7 @@ async function _runLlmPrompts(
         note: (line) => log.info(line),
         confirmApiKeyOptIn: async () => {
           const answer = await confirm({
-            message: CLAUDE_CLI_API_KEY_OPT_IN_PROMPT,
+            message: say(CLAUDE_CLI_API_KEY_OPT_IN_PROMPT),
             initialValue: false,
           });
           handleCancel(answer, ctx, binary);
@@ -392,7 +483,7 @@ async function _runLlmPrompts(
 }
 
 async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<void> {
-  intro(`${binary.displayName} — Setup`);
+  intro(say("cli.setup.setup", { displayName: binary.displayName }));
 
   const previous = readConfigYaml();
   const prevProvider = getString(previous, "llm", "provider");
@@ -407,17 +498,15 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
     prevProvider !== undefined &&
     !LLM_MODEL_CATALOGUE.some((entry) => entry.provider === prevProvider)
   ) {
-    log.warn(
-      `Your current provider \`${prevProvider}\` is not offered by the wizard; re-running setup will replace it.`,
-    );
+    log.warn(say("cli.setup.yourCurrentProviderIsNotOffered", { prevProvider: prevProvider }));
     const replaceProvider = await confirm({
-      message: `Replace \`${prevProvider}\` with a provider from this list?`,
+      message: say("cli.setup.replaceWithAProviderFromThis", { prevProvider: prevProvider }),
       initialValue: false,
     });
     handleCancel(replaceProvider, ctx, binary);
     keepLlmBlock = !replaceProvider;
     if (keepLlmBlock) {
-      log.info(`Keeping \`${prevProvider}\`; the rest of setup continues.`);
+      log.info(say("cli.setup.keepingTheRestOfSetupContinues", { prevProvider: prevProvider }));
     }
   }
 
@@ -456,7 +545,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
         ctx,
         {
           field: "llm.api_key",
-          label: `${API_KEY_LABELS[llm.provider]}`,
+          label: say(API_KEY_LABELS[llm.provider]),
           required: !hasPrev,
           prevValue: llm.provider === prevProvider ? prevLlmKey : undefined,
           backend,
@@ -485,7 +574,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
       ctx,
       {
         field: "intervals.api_key",
-        label: "intervals.icu API key",
+        label: say("cli.setup.intervalsIcuApiKey", { platform: "intervals.icu" }),
         required: false,
         prevValue: prevIntervalsKey,
         backend,
@@ -503,7 +592,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
       // Ask for athlete ID when the user typed a new key (reuse prev athlete id on keep).
       if (result.providedNewValue) {
         const athleteId = await text({
-          message: "intervals.icu athlete ID",
+          message: say("cli.setup.intervalsIcuAthleteId", { platform: "intervals.icu" }),
           defaultValue: prevIntervalsId ?? "0",
           placeholder: prevIntervalsId ?? "0",
         });
@@ -532,7 +621,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
       ctx,
       {
         field: "telegram.bot_token",
-        label: "Telegram bot token",
+        label: say("cli.setup.telegramBotToken", { telegram: "Telegram" }),
         required: false,
         prevValue: prevTelegramToken,
         backend,
@@ -556,12 +645,12 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
   // Confirm before writing when a prior config exists.
   if (existsSync(CONFIG_FILE)) {
     const ok = await confirm({
-      message: `Update ${CONFIG_FILE}?`,
+      message: say("cli.setup.update", { CONFIG_FILE: CONFIG_FILE }),
       initialValue: true,
     });
     handleCancel(ok, ctx, binary);
     if (!ok) {
-      log.info("No changes written.");
+      log.info(say("cli.setup.noChangesWritten"));
       return;
     }
   }
@@ -587,7 +676,11 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
           /* best-effort */
         }
       }
-      cancel(`Failed to save OAuth profile: ${err instanceof Error ? err.message : String(err)}`);
+      cancel(
+        say("cli.setup.failedToSaveOauthProfile", {
+          value1: err instanceof Error ? err.message : String(err),
+        }),
+      );
       process.exit(1);
     }
   }
@@ -602,7 +695,12 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
     await runOperatorCaptureStep(tgToken, binary, ctx);
   }
 
-  outro(`Config written to ${CONFIG_FILE}\n  Run \`${binary.binaryName}\` to start.`);
+  outro(
+    say("cli.setup.configWrittenToRunToStart", {
+      CONFIG_FILE: CONFIG_FILE,
+      binaryName: binary.binaryName,
+    }),
+  );
 }
 
 async function runOperatorCaptureStep(
@@ -614,28 +712,44 @@ async function runOperatorCaptureStep(
   const hasAllowlist = existing.allowFrom.length > 0;
   if (hasAllowlist) {
     const reCapture = await confirm({
-      message: `Operator already configured (id: ${existing.primaryOperator ?? "—"}; allowFrom has ${existing.allowFrom.length} entr${existing.allowFrom.length === 1 ? "y" : "ies"}). Re-capture? This preserves all existing entries.`,
+      message: say("cli.setup.operatorAlreadyConfiguredIdAllowfromHas", {
+        operator: existing.primaryOperator ?? "—",
+        count: existing.allowFrom.length,
+        formattedCount: cliPhrasebook().format.number(existing.allowFrom.length, {
+          useGrouping: false,
+        }),
+      }),
       initialValue: false,
     });
     handleCancel(reCapture, ctx, binary);
     if (!reCapture) {
-      log.info("Skipping operator capture; existing allowlist preserved.");
+      log.info(say("cli.setup.skippingOperatorCaptureExistingAllowlistPreserved"));
       return;
     }
   }
 
   log.info(
-    `Setup will register your Telegram account as the primary operator. Send your bot the pairing code shown below from your Telegram app within 60 seconds.`,
+    say("cli.setup.setupWillRegisterYourTelegramAccount", {
+      telegram: "Telegram",
+      seconds: cliPhrasebook().format.number(60, { useGrouping: false }),
+    }),
   );
   const timeoutMs = envInt(binaryEnvVar(binary.binaryName, "SETUP_CAPTURE_TIMEOUT_MS")) ?? 60_000;
   const result = await captureAndPersistOperator({
     botToken,
     binary,
     dataDir: CONFIG_DIR,
+    phrasebook: cliPhrasebook(),
     timeoutMs,
     confirm: async (info) => {
       const ok = await confirm({
-        message: `Captured operator id ${info.capturedId} (Telegram: @${info.senderUsername ?? "—"}, name: ${info.senderFirstName ?? "—"}) for bot @${info.botUsername}. Save?`,
+        message: say("cli.setup.capturedOperatorIdTelegramNameFor", {
+          capturedId: info.capturedId,
+          value1: info.senderUsername ?? "—",
+          value2: info.senderFirstName ?? "—",
+          botUsername: info.botUsername,
+          telegram: "Telegram",
+        }),
         initialValue: false,
       });
       handleCancel(ok, ctx, binary);
@@ -646,31 +760,50 @@ async function runOperatorCaptureStep(
 
   switch (result.status) {
     case "captured":
-      log.success(`Operator registered (id: ${result.capturedId}).`);
+      log.success(say("cli.setup.operatorRegisteredId", { capturedId: String(result.capturedId) }));
       return;
     case "declined":
       log.warn(
-        `Capture discarded. Run \`${binary.binaryName} add-sender <id>\` later to authorize yourself.`,
+        say("cli.setup.captureDiscardedRunAddSenderId", {
+          binaryName: binary.binaryName,
+          addSenderCommand: `${binary.binaryName} add-sender <id>`,
+        }),
       );
       return;
     case "timeout":
       log.warn(
-        `No pairing code received within the capture window. Run \`${binary.binaryName} add-sender <id>\` once you know your Telegram user-id (DM the bot to receive it).`,
+        say("cli.setup.noPairingCodeReceivedWithinThe", {
+          binaryName: binary.binaryName,
+          telegram: "Telegram",
+          addSenderCommand: `${binary.binaryName} add-sender <id>`,
+        }),
       );
       return;
     case "getme-failed":
       log.warn(
-        `Bot token did not resolve to a valid Telegram bot (${result.reason ?? "unknown error"}). Skipping capture; re-run \`${binary.binaryName} setup\` once the token is fixed.`,
+        say("cli.setup.botTokenDidNotResolveTo", {
+          value1: result.reason ?? say("cli.setup.unknownError"),
+          binaryName: binary.binaryName,
+          telegram: "Telegram",
+          setupCommand: `${binary.binaryName} setup`,
+        }),
       );
       return;
     case "lockfile-contention":
       log.warn(
-        `Allowlist lockfile is held by another process. Run \`${binary.binaryName} add-sender <id>\` once it releases.`,
+        say("cli.setup.allowlistLockfileIsHeldByAnother", {
+          binaryName: binary.binaryName,
+          addSenderCommand: `${binary.binaryName} add-sender <id>`,
+        }),
       );
       return;
     case "write-failed":
       log.warn(
-        `Failed to persist allowlist (${result.reason ?? "unknown error"}). Run \`${binary.binaryName} add-sender <id>\` once the underlying issue is fixed.`,
+        say("cli.setup.failedToPersistAllowlistRunAdd", {
+          value1: result.reason ?? say("cli.setup.unknownError"),
+          binaryName: binary.binaryName,
+          addSenderCommand: `${binary.binaryName} add-sender <id>`,
+        }),
       );
       return;
   }
@@ -692,20 +825,28 @@ async function _pickBackend(ctx: WizardCtx, binary: BinaryConfig): Promise<Backe
     if (avail.op.state === "ready") {
       options.push({
         value: BACKEND_OP,
-        label: `1Password CLI (signed in as ${avail.op.signedInAs})`,
+        label: say("cli.setup.passwordCliSignedInAs", {
+          signedInAs: avail.op.signedInAs,
+          passwordManager: "1Password",
+        }),
       });
     } else if (avail.op.state === "needs-signin") {
       options.push({
         value: BACKEND_OP_SIGNIN,
-        label: "1Password CLI — sign in first",
+        label: say("cli.setup.passwordCliSignInFirst", { passwordManager: "1Password" }),
       });
     } else {
-      log.info(`1Password backend not offered — ${describeOpState(avail.op)}.`);
+      log.info(
+        say("cli.setup.passwordBackendNotOffered", {
+          value1: describeOpState(avail.op),
+          passwordManager: "1Password",
+        }),
+      );
     }
     options.push({
       value: BACKEND_PLAIN,
-      label: "Plain config.yaml",
-      hint: "stored unencrypted on disk (mode 600)",
+      label: say("cli.setup.plainConfigYaml", { configFile: "config.yaml" }),
+      hint: say("cli.setup.storedUnencryptedOnDiskMode", { permissions: "600" }),
     });
 
     // op-signin is never the default: a bare Enter must not spawn an
@@ -717,7 +858,7 @@ async function _pickBackend(ctx: WizardCtx, binary: BinaryConfig): Promise<Backe
         : BACKEND_PLAIN;
 
     const picked = await select({
-      message: "Where to store secrets?",
+      message: say("cli.setup.whereToStoreSecrets"),
       options,
       initialValue,
     });
@@ -731,10 +872,12 @@ async function _pickBackend(ctx: WizardCtx, binary: BinaryConfig): Promise<Backe
         continue; // state changed underneath; re-detect
       }
       const opPath = avail.op.absolutePath;
-      log.info("Running `op signin` — complete the prompt in this terminal.");
+      log.info(say("cli.setup.runningOpSigninCompleteThePrompt", { signInCommand: "op signin" }));
       const ok = await runOpSignin(opPath);
       if (!ok) {
-        log.error("`op signin` did not complete successfully. Pick another backend.");
+        log.error(
+          say("cli.setup.opSigninDidNotCompleteSuccessfully", { signInCommand: "op signin" }),
+        );
         continue;
       }
       const reDetected = await detectBackends();
@@ -742,7 +885,10 @@ async function _pickBackend(ctx: WizardCtx, binary: BinaryConfig): Promise<Backe
         return "op";
       }
       log.info(
-        `1Password still unavailable — ${describeOpState(reDetected.op)}. Pick another backend.`,
+        say("cli.setup.passwordStillUnavailablePickAnotherBackend", {
+          value1: describeOpState(reDetected.op),
+          passwordManager: "1Password",
+        }),
       );
       continue;
     }
@@ -755,18 +901,20 @@ const OP_DESKTOP_APP_HINT_RE = /desktop app|update the 1Password app|1password\.
 const OP_LOCKED_HINT_RE = /biometric|touch id|locked/i;
 
 function describeOpState(state: OpState): string {
-  if (state.state === "ready") return `signed in as ${state.signedInAs}`;
-  if (state.state === "needs-signin") return "needs sign-in";
-  if (state.reason === "not-on-path") return "not installed";
-  if (state.reason === "no-account") return "no account configured";
-  const detail = state.detail ?? "unknown";
+  if (state.state === "ready") return say("cli.setup.signedInAs", { signedInAs: state.signedInAs });
+  if (state.state === "needs-signin") return say("cli.setup.needsSignIn");
+  if (state.reason === "not-on-path") return say("cli.setup.notInstalled");
+  if (state.reason === "no-account") return say("cli.setup.noAccountConfigured");
+  const detail = state.detail ?? say("cli.setup.unknown");
   if (OP_DESKTOP_APP_HINT_RE.test(detail)) {
-    return "1Password desktop app integration unavailable; quit and reopen the 1Password app, then re-run setup";
+    return say("cli.setup.passwordDesktopAppIntegrationUnavailableQuit", {
+      passwordManager: "1Password",
+    });
   }
   if (OP_LOCKED_HINT_RE.test(detail)) {
-    return "1Password is locked; unlock the desktop app and re-run setup";
+    return say("cli.setup.passwordIsLockedUnlockTheDesktop", { passwordManager: "1Password" });
   }
-  return `op CLI error: ${detail}`;
+  return say("cli.setup.opCliError", { detail: detail });
 }
 
 // ============================================================================
@@ -804,10 +952,10 @@ async function _collectAndWriteSecret(
   const prevBackend = _detectPrevBackend(prevValue);
 
   const promptLabel = hasPrev
-    ? `${label} (Enter to keep existing)`
+    ? say("cli.setup.enterToKeepExisting", { label: label })
     : required
       ? label
-      : `${label} (Enter to skip)`;
+      : say("cli.setup.enterToSkip", { label: label });
 
   const entered = await password({
     message: promptLabel,
@@ -820,7 +968,7 @@ async function _collectAndWriteSecret(
     // Enter-keep / Enter-skip branch.
     if (!hasPrev) {
       if (required) {
-        cancel(`${label} is required.`);
+        cancel(say("cli.setup.isRequired", { label: label }));
         process.exit(1);
       }
       return {
@@ -847,10 +995,17 @@ async function _collectAndWriteSecret(
 
     // D13 cross-backend keep-vs-paste prompt.
     const action = await select({
-      message: `${label}: switch backend from ${prevBackend} to ${backend}?`,
+      message: say("cli.setup.switchBackendFromTo", {
+        label: label,
+        prevBackend: prevBackend,
+        backend: backend,
+      }),
       options: [
-        { value: "paste", label: `Paste a new value to migrate to ${backend}` },
-        { value: "keep", label: `Keep in ${prevBackend} (YAML unchanged)` },
+        { value: "paste", label: say("cli.setup.pasteANewValueToMigrate", { backend: backend }) },
+        {
+          value: "keep",
+          label: say("cli.setup.keepInYamlUnchanged", { prevBackend: prevBackend }),
+        },
       ],
       initialValue: "keep",
     });
@@ -868,13 +1023,14 @@ async function _collectAndWriteSecret(
 
     // Paste: re-prompt with a required value.
     const second = await password({
-      message: `${label} (paste new value)`,
-      validate: (v) => (!v ? `${label} is required when migrating.` : undefined),
+      message: say("cli.setup.pasteNewValue", { label: label }),
+      validate: (v) =>
+        !v ? say("cli.setup.isRequiredWhenMigrating", { label: label }) : undefined,
     });
     handleCancel(second, ctx, binary);
     const cleanedSecond = _processSecretInput(typeof second === "string" ? second : "", field);
     if (cleanedSecond.length === 0) {
-      cancel(`${label} is required when migrating.`);
+      cancel(say("cli.setup.isRequiredWhenMigrating", { label: label }));
       process.exit(1);
     }
     return await _writeToBackend(ctx, args, backend, cleanedSecond, binary);
@@ -884,7 +1040,7 @@ async function _collectAndWriteSecret(
   const cleaned = _processSecretInput(raw, field);
   if (cleaned.length === 0) {
     if (required) {
-      cancel(`${label} is required.`);
+      cancel(say("cli.setup.isRequired", { label: label }));
       process.exit(1);
     }
     if (hasPrev) {
@@ -944,11 +1100,15 @@ async function _writeToBackend(
     if (preExistingVault !== null) {
       // Prompt Update / Keep / Cancel (D10 re-run flow)
       const action = await select({
-        message: `1Password item "${title}" already exists in vault "${preExistingVault}". Action?`,
+        message: say("cli.setup.passwordItemAlreadyExistsInVault", {
+          title: title,
+          preExistingVault: preExistingVault,
+          passwordManager: "1Password",
+        }),
         options: [
-          { value: "update", label: "Update with new value" },
-          { value: "keep", label: "Keep existing (no write)" },
-          { value: "cancel", label: "Cancel setup" },
+          { value: "update", label: say("cli.setup.updateWithNewValue") },
+          { value: "keep", label: say("cli.setup.keepExistingNoWrite") },
+          { value: "cancel", label: say("cli.setup.cancelSetup") },
         ],
         initialValue: "update",
       });
@@ -980,7 +1140,13 @@ async function _writeToBackend(
       }
       await opItemUpdate(opAbsPath, title, value, preExistingVault);
       resolvedVault = preExistingVault;
-      log.success(`Updated ${field} in 1Password vault "${resolvedVault}".`);
+      log.success(
+        say("cli.setup.updatedInPasswordVault", {
+          field: field,
+          resolvedVault: resolvedVault,
+          passwordManager: "1Password",
+        }),
+      );
     } else {
       resolvedVault = await createOpItem(
         ctx,
@@ -990,7 +1156,13 @@ async function _writeToBackend(
         args.chosenVaultRef.current,
         binary,
       );
-      log.success(`Stored ${field} in 1Password vault "${resolvedVault}".`);
+      log.success(
+        say("cli.setup.storedInPasswordVault", {
+          field: field,
+          resolvedVault: resolvedVault,
+          passwordManager: "1Password",
+        }),
+      );
     }
 
     ctx.createdThisRun.push({
@@ -1025,7 +1197,25 @@ async function _writeToBackend(
     throw err;
   }
   log.success(
-    `${preExisted ? "Updated" : "Stored"} ${field} in macOS Keychain (service: ${binary.keychainPrefix}, account: ${account}). config.yaml stores a /usr/bin/security reference, not the secret.`,
+    say(
+      preExisted
+        ? msg("cli.setup.updatedInKeychain", {
+            field,
+            keychainPrefix: binary.keychainPrefix,
+            account,
+            keychain: "macOS Keychain",
+            configFile: "config.yaml",
+            securityCommand: "/usr/bin/security",
+          })
+        : msg("cli.setup.storedInKeychain", {
+            field: field,
+            keychainPrefix: binary.keychainPrefix,
+            account: account,
+            keychain: "macOS Keychain",
+            configFile: "config.yaml",
+            securityCommand: "/usr/bin/security",
+          }),
+    ),
   );
   ctx.createdThisRun.push({
     backend: "keychain",
@@ -1072,7 +1262,7 @@ async function createOpItem(
     if (err instanceof OpVaultAmbiguousError) {
       const vaults = await opVaultList(opAbsPath);
       const picked = await select({
-        message: "Multiple 1Password vaults — pick one:",
+        message: say("cli.setup.multiplePasswordVaultsPickOne", { passwordManager: "1Password" }),
         options: vaults.map((v) => ({ value: v.name, label: v.name })),
       });
       handleCancel(picked, ctx, binary);
@@ -1091,7 +1281,10 @@ async function discoverOpAbsPath(): Promise<string> {
   if (avail.op.state === "ready") return avail.op.absolutePath;
   if (avail.op.state === "needs-signin") return avail.op.absolutePath;
   throw new Error(
-    `1Password backend became unavailable mid-wizard (${describeOpState(avail.op)}).`,
+    say("cli.setup.passwordBackendBecameUnavailableMidWizard", {
+      value1: describeOpState(avail.op),
+      passwordManager: "1Password",
+    }),
   );
 }
 
@@ -1104,11 +1297,18 @@ export async function _guardedCleanup(ctx: WizardCtx, binary: BinaryConfig): Pro
   if (orphans.length === 0) return;
 
   log.error(
-    `Wizard failed after creating ${orphans.length} new backend item(s) that are not yet in config.yaml.`,
+    say("cli.setup.wizardFailedAfterCreatingNewBackend", {
+      count: orphans.length,
+      formattedCount: cliPhrasebook().format.number(orphans.length, { useGrouping: false }),
+      configFile: "config.yaml",
+    }),
   );
 
   const doCleanup = await confirm({
-    message: `Delete the ${orphans.length} orphan item(s) now?`,
+    message: say("cli.setup.deleteTheOrphanItemSNow", {
+      count: orphans.length,
+      formattedCount: cliPhrasebook().format.number(orphans.length, { useGrouping: false }),
+    }),
     initialValue: false,
   });
   if (isCancel(doCleanup) || !doCleanup) {
@@ -1120,14 +1320,20 @@ export async function _guardedCleanup(ctx: WizardCtx, binary: BinaryConfig): Pro
     try {
       if (o.backend === "op" && o.opAbsPath && o.vaultName) {
         await opItemDelete(o.opAbsPath, o.title, o.vaultName);
-        log.info(`Deleted 1Password item "${o.title}".`);
+        log.info(
+          say("cli.setup.deletedPasswordItem", { title: o.title, passwordManager: "1Password" }),
+        );
       } else if (o.backend === "keychain" && o.keychainPath) {
         await keychainItemDelete(o.title, o.keychainPath);
-        log.info(`Deleted Keychain item "${o.title}".`);
+        log.info(say("cli.setup.deletedKeychainItem", { title: o.title }));
       }
     } catch (err) {
       log.error(
-        `Failed to delete ${o.backend} item "${o.title}": ${err instanceof Error ? err.message : String(err)}`,
+        say("cli.setup.failedToDeleteItem", {
+          backend: o.backend,
+          title: o.title,
+          value1: err instanceof Error ? err.message : String(err),
+        }),
       );
       // Continue best-effort — don't stop on the first failure.
     }

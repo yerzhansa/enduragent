@@ -1,10 +1,14 @@
 import { LanguageTagSchema, type LanguageTag } from "@enduragent/coach-contract";
 
+type TelegramLanguageCode<Tag extends string = LanguageTag> = Tag extends `${infer Base}-${string}`
+  ? Base
+  : Tag;
+
 export interface LanguageDescription {
   readonly tag: LanguageTag;
   readonly endonym: string;
   readonly englishName: string;
-  readonly telegramCode: string;
+  readonly telegramCode: TelegramLanguageCode;
   readonly defaultLocale: string;
 }
 
@@ -139,7 +143,7 @@ export function describeLanguage(tag: LanguageTag): LanguageDescription {
 }
 
 export function telegramRegistrationCodes(): readonly {
-  code: string;
+  code: TelegramLanguageCode;
   representative: LanguageTag;
 }[] {
   const seen = new Set<string>();

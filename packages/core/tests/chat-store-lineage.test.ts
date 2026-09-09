@@ -89,7 +89,8 @@ describe("ChatStore lineage", () => {
   it("accepts an old session written without lineage fields", () => {
     writeFileSync(
       join(sessionsDir, "legacy.jsonl"),
-      JSON.stringify({ role: "assistant", content: "old reply", ts: "2026-06-14T00:00:00.000Z" }) + "\n",
+      JSON.stringify({ role: "assistant", content: "old reply", ts: "2026-06-14T00:00:00.000Z" }) +
+        "\n",
       { encoding: "utf-8", mode: 0o600 },
     );
     const { messages } = store.load("legacy");

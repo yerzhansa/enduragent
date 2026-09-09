@@ -1,3 +1,5 @@
+import { msg } from "@enduragent/i18n";
+import { say } from "./cli-copy.js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -14,8 +16,10 @@ export interface UpdateInfo {
   updateAvailable: boolean;
 }
 
-export const MANAGED_DEPLOY_UPDATE_NOTICE =
-  "This deployment updates through its container image. If Railway image auto-updates are enabled, Railway redeploys the latest GHCR image during the configured maintenance window; otherwise redeploy the service from the latest image in Railway.";
+export const MANAGED_DEPLOY_UPDATE_NOTICE = msg("cli.update.managedDeployment", {
+  railway: "Railway",
+  registry: "GHCR",
+});
 
 export function isManagedDeploy(
   binaryName: string,
@@ -303,7 +307,7 @@ export function buildSelfUpdateCommand(binaryName: string, version?: string): st
 }
 
 export function selfUpdate(binaryName: string, version?: string): void {
-  console.log(`Installing ${binaryName}@${updateTarget(version)}...`);
+  console.log(say("cli.update.installing", { package: `${binaryName}@${updateTarget(version)}` }));
   execSync(buildSelfUpdateCommand(binaryName, version), { stdio: "inherit" });
   process.exit(0);
 }

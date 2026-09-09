@@ -1,8 +1,9 @@
+import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CoachEngine } from "@enduragent/coach-contract";
-import { createCoachLanguage } from "@enduragent/i18n";
+import { createCoachLanguage, type CatalogKey, type Message } from "@enduragent/i18n";
 import {
   createFileLanguagePreferenceStore,
   readEnvironmentSurfaceHint,
@@ -15,7 +16,7 @@ import type {
   TelegramHostCapabilities,
   TelegramOperationsCapabilities,
 } from "../src/channels/telegram-host.js";
-import { languageKeyboard } from "../src/channels/telegram-language-menu.js";
+import { languageKeyboard as buildLanguageKeyboard } from "../src/channels/telegram-language-menu.js";
 import { createTelegramBot } from "../src/channels/telegram.js";
 
 const captured = vi.hoisted(
@@ -100,6 +101,7 @@ async function buildBot(env: NodeJS.ProcessEnv = {}, operations?: TelegramOperat
   const language = createCoachLanguage({
     store: createFileLanguagePreferenceStore({ dir: dataDir, env }),
     surface: readEnvironmentSurfaceHint(env),
+    phrasebooks: createPhrasebook,
   });
   const chat = vi.fn<CoachEngine["chat"]>(async () => ({ text: "Training response" }));
   const unused = async (): Promise<never> => {
@@ -176,7 +178,7 @@ async function buildBot(env: NodeJS.ProcessEnv = {}, operations?: TelegramOperat
     can_manage_bots: false,
     supports_join_request_queries: false,
   };
-  await Promise.resolve();
+  await runtime.drainPending();
   const registrationCalls = captured.calls.splice(0);
   const calls = captured.calls;
   return { bot, runtime, language, chat, confirmations, calls, registrationCalls };
@@ -214,6 +216,41 @@ function callback(data: string, senderId = 77, id = 1): Update {
 }
 
 describe("Telegram language preference", () => {
+  it("renders injected Italian fixed copy through the HTML escaping path", async () => {
+    const { bot, runtime, language, chat, calls } = await buildBot();
+    const catalog = { "telegram.error.transport": "Riprova <script> & poi continua." };
+    const book = await createPhrasebook({ tag: "it", locale: "it-IT" });
+    vi.spyOn(language, "phrasebookFor").mockResolvedValue({
+      ...book,
+      say(message: Message | CatalogKey, vars?: Message["vars"]) {
+        const key = typeof message === "string" ? message : message.key;
+        return key === "telegram.error.transport"
+          ? catalog[key]
+          : typeof message === "string"
+            ? book.say(message, vars)
+            : book.say(message);
+      },
+    });
+    chat.mockImplementation(async (_request, onEvent) => {
+      onEvent?.({
+        type: "final-text",
+        turnId: "test-turn",
+        text: "English fallback",
+        message: { key: "telegram.error.transport" },
+      });
+      return { text: "English fallback" };
+    });
+    await bot.handleUpdate(message("/workout"));
+    await runtime.drainPending();
+    expect(calls).toContainEqual({
+      method: "sendMessage",
+      payload: expect.objectContaining({
+        text: "Riprova &lt;script&gt; &amp; poi continua.",
+        parse_mode: "HTML",
+      }),
+    });
+  });
+
   it("registers the language command in the Telegram menu", async () => {
     const { registrationCalls } = await buildBot();
     expect(registrationCalls).toContainEqual({
@@ -245,8 +282,11 @@ describe("Telegram language preference", () => {
     expect(calls).toContainEqual({
       method: "sendMessage",
       payload: expect.objectContaining({
-        text: "Language is set by ENDURAGENT_LANGUAGE to Italiano. Choices below are saved but stay inactive until the variable is removed.",
-        reply_markup: languageKeyboard(await language.current()),
+        text: italianBook.say("telegram.language.environment", {
+          variable: "ENDURAGENT_LANGUAGE",
+          language: "Italiano",
+        }),
+        reply_markup: languageKeyboard(await language.current(), italianBook),
       }),
     });
   });
@@ -258,7 +298,7 @@ describe("Telegram language preference", () => {
     expect(calls).toContainEqual({
       method: "editMessageReplyMarkup",
       payload: expect.objectContaining({
-        reply_markup: languageKeyboard(await language.current()),
+        reply_markup: languageKeyboard(await language.current(), italianBook),
       }),
     });
     expect(calls).toContainEqual({
@@ -295,13 +335,15 @@ describe("Telegram language preference", () => {
     expect(calls).toContainEqual({
       method: "editMessageReplyMarkup",
       payload: expect.objectContaining({
-        reply_markup: languageKeyboard(await language.current()),
+        reply_markup: languageKeyboard(await language.current(), frenchBook),
       }),
     });
     expect(calls).toContainEqual({
       method: "answerCallbackQuery",
       payload: expect.objectContaining({
-        text: expect.stringMatching(/ENDURAGENT_LANGUAGE.*wins/),
+        text: frenchBook.say("telegram.language.environmentWins", {
+          variable: "ENDURAGENT_LANGUAGE",
+        }),
       }),
     });
   });
@@ -330,6 +372,7 @@ describe("Telegram language preference", () => {
     expect(choice === "y" ? confirmations.confirm : confirmations.cancel).toHaveBeenCalledWith({
       chatId: "telegram:77",
       nonce: "test-nonce",
+      ...(choice === "y" ? { phrasebook: expect.objectContaining({ tag: "en" }) } : {}),
     });
     expect(set).not.toHaveBeenCalled();
     expect(calls.map(({ method }) => method)).toEqual([
@@ -353,16 +396,19 @@ describe("Telegram language preference", () => {
     await language.set("it");
     await bot.handleUpdate(message("Tell me about training"));
     await runtime.drainPending();
-    expect(chat).toHaveBeenCalledWith({
-      chatId: "telegram:77",
-      message: "Tell me about training",
-      turn: {
-        language: "it",
-        languageSource: "preference",
-        resolvedCs: "test-anchor",
-        referenceProvenance: "test-source",
+    expect(chat).toHaveBeenCalledWith(
+      {
+        chatId: "telegram:77",
+        message: "Tell me about training",
+        turn: {
+          language: "it",
+          languageSource: "preference",
+          resolvedCs: "test-anchor",
+          referenceProvenance: "test-source",
+        },
       },
-    });
+      expect.any(Function),
+    );
   });
 
   it("detects only the latest original fragment in a coalesced turn", async () => {
@@ -373,12 +419,15 @@ describe("Telegram language preference", () => {
     await bot.handleUpdate(message(first));
     await bot.handleUpdate(message(last, 2));
     await runtime.drainPending();
-    expect(resolve).toHaveBeenCalledExactlyOnceWith({ athleteText: last });
-    expect(chat).toHaveBeenCalledWith({
-      chatId: "telegram:77",
-      message: `${first}\n${last}`,
-      turn: { language: "ja", languageSource: "message" },
-    });
+    expect(resolve).toHaveBeenLastCalledWith({ chatId: "telegram:77", athleteText: last });
+    expect(chat).toHaveBeenCalledWith(
+      {
+        chatId: "telegram:77",
+        message: `${first}\n${last}`,
+        turn: { language: "ja", languageSource: "message" },
+      },
+      expect.any(Function),
+    );
   });
 
   it("applies the environment preference to chat turns", async () => {
@@ -391,6 +440,15 @@ describe("Telegram language preference", () => {
     await runtime.drainPending();
     expect(chat).toHaveBeenCalledWith(
       expect.objectContaining({ turn: { language: "fr", languageSource: "preference" } }),
+      expect.any(Function),
     );
   });
 });
+
+const englishBook = await createPhrasebook({ tag: "en", locale: "en-GB" });
+const italianBook = await createPhrasebook({ tag: "it", locale: "it-IT" });
+const frenchBook = await createPhrasebook({ tag: "fr", locale: "fr-FR" });
+const languageKeyboard = (
+  state: Parameters<typeof buildLanguageKeyboard>[0],
+  book: Phrasebook = englishBook,
+) => buildLanguageKeyboard(state, book);

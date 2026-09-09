@@ -1,3 +1,4 @@
+import { setImmediate as yieldEventLoop } from "node:timers/promises";
 import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -32,7 +33,7 @@ function deferred<T>() {
 async function waitUntil(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 30; attempt++) {
     if (predicate()) return;
-    await Promise.resolve();
+    await yieldEventLoop();
   }
   throw new Error("Expected asynchronous condition was not reached");
 }
@@ -256,9 +257,15 @@ describe("Telegram polling generation release", () => {
 
   it("accounts for command registration and treats its rejection as settled drain work", async () => {
     const commands = deferred<unknown>();
+    let registrationStarted = false;
     const bot = createComposingBot({
-      rawApi: (method) =>
-        method === "setMyCommands" ? commands.promise : Promise.resolve({ ok: true, result: true }),
+      rawApi: (method) => {
+        if (method === "setMyCommands") {
+          registrationStarted = true;
+          return commands.promise;
+        }
+        return Promise.resolve({ ok: true, result: true });
+      },
     });
     vi.doMock("grammy", () => ({
       Bot: function FakeBot() {
@@ -289,6 +296,7 @@ describe("Telegram polling generation release", () => {
     await Promise.resolve();
     expect(state).toBe("pending");
 
+    await vi.waitFor(() => expect(registrationStarted).toBe(true));
     commands.resolve(Promise.reject(new Error("registration failed")));
     await draining;
     expect(state).toBe("resolved");
@@ -717,7 +725,8 @@ describe("Telegram polling generation release", () => {
 
   it("detaches /update without letting a timeout bypass generation release", async () => {
     vi.useFakeTimers();
-    const install = vi.fn(async () => undefined);
+    const installed = deferred<void>();
+    const install = vi.fn(async () => installed.resolve());
     const generationWork = deferred<unknown>();
     const bot = createComposingBot({
       rawApi: (method, payload) =>
@@ -784,7 +793,7 @@ describe("Telegram polling generation release", () => {
 
     generationWork.resolve({ ok: true });
     await sending;
-    await waitUntil(() => install.mock.calls.length === 1);
+    await installed.promise;
     expect(install).toHaveBeenCalledWith("2026.5.10");
     await runtime.drainPending();
   });
@@ -903,7 +912,7 @@ describe("Telegram polling generation release", () => {
     await runtime.stop();
     const apiCallsBeforeNotification = bot.rawApi.mock.calls.length;
 
-    await notifyNpmTelegramUpdate(runtime, dataDir, cyclingBinary);
+    await notifyNpmTelegramUpdate(runtime, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
 
     expect(bot.rawApi).toHaveBeenCalledTimes(apiCallsBeforeNotification);
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();

@@ -48,8 +48,8 @@ describe("season review model credentials", () => {
   });
 
   it("passes a configured api key through untouched", async () => {
-    await expect(resolveSeasonReviewLlmApiKey(configured("anthropic", "sk-synthetic"))).resolves.toBe(
-      "sk-synthetic",
-    );
+    await expect(
+      resolveSeasonReviewLlmApiKey(configured("anthropic", "sk-synthetic")),
+    ).resolves.toBe("sk-synthetic");
   });
 });

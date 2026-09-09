@@ -123,9 +123,13 @@ describe("desktop analytics curve composition", () => {
   it("rejects an invalid capture civil date before opening a writer", async () => {
     await expect(
       runAnalyticsCurveRefresh({
-        env: {}, apiKey: "synthetic-secret", athleteId: "i0",
-        frozenAt: new Date("2012-06-15T12:00:00.000Z"), frozenOn: "2012-02-30",
-        budget: {} as SyncBudget, attemptLedger: {} as never,
+        env: {},
+        apiKey: "synthetic-secret",
+        athleteId: "i0",
+        frozenAt: new Date("2012-06-15T12:00:00.000Z"),
+        frozenOn: "2012-02-30",
+        budget: {} as SyncBudget,
+        attemptLedger: {} as never,
       }),
     ).rejects.toThrow("invalid analytics curve input");
   });

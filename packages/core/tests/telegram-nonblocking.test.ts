@@ -253,9 +253,11 @@ describe("non-blocking dispatch", () => {
 
     expect(agent.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:333", message: "first" }),
+      expect.any(Function),
     );
     expect(agent.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:333", message: "second" }),
+      expect.any(Function),
     );
     // The synchronous handler prologue captures each message before dispatching,
     // so the two turns must reach agent.chat in send order. A future change that
@@ -269,7 +271,7 @@ describe("setMyCommands menu list", () => {
   it("includes the full command set (with start) and excludes snapshot when reference is present", async () => {
     const reference: StubReference = { runSync: vi.fn(), loadLatest: vi.fn() };
     const { bot } = await buildBot({ reference });
-    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(16));
     const menu = bot.api.setMyCommands.mock.calls[0][0] as {
       command: string;
       description: string;
@@ -297,7 +299,7 @@ describe("setMyCommands menu list", () => {
 
   it("excludes sync when reference is undefined", async () => {
     const { bot } = await buildBot();
-    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(16));
     const menu = bot.api.setMyCommands.mock.calls[0][0] as {
       command: string;
       description: string;

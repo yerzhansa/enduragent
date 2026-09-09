@@ -170,9 +170,7 @@ describe("block_coaching write side (gate-reject mitigation)", () => {
       warnings: [],
     });
 
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
 
     // Park the FIRST error_state.json write (the gate-reject write) on a gate so
     // the outer timer can fire while it is still in flight; later writes (the
@@ -192,11 +190,7 @@ describe("block_coaching write side (gate-reject mitigation)", () => {
     const writes: Array<{ path: string; value: unknown }> = [];
     let parkedFirst = false;
     const latchedWrite = vi.fn(
-      async (
-        path: string,
-        value: unknown,
-        opts?: { signal?: AbortSignal },
-      ): Promise<void> => {
+      async (path: string, value: unknown, opts?: { signal?: AbortSignal }): Promise<void> => {
         writes.push({ path, value });
         const isParkedWrite = path.endsWith("error_state.json") && !parkedFirst;
         if (isParkedWrite) {
@@ -261,9 +255,7 @@ describe("block_coaching write side (gate-reject mitigation)", () => {
         (w.value as { step?: string }).step === "outer_timeout",
     );
     expect(timeoutRecord).toBeDefined();
-    expect((timeoutRecord!.value as { mitigation?: string }).mitigation).toBe(
-      "block_coaching",
-    );
+    expect((timeoutRecord!.value as { mitigation?: string }).mitigation).toBe("block_coaching");
 
     // (3) The timeout force-released the mutex.
     expect(mutex.isHeld()).toBe(false);
