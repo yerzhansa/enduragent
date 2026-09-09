@@ -31,11 +31,11 @@ function deferred<T>() {
 }
 
 async function waitUntil(predicate: () => boolean): Promise<void> {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    if (predicate()) return;
+  const deadline = Date.now() + 5000;
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error("Expected asynchronous condition was not reached");
     await yieldEventLoop();
   }
-  throw new Error("Expected asynchronous condition was not reached");
 }
 
 function createComposingBot(
