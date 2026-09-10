@@ -121,6 +121,46 @@ describe("codexResponses SSE accumulation", () => {
     expect(result.responseId).toBe("resp_1");
   });
 
+  it("forwards each output_text delta in order and never re-emits the assembled text", async () => {
+    const events = [
+      { type: "response.created", response: { id: "resp_stream" } },
+      { type: "response.output_item.added", item: { type: "reasoning" } },
+      { type: "response.output_item.done", item: { type: "reasoning" } },
+      { type: "response.output_item.added", item: { type: "message" } },
+      { type: "response.content_part.added", part: { type: "output_text" } },
+      { type: "response.output_text.delta", delta: "Ride" },
+      { type: "response.output_text.delta", delta: " easy" },
+      { type: "response.output_text.delta", delta: "" },
+      { type: "response.output_text.delta", delta: " today." },
+      { type: "response.output_item.done", item: { type: "message", content: [{ type: "output_text", text: "Ride easy today." }] } },
+      { type: "response.completed", response: { status: "completed", usage: { input_tokens: 4, output_tokens: 3, total_tokens: 7 } } },
+    ];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(okResp(events));
+    const deltas: string[] = [];
+
+    const result = await codexResponses(baseParams({ onTextDelta: (delta: string) => deltas.push(delta) }));
+
+    expect(deltas).toEqual(["Ride", " easy", " today."]);
+    expect(deltas.join("")).toBe(result.text);
+  });
+
+  it("emits the server-authoritative remainder once when deltas were dropped", async () => {
+    const events = [
+      { type: "response.created", response: { id: "resp_recover" } },
+      { type: "response.output_item.added", item: { type: "message" } },
+      { type: "response.output_text.delta", delta: "dropped" },
+      { type: "response.output_item.done", item: { type: "message", content: [{ type: "output_text", text: "recovered text" }] } },
+      { type: "response.completed", response: { status: "completed", usage: { input_tokens: 4, output_tokens: 2, total_tokens: 6 } } },
+    ];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(okResp(events));
+    const deltas: string[] = [];
+
+    const result = await codexResponses(baseParams({ onTextDelta: (delta: string) => deltas.push(delta) }));
+
+    expect(deltas).toEqual(["recovered text"]);
+    expect(result.text).toBe("recovered text");
+  });
+
   it("recovers final text from output_item.done when content_part.added is missing", async () => {
     // No response.content_part.added, so the per-delta guard never opens and the
     // deltas are dropped — the completed item's content must still be recovered.

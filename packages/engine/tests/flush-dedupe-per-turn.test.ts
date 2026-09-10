@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelMessage } from "ai";
@@ -159,6 +159,50 @@ describe("flush dedupe — at most one memory flush per chat() turn", () => {
     const { withSessionLock } = await import("../src/agent/session-lock.js");
     await withSessionLock("daily", async () => {});
     expect(countFlushCalls(complete)).toBeLessThanOrEqual(2);
+  });
+
+  it("an over-budget turn with a pending archive still awaits its own trim flush and queues one recovery flush", async () => {
+    const complete = vi.fn(async (params: { system?: string; messages: unknown }) => {
+      const sys = params.system ?? "";
+      if (sys.includes(FLUSH_MARKER)) return mkAssistant("facts noted");
+      if (sys.includes(COMPACTION_MARKER)) return mkAssistant(FIVE_SECTION_SUMMARY);
+      return mkAssistant("trim-reply");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const agent = await setupAgent(complete);
+    seedSession("trim-pending", overBudgetLines(FRESH_TS));
+    const archiveRef = `2020-01-02T04-00-00.000Z.${"a".repeat(64)}`;
+    const sessionsDir = join(dataDir, "sessions");
+    writeFileSync(
+      join(sessionsDir, `trim-pending.jsonl.reset.${archiveRef}`),
+      JSON.stringify({ role: "user", content: "archived fact", ts: STALE_TS }) + "\n",
+      { encoding: "utf-8", mode: 0o600 },
+    );
+    writeFileSync(join(sessionsDir, `trim-pending.jsonl.flush-pending.${archiveRef}`), "", {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+    const flushText = (call: unknown[]) =>
+      JSON.stringify((call[0] as { messages: unknown }).messages);
+
+    const text = await agent.chat("trim-pending", "hello");
+    const { withSessionLock } = await import("../src/agent/session-lock.js");
+    await withSessionLock("trim-pending", async () => {});
+
+    expect(text).toBe("trim-reply");
+    const calls = complete.mock.calls;
+    const replyIndex = calls.findIndex(
+      (c) => !isFlushCall(c) && !String((c[0] as { system?: string }).system).includes(COMPACTION_MARKER),
+    );
+    const flushIndexes = calls.map((c, i) => (isFlushCall(c) ? i : -1)).filter((i) => i >= 0);
+    expect(flushIndexes).toHaveLength(2);
+    expect(flushIndexes[0]).toBeLessThan(replyIndex);
+    expect(flushText(calls[flushIndexes[0]])).toContain("x".repeat(2_400));
+    expect(flushText(calls[flushIndexes[0]])).not.toContain("archived fact");
+    expect(flushIndexes[1]).toBeGreaterThan(replyIndex);
+    expect(flushText(calls[flushIndexes[1]])).toContain("archived fact");
+    expect(flushText(calls[flushIndexes[1]])).not.toContain("x".repeat(2_400));
+    expect(readdirSync(sessionsDir).filter((f) => f.includes("flush-pending"))).toHaveLength(0);
   });
 
   it("a normal single-flush trim turn is unchanged (no false suppression)", async () => {

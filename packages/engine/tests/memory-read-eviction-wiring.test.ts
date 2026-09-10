@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { tool } from "ai";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { Memory } from "../../core/src/memory/store.js";
 import type { CoreDeps, MemorySectionSpec, Sport, ToolRegistration } from "../src/sport.js";
 
 let tempHome: string;
@@ -21,6 +22,7 @@ beforeEach(() => {
   dataDir = join(tempHome, ".cycling-coach");
   mkdirSync(dataDir, { recursive: true });
   mkdirSync(join(dataDir, "memory"), { recursive: true });
+  new Memory(dataDir).writeSection("notes", "prefers hill repeats");
   reads.length = 0;
   writes.length = 0;
   vi.resetModules();

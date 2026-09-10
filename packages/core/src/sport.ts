@@ -22,7 +22,6 @@ export type {
   ToolRegistration,
 } from "@enduragent/engine/sport";
 export {
-  MEMORY_READ_FLUSH_DESCRIPTION,
   PlanSaveInputSchema,
   buildMemoryWriteInputSchema,
   createCoreToolsWithSportConfig,

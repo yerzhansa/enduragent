@@ -134,7 +134,10 @@ describe("running canonical engine compatibility", () => {
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-    expect(sessionLines[0]).toMatchObject({ role: "user", content: "calculate my zones" });
+    expect(sessionLines[0]).toMatchObject({
+      role: "user",
+      content: expect.stringMatching(/^calculate my zones\nCurrent time: /),
+    });
     expect(sessionLines[1]).toMatchObject({
       role: "assistant",
       content: "injected reply",

@@ -1,2 +1,1 @@
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"cycling-profile","oldBody":null,"newBody":"_updated: 1998-07-06\n- FTP 250 W (source/date not recorded; re-confirm)","source":"flush"}
-{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"goals","oldBody":null,"newBody":"_updated: 1998-07-06\n- Weekly training-load target: 400 (source/date not recorded; re-confirm)","source":"flush"}
+{"ts":"1998-07-06T09:00:00.000Z","op":"write-section","section":"cycling-history","oldBody":null,"newBody":"_updated: 1998-07-06\n- Week of 1998-06-29 to 1998-07-05: completed three rides; training load was trending upward and recovery remained steady (coach, 1998-07-06).","source":"flush"}

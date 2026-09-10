@@ -162,7 +162,11 @@ export interface ChatStorePort {
   }): void;
   overwriteHistory(chatId: string, messages: ModelMessage[]): void;
   resetConversation(input: ConversationResetInput): void;
-  archivePreCompact(chatId: string): void;
+  loadUnflushedResetArchive(
+    chatId: string,
+  ): { readonly archiveRef: string; readonly messages: ModelMessage[] } | null;
+  markResetArchiveFlushed(chatId: string, archiveRef: string): void;
+  archivePreCompact(chatId: string, options?: { readonly flushPending?: boolean }): void;
   getChatQueue?(chatId: string): ChatQueueSnapshot;
   enqueueChatMessage?(
     chatId: string,

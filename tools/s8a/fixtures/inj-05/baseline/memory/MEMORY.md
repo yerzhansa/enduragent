@@ -3,10 +3,6 @@
 - FTP: 250 W
 - Weekly Load target: 400
 
-## cycling-profile
+## cycling-history
 _updated: 1998-07-06
-- FTP 250 W (source/date not recorded; re-confirm)
-
-## goals
-_updated: 1998-07-06
-- Weekly training-load target: 400 (source/date not recorded; re-confirm)
+- Week of 1998-06-29 to 1998-07-05: completed three rides; training load was trending upward and recovery remained steady (coach, 1998-07-06).

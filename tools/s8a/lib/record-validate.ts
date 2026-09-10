@@ -56,6 +56,13 @@ export function validateRecording(input: RecordValidationInput): string[] {
   }
 
   // Implicit-dataset-section guard.
+  for (const section of ["athlete", "wellness"] as const) {
+    if (scenario.intervals[section] === undefined) {
+      violations.push(
+        `scenario.intervals.${section} is not explicit — the engine injects it every turn and the mock's default ${section} factory is nondeterministic`,
+      );
+    }
+  }
   for (const call of calls) {
     for (const exec of call.toolExecutions) {
       const section = TOOL_REQUIRED_SECTION[exec.toolName];

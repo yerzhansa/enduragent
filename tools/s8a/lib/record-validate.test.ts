@@ -35,7 +35,7 @@ const baseScenario: S8aScenario = {
   id: "record-validate-test",
   tier: "replay",
   description: "synthetic",
-  intervals: { athlete: { id: "i9876543" } },
+  intervals: { athlete: { id: "i9876543" }, wellness: [] },
   turns: [{ chatId: "c1", userMessage: "hi" }],
 };
 
@@ -74,6 +74,18 @@ describe("record validation", () => {
     ).toBe(true);
   });
 
+  it("rejects a scenario that leaves the per-turn athlete or wellness section implicit", () => {
+    const violations = validateRecording(
+      input({ scenario: { ...baseScenario, intervals: { athlete: { id: "i9876543" } } } }),
+    );
+    expect(violations.some((v) => v.includes("scenario.intervals.wellness is not explicit"))).toBe(
+      true,
+    );
+    expect(validateRecording(input({ scenario: { ...baseScenario, intervals: {} } }))).toEqual(
+      expect.arrayContaining([expect.stringContaining("scenario.intervals.athlete is not explicit")]),
+    );
+  });
+
   it("rejects an implicit dataset section touched by a captured execution", () => {
     const violations = validateRecording(
       input({
@@ -81,13 +93,13 @@ describe("record validation", () => {
           chatCall({
             ordinal: 0,
             toolExecutions: [
-              { seq: 0, toolName: "intervals_fetch_wellness", input: {}, resultCanonical: [] },
+              { seq: 0, toolName: "intervals_fetch_activities", input: {}, resultCanonical: [] },
             ],
           }),
         ],
       }),
     );
-    expect(violations.some((v) => v.includes("scenario.intervals.wellness is not explicit"))).toBe(true);
+    expect(violations.some((v) => v.includes("scenario.intervals.activities is not explicit"))).toBe(true);
   });
 
   it("does NOT trip on intervals_list_events (in-run mock state, no dataset section exists)", () => {

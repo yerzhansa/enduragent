@@ -37,16 +37,6 @@ export function referenceFreshnessAt(
 // ─── Retention windows ─────────────────────────────────────────────────
 /** Days of history retained at "latest" granularity (recent activities + wellness). */
 export const LATEST_RETENTION_DAYS = 7;
-/** Days of daily-resolution history retained in `history.json`. */
-export const HISTORY_DAILY_DAYS = 90;
-/** Days of weekly-resolution history retained. */
-export const HISTORY_WEEKLY_DAYS = 180;
-/** Years of monthly-resolution history retained. */
-export const HISTORY_MONTHLY_YEARS = 3;
-/** Days of per-rep interval data retained. */
-export const INTERVALS_RETENTION_DAYS = 14;
-/** Days of route metadata retained. */
-export const ROUTES_RETENTION_DAYS = 90;
 
 // ─── Sync-loop timing (mutex / cooldown / scheduled tick) ──────────────
 /**

@@ -38,17 +38,11 @@ export interface ManagedDocumentProjection {
   readonly visualPageNumbers: readonly number[];
 }
 
-export interface ManagedDocumentPageText {
-  readonly pageNumber: number;
-  readonly text: string;
-}
-
 export interface ManagedDocumentReadResult {
   readonly projection: ManagedDocumentProjection;
   readonly content: {
     readonly trust: "untrusted-attachment-content";
     readonly text: string;
-    readonly pageText: readonly ManagedDocumentPageText[];
     readonly truncated: boolean;
   };
 }
@@ -86,15 +80,9 @@ export interface ManagedDocumentReaderOptions {
   readonly workerUrl?: URL;
 }
 
-interface WorkerPageText {
-  readonly pageNumber: unknown;
-  readonly text: unknown;
-}
-
 interface WorkerSuccess {
   readonly ok: true;
   readonly text: unknown;
-  readonly pageText: unknown;
   readonly visualPageNumbers: unknown;
   readonly truncated: unknown;
 }
@@ -165,7 +153,6 @@ function validateWorkerResult(
   limits: ManagedDocumentReaderLimits,
 ): {
   readonly text: string;
-  readonly pageText: readonly ManagedDocumentPageText[];
   readonly visualPageNumbers: readonly number[];
   readonly truncated: boolean;
 } {
@@ -173,23 +160,10 @@ function validateWorkerResult(
     typeof value.text !== "string" ||
     value.text.length > limits.extractedTextChars ||
     typeof value.truncated !== "boolean" ||
-    !Array.isArray(value.pageText) ||
     !Array.isArray(value.visualPageNumbers)
   ) {
     throw failure("worker_failed");
   }
-  const pageText = value.pageText.map((candidate) => {
-    const item = candidate as WorkerPageText;
-    if (
-      !Number.isSafeInteger(item.pageNumber) ||
-      Number(item.pageNumber) < 1 ||
-      Number(item.pageNumber) > limits.pdfPages ||
-      typeof item.text !== "string"
-    ) {
-      throw failure("worker_failed");
-    }
-    return { pageNumber: Number(item.pageNumber), text: item.text };
-  });
   const visualPageNumbers = value.visualPageNumbers.map(Number);
   if (
     visualPageNumbers.length > limits.pdfVisualPages ||
@@ -203,7 +177,7 @@ function validateWorkerResult(
   ) {
     throw failure("worker_failed");
   }
-  return { text: value.text, pageText, visualPageNumbers, truncated: value.truncated };
+  return { text: value.text, visualPageNumbers, truncated: value.truncated };
 }
 
 function runWorker(
@@ -299,7 +273,6 @@ export function createManagedDocumentReader(
         content: {
           trust: "untrusted-attachment-content",
           text: parsed.text,
-          pageText: parsed.pageText,
           truncated: parsed.truncated,
         },
       };

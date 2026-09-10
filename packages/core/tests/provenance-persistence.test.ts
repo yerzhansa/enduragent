@@ -746,8 +746,8 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
     const dir = tempDir("cc-memory-query-cap-");
     try {
       const memory = new Memory(dir, "UTC");
-      memory.appendDailyNote("x".repeat(21_000), "1998-05-09", UNKNOWN);
-      memory.appendDailyNote("Garmin note beyond the cap", "1998-05-10", GARMIN);
+      memory.appendDailyNote("Garmin note beyond the cap", "1998-05-09", GARMIN);
+      memory.appendDailyNote("x".repeat(21_000), "1998-05-10", UNKNOWN);
       const input = { from: "1998-05-09", to: "1998-05-10" };
       const result = await memoryQueryResult(memory, input);
 
@@ -764,8 +764,12 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
     const dir = tempDir("cc-memory-query-raw-cutoff-");
     try {
       const memory = new Memory(dir, "UTC");
-      memory.appendDailyNote("x".repeat(19_900) + "\u0000".repeat(2_000), "1998-05-09", UNKNOWN);
-      memory.appendDailyNote("Garmin note beyond the raw cap", "1998-05-10", GARMIN);
+      memory.appendDailyNote("Garmin note beyond the raw cap", "1998-05-09", GARMIN);
+      memory.appendDailyNote(
+        "x".repeat(19_900) + "\u0000".repeat(2_000),
+        "1998-05-10",
+        UNKNOWN,
+      );
       const query = createMemoryQueryTool(memory, true);
 
       const result = await query.execute!({ from: "1998-05-09", to: "1998-05-10" }, {} as never);

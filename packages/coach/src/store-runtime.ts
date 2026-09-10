@@ -396,7 +396,11 @@ LIMIT 1`,
         droppedActivities: this.droppedActivitiesValue,
       });
     }
-    const ledger = createPhysicalRequestLedger({ storeLimit: 64, legacyLimit: 15, totalLimit: 79 });
+    const ledger = createPhysicalRequestLedger({
+      storeLimit: STORE_REQUEST_LIMIT,
+      legacyLimit: LEGACY_REQUEST_LIMIT,
+      totalLimit: TOTAL_REQUEST_LIMIT,
+    });
     const controller = new AbortController();
     const abortWindow = (): void => controller.abort(admissionSignal.reason);
     if (admissionSignal.aborted) abortWindow();

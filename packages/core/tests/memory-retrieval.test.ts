@@ -8,7 +8,6 @@ import {
   createLedgerAppendTool,
   createMemoryReadTool,
   createMemoryTools,
-  MEMORY_READ_FLUSH_DESCRIPTION,
 } from "../../engine/src/sport/memory-tools.js";
 
 const sections = [
@@ -77,8 +76,7 @@ describe("memory retrieval", () => {
     expect(result).not.toContain("Injected profile body");
     expect(result).toContain("Hidden notes body");
     expect(result).toContain("Spring plan");
-    const flush = createMemoryReadTool(memory, MEMORY_READ_FLUSH_DESCRIPTION);
-    const full = await flush.execute!({}, options);
+    const full = await createMemoryReadTool(memory, "Read everything").execute!({}, options);
     expect(full).toContain("Injected profile body");
     expect(full).toContain("Hidden notes body");
     expect(full).toContain("Spring plan");
@@ -129,6 +127,58 @@ describe("memory retrieval", () => {
     if (typeof result !== "string") throw new Error("Expected query text");
     expect(result).not.toContain("a".repeat(201));
     expect(result.length).toBeLessThanOrEqual(20_100);
+    expect(result).toContain("[truncated — narrow the date range or add a query term]");
+  });
+
+  it("windows a history preview around the matched text", async () => {
+    memory.writeSection("notes", `${"x".repeat(250)} ALLERGIC TO IBUPROFEN ${"y".repeat(50)}`);
+    const query = createMemoryTools(memory, sections).memory_query;
+    const result = await query.execute!(
+      { from: "1998-03-12", to: "1998-03-12", query: "ibuprofen" },
+      options,
+    );
+    expect(result).toContain("ALLERGIC TO IBUPROFEN");
+    expect(result).toMatch(/now: …x+ ALLERGIC TO IBUPROFEN y+$/m);
+    expect(result).not.toContain("x".repeat(201));
+    expect(result).not.toContain("now: x");
+  });
+
+  it("keeps the prefix shape when the match sits near the start", async () => {
+    memory.writeSection("notes", `Tolerates caffeine ${"z".repeat(300)}`);
+    const query = createMemoryTools(memory, sections).memory_query;
+    const result = await query.execute!(
+      { from: "1998-03-12", to: "1998-03-12", query: "caffeine" },
+      options,
+    );
+    expect(result).toMatch(/now: _updated: 1998-03-12 Tolerates caffeine z+…$/m);
+    expect(result).not.toContain("now: …");
+  });
+
+  it("never splits a surrogate pair at the preview window edge", async () => {
+    const emoji = "🚴".repeat(160);
+    memory.writeSection("notes", `${emoji} hates gels! ${emoji}`);
+    const query = createMemoryTools(memory, sections).memory_query;
+    const result = await query.execute!(
+      { from: "1998-03-12", to: "1998-03-12", query: "gels" },
+      options,
+    );
+    expect(result).not.toMatch(/\p{Cs}/u);
+    expect(result).toContain("hates gels!");
+    expect(result).toMatch(/now: …(?:🚴)+ hates gels! (?:🚴)+…$/m);
+  });
+
+  it("drops the oldest dates first when the combined result overflows", async () => {
+    memory.appendDailyNote(`older ${"o".repeat(21_000)}`, "1998-03-10");
+    memory.appendDailyNote("newer note survives", "1998-03-11");
+    const result = await createMemoryTools(memory, sections).memory_query.execute!(
+      { from: "1998-03-10", to: "1998-03-11" },
+      options,
+    );
+    expect(typeof result).toBe("string");
+    if (typeof result !== "string") throw new Error("Expected query text");
+    expect(result.indexOf("## 1998-03-11")).toBeLessThan(result.indexOf("## 1998-03-10"));
+    expect(result).toContain("newer note survives");
+    expect(result).not.toContain("o".repeat(21_000));
     expect(result).toContain("[truncated — narrow the date range or add a query term]");
   });
 

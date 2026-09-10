@@ -69,6 +69,7 @@ export interface CodexResponsesParams {
   serviceTier?: string;
   signal?: AbortSignal;
   baseUrl?: string;
+  onTextDelta?: (delta: string) => void;
 }
 
 // ============================================================================
@@ -396,6 +397,7 @@ interface ToolCallScratch {
 
 async function accumulate(
   events: AsyncIterable<Record<string, unknown>>,
+  onTextDelta?: (delta: string) => void,
 ): Promise<CodexResponsesResult> {
   let text = "";
   // The current message item's text accumulates here and is committed to `text`
@@ -403,6 +405,20 @@ async function accumulate(
   // server-authoritative reconciliation on output_item.done replaces only the
   // current item rather than clobbering text already committed by earlier items.
   let currentItemText = "";
+  let currentItemEmitted = "";
+  const emitTextDelta = (delta: string): void => {
+    if (delta === "") return;
+    currentItemEmitted += delta;
+    onTextDelta?.(delta);
+  };
+  const commitCurrentItem = (): void => {
+    if (currentItemText.startsWith(currentItemEmitted)) {
+      emitTextDelta(currentItemText.slice(currentItemEmitted.length));
+    }
+    text += currentItemText;
+    currentItemText = "";
+    currentItemEmitted = "";
+  };
   const toolScratch: ToolCallScratch[] = [];
   let currentItemType: "message" | "function_call" | "reasoning" | undefined;
   let currentMessageHasOutputText = false;
@@ -421,10 +437,7 @@ async function accumulate(
       const itemType = item?.type as string | undefined;
       // Commit any prior item's text before starting a new one (defensive: a
       // completed item normally commits via output_item.done first).
-      if (currentItemText) {
-        text += currentItemText;
-        currentItemText = "";
-      }
+      commitCurrentItem();
       if (itemType === "function_call") {
         currentItemType = "function_call";
         currentTool = {
@@ -448,7 +461,9 @@ async function accumulate(
       }
     } else if (type === "response.output_text.delta" || type === "response.refusal.delta") {
       if (currentItemType === "message" && currentMessageHasOutputText) {
-        currentItemText += (event as { delta?: string }).delta ?? "";
+        const delta = (event as { delta?: string }).delta ?? "";
+        currentItemText += delta;
+        emitTextDelta(delta);
       }
     } else if (type === "response.function_call_arguments.delta") {
       if (currentTool) currentTool.partialJson += (event as { delta?: string }).delta ?? "";
@@ -476,8 +491,7 @@ async function accumulate(
           if (authoritative) currentItemText = authoritative;
         }
       }
-      text += currentItemText;
-      currentItemText = "";
+      commitCurrentItem();
       currentItemType = undefined;
       currentTool = undefined;
       currentMessageHasOutputText = false;
@@ -512,10 +526,7 @@ async function accumulate(
 
   // Commit a message item whose output_item.done never arrived (e.g. a stream
   // truncated after its deltas).
-  if (currentItemText) {
-    text += currentItemText;
-    currentItemText = "";
-  }
+  commitCurrentItem();
 
   const toolCalls: CodexToolCall[] = toolScratch.map((t) => ({
     id: t.id,
@@ -656,7 +667,7 @@ export async function codexResponses(params: CodexResponsesParams): Promise<Code
 
   let result: CodexResponsesResult;
   try {
-    result = await accumulate(mapCodexEvents(parseSSE(response)));
+    result = await accumulate(mapCodexEvents(parseSSE(response)), params.onTextDelta);
   } catch (err) {
     if (err instanceof Error && (err.name === "AbortError" || params.signal?.aborted)) {
       throw abortError(params.signal, err);

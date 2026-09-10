@@ -8,7 +8,7 @@ import type {
   TranscriptInterruptedTurnInput,
   TranscriptWriterPort,
 } from "@enduragent/engine";
-import { archiveAndResetDurably, ChatStore } from "./chat-store.js";
+import { archiveAndResetDurably, ChatStore, type UnflushedResetArchive } from "./chat-store.js";
 import {
   ArchivedConversationDeletionConflictError,
   TranscriptBoundaryTargetUnchangedError,
@@ -160,9 +160,9 @@ export class ConversationStore implements ConversationStorePort {
     this.chatStore.overwriteHistory(chatId, messages);
   }
 
-  archivePreCompact(chatId: string): void {
+  archivePreCompact(chatId: string, options?: { readonly flushPending?: boolean }): void {
     this.recoverBeforeAccess(chatId);
-    this.chatStore.archivePreCompact(chatId);
+    this.chatStore.archivePreCompact(chatId, options);
   }
 
   appendCompletedTurn(input: TranscriptCompletedTurnInput): void {
@@ -375,10 +375,7 @@ export class ConversationStore implements ConversationStorePort {
     }
 
     try {
-      archiveAndResetDurably(this.chatStore, intent.chatId, {
-        resetId: intent.resetId,
-        boundaryAt: intent.boundaryAt,
-      });
+      this.archiveDurably(intent);
       this.chatQueueStore?.clear(intent.chatId);
       this.transcriptStore.removeResetIntent(intent);
       this.blockedChats.delete(intent.chatId);
@@ -386,6 +383,24 @@ export class ConversationStore implements ConversationStorePort {
       this.blockedChats.set(intent.chatId, error);
       throw error;
     }
+  }
+
+  private archiveDurably(intent: ResetIntentRecord): void {
+    archiveAndResetDurably(this.chatStore, intent.chatId, {
+      resetId: intent.resetId,
+      boundaryAt: intent.boundaryAt,
+      flushPending: intent.reason === "stale-reset",
+    });
+  }
+
+  loadUnflushedResetArchive(chatId: string): UnflushedResetArchive | null {
+    this.recoverBeforeAccess(chatId);
+    return this.chatStore.loadUnflushedResetArchive(chatId);
+  }
+
+  markResetArchiveFlushed(chatId: string, archiveRef: string): void {
+    this.recoverBeforeAccess(chatId);
+    this.chatStore.markResetArchiveFlushed(chatId, archiveRef);
   }
 
   private cleanupBeforeBoundary(intent: ResetIntentRecord, originalError: unknown): never {
@@ -422,19 +437,13 @@ export class ConversationStore implements ConversationStorePort {
     } catch (error) {
       if (!(error instanceof WindowsPrivatePathPolicyError)) throw error;
       this.transcriptStore.ensureConversationBoundary(intent);
-      archiveAndResetDurably(this.chatStore, intent.chatId, {
-        resetId: intent.resetId,
-        boundaryAt: intent.boundaryAt,
-      });
+      this.archiveDurably(intent);
       this.chatQueueStore?.clear(intent.chatId);
       this.transcriptStore.removeResetIntent(intent);
       return;
     }
     this.transcriptStore.ensureConversationBoundary(intent);
-    archiveAndResetDurably(this.chatStore, intent.chatId, {
-      resetId: intent.resetId,
-      boundaryAt: intent.boundaryAt,
-    });
+    this.archiveDurably(intent);
     this.chatQueueStore?.clear(intent.chatId);
     this.transcriptStore.removeResetIntent(intent);
   }

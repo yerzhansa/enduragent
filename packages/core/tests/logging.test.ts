@@ -1,15 +1,30 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   mkdtempSync,
+  mkdirSync,
   rmSync,
   statSync,
   readFileSync,
   writeFileSync,
   existsSync,
-  utimesSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+const fsReads = vi.hoisted(() => ({ paths: [] as string[] }));
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    readFileSync: ((path: Parameters<typeof actual.readFileSync>[0], ...rest: unknown[]) => {
+      fsReads.paths.push(String(path));
+      return (actual.readFileSync as (...args: unknown[]) => ReturnType<typeof actual.readFileSync>)(
+        path,
+        ...rest,
+      );
+    }) as typeof actual.readFileSync,
+  };
+});
 
 import {
   createSubsystemLogger,
@@ -144,7 +159,36 @@ describe("age-cap retention", () => {
     expect(raw).toContain("FRESH_LINE");
   });
 
-  it("rolls aged content on the next emit when the file is under the size cap", () => {
+  it("prunes an expired line when the logger is created, before any emit", () => {
+    const now = Date.UTC(2000, 0, 15);
+    const path = logFilePath(dir);
+    mkdirSync(join(dir, "logs"), { recursive: true });
+    writeFileSync(
+      path,
+      [
+        JSON.stringify({
+          ts: new Date(now - LOG_MAX_AGE_MS - 1000).toISOString(),
+          level: "info",
+          component: "agent",
+          event: "STALE_LINE",
+        }),
+        JSON.stringify({
+          ts: new Date(now - 1000).toISOString(),
+          level: "info",
+          component: "agent",
+          event: "FRESH_LINE",
+        }),
+      ].join("\n") + "\n",
+    );
+
+    createRootLogger(dir, { now: () => now });
+
+    const raw = readFileSync(path, "utf-8");
+    expect(raw).not.toContain("STALE_LINE");
+    expect(raw).toContain("FRESH_LINE");
+  });
+
+  it("reads the file for age pruning once at creation and never on a plain emit", () => {
     const now = Date.UTC(2000, 0, 15);
     const path = logFilePath(dir);
     const root = createRootLogger(dir, { now: () => now });
@@ -158,15 +202,46 @@ describe("age-cap retention", () => {
         event: "STALE_LINE",
       }) + "\n",
     );
-    // Touch back-date so the file modtime cannot mask the in-line age check.
-    const old = (now - LOG_MAX_AGE_MS - 1000) / 1000;
-    utimesSync(path, old, old);
 
-    root.emit("info", { component: "agent", event: "FRESH_EMIT" });
+    fsReads.paths.length = 0;
+    for (let i = 0; i < 200; i++) root.emit("info", { component: "agent", event: `emit_${i}` });
 
+    expect(fsReads.paths.filter((p) => p === path)).toHaveLength(0);
+    const raw = readFileSync(path, "utf-8");
+    expect(raw).toContain("STALE_LINE");
+    expect(raw).toContain("emit_199");
+  });
+
+  it("prunes aged lines exactly once when the size cap triggers rotation", () => {
+    const now = Date.UTC(2000, 0, 15);
+    const path = logFilePath(dir);
+    const root = createRootLogger(dir, { now: () => now, maxBytes: 4096 });
+    root.emit("info", { component: "agent", event: "prime" });
+    const stale = JSON.stringify({
+      ts: new Date(now - LOG_MAX_AGE_MS - 1000).toISOString(),
+      level: "info",
+      component: "agent",
+      event: "STALE_LINE",
+      filler: "x".repeat(256),
+    });
+    const fresh = JSON.stringify({
+      ts: new Date(now - 1000).toISOString(),
+      level: "info",
+      component: "agent",
+      event: "FRESH_LINE",
+    });
+    writeFileSync(path, Array.from({ length: 20 }, () => stale).concat([fresh]).join("\n") + "\n");
+    expect(statSync(path).size).toBeGreaterThan(4096);
+
+    fsReads.paths.length = 0;
+    root.emit("info", { component: "agent", event: "AFTER_PRUNE" });
+
+    expect(fsReads.paths.filter((p) => p === path)).toHaveLength(1);
+    expect(existsSync(`${path}.1`)).toBe(false);
     const raw = readFileSync(path, "utf-8");
     expect(raw).not.toContain("STALE_LINE");
-    expect(raw).toContain("FRESH_EMIT");
+    expect(raw).toContain("FRESH_LINE");
+    expect(raw).toContain("AFTER_PRUNE");
   });
 });
 

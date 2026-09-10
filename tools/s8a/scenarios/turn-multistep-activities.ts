@@ -1,5 +1,5 @@
 import { TRADEMARK_FORBIDDEN } from "../lib/needles.js";
-import type { S8aScenario } from "../lib/types.js";
+import { EMPTY_SPORT_INFO, type S8aScenario } from "../lib/types.js";
 import { STANDARD_ATHLETE } from "./common.js";
 
 export const scenario: S8aScenario = {
@@ -8,6 +8,9 @@ export const scenario: S8aScenario = {
   description: "Multi-step read turn: list recent rides, then pull one ride's full details.",
   intervals: {
     athlete: { ...STANDARD_ATHLETE },
+    wellness: [
+      { id: "1998-07-05", restingHR: 47, hrv: 71, sleepSecs: 27000, sportInfo: EMPTY_SPORT_INFO },
+    ],
     activities: [
       {
         id: 90101,

@@ -277,6 +277,7 @@ export async function codexGenerateText(
     cacheKey,
     signal,
     context,
+    onTextDelta,
   } = opts;
   const { getAccessToken, classifyFailure } = ports;
 
@@ -303,7 +304,9 @@ export async function codexGenerateText(
 
   for (let step = 0; step < limit; step++) {
     let result: CodexResponsesResult;
+    const stepDeltas: string[] = [];
     while (true) {
+      stepDeltas.length = 0;
       try {
         result = await codexResponses({
           modelId,
@@ -313,6 +316,11 @@ export async function codexGenerateText(
           accessToken,
           sessionId: cacheKey,
           signal,
+          onTextDelta: onTextDelta
+            ? (delta) => {
+                stepDeltas.push(delta);
+              }
+            : undefined,
         });
         break;
       } catch (err) {
@@ -346,7 +354,15 @@ export async function codexGenerateText(
     convo.push({ role: "assistant", content: assistantContent } as ModelMessage);
 
     const calls = result.toolCalls;
-    if (calls.length === 0 || result.stopReason !== "toolUse") break;
+    const toolStep = calls.length > 0 && result.stopReason === "toolUse";
+    if (!toolStep && onTextDelta) {
+      if (stepDeltas.length > 0) {
+        for (const delta of stepDeltas) onTextDelta(delta);
+      } else if (result.text) {
+        onTextDelta(result.text);
+      }
+    }
+    if (!toolStep) break;
     if (!tools) break;
 
     const results = isAdmissibleCoachDecisionBatch(calls)

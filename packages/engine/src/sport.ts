@@ -220,7 +220,6 @@ export { getEffectiveSections } from "./sport/effective-sections.js";
 export { createMemorySnapshot } from "./sport/memory-snapshot.js";
 export { messageText } from "./sport/model-message.js";
 export {
-  MEMORY_READ_FLUSH_DESCRIPTION,
   PlanSaveInputSchema,
   buildMemoryWriteInputSchema,
   createMemoryQueryTool,

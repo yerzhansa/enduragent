@@ -55,6 +55,8 @@ import { capToolResult, TOOL_RESULT_MAX_TOKENS } from "./tool-result-cap.js";
 import { memoizeReadTool, evictMemoryReadEntries } from "./read-memoizer.js";
 import { createTurnContext, getTurnContext, type TurnContext } from "./turn-context.js";
 import {
+  ATTACHMENT_TEXT_MAX_CHARS,
+  ATTACHMENT_TEXT_TRUNCATION_NOTICE,
   isUntrustedEnvelope,
   markUntrustedResult,
   wrapAthleteContextFence,
@@ -75,7 +77,9 @@ import {
   computeHistoryTokenBudget,
   effectiveEstimatorWindowTokens,
   estimateMessagesTokens,
+  estimatePromptTokens,
   isWindowExceededFinish,
+  RESERVE_TOKENS,
   TIMEOUT_COMPACTION_THRESHOLD,
 } from "./token-utils.js";
 import { summarizeInStages, summarizeDroppedMessages } from "./compaction.js";
@@ -91,7 +95,12 @@ import { LLM } from "../llm.js";
 import { createIntentTranslator, type IntentTranslationPort } from "../intent-translation.js";
 import { usageFieldsFromResult } from "../llm-types.js";
 import { createMemorySnapshot } from "../sport/memory-snapshot.js";
-import { resolveUserTimezone, appendCurrentTimeLine } from "../sport/user-time.js";
+import { resolveUserTimezone, appendCurrentTimeLine, todayInTZ } from "../sport/user-time.js";
+import {
+  ATHLETE_SNAPSHOT_FALLBACK,
+  AthleteSnapshotTimeoutError,
+  loadAthleteSnapshotBlock,
+} from "./athlete-snapshot.js";
 import { createTurnBudget, TurnBudgetExceededError, type TurnBudget } from "./turn-budget.js";
 import {
   TAINTED_BY_WRITES_MESSAGE,
@@ -171,6 +180,7 @@ function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean
 }
 
 const RECOVERY_PROMPT = "summarize what you did and what's left";
+const SECTION_UPDATED_STAMP = "_updated: ";
 
 function archiveMarker(archivedAt: string): string {
   return `Previous session archived at ${archivedAt}. Briefly disclose this before answering.`;
@@ -346,6 +356,7 @@ export interface DeferredPlanTurn {
   readonly chatId: string;
   readonly turnId: string;
   readonly athleteText: string;
+  readonly sentAthleteText: string;
   readonly coachText: string;
   readonly transcriptCoachText: string;
   readonly completedAt: string;
@@ -377,13 +388,8 @@ export class CoachAgent {
   // never in this list, so they always inject.
   private readonly excludedSectionNames: readonly string[];
   private lastFlushMessageCount = new Map<string, number>();
+  private pendingFlushMessages = new Map<string, ModelMessage[]>();
   private readonly confirmationGate: boolean;
-  // The prompt-template hash is derived from constructor-stable inputs (soul,
-  // skills, tool schemas, model, and the compile-time rule-block set), so it is
-  // computed once on first use and reused for every turn of the process.
-  private templateHash?: string;
-  private desktopTemplateHash?: string;
-  private planTemplateHash?: string;
   private readonly activeChatTurns = new Map<
     string,
     { readonly turnId: string; readonly controller: AbortController }
@@ -521,14 +527,60 @@ export class CoachAgent {
     return chatId === "desktop" ? this.desktopTools : this.tools;
   }
 
+  private toolsForTurn(chatId: string): ToolSet {
+    const tools = this.toolsForChat(chatId);
+    if (!("memory_read" in tools) || this.hasUnshownMemorySection()) return tools;
+    const { memory_read: _unshown, ...rest } = tools;
+    return rest;
+  }
+
+  private hasUnshownMemorySection(): boolean {
+    return this.excludedSectionNames.some((name) => {
+      const body = this.memory.readSection(name);
+      if (body === null) return false;
+      if (!body.startsWith(SECTION_UPDATED_STAMP)) return body.trim() !== "";
+      const stampEnd = body.indexOf("\n");
+      return stampEnd !== -1 && body.slice(stampEnd + 1).trim() !== "";
+    });
+  }
+
+  private async buildChatSystemPrompt(
+    chatId: string,
+    language: LanguageResolution | undefined,
+  ): Promise<{ systemPrompt: string; athleteSnapshot: string | undefined }> {
+    const planGate = this.memory.refreshPlanReadGate
+      ? await this.memory.refreshPlanReadGate()
+      : null;
+    const planNone = planGate === null && this.memory.loadPlan() === null;
+    if (chatId.startsWith("plan:")) {
+      const systemPrompt = buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
+        outputLanguage: language,
+        excludeSections: this.excludedSectionNames,
+        planNone,
+      });
+      return { systemPrompt, athleteSnapshot: undefined };
+    }
+    const athleteSnapshot = await loadAthleteSnapshotBlock({
+      reader: this.ports.platform.athleteData,
+      today: todayInTZ(this.tz, new Date(this.ports.now())),
+      sportTypes: this.sport.intervalsActivityTypes,
+      onError: (error) =>
+        this.log.warn("athlete_snapshot_read_failed", error, {
+          reason: error instanceof AthleteSnapshotTimeoutError ? "timeout" : "read",
+        }),
+    });
+    const systemPrompt = buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
+      outputLanguage: language,
+      excludeSections: this.excludedSectionNames,
+      confirmationGate: this.confirmationGate,
+      athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
+      planNone,
+    });
+    return { systemPrompt, athleteSnapshot };
+  }
+
   private templateHashForChat(chatId: string, tools: ToolSet): string {
-    const current = chatId.startsWith("plan:")
-      ? this.planTemplateHash
-      : chatId === "desktop"
-        ? this.desktopTemplateHash
-        : this.templateHash;
-    if (current !== undefined) return current;
-    const value = computeTemplateHash({
+    return computeTemplateHash({
       soul: chatId.startsWith("plan:") ? PLAN_COACH_AUTHORITY_RULES : this.sport.soul,
       skills: chatId.startsWith("plan:") ? {} : this.sport.skills,
       ruleBlocks: chatId.startsWith("plan:")
@@ -539,10 +591,6 @@ export class CoachAgent {
       toolSchemas: tools,
       model: this.config.llm.model,
     });
-    if (chatId.startsWith("plan:")) this.planTemplateHash = value;
-    else if (chatId === "desktop") this.desktopTemplateHash = value;
-    else this.templateHash = value;
-    return value;
   }
 
   private runWithWriteProvenance<T>(provenance: SourceProvenance, fn: () => T): T {
@@ -652,7 +700,7 @@ export class CoachAgent {
   private async flushMemory(
     messages: ModelMessage[],
     trigger: MemoryFlushTrigger,
-    budget?: Pick<TurnBudget, "chargeModelCall">,
+    budget?: Pick<TurnBudget, "chargeGenerateCall">,
   ): Promise<MemoryFlushOutcome> {
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_FLUSH_ATTEMPTS; attempt++) {
@@ -681,6 +729,46 @@ export class CoachAgent {
     throw lastError;
   }
 
+  private unflushedMessages(chatId: string, history: ModelMessage[]): ModelMessage[] {
+    return history.slice(this.lastFlushMessageCount.get(chatId) ?? 0);
+  }
+
+  private markFlushed(chatId: string, messageCount: number): void {
+    this.pendingFlushMessages.delete(chatId);
+    this.lastFlushMessageCount.set(chatId, messageCount);
+  }
+
+  private deferUnflushed(chatId: string, history: ModelMessage[], messageCount: number): void {
+    const unflushed = this.unflushedMessages(chatId, history);
+    if (unflushed.length > 0) {
+      this.pendingFlushMessages.set(chatId, [
+        ...(this.pendingFlushMessages.get(chatId) ?? []),
+        ...unflushed,
+      ]);
+    }
+    this.lastFlushMessageCount.set(chatId, messageCount);
+  }
+
+  private async flushNewMessages(
+    chatId: string,
+    history: ModelMessage[],
+    trigger: MemoryFlushTrigger,
+    budget?: Pick<TurnBudget, "chargeGenerateCall">,
+    currentTurn: ModelMessage[] = [],
+  ): Promise<void> {
+    const window = [
+      ...(this.pendingFlushMessages.get(chatId) ?? []),
+      ...this.unflushedMessages(chatId, history),
+      ...currentTurn,
+    ];
+    if (window.length === 0) {
+      this.log.info("memory_flush_skipped", { trigger, reason: "no_new_messages" });
+      return;
+    }
+    await this.flushMemory(window, trigger, budget);
+    this.markFlushed(chatId, history.length + currentTurn.length);
+  }
+
   settle(chatId?: string): Promise<void> {
     if (chatId === undefined) return drainSessionLocks();
     return withSessionLock(chatId, async () => {});
@@ -690,23 +778,32 @@ export class CoachAgent {
     chatId: string,
     messages: ModelMessage[],
     trigger: "stale-reset" | "soft-threshold",
+    onFlushed?: () => void,
   ): void {
     void withSessionLock(chatId, async () => {
+      const window = [...(this.pendingFlushMessages.get(chatId) ?? []), ...messages];
+      if (window.length === 0) {
+        this.log.info("memory_flush_skipped", { trigger, reason: "no_new_messages" });
+        onFlushed?.();
+        return;
+      }
       try {
-        const outcome = await this.flushMemory(messages, trigger);
+        const outcome = await this.flushMemory(window, trigger);
         const zeroWrite =
           outcome.writes === 0 &&
           outcome.ledgerAppends === 0 &&
-          messages.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
+          window.length >= FLUSH_ZERO_WRITE_MIN_MESSAGES;
         if (zeroWrite && trigger === "stale-reset") {
           console.warn(
             JSON.stringify({
               event: "memory_flush_zero_write_retry",
-              messageCount: messages.length,
+              messageCount: window.length,
             }),
           );
-          await this.flushMemory(messages, trigger);
+          await this.flushMemory(window, trigger);
         }
+        this.pendingFlushMessages.delete(chatId);
+        onFlushed?.();
       } catch (err) {
         this.log.warn(`Queued ${trigger} memory flush failed`, err);
       }
@@ -735,7 +832,7 @@ export class CoachAgent {
     // Charge OUTSIDE the recovery try/catch: a TurnBudgetExceededError is
     // terminal everywhere else in the turn loop, so it must propagate to the
     // outer terminal-budget handler, not degrade to the static floor.
-    turnBudget.chargeModelCall();
+    turnBudget.chargeGenerateCall();
     try {
       const recovery = await this.llm.generate({
         system: systemPrompt,
@@ -765,7 +862,7 @@ export class CoachAgent {
     }
   }
 
-  private compactionParams(budget?: Pick<TurnBudget, "chargeModelCall">) {
+  private compactionParams(budget?: Pick<TurnBudget, "chargeGenerateCall">) {
     return {
       llm: this.compactLlm,
       caller: "compact" as const,
@@ -921,10 +1018,6 @@ export class CoachAgent {
         let archivedAt: string | undefined;
 
         if (!fresh && !deferDaily) {
-          if (history.length > 0 && !flushedThisTurn) {
-            flushedThisTurn = true;
-            this.queueFlush(chatId, history, "stale-reset");
-          }
           const boundaryAt = new Date(this.ports.now()).toISOString();
           this.chatStore.resetConversation({
             chatId,
@@ -936,23 +1029,40 @@ export class CoachAgent {
           archivedAt = boundaryAt;
         }
 
-        if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
-        const turnTools = this.toolsForChat(chatId);
-        const systemPrompt = chatId.startsWith("plan:")
-          ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-              outputLanguage: ctx.language,
-              excludeSections: this.excludedSectionNames,
-            })
-          : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-              outputLanguage: ctx.language,
-              excludeSections: this.excludedSectionNames,
-              confirmationGate: this.confirmationGate,
-            });
-        const contextProvenance =
+        let recoveryFlushQueued = false;
+        const unflushed = this.chatStore.loadUnflushedResetArchive(chatId);
+        const ramPending = this.pendingFlushMessages.get(chatId) ?? [];
+        if (unflushed !== null || ramPending.length > 0) {
+          const markDiskFlushed = (): void => {
+            if (unflushed !== null) {
+              this.chatStore.markResetArchiveFlushed(chatId, unflushed.archiveRef);
+            }
+          };
+          if (unflushed !== null && unflushed.messages.length === 0 && ramPending.length === 0) {
+            markDiskFlushed();
+          } else {
+            recoveryFlushQueued = true;
+            this.queueFlush(
+              chatId,
+              ramPending.length > 0 ? [] : (unflushed?.messages ?? []),
+              "stale-reset",
+              markDiskFlushed,
+            );
+          }
+        }
+
+        const { systemPrompt, athleteSnapshot } = await this.buildChatSystemPrompt(
+          chatId,
+          ctx.language,
+        );
+        const turnTools = this.toolsForTurn(chatId);
+        const contextProvenance = unionProvenance(
           this.memory.getContextWithProvenance?.({
             excludeSections: this.excludedSectionNames,
             maxChars: ATHLETE_CONTEXT_MAX_CHARS,
-          }).provenance ?? EMPTY_PROVENANCE;
+          }).provenance ?? EMPTY_PROVENANCE,
+          athleteSnapshot === undefined ? EMPTY_PROVENANCE : UNKNOWN_PROVENANCE,
+        );
 
         const budget = computeHistoryTokenBudget({
           contextWindowTokens: this.config.contextWindowTokens,
@@ -967,16 +1077,15 @@ export class CoachAgent {
         let summaryMsg: ModelMessage | undefined;
         let requeued: ModelMessage[] = [];
         if (dropped.length > 0) {
-          this.lastFlushMessageCount.set(chatId, history.length);
-          let flushed = true;
+          let trimFlushFailed = false;
           if (!flushedThisTurn) {
             flushedThisTurn = true;
             try {
-              await this.flushMemory(history, "trim", turnBudget);
+              await this.flushNewMessages(chatId, history, "trim", turnBudget);
             } catch (err) {
-              flushed = false;
+              trimFlushFailed = true;
               this.log.warn(
-                "Pre-compaction memory flush failed; keeping session file unchanged",
+                "Pre-compaction memory flush failed; the dropped messages stay queued for the next flush",
                 err,
               );
             }
@@ -995,10 +1104,10 @@ export class CoachAgent {
             this.persistSummaryToDailyNote(summary, summaryProvenance);
             summaryMsg = makeSummaryMessage(summary, summaryProvenance);
             requeued = unsummarized;
-            if (flushed) {
-              this.chatStore.archivePreCompact(chatId);
-              this.chatStore.overwriteHistory(chatId, [summaryMsg, ...requeued, ...kept]);
-            }
+            const compacted = [summaryMsg, ...requeued, ...kept];
+            this.chatStore.archivePreCompact(chatId, { flushPending: trimFlushFailed });
+            this.chatStore.overwriteHistory(chatId, compacted);
+            this.deferUnflushed(chatId, history, compacted.length);
           } catch (err) {
             this.log.warn("Dropped message summarization failed, retaining original messages", err);
             requeued = dropped;
@@ -1025,10 +1134,11 @@ export class CoachAgent {
             currentMessageCount: history.length,
           })
         ) {
-          this.lastFlushMessageCount.set(chatId, history.length);
-          if (!flushedThisTurn) {
+          if (!flushedThisTurn && !recoveryFlushQueued) {
             flushedThisTurn = true;
-            this.queueFlush(chatId, history, "soft-threshold");
+            this.queueFlush(chatId, this.unflushedMessages(chatId, history), "soft-threshold", () =>
+              this.markFlushed(chatId, history.length),
+            );
           }
         }
 
@@ -1042,7 +1152,8 @@ export class CoachAgent {
             ? userMessageWithTime
             : `${userMessageWithTime}\n\n${wrapAthleteContextFence({
                 text: turn.untrustedAttachmentText,
-                maxChars: 200_000,
+                maxChars: ATTACHMENT_TEXT_MAX_CHARS,
+                truncationNotice: ATTACHMENT_TEXT_TRUNCATION_NOTICE,
               })}`;
 
         // One-turn model-visible archive marker: after an automatic reset, tell
@@ -1128,7 +1239,9 @@ export class CoachAgent {
               if (!flushedThisTurn) {
                 flushedThisTurn = true;
                 try {
-                  await this.flushMemory(messages, "pre-compaction", turnBudget);
+                  await this.flushNewMessages(chatId, history, "pre-compaction", turnBudget, [
+                    userTurnMessage,
+                  ]);
                 } catch (err) {
                   this.log.warn("In-turn memory flush failed; compacting without flush", err);
                 }
@@ -1145,7 +1258,7 @@ export class CoachAgent {
             };
 
             try {
-              turnBudget.chargeModelCall();
+              turnBudget.chargeGenerateCall();
               ctx.provenance.value = unionProvenance(
                 contextProvenance,
                 provenanceOfMessages(messages),
@@ -1268,7 +1381,7 @@ export class CoachAgent {
               let persistenceNote = "";
               if (!deferPlanTurn) {
                 try {
-                  this.chatStore.appendTurn(chatId, userMessage, effectiveText, lineage);
+                  this.chatStore.appendTurn(chatId, userMessageWithTime, effectiveText, lineage);
                 } catch (persistErr) {
                   console.warn("Session persistence failed; delivering reply unsaved", persistErr);
                   persistenceNote = noteForPersistenceFailure(persistErr, book);
@@ -1318,6 +1431,7 @@ export class CoachAgent {
                   turnId,
                   completedAt,
                   athleteText: userMessage,
+                  sentAthleteText: userMessageWithTime,
                   coachText: effectiveText,
                   transcriptCoachText: responseText,
                   lineage,
@@ -1429,7 +1543,13 @@ export class CoachAgent {
                   if (!flushedThisTurn) {
                     flushedThisTurn = true;
                     try {
-                      await this.flushMemory(messages, "overflow-recovery", turnBudget);
+                      await this.flushNewMessages(
+                        chatId,
+                        history,
+                        "overflow-recovery",
+                        turnBudget,
+                        [userTurnMessage],
+                      );
                     } catch (flushErr) {
                       this.log.warn(
                         "In-turn memory flush failed; compacting without flush",
@@ -1453,7 +1573,10 @@ export class CoachAgent {
               }
               // Timeout with high context usage → compact + retry (no flush)
               if (failure === "timeout" && timeoutAttempts < MAX_TIMEOUT_ATTEMPTS) {
-                const ratio = estimateMessagesTokens(messages) / this.config.contextWindowTokens;
+                const ratio =
+                  estimatePromptTokens({ messages, systemPrompt }) /
+                  (effectiveEstimatorWindowTokens(this.config.contextWindowTokens) -
+                    RESERVE_TOKENS);
                 if (ratio > TIMEOUT_COMPACTION_THRESHOLD) {
                   timeoutAttempts++;
                   try {
@@ -1555,7 +1678,7 @@ export class CoachAgent {
             );
             const templateHash = this.templateHashForChat(chatId, turnTools);
             try {
-              this.chatStore.appendTurn(chatId, userMessage, streamedText, {
+              this.chatStore.appendTurn(chatId, userMessageWithTime, streamedText, {
                 templateHash,
                 assembledHash: computeAssembledHash(systemPrompt, providerMessages),
                 provider: this.config.llm.provider,
@@ -1630,11 +1753,12 @@ export class CoachAgent {
       !turn.chatId.startsWith("plan:") ||
       turn.turnId.length === 0 ||
       turn.athleteText.length === 0 ||
+      turn.sentAthleteText.length === 0 ||
       turn.coachText.length === 0
     ) {
       throw new TypeError("Deferred Plan turn is invalid.");
     }
-    this.chatStore.appendTurn(turn.chatId, turn.athleteText, turn.coachText, turn.lineage);
+    this.chatStore.appendTurn(turn.chatId, turn.sentAthleteText, turn.coachText, turn.lineage);
     this.recordCompletedTurn({
       chatId: turn.chatId,
       turnId: turn.turnId,
@@ -1660,6 +1784,7 @@ export class CoachAgent {
       );
     }
     this.chatStore.overwriteHistory(chatId, messages);
+    this.lastFlushMessageCount.delete(chatId);
   }
 
   stopChat(chatId: string, turnId: string): boolean {
@@ -1927,18 +2052,9 @@ export class CoachAgent {
               : { [COACH_DECISION_TOOL_NAME]: this.decisionTool },
           model: this.config.llm.model,
         });
-    if (this.memory.refreshPlanReadGate) await this.memory.refreshPlanReadGate();
     const system =
-      (isPlan
-        ? buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-            outputLanguage: context.language,
-            excludeSections: this.excludedSectionNames,
-          })
-        : buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-            outputLanguage: context.language,
-            excludeSections: this.excludedSectionNames,
-            confirmationGate: this.confirmationGate,
-          })) + `\n\n# Decision Continuation\n\n${decisionContinuationMessage(decision)}`;
+      (await this.buildChatSystemPrompt(decision.chatId, context.language)).systemPrompt +
+      `\n\n# Decision Continuation\n\n${decisionContinuationMessage(decision)}`;
     const { messages: history } = this.chatStore.load(decision.chatId);
     const historyWithAthlete =
       athleteText === "" ||
@@ -2147,9 +2263,10 @@ export class CoachAgent {
       }
       if (history.length > 0) {
         try {
-          await this.flushMemory(history, "explicit-reset");
+          await this.flushNewMessages(chatId, history, "explicit-reset");
         } catch (err) {
           memoryFlushed = false;
+          this.deferUnflushed(chatId, history, 0);
           this.log.warn("Pre-reset memory flush failed; archiving session anyway", err);
         }
       }

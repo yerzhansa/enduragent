@@ -105,6 +105,13 @@ describe("appendCurrentTimeLine", () => {
     expect(twice).toBe(once);
   });
 
+  it("leaves an already-timed message unchanged when the clock and zone have moved on", () => {
+    vi.setSystemTime(new Date("2026-05-03T11:55:00Z"));
+    const stored = appendCurrentTimeLine("hi", "Asia/Tokyo");
+    vi.setSystemTime(new Date("2026-05-04T08:10:00Z"));
+    expect(appendCurrentTimeLine(stored, "Europe/Berlin")).toBe(stored);
+  });
+
   it("returns empty string for empty input (no time line on no message)", () => {
     expect(appendCurrentTimeLine("", "UTC")).toBe("");
     expect(appendCurrentTimeLine("   \n  ", "UTC")).toBe("");

@@ -25,7 +25,8 @@ export interface MockAthlete {
   id: string;
   icu_ftp: number;
   icu_weight: number;
-  max_hr: number;
+  icu_max_hr: number;
+  icu_lthr: number;
   icu_resting_hr: number;
   name: string;
   email: string;
@@ -34,7 +35,7 @@ export interface MockAthlete {
   country: string;
   bio: string;
   locale: string;
-  date_of_birth: string;
+  icu_date_of_birth: string;
   sport_settings: SportSetting[];
   [key: string]: unknown;
 }
@@ -121,9 +122,10 @@ export interface MockIntervalsOptions {
 
 function defaultAthlete(overrides: Partial<MockAthlete> = {}): MockAthlete {
   const ftp = overrides.icu_ftp ?? 200;
-  const maxHr = overrides.max_hr ?? 190;
+  const maxHr = overrides.icu_max_hr ?? 190;
   const restHr = overrides.icu_resting_hr ?? 52;
   const weight = overrides.icu_weight ?? 75;
+  const lthr = overrides.icu_lthr ?? Math.round(maxHr * 0.82);
 
   return {
     id: "i12345",
@@ -134,17 +136,18 @@ function defaultAthlete(overrides: Partial<MockAthlete> = {}): MockAthlete {
     country: "US",
     bio: "",
     locale: "en",
-    date_of_birth: "1992-06-15",
+    icu_date_of_birth: "1992-06-15",
     icu_ftp: ftp,
     icu_weight: weight,
-    max_hr: maxHr,
+    icu_max_hr: maxHr,
+    icu_lthr: lthr,
     icu_resting_hr: restHr,
     sport_settings: [
       {
         types: ["Ride", "VirtualRide"],
         ftp,
         ftp_type: "POWER",
-        lthr: Math.round(maxHr * 0.82),
+        lthr,
         max_hr: maxHr,
         resting_hr: restHr,
         weight,

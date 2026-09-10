@@ -330,12 +330,13 @@ describe("Plan coach authority", () => {
       chatId,
       turnId: "deferred-plan-turn",
       athleteText: "Gran Fondo Almaty.",
+      sentAthleteText: expect.stringMatching(/^Gran Fondo Almaty\.\nCurrent time: /),
       coachText: "What is your weekly availability?",
       planIntakePatch: { eventName: "Gran Fondo Almaty" },
     });
     agent.commitDeferredPlanTurn(deferred!);
     expect(ports.chatStore.load(chatId).messages).toMatchObject([
-      { role: "user", content: "Gran Fondo Almaty." },
+      { role: "user", content: deferred!.sentAthleteText },
       { role: "assistant", content: "What is your weekly availability?" },
     ]);
   });
