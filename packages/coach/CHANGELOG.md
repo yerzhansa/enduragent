@@ -1,5 +1,41 @@
 # @enduragent/coach
 
+## 0.1.2
+
+### Patch Changes
+
+- 5ecffcc: Route fixed Telegram, terminal, and coach messages through the shared English catalog and preserve message descriptors alongside existing wire text.
+
+  User-facing: The Telegram bot, the terminal setup, and the coach's fixed replies now use your language, and the terminal setup asks for your language when your computer's language is not one it speaks.
+
+- b30d963: User-facing: Long conversations recover from slow replies more reliably, and the app no longer pauses to tidy its log on every line it writes.
+- Updated dependencies [2354437]
+- Updated dependencies [5a9f738]
+- Updated dependencies [5ecffcc]
+- Updated dependencies [e62bd9b]
+- Updated dependencies [c090b3e]
+- Updated dependencies [a30364f]
+- Updated dependencies [f09f4e4]
+- Updated dependencies [ae70f69]
+- Updated dependencies [aff777d]
+- Updated dependencies [074740b]
+- Updated dependencies [f767b66]
+- Updated dependencies [9c07855]
+- Updated dependencies [1f41fe7]
+- Updated dependencies [602dd8c]
+- Updated dependencies [3e9e0e4]
+- Updated dependencies [7972d4c]
+- Updated dependencies [b30d963]
+  - @enduragent/kernel-node@0.1.2
+  - @enduragent/engine@0.0.4
+  - @enduragent/core@0.1.5
+  - @enduragent/i18n@0.2.0
+  - @enduragent/coach-contract@0.1.3
+  - @enduragent/sport-cycling@0.0.8
+  - @enduragent/kernel@0.1.2
+  - @enduragent/coach-cli@0.1.3
+  - @enduragent/sync-intervals-icu@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,5 +1,24 @@
 # cycling-coach
 
+## 2026.9.10
+
+### Patch Changes
+
+- 2354437: User-facing: Attached PDFs are read in full up to the size limit instead of half, and the coach is told plainly when a document was cut.
+- 5a9f738: User-facing: Replies now appear word by word while the coach is still writing, on ChatGPT sign-in as well as API keys.
+- 5ecffcc: Route fixed Telegram, terminal, and coach messages through the shared English catalog and preserve message descriptors alongside existing wire text.
+
+  User-facing: The Telegram bot, the terminal setup, and the coach's fixed replies now use your language, and the terminal setup asks for your language when your computer's language is not one it speaks.
+
+- c090b3e: User-facing: Saving your conversation to memory is faster and cheaper because the coach only reviews what is new since the last save.
+- f09f4e4: User-facing: The coach already knows your profile and today's wellness when you start typing, so replies come faster and cost less.
+- ae70f69: User-facing: If ChatGPT is still looking something up, a slow reply can retry instead of stopping on the first words. A memory save that fails during a long chat is retried after you reopen the app. Garmin labels stay on the facts they belong to.
+- aff777d: User-facing: When you ask the coach about something you told it before, it finds the exact note and shows your most recent notes first.
+- 074740b: User-facing: Long conversations cost less on API-key providers because earlier messages are reused from cache instead of being resent.
+- f767b66: User-facing: If you close the app right after the first chat of the day, what you told the coach is still saved to memory the next time you open it.
+- 7972d4c: User-facing: Deep ride reviews load faster because the coach no longer downloads thousands of second-by-second data points it was told not to use.
+- b30d963: User-facing: Long conversations recover from slow replies more reliably, and the app no longer pauses to tidy its log on every line it writes.
+
 ## 2026.9.9
 
 ### Minor Changes

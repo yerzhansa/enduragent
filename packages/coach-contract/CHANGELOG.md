@@ -1,5 +1,13 @@
 # @enduragent/coach-contract
 
+## 0.1.3
+
+### Patch Changes
+
+- 5ecffcc: Route fixed Telegram, terminal, and coach messages through the shared English catalog and preserve message descriptors alongside existing wire text.
+
+  User-facing: The Telegram bot, the terminal setup, and the coach's fixed replies now use your language, and the terminal setup asks for your language when your computer's language is not one it speaks.
+
 ## 0.1.2
 
 ### Patch Changes

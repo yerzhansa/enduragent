@@ -1,5 +1,32 @@
 # @enduragent/desktop-renderer
 
+## 0.2.0
+
+### Minor Changes
+
+- e62bd9b: Catalog desktop dialogs, file pickers, and tray copy, and render fixed coach messages in the selected language.
+
+  User-facing: Desktop dialogs and fixed coach replies follow your language preference when translations are available. Your original conversation text stays saved.
+
+- 9c07855: User-facing: Chat, including the plan cards, notices, and the composer, now appears in your chosen language.
+- 1f41fe7: User-facing: Setup, Settings, the sidebar, and past conversations now appear in your chosen language.
+- 602dd8c: User-facing: The Training and Plan pages now appear in your chosen language, with counts and dates written the way your language expects.
+- 3e9e0e4: User-facing: On first launch the app asks for your language when your computer's language is not one it speaks, and Settings preferences now show in your chosen language.
+
+### Patch Changes
+
+- Updated dependencies [5ecffcc]
+- Updated dependencies [e62bd9b]
+- Updated dependencies [a30364f]
+- Updated dependencies [9c07855]
+- Updated dependencies [1f41fe7]
+- Updated dependencies [602dd8c]
+- Updated dependencies [3e9e0e4]
+- Updated dependencies [b30d963]
+  - @enduragent/i18n@0.2.0
+  - @enduragent/coach-contract@0.1.3
+  - @enduragent/coach-client@0.1.3
+
 ## 0.1.0
 
 ### Minor Changes
