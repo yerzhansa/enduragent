@@ -592,6 +592,8 @@ describe("Plan Change cards", () => {
     patchChange({ open: false, planId: null });
     render(<ChatView />);
     expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
+    expect(document.querySelector(".thread")).toHaveClass("grid", "gap-7");
+    expect(document.querySelector(".composer-wrap")).toHaveClass("pt-7");
     expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
     expect(screen.getByText("Paused", { exact: true })).toBeVisible();
     expect(screen.getByText("Your separate Plan creation is still open.")).toBeVisible();

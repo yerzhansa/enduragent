@@ -57,6 +57,7 @@ describe("CI cost contract", () => {
     expect(native).toContain("Test Desktop E2E on macOS");
     expect(native).toContain("test:e2e");
     expect(native).toContain("desktop-e2e-macos-artifacts");
+    expect(native).toContain("if: failure() || cancelled()");
     expect(native).toContain(
       "run: pnpm --filter @enduragent/desktop package:telegram-acceptance:prepared",
     );

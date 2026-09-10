@@ -249,6 +249,7 @@ export async function collectApplicationBuildIdentity(): Promise<ApplicationBuil
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/identity.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/baseline-environment.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/seal-baseline.ts"),
+        resolve(repository, "apps/desktop/tests/e2e/application-ui-states/exit-after-report.ts"),
         resolve(repository, "apps/desktop/tests/helpers/desktop-fixture.ts"),
         resolve(repository, "tools/ui-verification/contracts.ts"),
         resolve(repository, "tools/ui-verification/structure.ts"),
