@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Plus } from "lucide-react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
@@ -12,6 +13,7 @@ import { SyncChip } from "./SyncChip";
 import { UpdateAvailableButton } from "./UpdateAvailableButton";
 
 export function Sidebar(): ReactElement {
+  const { say, format } = usePhrasebook();
   const activeView = useEnduragentStore((state) => state.activeView);
   const setActiveView = useEnduragentStore((state) => state.setActiveView);
   const unavailable = useEnduragentStore((state) => state.chat.newConversationUnavailable);
@@ -54,15 +56,18 @@ export function Sidebar(): ReactElement {
           }}
         >
           <Plus className="text-ink-2" size={16} aria-hidden="true" />
-          New chat
+          {say("sidebar.newChat")}
         </Button>
       </div>
-      <nav className="flex flex-col gap-0.5 px-inset pt-3" aria-label="Main navigation">
+      <nav className="flex flex-col gap-0.5 px-inset pt-3" aria-label={say("sidebar.navigation")}>
         {VIEWS.map((view) => {
           const active = view.id === activeView;
           const planAttentionLabel =
             view.id === "plan" && attentionCount > 0
-              ? `Plan, ${attentionCount} ${attentionCount === 1 ? "item needs" : "items need"} attention`
+              ? say("sidebar.planAttention", {
+                  count: attentionCount,
+                  formattedCount: format.number(attentionCount, { useGrouping: false }),
+                })
               : undefined;
           return (
             <Button
@@ -87,13 +92,13 @@ export function Sidebar(): ReactElement {
                 size={16}
                 aria-hidden="true"
               />
-              {view.label}
+              {say(view.label)}
               {view.id === "plan" && attentionCount > 0 ? (
                 <span
                   className="ml-auto grid size-[18px] place-items-center rounded-full bg-warn text-xs leading-none font-semibold text-surface"
                   aria-hidden="true"
                 >
-                  {attentionCount}
+                  {format.number(attentionCount, { useGrouping: false })}
                 </span>
               ) : null}
             </Button>

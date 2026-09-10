@@ -40,9 +40,7 @@ describe("findAdapterForActivity", () => {
 
   it("routes Ride and VirtualRide to the single cycling adapter", () => {
     expect(findAdapterForActivity([cyclingAdapter], activity("Ride"))).toBe(cyclingAdapter);
-    expect(findAdapterForActivity([cyclingAdapter], activity("VirtualRide"))).toBe(
-      cyclingAdapter,
-    );
+    expect(findAdapterForActivity([cyclingAdapter], activity("VirtualRide"))).toBe(cyclingAdapter);
   });
 
   it("returns null for an out-of-sport type the lone cycling adapter does not cover", () => {
@@ -77,12 +75,18 @@ describe("findAdapterForActivity", () => {
   });
 
   it("returns null for a type absent from the family table", () => {
-    expect(findAdapterForActivity([cyclingAdapter, runningAdapter], activity("Skydive"))).toBeNull();
+    expect(
+      findAdapterForActivity([cyclingAdapter, runningAdapter], activity("Skydive")),
+    ).toBeNull();
   });
 
   it("returns null without warning for a Strava stub whose type is null", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const stub = { id: "12345", startDateLocal: "1998-08-20T14:08:41", type: null } as unknown as Activity;
+    const stub = {
+      id: "12345",
+      startDateLocal: "1998-08-20T14:08:41",
+      type: null,
+    } as unknown as Activity;
     expect(findAdapterForActivity([cyclingAdapter], stub)).toBeNull();
     expect(warn).not.toHaveBeenCalled();
   });
@@ -156,7 +160,11 @@ describe("runAdaptersForActivities", () => {
 
   it("silently skips a Strava stub whose type is null", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const stub = { id: "12345", startDateLocal: "1998-08-20T14:08:41", type: null } as unknown as Activity;
+    const stub = {
+      id: "12345",
+      startDateLocal: "1998-08-20T14:08:41",
+      type: null,
+    } as unknown as Activity;
     const runs = runAdaptersForActivities([cyclingAdapter], cyclingTypes, [stub]);
     expect(runs).toHaveLength(0);
     expect(warn).not.toHaveBeenCalled();

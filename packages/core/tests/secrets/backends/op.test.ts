@@ -17,9 +17,7 @@ import { isSecretRef } from "../../../src/secrets/types.js";
 
 const tempDirs: string[] = [];
 
-async function makeOpStub(
-  script: string,
-): Promise<{ opPath: string; dir: string }> {
+async function makeOpStub(script: string): Promise<{ opPath: string; dir: string }> {
   const dir = await mkdtemp(join(tmpdir(), "op-stub-"));
   tempDirs.push(dir);
   const opPath = join(dir, "op");
@@ -114,14 +112,7 @@ describe("opItemCreate", () => {
     const result = await opItemCreate(opPath, "foo", "sk-value", "Personal");
     expect(result).toEqual({ vaultName: "Personal" });
     const argv = await readArgv(dir);
-    expect(argv).toEqual([
-      "item",
-      "create",
-      "-",
-      "--format=json",
-      "--vault",
-      "Personal",
-    ]);
+    expect(argv).toEqual(["item", "create", "-", "--format=json", "--vault", "Personal"]);
   });
 
   it("passes --vault <name> in argv when vaultName given", async () => {
@@ -154,9 +145,9 @@ exit 1
 printf "authorization timeout\\n" >&2
 exit 1
 `);
-    await expect(
-      opItemCreate(opPath, "foo", "sk-value", "Personal"),
-    ).rejects.toThrow(/authorization timeout/);
+    await expect(opItemCreate(opPath, "foo", "sk-value", "Personal")).rejects.toThrow(
+      /authorization timeout/,
+    );
   });
 
   it("round-trips a value with quotes through stdin byte-for-byte", async () => {
@@ -209,9 +200,9 @@ exit 1
 printf '%s' '${fixtureStdout}'`,
     );
     const oversize = "x".repeat(65_537);
-    await expect(
-      opItemCreate(opPath, "foo", oversize, "Personal"),
-    ).rejects.toBeInstanceOf(SecretTooLargeError);
+    await expect(opItemCreate(opPath, "foo", oversize, "Personal")).rejects.toBeInstanceOf(
+      SecretTooLargeError,
+    );
     expect(await exists(join(dir, "called"))).toBe(false);
   });
 
@@ -229,9 +220,7 @@ printf "something went wrong\\n" >&2
 exit 1
 `);
     const secret = "SECRET_VALUE_SHOULD_NOT_LEAK";
-    const err = await opItemCreate(opPath, "foo", secret, "Personal").catch(
-      (e: Error) => e,
-    );
+    const err = await opItemCreate(opPath, "foo", secret, "Personal").catch((e: Error) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).not.toContain(secret);
     expect((err as Error).message).toContain("<redacted>");
@@ -286,13 +275,11 @@ esac
   });
 
   it("rejects oversized value with SecretTooLargeError BEFORE any spawn", async () => {
-    const { opPath, dir } = await makeOpStub(
-      `printf 'STUB_WAS_CALLED' > "$STUB_DIR/called"`,
-    );
+    const { opPath, dir } = await makeOpStub(`printf 'STUB_WAS_CALLED' > "$STUB_DIR/called"`);
     const oversize = "x".repeat(65_537);
-    await expect(
-      opItemUpdate(opPath, "foo", oversize, "Personal"),
-    ).rejects.toBeInstanceOf(SecretTooLargeError);
+    await expect(opItemUpdate(opPath, "foo", oversize, "Personal")).rejects.toBeInstanceOf(
+      SecretTooLargeError,
+    );
     expect(await exists(join(dir, "called"))).toBe(false);
   });
 
@@ -303,12 +290,10 @@ esac
       vault: { name: "Personal" },
       fields: [{ id: "notesPlain", type: "STRING", value: "" }],
     };
-    const { opPath } = await makeOpStub(
-      `printf '%s' '${JSON.stringify(itemWithoutCred)}'`,
+    const { opPath } = await makeOpStub(`printf '%s' '${JSON.stringify(itemWithoutCred)}'`);
+    await expect(opItemUpdate(opPath, "foo", "new-value", "Personal")).rejects.toThrow(
+      /no 'credential' field/,
     );
-    await expect(
-      opItemUpdate(opPath, "foo", "new-value", "Personal"),
-    ).rejects.toThrow(/no 'credential' field/);
   });
 });
 
@@ -356,19 +341,13 @@ exit 1
 printf "authorization timeout\\n" >&2
 exit 1
 `);
-    await expect(opItemDelete(opPath, "foo", "Personal")).rejects.toThrow(
-      /authorization timeout/,
-    );
+    await expect(opItemDelete(opPath, "foo", "Personal")).rejects.toThrow(/authorization timeout/);
   });
 });
 
 describe("opSecretRef", () => {
   it("produces a valid SecretRef with the supplied vault name interpolated into the op:// path", async () => {
-    const ref = opSecretRef(
-      "cycling-coach · anthropic_api_key",
-      "/usr/local/bin/op",
-      "Personal",
-    );
+    const ref = opSecretRef("cycling-coach · anthropic_api_key", "/usr/local/bin/op", "Personal");
     expect(isSecretRef(ref)).toBe(true);
     expect(ref).toEqual({
       source: "exec",
@@ -383,9 +362,7 @@ describe("redactTemplateForLog", () => {
     const template = JSON.stringify({
       title: "foo",
       category: "API_CREDENTIAL",
-      fields: [
-        { id: "credential", type: "CONCEALED", label: "credential", value: "sk-secret" },
-      ],
+      fields: [{ id: "credential", type: "CONCEALED", label: "credential", value: "sk-secret" }],
     });
     const redacted = redactTemplateForLog(template);
     expect(redacted).not.toContain("sk-secret");

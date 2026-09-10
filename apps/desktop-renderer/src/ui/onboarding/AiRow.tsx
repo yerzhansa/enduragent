@@ -1,3 +1,13 @@
+import { providerLabelMessage } from "../settings/copy";
+import {
+  aiRowMessageCopy,
+  claudeCliIdentityMessage,
+  claudeCliNoteMessage,
+  modelHintMessage,
+  modelLabelMessage,
+} from "./copy";
+import { msg } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Menu } from "@base-ui/react/menu";
 import { isKeylessProvider } from "@enduragent/coach-contract";
 import { Check } from "lucide-react";
@@ -16,22 +26,14 @@ import {
 } from "../../onboarding/controller";
 import { chatGptReady, chatGptSignedIn, chatGptUiPhase } from "../../onboarding/machine";
 import {
-  aiRowCopy,
   apiKeyProviders,
-  claudeCliNote,
   errorSection,
   laneForProvider,
   offeredLanes,
   type SetupLane,
 } from "../../onboarding/lanes";
 import { llmSelectionFromDraft, type LlmSelectionDraft } from "../../onboarding/selection";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -45,7 +47,6 @@ import {
   AI_CANCEL_LABEL,
   AI_PANEL_ANNOUNCEMENTS,
   AI_ROW_TOOLTIP,
-  AI_ROW_UNSET,
   AI_SAVE_LABEL,
   AI_TRIGGER_LABELS,
   API_KEY_PANEL_HINT,
@@ -59,7 +60,6 @@ import {
   CHATGPT_SIGN_IN_LABEL,
   CLAUDE_CLI_RECHECK_LABEL,
   ERROR_COPY,
-  SETUP_LANE_LABELS,
   SETUP_LANE_MENU_HINTS,
   SETUP_MENU_LABEL,
   SETUP_ROW_CHECKING_SUBTITLE,
@@ -83,9 +83,9 @@ import { SetupError, SetupRow, SetupSubPanel } from "./SetupRow";
 import type { SetupPlacement } from "./OnboardingWizard";
 
 const ENDPOINT_MODE_COPY = [
-  ["automatic", "Keep current, or use provider default"],
-  ["default", "Reset to provider default"],
-  ["custom", "Use a custom endpoint"],
+  ["automatic", msg("setup.ai.endpoint.automatic")],
+  ["default", msg("setup.ai.endpoint.default")],
+  ["custom", msg("setup.ai.endpoint.custom")],
 ] as const;
 
 const MENU_ITEM_CLASS =
@@ -99,6 +99,7 @@ export function AiRow(props: {
   readonly actions: OnboardingActions | null;
   readonly placement: SetupPlacement;
 }): ReactElement {
+  const { say, format } = usePhrasebook();
   const { surface, actions } = props;
   const wizard = surface.wizard;
   const configuration = surface.configuration;
@@ -221,16 +222,35 @@ export function AiRow(props: {
         ? "api-key"
         : null;
   const lanes = offeredLanes(configuration, wizard, lane);
-  const note = claudeCliNote(configuration, wizard, lane);
+  const note = claudeCliNoteMessage(configuration, wizard, lane);
   const statusKnown = setupStatusKnown(surface);
+  const identityMessage =
+    wizard.claudeCliIdentity === null ? null : claudeCliIdentityMessage(wizard.claudeCliIdentity);
+  const providerLabel = (value: string): string => {
+    const message = providerLabelMessage(value);
+    return message === null ? value : say(message);
+  };
+  const modelLabel = (value: string): string => {
+    const message = modelLabelMessage(value);
+    return message === null ? value : say(message);
+  };
+  const modelHint = (value: string): string => {
+    const message = modelHintMessage(value);
+    return message === null ? value : say(message);
+  };
   const copy = !statusKnown
-    ? { title: AI_ROW_UNSET.title, subtitle: SETUP_ROW_CHECKING_SUBTITLE }
+    ? { title: msg("setup.ai.title"), subtitle: SETUP_ROW_CHECKING_SUBTITLE }
     : showsActiveProviderOutsideCatalogue
       ? {
-          title: ONBOARDING_LLM_PROVIDER_LABELS[configuration.active!.provider],
-          subtitle: "Connected · powers your coach",
+          title: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[configuration.active!.provider]),
+          subtitle: msg("setup.ai.connected"),
         }
-      : aiRowCopy(lane, wizard, ready);
+      : aiRowMessageCopy(
+          lane,
+          wizard,
+          ready,
+          identityMessage === null ? wizard.claudeCliIdentity : say(identityMessage),
+        );
   const hasDisplayedProvider = lane !== null || showsActiveProviderOutsideCatalogue;
   const keyProviders = apiKeyProviders(configuration);
   const keySlot = DESKTOP_CREDENTIAL_SLOTS.find((slot) => slot === draft?.provider.provider);
@@ -310,23 +330,23 @@ export function AiRow(props: {
   };
 
   const chatGptPrimaryLabel = chatGptLoginPending
-    ? CHATGPT_PHASE_COPY[chatGptPhase]
+    ? say(CHATGPT_PHASE_COPY[chatGptPhase])
     : chatGptActivating
-      ? CHATGPT_PHASE_COPY["activating-coach"]
+      ? say(CHATGPT_PHASE_COPY["activating-coach"])
       : chatGptStored && !chatGptIsReady
-        ? CHATGPT_RETRY_ACTIVATION_LABEL
-        : CHATGPT_SIGN_IN_LABEL;
+        ? say(CHATGPT_RETRY_ACTIVATION_LABEL)
+        : say(CHATGPT_SIGN_IN_LABEL);
   const chatGptStatusCopy =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in"
-      ? CHATGPT_PHASE_COPY[chatGptPhase]
+      ? say(CHATGPT_PHASE_COPY[chatGptPhase])
       : chatGptPhase === "signed-in"
-        ? CHATGPT_PHASE_COPY["signed-in"]
+        ? say(CHATGPT_PHASE_COPY["signed-in"])
         : chatGptPhase === "activating-coach"
-          ? `${CHATGPT_PHASE_COPY["signed-in"]} · ${CHATGPT_PHASE_COPY["activating-coach"]}`
+          ? say("setup.ai.chatgptActivating")
           : chatGptPhase === "ready"
-            ? CHATGPT_PHASE_COPY.ready
+            ? say(CHATGPT_PHASE_COPY.ready)
             : chatGptPhase === "activation-failed"
-              ? CHATGPT_ACTIVATION_FAILURE_COPY
+              ? say(CHATGPT_ACTIVATION_FAILURE_COPY)
               : null;
 
   return (
@@ -334,14 +354,14 @@ export function AiRow(props: {
       <SetupRow
         id="ai"
         status={!statusKnown ? "none" : ready ? "ready" : "pending"}
-        title={copy.title}
-        subtitle={copy.subtitle}
-        announce={panel === null ? "" : AI_PANEL_ANNOUNCEMENTS[panel]}
+        title={typeof copy.title === "string" ? copy.title : say(copy.title)}
+        subtitle={say(copy.subtitle)}
+        announce={panel === null ? "" : say(AI_PANEL_ANNOUNCEMENTS[panel])}
         info={
           <InfoTip
-            label={AI_ROW_TOOLTIP.label}
-            lead={AI_ROW_TOOLTIP.lead}
-            body={AI_ROW_TOOLTIP.body}
+            label={say(AI_ROW_TOOLTIP.label)}
+            lead={say(AI_ROW_TOOLTIP.lead)}
+            body={say(AI_ROW_TOOLTIP.body)}
           />
         }
         trailing={
@@ -353,7 +373,7 @@ export function AiRow(props: {
                   data-setup-trigger="ai"
                   disabled={controlsDisabled || chatGptActivating}
                   aria-label={
-                    hasDisplayedProvider ? AI_TRIGGER_LABELS.set : AI_TRIGGER_LABELS.unset
+                    hasDisplayedProvider ? say(AI_TRIGGER_LABELS.set) : say(AI_TRIGGER_LABELS.unset)
                   }
                   className={cn(
                     buttonVariants({
@@ -363,7 +383,7 @@ export function AiRow(props: {
                     }),
                   )}
                 >
-                  {hasDisplayedProvider ? "Change" : "Choose"}
+                  {hasDisplayedProvider ? say("setup.ai.change") : say("setup.ai.choose")}
                 </Menu.Trigger>
                 <Menu.Portal>
                   <Menu.Positioner side="bottom" align="end" sideOffset={6}>
@@ -373,7 +393,7 @@ export function AiRow(props: {
                     >
                       <Menu.RadioGroup value={lane}>
                         <Menu.GroupLabel className="px-[9px] pt-1.5 pb-1 text-xs font-medium text-ink-2">
-                          {SETUP_MENU_LABEL}
+                          {say(SETUP_MENU_LABEL)}
                         </Menu.GroupLabel>
                         {lanes.map((entry) => (
                           <Menu.RadioItem
@@ -389,10 +409,19 @@ export function AiRow(props: {
                           >
                             <span className="min-w-0 flex-1">
                               <b className="block text-sm font-medium">
-                                {SETUP_LANE_LABELS[entry]}
+                                {entry === "claude-cli"
+                                  ? "Claude Code"
+                                  : say(
+                                      entry === "openai-codex"
+                                        ? "setup.ai.lane.chatgpt"
+                                        : "setup.ai.lane.apiKey",
+                                      { chatgpt: "ChatGPT" },
+                                    )}
                               </b>
                               <i className="mt-px block text-xs text-ink-2 not-italic">
-                                {SETUP_LANE_MENU_HINTS[entry]}
+                                {entry === "api-key"
+                                  ? say("setup.ai.laneHint.apiKey", { providers: format.number(9) })
+                                  : say(SETUP_LANE_MENU_HINTS[entry])}
                               </i>
                             </span>
                             <span className="absolute top-2 right-[9px] grid size-[15px] place-items-center text-ok">
@@ -409,7 +438,7 @@ export function AiRow(props: {
                             data-setup-note="claude-cli"
                             className="text-xs leading-normal text-ink-2"
                           >
-                            {note}
+                            {say(note)}
                           </p>
                           <Menu.Item
                             disabled={controlsDisabled}
@@ -418,7 +447,7 @@ export function AiRow(props: {
                               actions?.recheckClaudeCli();
                             }}
                           >
-                            {CLAUDE_CLI_RECHECK_LABEL}
+                            {say(CLAUDE_CLI_RECHECK_LABEL)}
                           </Menu.Item>
                         </div>
                       )}
@@ -440,7 +469,7 @@ export function AiRow(props: {
         <SetupSubPanel name="chatgpt">
           <div className="flex min-w-0 flex-wrap items-center gap-x-7 gap-y-3">
             <span className="min-w-52 flex-1 text-xs leading-normal text-ink-2">
-              {CHATGPT_PANEL_HINT}
+              {say(CHATGPT_PANEL_HINT)}
             </span>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {autoChatGptPanel && !chatGptLoginPending ? null : (
@@ -452,14 +481,14 @@ export function AiRow(props: {
                     chatGptLoginPending ? surface.loading : controlsDisabled || chatGptActivating
                   }
                   {...(chatGptLoginPending
-                    ? { "aria-label": CHATGPT_CANCEL_SIGN_IN_LABEL }
-                    : { "aria-label": CHATGPT_CANCEL_LABEL })}
+                    ? { "aria-label": say(CHATGPT_CANCEL_SIGN_IN_LABEL) }
+                    : { "aria-label": say(CHATGPT_CANCEL_LABEL) })}
                   onClick={() => {
                     if (chatGptLoginPending) actions?.cancelChatGptLogin();
                     else revert();
                   }}
                 >
-                  {chatGptLoginPending ? CHATGPT_CANCEL_SIGN_IN_LABEL : "Cancel"}
+                  {chatGptLoginPending ? say(CHATGPT_CANCEL_SIGN_IN_LABEL) : say("common.cancel")}
                 </Button>
               )}
               <Button
@@ -489,7 +518,7 @@ export function AiRow(props: {
           )}
           {wizard.chatGptRefusal !== null ? (
             <p className="mt-[7px] text-xs text-danger" aria-live="polite">
-              {CHATGPT_REFUSAL_COPY[wizard.chatGptRefusal]}
+              {say(CHATGPT_REFUSAL_COPY[wizard.chatGptRefusal])}
             </p>
           ) : null}
           <SetupError surface={surface} section="provider" />
@@ -498,17 +527,17 @@ export function AiRow(props: {
       {panel === "api-key" ? (
         <SetupSubPanel name="api-key">
           {configuration === null || draft === null ? (
-            <p className="text-sm text-ink-2">{ERROR_COPY["configuration-unavailable"]}</p>
+            <p className="text-sm text-ink-2">{say(ERROR_COPY["configuration-unavailable"])}</p>
           ) : (
             <>
               <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-llm-provider">
-                Provider
+                {say("setup.ai.provider")}
               </label>
               <Select
                 disabled={controlsDisabled}
                 items={keyProviders.map((entry) => ({
                   value: entry.provider,
-                  label: ONBOARDING_LLM_PROVIDER_LABELS[entry.provider],
+                  label: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[entry.provider]),
                 }))}
                 value={draft.provider.provider}
                 onValueChange={(value) => {
@@ -521,7 +550,7 @@ export function AiRow(props: {
                 <SelectContent align="start">
                   {keyProviders.map((entry) => (
                     <SelectItem key={entry.provider} value={entry.provider}>
-                      {ONBOARDING_LLM_PROVIDER_LABELS[entry.provider]}
+                      {providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[entry.provider])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -530,7 +559,11 @@ export function AiRow(props: {
                 <div className="mt-[11px]">
                   <CredentialField
                     slot={keySlot}
-                    label={`${ONBOARDING_LLM_PROVIDER_LABELS[draft.provider.provider]} API key`}
+                    label={say("setup.ai.credentialLabel", {
+                      provider: providerLabel(
+                        ONBOARDING_LLM_PROVIDER_LABELS[draft.provider.provider],
+                      ),
+                    })}
                     disabled={controlsDisabled}
                     {...(describedBy === undefined ? {} : { describedBy })}
                     onEnter={save}
@@ -543,29 +576,31 @@ export function AiRow(props: {
                   variant="ghost"
                   size="sm"
                   disabled={controlsDisabled}
-                  aria-label={AI_CANCEL_LABEL}
+                  aria-label={say(AI_CANCEL_LABEL)}
                   onClick={() => revert()}
                 >
-                  Cancel
+                  {say("common.cancel")}
                 </Button>
                 <Button
                   type="button"
                   variant="default"
                   size="sm"
                   disabled={controlsDisabled}
-                  aria-label={AI_SAVE_LABEL}
+                  aria-label={say(AI_SAVE_LABEL)}
                   onClick={save}
                 >
-                  Save
+                  {say("common.save")}
                 </Button>
               </div>
-              <span className={SETUP_HINT_CLASS}>{API_KEY_PANEL_HINT}</span>
+              <span className={SETUP_HINT_CLASS}>{say(API_KEY_PANEL_HINT)}</span>
               <details className="mt-2">
-                <summary className="cursor-pointer py-1.5 text-xs text-ink-2">Advanced</summary>
+                <summary className="cursor-pointer py-1.5 text-xs text-ink-2">
+                  {say("setup.ai.advanced")}
+                </summary>
                 <div className="grid gap-[11px] pt-1.5">
                   <div>
                     <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-llm-model">
-                      Model
+                      {say("setup.ai.model")}
                     </label>
                     <Select
                       disabled={controlsDisabled}
@@ -574,10 +609,16 @@ export function AiRow(props: {
                           value: model.value,
                           label:
                             model.hint === undefined
-                              ? model.label
-                              : `${model.label} · ${model.hint}`,
+                              ? modelLabel(model.label)
+                              : say("setup.ai.modelHint", {
+                                  model: modelLabel(model.label),
+                                  hint: modelHint(model.hint),
+                                }),
                         }))
-                        .concat({ value: CUSTOM_MODEL_SELECTION, label: "Other model…" })}
+                        .concat({
+                          value: CUSTOM_MODEL_SELECTION,
+                          label: say("setup.ai.otherModel"),
+                        })}
                       value={draft.modelChoice}
                       onValueChange={(value) => {
                         if (value !== null) actions?.selectModel(value);
@@ -590,18 +631,23 @@ export function AiRow(props: {
                         {draft.provider.models.map((model) => (
                           <SelectItem key={model.value} value={model.value}>
                             {model.hint === undefined
-                              ? model.label
-                              : `${model.label} · ${model.hint}`}
+                              ? modelLabel(model.label)
+                              : say("setup.ai.modelHint", {
+                                  model: modelLabel(model.label),
+                                  hint: modelHint(model.hint),
+                                })}
                           </SelectItem>
                         ))}
-                        <SelectItem value={CUSTOM_MODEL_SELECTION}>Other model…</SelectItem>
+                        <SelectItem value={CUSTOM_MODEL_SELECTION}>
+                          {say("setup.ai.otherModel")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   {draft.modelChoice === CUSTOM_MODEL_SELECTION ? (
                     <div>
                       <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-custom-model">
-                        Custom model name
+                        {say("setup.ai.customModel")}
                       </label>
                       <input
                         id="onboarding-custom-model"
@@ -622,11 +668,14 @@ export function AiRow(props: {
                     <>
                       <div>
                         <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-endpoint-mode">
-                          Endpoint
+                          {say("setup.ai.endpoint.title")}
                         </label>
                         <Select
                           disabled={controlsDisabled}
-                          items={ENDPOINT_MODE_COPY.map(([value, label]) => ({ value, label }))}
+                          items={ENDPOINT_MODE_COPY.map(([value, label]) => ({
+                            value,
+                            label: say(label),
+                          }))}
                           value={draft.endpointMode}
                           onValueChange={(value) => {
                             if (value !== null) actions?.setEndpointMode(value);
@@ -641,7 +690,7 @@ export function AiRow(props: {
                           <SelectContent align="start">
                             {ENDPOINT_MODE_COPY.map(([value, entry]) => (
                               <SelectItem key={value} value={value}>
-                                {entry}
+                                {say(entry)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -650,7 +699,7 @@ export function AiRow(props: {
                       {draft.endpointMode === "custom" ? (
                         <div>
                           <label className={SETUP_LABEL_CLASS} htmlFor="onboarding-custom-endpoint">
-                            Custom endpoint
+                            {say("setup.ai.endpoint.customTitle")}
                           </label>
                           <input
                             id="onboarding-custom-endpoint"

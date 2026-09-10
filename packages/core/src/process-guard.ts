@@ -1,5 +1,6 @@
 import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { say } from "./cli-copy.js";
 
 import { getCoachHome } from "./coach-home.js";
 import { createSubsystemLogger } from "./logging/index.js";
@@ -122,12 +123,14 @@ export function reportFatal(err: unknown, opts: { dataDir?: string } = {}): neve
   const token = isTokenError(err);
   if (token?.code === 401) {
     console.error(
-      "Telegram rejected the bot token (401 Unauthorized). The token was revoked or is invalid — generate a new one with @BotFather and update your config, then restart.",
+      say("cli.startup.botTokenRejected", {
+        telegram: "Telegram",
+        status: "401 Unauthorized",
+        botFather: "@BotFather",
+      }),
     );
   } else if (token?.code === 409) {
-    console.error(
-      "Telegram reported a conflict (409) — another instance is already polling this bot token. Stop the other instance, then restart.",
-    );
+    console.error(say("cli.startup.botPollingConflict", { telegram: "Telegram", code: "409" }));
   }
 
   process.exit(1);

@@ -131,10 +131,11 @@ describe("AsyncMutex.runExclusive", () => {
 
     const outer = mutex.runExclusive(
       async () => {
-        const inner = mutex.runExclusive(
-          async () => "inner-body-ran",
-          { acquireTimeoutMs: 50, hotWarnMs: 10, caller: "inner" },
-        );
+        const inner = mutex.runExclusive(async () => "inner-body-ran", {
+          acquireTimeoutMs: 50,
+          hotWarnMs: 10,
+          caller: "inner",
+        });
         // Fire the inner re-entrant call's 50ms acquire-timeout — the outer
         // body holds the lock, so the inner can only ever time out.
         await vi.advanceTimersByTimeAsync(50);
@@ -202,9 +203,9 @@ describe("AsyncMutex.runExclusive — abort signal", () => {
     controller.abort(reason);
     const body = vi.fn(async () => "x");
 
-    await expect(
-      mutex.runExclusive(body, { ...opts, signal: controller.signal }),
-    ).rejects.toBe(reason);
+    await expect(mutex.runExclusive(body, { ...opts, signal: controller.signal })).rejects.toBe(
+      reason,
+    );
     expect(body).not.toHaveBeenCalled();
     expect(mutex.isHeld()).toBe(false);
   });

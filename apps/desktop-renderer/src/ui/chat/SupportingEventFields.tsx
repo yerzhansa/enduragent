@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type {
   ListPlansResult,
   PlanChangeIntent,
@@ -7,18 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useEffect, useState, type ReactElement } from "react";
 
 type EventIntent = Extract<PlanChangeIntent, { kind: "supporting-event" }>;
-const operations = [
-  { value: "add", label: "Add a Supporting Event" },
-  { value: "remove", label: "Remove a Supporting Event" },
-  { value: "role", label: "Change a Supporting Event role" },
-  { value: "manual", label: "Correct a Supporting Event" },
-  { value: "source-update", label: "Accept synchronized event details" },
-  { value: "name", label: "Rename a Supporting Event" },
-] satisfies Array<{ value: EventIntent["operation"]; label: string }>;
-const roles = [
-  { value: "Important", label: "Important" },
-  { value: "Training", label: "Training" },
-] satisfies Array<{ value: SupportingEvent["role"]; label: string }>;
 
 export function SupportingEventFields(props: {
   events: SupportingEvent[];
@@ -26,6 +15,20 @@ export function SupportingEventFields(props: {
   busy: boolean;
   onIntentChange: (intent: EventIntent) => void;
 }): ReactElement {
+  const { say } = usePhrasebook();
+  const operations = [
+    { value: "add", label: say("chat.supportingEvent.operation.add") },
+    { value: "remove", label: say("chat.supportingEvent.operation.remove") },
+    { value: "role", label: say("chat.supportingEvent.operation.role") },
+    { value: "manual", label: say("chat.supportingEvent.operation.manual") },
+    { value: "source-update", label: say("chat.supportingEvent.operation.sourceUpdate") },
+    { value: "name", label: say("chat.supportingEvent.operation.name") },
+  ] satisfies Array<{ value: EventIntent["operation"]; label: string }>;
+  const roles = [
+    { value: "Important", label: say("chat.supportingEvent.role.important") },
+    { value: "Training", label: say("chat.supportingEvent.role.training") },
+  ] satisfies Array<{ value: SupportingEvent["role"]; label: string }>;
+
   const [operation, setOperation] = useState<EventIntent["operation"]>("add");
   const [eventId, setEventId] = useState(props.events[0]?.id ?? "");
   const [candidateId, setCandidateId] = useState("");
@@ -106,7 +109,7 @@ export function SupportingEventFields(props: {
     <>
       {select(
         "plan-change-event-operation",
-        "Supporting Event operation",
+        say("chat.supportingEvent.operationLabel"),
         operation,
         operations,
         (value) => {
@@ -123,25 +126,28 @@ export function SupportingEventFields(props: {
       {operation !== "add"
         ? select(
             "plan-change-event-accepted",
-            "Accepted Supporting Event",
+            say("chat.supportingEvent.accepted"),
             eventId,
             props.events.map((event) => ({ value: event.id, label: event.name })),
             chooseEvent,
           )
         : null}
       {operation !== "add" && props.events.length === 0 ? (
-        <p className="m-0 text-sm text-ink-2">This Plan has no accepted Supporting Events.</p>
+        <p className="m-0 text-sm text-ink-2">{say("chat.supportingEvent.empty")}</p>
       ) : null}
       {operation === "add" && props.candidates.length > 0
         ? select(
             "plan-change-event-source",
-            "Synchronized event",
+            say("chat.supportingEvent.source"),
             candidateId,
             [
-              { value: "", label: "Manual entry" },
+              { value: "", label: say("chat.supportingEvent.manualEntry") },
               ...props.candidates.map((event) => ({
                 value: event.providerId,
-                label: `${event.name} · ${event.sourceLabel}`,
+                label: say("chat.supportingEvent.sourceOption", {
+                  name: event.name,
+                  source: event.sourceLabel,
+                }),
               })),
             ],
             setCandidateId,
@@ -150,7 +156,7 @@ export function SupportingEventFields(props: {
       {operation === "name" || operation === "manual" || (operation === "add" && !candidate) ? (
         <div className="grid gap-[calc(var(--inset)/2)]">
           <label htmlFor="plan-change-event-name" className="text-xs text-ink-2">
-            Event name
+            {say("chat.supportingEvent.name")}
           </label>
           <input
             id="plan-change-event-name"
@@ -166,7 +172,7 @@ export function SupportingEventFields(props: {
       {operation === "manual" || (operation === "add" && !candidate) ? (
         <div className="grid gap-[calc(var(--inset)/2)]">
           <label htmlFor="plan-change-event-date" className="text-xs text-ink-2">
-            Event date
+            {say("chat.supportingEvent.date")}
           </label>
           <input
             id="plan-change-event-date"
@@ -179,15 +185,19 @@ export function SupportingEventFields(props: {
         </div>
       ) : null}
       {operation === "add" || operation === "role"
-        ? select("plan-change-event-role", "Plan role", role, roles, (value) => {
-            const next = roles.find((item) => item.value === value);
-            if (next) setRole(next.value);
-          })
+        ? select(
+            "plan-change-event-role",
+            say("chat.supportingEvent.planRole"),
+            role,
+            roles,
+            (value) => {
+              const next = roles.find((item) => item.value === value);
+              if (next) setRole(next.value);
+            },
+          )
         : null}
       {operation === "source-update" && selected ? (
-        <p className="m-0 text-sm text-ink-2">
-          Review the synchronized name and date in a fresh preview before accepting them.
-        </p>
+        <p className="m-0 text-sm text-ink-2">{say("chat.supportingEvent.reviewSource")}</p>
       ) : null}
     </>
   );

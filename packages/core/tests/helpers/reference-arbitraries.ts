@@ -245,15 +245,13 @@ export function arbitraryWeeklyHistory(weeks: number): fc.Arbitrary<WeeklyRollup
   if (weeks <= 0) return fc.constant([]);
   return arbitraryWeeklyRollup.chain((seed) => {
     const start = new Date(seed.weekStartDate + "T00:00:00Z");
-    return fc
-      .tuple(...Array.from({ length: weeks }, () => arbitraryWeeklyRollup))
-      .map((rollups) =>
-        rollups.map((r, i) => {
-          const d = new Date(start);
-          d.setUTCDate(start.getUTCDate() + i * 7);
-          return { ...r, weekStartDate: d.toISOString().slice(0, 10) };
-        }),
-      );
+    return fc.tuple(...Array.from({ length: weeks }, () => arbitraryWeeklyRollup)).map((rollups) =>
+      rollups.map((r, i) => {
+        const d = new Date(start);
+        d.setUTCDate(start.getUTCDate() + i * 7);
+        return { ...r, weekStartDate: d.toISOString().slice(0, 10) };
+      }),
+    );
   });
 }
 
@@ -275,12 +273,8 @@ export function arbitraryPairedActivityList(
   return arbitraryActivityList(opts).chain((acts) => {
     if (acts.length === 0) return fc.constant(acts);
     return fc
-      .tuple(
-        ...acts.map(() => fc.option(fc.constantFrom(...eventIds), { nil: null })),
-      )
-      .map((pairedIds) =>
-        acts.map((a, i) => ({ ...a, paired_event_id: pairedIds[i] })),
-      );
+      .tuple(...acts.map(() => fc.option(fc.constantFrom(...eventIds), { nil: null })))
+      .map((pairedIds) => acts.map((a, i) => ({ ...a, paired_event_id: pairedIds[i] })));
   });
 }
 
@@ -294,21 +288,16 @@ export function arbitraryWellnessHistory(
 ): fc.Arbitrary<WellnessDay[]> {
   const days = opts?.days ?? 28;
   if (days <= 0) return fc.constant([]);
-  const startBase =
-    opts?.startDate !== undefined
-      ? fc.constant(opts.startDate)
-      : isoDateOnly;
+  const startBase = opts?.startDate !== undefined ? fc.constant(opts.startDate) : isoDateOnly;
 
   return startBase.chain((startStr) => {
     const start = new Date(startStr + "T00:00:00Z");
-    return fc
-      .tuple(...Array.from({ length: days }, () => arbitraryWellnessDay))
-      .map((rows) =>
-        rows.map((row, i) => {
-          const d = new Date(start);
-          d.setUTCDate(start.getUTCDate() + i);
-          return { ...row, id: d.toISOString().slice(0, 10) };
-        }),
-      );
+    return fc.tuple(...Array.from({ length: days }, () => arbitraryWellnessDay)).map((rows) =>
+      rows.map((row, i) => {
+        const d = new Date(start);
+        d.setUTCDate(start.getUTCDate() + i);
+        return { ...row, id: d.toISOString().slice(0, 10) };
+      }),
+    );
   });
 }

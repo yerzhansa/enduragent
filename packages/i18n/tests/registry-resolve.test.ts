@@ -28,10 +28,10 @@ describe("language registry", () => {
     expect(codes).toContainEqual({ code: "zh", representative: "zh-Hans" });
   });
   it("creates minimal message values", () => {
-    expect(msg("training.ready")).toEqual({ key: "training.ready" });
-    expect(msg("training.duration", { minutes: 30 })).toEqual({
-      key: "training.duration",
-      vars: { minutes: 30 },
+    expect(msg("common.save")).toEqual({ key: "common.save" });
+    expect(msg("settings.language.automaticDetail", { operatingSystem: "macOS" })).toEqual({
+      key: "settings.language.automaticDetail",
+      vars: { operatingSystem: "macOS" },
     });
   });
 });

@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
@@ -7,6 +8,7 @@ interface UpdateAvailableButtonProps {
 }
 
 export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): ReactElement {
+  const { say } = usePhrasebook();
   const update = useEnduragentStore((state) => state.settings.update);
   const updatePort = useEnduragentStore((state) => state.settingsPorts?.update ?? null);
   const visible = update.state.status === "downloaded" || update.state.status === "installing";
@@ -16,8 +18,8 @@ export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): R
     version === null
       ? ""
       : restarting
-        ? `Restarting to install update version ${version}`
-        : `Update version ${version} is available`;
+        ? say("sidebar.update.restartingVersion", { version: version ?? "" })
+        : say("sidebar.update.availableVersion", { version });
 
   return (
     <>
@@ -29,8 +31,8 @@ export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): R
           className="update-button w-full justify-center bg-surface font-medium text-ink hover:bg-surface-2"
           aria-label={
             restarting
-              ? `Restarting to install update version ${version}`
-              : `Install update version ${version}`
+              ? say("sidebar.update.restartingVersion", { version: version ?? "" })
+              : say("sidebar.update.installVersion", { version: version ?? "" })
           }
           aria-busy={restarting ? "true" : undefined}
           disabled={locked || restarting || updatePort === null}
@@ -38,7 +40,7 @@ export function UpdateAvailableButton({ locked }: UpdateAvailableButtonProps): R
             updatePort?.activate();
           }}
         >
-          {restarting ? "Restarting…" : "Update available"}
+          {restarting ? say("sidebar.update.restarting") : say("sidebar.update.available")}
         </Button>
       ) : null}
       <span

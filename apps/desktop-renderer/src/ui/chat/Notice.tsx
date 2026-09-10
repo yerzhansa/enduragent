@@ -1,9 +1,20 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { LoaderCircle } from "lucide-react";
+import { chatFeedbackMessage } from "./copy";
 import type { ReactElement } from "react";
-import { Button, ProgressDisplay } from "@enduragent/ui";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
+import { useWireMessageText } from "./use-wire-message-text";
 
 export function Notice(props: { readonly inPlanCreation?: boolean }): ReactElement | null {
+  const { say } = usePhrasebook();
   const notice = useEnduragentStore((state) => state.chat.notice);
+  const descriptor = useEnduragentStore((state) => state.chat.noticeMessage);
+  const message = notice === null ? null : chatFeedbackMessage(notice);
+  const text = useWireMessageText(
+    descriptor !== undefined || message === null ? (notice ?? "") : say(message),
+    descriptor,
+  );
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
   if (props.inPlanCreation) {
@@ -13,33 +24,42 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
         role="status"
         hidden={notice === null}
       >
-        <p className="m-0 text-xs leading-4 text-ink-2">{notice ?? ""}</p>
+        <p className="m-0 text-xs leading-4 text-ink-2">{text}</p>
       </div>
     );
   }
   return (
     <p className="chat-notice m-0 text-sm leading-5 text-ink-2" hidden={notice === null}>
-      {notice ?? ""}
+      {text}
     </p>
   );
 }
 
 export function CoachProgress(): ReactElement | null {
+  const { say } = usePhrasebook();
   const progress = useEnduragentStore((state) => state.chat.coachProgress ?? null);
+  const message = progress === null ? null : chatFeedbackMessage(progress);
   if (progress === null) return null;
+  const label = message === null ? progress : say(message);
   return (
-    <ProgressDisplay
-      className="coach-progress mt-row rounded-card border border-line bg-surface p-ctl-px"
+    <div
+      className="coach-progress mt-row flex items-center gap-inset text-sm leading-5 text-ink"
       role="status"
       aria-live="polite"
       aria-busy="true"
-      label={progress}
-      value={{ kind: "indeterminate" }}
-    />
+      aria-label={label}
+    >
+      <LoaderCircle
+        className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+    </div>
   );
 }
 
 export function RetryBar(): ReactElement {
+  const { say } = usePhrasebook();
   const interrupted = useEnduragentStore((state) => state.chat.interrupted);
   const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
@@ -58,7 +78,7 @@ export function RetryBar(): ReactElement {
         actions?.retry();
       }}
     >
-      Retry message
+      {say("chat.notice.retryMessage")}
     </Button>
   );
 }

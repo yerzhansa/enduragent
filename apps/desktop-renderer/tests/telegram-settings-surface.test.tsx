@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { renderLocalized as render } from "./language-harness";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonVariants } from "@enduragent/ui";

@@ -1,6 +1,10 @@
+import { say } from "../cli-copy.js";
+import { msg, normalizeLocaleHint, type CoachLanguage } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { createNpmCoachLanguage } from "../language-preference.js";
 import type { Context, MiddlewareFn } from "grammy";
 import { loadAllowedSenders, SENDER_ID_RE, type AllowedSenders } from "./allowed-senders.js";
-import { escapeHtmlAttr } from "./html-escape.js";
+import { escapeHtmlAttr, escapeHtmlText } from "./html-escape.js";
 
 export type { DmPolicy } from "./allowed-senders.js";
 
@@ -14,23 +18,23 @@ export function buildPairingChallenge(
   senderId: string | number,
   senderName: string | undefined,
   binaryName: string,
+  book: Phrasebook,
 ): string {
   const idStr = String(senderId);
-  const safeName = senderName ? escapeHtmlAttr(senderName) : "there";
   const safeBin = escapeHtmlAttr(binaryName);
   // Include the literal CLI command for the operator AND the "ask the bot owner"
   // fallback. Operators copy-paste from their own message to authorize themselves;
   // strangers see they cannot self-authorize.
   return [
-    `<b>This bot is private.</b>`,
+    `<b>${escapeHtmlText(book.say(msg("telegram.pairing.private")))}</b>`,
     ``,
-    `Hi ${safeName} — your Telegram user ID is <code>${escapeHtmlAttr(idStr)}</code>.`,
+    `${escapeHtmlAttr(book.say(msg("telegram.pairing.identity", { service: "Telegram", name: senderName || book.say(msg("telegram.pairing.unnamed")) })))} <code>${escapeHtmlAttr(idStr)}</code>.`,
     ``,
-    `<b>If you're the bot owner:</b> run`,
+    `<b>${escapeHtmlText(book.say(msg("telegram.pairing.owner")))}</b> ${escapeHtmlText(book.say(msg("telegram.pairing.run")))}`,
     `<pre>${safeBin} add-sender ${escapeHtmlAttr(idStr)}</pre>`,
-    `from a shell on the host where the bot runs, then send your message again.`,
+    escapeHtmlText(book.say(msg("telegram.pairing.shell"))),
     ``,
-    `Otherwise: ask the bot owner to authorize your user ID.`,
+    escapeHtmlText(book.say(msg("telegram.pairing.askOwner"))),
   ].join("\n");
 }
 
@@ -55,6 +59,7 @@ export function evaluateAccess(ctx: Context, allowed: AllowedSenders): AuthDecis
 
 export interface CreateAuthMiddlewareOpts {
   dataDir: string;
+  language?: CoachLanguage;
   binaryName: string;
   challengeRateLimit: Map<string, number>;
   challengeMinIntervalMs: number;
@@ -62,6 +67,7 @@ export interface CreateAuthMiddlewareOpts {
   pairingChallenge?: (input: {
     readonly senderId: string;
     readonly senderName: string | undefined;
+    readonly phrasebook: Phrasebook;
   }) => string;
   consumePairing?: (input: {
     readonly senderId: string;
@@ -92,11 +98,12 @@ function warnOpenPolicyServe(warned: Set<string>, fromId: number | undefined): v
     if (oldestKey === undefined) break;
     warned.delete(oldestKey);
   }
-  console.error(`[security] Open DM policy: serving non-allowlisted sender ${senderId}.`);
+  console.error(say("telegram.security.serving", { senderId }));
 }
 
 export function createAuthMiddleware(opts: CreateAuthMiddlewareOpts): MiddlewareFn<Context> {
   const openPolicyWarned = new Set<string>();
+  const language = opts.language ?? createNpmCoachLanguage(opts.dataDir);
   return async (ctx, next) => {
     // Auth decision (allowlist load, evaluateAccess, pairing-challenge reply) is
     // the only logic guarded here, and it fails CLOSED. next() runs OUTSIDE the
@@ -133,15 +140,29 @@ export function createAuthMiddleware(opts: CreateAuthMiddlewareOpts): Middleware
         const last = opts.challengeRateLimit.get(senderId) ?? 0;
         if (now - last < opts.challengeMinIntervalMs) return;
         recordChallenge(opts.challengeRateLimit, senderId, now);
+        const phrasebook = await language.phrasebookFor({
+          chatId: `telegram:${ctx.chat?.id}`,
+          athleteText: messageText,
+          ...(ctx.from?.language_code === undefined
+            ? {}
+            : {
+                surfaceHint: {
+                  language: normalizeLocaleHint(ctx.from.language_code),
+                  locale: ctx.from.language_code,
+                },
+              }),
+        });
         const html =
-          opts.pairingChallenge?.({ senderId, senderName: ctx.from?.first_name }) ??
-          buildPairingChallenge(senderId, ctx.from?.first_name, opts.binaryName);
+          opts.pairingChallenge?.({ senderId, senderName: ctx.from?.first_name, phrasebook }) ??
+          buildPairingChallenge(senderId, ctx.from?.first_name, opts.binaryName, phrasebook);
         await ctx.reply(html, { parse_mode: "HTML" });
       }
     } catch (err) {
       // Fail closed: log to stderr, drop the update without calling next().
       console.error(
-        `[security] middleware error: ${err instanceof Error ? err.message : String(err)}`,
+        say("telegram.security.middlewareError", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
       );
       return;
     }

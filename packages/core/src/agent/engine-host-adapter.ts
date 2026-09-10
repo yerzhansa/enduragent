@@ -110,6 +110,7 @@ export function createEngineHostAdapter(input: {
     overrides.confirmations === undefined
       ? undefined
       : createToolConfirmationPort({
+          language: coachLanguage,
           gate: overrides.confirmations,
           summarizers: createProposalSummarizers({ intervals: legacyClient, tz }),
         });

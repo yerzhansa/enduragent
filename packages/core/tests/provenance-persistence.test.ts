@@ -14,10 +14,7 @@ import { join } from "node:path";
 import { ChatStore } from "../src/agent/chat-store.js";
 import { makeSummaryMessage } from "@enduragent/engine";
 import { createMemoryQueryTool, createMemoryTools } from "../src/sport.js";
-import {
-  boundToolResultProvenance,
-  unwrapBoundToolResult,
-} from "@enduragent/engine";
+import { boundToolResultProvenance, unwrapBoundToolResult } from "@enduragent/engine";
 import { Memory } from "../src/memory/store.js";
 import {
   MAX_PROVENANCE_METADATA_BYTES,
@@ -310,8 +307,9 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
       chmodSync(memoryDir, 0o755);
       chmodSync(path, 0o644);
 
-      expect(new ProvenanceMetadata(memoryDir, { platform: "win32" }).read("first", "one"))
-        .toEqual(GARMIN);
+      expect(new ProvenanceMetadata(memoryDir, { platform: "win32" }).read("first", "one")).toEqual(
+        GARMIN,
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -429,10 +427,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
       memory.appendDailyNote("Garmin fact after the literal marker", "1998-05-09", GARMIN);
       const query = createMemoryQueryTool(memory, true);
 
-      const result = await query.execute!(
-        { from: "1998-05-09", to: "1998-05-09" },
-        {} as never,
-      );
+      const result = await query.execute!({ from: "1998-05-09", to: "1998-05-09" }, {} as never);
 
       expect(String(unwrapBoundToolResult(result))).toContain("Garmin fact after");
       expect(boundToolResultProvenance(result)?.garmin).toBe(true);
@@ -462,9 +457,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
     const dir = tempDir("cc-memory-empty-provenance-");
     try {
       const memory = new Memory(dir, "UTC");
-      memory.runWithWriteProvenance(GARMIN, () =>
-        memory.writeSection("person", "", "chat-tool"),
-      );
+      memory.runWithWriteProvenance(GARMIN, () => memory.writeSection("person", "", "chat-tool"));
 
       expect(memory.readSection("person")).toMatch(/^_updated: /);
       expect(memory.provenanceForSection("person")).toEqual({
@@ -625,10 +618,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
         GARMIN,
       );
 
-      const sidecar = readFileSync(
-        join(dir, "memory", ".source-provenance.jsonl"),
-        "utf8",
-      );
+      const sidecar = readFileSync(join(dir, "memory", ".source-provenance.jsonl"), "utf8");
       expect(sidecar).not.toContain("1998-05-09");
       expect(sidecar).not.toContain("Private symptom");
     } finally {
@@ -669,10 +659,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
         { date: "1998-05-09", kind: "decision", text: "Ride easy", source: "flush" },
         GARMIN,
       );
-      const sidecar = readFileSync(
-        join(dir, "memory", ".source-provenance.jsonl"),
-        "utf8",
-      );
+      const sidecar = readFileSync(join(dir, "memory", ".source-provenance.jsonl"), "utf8");
       expect(sidecar).not.toContain("Ride easy");
       const rideEasyInput = {
         from: "1998-05-09",
@@ -785,10 +772,7 @@ describe("memory, daily-note, plan, and ledger digest binding", () => {
       );
       const query = createMemoryQueryTool(memory, true);
 
-      const result = await query.execute!(
-        { from: "1998-05-09", to: "1998-05-10" },
-        {} as never,
-      );
+      const result = await query.execute!({ from: "1998-05-09", to: "1998-05-10" }, {} as never);
 
       expect(String(unwrapBoundToolResult(result))).not.toContain("Garmin note beyond the raw cap");
       expect(boundToolResultProvenance(result)).toEqual(UNKNOWN);

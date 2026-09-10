@@ -8,10 +8,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type ZodTypeAny, type z } from "zod";
 
-import {
-  FixtureSchema,
-  type FixtureShape,
-} from "../../src/reference/schemas/inputs.js";
+import { FixtureSchema, type FixtureShape } from "../../src/reference/schemas/inputs.js";
 
 /** Re-export the canonical fixture schema for in-package test callers.
  *  Single source of truth for the envelope shape lives in
@@ -20,11 +17,7 @@ import {
 export const GoldenFixtureSchema = FixtureSchema;
 export type GoldenFixture = FixtureShape;
 
-const DEFAULT_FIXTURES_ROOT = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "fixtures",
-);
+const DEFAULT_FIXTURES_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
 
 export interface LoadFixtureOptions {
   /** Override the fixture-root directory. Tests use tmpdir to stay
@@ -43,9 +36,7 @@ export function loadFixture<S extends ZodTypeAny>(
   const parsed = JSON.parse(raw);
   const result = schema.safeParse(parsed);
   if (!result.success) {
-    throw new Error(
-      `loadFixture: ${path} failed schema parse:\n${result.error.message}`,
-    );
+    throw new Error(`loadFixture: ${path} failed schema parse:\n${result.error.message}`);
   }
   return result.data;
 }

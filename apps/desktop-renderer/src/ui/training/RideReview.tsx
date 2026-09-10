@@ -1,3 +1,6 @@
+import { msg, type Message, type CatalogKey } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type {
   ActivityAnalysisData,
   ActivityAnalysisSection,
@@ -8,7 +11,6 @@ import type {
 import { useRef, type ReactElement, type ReactNode, type Ref } from "react";
 import type { RideAnalysisViewState } from "../../activity-analysis/controller";
 import { Button, RideMetricList, FactualCallout, Disclosure } from "@enduragent/ui";
-import { formatCivilDate, formatOffsetWallTime } from "../../lib/date";
 import {
   formatDistance,
   formatRidingDuration,
@@ -19,118 +21,175 @@ import { TRAINING_HISTORY_COPY, analysisRefreshFailureCopy, analysisUnavailableC
 import { RideResponseReview } from "./RideResponseReview";
 import { rideStyles as styles } from "./rideStyles";
 
-const RIDE_KIND: Readonly<Record<string, string>> = {
-  road: "Road ride",
-  mountain: "Mountain bike ride",
-  downhill: "Downhill ride",
-  cyclocross: "Cyclocross ride",
-  track: "Track ride",
-  indoor_cycling: "Indoor ride",
-  virtual_activity: "Virtual ride",
-  gravel_cycling: "Gravel ride",
+const RIDE_KIND: Readonly<
+  Record<string, { readonly full: CatalogKey; readonly short: CatalogKey }>
+> = {
+  road: { full: "training.ride.kindRoad", short: "training.ride.kindRoadShort" },
+  mountain: { full: "training.ride.kindMountain", short: "training.ride.kindMountainShort" },
+  downhill: { full: "training.ride.kindDownhill", short: "training.ride.kindDownhillShort" },
+  cyclocross: { full: "training.ride.kindCyclocross", short: "training.ride.kindCyclocrossShort" },
+  track: { full: "training.ride.kindTrack", short: "training.ride.kindTrackShort" },
+  indoor_cycling: { full: "training.ride.kindIndoor", short: "training.ride.kindIndoorShort" },
+  virtual_activity: { full: "training.ride.kindVirtual", short: "training.ride.kindVirtualShort" },
+  gravel_cycling: { full: "training.ride.kindGravel", short: "training.ride.kindGravelShort" },
 };
 
-export function trainingRideKind(ride: TrainingHistoryRide): string {
-  return ride.subSport === null || ride.subSport === "generic"
-    ? "Cycling ride"
-    : (RIDE_KIND[ride.subSport] ?? "Cycling ride");
+export function trainingRideKind(ride: TrainingHistoryRide, short = false): Message {
+  const kind = ride.subSport === null ? undefined : RIDE_KIND[ride.subSport];
+  return msg(
+    kind === undefined
+      ? short
+        ? "training.ride.kindCyclingShort"
+        : "training.ride.kindCycling"
+      : short
+        ? kind.short
+        : kind.full,
+  );
 }
 
-function rideDuration(ride: TrainingHistoryRide): string {
-  return ride.ridingSeconds === null ? "Not recorded" : formatRidingDuration(ride.ridingSeconds);
+function rideDuration(ride: TrainingHistoryRide, { say, format }: Phrasebook): string {
+  return ride.ridingSeconds === null
+    ? say("training.ride.notRecorded")
+    : say(formatRidingDuration(ride.ridingSeconds, format));
 }
 
-function rideDistance(ride: TrainingHistoryRide, units: UnitsPreference): string {
-  return ride.distanceMeters === null ? "Not recorded" : formatDistance(ride.distanceMeters, units);
+function rideDistance(
+  ride: TrainingHistoryRide,
+  units: UnitsPreference,
+  { say, format }: Phrasebook,
+): string {
+  return ride.distanceMeters === null
+    ? say("training.ride.notRecorded")
+    : say(formatDistance(ride.distanceMeters, units, format));
 }
 
-export function trainingRideTime(ride: TrainingHistoryRide): string | null {
-  return formatOffsetWallTime(ride.startEpochSeconds, ride.timezoneOffsetSeconds);
+export function trainingRideTime(ride: TrainingHistoryRide, { format }: Phrasebook): string | null {
+  if (ride.timezoneOffsetSeconds === null) return null;
+  const date = new Date((ride.startEpochSeconds + ride.timezoneOffsetSeconds) * 1_000);
+  return Number.isFinite(date.getTime())
+    ? format.date(date, { timeStyle: "short", timeZone: "UTC" })
+    : null;
 }
 
-export function trainingRideDateTime(ride: TrainingHistoryRide): string {
-  const time = trainingRideTime(ride);
-  return time === null
-    ? formatCivilDate(ride.localDate)
-    : `${formatCivilDate(ride.localDate)} · ${time}`;
+function trainingRideDate(ride: TrainingHistoryRide, { say, format }: Phrasebook): string {
+  const date = new Date(`${ride.localDate}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === ride.localDate
+    ? format.date(date, { dateStyle: "medium", timeZone: "UTC" })
+    : say("training.ride.unknownDate");
+}
+
+export function trainingRideDateTime(ride: TrainingHistoryRide, phrasebook: Phrasebook): string {
+  const time = trainingRideTime(ride, phrasebook);
+  const date = trainingRideDate(ride, phrasebook);
+  return time === null ? date : phrasebook.say("training.ride.dateTime", { date, time });
 }
 
 function RideSummary(props: {
   readonly ride: TrainingHistoryRide;
   readonly units: UnitsPreference;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   return (
     <dl className={styles.rideSummary}>
       <div>
-        <dt>Date</dt>
+        <dt>{say("training.ride.date")}</dt>
         <dd>
-          <time dateTime={props.ride.localDate}>{trainingRideDateTime(props.ride)}</time>
+          <time dateTime={props.ride.localDate}>
+            {trainingRideDateTime(props.ride, phrasebook)}
+          </time>
         </dd>
       </div>
       <div>
-        <dt>Riding time</dt>
-        <dd>{rideDuration(props.ride)}</dd>
+        <dt>{say("training.ride.ridingTime")}</dt>
+        <dd>{rideDuration(props.ride, phrasebook)}</dd>
       </div>
       <div>
-        <dt>Distance</dt>
-        <dd>{rideDistance(props.ride, props.units)}</dd>
+        <dt>{say("training.ride.distance")}</dt>
+        <dd>{rideDistance(props.ride, props.units, phrasebook)}</dd>
       </div>
     </dl>
   );
 }
 
-function recordedRideMetrics(ride: TrainingHistoryRide): readonly {
+function recordedRideMetrics(
+  ride: TrainingHistoryRide,
+  { say, format }: Phrasebook,
+): readonly {
   readonly label: string;
   readonly value: string;
 }[] {
   const metrics: { label: string; value: string }[] = [];
-  if (ride.load !== null) metrics.push({ label: "Load", value: formatWholeNumber(ride.load) });
+  if (ride.load !== null)
+    metrics.push({ label: say("training.ride.load"), value: formatWholeNumber(ride.load, format) });
   if (ride.averagePowerWatts !== null) {
     metrics.push({
-      label: "Average power",
-      value: `${formatWholeNumber(ride.averagePowerWatts)} W`,
+      label: say("training.ride.averagePower"),
+      value: say("training.ride.measurement", {
+        value: formatWholeNumber(ride.averagePowerWatts, format),
+        unit: "W",
+      }),
     });
   }
   if (ride.averageHeartRateBpm !== null) {
     metrics.push({
-      label: "Average heart rate",
-      value: `${formatWholeNumber(ride.averageHeartRateBpm)} bpm`,
+      label: say("training.ride.averageHeartRate"),
+      value: say("training.ride.measurement", {
+        value: formatWholeNumber(ride.averageHeartRateBpm, format),
+        unit: "bpm",
+      }),
     });
   }
   if (ride.perceivedExertion !== null) {
     metrics.push({
-      label: "Perceived exertion (0–10)",
-      value: formatWholeNumber(ride.perceivedExertion),
+      label: say("training.ride.perceivedExertion"),
+      value: formatWholeNumber(ride.perceivedExertion, format),
     });
   }
   if (ride.energyKilojoules !== null) {
     metrics.push({
-      label: "Energy",
-      value: `${formatWholeNumber(ride.energyKilojoules)} kJ`,
+      label: say("training.ride.energy"),
+      value: say("training.ride.measurement", {
+        value: formatWholeNumber(ride.energyKilojoules, format),
+        unit: "kJ",
+      }),
     });
   }
   return metrics.slice(0, 4);
 }
 
-function formatAnalysisDuration(seconds: number): string {
+function formatAnalysisDuration(seconds: number, { say, format }: Phrasebook): string {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
-  return hours === 0 ? `${minutes} min` : `${hours} hr ${remainder} min`;
+  return hours === 0
+    ? say("training.ride.durationMinutes", {
+        value: format.number(minutes, { useGrouping: false }),
+      })
+    : say("training.ride.durationHoursMinutes", {
+        hours: format.number(hours, { useGrouping: false }),
+        minutes: format.number(remainder, { useGrouping: false }),
+      });
 }
 
-function formatDrift(value: number): string {
+function formatDrift(value: number, { say, format }: Phrasebook): string {
   const rounded = Math.abs(value) < 0.05 ? 0 : value;
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}%`;
+  return say("training.ride.percent", {
+    value: format.number(Number(rounded.toFixed(1)), {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+      useGrouping: false,
+      signDisplay: "exceptZero",
+    }),
+  });
 }
 
 const LIMITATION_COPY: Readonly<
-  Record<ActivityAnalysisData["aerobicDrift"]["limitations"][number], string>
+  Record<ActivityAnalysisData["aerobicDrift"]["limitations"][number], Message>
 > = {
-  "duration-under-60-minutes": "Usable duration is below the 60-minute reference context.",
-  "variable-output": "Power varied substantially across the ride.",
-  "moving-status-unavailable":
-    "No moving-status stream was available, so stopped time may be included.",
+  "duration-under-60-minutes": msg("training.ride.limitationDuration"),
+  "variable-output": msg("training.ride.limitationVariable"),
+  "moving-status-unavailable": msg("training.ride.limitationMoving"),
 };
 
 function shouldOfferRetry(reason: Parameters<typeof analysisUnavailableCopy>[0]): boolean {
@@ -152,17 +211,35 @@ function DriftHalf(props: {
   readonly label: string;
   readonly half: ActivityAnalysisData["aerobicDrift"]["firstHalf"];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   return (
     <div className={styles.driftHalf}>
       <h3>{props.label}</h3>
-      <p className={styles.driftEf}>{props.half.efficiencyFactor.toFixed(2)} EF</p>
+      <p className={styles.driftEf}>
+        {say("training.ride.measurement", {
+          value: format.number(Number(props.half.efficiencyFactor.toFixed(2)), {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+            useGrouping: false,
+          }),
+          unit: "EF",
+        })}
+      </p>
       <p className={styles.driftHalfStats}>
-        {Math.round(props.half.averagePowerWatts)} W · {Math.round(props.half.averageHeartRateBpm)}{" "}
-        bpm
+        {say("training.ride.halfStats", {
+          watts: format.number(Math.round(props.half.averagePowerWatts), { useGrouping: false }),
+          heartRate: format.number(Math.round(props.half.averageHeartRateBpm), {
+            useGrouping: false,
+          }),
+        })}
       </p>
       <p className={styles.driftHalfMeta}>
-        {formatAnalysisDuration(props.half.durationSeconds)} ·{" "}
-        {props.half.sampleCount.toLocaleString()} samples
+        {say("training.ride.halfMeta", {
+          count: props.half.sampleCount,
+          duration: formatAnalysisDuration(props.half.durationSeconds, phrasebook),
+          value: format.number(props.half.sampleCount),
+        })}
       </p>
     </div>
   );
@@ -178,14 +255,20 @@ function DriftEvidence(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement {
-  const provenance = props.saved ? "Saved analysis" : "Current analysis";
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const provenance = props.saved
+    ? say("training.ride.savedAnalysis")
+    : say("training.ride.currentAnalysis");
   const notice =
     props.refreshFailure !== undefined
-      ? `Showing the saved result. ${analysisRefreshFailureCopy(props.refreshFailure.code)}`
+      ? say("training.ride.savedResult", {
+          failure: say(analysisRefreshFailureCopy(props.refreshFailure.code)),
+        })
       : props.clientRefreshUnavailable === true
-        ? "Showing the previous result. The latest refresh did not finish."
+        ? say("training.ride.previousResult")
         : props.refreshing === true
-          ? "Refreshing the ride analysis…"
+          ? say("training.ride.refreshingRide")
           : null;
   return (
     <>
@@ -199,40 +282,46 @@ function DriftEvidence(props: {
       )}
       <div className={styles.driftReading}>
         <div>
-          <p className={styles.rideEyebrow}>Observed EF change</p>
+          <p className={styles.rideEyebrow}>{say("training.ride.driftObserved")}</p>
           <p
             className={styles.driftValue}
-            aria-label={`Observed efficiency-factor change ${formatDrift(
-              props.data.decouplingPercent,
-            )}`}
+            aria-label={say("training.ride.driftLabel", {
+              value: formatDrift(props.data.decouplingPercent, phrasebook),
+            })}
           >
-            {formatDrift(props.data.decouplingPercent)}
+            {formatDrift(props.data.decouplingPercent, phrasebook)}
           </p>
         </div>
         <div className={styles.driftContext}>
           <span className={styles.driftEvidenceBadge} data-evidence={props.data.evidence}>
-            {props.data.evidence === "standard" ? "Data checks passed" : "Limited context"}
+            {props.data.evidence === "standard"
+              ? say("training.ride.dataChecksPassed")
+              : say("training.ride.limitedContext")}
           </span>
-          <p>{provenance} · whole ride</p>
+          <p>{say("training.ride.wholeRide", { provenance })}</p>
         </div>
       </div>
       <div className={styles.driftTrace}>
-        <DriftHalf label="First half" half={props.data.firstHalf} />
+        <DriftHalf label={say("training.ride.firstHalf")} half={props.data.firstHalf} />
         <span className={styles.driftConnector} aria-hidden="true">
           →
         </span>
-        <DriftHalf label="Second half" half={props.data.secondHalf} />
+        <DriftHalf label={say("training.ride.secondHalf")} half={props.data.secondHalf} />
       </div>
       <p className={styles.driftCoverage}>
-        {Math.round(props.data.coverage.fraction * 100)}% usable time ·{" "}
-        {formatAnalysisDuration(props.data.coverage.includedDurationSeconds)} included ·{" "}
-        {props.data.coverage.validSamples.toLocaleString()} of{" "}
-        {props.data.coverage.totalSamples.toLocaleString()} samples
+        {say("training.ride.coverage", {
+          percent: format.number(Math.round(props.data.coverage.fraction * 100), {
+            useGrouping: false,
+          }),
+          duration: formatAnalysisDuration(props.data.coverage.includedDurationSeconds, phrasebook),
+          valid: format.number(props.data.coverage.validSamples),
+          total: format.number(props.data.coverage.totalSamples),
+        })}
       </p>
       {props.data.limitations.length === 0 ? null : (
-        <ul className={styles.driftLimitations} aria-label="Analysis limitations">
+        <ul className={styles.driftLimitations} aria-label={say("training.ride.limitations")}>
           {props.data.limitations.map((limitation) => (
-            <li key={limitation}>{LIMITATION_COPY[limitation]}</li>
+            <li key={limitation}>{say(LIMITATION_COPY[limitation])}</li>
           ))}
         </ul>
       )}
@@ -245,6 +334,7 @@ function AerobicDriftPanel(props: {
   readonly analysis: RideAnalysisViewState;
   readonly onRefresh: (() => void) | null;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const matches = props.analysis.activityId === props.rideId;
   const section = matches ? props.analysis.sections.aerobicDrift : undefined;
   const refreshing = matches && props.analysis.loadingSections.includes("aerobic-drift");
@@ -267,10 +357,10 @@ function AerobicDriftPanel(props: {
   } else if (section?.kind === "unavailable") {
     content = (
       <div className={styles.analysisUnavailable}>
-        <p>{analysisUnavailableCopy(section.reason)}</p>
+        <p>{say(analysisUnavailableCopy(section.reason))}</p>
         {props.onRefresh !== null && shouldOfferRetry(section.reason) ? (
           <Button type="button" variant="outline" onClick={props.onRefresh}>
-            Try again
+            {say("training.ride.retry")}
           </Button>
         ) : null}
       </div>
@@ -278,10 +368,10 @@ function AerobicDriftPanel(props: {
   } else if (clientRefreshUnavailable) {
     content = (
       <div className={styles.analysisUnavailable}>
-        <p>The ride could not be analyzed right now.</p>
+        <p>{say("training.ride.analysisFailed")}</p>
         {props.onRefresh === null ? null : (
           <Button type="button" variant="outline" onClick={props.onRefresh}>
-            Try again
+            {say("training.ride.retry")}
           </Button>
         )}
       </div>
@@ -289,7 +379,7 @@ function AerobicDriftPanel(props: {
   } else {
     content = (
       <p className={styles.analysisLoading} role="status">
-        Checking ride streams…
+        {say("training.ride.streamsLoading")}
       </p>
     );
   }
@@ -297,13 +387,12 @@ function AerobicDriftPanel(props: {
     <section className={styles.analysisPanel} aria-labelledby="aerobic-drift-title">
       <div className={styles.analysisHeading}>
         <div>
-          <p className={styles.rideEyebrow}>Whole-ride analysis</p>
-          <h2 id="aerobic-drift-title">Local aerobic drift estimate</h2>
+          <p className={styles.rideEyebrow}>{say("training.ride.driftEyebrow")}</p>
+          <h2 id="aerobic-drift-title">{say("training.ride.driftTitle")}</h2>
         </div>
       </div>
       <p className={styles.analysisIntro}>
-        Compares power per heartbeat in the first and second time-weighted halves. This local
-        estimate is distinct from intervals.icu's cleaned power/HR metric.
+        {say("training.ride.driftIntro", { provider: "intervals.icu" })}
       </p>
       {content}
     </section>
@@ -311,44 +400,82 @@ function AerobicDriftPanel(props: {
 }
 
 const INTERVAL_KIND_COPY: Readonly<
-  Record<ActivityAnalysisData["intervals"]["intervals"][number]["kind"], string>
+  Record<ActivityAnalysisData["intervals"]["intervals"][number]["kind"], Message>
 > = {
-  work: "Work",
-  recovery: "Recovery",
-  lap: "Lap",
-  unknown: "Segment",
+  work: msg("training.ride.intervalWork"),
+  recovery: msg("training.ride.intervalRecovery"),
+  lap: msg("training.ride.intervalLap"),
+  unknown: msg("training.ride.intervalSegment"),
 };
 
-function unavailableMetric(): ReactElement {
-  return <span aria-label="Unavailable">—</span>;
+function unavailableMetric({ say }: Phrasebook): ReactElement {
+  return <span aria-label={say("training.ride.unavailableMetric")}>—</span>;
 }
 
-function durationMetric(seconds: number | null): ReactNode {
-  return seconds === null ? unavailableMetric() : formatAnalysisDuration(seconds);
+function durationMetric(seconds: number | null, phrasebook: Phrasebook): ReactNode {
+  return seconds === null
+    ? unavailableMetric(phrasebook)
+    : formatAnalysisDuration(seconds, phrasebook);
 }
 
-function distanceMetric(meters: number | null, units: UnitsPreference): ReactNode {
-  if (meters === null) return unavailableMetric();
-  return units === "imperial"
-    ? `${(meters / 1_609.344).toFixed(1)} mi`
-    : `${(meters / 1_000).toFixed(1)} km`;
+function distanceMetric(
+  meters: number | null,
+  units: UnitsPreference,
+  phrasebook: Phrasebook,
+): ReactNode {
+  if (meters === null) return unavailableMetric(phrasebook);
+  return phrasebook.say("training.ride.measurement", {
+    value: phrasebook.format.number(
+      Number((meters / (units === "imperial" ? 1_609.344 : 1_000)).toFixed(1)),
+      { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false },
+    ),
+    unit: units === "imperial" ? "mi" : "km",
+  });
 }
 
-function sensorMetric(average: number | null, maximum: number | null, unit: string): ReactNode {
-  if (average === null && maximum === null) return unavailableMetric();
-  if (average === null) return `${Math.round(maximum!)} max ${unit}`;
-  if (maximum === null) return `${Math.round(average)} avg ${unit}`;
-  return `${Math.round(average)} avg · ${Math.round(maximum)} max ${unit}`;
+function sensorMetric(
+  average: number | null,
+  maximum: number | null,
+  unit: string,
+  phrasebook: Phrasebook,
+): ReactNode {
+  const { say, format } = phrasebook;
+  if (average === null)
+    return maximum === null
+      ? unavailableMetric(phrasebook)
+      : say("training.ride.sensorMaximum", {
+          value: format.number(Math.round(maximum), { useGrouping: false }),
+          unit,
+        });
+  if (maximum === null)
+    return say("training.ride.sensorAverage", {
+      value: format.number(Math.round(average), { useGrouping: false }),
+      unit,
+    });
+  return say("training.ride.sensorBoth", {
+    average: format.number(Math.round(average), { useGrouping: false }),
+    maximum: format.number(Math.round(maximum), { useGrouping: false }),
+    unit,
+  });
 }
 
-function decimalMetric(value: number | null, unit = ""): ReactNode {
-  if (value === null) return unavailableMetric();
-  const formatted = value.toFixed(1).replace(/\.0$/, "");
-  return unit.length === 0 ? formatted : `${formatted}${unit}`;
+function decimalMetric(value: number | null, phrasebook: Phrasebook, unit = ""): ReactNode {
+  if (value === null) return unavailableMetric(phrasebook);
+  const formatted = phrasebook.format.number(Number(value.toFixed(1)), {
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  });
+  return unit.length === 0
+    ? formatted
+    : phrasebook.say("training.ride.decimalUnit", { value: formatted, unit });
 }
 
-function zoneMetric(zone: number | null): ReactNode {
-  return zone === null ? unavailableMetric() : `Zone ${zone}`;
+function zoneMetric(zone: number | null, phrasebook: Phrasebook): ReactNode {
+  return zone === null
+    ? unavailableMetric(phrasebook)
+    : phrasebook.say("training.ride.zoneValue", {
+        value: phrasebook.format.number(zone, { useGrouping: false }),
+      });
 }
 
 type IntervalMetricsData = Pick<
@@ -371,51 +498,66 @@ function IntervalMetricGrid(props: {
   readonly units: UnitsPreference;
   readonly distanceMeters?: number | null;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   return (
     <dl className={styles.intervalMetrics}>
       <div>
-        <dt>Duration</dt>
-        <dd>{durationMetric(props.metrics.movingSeconds ?? props.metrics.elapsedSeconds)}</dd>
+        <dt>{say("training.ride.duration")}</dt>
+        <dd>
+          {durationMetric(props.metrics.movingSeconds ?? props.metrics.elapsedSeconds, phrasebook)}
+        </dd>
       </div>
       {props.distanceMeters === undefined ? null : (
         <div>
-          <dt>Distance</dt>
-          <dd>{distanceMetric(props.distanceMeters, props.units)}</dd>
+          <dt>{say("training.ride.distance")}</dt>
+          <dd>{distanceMetric(props.distanceMeters, props.units, phrasebook)}</dd>
         </div>
       )}
       <div>
-        <dt>Power</dt>
+        <dt>{say("training.ride.power")}</dt>
         <dd>
-          {sensorMetric(props.metrics.averagePowerWatts, props.metrics.maximumPowerWatts, "W")}
+          {sensorMetric(
+            props.metrics.averagePowerWatts,
+            props.metrics.maximumPowerWatts,
+            "W",
+            phrasebook,
+          )}
         </dd>
       </div>
       <div>
-        <dt>Heart rate</dt>
+        <dt>{say("training.ride.heartRate")}</dt>
         <dd>
           {sensorMetric(
             props.metrics.averageHeartRateBpm,
             props.metrics.maximumHeartRateBpm,
             "bpm",
+            phrasebook,
           )}
         </dd>
       </div>
       <div>
-        <dt>Cadence</dt>
+        <dt>{say("training.ride.cadence")}</dt>
         <dd>
-          {sensorMetric(props.metrics.averageCadenceRpm, props.metrics.maximumCadenceRpm, "rpm")}
+          {sensorMetric(
+            props.metrics.averageCadenceRpm,
+            props.metrics.maximumCadenceRpm,
+            "rpm",
+            phrasebook,
+          )}
         </dd>
       </div>
       <div>
-        <dt>Zone</dt>
-        <dd>{zoneMetric(props.metrics.zone)}</dd>
+        <dt>{say("training.ride.zone")}</dt>
+        <dd>{zoneMetric(props.metrics.zone, phrasebook)}</dd>
       </div>
       <div>
-        <dt>Intensity</dt>
-        <dd>{decimalMetric(props.metrics.intensityPercent, "%")}</dd>
+        <dt>{say("training.ride.intensity")}</dt>
+        <dd>{decimalMetric(props.metrics.intensityPercent, phrasebook, "%")}</dd>
       </div>
       <div>
-        <dt>Training load</dt>
-        <dd>{decimalMetric(props.metrics.trainingLoad)}</dd>
+        <dt>{say("training.ride.trainingLoad")}</dt>
+        <dd>{decimalMetric(props.metrics.trainingLoad, phrasebook)}</dd>
       </div>
     </dl>
   );
@@ -425,22 +567,33 @@ function IntervalGroupEvidence(props: {
   readonly groups: ActivityAnalysisData["intervals"]["groups"];
   readonly units: UnitsPreference;
 }): ReactElement | null {
+  const { say, format } = usePhrasebook();
   if (props.groups.length === 0) return null;
   return (
-    <section className={styles.intervalGroups} aria-label="Interval group summaries">
-      <h3>Group summaries</h3>
-      <p>Provider summary metrics for related ordered segments.</p>
+    <section className={styles.intervalGroups} aria-label={say("training.ride.groupsLabel")}>
+      <h3>{say("training.ride.groupsTitle")}</h3>
+      <p>{say("training.ride.groupsIntro")}</p>
       <ol className={styles.intervalGroupList}>
         {props.groups.map((group) => (
           <li key={group.ordinal} className={styles.intervalGroupItem}>
             <div className={styles.intervalGroupIdentity}>
               <div>
-                <span>Group {group.ordinal}</span>
-                <strong>{INTERVAL_KIND_COPY[group.kind]} group</strong>
+                <span>
+                  {say("training.ride.groupOrdinal", {
+                    value: format.number(group.ordinal, { useGrouping: false }),
+                  })}
+                </span>
+                <strong>
+                  {say("training.ride.groupKind", { kind: say(INTERVAL_KIND_COPY[group.kind]) })}
+                </strong>
               </div>
               <p>
-                {group.intervalOrdinals.length === 1 ? "Segment" : "Segments"}{" "}
-                {group.intervalOrdinals.join(", ")}
+                {say("training.ride.groupSegments", {
+                  count: group.intervalOrdinals.length,
+                  values: group.intervalOrdinals
+                    .map((value) => format.number(value, { useGrouping: false }))
+                    .join(", "),
+                })}
               </p>
             </div>
             <IntervalMetricGrid metrics={group} units={props.units} />
@@ -456,17 +609,18 @@ function AnalysisRetry(props: {
   readonly onRefresh: (() => void) | null;
   readonly fallback?: string;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const retry = props.reason === null || shouldOfferRetry(props.reason);
   return (
     <div className={styles.analysisUnavailable}>
       <p>
         {props.reason === null
-          ? (props.fallback ?? "This analysis could not be loaded right now.")
-          : analysisUnavailableCopy(props.reason)}
+          ? (props.fallback ?? say("training.ride.analysisUnavailable"))
+          : say(analysisUnavailableCopy(props.reason))}
       </p>
       {props.onRefresh !== null && retry ? (
         <Button type="button" variant="outline" onClick={props.onRefresh}>
-          Try again
+          {say("training.ride.retry")}
         </Button>
       ) : null}
     </div>
@@ -482,15 +636,18 @@ function AnalysisEvidenceStatus(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const notice =
     props.refreshFailure !== undefined
-      ? `Showing the saved result. ${analysisRefreshFailureCopy(props.refreshFailure.code)}`
+      ? say("training.ride.savedResult", {
+          failure: say(analysisRefreshFailureCopy(props.refreshFailure.code)),
+        })
       : props.clientRefreshUnavailable
-        ? "Showing the previous result. The latest refresh did not finish."
+        ? say("training.ride.previousResult")
         : props.refreshing
-          ? "Refreshing this analysis…"
+          ? say("training.ride.refreshingAnalysis")
           : props.saved
-            ? "Showing saved analysis."
+            ? say("training.ride.showingSavedAnalysis")
             : null;
   return notice === null ? null : (
     <p className={props.refreshing ? styles.analysisRefresh : styles.analysisNotice} role="status">
@@ -510,6 +667,7 @@ function IntervalEvidence(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement {
+  const { say, format } = usePhrasebook();
   return (
     <>
       <AnalysisEvidenceStatus
@@ -520,25 +678,47 @@ function IntervalEvidence(props: {
       />
       <p className={styles.analysisSource}>
         {props.data.source === "provider"
-          ? "Ordered analysis from intervals.icu"
-          : "Ordered laps from the local ride file"}
-        {props.data.groups.length === 0 ? "" : ` · ${props.data.groups.length} groups`}
+          ? say("training.ride.providerIntervals", { provider: "intervals.icu" })
+          : say("training.ride.localIntervals")}
+        {props.data.groups.length === 0
+          ? ""
+          : say("training.ride.groupsSuffix", {
+              count: props.data.groups.length,
+              value: format.number(props.data.groups.length, { useGrouping: false }),
+            })}
       </p>
       <IntervalGroupEvidence groups={props.data.groups} units={props.units} />
       {props.data.intervals.length === 0 ? (
-        <p className={styles.analysisEmpty}>No intervals or laps were found for this ride.</p>
+        <p className={styles.analysisEmpty}>{say("training.ride.noIntervals")}</p>
       ) : (
-        <ol className={styles.intervalList} aria-label="Ordered ride intervals and laps">
+        <ol className={styles.intervalList} aria-label={say("training.ride.intervalsLabel")}>
           {props.data.intervals.map((interval) => (
-            <li key={interval.ordinal} className={styles.intervalItem} data-kind={interval.kind}>
+            <li
+              key={format.number(interval.ordinal, { useGrouping: false })}
+              className={styles.intervalItem}
+              data-kind={interval.kind}
+            >
               <div className={styles.intervalIdentity}>
                 <span className={styles.intervalOrdinal} aria-hidden="true">
-                  {interval.ordinal}
+                  {format.number(interval.ordinal, { useGrouping: false })}
                 </span>
                 <div>
-                  <span className={styles.intervalKind}>{INTERVAL_KIND_COPY[interval.kind]}</span>
-                  <h3>{interval.label ?? `Interval ${interval.ordinal}`}</h3>
-                  {interval.groupOrdinal === null ? null : <p>Group {interval.groupOrdinal}</p>}
+                  <span className={styles.intervalKind}>
+                    {say(INTERVAL_KIND_COPY[interval.kind])}
+                  </span>
+                  <h3>
+                    {interval.label ??
+                      say("training.ride.intervalOrdinal", {
+                        value: format.number(interval.ordinal, { useGrouping: false }),
+                      })}
+                  </h3>
+                  {interval.groupOrdinal === null ? null : (
+                    <p>
+                      {say("training.ride.groupOrdinal", {
+                        value: format.number(interval.groupOrdinal, { useGrouping: false }),
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
               <IntervalMetricGrid
@@ -560,6 +740,7 @@ function IntervalReviewPanel(props: {
   readonly units: UnitsPreference;
   readonly onRefresh: (() => void) | null;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const matches = props.analysis.activityId === props.rideId;
   const section = matches ? props.analysis.sections.intervals : undefined;
   const refreshing = matches && props.analysis.loadingSections.includes("intervals");
@@ -592,27 +773,24 @@ function IntervalReviewPanel(props: {
     content = (
       <AnalysisRetry
         reason={null}
-        fallback="Intervals and laps could not be loaded right now."
+        fallback={say("training.ride.intervalsFailed")}
         onRefresh={props.onRefresh}
       />
     );
   } else {
     content = (
       <p className={styles.analysisLoading} role="status">
-        Checking ride intervals…
+        {say("training.ride.intervalsLoading")}
       </p>
     );
   }
   return (
     <section className={styles.analysisPanel} aria-labelledby="interval-review-title">
-      <p className={styles.rideEyebrow}>Ordered ride segments</p>
+      <p className={styles.rideEyebrow}>{say("training.ride.intervalsEyebrow")}</p>
       <h2 id="interval-review-title" className={styles.analysisTitle}>
-        Intervals and laps
+        {say("training.ride.intervalsTitle")}
       </h2>
-      <p className={styles.analysisIntro}>
-        Shows recorded segments in order. Missing metrics stay unavailable, and no planned workout
-        targets are inferred.
-      </p>
+      <p className={styles.analysisIntro}>{say("training.ride.intervalsIntro")}</p>
       {content}
     </section>
   );
@@ -629,6 +807,8 @@ function BestEffortEvidence(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   return (
     <>
       <AnalysisEvidenceStatus
@@ -638,18 +818,28 @@ function BestEffortEvidence(props: {
         refreshFailure={props.refreshFailure}
       />
       <p className={styles.analysisSource}>
-        This ride · power · {formatAnalysisDuration(props.data.scope.durationSeconds)} · equal
-        efforts rank the earlier start first
+        {say("training.ride.effortSource", {
+          duration: formatAnalysisDuration(props.data.scope.durationSeconds, phrasebook),
+        })}
       </p>
       {props.data.efforts.length === 0 ? (
-        <p className={styles.analysisEmpty}>No five-minute power efforts were found.</p>
+        <p className={styles.analysisEmpty}>{say("training.ride.noEfforts")}</p>
       ) : (
-        <ol className={styles.effortList} aria-label="Five-minute power efforts in this ride">
+        <ol className={styles.effortList} aria-label={say("training.ride.effortsLabel")}>
           {props.data.efforts.map((effort) => (
             <li key={effort.rank} className={styles.effortItem}>
-              <span className={styles.effortRank}>#{effort.rank}</span>
-              <strong>{Math.round(effort.averageWatts)} W</strong>
-              <span>{distanceMetric(effort.distanceMeters, props.units)}</span>
+              <span className={styles.effortRank}>
+                {say("training.ride.effortRank", {
+                  value: format.number(effort.rank, { useGrouping: false }),
+                })}
+              </span>
+              <strong>
+                {say("training.ride.measurement", {
+                  value: format.number(Math.round(effort.averageWatts), { useGrouping: false }),
+                  unit: "W",
+                })}
+              </strong>
+              <span>{distanceMetric(effort.distanceMeters, props.units, phrasebook)}</span>
             </li>
           ))}
         </ol>
@@ -664,6 +854,7 @@ function BestEffortPanel(props: {
   readonly units: UnitsPreference;
   readonly onRefresh: (() => void) | null;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const matches = props.analysis.activityId === props.rideId;
   const section = matches ? props.analysis.sections.bestEfforts : undefined;
   const refreshing = matches && props.analysis.loadingSections.includes("best-efforts");
@@ -696,27 +887,24 @@ function BestEffortPanel(props: {
     content = (
       <AnalysisRetry
         reason={null}
-        fallback="Five-minute efforts could not be loaded right now."
+        fallback={say("training.ride.effortsFailed")}
         onRefresh={props.onRefresh}
       />
     );
   } else {
     content = (
       <p className={styles.analysisLoading} role="status">
-        Checking five-minute efforts…
+        {say("training.ride.effortsLoading")}
       </p>
     );
   }
   return (
     <section className={styles.analysisPanel} aria-labelledby="best-efforts-title">
-      <p className={styles.rideEyebrow}>Selected-ride scope</p>
+      <p className={styles.rideEyebrow}>{say("training.ride.effortsEyebrow")}</p>
       <h2 id="best-efforts-title" className={styles.analysisTitle}>
-        Five-minute best efforts
+        {say("training.ride.effortsTitle")}
       </h2>
-      <p className={styles.analysisIntro}>
-        Ranks measured five-minute power efforts from this ride only. It does not compare against
-        other rides or all-history results.
-      </p>
+      <p className={styles.analysisIntro}>{say("training.ride.effortsIntro")}</p>
       {content}
     </section>
   );
@@ -732,13 +920,15 @@ export function RideDetailView(props: {
   readonly onBack: () => void;
   readonly titleRef: Ref<HTMLHeadingElement>;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   const analysisStarted = useRef(false);
-  const metrics = recordedRideMetrics(props.ride);
-  const title = props.ride.title ?? trainingRideKind(props.ride);
+  const metrics = recordedRideMetrics(props.ride, phrasebook);
+  const title = props.ride.title ?? say(trainingRideKind(props.ride));
   return (
     <Page
-      title={TRAINING_HISTORY_COPY.review}
-      subtitle={formatCivilDate(props.ride.localDate)}
+      title={say(TRAINING_HISTORY_COPY.review)}
+      subtitle={trainingRideDate(props.ride, phrasebook)}
       titleRef={props.titleRef}
       action={
         <Button
@@ -748,21 +938,21 @@ export function RideDetailView(props: {
           size="xs"
           onClick={props.onBack}
         >
-          {TRAINING_HISTORY_COPY.back}
+          {say(TRAINING_HISTORY_COPY.back)}
         </Button>
       }
     >
       <section className={styles.rideOverview} aria-labelledby="ride-overview-title">
-        <p className={styles.rideOverviewEyebrow}>{trainingRideKind(props.ride)}</p>
+        <p className={styles.rideOverviewEyebrow}>{say(trainingRideKind(props.ride))}</p>
         <h2 id="ride-overview-title">{title}</h2>
         <RideSummary ride={props.ride} units={props.units} />
         {props.ride.ridingTimeBasis === "elapsed" ? (
-          <p className={styles.elapsedFallback}>
-            Elapsed time used because moving time was not recorded.
-          </p>
+          <p className={styles.elapsedFallback}>{say("training.ride.elapsedFallback")}</p>
         ) : null}
         {props.calloutReason === null ? null : (
-          <FactualCallout title="Worth a look">{props.calloutReason}</FactualCallout>
+          <FactualCallout title={say("training.ride.calloutTitle")}>
+            {props.calloutReason}
+          </FactualCallout>
         )}
       </section>
       {metrics.length === 0 ? null : (
@@ -771,12 +961,12 @@ export function RideDetailView(props: {
           aria-labelledby="key-stats-title"
           data-parity="ride-key-stats"
         >
-          <h2 id="key-stats-title">{TRAINING_HISTORY_COPY.keyStats}</h2>
+          <h2 id="key-stats-title">{say(TRAINING_HISTORY_COPY.keyStats)}</h2>
           <RideMetricList rows={metrics.map((metric) => ({ ...metric, id: metric.label }))} />
         </section>
       )}
       <Disclosure
-        summary={TRAINING_HISTORY_COPY.disclosure}
+        summary={say(TRAINING_HISTORY_COPY.disclosure)}
         className="mt-7"
         onToggle={(event) => {
           if (!event.currentTarget.open || analysisStarted.current) return;

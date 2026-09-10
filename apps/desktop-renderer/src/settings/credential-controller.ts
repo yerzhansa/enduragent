@@ -12,11 +12,7 @@ import {
   claudeCliIdentityLine,
   claudeCliPresentation,
 } from "../onboarding/credential-presentation";
-import type {
-  ChatGptStatus,
-  ClaudeCliStatus,
-  CredentialSlotStatus,
-} from "../onboarding/machine";
+import type { ChatGptStatus, ClaudeCliStatus, CredentialSlotStatus } from "../onboarding/machine";
 
 export type CredentialKind = "Provider API key" | "ChatGPT profile" | "Training account key";
 

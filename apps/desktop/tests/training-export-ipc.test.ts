@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
@@ -34,12 +35,10 @@ function setup(result: unknown = EXPORTED) {
   const webContents = { isDestroyed: () => false, mainFrame };
   const window = { isDestroyed: () => false, webContents };
   const dialog = {
-    showSaveDialog: vi.fn(
-      async (): Promise<{ canceled: boolean; filePath?: string }> => ({
-        canceled: false,
-        filePath: "/tmp/synthetic-training-export.fit",
-      }),
-    ),
+    showSaveDialog: vi.fn(async (): Promise<{ canceled: boolean; filePath?: string }> => ({
+      canceled: false,
+      filePath: "/tmp/synthetic-training-export.fit",
+    })),
   };
   const exporter = { export: vi.fn(async () => result) };
   const log = vi.fn();
@@ -62,6 +61,8 @@ function setup(result: unknown = EXPORTED) {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+await initializeDesktopLanguage();
 
 describe("desktop training export IPC", () => {
   it("uses the native save dialog and adds the destination only in the trusted main process", async () => {

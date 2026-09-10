@@ -27,7 +27,12 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
   let originalArgv: string[];
   let sendLine: ((line: string) => Promise<void>) | undefined;
   let engineLanguage: CoachLanguage | undefined;
-  const chat = vi.fn(async (_input: Parameters<CoachEngine["chat"]>[0]) => ({ text: "Ready." }));
+  const chat = vi.fn(
+    async (
+      _input: Parameters<CoachEngine["chat"]>[0],
+      _onEvent?: Parameters<CoachEngine["chat"]>[1],
+    ) => ({ text: "Ready." }),
+  );
 
   beforeEach(async () => {
     vi.resetModules();
@@ -65,6 +70,7 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     };
     vi.doMock("../src/config.js", () => ({
       CONFIG_DIR: dataDir,
+      readConfigYaml: () => ({}),
       envInt: () => undefined,
       loadConfig: () => config,
       resolveConfigSecrets: async (value: Config) => value,
@@ -75,7 +81,7 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     }));
     vi.doMock("../src/sport.js", () => ({ getEffectiveSections: () => [] }));
     vi.doMock("../src/agent/error-classify.js", () => ({
-      classifyAgentError: () => ({ athleteMessage: "Chat failed." }),
+      classifyAgentError: () => ({ athleteMessage: { key: "coach.error.unknown" } }),
     }));
     vi.doMock("../src/agent/confirmation-gate.js", () => ({ formatConfirmOutcome: vi.fn() }));
     vi.doMock("../src/memory/orphan-sections.js", () => ({ warnOrphanSections: vi.fn() }));
@@ -121,18 +127,53 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     writeFileSync(join(dataDir, "language.json"), JSON.stringify({ version: 1, language: "it" }));
     const cli = await start();
     await cli.sendLine("  How should I train today?  ");
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message: "How should I train today?",
-      turn: { language: "it", languageSource: "preference" },
-    });
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message: "How should I train today?",
+        turn: { language: "it", languageSource: "preference" },
+      },
+      expect.any(Function),
+    );
     await cli.language.set("de");
     await cli.sendLine("How should I train tomorrow?");
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message: "How should I train tomorrow?",
-      turn: { language: "de", languageSource: "preference" },
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message: "How should I train tomorrow?",
+        turn: { language: "de", languageSource: "preference" },
+      },
+      expect.any(Function),
+    );
+  });
+
+  it("renders a fixed final reply descriptor while keeping the compatibility text as a fallback", async () => {
+    const cli = await start();
+    chat.mockImplementationOnce(async (_input, onEvent) => {
+      onEvent?.({
+        type: "final-text",
+        turnId: "turn-fixed",
+        text: "Compatibility reply.",
+        message: { key: "coach.fallback.stepLimit" },
+      });
+      return { text: "Compatibility reply." };
     });
+    await cli.sendLine("Continue");
+    expect(console.log).toHaveBeenLastCalledWith(
+      "\nI ran out of steps gathering data — ask me to continue and I'll pick up where I left off.\n",
+    );
+
+    chat.mockImplementationOnce(async (_input, onEvent) => {
+      onEvent?.({
+        type: "final-text",
+        turnId: "turn-newer",
+        text: "Compatibility reply.",
+        message: { key: "coach.newer.message" },
+      });
+      return { text: "Compatibility reply." };
+    });
+    await cli.sendLine("Continue");
+    expect(console.log).toHaveBeenLastCalledWith("\nCompatibility reply.\n");
   });
 
   it("keeps ENDURAGENT_LANGUAGE ahead of saved choices while persisting the next choice", async () => {
@@ -145,11 +186,14 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
       variable: "ENDURAGENT_LANGUAGE",
     });
     await cli.sendLine("How should I train today?");
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message: "How should I train today?",
-      turn: { language: "fr", languageSource: "preference" },
-    });
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message: "How should I train today?",
+        turn: { language: "fr", languageSource: "preference" },
+      },
+      expect.any(Function),
+    );
     expect(JSON.parse(readFileSync(join(dataDir, "language.json"), "utf8"))).toEqual({
       version: 1,
       language: "de",
@@ -160,11 +204,14 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     vi.stubEnv("LANG", "de_DE.UTF-8");
     const cli = await start();
     await cli.sendLine("👍");
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message: "👍",
-      turn: { language: "de", languageSource: "surface" },
-    });
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message: "👍",
+        turn: { language: "de", languageSource: "surface" },
+      },
+      expect.any(Function),
+    );
   });
 
   it("logs an invalid environment override once and uses saved language", async () => {
@@ -179,11 +226,14 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     await cli.language.current();
     await cli.language.set("de");
     await cli.sendLine("How should I train today?");
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message: "How should I train today?",
-      turn: { language: "de", languageSource: "preference" },
-    });
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message: "How should I train today?",
+        turn: { language: "de", languageSource: "preference" },
+      },
+      expect.any(Function),
+    );
     expect(warning).toHaveBeenCalledTimes(1);
     const lines = readFileSync(join(dataDir, "logs", "log.jsonl"), "utf8")
       .trim()
@@ -201,10 +251,13 @@ describe("runBinary CLI language", { timeout: 15_000 }, () => {
     const cli = await start();
     const message = "今日はどのようなトレーニングをすればよいですか？";
     await cli.sendLine(message);
-    expect(chat).toHaveBeenLastCalledWith({
-      chatId: "cli",
-      message,
-      turn: { language: "ja", languageSource: "message" },
-    });
+    expect(chat).toHaveBeenLastCalledWith(
+      {
+        chatId: "cli",
+        message,
+        turn: { language: "ja", languageSource: "message" },
+      },
+      expect.any(Function),
+    );
   });
 });

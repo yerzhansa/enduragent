@@ -1,8 +1,16 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, it, expect } from "vitest";
 import { APICallError } from "@ai-sdk/provider";
 import type { ApiError } from "intervals-icu-api";
-import { classifyAgentError } from "../src/agent/error-classify.js";
+import { classifyAgentError as classifyAgentErrorMessage } from "../src/agent/error-classify.js";
 import { formatRateLimitWait } from "../src/agent/token-utils.js";
+
+const book = await createPhrasebook({ tag: "en", locale: "en-GB" });
+
+function classifyAgentError(error: unknown) {
+  const result = classifyAgentErrorMessage(error, book.format);
+  return { ...result, athleteMessage: book.say(result.athleteMessage) };
+}
 
 function apiError(statusCode: number): APICallError {
   return new APICallError({
@@ -145,5 +153,11 @@ describe("classifyAgentError", () => {
     expect(result.athleteMessage).not.toContain("SENSITIVE");
     expect(result.athleteMessage).not.toContain("/secret/path");
     expect(result.athleteMessage).not.toContain("Error:");
+  });
+});
+
+it("returns a message descriptor for provider failures", () => {
+  expect(classifyAgentErrorMessage(apiError(500)).athleteMessage).toEqual({
+    key: "coach.error.providerDown",
   });
 });

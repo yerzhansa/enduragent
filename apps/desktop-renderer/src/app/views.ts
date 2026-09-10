@@ -1,3 +1,4 @@
+import { msg, type Message } from "@enduragent/i18n";
 import {
   Activity,
   CalendarDays,
@@ -15,9 +16,10 @@ export const REACT_CHAT_REGION = "react-chat-region";
 
 export interface ViewDefinition {
   readonly id: ViewId;
-  readonly label: string;
+  readonly label: Message;
+  readonly loading: Message;
   readonly icon: LucideIcon;
-  readonly title: string;
+  readonly title: Message;
   readonly page: LazyExoticComponent<ComponentType> | typeof REACT_CHAT_REGION;
 }
 
@@ -31,43 +33,48 @@ export function loadSettingsView(): Promise<typeof import("../ui/settings/Settin
 export const VIEWS: readonly ViewDefinition[] = Object.freeze([
   {
     id: "chat",
-    label: "Chat",
+    label: msg("sidebar.views.chat"),
+    loading: msg("shell.loading.chat"),
     icon: MessageSquare,
-    title: "Chat",
+    title: msg("sidebar.views.chat"),
     page: REACT_CHAT_REGION,
   },
   {
     id: "archive",
-    label: "Past chats",
+    label: msg("sidebar.views.archive"),
+    loading: msg("shell.loading.archive"),
     icon: History,
-    title: "Past chats",
+    title: msg("sidebar.views.archive"),
     page: lazy(async () => ({
       default: (await import("../ui/archive/ArchiveView")).ArchiveView,
     })),
   },
   {
     id: "plan",
-    label: "Plan",
+    label: msg("sidebar.views.plan"),
+    loading: msg("shell.loading.plan"),
     icon: CalendarDays,
-    title: "Plan",
+    title: msg("sidebar.views.plan"),
     page: lazy(async () => ({
       default: (await import("../ui/plan/PlanView")).PlanView,
     })),
   },
   {
     id: "training",
-    label: "Training",
+    label: msg("sidebar.views.training"),
+    loading: msg("shell.loading.training"),
     icon: Activity,
-    title: "Training",
+    title: msg("sidebar.views.training"),
     page: lazy(async () => ({
       default: (await import("../ui/training/TrainingView")).TrainingView,
     })),
   },
   {
     id: "settings",
-    label: "Settings",
+    label: msg("sidebar.views.settings"),
+    loading: msg("shell.loading.settings"),
     icon: Settings,
-    title: "Settings",
+    title: msg("sidebar.views.settings"),
     page: lazy(async () => ({
       default: (await loadSettingsView()).SettingsView,
     })),

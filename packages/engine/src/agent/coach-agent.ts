@@ -2,7 +2,8 @@ import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
-import type { LanguageResolution } from "@enduragent/i18n";
+import { msg, type Message, type LanguageResolution } from "@enduragent/i18n";
+import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import type {
   AnswerCoachDecisionRpcParams,
   AnswerCoachDecisionRpcResult,
@@ -101,7 +102,12 @@ import {
   loadAthleteSnapshotBlock,
 } from "./athlete-snapshot.js";
 import { createTurnBudget, TurnBudgetExceededError, type TurnBudget } from "./turn-budget.js";
-import { TAINTED_BY_WRITES_MESSAGE, STEP_LIMIT_TRUNCATION_MESSAGE } from "./coach-agent-copy.js";
+import {
+  TAINTED_BY_WRITES_MESSAGE,
+  STEP_LIMIT_TRUNCATION_MESSAGE,
+  coachReplyMessage,
+  DISK_FULL_NOTE,
+} from "./coach-agent-copy.js";
 import {
   COACH_DECISION_TOOL_NAME,
   createCoachDecisionTool,
@@ -176,15 +182,6 @@ function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean
 const RECOVERY_PROMPT = "summarize what you did and what's left";
 const SECTION_UPDATED_STAMP = "_updated: ";
 
-// Prefixed once onto the first reply after an automatic session reset so the
-// athlete is told, in plain language, that the earlier conversation is archived
-// and their durable memory survives. Frozen copy — do not reword.
-const POST_RESET_NOTICE =
-  "Started a fresh session - earlier conversation is archived, and I still have your key details in memory.";
-
-// One-turn, model-visible system line injected after an automatic archive so the
-// model discloses the fresh session itself. Not relied on as the athlete-facing
-// disclosure (that is POST_RESET_NOTICE).
 function archiveMarker(archivedAt: string): string {
   return `Previous session archived at ${archivedAt}. Briefly disclose this before answering.`;
 }
@@ -202,19 +199,16 @@ function isWindowExceededFinishOverflow(err: unknown): boolean {
   );
 }
 
-const DISK_FULL_NOTE =
-  "\n\n(Heads up: my disk is full, so I couldn't save this to our history — but your message went through. Please free up some space when you can.)";
-
 // Disk-full is a host condition, not a per-chat one, so the athlete is told
 // once for the whole process rather than every turn the disk stays full.
 let persistenceNoticeShown = false;
 
-function noteForPersistenceFailure(err: unknown): string {
+function noteForPersistenceFailure(err: unknown, book: Phrasebook): string {
   const code = (err as NodeJS.ErrnoException | undefined)?.code;
   if (code !== "ENOSPC") return "";
   if (persistenceNoticeShown) return "";
   persistenceNoticeShown = true;
-  return DISK_FULL_NOTE;
+  return book.say(DISK_FULL_NOTE);
 }
 
 export function __resetPersistenceNoticeState(): void {
@@ -246,6 +240,7 @@ interface TurnOutcome {
 
 interface RecoveredText {
   text: string;
+  message?: Message;
   attributionBasis: "attempt" | "prompt" | "none";
 }
 
@@ -370,6 +365,7 @@ export interface DeferredPlanTurn {
 }
 
 export class CoachAgent {
+  private readonly english = createPhrasebook({ tag: "en", locale: "en-GB" });
   readonly translateIntent: IntentTranslationPort["translateIntent"];
   private sport: Sport;
   private llm: LLM;
@@ -850,11 +846,19 @@ export class CoachAgent {
       });
       return recovery.text.trim() !== ""
         ? { text: recovery.text, attributionBasis: "prompt" }
-        : { text: STEP_LIMIT_TRUNCATION_MESSAGE, attributionBasis: "none" };
+        : {
+            text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
+            message: STEP_LIMIT_TRUNCATION_MESSAGE,
+            attributionBasis: "none",
+          };
     } catch (recoveryErr) {
       if (signal.aborted) throw recoveryErr;
       console.warn("Step-limit recovery completion failed; using truncation floor", recoveryErr);
-      return { text: STEP_LIMIT_TRUNCATION_MESSAGE, attributionBasis: "none" };
+      return {
+        text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
+        message: STEP_LIMIT_TRUNCATION_MESSAGE,
+        attributionBasis: "none",
+      };
     }
   }
 
@@ -939,6 +943,7 @@ export class CoachAgent {
     onPlanIntake?: (patch: PlanIntakePatch) => void,
     onDeferredPlanTurn?: (turn: DeferredPlanTurn) => void,
   ): Promise<string> {
+    const book = await this.english;
     const turnId = requestedTurnId ?? this.ports.randomId();
     return withSessionLock(chatId, async () => {
       const abortController = new AbortController();
@@ -1351,9 +1356,11 @@ export class CoachAgent {
               } else if (recovered.attributionBasis === "none") {
                 ctx.provenance.value = EMPTY_PROVENANCE;
               }
+              let responseMessage = recovered.message;
               let effectiveText = renderGarminAttribution(recovered.text, ctx.provenance.value);
               if (effectiveText.trim() === "") {
-                effectiveText = STEP_LIMIT_TRUNCATION_MESSAGE;
+                effectiveText = book.say(STEP_LIMIT_TRUNCATION_MESSAGE);
+                responseMessage = STEP_LIMIT_TRUNCATION_MESSAGE;
                 ctx.provenance.value = EMPTY_PROVENANCE;
               }
               if (chatId.startsWith("plan:")) assertPlanCoachReplyAuthority(effectiveText);
@@ -1377,7 +1384,7 @@ export class CoachAgent {
                   this.chatStore.appendTurn(chatId, userMessageWithTime, effectiveText, lineage);
                 } catch (persistErr) {
                   console.warn("Session persistence failed; delivering reply unsaved", persistErr);
-                  persistenceNote = noteForPersistenceFailure(persistErr);
+                  persistenceNote = noteForPersistenceFailure(persistErr, book);
                 }
               }
 
@@ -1410,8 +1417,14 @@ export class CoachAgent {
               // Prefix the one-time post-reset notice onto the first reply after
               // an automatic archive. Not persisted to history — it is a channel
               // disclosure, not conversation content.
-              const resetPrefix = archivedAt !== undefined ? `${POST_RESET_NOTICE}\n\n` : "";
-              const responseText = resetPrefix + effectiveText + persistenceNote;
+              responseMessage = coachReplyMessage({
+                reply: effectiveText,
+                message: responseMessage,
+                reset: archivedAt !== undefined,
+                unsaved: persistenceNote !== "",
+              });
+              const responseText =
+                responseMessage === undefined ? effectiveText : book.say(responseMessage);
               if (deferPlanTurn) {
                 onDeferredPlanTurn({
                   chatId,
@@ -1457,7 +1470,12 @@ export class CoachAgent {
                   suggestion: ctx.planHandoff.suggestion,
                 });
               }
-              emitEvent({ type: "final-text", turnId, text: responseText });
+              emitEvent({
+                type: "final-text",
+                turnId,
+                text: responseText,
+                ...(responseMessage === undefined ? {} : { message: responseMessage }),
+              });
               return responseText;
             } catch (err) {
               // The classified budget error is terminal: re-throw it before any
@@ -1489,7 +1507,7 @@ export class CoachAgent {
                   compactions,
                 });
                 emitEvent(
-                  this.createErrorEvent({
+                  await this.createErrorEvent({
                     failure,
                     turnId,
                     chatId,
@@ -1505,11 +1523,16 @@ export class CoachAgent {
                   turnId,
                   completedAt: new Date(this.ports.now()).toISOString(),
                   athleteText: userMessage,
-                  coachText: TAINTED_BY_WRITES_MESSAGE,
+                  coachText: book.say(TAINTED_BY_WRITES_MESSAGE),
                   ...(turn?.attachments === undefined ? {} : { attachments: turn.attachments }),
                 });
-                emitEvent({ type: "final-text", turnId, text: TAINTED_BY_WRITES_MESSAGE });
-                return TAINTED_BY_WRITES_MESSAGE;
+                emitEvent({
+                  type: "final-text",
+                  turnId,
+                  text: book.say(TAINTED_BY_WRITES_MESSAGE),
+                  message: TAINTED_BY_WRITES_MESSAGE,
+                });
+                return book.say(TAINTED_BY_WRITES_MESSAGE);
               }
               if (attemptObservedText && !isWindowExceededFinishOverflow(err)) throw err;
               const failure = this.ports.classifyFailure(err);
@@ -1704,7 +1727,7 @@ export class CoachAgent {
             compactions,
           });
           emitEvent(
-            this.createErrorEvent({
+            await this.createErrorEvent({
               failure,
               turnId,
               chatId,
@@ -1776,7 +1799,7 @@ export class CoachAgent {
     return true;
   }
 
-  private createErrorEvent(input: {
+  private async createErrorEvent(input: {
     failure: ClassifiedTurnFailure;
     turnId: string;
     chatId: string;
@@ -1785,7 +1808,7 @@ export class CoachAgent {
     rateLimitAttempts: number;
     durationMs: number;
     compactions: number;
-  }): Extract<TurnEvent, { type: "error" }> {
+  }): Promise<Extract<TurnEvent, { type: "error" }>> {
     const failure = input.failure;
     const errorClass =
       failure === "budget" ||
@@ -1798,29 +1821,26 @@ export class CoachAgent {
       failure === "rate_limit"
         ? {
             kind: "rate_limit" as const,
-            athleteMessage: "Rate limited — please try again shortly.",
+            message: msg("coach.error.rateLimit"),
           }
         : failure === "reauth"
           ? {
               kind: "provider-auth" as const,
-              athleteMessage:
-                "Your ChatGPT sign-in is no longer valid. Open Setup and sign in again.",
+              message: msg("coach.error.reauthSetup", { provider: "ChatGPT" }),
             }
           : failure === "auth"
             ? {
                 kind: "provider-auth" as const,
-                athleteMessage:
-                  "The model provider rejected the API key — check your provider credentials.",
+                message: msg("coach.error.providerCredentials"),
               }
             : failure === "server_error" || failure === "network" || failure === "timeout"
               ? {
                   kind: "provider-down" as const,
-                  athleteMessage:
-                    "The model provider is having trouble — try again in a few minutes.",
+                  message: msg("coach.error.providerDown"),
                 }
               : {
                   kind: "unknown" as const,
-                  athleteMessage: "Sorry, something went wrong. Please try again.",
+                  message: msg("coach.error.unknown"),
                 };
     return {
       type: "error",
@@ -1828,6 +1848,7 @@ export class CoachAgent {
       chatId: input.chatId,
       error_class: errorClass,
       ...presentation,
+      athleteMessage: (await this.english).say(presentation.message),
       overflowAttempts: input.overflowAttempts,
       timeoutAttempts: input.timeoutAttempts,
       rateLimitAttempts: input.rateLimitAttempts,

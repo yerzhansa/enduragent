@@ -4,6 +4,25 @@ import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -15,7 +34,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
 });
 
 const RESET_FAILURE_REPLY =
@@ -33,12 +51,7 @@ async function buildStartHandler(resetSession: ReturnType<typeof vi.fn>) {
     on: vi.fn(),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
   vi.spyOn(console, "error").mockImplementation(() => {});
   const engine = {
     resetSession,

@@ -1,3 +1,5 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
+import type { CatalogKey, Message } from "@enduragent/i18n";
 import { describe, expect, it, vi } from "vitest";
 import { tool, zodSchema } from "ai";
 import type { Tool } from "ai";
@@ -7,10 +9,11 @@ import {
   ConfirmationGate,
   GATED_TOOL_NAMES,
   PROPOSAL_TTL_MS,
-  createProposalSummarizers,
+  createProposalSummarizers as createProposalMessages,
   createToolConfirmationPort,
-  formatConfirmOutcome,
+  formatConfirmOutcome as confirmOutcomeMessage,
 } from "../src/agent/confirmation-gate.js";
+
 import type { ProposalSummarizer } from "../src/agent/confirmation-gate.js";
 import { READ_ONLY_TOOL_NAMES } from "../../engine/src/agent/read-memoizer.js";
 import { gateMutatingTool } from "../../engine/src/agent/coach-agent.js";
@@ -18,6 +21,31 @@ import { createTurnContext } from "../../engine/src/agent/turn-context.js";
 import { createPureCoreIntervalsTools } from "../src/sport.js";
 import { createPlatformCalendarMutations } from "../src/athlete-data.js";
 import { COACH_EVENT_TAG } from "../src/agent/event-provenance.js";
+
+const book = await createPhrasebook({ tag: "en", locale: "en-GB" });
+
+function formatConfirmOutcome(outcome: Parameters<typeof confirmOutcomeMessage>[0]): string {
+  return book.say(confirmOutcomeMessage(outcome));
+}
+
+function createProposalSummarizers(
+  input: Parameters<typeof createProposalMessages>[0],
+): Record<string, (input: unknown) => Promise<{ summary: string } | { block: unknown }>> {
+  return Object.fromEntries(
+    Object.entries(createProposalMessages(input)).map(([key, summarize]) => [
+      key,
+      async (value: unknown) => {
+        const result = await summarize(value, book);
+        return "summary" in result
+          ? {
+              summary:
+                typeof result.summary === "string" ? result.summary : book.say(result.summary),
+            }
+          : result;
+      },
+    ]),
+  );
+}
 
 function fakeTool(execute: (input: unknown) => unknown): Tool {
   return tool({ inputSchema: zodSchema(z.object({}).passthrough()), execute });
@@ -424,4 +452,39 @@ describe("proposal summarizers and guard reuse", () => {
     ]);
     expect([...READ_ONLY_TOOL_NAMES].filter((name) => GATED_TOOL_NAMES.has(name))).toEqual([]);
   });
+});
+
+it("returns descriptors for confirmation outcomes and built-in proposals", async () => {
+  expect(confirmOutcomeMessage({ status: "expired" })).toEqual({
+    key: "coach.confirmation.expired",
+  });
+  const messages = createProposalMessages({ intervals: null, tz: "UTC" });
+  expect(await messages.plan_save!({ plan: {} }, book)).toEqual({
+    summary: { key: "coach.proposal.savePlan" },
+  });
+});
+
+it("renders a stored proposal in the incoming phrasebook without fetching its truth again", async () => {
+  const fake = fakeIntervals();
+  const gate = new ConfirmationGate();
+  const confirmations = createToolConfirmationPort({
+    gate,
+    summarizers: createProposalMessages({ intervals: fake.client, tz: "UTC" }),
+  });
+  await confirmations.propose({
+    chatId: "chat",
+    toolName: "intervals_update_workout",
+    toolInput: { eventId: 42, changes: { name: "Tempo" } },
+    run: async () => true,
+  });
+  const say: typeof book.say = (message: Message | CatalogKey, vars?: Message["vars"]) =>
+    `IT:${typeof message === "string" ? book.say(message, vars) : book.say(message)}`;
+  const incomingBook = { ...book, say };
+  const pending = gate.peek("chat", incomingBook)!;
+  expect(pending.summary).toBe(
+    'IT:Update workout "Fetched truth" on 2999-01-02 — IT:name to "Tempo"',
+  );
+  const outcome = await gate.confirm("chat", pending.nonce, incomingBook);
+  expect(outcome).toMatchObject({ status: "executed", summary: pending.summary });
+  expect(fake.gets).toHaveBeenCalledTimes(1);
 });

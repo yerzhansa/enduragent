@@ -1,3 +1,4 @@
+import { msg, type Message } from "@enduragent/i18n";
 import type {
   CoachOperationProgressNotificationEnvelope,
   ImportFilesRpcResult,
@@ -187,6 +188,28 @@ export function rideImportStatusCopy(state: RideImportState): string {
       ? "Coaching access to activities and streams is available."
       : "Coaching access to activities and streams is temporarily unavailable; retry the import.";
   return `Local library import: ${counts} ${availability}`;
+}
+
+export function rideFileCountMessage(count: number, formattedCount: string): Message {
+  const vars = { count, formattedCount };
+  return msg("setup.import.fileCount", { ...vars, count: count });
+}
+
+export function rideImportStatusMessage(
+  state: RideImportState,
+  counts: { readonly imported: string; readonly quarantined: string },
+): Message | null {
+  if (state.status === "idle") return null;
+  if (state.status === "running") {
+    return state.stage === "choosing"
+      ? msg("setup.import.choosing")
+      : msg("setup.import.importing");
+  }
+  if (state.result === null) return msg("setup.import.unconfirmed");
+  if (state.status === "failed") return msg("setup.import.failed", counts);
+  return state.result.publication.status === "available"
+    ? msg("setup.import.available", counts)
+    : msg("setup.import.unavailable", counts);
 }
 
 interface DroppedRideImportRouterOptions {

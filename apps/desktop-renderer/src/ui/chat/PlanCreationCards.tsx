@@ -1,4 +1,6 @@
-import { formatCivilDate } from "@enduragent/coach-contract";
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { useChatDate } from "./use-chat-date";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
@@ -18,15 +20,12 @@ import { PlanCreationDraftCards, PlanCreationCommitmentCard } from "./PlanCreati
 import { PlanCreationSummary } from "./PlanCreationSummary";
 import { Notice } from "./Notice";
 
-const discardDialogCopy =
-  "Your answers are discarded. Your active Plan, Schedule, restrictions, saved preferences, and history stay unchanged.";
-const discardConsequenceCopy =
-  "No Plan was created. Your active Plan, Schedule, training restrictions, saved preferences, and chat history are unchanged.";
-
 export function PlanCreationDiscardDialog(): ReactElement {
+  const { say } = usePhrasebook();
   const open = useEnduragentStore((state) => state.chat.planCreationDiscardConfirmationOpen);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
+  const errorMessage = error === null ? null : chatFeedbackMessage(error);
   const actions = useEnduragentStore((state) => state.chatActions);
   const keepCreating = useRef<HTMLButtonElement>(null);
   const cancelDiscard = useCallback((): void => {
@@ -52,13 +51,15 @@ export function PlanCreationDiscardDialog(): ReactElement {
       >
         <DialogHeader className="gap-0">
           <DialogTitle className="mt-0 mb-inset text-lg font-semibold">
-            Discard this Plan creation?
+            {say("chat.planCreation.discardTitle")}
           </DialogTitle>
-          <DialogDescription className="m-0 leading-5">{discardDialogCopy}</DialogDescription>
+          <DialogDescription className="m-0 leading-5">
+            {say("chat.planCreation.discardDetail")}
+          </DialogDescription>
         </DialogHeader>
         {error === null ? null : (
           <p className="mt-inset mb-0 text-xs text-danger" role="alert">
-            {error}
+            {errorMessage === null ? error : say(errorMessage)}
           </p>
         )}
         <DialogFooter className="mx-0 mt-row mb-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
@@ -73,7 +74,7 @@ export function PlanCreationDiscardDialog(): ReactElement {
               />
             }
           >
-            Keep creating
+            {say("chat.planCreation.keepCreating")}
           </DialogClose>
           <Button
             variant="destructive-solid"
@@ -81,7 +82,7 @@ export function PlanCreationDiscardDialog(): ReactElement {
             disabled={busy || actions === null}
             onClick={confirmDiscard}
           >
-            Discard creation
+            {say("chat.planCreation.discardCreation")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -90,9 +91,12 @@ export function PlanCreationDiscardDialog(): ReactElement {
 }
 
 export function PlanCreationActivateDialog(): ReactElement | null {
+  const { say } = usePhrasebook();
+  const formatDate = useChatDate();
   const open = useEnduragentStore((state) => state.chat.planCreationActivateConfirmationOpen);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
   const error = useEnduragentStore((state) => state.chat.planCreationError);
+  const errorMessage = error === null ? null : chatFeedbackMessage(error);
   const actions = useEnduragentStore((state) => state.chatActions);
   const knowledge = useEnduragentStore((state) => state.chat.planCreationActivePlanKnowledge);
   const calendarWindow = useEnduragentStore((state) => {
@@ -156,22 +160,30 @@ export function PlanCreationActivateDialog(): ReactElement | null {
       >
         <DialogHeader className="gap-0">
           <DialogTitle className="mt-0 mb-inset text-lg font-semibold">
-            {activePlanName === null ? "Activate Plan?" : "Close and activate?"}
+            {activePlanName === null
+              ? say("chat.planCreation.activateTitle")
+              : say("chat.planCreation.replaceTitle")}
           </DialogTitle>
           <DialogDescription className="m-0 leading-5">
-            {`${activePlanName === null ? "" : `${activePlanName} closes. Today’s calendar Workout stays. `}The new Plan activates now.`}
+            {activePlanName === null
+              ? say("chat.planCreation.activateDetail")
+              : say("chat.planCreation.replaceDetail", { name: activePlanName })}
           </DialogDescription>
           {connection === "checking" ? null : (
             <p className="mt-inset mb-0 text-sm leading-5 text-ink-2">
               {calendarWindow !== null
-                ? `Dated Workouts sync from ${activePlanName === null ? "today" : "tomorrow"} through ${formatCivilDate(calendarWindow.endDate)}.`
-                : "Calendar updates wait until intervals.icu is connected."}
+                ? activePlanName === null
+                  ? say("chat.planCreation.syncToday", { date: formatDate(calendarWindow.endDate) })
+                  : say("chat.planCreation.syncTomorrow", {
+                      date: formatDate(calendarWindow.endDate),
+                    })
+                : say("chat.planCreation.syncWait", { service: "intervals.icu" })}
             </p>
           )}
         </DialogHeader>
         {error === null ? null : (
           <p className="mt-inset mb-0 text-xs text-danger" role="alert">
-            {error}
+            {errorMessage === null ? error : say(errorMessage)}
           </p>
         )}
         <DialogFooter className="mx-0 mt-row mb-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
@@ -186,7 +198,7 @@ export function PlanCreationActivateDialog(): ReactElement | null {
               />
             }
           >
-            Cancel
+            {say("chat.planCreation.cancel")}
           </DialogClose>
           <Button
             variant="default"
@@ -200,7 +212,9 @@ export function PlanCreationActivateDialog(): ReactElement | null {
             }
             onClick={confirmActivation}
           >
-            {activePlanName === null ? "Activate Plan" : "Activate new Plan"}
+            {activePlanName === null
+              ? say("chat.planCreation.activate")
+              : say("chat.planCreation.activateNew")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -227,7 +241,15 @@ export function PlanCreationDock(props: {
   }, [focusRequest?.revision, focusRequest?.target]);
   if (!loaded) return null;
   if (model === null) return null;
-  if (paused || (editingKey === null && model.openQuestion === null)) return null;
+  if (paused) return null;
+  if (editingKey === null && model.pendingCommitment !== null) {
+    return (
+      <section aria-label="Plan creation dock" data-plan-creation-dock>
+        <PlanCreationCommitmentCard model={model} />
+      </section>
+    );
+  }
+  if (editingKey === null && model.openQuestion === null) return null;
   const editedSummary =
     editingKey === null
       ? null
@@ -235,40 +257,41 @@ export function PlanCreationDock(props: {
   const question = editedSummary?.question ?? model.openQuestion;
   if (question === null) return null;
   return (
-    <PlanCreationQuestionCard
-      key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
-      question={question}
-      currentAnswer={
-        question.kind === "commitments-question" && model.pendingCommitment !== null
-          ? {
-              kind: "commitments",
-              commitments: { kind: "interpreted", text: model.pendingCommitment.text },
-            }
-          : (editedSummary?.answer ?? null)
-      }
-      commitmentStatus={model.pendingCommitment?.status}
-      editing={editingKey !== null}
-      busy={busy}
-      error={model.pendingCommitment === null ? error : null}
-      focusRevision={focusRevision}
-      onAnswer={(answer) => actions?.answerPlanCreation(answer)}
-      onLater={() => actions?.pausePlanCreation()}
-      onCancel={() => actions?.cancelPlanCreationEdit()}
-      onEditorOpenChange={props.onEditorOpenChange}
-    />
+    <section aria-label="Plan creation dock" data-plan-creation-dock>
+      <PlanCreationQuestionCard
+        key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
+        question={question}
+        currentAnswer={
+          question.kind === "commitments-question" && model.pendingCommitment !== null
+            ? {
+                kind: "commitments",
+                commitments: { kind: "interpreted", text: model.pendingCommitment.text },
+              }
+            : (editedSummary?.answer ?? null)
+        }
+        commitmentStatus={model.pendingCommitment?.status}
+        editing={editingKey !== null}
+        busy={busy}
+        error={error}
+        focusRevision={focusRevision}
+        onAnswer={(answer) => actions?.answerPlanCreation(answer)}
+        onLater={() => actions?.pausePlanCreation()}
+        onCancel={() => actions?.cancelPlanCreationEdit()}
+        onEditorOpenChange={props.onEditorOpenChange}
+      />
+    </section>
   );
 }
 
 export function PlanCreationConversation(props: {
   readonly model: PlanCreationCardModel | null;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   if (props.model === null) return null;
   return (
-    <section className="grid min-w-0 gap-4" aria-label="Plan creation">
+    <section className="grid min-w-0 gap-4" aria-label={say("chat.planCreation.title")}>
       <Notice inPlanCreation />
-      {props.model.draft === null ? null : <PlanCreationCommitmentCard model={props.model} />}
       <PlanCreationConversationContent model={props.model} />
-      {props.model.draft === null ? <PlanCreationCommitmentCard model={props.model} /> : null}
     </section>
   );
 }
@@ -276,6 +299,7 @@ export function PlanCreationConversation(props: {
 function PlanCreationConversationContent(props: {
   readonly model: PlanCreationCardModel | null;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const [editVersion, setEditVersion] = useState<number | null>(null);
   const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
   const actions = useEnduragentStore((state) => state.chatActions);
@@ -284,14 +308,19 @@ function PlanCreationConversationContent(props: {
   if (model.draft === null) return <PlanCreationSummary model={model} />;
   if (editVersion === model.version)
     return (
-      <section className="grid min-w-0 gap-inset" aria-label="Edit Plan answers">
+      <section
+        className="grid min-w-0 gap-inset"
+        aria-label={say("chat.planCreation.editAnswersLabel")}
+      >
         <Card size="sm">
           <CardContent className="grid gap-inset">
             <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-              Plan creation
+              {say("chat.planCreation.title")}
             </p>
-            <h3 className="m-0 text-base leading-6 font-semibold">Edit answers</h3>
-            <p className="m-0 text-sm text-ink-2">A changed answer makes the Draft stale.</p>
+            <h3 className="m-0 text-base leading-6 font-semibold">
+              {say("chat.planCreation.editAnswers")}
+            </h3>
+            <p className="m-0 text-sm text-ink-2">{say("chat.planCreation.editStale")}</p>
             <div>
               <Button
                 variant="outline"
@@ -301,18 +330,18 @@ function PlanCreationConversationContent(props: {
                   setEditVersion(null);
                 }}
               >
-                Back to Draft
+                {say("chat.planCreation.backToDraft")}
               </Button>
             </div>
           </CardContent>
         </Card>
-        <PlanCreationSummary model={model} answersOnly />
+        <PlanCreationSummary model={model} />
       </section>
     );
   return (
     <>
       {editingKey !== null || model.openQuestion !== null ? (
-        <PlanCreationSummary model={model} answersOnly />
+        <PlanCreationSummary model={model} />
       ) : null}
       <PlanCreationDraftCards
         model={model}
@@ -324,14 +353,19 @@ function PlanCreationConversationContent(props: {
 }
 
 export function PlanCreationDiscardConsequence(props: { readonly eventId: string }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <article
       className="block gap-row rounded-ctl bg-surface-2 p-row"
       data-plan-creation-discard-event={props.eventId}
       data-parity="discarded.record"
     >
-      <strong className="text-sm font-semibold leading-5">Plan creation discarded</strong>
-      <p className="mt-1 mb-0 text-xs leading-4 text-ink-2">{discardConsequenceCopy}</p>
+      <strong className="text-sm font-semibold leading-5">
+        {say("chat.planCreation.discarded")}
+      </strong>
+      <p className="mt-1 mb-0 text-xs leading-4 text-ink-2">
+        {say("chat.planCreation.discardConsequence")}
+      </p>
     </article>
   );
 }

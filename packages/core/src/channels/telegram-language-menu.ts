@@ -1,13 +1,22 @@
 import {
   LANGUAGE_OPTIONS,
+  msg,
   type LanguageTag,
   type StoredLanguagePreference,
 } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { InlineKeyboardMarkup } from "grammy/types";
 
-export function languageKeyboard(state: StoredLanguagePreference): InlineKeyboardMarkup {
+export function languageKeyboard(
+  state: StoredLanguagePreference,
+  phrasebook: Phrasebook,
+): InlineKeyboardMarkup {
   const choices = [
-    { text: "Automatic", callback_data: "lang:auto", value: null },
+    {
+      text: phrasebook.say(msg("telegram.language.automatic")),
+      callback_data: "lang:auto",
+      value: null,
+    },
     ...LANGUAGE_OPTIONS.map(({ tag, endonym }) => ({
       text: endonym,
       callback_data: `lang:${tag}`,

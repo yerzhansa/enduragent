@@ -1,4 +1,5 @@
 import { createCoachLanguage, type CoachLanguage } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import {
   createFileLanguagePreferenceStore,
   readEnvironmentSurfaceHint,
@@ -8,6 +9,7 @@ import { createSubsystemLogger } from "./logging/index.js";
 export function createNpmCoachLanguage(dataDir: string): CoachLanguage {
   const log = createSubsystemLogger("language", dataDir);
   return createCoachLanguage({
+    phrasebooks: createPhrasebook,
     store: createFileLanguagePreferenceStore({
       dir: dataDir,
       env: process.env,

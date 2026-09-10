@@ -102,9 +102,7 @@ describe("incremental backfill pages", () => {
       if (url.pathname === profilePath) {
         requests.push({ endpoint: "profile", url });
         body = {
-          sportSettings: [
-            { id: 1, athlete_id: account, types: ["Ride"], updated: "2010-01-01" },
-          ],
+          sportSettings: [{ id: 1, athlete_id: account, types: ["Ride"], updated: "2010-01-01" }],
         };
       } else if (url.pathname === `${profilePath}/activities`) {
         requests.push({ endpoint: "activities", url });
@@ -134,7 +132,11 @@ describe("incremental backfill pages", () => {
         (async function* () {
           yield {
             kind: "checkpoint",
-            watermark: { source: "intervals-icu", lane: "bulk-fit", value: call === 0 ? midway : complete },
+            watermark: {
+              source: "intervals-icu",
+              lane: "bulk-fit",
+              value: call === 0 ? midway : complete,
+            },
             droppedActivityRows: {
               sourceRestricted: call === 0 ? 60 : 3,
               other: call === 0 ? 0 : 2,
@@ -442,11 +444,7 @@ FROM training_history_backfill_checkpoint`,
     };
     let now = Date.UTC(1900, 0, 1);
     const requests: BackfillRequest[] = [];
-    const baseFetch = profileFetch(
-      "synthetic-rollover-account",
-      requests,
-      "synthetic-athlete",
-    );
+    const baseFetch = profileFetch("synthetic-rollover-account", requests, "synthetic-athlete");
     const rollingClock = { now: () => now, monotonicNow: () => 1_000 };
     const operations = createCoachOperations(
       {
@@ -485,28 +483,40 @@ FROM training_history_backfill_checkpoint`,
           },
         },
         intervalsCredentials: {
-          read: async () => ({ apiKey: String.fromCharCode(116, 101, 115, 116), athleteId: "synthetic-athlete" }),
+          read: async () => ({
+            apiKey: String.fromCharCode(116, 101, 115, 116),
+            athleteId: "synthetic-athlete",
+          }),
         },
         historyNewestDate: () => new Date(now).toISOString().slice(0, 10),
         calendarTimeZone: () => "UTC",
         applyRuntimeConfig: async () => {},
       },
       {
-        backfill: (options) => runIntervalsBackfillInWriter({
-          ...options,
-          clock: rollingClock,
-          sleep: async () => {},
-          baseFetch,
-        }),
+        backfill: (options) =>
+          runIntervalsBackfillInWriter({
+            ...options,
+            clock: rollingClock,
+            sleep: async () => {},
+            baseFetch,
+          }),
       },
     );
     try {
       await expect(operations.sync({})).resolves.toMatchObject({ schemaVersion: 1 });
-      await expect(createSyncStateRepository(value.store).readWatermark("intervals-icu", "bulk-fit")).resolves.toEqual({
+      await expect(
+        createSyncStateRepository(value.store).readWatermark("intervals-icu", "bulk-fit"),
+      ).resolves.toEqual({
         source: "intervals-icu",
         lane: "bulk-fit",
-        value: JSON.stringify({ v: 1, cycle: 0, window_start: "1900-01-01", window_end: "1900-01-01",
-          last_key: null, complete: true }),
+        value: JSON.stringify({
+          v: 1,
+          cycle: 0,
+          window_start: "1900-01-01",
+          window_end: "1900-01-01",
+          last_key: null,
+          complete: true,
+        }),
       });
       const ownerAfterFirstSync = await value.store.all("SELECT * FROM store_owner");
       expect(ownerAfterFirstSync).toHaveLength(1);
@@ -532,11 +542,19 @@ FROM training_history_backfill_checkpoint`,
         ["newest", "1900-01-02"],
       ]);
       expect(await value.store.all("SELECT * FROM store_owner")).toEqual(ownerAfterFirstSync);
-      await expect(createSyncStateRepository(value.store).readWatermark("intervals-icu", "bulk-fit")).resolves.toEqual({
+      await expect(
+        createSyncStateRepository(value.store).readWatermark("intervals-icu", "bulk-fit"),
+      ).resolves.toEqual({
         source: "intervals-icu",
         lane: "bulk-fit",
-        value: JSON.stringify({ v: 1, cycle: 1, window_start: "1900-01-01", window_end: "1900-01-02",
-          last_key: null, complete: true }),
+        value: JSON.stringify({
+          v: 1,
+          cycle: 1,
+          window_start: "1900-01-01",
+          window_end: "1900-01-02",
+          last_key: null,
+          complete: true,
+        }),
       });
     } finally {
       await value.store.close();

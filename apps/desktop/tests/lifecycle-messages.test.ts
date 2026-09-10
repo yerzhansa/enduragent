@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { describe, expect, it } from "vitest";
 import type { DesktopDaemonLifecycleState } from "../src/main/daemon-lifecycle.js";
 import {
@@ -5,6 +6,8 @@ import {
   restartExhaustedCopy,
   startupRefusalCopy,
 } from "../src/main/lifecycle-messages.js";
+
+await initializeDesktopLanguage();
 
 describe("desktop lifecycle messages", () => {
   it.each([

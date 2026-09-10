@@ -1,6 +1,6 @@
 import type { CoachDecisionReadModel, TranscriptPageEntry } from "@enduragent/coach-contract";
 import type { ChatView, ChatViewControls, PlanCreationDiscardEvent } from "../../chat/controller";
-import type { ChatState } from "../../turn-state";
+import type { ChatState } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,
   sameChatMessages,
@@ -188,6 +188,7 @@ function conversationTimelineWithDiscardEvents(
   historicalItems: readonly ChatTranscriptItemView[],
   liveItems: readonly ChatTranscriptItemView[],
   events: readonly PlanCreationDiscardEvent[],
+  planCreationItems: readonly ChatTranscriptItemView[],
 ): readonly ChatTranscriptItemView[] {
   const appended = new Set<string>();
   const timeline: ChatTranscriptItemView[] = [];
@@ -206,6 +207,7 @@ function conversationTimelineWithDiscardEvents(
   };
   appendItems(historicalItems);
   appendEvents(null);
+  timeline.push(...planCreationItems);
   appendItems(liveItems);
   for (const event of events) {
     if (appended.has(event.eventId)) continue;
@@ -235,7 +237,13 @@ export function createChatViewAdapter(input: {
       role: message.role,
       delivery: message.delivery,
       historical: message.historical === true,
-      text: input.bufferStreaming !== false && isStreamingCoach(message) ? "" : message.text,
+      text:
+        input.bufferStreaming !== false &&
+        isStreamingCoach(message) &&
+        message.message === undefined
+          ? ""
+          : message.text,
+      ...(message.message === undefined ? {} : { message: message.message }),
       ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
       ...(message.planReference === undefined ? {} : { planReference: message.planReference }),
       ...(message.planHandoff === undefined ? {} : { planHandoff: message.planHandoff }),
@@ -297,19 +305,18 @@ export function createChatViewAdapter(input: {
       .filter((delivery) => delivery.state !== "cancelled")
       .map((delivery) => ({ kind: "planning-request", delivery }));
     const planCreation = controls?.planCreation;
+    const planActivated = planCreation?.notice === "Plan activated locally.";
+    const planCreationItems: readonly ChatTranscriptItemView[] =
+      planCreation?.loaded === true && (planCreation.value !== null || planActivated)
+        ? [{ kind: "plan-creation", model: planCreation.value }]
+        : [];
     const conversationItems = conversationTimelineWithDiscardEvents(
       historicalItems,
       liveItems,
       planCreation?.discardEvents ?? [],
+      planCreationItems,
     );
-    const planActivated = planCreation?.notice === "Plan activated locally.";
-    const timeline = [
-      ...conversationItems,
-      ...planningItems,
-      ...(planCreation?.loaded === true && (planCreation.value !== null || planActivated)
-        ? ([{ kind: "plan-creation", model: planCreation.value }] as const)
-        : []),
-    ];
+    const timeline = [...conversationItems, ...planningItems];
     const decisionBlocksWork =
       decision?.value?.status === "unanswered" ||
       (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
@@ -328,6 +335,10 @@ export function createChatViewAdapter(input: {
           planCreation.value.openQuestion?.kind === "commitments-question"
         ) &&
         (planCreationEditingKey !== null || planCreation.value.openQuestion !== null));
+    const pendingCommitmentDocked =
+      !planCreationPaused &&
+      planCreation?.value?.pendingCommitment != null &&
+      planCreationEditingKey === null;
     const decisionLoading = controls?.decisionLoading === true;
     const decisionLoadError = controls?.queueLoadError ?? controls?.decisionLoadError ?? null;
     const decisionUnavailable = decisionLoading || decisionLoadError !== null;
@@ -377,6 +388,7 @@ export function createChatViewAdapter(input: {
       planCreationFocusRequest: planCreation?.focusRequest ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
+      noticeMessage: decisionBlocksWork ? undefined : state.activeTurn?.error?.message,
       notice: decisionBlocksWork
         ? null
         : (state.activeTurn?.error?.athleteMessage ??
@@ -392,11 +404,14 @@ export function createChatViewAdapter(input: {
         decisionBlocksWork ||
         decisionUnavailable ||
         attachmentUnavailable ||
-        planCreationBlocksWork,
-      inputDisabled: workBlocked || planCreationBlocksWork,
-      composerPlaceholder: planCreationBlocksWork
-        ? "Finish the Plan question above"
-        : "Message your coach",
+        planCreationBlocksWork ||
+        pendingCommitmentDocked,
+      inputDisabled: workBlocked || planCreationBlocksWork || pendingCommitmentDocked,
+      composerPlaceholder: pendingCommitmentDocked
+        ? "Finish the correction above"
+        : planCreationBlocksWork
+          ? "Finish the Plan question above"
+          : "Message your coach",
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,

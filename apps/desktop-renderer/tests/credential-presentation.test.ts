@@ -70,7 +70,9 @@ describe("claude subscription status presentation", () => {
   it("withholds an identity for every unready state", () => {
     for (const state of CLAUDE_CLI_STATES) {
       if (state === "ready" || state === "ready-api-key") continue;
-      expect(claudeCliIdentityLine({ state, email: "athlete@example.test", plan: "Max" })).toBeNull();
+      expect(
+        claudeCliIdentityLine({ state, email: "athlete@example.test", plan: "Max" }),
+      ).toBeNull();
     }
   });
 

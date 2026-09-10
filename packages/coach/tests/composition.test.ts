@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
+import type { CatalogKey, Message } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import {
   EMPTY_DROPPED_ACTIVITIES,
   type AthleteState,
@@ -638,6 +640,43 @@ describe("local coach composition", () => {
     expect(policy!.requiresConfirmation({ chatId: "unknown", toolName: "plan_save" })).toBe(true);
     expect(lifecycle.confirmations.peek("telegram:73")).toBeUndefined();
 
+    await lifecycle.close();
+  });
+
+  it("uses the per-update phrasebook for lifecycle confirmation summaries", async () => {
+    const home = await freshHome();
+    const { engineInput, lifecycle } = await composeWithCapturedEngineInput(home);
+    const phrasebook = await createPhrasebook({ tag: "en", locale: "it-IT" });
+    const originalSay = phrasebook.say;
+    const say: typeof phrasebook.say = (message: Message | CatalogKey, vars?: Message["vars"]) =>
+      `IT:${typeof message === "string" ? originalSay(message, vars) : originalSay(message)}`;
+    const saySpy = vi.spyOn(phrasebook, "say").mockImplementation(say);
+    const run = vi.fn(async () => ({ saved: true }));
+    const confirmations = engineInput.ports.toolConfirmations;
+    expect(confirmations).toBeDefined();
+    if (confirmations === undefined) throw new Error("Missing confirmation policy");
+
+    await confirmations.propose({
+      chatId: "telegram:73",
+      toolName: "plan_save",
+      toolInput: { plan: { name: "Build" } },
+      run,
+    });
+    expect(lifecycle.confirmations.peek("telegram:73")?.summary).toBe(
+      "Save the training plan — replaces the current saved plan — Build",
+    );
+    const pending = lifecycle.confirmations.peek("telegram:73", phrasebook);
+    expect(pending?.summary).toBe(
+      "IT:Save the training plan — replaces the current saved plan — Build",
+    );
+    expect(saySpy).toHaveBeenCalledTimes(1);
+    if (pending === undefined) throw new Error("Missing pending confirmation");
+
+    await expect(
+      lifecycle.confirmations.confirm("telegram:73", pending.nonce, phrasebook),
+    ).resolves.toEqual({ status: "executed", summary: pending.summary, result: { saved: true } });
+    expect(saySpy).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(1);
     await lifecycle.close();
   });
 

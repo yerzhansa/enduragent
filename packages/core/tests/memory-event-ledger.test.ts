@@ -95,10 +95,20 @@ describe("Memory.appendEvent", () => {
 
   it("appends without rewriting earlier lines", () => {
     const memory = new Memory(dataDir);
-    memory.appendEvent({ date: "2026-06-09", kind: "decision", text: "Switch to base block", source: "flush" });
+    memory.appendEvent({
+      date: "2026-06-09",
+      kind: "decision",
+      text: "Switch to base block",
+      source: "flush",
+    });
     const before = readFileSync(eventsPathOf(dataDir), "utf-8");
 
-    memory.appendEvent({ date: "2026-06-10", kind: "outcome", text: "FTP test 252W", source: "flush" });
+    memory.appendEvent({
+      date: "2026-06-10",
+      kind: "outcome",
+      text: "FTP test 252W",
+      source: "flush",
+    });
     const after = readFileSync(eventsPathOf(dataDir), "utf-8");
 
     expect(readLines(dataDir)).toHaveLength(2);
@@ -136,7 +146,12 @@ describe("Memory.appendEvent", () => {
 
   it("survives section rewrites, plan overwrites, and a session reset", () => {
     const memory = new Memory(dataDir);
-    memory.appendEvent({ date: "2026-06-10", kind: "experiment", text: "Tried 3x20 SST", source: "flush" });
+    memory.appendEvent({
+      date: "2026-06-10",
+      kind: "experiment",
+      text: "Tried 3x20 SST",
+      source: "flush",
+    });
     const snapshot = readFileSync(eventsPathOf(dataDir), "utf-8");
 
     memory.writeSection("notes", "first");
@@ -186,7 +201,13 @@ describe("runMemoryFlush ledger integration", () => {
       captured,
     );
 
-    await runMemoryFlush({ llm, messages: OVERRIDE_CONVO, memory, memorySections: SECTIONS, tz: "UTC" });
+    await runMemoryFlush({
+      llm,
+      messages: OVERRIDE_CONVO,
+      memory,
+      memorySections: SECTIONS,
+      tz: "UTC",
+    });
 
     const lines = readLines(dataDir);
     expect(lines).toHaveLength(1);
@@ -203,7 +224,13 @@ describe("runMemoryFlush ledger integration", () => {
     const captured: GenerateOpts[] = [];
     const llm = executeToolsLLM([], captured);
 
-    await runMemoryFlush({ llm, messages: OVERRIDE_CONVO, memory, memorySections: SECTIONS, tz: "UTC" });
+    await runMemoryFlush({
+      llm,
+      messages: OVERRIDE_CONVO,
+      memory,
+      memorySections: SECTIONS,
+      tz: "UTC",
+    });
 
     expect(Object.keys(captured[0].tools ?? {}).sort()).toEqual(["ledger_append", "memory_write"]);
   });
@@ -213,7 +240,13 @@ describe("runMemoryFlush ledger integration", () => {
     const captured: GenerateOpts[] = [];
     const llm = executeToolsLLM([], captured);
 
-    await runMemoryFlush({ llm, messages: OVERRIDE_CONVO, memory, memorySections: SECTIONS, tz: "UTC" });
+    await runMemoryFlush({
+      llm,
+      messages: OVERRIDE_CONVO,
+      memory,
+      memorySections: SECTIONS,
+      tz: "UTC",
+    });
 
     const messages = captured[0].messages ?? [];
     const last = messages[messages.length - 1];
@@ -231,7 +264,13 @@ describe("runMemoryFlush ledger integration", () => {
       captured,
     );
 
-    await runMemoryFlush({ llm, messages: OVERRIDE_CONVO, memory, memorySections: SECTIONS, tz: "UTC" });
+    await runMemoryFlush({
+      llm,
+      messages: OVERRIDE_CONVO,
+      memory,
+      memorySections: SECTIONS,
+      tz: "UTC",
+    });
 
     expect(existsSync(eventsPathOf(dataDir))).toBe(false);
   });

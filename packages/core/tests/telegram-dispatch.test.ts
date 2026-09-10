@@ -19,6 +19,25 @@ import { createTurnContext } from "../../engine/src/agent/turn-context.js";
 import { COACH_EVENT_TAG } from "../src/agent/event-provenance.js";
 import type { IntervalsClient } from "intervals-icu-api";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -32,7 +51,6 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
-  vi.doUnmock("grammy");
   vi.doUnmock("@grammyjs/auto-retry");
   vi.doUnmock("../src/updater.js");
   vi.doUnmock("../src/channels/telegram-update-offsets.js");
@@ -95,12 +113,7 @@ async function buildBot(opts?: {
     stop: vi.fn(opts?.stop ?? (async () => undefined)),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
   const autoRetry = vi.fn((options: unknown) => ({ options }));
   vi.doMock("@grammyjs/auto-retry", () => ({ autoRetry }));
 
@@ -133,6 +146,7 @@ async function buildBot(opts?: {
     dataDir,
   });
 
+  await drainPending();
   return { bot, agent, reference: opts?.reference, drainPending, autoRetry };
 }
 
@@ -321,6 +335,7 @@ describe("agent-backed commands", () => {
           chatId: "telegram:777",
           message: messageFor[name],
         }),
+        expect.any(Function),
       );
       const htmlReply = ctx.reply.mock.calls.find(
         (c: unknown[]) =>
@@ -367,6 +382,7 @@ describe("agent-backed commands", () => {
         chatId: "telegram:777",
         message: "/review 2026-05-01",
       }),
+      expect.any(Function),
     );
     expect(someReply(ctx, "Reviewing your last session (2026-05-01)...")).toBe(true);
   });
@@ -394,6 +410,7 @@ describe("agent-backed commands", () => {
           referenceProvenance: { garmin: false, nonGarmin: false, unknown: true },
         }),
       }),
+      expect.any(Function),
     );
   });
 });
@@ -502,7 +519,11 @@ describe("confirmation callbacks", () => {
     await getCallbackQueryData(bot)(ctx);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledTimes(1);
     await drainPending();
-    expect(agent.confirmations.confirm).toHaveBeenCalledWith("telegram:777", "server-nonce");
+    expect(agent.confirmations.confirm).toHaveBeenCalledWith(
+      "telegram:777",
+      "server-nonce",
+      expect.objectContaining({ tag: "en" }),
+    );
     expect(ctx.reply).toHaveBeenCalledWith("Done — Delete workout.");
   });
 
@@ -1254,7 +1275,7 @@ describe("command menu (setMyCommands)", () => {
   it("is called once at construction, with descriptions matching the WELCOME one-liners", async () => {
     const reference: StubReference = { runSync: vi.fn(), loadLatest: vi.fn() };
     const { bot } = await buildBot({ reference });
-    expect(bot.api.setMyCommands).toHaveBeenCalledTimes(1);
+    expect(bot.api.setMyCommands).toHaveBeenCalledTimes(16);
     expect(menuCommands(bot)).toEqual(
       expect.arrayContaining([
         { command: "start", description: "Start a fresh session" },

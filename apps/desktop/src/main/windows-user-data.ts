@@ -1,3 +1,5 @@
+import { desktopPhrasebook } from "./language.js";
+import { desktopPlatformTokens } from "./platform-copy.js";
 import { homedir } from "node:os";
 import { win32 } from "node:path";
 import type { App } from "electron";
@@ -11,7 +13,12 @@ export class WindowsUserDataBindingError extends Error {
   readonly stage: WindowsUserDataBindingStage;
 
   constructor(stage: WindowsUserDataBindingStage) {
-    super("Windows user data binding failed");
+    super(
+      desktopPhrasebook().say(
+        "desktop.credentials.windowsUserDataFailed",
+        desktopPlatformTokens("win32"),
+      ),
+    );
     this.stage = stage;
   }
 }

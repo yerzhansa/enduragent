@@ -128,7 +128,7 @@ async function relaunch(scenario: Scenario, playwright: Playwright): Promise<voi
     width: scenario.width,
     height: scenario.height,
   });
-  await expect(scenario.page.getByRole("region", { name: "Plan Creation progress" })).toBeVisible();
+  await expect(scenario.page.getByRole("button", { name: "Discard" })).toBeVisible();
   await test.info().attach("relaunch-timing", {
     body: JSON.stringify({
       event: "relaunch-to-restored-progress",
@@ -291,13 +291,14 @@ test("completes the Fitness Goal with an authored success answer", async ({ play
   const scenario = await launch(playwright);
   try {
     await completeFitnessGoal(scenario);
-    const progress = scenario.page.getByRole("region", { name: "Plan Creation progress" });
     await expect(
-      progress.getByText("The essentials are complete.", {
+      scenario.page.getByText("The essentials are complete.", {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(progress.getByRole("button", { name: "Build Draft", exact: true })).toBeVisible();
+    await expect(
+      scenario.page.getByRole("button", { name: "Build Draft", exact: true }),
+    ).toBeVisible();
     await expect(scenario.page.getByRole("button", { name: "Send message" })).toBeEnabled();
     const answers = await scenario.backend.answers();
     expect(answers.map((answer) => answer.answer_key)).toEqual([
@@ -535,7 +536,7 @@ for (const appearance of [
         .getByRole("button", { name: "Review interpretation", exact: true })
         .click();
       await expect(
-        scenario.page.getByRole("heading", { name: "Confirm these limits", exact: true }),
+        scenario.page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
       const pending = await waitForVersion(scenario.backend, 6);
       expect(pending.pendingCommitment).toEqual({
@@ -546,7 +547,7 @@ for (const appearance of [
       });
       expect(pending.answeredSummaries).toHaveLength(5);
       expect(await scenario.backend.answers()).toHaveLength(5);
-      await scenario.page.getByRole("button", { name: "Confirm limits", exact: true }).click();
+      await scenario.page.getByRole("button", { name: "Confirm", exact: true }).click();
       const confirmed = await waitForVersion(scenario.backend, 7);
       expect(confirmed.pendingCommitment).toBeNull();
       expect(confirmed.answeredSummaries).toHaveLength(5);

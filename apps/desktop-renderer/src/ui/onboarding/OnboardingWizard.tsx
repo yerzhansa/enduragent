@@ -1,6 +1,7 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import { rideImportStatusCopy } from "../../ride-import";
+import { rideFileCountMessage, rideImportStatusMessage } from "../../ride-import";
 import { useEnduragentStore } from "../../state/store";
 import {
   AdditionalCredentialRows,
@@ -39,6 +40,7 @@ import { settingsStyles } from "../settings/styles";
 export type SetupPlacement = "gate" | "settings";
 
 export function SetupPanel(props: { readonly placement: SetupPlacement }): ReactElement {
+  const { say, format } = usePhrasebook();
   const surface = useEnduragentStore((state) => state.onboarding);
   const actions = useEnduragentStore((state) => state.onboardingActions);
   const credentialMutationBlocked = useEnduragentStore((state) =>
@@ -79,7 +81,22 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   const activeCredential = desktopCredentialId(surface.configuration?.active?.provider);
   const primaryAiCredential =
     activeCredential === surface.draft?.provider.provider ? activeCredential : null;
-  const importCopy = rideImportStatusCopy(surface.rideImport);
+  const importResult = surface.rideImport.result;
+  const importMessage = rideImportStatusMessage(surface.rideImport, {
+    imported: say(
+      rideFileCountMessage(
+        importResult?.files.imported ?? 0,
+        format.number(importResult?.files.imported ?? 0, { useGrouping: false }),
+      ),
+    ),
+    quarantined: say(
+      rideFileCountMessage(
+        importResult?.files.quarantined ?? 0,
+        format.number(importResult?.files.quarantined ?? 0, { useGrouping: false }),
+      ),
+    ),
+  });
+  const importCopy = importMessage === null ? "" : say(importMessage);
   const blocked =
     credentialMutationBlocked ||
     surface.loading ||
@@ -104,7 +121,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
               tabIndex={-1}
               className="text-2xl leading-8 font-semibold tracking-[-0.02em] outline-none"
             >
-              {gateUnavailable || statusKnown ? SETUP_HEADING : SETUP_CHECKING_HEADING}
+              {gateUnavailable || statusKnown ? say(SETUP_HEADING) : say(SETUP_CHECKING_HEADING)}
             </h1>
           </div>
           {gateUnavailable ? null : (
@@ -122,14 +139,17 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
                 aria-hidden="true"
               />
               {statusKnown
-                ? `${requiredReadyCount} of 3 required ready`
-                : SETUP_STATUS_CHECKING_COPY}
+                ? say("setup.requiredReady", {
+                    ready: format.number(requiredReadyCount),
+                    total: format.number(3),
+                  })
+                : say(SETUP_STATUS_CHECKING_COPY)}
             </span>
           )}
         </header>
       ) : (
         <h2 id="setup-panel-title" tabIndex={-1} className={settingsStyles.heading}>
-          {SETUP_SETTINGS_HEADING}
+          {say(SETUP_SETTINGS_HEADING)}
         </h2>
       )}
       {surface.loadUnavailable ? (
@@ -139,7 +159,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
           role="status"
           aria-live="polite"
         >
-          <span className="text-sm text-ink-2">{SETUP_STATUS_UNAVAILABLE_COPY}</span>
+          <span className="text-sm text-ink-2">{say(SETUP_STATUS_UNAVAILABLE_COPY)}</span>
           <Button
             type="button"
             variant="default"
@@ -149,7 +169,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
               void actions?.refresh();
             }}
           >
-            {RETRY_SETUP_STATUS_LABEL}
+            {say(RETRY_SETUP_STATUS_LABEL)}
           </Button>
         </div>
       ) : null}
@@ -179,10 +199,10 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
               actions?.finish();
             }}
           >
-            {PRIMARY_LABEL}
+            {say(PRIMARY_LABEL)}
           </Button>
           <SetupError surface={surface} section="footer" />
-          <span className="ml-auto text-xs text-ink-2">{FOOTER_NOTE}</span>
+          <span className="ml-auto text-xs text-ink-2">{say(FOOTER_NOTE)}</span>
         </footer>
       ) : null}
       <p
@@ -196,7 +216,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
         {importCopy}
       </p>
       <p className="onboarding-error-announcer sr-only" role="status" aria-live="polite">
-        {wizard.fixedError === null ? "" : ERROR_COPY[wizard.fixedError]}
+        {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
       </p>
     </section>
   );

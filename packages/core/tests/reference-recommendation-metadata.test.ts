@@ -8,9 +8,7 @@ import {
 } from "../src/reference/validation/recommendation-metadata.js";
 
 const validMetadata: RecommendationMetadata = {
-  citations: [
-    { field: "current_status.acwr.value", value: 1.12, source: "latest.json" },
-  ],
+  citations: [{ field: "current_status.acwr.value", value: 1.12, source: "latest.json" }],
   confidence: "high",
   frameworks: ["polarized"],
   phase_tag: "build",
@@ -38,9 +36,7 @@ describe("RecommendationMetadataSchema", () => {
   });
 
   it("rejects an unknown top-level field (.strict() boundary)", () => {
-    expect(() =>
-      RecommendationMetadataSchema.parse({ ...validMetadata, extra: "x" }),
-    ).toThrow();
+    expect(() => RecommendationMetadataSchema.parse({ ...validMetadata, extra: "x" })).toThrow();
   });
 });
 

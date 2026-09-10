@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { parse as parseYaml, stringify as toYaml } from "yaml";
 import { createClaudeWorkingArea } from "@enduragent/engine";
 
+import { say } from "../src/cli-copy.js";
 import { scriptedPrompts, type ScriptedAnswers } from "./helpers/scripted-prompts.js";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 import {
@@ -100,6 +101,9 @@ function loggedLines(prompts: ReturnType<typeof scriptedPrompts>): string[] {
 }
 
 beforeEach(() => {
+  for (const key of ["ENDURAGENT_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"])
+    vi.stubEnv(key, undefined);
+  vi.stubEnv("LANG", "en_US.UTF-8");
   tempHome = mkdtempSync(join(tmpdir(), "cc-claude-setup-"));
   origHome = process.env.HOME;
   process.env.HOME = tempHome;
@@ -118,6 +122,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env.HOME = origHome;
   Object.defineProperty(process.stdin, "isTTY", { value: origStdinTTY, configurable: true });
   Object.defineProperty(process.stdout, "isTTY", { value: origStdoutTTY, configurable: true });
@@ -164,7 +169,7 @@ describe("claude-cli setup wizard", () => {
     await expect(harness.runSetup(cyclingBinary)).rejects.toThrow("exit:1");
 
     expect(existsSync(configPath())).toBe(false);
-    expect(loggedLines(harness.prompts)).toContain(CLAUDE_CLI_SIGN_IN_GUIDANCE);
+    expect(loggedLines(harness.prompts)).toContain(say(CLAUDE_CLI_SIGN_IN_GUIDANCE));
     expect(harness.spawns).toBe(0);
     expect(exit).toHaveBeenCalledWith(1);
   });
@@ -204,7 +209,7 @@ describe("claude-cli setup wizard", () => {
     await expect(harness.runSetup(cyclingBinary)).rejects.toThrow("exit:1");
 
     expect(existsSync(configPath())).toBe(false);
-    expect(loggedLines(harness.prompts)).toContain(CLAUDE_CLI_API_KEY_DECLINED);
+    expect(loggedLines(harness.prompts)).toContain(say(CLAUDE_CLI_API_KEY_DECLINED));
     expect(harness.calls).toHaveLength(1);
   });
 

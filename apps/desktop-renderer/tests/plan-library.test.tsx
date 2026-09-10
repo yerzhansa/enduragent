@@ -1,3 +1,4 @@
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
 import type {
   LegacyPlanSummary,
   ListPlansResult,
@@ -5,7 +6,7 @@ import type {
   PlanHistoryResult,
   PlanCloseResult,
 } from "@enduragent/coach-contract";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { lazy, Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1727,4 +1728,43 @@ describe("Stop Plan", () => {
       controller.dispose();
     }
   });
+});
+
+it("reads Plan library copy from the selected Italian catalog", async () => {
+  useEnduragentStore.setState((state) => ({
+    settings: {
+      ...state.settings,
+      language: { ...state.settings.language, status: "ready", value: "it" },
+    },
+  }));
+  await renderWithCatalog(
+    <PlanLibrary
+      library={{
+        calendarConnected: false,
+        legacy: null,
+        creation: null,
+        active: null,
+        closed: [],
+        changesPaused: null,
+        changes: [],
+      }}
+      readDetails={vi.fn()}
+      readFinalDetails={vi.fn()}
+    />,
+    {
+      plan: {
+        library: {
+          label: "Raccolta dei piani",
+          empty: {
+            title: "Nessun piano attivo",
+            description: "Crea un piano quando sei pronto.",
+          },
+        },
+      },
+    },
+  );
+  const library = screen.getByRole("region", { name: "Raccolta dei piani" });
+  expect(within(library).getByRole("heading", { name: "Nessun piano attivo" })).toBeVisible();
+  expect(within(library).getByText("Crea un piano quando sei pronto.")).toBeVisible();
+  expect(screen.queryByText("No active Plan")).toBeNull();
 });

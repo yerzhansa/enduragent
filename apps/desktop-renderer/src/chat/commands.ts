@@ -1,24 +1,26 @@
+import { msg, type Message } from "@enduragent/i18n";
+
 export interface SlashCommand {
   readonly command: string;
-  readonly description: string;
+  readonly description: Message;
 }
 
 export const SLASH_COMMANDS: readonly SlashCommand[] = Object.freeze([
-  Object.freeze({ command: "/start", description: "Start a fresh session" }),
-  Object.freeze({ command: "/plan", description: "Start a Plan in Chat" }),
-  Object.freeze({ command: "/workout", description: "Get today's workout" }),
-  Object.freeze({ command: "/status", description: "Check current fitness, fatigue, and form" }),
-  Object.freeze({ command: "/review", description: "Review your last session" }),
+  Object.freeze({ command: "/start", description: msg("chat.commands.start") }),
+  Object.freeze({ command: "/plan", description: msg("chat.commands.plan") }),
+  Object.freeze({ command: "/workout", description: msg("chat.commands.workout") }),
+  Object.freeze({ command: "/status", description: msg("chat.commands.status") }),
+  Object.freeze({ command: "/review", description: msg("chat.commands.review") }),
   Object.freeze({
     command: "/sync",
-    description: "Force-refresh training data from intervals.icu",
+    description: msg("chat.commands.sync", { intervals: "intervals.icu" }),
   }),
-  Object.freeze({ command: "/version", description: "Show current version" }),
+  Object.freeze({ command: "/version", description: msg("chat.commands.version") }),
   Object.freeze({
     command: "/whatsnew",
-    description: "See what changed in the latest version",
+    description: msg("chat.commands.whatsnew"),
   }),
-  Object.freeze({ command: "/update", description: "Check for and install updates" }),
+  Object.freeze({ command: "/update", description: msg("chat.commands.update") }),
 ]);
 
 export function filterSlashCommands(draft: string): readonly SlashCommand[] {

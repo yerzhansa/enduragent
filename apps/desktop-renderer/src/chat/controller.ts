@@ -50,10 +50,9 @@ import {
   EMPTY_CHAT_STATE,
   hasClearableConversation,
   nextDrainGroup,
-  reduceChatState,
   type ChatSentAttachment,
-  type ChatState,
 } from "../turn-state";
+import { reduceChatState, type ChatState } from "./message-state";
 import {
   createTranscriptHydrator,
   emptyTranscriptHydration,
@@ -205,7 +204,7 @@ export interface ChatViewControls {
     readonly discardEvents: readonly PlanCreationDiscardEvent[];
     readonly notice: string | null;
     readonly focusRequest: {
-      readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
+      readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer";
       readonly libraryTarget?: "continue" | "change";
       readonly revision: number;
     } | null;
@@ -431,7 +430,7 @@ export function createChatController(input: {
   let planCreationDiscardEvents: readonly PlanCreationDiscardEvent[] = [];
   let planCreationNotice: string | null = null;
   let planCreationFocusRequest: {
-    readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change";
+    readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer";
     readonly libraryTarget?: "continue" | "change";
     readonly revision: number;
   } | null = null;
@@ -942,7 +941,7 @@ export function createChatController(input: {
           return;
         }
         interruptedQueueOrigin = undefined;
-        reduce({ type: "complete", requestKey });
+        reduce({ type: "complete", requestKey, message: result.message });
         shouldDrain = state.status === "idle" && state.activeTurn?.requestKey === requestKey;
       } catch (error) {
         if (!current()) return;
@@ -1118,12 +1117,12 @@ export function createChatController(input: {
 
   const installPlanCreation = (
     next: PlanCreationCardModel | null,
-    focusTarget?: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+    focusTarget?: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer",
   ): void => {
     const previous = planCreation;
     let actionFocusRequested = false;
     const requestActionFocus = (
-      target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+      target: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer",
     ): void => {
       requestPlanCreationFocus(target);
       actionFocusRequested = true;
@@ -1183,7 +1182,7 @@ export function createChatController(input: {
       .filter((message) => message.role === "athlete" || message.text.length > 0)
       .at(-1)?.id ?? null;
   const requestPlanCreationFocus = (
-    target: "discard" | "activate" | "edit" | "start" | "continue" | "change",
+    target: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer",
   ): void => {
     planCreationFocusRequest = {
       ...(target === "start" || planCreationFocusRequest?.libraryTarget === undefined
@@ -1886,6 +1885,13 @@ export function createChatController(input: {
       });
       pendingPlanCreationCommand = null;
       installPlanCreation(result.planCreation);
+      if (
+        result.status !== "rejected" &&
+        (answer.kind === "commitments-confirm" || answer.kind === "commitments-cancel") &&
+        planCreation?.pendingCommitment === null &&
+        planCreation.openQuestion === null
+      )
+        requestPlanCreationFocus("composer");
       if (result.status === "rejected") {
         if (
           submittedEditingKey !== null &&

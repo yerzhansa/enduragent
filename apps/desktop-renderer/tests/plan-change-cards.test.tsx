@@ -1,10 +1,11 @@
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
 import type {
   ListPlansResult,
   PlanChangeModel,
   PlanChangeWorkout,
   PlanCreationCardModel,
 } from "@enduragent/coach-contract";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatController } from "../src/chat/controller";
@@ -206,6 +207,31 @@ beforeEach(() => {
 });
 
 describe("Plan Change cards", () => {
+  it("reads Plan change actions, status and differences from an injected Italian catalog", async () => {
+    useEnduragentStore.setState((state) => ({
+      settings: { ...state.settings, language: { status: "ready", value: "it" } },
+    }));
+    setChanges([change()]);
+    await renderWithCatalog(<PlanChangeCards />, {
+      chat: {
+        planChange: {
+          section: "Modifiche al piano",
+          title: "Modifica al piano",
+          status: { pending: "In attesa" },
+          apply: "Applica al piano",
+          planTotals: "Totali del piano",
+          minuteDifference: "Da {{before}} a {{after}} minuti",
+          calendar: { local: "Solo locale" },
+        },
+      },
+    });
+    expect(screen.getByRole("region", { name: "Modifiche al piano" })).toBeInTheDocument();
+    expect(screen.getByText("In attesa")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Applica al piano" })).toBeInTheDocument();
+    expect(screen.getByText("Da 1234 a 1204 minuti")).toBeInTheDocument();
+    expect(screen.getByText("Solo locale")).toBeInTheDocument();
+  });
+
   it("reads the persisted typed request from pending Change evidence after remount", async () => {
     const text = "wednesdays at most 30 minutes";
     setChanges([
@@ -558,7 +584,8 @@ describe("Plan Change cards", () => {
     patchChange({ open: false, planId: null });
     render(<ChatView />);
     expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Plan Creation progress" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
+    expect(screen.getByText("Paused", { exact: true })).toBeVisible();
     expect(screen.getByText("Your separate Plan creation is still open.")).toBeVisible();
     expect(screen.getByText("Training changes need your confirmation.")).toBeVisible();
     const composer = screen.getByRole("combobox", { name: "Message your coach" });

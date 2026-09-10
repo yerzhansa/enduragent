@@ -1067,6 +1067,35 @@ describe("chat controller", () => {
     expect(refreshSpend).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["response", "final-text"])(
+    "retains a descriptor from the %s with its wire text",
+    async (source) => {
+      const message = { key: "coach.fallback.stepLimit" };
+      const text =
+        "I ran out of steps gathering data — ask me to continue and I'll pick up where I left off.";
+      const response = { text, ...(source === "response" ? { message } : {}) };
+      const fake = client(async (_request, options) => {
+        deliver(options, {
+          type: "final-text",
+          turnId: "turn-1",
+          text,
+          ...(source === "final-text" ? { message } : {}),
+        });
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 1, result: response });
+        return response;
+      });
+      const { controller, states } = subject(fake);
+
+      await controller.submit("Continue");
+
+      expect(states.at(-1)?.messages.at(-1)).toMatchObject({
+        text,
+        message,
+        delivery: "complete",
+      });
+    },
+  );
+
   it("admits cumulative text deltas at the exact response boundary", async () => {
     const first = "🚴".repeat(30_000);
     const second = "b".repeat(COACH_RESPONSE_CODE_UNIT_LIMIT - first.length);
@@ -3122,9 +3151,53 @@ describe("chat controller", () => {
         expect.objectContaining({ answer: { kind } }),
       );
       expect(controls.at(-1)?.planCreation?.value?.pendingCommitment).toBeNull();
+      expect(controls.at(-1)?.planCreation?.focusRequest).toMatchObject({ target: "composer" });
       controller.dispose();
     },
   );
+
+  it("leaves focus with the next question when a resolved correction reopens one", async () => {
+    const question: NonNullable<PlanCreationCardModel["openQuestion"]> = {
+      kind: "plan-length-question",
+      step: { current: 2, total: 9 },
+      prompt: "How long should this Fitness Plan be?",
+      options: [{ weeks: 4, label: "4 weeks", detail: "A short block." }],
+    };
+    const card: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 10,
+      status: "in-progress",
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: null,
+      calendarWindow: null,
+      draftStale: false,
+      pendingCommitment: {
+        text: "Some evenings are busy",
+        rules: [],
+        status: "clarify",
+        unparsed: ["Some evenings are busy"],
+      },
+    };
+    const answerPlanCreation = vi
+      .fn<(request: PlanCreationAnswerRpcParams) => Promise<PlanCreationAnswerRpcResult>>()
+      .mockResolvedValue({
+        status: "answered",
+        planCreation: { ...card, version: 11, pendingCommitment: null, openQuestion: question },
+      });
+    const { controller, controls } = subject(
+      client(replies(), {
+        listPlanningRequests: async () => ({ deliveries: [], planCreation: card }),
+        answerPlanCreation,
+      }),
+    );
+    await controller.start();
+    await controller.answerPlanCreation({ kind: "commitments-cancel" });
+    expect(controls.at(-1)?.planCreation?.value?.openQuestion?.kind).toBe("plan-length-question");
+    expect(controls.at(-1)?.planCreation?.focusRequest?.target).not.toBe("composer");
+    controller.dispose();
+  });
 
   it("rereads pending correction and displays the daemon explanation after rejected Draft build", async () => {
     const card: PlanCreationCardModel = {

@@ -2,6 +2,7 @@ import { readFile, rm } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPackagePlan } from "./package-plan.mjs";
+import { WINDOWS_INSTALLER_LANGUAGES } from "./package-locales.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const canonicalDesktopRoot = resolve(scriptDirectory, "..");
@@ -14,7 +15,7 @@ export const WINDOWS_PACKAGE_OUTPUT_DIRECTORY = "dist/windows";
 export const WINDOWS_PACKAGE_PLATFORM = "win32";
 export const WINDOWS_PACKAGE_ARCH = "x64";
 export const WINDOWS_PACKAGE_TARGET = "nsis";
-export const WINDOWS_PACKAGE_INSTALLER_LANGUAGE = "en_US";
+export const WINDOWS_PACKAGE_INSTALLER_LANGUAGES = WINDOWS_INSTALLER_LANGUAGES;
 export const WINDOWS_PACKAGE_DETERMINISM = Object.freeze({
   artifactName: "desktop-version-and-x64",
   inventory: "exact-paths-types-platform-and-staged-bytes",
@@ -88,9 +89,9 @@ export async function createWindowsPackagePlan(input = {}, dependencies = {}) {
         createStartMenuShortcut: true,
         createDesktopShortcut: false,
         deleteAppDataOnUninstall: false,
-        installerLanguages: [WINDOWS_PACKAGE_INSTALLER_LANGUAGE],
+        installerLanguages: [...WINDOWS_PACKAGE_INSTALLER_LANGUAGES],
         language: "1033",
-        multiLanguageInstaller: false,
+        multiLanguageInstaller: true,
         displayLanguageSelector: false,
         differentialPackage: false,
         buildUniversalInstaller: false,

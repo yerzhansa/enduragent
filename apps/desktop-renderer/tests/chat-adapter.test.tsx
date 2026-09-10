@@ -1,4 +1,5 @@
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
+import { renderLocalized as render } from "./language-harness";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
@@ -366,6 +367,59 @@ describe("chat view adapter", () => {
     });
   });
 
+  it("blocks the composer while an unresolved typed commitment is docked", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const pending = {
+      text: "Some evenings are busy",
+      status: "clarify" as const,
+      rules: [],
+      unparsed: ["Some evenings are busy"],
+    };
+    const planCreation = (editingKey: "commitments" | null, paused = false) => ({
+      value: {
+        draft: null,
+        draftStale: false,
+        calendarWindow: null,
+        pendingCommitment: pending,
+        creationId: "01J00000000000000000000000",
+        version: 1,
+        status: "in-progress" as const,
+        readiness: "ready" as const,
+        answeredSummaries: [],
+        openQuestion: null,
+      },
+      loaded: true,
+      busy: false,
+      error: null,
+      paused,
+      editingKey,
+      focusRevision: 1,
+      discardConfirmationOpen: false,
+      activateConfirmationOpen: false,
+      activePlanKnowledge: { kind: "unknown" as const },
+      discardEvents: [],
+      notice: null,
+      focusRequest: null,
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation(null) }));
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: true,
+      composerPlaceholder: "Finish the correction above",
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation("commitments") }));
+    expect(published.at(-1)).toMatchObject({
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation(null, true) }));
+    expect(published.at(-1)).toMatchObject({
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+  });
+
   it("blocks work during activation and retains its completed transcript notice once", () => {
     const published: ChatSurfaceState[] = [];
     const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
@@ -553,8 +607,74 @@ describe("chat view adapter", () => {
 
     expect(published.at(-1)?.timeline).toMatchObject([
       { kind: "plan-creation-discard", eventId: "01J00000000000000000000000" },
-      { kind: "message", message: { text: "Later Chat message" } },
       { kind: "plan-creation", model: nextModel },
+      { kind: "message", message: { text: "Later Chat message" } },
+    ]);
+  });
+
+  it("places live Chat after Plan creation and keeps hydrated messages above it", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const model: PlanCreationCardModel = {
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      creationId: "01J00000000000000000000001",
+      version: 1,
+      status: "in-progress",
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: null,
+    };
+
+    adapter.view.render(
+      submitted("PING two"),
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: "turn-history",
+              completedAt: "1998-03-03T12:00:00.000Z",
+              athleteText: "I want a new plan.",
+              coachText: "A few questions first.",
+            },
+          ],
+        },
+        planCreation: {
+          value: model,
+          loaded: true,
+          busy: false,
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 0,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        },
+      }),
+    );
+
+    expect(published.at(-1)?.timeline.map((item) => item.kind)).toEqual([
+      "message",
+      "message",
+      "plan-creation",
+      "message",
+    ]);
+    expect(published.at(-1)?.timeline).toMatchObject([
+      { kind: "message", message: { text: "I want a new plan.", historical: true } },
+      { kind: "message", message: { text: "A few questions first.", historical: true } },
+      { kind: "plan-creation", model },
+      { kind: "message", message: { text: "PING two", historical: false } },
     ]);
   });
 

@@ -258,16 +258,24 @@ describe("never throws on an unwritable target", () => {
 });
 
 describe("serializeError unit cases", () => {
-  it.each([TypeError, RangeError, SyntaxError])("keeps the safe built-in error name", (ErrorType) => {
-    expect(serializeError(new ErrorType("marker"))).toEqual({ name: ErrorType.name });
-  });
+  it.each([TypeError, RangeError, SyntaxError])(
+    "keeps the safe built-in error name",
+    (ErrorType) => {
+      expect(serializeError(new ErrorType("marker"))).toEqual({ name: ErrorType.name });
+    },
+  );
 
   it("does not inspect a proxied error prototype", () => {
-    const callback = vi.fn(() => { throw new Error("marker"); });
-    const error = Object.setPrototypeOf(new Error("marker"), new Proxy(TypeError.prototype, {
-      get: callback,
-      getOwnPropertyDescriptor: callback,
-    }));
+    const callback = vi.fn(() => {
+      throw new Error("marker");
+    });
+    const error = Object.setPrototypeOf(
+      new Error("marker"),
+      new Proxy(TypeError.prototype, {
+        get: callback,
+        getOwnPropertyDescriptor: callback,
+      }),
+    );
     expect(serializeError(error)).toEqual({ name: "Error" });
     expect(callback).not.toHaveBeenCalled();
   });
@@ -320,7 +328,12 @@ describe("final diagnostic sinks", () => {
     root.emit("error", {
       component: "agent",
       event: "request_failed https://marker@example.invalid/marker?token=marker#marker",
-      err: Object.assign(new Error("marker"), { statusCode: 503, code: "ECONNRESET", path: "marker", cause: new Error("marker") }),
+      err: Object.assign(new Error("marker"), {
+        statusCode: 503,
+        code: "ECONNRESET",
+        path: "marker",
+        cause: new Error("marker"),
+      }),
       nested: [{ apiKey: "marker", message: "marker", url: "marker" }],
       note: "Bearer marker",
       requestUrl: "marker",

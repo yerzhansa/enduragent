@@ -1,6 +1,8 @@
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { desktopPhrasebook } from "./language.js";
 import type { DesktopDaemonResolution } from "@enduragent/coach/enduragent";
 import type { DesktopDaemonLifecycleState } from "./daemon-lifecycle.js";
-import { desktopPlatformProjection } from "./platform-copy.js";
+import { desktopPlatformProjection, desktopPlatformTokens } from "./platform-copy.js";
 
 export interface DesktopErrorCopy {
   readonly title: string;
@@ -10,57 +12,73 @@ export interface DesktopErrorCopy {
 export function startupRefusalCopy(
   cause: Extract<DesktopDaemonResolution, { status: "refused" }>["cause"],
   platform: NodeJS.Platform = process.platform,
+  phrasebook: Phrasebook = desktopPhrasebook(),
 ): DesktopErrorCopy {
+  const { product } = desktopPlatformTokens(platform);
+  const vars = { product, configFile: "config.yaml" };
   if (cause === "not-configured") {
     return {
-      title: "Enduragent isn’t configured",
-      content:
-        "The configuration file is missing. Run Enduragent setup or restore config.yaml, then reopen Enduragent.",
+      title: phrasebook.say("desktop.lifecycle.notConfiguredTitle", vars),
+      content: phrasebook.say("desktop.lifecycle.notConfiguredContent", vars),
     };
   }
   if (cause === "unreadable") {
     return {
-      title: "Enduragent couldn’t read its configuration",
-      content:
-        "Check that config.yaml is a readable file and its folder is accessible, then reopen Enduragent.",
+      title: phrasebook.say("desktop.lifecycle.unreadableTitle", vars),
+      content: phrasebook.say("desktop.lifecycle.unreadableContent", vars),
     };
   }
   if (cause === "malformed") {
     return {
-      title: "Enduragent couldn’t use its configuration",
-      content: "Correct or replace the invalid config.yaml file, then reopen Enduragent.",
+      title: phrasebook.say("desktop.lifecycle.malformedTitle", vars),
+      content: phrasebook.say("desktop.lifecycle.malformedContent", vars),
     };
   }
   if (cause === "contention") {
     return {
-      title: "Enduragent couldn’t connect to its background service",
-      content:
-        "Another Enduragent process is already running or stuck. Quit that process, then reopen Enduragent. If you can’t find it, log out and back in.",
+      title: phrasebook.say("desktop.lifecycle.contentionTitle", vars),
+      content: phrasebook.say("desktop.lifecycle.contentionContent", vars),
     };
   }
   if (cause === "version-mismatch") {
     return {
-      title: "Enduragent found a different background service version",
-      content:
-        "A different version of the Enduragent background service is running from the CLI or a previous install. Quit that service, then reopen Enduragent.",
+      title: phrasebook.say("desktop.lifecycle.versionMismatchTitle", vars),
+      content: phrasebook.say("desktop.lifecycle.versionMismatchContent", vars),
     };
   }
   return {
-    title: "Enduragent couldn’t start its background service",
-    content: `The background service could not start or its saved connection state could not be read. Quit Enduragent and reopen it. If the problem continues, ${desktopPlatformProjection(platform).copy.restartComputer} before trying again.`,
+    title: phrasebook.say("desktop.lifecycle.unavailableTitle", vars),
+    content: phrasebook.say("desktop.lifecycle.unavailableContent", {
+      ...vars,
+      restartComputer: desktopPlatformProjection(platform, phrasebook).copy.restartComputer,
+    }),
   };
 }
 
 export const unexpectedStartupCopy: DesktopErrorCopy = {
-  title: "Enduragent couldn’t open",
-  content:
-    "Enduragent hit an unexpected problem while starting. Quit Enduragent and try again. If it keeps happening, log out and back in before reopening it.",
+  get title() {
+    return desktopPhrasebook().say("desktop.lifecycle.unexpectedTitle", {
+      product: desktopPlatformTokens().product,
+    });
+  },
+  get content() {
+    return desktopPhrasebook().say("desktop.lifecycle.unexpectedContent", {
+      product: desktopPlatformTokens().product,
+    });
+  },
 };
 
 export const restartExhaustedCopy: DesktopErrorCopy = {
-  title: "Enduragent’s background service stopped",
-  content:
-    "The background service stopped repeatedly and Enduragent could not restart it. Quit Enduragent and reopen it. If that does not help, log out and back in.",
+  get title() {
+    return desktopPhrasebook().say("desktop.lifecycle.restartExhaustedTitle", {
+      product: desktopPlatformTokens().product,
+    });
+  },
+  get content() {
+    return desktopPhrasebook().say("desktop.lifecycle.restartExhaustedContent", {
+      product: desktopPlatformTokens().product,
+    });
+  },
 };
 
 export function lifecycleErrorCopy(

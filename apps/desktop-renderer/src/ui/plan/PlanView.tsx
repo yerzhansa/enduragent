@@ -1,3 +1,6 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { usePlanDate } from "./plan-date";
 import {
   Activity,
   CalendarDays,
@@ -52,7 +55,6 @@ import {
   requestPlanCalendarRetry,
   subscribePlanFinalDetailsRefresh,
 } from "../../plan/library-refresh";
-import { formatCivilDate } from "@enduragent/coach-contract";
 import { planReadModel } from "../../state/plan-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "../chat/CoachDecisionPanel";
@@ -64,7 +66,15 @@ import { Page } from "@enduragent/ui";
 import { WorkoutArchiveExportControl } from "../training/TrainingExportControls";
 
 const SUPPORT_PAIR = "grid gap-[calc(var(--inset)/2)]";
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKDAYS = [
+  "chat.planChange.day.mon",
+  "chat.planChange.day.tue",
+  "chat.planChange.day.wed",
+  "chat.planChange.day.thu",
+  "chat.planChange.day.fri",
+  "chat.planChange.day.sat",
+  "chat.planChange.day.sun",
+] as const;
 const ACTIVE_OVERVIEW_SCENARIOS = new Set([
   "PL-S004",
   "PL-S007",
@@ -113,83 +123,140 @@ function weekdayIndex(value: string): number {
   return civilDate(value).getUTCDay();
 }
 
-function plannedTime(durationS: number): string {
+function plannedTime(phrasebook: Phrasebook, durationS: number): string {
+  const { say, format } = phrasebook;
+
   const hours = Math.floor(durationS / 3_600);
   const minutes = Math.round((durationS % 3_600) / 60);
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+  if (hours === 0)
+    return say("chat.planChange.minutes", {
+      minutes: format.number(minutes, { useGrouping: false }),
+    });
+  return minutes === 0
+    ? say("plan.view.plannedTime.hours", { hours: format.number(hours, { useGrouping: false }) })
+    : say("plan.view.plannedTime.hoursMinutes", {
+        hours: format.number(hours, { useGrouping: false }),
+        minutes: format.number(minutes, { useGrouping: false }),
+      });
 }
 
-function clockTime(durationS: number): string {
+function clockTime(phrasebook: Phrasebook, durationS: number): string {
+  const { say, format } = phrasebook;
+
   const hours = Math.floor(durationS / 3_600);
   const minutes = Math.round((durationS % 3_600) / 60);
-  return `${hours}:${String(minutes).padStart(2, "0")}`;
+  return say("plan.view.duration.clock", {
+    major: format.number(hours, { useGrouping: false }),
+    minor: format.number(minutes, { useGrouping: false, minimumIntegerDigits: 2 }),
+  });
 }
 
-function finishRange(value: { readonly min: number; readonly max: number }): string {
-  const format = (minutes: number): string => {
+function finishRange(
+  phrasebook: Phrasebook,
+  value: { readonly min: number; readonly max: number },
+): string {
+  const { say, format } = phrasebook;
+
+  const duration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const rest = minutes % 60;
-    return `${hours} h ${String(rest).padStart(2, "0")}`;
+    return say("plan.view.finishRange.hoursMinutes", {
+      hours: format.number(hours, { useGrouping: false }),
+      value2: format.number(rest, { useGrouping: false, minimumIntegerDigits: 2 }),
+    });
   };
-  return `${format(value.min)}–${format(value.max)}`;
+  return `${duration(value.min)}–${duration(value.max)}`;
 }
 
-function decimalHours(durationS: number): string {
-  return `${(durationS / 3_600).toFixed(1)} h`;
+function decimalHours(phrasebook: Phrasebook, durationS: number): string {
+  const { say, format } = phrasebook;
+
+  return say("plan.view.decimalHours.hours", {
+    value1: format.number(durationS / 3_600, {
+      useGrouping: false,
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
+  });
 }
 
-function historyDuration(durationS: number | null): string {
+function historyDuration(phrasebook: Phrasebook, durationS: number | null): string {
+  const { say, format } = phrasebook;
+
   if (durationS === null) return "—";
   const hours = Math.floor(durationS / 3_600);
   const minutes = Math.floor((durationS % 3_600) / 60);
-  return `${hours}:${String(minutes).padStart(2, "0")}`;
+  return say("plan.view.duration.clock", {
+    major: format.number(hours, { useGrouping: false }),
+    minor: format.number(minutes, { useGrouping: false, minimumIntegerDigits: 2 }),
+  });
 }
 
-function historyReason(entry: PlanHistoryEntry): string | null {
+function historyReason(phrasebook: Phrasebook, entry: PlanHistoryEntry): string | null {
+  const { say } = phrasebook;
+
   if (entry.undoStatus === "eligible") {
-    return "Undo is available while this is the newest change and its Workout is future and coach-owned.";
+    return say("plan.view.appliedHistory.undoEligibility");
   }
-  if (entry.undoStatus === "undone") return "Undone; this entry remains in History.";
+  if (entry.undoStatus === "undone") return say("plan.view.historyReason.undone");
   if (entry.undoStatus !== "expired") return null;
-  if (entry.undoReason === "newer-change") return "A newer change was applied.";
-  if (entry.undoReason === "workout-not-future") return "The Workout is no longer in the future.";
+  if (entry.undoReason === "newer-change") return say("plan.view.historyReason.newerChange");
+  if (entry.undoReason === "workout-not-future") return say("plan.view.historyReason.workoutPast");
   if (entry.undoReason === "workout-not-coach-owned")
-    return "The Workout is no longer coach-owned.";
-  if (entry.undoReason === "workout-changed") return "The Workout changed after this entry.";
-  if (entry.undoReason === "plan-not-active") return "The Plan is no longer active.";
-  if (entry.undoReason === "workout-missing") return "The Workout is no longer in this Plan.";
-  return "Undo is no longer available.";
+    return say("plan.view.historyReason.workoutUnowned");
+  if (entry.undoReason === "workout-changed") return say("plan.view.historyReason.workoutChanged");
+  if (entry.undoReason === "plan-not-active") return say("plan.view.historyReason.planInactive");
+  if (entry.undoReason === "workout-missing") return say("plan.view.historyReason.workoutMissing");
+  return say("plan.view.historyReason.unavailable");
 }
 
-function historyDetail(entry: PlanHistoryEntry): string {
-  if (entry.before === null || entry.after === null) return "Approved locally";
-  const workout = `${entry.before.name} · ${historyDuration(entry.before.durationS)} → ${entry.after.name} · ${historyDuration(entry.after.durationS)}`;
+function historyDetail(phrasebook: Phrasebook, entry: PlanHistoryEntry): string {
+  const { say, format } = phrasebook;
+
+  if (entry.before === null || entry.after === null)
+    return say("plan.view.historyDetail.approvedLocally");
+  const workout = `${entry.before.name} · ${historyDuration(phrasebook, entry.before.durationS)} → ${entry.after.name} · ${historyDuration(phrasebook, entry.after.durationS)}`;
   return entry.weekLoadBefore === null || entry.weekLoadAfter === null
     ? workout
-    : `${workout} · Week load ${entry.weekLoadBefore} → ${entry.weekLoadAfter}`;
+    : say("plan.view.historyDetail.workoutLoadChange", {
+        workout: workout,
+        value2: format.number(entry.weekLoadBefore, { useGrouping: false }),
+        value3: format.number(entry.weekLoadAfter, { useGrouping: false }),
+      });
 }
 
 function PlanHistoryProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
   readonly entries: readonly PlanHistoryEntry[];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const currentPhase =
     props.data.season?.weeks.find((week) => week.status === "current")?.phase ??
     props.data.plan.phaseSummary?.[0] ??
-    "Plan";
+    say("plan.view.planView.plan");
   return (
     <div className="grid gap-6">
       <section className="flex items-start justify-between gap-row rounded-card bg-surface p-5 shadow-elev-1">
         <div className={SUPPORT_PAIR}>
           <h2 className="m-0 text-lg font-semibold">{props.data.plan.name}</h2>
           <p className="m-0 text-ink-2">
-            {currentPhase} phase
-            {props.data.plan.ftpWatts === undefined ? "" : ` · FTP ${props.data.plan.ftpWatts} W`}
+            {say("plan.view.planHistory.phaseSummary", {
+              currentPhase: currentPhase,
+              value1:
+                props.data.plan.ftpWatts === undefined
+                  ? ""
+                  : say("plan.view.active.ftpSummary", {
+                      value1: format.number(props.data.plan.ftpWatts, { useGrouping: false }),
+                    }),
+            })}
           </p>
         </div>
-        <span className="rounded-chip bg-sunk px-3 py-1 text-sm text-ok">Active</span>
+        <span className="rounded-chip bg-sunk px-3 py-1 text-sm text-ok">
+          {say("plan.view.planHistory.active")}
+        </span>
       </section>
       <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
         <div className={SUPPORT_PAIR}>
@@ -198,9 +265,9 @@ function PlanHistoryProjection(props: {
             tabIndex={-1}
             className="m-0 text-lg font-semibold outline-none"
           >
-            Plan changes
+            {say("plan.view.planHistory.planChanges")}
           </h2>
-          <p className="m-0 text-ink-2">Saved changes cannot be edited.</p>
+          <p className="m-0 text-ink-2">{say("plan.view.planHistory.immutableDescription")}</p>
         </div>
         <div className="relative grid pl-8">
           <span className="absolute bottom-4 left-[7px] top-4 w-px bg-line" aria-hidden="true" />
@@ -217,12 +284,12 @@ function PlanHistoryProjection(props: {
                 <div className={SUPPORT_PAIR}>
                   <h3 className="m-0 text-base font-semibold">{entry.label}</h3>
                   <p className="m-0 text-sm text-ink-2">
-                    {new Intl.DateTimeFormat(undefined, {
+                    {format.date(new Date(entry.occurredAtMs), {
                       dateStyle: "medium",
                       timeStyle: "short",
-                    }).format(new Date(entry.occurredAtMs))}
+                    })}
                     {" · "}
-                    {historyDetail(entry)}
+                    {historyDetail(phrasebook, entry)}
                   </p>
                 </div>
                 {entry.undoStatus === "eligible" ? (
@@ -232,12 +299,12 @@ function PlanHistoryProjection(props: {
                     onClick={() => actions?.undoPlanChange(entry.id)}
                   >
                     <Undo2 className="size-4" aria-hidden="true" />
-                    Undo
+                    {say("chat.planChange.undo")}
                   </Button>
                 ) : null}
               </div>
-              {historyReason(entry) === null ? null : (
-                <p className="m-0 text-sm text-ink-2">{historyReason(entry)}</p>
+              {historyReason(phrasebook, entry) === null ? null : (
+                <p className="m-0 text-sm text-ink-2">{historyReason(phrasebook, entry)}</p>
               )}
             </article>
           ))}
@@ -246,8 +313,12 @@ function PlanHistoryProjection(props: {
       <section className="overflow-hidden rounded-card bg-surface shadow-elev-1">
         <div className="flex flex-col gap-inset px-5 py-row sm:flex-row sm:items-center sm:justify-between">
           <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-base font-semibold">Plan settings</h2>
-            <p className="m-0 text-sm text-ink-2">Auto-apply and Weekly review.</p>
+            <h2 className="m-0 text-base font-semibold">
+              {say("plan.view.planSettings.planSettings")}
+            </h2>
+            <p className="m-0 text-sm text-ink-2">
+              {say("plan.view.planHistory.settingsDescription")}
+            </p>
           </div>
           <Button
             id="plan-settings-trigger"
@@ -255,12 +326,12 @@ function PlanHistoryProjection(props: {
             variant="outline"
             onClick={() => actions?.openPlanSettings()}
           >
-            Open settings
+            {say("plan.view.planHistory.openSettings")}
           </Button>
         </div>
         <div className="flex flex-col gap-inset border-t border-line px-5 py-row sm:flex-row sm:items-center sm:justify-between">
           <p className="m-0 text-sm text-ink-2">
-            End this Plan. Today’s workout stays; tomorrow-onward Enduragent workouts are removed.
+            {say("plan.view.planHistory.endDescription", { product: "Enduragent" })}
           </p>
           <Button
             id="plan-end-trigger"
@@ -268,7 +339,7 @@ function PlanHistoryProjection(props: {
             variant="destructive"
             onClick={() => actions?.openEndConfirmation()}
           >
-            End Plan
+            {say("plan.view.active.endPlan")}
           </Button>
         </div>
       </section>
@@ -280,12 +351,20 @@ function PlanSettingsProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
   readonly scenarioId: string;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const pending = useEnduragentStore((state) => state.plan.settingPending);
   const settings = props.data.settings;
   if (settings === undefined) {
-    return <StatusCard title="Plan settings" support="Refreshing Plan settings…" />;
+    return (
+      <StatusCard
+        title={say("plan.view.planSettings.planSettings")}
+        support={say("plan.view.planSettings.refreshing")}
+      />
+    );
   }
   const saving =
     (transition.status === "submitting" || transition.status === "running") &&
@@ -310,14 +389,18 @@ function PlanSettingsProjection(props: {
               className={`m-0 text-sm ${failed ? "text-danger" : saved ? "text-ok" : "text-ink-2"}`}
               aria-live="polite"
             >
-              {saving ? "Saving…" : failed ? "Couldn’t save · previous value restored" : "Saved"}
+              {saving
+                ? say("plan.view.ended.saving")
+                : failed
+                  ? say("plan.view.planSettings.saveFailure")
+                  : say("plan.view.ended.saved")}
             </p>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-inset">
           {failed ? (
             <Button type="button" variant="ghost" onClick={() => actions?.retry()}>
-              Retry
+              {say("plan.view.ended.retry")}
             </Button>
           ) : null}
           <button
@@ -351,25 +434,27 @@ function PlanSettingsProjection(props: {
             tabIndex={-1}
             className="m-0 text-lg font-semibold outline-none"
           >
-            Plan settings
+            {say("plan.view.planSettings.planSettings")}
           </h2>
-          <p className="m-0 text-ink-2">{props.data.plan.name} · changes save immediately</p>
+          <p className="m-0 text-ink-2">
+            {say("plan.view.planSettings.subtitle", { value1: props.data.plan.name })}
+          </p>
         </div>
         <Button type="button" variant="outline" onClick={() => actions?.closePlanSettings()}>
-          Back to history
+          {say("plan.view.historyResult.backToHistory")}
         </Button>
       </div>
       <div className="divide-y divide-line border-t border-line">
         {row(
           "auto-apply",
-          "Auto-apply",
-          "Apply eligible coach changes without approval.",
+          say("plan.view.planSettings.autoApply"),
+          say("plan.view.planSettings.autoApplyDescription"),
           settings.autoApply,
         )}
         {row(
           "weekly-review",
-          "Weekly review",
-          "Prepare one review each week.",
+          say("plan.view.weeklyReview.weeklyReview"),
+          say("plan.view.planSettings.weeklyReviewDescription"),
           settings.weeklyReview,
         )}
       </div>
@@ -381,6 +466,9 @@ function HistoryResultProjection(props: {
   readonly scenarioId: string;
   readonly entry: PlanHistoryEntry | null;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   if (props.scenarioId === "PL-S026") {
     return (
@@ -393,19 +481,19 @@ function HistoryResultProjection(props: {
               tabIndex={-1}
               className="m-0 text-lg font-semibold outline-none"
             >
-              Undo expired
+              {say("plan.view.historyResult.undoExpired")}
             </h2>
             <p className="m-0 text-ink-2">
               {props.entry === null
-                ? "This change remains in History but can no longer be undone."
-                : (historyReason(props.entry) ??
-                  "This change remains in History but can no longer be undone.")}
+                ? say("plan.view.historyResult.expiredDescription")
+                : (historyReason(phrasebook, props.entry) ??
+                  say("plan.view.historyResult.expiredDescription"))}
             </p>
           </div>
         </div>
         <div className="flex justify-end">
           <Button type="button" onClick={() => actions?.openHistory()}>
-            Back to history
+            {say("plan.view.historyResult.backToHistory")}
           </Button>
         </div>
       </section>
@@ -421,21 +509,25 @@ function HistoryResultProjection(props: {
             tabIndex={-1}
             className="m-0 text-lg font-semibold outline-none"
           >
-            Plan change undone
+            {say("plan.view.historyResult.planChangeUndone")}
           </h2>
           <p className="m-0 text-ink-2">
             {props.entry?.after === null || props.entry?.after === undefined
-              ? "The previous Workout values are restored."
-              : `${props.entry.after.name} · ${historyDuration(props.entry.after.durationS)} is restored. The seven-day Intervals window will reconcile next.`}
+              ? say("plan.view.historyResult.restoredDescription")
+              : say("plan.view.historyResult.restoredWorkoutDescription", {
+                  value1: props.entry.after.name,
+                  value2: historyDuration(phrasebook, props.entry.after.durationS),
+                  intervals: "Intervals",
+                })}
           </p>
         </div>
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => actions?.openHistory()}>
-          View history
+          {say("plan.view.historyResult.viewHistory")}
         </Button>
         <Button type="button" onClick={() => actions?.closeHistory()}>
-          Back to Plan
+          {say("plan.view.planView.backToPlan")}
         </Button>
       </div>
     </section>
@@ -446,6 +538,9 @@ function AppliedHistoryProjection(props: {
   readonly entry: PlanHistoryEntry | null;
   readonly autoApplied?: boolean;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const before = props.entry?.before ?? null;
   const after = props.entry?.after ?? null;
@@ -461,28 +556,28 @@ function AppliedHistoryProjection(props: {
           >
             {props.autoApplied
               ? after === null
-                ? "Plan updated"
-                : `${after.name} applied automatically`
+                ? say("plan.view.appliedHistory.planUpdated")
+                : say("plan.view.appliedHistory.automaticTitle", { value1: after.name })
               : after === null
-                ? "Plan updated"
-                : `${after.name} is now active`}
+                ? say("plan.view.appliedHistory.planUpdated")
+                : say("plan.view.appliedHistory.approvedTitle", { value1: after.name })}
           </h2>
           <p className="m-0 text-ink-2">
             {props.autoApplied
-              ? "Auto-apply reduced one future Workout after every safety rule passed. The seven-day Intervals update has not started yet."
-              : "The approved change is part of your Plan. The seven-day Intervals update has not started yet."}
+              ? say("plan.view.appliedHistory.automaticDescription", { intervals: "Intervals" })
+              : say("plan.view.appliedHistory.approvedDescription", { intervals: "Intervals" })}
           </p>
         </div>
       </div>
       {before === null || after === null ? null : (
         <BeforeAfterList
-          label="Workout change"
+          label={say("plan.view.appliedHistory.workoutChange")}
           rows={[
             {
               id: props.entry?.id ?? "workout",
-              label: "Workout",
-              before: `${before.name} · ${historyDuration(before.durationS)}`,
-              after: `${after.name} · ${historyDuration(after.durationS)}`,
+              label: say("chat.planChange.workout"),
+              before: `${before.name} · ${historyDuration(phrasebook, before.durationS)}`,
+              after: `${after.name} · ${historyDuration(phrasebook, after.durationS)}`,
             },
           ]}
         />
@@ -491,21 +586,24 @@ function AppliedHistoryProjection(props: {
       props.entry.weekLoadBefore === null ||
       props.entry.weekLoadAfter === null ? null : (
         <div className="flex items-center justify-between gap-inset">
-          <span className="text-sm text-ink-2">Week load change</span>
+          <span className="text-sm text-ink-2">
+            {say("plan.view.appliedHistory.weekLoadChange")}
+          </span>
           <strong>
             {props.entry.weekLoadAfter - props.entry.weekLoadBefore < 0 ? "−" : "+"}
-            {Math.abs(props.entry.weekLoadAfter - props.entry.weekLoadBefore)}
+            {format.number(Math.abs(props.entry.weekLoadAfter - props.entry.weekLoadBefore), {
+              useGrouping: false,
+            })}
           </strong>
         </div>
       )}
       {props.entry?.undoStatus === "eligible" ? (
         <div className="flex flex-col gap-inset sm:flex-row sm:items-center sm:justify-between">
           <p className="m-0 text-sm text-ink-2">
-            Undo is available while this is the newest change and its Workout is future and
-            coach-owned.
+            {say("plan.view.appliedHistory.undoEligibility")}
           </p>
           <span className="self-start rounded-full bg-sunk px-3 py-1 text-sm text-ink-2">
-            Eligible
+            {say("plan.view.appliedHistory.eligible")}
           </span>
         </div>
       ) : null}
@@ -517,11 +615,11 @@ function AppliedHistoryProjection(props: {
             onClick={() => actions?.undoPlanChange(props.entry!.id)}
           >
             <Undo2 className="size-4" aria-hidden="true" />
-            Undo
+            {say("chat.planChange.undo")}
           </Button>
         ) : null}
         <Button type="button" onClick={() => actions?.closeHistory()}>
-          Back to Plan
+          {say("plan.view.planView.backToPlan")}
         </Button>
       </div>
     </section>
@@ -529,14 +627,14 @@ function AppliedHistoryProjection(props: {
 }
 
 const MATCH_STATUS_COPY = {
-  "as-planned": "As planned",
-  adjusted: "Adjusted",
-  moved: "Moved",
-  missed: "Missed",
-  extra: "Extra",
-  "decision-needed": "Decision needed",
-  "awaiting-sync": "Awaiting sync",
-  upcoming: "Planned",
+  "as-planned": "plan.view.labels.asPlanned",
+  adjusted: "plan.view.readiness.adjusted",
+  moved: "plan.view.labels.moved",
+  missed: "plan.view.labels.missed",
+  extra: "plan.view.labels.extra",
+  "decision-needed": "plan.view.active.decisionNeeded",
+  "awaiting-sync": "plan.view.labels.awaitingSync",
+  upcoming: "plan.view.season.planned",
 } as const;
 
 function matchStatusClass(status: keyof typeof MATCH_STATUS_COPY): string {
@@ -547,11 +645,14 @@ function matchStatusClass(status: keyof typeof MATCH_STATUS_COPY): string {
 }
 
 function RetryButton(): ReactElement | null {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   if (actions === null) return null;
   return (
     <Button type="button" variant="outline" onClick={() => actions.retry()}>
-      Retry
+      {say("plan.view.ended.retry")}
     </Button>
   );
 }
@@ -574,6 +675,9 @@ function StatusCard(props: {
 function ChatOriginatedPlanResultProjection(props: {
   readonly data: ReturnType<typeof PlanChatOriginatedResultProjectionDataSchema.parse>;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const planningActions = useEnduragentStore((state) => state.planningReadActions);
   const planActions = useEnduragentStore((state) => state.planActions);
   const model = useEnduragentStore((state) => planReadModel(state.plan));
@@ -593,13 +697,16 @@ function ChatOriginatedPlanResultProjection(props: {
         )}
         <div className={SUPPORT_PAIR}>
           <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-2">
-            Plan result
+            {say("plan.view.chatOriginatedPlanResult.planResult")}
           </p>
           <h2 className="m-0 text-lg font-semibold">
-            {terminal?.title ?? (applied ? "Added to Plan" : "Proposal not added")}
+            {terminal?.title ??
+              (applied
+                ? say("plan.view.chatOriginatedPlanResult.addedToPlan")
+                : say("plan.view.chatOriginatedPlanResult.proposalNotAdded"))}
           </h2>
           <p className="m-0 text-ink-2">
-            {terminal?.detail ?? "This request is complete and cannot be changed."}
+            {terminal?.detail ?? say("plan.view.chatOriginatedPlanResult.completedDescription")}
           </p>
         </div>
       </div>
@@ -610,12 +717,12 @@ function ChatOriginatedPlanResultProjection(props: {
             variant="outline"
             onClick={() => planningActions?.returnToChatRequest(request.requestId)}
           >
-            Back to Chat
+            {say("plan.view.chatOriginatedPlanResult.backToChat")}
           </Button>
         )}
         {applied && model?.planId !== null && model?.planId !== undefined ? (
           <Button type="button" onClick={() => planActions?.open()}>
-            Open current week
+            {say("plan.view.chatOriginatedPlanResult.openCurrentWeek")}
           </Button>
         ) : null}
       </div>
@@ -631,15 +738,17 @@ function StaleNotice(props: { readonly message: string }): ReactElement {
   );
 }
 
-function courseSummaryCopy(course: PlanRaceCourseSummary): string {
-  const distance = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
-    course.distanceM / 1_000,
-  );
+function courseSummaryCopy(phrasebook: Phrasebook, course: PlanRaceCourseSummary): string {
+  const { say, format } = phrasebook;
+
+  const distance = format.number(course.distanceM / 1_000, { maximumFractionDigits: 1 });
   const elevation =
     course.elevationGainM === null
-      ? "Elevation unavailable"
-      : `${Math.round(course.elevationGainM).toLocaleString()} m climbing`;
-  return `${distance} km · ${elevation}`;
+      ? say("plan.view.courseSummary.elevationUnavailable")
+      : say("plan.view.courseSummary.elevation", {
+          value1: format.number(Math.round(course.elevationGainM)),
+        });
+  return say("plan.view.courseSummary.summary", { distance: distance, elevation: elevation });
 }
 
 function CourseActions(props: {
@@ -649,6 +758,9 @@ function CourseActions(props: {
   readonly continueWithout?: boolean;
   readonly remove?: boolean;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const busy = transition.status === "submitting" || transition.status === "running";
@@ -661,7 +773,7 @@ function CourseActions(props: {
           disabled={actions === null || busy}
           onClick={() => actions?.openCoursePicker()}
         >
-          Replace file
+          {say("plan.view.raceCourse.replaceFile")}
         </Button>
       ) : null}
       {props.routeOnly === true ? (
@@ -671,7 +783,7 @@ function CourseActions(props: {
           disabled={actions === null || busy}
           onClick={() => actions?.useCourseWithoutElevation()}
         >
-          Use route only
+          {say("plan.view.courseActions.useRouteOnly")}
         </Button>
       ) : null}
       {props.retry === true ? (
@@ -681,7 +793,7 @@ function CourseActions(props: {
           disabled={actions === null || busy}
           onClick={() => actions?.retry()}
         >
-          Retry
+          {say("plan.view.ended.retry")}
         </Button>
       ) : null}
       {props.continueWithout === true ? (
@@ -690,7 +802,7 @@ function CourseActions(props: {
           disabled={actions === null || busy}
           onClick={() => actions?.continueWithoutCourse()}
         >
-          Continue without course
+          {say("plan.view.planCoach.continueWithoutCourse")}
         </Button>
       ) : null}
       {props.remove === true ? (
@@ -700,7 +812,7 @@ function CourseActions(props: {
           disabled={actions === null || busy}
           onClick={() => actions?.removeCourse()}
         >
-          Continue without course
+          {say("plan.view.planCoach.continueWithoutCourse")}
         </Button>
       ) : null}
     </div>
@@ -711,6 +823,9 @@ function RaceCoursePanel(props: {
   readonly course: PlanRaceCourseProjection;
   readonly draft: boolean;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const busy =
@@ -726,12 +841,14 @@ function RaceCoursePanel(props: {
         />
         <div className={SUPPORT_PAIR}>
           <h3 className="m-0 text-sm font-medium">
-            {recalculating ? "Recalculating Draft" : "Reading Race Course"}
+            {recalculating
+              ? say("plan.view.raceCourse.recalculatingDraft")
+              : say("plan.view.raceCourse.readingRaceCourse")}
           </h3>
           <p className="m-0 text-ink-2">
             {recalculating
-              ? "Your previous Draft stays available until this update is complete."
-              : "Checking route shape, distance, and elevation."}
+              ? say("plan.view.draftFormation.updateDescription")
+              : say("plan.view.raceCourse.readingDescription")}
           </p>
         </div>
       </section>
@@ -745,12 +862,12 @@ function RaceCoursePanel(props: {
           <MapPinned className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
           <div className={`${SUPPORT_PAIR} min-w-0 flex-1`}>
             <h3 className="m-0 text-sm font-medium">{course.accepted.fileName}</h3>
-            <p className="m-0 text-ink-2">{courseSummaryCopy(course.accepted)}</p>
+            <p className="m-0 text-ink-2">{courseSummaryCopy(phrasebook, course.accepted)}</p>
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-inset pt-inset">
           <Button type="button" variant="outline" onClick={() => actions?.openCoursePicker()}>
-            Replace file
+            {say("plan.view.raceCourse.replaceFile")}
           </Button>
           <Button
             type="button"
@@ -759,7 +876,7 @@ function RaceCoursePanel(props: {
               props.draft ? actions?.removeCourse() : actions?.continueWithoutCourse()
             }
           >
-            Continue without course
+            {say("plan.view.planCoach.continueWithoutCourse")}
           </Button>
         </div>
       </section>
@@ -771,7 +888,9 @@ function RaceCoursePanel(props: {
         <div className="flex items-start gap-row">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-sm font-medium">This file can’t be read</h3>
+            <h3 className="m-0 text-sm font-medium">
+              {say("plan.view.raceCourse.unreadableTitle")}
+            </h3>
             <p className="m-0 text-ink-2">{course.detail}</p>
           </div>
         </div>
@@ -785,8 +904,10 @@ function RaceCoursePanel(props: {
         <div className="flex items-start gap-row">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-sm font-medium">Route found, elevation missing</h3>
-            <p className="m-0 text-ink-2">{courseSummaryCopy(course.candidate)}</p>
+            <h3 className="m-0 text-sm font-medium">
+              {say("plan.view.raceCourse.missingElevationTitle")}
+            </h3>
+            <p className="m-0 text-ink-2">{courseSummaryCopy(phrasebook, course.candidate)}</p>
           </div>
         </div>
         <CourseActions replace routeOnly continueWithout />
@@ -799,8 +920,12 @@ function RaceCoursePanel(props: {
         <div className="flex items-start gap-row">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-sm font-medium">Draft recalculation failed</h3>
-            <p className="m-0 text-ink-2">Your previous Draft is unchanged.</p>
+            <h3 className="m-0 text-sm font-medium">
+              {say("plan.view.raceCourse.draftRecalculationFailed")}
+            </h3>
+            <p className="m-0 text-ink-2">
+              {say("plan.view.raceCourse.yourPreviousDraftIsUnchanged")}
+            </p>
           </div>
         </div>
         <CourseActions retry replace continueWithout />
@@ -813,16 +938,16 @@ function RaceCoursePanel(props: {
         <div className="flex items-start gap-row">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-sm font-medium">Couldn’t continue without a Race Course</h3>
-            <p className="m-0 text-ink-2">Nothing changed.</p>
+            <h3 className="m-0 text-sm font-medium">{say("plan.view.raceCourse.skipFailure")}</h3>
+            <p className="m-0 text-ink-2">{say("plan.view.raceCourse.nothingChanged")}</p>
           </div>
         </div>
         <div className="flex justify-end gap-inset pt-inset">
           <Button type="button" variant="outline" onClick={() => actions?.returnToCoach()}>
-            Back to coach
+            {say("plan.view.draft.backToCoach")}
           </Button>
           <Button type="button" onClick={() => actions?.retry()}>
-            Retry
+            {say("plan.view.ended.retry")}
           </Button>
         </div>
       </section>
@@ -831,20 +956,24 @@ function RaceCoursePanel(props: {
   return (
     <section className="grid gap-row rounded-card bg-sunk p-4">
       <div className={SUPPORT_PAIR}>
-        <h3 className="m-0 text-sm font-medium">Race Course · optional</h3>
+        <h3 className="m-0 text-sm font-medium">
+          {say("plan.view.raceCourse.raceCourseOptional")}
+        </h3>
         <p className="m-0 text-ink-2">
           {course.status === "omitted"
-            ? "This Draft stays course-agnostic."
-            : "Add a GPX or FIT file, or continue without one."}
+            ? say("plan.view.raceCourse.skippedDescription")
+            : say("plan.view.raceCourse.attachDescription", { gpx: "GPX", fit: "FIT" })}
         </p>
       </div>
       <div className="flex flex-wrap justify-end gap-inset pt-inset">
         <Button type="button" variant="outline" onClick={() => actions?.openCoursePicker()}>
-          {course.status === "omitted" ? "Add file" : "Attach GPX/FIT"}
+          {course.status === "omitted"
+            ? say("plan.view.raceCourse.addFile")
+            : say("plan.view.raceCourse.attachCourse", { gpx: "GPX", fit: "FIT" })}
         </Button>
         {course.status === "undecided" ? (
           <Button type="button" onClick={() => actions?.continueWithoutCourse()}>
-            Continue without course
+            {say("plan.view.planCoach.continueWithoutCourse")}
           </Button>
         ) : null}
       </div>
@@ -853,6 +982,9 @@ function RaceCoursePanel(props: {
 }
 
 function CoursePickerDialog(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const open = useEnduragentStore((state) => state.plan.coursePicker);
   const actions = useEnduragentStore((state) => state.planActions);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -869,17 +1001,19 @@ function CoursePickerDialog(): ReactElement {
         initialFocus={cancel}
       >
         <DialogHeader className="gap-2.5">
-          <DialogTitle className="m-0 text-xl">Add Race Course</DialogTitle>
+          <DialogTitle className="m-0 text-xl">
+            {say("plan.view.coursePicker.addRaceCourse")}
+          </DialogTitle>
           <DialogDescription className="m-0 leading-[1.5]">
-            Choose a GPX or FIT file. Your Draft stays here while it is checked.
+            {say("plan.view.coursePicker.description", { gpx: "GPX", fit: "FIT" })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mx-0 mt-[22px] mb-0 flex-row justify-end border-0 bg-transparent p-0">
           <DialogClose render={<Button ref={cancel} variant="outline" size="lg" />}>
-            Cancel
+            {say("common.cancel")}
           </DialogClose>
           <Button type="button" size="lg" onClick={() => actions?.chooseCourseFile()}>
-            Choose file
+            {say("plan.view.coursePicker.chooseFile")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -888,15 +1022,23 @@ function CoursePickerDialog(): ReactElement {
 }
 
 function PlanQueue(): ReactElement | null {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+
   const queue = useEnduragentStore((state) => state.plan.coach.queued);
   const retry = useEnduragentStore((state) => state.plan.coach.retryRequired);
   const actions = useEnduragentStore((state) => state.planActions);
   if (queue.length === 0) return null;
   return (
-    <section className="overflow-hidden rounded-card bg-sunk" aria-label="Queued coach messages">
+    <section
+      className="overflow-hidden rounded-card bg-sunk"
+      aria-label={say("plan.view.planQueue.queuedCoachMessages")}
+    >
       <div className="flex min-h-ctl items-center justify-between px-ctl-px">
-        <h3 className="m-0 text-xs font-semibold">Queued messages</h3>
-        <span className="rounded-chip bg-surface px-inset text-xs text-ink-2">{queue.length}</span>
+        <h3 className="m-0 text-xs font-semibold">{say("plan.view.planQueue.queuedMessages")}</h3>
+        <span className="rounded-chip bg-surface px-inset text-xs text-ink-2">
+          {format.number(queue.length, { useGrouping: false })}
+        </span>
       </div>
       {retry === null ? null : (
         <div className="border-t border-line px-ctl-px py-inset">
@@ -907,7 +1049,7 @@ function PlanQueue(): ReactElement | null {
             disabled={actions === null}
             onClick={() => actions?.retryQueuedCoachTurn(retry.claimId)}
           >
-            Retry interrupted message
+            {say("plan.view.planQueue.retryInterruptedMessage")}
           </Button>
         </div>
       )}
@@ -919,11 +1061,13 @@ function PlanQueue(): ReactElement | null {
               type="button"
               variant="ghost"
               size="xs"
-              aria-label={`Remove queued message ${index + 1}`}
+              aria-label={say("plan.view.planQueue.removeMessageLabel", {
+                value1: format.number(index + 1, { useGrouping: false }),
+              })}
               disabled={actions === null || retry?.queuedMessageIds.includes(message.id) === true}
               onClick={() => actions?.removeQueuedCoachMessage(message.id)}
             >
-              Remove
+              {say("plan.view.planQueue.remove")}
             </Button>
           </li>
         ))}
@@ -942,13 +1086,22 @@ const FTP_SCENARIOS = new Set([
   "PL-S062",
 ]);
 
-function ftpSourceCopy(value: PlanFtpSourceValue | null, empty: string): string {
+function ftpSourceCopy(
+  phrasebook: Phrasebook,
+  value: PlanFtpSourceValue | null,
+  empty: string,
+): string {
+  const { say, format } = phrasebook;
+
   if (value === null) return empty;
-  const refreshed = new Intl.DateTimeFormat(undefined, {
+  const refreshed = format.date(value.refreshedAtMs, {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(value.refreshedAtMs);
-  return `${value.watts} W · ${refreshed}`;
+  });
+  return say("plan.view.ftpSource.sourceSummary", {
+    value1: format.number(value.watts, { useGrouping: false }),
+    refreshed: refreshed,
+  });
 }
 
 function FtpSourceRow(props: {
@@ -957,18 +1110,24 @@ function FtpSourceRow(props: {
   readonly empty: string;
   readonly selected: boolean;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-inset">
       <span className="text-sm font-medium">{props.label}</span>
       <span className={props.selected ? "text-sm text-primary" : "text-sm text-ink-2"}>
-        {ftpSourceCopy(props.value, props.empty)}
-        {props.selected ? " · Used for this Draft" : ""}
+        {ftpSourceCopy(phrasebook, props.value, props.empty)}
+        {props.selected ? say("plan.view.ftpSourceRow.usedForThisDraft") : ""}
       </span>
     </div>
   );
 }
 
 function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
@@ -988,7 +1147,7 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
     event.preventDefault();
     const value = Number(watts);
     if (!/^\d{1,4}$/u.test(watts) || !Number.isSafeInteger(value) || value < 1) {
-      setValidation("Enter 1–9999 whole watts.");
+      setValidation(say("plan.view.ftpResolution.wattsValidation"));
       return;
     }
     setValidation(null);
@@ -999,11 +1158,11 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
     failure ??
     validation ??
     (model?.scenarioId === "PL-S058"
-      ? "No FTP was found in Intervals. Enter watts or refresh again."
+      ? say("plan.view.ftpResolution.missingSourceDescription", { intervals: "Intervals" })
       : model?.scenarioId === "PL-S060"
-        ? "Sources differ. The highest-precedence value is selected for this Draft."
+        ? say("plan.view.ftpResolution.conflictingSourcesDescription")
         : model?.scenarioId === "PL-S062"
-          ? "FTP saved. Returning to your Plan coach…"
+          ? say("plan.view.ftpResolution.savedDescription")
           : null);
   const scenario = busy && pending === "refresh" ? "PL-S057" : model?.scenarioId;
   const accepted = model?.scenarioId === "PL-S062";
@@ -1021,15 +1180,15 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
         )}
         <div className={SUPPORT_PAIR}>
           <h2 className="m-0 text-base font-semibold">
-            FTP needed before we build your cycling block
+            {say("plan.view.ftpResolution.ftpRequiredTitle")}
           </h2>
-          <p className="m-0 text-ink-2">Power targets require an FTP value.</p>
+          <p className="m-0 text-ink-2">{say("plan.view.ftpResolution.ftpRequiredDescription")}</p>
         </div>
       </div>
       <form className="flex flex-wrap items-start gap-inset" onSubmit={submit}>
         <div className={SUPPORT_PAIR}>
           <label className="sr-only" htmlFor="plan-ftp-watts">
-            FTP in whole watts
+            {say("plan.view.ftpResolution.wattsLabel")}
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -1037,7 +1196,7 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
               className="h-ctl w-28 rounded-ctl border border-line-2 bg-sunk px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
               inputMode="numeric"
               maxLength={4}
-              placeholder="e.g. 282"
+              placeholder={say("plan.view.ftpResolution.wattsPlaceholder")}
               value={watts}
               disabled={busy}
               aria-invalid={validation === null ? undefined : "true"}
@@ -1048,7 +1207,7 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
           </div>
         </div>
         <Button type="submit" disabled={actions === null || busy || watts.length === 0}>
-          {busy && pending === "save" ? "Saving…" : "Save"}
+          {busy && pending === "save" ? say("plan.view.ended.saving") : say("common.save")}
         </Button>
       </form>
       {notice === null ? null : (
@@ -1062,25 +1221,25 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
       )}
       <section aria-labelledby="plan-ftp-source-status">
         <h3 id="plan-ftp-source-status" className="m-0 text-sm font-medium">
-          Source status
+          {say("plan.view.ftpResolution.sourceStatus")}
         </h3>
         <div className="mt-inset divide-y divide-line">
           <FtpSourceRow
-            label="Athlete-entered FTP"
+            label={say("plan.view.planCoach.athleteEnteredFTP")}
             value={props.ftp.manual}
-            empty="Not entered"
+            empty={say("plan.view.ftpResolution.notEntered")}
             selected={props.ftp.usedSource === "manual"}
           />
           <FtpSourceRow
-            label="Intervals FTP"
+            label={say("chat.planChange.ftpSource.intervalsFtp", { provider: "Intervals" })}
             value={props.ftp.intervalsFtp}
-            empty="Not found"
+            empty={say("plan.view.ftpResolution.notFound")}
             selected={props.ftp.usedSource === "intervals-ftp"}
           />
           <FtpSourceRow
-            label="Intervals eFTP"
+            label={say("chat.planChange.ftpSource.intervalsEftp", { provider: "Intervals" })}
             value={props.ftp.intervalsEftp}
-            empty="Not found"
+            empty={say("plan.view.ftpResolution.notFound")}
             selected={props.ftp.usedSource === "intervals-eftp"}
           />
         </div>
@@ -1100,10 +1259,10 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
             aria-hidden="true"
           />
           {busy && pending === "refresh"
-            ? "Refreshing…"
+            ? say("plan.view.ftpResolution.refreshing")
             : model?.scenarioId === "PL-S059"
-              ? "Retry"
-              : "Refresh Intervals"}
+              ? say("plan.view.ended.retry")
+              : say("plan.view.ftpResolution.refreshIntervals", { intervals: "Intervals" })}
         </Button>
       </div>
     </section>
@@ -1111,6 +1270,9 @@ function FtpResolution(props: { readonly ftp: PlanFtpProjection }): ReactElement
 }
 
 function PlanCoach(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+
   const composer = useRef<ComposerHandle>(null);
   const conversation = useRef<HTMLElement>(null);
   const followsLatest = useRef(true);
@@ -1170,11 +1332,13 @@ function PlanCoach(): ReactElement {
       >
         <div className="flex flex-col gap-row sm:flex-row sm:items-start sm:justify-between">
           <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-lg font-semibold">Plan conversation</h2>
-            <p className="m-0 text-ink-2">Read-only history for this ended Plan.</p>
+            <h2 className="m-0 text-lg font-semibold">
+              {say("plan.view.planCoach.planConversation")}
+            </h2>
+            <p className="m-0 text-ink-2">{say("plan.view.planCoach.historyDescription")}</p>
           </div>
           <Button type="button" variant="outline" onClick={() => actions?.closeEndedConversation()}>
-            Back to ended Plan
+            {say("plan.view.planCoach.backToEndedPlan")}
           </Button>
         </div>
         <div className="border-t border-line pt-row">
@@ -1194,24 +1358,24 @@ function PlanCoach(): ReactElement {
 
   if (ready) {
     const weekdayLabels: Record<string, string> = {
-      mon: "Monday",
-      tue: "Tuesday",
-      wed: "Wednesday",
-      thu: "Thursday",
-      fri: "Friday",
-      sat: "Saturday",
-      sun: "Sunday",
+      mon: say("plan.view.planCoach.monday"),
+      tue: say("plan.view.planCoach.tuesday"),
+      wed: say("plan.view.planCoach.wednesday"),
+      thu: say("plan.view.planCoach.thursday"),
+      fri: say("plan.view.planCoach.friday"),
+      sat: say("plan.view.planCoach.saturday"),
+      sun: say("plan.view.planCoach.sunday"),
     };
     const intake = data?.intake;
     const ftp = data?.ftp;
     const course = data?.course;
     const sourceLabel =
       ftp?.usedSource === "intervals-ftp"
-        ? "Intervals FTP"
+        ? say("chat.planChange.ftpSource.intervalsFtp", { provider: "Intervals" })
         : ftp?.usedSource === "intervals-eftp"
-          ? "Intervals eFTP"
+          ? say("chat.planChange.ftpSource.intervalsEftp", { provider: "Intervals" })
           : ftp?.usedSource === "manual"
-            ? "Athlete-entered FTP"
+            ? say("plan.view.planCoach.athleteEnteredFTP")
             : null;
     return (
       <section
@@ -1225,36 +1389,43 @@ function PlanCoach(): ReactElement {
         />
         <section className="grid gap-row rounded-card bg-sunk p-4">
           <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-sm font-medium">Ready to create Draft</h2>
-            <p className="m-0 text-ink-2">
-              Goal event, availability, FTP, and course choice are ready.
-            </p>
+            <h2 className="m-0 text-sm font-medium">{say("plan.view.planCoach.readinessTitle")}</h2>
+            <p className="m-0 text-ink-2">{say("plan.view.planCoach.readinessDescription")}</p>
           </div>
           {intake === undefined ? null : (
             <dl className="m-0 grid gap-0 border-y border-line">
               <div className="grid gap-1 py-row">
-                <dt className="text-sm font-medium">Goal event</dt>
+                <dt className="text-sm font-medium">{say("plan.view.planCoach.goalEvent")}</dt>
                 <dd className="m-0 text-sm text-ink-2">
-                  {intake.eventName} · {intake.eventPriority} priority · {intake.eventDate}
+                  {say("plan.view.planCoach.goalSummary", {
+                    value1: intake.eventName ?? "",
+                    value2: intake.eventPriority ?? "",
+                    value3: intake.eventDate ?? "",
+                  })}
                 </dd>
                 <dd className="m-0 text-sm text-ink-2">{intake.goal}</dd>
               </div>
               <div className="grid gap-1 border-t border-line py-row">
-                <dt className="text-sm font-medium">Availability</dt>
+                <dt className="text-sm font-medium">
+                  {say("chat.planCreation.availabilityLabel")}
+                </dt>
                 <dd className="m-0 text-sm text-ink-2">
                   {intake.availabilityWeekdays.map((day) => weekdayLabels[day]).join(" · ")}
                 </dd>
               </div>
               <div className="grid gap-1 border-t border-line py-row">
-                <dt className="text-sm font-medium">FTP</dt>
+                <dt className="text-sm font-medium">{say("plan.view.planCoach.ftpLabel")}</dt>
                 <dd className="m-0 text-sm text-ink-2">
-                  {ftp?.usedWatts} W{sourceLabel === null ? "" : ` · ${sourceLabel}`}
+                  {say("plan.view.planCoach.ftpSummary", {
+                    value1: ftp?.usedWatts ?? "",
+                    value2: sourceLabel === null ? "" : ` · ${sourceLabel}`,
+                  })}
                 </dd>
               </div>
               <div className="grid gap-1 border-t border-line py-row">
-                <dt className="text-sm font-medium">Race Course</dt>
+                <dt className="text-sm font-medium">{say("plan.view.planCoach.raceCourse")}</dt>
                 <dd className="m-0 text-sm text-ink-2">
-                  {course?.accepted?.fileName ?? "Course-agnostic"}
+                  {course?.accepted?.fileName ?? say("plan.view.planCoach.courseAgnostic")}
                 </dd>
               </div>
             </dl>
@@ -1267,13 +1438,15 @@ function PlanCoach(): ReactElement {
               <div className="flex items-start gap-row">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
                 <div className={SUPPORT_PAIR}>
-                  <h3 className="m-0 text-sm font-medium">Draft wasn’t created</h3>
+                  <h3 className="m-0 text-sm font-medium">
+                    {say("plan.view.planCoach.creationFailure")}
+                  </h3>
                   <p className="m-0 text-ink-2">{transition.error.message}</p>
                 </div>
               </div>
               <div className="flex justify-end">
                 <Button type="button" variant="outline" onClick={() => actions?.retry()}>
-                  Retry
+                  {say("plan.view.ended.retry")}
                 </Button>
               </div>
             </div>
@@ -1285,14 +1458,16 @@ function PlanCoach(): ReactElement {
               disabled={actions === null || busy}
               onClick={() => actions?.backToCoachInterview()}
             >
-              Back to coach
+              {say("plan.view.draft.backToCoach")}
             </Button>
             <Button
               type="button"
               disabled={actions === null || busy}
               onClick={() => actions?.createDraft()}
             >
-              {data?.replacement ? "Create replacement draft" : "Create draft"}
+              {data?.replacement
+                ? say("plan.view.planCoach.createReplacementDraft")
+                : say("plan.view.planCoach.createDraft")}
             </Button>
           </div>
         </section>
@@ -1308,20 +1483,22 @@ function PlanCoach(): ReactElement {
     <section
       className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]"
       data-plan-scenario={model?.scenarioId}
-      aria-label="Plan coach"
+      aria-label={say("plan.view.planCoach.planCoach")}
     >
       <main
         ref={conversation}
         className="min-h-0 overflow-auto pt-[calc(var(--inset)*4)] pb-[calc(var(--inset)*3)] [overflow-anchor:none] max-[760px]:pt-[calc(var(--inset)*3)]"
-        aria-label="Plan coaching conversation"
+        aria-label={say("plan.view.planCoach.conversationLabel")}
       >
         <div className="mx-auto grid w-[min(720px,calc(100%-48px))] gap-6 max-[760px]:w-[calc(100%-32px)]">
           {model?.scenarioId === "PL-S020" ? (
             <div className="flex items-start gap-row text-ok" role="status">
               <CheckCircle2 className="mt-0.5 size-4" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-base font-medium text-ink">Draft discarded</h2>
-                <p className="m-0 text-ink-2">Your Plan conversation is still here.</p>
+                <h2 className="m-0 text-base font-medium text-ink">
+                  {say("plan.view.planCoach.draftDiscarded")}
+                </h2>
+                <p className="m-0 text-ink-2">{say("plan.view.planCoach.conversationPreserved")}</p>
               </div>
             </div>
           ) : null}
@@ -1330,7 +1507,9 @@ function PlanCoach(): ReactElement {
               className="rounded-ctl bg-[color-mix(in_srgb,var(--warn)_10%,var(--surface))] p-3 text-sm"
               role="status"
             >
-              Using {data.ftp.usedWatts} W from the selected FTP source. Other FTP sources differ.
+              {say("plan.view.planCoach.selectedFtpConflict", {
+                value1: format.number(data.ftp.usedWatts, { useGrouping: false }),
+              })}
             </div>
           ) : null}
           <ConversationTranscript
@@ -1345,8 +1524,10 @@ function PlanCoach(): ReactElement {
             >
               <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-sm font-medium">Choose another Goal Event date</h2>
-                <p className="m-0 text-ink-2">Use a date from today through 24 weeks from now.</p>
+                <h2 className="m-0 text-sm font-medium">
+                  {say("plan.view.planCoach.chooseAnotherGoalEventDate")}
+                </h2>
+                <p className="m-0 text-ink-2">{say("plan.view.planCoach.goalDateConstraints")}</p>
               </div>
             </div>
           ) : null}
@@ -1380,7 +1561,7 @@ function PlanCoach(): ReactElement {
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Attach Race Course"
+                aria-label={say("plan.view.planCoach.attachRaceCourse")}
                 disabled={actions === null || busy || coach.status === "streaming"}
                 onClick={() => actions?.openCoursePicker()}
               >
@@ -1394,7 +1575,7 @@ function PlanCoach(): ReactElement {
                   disabled={actions === null || busy || coach.status === "streaming"}
                   onClick={() => actions?.continueWithoutCourse()}
                 >
-                  Continue without course
+                  {say("plan.view.planCoach.continueWithoutCourse")}
                 </Button>
               ) : null}
             </div>
@@ -1403,8 +1584,8 @@ function PlanCoach(): ReactElement {
             status: coach.status,
             sendDisabled: coach.sendDisabled,
             inputDisabled: coach.inputDisabled || decision?.status === "unanswered",
-            placeholder: "Reply to your coach…",
-            label: "Reply to your Plan coach",
+            placeholder: say("plan.view.planCoach.replyPlaceholder"),
+            label: say("plan.view.planCoach.replyLabel"),
             allowSlashCommands: false,
             submit: (message) => actions?.submitCoach(message) ?? Promise.resolve(false),
             stop: () => actions?.stopCoach(),
@@ -1416,6 +1597,9 @@ function PlanCoach(): ReactElement {
 }
 
 function DraftFormation(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const transition = useEnduragentStore((state) => state.plan.transition);
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const revision = transition.status === "running" && transition.transitionId === "PL-T07";
@@ -1427,27 +1611,27 @@ function DraftFormation(): ReactElement {
       aria-busy="true"
       title={
         revision
-          ? "Updating your Draft"
+          ? say("plan.view.draftFormation.updatingYourDraft")
           : replacement
-            ? "Building the replacement Draft"
-            : "Building your Draft"
+            ? say("plan.view.draftFormation.buildingTheReplacementDraft")
+            : say("plan.view.draftFormation.buildingYourDraft")
       }
       summary={
         revision
-          ? "Your previous Draft stays available until this update is complete."
+          ? say("plan.view.draftFormation.updateDescription")
           : replacement
-            ? "Your current Plan stays active. The replacement Draft opens automatically."
-            : "Your Draft opens automatically when it is ready."
+            ? say("plan.view.draftFormation.replacementDescription")
+            : say("plan.view.draftFormation.creationDescription")
       }
     >
       <ProgressDisplay
         className="px-4 pb-4"
         label={
           revision
-            ? "Updating your Draft"
+            ? say("plan.view.draftFormation.updatingYourDraft")
             : replacement
-              ? "Building the replacement Draft"
-              : "Building your Draft"
+              ? say("plan.view.draftFormation.buildingTheReplacementDraft")
+              : say("plan.view.draftFormation.buildingYourDraft")
         }
         value={{ kind: "indeterminate" }}
       />
@@ -1456,6 +1640,9 @@ function DraftFormation(): ReactElement {
 }
 
 function DiscardDraftDialog(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const open = useEnduragentStore((state) => state.plan.discardConfirmation);
   const actions = useEnduragentStore((state) => state.planActions);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -1472,14 +1659,14 @@ function DiscardDraftDialog(): ReactElement {
         initialFocus={cancel}
       >
         <DialogHeader className="gap-2.5">
-          <DialogTitle className="m-0 text-xl">Discard this Draft?</DialogTitle>
+          <DialogTitle className="m-0 text-xl">{say("plan.view.discardDraft.title")}</DialogTitle>
           <DialogDescription className="m-0 leading-[1.5]">
-            Only this Draft is removed. Your Plan conversation and active Plan stay.
+            {say("plan.view.discardDraft.description")}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mx-0 mt-[22px] mb-0 flex-row justify-end border-0 bg-transparent p-0">
           <DialogClose render={<Button ref={cancel} variant="outline" size="lg" />}>
-            Cancel
+            {say("common.cancel")}
           </DialogClose>
           <Button
             type="button"
@@ -1487,7 +1674,7 @@ function DiscardDraftDialog(): ReactElement {
             size="lg"
             onClick={() => actions?.discardDraft()}
           >
-            Discard Draft
+            {say("plan.view.discardDraft.discardDraft")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1518,6 +1705,9 @@ function DatePickerDialog(props: {
   readonly plan: PlanDraftPlanProjection | null;
   readonly startDate: PlanStartDateProjection | undefined;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const open = useEnduragentStore((state) => state.plan.datePicker);
   const actions = useEnduragentStore((state) => state.planActions);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -1561,11 +1751,11 @@ function DatePickerDialog(props: {
       currentMonth: date.getUTCMonth() === visibleMonth.month,
     };
   });
-  const monthLabel = new Intl.DateTimeFormat(undefined, {
+  const monthLabel = format.date(first, {
     timeZone: "UTC",
     month: "long",
     year: "numeric",
-  }).format(first);
+  });
   const moveMonth = (offset: number): void => {
     const next = new Date(Date.UTC(visibleMonth.year, visibleMonth.month + offset, 1));
     setVisibleMonth({ year: next.getUTCFullYear(), month: next.getUTCMonth() });
@@ -1586,10 +1776,10 @@ function DatePickerDialog(props: {
 
   const primaryLabel =
     preview?.kind === "short-race-preparation"
-      ? "Use short block"
+      ? say("plan.view.datePicker.useShortBlock")
       : preview !== null && preview.raceWeekday !== 0
-        ? "Use this date"
-        : "Recalculate Plan";
+        ? say("plan.view.datePicker.useThisDate")
+        : say("plan.view.datePicker.recalculatePlan");
 
   return (
     <Dialog
@@ -1605,19 +1795,20 @@ function DatePickerDialog(props: {
         data-plan-scenario={scenario}
       >
         <DialogHeader className="gap-2.5">
-          <DialogTitle className="m-0 text-xl">Choose a start date</DialogTitle>
+          <DialogTitle className="m-0 text-xl">
+            {say("plan.view.datePicker.chooseAStartDate")}
+          </DialogTitle>
           <DialogDescription className="m-0 leading-[1.5]">
-            Past dates are unavailable. Shorter blocks stay valid; weekly preferences keep their
-            weekdays.
+            {say("plan.view.datePicker.dateConstraints")}
           </DialogDescription>
         </DialogHeader>
-        <section className="mt-5" aria-label="Plan start date calendar">
+        <section className="mt-5" aria-label={say("plan.view.datePicker.planStartDateCalendar")}>
           <div className="grid grid-cols-[40px_1fr_40px] items-center gap-inset">
             <Button
               type="button"
               variant="outline"
               size="icon-sm"
-              aria-label="Previous month"
+              aria-label={say("plan.view.datePicker.previousMonth")}
               onClick={() => moveMonth(-1)}
             >
               <ChevronLeft aria-hidden="true" />
@@ -1627,7 +1818,7 @@ function DatePickerDialog(props: {
               type="button"
               variant="outline"
               size="icon-sm"
-              aria-label="Next month"
+              aria-label={say("plan.view.datePicker.nextMonth")}
               onClick={() => moveMonth(1)}
             >
               <ChevronRight aria-hidden="true" />
@@ -1636,7 +1827,7 @@ function DatePickerDialog(props: {
           <div className="mt-inset grid grid-cols-7 gap-1" aria-hidden="true">
             {WEEKDAYS.map((weekday) => (
               <span key={weekday} className="py-1 text-center text-xs text-ink-2">
-                {weekday}
+                {say(weekday)}
               </span>
             ))}
           </div>
@@ -1649,7 +1840,7 @@ function DatePickerDialog(props: {
                   key={day.value}
                   type="button"
                   data-plan-date={day.value}
-                  aria-label={formatCivilDate(day.value, {
+                  aria-label={planDate(day.value, {
                     weekday: "long",
                     month: "long",
                     day: "numeric",
@@ -1684,7 +1875,7 @@ function DatePickerDialog(props: {
                     selectAndFocus(addCivilDate(day.value, offset));
                   }}
                 >
-                  {day.label}
+                  {format.number(day.label, { useGrouping: false })}
                 </button>
               );
             })}
@@ -1694,25 +1885,32 @@ function DatePickerDialog(props: {
           <section className="mt-5 grid gap-row rounded-card bg-sunk p-4" aria-live="polite">
             <div className={SUPPORT_PAIR}>
               <h3 className="m-0 text-sm font-semibold">
-                {preview.kind === "full-plan" ? "Full Plan" : "Short race-preparation block"}
+                {preview.kind === "full-plan"
+                  ? say("plan.view.draft.fullPlan")
+                  : say("plan.view.draft.shortRacePreparationBlock")}
               </h3>
               <p className="m-0 text-ink-2">
-                {formatCivilDate(selected)} to {formatCivilDate(targetDate)} · {preview.totalWeeks}{" "}
-                {preview.totalWeeks === 1 ? "week" : "weeks"} · {preview.inclusiveDays} inclusive
-                days
+                {say("plan.view.datePicker.dateSummary", {
+                  count: preview.totalWeeks,
+                  start: planDate(selected),
+                  end: planDate(targetDate),
+                  weeks: format.number(preview.totalWeeks, { useGrouping: false }),
+                  days: format.number(preview.inclusiveDays, { useGrouping: false }),
+                })}
               </p>
             </div>
             {preview.raceWeekday === 0 ? null : (
               <p className="m-0 text-sm text-ink-2">
-                Race day stays {formatCivilDate(targetDate, { weekday: "long" })}; the Plan week
-                follows the selected start weekday.
+                {say("plan.view.datePicker.fixedRaceDateDescription", {
+                  value1: planDate(targetDate, { weekday: "long" }),
+                })}
               </p>
             )}
           </section>
         )}
         <DialogFooter className="mx-0 mt-[22px] mb-0 flex-row justify-end border-0 bg-transparent p-0">
           <DialogClose render={<Button ref={cancel} variant="outline" size="lg" />}>
-            Cancel
+            {say("common.cancel")}
           </DialogClose>
           <Button
             type="button"
@@ -1734,6 +1932,9 @@ function DatePickerDialog(props: {
 }
 
 function DraftProjection(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
@@ -1775,34 +1976,43 @@ function DraftProjection(): ReactElement {
             aria-hidden="true"
           />
           <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-base font-semibold">Recalculating the Plan</h2>
-            <p className="m-0 text-ink-2">
-              Race day and weekly availability stay fixed. Your previous Draft remains safe.
-            </p>
+            <h2 className="m-0 text-base font-semibold">{say("plan.view.draft.recalculating")}</h2>
+            <p className="m-0 text-ink-2">{say("plan.view.draft.recalculationDescription")}</p>
           </div>
         </section>
       ) : null}
       <ArtifactCard
         headingLevel={2}
-        title={plan?.name ?? model?.title ?? "Draft Plan"}
+        title={plan?.name ?? model?.title ?? say("plan.view.draft.draftPlan")}
         summary={
           <>
             {plan === null
               ? model?.summary
-              : `${plan.workoutCount} workouts · ${plannedTime(plan.plannedDurationS)} · ${plan.phaseSummary?.join(" → ") ?? `${plan.totalWeeks} ${plan.totalWeeks === 1 ? "week" : "weeks"}`}`}
-            <p className="m-0">Calendar not started.</p>
+              : say("plan.view.draft.summary", {
+                  value1: format.number(plan.workoutCount, { useGrouping: false }),
+                  value2: plannedTime(phrasebook, plan.plannedDurationS),
+                  value3:
+                    plan.phaseSummary?.join(" → ") ??
+                    say("plan.view.draft.weeks", {
+                      count: plan.totalWeeks,
+                      weeks: format.number(plan.totalWeeks, { useGrouping: false }),
+                    }),
+                })}
+            <p className="m-0">{say("plan.view.draft.calendarNotStarted")}</p>
           </>
         }
-        status="Draft"
+        status={say("chat.planCreation.draft")}
       >
         <div className="grid gap-5 px-4 pb-4">
           {replacement ? (
             <div className="flex items-start gap-row rounded-ctl bg-sunk p-3">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-sm font-semibold">Current Plan stays active</h2>
+                <h2 className="m-0 text-sm font-semibold">
+                  {say("plan.view.draft.currentPlanStaysActive")}
+                </h2>
                 <p className="m-0 text-ink-2">
-                  It changes only after you approve this replacement Draft.
+                  {say("plan.view.draft.replacementPendingDescription")}
                 </p>
               </div>
             </div>
@@ -1811,8 +2021,10 @@ function DraftProjection(): ReactElement {
             <div className="flex items-start gap-row text-ok" role="status">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-sm font-semibold text-ink">Draft updated</h2>
-                <p className="m-0 text-ink-2">The coach applied your requested change.</p>
+                <h2 className="m-0 text-sm font-semibold text-ink">
+                  {say("plan.view.draft.draftUpdated")}
+                </h2>
+                <p className="m-0 text-ink-2">{say("plan.view.draft.updatedDescription")}</p>
               </div>
             </div>
           ) : null}
@@ -1820,8 +2032,12 @@ function DraftProjection(): ReactElement {
             <div className="flex items-start gap-row text-ok" role="status">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <div className={SUPPORT_PAIR}>
-                <h2 className="m-0 text-sm font-semibold text-ink">Start date updated</h2>
-                <p className="m-0 text-ink-2">Review the recalculated Draft before approval.</p>
+                <h2 className="m-0 text-sm font-semibold text-ink">
+                  {say("plan.view.draft.startDateUpdated")}
+                </h2>
+                <p className="m-0 text-ink-2">
+                  {say("plan.view.draft.startDateUpdatedDescription")}
+                </p>
               </div>
             </div>
           ) : null}
@@ -1835,19 +2051,19 @@ function DraftProjection(): ReactElement {
                 <div className={SUPPORT_PAIR}>
                   <h2 className="m-0 text-sm font-semibold">
                     {model.scenarioId === "PL-S046"
-                      ? "Choose another start date"
-                      : "The Plan could not be recalculated"}
+                      ? say("plan.view.draft.chooseAnotherStartDate")
+                      : say("plan.view.draft.recalculationFailure")}
                   </h2>
-                  <p className="m-0 text-ink-2">Your current Draft is safe.</p>
+                  <p className="m-0 text-ink-2">{say("plan.view.draft.preservedDescription")}</p>
                 </div>
               </div>
               <div className="flex justify-end gap-inset">
                 <Button type="button" variant="outline" onClick={() => actions?.openDatePicker()}>
-                  Choose another date
+                  {say("plan.view.draft.chooseAnotherDate")}
                 </Button>
                 {model.scenarioId === "PL-S048" ? (
                   <Button type="button" onClick={() => actions?.retry()}>
-                    Retry
+                    {say("plan.view.ended.retry")}
                   </Button>
                 ) : null}
               </div>
@@ -1862,14 +2078,14 @@ function DraftProjection(): ReactElement {
                   variant="outline"
                   onClick={() => actions?.openRevisionComposer()}
                 >
-                  Try another change
+                  {say("plan.view.draft.reviseAgain")}
                 </Button>
               </div>
             </div>
           ) : null}
           {transition.status === "failed" &&
           (transition.transitionId === "PL-T11" || transition.transitionId === "PL-T26") ? (
-            <StaleNotice message="The Plan could not be activated. Your Draft is unchanged." />
+            <StaleNotice message={say("plan.view.draft.activationFailure")} />
           ) : null}
           {data?.course !== undefined ? (
             <div className="border-t border-line pt-5">
@@ -1881,10 +2097,12 @@ function DraftProjection(): ReactElement {
               <div className="flex min-w-0 items-start gap-row">
                 <CalendarDays className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                 <div className={SUPPORT_PAIR}>
-                  <h3 className="m-0 text-sm font-semibold">Start date</h3>
+                  <h3 className="m-0 text-sm font-semibold">{say("plan.view.draft.startDate")}</h3>
                   <p className="m-0 text-ink-2">
-                    {formatCivilDate(plan.startDate)} ·{" "}
-                    {plan.kind === "full-plan" ? "Full Plan" : "Short race-preparation block"}
+                    {planDate(plan.startDate)} ·{" "}
+                    {plan.kind === "full-plan"
+                      ? say("plan.view.draft.fullPlan")
+                      : say("plan.view.draft.shortRacePreparationBlock")}
                   </p>
                 </div>
               </div>
@@ -1894,14 +2112,14 @@ function DraftProjection(): ReactElement {
                 disabled={actions === null || busy}
                 onClick={() => actions?.openDatePicker()}
               >
-                Change
+                {say("chat.planChange.change")}
               </Button>
             </div>
           ) : null}
           {revisionComposer ? (
             <form className="grid gap-inset border-t border-line pt-5" onSubmit={submit}>
               <label className="text-sm font-medium" htmlFor="plan-draft-revision">
-                What should the coach change?
+                {say("plan.view.draft.revisionLabel")}
               </label>
               <textarea
                 id="plan-draft-revision"
@@ -1917,10 +2135,10 @@ function DraftProjection(): ReactElement {
                   variant="outline"
                   onClick={() => actions?.closeRevisionComposer()}
                 >
-                  Cancel
+                  {say("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={!/\S/u.test(instruction)}>
-                  Update draft
+                  {say("plan.view.draft.updateDraft")}
                 </Button>
               </div>
             </form>
@@ -1929,8 +2147,8 @@ function DraftProjection(): ReactElement {
               <div className="flex flex-wrap items-center justify-between gap-row">
                 <p className="m-0 text-sm text-ink-2">
                   {replacement
-                    ? "Approval swaps Plans locally. New calendar writing waits for old cleanup verification."
-                    : "Approval activates the Plan, then updates today plus the next six days in Intervals."}
+                    ? say("plan.view.draft.replacementApprovalDescription")
+                    : say("plan.view.draft.approvalDescription", { intervals: "Intervals" })}
                 </p>
                 <div className="flex flex-wrap justify-end gap-inset">
                   <Button
@@ -1940,7 +2158,7 @@ function DraftProjection(): ReactElement {
                     disabled={actions === null || busy}
                     onClick={() => actions?.openRevisionComposer()}
                   >
-                    Back to coach
+                    {say("plan.view.draft.backToCoach")}
                   </Button>
                   <Button
                     type="button"
@@ -1950,17 +2168,17 @@ function DraftProjection(): ReactElement {
                   >
                     {approving
                       ? replacement
-                        ? "Checking…"
-                        : "Activating…"
+                        ? say("plan.view.active.checking")
+                        : say("plan.view.draft.activating")
                       : replacement
-                        ? "Approve replacement"
-                        : "Approve Plan"}
+                        ? say("plan.view.draft.approveReplacement")
+                        : say("plan.view.draft.approvePlan")}
                   </Button>
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-row border-t border-line pt-5">
                 <p className="m-0 text-sm text-ink-2">
-                  Discard removes only this Draft. Your Plan conversation stays.
+                  {say("plan.view.draft.discardDescription")}
                 </p>
                 <Button
                   type="button"
@@ -1968,7 +2186,7 @@ function DraftProjection(): ReactElement {
                   disabled={actions === null || busy}
                   onClick={() => actions?.openDiscardConfirmation()}
                 >
-                  Discard draft
+                  {say("plan.view.draft.discardDraft")}
                 </Button>
               </div>
             </div>
@@ -1985,11 +2203,8 @@ function DraftProjection(): ReactElement {
       >
         <DialogContent initialFocus={replacementCancel} showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Replace the active Plan?</DialogTitle>
-            <DialogDescription>
-              The old Plan ends and the replacement activates locally together. Today's workout
-              stays. New calendar writing waits for old cleanup verification.
-            </DialogDescription>
+            <DialogTitle>{say("plan.view.draft.replacementTitle")}</DialogTitle>
+            <DialogDescription>{say("plan.view.draft.replacementDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -1998,10 +2213,10 @@ function DraftProjection(): ReactElement {
               variant="outline"
               onClick={() => actions?.closeReplacementConfirmation()}
             >
-              Cancel
+              {say("common.cancel")}
             </Button>
             <Button type="button" onClick={() => actions?.confirmReplacement()}>
-              Replace Plan
+              {say("plan.view.active.replacePlan")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2011,16 +2226,27 @@ function DraftProjection(): ReactElement {
 }
 
 function AttentionProjection(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const actions = useEnduragentStore((state) => state.planActions);
-  if (model === null) return <StatusCard title="Plan attention" support="Refreshing your Plan…" />;
+  if (model === null)
+    return (
+      <StatusCard
+        title={say("plan.view.attention.planAttention")}
+        support={say("plan.view.ready.refreshing")}
+      />
+    );
   return (
     <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
       <div className={SUPPORT_PAIR}>
-        <h2 className="m-0 text-base font-medium">Plan attention</h2>
+        <h2 className="m-0 text-base font-medium">{say("plan.view.attention.planAttention")}</h2>
         <p className="m-0 text-ink-2">
-          {model.attention.count} {model.attention.count === 1 ? "item needs" : "items need"} your
-          decision.
+          {say("plan.view.attention.decisionCount", {
+            count: model.attention.count,
+            formattedCount: format.number(model.attention.count, { useGrouping: false }),
+          })}
         </p>
       </div>
       <div className="grid divide-y divide-line">
@@ -2045,6 +2271,9 @@ function WorkoutDriftProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
   readonly scenarioId: string;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const selected =
@@ -2054,7 +2283,12 @@ function WorkoutDriftProjection(props: {
         props.data.workouts.find((workout) => workout.id === props.data.selectedWorkoutId) ??
         null);
   if (selected === null) {
-    return <StatusCard title="Workout changed in Intervals" support="Refreshing this workout…" />;
+    return (
+      <StatusCard
+        title={say("plan.view.workoutDrift.title", { intervals: "Intervals" })}
+        support={say("plan.view.workoutDrift.refreshing")}
+      />
+    );
   }
   const resolving =
     (transition.status === "submitting" || transition.status === "running") &&
@@ -2064,24 +2298,35 @@ function WorkoutDriftProjection(props: {
   const drift = selected.drift;
   const heading = resolving
     ? transition.transitionId === "PL-T15"
-      ? "Updating the Plan"
-      : "Restoring Plan workout"
+      ? say("plan.view.workoutDrift.updatingThePlan")
+      : say("plan.view.workoutDrift.restoringPlanWorkout")
     : adopted
-      ? "Intervals edit adopted"
+      ? say("plan.view.workoutDrift.adoptedTitle", { intervals: "Intervals" })
       : restored
-        ? "Plan workout restored"
-        : `${formatCivilDate(selected.date, { weekday: "long" })} changed in Intervals`;
+        ? say("plan.view.workoutDrift.planWorkoutRestored")
+        : say("plan.view.workoutDrift.changedDate", {
+            value1: planDate(selected.date, { weekday: "long" }),
+            intervals: "Intervals",
+          });
   const support = resolving
     ? transition.transitionId === "PL-T15"
-      ? `Keeping the Intervals workout and recording the adopted edit in Plan history.`
-      : `Writing the Plan workout back to Intervals and verifying the match.`
+      ? say("plan.view.workoutDrift.adoptingDescription", { intervals: "Intervals" })
+      : say("plan.view.workoutDrift.restoringDescription", { intervals: "Intervals" })
     : adopted
-      ? `${selected.name} is now ${
-          selected.durationS === null ? "updated" : plannedTime(selected.durationS)
-        } in both the Plan and Intervals.`
+      ? say("plan.view.workoutDrift.adoptedDescription", {
+          value1: selected.name,
+          value2:
+            selected.durationS === null
+              ? say("plan.view.workoutDrift.updated")
+              : plannedTime(phrasebook, selected.durationS),
+          intervals: "Intervals",
+        })
       : restored
-        ? `${selected.name} matches the Plan again in Intervals.`
-        : "Choose which version becomes authoritative.";
+        ? say("plan.view.workoutDrift.restoredDescription", {
+            value1: selected.name,
+            intervals: "Intervals",
+          })
+        : say("plan.view.workoutDrift.decisionDescription");
   return (
     <div className="grid gap-6">
       <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
@@ -2089,10 +2334,16 @@ function WorkoutDriftProjection(props: {
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
             <h2 className="m-0 text-base font-semibold">
-              Plan active · week {props.data.weekIndex} of {props.data.plan.totalWeeks}
+              {say("plan.view.active.activeWeek", {
+                value1: format.number(props.data.weekIndex, { useGrouping: false }),
+                value2: format.number(props.data.plan.totalWeeks, { useGrouping: false }),
+              })}
             </h2>
             <p className="m-0 text-ink-2">
-              {props.data.plan.name} · starts {formatCivilDate(props.data.plan.startDate)}
+              {say("plan.view.workoutDrift.planStart", {
+                value1: props.data.plan.name,
+                value2: planDate(props.data.plan.startDate),
+              })}
             </p>
           </div>
         </div>
@@ -2121,23 +2372,23 @@ function WorkoutDriftProjection(props: {
           <>
             <div className="grid gap-inset rounded-card bg-sunk p-row sm:grid-cols-2">
               <div className={SUPPORT_PAIR}>
-                <p className="m-0 text-sm text-ink-2">Plan</p>
+                <p className="m-0 text-sm text-ink-2">{say("plan.view.planView.plan")}</p>
                 <p className="m-0 font-medium">{drift.plan.name}</p>
                 <p className="m-0 text-sm text-ink-2">
-                  {formatCivilDate(drift.plan.date)} ·{" "}
+                  {planDate(drift.plan.date)} ·{" "}
                   {drift.plan.durationS === null
-                    ? "No duration"
-                    : plannedTime(drift.plan.durationS)}
+                    ? say("plan.view.workoutDrift.noDuration")
+                    : plannedTime(phrasebook, drift.plan.durationS)}
                 </p>
               </div>
               <div className={SUPPORT_PAIR}>
                 <p className="m-0 text-sm text-ink-2">Intervals</p>
                 <p className="m-0 font-medium">{drift.provider.name}</p>
                 <p className="m-0 text-sm text-ink-2">
-                  {formatCivilDate(drift.provider.date)} ·{" "}
+                  {planDate(drift.provider.date)} ·{" "}
                   {drift.provider.durationS === null
-                    ? "No duration"
-                    : plannedTime(drift.provider.durationS)}
+                    ? say("plan.view.workoutDrift.noDuration")
+                    : plannedTime(phrasebook, drift.provider.durationS)}
                 </p>
               </div>
             </div>
@@ -2157,14 +2408,14 @@ function WorkoutDriftProjection(props: {
                 disabled={actions === null || resolving}
                 onClick={() => actions?.resolveWorkoutDrift(selected.id, drift.eventId, "adopt")}
               >
-                Adopt Intervals edit
+                {say("plan.view.workoutDrift.adoptCalendarEdit", { intervals: "Intervals" })}
               </Button>
               <Button
                 type="button"
                 disabled={actions === null || resolving}
                 onClick={() => actions?.resolveWorkoutDrift(selected.id, drift.eventId, "restore")}
               >
-                Restore Plan workout
+                {say("plan.view.workoutDrift.restorePlanWorkout")}
               </Button>
             </div>
           </>
@@ -2172,7 +2423,7 @@ function WorkoutDriftProjection(props: {
         {!resolving && (adopted || restored) ? (
           <div className="flex justify-end">
             <Button type="button" onClick={() => actions?.closeWorkout()}>
-              Back to Plan
+              {say("plan.view.planView.backToPlan")}
             </Button>
           </div>
         ) : null}
@@ -2185,11 +2436,19 @@ function ReplacementLifecycleProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
   readonly scenarioId: string;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const replacement = props.data.replacement;
   if (replacement === undefined) {
-    return <StatusCard title="Replacement Plan" support="Refreshing replacement history…" />;
+    return (
+      <StatusCard
+        title={say("plan.view.replacementLifecycle.replacementPlan")}
+        support={say("plan.view.replacementLifecycle.refreshing")}
+      />
+    );
   }
   const cleanupBusy =
     (transition.status === "submitting" || transition.status === "running") &&
@@ -2202,25 +2461,25 @@ function ReplacementLifecycleProjection(props: {
   const history = props.scenarioId === "PL-S087";
   const remaining = replacement.cleanupItems.filter((item) => item.status !== "verified");
   const headline = history
-    ? "Replacement complete"
+    ? say("plan.view.replacementLifecycle.replacementComplete")
     : mirrorBusy || props.scenarioId === "PL-S086"
-      ? "Writing today plus the next six days"
+      ? say("plan.view.replacementLifecycle.writingCalendar")
       : verified
-        ? "Old cleanup verified"
+        ? say("plan.view.replacementLifecycle.oldCleanupVerified")
         : failed
-          ? "Old Plan cleanup needs attention"
+          ? say("plan.view.replacementLifecycle.oldPlanCleanupNeedsAttention")
           : cleanupBusy || props.scenarioId === "PL-S084"
-            ? "Retrying old Plan cleanup"
-            : "Replacement active locally";
+            ? say("plan.view.replacementLifecycle.retryingOldPlanCleanup")
+            : say("plan.view.replacementLifecycle.replacementActiveLocally");
   const support = history
-    ? "The old cleanup verified before the replacement mirror was written."
+    ? say("plan.view.replacementLifecycle.replacementCompleteDescription")
     : mirrorBusy || props.scenarioId === "PL-S086"
-      ? "The replacement is active while its rolling Intervals mirror is verified."
+      ? say("plan.view.replacementLifecycle.mirrorVerifyingDescription", { intervals: "Intervals" })
       : verified
-        ? "No tomorrow-onward old Plan workouts remain. The replacement mirror can now write."
+        ? say("plan.view.replacementLifecycle.cleanupVerifiedDescription")
         : failed
-          ? "The replacement stays active locally. Calendar writing is blocked until old cleanup is verified."
-          : "The old Plan ended. Today stays while tomorrow-onward old workouts are removed and verified.";
+          ? say("plan.view.replacementLifecycle.cleanupBlockedDescription")
+          : say("plan.view.replacementLifecycle.cleanupPendingDescription");
 
   return (
     <section
@@ -2247,24 +2506,30 @@ function ReplacementLifecycleProjection(props: {
         </div>
         <div className="grid gap-inset border-t border-line pt-row text-sm">
           <div className="flex justify-between gap-row">
-            <span>Active Plan</span>
+            <span>{say("chat.planChange.activePlan")}</span>
             <strong>{props.data.plan.name}</strong>
           </div>
           <div className="flex justify-between gap-row">
-            <span>Previous Plan</span>
-            <strong>{replacement.previousPlan.name} · ended</strong>
+            <span>{say("plan.view.replacementLifecycle.previousPlan")}</span>
+            <strong>
+              {say("plan.view.replacementLifecycle.endedPlan", {
+                value1: replacement.previousPlan.name,
+              })}
+            </strong>
           </div>
           <div className="flex justify-between gap-row">
-            <span>Today</span>
-            <strong>Preserved</strong>
+            <span>{say("chat.planChange.today")}</span>
+            <strong>{say("plan.view.ended.preserved")}</strong>
           </div>
         </div>
         {failed && remaining.length > 0 ? (
           <div className="divide-y divide-line border-y border-line">
             {remaining.map((item) => (
               <div key={item.id} className="flex justify-between gap-row py-inset text-sm">
-                <span>{formatCivilDate(item.date)}</span>
-                <span className="text-warn">Still in Intervals</span>
+                <span>{planDate(item.date)}</span>
+                <span className="text-warn">
+                  {say("plan.view.ended.remainingCalendarEntry", { intervals: "Intervals" })}
+                </span>
               </div>
             ))}
           </div>
@@ -2272,18 +2537,30 @@ function ReplacementLifecycleProjection(props: {
         {history ? (
           <div className="grid gap-row border-t border-line pt-row text-sm">
             <div className={SUPPORT_PAIR}>
-              <strong>{props.data.plan.name} activated</strong>
-              <span className="text-ink-2">Local replacement committed</span>
-            </div>
-            <div className={SUPPORT_PAIR}>
-              <strong>{replacement.previousPlan.name} cleanup verified</strong>
+              <strong>
+                {say("plan.view.replacementLifecycle.activatedPlan", {
+                  value1: props.data.plan.name,
+                })}
+              </strong>
               <span className="text-ink-2">
-                Today preserved; tomorrow-onward old workouts removed
+                {say("plan.view.replacementLifecycle.localReplacementCommitted")}
               </span>
             </div>
             <div className={SUPPORT_PAIR}>
-              <strong>Replacement mirror current</strong>
-              <span className="text-ink-2">Today plus the next six civil dates</span>
+              <strong>
+                {say("plan.view.replacementLifecycle.cleanupVerified", {
+                  value1: replacement.previousPlan.name,
+                })}
+              </strong>
+              <span className="text-ink-2">
+                {say("plan.view.replacementLifecycle.cleanupResult")}
+              </span>
+            </div>
+            <div className={SUPPORT_PAIR}>
+              <strong>{say("plan.view.replacementLifecycle.replacementMirrorCurrent")}</strong>
+              <span className="text-ink-2">
+                {say("plan.view.replacementLifecycle.mirrorWindow")}
+              </span>
             </div>
           </div>
         ) : null}
@@ -2297,14 +2574,14 @@ function ReplacementLifecycleProjection(props: {
               disabled={actions === null || cleanupBusy}
               onClick={() => actions?.verifyReplacementCleanup()}
             >
-              Verify again
+              {say("plan.view.ended.verifyAgain")}
             </Button>
             <Button
               type="button"
               disabled={actions === null || cleanupBusy}
               onClick={() => actions?.retryReplacementCleanup()}
             >
-              Retry cleanup
+              {say("plan.view.replacementLifecycle.retryCleanup")}
             </Button>
           </>
         ) : verified ? (
@@ -2313,7 +2590,7 @@ function ReplacementLifecycleProjection(props: {
             disabled={actions === null || mirrorBusy}
             onClick={() => actions?.writeReplacementMirror()}
           >
-            Write next 7 days
+            {say("plan.view.replacementLifecycle.writeNext7Days")}
           </Button>
         ) : history ? (
           <Button
@@ -2321,7 +2598,7 @@ function ReplacementLifecycleProjection(props: {
             disabled={actions === null}
             onClick={() => actions?.openReplacementActivePlan()}
           >
-            Open active Plan
+            {say("plan.view.replacementLifecycle.openActivePlan")}
           </Button>
         ) : null}
       </div>
@@ -2332,13 +2609,16 @@ function ReplacementLifecycleProjection(props: {
 function SeasonProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const season = props.data.season;
   if (season === undefined) {
     return (
       <StatusCard
-        title="Season"
-        support="Season details are unavailable. Return to Plan and try again."
+        title={say("plan.view.season.season")}
+        support={say("plan.view.season.unavailableDescription")}
       />
     );
   }
@@ -2353,13 +2633,17 @@ function SeasonProjection(props: {
               tabIndex={-1}
               className="m-0 text-xl font-semibold outline-none"
             >
-              Season
+              {say("plan.view.season.season")}
             </h2>
             <p className="m-0 text-ink-2">
-              {props.data.plan.totalWeeks} weeks · {formatCivilDate(props.data.plan.startDate)}
-              {props.data.plan.targetDate === null
-                ? ""
-                : `–${formatCivilDate(props.data.plan.targetDate)}`}
+              {say("plan.view.season.summary", {
+                value1: format.number(props.data.plan.totalWeeks, { useGrouping: false }),
+                value2: planDate(props.data.plan.startDate),
+                value3:
+                  props.data.plan.targetDate === null
+                    ? ""
+                    : `–${planDate(props.data.plan.targetDate)}`,
+              })}
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-inset">
@@ -2370,11 +2654,11 @@ function SeasonProjection(props: {
                 variant="outline"
                 onClick={() => actions?.openRaceWeek()}
               >
-                Race week
+                {say("plan.view.raceWeek.raceWeek")}
               </Button>
             ) : null}
             <Button type="button" variant="outline" onClick={() => actions?.closeSeason()}>
-              Back to Plan
+              {say("plan.view.planView.backToPlan")}
             </Button>
           </div>
         </div>
@@ -2384,13 +2668,17 @@ function SeasonProjection(props: {
             <p className="m-0 text-sm text-ink-2">
               {props.data.plan.targetDate === null
                 ? props.data.plan.primaryGoal
-                : `${formatCivilDate(props.data.plan.targetDate, { weekday: "short", day: "numeric", month: "short" })} · ${props.data.plan.primaryGoal}`}
-              {season.distanceKm === null ? "" : ` · ${season.distanceKm} km`}
+                : `${planDate(props.data.plan.targetDate, { weekday: "short", day: "numeric", month: "short" })} · ${props.data.plan.primaryGoal}`}
+              {season.distanceKm === null
+                ? ""
+                : say("plan.view.season.distance", {
+                    value1: format.number(season.distanceKm, { useGrouping: false }),
+                  })}
             </p>
           </div>
           {season.priority === null ? null : (
             <span className="self-start rounded-full border border-warn px-3 py-1 text-sm text-warn">
-              {season.priority} priority
+              {say("plan.view.raceWeek.eventPriority", { value1: season.priority })}
             </span>
           )}
         </div>
@@ -2401,7 +2689,9 @@ function SeasonProjection(props: {
           >
             <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <p className="m-0 font-medium">Constraint · {season.constraint.title}</p>
+              <p className="m-0 font-medium">
+                {say("plan.view.season.constraint", { value1: season.constraint.title })}
+              </p>
               <p className="m-0 text-sm text-ink-2">{season.constraint.detail}</p>
             </div>
           </div>
@@ -2412,19 +2702,19 @@ function SeasonProjection(props: {
           <thead className="bg-sunk text-ink-2">
             <tr>
               <th scope="col" className="px-5 py-3 font-medium">
-                Week
+                {say("plan.view.season.week")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Dates
+                {say("plan.view.season.dates")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Phase
+                {say("plan.view.season.phase")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Plan
+                {say("plan.view.planView.plan")}
               </th>
               <th scope="col" className="px-5 py-3 text-right font-medium">
-                Hours
+                {say("plan.view.season.hours")}
               </th>
             </tr>
           </thead>
@@ -2432,12 +2722,12 @@ function SeasonProjection(props: {
             {season.weeks.map((week) => {
               const status =
                 week.status === "completed"
-                  ? "Completed"
+                  ? say("plan.view.ended.completed")
                   : week.status === "current"
-                    ? "This week"
+                    ? say("plan.view.season.thisWeek")
                     : week.status === "blocked"
-                      ? "Blocked"
-                      : "Planned";
+                      ? say("plan.view.season.blocked")
+                      : say("plan.view.season.planned");
               return (
                 <tr
                   key={week.weekIndex}
@@ -2449,11 +2739,13 @@ function SeasonProjection(props: {
                   }
                 >
                   <th scope="row" className="px-5 py-row font-medium">
-                    Wk {week.weekIndex}
+                    {say("plan.view.season.weekNumber", {
+                      value1: format.number(week.weekIndex, { useGrouping: false }),
+                    })}
                   </th>
                   <td className="px-5 py-row text-ink-2">
-                    {formatCivilDate(week.startDate, { day: "numeric", month: "short" })}–
-                    {formatCivilDate(week.endDate, { day: "numeric", month: "short" })}
+                    {planDate(week.startDate, { day: "numeric", month: "short" })}–
+                    {planDate(week.endDate, { day: "numeric", month: "short" })}
                   </td>
                   <td className="px-5 py-row">{week.phase}</td>
                   <td
@@ -2464,7 +2756,7 @@ function SeasonProjection(props: {
                     {status} · {week.purpose}
                   </td>
                   <td className="px-5 py-row text-right tabular-nums">
-                    {decimalHours(week.plannedDurationS)}
+                    {decimalHours(phrasebook, week.plannedDurationS)}
                   </td>
                 </tr>
               );
@@ -2479,11 +2771,19 @@ function SeasonProjection(props: {
 function RaceWeekProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const season = props.data.season;
   const raceWeek = season?.raceWeek;
   if (season === undefined || raceWeek === null || raceWeek === undefined) {
-    return <StatusCard title="Race week" support="This Plan has no goal-race week." />;
+    return (
+      <StatusCard
+        title={say("plan.view.raceWeek.raceWeek")}
+        support={say("plan.view.raceWeek.emptyDescription")}
+      />
+    );
   }
   return (
     <section className="grid overflow-hidden rounded-card bg-surface shadow-elev-1">
@@ -2495,48 +2795,59 @@ function RaceWeekProjection(props: {
               tabIndex={-1}
               className="m-0 text-xl font-semibold outline-none"
             >
-              Race week
+              {say("plan.view.raceWeek.raceWeek")}
             </h2>
-            <p className="m-0 text-ink-2">Final seven Plan days</p>
+            <p className="m-0 text-ink-2">{say("plan.view.raceWeek.finalSevenPlanDays")}</p>
           </div>
           <Button type="button" variant="outline" onClick={() => actions?.closeRaceWeek()}>
-            Back to Season
+            {say("plan.view.raceWeek.backToSeason")}
           </Button>
         </div>
         <div className="flex flex-col gap-row border-t border-line pt-row sm:flex-row sm:items-start sm:justify-between">
           <div className={SUPPORT_PAIR}>
             <p className="m-0 text-sm font-medium uppercase tracking-wide text-warn">
-              Race day ·{" "}
-              {formatCivilDate(raceWeek.raceDate, {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
+              {say("plan.view.raceWeek.raceDay", {
+                value1: planDate(raceWeek.raceDate, {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                }),
               })}
             </p>
             <h3 className="m-0 text-lg font-semibold">{props.data.plan.name}</h3>
             <p className="m-0 text-sm text-ink-2">
-              Goal: {props.data.plan.primaryGoal}
-              {props.data.readiness?.courseEstimate.rangeMinutes === null ||
-              props.data.readiness?.courseEstimate.rangeMinutes === undefined
-                ? ""
-                : ` · modeled finish ${finishRange(props.data.readiness.courseEstimate.rangeMinutes)} · with assumptions`}
+              {say("plan.view.raceWeek.goalSummary", {
+                value1: props.data.plan.primaryGoal,
+                value2:
+                  props.data.readiness?.courseEstimate.rangeMinutes === null ||
+                  props.data.readiness?.courseEstimate.rangeMinutes === undefined
+                    ? ""
+                    : say("plan.view.raceWeek.finishEstimate", {
+                        value1: finishRange(
+                          phrasebook,
+                          props.data.readiness.courseEstimate.rangeMinutes,
+                        ),
+                      }),
+              })}
             </p>
           </div>
           {season.priority === null ? null : (
             <span className="self-start rounded-full border border-warn px-3 py-1 text-sm text-warn">
-              {season.priority} priority
+              {say("plan.view.raceWeek.eventPriority", { value1: season.priority })}
             </span>
           )}
         </div>
         <div className="grid gap-row border-t border-line pt-row sm:grid-cols-3">
           {[
-            ["Training", raceWeek.trainingDurationS],
-            ["Race", raceWeek.raceDurationS],
-            ["Total", raceWeek.totalDurationS],
+            [say("plan.view.ended.training"), raceWeek.trainingDurationS],
+            [say("plan.view.ended.race"), raceWeek.raceDurationS],
+            [say("plan.view.ended.total"), raceWeek.totalDurationS],
           ].map(([label, value]) => (
             <div key={String(label)} className={SUPPORT_PAIR}>
               <span className="text-sm text-ink-2">{label}</span>
-              <strong className="text-2xl tabular-nums">{clockTime(Number(value))}</strong>
+              <strong className="text-2xl tabular-nums">
+                {clockTime(phrasebook, Number(value))}
+              </strong>
             </div>
           ))}
         </div>
@@ -2547,10 +2858,11 @@ function RaceWeekProjection(props: {
           >
             <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <p className="m-0 font-medium">Intervals sync is down</p>
+              <p className="m-0 font-medium">
+                {say("plan.view.raceWeek.syncFailureTitle", { intervals: "Intervals" })}
+              </p>
               <p className="m-0 text-sm text-ink-2">
-                Some race-week workouts may be missing in Intervals; the Plan below is
-                authoritative.
+                {say("plan.view.raceWeek.syncFailureDescription", { intervals: "Intervals" })}
               </p>
             </div>
           </div>
@@ -2561,16 +2873,16 @@ function RaceWeekProjection(props: {
           <thead className="bg-sunk text-ink-2">
             <tr>
               <th scope="col" className="px-5 py-3 font-medium">
-                Day
+                {say("plan.view.raceWeek.day")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Workout
+                {say("chat.planChange.workout")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Time
+                {say("plan.view.raceWeek.time")}
               </th>
               <th scope="col" className="px-5 py-3 font-medium">
-                Purpose
+                {say("plan.view.raceWeek.purpose")}
               </th>
             </tr>
           </thead>
@@ -2597,7 +2909,7 @@ function RaceWeekProjection(props: {
                     )}
                   </td>
                   <td className="px-5 py-row tabular-nums text-ink-2">
-                    {day.durationS === null ? "—" : clockTime(day.durationS)}
+                    {day.durationS === null ? "—" : clockTime(phrasebook, day.durationS)}
                   </td>
                   <td
                     className={
@@ -2618,39 +2930,57 @@ function RaceWeekProjection(props: {
   );
 }
 
-function signed(value: number): string {
-  return value > 0 ? `+${value}` : String(value).replace("-", "−");
+function signed(phrasebook: Phrasebook, value: number): string {
+  const { format } = phrasebook;
+
+  return format
+    .number(value, { useGrouping: false, signDisplay: value > 0 ? "always" : "auto" })
+    .replace("-", "−");
 }
 
-function formRange(readiness: PlanReadinessProjection): string {
+function formRange(phrasebook: Phrasebook, readiness: PlanReadinessProjection): string {
+  const { say } = phrasebook;
+
   const range = readiness.form.raceRange;
-  if (range === null) return "Unavailable";
-  return `${signed(range.min)} to ${signed(range.max)}`;
+  if (range === null) return say("plan.view.readiness.unavailable");
+  return say("plan.view.formRange.signedRange", {
+    value1: signed(phrasebook, range.min),
+    value2: signed(phrasebook, range.max),
+  });
 }
 
 function PredictionsSummary(props: {
   readonly readiness: PlanReadinessProjection | undefined;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const actions = useEnduragentStore((state) => state.planActions);
   const atRisk = props.readiness?.feasibility.verdict === "at-risk";
   const verdict =
     props.readiness === undefined
-      ? "Unavailable"
+      ? say("plan.view.readiness.unavailable")
       : atRisk
-        ? "At risk — here’s why"
-        : "On track — with assumptions";
+        ? say("plan.view.predictionsSummary.riskDescription")
+        : say("plan.view.readiness.onTrackWithAssumptions");
   return (
     <section className="grid gap-row rounded-card bg-surface p-5 shadow-elev-1">
-      <h2 className="m-0 text-base font-semibold">Predictions</h2>
+      <h2 className="m-0 text-base font-semibold">
+        {say("plan.view.predictionsSummary.predictions")}
+      </h2>
       <div className="grid gap-row sm:grid-cols-2">
         <div className={SUPPORT_PAIR}>
-          <p className="m-0 text-sm text-ink-2">Race-day form</p>
+          <p className="m-0 text-sm text-ink-2">
+            {say("plan.view.predictionsSummary.raceDayForm")}
+          </p>
           <strong className="text-2xl">
-            {props.readiness === undefined ? "Unavailable" : formRange(props.readiness)}
+            {props.readiness === undefined
+              ? say("plan.view.readiness.unavailable")
+              : formRange(phrasebook, props.readiness)}
           </strong>
         </div>
         <div className={SUPPORT_PAIR}>
-          <p className="m-0 text-sm text-ink-2">Goal feasibility</p>
+          <p className="m-0 text-sm text-ink-2">{say("plan.view.readiness.goalFeasibility")}</p>
           <span
             className={`inline-flex w-fit items-center gap-inset rounded-full border px-3 py-1 text-sm ${
               props.readiness === undefined
@@ -2676,7 +3006,7 @@ function PredictionsSummary(props: {
           variant="ghost"
           onClick={() => actions?.openReadiness()}
         >
-          View race readiness
+          {say("plan.view.predictionsSummary.viewRaceReadiness")}
           <ChevronRight className="size-4" aria-hidden="true" />
         </Button>
       </div>
@@ -2684,16 +3014,24 @@ function PredictionsSummary(props: {
   );
 }
 
-function effortDuration(durationS: number): string {
+function effortDuration(phrasebook: Phrasebook, durationS: number): string {
+  const { say, format } = phrasebook;
+
   const minutes = Math.floor(durationS / 60);
   const seconds = durationS % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  return say("plan.view.duration.clock", {
+    major: format.number(minutes, { useGrouping: false }),
+    minor: format.number(seconds, { useGrouping: false, minimumIntegerDigits: 2 }),
+  });
 }
 
 function ReadinessProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
   readonly scenarioId: string;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const readiness = props.data.readiness;
@@ -2702,7 +3040,12 @@ function ReadinessProjection(props: {
   const cpEffortsTrigger = useRef<HTMLButtonElement>(null);
   const routeTrigger = useRef<HTMLButtonElement>(null);
   if (readiness === undefined) {
-    return <StatusCard title="Race readiness" support="Readiness details are unavailable." />;
+    return (
+      <StatusCard
+        title={say("plan.view.readiness.raceReadiness")}
+        support={say("plan.view.readiness.unavailableDescription")}
+      />
+    );
   }
   const refreshing =
     props.scenarioId === "PL-S098" ||
@@ -2710,11 +3053,11 @@ function ReadinessProjection(props: {
       transition.transitionId === "PL-T32");
   const lastRefresh =
     readiness.form.lastSuccessfulRefreshAtMs === null
-      ? "No successful refresh yet"
-      : new Intl.DateTimeFormat(undefined, {
+      ? say("plan.view.readiness.refreshPending")
+      : format.date(new Date(readiness.form.lastSuccessfulRefreshAtMs), {
           dateStyle: "medium",
           timeStyle: "short",
-        }).format(new Date(readiness.form.lastSuccessfulRefreshAtMs));
+        });
   const cp = readiness.estimatedCp;
   const closeOverlay = (next: boolean): void => {
     if (next) return;
@@ -2734,12 +3077,14 @@ function ReadinessProjection(props: {
           tabIndex={-1}
           className="m-0 text-xl font-semibold outline-none"
         >
-          Race readiness
+          {say("plan.view.readiness.raceReadiness")}
         </h2>
-        <p className="m-0 text-ink-2">{props.data.plan.name} · modeled ranges and evidence</p>
+        <p className="m-0 text-ink-2">
+          {say("plan.view.readiness.subtitle", { value1: props.data.plan.name })}
+        </p>
       </div>
       <Button type="button" variant="outline" onClick={() => actions?.closeReadiness()}>
-        Back to Plan
+        {say("plan.view.planView.backToPlan")}
       </Button>
     </div>
   );
@@ -2753,11 +3098,10 @@ function ReadinessProjection(props: {
             aria-hidden="true"
           />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-base font-semibold">Refreshing training load</h3>
-            <p className="m-0 text-ink-2">
-              Checking recent training before recalculating the Form range. The last available
-              readiness view stays safe.
-            </p>
+            <h3 className="m-0 text-base font-semibold">
+              {say("plan.view.readiness.refreshingTrainingLoad")}
+            </h3>
+            <p className="m-0 text-ink-2">{say("plan.view.readiness.refreshDescription")}</p>
           </div>
         </div>
       </section>
@@ -2770,21 +3114,23 @@ function ReadinessProjection(props: {
         <div className="flex items-start gap-row border-t border-line pt-row">
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-base font-semibold">Hard Workout not added</h3>
+            <h3 className="m-0 text-base font-semibold">
+              {say("plan.view.readiness.hardWorkoutNotAdded")}
+            </h3>
             <p className="m-0 text-ink-2">{readiness.taperRefusal.reason}</p>
           </div>
         </div>
         <div className="grid gap-inset rounded-card bg-sunk p-row">
           <div className="flex items-start justify-between gap-row">
-            <span className="text-ink-2">Requested</span>
+            <span className="text-ink-2">{say("plan.view.readiness.requested")}</span>
             <strong className="text-right">{readiness.taperRefusal.requested}</strong>
           </div>
           <div className="flex items-start justify-between gap-row">
-            <span className="text-ink-2">Kept in Plan</span>
+            <span className="text-ink-2">{say("plan.view.readiness.keptInPlan")}</span>
             <strong className="text-right">{readiness.taperRefusal.kept}</strong>
           </div>
         </div>
-        <p className="m-0 text-ink-2">The race-week Plan stays unchanged.</p>
+        <p className="m-0 text-ink-2">{say("plan.view.readiness.rejectedRequestDescription")}</p>
       </section>
     );
   }
@@ -2795,30 +3141,33 @@ function ReadinessProjection(props: {
         <div className="flex items-start gap-row border-t border-line pt-row">
           <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-base font-semibold">Form is unavailable</h3>
+            <h3 className="m-0 text-base font-semibold">
+              {say("plan.view.readiness.formUnavailableTitle")}
+            </h3>
             <p className="m-0 text-ink-2">
-              {readiness.error?.message ??
-                "Recent training load is incomplete, so a race-day Form range cannot be shown."}
+              {readiness.error?.message ?? say("plan.view.readiness.incompleteLoadDescription")}
             </p>
           </div>
         </div>
         <div className="grid gap-inset rounded-card bg-sunk p-row sm:grid-cols-2">
           <div className={SUPPORT_PAIR}>
-            <span className="text-sm text-ink-2">Last successful refresh</span>
+            <span className="text-sm text-ink-2">
+              {say("plan.view.readiness.lastSuccessfulRefresh")}
+            </span>
             <strong>{lastRefresh}</strong>
           </div>
           <div className={SUPPORT_PAIR}>
-            <span className="text-sm text-ink-2">Course estimate</span>
+            <span className="text-sm text-ink-2">{say("plan.view.readiness.courseEstimate")}</span>
             <strong>
               {readiness.courseEstimate.rangeMinutes === null
-                ? "Unavailable"
-                : finishRange(readiness.courseEstimate.rangeMinutes)}
+                ? say("plan.view.readiness.unavailable")
+                : finishRange(phrasebook, readiness.courseEstimate.rangeMinutes)}
             </strong>
           </div>
         </div>
         <div className="flex justify-end">
           <Button type="button" onClick={() => actions?.refreshReadiness()}>
-            Retry refresh
+            {say("plan.view.readiness.retryRefresh")}
           </Button>
         </div>
       </section>
@@ -2832,27 +3181,30 @@ function ReadinessProjection(props: {
           <div className="flex items-start gap-row border-t border-line pt-row">
             <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <h3 className="m-0 text-base font-semibold">Finish-time range changed</h3>
+              <h3 className="m-0 text-base font-semibold">
+                {say("plan.view.readiness.changedEstimateTitle")}
+              </h3>
               <p className="m-0 text-ink-2">
-                {readiness.courseEstimate.changedAssumption ?? "A route assumption changed."}
+                {readiness.courseEstimate.changedAssumption ??
+                  say("plan.view.readiness.changedAssumptionDescription")}
               </p>
             </div>
           </div>
           <div className="grid gap-inset rounded-card bg-sunk p-row sm:grid-cols-2">
             <div className={SUPPORT_PAIR}>
-              <span className="text-sm text-ink-2">Previous</span>
+              <span className="text-sm text-ink-2">{say("plan.view.readiness.previous")}</span>
               <strong className="text-xl">
                 {readiness.courseEstimate.previousRangeMinutes === null
-                  ? "Unavailable"
-                  : finishRange(readiness.courseEstimate.previousRangeMinutes)}
+                  ? say("plan.view.readiness.unavailable")
+                  : finishRange(phrasebook, readiness.courseEstimate.previousRangeMinutes)}
               </strong>
             </div>
             <div className={SUPPORT_PAIR}>
-              <span className="text-sm text-ink-2">Updated</span>
+              <span className="text-sm text-ink-2">{say("plan.view.readiness.updated")}</span>
               <strong className="text-xl">
                 {readiness.courseEstimate.rangeMinutes === null
-                  ? "Unavailable"
-                  : finishRange(readiness.courseEstimate.rangeMinutes)}
+                  ? say("plan.view.readiness.unavailable")
+                  : finishRange(phrasebook, readiness.courseEstimate.rangeMinutes)}
               </strong>
             </div>
           </div>
@@ -2864,16 +3216,16 @@ function ReadinessProjection(props: {
               className="h-auto p-0"
               onClick={() => setOverlay("route")}
             >
-              View assumptions →
+              {say("plan.view.readiness.viewAssumptions")}
             </Button>
           </div>
         </section>
         <Dialog open={overlay === "route"} onOpenChange={closeOverlay}>
           <DialogContent className="top-0 right-0 left-auto flex h-full max-h-none w-[min(440px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none rounded-l-card border-y-0 border-r-0 p-0">
             <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
-              <DialogTitle>Route assumptions</DialogTitle>
+              <DialogTitle>{say("plan.view.readiness.routeAssumptions")}</DialogTitle>
               <DialogDescription>
-                Inputs used for the course-based finish-time range.
+                {say("plan.view.readiness.assumptionsDescription")}
               </DialogDescription>
             </DialogHeader>
             <ul className="m-0 grid flex-1 content-start gap-row overflow-auto px-10 py-5 text-ink-2">
@@ -2883,7 +3235,7 @@ function ReadinessProjection(props: {
             </ul>
             <DialogFooter className="m-0 shrink-0 flex-row justify-end border-t border-line bg-surface px-5 py-row">
               <Button type="button" onClick={() => closeOverlay(false)}>
-                Done
+                {say("plan.view.active.done")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2897,12 +3249,16 @@ function ReadinessProjection(props: {
         {header}
         <div className="grid gap-inset border-t border-line pt-row">
           <div className="flex items-center justify-between gap-row">
-            <h3 className="m-0 text-base font-semibold">Goal feasibility</h3>
+            <h3 className="m-0 text-base font-semibold">
+              {say("plan.view.readiness.goalFeasibility")}
+            </h3>
             <span className="rounded-full border border-danger px-3 py-1 text-sm text-danger">
-              At risk
+              {say("plan.view.readiness.atRisk")}
             </span>
           </div>
-          <strong className="text-2xl">Form {formRange(readiness)}</strong>
+          <strong className="text-2xl">
+            {say("plan.view.readiness.currentForm", { value1: formRange(phrasebook, readiness) })}
+          </strong>
           <ul className="m-0 grid gap-inset pl-5 text-ink-2">
             {readiness.feasibility.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
@@ -2910,7 +3266,7 @@ function ReadinessProjection(props: {
           </ul>
         </div>
         <div className="flex items-start justify-between gap-row rounded-card bg-sunk p-row">
-          <span className="text-ink-2">Recommendation</span>
+          <span className="text-ink-2">{say("plan.view.readiness.recommendation")}</span>
           <strong className="text-right">{readiness.feasibility.recommendation}</strong>
         </div>
       </section>
@@ -2923,24 +3279,24 @@ function ReadinessProjection(props: {
         <div className="flex items-start gap-row border-t border-line pt-row">
           <MapPinned className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
-            <h3 className="m-0 text-base font-semibold">Finish-time estimate unavailable</h3>
-            <p className="m-0 text-ink-2">
-              A course with distance and elevation is required for this estimate.
-            </p>
+            <h3 className="m-0 text-base font-semibold">
+              {say("plan.view.readiness.estimateUnavailableTitle")}
+            </h3>
+            <p className="m-0 text-ink-2">{say("plan.view.readiness.courseRequiredDescription")}</p>
           </div>
         </div>
         <div className="grid gap-inset rounded-card bg-sunk p-row">
           <div className="flex justify-between gap-row">
-            <span>Form trajectory</span>
-            <strong>{formRange(readiness)}</strong>
+            <span>{say("plan.view.readiness.formTrajectory")}</span>
+            <strong>{formRange(phrasebook, readiness)}</strong>
           </div>
           <div className="flex justify-between gap-row">
-            <span>Goal feasibility</span>
-            <strong>Available</strong>
+            <span>{say("plan.view.readiness.goalFeasibility")}</span>
+            <strong>{say("plan.view.readiness.available")}</strong>
           </div>
           <div className="flex justify-between gap-row">
-            <span>Course estimate</span>
-            <strong>Unavailable</strong>
+            <span>{say("plan.view.readiness.courseEstimate")}</span>
+            <strong>{say("plan.view.readiness.unavailable")}</strong>
           </div>
         </div>
       </section>
@@ -2952,33 +3308,43 @@ function ReadinessProjection(props: {
         {header}
         <div className="grid gap-row border-t border-line pt-row md:grid-cols-2">
           <div className={`${SUPPORT_PAIR} rounded-card bg-sunk p-4`}>
-            <h3 className="m-0 text-sm font-semibold">Form trajectory to race day</h3>
+            <h3 className="m-0 text-sm font-semibold">
+              {say("plan.view.readiness.raceDayTrajectory")}
+            </h3>
             <strong className="text-2xl">
-              {readiness.form.current === null ? "Unavailable" : signed(readiness.form.current)} →{" "}
-              {formRange(readiness)}
+              {readiness.form.current === null
+                ? say("plan.view.readiness.unavailable")
+                : signed(phrasebook, readiness.form.current)}{" "}
+              → {formRange(phrasebook, readiness)}
             </strong>
-            <p className="m-0 text-sm text-ink-2">Modeled from planned Load and normal recovery.</p>
+            <p className="m-0 text-sm text-ink-2">
+              {say("plan.view.readiness.formModelDescription")}
+            </p>
           </div>
           <div className={`${SUPPORT_PAIR} rounded-card bg-sunk p-4`}>
-            <h3 className="m-0 text-sm font-semibold">Goal feasibility</h3>
+            <h3 className="m-0 text-sm font-semibold">
+              {say("plan.view.readiness.goalFeasibility")}
+            </h3>
             <span className="self-start rounded-full border border-ok px-3 py-1 text-sm text-ok">
-              On track — with assumptions
+              {say("plan.view.readiness.onTrackWithAssumptions")}
             </span>
             <p className="m-0 text-sm text-ink-2">{readiness.feasibility.recommendation}</p>
           </div>
           <div className={`${SUPPORT_PAIR} rounded-card bg-sunk p-4`}>
             <div className="flex items-center justify-between gap-inset">
-              <h3 className="m-0 text-sm font-semibold">Estimated CP</h3>
+              <h3 className="m-0 text-sm font-semibold">
+                {say("plan.view.readiness.estimatedCP")}
+              </h3>
               <div className="flex items-center gap-inset">
                 <span className="rounded-full border border-warn px-2 py-0.5 text-xs text-warn">
-                  Experimental
+                  {say("plan.view.readiness.experimental")}
                 </span>
                 <Button
                   ref={cpInfoTrigger}
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="About Estimated CP"
+                  aria-label={say("plan.view.readiness.aboutEstimatedCP")}
                   onClick={() => setOverlay("cp-info")}
                 >
                   <Info aria-hidden="true" />
@@ -2989,31 +3355,40 @@ function ReadinessProjection(props: {
               <>
                 <strong className="text-xl">
                   {cp.unavailableReason === "mathematically-invalid"
-                    ? "Estimated CP is unavailable from the current data."
-                    : "Not enough measured power yet."}
+                    ? say("plan.view.readiness.invalidPowerEstimate")
+                    : say("plan.view.readiness.missingEffortsTitle")}
                 </strong>
                 {cp.unavailableReason === "missing-effort" ? (
                   <p className="m-0 text-sm text-ink-2">
-                    A short and a long recorded effort are needed from the last 6 weeks.
+                    {say("plan.view.readiness.missingEffortsDescription")}
                   </p>
                 ) : null}
               </>
             ) : (
               <>
                 <div className="flex items-center gap-inset">
-                  <strong className="text-2xl">{cp.watts} W</strong>
+                  <strong className="text-2xl">
+                    {say("chat.planChange.watts", { watts: cp.watts ?? "" })}
+                  </strong>
                   {cp.status === "stale" ? (
                     <span className="rounded-full border border-warn px-2 py-0.5 text-xs text-warn">
-                      Stale
+                      {say("chat.planCreation.stale")}
                     </span>
                   ) : null}
                 </div>
                 <p className="m-0 text-sm text-ink-2">
                   {cp.status === "stale" && cp.lastSuccessfulSyncAtMs !== null
-                    ? `Last successful sync ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(cp.lastSuccessfulSyncAtMs))}`
+                    ? say("plan.view.readiness.lastSync", {
+                        value1: format.date(new Date(cp.lastSuccessfulSyncAtMs), {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }),
+                      })
                     : cp.calculatedOn === null
-                      ? "Calculation date unavailable"
-                      : `Calculated ${formatCivilDate(cp.calculatedOn)}`}
+                      ? say("plan.view.readiness.calculationDateUnavailable")
+                      : say("plan.view.readiness.calculationDate", {
+                          value1: planDate(cp.calculatedOn),
+                        })}
                 </p>
                 <Button
                   ref={cpEffortsTrigger}
@@ -3022,22 +3397,26 @@ function ReadinessProjection(props: {
                   className="h-auto justify-start p-0"
                   onClick={() => setOverlay("cp-efforts")}
                 >
-                  View the 2 efforts used →
+                  {say("plan.view.readiness.viewPowerEvidence")}
                 </Button>
               </>
             )}
           </div>
           <div className={`${SUPPORT_PAIR} rounded-card bg-sunk p-4`}>
-            <h3 className="m-0 text-sm font-semibold">Course-based finish time</h3>
+            <h3 className="m-0 text-sm font-semibold">
+              {say("plan.view.readiness.courseBasedFinishTime")}
+            </h3>
             <strong className="text-2xl">
               {readiness.courseEstimate.rangeMinutes === null
-                ? "Unavailable"
-                : finishRange(readiness.courseEstimate.rangeMinutes)}
+                ? say("plan.view.readiness.unavailable")
+                : finishRange(phrasebook, readiness.courseEstimate.rangeMinutes)}
             </strong>
             <p className="m-0 text-sm text-ink-2">
               {readiness.courseEstimate.confidence === null
-                ? "No estimate"
-                : `${readiness.courseEstimate.confidence} confidence`}
+                ? say("plan.view.readiness.noEstimate")
+                : say("plan.view.readiness.estimateConfidence", {
+                    value1: readiness.courseEstimate.confidence,
+                  })}
             </p>
             {readiness.courseEstimate.assumptions.length > 0 ? (
               <Button
@@ -3047,20 +3426,22 @@ function ReadinessProjection(props: {
                 className="h-auto justify-start p-0"
                 onClick={() => setOverlay("route")}
               >
-                View route assumptions →
+                {say("plan.view.readiness.viewRouteAssumptions")}
               </Button>
             ) : null}
           </div>
         </div>
         <div className="grid gap-row rounded-card bg-sunk p-row sm:grid-cols-3">
           {[
-            ["Prescribed", readiness.evidence.prescribedDurationS],
-            ["Ridden", readiness.evidence.riddenDurationS],
-            ["Adjusted", readiness.evidence.adjustedDurationS],
+            [say("plan.view.readiness.prescribed"), readiness.evidence.prescribedDurationS],
+            [say("plan.view.readiness.ridden"), readiness.evidence.riddenDurationS],
+            [say("plan.view.readiness.adjusted"), readiness.evidence.adjustedDurationS],
           ].map(([label, value]) => (
             <div key={String(label)} className={SUPPORT_PAIR}>
               <span className="text-sm text-ink-2">{label}</span>
-              <strong className="text-xl tabular-nums">{clockTime(Number(value))}</strong>
+              <strong className="text-xl tabular-nums">
+                {clockTime(phrasebook, Number(value))}
+              </strong>
             </div>
           ))}
         </div>
@@ -3068,19 +3449,20 @@ function ReadinessProjection(props: {
       <Dialog open={overlay === "cp-info"} onOpenChange={closeOverlay}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Estimated CP</DialogTitle>
-            <DialogDescription>
-              Based on your best short and long power efforts from the last 6 weeks. This does not
-              change your FTP, zones, workouts, or Plan.
-            </DialogDescription>
+            <DialogTitle>{say("plan.view.readiness.estimatedCP")}</DialogTitle>
+            <DialogDescription>{say("plan.view.readiness.cpDescription")}</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
       <Dialog open={overlay === "cp-efforts"} onOpenChange={closeOverlay}>
         <DialogContent className="top-0 right-0 left-auto flex h-full max-h-none w-[min(480px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none rounded-l-card border-y-0 border-r-0 p-0">
           <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
-            <DialogTitle>Power efforts used</DialogTitle>
-            <DialogDescription>Estimated CP · {cp.watts ?? "Unavailable"} W</DialogDescription>
+            <DialogTitle>{say("plan.view.readiness.powerEffortsUsed")}</DialogTitle>
+            <DialogDescription>
+              {say("plan.view.readiness.cpEvidenceSummary", {
+                value1: cp.watts ?? say("plan.view.readiness.unavailable"),
+              })}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid flex-1 content-start gap-row overflow-auto px-5 py-5">
             {cp.efforts.map((effort) => (
@@ -3090,26 +3472,31 @@ function ReadinessProjection(props: {
               >
                 <div className="flex items-start justify-between gap-row">
                   <strong>
-                    {effort.ride} · {formatCivilDate(effort.date)}
+                    {effort.ride} · {planDate(effort.date)}
                   </strong>
                   <strong className="tabular-nums">
-                    {effortDuration(effort.durationS)} at {effort.averagePowerW} W
+                    {say("plan.view.readiness.effortPower", {
+                      value1: effortDuration(phrasebook, effort.durationS),
+                      value2: format.number(effort.averagePowerW, { useGrouping: false }),
+                    })}
                   </strong>
                 </div>
-                <p className="m-0 text-sm text-ink-2">Device · {effort.device}</p>
+                <p className="m-0 text-sm text-ink-2">
+                  {say("plan.view.readiness.effortDevice", { value1: effort.device })}
+                </p>
               </section>
             ))}
             {cp.status === "unavailable" ? (
-              <p className="m-0 text-ink-2">Estimated CP evidence is unavailable.</p>
+              <p className="m-0 text-ink-2">{say("plan.view.readiness.cpEvidenceUnavailable")}</p>
             ) : (
               <p className="m-0 text-ink-2">
-                These two efforts produce an Estimated CP of {cp.watts} W.
+                {say("plan.view.readiness.cpEvidenceResult", { value1: cp.watts ?? "" })}
               </p>
             )}
           </div>
           <DialogFooter className="m-0 shrink-0 flex-row justify-end border-t border-line bg-surface px-5 py-row">
             <Button type="button" onClick={() => closeOverlay(false)}>
-              Done
+              {say("plan.view.active.done")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3117,9 +3504,9 @@ function ReadinessProjection(props: {
       <Dialog open={overlay === "route"} onOpenChange={closeOverlay}>
         <DialogContent className="top-0 right-0 left-auto flex h-full max-h-none w-[min(440px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none rounded-l-card border-y-0 border-r-0 p-0">
           <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
-            <DialogTitle>Route assumptions</DialogTitle>
+            <DialogTitle>{say("plan.view.readiness.routeAssumptions")}</DialogTitle>
             <DialogDescription>
-              Inputs used for the course-based finish-time range.
+              {say("plan.view.readiness.assumptionsDescription")}
             </DialogDescription>
           </DialogHeader>
           <ul className="m-0 grid flex-1 content-start gap-row overflow-auto px-10 py-5 text-ink-2">
@@ -3129,7 +3516,7 @@ function ReadinessProjection(props: {
           </ul>
           <DialogFooter className="m-0 shrink-0 flex-row justify-end border-t border-line bg-surface px-5 py-row">
             <Button type="button" onClick={() => closeOverlay(false)}>
-              Done
+              {say("plan.view.active.done")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3141,10 +3528,18 @@ function ReadinessProjection(props: {
 function WeeklyReviewProjection(props: {
   readonly data: ReturnType<typeof PlanActiveProjectionDataSchema.parse>;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const review = props.data.weeklyReview;
   if (review?.status !== "delivered") {
-    return <StatusCard title="Weekly review" support="Preparing last week’s review…" />;
+    return (
+      <StatusCard
+        title={say("plan.view.weeklyReview.weeklyReview")}
+        support={say("plan.view.weeklyReview.preparing")}
+      />
+    );
   }
   return (
     <section
@@ -3153,19 +3548,23 @@ function WeeklyReviewProjection(props: {
     >
       <div className="flex items-start justify-between gap-row">
         <div className={SUPPORT_PAIR}>
-          <p className="m-0 text-sm font-medium text-ink-2">Coach</p>
-          <h2 className="m-0 text-lg font-semibold">Weekly review</h2>
+          <p className="m-0 text-sm font-medium text-ink-2">{say("plan.view.active.coach")}</p>
+          <h2 className="m-0 text-lg font-semibold">
+            {say("plan.view.weeklyReview.weeklyReview")}
+          </h2>
           <p className="m-0 text-sm text-ink-2">
-            {formatCivilDate(review.weekStart)}–{formatCivilDate(review.weekEnd)}
+            {planDate(review.weekStart)}–{planDate(review.weekEnd)}
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => actions?.closeWorkout()}>
-          Back to Plan
+          {say("plan.view.planView.backToPlan")}
         </Button>
       </div>
       <div className="grid gap-inset rounded-card bg-sunk p-row">
         <p className="m-0 text-base">{review.summary}</p>
-        <p className="m-0 text-sm text-ink-2">No response is needed.</p>
+        <p className="m-0 text-sm text-ink-2">
+          {say("plan.view.weeklyReview.responseNotRequired")}
+        </p>
       </div>
     </section>
   );
@@ -3174,6 +3573,9 @@ function WeeklyReviewProjection(props: {
 function PlanningRequestDateConflictProjection(props: {
   readonly context: PlanPlanningRequestContext;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+  const planDate = usePlanDate();
   const actions = useEnduragentStore((state) => state.planActions);
   const transition = useEnduragentStore((state) => state.plan.transition);
   const conflict = props.context.dateConflict;
@@ -3187,7 +3589,12 @@ function PlanningRequestDateConflictProjection(props: {
   );
   const [customDate, setCustomDate] = useState(recommended ?? conflict?.minimumDate ?? "");
   if (conflict === null) {
-    return <StatusCard title="Plan request" support="Refreshing the current date options…" />;
+    return (
+      <StatusCard
+        title={say("plan.view.planningRequestDateConflict.planRequest")}
+        support={say("plan.view.planningRequestDateConflict.refreshing")}
+      />
+    );
   }
   const busy =
     (transition.status === "submitting" || transition.status === "running") &&
@@ -3212,23 +3619,25 @@ function PlanningRequestDateConflictProjection(props: {
   const selectedDate = choice === "recommended" ? recommended : customDate;
   const primaryLabel =
     choice === "replace" && replacementWorkoutId !== null
-      ? "Review replacement"
+      ? say("plan.view.planningRequestDateConflict.reviewReplacement")
       : selectedDate === null || selectedDate.length === 0
-        ? "Choose date"
-        : `Use ${formatCivilDate(selectedDate)}`;
+        ? say("plan.view.planningRequestDateConflict.chooseDate")
+        : say("plan.view.planningRequestDateConflict.useDate", { value1: planDate(selectedDate) });
   return (
     <section className="grid gap-5 rounded-card bg-surface p-5 shadow-elev-1">
       <div className={SUPPORT_PAIR}>
         <p className="m-0 text-xs font-semibold tracking-wide text-ink-2 uppercase">
-          Date conflict
+          {say("plan.view.planningRequestDateConflict.dateConflict")}
         </p>
         <h2 className="m-0 text-xl font-semibold">
           {conflict.workouts[0] === undefined
-            ? "The requested date already has a Workout"
-            : `${formatCivilDate(conflict.workouts[0].date)} already has a Workout`}
+            ? say("plan.view.planningRequestDateConflict.conflictTitle")
+            : say("plan.view.planningRequestDateConflict.conflictDateTitle", {
+                value1: planDate(conflict.workouts[0].date),
+              })}
         </h2>
         <p className="m-0 text-ink-2">
-          Choose another date by default, or explicitly replace a future coach-owned Workout.
+          {say("plan.view.planningRequestDateConflict.conflictDescription")}
         </p>
       </div>
       <div className="grid gap-inset">
@@ -3247,11 +3656,17 @@ function PlanningRequestDateConflictProjection(props: {
               ) : null}
             </span>
             <span className={SUPPORT_PAIR}>
-              <strong>Use {formatCivilDate(recommended)}</strong>
-              <small className="text-ink-2">No existing Workout</small>
+              <strong>
+                {say("plan.view.planningRequestDateConflict.useDate", {
+                  value1: planDate(recommended),
+                })}
+              </strong>
+              <small className="text-ink-2">
+                {say("plan.view.planningRequestDateConflict.noExistingWorkout")}
+              </small>
             </span>
             <span className="rounded-full bg-ok/14 px-3 py-1 text-xs font-medium text-ok">
-              Recommended
+              {say("plan.view.planningRequestDateConflict.recommended")}
             </span>
           </button>
         )}
@@ -3277,9 +3692,15 @@ function PlanningRequestDateConflictProjection(props: {
                 ) : null}
               </span>
               <span className={SUPPORT_PAIR}>
-                <strong>Replace {workout.name}</strong>
+                <strong>
+                  {say("plan.view.planningRequestDateConflict.replaceWorkout", {
+                    value1: workout.name,
+                  })}
+                </strong>
                 <small className="text-ink-2">
-                  Future · coach-owned · {clockTime(workout.durationS)}
+                  {say("plan.view.planningRequestDateConflict.replaceableWorkoutDescription", {
+                    value1: clockTime(phrasebook, workout.durationS),
+                  })}
                 </small>
               </span>
             </button>
@@ -3297,14 +3718,16 @@ function PlanningRequestDateConflictProjection(props: {
             {choice === "custom" ? <span className="size-2 rounded-full bg-current" /> : null}
           </span>
           <span className={SUPPORT_PAIR}>
-            <strong>Choose another date…</strong>
-            <small className="text-ink-2">Check another day against the current Plan</small>
+            <strong>{say("plan.view.planningRequestDateConflict.chooseAnotherDate")}</strong>
+            <small className="text-ink-2">
+              {say("plan.view.planningRequestDateConflict.customDateDescription")}
+            </small>
           </span>
           <CalendarDays className="size-4 text-ink-2" aria-hidden="true" />
         </button>
         {choice === "custom" ? (
           <label className="grid gap-inset rounded-ctl bg-sunk p-row text-sm">
-            <span className="font-medium">Date</span>
+            <span className="font-medium">{say("plan.view.planningRequestDateConflict.date")}</span>
             <input
               type="date"
               min={conflict.minimumDate}
@@ -3324,9 +3747,13 @@ function PlanningRequestDateConflictProjection(props: {
               <TriangleAlert className="size-4" aria-hidden="true" />
               <span className={SUPPORT_PAIR}>
                 <strong className="text-ink">{workout.name}</strong>
-                <small>Athlete-created · cannot be replaced by Coach</small>
+                <small>
+                  {say("plan.view.planningRequestDateConflict.protectedWorkoutDescription")}
+                </small>
               </span>
-              <span className="rounded-full bg-bg-2 px-3 py-1 text-xs font-medium">Protected</span>
+              <span className="rounded-full bg-bg-2 px-3 py-1 text-xs font-medium">
+                {say("plan.view.planningRequestDateConflict.protected")}
+              </span>
             </div>
           ),
         )}
@@ -3344,7 +3771,7 @@ function PlanningRequestDateConflictProjection(props: {
           disabled={busy}
           onClick={() => actions?.closeProposal()}
         >
-          Cancel
+          {say("common.cancel")}
         </Button>
         <Button
           type="button"
@@ -3356,7 +3783,7 @@ function PlanningRequestDateConflictProjection(props: {
           }
           onClick={submit}
         >
-          {busy ? "Checking…" : primaryLabel}
+          {busy ? say("plan.view.active.checking") : primaryLabel}
         </Button>
       </div>
     </section>
@@ -3364,6 +3791,9 @@ function PlanningRequestDateConflictProjection(props: {
 }
 
 function ActiveProjection(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   const actions = useEnduragentStore((state) => state.planActions);
@@ -3425,7 +3855,13 @@ function ActiveProjection(): ReactElement {
       (requested ?? (focusId === null ? null : document.getElementById(focusId)))?.focus();
     });
   }, [model?.scenarioId, returnFocusId]);
-  if (model === null) return <StatusCard title="Plan" support="Refreshing your Plan…" />;
+  if (model === null)
+    return (
+      <StatusCard
+        title={say("plan.view.planView.plan")}
+        support={say("plan.view.ready.refreshing")}
+      />
+    );
   const parsed = PlanActiveProjectionDataSchema.safeParse(model.data);
   if (!parsed.success) return <StatusCard title={model.title} support={model.summary} />;
   const data = parsed.data;
@@ -3500,17 +3936,20 @@ function ActiveProjection(): ReactElement {
   const currentPhase =
     data.season?.weeks.find((week) => week.status === "current")?.phase ??
     data.plan.phaseSummary?.[0] ??
-    "Plan";
+    say("plan.view.planView.plan");
   const todaySupport =
     data.todayWorkout === null
-      ? "No workout scheduled."
+      ? say("plan.view.active.restInstructions")
       : data.todayWorkout.durationS === null
-        ? "Follow the workout details in your Plan."
+        ? say("plan.view.active.workoutInstructions")
         : [
-            clockTime(data.todayWorkout.durationS),
+            clockTime(phrasebook, data.todayWorkout.durationS),
             data.todayWorkout.powerTargetW === undefined
               ? null
-              : `${data.todayWorkout.powerTargetW.min}–${data.todayWorkout.powerTargetW.max} W`,
+              : say("plan.view.active.powerRange", {
+                  value1: format.number(data.todayWorkout.powerTargetW.min, { useGrouping: false }),
+                  value2: format.number(data.todayWorkout.powerTargetW.max, { useGrouping: false }),
+                }),
             data.todayWorkout.cue ?? null,
           ]
             .filter((value): value is string => value !== null)
@@ -3527,11 +3966,13 @@ function ActiveProjection(): ReactElement {
         <section className="flex items-start gap-row rounded-card bg-surface p-5 shadow-elev-1">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
           <div className={`min-w-0 flex-1 ${SUPPORT_PAIR}`}>
-            <h2 className="m-0 text-base font-semibold">Proposal rejected</h2>
-            <p className="m-0 text-ink-2">The active Plan did not change.</p>
+            <h2 className="m-0 text-base font-semibold">
+              {say("plan.view.active.proposalRejected")}
+            </h2>
+            <p className="m-0 text-ink-2">{say("plan.view.active.rejectedDescription")}</p>
           </div>
           <Button type="button" onClick={() => actions?.closeProposal()}>
-            Back to Plan
+            {say("plan.view.planView.backToPlan")}
           </Button>
         </section>
       ) : null}
@@ -3541,12 +3982,23 @@ function ActiveProjection(): ReactElement {
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
               <h2 className="m-0 text-base font-semibold">
-                Plan active · week {data.weekIndex} of {data.plan.totalWeeks}
+                {say("plan.view.active.activeWeek", {
+                  value1: format.number(data.weekIndex, { useGrouping: false }),
+                  value2: format.number(data.plan.totalWeeks, { useGrouping: false }),
+                })}
               </h2>
               <p className="m-0 text-ink-2">
-                {data.plan.name} · {currentPhase} phase · starts{" "}
-                {formatCivilDate(data.plan.startDate)}
-                {data.plan.ftpWatts === undefined ? "" : ` · FTP ${data.plan.ftpWatts} W`}
+                {say("plan.view.active.planSummary", {
+                  value1: data.plan.name,
+                  currentPhase: currentPhase,
+                  value2: planDate(data.plan.startDate),
+                  value3:
+                    data.plan.ftpWatts === undefined
+                      ? ""
+                      : say("plan.view.active.ftpSummary", {
+                          value1: format.number(data.plan.ftpWatts, { useGrouping: false }),
+                        }),
+                })}
               </p>
             </div>
           </div>
@@ -3558,7 +4010,7 @@ function ActiveProjection(): ReactElement {
               onClick={() => actions?.openSeason()}
             >
               <CalendarDays className="size-4" aria-hidden="true" />
-              View season
+              {say("plan.view.active.viewSeason")}
             </Button>
           </div>
         </div>
@@ -3566,7 +4018,9 @@ function ActiveProjection(): ReactElement {
           <Activity className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
           <div className={SUPPORT_PAIR}>
             <h3 className="m-0 text-base font-semibold">
-              Today · {data.todayWorkout?.name ?? "Rest"}
+              {say("plan.view.active.todayWorkout", {
+                value1: data.todayWorkout?.name ?? say("plan.view.active.rest"),
+              })}
             </h3>
             <p className="m-0 text-ink-2">{todaySupport}</p>
           </div>
@@ -3578,16 +4032,18 @@ function ActiveProjection(): ReactElement {
       <section className="overflow-hidden rounded-card bg-surface shadow-elev-1">
         <div className="flex items-start justify-between gap-row px-5 py-row">
           <div className={SUPPORT_PAIR}>
-            <h2 className="m-0 text-base font-semibold">WorkoutMatch · this week</h2>
+            <h2 className="m-0 text-base font-semibold">{say("plan.view.active.weeklyMatches")}</h2>
             <p className="m-0 text-sm text-ink-2">
               {data.matchSync?.awaitingSync === true
-                ? "Awaiting sync · previous matches remain visible."
+                ? say("plan.view.active.matchesStale")
                 : data.matchSync?.lastSuccessfulSyncAtMs == null
-                  ? "Workout matches appear after activity sync."
-                  : `As of last sync · ${new Intl.DateTimeFormat(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(data.matchSync.lastSuccessfulSyncAtMs))}`}
+                  ? say("plan.view.active.matchesPending")
+                  : say("plan.view.active.lastSync", {
+                      value1: format.date(new Date(data.matchSync.lastSuccessfulSyncAtMs), {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })}
             </p>
           </div>
         </div>
@@ -3614,31 +4070,31 @@ function ActiveProjection(): ReactElement {
                 }}
               >
                 <span className="col-start-1 row-start-1 text-ink-2 min-[760px]:col-auto min-[760px]:row-auto">
-                  {formatCivilDate(workout.date, { weekday: "short", day: "numeric" })}
+                  {planDate(workout.date, { weekday: "short", day: "numeric" })}
                 </span>
                 <span className="col-start-1 row-start-2 min-w-0 truncate font-medium text-ink-1 min-[760px]:col-auto min-[760px]:row-auto">
                   {workout.name}
                 </span>
                 <span className="col-start-2 row-start-1 text-ink-2 min-[760px]:col-auto min-[760px]:row-auto">
-                  {workout.durationS === null ? "—" : plannedTime(workout.durationS)}
+                  {workout.durationS === null ? "—" : plannedTime(phrasebook, workout.durationS)}
                 </span>
                 {proposal !== undefined ? (
                   <span className="col-start-2 row-start-2 justify-self-start rounded-full border border-warn px-2.5 py-1 text-warn min-[760px]:col-auto min-[760px]:row-auto">
-                    Decision needed
+                    {say("plan.view.active.decisionNeeded")}
                   </span>
                 ) : drift ? (
                   <span className="col-start-2 row-start-2 justify-self-start rounded-full border border-warn px-2.5 py-1 text-warn min-[760px]:col-auto min-[760px]:row-auto">
-                    Changed in Intervals
+                    {say("plan.view.active.calendarChanged", { intervals: "Intervals" })}
                   </span>
                 ) : decision ? (
                   <span className="col-start-2 row-start-2 justify-self-start rounded-full border border-warn px-2.5 py-1 text-warn min-[760px]:col-auto min-[760px]:row-auto">
-                    Decision needed
+                    {say("plan.view.active.decisionNeeded")}
                   </span>
                 ) : (
                   <span
                     className={`col-start-2 row-start-2 justify-self-start min-[760px]:col-auto min-[760px]:row-auto ${matchStatusClass(status)}`}
                   >
-                    {MATCH_STATUS_COPY[status]}
+                    {say(MATCH_STATUS_COPY[status])}
                   </span>
                 )}
                 <ChevronRight
@@ -3658,7 +4114,7 @@ function ActiveProjection(): ReactElement {
 
       <section className="flex flex-col gap-row rounded-card bg-surface p-5 shadow-elev-1 sm:flex-row sm:items-center sm:justify-between">
         <p className="m-0 text-sm text-ink-2">
-          Replace or end future Plan management. Today's workout stays.
+          {say("plan.view.active.lifecycleActionsDescription")}
         </p>
         <div className="flex flex-wrap justify-end gap-inset">
           <Button
@@ -3668,7 +4124,7 @@ function ActiveProjection(): ReactElement {
             disabled={actions === null || transition.status !== "idle"}
             onClick={() => actions?.openReplacement()}
           >
-            Replace Plan
+            {say("plan.view.active.replacePlan")}
           </Button>
           <Button
             id="plan-end-trigger"
@@ -3677,7 +4133,7 @@ function ActiveProjection(): ReactElement {
             disabled={actions === null || transition.status !== "idle"}
             onClick={() => actions?.openEndConfirmation()}
           >
-            End Plan
+            {say("plan.view.active.endPlan")}
           </Button>
         </div>
       </section>
@@ -3690,10 +4146,12 @@ function ActiveProjection(): ReactElement {
       >
         <DialogContent initialFocus={endCancel} showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>End this Plan?</DialogTitle>
+            <DialogTitle>{say("plan.view.active.endConfirmationTitle")}</DialogTitle>
             <DialogDescription>
-              The Plan ends now. Today's workout stays, and tomorrow-onward Enduragent workouts are
-              removed from Intervals.
+              {say("plan.view.active.endConfirmationDescription", {
+                product: "Enduragent",
+                intervals: "Intervals",
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -3703,14 +4161,14 @@ function ActiveProjection(): ReactElement {
               variant="outline"
               onClick={() => actions?.closeEndConfirmation()}
             >
-              Cancel
+              {say("common.cancel")}
             </Button>
             <Button
               type="button"
               variant="destructive-solid"
               onClick={() => actions?.confirmEndPlan()}
             >
-              End Plan
+              {say("plan.view.active.endPlan")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3728,45 +4186,48 @@ function ActiveProjection(): ReactElement {
               <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
                 <DialogTitle className="m-0 text-xl">{selectedWorkout.name}</DialogTitle>
                 <DialogDescription className="m-0 text-ink-2">
-                  {formatCivilDate(selectedWorkout.date)} · {selectedWorkout.sport} ·{" "}
+                  {planDate(selectedWorkout.date)} · {selectedWorkout.sport} ·{" "}
                   {selectedWorkout.durationS === null
-                    ? "No planned duration"
-                    : plannedTime(selectedWorkout.durationS)}
+                    ? say("plan.view.active.noPlannedDuration")
+                    : plannedTime(phrasebook, selectedWorkout.durationS)}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid flex-1 content-start gap-row overflow-auto px-5 py-5">
                 <div className={SUPPORT_PAIR}>
-                  <h3 className="m-0 text-sm font-medium">WorkoutMatch</h3>
+                  <h3 className="m-0 text-sm font-medium">
+                    {say("plan.view.active.workoutMatch")}
+                  </h3>
                   <p
                     className={`m-0 text-base ${matchStatusClass(
                       selectedWorkout.match?.status ?? "upcoming",
                     )}`}
                   >
-                    {MATCH_STATUS_COPY[selectedWorkout.match?.status ?? "upcoming"]}
+                    {say(MATCH_STATUS_COPY[selectedWorkout.match?.status ?? "upcoming"])}
                   </p>
                 </div>
                 {selectedWorkout.match?.activityId !== null &&
                 selectedWorkout.match?.activityId !== undefined ? (
                   <div className="grid gap-inset rounded-card bg-sunk p-row">
-                    <p className="m-0 text-sm font-medium">Observed activity</p>
+                    <p className="m-0 text-sm font-medium">
+                      {say("plan.view.active.observedActivity")}
+                    </p>
                     <p className="m-0 text-sm text-ink-2">
                       {selectedWorkout.match.actualDate === null
-                        ? "Date unavailable"
-                        : formatCivilDate(selectedWorkout.match.actualDate)}
+                        ? say("plan.view.active.dateUnavailable")
+                        : planDate(selectedWorkout.match.actualDate)}
                       {selectedWorkout.match.actualDurationS === null
                         ? ""
-                        : ` · ${plannedTime(selectedWorkout.match.actualDurationS)}`}
+                        : ` · ${plannedTime(phrasebook, selectedWorkout.match.actualDurationS)}`}
                     </p>
                   </div>
                 ) : (
                   <p className="m-0 text-sm text-ink-2">
-                    No completed activity is matched to this workout.
+                    {say("plan.view.active.unmatchedDescription")}
                   </p>
                 )}
                 {selectedWorkout.match?.requiresConfirmation === true ? (
                   <p className="m-0 text-sm text-ink-2">
-                    The date, sport, and duration look similar. Confirm before it counts as the
-                    planned workout.
+                    {say("plan.view.active.matchConfirmationDescription")}
                   </p>
                 ) : null}
               </div>
@@ -3786,7 +4247,7 @@ function ActiveProjection(): ReactElement {
                         )
                       }
                     >
-                      Not this activity
+                      {say("plan.view.active.notThisActivity")}
                     </Button>
                     <Button
                       type="button"
@@ -3799,12 +4260,12 @@ function ActiveProjection(): ReactElement {
                         )
                       }
                     >
-                      Confirm match
+                      {say("plan.view.active.confirmMatch")}
                     </Button>
                   </>
                 ) : (
                   <Button type="button" variant="outline" onClick={() => actions?.closeWorkout()}>
-                    Close
+                    {say("plan.view.active.close")}
                   </Button>
                 )}
               </DialogFooter>
@@ -3827,14 +4288,16 @@ function ActiveProjection(): ReactElement {
           {selectedProposal === null ? null : proposalMode === "evidence" ? (
             <>
               <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
-                <DialogTitle className="m-0 text-xl">Where this came from</DialogTitle>
+                <DialogTitle className="m-0 text-xl">
+                  {say("plan.view.active.evidenceTitle")}
+                </DialogTitle>
                 <DialogDescription className="m-0 text-ink-2">
-                  Evidence captured when this Proposal was created.
+                  {say("plan.view.active.evidenceDescription")}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid flex-1 content-start gap-6 overflow-auto px-5 py-5">
                 <section className="grid gap-inset">
-                  <h3 className="m-0 text-sm font-semibold">Source</h3>
+                  <h3 className="m-0 text-sm font-semibold">{say("plan.view.active.source")}</h3>
                   {selectedProposal.premises.map((premise) => (
                     <p key={premise.id} className="m-0 text-sm text-ink-2">
                       {premise.sourceLabel}
@@ -3842,15 +4305,17 @@ function ActiveProjection(): ReactElement {
                   ))}
                 </section>
                 <section className="grid gap-inset">
-                  <h3 className="m-0 text-sm font-semibold">Evidence</h3>
+                  <h3 className="m-0 text-sm font-semibold">{say("chat.planChange.evidence")}</h3>
                   <p className="m-0 text-sm text-ink-2">{selectedProposal.rationale}</p>
                 </section>
                 <section className="grid gap-inset">
-                  <h3 className="m-0 text-sm font-semibold">Confidence</h3>
+                  <h3 className="m-0 text-sm font-semibold">{say("chat.planChange.confidence")}</h3>
                   <p className="m-0 text-sm text-ink-2">{selectedProposal.confidence}</p>
                 </section>
                 <section className="grid gap-inset rounded-ctl bg-sunk p-row">
-                  <h3 className="m-0 text-sm font-semibold">Proposed impact</h3>
+                  <h3 className="m-0 text-sm font-semibold">
+                    {say("plan.view.active.proposedImpact")}
+                  </h3>
                   {selectedProposal.diff.map((line) => (
                     <div key={line.field} className="grid grid-cols-[7rem_1fr] gap-inset text-sm">
                       <span>{line.label}</span>
@@ -3869,16 +4334,18 @@ function ActiveProjection(): ReactElement {
                     requestAnimationFrame(() => evidenceTrigger.current?.focus());
                   }}
                 >
-                  Done
+                  {say("plan.view.active.done")}
                 </Button>
               </DialogFooter>
             </>
           ) : proposalMode === "edit" ? (
             <>
               <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
-                <DialogTitle className="m-0 text-xl">Revise Proposal</DialogTitle>
+                <DialogTitle className="m-0 text-xl">
+                  {say("plan.view.active.reviseProposal")}
+                </DialogTitle>
                 <DialogDescription className="m-0 text-ink-2">
-                  The active Plan stays unchanged while the coach revises this Proposal.
+                  {say("plan.view.active.revisionDescription")}
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -3891,19 +4358,18 @@ function ActiveProjection(): ReactElement {
               >
                 <div className="grid flex-1 content-start gap-row overflow-auto px-5 py-5">
                   <div className="grid gap-inset rounded-ctl bg-sunk p-row">
-                    <p className="m-0 text-sm font-medium">Coach</p>
+                    <p className="m-0 text-sm font-medium">{say("plan.view.active.coach")}</p>
                     <p className="m-0 text-sm text-ink-2">
-                      I’ll keep the active Plan unchanged while we revise this Proposal. What should
-                      change?
+                      {say("plan.view.active.revisionPrompt")}
                     </p>
                   </div>
                   <label className="grid gap-inset text-sm font-medium" htmlFor="proposal-revision">
-                    Your change
+                    {say("plan.view.active.yourChange")}
                     <textarea
                       id="proposal-revision"
                       className="min-h-36 resize-y rounded-ctl border border-line bg-surface px-3 py-3 text-base text-ink-1 outline-none focus:border-primary"
                       value={revisionText}
-                      placeholder="Keep 45 minutes and make it recovery."
+                      placeholder={say("plan.view.active.revisionPlaceholder")}
                       disabled={proposalBusy}
                       onChange={(event) => setRevisionText(event.currentTarget.value)}
                     />
@@ -3922,10 +4388,12 @@ function ActiveProjection(): ReactElement {
                       setRevisionText("");
                     }}
                   >
-                    Cancel
+                    {say("common.cancel")}
                   </Button>
                   <Button type="submit" disabled={proposalBusy || !/\S/u.test(revisionText)}>
-                    {proposalBusy ? "Updating…" : "Update Proposal"}
+                    {proposalBusy
+                      ? say("plan.view.active.updating")
+                      : say("plan.view.active.updateProposal")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -3934,7 +4402,7 @@ function ActiveProjection(): ReactElement {
             <>
               <DialogHeader className="grid gap-2 border-b border-line px-5 py-5 pr-16">
                 <DialogDescription className="m-0 text-ink-2">
-                  {formatCivilDate(selectedProposal.affectedDate)}
+                  {planDate(selectedProposal.affectedDate)}
                 </DialogDescription>
                 <DialogTitle className="m-0 text-xl">
                   {proposalTargetWorkout?.name ?? selectedProposal.title}
@@ -3942,9 +4410,9 @@ function ActiveProjection(): ReactElement {
               </DialogHeader>
               <div className="grid flex-1 content-start gap-row overflow-auto px-5 py-5">
                 <div className="flex items-center justify-between gap-inset">
-                  <span className="text-sm text-ink-2">Status</span>
+                  <span className="text-sm text-ink-2">{say("plan.view.active.status")}</span>
                   <span className="rounded-full border border-warn px-2.5 py-1 text-sm text-warn">
-                    Decision needed
+                    {say("plan.view.active.decisionNeeded")}
                   </span>
                 </div>
                 {planningRequestAttention === "apply_failed" ||
@@ -3960,17 +4428,17 @@ function ActiveProjection(): ReactElement {
                     <div className={SUPPORT_PAIR}>
                       <p className="m-0 font-medium">
                         {planningRequestAttention === "apply_failed"
-                          ? "We couldn’t save this change"
-                          : "The previous check was interrupted"}
+                          ? say("plan.view.active.saveFailureTitle")
+                          : say("plan.view.active.interruptedTitle")}
                       </p>
                       <p className="m-0 text-sm text-ink-2">
-                        The active Plan is unchanged and this Proposal is still available.
+                        {say("plan.view.active.proposalPreserved")}
                       </p>
                     </div>
                   </div>
                 ) : null}
                 {selectedProposal.stale ? (
-                  <StaleNotice message="The Plan changed before approval. Review this updated Proposal." />
+                  <StaleNotice message={say("plan.view.active.staleProposal")} />
                 ) : null}
                 {!selectedProposal.stale && selectedProposal.error !== null ? (
                   <StaleNotice message={selectedProposal.error.message} />
@@ -3982,15 +4450,17 @@ function ActiveProjection(): ReactElement {
                       aria-hidden="true"
                     />
                     <div className={SUPPORT_PAIR}>
-                      <p className="m-0 font-medium">Checking the current Plan</p>
+                      <p className="m-0 font-medium">{say("plan.view.active.revalidationTitle")}</p>
                       <p className="m-0 text-sm text-ink-2">
-                        Confirming that the workout and source data have not changed.
+                        {say("plan.view.active.revalidationDescription")}
                       </p>
                     </div>
                   </div>
                 ) : null}
                 <section className="grid gap-inset rounded-ctl bg-sunk p-row">
-                  <h3 className="m-0 text-sm font-semibold">Proposed change</h3>
+                  <h3 className="m-0 text-sm font-semibold">
+                    {say("plan.view.active.proposedChange")}
+                  </h3>
                   {selectedProposal.diff.map((line) => (
                     <div key={line.field} className="grid grid-cols-[7rem_1fr] gap-inset text-sm">
                       <span>{line.label}</span>
@@ -4001,11 +4471,11 @@ function ActiveProjection(): ReactElement {
                   ))}
                 </section>
                 <section className={SUPPORT_PAIR}>
-                  <h3 className="m-0 text-sm font-semibold">Why</h3>
+                  <h3 className="m-0 text-sm font-semibold">{say("plan.view.active.why")}</h3>
                   <p className="m-0 text-sm text-ink-2">{selectedProposal.rationale}</p>
                 </section>
                 <div className="flex items-center justify-between gap-inset">
-                  <span className="text-sm text-ink-2">Confidence</span>
+                  <span className="text-sm text-ink-2">{say("chat.planChange.confidence")}</span>
                   <span className="rounded-full border border-ok px-2.5 py-1 text-sm text-ok">
                     {selectedProposal.confidence}
                   </span>
@@ -4015,11 +4485,11 @@ function ActiveProjection(): ReactElement {
                     ref={evidenceTrigger}
                     type="button"
                     variant="link"
-                    aria-label="View evidence"
+                    aria-label={say("chat.planChange.viewEvidence")}
                     className="h-auto p-0"
                     onClick={() => setProposalMode("evidence")}
                   >
-                    View evidence →
+                    {say("plan.view.active.viewEvidence")}
                   </Button>
                 </div>
               </div>
@@ -4031,7 +4501,7 @@ function ActiveProjection(): ReactElement {
                     disabled={proposalBusy}
                     onClick={() => actions?.rejectProposal(selectedProposal.id)}
                   >
-                    Reject
+                    {say("plan.view.active.reject")}
                   </Button>
                   {canReviseProposal ? (
                     <Button
@@ -4040,7 +4510,7 @@ function ActiveProjection(): ReactElement {
                       disabled={proposalBusy}
                       onClick={() => setProposalMode("edit")}
                     >
-                      Edit
+                      {say("chat.planCreation.edit")}
                     </Button>
                   ) : null}
                   {canApproveProposal ? (
@@ -4052,13 +4522,13 @@ function ActiveProjection(): ReactElement {
                       }
                     >
                       {proposalBusy
-                        ? "Checking…"
+                        ? say("plan.view.active.checking")
                         : planningRequestAttention === "apply_failed" ||
                             planningRequestAttention === "revalidating"
-                          ? "Try again"
+                          ? say("plan.view.planView.tryAgain")
                           : selectedProposal.stale
-                            ? "Revalidate"
-                            : "Approve"}
+                            ? say("plan.view.active.revalidate")
+                            : say("plan.view.active.approve")}
                     </Button>
                   ) : null}
                 </>
@@ -4072,10 +4542,19 @@ function ActiveProjection(): ReactElement {
 }
 
 function EndedProjection(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
+  const planDate = usePlanDate();
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   const actions = useEnduragentStore((state) => state.planActions);
-  if (model === null) return <StatusCard title="Plan" support="Refreshing your Plan…" />;
+  if (model === null)
+    return (
+      <StatusCard
+        title={say("plan.view.planView.plan")}
+        support={say("plan.view.ready.refreshing")}
+      />
+    );
   const parsed = PlanEndedProjectionDataSchema.safeParse(model.data);
   if (!parsed.success) return <StatusCard title={model.title} support={model.summary} />;
   const data = parsed.data;
@@ -4095,10 +4574,10 @@ function EndedProjection(): ReactElement {
           <div className="flex items-start gap-row">
             <Activity className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <h2 className="m-0 text-base font-semibold">Did you complete {data.plan.name}?</h2>
-              <p className="m-0 text-ink-2">
-                This records the race outcome. The ended Plan and its history stay unchanged.
-              </p>
+              <h2 className="m-0 text-base font-semibold">
+                {say("plan.view.ended.outcomeQuestion", { value1: data.plan.name })}
+              </h2>
+              <p className="m-0 text-ink-2">{say("plan.view.ended.outcomeDescription")}</p>
             </div>
           </div>
           {transition.status === "failed" && transition.transitionId === "PL-T30" ? (
@@ -4115,14 +4594,14 @@ function EndedProjection(): ReactElement {
             disabled={outcomeBusy || actions === null}
             onClick={() => actions?.recordRaceOutcome("not-completed")}
           >
-            Not completed
+            {say("plan.view.ended.notCompleted")}
           </Button>
           <Button
             type="button"
             disabled={outcomeBusy || actions === null}
             onClick={() => actions?.recordRaceOutcome("completed")}
           >
-            {outcomeBusy ? "Saving…" : "Completed"}
+            {outcomeBusy ? say("plan.view.ended.saving") : say("plan.view.ended.completed")}
           </Button>
         </div>
       </section>
@@ -4137,41 +4616,56 @@ function EndedProjection(): ReactElement {
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
               <h2 className="m-0 text-lg font-semibold">
-                {data.plan.name} completed · {result.goal.toLowerCase()} achieved
+                {say("plan.view.ended.completedTitle", {
+                  value1: data.plan.name,
+                  value2: result.goal.toLowerCase(),
+                })}
               </h2>
               <p className="m-0 text-ink-2">
-                {formatCivilDate(result.raceDate)} · result recorded. The Plan no longer changes
-                future training.
+                {say("plan.view.ended.completedDescription", { value1: planDate(result.raceDate) })}
               </p>
             </div>
           </div>
           <section className="grid gap-row border-t border-line pt-row">
-            <h3 className="m-0 text-base font-semibold">Time across Plan</h3>
+            <h3 className="m-0 text-base font-semibold">{say("plan.view.ended.timeAcrossPlan")}</h3>
             <div className="grid grid-cols-3 gap-row">
               <div className={SUPPORT_PAIR}>
-                <span className="text-sm text-ink-2">Training</span>
-                <strong className="text-lg">{clockTime(result.trainingDurationS)}</strong>
+                <span className="text-sm text-ink-2">{say("plan.view.ended.training")}</span>
+                <strong className="text-lg">
+                  {clockTime(phrasebook, result.trainingDurationS)}
+                </strong>
               </div>
               <div className={SUPPORT_PAIR}>
-                <span className="text-sm text-ink-2">Race</span>
-                <strong className="text-lg">{clockTime(result.raceDurationS)}</strong>
+                <span className="text-sm text-ink-2">{say("plan.view.ended.race")}</span>
+                <strong className="text-lg">{clockTime(phrasebook, result.raceDurationS)}</strong>
               </div>
               <div className={SUPPORT_PAIR}>
-                <span className="text-sm text-ink-2">Total</span>
-                <strong className="text-lg">{clockTime(result.totalDurationS)}</strong>
+                <span className="text-sm text-ink-2">{say("plan.view.ended.total")}</span>
+                <strong className="text-lg">{clockTime(phrasebook, result.totalDurationS)}</strong>
               </div>
             </div>
           </section>
           <section className="grid gap-inset border-t border-line pt-row text-sm">
-            <h3 className="m-0 text-base font-semibold">Plan outcome</h3>
+            <h3 className="m-0 text-base font-semibold">{say("plan.view.ended.planOutcome")}</h3>
             {[
-              ["Goal", result.goal],
-              ["Result", result.result],
-              ["Modeled finish", finishRange(result.modeledFinishMinutes)],
-              ["Actual", clockTime(result.actualDurationS)],
-              ["Workout records", `${data.plan.workoutCount} total`],
-              ["Applied changes", String(result.appliedChangeCount)],
-              ["Eligible undo", "None"],
+              [say("plan.view.ended.goal"), result.goal],
+              [say("plan.view.ended.result"), result.result],
+              [
+                say("plan.view.ended.modeledFinish"),
+                finishRange(phrasebook, result.modeledFinishMinutes),
+              ],
+              [say("plan.view.ended.actual"), clockTime(phrasebook, result.actualDurationS)],
+              [
+                say("plan.view.ended.workoutRecords"),
+                say("plan.view.ended.workoutCount", {
+                  value1: format.number(data.plan.workoutCount, { useGrouping: false }),
+                }),
+              ],
+              [
+                say("plan.view.ended.appliedChanges"),
+                format.number(result.appliedChangeCount, { useGrouping: false }),
+              ],
+              [say("plan.view.ended.eligibleUndo"), say("chat.planChange.none")],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -4185,16 +4679,21 @@ function EndedProjection(): ReactElement {
           <div className="flex items-start gap-row border-t border-line pt-row">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <h3 className="m-0 text-base font-semibold">Calendar cleanup verified</h3>
+              <h3 className="m-0 text-base font-semibold">
+                {say("plan.view.ended.calendarCleanupVerified")}
+              </h3>
               <p className="m-0 text-ink-2">
-                Today stayed. No tomorrow-onward Enduragent workouts remain in Intervals.
+                {say("plan.view.ended.cleanupVerifiedDescription", {
+                  product: "Enduragent",
+                  intervals: "Intervals",
+                })}
               </p>
             </div>
           </div>
         </div>
         <div className="flex justify-end border-t border-line px-5 py-row">
           <Button type="button" disabled={actions === null} onClick={() => actions?.startPlan()}>
-            Start a new Plan
+            {say("plan.view.ended.startANewPlan")}
           </Button>
         </div>
       </section>
@@ -4207,32 +4706,35 @@ function EndedProjection(): ReactElement {
           <div className="flex items-start gap-row">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className={SUPPORT_PAIR}>
-              <h2 className="m-0 text-lg font-semibold">Race outcome · Not completed</h2>
+              <h2 className="m-0 text-lg font-semibold">
+                {say("plan.view.ended.raceOutcomeNotCompleted")}
+              </h2>
               <p className="m-0 text-ink-2">
-                {formatCivilDate(data.raceOutcomeDetails.raceDate)} · the Plan remains ended and its
-                history stays available.
+                {say("plan.view.ended.incompleteDescription", {
+                  value1: planDate(data.raceOutcomeDetails.raceDate),
+                })}
               </p>
             </div>
           </div>
           <section className="grid gap-inset border-t border-line pt-row text-sm">
-            <h3 className="m-0 text-base font-semibold">Plan record</h3>
+            <h3 className="m-0 text-base font-semibold">{say("plan.view.ended.planRecord")}</h3>
             <div className="flex justify-between gap-row">
-              <span className="text-ink-2">Planned race</span>
+              <span className="text-ink-2">{say("plan.view.ended.plannedRace")}</span>
               <strong>{data.plan.name}</strong>
             </div>
             <div className="flex justify-between gap-row border-t border-line pt-inset">
-              <span className="text-ink-2">Outcome</span>
-              <strong>Not completed</strong>
+              <span className="text-ink-2">{say("plan.view.ended.outcome")}</span>
+              <strong>{say("plan.view.ended.notCompleted")}</strong>
             </div>
             <div className="flex justify-between gap-row border-t border-line pt-inset">
-              <span className="text-ink-2">Training history</span>
-              <strong>Preserved</strong>
+              <span className="text-ink-2">{say("plan.view.ended.trainingHistory")}</span>
+              <strong>{say("plan.view.ended.preserved")}</strong>
             </div>
           </section>
         </div>
         <div className="flex justify-end border-t border-line px-5 py-row">
           <Button type="button" disabled={actions === null} onClick={() => actions?.startPlan()}>
-            Start a new Plan
+            {say("plan.view.ended.startANewPlan")}
           </Button>
         </div>
       </section>
@@ -4255,15 +4757,17 @@ function EndedProjection(): ReactElement {
           <div className={SUPPORT_PAIR}>
             <h2 className="m-0 text-base font-semibold">
               {model.scenarioId === "PL-S096"
-                ? `${data.plan.name} · Not completed`
-                : `${data.plan.name} Plan ended`}
+                ? say("plan.view.ended.incompleteTitle", { value1: data.plan.name })
+                : say("plan.view.ended.endedTitle", { value1: data.plan.name })}
             </h2>
             <p className="m-0 text-ink-2">
               {model.scenarioId === "PL-S094" && data.plan.targetDate !== null
-                ? `The Plan ended automatically after ${formatCivilDate(data.plan.targetDate)}.`
+                ? say("plan.view.ended.automaticCloseDescription", {
+                    value1: planDate(data.plan.targetDate),
+                  })
                 : model.scenarioId === "PL-S096"
-                  ? "The race outcome is saved separately from the ended Plan."
-                  : "The Plan no longer changes future training."}
+                  ? say("plan.view.ended.outcomeSavedDescription")
+                  : say("plan.view.ended.endedDescription")}
             </p>
           </div>
         </div>
@@ -4282,19 +4786,22 @@ function EndedProjection(): ReactElement {
             <div className={SUPPORT_PAIR}>
               <h3 className="m-0 text-base font-semibold">
                 {verified
-                  ? "Calendar cleanup verified"
+                  ? say("plan.view.ended.calendarCleanupVerified")
                   : failed
-                    ? "Calendar cleanup needs attention"
+                    ? say("plan.view.ended.calendarCleanupNeedsAttention")
                     : busy || model.scenarioId === "PL-S055"
-                      ? "Cleaning up Intervals"
-                      : "Checking Intervals"}
+                      ? say("plan.view.ended.cleaningCalendar", { intervals: "Intervals" })
+                      : say("plan.view.ended.checkingCalendar", { intervals: "Intervals" })}
               </h3>
               <p className="m-0 text-ink-2">
                 {verified
-                  ? "Today stayed. No tomorrow-onward Enduragent workouts remain in Intervals."
+                  ? say("plan.view.ended.cleanupVerifiedDescription", {
+                      product: "Enduragent",
+                      intervals: "Intervals",
+                    })
                   : failed
-                    ? "The Plan remains ended. Retry cleanup or verify Intervals again."
-                    : "Today stays while tomorrow-onward Plan workouts are checked."}
+                    ? say("plan.view.ended.cleanupFailedDescription", { intervals: "Intervals" })
+                    : say("plan.view.ended.cleanupPendingDescription")}
               </p>
             </div>
           </div>
@@ -4305,8 +4812,10 @@ function EndedProjection(): ReactElement {
                   key={item.id}
                   className="flex items-center justify-between gap-row py-inset text-sm"
                 >
-                  <span>{formatCivilDate(item.date)}</span>
-                  <span className="text-warn">Still in Intervals</span>
+                  <span>{planDate(item.date)}</span>
+                  <span className="text-warn">
+                    {say("plan.view.ended.remainingCalendarEntry", { intervals: "Intervals" })}
+                  </span>
                 </div>
               ))}
             </div>
@@ -4315,17 +4824,21 @@ function EndedProjection(): ReactElement {
         <div className="grid gap-inset border-t border-line pt-row text-sm">
           {data.raceOutcome === null || data.raceOutcome === undefined ? null : (
             <div className="flex justify-between gap-row">
-              <span>Race outcome</span>
-              <strong>{data.raceOutcome === "completed" ? "Completed" : "Not completed"}</strong>
+              <span>{say("plan.view.ended.raceOutcome")}</span>
+              <strong>
+                {data.raceOutcome === "completed"
+                  ? say("plan.view.ended.completed")
+                  : say("plan.view.ended.notCompleted")}
+              </strong>
             </div>
           )}
           <div className="flex justify-between gap-row">
-            <span>Plan history</span>
-            <strong>Saved</strong>
+            <span>{say("plan.view.planView.planHistory")}</span>
+            <strong>{say("plan.view.ended.saved")}</strong>
           </div>
           <div className="flex justify-between gap-row">
-            <span>Past rides and athlete-created events</span>
-            <strong>Preserved</strong>
+            <span>{say("plan.view.ended.preservedRecords")}</span>
+            <strong>{say("plan.view.ended.preserved")}</strong>
           </div>
         </div>
       </div>
@@ -4338,10 +4851,10 @@ function EndedProjection(): ReactElement {
               disabled={busy || actions === null || data.outcomeAvailable !== true}
               onClick={() => actions?.openRaceOutcome()}
             >
-              Record outcome
+              {say("plan.view.ended.recordOutcome")}
             </Button>
             <Button type="button" onClick={() => actions?.startPlan()}>
-              Start a new Plan
+              {say("plan.view.ended.startANewPlan")}
             </Button>
           </>
         ) : failed ? (
@@ -4352,14 +4865,14 @@ function EndedProjection(): ReactElement {
               disabled={busy || actions === null}
               onClick={() => actions?.verifyPlanCleanup()}
             >
-              Verify again
+              {say("plan.view.ended.verifyAgain")}
             </Button>
             <Button
               type="button"
               disabled={busy || actions === null}
               onClick={() => actions?.retryPlanCleanup()}
             >
-              {busy ? "Working…" : "Retry"}
+              {busy ? say("plan.view.ended.working") : say("plan.view.ended.retry")}
             </Button>
           </>
         ) : verified || data.raceOutcome !== null ? (
@@ -4372,11 +4885,11 @@ function EndedProjection(): ReactElement {
                 disabled={actions === null}
                 onClick={() => actions?.openEndedConversation()}
               >
-                View coach conversation
+                {say("plan.view.ended.viewCoachConversation")}
               </Button>
             ) : null}
             <Button type="button" disabled={actions === null} onClick={() => actions?.startPlan()}>
-              Start a new Plan
+              {say("plan.view.ended.startANewPlan")}
             </Button>
           </>
         ) : null}
@@ -4386,6 +4899,9 @@ function EndedProjection(): ReactElement {
 }
 
 function ReadyProjection(): ReactElement | null {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const model = useEnduragentStore((state) => planReadModel(state.plan));
   const transition = useEnduragentStore((state) => state.plan.transition);
   if (
@@ -4394,7 +4910,13 @@ function ReadyProjection(): ReactElement | null {
   ) {
     return <DraftFormation />;
   }
-  if (model === null) return <StatusCard title="Plan" support="Refreshing your Plan…" />;
+  if (model === null)
+    return (
+      <StatusCard
+        title={say("plan.view.planView.plan")}
+        support={say("plan.view.ready.refreshing")}
+      />
+    );
   if (model.scenarioId === "PL-S099") {
     const parsed = PlanChatOriginatedResultProjectionDataSchema.safeParse(model.data);
     return parsed.success ? (
@@ -4411,13 +4933,18 @@ function ReadyProjection(): ReactElement | null {
   if (model.projection === "attention") return <AttentionProjection />;
   return (
     <StatusCard
-      title={model.title.length > 0 ? model.title : "Your Plan"}
-      support={model.summary.length > 0 ? model.summary : "Your Plan is available."}
+      title={model.title.length > 0 ? model.title : say("plan.view.ready.yourPlan")}
+      support={
+        model.summary.length > 0 ? model.summary : say("plan.view.ready.availableDescription")
+      }
     />
   );
 }
 
 export function PlanView(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
+
   const [finalDetails, setFinalDetails] = useState<
     | { status: "library" }
     | { status: "loading"; planId: string; justClosed: boolean }
@@ -4492,9 +5019,9 @@ export function PlanView(): ReactElement {
   const activeOverview =
     model?.projection === "active" && ACTIVE_OVERVIEW_SCENARIOS.has(model.scenarioId);
   const subtitle = loading
-    ? "Loading…"
+    ? say("plan.view.planView.loading")
     : historyPage
-      ? `${activeData.plan.name} · active Plan · mutation and recovery log`
+      ? say("plan.view.planView.historySubtitle", { value1: activeData.plan.name })
       : undefined;
 
   useEffect(() => {
@@ -4505,12 +5032,12 @@ export function PlanView(): ReactElement {
   if (finalDetails.status !== "library") {
     const notice = finalDetails.justClosed
       ? finalDetails.status === "ready" && finalDetails.history?.cleanup === "complete"
-        ? "Plan closed. Cleanup complete."
-        : "Plan closed. Calendar cleanup pending."
+        ? say("plan.view.planView.closedCleanupComplete")
+        : say("plan.view.planView.closedCleanupPending")
       : null;
     return (
       <Page
-        title="Plan"
+        title={say("plan.view.planView.plan")}
         className="plan-view [&_[data-page-scroll]>div]:w-[min(720px,calc(100%-64px))] max-md:[&_[data-page-scroll]>div]:w-[calc(100%-32px)]"
         busy={finalDetails.status === "loading"}
       >
@@ -4538,25 +5065,25 @@ export function PlanView(): ReactElement {
             )}
             {finalDetails.status === "loading" ? (
               <p role="status" className="m-0 text-sm text-ink-2">
-                Loading final Plan details…
+                {say("plan.view.planView.loadingHistory")}
               </p>
             ) : null}
             {finalDetails.status === "unavailable" ? (
               <>
                 <p role="alert" className="m-0 text-sm text-danger">
-                  Final Plan details could not load. Try again.
+                  {say("plan.view.planView.historyFailure")}
                 </p>
                 <Button
                   variant="outline"
                   onClick={() => readFinalDetails(finalDetails.planId, finalDetails.justClosed)}
                 >
-                  Try again
+                  {say("plan.view.planView.tryAgain")}
                 </Button>
               </>
             ) : null}
             <div>
               <Button variant="outline" onClick={backToLibrary}>
-                Back to library
+                {say("plan.view.planView.backToLibrary")}
               </Button>
             </div>
           </div>
@@ -4567,7 +5094,7 @@ export function PlanView(): ReactElement {
 
   return (
     <Page
-      title={historyPage ? "Plan history" : "Plan"}
+      title={historyPage ? say("plan.view.planView.planHistory") : say("plan.view.planView.plan")}
       subtitle={subtitle}
       busy={loading}
       action={
@@ -4579,7 +5106,9 @@ export function PlanView(): ReactElement {
               disabled={libraryActions === null}
               onClick={() => libraryActions?.startCreation()}
             >
-              {library.value.active === null ? "Start a Plan" : "Start a new Plan"}
+              {library.value.active === null
+                ? say("plan.view.planView.startPlan")
+                : say("plan.view.ended.startANewPlan")}
             </Button>
           ) : undefined
         ) : coachWorkspace ? (
@@ -4590,11 +5119,11 @@ export function PlanView(): ReactElement {
             disabled={actions === null}
             onClick={() => actions?.closeCoach()}
           >
-            Close coach
+            {say("plan.view.planView.closeCoach")}
           </Button>
         ) : historyPage ? (
           <Button type="button" variant="outline" onClick={() => actions?.closeHistory()}>
-            Back to Plan
+            {say("plan.view.planView.backToPlan")}
           </Button>
         ) : activeOverview ? (
           <Button
@@ -4604,7 +5133,7 @@ export function PlanView(): ReactElement {
             onClick={() => actions?.openHistory()}
           >
             <History className="size-4" aria-hidden="true" />
-            Plan history
+            {say("plan.view.planView.planHistory")}
           </Button>
         ) : undefined
       }
@@ -4614,9 +5143,9 @@ export function PlanView(): ReactElement {
       <div className={coachWorkspace ? "h-full min-h-0" : "grid gap-6"}>
         {library.status === "unavailable" ? (
           <div role="alert" className="grid gap-inset">
-            <StaleNotice message="Plan library could not load. Try again." />
+            <StaleNotice message={say("plan.view.planView.libraryFailure")} />
             <Button variant="outline" onClick={() => planningActions?.refresh()}>
-              Try again
+              {say("plan.view.planView.tryAgain")}
             </Button>
           </div>
         ) : null}
@@ -4644,7 +5173,7 @@ export function PlanView(): ReactElement {
                 onClick={() => actions?.openHistory()}
               >
                 <History className="size-4" aria-hidden="true" />
-                Plan history
+                {say("plan.view.planView.planHistory")}
               </Button>
             </div>
           ) : null}
@@ -4653,18 +5182,18 @@ export function PlanView(): ReactElement {
           ) : null}
           {plan.hydration.status === "loading" ? (
             <p className="m-0 text-ink-2" role="status" aria-live="polite">
-              Loading your Plan…
+              {say("plan.view.planView.loadingPlan")}
             </p>
           ) : plan.hydration.status === "failed" ? (
             <StatusCard
-              title="Plan could not load"
+              title={say("plan.view.planView.loadFailureTitle")}
               support={plan.hydration.error.message}
               retry={plan.hydration.error.retryable}
             />
           ) : plan.hydration.status === "unsupported-capability" ? (
             <StatusCard
-              title="Plan is not available yet"
-              support="Update Enduragent and its local service to use Plan."
+              title={say("plan.view.planView.unavailableTitle")}
+              support={say("plan.view.planView.upgradeRequired", { product: "Enduragent" })}
             />
           ) : (
             <ReadyProjection />

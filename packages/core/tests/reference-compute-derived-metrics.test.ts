@@ -21,7 +21,10 @@ import {
   type ReferenceBundle,
 } from "../src/reference/sync/fixture-bridge.js";
 import { runAdaptersForActivities } from "../src/reference/sport-adapter-dispatcher.js";
-import { composeProvenance, readAnalysisBasis } from "../src/reference/sync/fetch-reference-data.js";
+import {
+  composeProvenance,
+  readAnalysisBasis,
+} from "../src/reference/sync/fetch-reference-data.js";
 import type { ReferenceSportAdapter } from "../src/reference/sport-adapter.js";
 import type { IntervalsActivityType } from "../src/sport.js";
 import { GoldenFixtureSchema, loadFixture } from "./helpers/load-fixture.js";
@@ -47,7 +50,10 @@ describe("computeDerivedMetrics", () => {
     const out = computeDerivedMetrics(dfaEquippedInput());
     const profile = out["capability.dfa_a1_profile"] as {
       latest_session?: { sufficient?: boolean };
-      trailing_by_sport?: Record<string, { aet_estimate?: unknown; aet_crossing_sessions?: number }>;
+      trailing_by_sport?: Record<
+        string,
+        { aet_estimate?: unknown; aet_crossing_sessions?: number }
+      >;
     } | null;
     expect(profile).not.toBeNull();
     expect(profile?.latest_session).toBeDefined();
@@ -74,10 +80,23 @@ describe("computeDerivedMetrics", () => {
     const log = vi.fn();
     const sparse = buildFixtureShape({
       activities: [
-        { id: 1, start_date_local: "2026-06-01T07:00:00", type: "Ride", moving_time: 3600, elapsed_time: 3700 },
+        {
+          id: 1,
+          start_date_local: "2026-06-01T07:00:00",
+          type: "Ride",
+          moving_time: 3600,
+          elapsed_time: 3700,
+        },
       ],
       wellness: [
-        { id: "2026-06-01", weight: null, restingHR: null, hrv: null, sleepSecs: null, sleepQuality: null },
+        {
+          id: "2026-06-01",
+          weight: null,
+          restingHR: null,
+          hrv: null,
+          sleepSecs: null,
+          sleepQuality: null,
+        },
       ],
       ftpHistory: [],
     });
@@ -87,17 +106,20 @@ describe("computeDerivedMetrics", () => {
 
   it("isolates a throwing metric to null + warning, leaving the rest intact", () => {
     const log = vi.fn();
-    const out = computeDerivedMetrics({ fixture: {} as never, frozenNow: "x" }, {
-      log,
-      registry: {
-        good: { compute: () => 42 },
-        bad: {
-          compute: () => {
-            throw new Error("boom");
+    const out = computeDerivedMetrics(
+      { fixture: {} as never, frozenNow: "x" },
+      {
+        log,
+        registry: {
+          good: { compute: () => 42 },
+          bad: {
+            compute: () => {
+              throw new Error("boom");
+            },
           },
         },
       },
-    });
+    );
     expect(out).toEqual({ good: 42, bad: null });
     expect(log).toHaveBeenCalledTimes(1);
     expect(log.mock.calls[0]?.[0]).toContain(METRIC_COMPUTE_FAILED_LOG_PREFIX);
@@ -177,7 +199,11 @@ function composeLikeFetchOnce(
   };
   omitPowerFamily: boolean;
 } {
-  const runs = runAdaptersForActivities(adapters, sportTypes, activities as unknown as readonly Activity[]);
+  const runs = runAdaptersForActivities(
+    adapters,
+    sportTypes,
+    activities as unknown as readonly Activity[],
+  );
   const { omitPowerFamily, meta: baseMeta } = composeProvenance(runs);
   const derived_metrics = computeDerivedMetrics(inputFor(activities), { omitPowerFamily });
   // Fold analysisBasis in post-compute via the same production helper fetchOnce
@@ -207,7 +233,9 @@ describe("computeDerivedMetrics power-family omission", () => {
 
   it("DEFAULT (omitPowerFamily unset/false) returns the full registry key-set, byte-identical", () => {
     const noOpts = computeDerivedMetrics(inputFor([activity(1, "Run", 1)]));
-    const explicitFalse = computeDerivedMetrics(inputFor([activity(1, "Run", 1)]), { omitPowerFamily: false });
+    const explicitFalse = computeDerivedMetrics(inputFor([activity(1, "Run", 1)]), {
+      omitPowerFamily: false,
+    });
     expect(Object.keys(noOpts).sort()).toEqual(Object.keys(METRIC_REGISTRY).sort());
     expect(Object.keys(explicitFalse).sort()).toEqual(Object.keys(METRIC_REGISTRY).sort());
     expect(explicitFalse).toEqual(noOpts);
@@ -227,7 +255,12 @@ describe("computeDerivedMetrics power-family omission", () => {
 describe("fetchOnce-shaped power-family fence + provenance tag", () => {
   const RUN_TYPES: readonly IntervalsActivityType[] = ["Run", "TrailRun"];
   const RIDE_TYPES: readonly IntervalsActivityType[] = ["Ride", "VirtualRide"];
-  const DUATHLON_TYPES: readonly IntervalsActivityType[] = ["Ride", "VirtualRide", "Run", "TrailRun"];
+  const DUATHLON_TYPES: readonly IntervalsActivityType[] = [
+    "Ride",
+    "VirtualRide",
+    "Run",
+    "TrailRun",
+  ];
 
   it("pure-Run bundle: omits power keys from derived_metrics and tags run/pace/critical-speed", () => {
     const { derived_metrics, derived_metrics_meta, omitPowerFamily } = composeLikeFetchOnce(

@@ -1,86 +1,98 @@
+import type { ClaudeCliState } from "../../onboarding/constants";
+import { chatGptSignedIn, claudeCliReady, type OnboardingState } from "../../onboarding/machine";
+import type { OnboardingLlmConfiguration } from "../../onboarding/bridge";
+import { msg, type Message } from "@enduragent/i18n";
 import type { ChatGptLoginRefusalReason } from "../../onboarding/constants";
 import type { SetupLane } from "../../onboarding/lanes";
 import type { ChatGptUiPhase, OnboardingErrorCode } from "../../onboarding/machine";
-import { PLATFORM_COPY } from "../../platform-copy";
+import { PLATFORM_COPY, platformCredentialEncryptionUnavailable } from "../../platform-copy";
 
-export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, string>> = {
-  "credential-required": "Sign in with ChatGPT or add at least one model key to continue.",
-  "credential-save-failed": "That key could not be saved. Try entering it again.",
-  "invalid-input": "That key was not accepted. Check it and enter it again.",
-  "encryption-unavailable": PLATFORM_COPY.credentialEncryptionUnavailable,
-  "unsafe-backend": "The app cannot safely store that key with the current storage backend.",
-  "storage-failed":
-    "The app could not confirm that key was saved securely. Check that secure storage is available and try again.",
-  "storage-uncertain":
-    "The app could not prove which saved key will survive a restart. Re-enter the key before continuing.",
-  "runtime-unavailable":
-    "That key was saved, but it is not active yet. Choose Retry saved keys to activate it.",
-  "credential-status-unavailable":
-    "That key was saved, but its status could not be refreshed. Check the setup area again.",
-  "credential-reenter-required": "That saved key could not be used. Enter it again to continue.",
-  "configuration-unavailable":
-    "Coach choices are unavailable right now. Check the setup area again.",
-  "model-selection-required": "Choose a model or enter a custom model name.",
-  "endpoint-invalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
-  "model-runtime-unavailable":
-    "Your provider choice is saved, but it is not active yet. Try activating it again.",
-  "training-account-mismatch":
-    "That intervals.icu key belongs to a different athlete than the training history already stored. Switching accounts is not supported yet.",
-  "intervals-clipboard-unavailable":
-    "Enduragent couldn’t read an API key from the clipboard. Copy it in Intervals.icu, then try again.",
-  "intervals-clipboard-clear-failed":
-    "The API key wasn’t saved because Enduragent couldn’t safely clear it from the clipboard. Copy it again, then try again.",
-  "intervals-key-rejected":
-    "Intervals.icu didn’t accept the copied API key. Copy a current API key, then try again.",
-  "intervals-validation-unavailable":
-    "Enduragent couldn’t verify the copied API key with Intervals.icu. Check your connection, then try again.",
-  "intervals-owner-unavailable": `Enduragent couldn’t confirm that the copied API key matches the training data on ${PLATFORM_COPY.computer}. Try again when training data is available.`,
-  "intervals-storage-uncertain":
-    "Enduragent couldn’t confirm whether the copied API key was saved. Reload credential status before trying again.",
-  "intervals-runtime-unavailable":
-    "The copied API key couldn’t be activated. Copy it in Intervals.icu, then try again.",
-  "intervals-runtime-uncertain":
-    "Enduragent couldn’t confirm whether the copied API key is active. Reload credential status before trying again.",
-  "training-data-required": "Connect intervals.icu or import at least one ride file.",
-  "intake-incomplete": "Answer the required safety questions to continue.",
-  "intake-save-failed": "Your answers could not be saved. Please try again.",
+export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
+  "credential-required": msg("setup.error.credentialRequired", { chatgpt: "ChatGPT" }),
+  "credential-save-failed": msg("setup.error.credentialSaveFailed"),
+  "invalid-input": msg("setup.error.invalidInput"),
+  "encryption-unavailable": platformCredentialEncryptionUnavailable(),
+  "unsafe-backend": msg("setup.error.unsafeBackend"),
+  "storage-failed": msg("setup.error.storageFailed"),
+  "storage-uncertain": msg("setup.error.storageUncertain"),
+  "runtime-unavailable": msg("setup.error.runtimeUnavailable"),
+  "credential-status-unavailable": msg("setup.error.credentialStatusUnavailable"),
+  "credential-reenter-required": msg("setup.error.credentialReenterRequired"),
+  "configuration-unavailable": msg("setup.error.configurationUnavailable"),
+  "model-selection-required": msg("setup.error.modelSelectionRequired"),
+  "endpoint-invalid": msg("setup.error.endpointInvalid"),
+  "model-runtime-unavailable": msg("setup.error.modelRuntimeUnavailable"),
+  "training-account-mismatch": msg("setup.error.trainingAccountMismatch", {
+    intervalsLower: "intervals.icu",
+  }),
+  "intervals-clipboard-unavailable": msg("setup.error.intervalsClipboardUnavailable", {
+    product: "Enduragent",
+    intervals: "Intervals.icu",
+  }),
+  "intervals-clipboard-clear-failed": msg("setup.error.intervalsClipboardClearFailed", {
+    product: "Enduragent",
+  }),
+  "intervals-key-rejected": msg("setup.error.intervalsKeyRejected", { intervals: "Intervals.icu" }),
+  "intervals-validation-unavailable": msg("setup.error.intervalsValidationUnavailable", {
+    product: "Enduragent",
+    intervals: "Intervals.icu",
+  }),
+  "intervals-owner-unavailable": msg("setup.error.intervalsOwnerUnavailable", {
+    computer: PLATFORM_COPY.computer,
+    product: "Enduragent",
+  }),
+  "intervals-storage-uncertain": msg("setup.error.intervalsStorageUncertain", {
+    product: "Enduragent",
+  }),
+  "intervals-runtime-unavailable": msg("setup.error.intervalsRuntimeUnavailable", {
+    intervals: "Intervals.icu",
+  }),
+  "intervals-runtime-uncertain": msg("setup.error.intervalsRuntimeUncertain", {
+    product: "Enduragent",
+  }),
+  "training-data-required": msg("setup.error.trainingDataRequired", {
+    intervalsLower: "intervals.icu",
+  }),
+  "intake-incomplete": msg("setup.error.intakeIncomplete"),
+  "intake-save-failed": msg("setup.error.intakeSaveFailed"),
 };
 
-export const CLAUDE_CLI_LANE_COPY = `Uses the Claude Code CLI already installed and signed in on ${PLATFORM_COPY.computer}. No API key needed.`;
+export const CLAUDE_CLI_LANE_COPY = msg("setup.ai.claude.detail", {
+  computer: PLATFORM_COPY.computer,
+  claudeCode: "Claude Code",
+});
 
-export const CLAUDE_CLI_RECHECK_LABEL = "Check again";
+export const CLAUDE_CLI_RECHECK_LABEL = msg("setup.ai.claude.recheck");
 
-export const CHATGPT_REFUSAL_COPY: Readonly<Record<ChatGptLoginRefusalReason, string>> = {
-  "already-in-progress": "A ChatGPT sign-in is already in progress.",
-  "callback-unavailable":
-    "The local sign-in callback is unavailable. Close other sign-in flows and retry.",
-  "timed-out": "ChatGPT sign-in timed out. Retry when you are ready.",
-  cancelled: "ChatGPT sign-in was cancelled. You can retry.",
-  "exchange-failed": "ChatGPT sign-in could not be completed. Please retry.",
-  "storage-failed": "ChatGPT sign-in completed, but the profile could not be saved.",
-  "runtime-unavailable": "ChatGPT sign-in was saved, but the coach could not be configured.",
+export const CHATGPT_REFUSAL_COPY: Readonly<Record<ChatGptLoginRefusalReason, Message>> = {
+  "already-in-progress": msg("setup.chatgpt.refusal.alreadyInProgress", { chatgpt: "ChatGPT" }),
+  "callback-unavailable": msg("setup.chatgpt.refusal.callbackUnavailable"),
+  "timed-out": msg("setup.chatgpt.refusal.timedOut", { chatgpt: "ChatGPT" }),
+  cancelled: msg("setup.chatgpt.refusal.cancelled", { chatgpt: "ChatGPT" }),
+  "exchange-failed": msg("setup.chatgpt.refusal.exchangeFailed", { chatgpt: "ChatGPT" }),
+  "storage-failed": msg("setup.chatgpt.refusal.storageFailed", { chatgpt: "ChatGPT" }),
+  "runtime-unavailable": msg("setup.chatgpt.refusal.runtimeUnavailable", { chatgpt: "ChatGPT" }),
 };
 
-export const SETUP_HEADING = "Get your coach running before you can chat";
-export const SETUP_SETTINGS_HEADING = "Setup";
+export const SETUP_HEADING = msg("setup.heading");
+export const SETUP_SETTINGS_HEADING = msg("setup.settingsHeading");
 
-export const SETUP_CHAT_SUBTITLE =
-  "Connect what your coach needs. Telegram is optional and never blocks Chat.";
+export const SETUP_CHAT_SUBTITLE = msg("setup.chatSubtitle", { telegram: "Telegram" });
 
-export const SETUP_CHECKING_HEADING = "Checking your setup";
+export const SETUP_CHECKING_HEADING = msg("setup.checking.heading");
 
-export const SETUP_CHECKING_SUBTITLE =
-  "Reading the connections already saved on this computer. This can take a moment right after launch.";
+export const SETUP_CHECKING_SUBTITLE = msg("setup.checking.subtitle");
 
-export const SETUP_STATUS_CHECKING_COPY = "Checking setup…";
+export const SETUP_STATUS_CHECKING_COPY = msg("setup.checking.status");
 
-export const SETUP_ROW_CHECKING_SUBTITLE = "Checking what is already connected…";
-export const SETUP_STATUS_UNAVAILABLE_COPY =
-  "Setup status couldn’t be loaded. Check that Enduragent is running, then try again.";
+export const SETUP_ROW_CHECKING_SUBTITLE = msg("setup.checking.rowSubtitle");
+export const SETUP_STATUS_UNAVAILABLE_COPY = msg("setup.statusUnavailable", {
+  product: "Enduragent",
+});
 
-export const RETRY_SETUP_STATUS_LABEL = "Retry setup status";
+export const RETRY_SETUP_STATUS_LABEL = msg("setup.retryStatus");
 
-export const SETUP_MENU_LABEL = "AI that powers your coach";
+export const SETUP_MENU_LABEL = msg("setup.ai.menuLabel");
 
 export const SETUP_LANE_LABELS = {
   "claude-cli": "Claude Code",
@@ -89,10 +101,10 @@ export const SETUP_LANE_LABELS = {
 } as const satisfies Readonly<Record<SetupLane, string>>;
 
 export const SETUP_LANE_MENU_HINTS = {
-  "claude-cli": "Checks your Claude subscription when selected",
-  "openai-codex": "Use the plan you already pay for",
-  "api-key": "9 providers · pay per use",
-} as const satisfies Readonly<Record<SetupLane, string>>;
+  "claude-cli": msg("setup.ai.laneHint.claudeCli", { claude: "Claude" }),
+  "openai-codex": msg("setup.ai.laneHint.openaiCodex"),
+  "api-key": msg("setup.ai.laneHint.apiKey", { providers: 9 }),
+} as const satisfies Readonly<Record<SetupLane, Message>>;
 
 export const AI_ROW_UNSET = {
   title: "AI that powers your coach",
@@ -108,103 +120,296 @@ export const AI_ROW_PENDING = {
 } as const satisfies Readonly<Record<SetupLane, string>>;
 
 export const AI_TRIGGER_LABELS = {
-  unset: "Choose what powers your coach",
-  set: "Change what powers your coach",
+  unset: msg("setup.ai.trigger.unset"),
+  set: msg("setup.ai.trigger.set"),
 } as const;
 
-export const AI_SAVE_LABEL = "Save API key";
+export const AI_SAVE_LABEL = msg("setup.ai.saveLabel");
 
-export const AI_CANCEL_LABEL = "Cancel API key setup";
+export const AI_CANCEL_LABEL = msg("setup.ai.cancelLabel");
 
-export const CHATGPT_CANCEL_LABEL = "Cancel ChatGPT setup";
+export const CHATGPT_CANCEL_LABEL = msg("setup.chatgpt.cancelLabel", { chatgpt: "ChatGPT" });
 
 export const AI_PANEL_ANNOUNCEMENTS = {
-  chatgpt: "ChatGPT sign-in opened below this row.",
-  "api-key": "API key setup opened below this row.",
+  chatgpt: msg("setup.ai.announcement.chatgpt", { chatgpt: "ChatGPT" }),
+  "api-key": msg("setup.ai.announcement.apiKey"),
 } as const;
 
 export const AI_ROW_TOOLTIP = {
-  label: "About the AI that powers your coach",
-  lead: "Enduragent has no AI of its own",
-  body: `It runs on a ChatGPT subscription, a Claude Code sign-in, or an API key you supply. Whichever you pick stays on ${PLATFORM_COPY.computer}.`,
+  label: msg("setup.ai.tooltip.label"),
+  lead: msg("setup.ai.tooltip.lead", { product: "Enduragent" }),
+  body: msg("setup.ai.tooltip.body", {
+    computer: PLATFORM_COPY.computer,
+    chatgpt: "ChatGPT",
+    claudeCode: "Claude Code",
+  }),
 } as const;
 
-export const CHATGPT_SIGN_IN_LABEL = "Sign in with ChatGPT";
+export const CHATGPT_SIGN_IN_LABEL = msg("setup.chatgpt.signIn", { chatgpt: "ChatGPT" });
 
-export const CHATGPT_CANCEL_SIGN_IN_LABEL = "Cancel sign-in";
+export const CHATGPT_CANCEL_SIGN_IN_LABEL = msg("setup.chatgpt.cancelSignIn");
 
-export const CHATGPT_RETRY_ACTIVATION_LABEL = "Retry activation";
+export const CHATGPT_RETRY_ACTIVATION_LABEL = msg("setup.chatgpt.retryActivation");
 
-export const CHATGPT_ACTIVATION_FAILURE_COPY =
-  "Signed in, but the coach could not be activated. Retry without signing in again.";
+export const CHATGPT_ACTIVATION_FAILURE_COPY = msg("setup.chatgpt.activationFailure");
 
 export const CHATGPT_PHASE_COPY: Readonly<
-  Record<Exclude<ChatGptUiPhase, "idle" | "login-failed" | "activation-failed">, string>
+  Record<Exclude<ChatGptUiPhase, "idle" | "login-failed" | "activation-failed">, Message>
 > = {
-  "waiting-for-browser": "Waiting for browser…",
-  "completing-sign-in": "Completing sign-in…",
-  "signed-in": "Signed in",
-  "activating-coach": "Activating coach…",
-  ready: "Ready",
+  "waiting-for-browser": msg("setup.chatgpt.phase.waitingForBrowser"),
+  "completing-sign-in": msg("setup.chatgpt.phase.completingSignIn"),
+  "signed-in": msg("setup.chatgpt.phase.signedIn"),
+  "activating-coach": msg("setup.chatgpt.phase.activatingCoach"),
+  ready: msg("setup.chatgpt.phase.ready"),
 };
 
-export const CHATGPT_PANEL_HINT =
-  "Opens OpenAI's sign-in page in your browser — you type your password there, not here. Needs a paid plan.";
+export const CHATGPT_PANEL_HINT = msg("setup.chatgpt.hint", { openai: "OpenAI" });
 
-export const API_KEY_PANEL_HINT =
-  "Created in the provider's console, billed per use — usually cents per conversation.";
+export const API_KEY_PANEL_HINT = msg("setup.ai.apiKeyHint");
 
 export const TRAINING_ROW_TITLE = "Intervals.icu";
 
 export const TRAINING_ROW_SUBTITLES = {
-  connected: "Connected · where your rides come from",
-  missing: "Connect or import ride files.",
+  connected: msg("setup.training.subtitle.connected"),
+  missing: msg("setup.training.subtitle.missing"),
 } as const;
 
 export const TRAINING_ROW_TOOLTIP = {
-  label: "About Intervals.icu",
+  label: msg("setup.training.tooltip.label", { intervals: "Intervals.icu" }),
   lead: "Intervals.icu",
-  body: "A free training site that already holds your rides. Enduragent reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then copy its API key.",
+  body: msg("setup.training.tooltip.body", { product: "Enduragent" }),
 } as const;
 
 export const TRAINING_TRIGGER_LABELS = {
-  disconnected: "Connect Intervals.icu",
+  disconnected: msg("setup.training.trigger.disconnected", { intervals: "Intervals.icu" }),
 } as const;
 
-export const TRAINING_CANCEL_LABEL = "Cancel Intervals.icu setup";
+export const TRAINING_CANCEL_LABEL = msg("setup.training.cancelLabel", {
+  intervals: "Intervals.icu",
+});
 
-export const TRAINING_CONNECT_TITLE = "Connect Intervals.icu";
+export const TRAINING_CONNECT_TITLE = msg("setup.training.connectTitle", {
+  intervals: "Intervals.icu",
+});
 
-export const INTERVALS_PANEL_HINT =
-  "In Intervals.icu, open Settings → Developer Settings, copy the API key, then return here. Enduragent reads it without showing it.";
+export const INTERVALS_PANEL_HINT = msg("setup.training.hint", {
+  product: "Enduragent",
+  intervals: "Intervals.icu",
+});
 
-export const TRAINING_USE_COPIED_KEY_LABEL = "Use copied API key";
+export const TRAINING_USE_COPIED_KEY_LABEL = msg("setup.training.useCopiedKey");
 
-export const IMPORT_FILES_LABEL = "Import ride files instead";
+export const IMPORT_FILES_LABEL = msg("setup.training.importFiles");
 
 export const TELEGRAM_ROW_TITLE = "Telegram";
 
-export const TELEGRAM_OPTIONAL_LABEL = "Optional";
+export const TELEGRAM_OPTIONAL_LABEL = msg("setup.telegram.optional");
 
-export const TELEGRAM_AVAILABILITY_COPY = `Telegram works while Enduragent is running and ${PLATFORM_COPY.computer} is awake and online.`;
+export const TELEGRAM_AVAILABILITY_COPY = msg("setup.telegram.availability", {
+  computer: PLATFORM_COPY.computer,
+  product: "Enduragent",
+  telegram: "Telegram",
+});
 
-export const TELEGRAM_VERIFIED_PREFIX = "Bot verified";
+export const TELEGRAM_VERIFIED_PREFIX = msg("setup.telegram.verifiedPrefix");
 
-export const TELEGRAM_CREATE_TITLE = "Create a bot with BotFather";
+export const TELEGRAM_CREATE_TITLE = msg("setup.telegram.createTitle", { botFather: "BotFather" });
 
-export const TELEGRAM_CREATE_COPY_AFTER_BOTFATHER =
-  "for a bot, copy its token, then return here. Enduragent reads and verifies the token directly from the clipboard; the token is never shown.";
+export const TELEGRAM_CREATE_COPY_AFTER_BOTFATHER = msg("setup.telegram.createAfterBotFather", {
+  product: "Enduragent",
+});
 
-export const TELEGRAM_CREATE_COPY = `Ask @BotFather ${TELEGRAM_CREATE_COPY_AFTER_BOTFATHER}`;
+export const TELEGRAM_CREATE_COPY = msg("setup.telegram.createCopy", {
+  botFather: "@BotFather",
+  product: "Enduragent",
+});
 
-export const TELEGRAM_DELETE_TITLE = "Delete the Telegram connection?";
+export const TELEGRAM_DELETE_TITLE = msg("setup.telegram.deleteTitle", { telegram: "Telegram" });
 
-export const TELEGRAM_DELETE_COPY = `This turns Telegram off and deletes the encrypted token and allowed-user access from ${PLATFORM_COPY.computer}. The Telegram bot and chat remain in Telegram.`;
+export const TELEGRAM_DELETE_COPY = msg("setup.telegram.deleteCopy", {
+  computer: PLATFORM_COPY.computer,
+  telegram: "Telegram",
+});
 
-export const RETRY_SAVED_KEYS_LABEL = "Retry saved keys";
+export const RETRY_SAVED_KEYS_LABEL = msg("setup.retrySavedKeys");
 
-export const RETRY_INTAKE_SAVE_LABEL = "Retry saving answers";
+export const RETRY_INTAKE_SAVE_LABEL = msg("setup.intake.retrySave");
 
-export const FOOTER_NOTE = `Everything stays on ${PLATFORM_COPY.computer}.`;
+export const FOOTER_NOTE = msg("setup.footerNote", { computer: PLATFORM_COPY.computer });
 
-export const PRIMARY_LABEL = "Start coaching";
+export const PRIMARY_LABEL = msg("setup.startCoaching");
+
+export function setupLaneMessage(lane: SetupLane): Message | "Claude Code" {
+  switch (lane) {
+    case "claude-cli":
+      return "Claude Code";
+    case "openai-codex":
+      return msg("setup.ai.lane.chatgpt", { chatgpt: "ChatGPT" });
+    case "api-key":
+      return msg("setup.ai.lane.apiKey");
+  }
+}
+
+export function aiRowMessageCopy(
+  lane: SetupLane | null,
+  wizard: OnboardingState,
+  ready: boolean,
+  identity = wizard.claudeCliIdentity,
+): { readonly title: Message | "Claude Code"; readonly subtitle: Message } {
+  if (lane === null)
+    return {
+      title: msg("setup.ai.title"),
+      subtitle: msg("setup.ai.subtitle", { product: "Enduragent" }),
+    };
+  const title = setupLaneMessage(lane);
+  if (!ready) {
+    if (lane === "claude-cli" && wizard.claudeCliState === null && wizard.busy)
+      return {
+        title,
+        subtitle: msg("setup.ai.pending.checkingClaude", { claudeCode: "Claude Code" }),
+      };
+    if (lane === "openai-codex" && chatGptSignedIn(wizard))
+      return { title, subtitle: msg("setup.ai.pending.activation") };
+    switch (lane) {
+      case "claude-cli":
+        return { title, subtitle: msg("setup.ai.pending.claude") };
+      case "openai-codex":
+        return { title, subtitle: msg("setup.ai.pending.chatgpt") };
+      case "api-key":
+        return { title, subtitle: msg("setup.ai.pending.apiKey") };
+    }
+  }
+  if (lane === "claude-cli" && wizard.claudeCliIdentity !== null)
+    return {
+      title,
+      subtitle: msg("setup.ai.identity", { identity: identity ?? wizard.claudeCliIdentity }),
+    };
+  return { title, subtitle: msg("setup.ai.connected") };
+}
+
+export function claudeCliBadgeMessage(state: ClaudeCliState | null): Message {
+  switch (state) {
+    case "ready":
+      return msg("setup.ai.claude.badge.ready");
+    case "ready-api-key":
+      return msg("setup.ai.claude.badge.readyApiKey");
+    case "absent-binary":
+      return msg("setup.ai.claude.badge.absentBinary");
+    case "not-logged-in":
+      return msg("setup.ai.claude.badge.notLoggedIn");
+    case "api-key-token":
+      return msg("setup.ai.claude.badge.apiKeyToken");
+    case "disabled":
+      return msg("setup.ai.claude.badge.disabled");
+    case "working-area-unavailable":
+      return msg("setup.ai.claude.badge.workingAreaUnavailable");
+    case null:
+      return msg("setup.ai.claude.badge.checking");
+  }
+}
+
+export function claudeCliDetailMessage(state: ClaudeCliState | null): Message | null {
+  switch (state) {
+    case "ready":
+      return null;
+    case "ready-api-key":
+      return null;
+    case "absent-binary":
+      return msg("setup.ai.claude.statusDetail.absentBinary", { claudeCode: "Claude Code" });
+    case "not-logged-in":
+      return msg("setup.ai.claude.statusDetail.notLoggedIn", {
+        command: "claude",
+        claudeCode: "Claude Code",
+        product: "Enduragent",
+        claude: "Claude",
+      });
+    case "api-key-token":
+      return msg("setup.ai.claude.statusDetail.apiKeyToken", {
+        command: "claude",
+        claudeCode: "Claude Code",
+      });
+    case "disabled":
+      return msg("setup.ai.claude.statusDetail.disabled", {
+        computer: PLATFORM_COPY.computer,
+        claude: "Claude",
+      });
+    case "working-area-unavailable":
+      return msg("setup.ai.claude.statusDetail.workingAreaUnavailable", {
+        product: "Enduragent",
+        claude: "Claude",
+      });
+    case null:
+      return msg("setup.ai.claude.statusDetail.checking", {
+        computer: PLATFORM_COPY.computer,
+        claudeCode: "Claude Code",
+      });
+  }
+}
+
+export function claudeCliNoteMessage(
+  configuration: OnboardingLlmConfiguration | null,
+  wizard: OnboardingState,
+  lane: SetupLane | null,
+): Message | null {
+  if (
+    !configuration?.providers.some((entry) => entry.provider === "claude-cli") ||
+    lane !== "claude-cli" ||
+    claudeCliReady(wizard)
+  )
+    return null;
+  if (wizard.claudeCliState === null && !wizard.busy)
+    return msg("setup.ai.claude.checkAgain", { claudeCode: "Claude Code" });
+  return claudeCliDetailMessage(wizard.claudeCliState);
+}
+
+export function claudeCliIdentityMessage(value: string): Message | null {
+  if (value === "Using Anthropic API key billing - usage is charged to your API account.")
+    return msg("setup.ai.claude.identity.apiKey", { anthropic: "Anthropic" });
+  if (value === "Signed in") return msg("setup.ai.claude.identity.signedIn");
+  const emailPlan = /^Signed in as (.+) - Claude (.+) subscription$/u.exec(value);
+  if (emailPlan !== null)
+    return msg("setup.ai.claude.identity.emailPlan", {
+      email: emailPlan[1],
+      plan: emailPlan[2],
+      claude: "Claude",
+    });
+  const plan = /^Signed in - Claude (.+) subscription$/u.exec(value);
+  if (plan !== null)
+    return msg("setup.ai.claude.identity.plan", { plan: plan[1], claude: "Claude" });
+  const email = /^Signed in as (.+)$/u.exec(value);
+  return email === null ? null : msg("setup.ai.claude.identity.email", { email: email[1] });
+}
+
+export function modelHintMessage(value: string): Message | null {
+  switch (value) {
+    case "recommended":
+      return msg("setup.ai.modelHints.recommended");
+    case "fast & cheap":
+      return msg("setup.ai.modelHints.fastAndCheap");
+    case "most capable":
+      return msg("setup.ai.modelHints.mostCapable");
+    case "balanced":
+      return msg("setup.ai.modelHints.balanced");
+    case "cheapest":
+      return msg("setup.ai.modelHints.cheapest");
+    case "experimental":
+      return msg("setup.ai.modelHints.experimental");
+    case "faster":
+      return msg("setup.ai.modelHints.faster");
+    case "fast":
+      return msg("setup.ai.modelHints.fast");
+    case "cheaper":
+      return msg("setup.ai.modelHints.cheaper");
+    case "one key, many models":
+      return msg("setup.ai.modelHints.manyModels");
+    case "cheap":
+      return msg("setup.ai.modelHints.cheap");
+    default:
+      return null;
+  }
+}
+
+export function modelLabelMessage(value: string): Message | null {
+  const via = /^(.*) \(via (.*)\)$/u.exec(value);
+  return via === null ? null : msg("setup.ai.modelVia", { model: via[1], provider: via[2] });
+}

@@ -1,4 +1,8 @@
-import { formatCivilDate } from "@enduragent/coach-contract";
+import { msg, type Message } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { chatFeedbackMessage } from "../chat/copy";
+import { usePlanDate } from "./plan-date";
 import type { LegacyPlanSummary, ListPlansResult, PlanSummary } from "@enduragent/coach-contract";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY } from "../../chat/controller";
@@ -34,22 +38,36 @@ function LibraryCard(props: {
   );
 }
 
-export function calendarStatusLabel(calendar: PlanSummary["calendar"]): string {
+export function calendarStatusLabel(
+  calendar: PlanSummary["calendar"],
+  phrasebook: Phrasebook,
+  planDate: ReturnType<typeof usePlanDate>,
+): string {
+  const { say } = phrasebook;
   switch (calendar.status) {
     case "verified":
       return calendar.window === null
-        ? "Up to date"
-        : `${formatCivilDate(calendar.window.start)} to ${formatCivilDate(calendar.window.end)} · Up to date`;
+        ? say("chat.planChange.calendar.current")
+        : say("chat.planChange.calendar.window", {
+            start: planDate(calendar.window.start),
+            end: planDate(calendar.window.end),
+          });
     case "pending":
-      return calendar.window === null ? "Local only" : "Updating calendar";
+      return say(
+        calendar.window === null
+          ? "chat.planChange.calendar.local"
+          : "chat.planChange.calendar.updating",
+      );
     case "running":
-      return "Updating calendar";
+      return say("chat.planChange.calendar.updating");
     case "not-connected":
-      return "Connect to mirror Workouts";
+      return say("chat.planChange.calendar.connect");
     case "failed":
-      return calendar.error.endsWith("Retry available.")
-        ? "Calendar sync failed. Retry available."
-        : "Calendar sync failed.";
+      return say(
+        calendar.error.endsWith("Retry available.")
+          ? "chat.planChange.calendar.failedRetry"
+          : "chat.planChange.calendar.failed",
+      );
   }
 }
 
@@ -57,13 +75,16 @@ function CalendarStatus(props: {
   readonly calendar: PlanSummary["calendar"];
   readonly retry: (() => Promise<void>) | undefined;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const planDate = usePlanDate();
+  const { say } = phrasebook;
   const { calendar } = props;
   if (calendar.status === "failed") {
     const retryAvailable = calendar.error.endsWith("Retry available.");
     return (
       <div className="mx-4 mb-inset grid gap-inset">
         <p role="alert" className="m-0 text-sm text-danger">
-          {calendarStatusLabel(calendar)}
+          {calendarStatusLabel(calendar, phrasebook, planDate)}
         </p>
         {retryAvailable ? (
           <div>
@@ -73,7 +94,7 @@ function CalendarStatus(props: {
               disabled={props.retry === undefined}
               onClick={() => void props.retry?.()}
             >
-              Retry calendar
+              {say("plan.details.planFinalDetails.retryCalendar")}
             </Button>
           </div>
         ) : null}
@@ -83,22 +104,63 @@ function CalendarStatus(props: {
 
   return (
     <p role="status" className="mx-4 mt-0 mb-inset text-sm leading-5 text-ink-2">
-      Calendar · {calendarStatusLabel(calendar)}
+      {say("plan.library.calendarStatus", {
+        status: calendarStatusLabel(calendar, phrasebook, planDate),
+      })}
     </p>
   );
 }
 
-function spanLabel(plan: PlanSummary): string {
-  return `${formatCivilDate(plan.start)} to ${formatCivilDate(plan.end)} · ${plan.weeks} weeks`;
+function spanLabel(
+  plan: PlanSummary,
+  phrasebook: Phrasebook,
+  planDate: ReturnType<typeof usePlanDate>,
+): string {
+  return phrasebook.say("plan.library.span", {
+    count: plan.weeks,
+    start: planDate(plan.start),
+    end: planDate(plan.end),
+    weeks: phrasebook.format.number(plan.weeks, { useGrouping: false }),
+  });
 }
 
-function legacySummary(legacy: LegacyPlanSummary): string {
+function legacySummary(
+  legacy: LegacyPlanSummary,
+  phrasebook: Phrasebook,
+  planDate: ReturnType<typeof usePlanDate>,
+): string {
+  const { say, format } = phrasebook;
   const parts: string[] = [];
-  if (legacy.targetDate !== null) parts.push(`Target ${formatCivilDate(legacy.targetDate)}`);
-  if (legacy.weeks !== null) parts.push(`${legacy.weeks} ${legacy.weeks === 1 ? "week" : "weeks"}`);
-  if (legacy.goal !== null) parts.push(`Goal: ${legacy.goal}`);
-  parts.push("Unknown reason");
+  if (legacy.targetDate !== null)
+    parts.push(
+      say("plan.library.legacyTarget", {
+        date: planDate(legacy.targetDate),
+      }),
+    );
+  if (legacy.weeks !== null)
+    parts.push(
+      say("plan.library.weekCount", {
+        count: legacy.weeks,
+        weeks: format.number(legacy.weeks, { useGrouping: false }),
+      }),
+    );
+  if (legacy.goal !== null) parts.push(say("plan.library.legacyGoal", { goal: legacy.goal }));
+  parts.push(say("plan.library.unknownReason"));
   return parts.join(" · ");
+}
+
+function creationTitleText(
+  creation: NonNullable<ListPlansResult["creation"]>,
+  phrasebook: Phrasebook,
+  planDate: ReturnType<typeof usePlanDate>,
+): string {
+  const title = creationTitle(creation, planDate);
+  return typeof title === "string" ? title : phrasebook.say(title);
+}
+
+function feedbackText(value: string, { say }: Phrasebook): string {
+  const message = chatFeedbackMessage(value);
+  return message === null ? value : say(message);
 }
 
 export function PlanLibrary(props: {
@@ -106,6 +168,9 @@ export function PlanLibrary(props: {
   readonly readDetails: () => void;
   readonly readFinalDetails: (planId: string, justClosed?: boolean) => void;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const planDate = usePlanDate();
+  const { say, format } = phrasebook;
   const actions = useEnduragentStore((state) => state.planLibraryActions);
   const chatActions = useEnduragentStore((state) => state.chatActions);
   const chatCreation = useEnduragentStore((state) => state.chat.planCreation);
@@ -123,7 +188,7 @@ export function PlanLibrary(props: {
   const closeAttempt = useEnduragentStore((state) => state.planCloseAttempt);
   const setCloseAttempt = useEnduragentStore((state) => state.setPlanCloseAttempt);
   const saving = closeAttempt?.busy ?? false;
-  const [closeError, setCloseError] = useState<string | null>(null);
+  const [closeError, setCloseError] = useState<Message | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -150,9 +215,7 @@ export function PlanLibrary(props: {
     } catch {
       setCloseAttempt({ command, busy: false });
       if (mounted.current) {
-        setCloseError(
-          "Stopping could not be confirmed. The library will show the current state after refresh.",
-        );
+        setCloseError(msg("plan.library.stop.unconfirmed"));
       }
       void actions.refresh();
       return;
@@ -164,10 +227,10 @@ export function PlanLibrary(props: {
     }
     if (result.status === "rejected") {
       if (result.reason === "stale-version") {
-        setCloseError("The Plan changed. Review its current details before stopping.");
+        setCloseError(msg("plan.library.stop.stale"));
         void actions.refresh();
       } else {
-        setCloseError("Stopping could not be saved locally. Your Plan is unchanged.");
+        setCloseError(msg("plan.library.stop.failed"));
         setClosing(null);
       }
       return;
@@ -196,10 +259,10 @@ export function PlanLibrary(props: {
     if (target !== null) queueMicrotask(() => target.current?.focus());
   }, [focusRequest, busy, creation?.creationId, active?.planId]);
   return (
-    <section aria-label="Plan library" className="grid min-w-0 gap-4">
+    <section aria-label={say("plan.library.label")} className="grid min-w-0 gap-4">
       {closeError === null || closing !== null ? null : (
         <p role="alert" className="m-0 text-sm text-danger">
-          {closeError}
+          {say(closeError)}
         </p>
       )}
       <Dialog
@@ -219,14 +282,16 @@ export function PlanLibrary(props: {
           aria-busy={saving ? "true" : undefined}
         >
           <DialogHeader className="gap-inset">
-            <DialogTitle className="m-0 text-lg font-semibold">Stop this Plan?</DialogTitle>
+            <DialogTitle className="m-0 text-lg font-semibold">
+              {say("plan.library.stop.title")}
+            </DialogTitle>
             <DialogDescription className="m-0 leading-5">
-              Final training stays readable. Calendar cleanup can finish later.
+              {say("plan.library.stop.description")}
             </DialogDescription>
           </DialogHeader>
           {closeError === null ? null : (
             <p className="mt-inset mb-0 text-xs text-danger" role="alert">
-              {closeError}
+              {say(closeError)}
             </p>
           )}
           <DialogFooter className="mx-0 mt-row mb-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
@@ -241,7 +306,7 @@ export function PlanLibrary(props: {
                 />
               }
             >
-              Cancel
+              {say("common.cancel")}
             </DialogClose>
             <Button
               variant="destructive-solid"
@@ -251,33 +316,42 @@ export function PlanLibrary(props: {
               }
               onClick={() => void confirmClose()}
             >
-              Stop Plan
+              {say("plan.library.stop.action")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       {notice !== CHAT_PLAN_CREATION_CONTINUE_MISSING_COPY ? null : (
         <p role="status" className="m-0 text-sm text-ink-2">
-          {notice}
+          {feedbackText(notice, phrasebook)}
         </p>
       )}
       {error === null ? null : (
         <p role="alert" className="m-0 text-sm text-danger">
-          {error}
+          {feedbackText(error, phrasebook)}
         </p>
       )}
       {creation === null ? null : (
         <LibraryCard
-          eyebrow="Plan creation"
-          title={creationTitle(creation)}
+          eyebrow={say("chat.planCreation.title")}
+          title={creationTitleText(creation, phrasebook, planDate)}
           status={
             creation.draft !== null
-              ? "Draft"
+              ? say("chat.planCreation.draft")
               : paused && chatCreation?.creationId === creation.creationId
-                ? "Paused"
-                : "In progress"
+                ? say("chat.planCreation.paused")
+                : say("chat.planCreation.inProgress")
           }
-          summary={`${creation.answeredSummaries.length} of ${total} answered. ${active === null ? "No Plan is active." : `${active.name} keeps running.`}`}
+          summary={say(
+            active === null
+              ? "plan.library.creationProgress"
+              : "plan.library.creationProgressActive",
+            {
+              answered: format.number(creation.answeredSummaries.length, { useGrouping: false }),
+              total: format.number(total, { useGrouping: false }),
+              name: active?.name ?? "",
+            },
+          )}
         >
           <div className="flex flex-wrap gap-inset px-4 pb-4">
             <Button
@@ -290,26 +364,29 @@ export function PlanLibrary(props: {
               }
               onClick={() => chatActions?.openPlanCreationDiscard()}
             >
-              Discard
+              {say("chat.planCreation.discard")}
             </Button>
             <Button
               ref={continueButton}
               disabled={busy || actions === null}
               onClick={() => actions?.continueCreation(creation)}
             >
-              Continue in Chat
+              {say("plan.library.continueInChat")}
             </Button>
           </div>
         </LibraryCard>
       )}
       {active === null ? (
-        <LibraryCard title="No active Plan" summary="Create a Plan when you are ready." />
+        <LibraryCard
+          title={say("plan.library.empty.title")}
+          summary={say("plan.library.empty.description")}
+        />
       ) : (
         <LibraryCard
-          eyebrow="Active Plan"
+          eyebrow={say("chat.planChange.activePlan")}
           title={active.name}
-          status="Active"
-          summary={spanLabel(active)}
+          status={say("plan.library.active")}
+          summary={spanLabel(active, phrasebook, planDate)}
         >
           <CalendarStatus
             calendar={active.calendar}
@@ -334,21 +411,21 @@ export function PlanLibrary(props: {
                 setClosing(active);
               }}
             >
-              Stop Plan
+              {say("plan.library.stop.action")}
             </Button>
             <Button
               variant="outline"
               className="border-line bg-surface"
               onClick={props.readDetails}
             >
-              Read Plan details
+              {say("plan.library.readDetails")}
             </Button>
             <Button
               ref={changeButton}
               disabled={actions === null}
               onClick={() => actions?.changeInChat()}
             >
-              Change in Chat
+              {say("plan.library.changeInChat")}
             </Button>
           </div>
         </LibraryCard>
@@ -356,10 +433,19 @@ export function PlanLibrary(props: {
       {closed.map((plan) => (
         <LibraryCard
           key={plan.planId}
-          eyebrow="Closed Plan"
+          eyebrow={say("plan.library.closedPlan")}
           title={plan.name}
-          status="Closed"
-          summary={`${spanLabel(plan)} · ${plan.closeReason === "stopped" ? "Stopped" : plan.closeReason === "completed" ? "Completed" : "Unknown reason"}`}
+          status={say("plan.library.closed")}
+          summary={say("plan.library.closedSummary", {
+            span: spanLabel(plan, phrasebook, planDate),
+            reason: say(
+              plan.closeReason === "stopped"
+                ? "plan.library.stopped"
+                : plan.closeReason === "completed"
+                  ? "plan.library.completed"
+                  : "plan.library.unknownReason",
+            ),
+          })}
         >
           <div className="flex flex-wrap gap-inset px-4 pb-4">
             <Button
@@ -368,20 +454,20 @@ export function PlanLibrary(props: {
               disabled={actions === null}
               onClick={() => props.readFinalDetails(plan.planId)}
             >
-              Read final details
+              {say("plan.library.readFinalDetails")}
             </Button>
           </div>
         </LibraryCard>
       ))}
       {legacy === null ? null : (
         <LibraryCard
-          eyebrow="Closed Plan"
+          eyebrow={say("plan.library.closedPlan")}
           title={legacy.name}
-          status="Closed"
-          summary={legacySummary(legacy)}
+          status={say("plan.library.closed")}
+          summary={legacySummary(legacy, phrasebook, planDate)}
         >
           <p className="m-0 px-4 pb-4 text-sm leading-5 text-ink-2">
-            Read only · Saved before Plans moved to Chat
+            {say("plan.library.legacyReadOnly")}
           </p>
         </LibraryCard>
       )}

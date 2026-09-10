@@ -19,6 +19,9 @@ let origStdinTTY: boolean | undefined;
 let origStdoutTTY: boolean | undefined;
 
 beforeEach(() => {
+  for (const key of ["ENDURAGENT_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"])
+    vi.stubEnv(key, undefined);
+  vi.stubEnv("LANG", "en_US.UTF-8");
   tempHome = mkdtempSync(join(tmpdir(), "cc-providers-"));
   origHome = process.env.HOME;
   process.env.HOME = tempHome;
@@ -37,6 +40,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env.HOME = origHome;
   Object.defineProperty(process.stdin, "isTTY", { value: origStdinTTY, configurable: true });
   Object.defineProperty(process.stdout, "isTTY", { value: origStdoutTTY, configurable: true });
@@ -142,7 +146,9 @@ describe("setup — off-catalogue provider guard", () => {
     expect(selectMessages).toContain("Where to store secrets?");
 
     const passwordMessages = promptMessages(prompts.password.mock.calls);
-    expect(passwordMessages.some((message) => message.includes("intervals.icu API key"))).toBe(true);
+    expect(passwordMessages.some((message) => message.includes("intervals.icu API key"))).toBe(
+      true,
+    );
     expect(passwordMessages.some((message) => message.includes("Telegram bot token"))).toBe(true);
 
     const cfg = parseYaml(readFileSync(CONFIG(), "utf-8")) as Record<string, any>;

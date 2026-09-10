@@ -117,9 +117,7 @@ describe("flush prompt dating discipline", () => {
     expect(content.indexOf("omitted facts will be lost")).toBeLessThan(
       content.indexOf("Dating discipline"),
     );
-    expect(content.indexOf("Dating discipline")).toBeLessThan(
-      content.indexOf("Today is"),
-    );
+    expect(content.indexOf("Dating discipline")).toBeLessThan(content.indexOf("Today is"));
   });
 
   it("the flush memory_write tool produces a stamped section", async () => {

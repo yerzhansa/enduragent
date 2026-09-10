@@ -96,9 +96,7 @@ function importsCard(sourceFile: ts.SourceFile): boolean {
       CARD_MODULE.test(statement.moduleSpecifier.text) &&
       statement.importClause?.namedBindings !== undefined &&
       ts.isNamedImports(statement.importClause.namedBindings) &&
-      statement.importClause.namedBindings.elements.some(
-        (element) => element.name.text === "Card",
-      ),
+      statement.importClause.namedBindings.elements.some((element) => element.name.text === "Card"),
   );
 }
 
@@ -174,7 +172,13 @@ async function scanRenderer(): Promise<Violation[]> {
   const violations = await Promise.all(
     files.map(async (path) => {
       const source = await readFile(path, "utf8");
-      const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
+      const sourceFile = ts.createSourceFile(
+        path,
+        source,
+        ts.ScriptTarget.ESNext,
+        true,
+        ts.ScriptKind.TSX,
+      );
       return collectViolations(sourceFile, relative(sourceRoot, path).split(sep).join("/"));
     }),
   );

@@ -125,9 +125,7 @@ describe("renameTpFieldsOnWellnessRow", () => {
 
   it("throws on collision — input has both ctl AND a non-null fitness (rename would silently overwrite real data)", () => {
     const raw = { id: "2026-04-15", ctl: 52.1, fitness: 99 };
-    expect(() => renameTpFieldsOnWellnessRow(raw)).toThrow(
-      /collision.*'ctl'.*'fitness'/,
-    );
+    expect(() => renameTpFieldsOnWellnessRow(raw)).toThrow(/collision.*'ctl'.*'fitness'/);
   });
 
   it("tolerates target=null collision — API ships fatigue:null alongside atl:<number>; rename fills in safely", () => {
@@ -195,9 +193,7 @@ describe("renameTpFieldsOnActivity", () => {
 
   it("throws on collision — input has both icu_ctl AND a non-null fitnessAtEnd", () => {
     const raw = { id: 17654321, icu_ctl: 52.1, fitnessAtEnd: 99 };
-    expect(() => renameTpFieldsOnActivity(raw)).toThrow(
-      /collision.*'icu_ctl'.*'fitnessAtEnd'/,
-    );
+    expect(() => renameTpFieldsOnActivity(raw)).toThrow(/collision.*'icu_ctl'.*'fitnessAtEnd'/);
   });
 });
 

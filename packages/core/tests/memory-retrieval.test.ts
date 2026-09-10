@@ -184,8 +184,8 @@ describe("memory retrieval", () => {
 
   it("marks journal history as unknown provenance", async () => {
     memory.writeSection("profile", "Historical threshold");
-    const result = await createMemoryTools(memory, sections, { bindProvenance: true })
-      .memory_query.execute!({ from: "1998-03-12", to: "1998-03-12" }, options);
+    const result = await createMemoryTools(memory, sections, { bindProvenance: true }).memory_query
+      .execute!({ from: "1998-03-12", to: "1998-03-12" }, options);
     expect(boundToolResultProvenance(result)).toMatchObject({ unknown: true });
   });
 });

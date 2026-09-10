@@ -19,6 +19,9 @@ let origStdinTTY: boolean | undefined;
 let origStdoutTTY: boolean | undefined;
 
 beforeEach(() => {
+  for (const key of ["ENDURAGENT_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"])
+    vi.stubEnv(key, undefined);
+  vi.stubEnv("LANG", "en_US.UTF-8");
   tempHome = mkdtempSync(join(tmpdir(), "cc-setup-allow-"));
   origHome = process.env.HOME;
   process.env.HOME = tempHome;
@@ -37,6 +40,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env.HOME = origHome;
   Object.defineProperty(process.stdin, "isTTY", { value: origStdinTTY, configurable: true });
   Object.defineProperty(process.stdout, "isTTY", { value: origStdoutTTY, configurable: true });
@@ -55,7 +59,13 @@ function seedConfig(obj: Record<string, unknown>): void {
 }
 
 interface MockCaptureSpec {
-  status: "captured" | "declined" | "timeout" | "getme-failed" | "lockfile-contention" | "write-failed";
+  status:
+    | "captured"
+    | "declined"
+    | "timeout"
+    | "getme-failed"
+    | "lockfile-contention"
+    | "write-failed";
   capturedId?: string;
   botUsername?: string;
   reason?: string;
@@ -64,42 +74,44 @@ interface MockCaptureSpec {
 }
 
 function mockOperatorCapture(spec: MockCaptureSpec): ReturnType<typeof vi.fn> {
-  const fn = vi.fn(async (opts: { dataDir: string; confirm: (info: unknown) => Promise<boolean> }) => {
-    if (spec.status === "captured") {
-      // Simulate the capture flow's confirm prompt being invoked, then writing the file.
-      const ok = await opts.confirm({
-        capturedId: spec.capturedId ?? "12345",
-        senderUsername: "alice",
-        senderFirstName: "Alice",
-        botUsername: spec.botUsername ?? "testbot",
-        binaryName: "cycling-coach",
-      });
-      if (!ok) return { status: "declined" as const };
-      spec.onCapture?.(opts.dataDir);
+  const fn = vi.fn(
+    async (opts: { dataDir: string; confirm: (info: unknown) => Promise<boolean> }) => {
+      if (spec.status === "captured") {
+        // Simulate the capture flow's confirm prompt being invoked, then writing the file.
+        const ok = await opts.confirm({
+          capturedId: spec.capturedId ?? "12345",
+          senderUsername: "alice",
+          senderFirstName: "Alice",
+          botUsername: spec.botUsername ?? "testbot",
+          binaryName: "cycling-coach",
+        });
+        if (!ok) return { status: "declined" as const };
+        spec.onCapture?.(opts.dataDir);
+        return {
+          status: "captured" as const,
+          capturedId: spec.capturedId ?? "12345",
+          botUsername: spec.botUsername ?? "testbot",
+        };
+      }
+      if (spec.status === "declined") {
+        // Simulate confirm prompt firing but operator declines.
+        await opts.confirm({
+          capturedId: spec.capturedId ?? "12345",
+          senderUsername: "alice",
+          senderFirstName: "Alice",
+          botUsername: spec.botUsername ?? "testbot",
+          binaryName: "cycling-coach",
+        });
+        return { status: "declined" as const };
+      }
       return {
-        status: "captured" as const,
-        capturedId: spec.capturedId ?? "12345",
-        botUsername: spec.botUsername ?? "testbot",
+        status: spec.status,
+        capturedId: spec.capturedId,
+        botUsername: spec.botUsername,
+        reason: spec.reason,
       };
-    }
-    if (spec.status === "declined") {
-      // Simulate confirm prompt firing but operator declines.
-      await opts.confirm({
-        capturedId: spec.capturedId ?? "12345",
-        senderUsername: "alice",
-        senderFirstName: "Alice",
-        botUsername: spec.botUsername ?? "testbot",
-        binaryName: "cycling-coach",
-      });
-      return { status: "declined" as const };
-    }
-    return {
-      status: spec.status,
-      capturedId: spec.capturedId,
-      botUsername: spec.botUsername,
-      reason: spec.reason,
-    };
-  });
+    },
+  );
   vi.doMock("../src/channels/operator-capture.js", () => ({
     captureAndPersistOperator: fn,
   }));

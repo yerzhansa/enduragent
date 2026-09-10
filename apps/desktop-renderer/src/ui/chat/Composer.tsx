@@ -1,3 +1,5 @@
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { ComposerControls, ComposerInput, ComposerAction } from "@enduragent/ui";
 import {
   useImperativeHandle,
@@ -41,6 +43,7 @@ export function Composer(props: {
     stop(): void;
   };
 }): ReactElement {
+  const { say } = usePhrasebook();
   const form = useRef<HTMLFormElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState(props.draftMemory?.current ?? "");
@@ -53,6 +56,8 @@ export function Composer(props: {
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const chatInputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
   const chatPlaceholder = useEnduragentStore((state) => state.chat.composerPlaceholder);
+  const chatPlaceholderMessage = chatFeedbackMessage(chatPlaceholder);
+  const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const chatStatus = useEnduragentStore((state) => state.chat.status);
   const actions = useEnduragentStore((state) => state.chatActions);
   const chatReady = useEnduragentStore(setupReady);
@@ -64,6 +69,12 @@ export function Composer(props: {
   const status = props.surface?.status ?? chatStatus;
   const canChat = props.surface === undefined ? chatReady : true;
   const inputId = props.inputId ?? "message";
+  useEffect(() => {
+    if (focusRequest?.target !== "composer" || props.surface !== undefined) return;
+    queueMicrotask(() => {
+      if (textarea.current?.disabled === false) textarea.current.focus();
+    });
+  }, [focusRequest?.revision, focusRequest?.target, props.surface]);
 
   const matches = useMemo(
     () => (props.surface?.allowSlashCommands === false ? [] : filterSlashCommands(draft)),
@@ -244,7 +255,7 @@ export function Composer(props: {
         }}
       />
       <label className="sr-only" htmlFor={inputId}>
-        {props.surface?.label ?? "Message your coach"}
+        {props.surface?.label ?? say("chat.composer.label")}
       </label>
       <ComposerControls
         className="gap-1.5 pt-[calc(var(--row-inset)+1px)]"
@@ -257,7 +268,7 @@ export function Composer(props: {
                   variant="ghost"
                   size="icon-sm"
                   className="gap-inset text-ink-3 disabled:text-ink-3 disabled:opacity-100"
-                  aria-label="Attach files"
+                  aria-label={say("chat.composer.attach")}
                   disabled={
                     actions === null || inputDisabled || !canChat || attachmentSurface === null
                   }
@@ -269,6 +280,7 @@ export function Composer(props: {
             {status === "streaming" ? (
               <ComposerAction
                 mode="stop"
+                aria-label={say("chat.composer.stop")}
                 disabled={props.surface === undefined && actions === null}
                 onClick={() => {
                   if (props.surface === undefined) actions?.stop();
@@ -278,6 +290,7 @@ export function Composer(props: {
             ) : (
               <ComposerAction
                 mode="send"
+                aria-label={say("chat.composer.send")}
                 className="gap-inset border-0 px-1.5 py-px text-base leading-6 disabled:bg-sunk disabled:text-ink-3 disabled:opacity-100"
                 disabled={sendDisabled || submitting || !canChat}
               />
@@ -294,8 +307,9 @@ export function Composer(props: {
           className="pb-1.5"
           placeholder={
             status === "streaming"
-              ? "Coach is responding…"
-              : (props.surface?.placeholder ?? chatPlaceholder)
+              ? say("chat.composer.responding")
+              : (props.surface?.placeholder ??
+                (chatPlaceholderMessage === null ? chatPlaceholder : say(chatPlaceholderMessage)))
           }
           disabled={inputDisabled || !canChat}
           role="combobox"
