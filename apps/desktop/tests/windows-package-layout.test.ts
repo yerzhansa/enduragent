@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createPackage, createPackageWithOptions } from "@electron/asar";
 import { afterEach, describe, expect, it } from "vitest";
 import { KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN } from "../scripts/package-inventory.mjs";
+import { WINDOWS_LOCALE_PAK_PATHS } from "../scripts/package-locales.mjs";
 import {
   WINDOWS_PACKAGE_GUID,
   windowsPackageArtifactName,
@@ -182,6 +183,26 @@ function builderYaml(): string {
     "  onlyLoadAppFromAsar: true",
     "electronLanguages:",
     "  - en-US",
+    "  - es",
+    "  - fr",
+    "  - it",
+    "  - de",
+    "  - nl",
+    "  - da",
+    "  - sv",
+    "  - nb",
+    "  - fi",
+    "  - pt-PT",
+    "  - pt_PT",
+    "  - pt-BR",
+    "  - pt_BR",
+    "  - pl",
+    "  - ko",
+    "  - ja",
+    "  - zh-CN",
+    "  - zh_CN",
+    "  - zh-TW",
+    "  - zh_TW",
     "directories:",
     "  output: dist",
     "files:",
@@ -223,8 +244,24 @@ function builderYaml(): string {
     "  deleteAppDataOnUninstall: false",
     "  installerLanguages:",
     "    - en_US",
+    "    - es_ES",
+    "    - fr_FR",
+    "    - it_IT",
+    "    - de_DE",
+    "    - nl_NL",
+    "    - da_DK",
+    "    - sv_SE",
+    "    - nb_NO",
+    "    - fi_FI",
+    "    - pt_PT",
+    "    - pt_BR",
+    "    - pl_PL",
+    "    - ko_KR",
+    "    - ja_JP",
+    "    - zh_CN",
+    "    - zh_TW",
     '  language: "1033"',
-    "  multiLanguageInstaller: false",
+    "  multiLanguageInstaller: true",
     "  displayLanguageSelector: false",
     "  differentialPackage: false",
     "  buildUniversalInstaller: false",
@@ -294,7 +331,9 @@ async function syntheticWindowsPackage(): Promise<SyntheticWindowsPackage> {
     writeFile(join(externalSource, "self-test/matrix.json"), matrix),
     writeFile(join(externalSource, "self-test/matrix.sha256"), matrixChecksum),
     writeFile(join(externalSource, "self-test/self-test-runner.cjs"), runner),
-    writeFile(join(application, "locales/en-US.pak"), "synthetic locale\n"),
+    ...WINDOWS_LOCALE_PAK_PATHS.map((path) =>
+      writeFile(join(application, path), "synthetic locale\n"),
+    ),
     writeFile(join(sourceResources, "tray.ico"), "tray ico\n"),
     writeFile(join(sourceResources, "trayTemplate.png"), "tray png\n"),
     writeFile(join(sourceResources, "trayTemplate@2x.png"), "tray 2x png\n"),
@@ -465,32 +504,30 @@ describe("Windows package verification", () => {
     );
   });
 
-  it("requires the shipped en-US locale pak", async () => {
+  it("requires every shipped locale pak", async () => {
+    expect(WINDOWS_LOCALE_PAK_PATHS).toHaveLength(17);
     const missing = await syntheticWindowsPackage();
     await rm(join(missing.application, "locales/en-US.pak"));
+    await rm(join(missing.application, "locales/ja.pak"));
     await expect(
       verifyWindowsPackageLayout(missing.application, { desktopRoot: missing.desktop }),
     ).rejects.toThrow(
-      'windows-package/application-inventory: missing locale: "locales/en-US.pak"',
+      'windows-package/application-inventory: missing locale: "locales/en-US.pak", "locales/ja.pak"',
     );
 
     const empty = await syntheticWindowsPackage();
-    await writeFile(join(empty.application, "locales/en-US.pak"), "");
+    await writeFile(join(empty.application, "locales/pt-BR.pak"), "");
     await expect(
       verifyWindowsPackageLayout(empty.application, { desktopRoot: empty.desktop }),
-    ).rejects.toThrow(
-      'windows-package/application-inventory: missing locale: "locales/en-US.pak"',
-    );
+    ).rejects.toThrow('windows-package/application-inventory: missing locale: "locales/pt-BR.pak"');
   });
 
-  it("rejects locales beyond the pinned en-US pak", async () => {
+  it("rejects locales beyond the pinned paks", async () => {
     const fixture = await syntheticWindowsPackage();
-    await writeFile(join(fixture.application, "locales/fr.pak"), "synthetic locale\n");
+    await writeFile(join(fixture.application, "locales/ru.pak"), "synthetic locale\n");
     await expect(
       verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
-    ).rejects.toThrow(
-      'windows-package/application-inventory: undeclared locale: "locales/fr.pak"',
-    );
+    ).rejects.toThrow('windows-package/application-inventory: undeclared locale: "locales/ru.pak"');
   });
 
   it.each(["out/main/private.js.map", "fixtures/athlete.json", "out/main/feature.test.js"])(
@@ -716,9 +753,7 @@ describe("Windows package verification", () => {
     const fixture = await syntheticWindowsPackage();
     await expect(
       verifyWindowsPackage(fixture.artifact, "win-unpacked", { desktopRoot: fixture.desktop }),
-    ).rejects.toThrow(
-      "windows-package/application-inventory: application path must be absolute",
-    );
+    ).rejects.toThrow("windows-package/application-inventory: application path must be absolute");
   });
 
   it("exposes only bounded stage-coded verification errors", async () => {

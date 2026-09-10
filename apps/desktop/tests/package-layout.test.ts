@@ -13,6 +13,7 @@ import {
   KEYCHAIN_BINDING_FUSE_CONFIGURATION,
 } from "../scripts/package-inventory.mjs";
 import { readBuilderAuthority, verifyPackageLayout } from "../scripts/verify-package-layout.mjs";
+import { MACOS_LOCALE_LPROJ_NAMES } from "../scripts/package-locales.mjs";
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const temporaryRoots: string[] = [];
@@ -189,6 +190,26 @@ function builderYaml(
     ),
     "electronLanguages:",
     "  - en-US",
+    "  - es",
+    "  - fr",
+    "  - it",
+    "  - de",
+    "  - nl",
+    "  - da",
+    "  - sv",
+    "  - nb",
+    "  - fi",
+    "  - pt-PT",
+    "  - pt_PT",
+    "  - pt-BR",
+    "  - pt_BR",
+    "  - pl",
+    "  - ko",
+    "  - ja",
+    "  - zh-CN",
+    "  - zh_CN",
+    "  - zh-TW",
+    "  - zh_TW",
     "directories:",
     "  output: dist",
     "files:",
@@ -235,17 +256,13 @@ async function syntheticPackage(): Promise<SyntheticPackage> {
   const externalSource = join(desktop, "dist/extra-resources");
   const externalPackaged = join(resources, "self-test");
   const bindingSource = join(asarSource, KEYCHAIN_BINDING_ASAR_PATH);
-  const bindingPackaged = join(
-    resources,
-    "app.asar.unpacked",
-    KEYCHAIN_BINDING_ASAR_PATH,
-  );
+  const bindingPackaged = join(resources, "app.asar.unpacked", KEYCHAIN_BINDING_ASAR_PATH);
   const matrix = Buffer.from('{"schemaVersion":1}\n');
   const matrixChecksum = checksum(matrix);
 
   await Promise.all([
     mkdir(resources, { recursive: true }),
-    mkdir(join(resources, "en.lproj"), { recursive: true }),
+    ...MACOS_LOCALE_LPROJ_NAMES.map((locale) => mkdir(join(resources, locale), { recursive: true })),
     mkdir(archiveSource, { recursive: true }),
     mkdir(join(asarSource, "resources/self-test"), { recursive: true }),
     mkdir(join(externalSource, "self-test"), { recursive: true }),
@@ -658,9 +675,9 @@ describe("desktop package layout", () => {
     ).rejects.toThrow("invalid builder packaging authority");
   });
 
-  it("pins the sole audited Electron locale", async () => {
+  it("pins the audited Electron locales", async () => {
     const fixture = await syntheticPackage();
-    const yaml = builderYaml().replace("electronLanguages:\n  - en-US\n", "");
+    const yaml = builderYaml().replace(/electronLanguages:\n(?: {2}- [\w-]+\n)+/u, "");
     await writeFile(join(fixture.desktop, "electron-builder.yml"), yaml);
     await expect(
       verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),
@@ -668,7 +685,7 @@ describe("desktop package layout", () => {
 
     await writeFile(
       join(fixture.desktop, "electron-builder.yml"),
-      builderYaml().replace("  - en-US\n", "  - en-US\n  - fr\n"),
+      builderYaml().replace("  - en-US\n", "  - en-US\n  - ru\n"),
     );
     await expect(
       verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),
@@ -969,7 +986,7 @@ describe("desktop package layout", () => {
 
   it("rejects undeclared locale directories and locale symlinks", async ({ skip }) => {
     const undeclared = await syntheticPackage();
-    await mkdir(join(undeclared.resources, "fr.lproj"));
+    await mkdir(join(undeclared.resources, "ru.lproj"));
     await expect(
       verifyPackageLayout(undeclared.app, { desktopRoot: undeclared.desktop }),
     ).rejects.toThrow("undeclared package resource");
@@ -984,6 +1001,14 @@ describe("desktop package layout", () => {
     await expect(verifyPackageLayout(linked.app, { desktopRoot: linked.desktop })).rejects.toThrow(
       "symbolic links are forbidden",
     );
+  });
+
+  it("rejects a missing shipped locale bundle", async () => {
+    const fixture = await syntheticPackage();
+    await rm(join(fixture.resources, "zh_CN.lproj"), { recursive: true });
+    await expect(
+      verifyPackageLayout(fixture.app, { desktopRoot: fixture.desktop }),
+    ).rejects.toThrow("undeclared package resource");
   });
 
   it("requires app.asar to be a regular nonsymlink file", async ({ skip }) => {

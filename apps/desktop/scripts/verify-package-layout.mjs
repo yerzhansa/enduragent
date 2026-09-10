@@ -32,6 +32,7 @@ import {
   validateRequiredAsarFiles,
   validateUnpackedTree,
 } from "./package-inventory.mjs";
+import { MACOS_LOCALE_LPROJ_NAMES } from "./package-locales.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const canonicalDesktopRoot = resolve(scriptDirectory, "..");
@@ -43,7 +44,7 @@ const reservedResourceNames = new Set([
   "app.asar.unpacked",
   "app-update.yml",
   "icon.icns",
-  "en.lproj",
+  ...MACOS_LOCALE_LPROJ_NAMES,
 ]);
 export async function readBuilderAuthority(desktopRoot = canonicalDesktopRoot) {
   const config = await readBuilderConfiguration(desktopRoot);
@@ -73,7 +74,7 @@ async function validateResourceEnvelope(resourcesRoot, externalSource, release) 
     reservedResourceNames,
     "dist/extra-resources",
   );
-  const expected = new Set(["app.asar", "icon.icns", "en.lproj", ...sourceTopLevel]);
+  const expected = new Set(["app.asar", "icon.icns", ...MACOS_LOCALE_LPROJ_NAMES, ...sourceTopLevel]);
   if (release !== undefined) expected.add("app-update.yml");
   if (names.includes("app.asar.unpacked")) expected.add("app.asar.unpacked");
   assertExactResourceNames(names, expected, "Contents/Resources");
@@ -83,7 +84,11 @@ async function validateResourceEnvelope(resourcesRoot, externalSource, release) 
   const iconStat = await safeLstat(iconPath, iconLabel);
   assertRegularFile(iconStat, iconLabel);
   inspectContents(await safeReadFile(iconPath, iconLabel), iconLabel);
-  await collectTree(join(resourcesRoot, "en.lproj"), "Contents/Resources/en.lproj", true);
+  await Promise.all(
+    MACOS_LOCALE_LPROJ_NAMES.map((locale) =>
+      collectTree(join(resourcesRoot, locale), `Contents/Resources/${locale}`, true),
+    ),
+  );
   if (release !== undefined) {
     const updatePath = join(resourcesRoot, "app-update.yml");
     const updateLabel = "Contents/Resources/app-update.yml";
