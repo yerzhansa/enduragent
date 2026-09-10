@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "Verificando sua forma e seu plano..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "desbloqueie suas Chaves de início de sessão",
+      "macUnavailable": "A criptografia de {{operatingSystem}} está indisponível. Confira se as Chaves estão disponíveis e tente novamente.",
+      "windowsIdentityFailed": "Falha na vinculação da identidade do aplicativo de computador em {{operatingSystem}}",
+      "windowsRecovery": "confira se a criptografia de credenciais (DPAPI) de {{operatingSystem}} está disponível",
+      "windowsUnavailable": "A criptografia de credenciais (DPAPI) de {{operatingSystem}} está indisponível. Encerre e reabra {{product}} e tente novamente.",
+      "windowsUserDataFailed": "Falha na vinculação dos dados do usuário em {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "Atividade {{format}}",
+      "attach": "Anexar",
+      "attachTitle": "Anexar arquivos ao Chat",
+      "exportRideTitle": "Exportar pedalada como {{format}}",
+      "exportWorkoutsTitle": "Exportar treinos planejados como {{format}}",
+      "pastedImage": "Imagem colada{{extension}}",
+      "raceCourse": "Percurso da prova",
+      "rideFiles": "Arquivos de pedalada",
+      "rideImportDescription": "Adicione arquivos FIT, TCX ou GPX de {{computer}}. Você também pode soltá-los na janela.",
+      "supportedFiles": "Arquivos compatíveis",
+      "workoutArchive": "Arquivo de treinos"
+    },
+    "lifecycle": {
+      "contentionContent": "Outro processo de {{product}} já está em execução ou travou. Encerre esse processo e reabra {{product}}. Se não conseguir encontrá-lo, saia da sessão e entre novamente.",
+      "contentionTitle": "{{product}} não conseguiu se conectar ao serviço em segundo plano",
+      "malformedContent": "Corrija ou substitua o arquivo inválido {{configFile}} e reabra {{product}}.",
+      "malformedTitle": "{{product}} não conseguiu usar sua configuração",
+      "notConfiguredContent": "O arquivo de configuração está ausente. Execute a configuração de {{product}} ou restaure {{configFile}} e reabra {{product}}.",
+      "notConfiguredTitle": "{{product}} não está configurado",
+      "restartExhaustedContent": "O serviço em segundo plano parou repetidamente e {{product}} não conseguiu reiniciá-lo. Encerre {{product}} e reabra o aplicativo. Se isso não ajudar, saia da sessão e entre novamente.",
+      "restartExhaustedTitle": "O serviço em segundo plano de {{product}} parou",
+      "unavailableContent": "Não foi possível iniciar o serviço em segundo plano ou ler o estado salvo da conexão. Encerre {{product}} e reabra o aplicativo. Se o problema continuar, {{restartComputer}} antes de tentar novamente.",
+      "unavailableTitle": "{{product}} não conseguiu iniciar o serviço em segundo plano",
+      "unexpectedContent": "{{product}} encontrou um problema inesperado ao iniciar. Encerre {{product}} e tente novamente. Se o problema se repetir, saia da sessão e entre novamente antes de reabrir o aplicativo.",
+      "unexpectedTitle": "{{product}} não conseguiu abrir",
+      "unreadableContent": "Confira se é possível ler o arquivo {{configFile}} e acessar sua pasta e reabra {{product}}.",
+      "unreadableTitle": "{{product}} não conseguiu ler sua configuração",
+      "versionMismatchContent": "Uma versão diferente do serviço em segundo plano de {{product}} está em execução, iniciada pela linha de comando ou por uma instalação anterior. Encerre esse serviço e reabra {{product}}.",
+      "versionMismatchTitle": "{{product}} encontrou uma versão diferente do serviço em segundo plano"
+    },
+    "platform": {
+      "computerMac": "este Mac",
+      "computerPc": "este PC",
+      "restartMac": "reinicie seu Mac",
+      "restartPc": "reinicie seu PC"
+    },
+    "tray": {
+      "checkingConnection": "Verificando conexão",
+      "closeHint": "Feche a janela sem encerrar o aplicativo. Clique com o botão direito no ícone da barra de menus para ver mais opções.",
+      "coach": "Treinador de ciclismo",
+      "menuBarStatus": "Status de {{product}} na barra de menus",
+      "open": "Abrir {{product}}",
+      "quit": "Encerrar {{product}}",
+      "ready": "Podemos começar quando você quiser",
+      "residency": "Funcionamento em segundo plano",
+      "running": "{{product}} está em execução",
+      "runningInMenuBar": "Em execução na barra de menus",
+      "settings": "Configurações…",
+      "startAtLogin": "Iniciar em segundo plano ao entrar",
+      "tag": {
+        "active": "ativo",
+        "attention": "atenção",
+        "checking": "verificando",
+        "conflict": "conflito",
+        "off": "desativado",
+        "online": "online",
+        "paused": "pausado",
+        "retrying": "tentando novamente",
+        "starting": "iniciando",
+        "warning": "aviso"
+      },
+      "telegram": {
+        "conflict": "Outro serviço de consulta controla o bot",
+        "connected": "Conectado ao Telegram",
+        "connecting": "Conectando ao Telegram",
+        "missedMessages": "Confira se há mensagens perdidas",
+        "needsAttention": "Telegram precisa de atenção",
+        "off": "Telegram está desativado",
+        "reconnecting": "Telegram está reconectando",
+        "suspended": "Telegram fica pausado enquanto este Mac está em repouso",
+        "tokenRejected": "Token do Telegram rejeitado",
+        "transferRequired": "É necessário transferir o bot"
+      }
+    }
   }
 }

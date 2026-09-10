@@ -1,6 +1,6 @@
 import type { CoachDecisionReadModel, TranscriptPageEntry } from "@enduragent/coach-contract";
 import type { ChatView, ChatViewControls, PlanCreationDiscardEvent } from "../../chat/controller";
-import type { ChatState } from "../../turn-state";
+import type { ChatState } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,
   sameChatMessages,
@@ -235,7 +235,13 @@ export function createChatViewAdapter(input: {
       role: message.role,
       delivery: message.delivery,
       historical: message.historical === true,
-      text: input.bufferStreaming !== false && isStreamingCoach(message) ? "" : message.text,
+      text:
+        input.bufferStreaming !== false &&
+        isStreamingCoach(message) &&
+        message.message === undefined
+          ? ""
+          : message.text,
+      ...(message.message === undefined ? {} : { message: message.message }),
       ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
       ...(message.planReference === undefined ? {} : { planReference: message.planReference }),
       ...(message.planHandoff === undefined ? {} : { planHandoff: message.planHandoff }),
@@ -377,6 +383,7 @@ export function createChatViewAdapter(input: {
       planCreationFocusRequest: planCreation?.focusRequest ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
+      noticeMessage: decisionBlocksWork ? undefined : state.activeTurn?.error?.message,
       notice: decisionBlocksWork
         ? null
         : (state.activeTurn?.error?.athleteMessage ??

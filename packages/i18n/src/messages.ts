@@ -2,6 +2,7 @@ import { createInstance } from "i18next";
 import type { LanguageTag } from "@enduragent/coach-contract";
 import type { CatalogKey } from "./catalog-keys.js";
 import type { Message } from "./message.js";
+import englishCatalog from "../catalogs/en.json" with { type: "json" };
 
 export type { CatalogKey } from "./catalog-keys.js";
 export type Catalog = { readonly [key: string]: string | Catalog };
@@ -38,9 +39,16 @@ export interface Phrasebook {
 }
 
 export async function loadCatalog(tag: LanguageTag): Promise<Catalog> {
+  if (tag === "en") return englishCatalog;
+  try {
+    return await importCatalog(tag);
+  } catch {
+    return englishCatalog;
+  }
+}
+
+async function importCatalog(tag: Exclude<LanguageTag, "en">): Promise<Catalog> {
   switch (tag) {
-    case "en":
-      return (await import("../catalogs/en.json", { with: { type: "json" } })).default;
     case "es":
       return (await import("../catalogs/es.json", { with: { type: "json" } })).default;
     case "fr":

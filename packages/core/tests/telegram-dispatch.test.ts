@@ -19,6 +19,25 @@ import { createTurnContext } from "../../engine/src/agent/turn-context.js";
 import { COACH_EVENT_TAG } from "../src/agent/event-provenance.js";
 import type { IntervalsClient } from "intervals-icu-api";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -32,7 +51,6 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
-  vi.doUnmock("grammy");
   vi.doUnmock("@grammyjs/auto-retry");
   vi.doUnmock("../src/updater.js");
   vi.doUnmock("../src/channels/telegram-update-offsets.js");
@@ -95,12 +113,7 @@ async function buildBot(opts?: {
     stop: vi.fn(opts?.stop ?? (async () => undefined)),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
   const autoRetry = vi.fn((options: unknown) => ({ options }));
   vi.doMock("@grammyjs/auto-retry", () => ({ autoRetry }));
 

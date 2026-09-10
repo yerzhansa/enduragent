@@ -9347,6 +9347,282 @@
     "telegram.workout.working": {
       "sourceHash": "cf66947eb34d8f79666dcb178debbf07e3ffb6061746f9ac6c161940ad7968e4",
       "translatedBy": "model"
+    },
+    "desktop.credentials.macRecovery": {
+      "sourceHash": "7b2bfd0c3b5082d97349da35453b4e0dc6a7d554002339f6e5ead6ca161752cb",
+      "translatedBy": "model"
+    },
+    "desktop.credentials.macUnavailable": {
+      "sourceHash": "63c437d752bdcceec20124691f80378650e6557d9ab2af72f990ad8f2b888436",
+      "translatedBy": "model"
+    },
+    "desktop.credentials.windowsIdentityFailed": {
+      "sourceHash": "d952137f57b9cccb4242698e0d7659a9b86c1a0d8209bb836003b1c8cba9e890",
+      "translatedBy": "model"
+    },
+    "desktop.credentials.windowsRecovery": {
+      "sourceHash": "91a76d608ed150ba4394a43d7686af7c3a98cd40ee6e37df5062d622348ec4a1",
+      "translatedBy": "model"
+    },
+    "desktop.credentials.windowsUnavailable": {
+      "sourceHash": "6f47f08c65d096eb1c97db0c661978fc0d4b7dbb85ea290c724f70b9050d207a",
+      "translatedBy": "model"
+    },
+    "desktop.credentials.windowsUserDataFailed": {
+      "sourceHash": "d6f01aca62287d717574f77fd942056951316a2721315de6a334e10338aa4d10",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.activityFormat": {
+      "sourceHash": "9bc8468252d714d73583ec7700ba718e13a6f9d1785a8bf6a6f3d60e0e22ff43",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.attach": {
+      "sourceHash": "d406ade2958cb5b6777af977e28cac8995cd430c03fd3eb36fef2f5f8971daeb",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.attachTitle": {
+      "sourceHash": "7dfd56d5ea8a6ebf5df9f6b383f11e4e17c3367f41d719664d2b748df03df14f",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.exportRideTitle": {
+      "sourceHash": "b0eaa4df28c29993fb7795ecb8231d734db63106c63f5154730271f8586f2e14",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.exportWorkoutsTitle": {
+      "sourceHash": "828454c016925965c17e010888e38e58be0122b8561beee95972bb4f1521d64b",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.pastedImage": {
+      "sourceHash": "c1af34e4c0adca3f5572866f90e1037069f0a019493e85db61c5309d98fa9a2e",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.raceCourse": {
+      "sourceHash": "3292c7fc7f48db7db6afbd475f9d2dabe49fad343acd297ca6e991a023a89d69",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.rideFiles": {
+      "sourceHash": "05c30ee83da8ae0e0ff9526800abb1da62224439dbef4279a2adea406412b13a",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.rideImportDescription": {
+      "sourceHash": "3618fe2f81d8e95ac0351b5db308b36d09373069e499808167290f12dfd6b447",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.supportedFiles": {
+      "sourceHash": "e2d55694b6a7ef1fa2525bf03c6682cb4d69c496cbbac67ad5b684d635bd4996",
+      "translatedBy": "model"
+    },
+    "desktop.filePicker.workoutArchive": {
+      "sourceHash": "23c938d9f4fa03e80d459451b230f89bd802aded115fd58a65193d3bb4b4c44f",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.contentionContent": {
+      "sourceHash": "06d9dee2f8382f539d2a88a428b9b07666b045be6efa57a0618590628ede5e2f",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.contentionTitle": {
+      "sourceHash": "5a30450382015b48bfbae6dae31ca1e03e010e34cca7f7fd8896e72f813a58a8",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.malformedContent": {
+      "sourceHash": "d3acf084be2b59cb71d931414bf43a03d29fbe7a1d501abb0d66bd54eedc6d51",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.malformedTitle": {
+      "sourceHash": "4dcbac1f6a128cdd4838ad2a34e525010f681fbd840be5bc064e6807a075f2ad",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.notConfiguredContent": {
+      "sourceHash": "118b605b61cd1f2ffe57adaf3d6b7da91bb5b9ca44ed6c2ee345398edb246f0a",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.notConfiguredTitle": {
+      "sourceHash": "13c21790d58a098fa395ffee707f7e82b66aade0de262c7b2c52ea7ed4e941a2",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.restartExhaustedContent": {
+      "sourceHash": "9c38ee3046252657eb55f1817dd0e277d2d45e339e75823598e9effc5f7471c2",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.restartExhaustedTitle": {
+      "sourceHash": "8ada49746ab48b82278288df5faaff9db315bb03fc425454a355929000d233cf",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unavailableContent": {
+      "sourceHash": "201f041ec3c37ca93c6282712fd3748519e2e06dce25373604951ce4495251e6",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unavailableTitle": {
+      "sourceHash": "540622626669415a592200d19e6546b36dd282db83b343e4abb8fb27c3d29396",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unexpectedContent": {
+      "sourceHash": "c33a31dc7b961c697ec3ef3845fb0989e42a1f1f7002061db1787696564c4767",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unexpectedTitle": {
+      "sourceHash": "b01edfc2ebad8601231fefccffe99335cbedf14b6819410a2ae3e505dc9b9e22",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unreadableContent": {
+      "sourceHash": "e817b6a7ea85fabcf033ff1e14d62113132072ba3a6f75fb51128638ade4d427",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.unreadableTitle": {
+      "sourceHash": "e64d6b3fcb5f4ae767d300700517483f122251dd7f7e6c2ec16ec9d3c59fa2b5",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.versionMismatchContent": {
+      "sourceHash": "03f38f395234fe599d167796660bc02183fa519f1e17ace2eb10369b4df85788",
+      "translatedBy": "model"
+    },
+    "desktop.lifecycle.versionMismatchTitle": {
+      "sourceHash": "ccfc82aa94d8171eef13d9be4242b0b322307f1c907541d6b27e2f9fabed2b55",
+      "translatedBy": "model"
+    },
+    "desktop.platform.computerMac": {
+      "sourceHash": "97bd3c02d340b75824abc4d7fa54c3d707463e08a51bf1413d230e5f4d1ab2ea",
+      "translatedBy": "model"
+    },
+    "desktop.platform.computerPc": {
+      "sourceHash": "02100bf1e1a584396bdfc97a8e828287072167ec1bebce8a18268c0391724f33",
+      "translatedBy": "model"
+    },
+    "desktop.platform.restartMac": {
+      "sourceHash": "0df5cb8b6ecd7e285a47ec543f8edb443f7e2bb25a1f944d616a2bb3d1de6323",
+      "translatedBy": "model"
+    },
+    "desktop.platform.restartPc": {
+      "sourceHash": "7f6c60e37b4f0fbfe353e4f45bba0f297825d470b8f31b1ff4492db2cc0946aa",
+      "translatedBy": "model"
+    },
+    "desktop.tray.checkingConnection": {
+      "sourceHash": "537585d95f4ecfc0c8933fc29b41b714805adbfe08a27e25321c6f4f3cadb2d0",
+      "translatedBy": "model"
+    },
+    "desktop.tray.closeHint": {
+      "sourceHash": "6aed7cc1e2a02147eec261d5d2834d9eb48130c30b187dfaf3541e4da0e9b6a1",
+      "translatedBy": "model"
+    },
+    "desktop.tray.coach": {
+      "sourceHash": "c754ce06df61999e8182b134d62bb8d535d0d9cee8cdd7384c1c2085033fb063",
+      "translatedBy": "model"
+    },
+    "desktop.tray.menuBarStatus": {
+      "sourceHash": "f29fa86f2d1d13ed0f929a9efe3b5ca13df62d48724763a0ae875496d0eb0e17",
+      "translatedBy": "model"
+    },
+    "desktop.tray.open": {
+      "sourceHash": "213a2fda031da3bdf43cba51fbffb20fce0ac888f9d2b1260471844ab6fbfe48",
+      "translatedBy": "model"
+    },
+    "desktop.tray.quit": {
+      "sourceHash": "6dc4a69ab0a74543c9e3038b75e3366764209219f39c22e4dbae1be2367ef1a1",
+      "translatedBy": "model"
+    },
+    "desktop.tray.ready": {
+      "sourceHash": "34ef570432852cd659e15beafbe7651f0bb47a68a03a9c8e0448c9ff93cf476c",
+      "translatedBy": "model"
+    },
+    "desktop.tray.residency": {
+      "sourceHash": "ea99b7d52e759b232c4e6cabacbfbb08161554d10ada5c63556ec7d1d6aa34b0",
+      "translatedBy": "model"
+    },
+    "desktop.tray.running": {
+      "sourceHash": "34b30b156251be1a2856fc60c244e2b9ffaf630e2220b0e9349e20855dbc397b",
+      "translatedBy": "model"
+    },
+    "desktop.tray.runningInMenuBar": {
+      "sourceHash": "e80ba3e4e72c085884f7a3b700d4391115d17822fc7285cbd3b7c0a4a7eafac6",
+      "translatedBy": "model"
+    },
+    "desktop.tray.settings": {
+      "sourceHash": "7a04083baf8daa20973e671fc0138a81a70c797ef1f28b77e78edbd1acbc57bc",
+      "translatedBy": "model"
+    },
+    "desktop.tray.startAtLogin": {
+      "sourceHash": "3ad105d4d519bf0d89b798a7d06c55410e56aed3ba8117aa3e1d3b8c606ddf47",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.active": {
+      "sourceHash": "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.attention": {
+      "sourceHash": "e0787d272a439bb74b762d96f1cef3d04a18328a8d900f5c13a6e925d9da681c",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.checking": {
+      "sourceHash": "7f98506ac7260e0e07f44b12711de667391b133a45ff4c8d2478667416b0f7a1",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.conflict": {
+      "sourceHash": "fa9e1d22205ad852b0dc9509ec4e31644e88742c4dfce93c08f011fee1cd8a1a",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.off": {
+      "sourceHash": "b4dc66dde806261bdda8607d8707aa727d308cd80272381a5583f63899918467",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.online": {
+      "sourceHash": "f6fc84c9f21c24907d6bee6eec38cabab5fa9a7be8c4a7827fe9e56f245bd2d5",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.paused": {
+      "sourceHash": "a7a9dc5bcf71adb2edc202814060a5ab6fca515382e9f1133dcc47d52d9090a2",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.retrying": {
+      "sourceHash": "66e11022d98ccacefb7fd99f9eedc2e877da472ad46bad0f331ead6786f76a32",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.starting": {
+      "sourceHash": "59dbf36d9930a99bfc1e13a10518cd5cf42d29ef9b21993c424b4146a81aa30e",
+      "translatedBy": "model"
+    },
+    "desktop.tray.tag.warning": {
+      "sourceHash": "4bd9354bb652233497a0f42647464b81b83a83654fcf1511263a5d0120d74c91",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.conflict": {
+      "sourceHash": "110e27cff4c75ccc009d1fbb1605a83ae4cf3b072cce7cc86adbe3b57d982cbe",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.connected": {
+      "sourceHash": "2be482d12f0a81aeb2ff5777959e0cf6373433bbb6cec6709a44d21c98452d99",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.connecting": {
+      "sourceHash": "949690b2a6d1b157d4d3fba5ae51c0b0ad558fd1bc2cbbc8c5e8468f0889770f",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.missedMessages": {
+      "sourceHash": "0db601de8f05c73b578b9bcc468305ac57225a29ec928c022c1edca744ff96f4",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.needsAttention": {
+      "sourceHash": "d7133aa881bd2b1890603e126e13c175af90c98a8223bb1a28244a8a71fc7acd",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.off": {
+      "sourceHash": "355958a2d7ca424fab1f2cbc77eb2f3eb0fe5d6aabf4cd54f610219ea8593295",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.reconnecting": {
+      "sourceHash": "6c913842d915c4ec558dbe58751a57cc941ffe10df83739758733bd1ff5c9c88",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.suspended": {
+      "sourceHash": "eb7e68d37a585c0071bd8d3222f0d94939714724c6df584833c803fa74b7f46c",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.tokenRejected": {
+      "sourceHash": "86cdbc286b404b37ce27128ad6a764245cc17c22089f3cace994ee378663d966",
+      "translatedBy": "model"
+    },
+    "desktop.tray.telegram.transferRequired": {
+      "sourceHash": "5273ebd028627b6a9fdc9c8a1c33253b478528a824c8c4132cc6c8ace7342b64",
+      "translatedBy": "model"
     }
   }
 }

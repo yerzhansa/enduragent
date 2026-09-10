@@ -828,6 +828,91 @@
     "continue": "Continue",
     "save": "Save"
   },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "unlock your login keychain",
+      "macUnavailable": "{{operatingSystem}} encryption is unavailable. Make sure Keychain is available, then try again.",
+      "windowsIdentityFailed": "{{operatingSystem}} desktop identity binding failed",
+      "windowsRecovery": "make sure {{operatingSystem}} credential encryption (DPAPI) is available",
+      "windowsUnavailable": "{{operatingSystem}} credential encryption (DPAPI) is unavailable. Quit and reopen {{product}}, then try again.",
+      "windowsUserDataFailed": "{{operatingSystem}} user data binding failed"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}} activity",
+      "attach": "Attach",
+      "attachTitle": "Attach files to Chat",
+      "exportRideTitle": "Export ride as {{format}}",
+      "exportWorkoutsTitle": "Export planned workouts as {{format}}",
+      "pastedImage": "Pasted image{{extension}}",
+      "raceCourse": "Race Course",
+      "rideFiles": "Ride files",
+      "rideImportDescription": "Add FIT, TCX or GPX files from {{computer}}. You can also drop them onto the window.",
+      "supportedFiles": "Supported files",
+      "workoutArchive": "Workout archive"
+    },
+    "lifecycle": {
+      "contentionContent": "Another {{product}} process is already running or stuck. Quit that process, then reopen {{product}}. If you can’t find it, log out and back in.",
+      "contentionTitle": "{{product}} couldn’t connect to its background service",
+      "malformedContent": "Correct or replace the invalid {{configFile}} file, then reopen {{product}}.",
+      "malformedTitle": "{{product}} couldn’t use its configuration",
+      "notConfiguredContent": "The configuration file is missing. Run {{product}} setup or restore {{configFile}}, then reopen {{product}}.",
+      "notConfiguredTitle": "{{product}} isn’t configured",
+      "restartExhaustedContent": "The background service stopped repeatedly and {{product}} could not restart it. Quit {{product}} and reopen it. If that does not help, log out and back in.",
+      "restartExhaustedTitle": "{{product}}’s background service stopped",
+      "unavailableContent": "The background service could not start or its saved connection state could not be read. Quit {{product}} and reopen it. If the problem continues, {{restartComputer}} before trying again.",
+      "unavailableTitle": "{{product}} couldn’t start its background service",
+      "unexpectedContent": "{{product}} hit an unexpected problem while starting. Quit {{product}} and try again. If it keeps happening, log out and back in before reopening it.",
+      "unexpectedTitle": "{{product}} couldn’t open",
+      "unreadableContent": "Check that {{configFile}} is a readable file and its folder is accessible, then reopen {{product}}.",
+      "unreadableTitle": "{{product}} couldn’t read its configuration",
+      "versionMismatchContent": "A different version of the {{product}} background service is running from the CLI or a previous install. Quit that service, then reopen {{product}}.",
+      "versionMismatchTitle": "{{product}} found a different background service version"
+    },
+    "platform": {
+      "computerMac": "this Mac",
+      "computerPc": "this PC",
+      "restartMac": "restart your Mac",
+      "restartPc": "restart your PC"
+    },
+    "tray": {
+      "checkingConnection": "Checking connection",
+      "closeHint": "Close the window without quitting. Right-click the menu-bar icon for more options.",
+      "coach": "Cycling coach",
+      "menuBarStatus": "{{product}} menu bar status",
+      "open": "Open {{product}}",
+      "quit": "Quit {{product}}",
+      "ready": "Ready when you are",
+      "residency": "Residency",
+      "running": "{{product}} is running",
+      "runningInMenuBar": "Running in the menu bar",
+      "settings": "Settings…",
+      "startAtLogin": "Start in background at login",
+      "tag": {
+        "active": "active",
+        "attention": "attention",
+        "checking": "checking",
+        "conflict": "conflict",
+        "off": "off",
+        "online": "online",
+        "paused": "paused",
+        "retrying": "retrying",
+        "starting": "starting",
+        "warning": "warning"
+      },
+      "telegram": {
+        "conflict": "Another poller owns the bot",
+        "connected": "Connected to Telegram",
+        "connecting": "Connecting to Telegram",
+        "missedMessages": "Check for missed messages",
+        "needsAttention": "Telegram needs attention",
+        "off": "Telegram is off",
+        "reconnecting": "Telegram is reconnecting",
+        "suspended": "Telegram is paused while this Mac sleeps",
+        "tokenRejected": "Telegram token rejected",
+        "transferRequired": "Bot transfer required"
+      }
+    }
+  },
   "language": {
     "chooseTitle": "Choose your language",
     "continue": "Continue"

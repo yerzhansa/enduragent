@@ -2789,5 +2789,90 @@
       "unnamed": "Unavngiven træning",
       "update": "Opdater træningen \"{{name}}\" den {{date}} — {{detail}}"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "lås din login-nøglering op",
+      "macUnavailable": "Kryptering i {{operatingSystem}} er utilgængelig. Sørg for, at Nøglering er tilgængelig, og prøv igen.",
+      "windowsIdentityFailed": "Tilknytning af desktopappens identitet i {{operatingSystem}} mislykkedes",
+      "windowsRecovery": "sørg for, at kryptering af adgangsoplysninger (DPAPI) i {{operatingSystem}} er tilgængelig",
+      "windowsUnavailable": "Kryptering af adgangsoplysninger (DPAPI) i {{operatingSystem}} er utilgængelig. Afslut og åbn {{product}} igen, og prøv igen.",
+      "windowsUserDataFailed": "Tilknytning af brugerdata i {{operatingSystem}} mislykkedes"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-aktivitet",
+      "attach": "Vedhæft",
+      "attachTitle": "Vedhæft filer i Chat",
+      "exportRideTitle": "Eksportér tur som {{format}}",
+      "exportWorkoutsTitle": "Eksportér planlagte træninger som {{format}}",
+      "pastedImage": "Indsat billede{{extension}}",
+      "raceCourse": "Løbsrute",
+      "rideFiles": "Turfiler",
+      "rideImportDescription": "Tilføj FIT-, TCX- eller GPX-filer fra {{computer}}. Du kan også trække dem ind i vinduet.",
+      "supportedFiles": "Understøttede filer",
+      "workoutArchive": "Træningsarkiv"
+    },
+    "lifecycle": {
+      "contentionContent": "En anden {{product}}-proces kører allerede eller er gået i stå. Afslut den proces, og åbn derefter {{product}} igen. Hvis du ikke kan finde den, så log ud og ind igen.",
+      "contentionTitle": "{{product}} kunne ikke oprette forbindelse til sin baggrundstjeneste",
+      "malformedContent": "Ret eller erstat den ugyldige fil {{configFile}}, og åbn derefter {{product}} igen.",
+      "malformedTitle": "{{product}} kunne ikke bruge sin konfiguration",
+      "notConfiguredContent": "Konfigurationsfilen mangler. Kør opsætningen af {{product}}, eller gendan {{configFile}}, og åbn derefter {{product}} igen.",
+      "notConfiguredTitle": "{{product}} er ikke sat op",
+      "restartExhaustedContent": "Baggrundstjenesten stoppede gentagne gange, og {{product}} kunne ikke genstarte den. Afslut {{product}}, og åbn det igen. Hvis det ikke hjælper, så log ud og ind igen.",
+      "restartExhaustedTitle": "Baggrundstjenesten til {{product}} stoppede",
+      "unavailableContent": "Baggrundstjenesten kunne ikke starte, eller dens gemte forbindelsestilstand kunne ikke læses. Afslut {{product}}, og åbn det igen. Hvis problemet fortsætter, så {{restartComputer}}, før du prøver igen.",
+      "unavailableTitle": "{{product}} kunne ikke starte sin baggrundstjeneste",
+      "unexpectedContent": "{{product}} stødte på et uventet problem under opstart. Afslut {{product}}, og prøv igen. Hvis det bliver ved med at ske, så log ud og ind igen, før du åbner det igen.",
+      "unexpectedTitle": "{{product}} kunne ikke åbne",
+      "unreadableContent": "Kontrollér, at {{configFile}} er en fil, der kan læses, og at dens mappe er tilgængelig. Åbn derefter {{product}} igen.",
+      "unreadableTitle": "{{product}} kunne ikke læse sin konfiguration",
+      "versionMismatchContent": "En anden version af baggrundstjenesten til {{product}} kører fra CLI eller en tidligere installation. Afslut den tjeneste, og åbn derefter {{product}} igen.",
+      "versionMismatchTitle": "{{product}} fandt en anden version af baggrundstjenesten"
+    },
+    "platform": {
+      "computerMac": "denne Mac",
+      "computerPc": "denne pc",
+      "restartMac": "genstart din Mac",
+      "restartPc": "genstart din pc"
+    },
+    "tray": {
+      "checkingConnection": "Kontrollerer forbindelse",
+      "closeHint": "Luk vinduet uden at afslutte appen. Højreklik på ikonet i menulinjen for flere muligheder.",
+      "coach": "Cykeltræner",
+      "menuBarStatus": "Status for {{product}} i menulinjen",
+      "open": "Åbn {{product}}",
+      "quit": "Afslut {{product}}",
+      "ready": "Klar, når du er",
+      "residency": "Kørsel i baggrunden",
+      "running": "{{product}} kører",
+      "runningInMenuBar": "Kører i menulinjen",
+      "settings": "Indstillinger…",
+      "startAtLogin": "Start i baggrunden ved login",
+      "tag": {
+        "active": "aktiv",
+        "attention": "kræver opmærksomhed",
+        "checking": "kontrollerer",
+        "conflict": "konflikt",
+        "off": "slået fra",
+        "online": "online",
+        "paused": "sat på pause",
+        "retrying": "prøver igen",
+        "starting": "starter",
+        "warning": "advarsel"
+      },
+      "telegram": {
+        "conflict": "En anden proces henter beskeder til botten",
+        "connected": "Forbundet til Telegram",
+        "connecting": "Opretter forbindelse til Telegram",
+        "missedMessages": "Tjek, om du har overset beskeder",
+        "needsAttention": "Telegram kræver opmærksomhed",
+        "off": "Telegram er slået fra",
+        "reconnecting": "Telegram genopretter forbindelsen",
+        "suspended": "Telegram er sat på pause, mens denne Mac er på vågeblus",
+        "tokenRejected": "Telegram-token afvist",
+        "transferRequired": "Overførsel af bot påkrævet"
+      }
+    }
   }
 }

@@ -2753,5 +2753,90 @@
     "workout": {
       "working": "フォームとプランを確認しています..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "ログインキーチェーンのロックを解除して",
+      "macUnavailable": "{{operatingSystem}}の暗号化を利用できません。キーチェーンを利用できることを確認してから、もう一度お試しください。",
+      "windowsIdentityFailed": "{{operatingSystem}}のデスクトップアプリの識別情報を紐付けできませんでした",
+      "windowsRecovery": "{{operatingSystem}}の資格情報の暗号化（DPAPI）を利用できることを確認して",
+      "windowsUnavailable": "{{operatingSystem}}の資格情報の暗号化（DPAPI）を利用できません。{{product}}を終了して開き直し、もう一度お試しください。",
+      "windowsUserDataFailed": "{{operatingSystem}}のユーザーデータを紐付けできませんでした"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}アクティビティ",
+      "attach": "添付",
+      "attachTitle": "チャットにファイルを添付",
+      "exportRideTitle": "ライドを{{format}}形式でエクスポート",
+      "exportWorkoutsTitle": "予定のワークアウトを{{format}}形式でエクスポート",
+      "pastedImage": "貼り付けた画像{{extension}}",
+      "raceCourse": "レースコース",
+      "rideFiles": "ライドファイル",
+      "rideImportDescription": "{{computer}}からFIT、TCX、GPXファイルを追加できます。ウインドウにドラッグ＆ドロップすることもできます。",
+      "supportedFiles": "対応ファイル",
+      "workoutArchive": "ワークアウトのアーカイブ"
+    },
+    "lifecycle": {
+      "contentionContent": "別の{{product}}プロセスがすでに実行中か、応答しなくなっています。そのプロセスを終了してから、{{product}}を開き直してください。見つからない場合は、ログアウトしてからログインし直してください。",
+      "contentionTitle": "{{product}}のバックグラウンドサービスに接続できませんでした",
+      "malformedContent": "無効な{{configFile}}ファイルを修正または置き換えてから、{{product}}を開き直してください。",
+      "malformedTitle": "{{product}}の設定を使用できませんでした",
+      "notConfiguredContent": "設定ファイルがありません。{{product}}のセットアップを実行するか、{{configFile}}を復元してから、{{product}}を開き直してください。",
+      "notConfiguredTitle": "{{product}}が設定されていません",
+      "restartExhaustedContent": "バックグラウンドサービスが繰り返し停止し、{{product}}で再起動できませんでした。{{product}}を終了して開き直してください。解決しない場合は、ログアウトしてからログインし直してください。",
+      "restartExhaustedTitle": "{{product}}のバックグラウンドサービスが停止しました",
+      "unavailableContent": "バックグラウンドサービスを起動できなかったか、保存された接続状態を読み取れませんでした。{{product}}を終了して開き直してください。問題が続く場合は、{{restartComputer}}から、もう一度お試しください。",
+      "unavailableTitle": "{{product}}のバックグラウンドサービスを起動できませんでした",
+      "unexpectedContent": "{{product}}の起動中に予期しない問題が発生しました。{{product}}を終了して、もう一度お試しください。繰り返し発生する場合は、ログアウトしてからログインし直し、アプリを開き直してください。",
+      "unexpectedTitle": "{{product}}を開けませんでした",
+      "unreadableContent": "{{configFile}}が読み取り可能なファイルで、そのフォルダにアクセスできることを確認してから、{{product}}を開き直してください。",
+      "unreadableTitle": "{{product}}の設定を読み取れませんでした",
+      "versionMismatchContent": "CLIまたは以前のインストールから、別のバージョンの{{product}}のバックグラウンドサービスが実行されています。そのサービスを終了してから、{{product}}を開き直してください。",
+      "versionMismatchTitle": "別のバージョンの{{product}}のバックグラウンドサービスが見つかりました"
+    },
+    "platform": {
+      "computerMac": "このMac",
+      "computerPc": "このPC",
+      "restartMac": "Macを再起動して",
+      "restartPc": "PCを再起動して"
+    },
+    "tray": {
+      "checkingConnection": "接続を確認中",
+      "closeHint": "アプリを終了せずにウインドウを閉じます。その他のオプションは、メニューバーのアイコンを右クリックすると表示されます。",
+      "coach": "サイクリングコーチ",
+      "menuBarStatus": "{{product}}のメニューバーの状態",
+      "open": "{{product}}を開く",
+      "quit": "{{product}}を終了",
+      "ready": "いつでも始められます",
+      "residency": "常駐",
+      "running": "{{product}}は実行中です",
+      "runningInMenuBar": "メニューバーで実行中",
+      "settings": "設定…",
+      "startAtLogin": "ログイン時にバックグラウンドで起動",
+      "tag": {
+        "active": "稼働中",
+        "attention": "要確認",
+        "checking": "確認中",
+        "conflict": "競合",
+        "off": "オフ",
+        "online": "オンライン",
+        "paused": "一時停止中",
+        "retrying": "再試行中",
+        "starting": "起動中",
+        "warning": "警告"
+      },
+      "telegram": {
+        "conflict": "別のポーリングプロセスがボットを使用しています",
+        "connected": "Telegramに接続済み",
+        "connecting": "Telegramに接続中",
+        "missedMessages": "見逃したメッセージを確認",
+        "needsAttention": "Telegramの確認が必要です",
+        "off": "Telegramはオフです",
+        "reconnecting": "Telegramに再接続中",
+        "suspended": "このMacのスリープ中はTelegramが一時停止します",
+        "tokenRejected": "Telegramのトークンが拒否されました",
+        "transferRequired": "ボットの移行が必要です"
+      }
+    }
   }
 }

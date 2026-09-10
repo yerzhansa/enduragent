@@ -2753,5 +2753,90 @@
     "workout": {
       "working": "正在查看状态（TSB）和训练计划…"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "解锁登录钥匙串",
+      "macUnavailable": "{{operatingSystem}} 加密不可用。请确认钥匙串可用后重试。",
+      "windowsIdentityFailed": "{{operatingSystem}} 桌面应用身份绑定失败",
+      "windowsRecovery": "确认 {{operatingSystem}} 凭据加密（DPAPI）可用",
+      "windowsUnavailable": "{{operatingSystem}} 凭据加密（DPAPI）不可用。请退出并重新打开 {{product}} 后重试。",
+      "windowsUserDataFailed": "{{operatingSystem}} 用户数据绑定失败"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}} 活动",
+      "attach": "附加",
+      "attachTitle": "将文件附加到聊天",
+      "exportRideTitle": "将骑行导出为 {{format}}",
+      "exportWorkoutsTitle": "将已安排的训练课程导出为 {{format}}",
+      "pastedImage": "粘贴的图片{{extension}}",
+      "raceCourse": "比赛路线",
+      "rideFiles": "骑行文件",
+      "rideImportDescription": "从 {{computer}} 添加 FIT、TCX 或 GPX 文件。也可以将文件拖放到窗口中。",
+      "supportedFiles": "支持的文件",
+      "workoutArchive": "训练课程压缩包"
+    },
+    "lifecycle": {
+      "contentionContent": "另一个 {{product}} 进程已在运行或已卡住。请退出该进程，再重新打开 {{product}}。如果找不到该进程，请注销后重新登录。",
+      "contentionTitle": "{{product}} 无法连接到后台服务",
+      "malformedContent": "请修正或替换无效的 {{configFile}} 文件，再重新打开 {{product}}。",
+      "malformedTitle": "{{product}} 无法使用配置",
+      "notConfiguredContent": "缺少配置文件。请运行 {{product}} 初始设置或恢复 {{configFile}}，再重新打开 {{product}}。",
+      "notConfiguredTitle": "{{product}} 尚未配置",
+      "restartExhaustedContent": "后台服务多次停止，{{product}} 无法将其重启。请退出并重新打开 {{product}}。如果仍未解决，请注销后重新登录。",
+      "restartExhaustedTitle": "{{product}} 的后台服务已停止",
+      "unavailableContent": "无法启动后台服务，或无法读取已保存的连接状态。请退出并重新打开 {{product}}。如果问题仍然存在，请先{{restartComputer}}，再重试。",
+      "unavailableTitle": "{{product}} 无法启动后台服务",
+      "unexpectedContent": "{{product}} 启动时遇到了意外问题。请退出 {{product}} 后重试。如果问题反复出现，请注销并重新登录，再重新打开应用。",
+      "unexpectedTitle": "{{product}} 无法打开",
+      "unreadableContent": "请确认 {{configFile}} 是可读取的文件，且其所在文件夹可以访问，再重新打开 {{product}}。",
+      "unreadableTitle": "{{product}} 无法读取配置",
+      "versionMismatchContent": "CLI 或先前的安装正在运行另一个版本的 {{product}} 后台服务。请退出该服务，再重新打开 {{product}}。",
+      "versionMismatchTitle": "{{product}} 检测到不同版本的后台服务"
+    },
+    "platform": {
+      "computerMac": "这台 Mac",
+      "computerPc": "这台 PC",
+      "restartMac": "重启 Mac",
+      "restartPc": "重启 PC"
+    },
+    "tray": {
+      "checkingConnection": "正在检查连接",
+      "closeHint": "关闭窗口，应用会继续运行。右键点击菜单栏图标可查看更多选项。",
+      "coach": "骑行教练",
+      "menuBarStatus": "{{product}} 菜单栏状态",
+      "open": "打开 {{product}}",
+      "quit": "退出 {{product}}",
+      "ready": "随时可以开始",
+      "residency": "后台运行",
+      "running": "{{product}} 正在运行",
+      "runningInMenuBar": "正在菜单栏中运行",
+      "settings": "设置…",
+      "startAtLogin": "登录时在后台启动",
+      "tag": {
+        "active": "运行中",
+        "attention": "需要处理",
+        "checking": "检查中",
+        "conflict": "冲突",
+        "off": "已关闭",
+        "online": "在线",
+        "paused": "已暂停",
+        "retrying": "重试中",
+        "starting": "启动中",
+        "warning": "警告"
+      },
+      "telegram": {
+        "conflict": "其他轮询进程正在使用此机器人",
+        "connected": "已连接到 Telegram",
+        "connecting": "正在连接 Telegram",
+        "missedMessages": "检查遗漏的消息",
+        "needsAttention": "Telegram 需要处理",
+        "off": "Telegram 已关闭",
+        "reconnecting": "Telegram 正在重新连接",
+        "suspended": "这台 Mac 休眠期间，Telegram 会暂停",
+        "tokenRejected": "Telegram 令牌被拒绝",
+        "transferRequired": "需要转移机器人"
+      }
+    }
   }
 }

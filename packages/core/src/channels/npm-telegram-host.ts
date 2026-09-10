@@ -148,26 +148,40 @@ export interface TelegramUpdateMessageSender {
   sendMessage(chatId: string, text: string): Promise<unknown>;
 }
 
+export type NotifyNpmTelegramUpdatePorts = {
+  readonly checkForUpdateWithDailyTelemetry: typeof checkForUpdateWithDailyTelemetry;
+  readonly getKnownTelegramChatIds: typeof getKnownTelegramChatIds;
+  readonly getLastNotifiedVersion: typeof getLastNotifiedVersion;
+  readonly setLastNotifiedVersion: typeof setLastNotifiedVersion;
+  readonly isManagedDeploy: typeof isManagedDeploy;
+};
+
 export async function notifyNpmTelegramUpdate(
   sender: TelegramUpdateMessageSender,
   dataDir: string,
   binary: BinaryConfig,
   language: CoachLanguage,
+  ports: Partial<NotifyNpmTelegramUpdatePorts> = {},
 ): Promise<void> {
+  const checkUpdate = ports.checkForUpdateWithDailyTelemetry ?? checkForUpdateWithDailyTelemetry;
+  const knownIds = ports.getKnownTelegramChatIds ?? getKnownTelegramChatIds;
+  const lastNotified = ports.getLastNotifiedVersion ?? getLastNotifiedVersion;
+  const rememberVersion = ports.setLastNotifiedVersion ?? setLastNotifiedVersion;
+  const managed = ports.isManagedDeploy ?? isManagedDeploy;
   try {
-    const info = await checkForUpdateWithDailyTelemetry(binary.binaryName, dataDir);
-    if (!info?.updateAvailable || getLastNotifiedVersion(dataDir) === info.latest) return;
+    const info = await checkUpdate(binary.binaryName, dataDir);
+    if (!info?.updateAvailable || lastNotified(dataDir) === info.latest) return;
 
     const allowed = loadAllowedSenders(dataDir);
     const allowSet = new Set(allowed.allowFrom);
-    const knownChats = getKnownTelegramChatIds(dataDir);
+    const knownChats = knownIds(dataDir);
     const chatIds =
       allowed.dmPolicy === "open" ? knownChats : knownChats.filter((id) => allowSet.has(id));
     let delivered = false;
     for (const chatId of chatIds) {
       try {
         const book = await language.phrasebookFor({ chatId: `telegram:${chatId}` });
-        const updateInstruction = isManagedDeploy(binary.binaryName)
+        const updateInstruction = managed(binary.binaryName)
           ? book.say(
               msg("telegram.update.managedInstruction", {
                 whatsnew: "/whatsnew",
@@ -193,6 +207,6 @@ export async function notifyNpmTelegramUpdate(
         delivered = true;
       } catch {}
     }
-    if (delivered) setLastNotifiedVersion(dataDir, info.latest);
+    if (delivered) rememberVersion(dataDir, info.latest);
   } catch {}
 }

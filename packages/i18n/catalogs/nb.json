@@ -2789,5 +2789,90 @@
       "installing": "Installerer {{package}}…",
       "managedDeployment": "Denne installasjonen oppdateres via container-imaget. Hvis automatiske image-oppdateringer er aktivert i {{railway}}, distribuerer {{railway}} det nyeste {{registry}}-imaget på nytt i det angitte vedlikeholdsvinduet. Ellers må du distribuere tjenesten på nytt fra det nyeste imaget i {{railway}}."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "lås opp påloggingsnøkkelringen",
+      "macUnavailable": "Kryptering i {{operatingSystem}} er ikke tilgjengelig. Sørg for at Nøkkelring er tilgjengelig, og prøv igjen.",
+      "windowsIdentityFailed": "Tilknytning av skrivebordsappens identitet i {{operatingSystem}} mislyktes",
+      "windowsRecovery": "sørg for at kryptering av tilgangsopplysninger (DPAPI) i {{operatingSystem}} er tilgjengelig",
+      "windowsUnavailable": "Kryptering av tilgangsopplysninger (DPAPI) i {{operatingSystem}} er ikke tilgjengelig. Avslutt og åpne {{product}} på nytt, og prøv igjen.",
+      "windowsUserDataFailed": "Tilknytning av brukerdata i {{operatingSystem}} mislyktes"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-aktivitet",
+      "attach": "Legg ved",
+      "attachTitle": "Legg ved filer i Chat",
+      "exportRideTitle": "Eksporter tur som {{format}}",
+      "exportWorkoutsTitle": "Eksporter planlagte treningsøkter som {{format}}",
+      "pastedImage": "Innlimt bilde{{extension}}",
+      "raceCourse": "Rittløype",
+      "rideFiles": "Turfiler",
+      "rideImportDescription": "Legg til FIT-, TCX- eller GPX-filer fra {{computer}}. Du kan også dra dem inn i vinduet.",
+      "supportedFiles": "Støttede filer",
+      "workoutArchive": "Treningsarkiv"
+    },
+    "lifecycle": {
+      "contentionContent": "En annen {{product}}-prosess kjører allerede eller har låst seg. Avslutt den prosessen, og åpne deretter {{product}} på nytt. Hvis du ikke finner den, logger du ut og inn igjen.",
+      "contentionTitle": "{{product}} kunne ikke koble til bakgrunnstjenesten",
+      "malformedContent": "Rett opp eller erstatt den ugyldige filen {{configFile}}, og åpne deretter {{product}} på nytt.",
+      "malformedTitle": "{{product}} kunne ikke bruke konfigurasjonen",
+      "notConfiguredContent": "Konfigurasjonsfilen mangler. Kjør oppsettet for {{product}} eller gjenopprett {{configFile}}, og åpne deretter {{product}} på nytt.",
+      "notConfiguredTitle": "{{product}} er ikke satt opp",
+      "restartExhaustedContent": "Bakgrunnstjenesten stoppet gjentatte ganger, og {{product}} kunne ikke starte den på nytt. Avslutt {{product}}, og åpne det på nytt. Hvis det ikke hjelper, logger du ut og inn igjen.",
+      "restartExhaustedTitle": "Bakgrunnstjenesten til {{product}} stoppet",
+      "unavailableContent": "Bakgrunnstjenesten kunne ikke starte, eller den lagrede tilkoblingstilstanden kunne ikke leses. Avslutt {{product}}, og åpne det på nytt. Hvis problemet fortsetter, {{restartComputer}} før du prøver igjen.",
+      "unavailableTitle": "{{product}} kunne ikke starte bakgrunnstjenesten",
+      "unexpectedContent": "{{product}} støtte på et uventet problem under oppstart. Avslutt {{product}}, og prøv igjen. Hvis det fortsetter å skje, logger du ut og inn igjen før du åpner det på nytt.",
+      "unexpectedTitle": "{{product}} kunne ikke åpnes",
+      "unreadableContent": "Kontroller at {{configFile}} er en lesbar fil og at mappen er tilgjengelig. Åpne deretter {{product}} på nytt.",
+      "unreadableTitle": "{{product}} kunne ikke lese konfigurasjonen",
+      "versionMismatchContent": "En annen versjon av bakgrunnstjenesten til {{product}} kjører fra CLI eller en tidligere installasjon. Avslutt den tjenesten, og åpne deretter {{product}} på nytt.",
+      "versionMismatchTitle": "{{product}} fant en annen versjon av bakgrunnstjenesten"
+    },
+    "platform": {
+      "computerMac": "denne Macen",
+      "computerPc": "denne PC-en",
+      "restartMac": "start Macen på nytt",
+      "restartPc": "start PC-en på nytt"
+    },
+    "tray": {
+      "checkingConnection": "Kontrollerer tilkoblingen",
+      "closeHint": "Lukk vinduet uten å avslutte appen. Høyreklikk på ikonet i menylinjen for flere alternativer.",
+      "coach": "Sykkeltrener",
+      "menuBarStatus": "Status for {{product}} i menylinjen",
+      "open": "Åpne {{product}}",
+      "quit": "Avslutt {{product}}",
+      "ready": "Klar når du er",
+      "residency": "Kjøring i bakgrunnen",
+      "running": "{{product}} kjører",
+      "runningInMenuBar": "Kjører i menylinjen",
+      "settings": "Innstillinger…",
+      "startAtLogin": "Start i bakgrunnen ved pålogging",
+      "tag": {
+        "active": "aktiv",
+        "attention": "krever tilsyn",
+        "checking": "kontrollerer",
+        "conflict": "konflikt",
+        "off": "av",
+        "online": "tilkoblet",
+        "paused": "satt på pause",
+        "retrying": "prøver igjen",
+        "starting": "starter",
+        "warning": "advarsel"
+      },
+      "telegram": {
+        "conflict": "En annen prosess henter meldinger for boten",
+        "connected": "Koblet til Telegram",
+        "connecting": "Kobler til Telegram",
+        "missedMessages": "Se etter meldinger du har gått glipp av",
+        "needsAttention": "Telegram krever tilsyn",
+        "off": "Telegram er slått av",
+        "reconnecting": "Telegram kobler til på nytt",
+        "suspended": "Telegram er satt på pause mens denne Macen er i dvale",
+        "tokenRejected": "Telegram-token avvist",
+        "transferRequired": "Boten må overføres"
+      }
+    }
   }
 }

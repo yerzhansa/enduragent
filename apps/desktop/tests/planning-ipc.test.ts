@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoachRpcRemoteError } from "@enduragent/coach-client";
 import type { PlanReadModel } from "@enduragent/coach-contract";
@@ -106,6 +107,8 @@ function setup(
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+await initializeDesktopLanguage();
 
 describe("desktop Planning IPC", () => {
   it("forwards strict reads and transition commands from the trusted main frame", async () => {

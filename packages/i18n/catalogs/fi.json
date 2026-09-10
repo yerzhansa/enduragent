@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "Tarkistan tuoreuttasi ja suunnitelmaasi…"
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "avaa kirjautumisavainnippusi lukitus",
+      "macUnavailable": "Käyttöjärjestelmän {{operatingSystem}} salaus ei ole käytettävissä. Varmista, että avainnippu on käytettävissä, ja yritä sitten uudelleen.",
+      "windowsIdentityFailed": "Työpöytäsovelluksen identiteetin sidonta käyttöjärjestelmässä {{operatingSystem}} epäonnistui",
+      "windowsRecovery": "varmista, että käyttöjärjestelmän {{operatingSystem}} tunnistautumistietojen salaus (DPAPI) on käytettävissä",
+      "windowsUnavailable": "Käyttöjärjestelmän {{operatingSystem}} tunnistautumistietojen salaus (DPAPI) ei ole käytettävissä. Lopeta {{product}}, avaa se uudelleen ja yritä sitten uudelleen.",
+      "windowsUserDataFailed": "Käyttäjätietojen sidonta käyttöjärjestelmässä {{operatingSystem}} epäonnistui"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-suoritus",
+      "attach": "Liitä",
+      "attachTitle": "Liitä tiedostoja keskusteluun",
+      "exportRideTitle": "Vie lenkki muodossa {{format}}",
+      "exportWorkoutsTitle": "Vie suunnitellut harjoitukset muodossa {{format}}",
+      "pastedImage": "Liitetty kuva{{extension}}",
+      "raceCourse": "Kilpailureitti",
+      "rideFiles": "Lenkkitiedostot",
+      "rideImportDescription": "Lisää FIT-, TCX- tai GPX-tiedostoja tietokoneeltasi ({{computer}}). Voit myös pudottaa ne ikkunaan.",
+      "supportedFiles": "Tuetut tiedostot",
+      "workoutArchive": "Harjoitusarkisto"
+    },
+    "lifecycle": {
+      "contentionContent": "Toinen {{product}}-prosessi on jo käynnissä tai jumissa. Lopeta kyseinen prosessi ja avaa sitten {{product}} uudelleen. Jos et löydä sitä, kirjaudu ulos ja takaisin sisään.",
+      "contentionTitle": "{{product}} ei saanut yhteyttä taustapalveluunsa",
+      "malformedContent": "Korjaa tai korvaa virheellinen {{configFile}}-tiedosto ja avaa sitten {{product}} uudelleen.",
+      "malformedTitle": "{{product}} ei voinut käyttää asetuksiaan",
+      "notConfiguredContent": "Asetustiedosto puuttuu. Suorita sovelluksen {{product}} käyttöönotto tai palauta {{configFile}} ja avaa sitten {{product}} uudelleen.",
+      "notConfiguredTitle": "Sovellusta {{product}} ei ole määritetty",
+      "restartExhaustedContent": "Taustapalvelu pysähtyi toistuvasti, eikä {{product}} voinut käynnistää sitä uudelleen. Lopeta {{product}} ja avaa se uudelleen. Jos se ei auta, kirjaudu ulos ja takaisin sisään.",
+      "restartExhaustedTitle": "Sovelluksen {{product}} taustapalvelu pysähtyi",
+      "unavailableContent": "Taustapalvelu ei käynnistynyt tai sen tallennettua yhteystilaa ei voitu lukea. Lopeta {{product}} ja avaa se uudelleen. Jos ongelma jatkuu, {{restartComputer}} ennen uutta yritystä.",
+      "unavailableTitle": "{{product}} ei voinut käynnistää taustapalveluaan",
+      "unexpectedContent": "{{product}} kohtasi odottamattoman ongelman käynnistyessään. Lopeta {{product}} ja yritä uudelleen. Jos ongelma toistuu, kirjaudu ulos ja takaisin sisään ennen kuin avaat sovelluksen uudelleen.",
+      "unexpectedTitle": "{{product}} ei avautunut",
+      "unreadableContent": "Varmista, että {{configFile}} on luettavissa oleva tiedosto ja että sen kansioon on pääsy. Avaa sitten {{product}} uudelleen.",
+      "unreadableTitle": "{{product}} ei voinut lukea asetuksiaan",
+      "versionMismatchContent": "Sovelluksen {{product}} taustapalvelun eri versio on käynnissä komentoriviltä tai aiemmasta asennuksesta. Lopeta kyseinen palvelu ja avaa sitten {{product}} uudelleen.",
+      "versionMismatchTitle": "{{product}} löysi taustapalvelun eri version"
+    },
+    "platform": {
+      "computerMac": "tämä Mac",
+      "computerPc": "tämä PC",
+      "restartMac": "käynnistä Mac uudelleen",
+      "restartPc": "käynnistä PC uudelleen"
+    },
+    "tray": {
+      "checkingConnection": "Tarkistetaan yhteyttä",
+      "closeHint": "Sulje ikkuna lopettamatta sovellusta. Saat lisää vaihtoehtoja napsauttamalla valikkorivin kuvaketta hiiren oikealla painikkeella.",
+      "coach": "Pyöräilyvalmentaja",
+      "menuBarStatus": "Sovelluksen {{product}} tila valikkorivillä",
+      "open": "Avaa {{product}}",
+      "quit": "Lopeta {{product}}",
+      "ready": "Valmiina, kun sinäkin olet",
+      "residency": "Toiminta taustalla",
+      "running": "{{product}} on käynnissä",
+      "runningInMenuBar": "Käynnissä valikkorivillä",
+      "settings": "Asetukset…",
+      "startAtLogin": "Käynnistä taustalla sisäänkirjautumisen yhteydessä",
+      "tag": {
+        "active": "käytössä",
+        "attention": "huomio",
+        "checking": "tarkistetaan",
+        "conflict": "ristiriita",
+        "off": "pois päältä",
+        "online": "verkossa",
+        "paused": "keskeytetty",
+        "retrying": "yritetään uudelleen",
+        "starting": "käynnistyy",
+        "warning": "varoitus"
+      },
+      "telegram": {
+        "conflict": "Toinen viestejä hakeva palvelu hallitsee bottia",
+        "connected": "Yhdistetty palveluun Telegram",
+        "connecting": "Yhdistetään palveluun Telegram",
+        "missedMessages": "Tarkista, onko viestejä jäänyt saapumatta",
+        "needsAttention": "Telegram vaatii huomiota",
+        "off": "Telegram on pois päältä",
+        "reconnecting": "Telegram yhdistää uudelleen",
+        "suspended": "Telegram on keskeytetty tämän Macin ollessa lepotilassa",
+        "tokenRejected": "Telegram-tunniste hylättiin",
+        "transferRequired": "Botti on siirrettävä"
+      }
+    }
   }
 }

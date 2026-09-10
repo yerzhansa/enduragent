@@ -1,4 +1,5 @@
 import "./keychain-binding-probe-deprecation.js";
+import { desktopLanguage, initializeDesktopLanguage, refreshDesktopLanguage } from "./language.js";
 import { bindDevelopmentUserData } from "./development-user-data.js";
 import { bindWindowsUserData } from "./windows-user-data.js";
 import {
@@ -200,6 +201,11 @@ import {
 } from "./planning-read-ipc.js";
 
 traceDesktopStartupStage("main-start");
+let preferredLanguages: readonly string[] = [];
+try {
+  preferredLanguages = app.getPreferredSystemLanguages();
+} catch {}
+await initializeDesktopLanguage(preferredLanguages);
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
 bindWindowsUserData(app);
@@ -688,6 +694,8 @@ async function runDesktop(): Promise<void> {
       _signal: AbortSignal,
     ): Promise<void> => {};
     const publishLifecycle = (state: DesktopDaemonLifecycleState): void => {
+      if (state.status === "ready") void refreshDesktopLanguage();
+      else desktopLanguage.useSystem();
       if (state.status === "recovering" && recoveringCredentialRuntime === undefined) {
         recoveringCredentialRuntime = {
           states: new Map(credentialRuntimeState),
@@ -825,6 +833,14 @@ async function runDesktop(): Promise<void> {
       url: resolution.url,
       token: resolution.token,
       athleteHome: resolution.athleteHome,
+    });
+    desktopLanguage.bind(async () => {
+      const binding = activeRuntimeBinding;
+      if (binding === undefined || daemonLifecycle?.snapshot().status !== "ready") return null;
+      const result = await binding.authority.getLanguagePreference?.(AbortSignal.timeout(2_000));
+      if (activeRuntimeBinding !== binding || daemonLifecycle?.snapshot().status !== "ready")
+        return null;
+      return result?.value ?? null;
     });
     const readActiveRuntimeConfig = async (signal?: AbortSignal) => {
       const binding = activeRuntimeBinding;
@@ -1123,6 +1139,7 @@ async function runDesktop(): Promise<void> {
       },
     });
     daemonLifecycle.start();
+    await refreshDesktopLanguage();
     traceDesktopStartupStage("reapply-credentials");
     await vault.reapplyConfigured();
     const initialTelegramConnection = daemonLifecycle.connection();
