@@ -61,24 +61,33 @@ describe("built package", () => {
     expect(statSync(new URL(entry, dist)).isFile()).toBe(true);
   });
 
-  it("keeps the eager translator graph below 16 KiB without catalog modules", () => {
+  it("keeps only the English catalog in the eager translator graph", () => {
     const eager = eagerMessagesGraph();
-    expect(eager.flatMap(sources).filter((source) => source.includes("catalogs/"))).toEqual([]);
-    expect(eager.reduce((bytes, file) => bytes + statSync(file).size, 0)).toBeLessThan(16 * 1024);
+    const eagerCatalogs = eager
+      .flatMap(sources)
+      .filter((source) => source.includes("catalogs/"))
+      .map((source) => source.split("/").at(-1));
+    expect(eagerCatalogs).toEqual(["en.json"]);
+    const englishBytes = statSync(new URL("../catalogs/en.json", import.meta.url)).size;
+    expect(eager.reduce((bytes, file) => bytes + statSync(file).size, 0)).toBeLessThan(
+      englishBytes + 16 * 1024,
+    );
   });
 
-  it("emits a separate dynamically imported module for each of the 17 catalogs", () => {
+  it("emits a separate dynamically imported module for each of the 16 translated catalogs", () => {
     const eager = eagerMessagesGraph();
     const lazy = eager.flatMap((file) => imports(file).lazy);
-    expect(lazy).toHaveLength(17);
-    expect(new Set(lazy.map((file) => file.href)).size).toBe(17);
+    expect(lazy).toHaveLength(16);
+    expect(new Set(lazy.map((file) => file.href)).size).toBe(16);
     expect(lazy.some((file) => eager.some((loaded) => loaded.href === file.href))).toBe(false);
     const catalogSources = lazy.flatMap((file) => {
       expect(statSync(file).isFile()).toBe(true);
       return sources(file).filter((source) => source.includes("catalogs/"));
     });
     expect(catalogSources.map((source) => source.split("/").at(-1)).sort()).toEqual(
-      LANGUAGE_OPTIONS.map(({ tag }) => `${tag}.json`).sort(),
+      LANGUAGE_OPTIONS.filter(({ tag }) => tag !== "en")
+        .map(({ tag }) => `${tag}.json`)
+        .sort(),
     );
   });
 

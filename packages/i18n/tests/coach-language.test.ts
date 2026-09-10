@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { LanguageTag } from "@enduragent/coach-contract";
 import {
   createCoachLanguage,
@@ -132,5 +132,24 @@ it("reads fresh preferences for current state and each turn, including Automatic
     language: "fr",
     source: "surface",
     locale: "fr-FR",
+  });
+});
+
+describe("phrasebook resilience", () => {
+  it("falls back to English when the athlete's catalog cannot load", async () => {
+    const language = createCoachLanguage({
+      store: {
+        read: async () => ({ value: "it" as const, origin: "stored" as const }),
+        write: async () => ({ value: "it" as const, origin: "stored" as const }),
+      },
+      surface: { language: undefined, locale: undefined },
+      phrasebooks: async ({ tag, locale }) => {
+        if (tag !== "en") throw new Error("catalog unavailable");
+        return createPhrasebook({ tag, locale });
+      },
+    });
+    const book = await language.phrasebookFor({});
+    expect(book.tag).toBe("en");
+    expect(book.say("common.cancel")).toBe("Cancel");
   });
 });
