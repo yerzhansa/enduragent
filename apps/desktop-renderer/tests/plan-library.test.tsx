@@ -155,6 +155,7 @@ const creation: PlanCreationCardModel = {
   draft: null,
   draftStale: false,
   calendarWindow: null,
+  pendingCheck: null,
   pendingCommitment: null,
   answeredSummaries: [],
   openQuestion: {
@@ -247,6 +248,7 @@ describe("Plan library", () => {
           creation: null,
           active,
           closed,
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         }}
@@ -278,6 +280,7 @@ describe("Plan library", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         }}
         readDetails={vi.fn()}
@@ -323,6 +326,7 @@ describe("Plan library", () => {
           creation: null,
           active: null,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         }}
@@ -408,6 +412,7 @@ describe("Plan library", () => {
             creation: null,
             active: { ...active, calendar },
             closed,
+            pendingChangeCheck: null,
             changesPaused: null,
             changes: [],
           }}
@@ -444,6 +449,7 @@ describe("Plan library", () => {
           creation: null,
           active,
           closed,
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         },
@@ -464,6 +470,7 @@ describe("Plan library", () => {
         creation: hasCreation ? creation : null,
         active: hasActive ? active : null,
         closed: hasClosed ? closed : [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       };
@@ -543,6 +550,7 @@ describe("Plan library", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         }}
         readDetails={readDetails}
@@ -572,6 +580,7 @@ describe("Plan library", () => {
       creation,
       active,
       closed,
+      pendingChangeCheck: null,
       changesPaused: null,
       changes: [],
     };
@@ -602,6 +611,7 @@ describe("Plan library", () => {
           creation,
           active: null,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         }}
@@ -618,6 +628,7 @@ describe("Plan library", () => {
           creation: { ...creation, draft: planCreationDraft() },
           active: null,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         }}
@@ -636,6 +647,7 @@ describe("Plan library", () => {
       creation: null,
       active,
       closed,
+      pendingChangeCheck: null,
       changesPaused: null,
       changes: [],
     };
@@ -670,6 +682,7 @@ describe("Plan library", () => {
         creation,
         active,
         closed,
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       }));
@@ -767,6 +780,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       },
@@ -780,6 +794,7 @@ describe("Plan library refresh subscription", () => {
           creation,
           active: { ...active, calendar: { ...active.calendar, status: "running" } },
           closed,
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         },
@@ -820,6 +835,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       },
@@ -846,6 +862,7 @@ describe("Plan library refresh subscription", () => {
               },
             },
             closed,
+            pendingChangeCheck: null,
             changesPaused: null,
             changes: [],
           },
@@ -867,6 +884,7 @@ describe("Plan library refresh subscription", () => {
       legacy: null,
       creation: null,
       closed: [],
+      pendingChangeCheck: null,
       changesPaused: null,
       changes: [],
       active: {
@@ -951,6 +969,7 @@ describe("Plan library refresh subscription", () => {
       legacy: null,
       creation: null,
       closed: [],
+      pendingChangeCheck: null,
       changesPaused: null,
       changes: [],
       active: {
@@ -1029,6 +1048,7 @@ describe("Plan library refresh subscription", () => {
           legacy: null,
           creation: null,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
           active: {
@@ -1065,6 +1085,7 @@ describe("Plan library refresh subscription", () => {
         creation: null,
         active,
         closed: [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       };
@@ -1137,6 +1158,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       },
@@ -1186,6 +1208,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       },
@@ -1213,6 +1236,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       },
@@ -1287,6 +1311,7 @@ describe("Plan library refresh subscription", () => {
         creation,
         active,
         closed,
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       });
@@ -1302,6 +1327,7 @@ describe("Plan library refresh subscription", () => {
           active,
           closed,
           changes: [],
+          pendingChangeCheck: null,
           changesPaused: null,
         },
       });
@@ -1354,6 +1380,7 @@ describe("Plan creation title", () => {
             creation: answered,
             active: null,
             closed: [],
+            pendingChangeCheck: null,
             changesPaused: null,
             changes: [],
           }}
@@ -1408,6 +1435,7 @@ it("keeps Plan history below the library while a creation occupies the header", 
         active,
         closed: [],
         changes: [],
+        pendingChangeCheck: null,
         changesPaused: null,
       },
     },
@@ -1433,6 +1461,7 @@ describe("Stop Plan", () => {
           creation: null,
           active,
           closed,
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         }}
@@ -1567,6 +1596,7 @@ describe("Stop Plan", () => {
       creation: null,
       active,
       closed,
+      pendingChangeCheck: null,
       changesPaused: null,
       changes: [],
     };
@@ -1637,6 +1667,7 @@ describe("Stop Plan", () => {
               creation: null,
               active: null,
               closed: [{ ...history.plan, status: "closed" }],
+              pendingChangeCheck: null,
               changesPaused: null,
               changes: [],
             },
@@ -1652,6 +1683,7 @@ describe("Stop Plan", () => {
             creation: null,
             active,
             closed,
+            pendingChangeCheck: null,
             changesPaused: null,
             changes: [],
           },
@@ -1716,6 +1748,7 @@ describe("Stop Plan", () => {
         creation: null,
         active,
         closed,
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       });

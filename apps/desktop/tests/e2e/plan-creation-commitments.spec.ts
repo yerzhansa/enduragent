@@ -8,8 +8,7 @@ import { PlanCreationBackend } from "../helpers/plan-creation-backend.js";
 
 const commitments = "Wednesday at most 45 minutes";
 const ambiguousCommitment = "Keep my evenings free";
-const pendingSummary =
-  "I understood your note as this limit. Confirm it and your other confirmed limits stay as they are.";
+const pendingSummary = "Confirm this answer before I use it in your plan.";
 const previews = fileURLToPath(new URL("./previews/plan-creation-commitments/", import.meta.url));
 
 type Playwright = PlaywrightWorkerArgs["playwright"];
@@ -98,35 +97,20 @@ for (const appearance of [
   { width: 720, colorScheme: "light" },
   { width: 720, colorScheme: "dark" },
 ] as const) {
-  test(`interprets, confirms, clarifies and cancels commitments at ${appearance.width} in ${appearance.colorScheme}`, async ({
+  test(`checks, confirms, clarifies and cancels commitments at ${appearance.width} in ${appearance.colorScheme}`, async ({
     playwright,
   }) => {
     test.setTimeout(180_000);
     const scratch = await mkdtemp(join(tmpdir(), "plan-commitments-"));
     const backend = new PlanCreationBackend(join(scratch, "store.db"), false, true);
-    let failNextAnswer = false;
     let fixture: RunningDesktopFixture | undefined;
     let browser: Browser | undefined;
     try {
       await backend.open();
-      await backend.seedTrainingCreation({ kind: "interpreted", text: ambiguousCommitment });
+      await backend.seedTrainingCreation();
+      await backend.seedLegacyCommitments(ambiguousCommitment);
       fixture = await launchDesktopFixture({
-        script: {
-          ...backend.script,
-          onRequest: (request) => {
-            if (
-              failNextAnswer &&
-              typeof request === "object" &&
-              request !== null &&
-              "method" in request &&
-              request.method === "plan_creation.answer"
-            ) {
-              failNextAnswer = false;
-              throw new Error("Synthetic answer failure");
-            }
-            return backend.script.onRequest(request);
-          },
-        },
+        script: backend.script,
         token: "d".repeat(43),
         width: appearance.width,
         height: 1000,
@@ -169,7 +153,16 @@ for (const appearance of [
       expect(originalWednesdays.some((workout) => workout.minutes > 45)).toBe(true);
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill(commitments);
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      const answersBeforeCheck = await backend.answers();
+      const releaseCheck = backend.checker.pause();
+      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await expect(
+        page.getByRole("status").filter({ hasText: "Checking your answer" }),
+      ).toBeVisible();
+      await expect(page.locator("#message")).toBeDisabled();
+      expect(await backend.answers()).toEqual(answersBeforeCheck);
+      await screenshot("checking");
+      releaseCheck();
       const confirmation = page.getByRole("region", {
         name: "Did I read this right?",
         exact: true,
@@ -197,7 +190,11 @@ for (const appearance of [
       expect(pending).toMatchObject({
         draft: original.draft,
         draftStale: false,
-        pendingCommitment: { text: commitments, status: "confirm" },
+        pendingCheck: {
+          submission: { field: "commitments", text: commitments },
+          state: "ready",
+          result: { outcome: "understood" },
+        },
       });
       await confirmation.scrollIntoViewIfNeeded();
       await screenshot("pending-draft");
@@ -214,7 +211,7 @@ for (const appearance of [
       await expect(page.getByRole("button", { name: "Activate Plan", exact: true })).toBeDisabled();
       await screenshot("pending-restored");
       await page.getByRole("button", { name: "Confirm", exact: true }).click();
-      await expect.poll(async () => (await backend.card())?.pendingCommitment).toBeNull();
+      await expect.poll(async () => (await backend.card())?.pendingCheck).toBeNull();
       await expect(page.locator("#message")).toBeFocused();
       expect(await card(backend)).toMatchObject({ draft: original.draft, draftStale: true });
       await page.getByRole("button", { name: "Rebuild Draft", exact: true }).click();
@@ -246,7 +243,7 @@ for (const appearance of [
       await screenshot("confirmed-rebuilt");
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
       const clarification = page.getByRole("region", {
         name: "I could not use that answer",
         exact: true,
@@ -274,17 +271,17 @@ for (const appearance of [
         }),
       ).toBeVisible();
       await screenshot("clarify-editor");
-      failNextAnswer = true;
+      backend.checker.failures = 1;
       await page.locator('[data-parity="custom.textarea"]').fill("Some evenings are busy");
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
       await expect(
         page.getByRole("region", { name: "Plan creation dock", exact: true }).getByRole("alert"),
-      ).toHaveText("Plan Creation couldn’t save that. Try again.");
-      await expect(page.locator('[data-parity="custom.textarea"]')).toHaveValue(
-        "Some evenings are busy",
-      );
+      ).toHaveText("I could not check that answer. Try again.");
+      await expect(
+        page.getByRole("row", { name: "You wrote Some evenings are busy", exact: true }),
+      ).toBeVisible();
       await screenshot("clarify-editor-error");
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page.getByRole("button", { name: "Retry", exact: true }).click();
       await expect(clarification).toBeVisible();
       await expect(
         clarification.getByText("Some evenings are busy", { exact: true }),
@@ -306,22 +303,22 @@ for (const appearance of [
       expect(await card(backend)).toEqual(clarificationBeforeChat);
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill("Saturday unavailable");
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
       await expect(
         page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
       await expect
-        .poll(async () => (await backend.card())?.pendingCommitment?.text)
+        .poll(async () => (await backend.card())?.pendingCheck?.submission.text)
         .toBe("Saturday unavailable");
       await page.getByRole("button", { name: "Change it", exact: true }).click();
       await expect(page.locator('[data-parity="custom.textarea"]')).toBeFocused();
       await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
-      await page.getByRole("button", { name: "Review interpretation", exact: true }).click();
+      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
       await page
         .getByRole("region", { name: "I could not use that answer", exact: true })
         .getByRole("button", { name: "Skip for now", exact: true })
         .click();
-      await expect.poll(async () => (await backend.card())?.pendingCommitment).toBeNull();
+      await expect.poll(async () => (await backend.card())?.pendingCheck).toBeNull();
       await expect(page.locator("#message")).toBeFocused();
       expect(await card(backend)).toMatchObject({
         draft: rebuilt.draft,
@@ -338,13 +335,15 @@ for (const appearance of [
           expect.objectContaining({
             params: expect.objectContaining({
               answer: {
-                kind: "commitments",
-                commitments: { kind: "interpreted", text: commitments },
+                kind: "check-submit",
+                submission: { field: "commitments", text: commitments },
               },
             }),
           }),
           expect.objectContaining({
-            params: expect.objectContaining({ answer: { kind: "commitments-confirm" } }),
+            params: expect.objectContaining({
+              answer: expect.objectContaining({ kind: "check-action", action: "confirm" }),
+            }),
           }),
           expect.objectContaining({
             params: expect.objectContaining({ answer: { kind: "commitments-cancel" } }),
@@ -352,8 +351,8 @@ for (const appearance of [
           expect.objectContaining({
             params: expect.objectContaining({
               answer: {
-                kind: "commitments",
-                commitments: { kind: "interpreted", text: "Saturday unavailable" },
+                kind: "check-submit",
+                submission: { field: "commitments", text: "Saturday unavailable" },
               },
             }),
           }),

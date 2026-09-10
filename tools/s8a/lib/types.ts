@@ -4,6 +4,7 @@ export const S8A_PROVIDERS = ["anthropic", "openai-codex"] as const;
 export type S8aProvider = (typeof S8A_PROVIDERS)[number];
 
 export interface S8aScenario {
+  execution?: { kind: "answer-check"; cases: AnswerCheckCase[] };
   id: string; // kebab-case, unique; used in fixture paths
   tier: "replay" | "live"; // ONLY "replay" scenarios gate CI
   description: string;
@@ -29,7 +30,31 @@ export interface S8aScenario {
   /** Record-mode validation: the recording must contain executions of these tools /
    *  calls by these callers, else record mode exits 2 (prevents committing a
    *  fixture that never exercised the intended path). */
-  recordExpectations?: { tools?: string[]; callers?: Array<"chat" | "flush" | "compact"> };
+  recordExpectations?: {
+    tools?: string[];
+    callers?: Array<"chat" | "flush" | "compact" | "intent-translation">;
+  };
+}
+
+export interface AnswerCheckCase {
+  id: string;
+  field: "commitments" | "success";
+  text: string;
+  expected: {
+    outcome: "understood" | "ask" | "skip";
+    value: unknown;
+    action: "confirm" | "skip" | "cancel";
+    savedAnswer: unknown;
+  };
+}
+
+export interface AnswerCheckObservation {
+  id: string;
+  elapsedMs: number;
+  busyObserved: boolean;
+  unchangedBeforeConfirmation: boolean;
+  result: unknown;
+  savedAnswer: unknown;
 }
 
 /** The intervals client's wellness response schema requires `sportInfo` to be
@@ -50,10 +75,10 @@ export interface RecordedTextDeltaEvent {
   readonly delta: string;
 }
 
-/** The recorded request is a discriminated union: compact-caller calls are
- *  prompt-shaped, and flush calls carry no cacheKey — a messages-only schema
- *  cannot round-trip the trim/compaction scenario. */
-export type RecordedRequest = MessagesShapedRequest | PromptShapedRequest;
+export type RecordedRequest =
+  | MessagesShapedRequest
+  | PromptShapedRequest
+  | IntentTranslationRequest;
 
 export interface MessagesShapedRequest {
   shape: "messages";
@@ -79,11 +104,23 @@ export interface PromptShapedRequest {
   cacheKey: null;
 }
 
+export interface IntentTranslationRequest {
+  shape: "intent-translation";
+  caller: "intent-translation";
+  system: string;
+  systemSha256_16: string;
+  input: { shape: "prompt"; prompt: string } | { shape: "messages"; messages: unknown[] };
+  toolNames: string[];
+  maxSteps: number | null;
+  maxOutputTokens: number | null;
+  cacheKey: string | null;
+  deadlineMs: number;
+}
+
 export interface RecordedCall {
   ordinal: number;
-  caller: "chat" | "flush" | "compact";
-  /** Which scenario turn this call belongs to (the recorder drives turns one at a
-   *  time, so attribution is exact). null never occurs in committed fixtures. */
+  caller: "chat" | "flush" | "compact" | "intent-translation";
+  checkId?: string;
   turn: { chatId: string; turnIndex: number } | null;
   request: RecordedRequest;
   toolExecutions: RecordedToolExecution[];
@@ -107,6 +144,7 @@ export interface S8aRecording {
   model: string; // stamped from the recording run's config
   lineage: { templateHash: string; lineageVersion: "unversioned" }; // header hash informational, NOT asserted
   calls: RecordedCall[];
+  answerChecks?: AnswerCheckObservation[];
 }
 
 export type AssertId = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7";

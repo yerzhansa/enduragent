@@ -145,6 +145,7 @@ describe("closed Plan history refresh", () => {
           creation: null,
           active: null,
           closed: [{ ...failed.plan, status: "closed" }],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [],
         },

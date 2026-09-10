@@ -136,10 +136,11 @@ export function PlanCreationSummary(props: {
                     actions === null ||
                     busy ||
                     editingKey !== null ||
-                    props.model.pendingCommitment !== null
+                    props.model.pendingCommitment !== null ||
+                    props.model.pendingCheck !== null
                   }
                   aria-describedby={
-                    props.model.pendingCommitment === null
+                    props.model.pendingCommitment === null && props.model.pendingCheck === null
                       ? undefined
                       : commitmentSummaryId(props.model)
                   }

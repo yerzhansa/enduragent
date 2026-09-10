@@ -18,6 +18,7 @@ import {
   type PlanReadModel,
   type PlanTransitionId,
 } from "@enduragent/coach-contract";
+import type { CoachClientCallOptions } from "@enduragent/coach-client";
 import type { DesktopCoachClientProvider } from "../../coach-client";
 import {
   EMPTY_CHAT_STATE,
@@ -53,10 +54,15 @@ export async function closePlan(
 export async function previewPlanChange(
   clients: DesktopCoachClientProvider,
   input: PlanChangePreviewRpcParams,
+  options?: CoachClientCallOptions<"plan_change.preview">,
 ) {
-  return (await clients.getClient()).call("plan_change.preview", {
-    ...input,
-  });
+  return (await clients.getClient()).call(
+    "plan_change.preview",
+    {
+      ...input,
+    },
+    options,
+  );
 }
 
 export async function applyPlanChange(
@@ -637,8 +643,7 @@ export function createPlanViewAdapter(input: {
         action: "close",
         sourceScenarioId: model.scenarioId,
         destinationScenarioId: model.scenarioId === "PL-S079" ? "PL-S004" : "PL-S001",
-        returnFocusId:
-          model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "start-plan",
+        returnFocusId: model.scenarioId === "PL-S079" ? "plan-replacement-trigger" : "start-plan",
       });
     },
     async submitCoach(message) {

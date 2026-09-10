@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  AnswerCheckActionSchema,
+  AnswerCheckTextSchema,
+  answerCheckResultSchema,
+  pendingAnswerCheckSchema,
+} from "./answer-check.js";
 import { TrainingExportCivilDateSchema } from "./training-export.js";
 import {
   PlanCloseRpcParamsSchema,
@@ -6,7 +12,7 @@ import {
   SupportingEventRoleSchema,
 } from "./plan-creation.js";
 
-export const PLAN_CHANGE_TRANSLATION_BUDGET_MS = 45_000;
+export const PLAN_CHANGE_TRANSLATION_BUDGET_MS = 30_000;
 export const PLAN_CHANGE_PREVIEW_TIMEOUT_MS = PLAN_CHANGE_TRANSLATION_BUDGET_MS + 15_000;
 
 const FtpWattsSchema = z.number().int().min(1).max(9_999);
@@ -42,7 +48,9 @@ export type PlanChangeEventSource = z.infer<typeof PlanChangeEventSourceSchema>;
 const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("add").describe("Add a supporting event to the plan"),
       name: z.string().trim().min(1).max(512).describe("Name of the supporting event"),
       date: TrainingExportCivilDateSchema.describe(
@@ -60,7 +68,9 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("remove").describe("Remove an existing supporting event from the plan"),
       eventId: z
         .string()
@@ -71,7 +81,9 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("role")
         .describe("Change the training priority of an existing supporting event"),
@@ -87,7 +99,9 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("manual")
         .describe("Correct the name and date of a manually added supporting event"),
@@ -104,7 +118,9 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z
         .literal("source-update")
         .describe("Accept synchronized name and date updates for a supporting event"),
@@ -117,7 +133,9 @@ const SupportingEventIntentSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
-      kind: z.literal("supporting-event").describe("Add, update, or remove a supporting event in the plan"),
+      kind: z
+        .literal("supporting-event")
+        .describe("Add, update, or remove a supporting event in the plan"),
       operation: z.literal("name").describe("Rename an existing supporting event"),
       eventId: z
         .string()
@@ -212,6 +230,21 @@ export const PlanChangeIntentSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanChangeIntent = z.infer<typeof PlanChangeIntentSchema>;
 
+export const PlanChangeCheckResultSchema = answerCheckResultSchema(PlanChangeIntentSchema);
+export const PlanChangePendingCheckSchema = pendingAnswerCheckSchema(
+  z.object({ field: z.literal("change"), text: AnswerCheckTextSchema }).strict(),
+  PlanChangeCheckResultSchema,
+);
+export type PlanChangePendingCheck = z.infer<typeof PlanChangePendingCheckSchema>;
+export const PlanChangeCheckProgressSchema = z
+  .object({
+    type: z.literal("answer-check"),
+    planId: z.string().min(1),
+    pendingCheck: PlanChangePendingCheckSchema,
+  })
+  .strict();
+export type PlanChangeCheckProgress = z.infer<typeof PlanChangeCheckProgressSchema>;
+
 export const PlanChangesPausedSchema = z
   .object({
     reason: z.literal("sync-stale"),
@@ -287,8 +320,9 @@ export const PlanChangeModelSchema = z
 export type PlanChangeModel = z.infer<typeof PlanChangeModelSchema>;
 
 export const PlanChangeRequestSchema = z.discriminatedUnion("kind", [
+  AnswerCheckActionSchema,
   z.object({ kind: z.literal("intent"), intent: PlanChangeIntentSchema }).strict(),
-  z.object({ kind: z.literal("text"), text: z.string().min(1).max(500) }).strict(),
+  z.object({ kind: z.literal("text"), text: AnswerCheckTextSchema }).strict(),
 ]);
 export type PlanChangeRequest = z.infer<typeof PlanChangeRequestSchema>;
 
@@ -302,6 +336,13 @@ export const PlanChangePreviewRpcParamsSchema = z.union([
 export type PlanChangePreviewRpcParams = z.infer<typeof PlanChangePreviewRpcParamsSchema>;
 
 export const PlanChangePreviewResultSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("checked"),
+      planId: z.string().min(1),
+      pendingCheck: PlanChangePendingCheckSchema.nullable(),
+    })
+    .strict(),
   z
     .object({
       status: z.literal("previewed"),
@@ -394,6 +435,9 @@ export const PlanChangeApplyResultSchema = z.discriminatedUnion("status", [
 export type PlanChangeApplyResult = z.infer<typeof PlanChangeApplyResultSchema>;
 
 export interface PlanChangeOperations {
-  "plan_change.preview"(request: PlanChangePreviewRpcParams): Promise<PlanChangePreviewResult>;
+  "plan_change.preview"(
+    request: PlanChangePreviewRpcParams,
+    onEvent?: (event: PlanChangeCheckProgress) => void,
+  ): Promise<PlanChangePreviewResult>;
   "plan_change.apply"(request: PlanChangeApplyRpcParams): Promise<PlanChangeApplyResult>;
 }

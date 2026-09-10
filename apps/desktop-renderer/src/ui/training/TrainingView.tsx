@@ -404,7 +404,7 @@ function RideImportStatus(): ReactElement {
           aria-label="Import ride files"
         >
           <h2>Import ride files</h2>
-          {progress === null ? null : (
+          {progress === null || !("completed" in progress.params.event) ? null : (
             <p className={styles.meta}>
               {progress.params.event.completed} of {progress.params.event.total} files processed
             </p>

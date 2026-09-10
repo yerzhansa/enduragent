@@ -205,7 +205,14 @@ export interface ChatViewControls {
     readonly discardEvents: readonly PlanCreationDiscardEvent[];
     readonly notice: string | null;
     readonly focusRequest: {
-      readonly target: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer";
+      readonly target:
+        | "discard"
+        | "activate"
+        | "edit"
+        | "start"
+        | "continue"
+        | "change"
+        | "composer";
       readonly libraryTarget?: "continue" | "change";
       readonly revision: number;
     } | null;
@@ -234,7 +241,7 @@ export interface ChatController {
   openPlanChangeEditor(): void;
   backFromPlanChangeEditor(): void;
   previewPlanChange(
-    intent: PlanChangeIntent | Extract<PlanChangeRequest, { kind: "text" }>,
+    intent: PlanChangeIntent | Extract<PlanChangeRequest, { kind: "text" | "check-action" }>,
   ): Promise<void>;
   applyPlanChange(decision: "apply" | "cancel"): Promise<void>;
   start(): Promise<void>;
@@ -448,7 +455,7 @@ export function createChatController(input: {
     !decisionLoaded ||
     decision?.status === "unanswered" ||
     (decision?.status === "answered" && decision.continuation.status === "pending");
-  const acceptsCommitmentMessage = (): boolean =>
+  const commitmentQuestionAllowsChat = (): boolean =>
     planCreation !== null &&
     (planCreation.pendingCommitment !== null ||
       (!planCreationPaused &&
@@ -459,8 +466,11 @@ export function createChatController(input: {
     planCreationDiscardConfirmationOpen ||
     planCreationActivateConfirmationOpen ||
     (!planCreationPaused &&
+      (planCreation?.pendingCheck != null || planCreation?.pendingCommitment != null) &&
+      planCreationEditingKey === null) ||
+    (!planCreationPaused &&
       planCreation !== null &&
-      !acceptsCommitmentMessage() &&
+      !commitmentQuestionAllowsChat() &&
       (planCreationEditingKey !== null || planCreation.openQuestion !== null));
   const decisionBlocksReset = (): boolean =>
     !decisionLoaded ||
@@ -1798,8 +1808,12 @@ export function createChatController(input: {
           ))),
     );
   };
+  const pendingChangeCheck = () =>
+    readChange().pendingCheck === undefined
+      ? input.readPlanLibrary?.()?.pendingChangeCheck
+      : readChange().pendingCheck;
   const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
-  const changeFocus = (target: "editor" | "preview" | "change") => ({
+  const changeFocus = (target: "editor" | "preview" | "change" | "check") => ({
     target,
     revision: (readChange().focusRequest?.revision ?? 0) + 1,
   });
@@ -1857,6 +1871,10 @@ export function createChatController(input: {
         (planCreationEditingKey !== null || planCreation.openQuestion !== null)
       ) &&
         !(
+          planCreation.pendingCheck !== null &&
+          (answer.kind === "check-action" || answer.kind === "check-submit")
+        ) &&
+        !(
           planCreation.pendingCommitment !== null &&
           (answer.kind === "commitments" ||
             answer.kind === "commitments-confirm" ||
@@ -1878,18 +1896,33 @@ export function createChatController(input: {
     try {
       const result = await (
         await input.clients.getClient()
-      ).call("plan_creation.answer", {
-        commandId: planCommandId(key),
-        creationId: planCreation.creationId,
-        expectedVersion: planCreation.version,
-        answer,
-      });
+      ).call(
+        "plan_creation.answer",
+        {
+          commandId: planCommandId(key),
+          creationId: planCreation.creationId,
+          expectedVersion: planCreation.version,
+          answer,
+        },
+        {
+          onEvent(event) {
+            if (disposed || event.type !== "answer-check") return;
+            installPlanCreation(event.planCreation);
+            if (event.planCreation.pendingCheck !== null) planCreationEditingKey = null;
+            render();
+          },
+        },
+      );
       pendingPlanCreationCommand = null;
       installPlanCreation(result.planCreation);
+      if (result.planCreation?.pendingCheck != null) planCreationEditingKey = null;
       if (
         result.status !== "rejected" &&
-        (answer.kind === "commitments-confirm" || answer.kind === "commitments-cancel") &&
-        planCreation?.pendingCommitment === null &&
+        (answer.kind === "commitments-confirm" ||
+          answer.kind === "commitments-cancel" ||
+          answer.kind === "check-action") &&
+        planCreation?.pendingCheck === null &&
+        planCreation.pendingCommitment === null &&
         planCreation.openQuestion === null
       )
         requestPlanCreationFocus("composer");
@@ -1927,7 +1960,14 @@ export function createChatController(input: {
     },
     openPlanChangeEditor() {
       const active = input.readPlanLibrary?.()?.active;
-      if (disposed || readChange().busy || !active || changesPaused()) return;
+      if (
+        disposed ||
+        readChange().busy ||
+        !active ||
+        changesPaused() ||
+        pendingChangeCheck() != null
+      )
+        return;
       publishChange({
         open: true,
         textRouting: true,
@@ -1952,9 +1992,15 @@ export function createChatController(input: {
       const library = input.readPlanLibrary?.();
       const active = library?.active;
       if (disposed || readChange().busy || !active || changesPaused()) return;
+      if (
+        pendingChangeCheck() != null &&
+        intent.kind !== "check-action" &&
+        !(intent.kind === "text" && readChange().checkEditing === true)
+      )
+        return;
       const parameterCopy =
         intent.kind === "text"
-          ? "Keep your change request to 500 characters or fewer."
+          ? "Keep your change request to 2000 characters or fewer."
           : intent.kind === "choose-workout"
             ? "This Workout is no longer eligible."
             : intent.kind === "ftp"
@@ -1976,8 +2022,8 @@ export function createChatController(input: {
                       ? "Choose the weekday to change."
                       : "Enter a duration above zero.";
       const parsedIntent =
-        intent.kind === "text"
-          ? PlanChangeRequestSchema.options[1].safeParse(intent)
+        intent.kind === "text" || intent.kind === "check-action"
+          ? PlanChangeRequestSchema.safeParse(intent)
           : PlanChangeIntentSchema.safeParse(intent);
       if (!parsedIntent.success) {
         publishChange({ error: parameterCopy });
@@ -1993,7 +2039,9 @@ export function createChatController(input: {
           commandId: globalThis.crypto.randomUUID(),
           planId: active.planId,
           expectedVersion: active.version,
-          ...(parsedIntent.data.kind === "text"
+          ...(parsedIntent.data.kind === "text" ||
+          parsedIntent.data.kind === "check-action" ||
+          parsedIntent.data.kind === "intent"
             ? { request: parsedIntent.data }
             : { intent: parsedIntent.data }),
         };
@@ -2007,7 +2055,22 @@ export function createChatController(input: {
         notice: null,
       });
       try {
-        const result = await previewPlanChange(input.clients, previewAttempt);
+        const result = await previewPlanChange(input.clients, previewAttempt, {
+          onEvent(event) {
+            if (
+              disposed ||
+              epoch !== previewEpoch ||
+              event.type !== "answer-check" ||
+              event.planId !== active.planId
+            )
+              return;
+            publishChange({
+              pendingCheck: event.pendingCheck,
+              checkEditing: false,
+              editorOpen: false,
+            });
+          },
+        });
         if (disposed || epoch !== previewEpoch) return;
         previewAttempt = null;
         if (result.status === "rejected") {
@@ -2049,6 +2112,23 @@ export function createChatController(input: {
           }
           return;
         }
+        if (result.status === "checked") {
+          publishChange({
+            open: true,
+            planId: active.planId,
+            editorOpen: false,
+            checkEditing: false,
+            pendingCheck: result.pendingCheck,
+            error: null,
+            notice: null,
+            focusRequest: changeFocus("check"),
+          });
+          await input.refreshPlanLibrary?.().catch(() => {});
+          if (result.pendingCheck === null) requestPlanCreationFocus("composer");
+          render();
+          return;
+        }
+        publishChange({ pendingCheck: null, checkEditing: false });
         const superseded = library.changes.find(
           (change) => change.changeId === result.change.supersedes,
         );
@@ -2079,7 +2159,13 @@ export function createChatController(input: {
     async applyPlanChange(decision) {
       const library = input.readPlanLibrary?.();
       const active = library?.active;
-      if (disposed || readChange().busy || !active || (decision === "apply" && changesPaused()))
+      if (
+        disposed ||
+        readChange().busy ||
+        !active ||
+        pendingChangeCheck() != null ||
+        (decision === "apply" && changesPaused())
+      )
         return;
       const pending = library.changes.find((change) => change.status === "pending");
       const retry =
@@ -2235,6 +2321,11 @@ export function createChatController(input: {
         return Promise.resolve(false);
       }
       const changeSurface = readChange();
+      const pendingChangeCheck =
+        changeSurface.pendingCheck === undefined
+          ? input.readPlanLibrary?.()?.pendingChangeCheck
+          : changeSurface.pendingCheck;
+      if (pendingChangeCheck != null) return false;
       if (routesTextToPlanChange() && attachmentIds.length === 0) {
         if (changeSurface.busy) return false;
         if (changesPaused()) {
@@ -2253,47 +2344,6 @@ export function createChatController(input: {
         publishChange({ busy: false });
         await controller.previewPlanChange({ kind: "text", text: message });
         return true;
-      }
-      if (
-        attachmentIds.length === 0 &&
-        message.length > 0 &&
-        message.length <= 2_000 &&
-        acceptsCommitmentMessage() &&
-        !routesTextToPlanChange()
-      ) {
-        if (planCreationBusy) return false;
-        const submittedCreation = planCreation;
-        planCreationBusy = true;
-        render();
-        let interpretation;
-        try {
-          interpretation = await (
-            await input.clients.getClient()
-          ).call("plan_creation.interpretCommitments", { text: message });
-        } catch {
-          planCreationError = CHAT_PLAN_CREATION_FAILURE_COPY;
-          return false;
-        } finally {
-          planCreationBusy = false;
-          render();
-        }
-        if (disposed || planCreation !== submittedCreation || routesTextToPlanChange())
-          return false;
-        if (interpretation.status === "confirm") {
-          await answerPlanCreation({
-            kind: "commitments",
-            commitments: { kind: "interpreted", text: message },
-          });
-          if (planCreationError !== null) return false;
-          if (
-            attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
-            submittedTextRevision === attachmentTextRevision
-          ) {
-            saveAttachmentDraftText("");
-            await attachmentTextSaveTask;
-          }
-          return true;
-        }
       }
       const ownership = beginAttachmentWrite(false);
       if (ownership === null) return Promise.resolve(false);
@@ -2600,6 +2650,7 @@ export function createChatController(input: {
         planCreation === null ||
         planCreation.readiness !== "ready" ||
         planCreation.pendingCommitment !== null ||
+        planCreation.pendingCheck !== null ||
         planCreationEditingKey !== null
       )
         return;
@@ -2700,6 +2751,13 @@ export function createChatController(input: {
         planCreationBusy ||
         planCreation === null ||
         (!(answerKey === "commitments" && planCreation.pendingCommitment !== null) &&
+          !(
+            planCreation.pendingCheck !== null &&
+            answerKey ===
+              (planCreation.pendingCheck.submission.field === "event"
+                ? "goal"
+                : planCreation.pendingCheck.submission.field)
+          ) &&
           !planCreation.answeredSummaries.some((summary) => summary.answerKey === answerKey))
       ) {
         return;
@@ -2809,6 +2867,7 @@ export function createChatController(input: {
         planCreation.draft === null ||
         planCreation.draftStale ||
         planCreation.pendingCommitment !== null ||
+        planCreation.pendingCheck !== null ||
         !planCreation.draft.weeks.some((week) => week.workouts.length > 0)
       )
         return;
@@ -3169,7 +3228,7 @@ export function createChatController(input: {
           attachmentSummaries.clear();
           planCreationDiscardEvents = [];
           implicitPlanChangeRouting = false;
-          publishChange(EMPTY_PLAN_CHANGE_SURFACE);
+          input.publishPlanChange?.(EMPTY_PLAN_CHANGE_SURFACE);
           updateReset(() => hydrator.resetSucceeded(), {
             type: "reset-succeeded",
             announcement: result.memoryFlushed

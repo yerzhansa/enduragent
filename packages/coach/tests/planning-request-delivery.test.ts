@@ -281,6 +281,7 @@ describe("Planning request delivery", () => {
       draftStale: false,
       calendarWindow: null,
       pendingCommitment: null,
+      pendingCheck: null,
       readiness: "incomplete" as const,
       answeredSummaries: [],
       openQuestion: {

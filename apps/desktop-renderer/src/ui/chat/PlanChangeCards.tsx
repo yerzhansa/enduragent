@@ -4,6 +4,7 @@ import type {
   ListPlansResult,
   PlanChangeIntent,
   PlanChangeModel,
+  PlanChangePendingCheck,
   PlanChangeWorkout,
 } from "@enduragent/coach-contract";
 import {
@@ -19,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PLAN_CHANGES_PAUSED_NOTICE } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 
+import { AnswerCheckCard } from "./AnswerCheckCard";
 import { SupportingEventFields } from "./SupportingEventFields";
 import { currentSupportingEvents, supportingEventDifference } from "../../plan/supporting-events";
 
@@ -417,6 +419,114 @@ function ChangeEditor(): ReactElement {
   );
 }
 
+function PlanChangeCheckEditor(props: {
+  readonly check: PlanChangePendingCheck;
+  readonly onBack: () => void;
+}): ReactElement {
+  const actions = useEnduragentStore((store) => store.chatActions);
+  const busy = useEnduragentStore((store) => store.planChange.busy);
+  const error = useEnduragentStore((store) => store.planChange.error);
+  const [text, setText] = useState(props.check.submission.text);
+  const editor = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    editor.current?.focus();
+  }, []);
+  return (
+    <PlanCard
+      eyebrow="Plan change"
+      title="What would you like to change?"
+      aria-label="Change your answer"
+    >
+      <form
+        className="grid gap-inset"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (text.trim().length === 0 || text.length > 2000 || busy) return;
+          actions?.previewPlanChange({ kind: "text", text: text.trim() });
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || busy) return;
+          event.preventDefault();
+          props.onBack();
+        }}
+      >
+        <label className="grid gap-[calc(var(--inset)/2)] text-xs font-semibold leading-4 text-ink-2">
+          Your change
+          <textarea
+            ref={editor}
+            data-parity="custom.textarea"
+            className="min-h-[var(--ctl-h-lg)] resize-y rounded-ctl border border-line-2 bg-sunk px-ctl-px-sm py-2 text-sm font-semibold leading-5 text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+            value={text}
+            maxLength={2000}
+            rows={3}
+            disabled={busy}
+            onChange={(event) => setText(event.currentTarget.value)}
+          />
+        </label>
+        {error === null ? null : (
+          <p role="alert" className="m-0 text-sm leading-5 text-danger">
+            {error}
+          </p>
+        )}
+        <div className="mt-row flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-line bg-surface"
+            disabled={busy}
+            onClick={props.onBack}
+          >
+            Back
+          </Button>
+          <Button type="submit" disabled={busy || actions === null || text.trim().length === 0}>
+            Continue
+          </Button>
+        </div>
+      </form>
+    </PlanCard>
+  );
+}
+
+export function PlanChangeCheckDock(props: {
+  readonly onEditorOpenChange: (open: boolean) => void;
+}): ReactElement | null {
+  const library = useEnduragentStore((store) => store.planLibrary.value);
+  const state = useEnduragentStore((store) => store.planChange);
+  const setState = useEnduragentStore((store) => store.setPlanChange);
+  const actions = useEnduragentStore((store) => store.chatActions);
+  const check = state.pendingCheck === undefined ? library?.pendingChangeCheck : state.pendingCheck;
+  const editing = check != null && state.checkEditing === true;
+  useEffect(() => {
+    props.onEditorOpenChange(editing);
+    return () => props.onEditorOpenChange(false);
+  }, [editing, props.onEditorOpenChange]);
+  if (!library?.active || check == null) return null;
+  const setEditing = (next: boolean): void =>
+    setState({
+      ...state,
+      checkEditing: next,
+      focusRequest: { target: "check", revision: (state.focusRequest?.revision ?? 0) + 1 },
+    });
+  return (
+    <section aria-label="Plan change dock" data-plan-creation-dock>
+      {editing ? (
+        <PlanChangeCheckEditor key={check.checkId} check={check} onBack={() => setEditing(false)} />
+      ) : (
+        <AnswerCheckCard
+          check={state.error === null ? check : { ...check, state: "error", message: state.error }}
+          neutralDefault="keep my Plan as it is"
+          focusRevision={state.focusRequest?.revision}
+          disabled={state.busy || actions === null}
+          onEdit={() => setEditing(true)}
+          onAction={(action) =>
+            actions?.previewPlanChange({ kind: "check-action", checkId: check.checkId, action })
+          }
+        />
+      )}
+    </section>
+  );
+}
+
 export function PlanChangeCards(): ReactElement | null {
   const library = useEnduragentStore((store) => store.planLibrary.value);
   const state = useEnduragentStore((store) => store.planChange);
@@ -433,6 +543,8 @@ export function PlanChangeCards(): ReactElement | null {
   const previewHeading = useRef<HTMLHeadingElement>(null);
   const pending = library?.changes.find((change) => change.status === "pending");
   const paused = library?.changesPaused != null;
+  const checkPending =
+    (state.pendingCheck === undefined ? library?.pendingChangeCheck : state.pendingCheck) != null;
   useEffect(() => {
     if (activeView !== "chat" || state.busy) return;
     if (state.focusRequest?.target === "preview" && pending) previewHeading.current?.focus();
@@ -505,7 +617,7 @@ export function PlanChangeCards(): ReactElement | null {
             ref={changeButton}
             variant="outline"
             className="border-line bg-surface"
-            disabled={paused || state.busy || actions === null}
+            disabled={paused || state.busy || checkPending || actions === null}
             aria-describedby={pausedReason}
             onClick={() => actions?.openPlanChangeEditor()}
           >
@@ -535,7 +647,7 @@ export function PlanChangeCards(): ReactElement | null {
                 <Button
                   variant="outline"
                   className="justify-self-start border-line bg-surface"
-                  disabled={paused || state.busy || actions === null}
+                  disabled={paused || state.busy || checkPending || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
                     actions?.previewPlanChange({
@@ -610,13 +722,13 @@ export function PlanChangeCards(): ReactElement | null {
             <Button
               variant="outline"
               className="border-line bg-surface"
-              disabled={state.busy || actions === null}
+              disabled={state.busy || checkPending || actions === null}
               onClick={() => actions?.applyPlanChange("cancel")}
             >
               Cancel
             </Button>
             <Button
-              disabled={paused || state.busy || actions === null}
+              disabled={paused || state.busy || checkPending || actions === null}
               aria-describedby={pausedReason}
               onClick={() => actions?.applyPlanChange("apply")}
             >
@@ -647,7 +759,7 @@ export function PlanChangeCards(): ReactElement | null {
                 <Button
                   variant="outline"
                   className="border-line bg-surface"
-                  disabled={paused || state.busy || actions === null}
+                  disabled={paused || state.busy || checkPending || actions === null}
                   aria-describedby={pausedReason}
                   onClick={() =>
                     actions?.previewPlanChange({ kind: "inverse", changeId: change.changeId })

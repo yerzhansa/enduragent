@@ -1,9 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { CoachClient, CoachClientCallOptions } from "@enduragent/coach-client";
-import type {
-  CoachOperationProgressNotificationEnvelope,
-  SyncRpcResult,
-} from "@enduragent/coach-contract";
+import type { CoachRpcNotification, SyncRpcResult } from "@enduragent/coach-contract";
 import { describe, expect, it, vi, type Mock } from "vitest";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import {
@@ -110,10 +107,7 @@ function fakePorts(coordinator: TrainingSyncCoordinator): FirstSyncPorts & {
   };
 }
 
-function envelope(
-  phase: "started" | "completed",
-  completed: number,
-): CoachOperationProgressNotificationEnvelope {
+function envelope(phase: "started" | "completed", completed: number): CoachRpcNotification<"sync"> {
   return {
     jsonrpc: "2.0",
     method: "coach.operationProgress",

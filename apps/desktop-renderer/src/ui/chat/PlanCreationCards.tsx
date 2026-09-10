@@ -1,5 +1,9 @@
 import { formatCivilDate } from "@enduragent/coach-contract";
-import type { PlanCreationCardModel } from "@enduragent/coach-contract";
+import type {
+  PlanCreationCardModel,
+  PlanCreationAnswerInput,
+  PlanCreationPendingCheck,
+} from "@enduragent/coach-contract";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
@@ -15,6 +19,8 @@ import { useEnduragentStore } from "../../state/store";
 import { PlanCreationQuestionCard } from "./PlanCreationQuestionCard";
 import { Card, CardContent } from "@enduragent/ui";
 import { PlanCreationDraftCards, PlanCreationCommitmentCard } from "./PlanCreationDraftCards";
+import { AnswerCheckCard } from "./AnswerCheckCard";
+import { commitmentSummaryId } from "./PlanCreationDraftCards";
 import { PlanCreationSummary } from "./PlanCreationSummary";
 import { Notice } from "./Notice";
 
@@ -208,6 +214,38 @@ export function PlanCreationActivateDialog(): ReactElement | null {
   );
 }
 
+function pendingCheckAnswer(check: PlanCreationPendingCheck): PlanCreationAnswerInput {
+  const submission = check.submission;
+  switch (submission.field) {
+    case "commitments":
+      return { kind: "commitments", commitments: { kind: "interpreted", text: submission.text } };
+    case "success":
+      return { kind: "success", success: { kind: "authored", text: submission.text } };
+    case "event":
+      return {
+        kind: "goal",
+        goal: { kind: "event-manual", name: submission.text, date: submission.date },
+      };
+  }
+}
+
+function checkNeutralDefault(model: PlanCreationCardModel): string {
+  if (model.pendingCheck?.submission.field === "commitments") {
+    const answer = model.answeredSummaries.find(
+      (summary) => summary.answerKey === "commitments",
+    )?.answer;
+    return answer?.kind === "commitments" &&
+      answer.commitments.kind === "interpreted" &&
+      answer.commitments.status === "confirmed"
+      ? "keep my confirmed commitments"
+      : "nothing fixed";
+  }
+  const goal = model.answeredSummaries.find((summary) => summary.answerKey === "goal")?.answer;
+  return goal?.kind === "goal" && goal.goal.kind !== "fitness"
+    ? "finish comfortably"
+    : "train consistently";
+}
+
 export function PlanCreationDock(props: {
   readonly onEditorOpenChange: (open: boolean) => void;
 }): ReactElement | null {
@@ -228,6 +266,28 @@ export function PlanCreationDock(props: {
   if (!loaded) return null;
   if (model === null) return null;
   if (paused) return null;
+  if (editingKey === null && model.pendingCheck !== null) {
+    const check = model.pendingCheck;
+    return (
+      <section aria-label="Plan creation dock" data-plan-creation-dock>
+        <AnswerCheckCard
+          check={error === null ? check : { ...check, state: "error", message: error }}
+          neutralDefault={checkNeutralDefault(model)}
+          summaryId={commitmentSummaryId(model)}
+          disabled={busy || actions === null}
+          focusRevision={focusRevision}
+          onAction={(action) =>
+            actions?.answerPlanCreation({ kind: "check-action", checkId: check.checkId, action })
+          }
+          onEdit={() =>
+            actions?.editPlanCreation(
+              check.submission.field === "event" ? "goal" : check.submission.field,
+            )
+          }
+        />
+      </section>
+    );
+  }
   if (editingKey === null && model.pendingCommitment !== null) {
     return (
       <section aria-label="Plan creation dock" data-plan-creation-dock>
@@ -248,14 +308,22 @@ export function PlanCreationDock(props: {
         key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
         question={question}
         currentAnswer={
-          question.kind === "commitments-question" && model.pendingCommitment !== null
-            ? {
-                kind: "commitments",
-                commitments: { kind: "interpreted", text: model.pendingCommitment.text },
-              }
-            : (editedSummary?.answer ?? null)
+          model.pendingCheck !== null && editingKey !== null
+            ? pendingCheckAnswer(model.pendingCheck)
+            : question.kind === "commitments-question" && model.pendingCommitment !== null
+              ? {
+                  kind: "commitments",
+                  commitments: { kind: "interpreted", text: model.pendingCommitment.text },
+                }
+              : (editedSummary?.answer ?? null)
         }
-        commitmentStatus={model.pendingCommitment?.status}
+        commitmentStatus={
+          model.pendingCheck?.submission.field === "commitments" &&
+          model.pendingCheck.state === "ready" &&
+          model.pendingCheck.result.outcome === "ask"
+            ? "clarify"
+            : model.pendingCommitment?.status
+        }
         editing={editingKey !== null}
         busy={busy}
         error={error}
@@ -290,7 +358,7 @@ function PlanCreationConversationContent(props: {
   if (props.model === null) return null;
   const model = props.model;
   if (model.draft === null) return <PlanCreationSummary model={model} />;
-  if (editVersion === model.version)
+  if (editVersion === model.version && model.pendingCheck === null)
     return (
       <section className="grid min-w-0 gap-inset" aria-label="Edit Plan answers">
         <Card size="sm">

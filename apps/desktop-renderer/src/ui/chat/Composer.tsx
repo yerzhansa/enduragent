@@ -51,6 +51,17 @@ export function Composer(props: {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
+  const changeCheckDocked = useEnduragentStore(
+    (state) =>
+      (state.planChange.pendingCheck === undefined
+        ? state.planLibrary.value?.pendingChangeCheck
+        : state.planChange.pendingCheck) != null,
+  );
+  const typedPlanChange = useEnduragentStore(
+    (state) =>
+      state.planChange.textRouting ||
+      state.planLibrary.value?.changes.some((change) => change.status === "pending"),
+  );
   const chatInputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
   const chatPlaceholder = useEnduragentStore((state) => state.chat.composerPlaceholder);
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
@@ -60,8 +71,8 @@ export function Composer(props: {
   const attachmentSurface = useEnduragentStore((state) => state.chat.attachments);
   const attachmentIds =
     attachmentSurface?.draft?.attachments.map((attachment) => attachment.attachmentId) ?? [];
-  const sendDisabled = props.surface?.sendDisabled ?? chatSendDisabled;
-  const inputDisabled = props.surface?.inputDisabled ?? chatInputDisabled;
+  const sendDisabled = props.surface?.sendDisabled ?? (chatSendDisabled || changeCheckDocked);
+  const inputDisabled = props.surface?.inputDisabled ?? (chatInputDisabled || changeCheckDocked);
   const status = props.surface?.status ?? chatStatus;
   const canChat = props.surface === undefined ? chatReady : true;
   const inputId = props.inputId ?? "message";
@@ -298,11 +309,13 @@ export function Composer(props: {
           data-parity="composer.textarea"
           defaultValue={props.draftMemory?.current ?? ""}
           rows={1}
+          maxLength={props.surface === undefined && typedPlanChange ? 2000 : undefined}
           className="pb-1.5"
           placeholder={
             status === "streaming"
               ? "Coach is responding…"
-              : (props.surface?.placeholder ?? chatPlaceholder)
+              : (props.surface?.placeholder ??
+                (changeCheckDocked ? "Finish the correction above" : chatPlaceholder))
           }
           disabled={inputDisabled || !canChat}
           role="combobox"

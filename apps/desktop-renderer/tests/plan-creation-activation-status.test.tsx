@@ -12,6 +12,7 @@ const emptyLibrary: ListPlansResult = {
   active: null,
   creation: null,
   closed: [],
+  pendingChangeCheck: null,
   changesPaused: null,
   changes: [],
 };

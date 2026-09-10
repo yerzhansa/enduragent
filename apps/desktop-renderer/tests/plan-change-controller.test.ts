@@ -6,6 +6,8 @@ import type {
   PlanTodayChoice,
   PlanChangeModel,
   PlanChangeIntent,
+  PlanChangePendingCheck,
+  PlanChangeCheckProgress,
 } from "@enduragent/coach-contract";
 import { describe, expect, it, vi } from "vitest";
 import { createChatController } from "../src/chat/controller";
@@ -87,21 +89,24 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     },
     creation: null,
     closed: [],
+    pendingChangeCheck: null,
     changesPaused: null,
     changes,
   };
-  const call = vi.fn(async (_method: string, _request: unknown): Promise<never> => {
-    const response =
-      _method === "saveChatAttachmentDraftText" ||
-      _method === "getChatAttachmentComposer" ||
-      _method === "clearChatAttachmentDraft"
-        ? emptyComposer
-        : _method === "enqueueChatMessage"
-          ? { schemaVersion: 1, revision: 1, items: [] }
-          : result;
-    if (response instanceof Error) throw response;
-    return response as never;
-  });
+  const call = vi.fn(
+    async (_method: string, _request: unknown, _options?: unknown): Promise<never> => {
+      const response =
+        _method === "saveChatAttachmentDraftText" ||
+        _method === "getChatAttachmentComposer" ||
+        _method === "clearChatAttachmentDraft"
+          ? emptyComposer
+          : _method === "enqueueChatMessage"
+            ? { schemaVersion: 1, revision: 1, items: [] }
+            : result;
+      if (response instanceof Error) throw response;
+      return response as never;
+    },
+  );
   const client: CoachClient = {
     handshake: {} as CoachClient["handshake"],
     call,
@@ -132,12 +137,32 @@ function harness(result: unknown, changes: PlanChangeModel[] = [change]) {
     call,
     refresh,
     surface: () => surface,
+    respondWith(next: unknown) {
+      result = next;
+    },
+    restoreCheck(check: PlanChangePendingCheck) {
+      library = { ...library, pendingChangeCheck: check };
+    },
+    emitCheck(event: PlanChangeCheckProgress) {
+      const options = call.mock.calls
+        .filter(([method]) => method === "plan_change.preview")
+        .at(-1)?.[2];
+      if (
+        options === null ||
+        typeof options !== "object" ||
+        !("onEvent" in options) ||
+        typeof options.onEvent !== "function"
+      )
+        throw new Error("Preview progress callback is missing");
+      options.onEvent(event);
+    },
     clearActivePlan() {
       library = { ...library, active: null };
     },
     pause() {
       library = {
         ...library,
+        pendingChangeCheck: null,
         changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
       };
     },
@@ -250,6 +275,7 @@ describe("Plan Change controller", () => {
     expect(h.call).toHaveBeenCalledWith(
       "plan_change.preview",
       expect.objectContaining({ request: { kind: "text", text: "my ftp is 220" } }),
+      expect.objectContaining({ onEvent: expect.any(Function) }),
     );
     h.controller.dispose();
   });
@@ -341,7 +367,11 @@ describe("Plan Change controller", () => {
       h.call.mockImplementationOnce(() => response);
       const preview = h.controller.previewPlanChange(change.intent);
       await vi.waitFor(() =>
-        expect(h.call).toHaveBeenCalledWith("plan_change.preview", expect.anything()),
+        expect(h.call).toHaveBeenCalledWith(
+          "plan_change.preview",
+          expect.anything(),
+          expect.objectContaining({ onEvent: expect.any(Function) }),
+        ),
       );
       expect(h.controller.openNewConversation()).toBe(true);
       await h.controller.confirmNewConversation();
@@ -362,12 +392,16 @@ describe("Plan Change controller", () => {
     const h = harness({ status: "previewed", change, version: 8 }, []);
     h.controller.openPlanChangeEditor();
     await h.controller.previewPlanChange(change.intent);
-    expect(h.call).toHaveBeenCalledWith("plan_change.preview", {
-      planId: "plan-active",
-      expectedVersion: 7,
-      intent: change.intent,
-      commandId: expect.any(String),
-    });
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.preview",
+      {
+        planId: "plan-active",
+        expectedVersion: 7,
+        intent: change.intent,
+        commandId: expect.any(String),
+      },
+      expect.objectContaining({ onEvent: expect.any(Function) }),
+    );
     expect(h.refresh).toHaveBeenCalledOnce();
     expect(h.surface()).toMatchObject({
       editorOpen: false,
@@ -385,12 +419,16 @@ describe("Plan Change controller", () => {
     expect(h.surface().busy).toBe(true);
     await h.controller.previewPlanChange(intent);
     await attempt;
-    expect(h.call).toHaveBeenCalledExactlyOnceWith("plan_change.preview", {
-      planId: "plan-active",
-      expectedVersion: 7,
-      intent,
-      commandId: expect.any(String),
-    });
+    expect(h.call).toHaveBeenCalledExactlyOnceWith(
+      "plan_change.preview",
+      {
+        planId: "plan-active",
+        expectedVersion: 7,
+        intent,
+        commandId: expect.any(String),
+      },
+      expect.objectContaining({ onEvent: expect.any(Function) }),
+    );
     expect(h.surface()).toMatchObject({
       busy: false,
       editorOpen: false,
@@ -466,19 +504,23 @@ describe("Plan Change controller", () => {
     await h.controller.previewPlanChange(intent);
     await h.controller.previewPlanChange(intent);
     expect(h.call).toHaveBeenCalledTimes(2);
-    expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
+    expect(h.call.mock.calls[1]?.slice(0, 2)).toEqual(h.call.mock.calls[0]?.slice(0, 2));
   });
 
   it("previews the selected Workout through the existing confirmation path", async () => {
     const intent: PlanChangeIntent = { kind: "choose-workout", workoutId: "workout-second" };
     const h = harness({ status: "previewed", change: { ...change, intent }, version: 8 }, []);
     await h.controller.previewPlanChange(intent);
-    expect(h.call).toHaveBeenCalledExactlyOnceWith("plan_change.preview", {
-      planId: "plan-active",
-      expectedVersion: 7,
-      intent,
-      commandId: expect.any(String),
-    });
+    expect(h.call).toHaveBeenCalledExactlyOnceWith(
+      "plan_change.preview",
+      {
+        planId: "plan-active",
+        expectedVersion: 7,
+        intent,
+        commandId: expect.any(String),
+      },
+      expect.objectContaining({ onEvent: expect.any(Function) }),
+    );
     expect(h.refresh).toHaveBeenCalledOnce();
     expect(h.surface()).toMatchObject({
       busy: false,
@@ -521,6 +563,7 @@ describe("Plan Change controller", () => {
             2,
             "plan_change.preview",
             expect.objectContaining({ expectedVersion: 8 }),
+            expect.objectContaining({ onEvent: expect.any(Function) }),
           );
         }
       },
@@ -543,8 +586,9 @@ describe("Plan Change controller", () => {
       expect(h.call).toHaveBeenCalledWith(
         "plan_change.preview",
         expect.objectContaining({
-          request: { kind: "text", text: message },
+          request: { kind: "text", text: message.trim() },
         }),
+        expect.objectContaining({ onEvent: expect.any(Function) }),
       );
       expect(h.render.mock.lastCall?.[0].messages).toContainEqual(
         expect.objectContaining({ role: "athlete", text: message, delivery: "complete" }),
@@ -597,6 +641,7 @@ describe("Plan Change controller", () => {
       expect(h.call).toHaveBeenCalledWith(
         "plan_change.preview",
         expect.objectContaining({ request: { kind: "text", text: "what should i ride today?" } }),
+        expect.objectContaining({ onEvent: expect.any(Function) }),
       );
       expect(h.call).toHaveBeenCalledWith("saveChatAttachmentDraftText", {
         chatId: "desktop",
@@ -664,6 +709,7 @@ describe("Plan Change controller", () => {
     expect(h.call).toHaveBeenCalledWith(
       "plan_change.preview",
       expect.objectContaining({ request: { kind: "text", text: "my ftp is 220" } }),
+      expect.objectContaining({ onEvent: expect.any(Function) }),
     );
     h.controller.dispose();
   });
@@ -737,6 +783,7 @@ describe("Plan Change controller", () => {
     expect(h.call).toHaveBeenCalledWith(
       "plan_change.preview",
       expect.objectContaining({ intent: { kind: "ftp", watts: 220 } }),
+      expect.objectContaining({ onEvent: expect.any(Function) }),
     );
     expect(h.surface().error).toBe("This Change could not be previewed. Training is unchanged.");
   });
@@ -862,12 +909,17 @@ describe("Plan Change controller", () => {
       expect(h.refresh).toHaveBeenCalledOnce();
       h.controller.openPlanChangeEditor();
       await h.controller.previewPlanChange(change.intent);
-      expect(h.call).toHaveBeenNthCalledWith(2, "plan_change.preview", {
-        planId: "plan-active",
-        expectedVersion: 8,
-        intent: change.intent,
-        commandId: expect.any(String),
-      });
+      expect(h.call).toHaveBeenNthCalledWith(
+        2,
+        "plan_change.preview",
+        {
+          planId: "plan-active",
+          expectedVersion: 8,
+          intent: change.intent,
+          commandId: expect.any(String),
+        },
+        expect.objectContaining({ onEvent: expect.any(Function) }),
+      );
     },
   );
 
@@ -877,12 +929,17 @@ describe("Plan Change controller", () => {
     await h.controller.previewPlanChange(change.intent);
     expect(h.refresh).toHaveBeenCalledOnce();
     await h.controller.previewPlanChange(change.intent);
-    expect(h.call).toHaveBeenNthCalledWith(2, "plan_change.preview", {
-      planId: "plan-active",
-      expectedVersion: 8,
-      intent: change.intent,
-      commandId: expect.any(String),
-    });
+    expect(h.call).toHaveBeenNthCalledWith(
+      2,
+      "plan_change.preview",
+      {
+        planId: "plan-active",
+        expectedVersion: 8,
+        intent: change.intent,
+        commandId: expect.any(String),
+      },
+      expect.objectContaining({ onEvent: expect.any(Function) }),
+    );
   });
 
   it.each(["apply", "preview"] as const)(
@@ -949,7 +1006,7 @@ describe("Plan Change controller", () => {
       await submit();
       await submit();
       expect(h.call).toHaveBeenCalledTimes(2);
-      expect(h.call.mock.calls[1]).toEqual(h.call.mock.calls[0]);
+      expect(h.call.mock.calls[1]?.slice(0, 2)).toEqual(h.call.mock.calls[0]?.slice(0, 2));
       expect(h.refresh).toHaveBeenCalledTimes(2);
       expect(h.surface().busy).toBe(false);
     },
@@ -1052,5 +1109,128 @@ describe("Plan Change controller", () => {
     expect(h.refresh).toHaveBeenCalledOnce();
     await h.controller.applyPlanChange("cancel");
     expect(h.call).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("typed Plan Change checks", () => {
+  const busy: PlanChangePendingCheck = {
+    schemaVersion: 1,
+    checkId: "change-check-test",
+    commandId: "change-command-test",
+    sourceVersion: 7,
+    attempt: 1,
+    state: "busy",
+    submission: { field: "change", text: "Keep my weekly training to six hours" },
+  };
+  const ready: PlanChangePendingCheck = {
+    ...busy,
+    state: "ready",
+    result: {
+      outcome: "understood",
+      title: "Limit your week to six hours?",
+      body: "Confirm this request before reviewing the exact Plan change.",
+      value: { kind: "weekly-duration", hours: 6 },
+    },
+  };
+
+  it("installs busy progress, preserves failure text, retries and cancels the check", async () => {
+    let release = () => {};
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const failed: PlanChangePendingCheck = {
+      ...busy,
+      state: "error",
+      message: "The coach could not respond. Try again.",
+    };
+    const h = harness(
+      wait.then(() => ({ status: "checked", planId: "plan-active", pendingCheck: failed })),
+      [],
+    );
+    h.controller.openPlanChangeEditor();
+    const preview = h.controller.previewPlanChange({ kind: "text", text: busy.submission.text });
+    await vi.waitFor(() => expect(h.call).toHaveBeenCalled());
+    h.emitCheck({ type: "answer-check", planId: "plan-active", pendingCheck: busy });
+    expect(h.surface()).toMatchObject({ busy: true, editorOpen: false, pendingCheck: busy });
+    await expect(h.controller.submit("A competing change")).resolves.toBe(false);
+    release();
+    await preview;
+    expect(h.surface()).toMatchObject({ busy: false, pendingCheck: failed });
+    h.respondWith({ status: "checked", planId: "plan-active", pendingCheck: ready });
+    await h.controller.previewPlanChange({
+      kind: "check-action",
+      checkId: busy.checkId,
+      action: "retry",
+    });
+    expect(h.surface().pendingCheck).toEqual(ready);
+    h.respondWith({ status: "checked", planId: "plan-active", pendingCheck: null });
+    await h.controller.previewPlanChange({
+      kind: "check-action",
+      checkId: busy.checkId,
+      action: "cancel",
+    });
+    expect(h.surface().pendingCheck).toBeNull();
+    expect(
+      h.call.mock.calls
+        .filter(([method]) => method === "plan_change.preview")
+        .map(([, request]) => request),
+    ).toEqual([
+      expect.objectContaining({ request: { kind: "text", text: busy.submission.text } }),
+      expect.objectContaining({
+        request: { kind: "check-action", checkId: busy.checkId, action: "retry" },
+      }),
+      expect.objectContaining({
+        request: { kind: "check-action", checkId: busy.checkId, action: "cancel" },
+      }),
+    ]);
+    h.controller.dispose();
+  });
+
+  it("confirms a restored check before installing a preview", async () => {
+    const h = harness({ status: "previewed", change, version: 8 });
+    h.restoreCheck(ready);
+    await expect(h.controller.submit("Another request")).resolves.toBe(false);
+    await h.controller.applyPlanChange("apply");
+    expect(h.call).not.toHaveBeenCalled();
+    await h.controller.previewPlanChange({
+      kind: "check-action",
+      checkId: ready.checkId,
+      action: "confirm",
+    });
+    expect(h.surface()).toMatchObject({
+      pendingCheck: null,
+      checkEditing: false,
+      focusRequest: { target: "preview" },
+    });
+    expect(h.call).toHaveBeenCalledWith(
+      "plan_change.preview",
+      expect.objectContaining({
+        request: { kind: "check-action", checkId: ready.checkId, action: "confirm" },
+      }),
+      expect.objectContaining({ onEvent: expect.any(Function) }),
+    );
+    h.controller.dispose();
+  });
+
+  it("skips a proposed neutral default without applying a Plan change", async () => {
+    const h = harness({ status: "checked", planId: "plan-active", pendingCheck: null });
+    h.restoreCheck({
+      ...busy,
+      state: "ready",
+      result: {
+        outcome: "skip",
+        title: "Keep your Plan as it is?",
+        body: "No training will change.",
+        value: null,
+      },
+    });
+    await h.controller.previewPlanChange({
+      kind: "check-action",
+      checkId: busy.checkId,
+      action: "skip",
+    });
+    expect(h.surface().pendingCheck).toBeNull();
+    expect(h.call.mock.calls.some(([method]) => method === "plan_change.apply")).toBe(false);
+    h.controller.dispose();
   });
 });

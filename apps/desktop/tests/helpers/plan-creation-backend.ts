@@ -1,3 +1,4 @@
+import { ScriptedAnswerChecker } from "./answer-check-translator.js";
 import {
   ListPlansParamsSchema,
   PlanCloseRpcParamsSchema,
@@ -5,13 +6,11 @@ import {
   PlanCreationDraftSchema,
   PlanChangePreviewRpcParamsSchema,
   PlanChangeApplyRpcParamsSchema,
-  type PlanChangeOperations,
   type SupportingEvent,
   type PlanChangeApplyRpcParams,
   type PlanChangeApplyResult,
   type PlanChangePreviewRpcParams,
   type PlanCreationAnswerInput,
-  PlanCreationInterpretCommitmentsRpcParamsSchema,
   PlanCreationActivateRpcParamsSchema,
   PlanCreationPreviewRpcParamsSchema,
   type CoachEngine,
@@ -130,6 +129,7 @@ const response = (value: unknown): readonly string[] => [JSON.stringify(value)];
 export class PlanCreationBackend {
   readonly script: DesktopFixtureScript;
   readonly creationRequests: ScriptRequest[] = [];
+  readonly checker = new ScriptedAnswerChecker(() => this.civilDate);
   readonly closeRequests: ScriptRequest[] = [];
   readonly changeApplyResponses: {
     readonly params: PlanChangeApplyRpcParams;
@@ -139,7 +139,7 @@ export class PlanCreationBackend {
   private store: (SqlStore & MigratorStore) | undefined;
   private repository: PlanCreationRepository | undefined;
   private host: PlanCreationHost | undefined;
-  private changes: PlanChangeOperations | undefined;
+  private changes: ReturnType<typeof createPlanChangeOperations> | undefined;
   private planning: PlanningOperations | undefined;
   private calendarDrain: PlanCalendarDrain | undefined;
   planStateReadFails = false;
@@ -181,6 +181,33 @@ export class PlanCreationBackend {
   ) {
     const base = coexistence ? createPlanInspectionFixtureScript() : createPlanQaFixtureScript();
     this.script = {
+      onStreamRequest: async (value, emitFrame) => {
+        const request = value as ScriptRequest;
+        if (request.method === "plan_creation.answer") {
+          this.creationRequests.push(request);
+          return JSON.stringify(
+            await this.requireHost()["plan_creation.answer"](
+              request.params as Parameters<PlanCreationHost["plan_creation.answer"]>[0],
+              (event) => emitFrame(JSON.stringify({ event })),
+            ),
+          );
+        }
+        if (request.method === "plan_change.preview") {
+          this.creationRequests.push(request);
+          if (this.changes === undefined)
+            throw new TypeError("Plan Change operations are unavailable");
+          return JSON.stringify(
+            await this.changes["plan_change.preview"](
+              PlanChangePreviewRpcParamsSchema.parse(request.params),
+              (event) => emitFrame(JSON.stringify({ event })),
+            ),
+          );
+        }
+        if (base.onStreamRequest !== undefined) return base.onStreamRequest(value, emitFrame);
+        const frames = await this.script.onRequest(value);
+        for (const frame of frames.slice(0, -1)) emitFrame(frame);
+        return frames.at(-1) ?? "null";
+      },
       onRequest: async (value) => {
         const request = value as ScriptRequest;
         if (request.method.startsWith("plan_creation.")) this.creationRequests.push(request);
@@ -319,13 +346,6 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
             ),
           );
         }
-        if (request.method === "plan_creation.interpretCommitments") {
-          return response(
-            await this.requireHost()["plan_creation.interpretCommitments"](
-              PlanCreationInterpretCommitmentsRpcParamsSchema.parse(request.params),
-            ),
-          );
-        }
         if (request.method === "plan_creation.start") {
           return response(
             await this.requireHost()["plan_creation.start"](
@@ -410,6 +430,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       refreshIntervals: async () => {},
     });
     this.changes = createPlanChangeOperations({
+      translator: this.checker,
       ftp,
       eventSources: { read: () => this.readSyncedEventCandidates() },
       logger: { warn: () => {} },
@@ -422,6 +443,7 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       calendarConnected: async () => calendarConnected(),
     });
     this.host = createPlanCreationOperations({
+      translator: this.checker,
       store: this.store,
       repository: this.repository,
       identity,
@@ -434,6 +456,8 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       todayDateKey: () => Number(this.civilDate.replaceAll("-", "")),
       now: () => this.instant,
     });
+    await this.changes.ready();
+    await this.host.ready();
     if (this.options.calendar !== undefined) {
       const drain = createPlanCalendarDrain({
         store: this.store,
@@ -566,6 +590,13 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
     mode: Extract<PlanCreationAnswerInput, { kind: "schedule-mode" }>["mode"] = "fixed",
   ): Promise<PlanCreationCardModel> {
     const host = this.requireHost();
+    if (goal.kind === "event-manual")
+      this.checker.results.set(goal.name, {
+        outcome: "understood",
+        title: "Did I read this right?",
+        body: "Confirm this event before I use it in your plan.",
+        value: { name: goal.name, date: goal.date },
+      });
     const started = await host["plan_creation.start"]({ commandId: "seed-training-start" });
     if (started.status !== "started") throw new TypeError("Training seed was not started");
     let card = started.planCreation;
@@ -607,8 +638,50 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       });
       if (answered.status !== "answered") throw new TypeError("Training seed answer was rejected");
       card = answered.planCreation;
+      if (
+        card.pendingCheck?.state === "ready" &&
+        card.pendingCheck.result.outcome === "understood"
+      ) {
+        const confirmed = await host["plan_creation.answer"]({
+          commandId: `seed-training-confirm-${index}`,
+          creationId: card.creationId,
+          expectedVersion: card.version,
+          answer: { kind: "check-action", checkId: card.pendingCheck.checkId, action: "confirm" },
+        });
+        if (confirmed.status !== "answered")
+          throw new TypeError("Training seed confirmation was rejected");
+        card = confirmed.planCreation;
+      }
     }
     return card;
+  }
+
+  async seedLegacyCommitments(text: string): Promise<void> {
+    const card = await this.requireHost().readCard();
+    if (card === null || this.repository === undefined)
+      throw new TypeError("Creation is unavailable");
+    const stamp = this.instant++;
+    await this.repository.recordAnswer({
+      command: {
+        commandId: `legacy-commitments-${++this.sequence}`,
+        requestDigest: "a".repeat(64),
+        nowMs: stamp,
+        deviceId: "fixture-device",
+        hlcPhysicalMs: stamp,
+        hlcCounter: 0,
+      },
+      creationId: card.creationId,
+      expectedVersion: card.version,
+      answerId: `${++this.sequence}`.padStart(26, "0"),
+      answerKey: "commitments",
+      valueJson: JSON.stringify({
+        answer: {
+          kind: "commitments",
+          commitments: { kind: "interpreted", text, rules: [], status: "clarify" },
+        },
+        source: { kind: "athlete" },
+      }),
+    });
   }
 
   async seedActiveTraining(
@@ -674,7 +747,9 @@ BEGIN SELECT RAISE(ABORT, 'Synthetic close ledger failure'); END`);
       },
     });
     if (preview.status !== "previewed")
-      throw new TypeError(`Event seed was rejected: ${preview.reason}`);
+      throw new TypeError(
+        `Event seed was rejected: ${preview.status === "rejected" ? preview.reason : preview.status}`,
+      );
     const applied = await this.applyChange({
       commandId: "seed-manual-event-apply",
       planId: active.planId,

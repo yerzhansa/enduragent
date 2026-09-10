@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CoachOperationProgressNotificationEnvelopeSchema,
   JsonRpcSuccessResponseEnvelopeSchema,
+  type CoachRpcNotification,
 } from "@enduragent/coach-contract";
 import {
   CoachClientCallAbortedError,
@@ -38,7 +39,7 @@ const transport: CoachVerbTransport = {
 
 describe("bounded remote connection", () => {
   it("returns the exact validated operational notification and terminal envelopes", async () => {
-    const notification = CoachOperationProgressNotificationEnvelopeSchema.parse({
+    const notification: CoachRpcNotification<"sync"> = {
       jsonrpc: "2.0",
       method: "coach.operationProgress",
       params: {
@@ -46,7 +47,10 @@ describe("bounded remote connection", () => {
         requestMethod: "sync",
         event: { phase: "completed", completed: 1, total: 1 },
       },
-    });
+    };
+    expect(CoachOperationProgressNotificationEnvelopeSchema.parse(notification)).toEqual(
+      notification,
+    );
     const terminal = JsonRpcSuccessResponseEnvelopeSchema.parse({
       jsonrpc: "2.0",
       id: 1,
@@ -55,7 +59,10 @@ describe("bounded remote connection", () => {
         published: true,
         referenceSucceeded: true,
         requests: { store: 1, reference: 0, total: 1 },
-        droppedActivities: { overall: { total: 0, visible: 0, restrictions: [], other: 0 }, recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 } },
+        droppedActivities: {
+          overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+          recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+        },
       },
     });
     const call = vi.fn(

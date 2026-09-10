@@ -190,7 +190,7 @@ async function send(scenario: Scenario, text: string) {
   await scenario.page.getByRole("button", { name: "Send message", exact: true }).click();
   await expect(composer).toHaveValue("");
   await expect(
-    scenario.page.locator("article.chat-message--athlete").getByText(text, { exact: true }),
+    scenario.page.locator("article.chat-message--athlete").getByText(text, { exact: true }).last(),
   ).toBeVisible();
   await expect
     .poll(
@@ -267,6 +267,16 @@ for (const appearance of appearances) {
 
       await openChanges(scenario);
       await send(scenario, "wednesdays at most 30 minutes");
+      const checkBeforePreview = scenario.page.getByRole("region", {
+        name: "Did I read this right?",
+        exact: true,
+      });
+      await expect(checkBeforePreview).toBeVisible();
+      expect(
+        (await scenario.backend.library()).changes.filter((change) => change.status === "pending"),
+      ).toHaveLength(0);
+      await capture(scenario, "typed-check-duration");
+      await checkBeforePreview.getByRole("button", { name: "Confirm", exact: true }).click();
       const typed = pendingCard(scenario, durationTitle);
       await expect(typed.getByRole("heading")).toBeFocused();
       const typedPreview = (await scenario.backend.library()).changes.find(
@@ -305,6 +315,16 @@ for (const appearance of appearances) {
 
       await openChanges(scenario);
       await send(scenario, "my ftp is 220");
+      const ftpCheck = scenario.page.getByRole("region", {
+        name: "Did I read this right?",
+        exact: true,
+      });
+      await expect(ftpCheck).toBeVisible();
+      expect(
+        (await scenario.backend.library()).changes.filter((change) => change.status === "pending"),
+      ).toHaveLength(0);
+      await capture(scenario, "typed-check-ftp");
+      await ftpCheck.getByRole("button", { name: "Confirm", exact: true }).click();
       const ftp = pendingCard(scenario, ftpTitle);
       await expect(ftp.getByRole("heading")).toBeFocused();
       const ftpPreview = (await scenario.backend.library()).changes.find(
@@ -333,7 +353,8 @@ for (const appearance of appearances) {
       for (const request of [
         {
           text: "paint my bicycle blue",
-          explanation: "This request is not supported yet. Choose one of the available actions.",
+          explanation:
+            "Tell me again in a different way, with weekdays, time limits, or exact dates.",
           screenshot: "unsupported-notice",
         },
         {
@@ -343,22 +364,67 @@ for (const appearance of appearances) {
         },
       ]) {
         await send(scenario, request.text);
-        const notice = changes(scenario).getByRole("status");
-        await expect(notice).toHaveText(request.explanation);
+        const notice = scenario.page
+          .getByRole("region")
+          .filter({ has: scenario.page.getByText(request.explanation, { exact: true }) })
+          .filter({ has: scenario.page.getByRole("button", { name: "Skip for now", exact: true }) })
+          .last();
+        await expect(notice).toContainText(request.explanation);
         await expect(changes(scenario).getByText("Pending", { exact: true })).toHaveCount(0);
         expect((await scenario.backend.library()).changes).toEqual(previewsBeforeRejections);
         await notice.scrollIntoViewIfNeeded();
         await capture(scenario, request.screenshot);
+        await notice.getByRole("button", { name: "Skip for now", exact: true }).click();
+        await expect
+          .poll(async () => (await scenario.backend.library()).pendingChangeCheck)
+          .toBeNull();
       }
+      await send(scenario, "ignore");
+      const skip = scenario.page.getByRole("region", {
+        name: "Use the usual answer?",
+        exact: true,
+      });
+      await expect(skip).toBeVisible();
+      await capture(scenario, "typed-change-skip");
+      await skip.getByRole("button", { name: /^Yes, / }).click();
+      await expect
+        .poll(async () => (await scenario.backend.library()).pendingChangeCheck)
+        .toBeNull();
+      scenario.backend.checker.failures = 1;
+      await send(scenario, "my ftp is 220");
+      const failed = scenario.page.getByRole("region", {
+        name: "I could not check that answer",
+        exact: true,
+      });
+      await expect(failed).toBeVisible();
+      await capture(scenario, "typed-change-error");
+      await failed.getByRole("button", { name: "Retry", exact: true }).click();
+      await scenario.page
+        .getByRole("region", { name: "Did I read this right?", exact: true })
+        .getByRole("button", { name: "Confirm", exact: true })
+        .click();
+      await pendingCard(scenario, ftpTitle)
+        .getByRole("button", { name: "Cancel", exact: true })
+        .click();
       const previewRequests = scenario.backend.creationRequests
         .filter((request) => request.method === "plan_change.preview")
         .map((request) => PlanChangePreviewRpcParamsSchema.parse(request.params));
-      expect(previewRequests).toHaveLength(5);
-      expect(new Set(previewRequests.map((request) => request.commandId)).size).toBe(5);
+      expect(previewRequests).toHaveLength(14);
+      expect(new Set(previewRequests.map((request) => request.commandId)).size).toBe(14);
       const final = await scenario.backend.inspectActivation();
       expect(final.workouts).toEqual(initial.workouts);
       expect(final.revisions).toEqual(initial.revisions);
-      expect(final.planningPlans).toEqual(initial.planningPlans);
+      const planValues = (rows: typeof final.planningPlans) =>
+        rows.map(
+          ({
+            updated_at_ms: _updated,
+            hlc_physical_ms: _physical,
+            hlc_counter: _counter,
+            device_id: _device,
+            ...plan
+          }) => plan,
+        );
+      expect(planValues(final.planningPlans)).toEqual(planValues(initial.planningPlans));
     } finally {
       await close(scenario);
     }

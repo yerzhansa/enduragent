@@ -1,3 +1,4 @@
+import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
 import { readUiStylesheet } from "./ui-styles";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -366,6 +367,7 @@ function planCreationModel(
     draft: null,
     draftStale: false,
     calendarWindow: null,
+    pendingCheck: null,
     pendingCommitment: null,
     creationId: "01J00000000000000000000000",
     version: patch.version ?? 1,
@@ -583,6 +585,7 @@ describe("chat surface", () => {
             : null,
         creation: null,
         closed: [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       };
@@ -1534,6 +1537,7 @@ describe("chat surface", () => {
               legacy: null,
               creation: null,
               closed: [],
+              pendingChangeCheck: null,
               changesPaused: null,
               changes: [],
               active: {
@@ -1642,6 +1646,7 @@ describe("chat surface", () => {
               legacy: null,
               creation: null,
               closed: [],
+              pendingChangeCheck: null,
               changesPaused: null,
               changes: [],
               active: {
@@ -2275,6 +2280,88 @@ describe("chat surface", () => {
     });
   });
 
+  describe("typed answer check dock", () => {
+    const cases = [
+      {
+        field: "commitments",
+        text: "Wednesdays short",
+        question: commitmentsQuestion("Any fixed commitments?", "Your limits"),
+        editor: "Commitments or time off",
+        submit: "Continue",
+      },
+      {
+        field: "success",
+        text: "Finish feeling strong",
+        question: fitnessSuccessQuestion("What would success mean?"),
+        editor: "Success meaning",
+        submit: "Continue",
+      },
+      {
+        field: "event",
+        text: "Highland Tour",
+        question: goalQuestion("What are you preparing for?"),
+        editor: "Event name",
+        submit: "Continue",
+      },
+    ];
+    it.each(cases)(
+      "opens the same $field editor with the submitted answer intact",
+      async ({ field, text, question, editor, submit }) => {
+        const submission = { field, text, ...(field === "event" ? { date: "1998-10-18" } : {}) };
+        const check = PlanCreationPendingCheckSchema.parse({
+          schemaVersion: 1,
+          checkId: "check-dock",
+          commandId: "command-dock",
+          sourceVersion: 1,
+          attempt: 1,
+          submission,
+          state: "ready",
+          result: {
+            outcome: "ask",
+            title: "Tell me a little more",
+            body: "Add the detail you want this Plan to use.",
+            value: null,
+          },
+        });
+        const model = { ...planCreationModel(question), pendingCheck: check };
+        setChat({
+          planCreationLoaded: true,
+          planCreation: model,
+          inputDisabled: true,
+          sendDisabled: true,
+          timeline: [{ kind: "plan-creation", model }],
+        });
+        vi.mocked(actions.editPlanCreation).mockImplementation((answerKey) =>
+          setChat({ planCreationEditingKey: answerKey }),
+        );
+        render(<Harness />);
+        const dock = screen.getByRole("region", { name: "Plan creation dock" });
+        expect(within(dock).getByRole("heading", { name: "Tell me a little more" })).toHaveFocus();
+        expect(composer()).toBeDisabled();
+        expect(
+          within(screen.getByRole("region", { name: "Plan creation" })).queryByText(text),
+        ).toBeNull();
+        await userEvent.click(within(dock).getByRole("button", { name: "Answer" }));
+        const input = screen.getByRole("textbox", { name: editor });
+        expect(input).toHaveValue(text);
+        expect(input).toHaveAttribute("maxlength", "2000");
+        await waitFor(() => expect(input).toHaveFocus());
+        if (field === "commitments")
+          expect(input).toHaveAccessibleDescription(
+            "Give the weekday and exact limit, or the exact time-off dates.",
+          );
+        expect(document.querySelector("#message")).toBeNull();
+        if (field === "event")
+          expect(screen.getByLabelText("Event date")).toHaveValue("1998-10-18");
+        await userEvent.click(screen.getByRole("button", { name: submit }));
+        expect(actions.answerPlanCreation).toHaveBeenCalledWith({
+          kind: "check-submit",
+          submission,
+        });
+      },
+    );
+  });
+
   describe("first sync card", () => {
     it("shows nothing until the first sync is under way", () => {
       render(<Harness />);
@@ -2457,8 +2544,8 @@ describe("chat surface", () => {
       fireEvent.change(eventDate, { target: { value: "1998-10-18" } });
       await userEvent.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenCalledWith({
-        kind: "goal",
-        goal: { kind: "event-manual", name: "Highland Tour", date: "1998-10-18" },
+        kind: "check-submit",
+        submission: { field: "event", text: "Highland Tour", date: "1998-10-18" },
       });
     });
 
@@ -2646,10 +2733,10 @@ describe("chat surface", () => {
         "Add only the scheduling details this Plan should account for",
       );
       await user.type(commitments, "Pilates on Thursday");
-      await user.click(screen.getByRole("button", { name: "Review interpretation" }));
+      await user.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
-        kind: "commitments",
-        commitments: { kind: "interpreted", text: "Pilates on Thursday" },
+        kind: "check-submit",
+        submission: { field: "commitments", text: "Pilates on Thursday" },
       });
 
       setChat({
@@ -3166,6 +3253,50 @@ describe("chat surface", () => {
       expect(composer()).toBeEnabled();
     });
 
+    it("keeps the Draft visible when an edited answer starts a check without changing version", async () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+      await userEvent.click(screen.getByRole("button", { name: "Edit answers" }));
+      expect(screen.getByRole("region", { name: "Edit Plan answers" })).toBeVisible();
+      const pending = {
+        ...model,
+        pendingCheck: PlanCreationPendingCheckSchema.parse({
+          schemaVersion: 1,
+          checkId: "check-edited-answer",
+          commandId: "command-edited-answer",
+          sourceVersion: model.version,
+          attempt: 1,
+          submission: { field: "commitments", text: "Wednesday at most 45 minutes" },
+          state: "ready",
+          result: {
+            outcome: "ask",
+            title: "Tell me a little more",
+            body: "Confirm this answer before continuing.",
+            value: null,
+          },
+        }),
+      };
+      setChat({
+        planCreation: pending,
+        timeline: [{ kind: "plan-creation", model: pending }],
+      });
+      expect(screen.getByRole("heading", { name: "Every week and Workout" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Activate Plan" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Activate Plan" })).toHaveAccessibleDescription(
+        "Confirm this answer before continuing.",
+      );
+      expect(screen.queryByRole("region", { name: "Edit Plan answers" })).toBeNull();
+    });
+
     it("preserves pinned-event-first Workout order within the Draft week", () => {
       const draft = planCreationDraft();
       const workouts = [
@@ -3254,6 +3385,7 @@ describe("chat surface", () => {
           readiness: "ready",
           draft: stage === "question" ? null : planCreationDraft(),
           draftStale: stage === "stale",
+          pendingCheck: null,
           pendingCommitment: {
             text: "Wed 45 min. Sat off. No hard on Mon. Off 1998-09-03 to 1998-09-09",
             status: "confirm",
@@ -3339,6 +3471,7 @@ describe("chat surface", () => {
       );
       const model: PlanCreationCardModel = {
         ...planCreationModel(question),
+        pendingCheck: null,
         pendingCommitment: {
           text: "Some evenings are busy",
           rules: [],
@@ -3395,10 +3528,10 @@ describe("chat surface", () => {
       );
       await userEvent.clear(editor);
       await userEvent.type(editor, "Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
-        kind: "commitments",
-        commitments: { kind: "interpreted", text: "Wed 45 min" },
+        kind: "check-submit",
+        submission: { field: "commitments", text: "Wed 45 min" },
       });
     });
 
@@ -3407,6 +3540,7 @@ describe("chat surface", () => {
         ...planCreationModel(
           commitmentsQuestion("Any fixed commitments or time off?", "Add scheduling details"),
         ),
+        pendingCheck: null,
         pendingCommitment: {
           text: "Some evenings are busy",
           rules: [],
@@ -3427,17 +3561,17 @@ describe("chat surface", () => {
       const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
       await userEvent.clear(editor);
       await userEvent.type(editor, "Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
       const dock = screen.getByRole("region", { name: "Plan creation dock" });
       expect(within(dock).getByRole("alert")).toHaveTextContent(
         "Could not save that answer. Try again.",
       );
       expect(editor).toHaveValue("Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
+      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenCalledTimes(2);
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
-        kind: "commitments",
-        commitments: { kind: "interpreted", text: "Wed 45 min" },
+        kind: "check-submit",
+        submission: { field: "commitments", text: "Wed 45 min" },
       });
     });
 
@@ -3448,6 +3582,7 @@ describe("chat surface", () => {
       );
       const model: PlanCreationCardModel = {
         ...planCreationModel(question),
+        pendingCheck: null,
         pendingCommitment: {
           text: "Wednesday at most 45 minutes",
           rules: [{ kind: "weekday-duration", day: 3, minutes: 45 }],
@@ -3478,6 +3613,7 @@ describe("chat surface", () => {
     it("returns focus to the composer and enables building after skipping a pending answer", async () => {
       const model: PlanCreationCardModel = {
         ...planCreationModel(null),
+        pendingCheck: null,
         pendingCommitment: {
           text: "Some evenings are busy",
           rules: [],
@@ -3511,6 +3647,7 @@ describe("chat surface", () => {
       const model: PlanCreationCardModel = {
         ...planCreationModel(null),
         readiness: "ready",
+        pendingCheck: null,
         pendingCommitment: {
           text: "Some evenings are busy",
           status: "clarify",
@@ -3559,6 +3696,7 @@ describe("chat surface", () => {
         draft: planCreationDraft(original.answeredSummaries),
         draftStale: true,
         answeredSummaries: [...original.answeredSummaries, unresolved],
+        pendingCheck: null,
         pendingCommitment: {
           text: "Some evenings are busy",
           status: "clarify",
@@ -3623,6 +3761,7 @@ describe("chat surface", () => {
         const model: PlanCreationCardModel = {
           ...planCreationModel(null),
           answeredSummaries: [source === "confirmed" ? confirmed : unresolved],
+          pendingCheck: null,
           pendingCommitment: {
             text: "Some evenings are busy",
             status: "clarify",
@@ -3779,8 +3918,8 @@ describe("chat surface", () => {
       );
       await userEvent.click(screen.getByRole("button", { name: "Continue" }));
       expect(actions.answerPlanCreation).toHaveBeenCalledWith({
-        kind: "success",
-        success: { kind: "authored", text: "Ride four steady hours" },
+        kind: "check-submit",
+        submission: { field: "success", text: "Ride four steady hours" },
       });
       const complete = planCreationModel(
         planLengthQuestion("How long should this Fitness Plan be?"),
@@ -3830,6 +3969,7 @@ describe("chat surface", () => {
               legacy: null,
               creation: null,
               closed: [],
+              pendingChangeCheck: null,
               changesPaused: null,
               changes: [],
               active: hasActivePlan
@@ -3985,6 +4125,7 @@ describe("chat surface", () => {
             creation: null,
             active: null,
             closed: [],
+            pendingChangeCheck: null,
             changesPaused: null,
             changes: [],
           },

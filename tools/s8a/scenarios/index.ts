@@ -1,6 +1,7 @@
 import type { ManifestEntry } from "../lib/scenario-filter.js";
 
 export const SCENARIO_MANIFEST: ManifestEntry[] = [
+  { id: "answer-check-creation", tier: "live", module: "answer-check-creation" },
   { id: "turn-basic-wellness", tier: "replay", module: "turn-basic-wellness" },
   { id: "turn-multistep-activities", tier: "replay", module: "turn-multistep-activities" },
   { id: "turn-write-workout", tier: "replay", module: "turn-write-workout" },

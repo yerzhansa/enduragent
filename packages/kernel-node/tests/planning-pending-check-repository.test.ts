@@ -35,7 +35,7 @@ const changeOwner: PlanningCheckOwner = {
   sourceVersion: 1,
   sourceChangeSequence: 0,
 };
-const busy = (target = owner, commandId = "check"): PlanningPendingCheck => ({
+const busy = (target: PlanningCheckOwner = owner, commandId = "check"): PlanningPendingCheck => ({
   owner: target,
   checkId: commandId,
   commandId,

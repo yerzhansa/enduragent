@@ -222,6 +222,7 @@ const operations: CoachOperations &
     closed: [],
     changes: [],
     changesPaused: null,
+    pendingChangeCheck: null,
   }),
   "plan.close": async () => ({ status: "rejected", reason: "no-active-plan" }),
   "plan_change.preview": async () => ({ status: "rejected", reason: "no-active-plan" }),
@@ -876,6 +877,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
             closed: [],
             changes: [],
             changesPaused: null,
+            pendingChangeCheck: null,
           };
         },
         "plan.close": async () => {
@@ -2416,6 +2418,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       draftStale: false,
       calendarWindow: null,
       pendingCommitment: null,
+      pendingCheck: null,
       readiness: "incomplete",
       answeredSummaries: [],
       openQuestion: {
@@ -2444,6 +2447,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       draftStale: false,
       calendarWindow: null,
       pendingCommitment: null,
+      pendingCheck: null,
       readiness: "incomplete",
       answeredSummaries: [
         {
@@ -2503,23 +2507,30 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         },
       },
     };
-    const interpretation = {
-      rules: [{ kind: "weekday-unavailable" as const, day: 6 }],
-      unparsed: [],
-      status: "confirm" as const,
-    };
-    const interpretCommitments = vi.fn<
-      PlanCreationOperations["plan_creation.interpretCommitments"]
-    >(async () => interpretation);
     const startPlanCreation = vi.fn<PlanCreationOperations["plan_creation.start"]>(async () => ({
       status: "started",
       outcome: "created",
       planCreation: startedCard,
     }));
-    const answerPlanCreation = vi.fn<PlanCreationOperations["plan_creation.answer"]>(async () => ({
-      status: "answered",
-      planCreation: answeredCard,
-    }));
+    const busyCard: PlanCreationCardModel = {
+      ...answeredCard,
+      pendingCheck: {
+        schemaVersion: 1,
+        checkId: "answer-check",
+        commandId: "typed-answer",
+        sourceVersion: answeredCard.version,
+        attempt: 1,
+        submission: { field: "success", text: "Ride comfortably" },
+        state: "busy",
+      },
+    };
+    const answerPlanCreation = vi.fn<PlanCreationOperations["plan_creation.answer"]>(
+      async (request, onEvent) => {
+        if (request.answer.kind === "check-submit")
+          onEvent?.({ type: "answer-check", planCreation: busyCard });
+        return { status: "answered", planCreation: answeredCard };
+      },
+    );
     const previewPlanCreation = vi.fn<PlanCreationOperations["plan_creation.preview"]>(
       async () => ({ status: "rejected", reason: "not-ready", planCreation: answeredCard }),
     );
@@ -2540,6 +2551,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     }));
     const closePlan = vi.fn<PlanCreationOperations["plan.close"]>(async () => ({
       status: "closed",
@@ -2568,7 +2580,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         "plan_change.preview": previewPlanChange,
         "plan_change.apply": applyPlanChange,
         "plan.history": readHistory,
-        "plan_creation.interpretCommitments": interpretCommitments,
         "plan_creation.start": startPlanCreation,
         "plan_creation.answer": answerPlanCreation,
         "plan_creation.preview": previewPlanCreation,
@@ -2621,12 +2632,6 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
     const historyParams = { planId: activationResult.planId };
     for (const { result, ...request } of [
       {
-        id: "interpret",
-        method: "plan_creation.interpretCommitments",
-        params: { text: "Saturday unavailable" },
-        result: interpretation,
-      },
-      {
         id: "start",
         method: "plan_creation.start",
         params: startParams,
@@ -2668,6 +2673,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
           closed: [],
           changes: [],
           changesPaused: null,
+          pendingChangeCheck: null,
         },
       },
       {
@@ -2707,24 +2713,48 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
         result,
       });
     }
-    expect(interpretCommitments).toHaveBeenCalledExactlyOnceWith({ text: "Saturday unavailable" });
     expect(startPlanCreation).toHaveBeenCalledWith(startParams);
-    expect(answerPlanCreation).toHaveBeenCalledWith(answerParams);
+    expect(answerPlanCreation).toHaveBeenCalledWith(answerParams, expect.any(Function));
     expect(previewPlanCreation).toHaveBeenCalledWith(previewParams);
     expect(discardPlanCreation).toHaveBeenCalledWith(discardParams);
     expect(activatePlanCreation).toHaveBeenCalledWith(activateParams);
     expect(listPlans).toHaveBeenCalledWith({});
     expect(closePlan).toHaveBeenCalledWith(closeParams);
-    expect(previewPlanChange).toHaveBeenCalledWith(changePreviewParams);
+    expect(previewPlanChange).toHaveBeenCalledWith(changePreviewParams, expect.any(Function));
     expect(applyPlanChange).toHaveBeenCalledWith(changeApplyParams);
     expect(readHistory).toHaveBeenCalledWith(historyParams);
 
-    for (const request of [
-      {
-        id: "invalid-interpret",
-        method: "plan_creation.interpretCommitments",
-        params: { text: "Saturday unavailable", commandId: "not-a-command" },
+    const typedAnswerParams = {
+      commandId: "typed-answer",
+      creationId,
+      expectedVersion: answeredCard.version,
+      answer: { kind: "check-submit", submission: { field: "success", text: "Ride comfortably" } },
+    };
+    renderer.ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "typed-answer",
+        method: "plan_creation.answer",
+        params: typedAnswerParams,
+      }),
+    );
+    expect(parseCoachRpcEnvelope(await renderer.frames.next())).toEqual({
+      jsonrpc: "2.0",
+      method: "coach.operationProgress",
+      params: {
+        requestId: "typed-answer",
+        requestMethod: "plan_creation.answer",
+        event: { type: "answer-check", planCreation: busyCard },
       },
+    });
+    expect(parseCoachRpcEnvelope(await renderer.frames.next())).toEqual({
+      jsonrpc: "2.0",
+      id: "typed-answer",
+      result: { status: "answered", planCreation: answeredCard },
+    });
+    expect(answerPlanCreation).toHaveBeenLastCalledWith(typedAnswerParams, expect.any(Function));
+
+    for (const request of [
       {
         id: "invalid-start",
         method: "plan_creation.start",
@@ -2788,7 +2818,7 @@ describe.skipIf(!hasLoopback)("authenticated RPC projection", () => {
       });
     }
     expect(startPlanCreation).toHaveBeenCalledOnce();
-    expect(answerPlanCreation).toHaveBeenCalledOnce();
+    expect(answerPlanCreation).toHaveBeenCalledTimes(2);
     expect(previewPlanCreation).toHaveBeenCalledOnce();
     expect(discardPlanCreation).toHaveBeenCalledOnce();
     expect(activatePlanCreation).toHaveBeenCalledOnce();

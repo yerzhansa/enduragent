@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import type { ChatView, ChatViewControls } from "../src/chat/controller";
 import { mergeHydratedMessages } from "../src/chat/hydration";
@@ -237,6 +238,7 @@ describe("chat view adapter", () => {
       draft: null,
       draftStale: false,
       calendarWindow: null,
+      pendingCheck: null,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 1,
@@ -380,6 +382,7 @@ describe("chat view adapter", () => {
         draft: null,
         draftStale: false,
         calendarWindow: null,
+        pendingCheck: null,
         pendingCommitment: pending,
         creationId: "01J00000000000000000000000",
         version: 1,
@@ -471,6 +474,7 @@ describe("chat view adapter", () => {
       draft: null,
       draftStale: false,
       calendarWindow: null,
+      pendingCheck: null,
       pendingCommitment: null,
       creationId: "01J00000000000000000000000",
       version: 3,
@@ -575,6 +579,7 @@ describe("chat view adapter", () => {
       draft: null,
       draftStale: false,
       calendarWindow: null,
+      pendingCheck: null,
       pendingCommitment: null,
       creationId: "01J00000000000000000000001",
       version: 1,
@@ -634,6 +639,7 @@ describe("chat view adapter", () => {
             draft: null,
             draftStale: false,
             calendarWindow: null,
+            pendingCheck: null,
             pendingCommitment: null,
             creationId: "01J00000000000000000000000",
             version: 1,
@@ -1839,4 +1845,86 @@ describe("follow-latest anchoring", () => {
     expect(document.querySelectorAll(".chat-message")).toHaveLength(3);
     expect(host.scrollTop).toBe(VIEWPORT + 3 * ROW_HEIGHT);
   });
+});
+
+describe("typed answer check composer guard", () => {
+  for (const field of ["commitments", "success", "event"] as const) {
+    it.each(["busy", "error", "ready"] as const)(
+      `blocks the composer for a ${field} check in %s state`,
+      (state) => {
+        const published: ChatSurfaceState[] = [];
+        const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+        const check = PlanCreationPendingCheckSchema.parse({
+          schemaVersion: 1,
+          checkId: "check-adapter",
+          commandId: "command-adapter",
+          sourceVersion: 1,
+          attempt: 1,
+          submission: {
+            field,
+            text: "A typed answer",
+            ...(field === "event" ? { date: "1998-10-18" } : {}),
+          },
+          state,
+          ...(state === "error"
+            ? { message: "Try again." }
+            : state === "ready"
+              ? {
+                  result: {
+                    outcome: "ask",
+                    title: "Tell me more",
+                    body: "Add one detail.",
+                    value: null,
+                  },
+                }
+              : {}),
+        });
+        const value: PlanCreationCardModel = {
+          creationId: "01J00000000000000000000000",
+          version: 1,
+          status: "in-progress",
+          readiness: "ready",
+          answeredSummaries: [],
+          openQuestion: null,
+          draft: null,
+          draftStale: false,
+          calendarWindow: null,
+          pendingCommitment: null,
+          pendingCheck: check,
+        };
+        const creation: NonNullable<ChatViewControls["planCreation"]> = {
+          value,
+          loaded: true,
+          busy: state === "busy",
+          error: null,
+          paused: false,
+          editingKey: null,
+          focusRevision: 1,
+          discardConfirmationOpen: false,
+          activateConfirmationOpen: false,
+          activePlanKnowledge: { kind: "unknown" },
+          discardEvents: [],
+          notice: null,
+          focusRequest: null,
+        };
+        adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: creation }));
+        expect(published.at(-1)).toMatchObject({
+          inputDisabled: true,
+          sendDisabled: true,
+          composerPlaceholder: "Finish the correction above",
+        });
+        adapter.view.render(
+          EMPTY_CHAT_STATE,
+          controls({
+            planCreation: { ...creation, busy: false, value: { ...value, pendingCheck: null } },
+          }),
+        );
+        expect(published.at(-1)).toMatchObject({
+          inputDisabled: false,
+          sendDisabled: false,
+          composerPlaceholder: "Message your coach",
+        });
+      },
+    );
+  }
 });

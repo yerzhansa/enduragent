@@ -22,6 +22,7 @@ export function emptyPlanLibrary(): ListPlansResult {
     active: null,
     creation: null,
     closed: [],
+    pendingChangeCheck: null,
     changesPaused: null,
     changes: [],
   };

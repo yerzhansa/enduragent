@@ -1,3 +1,5 @@
+import type { IntentTranslationPort } from "@enduragent/engine";
+import { createPlanCreationChecks } from "./plan-creation-checks.js";
 import { z } from "zod";
 import {
   PlanCloseRpcParamsSchema,
@@ -24,14 +26,12 @@ import {
   PlanCreationDraftSchema,
   PlanCreationPreviewRpcParamsSchema,
   PlanCreationPreviewRpcResultSchema,
-  PlanCreationInterpretCommitmentsRpcParamsSchema,
-  PlanCreationInterpretCommitmentsRpcResultSchema,
   PlanCreationStartRpcParamsSchema,
   PlanCreationStartRpcResultSchema,
   type PlanCreationCardModel,
   type PlanCreationOperations,
 } from "@enduragent/coach-contract";
-import { buildCreationDraft, interpretCommitments } from "@enduragent/sport-cycling";
+import { buildCreationDraft } from "@enduragent/sport-cycling";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   addCivilDays,
@@ -56,25 +56,26 @@ import {
   encodePlanCreationAnswer,
   isPlanCreationDraftCurrent,
   pendingPlanCreationCommitment,
+  pendingPlanCreationCheck,
   resolvePlanCreationAnswer,
   projectPlanCreationCard,
   projectPlanCreationAnswerSummaries,
   resolvePlanCreationAnswerFlow,
   resolvePlanCreationDraftAnswers,
   validPlanCreationAnswer,
-  validateCommitmentInterpretation,
   type PlanCreationAnswerKey,
   type PlanCreationBaselineEvidence,
 } from "./plan-creation-answers.js";
 
 import {
   projectPlanChanges,
+  projectPendingChangeCheck,
   readPlanChangesPaused,
   projectTodayChoice,
   readClosedPlanOccupiesToday,
 } from "./plan-change-operations.js";
 
-export { projectPlanCreationCard, interpretCommitmentMessage } from "./plan-creation-answers.js";
+export { projectPlanCreationCard } from "./plan-creation-answers.js";
 
 export interface GoalEventCandidateSource {
   read(): Promise<readonly { name: string; date: string; sourceLabel: string }[]>;
@@ -95,6 +96,7 @@ export interface PlanCreationHost extends PlanCreationOperations {
   "plan.close"(request: PlanCloseRpcParams): Promise<PlanCloseResult>;
   "plan.history"(request: PlanHistoryParams): Promise<PlanHistoryResult>;
   readCard(): Promise<PlanCreationCardModel | null>;
+  ready(): Promise<void>;
 }
 
 async function requestDigest(crypto: Crypto, request: unknown): Promise<string> {
@@ -119,6 +121,8 @@ export function createPlanCreationOperations(input: {
   baselineEvidence?: BaselineEvidenceSource;
   calendarConnected?: () => boolean;
   legacyPlan?: () => Promise<LegacyPlanSummary | null>;
+  translator?: IntentTranslationPort;
+  language?: (text: string) => Promise<string>;
   today?: () => string;
   todayDateKey?: () => number;
   now?: () => number;
@@ -240,6 +244,7 @@ export function createPlanCreationOperations(input: {
       status: "in-progress",
       version,
       currentDraft: null,
+      pendingCheckJson: null,
       answers: snapshot.answers.filter((answer) => answer.creationVersion <= version),
     });
     return recordedDraft === null
@@ -258,7 +263,18 @@ export function createPlanCreationOperations(input: {
           ),
         };
   };
+  const checks = createPlanCreationChecks({
+    store: input.store,
+    newId: () => input.identity.newUlid(),
+    stamp,
+    digest: (value) => requestDigest(input.crypto, value),
+    project,
+    translator: input.translator ?? { translateIntent: async () => null },
+    language: input.language ?? (async () => "en"),
+    today,
+  });
   const readCard = async (): Promise<PlanCreationCardModel | null> => {
+    await checks.ready();
     const snapshot = await input.repository.readUnfinished();
     return snapshot === undefined ? null : project(snapshot);
   };
@@ -342,6 +358,7 @@ export function createPlanCreationOperations(input: {
   return {
     async "plan.list"(request) {
       ListPlansParamsSchema.parse(request);
+      await checks.ready();
       const legacy = await legacyPlan();
       const sources = calendarConnected() ? await input.eventSources.read() : [];
       return input.store.transaction(async () => {
@@ -431,6 +448,10 @@ export function createPlanCreationOperations(input: {
                     createPlanWorkoutMatchRepository(transactionStore).readSyncStatus(),
                   now,
                 }),
+          pendingChangeCheck:
+            active === null
+              ? null
+              : await projectPendingChangeCheck(transactionStore, active.planId),
           changes:
             active === null
               ? []
@@ -489,12 +510,6 @@ export function createPlanCreationOperations(input: {
         );
       });
     },
-    async "plan_creation.interpretCommitments"(request) {
-      const parsed = PlanCreationInterpretCommitmentsRpcParamsSchema.parse(request);
-      return PlanCreationInterpretCommitmentsRpcResultSchema.parse(
-        interpretCommitments(parsed.text),
-      );
-    },
     async "plan_creation.start"(request) {
       const parsed = PlanCreationStartRpcParamsSchema.parse(request);
       const digest = await requestDigest(input.crypto, parsed);
@@ -532,8 +547,12 @@ export function createPlanCreationOperations(input: {
         throw error;
       }
     },
-    async "plan_creation.answer"(request) {
+    async "plan_creation.answer"(request, onEvent) {
       const parsed = PlanCreationAnswerRpcParamsSchema.parse(request);
+      const checked = await checks.handle(parsed, onEvent);
+      if (checked !== null) return checked;
+      if (parsed.answer.kind === "check-submit" || parsed.answer.kind === "check-action")
+        return { status: "rejected", reason: "invalid-answer", planCreation: await readCard() };
       const digest = await requestDigest(input.crypto, parsed);
       try {
         const replay = await replayRow("plan_creation.answer", parsed.commandId, digest);
@@ -598,16 +617,7 @@ export function createPlanCreationOperations(input: {
         return PlanCreationAnswerRpcResultSchema.parse({
           status: "rejected",
           reason: "invalid-answer",
-          planCreation:
-            answer?.kind === "commitments" && answer.commitments.kind === "interpreted"
-              ? {
-                  ...(await project(snapshot)),
-                  pendingCommitment: {
-                    text: answer.commitments.text,
-                    ...validateCommitmentInterpretation(answer.commitments.text),
-                  },
-                }
-              : await project(snapshot),
+          planCreation: await project(snapshot),
         });
       }
       const stampValue = await stamp(parsed.commandId, digest);
@@ -675,7 +685,10 @@ export function createPlanCreationOperations(input: {
             planCreation: await project(snapshot),
           });
         }
-        if (pendingPlanCreationCommitment(snapshot) !== null) {
+        if (
+          pendingPlanCreationCommitment(snapshot) !== null ||
+          pendingPlanCreationCheck(snapshot) !== null
+        ) {
           return PlanCreationPreviewRpcResultSchema.parse({
             status: "rejected",
             reason: "commitments-pending",
@@ -766,7 +779,10 @@ export function createPlanCreationOperations(input: {
           cleanupJobId: input.identity.newUlid(),
           revisionId: input.identity.newUlid(),
           isDraftCurrent(snapshot) {
-            if (pendingPlanCreationCommitment(snapshot) !== null)
+            if (
+              pendingPlanCreationCommitment(snapshot) !== null ||
+              pendingPlanCreationCheck(snapshot) !== null
+            )
               throw new PlanCreationStoreError("commitments-pending");
             return isPlanCreationDraftCurrent(snapshot);
           },
@@ -776,7 +792,10 @@ export function createPlanCreationOperations(input: {
               resolvePlanCreationDraftAnswers(snapshot) === null
             )
               throw new PlanCreationStoreError("not-ready");
-            if (pendingPlanCreationCommitment(snapshot) !== null)
+            if (
+              pendingPlanCreationCommitment(snapshot) !== null ||
+              pendingPlanCreationCheck(snapshot) !== null
+            )
               throw new PlanCreationStoreError("commitments-pending");
             const draft = PlanCreationDraftSchema.parse(
               JSON.parse(snapshot.currentDraft.outputSnapshotJson),
@@ -849,7 +868,8 @@ export function createPlanCreationOperations(input: {
             if (
               snapshot?.id === parsed.creationId &&
               snapshot.version === parsed.expectedVersion &&
-              pendingPlanCreationCommitment(snapshot) !== null
+              (pendingPlanCreationCommitment(snapshot) !== null ||
+                pendingPlanCreationCheck(snapshot) !== null)
             )
               throw new PlanCreationStoreError("commitments-pending");
           }
@@ -881,5 +901,6 @@ export function createPlanCreationOperations(input: {
       }
     },
     readCard,
+    ready: checks.ready,
   };
 }
