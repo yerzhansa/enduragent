@@ -3,16 +3,16 @@
   "version": "application-ui-extraction-darwin-25-6-v8",
   "reviewedBy": "Codex, GPT-6",
   "review": "native-application-regression-reference",
-  "reviewNote": "Inspected the chat-syncing captures from PR 1011 CI run 34472216368: they leave space between the last thread block and the composer. chat-sync-failed, chat-empty, settings-preferences, and training-loading are retained from darwin-25-6-v7. The captures record current rendering and do not approve feature behaviour.",
+  "reviewNote": "Inspected the chat-syncing captures from PR 1011 CI run 34472216368 and the chat-sync-failed captures from CI run 34473694982: they leave space between the last thread block and the composer. chat-empty, settings-preferences, and training-loading are retained from darwin-25-6-v7. The captures record current rendering and do not approve feature behaviour.",
   "coverage": {
     "projects": 4,
     "scenarios": 5,
     "screenshots": 20,
-    "executions": 4,
+    "executions": 8,
     "structuralNegativeControls": 0
   },
   "sourceRevision": {
-    "commit": "dcc20f9ed4268f21b433054009cdaa4da8d1e9ff",
+    "commit": "aac216b7",
     "dirty": true
   },
   "identity": {
@@ -117,36 +117,38 @@
   },
   "screenshots": {
     "compact-dark/desktop--chat-empty.png": "252a22e7921739d11356549d2b70cac618a915b8df6b774be5ef695ababa67e8",
-    "compact-dark/desktop--chat-sync-failed.png": "1a89d05b4977f2817fb608eb550b8b34a103b1c62de2f595fa44aa9fc604fe8b",
+    "compact-dark/desktop--chat-sync-failed.png": "609bc20890a46c25df8f04c803c5d12aed5148aa2cfd2f0afbde31998e4ed91e",
     "compact-dark/desktop--chat-syncing.png": "821845751e1d2af9664d3efbaeabfe3145d56f1be398b44fbde55c2c4281ba9a",
     "compact-dark/desktop--settings-preferences.png": "fbc278898054718851bd4f1a7d9348868798e0e0bbc9a57a47229c6ac6fb7776",
     "compact-dark/desktop--training-loading.png": "dd24ac98fb7ec30a20ff5454189dcff06a13f7ae62985891edc322f7ca703413",
     "compact-light/desktop--chat-empty.png": "8faf98de6ef022ab18a4e420e513a3ad3baeaac4ea6c39014c5e2901966414af",
-    "compact-light/desktop--chat-sync-failed.png": "b6878a057aaf3dce5f85c142004cb21229fc6c444129aa2c729af50b794a1241",
+    "compact-light/desktop--chat-sync-failed.png": "b45441c2a58e96946dcc107493ac75fa7eec604eeb4337d290f8ea0b4bca075f",
     "compact-light/desktop--chat-syncing.png": "5843a2476f8a5b00747cdc2482af73df28878100fe32d6130929e551d525ded7",
     "compact-light/desktop--settings-preferences.png": "f1855e43c9e452eec36a09d87c0d60811aaa229764b810fab1d10c479b8da5c0",
     "compact-light/desktop--training-loading.png": "26a80786b55ebb764de7d1acc6a9dcf8892853ae64a840a050fcf76ef3742909",
     "wide-dark/desktop--chat-empty.png": "acb7e73e3c7f54c38479e6bbc89ea6feb16e91c4f65b6caf8243b71e1211bbd6",
-    "wide-dark/desktop--chat-sync-failed.png": "bb83f3f754a3fb2fac089c135da1023465c01fc86e6c0e88f856dc40a92646d6",
+    "wide-dark/desktop--chat-sync-failed.png": "3b92ba0946e5343af6bc067077d8a79bea65629d95dbea49b9deb004894d8e3d",
     "wide-dark/desktop--chat-syncing.png": "a3a98a7cfd7b2d3ccaf8d4c8d41afc660efc7ee272b8a5979385217121b3dbd0",
     "wide-dark/desktop--settings-preferences.png": "56f86d27b76bc81dd5d6d60610c95a061c59d0dcff9b5e0d5545c7f9b14b4698",
     "wide-dark/desktop--training-loading.png": "2bcd8ac961018e15df58c12e208c4b01e13714e9924b64509b589e33c4b294b2",
     "wide-light/desktop--chat-empty.png": "ab21135b3a20472e497bc44f3bf5bc7e44017375c20fc213e99a55fdfb194e27",
-    "wide-light/desktop--chat-sync-failed.png": "ba7ab6bec9fc547f534b6d795351af765912bd4a261a9b30aee45ee65484e40f",
+    "wide-light/desktop--chat-sync-failed.png": "4e26a1ac5fe7eb098733414e5ecda529c0587a970eb6308e84c5f60bffae5b72",
     "wide-light/desktop--chat-syncing.png": "3c8e7406ce86f560e1764b393bb652abfb913bd6590631e3ae49a6e3eac5e4a6",
     "wide-light/desktop--settings-preferences.png": "e9e9b1505558f40561ad3e8a47382e4861d13570908206f74022280226987351",
     "wide-light/desktop--training-loading.png": "ac38b54801d5dbba389774fe18b2fcd2ac107f0171c450eb8af9aeb45a437c9d"
   },
   "captureProvenance": {
-    "currentCaptures": 4,
-    "retainedScreenshots": 16,
+    "currentCaptures": 8,
+    "retainedScreenshots": 12,
     "retainedVersion": "application-ui-extraction-darwin-25-6-v7",
-    "fullMatrixVerification": "Pending subsequent CI runs for chat-sync-failed and chat-empty.",
+    "fullMatrixVerification": "Pending subsequent CI run for chat-empty.",
     "runs": [
-      "https://github.com/yerzhansa/enduragent/actions/runs/34472216368"
+      "https://github.com/yerzhansa/enduragent/actions/runs/34472216368",
+      "https://github.com/yerzhansa/enduragent/actions/runs/34473694982"
     ],
     "artifactIds": [
-      10150453806
+      10150453806,
+      10151252468
     ]
   }
 }
