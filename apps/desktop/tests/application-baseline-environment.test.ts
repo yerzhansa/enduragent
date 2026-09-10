@@ -39,7 +39,7 @@ describe("application baseline environment", () => {
     "selects the separate CI corpus on %s",
     (darwinRelease) => {
       expect(applicationBaselineForEnvironment({ ...environment, darwinRelease })).toBe(
-        "application-ui-extraction-darwin-25-6-v8",
+        "application-ui-extraction-darwin-25-6-v9",
       );
     },
   );
@@ -80,9 +80,9 @@ describe("application baseline environment", () => {
 
 describe("sealed baseline environment identity", () => {
   it.each([
-    ["25.2.0", "application-ui-extraction-darwin-25-6-v8"],
+    ["25.2.0", "application-ui-extraction-darwin-25-6-v9"],
     ["25.6.0", "application-ui-extraction-v9"],
-    ["25.5.0", "application-ui-extraction-darwin-25-6-v8"],
+    ["25.5.0", "application-ui-extraction-darwin-25-6-v9"],
     ["25.6.0", "application-ui-extraction-darwin-25-5-v1"],
   ])(
     "rejects an identity from %s in the other supported corpus",
@@ -95,7 +95,7 @@ describe("sealed baseline environment identity", () => {
 
   it.each([
     ["25.2.0", "application-ui-extraction-v9"],
-    ["25.6.0", "application-ui-extraction-darwin-25-6-v8"],
+    ["25.6.0", "application-ui-extraction-darwin-25-6-v9"],
     ["25.5.0", "application-ui-extraction-darwin-25-5-v1"],
   ])("accepts matching identity %s", (darwinRelease, baselineVersion) => {
     expect(() =>
