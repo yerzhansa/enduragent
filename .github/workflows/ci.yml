@@ -182,7 +182,7 @@ jobs:
       - name: Verify native application UI states
         run: pnpm check:ui-states
       - name: Upload Desktop E2E artifacts
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-e2e-macos-artifacts

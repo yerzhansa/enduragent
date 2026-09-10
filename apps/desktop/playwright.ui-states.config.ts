@@ -18,7 +18,11 @@ export default defineConfig({
   updateSnapshots: "none",
   timeout: 120_000,
   outputDir: "./test-results/ui-states",
-  reporter: [["list"], ["json", { outputFile: "./test-results/ui-states/report.json" }]],
+  reporter: [
+    ["list"],
+    ["json", { outputFile: "./test-results/ui-states/report.json" }],
+    ["./tests/e2e/application-ui-states/exit-after-report.ts"],
+  ],
   expect: {
     timeout: 15_000,
     toMatchSnapshot: { maxDiffPixels: 0 },
@@ -30,8 +34,8 @@ export default defineConfig({
     deviceScaleFactor: 1,
     contextOptions: { reducedMotion: "reduce" },
     serviceWorkers: "block",
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    trace: "off",
+    screenshot: "off",
   },
   projects: [
     { name: "wide-light", use: { viewport: { width: 1180, height: 820 }, colorScheme: "light" } },
