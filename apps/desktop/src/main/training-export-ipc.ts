@@ -1,3 +1,4 @@
+import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
 import { connectCoachClient, type CoachClient } from "@enduragent/coach-client";
 import {
   DesktopTrainingExportRequestSchema,
@@ -56,11 +57,15 @@ function saveDialogOptions(request: DesktopTrainingExportRequest): SaveDialogOpt
   if (request.kind === "activity") {
     const extension = request.format;
     return {
-      title: `Export ride as ${extension.toUpperCase()}`,
+      title: desktopPhrasebook().say("desktop.filePicker.exportRideTitle", {
+        format: extension.toUpperCase(),
+      }),
       defaultPath: `ride-${request.localDate}.${extension}`,
       filters: [
         {
-          name: extension === "fit" ? "FIT activity" : "GPX activity",
+          name: desktopPhrasebook().say("desktop.filePicker.activityFormat", {
+            format: extension.toUpperCase(),
+          }),
           extensions: [extension],
         },
       ],
@@ -68,9 +73,13 @@ function saveDialogOptions(request: DesktopTrainingExportRequest): SaveDialogOpt
     };
   }
   return {
-    title: `Export planned workouts as ${request.format.toUpperCase()}`,
+    title: desktopPhrasebook().say("desktop.filePicker.exportWorkoutsTitle", {
+      format: request.format.toUpperCase(),
+    }),
     defaultPath: `cycling-workouts-${request.oldest}-to-${request.newest}-${request.format}.zip`,
-    filters: [{ name: "Workout archive", extensions: ["zip"] }],
+    filters: [
+      { name: desktopPhrasebook().say("desktop.filePicker.workoutArchive"), extensions: ["zip"] },
+    ],
     properties: ["createDirectory", "showOverwriteConfirmation"],
   };
 }
@@ -121,6 +130,7 @@ export function installDesktopTrainingExportIpc(input: {
       if (window === undefined || input.exporter() === undefined) return refusedWrite();
       let selection: Awaited<ReturnType<TrainingExportDialogPort["showSaveDialog"]>>;
       try {
+        await refreshDesktopLanguage();
         selection = await input.dialog.showSaveDialog(window, saveDialogOptions(parsed.data));
       } catch {
         log("desktop-training-export-failed stage=dialog");

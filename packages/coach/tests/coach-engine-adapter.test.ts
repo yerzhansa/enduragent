@@ -1,4 +1,5 @@
 import { createCoachLanguage } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, expect, it, vi } from "vitest";
 import {
   type AthleteState,
@@ -11,6 +12,7 @@ import type { CyclingFtpAnchorResolver, CyclingFtpAnchorResult } from "@endurage
 import { createCoachEngineAdapter, withTrustedTurnLanguage } from "../src/coach-engine-adapter.js";
 
 const coachLanguage = createCoachLanguage({
+  phrasebooks: createPhrasebook,
   store: {
     read: async () => ({ value: "it", origin: "stored" }),
     write: async (value) => ({ value, origin: "stored" }),

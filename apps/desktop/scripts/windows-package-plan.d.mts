@@ -95,7 +95,7 @@ export const WINDOWS_PACKAGE_OUTPUT_DIRECTORY: "dist/windows";
 export const WINDOWS_PACKAGE_PLATFORM: "win32";
 export const WINDOWS_PACKAGE_ARCH: "x64";
 export const WINDOWS_PACKAGE_TARGET: "nsis";
-export const WINDOWS_PACKAGE_INSTALLER_LANGUAGE: "en_US";
+export const WINDOWS_PACKAGE_INSTALLER_LANGUAGES: readonly string[];
 export const WINDOWS_PACKAGE_DETERMINISM: WindowsPackageDeterminism;
 
 export function requireWindowsDesktopVersion(value: unknown): string;

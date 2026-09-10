@@ -1,3 +1,7 @@
+import { messageFromWire } from "@enduragent/i18n/messages";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { msg, type CoachLanguage, type Message } from "@enduragent/i18n";
+import { say, cliPhrasebook, withCliPhrasebook } from "./cli-copy.js";
 import { createNpmCoachLanguage } from "./language-preference.js";
 import { serializeError } from "./logging/serialize-error.js";
 import { parseArgs } from "node:util";
@@ -6,7 +10,7 @@ import { writeSync } from "node:fs";
 import type { Sport } from "./sport.js";
 import { type BinaryConfig, binaryEnvVar } from "./binary.js";
 import type { Memory } from "./memory/store.js";
-import { CONFIG_DIR, envInt, type Config } from "./config.js";
+import { CONFIG_DIR, envInt, readConfigYaml, type Config } from "./config.js";
 import { isKeylessProvider } from "./runtime-config.js";
 import type { AthleteDataReader, PlatformCalendarMutations } from "./athlete-data.js";
 import type { ReferenceRuntime } from "./reference/runtime.js";
@@ -27,7 +31,7 @@ import { formatConfirmOutcome, type ConfirmationGate } from "./agent/confirmatio
 // and the Telegram channel speak the same error vocabulary and never dump a raw
 // error object in the reply position.
 export function formatCliReply(err: unknown): string {
-  return classifyAgentError(err).athleteMessage;
+  return say(classifyAgentError(err, cliPhrasebook().format).athleteMessage);
 }
 
 export interface PreparedCoachComposition {
@@ -44,18 +48,16 @@ export interface RunBinaryHooks {
 }
 
 function usage(binary: BinaryConfig): string {
-  return `Usage: ${binary.binaryName} [command]
-
-Commands:
-  setup                     Interactive wizard to create the config file
-  version                   Show current version
-  add-sender <userId>       Authorize a Telegram user-id to interact with the bot
-  remove-sender <userId>    Revoke a previously-authorized Telegram user-id
-  list-senders              Show current allowlist + known session candidates
-  (none)                    Start the coaching agent (Telegram or CLI mode)
-
-Options:
-  --help                    Show this help message`;
+  return say("cli.startup.usageCommandCommandsSetupInteractiveWizard", {
+    binaryName: binary.binaryName,
+    telegram: "Telegram",
+    setup: "setup",
+    version: "version",
+    addSender: "add-sender <userId>",
+    removeSender: "remove-sender <userId>",
+    listSenders: "list-senders",
+    help: "--help",
+  });
 }
 
 function parseCommand(binary: BinaryConfig): { command: string | null; positionals: string[] } {
@@ -98,22 +100,25 @@ export async function _promptProposalConfirm(
   rl: { question(prompt: string, cb: (answer: string) => void): void },
   agent: { confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel"> },
 ): Promise<void> {
-  const proposal = agent.confirmations.peek("cli");
+  const proposal = agent.confirmations.peek("cli", cliPhrasebook());
   if (proposal === undefined) return;
   await new Promise<void>((resolve) => {
-    rl.question(`Confirm: ${proposal.summary}? [y/N]: `, (answer) => {
-      void (async () => {
-        if (!_parseConfirmAnswer(answer)) {
-          agent.confirmations.cancel("cli", proposal.nonce);
-          console.log("Canceled.");
+    rl.question(
+      say("cli.startup.confirmYN", { summary: proposal.summary, answers: "y/N" }),
+      AsyncLocalStorage.bind((answer: string) => {
+        void (async () => {
+          if (!_parseConfirmAnswer(answer)) {
+            agent.confirmations.cancel("cli", proposal.nonce);
+            console.log(say("cli.startup.canceled"));
+            resolve();
+            return;
+          }
+          const outcome = await agent.confirmations.confirm("cli", proposal.nonce, cliPhrasebook());
+          console.log(say(formatConfirmOutcome(outcome)));
           resolve();
-          return;
-        }
-        const outcome = await agent.confirmations.confirm("cli", proposal.nonce);
-        console.log(formatConfirmOutcome(outcome));
-        resolve();
-      })();
-    });
+        })();
+      }),
+    );
   });
 }
 
@@ -132,11 +137,11 @@ export function makeReadlineConfirm(
   return async (info) => {
     log("");
     log("==========================================================");
-    log(`  Captured operator ID for @${info.botUsername}`);
+    log(say("cli.startup.capturedOperatorIdFor", { botUsername: info.botUsername }));
     log("==========================================================");
-    log(`  User ID:      ${info.capturedId}`);
-    log(`  Telegram:     @${info.senderUsername ?? "—"}`);
-    log(`  Display name: ${info.senderFirstName ?? "—"}`);
+    log(say("cli.startup.userId", { capturedId: info.capturedId }));
+    log(say("cli.startup.telegram", { value1: info.senderUsername ?? "—", telegram: "Telegram" }));
+    log(say("cli.startup.displayName", { value1: info.senderFirstName ?? "—" }));
     log("==========================================================");
     log("");
 
@@ -162,10 +167,13 @@ export function makeReadlineConfirm(
         finish(false);
       });
 
-      rl.question("Save this as the primary operator? [y/N]: ", (answer: string) => {
-        clearTimeout(timer);
-        finish(_parseConfirmAnswer(answer));
-      });
+      rl.question(
+        say("cli.startup.saveThisAsThePrimaryOperator", { answers: "y/N" }),
+        (answer: string) => {
+          clearTimeout(timer);
+          finish(_parseConfirmAnswer(answer));
+        },
+      );
     });
   };
 }
@@ -176,9 +184,16 @@ async function runStartupCapture(
   dataDir: string,
 ): Promise<void> {
   console.log(
-    `\n${binary.displayName} has no allowed senders configured.\n` +
-      `Send your bot the pairing code shown below, from your own Telegram account, within 60 seconds to claim ownership.\n` +
-      `(Press Ctrl+C to skip — you can run \`${binary.binaryName} add-sender <id>\` later.)\n`,
+    say("cli.startup.hasNoAllowedSendersConfigured", { displayName: binary.displayName }) +
+      say("cli.startup.sendYourBotThePairingCode", {
+        telegram: "Telegram",
+        seconds: cliPhrasebook().format.number(60, { useGrouping: false }),
+      }) +
+      say("cli.startup.pressCtrlCToSkipYou", {
+        binaryName: binary.binaryName,
+        addSenderCommand: `${binary.binaryName} add-sender <id>`,
+        interruptKey: "Ctrl+C",
+      }),
   );
   const { captureAndPersistOperator } = await import("./channels/operator-capture.js");
   const captureTimeoutMs =
@@ -189,25 +204,30 @@ async function runStartupCapture(
     botToken,
     binary,
     dataDir,
+    phrasebook: cliPhrasebook(),
     timeoutMs: captureTimeoutMs,
     confirm: makeReadlineConfirm({ timeoutMs: confirmTimeoutMs }),
   });
   if (result.status === "captured") {
-    console.log(`Operator registered (id: ${result.capturedId}). Starting bot...`);
+    console.log(
+      say("cli.startup.operatorRegisteredIdStartingBot", { capturedId: String(result.capturedId) }),
+    );
   } else {
     console.log(
-      `Operator not captured (${result.status}). Bot will start in pairing mode — DM it to receive your user-ID, then run \`${binary.binaryName} add-sender <id>\`.`,
+      say("cli.startup.operatorNotCapturedBotWillStart", {
+        status: result.status,
+        binaryName: binary.binaryName,
+        addSenderCommand: `${binary.binaryName} add-sender <id>`,
+      }),
     );
   }
 }
 
-const MUTATORS: Record<
-  "add-sender" | "remove-sender",
-  { fn: (dir: string, id: string) => void; verb: string }
-> = {
-  "add-sender": { fn: addSender, verb: "Added" },
-  "remove-sender": { fn: removeSender, verb: "Removed" },
-};
+const MUTATORS: Record<"add-sender" | "remove-sender", { fn: (dir: string, id: string) => void }> =
+  {
+    "add-sender": { fn: addSender },
+    "remove-sender": { fn: removeSender },
+  };
 
 async function runAllowlistCommand(
   command: "add-sender" | "remove-sender" | "list-senders",
@@ -216,15 +236,17 @@ async function runAllowlistCommand(
 ): Promise<void> {
   const reportError = (err: unknown): never => {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Error: ${msg}`);
+    console.error(say("cli.startup.error", { msg: msg }));
     return process.exit(1);
   };
 
   if (command === "add-sender" || command === "remove-sender") {
-    const { fn, verb } = MUTATORS[command];
+    const { fn } = MUTATORS[command];
     const id = positionals[1];
     if (!id) {
-      console.error(`Usage: ${binary.binaryName} ${command} <userId>`);
+      console.error(
+        say("cli.startup.usageUserid", { binaryName: binary.binaryName, command: command }),
+      );
       process.exit(1);
     }
     try {
@@ -232,7 +254,13 @@ async function runAllowlistCommand(
     } catch (err) {
       reportError(err);
     }
-    console.log(`${verb} sender ${id}.`);
+    console.log(
+      say(
+        command === "add-sender"
+          ? msg("cli.startup.senderAdded", { id })
+          : msg("cli.startup.senderRemoved", { id }),
+      ),
+    );
     process.exit(0);
   }
 
@@ -242,16 +270,44 @@ async function runAllowlistCommand(
   } catch (err) {
     return reportError(err);
   }
-  console.log(`Policy: ${result.senders.dmPolicy}`);
-  console.log(`Primary operator: ${result.senders.primaryOperator ?? "—"}`);
-  console.log(`Allowed senders (${result.senders.allowFrom.length}):`);
+  console.log(say("cli.startup.policy", { dmPolicy: result.senders.dmPolicy }));
+  console.log(
+    say("cli.startup.primaryOperator", { value1: result.senders.primaryOperator ?? "—" }),
+  );
+  console.log(
+    say("cli.startup.allowedSenders", {
+      count: result.senders.allowFrom.length,
+      formattedCount: cliPhrasebook().format.number(result.senders.allowFrom.length, {
+        useGrouping: false,
+      }),
+    }),
+  );
   for (const id of result.senders.allowFrom) {
     const added = result.senders.addedAt[id];
-    console.log(`  ${id}${added ? `  added ${added}` : ""}`);
+    console.log(
+      say("cli.startup.text", {
+        id: id,
+        value1: added ? say("cli.startup.senderAddedAt", { added }) : "",
+      }),
+    );
   }
-  console.log(`Session candidates (${result.sessionCandidates.length}):`);
+  console.log(
+    say("cli.startup.sessionCandidates", {
+      count: result.sessionCandidates.length,
+      formattedCount: cliPhrasebook().format.number(result.sessionCandidates.length, {
+        useGrouping: false,
+      }),
+    }),
+  );
   for (const c of result.sessionCandidates) {
-    console.log(`  ${c.chatId}  ${c.lineCount} lines  last modified ${c.lastModified}`);
+    console.log(
+      say("cli.startup.linesLastModified", {
+        chatId: c.chatId,
+        count: c.lineCount,
+        formattedCount: cliPhrasebook().format.number(c.lineCount, { useGrouping: false }),
+        lastModified: c.lastModified,
+      }),
+    );
   }
   process.exit(0);
 }
@@ -288,15 +344,18 @@ export function makeBotShutdown(deps: BotShutdownDeps): () => Promise<void> {
   const log = deps.log ?? ((line: string) => writeSync(1, `${line}\n`));
   const drainTimeoutMs = deps.drainTimeoutMs ?? SHUTDOWN_DRAIN_TIMEOUT_MS;
   let shuttingDown = false;
-  return async function shutdownBot(): Promise<void> {
+  return AsyncLocalStorage.bind(async function shutdownBot(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
-    log("\nShutting down — finishing in-flight messages...");
+    log(say("cli.startup.shuttingDownFinishingInFlightMessages"));
     try {
       await deps.stop();
       const snapshot = deps.captureDrain?.();
       const drain = snapshot === undefined ? deps.drainPending : () => snapshot.wait();
-      if (drain === undefined) throw new TypeError("Telegram shutdown drain is unavailable");
+      if (drain === undefined)
+        throw new TypeError(
+          say("cli.startup.telegramShutdownDrainIsUnavailable", { telegram: "Telegram" }),
+        );
       await Promise.race([
         drain(),
         new Promise<void>((resolve) => setTimeout(resolve, drainTimeoutMs).unref?.()),
@@ -306,11 +365,15 @@ export function makeBotShutdown(deps: BotShutdownDeps): () => Promise<void> {
       await deps.closePrepared?.();
       deps.markCleanShutdown({ dataDir: deps.dataDir });
     } catch (err) {
-      console.error(`Shutdown encountered an error: ${JSON.stringify(serializeError(err))}`);
+      console.error(
+        say("cli.startup.shutdownEncounteredAnError", {
+          value1: JSON.stringify(serializeError(err)),
+        }),
+      );
     } finally {
       deps.exit(0);
     }
-  };
+  });
 }
 
 export async function runStartupHook(
@@ -322,7 +385,9 @@ export async function runStartupHook(
     await hook(memory);
   } catch (err) {
     console.warn(
-      `Startup hook failed: ${JSON.stringify(serializeError(err))}. Continuing with binary startup.`,
+      say("cli.startup.startupHookFailedContinuingWithBinary", {
+        value1: JSON.stringify(serializeError(err)),
+      }),
     );
   }
 }
@@ -331,6 +396,19 @@ export async function runBinary(
   sport: Sport,
   binary: BinaryConfig,
   hooks: RunBinaryHooks = {},
+): Promise<void> {
+  const previous = readConfigYaml();
+  const dataDir = typeof previous.data_dir === "string" ? previous.data_dir : CONFIG_DIR;
+  const language = createNpmCoachLanguage(dataDir);
+  const phrasebook = await language.phrasebookFor({});
+  await withCliPhrasebook(phrasebook, () => runBinaryWithLanguage(sport, binary, hooks, language));
+}
+
+async function runBinaryWithLanguage(
+  sport: Sport,
+  binary: BinaryConfig,
+  hooks: RunBinaryHooks,
+  coachLanguage: CoachLanguage,
 ): Promise<void> {
   const { command, positionals } = parseCommand(binary);
 
@@ -354,7 +432,7 @@ export async function runBinary(
   }
 
   if (command) {
-    console.error(`Unknown command: ${command}\n`);
+    console.error(say("cli.startup.unknownCommand", { command: command }));
     console.log(usage(binary));
     process.exit(1);
   }
@@ -367,7 +445,7 @@ export async function runBinary(
     config = await resolveConfigSecrets(loadConfig());
   } catch (err) {
     if (err instanceof SecretResolutionError) {
-      console.error(`Config error: ${err.message}`);
+      console.error(say("cli.startup.configError", { message: err.message }));
       process.exit(1);
     }
     throw err;
@@ -381,7 +459,20 @@ export async function runBinary(
 
   if (!isKeylessProvider(config.llm.provider) && !config.llm.apiKey) {
     console.error(
-      `No LLM API key found. Run \`${binary.binaryName} setup\` to configure, or set LLM_API_KEY. Provider-specific env vars still work: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, DEEPSEEK_API_KEY, ALIBABA_API_KEY, MINIMAX_API_KEY, MOONSHOT_API_KEY, ZAI_API_KEY, or OPENROUTER_API_KEY.`,
+      say("cli.startup.noLlmApiKeyFoundRun", {
+        binaryName: binary.binaryName,
+        setupCommand: `${binary.binaryName} setup`,
+        apiKeyVariable: "LLM_API_KEY",
+        anthropicVariable: "ANTHROPIC_API_KEY",
+        openaiVariable: "OPENAI_API_KEY",
+        googleVariable: "GOOGLE_GENERATIVE_AI_API_KEY",
+        deepseekVariable: "DEEPSEEK_API_KEY",
+        alibabaVariable: "ALIBABA_API_KEY",
+        minimaxVariable: "MINIMAX_API_KEY",
+        moonshotVariable: "MOONSHOT_API_KEY",
+        zaiVariable: "ZAI_API_KEY",
+        openrouterVariable: "OPENROUTER_API_KEY",
+      }),
     );
     process.exit(1);
   }
@@ -394,7 +485,6 @@ export async function runBinary(
   const bootStart = Date.now();
   const prepared = (await hooks.prepare?.({ config, sport })) ?? {};
   const { createCoachEngine } = await import("./agent/coach-engine.js");
-  const coachLanguage = createNpmCoachLanguage(config.dataDir);
   const engine = createCoachEngine(sport, config, {
     language: coachLanguage,
     athleteData: prepared.athleteData,
@@ -412,7 +502,9 @@ export async function runBinary(
   warnOrphanSections(engine.getMemory(), getEffectiveSections(sport));
 
   const { bootstrapReference } = await import("./reference/runtime.js");
-  console.log("syncing training data from intervals.icu…");
+  console.log(
+    say("cli.startup.syncingTrainingDataFromIntervalsIcu", { platform: "intervals.icu" }),
+  );
   const reference =
     prepared.reference ??
     (await bootstrapReference({
@@ -422,7 +514,7 @@ export async function runBinary(
       sport,
     }));
   let runtimeClosed = false;
-  const closeRuntime = async (): Promise<void> => {
+  const closeRuntime = AsyncLocalStorage.bind(async (): Promise<void> => {
     if (runtimeClosed) return;
     runtimeClosed = true;
     reference.scheduler.stop();
@@ -432,10 +524,10 @@ export async function runBinary(
         new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_DRAIN_TIMEOUT_MS).unref?.()),
       ]);
     } catch (err) {
-      console.error("memory flush did not finish before shutdown:", err);
+      console.error(say("cli.startup.memoryFlushDidNotFinishBefore"), err);
     }
     await prepared.close?.();
-  };
+  });
 
   appendUsageLine(config.dataDir, {
     ts: Date.now(),
@@ -478,7 +570,11 @@ export async function runBinary(
       dataDir: config.dataDir,
     });
     console.log(
-      `${binary.displayName} (Telegram mode) is running. Open Telegram and message your bot — Ctrl+C to stop.`,
+      say("cli.startup.telegramModeIsRunningOpenTelegram", {
+        displayName: binary.displayName,
+        telegram: "Telegram",
+        interruptKey: "Ctrl+C",
+      }),
     );
     // When a signal lands in the startup / first-long-poll window, our own
     // bot.stop() aborts the in-flight getUpdates; grammy surfaces that as a
@@ -521,19 +617,19 @@ export async function runBinary(
     process.once("SIGINT", onSignal);
 
     if (!process.env[binaryEnvVar(binary.binaryName, "NO_UPDATE_CHECK")]) {
-      notifyNpmTelegramUpdate(telegram, config.dataDir, binary).catch(() => {});
+      notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage).catch(() => {});
       // A long-running deployment would otherwise never learn about a new
       // release until it restarts; notifyUpdate dedupes per version so the
       // re-check broadcasts at most once per release. unref() so the timer
       // never holds the process open.
       const DAY_MS = 24 * 60 * 60 * 1000;
       setInterval(
-        () => void notifyNpmTelegramUpdate(telegram, config.dataDir, binary),
+        () => void notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage),
         DAY_MS,
       ).unref?.();
     }
   } else {
-    console.log(`${binary.displayName} (CLI mode). Type your message:`);
+    console.log(say("cli.startup.cliModeTypeYourMessage", { displayName: binary.displayName }));
     const { createInterface } = await import("node:readline");
     const rl = createInterface({
       input: process.stdin,
@@ -546,36 +642,49 @@ export async function runBinary(
     });
 
     rl.prompt();
-    rl.on("line", async (line) => {
-      const input = line.trim();
-      if (!input) {
-        rl.prompt();
-        return;
-      }
-      if (input === "/quit" || input === "/exit") {
-        rl.close();
-        return;
-      }
+    rl.on(
+      "line",
+      AsyncLocalStorage.bind(async (line: string) => {
+        const input = line.trim();
+        if (!input) {
+          rl.prompt();
+          return;
+        }
+        if (input === "/quit" || input === "/exit") {
+          rl.close();
+          return;
+        }
 
-      try {
-        const { language, source: languageSource } = await coachLanguage.resolveFor({
-          athleteText: input,
-        });
-        const response = await engine.chat({
-          chatId: "cli",
-          message: input,
-          turn: { language, languageSource },
-        });
-        console.log("\n" + response.text + "\n");
-        await _promptProposalConfirm(rl, engine);
-      } catch (err) {
-        // Full detail (stack, provider payload) → stderr; a friendly classified
-        // reply → stdout in the reply position. The raw err never lands as the
-        // coach reply.
-        console.error("Error detail:", err);
-        console.log("\n" + formatCliReply(err) + "\n");
-      }
-      rl.prompt();
-    });
+        try {
+          const { language, source: languageSource } = await coachLanguage.resolveFor({
+            athleteText: input,
+          });
+          let fixedMessage: Promise<Message | undefined> | undefined;
+          const response = await engine.chat(
+            {
+              chatId: "cli",
+              message: input,
+              turn: { language, languageSource },
+            },
+            (event) => {
+              if (event.type === "final-text") {
+                fixedMessage =
+                  event.message === undefined ? undefined : messageFromWire(event.message);
+              }
+            },
+          );
+          const message = await fixedMessage;
+          console.log("\n" + (message === undefined ? response.text : say(message)) + "\n");
+          await _promptProposalConfirm(rl, engine);
+        } catch (err) {
+          // Full detail (stack, provider payload) → stderr; a friendly classified
+          // reply → stdout in the reply position. The raw err never lands as the
+          // coach reply.
+          console.error(say("cli.startup.errorDetail"), err);
+          console.log("\n" + formatCliReply(err) + "\n");
+        }
+        rl.prompt();
+      }),
+    );
   }
 }

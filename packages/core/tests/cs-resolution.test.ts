@@ -20,12 +20,16 @@ describe("resolveRunningCs", () => {
   });
 
   it("manual critical_speed outranks platform threshold_pace (the locked precedence)", () => {
-    const r = resolveRunningCs(latestWith([{ types: ["Run"], critical_speed: 3.8, threshold_pace: 4.0 }]));
+    const r = resolveRunningCs(
+      latestWith([{ types: ["Run"], critical_speed: 3.8, threshold_pace: 4.0 }]),
+    );
     expect(r).toEqual({ criticalSpeedMps: 3.8, source: "athlete_manual", confidence: null });
   });
 
   it("threads cs_confidence through as disclosure-only", () => {
-    const r = resolveRunningCs(latestWith([{ types: ["Run"], threshold_pace: 4.0, cs_confidence: "high" }]));
+    const r = resolveRunningCs(
+      latestWith([{ types: ["Run"], threshold_pace: 4.0, cs_confidence: "high" }]),
+    );
     expect(r?.confidence).toBe("high");
   });
 
@@ -39,7 +43,9 @@ describe("resolveRunningCs", () => {
   });
 
   it("falls back to a valid platform value when a manual override is out of band", () => {
-    const r = resolveRunningCs(latestWith([{ types: ["Run"], critical_speed: 9.9, threshold_pace: 4.0 }]));
+    const r = resolveRunningCs(
+      latestWith([{ types: ["Run"], critical_speed: 9.9, threshold_pace: 4.0 }]),
+    );
     expect(r).toEqual({ criticalSpeedMps: 4.0, source: "platform", confidence: null });
   });
 

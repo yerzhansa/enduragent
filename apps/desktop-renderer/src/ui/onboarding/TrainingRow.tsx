@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import {
@@ -43,6 +44,7 @@ export function TrainingRow(props: {
   readonly actions: OnboardingActions | null;
   readonly placement: SetupPlacement;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const { surface, actions } = props;
   const wizard = surface.wizard;
   const busy = wizard.busy;
@@ -108,10 +110,10 @@ export function TrainingRow(props: {
 
   const statusKnown = setupStatusKnown(surface);
   const subtitle = !statusKnown
-    ? SETUP_ROW_CHECKING_SUBTITLE
+    ? say(SETUP_ROW_CHECKING_SUBTITLE)
     : connected
-      ? TRAINING_ROW_SUBTITLES.connected
-      : TRAINING_ROW_SUBTITLES.missing;
+      ? say(TRAINING_ROW_SUBTITLES.connected)
+      : say(TRAINING_ROW_SUBTITLES.missing);
 
   const connect = (): void => {
     if (actions === null || controlsDisabled || importing) return;
@@ -128,9 +130,9 @@ export function TrainingRow(props: {
         subtitle={subtitle}
         info={
           <InfoTip
-            label={TRAINING_ROW_TOOLTIP.label}
+            label={say(TRAINING_ROW_TOOLTIP.label)}
             lead={TRAINING_ROW_TOOLTIP.lead}
-            body={TRAINING_ROW_TOOLTIP.body}
+            body={say(TRAINING_ROW_TOOLTIP.body)}
           />
         }
         trailing={
@@ -145,7 +147,7 @@ export function TrainingRow(props: {
               size="sm"
               disabled={controlsDisabled}
               aria-expanded={open}
-              aria-label={TRAINING_TRIGGER_LABELS.disconnected}
+              aria-label={say(TRAINING_TRIGGER_LABELS.disconnected)}
               {...(open ? { "aria-controls": panelId } : {})}
               onClick={() => {
                 if (open) {
@@ -156,7 +158,7 @@ export function TrainingRow(props: {
                 setOpen(true);
               }}
             >
-              Connect
+              {say("setup.training.connect")}
             </Button>
           )
         }
@@ -171,9 +173,9 @@ export function TrainingRow(props: {
                 tabIndex={-1}
                 className="m-0 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-ink"
               >
-                {TRAINING_CONNECT_TITLE}
+                {say(TRAINING_CONNECT_TITLE)}
               </h3>
-              <p className="mt-1 mb-0 text-xs text-ink-2">{INTERVALS_PANEL_HINT}</p>
+              <p className="mt-1 mb-0 text-xs text-ink-2">{say(INTERVALS_PANEL_HINT)}</p>
             </div>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <Button
@@ -181,13 +183,13 @@ export function TrainingRow(props: {
                 variant="ghost"
                 size="sm"
                 disabled={controlsDisabled}
-                aria-label={TRAINING_CANCEL_LABEL}
+                aria-label={say(TRAINING_CANCEL_LABEL)}
                 onClick={() => {
                   setOpen(false);
                   triggerRef.current?.focus();
                 }}
               >
-                Cancel
+                {say("common.cancel")}
               </Button>
               <Button
                 type="button"
@@ -196,7 +198,9 @@ export function TrainingRow(props: {
                 disabled={controlsDisabled || importing}
                 onClick={connect}
               >
-                {connectPhase === "idle" ? TRAINING_USE_COPIED_KEY_LABEL : "Connecting…"}
+                {connectPhase === "idle"
+                  ? say(TRAINING_USE_COPIED_KEY_LABEL)
+                  : say("setup.training.connecting")}
               </Button>
             </div>
           </div>
@@ -210,7 +214,7 @@ export function TrainingRow(props: {
               actions?.chooseImportFiles();
             }}
           >
-            {IMPORT_FILES_LABEL}
+            {say(IMPORT_FILES_LABEL)}
           </Button>
           <SetupError surface={surface} section="training" />
         </SetupSubPanel>
@@ -230,7 +234,7 @@ export function TrainingRow(props: {
                 actions.retrySavedKeys();
               }}
             >
-              {RETRY_SAVED_KEYS_LABEL}
+              {say(RETRY_SAVED_KEYS_LABEL)}
             </Button>
           ) : null}
           <SetupError surface={surface} section="training" />

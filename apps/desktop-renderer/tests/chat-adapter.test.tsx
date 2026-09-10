@@ -1,4 +1,5 @@
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
+import { renderLocalized as render } from "./language-harness";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";

@@ -7,9 +7,7 @@ const coachRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("coach package handoff", () => {
   it("preserves the dispatch package surface and adds serve", async () => {
-    const packageJson = JSON.parse(
-      await readFile(join(coachRoot, "package.json"), "utf8"),
-    ) as {
+    const packageJson = JSON.parse(await readFile(join(coachRoot, "package.json"), "utf8")) as {
       exports: Record<string, string>;
       scripts: Record<string, string>;
       bin: Record<string, string>;

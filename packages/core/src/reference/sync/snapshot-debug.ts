@@ -1,4 +1,6 @@
 import { escapeHtmlText } from "../../channels/html-escape.js";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { cliPhrasebook } from "../../cli-copy.js";
 import {
   SNAPSHOT_DOCUMENT_THRESHOLD_BYTES,
   SNAPSHOT_DOCUMENT_THRESHOLD_CHUNKS,
@@ -53,11 +55,15 @@ export type SnapshotOutput =
  * upload buffer when the dump exceeds the configured thresholds. The handler
  * dispatches on `kind` to call `ctx.reply` vs `bot.api.sendDocument`.
  */
-export function formatSnapshotRaw(latest: LatestJson | null, section?: string): SnapshotOutput {
+export function formatSnapshotRaw(
+  latest: LatestJson | null,
+  section?: string,
+  book: Phrasebook = cliPhrasebook(),
+): SnapshotOutput {
   if (latest === null) {
     return {
       kind: "chunks",
-      chunks: ["Reference hasn't synced yet — try `/sync` first."],
+      chunks: [book.say("telegram.snapshot.notSynced", { command: "/sync" })],
       provenance: EMPTY_PROVENANCE,
     };
   }
@@ -68,7 +74,10 @@ export function formatSnapshotRaw(latest: LatestJson | null, section?: string): 
       return {
         kind: "chunks",
         chunks: [
-          `Unknown section: \`${section}\`.\n\nValid sections: ${VALID_SECTIONS.join(", ")}.`,
+          book.say("telegram.snapshot.unknownSection", {
+            section,
+            sections: VALID_SECTIONS.join(", "),
+          }),
         ],
         provenance: EMPTY_PROVENANCE,
       };

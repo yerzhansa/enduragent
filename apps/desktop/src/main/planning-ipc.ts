@@ -1,3 +1,4 @@
+import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
 import {
   CoachRpcRemoteError,
   connectCoachClient,
@@ -155,11 +156,18 @@ export function installDesktopPlanningIpc(input: {
         throw new TypeError("invalid desktop Planning request");
       }
       try {
-        const result = await input.dialog.showOpenDialog(window, {
-          defaultPath: homedir(),
-          properties: ["openFile"],
-          filters: [{ name: "Race Course", extensions: ["gpx", "fit"] }],
-        });
+        const result = await refreshDesktopLanguage().then(() =>
+          input.dialog.showOpenDialog(window, {
+            defaultPath: homedir(),
+            properties: ["openFile"],
+            filters: [
+              {
+                name: desktopPhrasebook().say("desktop.filePicker.raceCourse"),
+                extensions: ["gpx", "fit"],
+              },
+            ],
+          }),
+        );
         if (result.canceled) return null;
         const path = result.filePaths[0];
         if (

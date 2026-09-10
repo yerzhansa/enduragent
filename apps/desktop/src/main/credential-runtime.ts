@@ -6,6 +6,7 @@ import {
 import {
   isKeylessProvider,
   type ConfigureRuntimeRpcParams,
+  type GetLanguagePreferenceRpcResult,
   type LlmProvider,
   type RuntimeConfigSnapshot,
   type VerifyIntervalsCredentialRpcResult,
@@ -69,6 +70,7 @@ interface CredentialRuntimeApplicationOptions {
 }
 
 export interface RuntimeConfigurationAuthority {
+  getLanguagePreference?(signal?: AbortSignal): Promise<GetLanguagePreferenceRpcResult>;
   configureRuntime(request: ConfigureRuntimeRpcParams, signal?: AbortSignal): Promise<void>;
   verifyIntervalsCredential(
     apiKey: string,
@@ -225,6 +227,9 @@ export function createConnectionRuntimeAuthority(
             : client.call("verify_intervals_credential", { api_key: apiKey }, { signal }),
         signal,
       );
+    },
+    getLanguagePreference(signal) {
+      return call((client) => client.call("getLanguagePreference", {}, { signal }), signal);
     },
     getRuntimeConfig(signal) {
       return call(

@@ -1,3 +1,5 @@
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { QueuedMessageList, QueuedMessageRow } from "@enduragent/ui";
@@ -5,23 +7,29 @@ import { useEnduragentStore } from "../../state/store";
 import { setupReady } from "../../state/onboarding-slice";
 
 export function QueuedMessages(): ReactElement | null {
+  const { say, format } = usePhrasebook();
   const queued = useEnduragentStore((state) => state.chat.queued);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
   const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
   const queueMutationError = useEnduragentStore((state) => state.chat.queueMutationError) ?? null;
+  const queueMutationErrorMessage =
+    queueMutationError === null ? null : chatFeedbackMessage(queueMutationError);
   const actions = useEnduragentStore((state) => state.chatActions);
   const canChat = useEnduragentStore(setupReady);
 
   if (queued.length === 0) return null;
-  const queueLabel = `${queued.length} queued ${queued.length === 1 ? "message" : "messages"}`;
+  const queueLabel = say("chat.queued.count", {
+    count: queued.length,
+    number: format.number(queued.length),
+  });
 
   return (
     <QueuedMessageList
       className="mb-row"
-      title="Queued messages"
-      count={queued.length}
+      title={say("chat.queued.title")}
+      count={format.number(queued.length, { useGrouping: false })}
       announcement={queueLabel}
-      aria-label={`Queued messages, ${queueLabel}`}
+      aria-label={say("chat.queued.label", { queueLabel })}
       notice={
         <>
           {retryRequired !== null ? (
@@ -32,7 +40,7 @@ export function QueuedMessages(): ReactElement | null {
                 disabled={!canChat || workBlocked || actions === null}
                 onClick={() => actions?.retryQueuedTurn(retryRequired.claimId)}
               >
-                Retry interrupted message
+                {say("chat.queued.retry")}
               </Button>
             </div>
           ) : null}
@@ -41,7 +49,9 @@ export function QueuedMessages(): ReactElement | null {
               className="m-0 border-t border-line px-ctl-px py-inset text-xs text-danger"
               role="status"
             >
-              {queueMutationError}
+              {queueMutationErrorMessage === null
+                ? queueMutationError
+                : say(queueMutationErrorMessage)}
             </p>
           ) : null}
         </>
@@ -60,14 +70,14 @@ export function QueuedMessages(): ReactElement | null {
                   disabled={!canChat || workBlocked || actions === null || retryRequired !== null}
                   onClick={() => actions?.runQueuedCommand(message.id)}
                 >
-                  Run command
+                  {say("chat.queued.run")}
                 </Button>
               ) : null}
               <Button
                 className="chat-queue__remove text-ink-2 hover:text-ink"
                 variant="ghost"
                 size="xs"
-                aria-label={`Remove queued message ${index + 1}`}
+                aria-label={say("chat.queued.removeLabel", { number: format.number(index + 1) })}
                 disabled={
                   !canChat ||
                   workBlocked ||
@@ -76,7 +86,7 @@ export function QueuedMessages(): ReactElement | null {
                 }
                 onClick={() => actions?.removeQueued(message.id)}
               >
-                Remove
+                {say("chat.queued.remove")}
               </Button>
             </>
           }

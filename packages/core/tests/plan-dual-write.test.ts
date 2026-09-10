@@ -27,8 +27,9 @@ describe("plan_save compatibility dual-write", () => {
     };
 
     await expect(tool.execute!({ plan }, {} as never)).resolves.toEqual({ saved: true });
-    expect(readFileSync(join(root, "plans", "current-plan.json"), "utf8"))
-      .toBe(JSON.stringify(plan, null, 2));
+    expect(readFileSync(join(root, "plans", "current-plan.json"), "utf8")).toBe(
+      JSON.stringify(plan, null, 2),
+    );
     expect(persistPlan).toHaveBeenCalledWith(plan);
   });
 
@@ -43,7 +44,8 @@ describe("plan_save compatibility dual-write", () => {
     const plan = { name: "Fallback Plan" };
 
     await expect(tool.execute!({ plan }, {} as never)).rejects.toBe(failure);
-    expect(readFileSync(join(root, "plans", "current-plan.json"), "utf8"))
-      .toBe(JSON.stringify(plan, null, 2));
+    expect(readFileSync(join(root, "plans", "current-plan.json"), "utf8")).toBe(
+      JSON.stringify(plan, null, 2),
+    );
   });
 });

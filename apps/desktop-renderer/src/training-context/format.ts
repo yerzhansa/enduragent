@@ -1,3 +1,4 @@
+import { msg, type Message } from "@enduragent/i18n";
 import type { UnitsPreference } from "@enduragent/coach-contract";
 
 const UTC_INSTANT_PATTERN =
@@ -27,32 +28,58 @@ export function formatUtcTimestamp(value: string): string {
   return `${normalized.slice(0, 10)} ${normalized.slice(11, 19)} UTC`;
 }
 
-export function formatWholeNumber(value: number): string {
-  return Math.round(value).toString();
+interface NumberFormatter {
+  number(value: number, options?: Intl.NumberFormatOptions): string;
 }
 
-export function formatPercentage(value: number): string {
-  return `${Math.round(value * 100)}%`;
+export function formatWholeNumber(value: number, format: NumberFormatter): string {
+  return format.number(Math.round(value), { useGrouping: false });
 }
 
-export function formatSleepDuration(seconds: number): string {
+export function formatPercentage(value: number, format: NumberFormatter): Message {
+  return msg("training.view.format.percentage", {
+    value: format.number(Math.round(value * 100), { useGrouping: false }),
+  });
+}
+
+export function formatSleepDuration(seconds: number, format: NumberFormatter): Message {
   const minutes = Math.round(seconds / 60);
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  return msg("training.view.format.hoursMinutes", {
+    hours: formatWholeNumber(Math.floor(minutes / 60), format),
+    minutes: formatWholeNumber(minutes % 60, format),
+  });
 }
 
-export function formatRidingDuration(seconds: number): string {
+export function formatRidingDuration(seconds: number, format: NumberFormatter): Message {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
-  if (hours === 0) return `${remainder}m`;
-  if (remainder === 0) return `${hours}h`;
-  return `${hours}h ${remainder}m`;
+  if (hours === 0) {
+    return msg("training.view.format.minutes", { value: formatWholeNumber(remainder, format) });
+  }
+  if (remainder === 0) {
+    return msg("training.view.format.hours", { value: formatWholeNumber(hours, format) });
+  }
+  return msg("training.view.format.hoursMinutes", {
+    hours: formatWholeNumber(hours, format),
+    minutes: formatWholeNumber(remainder, format),
+  });
 }
 
-export function formatDistance(value: number, units: UnitsPreference): string {
+export function formatDistance(
+  value: number,
+  units: UnitsPreference,
+  format: NumberFormatter,
+): Message {
   const converted = units === "imperial" ? value / 1_609.344 : value / 1_000;
   const rounded = Math.round(converted * 10) / 10;
-  return `${rounded.toFixed(Number.isInteger(rounded) ? 0 : 1)} ${
-    units === "imperial" ? "mi" : "km"
-  }`;
+  return msg(
+    units === "imperial" ? "training.view.format.miles" : "training.view.format.kilometers",
+    {
+      value: format.number(rounded, {
+        useGrouping: false,
+        maximumFractionDigits: 1,
+      }),
+    },
+  );
 }

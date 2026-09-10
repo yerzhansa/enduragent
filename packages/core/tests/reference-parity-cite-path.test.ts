@@ -4,10 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  loadDeviationRegistry,
-  validateResearchFile,
-} from "../../../tools/check-metric-parity";
+import { loadDeviationRegistry, validateResearchFile } from "../../../tools/check-metric-parity";
 
 /**
  * Cite-path enforcement for the parity gate. Until a real

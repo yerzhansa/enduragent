@@ -86,9 +86,15 @@ describe("bootstrapReference (behavioral)", () => {
   it("manual mode performs no initial refresh, registers no timer, and exposes one scheduled run", async () => {
     const fetchSpy = vi.fn().mockResolvedValue(emptyFetched);
     const startSpy = vi.spyOn(Scheduler.prototype, "start");
-    const runtime = await bootstrapReference({ dataDir, intervals: { apiKey: "test-key" },
-      sport: fakeSport(), fetchReferenceData: fetchSpy, startScheduler: false });
-    expect(fetchSpy).not.toHaveBeenCalled(); expect(startSpy).not.toHaveBeenCalled();
+    const runtime = await bootstrapReference({
+      dataDir,
+      intervals: { apiKey: "test-key" },
+      sport: fakeSport(),
+      fetchReferenceData: fetchSpy,
+      startScheduler: false,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(startSpy).not.toHaveBeenCalled();
     await expect(runtime.runScheduledOnce()).resolves.toMatchObject({ kind: "ran" });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     runtime.scheduler.stop();
@@ -180,9 +186,7 @@ describe("bootstrapReference (behavioral)", () => {
 
     await runtime.runScheduledOnce();
 
-    expect(observed).toEqual([
-      { apiKey: "placeholder", athleteId: "fake-static-athlete" },
-    ]);
+    expect(observed).toEqual([{ apiKey: "placeholder", athleteId: "fake-static-athlete" }]);
     runtime.scheduler.stop();
   });
 

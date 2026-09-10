@@ -14,11 +14,7 @@
  */
 
 import { describe, it, expect, expectTypeOf } from "vitest";
-import {
-  computeDfaA1Profile,
-  computePowerCurveDelta,
-  type MetricInput,
-} from "@enduragent/core";
+import { computeDfaA1Profile, computePowerCurveDelta, type MetricInput } from "@enduragent/core";
 import * as corePublicApi from "@enduragent/core";
 import * as metricsPublicApi from "@enduragent/kernel/reference/metrics";
 import { METRIC_REGISTRY } from "@enduragent/kernel/reference/registry";

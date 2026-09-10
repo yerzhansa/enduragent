@@ -186,7 +186,9 @@ describe("markdownToTelegramHtml", () => {
 });
 
 describe("sendLongMessage", () => {
-  function makeCtx(replyImpl: (text: string, options?: Record<string, unknown>) => Promise<unknown>) {
+  function makeCtx(
+    replyImpl: (text: string, options?: Record<string, unknown>) => Promise<unknown>,
+  ) {
     return { reply: vi.fn(replyImpl) };
   }
 
@@ -220,7 +222,9 @@ describe("sendLongMessage", () => {
 
   it("rethrows non-parse errors without a plain-text retry", async () => {
     const ctx = makeCtx(async () => {
-      throw new Error("Call to 'sendMessage' failed! (403: Forbidden: bot was blocked by the user)");
+      throw new Error(
+        "Call to 'sendMessage' failed! (403: Forbidden: bot was blocked by the user)",
+      );
     });
     await expect(sendLongMessage(ctx, "hi")).rejects.toThrow("blocked");
     expect(ctx.reply).toHaveBeenCalledTimes(1);
@@ -228,7 +232,9 @@ describe("sendLongMessage", () => {
 
   it("delivers attacker-shaped literal tags without throwing", async () => {
     const ctx = makeCtx(async () => undefined);
-    await expect(sendLongMessage(ctx, "echoed <pre> from intervals.icu notes </b>")).resolves.toBeUndefined();
+    await expect(
+      sendLongMessage(ctx, "echoed <pre> from intervals.icu notes </b>"),
+    ).resolves.toBeUndefined();
     const sent = String(ctx.reply.mock.calls[0][0]);
     expect(sent).toContain("&lt;pre&gt;");
     expect(sent).toContain("&lt;/b&gt;");

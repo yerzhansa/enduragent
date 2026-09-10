@@ -18,22 +18,35 @@
     "./node": {
       "types": "./dist/node.d.ts",
       "default": "./dist/node.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "default": "./dist/messages.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsx scripts/generate-catalog-keys.ts && tsup",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@enduragent/coach-contract": "workspace:*",
+    "i18next": "^25.10.10",
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/react": "19.2.18",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
   },
   "engines": {
     "node": ">=24"

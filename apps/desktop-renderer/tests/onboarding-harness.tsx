@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor, within, type RenderResult } from "@testing-library/react";
+import { renderLocalized as render } from "./language-harness";
+import { act, screen, waitFor, within, type RenderResult } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import type { OnboardingBridge, OnboardingLlmConfiguration } from "../src/onboarding/bridge";
@@ -165,11 +166,7 @@ const SETUP_OPTION_LABELS: Readonly<Record<string, Readonly<Record<string, strin
   },
 };
 
-export async function selectSetupOption(
-  user: UserEvent,
-  id: string,
-  value: string,
-): Promise<void> {
+export async function selectSetupOption(user: UserEvent, id: string, value: string): Promise<void> {
   const label = SETUP_OPTION_LABELS[id]?.[value] ?? value;
   await user.click(control(id));
   await user.click(await screen.findByRole("option", { name: label }));

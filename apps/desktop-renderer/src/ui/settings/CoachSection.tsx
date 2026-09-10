@@ -1,23 +1,17 @@
+import { modelHintMessage, modelLabelMessage } from "../onboarding/copy";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import {
-  CUSTOM_MODEL_SELECTION,
-  ONBOARDING_LLM_PROVIDER_LABELS,
-} from "../../onboarding/constants";
+import { CUSTOM_MODEL_SELECTION, ONBOARDING_LLM_PROVIDER_LABELS } from "../../onboarding/constants";
 import type {
   ProviderModelFormState,
   ProviderModelSettingsState,
 } from "../../settings/provider-model-controller";
 import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
-import { COACH_SAVE_ERROR_COPY, COACH_VALIDATION_COPY } from "./copy";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
+import { COACH_SAVE_ERROR_COPY, COACH_VALIDATION_COPY, providerLabelMessage } from "./copy";
 import { settingsStyles as styles } from "./styles";
 
 function formState(state: ProviderModelSettingsState): ProviderModelFormState | null {
@@ -32,38 +26,56 @@ function formState(state: ProviderModelSettingsState): ProviderModelFormState | 
   return null;
 }
 
-function modelLabel(form: ProviderModelFormState): string {
+function providerLabel(value: string, say: Phrasebook["say"]): string {
+  const message = providerLabelMessage(value);
+  return message === null ? value : say(message);
+}
+
+function modelText(value: string, say: Phrasebook["say"]): string {
+  const message = modelLabelMessage(value);
+  return message === null ? value : say(message);
+}
+
+function modelHint(value: string, say: Phrasebook["say"]): string {
+  const message = modelHintMessage(value);
+  return message === null ? value : say(message);
+}
+
+function modelLabel(form: ProviderModelFormState, say: Phrasebook["say"]): string {
   const draft = form.draft;
   if (draft === null) return "";
   if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
-    return draft.customModel.trim() || "Choose a model";
+    return draft.customModel.trim() || say("settings.coach.chooseModel");
   }
-  return (
+  return modelText(
     draft.provider.models.find((model) => model.value === draft.modelChoice)?.label ??
-    draft.modelChoice
+      draft.modelChoice,
+    say,
   );
 }
 
-function routeLabel(form: ProviderModelFormState): string | null {
+function routeLabel(form: ProviderModelFormState, say: Phrasebook["say"]): string | null {
   if (form.draft !== null) {
-    return `${ONBOARDING_LLM_PROVIDER_LABELS[form.draft.provider.provider]} → ${modelLabel(form)}`;
+    return `${providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[form.draft.provider.provider], say)} → ${modelLabel(form, say)}`;
   }
   if (form.active === null) return null;
-  return `${ONBOARDING_LLM_PROVIDER_LABELS[form.active.provider]} → ${form.active.model}`;
+  return `${providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[form.active.provider], say)} → ${form.active.model}`;
 }
 
-function feedbackCopy(state: ProviderModelSettingsState): string | null {
-  if (state.status === "closed" || state.status === "loading") return "Loading coach settings…";
+function feedbackCopy(state: ProviderModelSettingsState, say: Phrasebook["say"]): string | null {
+  if (state.status === "closed" || state.status === "loading") return say("settings.coach.loading");
   if (state.status === "error" && state.kind === "load") {
-    return "Coach settings aren’t available right now. Try again.";
+    return say("settings.coach.unavailable");
   }
-  if (state.status === "saving") return "Saving coach settings…";
-  if (state.status === "saved") return "Coach settings saved.";
-  if (state.status === "error" && state.kind === "save") return COACH_SAVE_ERROR_COPY[state.reason];
+  if (state.status === "saving") return say("settings.coach.saving");
+  if (state.status === "saved") return say("settings.coach.saved");
+  if (state.status === "error" && state.kind === "save")
+    return say(COACH_SAVE_ERROR_COPY[state.reason]);
   return null;
 }
 
 export function CoachSection(): ReactElement {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.coach);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.coach ?? null);
@@ -86,28 +98,28 @@ export function CoachSection(): ReactElement {
   const saving = state.status === "saving";
   const canSave =
     editable !== null && draft !== null && editable.dirty && editable.validationError === null;
-  const feedback = feedbackCopy(state);
-  const routeSummary = editable === null ? null : routeLabel(editable);
-  const route = routeSummary ?? "Not configured";
+  const feedback = feedbackCopy(state, say);
+  const routeSummary = editable === null ? null : routeLabel(editable, say);
+  const route = routeSummary ?? say("settings.coach.notConfigured");
   const providerChangeRequired = editable?.providerChangeRequired === true;
   const routeState =
     routeSummary === null
-      ? "Not active"
+      ? say("settings.coach.inactive")
       : providerChangeRequired
-        ? "Change required"
+        ? say("settings.coach.changeRequired")
         : editable?.dirty === true
-          ? "Unsaved"
-          : "Active";
+          ? say("settings.coach.unsaved")
+          : say("settings.coach.active");
   const validation =
-    editable?.validationError == null ? "" : COACH_VALIDATION_COPY[editable.validationError];
+    editable?.validationError == null ? "" : say(COACH_VALIDATION_COPY[editable.validationError]);
 
   return (
     <>
-      <h2 className={styles.heading}>Coach</h2>
-      <section className={styles.group} aria-label="Coach">
+      <h2 className={styles.heading}>{say("settings.coach.title")}</h2>
+      <section className={styles.group} aria-label={say("settings.coach.title")}>
         <div className={styles.row}>
           <div className={styles.label}>
-            <div className={styles.rowTitle}>Coach route</div>
+            <div className={styles.rowTitle}>{say("settings.coach.route")}</div>
             <div className={styles.rowDetail}>{route}</div>
           </div>
           <span
@@ -121,24 +133,32 @@ export function CoachSection(): ReactElement {
           <>
             {providerChangeRequired ? (
               <p className={styles.feedback} role="alert">
-                Codex agent isn’t supported on Windows. Choose Claude subscription or an API-key
-                provider, then save the coach route. Your credentials, athlete data, conversations,
-                and other settings stay unchanged.
+                {say("settings.coach.unsupported", {
+                  operatingSystem: "Windows",
+                  codex: "Codex",
+                  claude: "Claude",
+                })}
               </p>
             ) : null}
             <div className={styles.row}>
               <div className={styles.label} id="coach-provider-label">
-                <span className={styles.rowTitle}>Provider</span>
+                <span className={styles.rowTitle}>{say("settings.coach.provider")}</span>
                 <span className={styles.rowDetail}>
                   {editable.active === null
-                    ? "Active coach settings are unavailable or not configured."
-                    : `Currently active: ${ONBOARDING_LLM_PROVIDER_LABELS[editable.active.provider]} · ${editable.active.model}`}
+                    ? say("settings.coach.activeUnavailable")
+                    : say("settings.coach.currentRoute", {
+                        provider: providerLabel(
+                          ONBOARDING_LLM_PROVIDER_LABELS[editable.active.provider],
+                          say,
+                        ),
+                        model: editable.active.model,
+                      })}
                 </span>
               </div>
               <Select
                 items={editable.providers.map((entry) => ({
                   value: entry.provider,
-                  label: ONBOARDING_LLM_PROVIDER_LABELS[entry.provider],
+                  label: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[entry.provider], say),
                 }))}
                 value={draft?.provider.provider ?? null}
                 disabled={mutating}
@@ -151,12 +171,12 @@ export function CoachSection(): ReactElement {
                   className={styles.control}
                   aria-labelledby="coach-provider-label"
                 >
-                  <SelectValue placeholder="Choose a provider" />
+                  <SelectValue placeholder={say("settings.coach.chooseProvider")} />
                 </SelectTrigger>
                 <SelectContent align="end">
                   {editable.providers.map((entry) => (
                     <SelectItem key={entry.provider} value={entry.provider}>
-                      {ONBOARDING_LLM_PROVIDER_LABELS[entry.provider]}
+                      {providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[entry.provider], say)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -164,7 +184,7 @@ export function CoachSection(): ReactElement {
             </div>
             <div className={styles.row}>
               <div className={styles.label} id="coach-model-label">
-                <span className={styles.rowTitle}>Model</span>
+                <span className={styles.rowTitle}>{say("settings.coach.model")}</span>
               </div>
               <Select
                 items={
@@ -175,10 +195,13 @@ export function CoachSection(): ReactElement {
                           value: entry.value,
                           label:
                             entry.hint === undefined
-                              ? entry.label
-                              : `${entry.label} · ${entry.hint}`,
+                              ? modelText(entry.label, say)
+                              : `${modelText(entry.label, say)} · ${modelHint(entry.hint, say)}`,
                         }))
-                        .concat({ value: CUSTOM_MODEL_SELECTION, label: "Other model…" })
+                        .concat({
+                          value: CUSTOM_MODEL_SELECTION,
+                          label: say("settings.coach.otherModel"),
+                        })
                 }
                 value={draft?.modelChoice ?? null}
                 disabled={mutating || draft === null}
@@ -193,7 +216,7 @@ export function CoachSection(): ReactElement {
                   className={styles.control}
                   aria-labelledby="coach-model-label"
                 >
-                  <SelectValue placeholder="Choose a provider first" />
+                  <SelectValue placeholder={say("settings.coach.chooseProviderFirst")} />
                 </SelectTrigger>
                 <SelectContent align="end">
                   {draft === null ? null : (
@@ -201,11 +224,13 @@ export function CoachSection(): ReactElement {
                       {draft.provider.models.map((entry) => (
                         <SelectItem key={entry.value} value={entry.value}>
                           {entry.hint === undefined
-                            ? entry.label
-                            : `${entry.label} · ${entry.hint}`}
+                            ? modelText(entry.label, say)
+                            : `${modelText(entry.label, say)} · ${modelHint(entry.hint, say)}`}
                         </SelectItem>
                       ))}
-                      <SelectItem value={CUSTOM_MODEL_SELECTION}>Other model…</SelectItem>
+                      <SelectItem value={CUSTOM_MODEL_SELECTION}>
+                        {say("settings.coach.otherModel")}
+                      </SelectItem>
                     </>
                   )}
                 </SelectContent>
@@ -214,7 +239,7 @@ export function CoachSection(): ReactElement {
             {custom && draft !== null ? (
               <div className={`${styles.row} ${styles.rowStacked}`}>
                 <label className={styles.rowTitle} htmlFor="coach-custom-model">
-                  Custom model name
+                  {say("settings.coach.customModel")}
                 </label>
                 <input
                   id="coach-custom-model"
@@ -238,12 +263,12 @@ export function CoachSection(): ReactElement {
             ) : null}
             <div className={styles.row}>
               <div className={styles.label}>
-                <div className={styles.rowTitle}>Endpoint</div>
+                <div className={styles.rowTitle}>{say("settings.coach.endpoint")}</div>
                 <div className={styles.rowDetail}>
-                  Enduragent picks the provider’s endpoint for this route.
+                  {say("settings.coach.endpointDetail", { product: "Enduragent" })}
                 </div>
               </div>
-              <span className={styles.amount}>Automatic</span>
+              <span className={styles.amount}>{say("settings.coach.automatic")}</span>
             </div>
           </>
         )}
@@ -263,7 +288,7 @@ export function CoachSection(): ReactElement {
                 port?.retry();
               }}
             >
-              Retry
+              {say("settings.coach.retry")}
             </Button>
           ) : null}
           {credentialRequired ? (
@@ -276,7 +301,7 @@ export function CoachSection(): ReactElement {
                 port?.openSetup();
               }}
             >
-              Review setup
+              {say("settings.coach.reviewSetup")}
             </Button>
           ) : null}
           <Button
@@ -288,7 +313,7 @@ export function CoachSection(): ReactElement {
               port?.save();
             }}
           >
-            {saving ? "Saving…" : "Save coach route"}
+            {saving ? say("settings.saving") : say("settings.coach.save")}
           </Button>
         </div>
       </section>

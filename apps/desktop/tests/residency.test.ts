@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { mkdtemp, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -12,8 +13,8 @@ const mocks = vi.hoisted(() => {
       this.listeners.set(name, listeners);
       return this;
     }
-    emit(name: string, ...args: any[]) {
-      for (const listener of this.listeners.get(name) ?? []) listener(...args);
+    async emit(name: string, ...args: any[]) {
+      await Promise.all([...(this.listeners.get(name) ?? [])].map((listener) => listener(...args)));
     }
     removeAllListeners() {
       this.listeners.clear();
@@ -199,6 +200,8 @@ afterEach(async () => {
   );
 });
 
+await initializeDesktopLanguage();
+
 describe("desktop residency", () => {
   it("deduplicates start, template-marks before one tray, and opens the native menu on either click", async () => {
     const { residency, events } = setup();
@@ -213,8 +216,8 @@ describe("desktop residency", () => {
     expect(tray.setToolTip).toHaveBeenCalledWith("Enduragent");
     expect(tray.listenerCount("click")).toBe(1);
     expect(tray.listenerCount("right-click")).toBe(1);
-    tray.emit("click");
-    tray.emit("right-click");
+    await tray.emit("click");
+    await tray.emit("right-click");
     expect(mocks.buildFromTemplate).toHaveBeenCalledTimes(2);
     expect(tray.popUpContextMenu).toHaveBeenCalledTimes(2);
     expect(mocks.app.getLoginItemSettings).toHaveBeenCalledTimes(2);
@@ -227,8 +230,8 @@ describe("desktop residency", () => {
 
     await residency.start();
     const tray = mocks.FakeTray.instances[0]!;
-    tray.emit("click");
-    tray.emit("click");
+    await tray.emit("click");
+    await tray.emit("click");
 
     await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledTimes(2));
     expect(mocks.image.setTemplateImage).not.toHaveBeenCalled();
@@ -263,7 +266,7 @@ describe("desktop residency", () => {
     } as never);
 
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("right-click");
+    await mocks.FakeTray.instances[0]!.emit("right-click");
 
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
     expect(menu[3]).toMatchObject({ type: "checkbox", checked: false, enabled: true });
@@ -280,8 +283,8 @@ describe("desktop residency", () => {
     mocks.app.getLoginItemSettings
       .mockReturnValueOnce(loginState("enabled", true) as never)
       .mockReturnValueOnce(loginState("not-registered", false) as never);
-    tray.emit("right-click");
-    tray.emit("right-click");
+    await tray.emit("right-click");
+    await tray.emit("right-click");
     expect(mocks.app.getLoginItemSettings).toHaveBeenCalledTimes(2);
     expect(mocks.buildFromTemplate).toHaveBeenCalledTimes(2);
     const first = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
@@ -308,7 +311,7 @@ describe("desktop residency", () => {
     const opening = deferred<typeof browserWindow>();
     mainWindow.show.mockReturnValueOnce(opening.promise);
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("click");
+    await mocks.FakeTray.instances[0]!.emit("click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
     (menu[2]!.click as () => void)();
@@ -326,7 +329,7 @@ describe("desktop residency", () => {
     const opening = deferred<typeof browserWindow>();
     mainWindow.show.mockReturnValueOnce(opening.promise);
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("click");
+    await mocks.FakeTray.instances[0]!.emit("click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
     (menu[2]!.click as () => void)();
 
@@ -341,7 +344,7 @@ describe("desktop residency", () => {
     const { residency, mainWindow, browserWindow, reportFailure } = setup();
     mainWindow.show.mockRejectedValueOnce(new Error("private path"));
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("click");
+    await mocks.FakeTray.instances[0]!.emit("click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
     (menu[2]!.click as () => void)();
@@ -358,7 +361,7 @@ describe("desktop residency", () => {
     mocks.app.getLoginItemSettings.mockImplementation(() => {
       throw secret;
     });
-    mocks.FakeTray.instances[0]!.emit("right-click");
+    await mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
     expect(menu[0]!.click).toBeTypeOf("function");
     expect(menu[3]).toMatchObject({ checked: false, enabled: false });
@@ -380,7 +383,7 @@ describe("desktop residency", () => {
     mocks.app.setLoginItemSettings.mockImplementation(() => {
       throw new Error("private setter path");
     });
-    mocks.FakeTray.instances[0]!.emit("right-click");
+    await mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
     (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
     await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("set-login-item"));
@@ -396,7 +399,7 @@ describe("desktop residency", () => {
       persistLoginPreference.mockResolvedValueOnce({ status } as never);
       await residency.start();
       mocks.app.getLoginItemSettings.mockReturnValue(loginState("not-registered", false) as never);
-      mocks.FakeTray.instances[0]!.emit("right-click");
+      await mocks.FakeTray.instances[0]!.emit("right-click");
       const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
       (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
@@ -410,7 +413,7 @@ describe("desktop residency", () => {
   it("deduplicates quit and destroys the tray exactly once", async () => {
     const { residency } = setup();
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("click");
+    await mocks.FakeTray.instances[0]!.emit("click");
     residency.quit();
     residency.quit();
     expect(mocks.app.quit).toHaveBeenCalledOnce();
@@ -435,8 +438,8 @@ describe("desktop residency", () => {
     mocks.app.setLoginItemSettings.mockImplementation((settings) => {
       openAtLogin = settings.openAtLogin;
     });
-    tray.emit("click");
-    tray.emit("right-click");
+    await tray.emit("click");
+    await tray.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
     (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
@@ -479,7 +482,7 @@ describe("desktop residency", () => {
       })
       .mockImplementationOnce(() => undefined);
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("right-click");
+    await mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
     (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
@@ -522,7 +525,7 @@ describe("desktop residency", () => {
         openAtLogin = requested;
       });
     await residency.start();
-    mocks.FakeTray.instances[0]!.emit("right-click");
+    await mocks.FakeTray.instances[0]!.emit("right-click");
     const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
     (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
@@ -587,7 +590,7 @@ describe("desktop residency", () => {
         throw new TypeError();
       });
       await residency.start();
-      mocks.FakeTray.instances[0]!.emit("right-click");
+      await mocks.FakeTray.instances[0]!.emit("right-click");
       const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
 
       (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
@@ -709,9 +712,10 @@ describe("desktop residency", () => {
     expect(source).toContain("desktop-residency-failure ${operation}\\n");
     expect(source).toContain('if (process.argv.includes("--desktop-keychain-binding-probe")) {');
     expect(source).toContain("const primaryInstance = app.requestSingleInstanceLock();");
-    expect(source).toContain("if (!primaryInstance) {\n    void exitSecondaryDesktop();");
+    expect(source).toMatch(/if \(!primaryInstance\) \{\s+void exitSecondaryDesktop\(\);/u);
     mocks.app.requestSingleInstanceLock.mockReturnValueOnce(false);
     await import("../src/main/index.js");
+    await vi.waitFor(() => expect(mocks.app.exit).toHaveBeenCalledWith(0));
     expect(mocks.crashReporter.start).toHaveBeenCalledWith({ uploadToServer: false });
     expect(mocks.app.listenerCount("render-process-gone")).toBe(1);
     expect(mocks.app.listenerCount("child-process-gone")).toBe(1);

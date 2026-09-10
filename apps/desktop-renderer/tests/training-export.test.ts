@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, expect, it, vi } from "vitest";
 import {
   createTrainingExportController,
@@ -5,6 +6,13 @@ import {
   type TrainingExportTransport,
   type TrainingExportState,
 } from "../src/training-export/controller";
+
+const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+
+function statusText(state: TrainingExportState): string {
+  const message = trainingExportStatusCopy(state);
+  return message === null ? "" : english.say(message);
+}
 
 function subject(
   exportTrainingFile: TrainingExportTransport["exportTrainingFile"] = vi.fn(async () => ({
@@ -57,9 +65,7 @@ describe("training export controller", () => {
       status: "cancelled",
       target: "workout-archive",
     });
-    expect(trainingExportStatusCopy(cancelled.states.at(-1)!)).toBe(
-      "Export cancelled. No file was changed.",
-    );
+    expect(statusText(cancelled.states.at(-1)!)).toBe("Export cancelled. No file was changed.");
 
     const refused = subject(
       vi.fn(async () => ({ status: "refused" as const, reason: "rate-limited" as const })),
@@ -74,7 +80,7 @@ describe("training export controller", () => {
       target: "workout-archive",
       reason: "rate-limited",
     });
-    expect(trainingExportStatusCopy(refused.states.at(-1)!)).toMatch(/busy/i);
+    expect(statusText(refused.states.at(-1)!)).toMatch(/busy/i);
   });
 
   it("is single-flight and turns transport failures into a generic local refusal", async () => {

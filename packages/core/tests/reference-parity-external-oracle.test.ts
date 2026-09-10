@@ -54,10 +54,11 @@ function runGate(args: string[]): Promise<{ code: number; out: string }> {
 
 describe("external-oracle registry coverage", () => {
   it("declares the six covered mean-max quantities plus the uncovered cp-model file", () => {
-    const coverage = loadExternalCoverage().filter(
-      (e) => e.fixture === "curve-equipped",
-    );
-    const covered = coverage.filter(isCovered).map((e) => e.quantity).sort();
+    const coverage = loadExternalCoverage().filter((e) => e.fixture === "curve-equipped");
+    const covered = coverage
+      .filter(isCovered)
+      .map((e) => e.quantity)
+      .sort();
     const uncovered = coverage
       .filter((e) => !isCovered(e))
       .map((e) => e.quantity)
@@ -121,9 +122,7 @@ describe("floor(oracle) cross-check against the curve-equipped fixture", () => {
     expect(result.coveredCount).toBe(6);
     expect(result.passedCount).toBe(6);
     expect(result.failedCount).toBe(0);
-    expect(result.uncovered.map((u) => u.quantity)).toEqual([
-      "cp_model_peak_power_per_ride",
-    ]);
+    expect(result.uncovered.map((u) => u.quantity)).toEqual(["cp_model_peak_power_per_ride"]);
     expect(result.missingSnapshots).toEqual([]);
   });
 
@@ -135,9 +134,7 @@ describe("floor(oracle) cross-check against the curve-equipped fixture", () => {
   });
 
   it("refuses a tolerance kind the gate does not implement (anti-tolerance-shopping)", () => {
-    const base = loadExternalCoverage().find(
-      (e): e is ExternalCoveredEntry => isCovered(e),
-    )!;
+    const base = loadExternalCoverage().find((e): e is ExternalCoveredEntry => isCovered(e))!;
     const rogue: ExternalCoveredEntry = {
       ...base,
       tolerance: { kind: "epsilon_1e3", max_offset: 1000 },

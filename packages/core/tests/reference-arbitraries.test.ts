@@ -35,9 +35,7 @@ describe("primitive arbitraries — produce schema-valid values", () => {
       fc.property(arbitraryActivity, (a) => {
         const r = ActivitySchema.safeParse(a);
         if (!r.success) {
-          throw new Error(
-            `Generated invalid activity: ${JSON.stringify(a)}\n${r.error.message}`,
-          );
+          throw new Error(`Generated invalid activity: ${JSON.stringify(a)}\n${r.error.message}`);
         }
       }),
       { numRuns: 1000 },
@@ -77,9 +75,7 @@ describe("primitive arbitraries — produce schema-valid values", () => {
       fc.property(arbitraryFtpHistoryPoint, (p) => {
         const r = FtpHistoryPointSchema.safeParse(p);
         if (!r.success) {
-          throw new Error(
-            `Generated invalid FTP point: ${JSON.stringify(p)}\n${r.error.message}`,
-          );
+          throw new Error(`Generated invalid FTP point: ${JSON.stringify(p)}\n${r.error.message}`);
         }
       }),
       { numRuns: 1000 },
@@ -105,9 +101,7 @@ describe("primitive arbitraries — produce schema-valid values", () => {
       fc.property(arbitraryIcuIntervalRep, (rep) => {
         const r = IcuIntervalRepSchema.safeParse(rep);
         if (!r.success) {
-          throw new Error(
-            `Generated invalid rep: ${JSON.stringify(rep)}\n${r.error.message}`,
-          );
+          throw new Error(`Generated invalid rep: ${JSON.stringify(rep)}\n${r.error.message}`);
         }
       }),
       { numRuns: 1000 },
@@ -119,9 +113,7 @@ describe("primitive arbitraries — produce schema-valid values", () => {
       fc.property(arbitraryZoneTimes, (z) => {
         const r = ZoneTimesSchema.safeParse(z);
         if (!r.success) {
-          throw new Error(
-            `Generated invalid zone times: ${JSON.stringify(z)}\n${r.error.message}`,
-          );
+          throw new Error(`Generated invalid zone times: ${JSON.stringify(z)}\n${r.error.message}`);
         }
       }),
       { numRuns: 1000 },
@@ -334,20 +326,17 @@ describe("arbitraryPairedActivityList", () => {
     ];
     const eventIdSet = new Set(events.map((e) => e.id));
     fc.assert(
-      fc.property(
-        arbitraryPairedActivityList(events, { minLength: 5, maxLength: 10 }),
-        (acts) => {
-          for (const a of acts) {
-            if (a.paired_event_id === null) continue;
-            if (!eventIdSet.has(a.paired_event_id as number)) {
-              throw new Error(
-                `paired_event_id ${a.paired_event_id} not in roster ${[...eventIdSet].join(",")}`,
-              );
-            }
+      fc.property(arbitraryPairedActivityList(events, { minLength: 5, maxLength: 10 }), (acts) => {
+        for (const a of acts) {
+          if (a.paired_event_id === null) continue;
+          if (!eventIdSet.has(a.paired_event_id as number)) {
+            throw new Error(
+              `paired_event_id ${a.paired_event_id} not in roster ${[...eventIdSet].join(",")}`,
+            );
           }
-          return true;
-        },
-      ),
+        }
+        return true;
+      }),
       { numRuns: 200 },
     );
   });
@@ -368,15 +357,12 @@ describe("arbitraryPairedActivityList", () => {
     ];
     let runsWithPaired = 0;
     fc.assert(
-      fc.property(
-        arbitraryPairedActivityList(events, { minLength: 5, maxLength: 5 }),
-        (acts) => {
-          if (acts.some((a) => typeof a.paired_event_id === "number")) {
-            runsWithPaired++;
-          }
-          return true;
-        },
-      ),
+      fc.property(arbitraryPairedActivityList(events, { minLength: 5, maxLength: 5 }), (acts) => {
+        if (acts.some((a) => typeof a.paired_event_id === "number")) {
+          runsWithPaired++;
+        }
+        return true;
+      }),
       { numRuns: 100 },
     );
     // 5 activities × ~90% pairing rate per fc.option default → runs without

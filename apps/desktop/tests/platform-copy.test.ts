@@ -1,6 +1,9 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { describe, expect, it } from "vitest";
 import { desktopPlatformProjection } from "../src/main/platform-copy.js";
 import { startupRefusalCopy } from "../src/main/lifecycle-messages.js";
+
+await initializeDesktopLanguage();
 
 describe("desktop platform projection", () => {
   it("keeps the Darwin capability and rendered copy byte-identical", () => {

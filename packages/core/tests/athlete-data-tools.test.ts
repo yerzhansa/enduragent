@@ -190,30 +190,29 @@ describe("store athlete reader", () => {
   it.each([
     ["ahead", "Europe/Amsterdam", "1998-07-18T22:30:00"],
     ["behind", "America/New_York", "1998-07-18T16:30:00"],
-  ] as const)("derives snapshot age from the capture epoch when the civil zone is %s", async (
-    _direction,
-    calendarTimeZone,
-    civilDateTime,
-  ) => {
-    const snapshot = {
-      ...produced("not-an-instant"),
-      captureClock: {
-        captureEpochMs: Date.parse("1998-07-18T20:30:00.000Z"),
-        civilDateTime,
-        calendarTimeZone,
-      },
-    };
-    const reader = createStoreAthleteDataReader({
-      snapshot: () => snapshot,
-      clockNow: () => Date.parse("1998-07-18T20:32:00.000Z"),
-    });
-    const result = await reader.getAthlete();
-    expect(result.ok && result.freshness).toEqual({
-      capturedAt: civilDateTime,
-      ageMs: 120_000,
-      label: "2 minutes",
-    });
-  });
+  ] as const)(
+    "derives snapshot age from the capture epoch when the civil zone is %s",
+    async (_direction, calendarTimeZone, civilDateTime) => {
+      const snapshot = {
+        ...produced("not-an-instant"),
+        captureClock: {
+          captureEpochMs: Date.parse("1998-07-18T20:30:00.000Z"),
+          civilDateTime,
+          calendarTimeZone,
+        },
+      };
+      const reader = createStoreAthleteDataReader({
+        snapshot: () => snapshot,
+        clockNow: () => Date.parse("1998-07-18T20:32:00.000Z"),
+      });
+      const result = await reader.getAthlete();
+      expect(result.ok && result.freshness).toEqual({
+        capturedAt: civilDateTime,
+        ageMs: 120_000,
+        label: "2 minutes",
+      });
+    },
+  );
 
   it("fails closed for a snapshot more than five minutes in the future", async () => {
     const reader = createStoreAthleteDataReader({
@@ -341,9 +340,13 @@ describe("store athlete reader", () => {
 
   it("reads Workout and Race categories for Planning", async () => {
     const list = vi.fn(async () => ({ ok: true as const, value: [] }));
-    const reader = createPlatformAthleteDataReader({ events: { list } } as unknown as IntervalsClient);
-    await expect(reader.listCalendar({ start: "1998-07-01", end: "1998-07-31" }))
-      .resolves.toEqual({ ok: true, value: [] });
+    const reader = createPlatformAthleteDataReader({
+      events: { list },
+    } as unknown as IntervalsClient);
+    await expect(reader.listCalendar({ start: "1998-07-01", end: "1998-07-31" })).resolves.toEqual({
+      ok: true,
+      value: [],
+    });
     expect(list).toHaveBeenCalledWith({
       oldest: "1998-07-01",
       newest: "1998-07-31",
@@ -426,14 +429,12 @@ describe("store athlete reader", () => {
   });
 
   it("keeps a fresh delete guard read and makes no delete for past or failed GET", async () => {
-    const read = vi
-      .fn<PlatformCalendarMutations["readEventForDelete"]>()
-      .mockResolvedValue({
-        id: 7,
-        startDateLocal: "1998-07-01T00:00:00",
-        category: "WORKOUT",
-        tags: [COACH_EVENT_TAG],
-      });
+    const read = vi.fn<PlatformCalendarMutations["readEventForDelete"]>().mockResolvedValue({
+      id: 7,
+      startDateLocal: "1998-07-01T00:00:00",
+      category: "WORKOUT",
+      tags: [COACH_EVENT_TAG],
+    });
     const remove = vi.fn<PlatformCalendarMutations["deleteEvent"]>().mockResolvedValue({});
     const mutations: PlatformCalendarMutations = {
       createEvent: vi.fn(),

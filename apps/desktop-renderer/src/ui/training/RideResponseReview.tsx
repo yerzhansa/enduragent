@@ -1,3 +1,5 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type {
   ActivityAnalysisData,
   ActivityAnalysisSection,
@@ -36,12 +38,13 @@ function AnalysisRetry(props: {
   readonly onRefresh: (() => void) | null;
   readonly fallback: string;
 }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <div className={styles.analysisUnavailable}>
-      <p>{props.reason === null ? props.fallback : analysisUnavailableCopy(props.reason)}</p>
+      <p>{props.reason === null ? props.fallback : say(analysisUnavailableCopy(props.reason))}</p>
       {props.onRefresh !== null && (props.reason === null || offerRetry(props.reason)) ? (
         <Button type="button" variant="outline" onClick={props.onRefresh}>
-          Try again
+          {say("training.response.retry")}
         </Button>
       ) : null}
     </div>
@@ -57,15 +60,18 @@ function EvidenceStatus(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const notice =
     props.refreshFailure !== undefined
-      ? `Showing the saved result. ${analysisRefreshFailureCopy(props.refreshFailure.code)}`
+      ? say("training.response.savedResult", {
+          failure: say(analysisRefreshFailureCopy(props.refreshFailure.code)),
+        })
       : props.failed
-        ? "Showing the previous result. The latest refresh did not finish."
+        ? say("training.response.previousResult")
         : props.refreshing
-          ? "Refreshing this analysis…"
+          ? say("training.response.refreshing")
           : props.saved
-            ? "Showing saved analysis."
+            ? say("training.response.savedAnalysis")
             : null;
   return notice === null ? null : (
     <p className={props.refreshing ? styles.analysisRefresh : styles.analysisNotice} role="status">
@@ -74,35 +80,52 @@ function EvidenceStatus(props: {
   );
 }
 
-function formatDuration(seconds: number): string {
+function formatDuration(seconds: number, { say, format }: Phrasebook): string {
   const roundedMinutes = Math.round(seconds / 60);
-  if (roundedMinutes < 1) return `${Math.round(seconds)} sec`;
+  if (roundedMinutes < 1)
+    return say("training.response.seconds", {
+      value: format.number(Math.round(seconds), { useGrouping: false }),
+    });
   const hours = Math.floor(roundedMinutes / 60);
   const minutes = roundedMinutes % 60;
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
+  if (hours === 0)
+    return say("training.response.minutes", {
+      value: format.number(minutes, { useGrouping: false }),
+    });
+  return minutes === 0
+    ? say("training.response.hours", { value: format.number(hours, { useGrouping: false }) })
+    : say("training.response.hoursMinutes", {
+        hours: format.number(hours, { useGrouping: false }),
+        minutes: format.number(minutes, { useGrouping: false }),
+      });
 }
 
-function axisValue(value: number, unit: ActivityAnalysisData["powerDistribution"]["unit"]): string {
-  return `${Math.round(value)} ${unit === "watts" ? "W" : "bpm"}`;
+function axisValue(
+  value: number,
+  unit: ActivityAnalysisData["powerDistribution"]["unit"],
+  { say, format }: Phrasebook,
+): string {
+  return say("training.response.measurement", {
+    value: format.number(Math.round(value), { useGrouping: false }),
+    unit: unit === "watts" ? "W" : "bpm",
+  });
 }
 
 function curveLabel(
   kind: ActivityAnalysisData["powerHeartRate"]["curves"][number]["kind"],
+  { say }: Phrasebook,
 ): string {
-  if (kind === "all") return "All retained segments";
-  if (kind === "zone-2") return "Zone 2 segments";
-  return "Other provider fit";
-}
-
-function formatCoefficient(value: number): string {
-  return value.toLocaleString("en-US", { maximumSignificantDigits: 8 });
+  if (kind === "all") return say("training.response.curveAll");
+  if (kind === "zone-2") return say("training.response.curveZoneTwo");
+  return say("training.response.curveOther");
 }
 
 function DistributionChart(props: {
   readonly data: ActivityAnalysisData["powerDistribution"];
   readonly label: string;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const first = props.data.buckets[0]!;
   const last = props.data.buckets.at(-1)!;
   const axisMinimum = first.lower;
@@ -151,7 +174,7 @@ function DistributionChart(props: {
           );
         })}
         <text className={styles.chartTick} x={CHART_LEFT} y={CHART_HEIGHT - 10}>
-          {Math.round(axisMinimum)}
+          {format.number(Math.round(axisMinimum), { useGrouping: false })}
         </text>
         <text
           className={styles.chartTick}
@@ -159,10 +182,10 @@ function DistributionChart(props: {
           y={CHART_HEIGHT - 10}
           textAnchor="end"
         >
-          {Math.round(axisMaximum)} {props.data.unit === "watts" ? "W" : "bpm"}
+          {axisValue(axisMaximum, props.data.unit, phrasebook)}
         </text>
         <text className={styles.chartTick} x={CHART_LEFT - 8} y={CHART_TOP + 5} textAnchor="end">
-          {formatDuration(maximumSeconds)}
+          {formatDuration(maximumSeconds, phrasebook)}
         </text>
         <text
           className={styles.chartTick}
@@ -170,34 +193,43 @@ function DistributionChart(props: {
           y={CHART_TOP + height}
           textAnchor="end"
         >
-          0
+          {format.number(0)}
         </text>
       </svg>
       <figcaption>
-        Horizontal position is {props.data.unit === "watts" ? "power" : "heart rate"}; bar height is
-        accumulated ride time. Gaps are left as recorded.
+        {say(
+          props.data.unit === "watts"
+            ? "training.response.distributionAxisPower"
+            : "training.response.distributionAxisHeartRate",
+        )}
       </figcaption>
       <details className={styles.analysisTableDisclosure}>
-        <summary>Read {props.label.toLowerCase()} as a table</summary>
+        <summary>
+          {say("training.response.distributionTable", {
+            label: props.label.toLocaleLowerCase(phrasebook.locale),
+          })}
+        </summary>
         <div className={styles.analysisTableScroller}>
           <table className={styles.analysisDataTable}>
             <caption className={styles.srOnly}>
-              {props.label} measured ride time by recorded range
+              {say("training.response.distributionCaption", { label: props.label })}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Range</th>
-                <th scope="col">Ride time</th>
+                <th scope="col">{say("training.response.rangeHeading")}</th>
+                <th scope="col">{say("training.response.rideTime")}</th>
               </tr>
             </thead>
             <tbody>
               {props.data.buckets.map((bucket, index) => (
                 <tr key={`${bucket.lower}-${bucket.upper}-${index}`}>
                   <th scope="row">
-                    {axisValue(bucket.lower, props.data.unit)}–
-                    {axisValue(bucket.upper, props.data.unit)}
+                    {say("training.response.range", {
+                      lower: axisValue(bucket.lower, props.data.unit, phrasebook),
+                      upper: axisValue(bucket.upper, props.data.unit, phrasebook),
+                    })}
                   </th>
-                  <td>{formatDuration(bucket.seconds)}</td>
+                  <td>{formatDuration(bucket.seconds, phrasebook)}</td>
                 </tr>
               ))}
             </tbody>
@@ -219,6 +251,8 @@ function DistributionEvidence(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   return (
     <>
       <EvidenceStatus
@@ -228,8 +262,11 @@ function DistributionEvidence(props: {
         refreshFailure={props.refreshFailure}
       />
       <p className={styles.analysisSource}>
-        {formatDuration(props.data.totalSeconds)} of measured ride time ·{" "}
-        {props.data.buckets.length} recorded buckets
+        {say("training.response.distributionSummary", {
+          count: props.data.buckets.length,
+          duration: formatDuration(props.data.totalSeconds, phrasebook),
+          value: format.number(props.data.buckets.length, { useGrouping: false }),
+        })}
       </p>
       <DistributionChart data={props.data} label={props.label} />
     </>
@@ -245,6 +282,8 @@ function DistributionPanel(props: {
   readonly intro: string;
   readonly onRefresh: (() => void) | null;
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say } = phrasebook;
   const matches = props.analysis.activityId === props.rideId;
   const section = matches ? props.analysis.sections[props.resultKey] : undefined;
   const refreshing = matches && props.analysis.loadingSections.includes(props.sectionName);
@@ -275,7 +314,7 @@ function DistributionPanel(props: {
     content = (
       <AnalysisRetry
         reason={section.reason}
-        fallback={`${props.title} could not be loaded right now.`}
+        fallback={say("training.response.distributionUnavailable", { title: props.title })}
         onRefresh={props.onRefresh}
       />
     );
@@ -283,21 +322,23 @@ function DistributionPanel(props: {
     content = (
       <AnalysisRetry
         reason={null}
-        fallback={`${props.title} could not be loaded right now.`}
+        fallback={say("training.response.distributionUnavailable", { title: props.title })}
         onRefresh={props.onRefresh}
       />
     );
   } else {
     content = (
       <p className={styles.analysisLoading} role="status">
-        Checking {props.title.toLowerCase()}…
+        {say("training.response.distributionLoading", {
+          title: props.title.toLocaleLowerCase(phrasebook.locale),
+        })}
       </p>
     );
   }
   const titleId = `${props.resultKey}-title`;
   return (
     <section className={styles.analysisPanel} aria-labelledby={titleId}>
-      <p className={styles.rideEyebrow}>Measured ride time</p>
+      <p className={styles.rideEyebrow}>{say("training.response.measuredTime")}</p>
       <h2 id={titleId} className={styles.analysisTitle}>
         {props.title}
       </h2>
@@ -310,6 +351,8 @@ function DistributionPanel(props: {
 function ScatterChart(props: {
   readonly data: ActivityAnalysisData["powerHeartRate"];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const watts = props.data.rows.map((row) => row.watts);
   const heartRates = props.data.rows.map((row) => row.heartRateBpm);
   const minimumWatts = Math.min(...watts);
@@ -357,7 +400,10 @@ function ScatterChart(props: {
           );
         })}
         <text className={styles.chartTick} x={CHART_LEFT} y={CHART_HEIGHT - 10}>
-          {Math.round(minimumWatts)} W
+          {say("training.response.measurement", {
+            value: format.number(Math.round(minimumWatts), { useGrouping: false }),
+            unit: "W",
+          })}
         </text>
         <text
           className={styles.chartTick}
@@ -365,10 +411,13 @@ function ScatterChart(props: {
           y={CHART_HEIGHT - 10}
           textAnchor="end"
         >
-          {Math.round(maximumWatts)} W
+          {say("training.response.measurement", {
+            value: format.number(Math.round(maximumWatts), { useGrouping: false }),
+            unit: "W",
+          })}
         </text>
         <text className={styles.chartTick} x={CHART_LEFT - 8} y={CHART_TOP + 5} textAnchor="end">
-          {Math.round(maximumHeartRate)}
+          {format.number(Math.round(maximumHeartRate), { useGrouping: false })}
         </text>
         <text
           className={styles.chartTick}
@@ -376,37 +425,52 @@ function ScatterChart(props: {
           y={CHART_TOP + height}
           textAnchor="end"
         >
-          {Math.round(minimumHeartRate)} bpm
+          {say("training.response.measurement", {
+            value: format.number(Math.round(minimumHeartRate), { useGrouping: false }),
+            unit: "bpm",
+          })}
         </text>
       </svg>
-      <figcaption>
-        Each dot is one retained server-cleaned ride segment: power is horizontal and lag-adjusted
-        heart rate is vertical. No missing points or lines are interpolated.
-      </figcaption>
+      <figcaption>{say("training.response.scatterDescription")}</figcaption>
       <details className={styles.analysisTableDisclosure}>
-        <summary>Read all power and heart-rate points as a table</summary>
+        <summary>{say("training.response.scatterTable")}</summary>
         <div className={styles.analysisTableScroller}>
           <table className={styles.analysisDataTable}>
-            <caption className={styles.srOnly}>Retained power and heart-rate ride segments</caption>
+            <caption className={styles.srOnly}>{say("training.response.scatterCaption")}</caption>
             <thead>
               <tr>
-                <th scope="col">Ride time</th>
-                <th scope="col">Power</th>
-                <th scope="col">Heart rate</th>
-                <th scope="col">Cadence</th>
-                <th scope="col">Segment</th>
+                <th scope="col">{say("training.response.rideTime")}</th>
+                <th scope="col">{say("training.response.power")}</th>
+                <th scope="col">{say("training.response.heartRate")}</th>
+                <th scope="col">{say("training.response.cadence")}</th>
+                <th scope="col">{say("training.response.segment")}</th>
               </tr>
             </thead>
             <tbody>
               {props.data.rows.map((row, index) => (
                 <tr key={`${row.startSeconds}-${index}`}>
-                  <th scope="row">{formatDuration(row.startSeconds)}</th>
-                  <td>{Math.round(row.watts)} W</td>
-                  <td>{Math.round(row.heartRateBpm)} bpm</td>
+                  <th scope="row">{formatDuration(row.startSeconds, phrasebook)}</th>
                   <td>
-                    {row.cadenceRpm === null ? "Unavailable" : `${Math.round(row.cadenceRpm)} rpm`}
+                    {say("training.response.measurement", {
+                      value: format.number(Math.round(row.watts), { useGrouping: false }),
+                      unit: "W",
+                    })}
                   </td>
-                  <td>{formatDuration(row.movingSeconds ?? row.seconds)}</td>
+                  <td>
+                    {say("training.response.measurement", {
+                      value: format.number(Math.round(row.heartRateBpm), { useGrouping: false }),
+                      unit: "bpm",
+                    })}
+                  </td>
+                  <td>
+                    {row.cadenceRpm === null
+                      ? say("training.response.unavailable")
+                      : say("training.response.measurement", {
+                          value: format.number(Math.round(row.cadenceRpm), { useGrouping: false }),
+                          unit: "rpm",
+                        })}
+                  </td>
+                  <td>{formatDuration(row.movingSeconds ?? row.seconds, phrasebook)}</td>
                 </tr>
               ))}
             </tbody>
@@ -420,13 +484,15 @@ function ScatterChart(props: {
 function ProviderCurveFits(props: {
   readonly curves: ActivityAnalysisData["powerHeartRate"]["curves"];
 }): ReactElement | null {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   if (props.curves.length === 0) return null;
   return (
     <section className={styles.responseFits} aria-labelledby="provider-fits-title">
       <h3 id="provider-fits-title" className={styles.responseFitsTitle}>
-        Provider fitted curves
+        {say("training.response.fitsTitle")}
       </h3>
-      <ul className={styles.responseFitList} aria-label="Provider fitted curves">
+      <ul className={styles.responseFitList} aria-label={say("training.response.fitsTitle")}>
         {props.curves.map((curve, index) => (
           <li
             key={`${curve.kind}-${index}`}
@@ -435,40 +501,55 @@ function ProviderCurveFits(props: {
           >
             <span className={styles.responseFitLine} aria-hidden="true" />
             <span>
-              <strong>{curveLabel(curve.kind)}</strong>
+              <strong>{curveLabel(curve.kind, phrasebook)}</strong>
               <span>
-                {curve.rSquared === null ? "R² unavailable" : `R² ${curve.rSquared.toFixed(2)}`}
+                {curve.rSquared === null
+                  ? say("training.response.fitQualityUnavailable")
+                  : say("training.response.fitQualityValue", {
+                      value: format.number(Number(curve.rSquared.toFixed(2)), {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                        useGrouping: false,
+                      }),
+                    })}
               </span>
             </span>
           </li>
         ))}
       </ul>
-      <p className={styles.responseFitNote}>
-        Fit quality and model terms are supplied by the provider. The desktop does not infer a model
-        equation.
-      </p>
+      <p className={styles.responseFitNote}>{say("training.response.fitDescription")}</p>
       <details className={styles.analysisTableDisclosure}>
-        <summary>Read provider fit details</summary>
+        <summary>{say("training.response.fitDetails")}</summary>
         <div className={styles.analysisTableScroller}>
           <table className={styles.analysisDataTable}>
-            <caption className={styles.srOnly}>
-              Provider-fitted power and heart-rate curve details
-            </caption>
+            <caption className={styles.srOnly}>{say("training.response.fitCaption")}</caption>
             <thead>
               <tr>
-                <th scope="col">Fit scope</th>
-                <th scope="col">Fit quality</th>
-                <th scope="col">Model terms in provider order</th>
+                <th scope="col">{say("training.response.fitScope")}</th>
+                <th scope="col">{say("training.response.fitQuality")}</th>
+                <th scope="col">{say("training.response.fitTerms")}</th>
               </tr>
             </thead>
             <tbody>
               {props.curves.map((curve, index) => (
                 <tr key={`${curve.kind}-${index}`}>
-                  <th scope="row">{curveLabel(curve.kind)}</th>
+                  <th scope="row">{curveLabel(curve.kind, phrasebook)}</th>
                   <td>
-                    {curve.rSquared === null ? "Unavailable" : `R² ${curve.rSquared.toFixed(2)}`}
+                    {curve.rSquared === null
+                      ? say("training.response.unavailable")
+                      : say("training.response.fitQualityValue", {
+                          value: format.number(Number(curve.rSquared.toFixed(2)), {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                            useGrouping: false,
+                          }),
+                        })}
                   </td>
-                  <td>{curve.coefficients.map(formatCoefficient).join(", ")}</td>
+                  <td>
+                    {curve.coefficients
+                      .map((value) => format.number(value, { maximumSignificantDigits: 8 }))
+                      .join(", ")}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -489,6 +570,8 @@ function PowerHeartRateEvidence(props: {
     { readonly kind: "stale" }
   >["refreshFailure"];
 }): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const coverage = Math.round(props.data.coverageFraction * 100);
   return (
     <>
@@ -500,40 +583,48 @@ function PowerHeartRateEvidence(props: {
       />
       <div className={styles.responseSummary}>
         <div>
-          <p className={styles.responseValue}>{props.data.rows.length}</p>
-          <p>retained segments</p>
+          <p className={styles.responseValue}>
+            {format.number(props.data.rows.length, { useGrouping: false })}
+          </p>
+          <p>{say("training.response.retainedSegments")}</p>
         </div>
         <div>
-          <p className={styles.responseValue}>{coverage}%</p>
-          <p>ride coverage</p>
+          <p className={styles.responseValue}>
+            {say("training.response.percent", {
+              value: format.number(coverage, { useGrouping: false }),
+            })}
+          </p>
+          <p>{say("training.response.rideCoverage")}</p>
         </div>
         <span className={styles.responseCoverage} data-limited={coverage < 80}>
-          {coverage < 80 ? "Limited coverage" : "Strong coverage"}
+          {coverage < 80
+            ? say("training.response.limitedCoverage")
+            : say("training.response.strongCoverage")}
         </span>
       </div>
       <dl className={styles.responseMeta}>
         <div>
-          <dt>HR lag adjustment</dt>
+          <dt>{say("training.response.lagAdjustment")}</dt>
           <dd>
             {props.data.heartRateLagSeconds === null
-              ? "Applied by server; duration unavailable"
-              : formatDuration(props.data.heartRateLagSeconds)}
+              ? say("training.response.lagDurationUnavailable")
+              : formatDuration(props.data.heartRateLagSeconds, phrasebook)}
           </dd>
         </div>
         <div>
-          <dt>Warm-up excluded</dt>
+          <dt>{say("training.response.warmupExcluded")}</dt>
           <dd>
             {props.data.warmupSeconds === null
-              ? "Unavailable"
-              : formatDuration(props.data.warmupSeconds)}
+              ? say("training.response.unavailable")
+              : formatDuration(props.data.warmupSeconds, phrasebook)}
           </dd>
         </div>
         <div>
-          <dt>Cool-down excluded</dt>
+          <dt>{say("training.response.cooldownExcluded")}</dt>
           <dd>
             {props.data.cooldownSeconds === null
-              ? "Unavailable"
-              : formatDuration(props.data.cooldownSeconds)}
+              ? say("training.response.unavailable")
+              : formatDuration(props.data.cooldownSeconds, phrasebook)}
           </dd>
         </div>
       </dl>
@@ -548,6 +639,7 @@ function PowerHeartRatePanel(props: {
   readonly analysis: RideAnalysisViewState;
   readonly onRefresh: (() => void) | null;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const matches = props.analysis.activityId === props.rideId;
   const section = matches ? props.analysis.sections.powerHeartRate : undefined;
   const refreshing = matches && props.analysis.loadingSections.includes("power-heart-rate");
@@ -576,7 +668,7 @@ function PowerHeartRatePanel(props: {
     content = (
       <AnalysisRetry
         reason={section.reason}
-        fallback="Power and heart-rate response could not be loaded right now."
+        fallback={say("training.response.responseUnavailable")}
         onRefresh={props.onRefresh}
       />
     );
@@ -584,26 +676,25 @@ function PowerHeartRatePanel(props: {
     content = (
       <AnalysisRetry
         reason={null}
-        fallback="Power and heart-rate response could not be loaded right now."
+        fallback={say("training.response.responseUnavailable")}
         onRefresh={props.onRefresh}
       />
     );
   } else {
     content = (
       <p className={styles.analysisLoading} role="status">
-        Checking the power and heart-rate response…
+        {say("training.response.responseLoading")}
       </p>
     );
   }
   return (
     <section className={styles.analysisPanel} aria-labelledby="power-heart-rate-title">
-      <p className={styles.rideEyebrow}>Server-produced relationship</p>
+      <p className={styles.rideEyebrow}>{say("training.response.responseEyebrow")}</p>
       <h2 id="power-heart-rate-title" className={styles.analysisTitle}>
-        Power and heart-rate response
+        {say("training.response.responseTitle")}
       </h2>
       <p className={styles.analysisIntro}>
-        Shows intervals.icu's cleaned, lag-adjusted relationship for this ride. It is separate from
-        the local aerobic drift estimate and does not prescribe training on its own.
+        {say("training.response.responseIntro", { provider: "intervals.icu" })}
       </p>
       {content}
     </section>
@@ -615,6 +706,7 @@ export function RideResponseReview(props: {
   readonly analysis: RideAnalysisViewState;
   readonly onRefresh: ((sections: readonly ActivityAnalysisSection[]) => void) | null;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const refresh = (section: ActivityAnalysisSection): (() => void) | null =>
     props.onRefresh === null ? null : () => props.onRefresh?.([section]);
   return (
@@ -624,8 +716,8 @@ export function RideResponseReview(props: {
         analysis={props.analysis}
         sectionName="power-distribution"
         resultKey="powerDistribution"
-        title="Power distribution"
-        intro="Shows how much measured ride time fell inside each recorded power range. Missing ranges are not filled with zeros."
+        title={say("training.response.powerDistributionTitle")}
+        intro={say("training.response.powerDistributionIntro")}
         onRefresh={refresh("power-distribution")}
       />
       <DistributionPanel
@@ -633,8 +725,8 @@ export function RideResponseReview(props: {
         analysis={props.analysis}
         sectionName="heart-rate-distribution"
         resultKey="heartRateDistribution"
-        title="Heart-rate distribution"
-        intro="Shows how much measured ride time fell inside each recorded heart-rate range. It can load even when power data is unavailable."
+        title={say("training.response.heartRateDistributionTitle")}
+        intro={say("training.response.heartRateDistributionIntro")}
         onRefresh={refresh("heart-rate-distribution")}
       />
       <PowerHeartRatePanel

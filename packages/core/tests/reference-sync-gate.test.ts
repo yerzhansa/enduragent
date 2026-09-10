@@ -75,22 +75,16 @@ describe("gateLatestJson", () => {
   it("step2 PASS: weekly_hours=10 + activities summing 10h in 7d → no step2 failure", () => {
     const fetched = withLatest({
       athlete_profile: { quick_stats: { weekly_hours: 10 } },
-      recent_activities: [
-        { start_date_local: isoOffset(-2 * 24 * HOUR_MS), moving_time: 36000 },
-      ],
+      recent_activities: [{ start_date_local: isoOffset(-2 * 24 * HOUR_MS), moving_time: 36000 }],
     });
     const result = gateLatestJson(fetched, null, NOW);
-    expect(result.failures.map((f) => f.step)).not.toContain(
-      "step2_weekly_hours_consistency",
-    );
+    expect(result.failures.map((f) => f.step)).not.toContain("step2_weekly_hours_consistency");
   });
 
   it("step2 FAIL: weekly_hours=10 + activities summing 5h → ok:false, step2 in failures", () => {
     const fetched = withLatest({
       athlete_profile: { quick_stats: { weekly_hours: 10 } },
-      recent_activities: [
-        { start_date_local: isoOffset(-2 * 24 * HOUR_MS), moving_time: 18000 },
-      ],
+      recent_activities: [{ start_date_local: isoOffset(-2 * 24 * HOUR_MS), moving_time: 18000 }],
     });
     const result = gateLatestJson(fetched, null, NOW);
     expect(result.ok).toBe(false);
@@ -104,17 +98,13 @@ describe("gateLatestJson", () => {
     });
     const result = gateLatestJson(fetched, null, NOW);
     expect(result.ok).toBe(true);
-    expect(result.failures.map((f) => f.step)).not.toContain(
-      "step2_weekly_hours_consistency",
-    );
+    expect(result.failures.map((f) => f.step)).not.toContain("step2_weekly_hours_consistency");
   });
 
   it("step2 EDGE: weekly_hours=0 + actualHours=2 → HARD fail (above ABS_FLOOR_HOURS)", () => {
     const fetched = withLatest({
       athlete_profile: { quick_stats: { weekly_hours: 0 } },
-      recent_activities: [
-        { start_date_local: isoOffset(-1 * 24 * HOUR_MS), moving_time: 7200 },
-      ],
+      recent_activities: [{ start_date_local: isoOffset(-1 * 24 * HOUR_MS), moving_time: 7200 }],
     });
     const result = gateLatestJson(fetched, null, NOW);
     expect(result.ok).toBe(false);
@@ -128,7 +118,11 @@ describe("gateLatestJson", () => {
       athlete_profile: { sportSettings: [{ types: ["Ride"], ftp: 247 }] },
       wellness_data: { days: [{ id: "1998-04-11", weight: 70, restingHR: 50 }] },
       recent_activities: [
-        { start_date_local: isoOffset(-1 * 24 * HOUR_MS), moving_time: 3600, average_heartrate: 150 },
+        {
+          start_date_local: isoOffset(-1 * 24 * HOUR_MS),
+          moving_time: 3600,
+          average_heartrate: 150,
+        },
       ],
     });
     const result = gateLatestJson(fetched, null, NOW);
@@ -237,9 +231,7 @@ describe("gateLatestJson", () => {
     // present; that path does NOT feed step6b (clock offset), so a stale-but-
     // valid bundle stays ok:true.
     const fetched = withLatest({
-      recent_activities: [
-        { start_date_local: isoOffset(-72 * HOUR_MS), moving_time: 3600 },
-      ],
+      recent_activities: [{ start_date_local: isoOffset(-72 * HOUR_MS), moving_time: 3600 }],
     });
     const result = gateLatestJson(fetched, null, NOW);
     expect(result.ok).toBe(true);
@@ -288,9 +280,7 @@ describe("gateLatestJson", () => {
 
   it("MIXED hard+soft: failing step4 AND warning step6 → ok:false (hard dominates), step6 warning still carried", () => {
     const fetched = withLatest({
-      recent_activities: [
-        { start_date_local: isoOffset(-72 * HOUR_MS), moving_time: 3600 },
-      ],
+      recent_activities: [{ start_date_local: isoOffset(-72 * HOUR_MS), moving_time: 3600 }],
       wellness_data: { days: [{ id: "1998-04-11", weight: 500 }] },
     });
     const result = gateLatestJson(fetched, null, NOW);

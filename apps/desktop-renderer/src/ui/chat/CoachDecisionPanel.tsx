@@ -1,3 +1,5 @@
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import {
   RecordedAnswer,
   QuestionCard,
@@ -34,6 +36,7 @@ export function CoachDecisionPanel(props: {
     retry(): void;
   };
 }): ReactElement | null {
+  const { say, format } = usePhrasebook();
   const chatDecision = useEnduragentStore((state) => state.chat.decision);
   const chatPhase = useEnduragentStore((state) => state.chat.decisionPhase);
   const chatAnswerLabel = useEnduragentStore((state) => state.chat.decisionAnswerLabel);
@@ -42,9 +45,21 @@ export function CoachDecisionPanel(props: {
   const actions = useEnduragentStore((state) => state.chatActions);
   const decision = props.surface?.decision ?? chatDecision;
   const phase = props.surface?.phase ?? chatPhase;
-  const answerLabel = props.surface?.answerLabel ?? chatAnswerLabel;
-  const error = props.surface?.error ?? chatError;
-  const loadError = props.surface?.loadError ?? chatLoadError;
+  const rawAnswerLabel = props.surface?.answerLabel ?? chatAnswerLabel;
+  const answerLabel =
+    decision?.status === "answered" &&
+    decision.answer.kind === "option" &&
+    !decision.options.some(
+      (option) => decision.answer.kind === "option" && option.id === decision.answer.optionId,
+    )
+      ? say("chat.notice.savedChoice")
+      : rawAnswerLabel;
+  const rawError = props.surface?.error ?? chatError;
+  const errorMessage = rawError === null ? null : chatFeedbackMessage(rawError);
+  const error = errorMessage === null ? rawError : say(errorMessage);
+  const rawLoadError = props.surface?.loadError ?? chatLoadError;
+  const loadErrorMessage = rawLoadError === null ? null : chatFeedbackMessage(rawLoadError);
+  const loadError = loadErrorMessage === null ? rawLoadError : say(loadErrorMessage);
   const available = props.surface !== undefined || actions !== null;
   const answer = useCallback(
     (decisionId: string, value: CoachDecisionAnswer): void => {
@@ -131,7 +146,9 @@ export function CoachDecisionPanel(props: {
     return (
       <section className="grid gap-inset rounded-card border border-line bg-surface p-4 shadow-elev-2">
         <div className="grid gap-[calc(var(--inset)/2)]">
-          <strong className="text-sm font-medium leading-5">Reconnect to check Chat</strong>
+          <strong className="text-sm font-medium leading-5">
+            {say("chat.coachDecision.reconnectTitle")}
+          </strong>
           <p className="m-0 text-xs leading-4 text-ink-2" role="alert">
             {loadError}
           </p>
@@ -145,7 +162,7 @@ export function CoachDecisionPanel(props: {
               retryDecision();
             }}
           >
-            Reconnect
+            {say("chat.coachDecision.reconnect")}
           </Button>
         </div>
       </section>
@@ -159,7 +176,7 @@ export function CoachDecisionPanel(props: {
   ) {
     return (
       <RecordedAnswer
-        title="Your choice is saved"
+        title={say("chat.coachDecision.saved")}
         aria-live="polite"
         actions={
           <>
@@ -171,12 +188,14 @@ export function CoachDecisionPanel(props: {
                 retryDecision();
               }}
             >
-              Try again
+              {say("chat.coachDecision.retry")}
             </Button>
           </>
         }
       >
-        <p className="m-0 text-xs leading-4 text-ink-2">{answerLabel ?? "Your answer"}</p>
+        <p className="m-0 text-xs leading-4 text-ink-2">
+          {answerLabel ?? say("chat.coachDecision.answer")}
+        </p>
         <p className="m-0 text-xs leading-4 text-danger" role="alert">
           {error}
         </p>
@@ -192,20 +211,26 @@ export function CoachDecisionPanel(props: {
     const recovering = phase === "recovering";
     return (
       <RecordedAnswer
-        title={recovering ? "Finishing your saved choice…" : "Continuing with your choice…"}
+        title={
+          recovering ? say("chat.coachDecision.recovering") : say("chat.coachDecision.continuing")
+        }
         busy
         aria-live="polite"
         actions={
           error === null ? undefined : (
             <Button type="button" variant="outline" disabled={!available} onClick={retryDecision}>
-              Try again
+              {say("chat.coachDecision.retry")}
             </Button>
           )
         }
       >
         <p className="m-0 text-xs leading-4 text-ink-2">
-          {answerLabel ?? "Your answer"}
-          {recovering ? " was saved before Enduragent reopened." : ""}
+          {recovering
+            ? say("chat.coachDecision.restoredAnswer", {
+                answer: answerLabel ?? say("chat.coachDecision.answer"),
+                product: "Enduragent",
+              })
+            : (answerLabel ?? say("chat.coachDecision.answer"))}
         </p>
         {error === null ? null : (
           <p className="m-0 text-xs leading-4 text-danger" role="alert">
@@ -255,7 +280,7 @@ export function CoachDecisionPanel(props: {
     <QuestionCard
       title={decision.question}
       titleId={questionId}
-      eyebrow="Coach needs your answer"
+      eyebrow={say("chat.coachDecision.eyebrow")}
       aria-live="polite"
       onKeyDown={onKeyDown}
       actions={
@@ -263,7 +288,7 @@ export function CoachDecisionPanel(props: {
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Skip question"
+          aria-label={say("chat.coachDecision.skip")}
           disabled={!available}
           onClick={skip}
         >
@@ -277,7 +302,7 @@ export function CoachDecisionPanel(props: {
             className="text-xs font-semibold leading-4 text-ink-2"
             htmlFor="decision-custom-answer"
           >
-            What would work better?
+            {say("chat.coachDecision.customPrompt")}
           </label>
           <QuestionInput
             id="decision-custom-answer"
@@ -298,7 +323,7 @@ export function CoachDecisionPanel(props: {
                 setCustomOpen(false);
               }}
             >
-              Back
+              {say("common.back")}
             </Button>
             <Button
               type="button"
@@ -310,7 +335,7 @@ export function CoachDecisionPanel(props: {
                 });
               }}
             >
-              Continue
+              {say("common.continue")}
             </Button>
           </div>
         </QuestionEditor>
@@ -322,10 +347,10 @@ export function CoachDecisionPanel(props: {
               ref={(element) => {
                 optionRefs.current[index] = element;
               }}
-              marker={index + 1}
+              marker={format.number(index + 1)}
               label={option.label}
               description={option.description}
-              annotation={option.recommended ? "Recommended" : undefined}
+              annotation={option.recommended ? say("chat.coachDecision.recommended") : undefined}
               onClick={() => {
                 choose(option.id);
               }}
@@ -337,8 +362,8 @@ export function CoachDecisionPanel(props: {
               customTrigger.current = element;
             }}
             marker={<Plus className="size-4" aria-hidden="true" />}
-            label="Something else"
-            description="Answer in your own words."
+            label={say("chat.coachDecision.customLabel")}
+            description={say("chat.coachDecision.customDescription")}
             onClick={() => {
               setCustomOpen(true);
             }}

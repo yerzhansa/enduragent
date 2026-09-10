@@ -1,3 +1,11 @@
+import { createPhrasebook, loadCatalog, type Catalog } from "@enduragent/i18n/messages";
+import {
+  ERROR_COPY,
+  RETRY_SAVED_KEYS_LABEL,
+  CHATGPT_SIGN_IN_LABEL,
+  CHATGPT_PHASE_COPY,
+  CHATGPT_PANEL_HINT,
+} from "../src/ui/onboarding/copy";
 import { buttonVariants } from "@enduragent/ui";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
@@ -34,7 +42,7 @@ const BANNED_TRAINING_TERMS = [
 ].map((codes) => String.fromCharCode(...codes));
 
 const PROVIDER_WORD_ALLOWLIST = [
-  "9 providers · pay per use",
+  "{{providers}} providers · pay per use",
   "Created in the provider's console",
 ] as const;
 
@@ -316,27 +324,25 @@ describe("desktop onboarding wizard", () => {
   });
 
   it("names only controls the setup screen still renders in its error copy", async () => {
-    const copy = await readFile(new URL("../src/ui/onboarding/copy.ts", import.meta.url), "utf8");
-    const start = copy.indexOf("export const ERROR_COPY");
-    const end = copy.indexOf("export const CLAUDE_CLI_LANE_COPY");
-    expect(start).toBeGreaterThanOrEqual(0);
-    expect(end).toBeGreaterThan(start);
-    const errors = copy.slice(start, end);
+    const { say } = await createPhrasebook({ tag: "en", locale: "en-US" });
+    const errors = Object.values(ERROR_COPY)
+      .map((message) => say(message))
+      .join("\n");
     expect(errors).not.toMatch(/\bContinue\b/u);
     expect(errors).not.toMatch(/\bBack\b/u);
     expect(errors).not.toMatch(/\bFinish setup\b/u);
     expect(errors).not.toContain("Choose Save to try it again.");
     expect(errors).toContain("Try activating it again.");
-    expect(copy).toContain('export const RETRY_SAVED_KEYS_LABEL = "Retry saved keys"');
+    expect(say(RETRY_SAVED_KEYS_LABEL)).toBe("Retry saved keys");
   });
 
-  it("names the ChatGPT lane copy exactly once, in the copy module", async () => {
-    const copy = await readFile(new URL("../src/ui/onboarding/copy.ts", import.meta.url), "utf8");
-    expect(copy).toContain("Sign in with ChatGPT");
-    expect(copy).toContain("Waiting for browser…");
-    expect(copy).toContain("Completing sign-in…");
-    expect(copy).toContain("Activating coach…");
-    expect(copy).toContain("Needs a paid plan.");
+  it("renders the ChatGPT lane copy from catalog messages", async () => {
+    const { say } = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(say(CHATGPT_SIGN_IN_LABEL)).toBe("Sign in with ChatGPT");
+    expect(say(CHATGPT_PHASE_COPY["waiting-for-browser"])).toBe("Waiting for browser…");
+    expect(say(CHATGPT_PHASE_COPY["completing-sign-in"])).toBe("Completing sign-in…");
+    expect(say(CHATGPT_PHASE_COPY["activating-coach"])).toBe("Activating coach…");
+    expect(say(CHATGPT_PANEL_HINT)).toContain("Needs a paid plan.");
   });
 
   it("pairs every transition utility with a reduced-motion escape", async () => {
@@ -377,7 +383,16 @@ describe("desktop onboarding wizard", () => {
     const copy = await readFile(new URL("../src/ui/onboarding/copy.ts", import.meta.url), "utf8");
     const start = copy.indexOf("export const SETUP_HEADING");
     expect(start).toBeGreaterThan(0);
-    const prose = copy.slice(start);
+    const constants = copy.slice(start, copy.indexOf("export function setupLaneMessage"));
+    const catalog = await loadCatalog("en");
+    const prose = Array.from(constants.matchAll(/msg\("([^"\n]+)"/gu), ([, key]) => {
+      let value: string | Catalog = catalog;
+      for (const part of key.split(".")) {
+        if (typeof value === "string") return "";
+        value = value[part];
+      }
+      return typeof value === "string" ? value : "";
+    }).join("\n");
     let scanned = prose;
     for (const allowed of PROVIDER_WORD_ALLOWLIST) scanned = scanned.split(allowed).join("");
     expect(scanned).not.toMatch(/\bproviders?\b/iu);

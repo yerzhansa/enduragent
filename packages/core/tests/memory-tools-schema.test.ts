@@ -41,15 +41,12 @@ describe("memory_write schema and guard", () => {
   });
 
   it("rejects unknown sections and writes a valid section", async () => {
-    expect(
-      schema.safeParse({ type: "memory", section: "unknown", content: "x" }).success,
-    ).toBe(false);
+    expect(schema.safeParse({ type: "memory", section: "unknown", content: "x" }).success).toBe(
+      false,
+    );
     const memory = memorySpy();
     const tool = createMemoryTools(memory, sections).memory_write;
-    await tool.execute!(
-      { type: "memory", section: "profile", content: "x" },
-      {} as never,
-    );
+    await tool.execute!({ type: "memory", section: "profile", content: "x" }, {} as never);
     expect(memory.writeSection).toHaveBeenCalledWith("profile", "x", "chat-tool");
   });
 
@@ -67,13 +64,9 @@ describe("memory_write schema and guard", () => {
 describe("PlanSaveInputSchema", () => {
   it("requires a name and typed headline fields", () => {
     expect(PlanSaveInputSchema.safeParse({}).success).toBe(false);
-    expect(PlanSaveInputSchema.safeParse({ name: "P", totalWeeks: null }).success).toBe(
-      false,
-    );
+    expect(PlanSaveInputSchema.safeParse({ name: "P", totalWeeks: null }).success).toBe(false);
     expect(PlanSaveInputSchema.safeParse({ name: "P", totalWeeks: 0 }).success).toBe(false);
-    expect(PlanSaveInputSchema.safeParse({ name: "P", totalWeeks: 12.5 }).success).toBe(
-      false,
-    );
+    expect(PlanSaveInputSchema.safeParse({ name: "P", totalWeeks: 12.5 }).success).toBe(false);
   });
 
   it("preserves passthrough fields", () => {

@@ -9,7 +9,10 @@ const okResult = (lastSyncAt: string): SyncResult => ({
   kind: "ran",
   lastSyncAt,
   refreshed: ["latest", "history", "intervals", "routes", "ftp_history"],
-  droppedActivities: { overall: { total: 0, visible: 0, restrictions: [], other: 0 }, recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 } },
+  droppedActivities: {
+    overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+    recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+  },
 });
 
 describe("Scheduler", () => {
@@ -47,9 +50,7 @@ describe("Scheduler", () => {
       }),
     );
 
-    const runSyncSpy = vi
-      .fn()
-      .mockResolvedValue(okResult(fixedNow.toISOString()));
+    const runSyncSpy = vi.fn().mockResolvedValue(okResult(fixedNow.toISOString()));
     const scheduler = new Scheduler({
       dataDir: dir,
       runSync: runSyncSpy,
@@ -67,9 +68,7 @@ describe("Scheduler", () => {
   });
 
   it("schedules immediately on start() in the cold-start case (no .scheduler.json)", async () => {
-    const runSyncSpy = vi
-      .fn()
-      .mockResolvedValue(okResult("2026-05-09T14:00:00Z"));
+    const runSyncSpy = vi.fn().mockResolvedValue(okResult("2026-05-09T14:00:00Z"));
 
     const scheduler = new Scheduler({
       dataDir: dir,
@@ -95,9 +94,7 @@ describe("Scheduler", () => {
       }),
     );
 
-    const runSyncSpy = vi
-      .fn()
-      .mockResolvedValue(okResult(fixedNow.toISOString()));
+    const runSyncSpy = vi.fn().mockResolvedValue(okResult(fixedNow.toISOString()));
     const scheduler = new Scheduler({
       dataDir: dir,
       runSync: runSyncSpy,

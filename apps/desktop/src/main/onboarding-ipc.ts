@@ -1,3 +1,4 @@
+import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
 import { homedir } from "node:os";
 import { extname, isAbsolute } from "node:path";
 import type {
@@ -539,11 +540,18 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     if (args.length !== 0) throw new TypeError();
     let result: Awaited<ReturnType<OnboardingDialogPort["showOpenDialog"]>>;
     try {
-      result = await options.dialog.showOpenDialog(options.window, {
-        defaultPath: homedir(),
-        properties: ["openFile", "multiSelections"],
-        filters: [{ name: "Ride files", extensions: ["fit", "tcx", "gpx"] }],
-      });
+      result = await refreshDesktopLanguage().then(() =>
+        options.dialog.showOpenDialog(options.window, {
+          defaultPath: homedir(),
+          properties: ["openFile", "multiSelections"],
+          filters: [
+            {
+              name: desktopPhrasebook().say("desktop.filePicker.rideFiles"),
+              extensions: ["fit", "tcx", "gpx"],
+            },
+          ],
+        }),
+      );
     } catch {
       return [];
     }

@@ -1,3 +1,4 @@
+import { cliPhrasebook, say } from "../cli-copy.js";
 import { randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -87,7 +88,12 @@ function loadFromEnv(): AllowedSenders | null {
   if (raw === undefined || raw === "") return null;
   if (!SENDER_ID_RE.test(raw)) {
     console.error(
-      `[security] ${OPERATOR_ID_ENV}="${raw}" is not a valid Telegram user-id (must be a positive integer ≥ 2 digits, no leading zero). Falling through to default.`,
+      say("telegram.security.invalidEnvironment", {
+        variable: OPERATOR_ID_ENV,
+        value: raw,
+        service: "Telegram",
+        minimumDigits: cliPhrasebook().format.number(2),
+      }),
     );
     return null;
   }
@@ -128,8 +134,12 @@ function validateSchema(
           else
             console.error(
               discloseInvalidEntries
-                ? `[security] ${diagnostic}: dropped invalid allowFrom entry ${JSON.stringify(item)}.`
-                : `[security] ${diagnostic}: dropped invalid allowFrom entry.`,
+                ? say("telegram.security.invalidEntry", {
+                    diagnostic,
+                    field: "allowFrom",
+                    entry: JSON.stringify(item),
+                  })
+                : say("telegram.security.invalidEntryPrivate", { diagnostic, field: "allowFrom" }),
             );
         }
         return out;
@@ -145,13 +155,11 @@ function validateSchema(
   if (!result.success) {
     const issue = result.error.issues[0];
     const field = issue.path.join(".") || "root";
-    console.error(`[security] ${diagnostic}: invalid ${field}; falling back to default-pairing.`);
+    console.error(say("telegram.security.invalidField", { diagnostic, field }));
     return null;
   }
   if (result.data.allowFrom.length === 0 && result.data.dmPolicy === "allowlist") {
-    console.error(
-      `[security] ${diagnostic}: allowlist mode with no valid allowFrom entries; falling back to default-pairing.`,
-    );
+    console.error(say("telegram.security.emptyAllowlist", { diagnostic, field: "allowFrom" }));
     return null;
   }
   return result.data as AllowedSenders;
@@ -217,10 +225,7 @@ function readWindowsAllowedSendersFile(dataDir: string, path: string): string | 
     assertWindowsPrivatePathRead({
       bounded: true,
       identityStable:
-        sameWindowsPrivatePathIdentity(
-          expectedIdentity,
-          windowsPrivatePathIdentity(opened),
-        ) &&
+        sameWindowsPrivatePathIdentity(expectedIdentity, windowsPrivatePathIdentity(opened)) &&
         sameWindowsPrivatePathIdentity(
           windowsPrivatePathIdentity(opened),
           windowsPrivatePathIdentity(afterRead),
@@ -280,13 +285,17 @@ function loadFromFile(dataDir: string, platform: NodeJS.Platform): AllowedSender
       throw new WindowsPrivatePathPolicyError("read-check", "corruption");
     }
     console.error(
-      `[security] ${path} is not valid JSON (${err instanceof Error ? err.message : String(err)}); falling back to default-pairing.`,
+      say("telegram.security.invalidJson", {
+        path,
+        format: "JSON",
+        error: err instanceof Error ? err.message : String(err),
+      }),
     );
     return null;
   }
   const validated = validateSchema(
     parsed,
-    platform === "win32" ? "Telegram sender authorization" : path,
+    platform === "win32" ? say("telegram.security.authorization", { service: "Telegram" }) : path,
     platform !== "win32",
   );
   if (validated === null && platform === "win32") {
@@ -355,10 +364,7 @@ function accessFenceActive(dataDir: string, platform: NodeJS.Platform): boolean 
       throw classifyWindowsPrivatePathFailure("read-check", error);
     }
   }
-  return (
-    uncertainAccessFences.has(dataDir) ||
-    pathExistsOrIsUninspectable(markerPath)
-  );
+  return uncertainAccessFences.has(dataDir) || pathExistsOrIsUninspectable(markerPath);
 }
 
 function loadFromFileCached(dataDir: string, platform: NodeJS.Platform): AllowedSenders | null {
@@ -487,7 +493,7 @@ class WindowsLockfileContentionError extends LockfileContentionError {
   readonly category = "sharing-violation";
 
   constructor() {
-    super("Telegram sender authorization lock is held.");
+    super(say("telegram.security.lockHeld", { service: "Telegram" }));
   }
 }
 
@@ -495,8 +501,8 @@ export class AllowedSendersRecoveryRequiredError extends Error {
   constructor(dataDir: string, options: AllowedSendersStorageOptions = {}) {
     super(
       (options.platform ?? process.platform) === "win32"
-        ? "Telegram sender authorization recovery is required."
-        : `Telegram sender authorization recovery is required for ${dataDir}.`,
+        ? say("telegram.security.recoveryRequired", { service: "Telegram" })
+        : say("telegram.security.recoveryRequiredAt", { path: dataDir, service: "Telegram" }),
     );
     this.name = "AllowedSendersRecoveryRequiredError";
   }
@@ -506,8 +512,8 @@ export class AllowedSendersCommitUncertainError extends Error {
   constructor(dataDir: string, cause: unknown, options: AllowedSendersStorageOptions = {}) {
     super(
       (options.platform ?? process.platform) === "win32"
-        ? "Telegram sender authorization commit is uncertain."
-        : `Telegram sender authorization commit is uncertain for ${dataDir}.`,
+        ? say("telegram.security.commitUncertain", { service: "Telegram" })
+        : say("telegram.security.commitUncertainAt", { path: dataDir, service: "Telegram" }),
       { cause },
     );
     this.name = "AllowedSendersCommitUncertainError";
@@ -625,13 +631,14 @@ function prepareLockfileClaim(
     try {
       unlinkSync(tempPath);
     } catch {}
-    throw context.platform === "win32"
-      ? classifyWindowsPrivatePathFailure(stage, error)
-      : error;
+    throw context.platform === "win32" ? classifyWindowsPrivatePathFailure(stage, error) : error;
   }
 }
 
-function acquireLockfile(dataDir: string, context: AllowedSendersStorageContext): LockfileOwnership {
+function acquireLockfile(
+  dataDir: string,
+  context: AllowedSendersStorageContext,
+): LockfileOwnership {
   const lockPath = join(dataDir, LOCK_FILE);
   const token = randomUUID();
   const content = `${process.pid}\n${new Date().toISOString()}\n${token}`;
@@ -651,9 +658,10 @@ function acquireLockfile(dataDir: string, context: AllowedSendersStorageContext)
         return { path: lockPath, content, windowsIdentity };
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-        const stale = context.platform === "win32"
-          ? windowsLockfileIsStale(dataDir, lockPath)
-          : lockfileIsStale(lockPath);
+        const stale =
+          context.platform === "win32"
+            ? windowsLockfileIsStale(dataDir, lockPath)
+            : lockfileIsStale(lockPath);
         if (stale) {
           try {
             unlinkSync(lockPath);
@@ -661,7 +669,10 @@ function acquireLockfile(dataDir: string, context: AllowedSendersStorageContext)
               assertWindowsPrivateDirectoryStable(context.windowsDirectory!);
             }
           } catch (error) {
-            if (context.platform === "win32" && (error as NodeJS.ErrnoException).code !== "ENOENT") {
+            if (
+              context.platform === "win32" &&
+              (error as NodeJS.ErrnoException).code !== "ENOENT"
+            ) {
               throw classifyWindowsPrivatePathFailure("rename", error);
             }
           }
@@ -669,12 +680,15 @@ function acquireLockfile(dataDir: string, context: AllowedSendersStorageContext)
         }
         if (context.platform === "win32") throw new WindowsLockfileContentionError();
         throw new LockfileContentionError(
-          `Another ${process.argv[1] ?? "cycling-coach"} process holds ${lockPath}; try again in a moment.`,
+          say("telegram.security.lockHeldByProcess", {
+            process: process.argv[1] ?? "cycling-coach",
+            path: lockPath,
+          }),
         );
       }
     }
     if (context.platform === "win32") throw new WindowsLockfileContentionError();
-    throw new LockfileContentionError(`Failed to acquire ${lockPath} after stale-reclaim retry.`);
+    throw new LockfileContentionError(say("telegram.security.lockFailed", { path: lockPath }));
   } catch (error) {
     throw context.platform === "win32" && !(error instanceof LockfileContentionError)
       ? classifyWindowsPrivatePathFailure("rename", error)
@@ -697,7 +711,10 @@ function removeLockfileClaim(path: string, context: AllowedSendersStorageContext
   }
 }
 
-function releaseLockfile(ownership: LockfileOwnership, context: AllowedSendersStorageContext): void {
+function releaseLockfile(
+  ownership: LockfileOwnership,
+  context: AllowedSendersStorageContext,
+): void {
   if (context.platform === "win32") {
     let stage: WindowsPrivatePathPolicyStage = "read-check";
     try {
@@ -755,7 +772,11 @@ function secureDataDir(
     if (mode !== 0o700) {
       chmodSync(dataDir, 0o700);
       console.error(
-        `[security] Tightened ${dataDir} permissions from 0o${mode.toString(8)} to 0o700.`,
+        say("telegram.security.permissions", {
+          path: dataDir,
+          previous: `0o${mode.toString(8)}`,
+          next: "0o700",
+        }),
       );
     }
   } else {
@@ -915,9 +936,7 @@ function removeAccessFenceLocked(dataDir: string, context: AllowedSendersStorage
         } catch {}
       }
     }
-    throw context.platform === "win32"
-      ? classifyWindowsPrivatePathFailure("rename", error)
-      : error;
+    throw context.platform === "win32" ? classifyWindowsPrivatePathFailure("rename", error) : error;
   }
 }
 
@@ -995,18 +1014,22 @@ function mutateAllowedSenders(
   recoverPendingFence: boolean,
   options: AllowedSendersStorageOptions,
 ): AllowedSenders {
-  return withAllowedSendersLock(dataDir, (context) => {
-    let current = loadFromFile(dataDir, context.platform);
-    if (accessFenceActive(dataDir, context.platform)) {
-      if (!recoverPendingFence) {
-        throw new AllowedSendersRecoveryRequiredError(dataDir, { platform: context.platform });
+  return withAllowedSendersLock(
+    dataDir,
+    (context) => {
+      let current = loadFromFile(dataDir, context.platform);
+      if (accessFenceActive(dataDir, context.platform)) {
+        if (!recoverPendingFence) {
+          throw new AllowedSendersRecoveryRequiredError(dataDir, { platform: context.platform });
+        }
+        current = commitAllowedSendersLocked(dataDir, recoveryState(current), context);
       }
-      current = commitAllowedSendersLocked(dataDir, recoveryState(current), context);
-    }
-    const next = transform(current);
-    if (next === current) return next;
-    return commitAllowedSendersLocked(dataDir, next, context);
-  }, options);
+      const next = transform(current);
+      if (next === current) return next;
+      return commitAllowedSendersLocked(dataDir, next, context);
+    },
+    options,
+  );
 }
 
 export function saveAllowedSenders(
@@ -1021,13 +1044,17 @@ export function resetDesktopAllowedSenders(
   dataDir: string,
   options: AllowedSendersStorageOptions = {},
 ): void {
-  withAllowedSendersLock(dataDir, (context) => {
-    commitAllowedSendersLocked(
-      dataDir,
-      recoveryState(loadFromFile(dataDir, context.platform)),
-      context,
-    );
-  }, options);
+  withAllowedSendersLock(
+    dataDir,
+    (context) => {
+      commitAllowedSendersLocked(
+        dataDir,
+        recoveryState(loadFromFile(dataDir, context.platform)),
+        context,
+      );
+    },
+    options,
+  );
 }
 
 export function bindDesktopTelegramAccess(
@@ -1038,19 +1065,26 @@ export function bindDesktopTelegramAccess(
   if (!SENDER_ID_RE.test(desktopBotId)) {
     throw new TypeError("invalid Desktop Telegram bot id");
   }
-  return withAllowedSendersLock(dataDir, (context) => {
-    const pendingReset = accessFenceActive(dataDir, context.platform);
-    const current = loadFromFile(dataDir, context.platform);
-    if (!pendingReset && current?.desktopBotId === desktopBotId) return "preserved";
-    commitAllowedSendersLocked(dataDir, { ...defaultPairingState(), desktopBotId }, context);
-    return "reset";
-  }, options);
+  return withAllowedSendersLock(
+    dataDir,
+    (context) => {
+      const pendingReset = accessFenceActive(dataDir, context.platform);
+      const current = loadFromFile(dataDir, context.platform);
+      if (!pendingReset && current?.desktopBotId === desktopBotId) return "preserved";
+      commitAllowedSendersLocked(dataDir, { ...defaultPairingState(), desktopBotId }, context);
+      return "reset";
+    },
+    options,
+  );
 }
 
 function assertSenderId(id: string): void {
   if (!SENDER_ID_RE.test(id)) {
     throw new Error(
-      `Invalid sender id ${JSON.stringify(id)}: must be a positive integer (≥ 2 digits, no leading zero).`,
+      say("telegram.security.invalidSender", {
+        id: JSON.stringify(id),
+        minimumDigits: cliPhrasebook().format.number(2),
+      }),
     );
   }
 }
@@ -1090,7 +1124,7 @@ function hasConsistentUnownedState(state: AllowedSenders): boolean {
 
 class DesktopSenderMutationExit<T> extends Error {
   constructor(readonly result: T) {
-    super("Desktop sender mutation exited without a write.");
+    super(say("telegram.security.mutationNotWritten"));
   }
 }
 
@@ -1120,36 +1154,40 @@ export function claimPrimaryOperator(
   let result: ClaimPrimaryOperatorResult | undefined;
 
   try {
-    saveAllowedSenders(dataDir, (current) => {
-      if (!current && allowedSendersFileExists(dataDir, options.platform ?? process.platform)) {
-        return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
-      }
-
-      const base = current ?? defaultPairingState();
-      if (hasValidPrimary(base)) {
-        if (base.primaryOperator !== senderId) {
-          return exitDesktopMutation({ status: "refused", reason: "primary-exists" });
+    saveAllowedSenders(
+      dataDir,
+      (current) => {
+        if (!current && allowedSendersFileExists(dataDir, options.platform ?? process.platform)) {
+          return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
         }
-        return exitDesktopMutation({
-          status: "already-primary",
-          sender: desktopSender(base, senderId),
-        });
-      }
-      if (!hasConsistentUnownedState(base)) {
-        return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
-      }
 
-      const next: AllowedSenders = {
-        ...base,
-        dmPolicy: "allowlist",
-        allowFrom: [senderId],
-        primaryOperator: senderId,
-        capturedAt: nowIso,
-        addedAt: { ...base.addedAt, [senderId]: nowIso },
-      };
-      result = { status: "claimed", sender: desktopSender(next, senderId) };
-      return next;
-    }, options);
+        const base = current ?? defaultPairingState();
+        if (hasValidPrimary(base)) {
+          if (base.primaryOperator !== senderId) {
+            return exitDesktopMutation({ status: "refused", reason: "primary-exists" });
+          }
+          return exitDesktopMutation({
+            status: "already-primary",
+            sender: desktopSender(base, senderId),
+          });
+        }
+        if (!hasConsistentUnownedState(base)) {
+          return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
+        }
+
+        const next: AllowedSenders = {
+          ...base,
+          dmPolicy: "allowlist",
+          allowFrom: [senderId],
+          primaryOperator: senderId,
+          capturedAt: nowIso,
+          addedAt: { ...base.addedAt, [senderId]: nowIso },
+        };
+        result = { status: "claimed", sender: desktopSender(next, senderId) };
+        return next;
+      },
+      options,
+    );
   } catch (err) {
     if (err instanceof DesktopSenderMutationExit) {
       return err.result as ClaimPrimaryOperatorResult;
@@ -1176,33 +1214,37 @@ export function addSecondarySender(
   let result: AddSecondarySenderResult | undefined;
 
   try {
-    saveAllowedSenders(dataDir, (current) => {
-      if (!current && allowedSendersFileExists(dataDir, options.platform ?? process.platform)) {
-        return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
-      }
+    saveAllowedSenders(
+      dataDir,
+      (current) => {
+        if (!current && allowedSendersFileExists(dataDir, options.platform ?? process.platform)) {
+          return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
+        }
 
-      const base = current ?? defaultPairingState();
-      if (hasConsistentUnownedState(base)) {
-        return exitDesktopMutation({ status: "refused", reason: "primary-required" });
-      }
-      if (!hasValidPrimary(base)) {
-        return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
-      }
-      if (base.allowFrom.includes(senderId)) {
-        return exitDesktopMutation({
-          status: "already-allowed",
-          sender: desktopSender(base, senderId),
-        });
-      }
+        const base = current ?? defaultPairingState();
+        if (hasConsistentUnownedState(base)) {
+          return exitDesktopMutation({ status: "refused", reason: "primary-required" });
+        }
+        if (!hasValidPrimary(base)) {
+          return exitDesktopMutation({ status: "refused", reason: "inconsistent-state" });
+        }
+        if (base.allowFrom.includes(senderId)) {
+          return exitDesktopMutation({
+            status: "already-allowed",
+            sender: desktopSender(base, senderId),
+          });
+        }
 
-      const next: AllowedSenders = {
-        ...base,
-        allowFrom: [...base.allowFrom, senderId],
-        addedAt: { ...base.addedAt, [senderId]: nowIso },
-      };
-      result = { status: "added", sender: desktopSender(next, senderId) };
-      return next;
-    }, options);
+        const next: AllowedSenders = {
+          ...base,
+          allowFrom: [...base.allowFrom, senderId],
+          addedAt: { ...base.addedAt, [senderId]: nowIso },
+        };
+        result = { status: "added", sender: desktopSender(next, senderId) };
+        return next;
+      },
+      options,
+    );
   } catch (err) {
     if (err instanceof DesktopSenderMutationExit) {
       return err.result as AddSecondarySenderResult;
@@ -1288,23 +1330,27 @@ export function addSender(
 ): void {
   assertSenderId(senderId);
   const nowIso = new Date().toISOString();
-  saveAllowedSenders(dataDir, (current) => {
-    const base = current ?? defaultPairingState();
-    if (base.allowFrom.includes(senderId)) {
-      // Idempotent — keep dmPolicy "allowlist" if it isn't already.
-      if (base.dmPolicy === "pairing") {
-        return { ...base, dmPolicy: "allowlist" };
+  saveAllowedSenders(
+    dataDir,
+    (current) => {
+      const base = current ?? defaultPairingState();
+      if (base.allowFrom.includes(senderId)) {
+        // Idempotent — keep dmPolicy "allowlist" if it isn't already.
+        if (base.dmPolicy === "pairing") {
+          return { ...base, dmPolicy: "allowlist" };
+        }
+        return base;
       }
-      return base;
-    }
-    return {
-      ...base,
-      dmPolicy: "allowlist",
-      allowFrom: [...base.allowFrom, senderId],
-      addedAt: { ...base.addedAt, [senderId]: nowIso },
-      primaryOperator: base.primaryOperator ?? senderId,
-    };
-  }, options);
+      return {
+        ...base,
+        dmPolicy: "allowlist",
+        allowFrom: [...base.allowFrom, senderId],
+        addedAt: { ...base.addedAt, [senderId]: nowIso },
+        primaryOperator: base.primaryOperator ?? senderId,
+      };
+    },
+    options,
+  );
 }
 
 interface SessionCandidate {

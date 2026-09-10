@@ -1,5 +1,6 @@
+import { renderLocalized as render } from "./language-harness";
 import type { ImportFilesRpcResult } from "@enduragent/coach-contract";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {

@@ -1,18 +1,22 @@
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { commitmentSummaryId } from "./PlanCreationDraftCards";
 import { creationProgressCopy } from "./plan-creation-progress";
+import { useChatDate } from "./use-chat-date";
 
 function usePlanCreationChrome(): {
   readonly model: PlanCreationCardModel;
   readonly title: string;
-  readonly status: "Paused" | "In progress";
+  readonly status: string;
   readonly summary: string;
   readonly buildDraft: boolean;
   readonly canContinue: boolean;
 } | null {
+  const phrasebook = usePhrasebook();
+  const formatDate = useChatDate();
   const model = useEnduragentStore((state) => state.chat.planCreation);
   const paused = useEnduragentStore((state) => state.chat.planCreationPaused);
   const library = useEnduragentStore((state) => state.planLibrary.value);
@@ -22,6 +26,8 @@ function usePlanCreationChrome(): {
     paused,
     libraryLoaded: library !== null,
     activePlanName: library?.active?.name ?? null,
+    formatDate,
+    phrasebook,
   });
   return {
     model,
@@ -32,14 +38,15 @@ function usePlanCreationChrome(): {
 }
 
 export function PlanCreationSubtitle(): ReactElement | null {
+  const { say } = usePhrasebook();
   const chrome = usePlanCreationChrome();
   if (chrome === null) return null;
   return (
     <p
       className="m-0 min-w-0 truncate text-xs leading-4 text-ink-2"
-      title={`Plan creation · ${chrome.title} · ${chrome.status} · ${chrome.summary}`}
+      title={`${say("chat.planCreation.title")} · ${chrome.title} · ${chrome.status} · ${chrome.summary}`}
     >
-      <span data-parity="progress.eyebrow">Plan creation</span>
+      <span data-parity="progress.eyebrow">{say("chat.planCreation.title")}</span>
       {" · "}
       <span data-parity="progress.title">{chrome.title}</span>
       {" · "}
@@ -51,6 +58,7 @@ export function PlanCreationSubtitle(): ReactElement | null {
 }
 
 export function PlanCreationHeaderActions(): ReactElement | null {
+  const { say } = usePhrasebook();
   const chrome = usePlanCreationChrome();
   const actions = useEnduragentStore((state) => state.chatActions);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
@@ -76,7 +84,7 @@ export function PlanCreationHeaderActions(): ReactElement | null {
         disabled={busy || actions === null}
         onClick={() => actions?.openPlanCreationDiscard()}
       >
-        Discard
+        {say("chat.planCreation.discard")}
       </Button>
       {chrome.buildDraft ? (
         <Button
@@ -93,7 +101,7 @@ export function PlanCreationHeaderActions(): ReactElement | null {
           }
           onClick={() => actions?.buildPlanCreationDraft()}
         >
-          Build Draft
+          {say("chat.planCreation.buildDraft")}
         </Button>
       ) : null}
       {chrome.canContinue ? (
@@ -104,7 +112,7 @@ export function PlanCreationHeaderActions(): ReactElement | null {
           disabled={actions === null || busy}
           onClick={() => actions?.continuePlanCreation()}
         >
-          Continue
+          {say("chat.planCreation.continue")}
         </Button>
       ) : null}
     </div>

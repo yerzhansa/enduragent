@@ -128,7 +128,10 @@ describe("retryWithBackoff", () => {
     const hint = 5_000;
     const onRetry = vi.fn();
     const makeFn = (): (() => Promise<string>) =>
-      vi.fn<() => Promise<string>>().mockRejectedValueOnce(new Error("429")).mockResolvedValue("ok");
+      vi
+        .fn<() => Promise<string>>()
+        .mockRejectedValueOnce(new Error("429"))
+        .mockResolvedValue("ok");
     const opts = (): Parameters<typeof retryWithBackoff>[1] => ({
       attempts: 2,
       baseMs: 100,

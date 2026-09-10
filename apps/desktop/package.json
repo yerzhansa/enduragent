@@ -45,6 +45,7 @@
     "@enduragent/coach-client": "workspace:*",
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/core": "workspace:*",
+    "@enduragent/i18n": "workspace:*",
     "electron-updater": "6.8.9",
     "yaml": "^2.9.0"
   },

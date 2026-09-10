@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, expect, it, vi } from "vitest";
 import { CoachClientDisconnectedError, type CoachClient } from "@enduragent/coach-client";
 import type { AthleteState, CyclingTrainingContext } from "@enduragent/coach-contract";
@@ -327,14 +328,15 @@ describe("training context controller", () => {
 });
 
 describe("training context display formatters", () => {
-  it("formats only display values without clock or locale inputs", () => {
-    expect(formatWholeNumber(12.6)).toBe("13");
-    expect(formatPercentage(0.756)).toBe("76%");
-    expect(formatSleepDuration(27_901)).toBe("7h 45m");
-    expect(formatRidingDuration(7_200)).toBe("2h");
-    expect(formatRidingDuration(5_100)).toBe("1h 25m");
-    expect(formatDistance(42_120, "metric")).toBe("42.1 km");
-    expect(formatDistance(42_120, "imperial")).toBe("26.2 mi");
+  it("formats display values through the English phrasebook", async () => {
+    const { say, format } = await createPhrasebook({ tag: "en", locale: "en-US" });
+    expect(formatWholeNumber(12.6, format)).toBe("13");
+    expect(say(formatPercentage(0.756, format))).toBe("76%");
+    expect(say(formatSleepDuration(27_901, format))).toBe("7h 45m");
+    expect(say(formatRidingDuration(7_200, format))).toBe("2h");
+    expect(say(formatRidingDuration(5_100, format))).toBe("1h 25m");
+    expect(say(formatDistance(42_120, "metric", format))).toBe("42.1 km");
+    expect(say(formatDistance(42_120, "imperial", format))).toBe("26.2 mi");
   });
 
   it("distinguishes same-day sync seconds while mutation labels remain date-only", () => {

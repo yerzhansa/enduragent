@@ -10,10 +10,7 @@ import {
   BODY_AFTER_TIMEOUT_LOG_PREFIX,
 } from "../src/reference/sync/run-sync.js";
 import { SCHEDULED_SYNC_INTERVAL_MS } from "../src/reference/freshness.js";
-import {
-  LATEST_SCHEMA_VERSION,
-  LatestJsonSchema,
-} from "../src/reference/schemas/latest.js";
+import { LATEST_SCHEMA_VERSION, LatestJsonSchema } from "../src/reference/schemas/latest.js";
 import { readLatestVersioned } from "../src/reference/io/read-latest-versioned.js";
 import { bootstrapReference } from "../src/reference/runtime.js";
 import type { Sport } from "../src/sport.js";
@@ -101,9 +98,7 @@ describe("createRunSync", () => {
   it("does not let an externally aborted predecessor replace a successor cache", async () => {
     const mutex = new AsyncMutex();
     const controller = new AbortController();
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
     let releaseWrites!: () => void;
     const writesGate = new Promise<void>((resolve) => {
       releaseWrites = resolve;
@@ -159,9 +154,8 @@ describe("createRunSync", () => {
   it("does not let an externally aborted predecessor clear a successor error state", async () => {
     const mutex = new AsyncMutex();
     const controller = new AbortController();
-    const { clearErrorState: realClearError } = await import(
-      "../src/reference/sync/error-state-writer.js"
-    );
+    const { clearErrorState: realClearError } =
+      await import("../src/reference/sync/error-state-writer.js");
     let releaseClear!: () => void;
     const clearGate = new Promise<void>((resolve) => {
       releaseClear = resolve;
@@ -344,7 +338,10 @@ describe("createRunSync", () => {
       kind: "ran",
       lastSyncAt: now.toISOString(),
       refreshed: ["latest", "history", "intervals", "routes", "ftp_history"],
-      droppedActivities: { overall: { total: 0, visible: 0, restrictions: [], other: 0 }, recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 } },
+      droppedActivities: {
+        overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+        recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+      },
     });
 
     const latest = JSON.parse(readFileSync(join(dir, "latest.json"), "utf-8"));
@@ -534,9 +531,7 @@ describe("createRunSync", () => {
     expect(capturedSignal!.aborted).toBe(true);
     expect(mutex.isHeld()).toBe(false);
 
-    const errorState = JSON.parse(
-      readFileSync(join(dir, "error_state.json"), "utf-8"),
-    );
+    const errorState = JSON.parse(readFileSync(join(dir, "error_state.json"), "utf-8"));
     expect(errorState.step).toBe("outer_timeout");
     expect(errorState.phase).toBe("fetching");
 
@@ -553,9 +548,7 @@ describe("createRunSync", () => {
     const fetchSpy = vi.fn().mockResolvedValue(emptyFetched);
     const rejectingGate = vi.fn().mockReturnValue({
       ok: false,
-      failures: [
-        { step: "ftp_source_check", detail: "FTP source missing on athlete profile" },
-      ],
+      failures: [{ step: "ftp_source_check", detail: "FTP source missing on athlete profile" }],
       warnings: [],
     });
 
@@ -579,9 +572,7 @@ describe("createRunSync", () => {
       ]);
     }
 
-    const errorState = JSON.parse(
-      readFileSync(join(dir, "error_state.json"), "utf-8"),
-    );
+    const errorState = JSON.parse(readFileSync(join(dir, "error_state.json"), "utf-8"));
     expect(errorState.step).toBe("gate_rejected");
     expect(errorState.detail).toContain("ftp_source_check");
     expect(errorState.phase).toBeUndefined();
@@ -600,9 +591,7 @@ describe("createRunSync", () => {
       ...emptyFetched,
       fetch_errors: [{ endpoint: "athlete", detail: "timeout" }],
     });
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
     // The gate-reject error_state write now routes through the injectable seam
     // (deps.atomicWrite), so forward it to the real writer for the on-disk
     // assertion below; cache/scheduler writes are still recorded as spy calls.
@@ -667,9 +656,7 @@ describe("createRunSync", () => {
         wellness_data: { days: [{ id: "1998-04-11", weight: 500, restingHR: 50 }] },
       },
     });
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
     // Forward to the real writer so the on-disk error_state read below works,
     // while still recording every write path the cycle attempted.
     const writeSpy = vi.fn(
@@ -704,9 +691,7 @@ describe("createRunSync", () => {
           (f) => f.reason.includes("step0_data_fetch") && f.reason.includes("athlete"),
         ),
       ).toBe(true);
-      expect(
-        result.failures.some((f) => f.reason.includes("step4_tolerance_band")),
-      ).toBe(true);
+      expect(result.failures.some((f) => f.reason.includes("step4_tolerance_band"))).toBe(true);
     }
 
     // A blocked cycle persists no cache (latest.json) and no commit marker
@@ -857,9 +842,7 @@ describe("createRunSync", () => {
     const now = new Date("2026-05-09T14:00:00Z");
     const fetchSpy = vi.fn().mockResolvedValue(emptyFetched);
 
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
 
     // The scheduler write parks on schedulerGate, so the body sits inside the
     // .scheduler.json write (phase === "writing_scheduler") until the hand-fired
@@ -877,11 +860,7 @@ describe("createRunSync", () => {
     });
     const pendingWrites: Array<Promise<unknown>> = [];
     const latchedSchedulerWrite = vi.fn(
-      async (
-        path: string,
-        value: unknown,
-        opts?: { signal?: AbortSignal },
-      ): Promise<void> => {
+      async (path: string, value: unknown, opts?: { signal?: AbortSignal }): Promise<void> => {
         if (path.endsWith(".scheduler.json")) {
           signalArrived();
           await schedulerGate;
@@ -930,9 +909,7 @@ describe("createRunSync", () => {
       expect(result.reason).toBe("outer_timeout");
     }
 
-    const errorState = JSON.parse(
-      readFileSync(join(dir, "error_state.json"), "utf-8"),
-    );
+    const errorState = JSON.parse(readFileSync(join(dir, "error_state.json"), "utf-8"));
     expect(errorState.step).toBe("outer_timeout");
     expect(errorState.phase).toBe("writing_scheduler");
 
@@ -962,9 +939,7 @@ describe("createRunSync", () => {
     const now = new Date("2026-05-09T14:00:00Z");
     const fetchSpy = vi.fn().mockResolvedValue(emptyFetched);
 
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
 
     // Every cache write parks on cacheGate, so the body sits at
     // phase === "writing_cache" until the hand-fired outer timer wins; abort
@@ -982,11 +957,7 @@ describe("createRunSync", () => {
     });
     const pendingWrites: Array<Promise<unknown>> = [];
     const latchedCacheWrite = vi.fn(
-      async (
-        path: string,
-        value: unknown,
-        opts?: { signal?: AbortSignal },
-      ): Promise<void> => {
+      async (path: string, value: unknown, opts?: { signal?: AbortSignal }): Promise<void> => {
         // Park only the cache writes; the post-timeout error_state record (which
         // now routes through this same seam, signal-less) must pass straight
         // through so the orchestrator can land the authoritative timeout record.
@@ -1040,9 +1011,7 @@ describe("createRunSync", () => {
       expect(result.reason).toBe("outer_timeout");
     }
 
-    const errorState = JSON.parse(
-      readFileSync(join(dir, "error_state.json"), "utf-8"),
-    );
+    const errorState = JSON.parse(readFileSync(join(dir, "error_state.json"), "utf-8"));
     expect(errorState.step).toBe("outer_timeout");
     expect(errorState.phase).toBe("writing_cache");
 
@@ -1096,9 +1065,7 @@ describe("createRunSync", () => {
     const fetchSpy = vi.fn().mockResolvedValue(emptyFetched);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const { atomicWriteJson: realAtomicWrite } = await import(
-      "../src/io/atomic-write-json.js"
-    );
+    const { atomicWriteJson: realAtomicWrite } = await import("../src/io/atomic-write-json.js");
     // atomicWrite that throws (simulating disk-full or fs error) AFTER a 200ms
     // delay. With outerTimeoutMs: 20, the outer race wins ("timeout") at ~20ms;
     // the body's await of this write rejects at ~200ms. The 10× gap keeps the
@@ -1346,7 +1313,7 @@ describe("latest derived_metrics structured schema + version gate", () => {
     vi.restoreAllMocks();
   });
 
-  it("the current cache schema version is \"4\"", () => {
+  it('the current cache schema version is "4"', () => {
     expect(LATEST_SCHEMA_VERSION).toBe("4");
   });
 
@@ -1386,9 +1353,7 @@ describe("latest derived_metrics structured schema + version gate", () => {
     expect(parsed.derived_metrics["capability.durability"]).toEqual({ score: 1 });
     expect(parsed.derived_metrics["capability.dfa_a1_profile"]).toEqual({ v: 8 });
     // The flat dotted key is NOT a nested capability object.
-    expect(
-      (parsed.derived_metrics as Record<string, unknown>).capability,
-    ).toBeUndefined();
+    expect((parsed.derived_metrics as Record<string, unknown>).capability).toBeUndefined();
   });
 
   it("readLatestVersioned returns the parsed envelope for a current-v2 file", () => {

@@ -130,7 +130,7 @@ async function composeFetched(): Promise<FetchedReference> {
     client: fakeClient(),
     signal: new AbortController().signal,
     now: NOW,
-      calendarTimeZone: "UTC",
+    calendarTimeZone: "UTC",
     sportTypes: SPORT_TYPES,
     throttleMs: 0,
   });

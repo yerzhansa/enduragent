@@ -80,13 +80,12 @@ describe("claude-cli context windows", () => {
     expect(contextWindowForModel(model)).toBe(200_000);
   });
 
-  it.each([
-    "claude-sonnet-4-5-20250929",
-    "claude-opus-4-1-20250805",
-    "claude-haiku-9-9-19990101",
-  ])("normalizes the pinned full id %s to its family alias", (model) => {
-    expect(contextWindowForModel(model)).toBe(200_000);
-  });
+  it.each(["claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805", "claude-haiku-9-9-19990101"])(
+    "normalizes the pinned full id %s to its family alias",
+    (model) => {
+      expect(contextWindowForModel(model)).toBe(200_000);
+    },
+  );
 
   it("keeps exact catalogue entries ahead of family normalization for api lanes", () => {
     expect(contextWindowForModel("claude-sonnet-5")).toBe(1_000_000);
@@ -241,8 +240,9 @@ describe("claude-cli config loading", () => {
   });
 
   it("honours the yaml kill switch", () => {
-    expect(load({ provider: "claude-cli", claude_cli: { enabled: false } }).llm.claudeCli?.enabled)
-      .toBe(false);
+    expect(
+      load({ provider: "claude-cli", claude_cli: { enabled: false } }).llm.claudeCli?.enabled,
+    ).toBe(false);
   });
 
   it.each(["1", "true", "TRUE", " True "])(

@@ -1,9 +1,12 @@
 import {
   createAuthMiddleware,
   createTelegramBot,
+  escapeHtmlText,
   loadAllowedSendersFromFile,
   type TelegramHostCapabilities,
 } from "@enduragent/core";
+import { msg } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { LocalCoachLifecycle } from "./local-runner.js";
 import { withTrustedTurnLanguage } from "./coach-engine-adapter.js";
 import type { InvocationCoordinator } from "./daemon/invocation-coordinator.js";
@@ -27,13 +30,16 @@ export interface DesktopTelegramRuntimeDependencies {
   readonly loadAllowedSenders?: typeof loadAllowedSendersFromFile;
 }
 
-function syncReply(result: Awaited<ReturnType<LocalCoachLifecycle["operations"]["sync"]>>): string {
+function syncReply(
+  result: Awaited<ReturnType<LocalCoachLifecycle["operations"]["sync"]>>,
+  phrasebook: Phrasebook,
+): string {
   if (!result.referenceSucceeded) {
-    return "Training data synced, but coaching data could not refresh. Try /sync again.";
+    return phrasebook.say(msg("telegram.sync.desktopReferenceFailed", { command: "/sync" }));
   }
   return result.published
-    ? "Sync complete — your training data is up to date."
-    : "Already up to date — no new training data was found.";
+    ? phrasebook.say(msg("telegram.sync.desktopComplete"))
+    : phrasebook.say(msg("telegram.sync.desktopUnchanged"));
 }
 
 function createDesktopTelegramHost(
@@ -47,12 +53,13 @@ function createDesktopTelegramHost(
   const loadAllowedSenders = dependencies.loadAllowedSenders ?? loadAllowedSendersFromFile;
   const accessMiddleware = (dependencies.createAccessMiddleware ?? createAuthMiddleware)({
     dataDir,
+    language: input.lifecycle.language,
     binaryName: "cycling-coach-desktop",
     challengeRateLimit: new Map(),
     challengeMinIntervalMs: 60_000,
     loadAllowedSenders,
-    pairingChallenge: ({ senderId }) =>
-      `<b>This bot is private.</b>\n\nYour Telegram user ID is <code>${senderId}</code>. Open Cycling Coach Desktop → Settings → Telegram to approve it.`,
+    pairingChallenge: ({ senderId, phrasebook }) =>
+      `<b>${escapeHtmlText(phrasebook.say(msg("telegram.pairing.private")))}</b>\n\n${escapeHtmlText(phrasebook.say(msg("telegram.pairing.desktopIdentity", { service: "Telegram" })))} <code>${escapeHtmlText(senderId)}</code>. ${escapeHtmlText(phrasebook.say(msg("telegram.pairing.desktopApproval", { product: "Cycling Coach Desktop" })))}`,
     consumePairing,
   });
   return {
@@ -68,8 +75,10 @@ function createDesktopTelegramHost(
       },
     },
     confirmations: {
-      peek: async ({ chatId }) => input.lifecycle.confirmations.peek(chatId),
-      confirm: ({ chatId, nonce }) => input.lifecycle.confirmations.confirm(chatId, nonce),
+      peek: async ({ chatId, phrasebook }) =>
+        input.lifecycle.confirmations.peek(chatId, phrasebook),
+      confirm: ({ chatId, nonce, phrasebook }) =>
+        input.lifecycle.confirmations.confirm(chatId, nonce, phrasebook),
       cancel: async ({ chatId, nonce }) => input.lifecycle.confirmations.cancel(chatId, nonce),
     },
     invocations: {
@@ -77,7 +86,12 @@ function createDesktopTelegramHost(
     },
     operations: {
       resolveTurnContext: async () => undefined,
-      sync: async () => ({ text: syncReply(await input.lifecycle.operations.sync({})) }),
+      sync: async ({ chatId, phrasebook }) => ({
+        text: syncReply(
+          await input.lifecycle.operations.sync({}),
+          phrasebook ?? (await input.lifecycle.language.phrasebookFor({ chatId })),
+        ),
+      }),
     },
     authorization: {
       isPrimaryOperator: async ({ senderId }) =>
@@ -85,11 +99,11 @@ function createDesktopTelegramHost(
     },
     release: {
       updatePolicy: "desktop-owned",
-      updateDescription: "Check for updates in the Desktop app",
-      whatsNewUnavailableText: "Open the Desktop app to see release notes.",
+      updateDescription: msg("telegram.release.desktopUpdateDescription"),
+      whatsNewUnavailableText: msg("telegram.release.desktopReleaseNotes"),
       version: async () => `Cycling Coach Desktop v${input.appVersion}`,
       whatsNew: async () => ({ kind: "unavailable" }),
-      updateNotice: async () => "Updates are installed from the Desktop app.",
+      updateNotice: async () => msg("telegram.release.desktopUpdateNotice"),
     },
   };
 }

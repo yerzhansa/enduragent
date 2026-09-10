@@ -1,4 +1,5 @@
 import { createCoachLanguage, normalizeLocaleHint, type CoachLanguage } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { createLanguagePreferenceRepository } from "@enduragent/kernel/store";
 import {
   asLanguagePreferenceStore,
@@ -683,8 +684,10 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
         run((bundle) => bundle.spendMeter.setDailySpendCap(dailyCapUsd)),
     },
     confirmations: {
-      peek: (chatId) => (pendingReplacements === 0 ? active.confirmations.peek(chatId) : undefined),
-      confirm: (chatId, nonce) => run((bundle) => bundle.confirmations.confirm(chatId, nonce)),
+      peek: (chatId, phrasebook) =>
+        pendingReplacements === 0 ? active.confirmations.peek(chatId, phrasebook) : undefined,
+      confirm: (chatId, nonce, phrasebook) =>
+        run((bundle) => bundle.confirmations.confirm(chatId, nonce, phrasebook)),
       cancel: (chatId, nonce) =>
         pendingReplacements === 0 ? active.confirmations.cancel(chatId, nonce) : "none",
     },
@@ -1115,6 +1118,7 @@ export async function createLocalCoachComposition(
     const systemLocale = Intl.DateTimeFormat().resolvedOptions().locale;
     const locale = input.preferredLanguages?.[0] ?? systemLocale;
     const coachLanguage = createCoachLanguage({
+      phrasebooks: createPhrasebook,
       store: asLanguagePreferenceStore({
         get: () => runtime!.runExclusive(() => languagePreference.get()),
         set: (value) => runtime!.runExclusive(() => languagePreference.set(value)),
@@ -1497,6 +1501,7 @@ export async function createLocalCoachComposition(
         modelTransportDecorator: dependencies.modelTransportDecorator,
         onToolsAssembled: dependencies.onToolsAssembled,
         toolConfirmations: createToolConfirmationPort({
+          language: coachLanguage,
           gate: confirmations,
           summarizers: createProposalSummarizers({ intervals: legacyClient, tz: timezone }),
           requiresConfirmation: ({ chatId }) =>

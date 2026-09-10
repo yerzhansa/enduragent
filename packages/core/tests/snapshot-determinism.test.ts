@@ -4,10 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  runHarnessAsync,
-  section11Available,
-} from "./helpers/snapshot-harness";
+import { runHarnessAsync, section11Available } from "./helpers/snapshot-harness";
 
 /**
  * Two consecutive harness runs into separate tempdirs must produce
@@ -42,10 +39,7 @@ describe("section-11 snapshot harness determinism", () => {
       const dir1 = mkdtempSync(join(tmpdir(), "snapshot-section-11-run-1-"));
       const dir2 = mkdtempSync(join(tmpdir(), "snapshot-section-11-run-2-"));
 
-      await Promise.all([
-        runHarnessAsync({ outDir: dir1 }),
-        runHarnessAsync({ outDir: dir2 }),
-      ]);
+      await Promise.all([runHarnessAsync({ outDir: dir1 }), runHarnessAsync({ outDir: dir2 })]);
 
       const files1 = listFilesRecursive(dir1);
       const files2 = listFilesRecursive(dir2);

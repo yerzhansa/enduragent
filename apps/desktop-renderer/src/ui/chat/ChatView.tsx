@@ -1,3 +1,5 @@
+import { chatFeedbackMessage } from "./copy";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   useCallback,
@@ -35,8 +37,6 @@ import {
 } from "./PlanCreationCards";
 import { PlanCreationHeaderActions, PlanCreationSubtitle } from "./PlanCreationHeader";
 
-const CHAT_DISCLAIMER =
-  "Not medical advice, and not a substitute for a doctor or a certified coach.";
 const COMPACT_CHAT_WIDTH = 900;
 
 function FollowLatest(): null {
@@ -53,6 +53,7 @@ function FollowLatest(): null {
 }
 
 export function ChatView(): ReactElement {
+  const { say } = usePhrasebook();
   const surface = useRef<HTMLElement>(null);
   const conversation = useRef<HTMLElement>(null);
   const composer = useRef<ComposerHandle>(null);
@@ -65,6 +66,7 @@ export function ChatView(): ReactElement {
   const activeView = useEnduragentStore((state) => state.activeView);
   const status = useEnduragentStore((state) => state.chat.status);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
+  const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
   const hydrationStatus = useEnduragentStore((state) => state.chat.hydrationStatus);
   const hasEarlier = useEnduragentStore((state) => state.chat.hydrationHasEarlier);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
@@ -164,7 +166,7 @@ export function ChatView(): ReactElement {
     >
       <header className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
         <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
-          <h1 className="m-0 shrink-0 text-sm font-semibold">Chat</h1>
+          <h1 className="m-0 shrink-0 text-sm font-semibold">{say("chat.view.title")}</h1>
           <PlanCreationSubtitle />
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -177,16 +179,18 @@ export function ChatView(): ReactElement {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={contextExpanded ? "Hide training context" : "Show training context"}
+                    aria-label={
+                      contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
+                    }
                   />
                 }
               >
                 <PanelRightOpen />
               </DialogTrigger>
               <DialogContent className="top-0 right-0 left-auto h-full max-h-none w-[min(320px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 content-start overflow-auto [scrollbar-width:none] rounded-none rounded-l-card border-y-0 border-r-0 p-0">
-                <DialogTitle className="sr-only">Training context</DialogTitle>
+                <DialogTitle className="sr-only">{say("chat.view.contextTitle")}</DialogTitle>
                 <DialogDescription className="sr-only">
-                  Training data available to Coach.
+                  {say("chat.view.contextDetail")}
                 </DialogDescription>
                 <TrainingContextPanel className="h-full border-l-0 pt-12" />
               </DialogContent>
@@ -196,7 +200,9 @@ export function ChatView(): ReactElement {
               type="button"
               variant="ghost"
               size="icon"
-              aria-label={contextExpanded ? "Hide training context" : "Show training context"}
+              aria-label={
+                contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
+              }
               aria-expanded={contextExpanded}
               onClick={toggleContext}
             >
@@ -211,7 +217,7 @@ export function ChatView(): ReactElement {
         <div className="chat-reading-column grid min-h-0 min-w-0 px-6 max-md:px-4 grid-rows-[minmax(0,1fr)_auto] has-[[data-plan-creation-dock]]:grid-rows-[minmax(calc(var(--ctl-h-lg)*4),1fr)_minmax(0,auto)]">
           <main
             className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
-            aria-label="Coaching conversation"
+            aria-label={say("chat.view.conversation")}
             data-chat-status={status}
             ref={conversation}
           >
@@ -230,7 +236,7 @@ export function ChatView(): ReactElement {
                   role="status"
                   aria-live="polite"
                 >
-                  {announcement ?? ""}
+                  {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
                 </p>
                 <SpendNotice />
                 <Notice />
@@ -247,7 +253,7 @@ export function ChatView(): ReactElement {
               <Composer handle={composer} draftMemory={composerDraft} />
             )}
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">
-              {changeSurfaceVisible ? "Training changes need your confirmation." : CHAT_DISCLAIMER}
+              {changeSurfaceVisible ? say("chat.view.confirmation") : say("chat.view.disclaimer")}
             </p>
           </div>
         </div>

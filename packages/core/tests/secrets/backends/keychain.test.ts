@@ -18,9 +18,7 @@ import { isSecretRef } from "../../../src/secrets/types.js";
 
 const tempDirs: string[] = [];
 
-async function makeSecurityStub(
-  script: string,
-): Promise<{ securityPath: string; dir: string }> {
+async function makeSecurityStub(script: string): Promise<{ securityPath: string; dir: string }> {
   const dir = await mkdtemp(join(tmpdir(), "security-stub-"));
   tempDirs.push(dir);
   const securityPath = join(dir, "security");
@@ -177,11 +175,7 @@ exit 44
 
   it("places keychain path as last positional arg (C3)", async () => {
     const { securityPath, dir } = await makeSecurityStub(`exit 0`);
-    await keychainItemExists(
-      "some_key",
-      "/path/to/login.keychain-db",
-      { securityPath },
-    );
+    await keychainItemExists("some_key", "/path/to/login.keychain-db", { securityPath });
     const argv = await readArgv(dir);
     expect(argv[argv.length - 1]).toBe("/path/to/login.keychain-db");
   });
@@ -266,21 +260,17 @@ exit 0
   it("FD6 unsafe value guard: rejects newline before any spawn", async () => {
     const { securityPath, dir } = await makeSecurityStub(`exit 0`);
     await expect(
-      keychainItemUpsert(
-        "k",
-        "line1\nline2",
-        "/Users/x/Library/Keychains/login.keychain-db",
-        { securityPath, platform: "darwin" },
-      ),
+      keychainItemUpsert("k", "line1\nline2", "/Users/x/Library/Keychains/login.keychain-db", {
+        securityPath,
+        platform: "darwin",
+      }),
     ).rejects.toBeInstanceOf(KeychainUnsafeValueError);
     expect(await exists(join(dir, "called"))).toBe(false);
   });
 
   it("FD6 unsafe value guard: rejects carriage return, NUL, and double-quote", async () => {
     for (const unsafe of ["a\rb", "a\0b", 'a"b']) {
-      expect(() => assertKeychainSafeValue(unsafe)).toThrow(
-        KeychainUnsafeValueError,
-      );
+      expect(() => assertKeychainSafeValue(unsafe)).toThrow(KeychainUnsafeValueError);
     }
   });
 
@@ -301,9 +291,7 @@ describe("keychainItemDelete", () => {
     );
     expect(result).toEqual({ deleted: true });
     const argv = await readArgv(dir);
-    expect(argv[argv.length - 1]).toBe(
-      "/Users/x/Library/Keychains/login.keychain-db",
-    );
+    expect(argv[argv.length - 1]).toBe("/Users/x/Library/Keychains/login.keychain-db");
   });
 
   it("returns {deleted:false} on exit 44", async () => {
@@ -338,11 +326,9 @@ printf 'security: user interaction required; keychain is locked\\n' >&2
 exit 36
 `);
     await expect(
-      keychainItemDelete(
-        "anthropic_api_key",
-        "/Users/x/Library/Keychains/login.keychain-db",
-        { securityPath },
-      ),
+      keychainItemDelete("anthropic_api_key", "/Users/x/Library/Keychains/login.keychain-db", {
+        securityPath,
+      }),
     ).rejects.toThrow(/security delete-generic-password failed \(exit 36\)/);
   });
 
@@ -385,9 +371,7 @@ describe("keychainSecretRef", () => {
     });
     expect(ref.source).toBe("exec");
     if (ref.source === "exec") {
-      expect(ref.args![ref.args!.length - 1]).toBe(
-        "/Users/x/Library/Keychains/login.keychain-db",
-      );
+      expect(ref.args![ref.args!.length - 1]).toBe("/Users/x/Library/Keychains/login.keychain-db");
     }
   });
 });

@@ -337,17 +337,19 @@ describe("cycling training context projection", () => {
     expect(result.plan).toEqual({
       kind: "computed",
       asOf: "2026-07-18T00:00:00.000Z",
-      items: [{
-        id: "1",
-        date: "2026-07-20T08:00:00",
-        name: "Endurance",
-        category: "WORKOUT",
-        workoutType: "Ride",
-        durationSeconds: 5_400,
-        load: 120,
-        description: "Race-specific endurance",
-        workoutDoc: { steps: [{ duration: 300 }] },
-      }],
+      items: [
+        {
+          id: "1",
+          date: "2026-07-20T08:00:00",
+          name: "Endurance",
+          category: "WORKOUT",
+          workoutType: "Ride",
+          durationSeconds: 5_400,
+          load: 120,
+          description: "Race-specific endurance",
+          workoutDoc: { steps: [{ duration: 300 }] },
+        },
+      ],
     });
   });
 

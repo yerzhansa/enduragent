@@ -1,5 +1,6 @@
+import { renderLocalized as render } from "./language-harness";
 import type { PlanHistoryResult } from "@enduragent/coach-contract";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { PlanView } from "../src/ui/plan/PlanView";
 import { EMPTY_CHAT_SURFACE } from "../src/state/chat-slice";
 import { EMPTY_PLAN_SURFACE } from "../src/state/plan-slice";

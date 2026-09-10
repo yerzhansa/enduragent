@@ -13,10 +13,7 @@ import type {
   OnboardingLlmEndpointSelection,
   OnboardingLlmSelection,
 } from "./bridge";
-import {
-  CUSTOM_MODEL_SELECTION,
-  DESKTOP_CREDENTIAL_SLOTS,
-} from "./constants";
+import { CUSTOM_MODEL_SELECTION, DESKTOP_CREDENTIAL_SLOTS } from "./constants";
 import { handoffCredential, type CredentialDraftPort } from "./credentials";
 import type { SetupCommit } from "./lanes";
 import {

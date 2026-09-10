@@ -34,9 +34,7 @@ describe("section-11 snapshot loop", () => {
     // regen that clobbered the manifest down to its own slug would slip past a
     // `toContain("realistic-athlete")` check whenever that slug is the one
     // debugged. Pinned to HARNESS_FIXTURES, the single source of truth.
-    expect([...manifest.fixtures].sort()).toEqual(
-      HARNESS_FIXTURES.map((f) => f.slug).sort(),
-    );
+    expect([...manifest.fixtures].sort()).toEqual(HARNESS_FIXTURES.map((f) => f.slug).sort());
     expect(manifest.metrics.length).toBeGreaterThan(0);
     expect(manifest.frozen_now).toBe("2026-05-10T12:00:00");
   });
