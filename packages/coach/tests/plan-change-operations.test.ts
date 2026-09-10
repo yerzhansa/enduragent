@@ -2839,6 +2839,15 @@ describe("written Plan Change checks", () => {
       reason: "race-window",
     });
     expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toEqual(check);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "cancel-race",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "check-action", checkId: check.checkId, action: "cancel" },
+      }),
+    ).toEqual({ status: "checked", planId: test.planId, pendingCheck: null });
   });
 
   it("rejects confirmation when a newer preview changed only the Change sequence", async () => {

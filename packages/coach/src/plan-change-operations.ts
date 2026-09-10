@@ -299,6 +299,12 @@ export async function projectPendingChangeCheck(
   return PlanChangePendingCheckSchema.parse(JSON.parse(stored.checkJson));
 }
 
+class ConfirmedPreviewRejected extends Error {
+  constructor(readonly result: Extract<PlanChangePreviewResult, { status: "rejected" }>) {
+    super(result.reason);
+  }
+}
+
 export function createPlanChangeOperations(input: {
   store: SqlStore & Pick<MigratorStore, "transaction">;
   identity: AuthoredIdentity;
@@ -681,42 +687,48 @@ export function createPlanChangeOperations(input: {
     const existing = await checks.read(owner);
     if (changeRequest.kind === "check-action" && changeRequest.action !== "retry") {
       if (existing?.checkId !== changeRequest.checkId) return stale();
-      const resultJson = await checks.resolve({
-        owner,
-        command,
-        checkId: changeRequest.checkId,
-        async effect(store, stored) {
-          const wire = PlanChangePendingCheckSchema.parse(JSON.parse(stored.checkJson));
-          if (
-            changeRequest.action === "cancel" ||
-            (changeRequest.action === "skip" &&
-              wire.state === "ready" &&
-              wire.result.outcome !== "understood")
-          )
-            return canonicalJson(checked(request.planId, null));
-          if (
-            changeRequest.action !== "confirm" ||
-            wire.state !== "ready" ||
-            wire.result.outcome !== "understood" ||
-            wire.result.value.kind === "inverse"
-          )
-            throw new PlanCreationStoreError("not-ready");
-          const result = await previewIntent({
-            store,
-            planId: request.planId,
-            expectedVersion: request.expectedVersion,
-            expectedChangeSequence: owner.sourceChangeSequence,
-            intent: wire.result.value,
-            submittedText: wire.submission.text,
-            command: {
-              ...command,
-              commandId: `answer-check-preview:${await sha256(canonicalJson({ commandId: command.commandId, checkId: wire.checkId }))}`,
-            },
-          });
-          return canonicalJson(result);
-        },
-      });
-      return parseResult(resultJson);
+      try {
+        const resultJson = await checks.resolve({
+          owner,
+          command,
+          checkId: changeRequest.checkId,
+          async effect(store, stored) {
+            const wire = PlanChangePendingCheckSchema.parse(JSON.parse(stored.checkJson));
+            if (
+              changeRequest.action === "cancel" ||
+              (changeRequest.action === "skip" &&
+                wire.state === "ready" &&
+                wire.result.outcome !== "understood")
+            )
+              return canonicalJson(checked(request.planId, null));
+            if (
+              changeRequest.action !== "confirm" ||
+              wire.state !== "ready" ||
+              wire.result.outcome !== "understood" ||
+              wire.result.value.kind === "inverse"
+            )
+              throw new PlanCreationStoreError("not-ready");
+            const result = await previewIntent({
+              store,
+              planId: request.planId,
+              expectedVersion: request.expectedVersion,
+              expectedChangeSequence: owner.sourceChangeSequence,
+              intent: wire.result.value,
+              submittedText: wire.submission.text,
+              command: {
+                ...command,
+                commandId: `answer-check-preview:${await sha256(canonicalJson({ commandId: command.commandId, checkId: wire.checkId }))}`,
+              },
+            });
+            if (result.status === "rejected") throw new ConfirmedPreviewRejected(result);
+            return canonicalJson(result);
+          },
+        });
+        return parseResult(resultJson);
+      } catch (error) {
+        if (error instanceof ConfirmedPreviewRejected) return error.result;
+        throw error;
+      }
     }
     if (
       changeRequest.kind === "check-action" &&
