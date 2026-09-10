@@ -33,6 +33,7 @@ import {
   PlanCreationDiscardDialog,
   PlanCreationDock,
 } from "./PlanCreationCards";
+import { PlanCreationHeaderActions, PlanCreationSubtitle } from "./PlanCreationHeader";
 
 const CHAT_DISCLAIMER =
   "Not medical advice, and not a substitute for a doctor or a certified coach.";
@@ -161,42 +162,48 @@ export function ChatView(): ReactElement {
       ref={surface}
       className="chat-surface grid min-h-0 min-w-0 flex-1 grid-rows-[52px_minmax(0,1fr)] bg-bg"
     >
-      <header className="flex items-center justify-between border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
-        <h1 className="m-0 text-sm font-semibold">Chat</h1>
-        {compact ? (
-          <Dialog open={contextDrawerOpen} onOpenChange={setContextDrawerOpen}>
-            <DialogTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={contextExpanded ? "Hide training context" : "Show training context"}
-                />
-              }
+      <header className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
+        <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
+          <h1 className="m-0 shrink-0 text-sm font-semibold">Chat</h1>
+          <PlanCreationSubtitle />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <PlanCreationHeaderActions />
+          {compact ? (
+            <Dialog open={contextDrawerOpen} onOpenChange={setContextDrawerOpen}>
+              <DialogTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={contextExpanded ? "Hide training context" : "Show training context"}
+                  />
+                }
+              >
+                <PanelRightOpen />
+              </DialogTrigger>
+              <DialogContent className="top-0 right-0 left-auto h-full max-h-none w-[min(320px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 content-start overflow-auto [scrollbar-width:none] rounded-none rounded-l-card border-y-0 border-r-0 p-0">
+                <DialogTitle className="sr-only">Training context</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Training data available to Coach.
+                </DialogDescription>
+                <TrainingContextPanel className="h-full border-l-0 pt-12" />
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={contextExpanded ? "Hide training context" : "Show training context"}
+              aria-expanded={contextExpanded}
+              onClick={toggleContext}
             >
-              <PanelRightOpen />
-            </DialogTrigger>
-            <DialogContent className="top-0 right-0 left-auto h-full max-h-none w-[min(320px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 content-start overflow-auto [scrollbar-width:none] rounded-none rounded-l-card border-y-0 border-r-0 p-0">
-              <DialogTitle className="sr-only">Training context</DialogTitle>
-              <DialogDescription className="sr-only">
-                Training data available to Coach.
-              </DialogDescription>
-              <TrainingContextPanel className="h-full border-l-0 pt-12" />
-            </DialogContent>
-          </Dialog>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={contextExpanded ? "Hide training context" : "Show training context"}
-            aria-expanded={contextExpanded}
-            onClick={toggleContext}
-          >
-            {contextExpanded ? <PanelRightClose /> : <PanelRightOpen />}
-          </Button>
-        )}
+              {contextExpanded ? <PanelRightClose /> : <PanelRightOpen />}
+            </Button>
+          )}
+        </div>
       </header>
       <div
         className={`chat-layout row-start-2 grid min-h-0 min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}
