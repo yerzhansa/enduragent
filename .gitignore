@@ -8,6 +8,8 @@ workers/
 .DS_Store
 .idea/
 .obsidian/
+.cursor/
+.nvmrc
 /scripts/
 .claude
 .codex/
