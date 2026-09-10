@@ -132,11 +132,11 @@ function MessageRow(props: {
           })}
           {message.text.length === 0 ? null : <AthleteMessage text={message.text} />}
         </div>
-      ) : streaming && props.bufferedStreaming ? (
+      ) : streaming && props.bufferedStreaming && message.message === undefined ? (
         <StreamingMessage messageId={message.id} />
       ) : (
         <div className="min-w-0">
-          <CoachMessage text={message.text} />
+          <CoachMessage text={message.text} message={message.message} />
           {message.planReference === undefined ? null : (
             <PlanReferenceCard selection={message.planReference} />
           )}

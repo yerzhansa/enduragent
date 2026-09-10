@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "Kontrollerar din TSB och träningsplan..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "lås upp din inloggningsnyckelring",
+      "macUnavailable": "Kryptering i {{operatingSystem}} är inte tillgänglig. Se till att Nyckelring är tillgänglig och försök igen.",
+      "windowsIdentityFailed": "Det gick inte att koppla skrivbordsappens identitet i {{operatingSystem}}",
+      "windowsRecovery": "se till att kryptering av inloggningsuppgifter (DPAPI) i {{operatingSystem}} är tillgänglig",
+      "windowsUnavailable": "Kryptering av inloggningsuppgifter (DPAPI) i {{operatingSystem}} är inte tillgänglig. Avsluta och öppna {{product}} igen och försök på nytt.",
+      "windowsUserDataFailed": "Det gick inte att koppla användardata i {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "{{format}}-aktivitet",
+      "attach": "Bifoga",
+      "attachTitle": "Bifoga filer i Chatt",
+      "exportRideTitle": "Exportera cykeltur som {{format}}",
+      "exportWorkoutsTitle": "Exportera planerade träningspass som {{format}}",
+      "pastedImage": "Inklistrad bild{{extension}}",
+      "raceCourse": "Tävlingsbana",
+      "rideFiles": "Cykeltursfiler",
+      "rideImportDescription": "Lägg till FIT-, TCX- eller GPX-filer från {{computer}}. Du kan också dra dem till fönstret.",
+      "supportedFiles": "Filer som stöds",
+      "workoutArchive": "Träningsarkiv"
+    },
+    "lifecycle": {
+      "contentionContent": "En annan {{product}}-process körs redan eller har fastnat. Avsluta den processen och öppna sedan {{product}} igen. Om du inte hittar den, logga ut och in igen.",
+      "contentionTitle": "{{product}} kunde inte ansluta till sin bakgrundstjänst",
+      "malformedContent": "Rätta till eller ersätt den ogiltiga filen {{configFile}} och öppna sedan {{product}} igen.",
+      "malformedTitle": "{{product}} kunde inte använda sin konfiguration",
+      "notConfiguredContent": "Konfigurationsfilen saknas. Kör konfigurationen för {{product}} eller återställ {{configFile}} och öppna sedan {{product}} igen.",
+      "notConfiguredTitle": "{{product}} är inte konfigurerat",
+      "restartExhaustedContent": "Bakgrundstjänsten stannade upprepade gånger och {{product}} kunde inte starta om den. Avsluta {{product}} och öppna det igen. Om det inte hjälper, logga ut och in igen.",
+      "restartExhaustedTitle": "Bakgrundstjänsten för {{product}} stannade",
+      "unavailableContent": "Bakgrundstjänsten kunde inte starta eller så gick det inte att läsa dess sparade anslutningstillstånd. Avsluta {{product}} och öppna det igen. Om problemet kvarstår, {{restartComputer}} innan du försöker igen.",
+      "unavailableTitle": "{{product}} kunde inte starta sin bakgrundstjänst",
+      "unexpectedContent": "{{product}} stötte på ett oväntat problem vid start. Avsluta {{product}} och försök igen. Om det fortsätter att hända, logga ut och in igen innan du öppnar det på nytt.",
+      "unexpectedTitle": "{{product}} kunde inte öppnas",
+      "unreadableContent": "Kontrollera att {{configFile}} är en läsbar fil och att dess mapp är tillgänglig. Öppna sedan {{product}} igen.",
+      "unreadableTitle": "{{product}} kunde inte läsa sin konfiguration",
+      "versionMismatchContent": "En annan version av bakgrundstjänsten för {{product}} körs från CLI eller en tidigare installation. Avsluta den tjänsten och öppna sedan {{product}} igen.",
+      "versionMismatchTitle": "{{product}} hittade en annan version av bakgrundstjänsten"
+    },
+    "platform": {
+      "computerMac": "den här Mac-datorn",
+      "computerPc": "den här datorn",
+      "restartMac": "starta om din Mac",
+      "restartPc": "starta om din dator"
+    },
+    "tray": {
+      "checkingConnection": "Kontrollerar anslutningen",
+      "closeHint": "Stäng fönstret utan att avsluta appen. Högerklicka på ikonen i menyraden för fler alternativ.",
+      "coach": "Cykeltränare",
+      "menuBarStatus": "Status för {{product}} i menyraden",
+      "open": "Öppna {{product}}",
+      "quit": "Avsluta {{product}}",
+      "ready": "Redo när du är",
+      "residency": "Körning i bakgrunden",
+      "running": "{{product}} körs",
+      "runningInMenuBar": "Körs i menyraden",
+      "settings": "Inställningar…",
+      "startAtLogin": "Starta i bakgrunden vid inloggning",
+      "tag": {
+        "active": "aktiv",
+        "attention": "kräver åtgärd",
+        "checking": "kontrollerar",
+        "conflict": "konflikt",
+        "off": "av",
+        "online": "online",
+        "paused": "pausad",
+        "retrying": "försöker igen",
+        "starting": "startar",
+        "warning": "varning"
+      },
+      "telegram": {
+        "conflict": "En annan process hämtar meddelanden åt boten",
+        "connected": "Ansluten till Telegram",
+        "connecting": "Ansluter till Telegram",
+        "missedMessages": "Kontrollera om du har missat meddelanden",
+        "needsAttention": "Telegram kräver åtgärd",
+        "off": "Telegram är avstängt",
+        "reconnecting": "Telegram återansluter",
+        "suspended": "Telegram är pausat medan den här Mac-datorn är i viloläge",
+        "tokenRejected": "Telegram-token avvisad",
+        "transferRequired": "Boten behöver överföras"
+      }
+    }
   }
 }

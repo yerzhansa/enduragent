@@ -96,30 +96,23 @@ describe("phrasebooks", () => {
   });
 });
 
-it.each(LANGUAGE_OPTIONS)(
-  "loads the $tag catalog with pending non-desktop translations",
-  async ({ tag }) => {
-    const catalog = await loadCatalog(tag);
-    function keys(value: unknown, prefix = ""): string[] {
-      if (typeof value === "string") {
-        expect(value.trim()).not.toBe("");
-        return [prefix];
-      }
-      if (typeof value !== "object" || value === null) throw new Error("Invalid catalog");
-      return Object.entries(value).flatMap(([key, child]) =>
-        keys(child, prefix ? `${prefix}.${key}` : key),
-      );
+it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => {
+  const catalog = await loadCatalog(tag);
+  function keys(value: unknown, prefix = ""): string[] {
+    if (typeof value === "string") {
+      expect(value.trim()).not.toBe("");
+      return [prefix];
     }
-    const base = (key: string) => key.replace(/_(zero|one|two|few|many|other)$/u, "");
-    const translated = new Set(keys(catalog).map(base));
-    const expected = new Set(keys(english).map(base));
-    for (const key of translated) expect(expected.has(key)).toBe(true);
-    const pending = (key: string) => /^(telegram|cli|coach)\./u.test(key);
-    expect(new Set([...translated].filter((key) => !pending(key)))).toEqual(
-      new Set([...expected].filter((key) => !pending(key))),
+    if (typeof value !== "object" || value === null) throw new Error("Invalid catalog");
+    return Object.entries(value).flatMap(([key, child]) =>
+      keys(child, prefix ? `${prefix}.${key}` : key),
     );
-  },
-);
+  }
+  const base = (key: string) => key.replace(/_(zero|one|two|few|many|other)$/u, "");
+  const translated = new Set(keys(catalog).map(base));
+  const expected = new Set(keys(english).map(base));
+  expect(translated).toEqual(expected);
+});
 
 it("derives message and phrasebook keys from the English catalog", () => {
   const generated = readFileSync(new URL("../src/catalog-keys.ts", import.meta.url), "utf8");

@@ -1,3 +1,4 @@
+import { desktopPhrasebook, refreshDesktopLanguage } from "./language.js";
 import { randomUUID } from "node:crypto";
 import { connectCoachClient, type CoachClient } from "@enduragent/coach-client";
 import {
@@ -99,10 +100,10 @@ function pickerOptions(
     ...(capabilities.images.enabled ? ["png", "jpg", "jpeg", "webp"] : []),
   ];
   return {
-    title: "Attach files to Chat",
-    buttonLabel: "Attach",
+    title: desktopPhrasebook().say("desktop.filePicker.attachTitle"),
+    buttonLabel: desktopPhrasebook().say("desktop.filePicker.attach"),
     properties: ["openFile", "multiSelections"],
-    filters: [{ name: "Supported files", extensions }],
+    filters: [{ name: desktopPhrasebook().say("desktop.filePicker.supportedFiles"), extensions }],
   };
 }
 
@@ -143,7 +144,9 @@ export function installDesktopChatAttachmentIpc(input: {
     const capabilities = ChatAttachmentComposerReadModelSchema.parse(
       await client.composer(),
     ).capabilities;
-    const selection = await input.dialog.showOpenDialog(window, pickerOptions(capabilities));
+    const selection = await refreshDesktopLanguage().then(() =>
+      input.dialog.showOpenDialog(window, pickerOptions(capabilities)),
+    );
     if (selection.canceled || selection.filePaths.length === 0) return [];
     const paths = DroppedPathsSchema.parse(
       selection.filePaths.slice(0, CHAT_ATTACHMENT_LIMITS.attachmentsPerMessage),
@@ -167,9 +170,10 @@ export function installDesktopChatAttachmentIpc(input: {
     const image = input.clipboard.readImage();
     if (image.isEmpty()) return [];
     const bytes = image.toPNG();
+    await refreshDesktopLanguage();
     const result = await client.admitPasted({
       selectionId: randomUUID(),
-      displayName: "Pasted image.png",
+      displayName: desktopPhrasebook().say("desktop.filePicker.pastedImage", { extension: ".png" }),
       dataBase64: bytes.toString("base64"),
     });
     return [AttachmentAdmissionReadModelSchema.parse(result)];

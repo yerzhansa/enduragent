@@ -2789,5 +2789,90 @@
     "workout": {
       "working": "A verificar a tua forma e o teu plano..."
     }
+  },
+  "desktop": {
+    "credentials": {
+      "macRecovery": "desbloqueia o teu porta-chaves de início de sessão",
+      "macUnavailable": "A encriptação de {{operatingSystem}} está indisponível. Confirma que o porta-chaves está disponível e tenta novamente.",
+      "windowsIdentityFailed": "Falha na associação da identidade da aplicação de computador em {{operatingSystem}}",
+      "windowsRecovery": "confirma que a encriptação de credenciais (DPAPI) de {{operatingSystem}} está disponível",
+      "windowsUnavailable": "A encriptação de credenciais (DPAPI) de {{operatingSystem}} está indisponível. Encerra e volta a abrir {{product}} e tenta novamente.",
+      "windowsUserDataFailed": "Falha na associação dos dados do utilizador em {{operatingSystem}}"
+    },
+    "filePicker": {
+      "activityFormat": "Atividade {{format}}",
+      "attach": "Anexar",
+      "attachTitle": "Anexar ficheiros à conversa",
+      "exportRideTitle": "Exportar volta como {{format}}",
+      "exportWorkoutsTitle": "Exportar treinos planeados como {{format}}",
+      "pastedImage": "Imagem colada{{extension}}",
+      "raceCourse": "Percurso da prova",
+      "rideFiles": "Ficheiros de voltas",
+      "rideImportDescription": "Adiciona ficheiros FIT, TCX ou GPX a partir de {{computer}}. Também os podes largar na janela.",
+      "supportedFiles": "Ficheiros suportados",
+      "workoutArchive": "Arquivo de treinos"
+    },
+    "lifecycle": {
+      "contentionContent": "Outro processo de {{product}} já está em execução ou ficou bloqueado. Termina esse processo e volta a abrir {{product}}. Se não o encontrares, termina sessão e volta a iniciá-la.",
+      "contentionTitle": "{{product}} não conseguiu ligar-se ao seu serviço em segundo plano",
+      "malformedContent": "Corrige ou substitui o ficheiro inválido {{configFile}} e volta a abrir {{product}}.",
+      "malformedTitle": "{{product}} não conseguiu usar a sua configuração",
+      "notConfiguredContent": "O ficheiro de configuração está em falta. Executa a configuração de {{product}} ou restaura {{configFile}} e volta a abrir {{product}}.",
+      "notConfiguredTitle": "{{product}} não está configurado",
+      "restartExhaustedContent": "O serviço em segundo plano parou repetidamente e {{product}} não conseguiu reiniciá-lo. Encerra {{product}} e volta a abri-lo. Se isso não ajudar, termina sessão e volta a iniciá-la.",
+      "restartExhaustedTitle": "O serviço em segundo plano de {{product}} parou",
+      "unavailableContent": "Não foi possível iniciar o serviço em segundo plano ou ler o estado da ligação guardado. Encerra {{product}} e volta a abri-lo. Se o problema continuar, {{restartComputer}} antes de tentares novamente.",
+      "unavailableTitle": "{{product}} não conseguiu iniciar o seu serviço em segundo plano",
+      "unexpectedContent": "{{product}} encontrou um problema inesperado ao iniciar. Encerra {{product}} e tenta novamente. Se o problema se repetir, termina sessão e volta a iniciá-la antes de voltares a abrir a aplicação.",
+      "unexpectedTitle": "{{product}} não conseguiu abrir",
+      "unreadableContent": "Verifica se é possível ler o ficheiro {{configFile}} e aceder à respetiva pasta e volta a abrir {{product}}.",
+      "unreadableTitle": "{{product}} não conseguiu ler a sua configuração",
+      "versionMismatchContent": "Está em execução uma versão diferente do serviço em segundo plano de {{product}}, iniciada pela linha de comandos ou por uma instalação anterior. Para esse serviço e volta a abrir {{product}}.",
+      "versionMismatchTitle": "{{product}} encontrou uma versão diferente do serviço em segundo plano"
+    },
+    "platform": {
+      "computerMac": "este Mac",
+      "computerPc": "este PC",
+      "restartMac": "reinicia o teu Mac",
+      "restartPc": "reinicia o teu PC"
+    },
+    "tray": {
+      "checkingConnection": "A verificar a ligação",
+      "closeHint": "Fecha a janela sem encerrar a aplicação. Clica com o botão direito no ícone da barra de menus para veres mais opções.",
+      "coach": "Treinador de ciclismo",
+      "menuBarStatus": "Estado de {{product}} na barra de menus",
+      "open": "Abrir {{product}}",
+      "quit": "Encerrar {{product}}",
+      "ready": "Podemos começar quando quiseres",
+      "residency": "Funcionamento em segundo plano",
+      "running": "{{product}} está em execução",
+      "runningInMenuBar": "Em execução na barra de menus",
+      "settings": "Definições…",
+      "startAtLogin": "Iniciar em segundo plano ao iniciar sessão",
+      "tag": {
+        "active": "ativo",
+        "attention": "atenção",
+        "checking": "a verificar",
+        "conflict": "conflito",
+        "off": "desligado",
+        "online": "online",
+        "paused": "em pausa",
+        "retrying": "a tentar novamente",
+        "starting": "a iniciar",
+        "warning": "aviso"
+      },
+      "telegram": {
+        "conflict": "Outro serviço de consulta controla o bot",
+        "connected": "Ligado ao Telegram",
+        "connecting": "A ligar ao Telegram",
+        "missedMessages": "Verifica se há mensagens em falta",
+        "needsAttention": "Telegram precisa de atenção",
+        "off": "Telegram está desligado",
+        "reconnecting": "Telegram está a restabelecer a ligação",
+        "suspended": "Telegram está em pausa enquanto este Mac está em repouso",
+        "tokenRejected": "Token do Telegram rejeitado",
+        "transferRequired": "É necessário transferir o bot"
+      }
+    }
   }
 }

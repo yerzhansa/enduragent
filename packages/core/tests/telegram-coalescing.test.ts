@@ -10,6 +10,25 @@ import type {
   TelegramOperationsCapabilities,
 } from "../src/channels/telegram-host.js";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -23,7 +42,6 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
-  vi.doUnmock("grammy");
 });
 
 interface FakeBot {
@@ -71,12 +89,7 @@ async function buildBot(
     stop: vi.fn(async () => undefined),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
 
   const engine: StubEngine = {
     chat: vi.fn(async () => ({ text: "ok" })),
@@ -105,6 +118,8 @@ async function buildBot(
       updateNotice: vi.fn(async () => "Update from Desktop."),
     },
   };
+
+  vi.resetModules();
 
   const { createTelegramBot } = await import("../src/channels/telegram.js");
   const { drainPending } = createTelegramBot({
