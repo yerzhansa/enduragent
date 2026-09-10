@@ -7,7 +7,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 import { defaultPairingState, saveAllowedSenders } from "../src/channels/allowed-senders.js";
+import { notifyNpmTelegramUpdate } from "../src/channels/npm-telegram-host.js";
 import { GARMIN_DATA_ATTRIBUTION } from "../src/agent/garmin-attribution.js";
+
+const SAMPLE_UPDATE = {
+  current: "2026.5.5",
+  latest: "2026.5.10",
+  updateAvailable: true as const,
+};
+
+function sampleUpdatePorts(knownChatIds: string[]) {
+  return {
+    checkForUpdateWithDailyTelemetry: vi.fn(async () => SAMPLE_UPDATE),
+    getKnownTelegramChatIds: vi.fn(() => knownChatIds),
+    getLastNotifiedVersion: vi.fn(() => null),
+    setLastNotifiedVersion: vi.fn(),
+  };
+}
 
 const broadcastPhrasebook = await createPhrasebook({ tag: "en", locale: "en-GB" });
 function broadcastLanguage(): CoachLanguage {
@@ -77,8 +93,6 @@ afterEach(() => {
   }
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("../src/updater.js");
-  vi.doUnmock("../src/channels/allowed-senders.js");
 });
 
 function seedSession(chatId: string): void {
@@ -363,30 +377,16 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       allowFrom: ["11111", "22222"],
       primaryOperator: "11111",
     }));
-    const setLastNotifiedVersion = vi.fn();
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["11111", "22222"]),
-        getLastNotifiedVersion: vi.fn(() => null),
-        setLastNotifiedVersion,
-      };
-    });
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
+    const ports = sampleUpdatePorts(["11111", "22222"]);
 
     await notifyNpmTelegramUpdate(
       { sendMessage: vi.fn(async () => Promise.reject(new Error("sealed"))) },
       dataDir,
       cyclingBinary,
       broadcastLanguage(),
+      ports,
     );
-    expect(setLastNotifiedVersion).not.toHaveBeenCalled();
+    expect(ports.setLastNotifiedVersion).not.toHaveBeenCalled();
 
     await notifyNpmTelegramUpdate(
       {
@@ -397,15 +397,16 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       dataDir,
       cyclingBinary,
       broadcastLanguage(),
+      ports,
     );
-    expect(setLastNotifiedVersion).toHaveBeenCalledOnce();
-    expect(setLastNotifiedVersion).toHaveBeenCalledWith(dataDir, "2026.5.10");
+    expect(ports.setLastNotifiedVersion).toHaveBeenCalledOnce();
+    expect(ports.setLastNotifiedVersion).toHaveBeenCalledWith(dataDir, "2026.5.10");
   });
 
   it("filters chat-ids to allowFrom subset (allowlist mode)", async () => {
-    seedSession("11111"); // allowed
-    seedSession("22222"); // allowed
-    seedSession("99999"); // stranger from before allowlist
+    seedSession("11111");
+    seedSession("22222");
+    seedSession("99999");
     saveAllowedSenders(dataDir, () => ({
       ...defaultPairingState(),
       dmPolicy: "allowlist",
@@ -413,33 +414,20 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       primaryOperator: "11111",
     }));
 
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["11111", "22222", "99999"]),
-        getLastNotifiedVersion: vi.fn(() => null),
-        setLastNotifiedVersion: vi.fn(),
-      };
-    });
-
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      broadcastLanguage(),
+      sampleUpdatePorts(["11111", "22222", "99999"]),
+    );
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "22222"]);
     expect(calledIds).not.toContain("99999");
   });
 
-  // The daily re-check calls notifyUpdate on a timer; the last-notified-version
-  // guard must make a second firing for the same version a no-op so athletes get
-  // at most one broadcast per release.
   it("does not re-broadcast an already-notified version on a second firing (idempotent)", async () => {
     seedSession("11111");
     saveAllowedSenders(dataDir, () => ({
@@ -449,28 +437,16 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       primaryOperator: "11111",
     }));
 
-    // Keep the REAL getLastNotifiedVersion / setLastNotifiedVersion so the
-    // guard actually persists to (and reads back from) the temp data dir.
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["11111"]),
-      };
-    });
-
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
     const sender = { sendMessage };
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage());
+    const ports = {
+      checkForUpdateWithDailyTelemetry: vi.fn(async () => SAMPLE_UPDATE),
+      getKnownTelegramChatIds: vi.fn(() => ["11111"]),
+    };
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage(), ports);
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage());
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage(), ports);
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
@@ -485,24 +461,14 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
     }));
     process.env.CYCLING_COACH_DM_POLICY = "open";
 
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["11111", "99999"]),
-        getLastNotifiedVersion: vi.fn(() => null),
-        setLastNotifiedVersion: vi.fn(),
-      };
-    });
-
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      broadcastLanguage(),
+      sampleUpdatePorts(["11111", "99999"]),
+    );
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "99999"]);
@@ -511,24 +477,14 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
   it("does NOT broadcast in default-pairing mode (no allowed senders → empty filter)", async () => {
     seedSession("99999");
 
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["99999"]),
-        getLastNotifiedVersion: vi.fn(() => null),
-        setLastNotifiedVersion: vi.fn(),
-      };
-    });
-
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      broadcastLanguage(),
+      sampleUpdatePorts(["99999"]),
+    );
 
     expect(sendMessage).not.toHaveBeenCalled();
   });
@@ -543,24 +499,14 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
     }));
     process.env.CYCLING_COACH_MANAGED_DEPLOY = "1";
 
-    vi.doMock("../src/updater.js", async () => {
-      const real = await vi.importActual<typeof import("../src/updater.js")>("../src/updater.js");
-      return {
-        ...real,
-        checkForUpdateWithDailyTelemetry: vi.fn(async () => ({
-          current: "2026.5.5",
-          latest: "2026.5.10",
-          updateAvailable: true,
-        })),
-        getKnownTelegramChatIds: vi.fn(() => ["11111"]),
-        getLastNotifiedVersion: vi.fn(() => null),
-        setLastNotifiedVersion: vi.fn(),
-      };
-    });
-
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
-    const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
+    await notifyNpmTelegramUpdate(
+      { sendMessage },
+      dataDir,
+      cyclingBinary,
+      broadcastLanguage(),
+      sampleUpdatePorts(["11111"]),
+    );
 
     const message = sendMessage.mock.calls[0]?.[1] ?? "";
     expect(message).toContain("Update available: 2026.5.5");
