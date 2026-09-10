@@ -5,8 +5,15 @@ import { createCoachEngine } from "../src/agent/coach-engine.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
 
 const sport = {
-  id: "cycling", soul: "", skills: {}, sessionClusterGapMinutes: 30, memorySections: [],
-  mustPreserveTokens: [], intervalsActivityTypes: [], athleteProfileSchema: {}, tools: () => [],
+  id: "cycling",
+  soul: "",
+  skills: {},
+  sessionClusterGapMinutes: 30,
+  memorySections: [],
+  mustPreserveTokens: [],
+  intervalsActivityTypes: [],
+  athleteProfileSchema: {},
+  tools: () => [],
 } as never;
 
 describe("runBinary data-source composition", () => {
@@ -22,6 +29,8 @@ describe("runBinary data-source composition", () => {
 
   it("fails store mode before engine startup when no reader was prepared", () => {
     const config = { ...baseAgentConfig("unused"), dataSource: "store" as const };
-    expect(() => createCoachEngine(sport, config)).toThrow("Store data source requires an athlete data reader.");
+    expect(() => createCoachEngine(sport, config)).toThrow(
+      "Store data source requires an athlete data reader.",
+    );
   });
 });

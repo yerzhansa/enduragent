@@ -1,3 +1,5 @@
+import { desktopPhrasebook } from "./language.js";
+import { desktopPlatformTokens } from "./platform-copy.js";
 import type { App } from "electron";
 import { DESKTOP_APP_USER_MODEL_ID } from "./constants.js";
 
@@ -8,7 +10,12 @@ export class DesktopIdentityBindingError extends Error {
   readonly stage = "set-app-user-model-id" as const;
 
   constructor() {
-    super("Windows desktop identity binding failed");
+    super(
+      desktopPhrasebook().say(
+        "desktop.credentials.windowsIdentityFailed",
+        desktopPlatformTokens("win32"),
+      ),
+    );
   }
 }
 

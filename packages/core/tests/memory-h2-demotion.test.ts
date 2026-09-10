@@ -25,9 +25,7 @@ describe("Memory writeSection demotes embedded H2 headings", () => {
   it("round-trips a single embedded H2 whole, demoted to H3 (AC1)", () => {
     const m = new Memory(dataDir);
     m.writeSection("notes", "line one\n## Fake Section\nline two");
-    expect(m.readSection("notes")).toBe(
-      `${STAMP}\nline one\n### Fake Section\nline two`,
-    );
+    expect(m.readSection("notes")).toBe(`${STAMP}\nline one\n### Fake Section\nline two`);
   });
 
   it("demotes a first-line H2 (AC1/AC5)", () => {
@@ -39,9 +37,7 @@ describe("Memory writeSection demotes embedded H2 headings", () => {
   it("demotes multiple embedded H2s preserving order (AC1)", () => {
     const m = new Memory(dataDir);
     m.writeSection("notes", "## one\na\n## two\nb\n## three\nc");
-    expect(m.readSection("notes")).toBe(
-      `${STAMP}\n### one\na\n### two\nb\n### three\nc`,
-    );
+    expect(m.readSection("notes")).toBe(`${STAMP}\n### one\na\n### two\nb\n### three\nc`);
   });
 
   it("demotes a CRLF-separated H2 without fragmenting (AC5)", () => {
@@ -118,9 +114,7 @@ describe("Memory writeSection demotes embedded H2 headings", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const big = "x".repeat(SECTION_SOFT_WARN_CHARS + 100);
     m.writeSection("notes", big);
-    const capCalls = warn.mock.calls.filter((c) =>
-      String(c[0]).includes("soft cap"),
-    );
+    const capCalls = warn.mock.calls.filter((c) => String(c[0]).includes("soft cap"));
     expect(capCalls).toHaveLength(1);
     expect(String(capCalls[0][0])).toContain("notes");
     expect(String(capCalls[0][0])).toContain(String(big.length + STAMP.length + 1));

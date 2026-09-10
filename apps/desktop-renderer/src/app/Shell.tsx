@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Suspense, useEffect, type ReactElement } from "react";
 import { setupDisposition } from "../state/onboarding-slice";
 import { useEnduragentStore } from "../state/store";
@@ -6,10 +7,14 @@ import { clearTrainingRestrictionFocusRequest } from "../ui/settings/restriction
 import { Sidebar } from "../ui/sidebar/Sidebar";
 import { SetupGate } from "./SetupGate";
 import { REACT_CHAT_REGION, VIEWS } from "./views";
+import { languageRequired } from "../language";
+import { LanguageGate } from "../ui/onboarding/LanguageGate";
 
 export function Shell(props: { readonly onReady: () => void }): ReactElement {
+  const { say, tag } = usePhrasebook();
   const activeView = useEnduragentStore((state) => state.activeView);
   const disposition = useEnduragentStore(setupDisposition);
+  const needsLanguage = useEnduragentStore(languageRequired);
   const onboardingStartupSettled = useEnduragentStore((state) => state.onboardingStartupSettled);
   const onReady = props.onReady;
   const onboardingState = onboardingStartupSettled ? "settled" : "pending";
@@ -32,7 +37,13 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
       data-view={activeView}
       data-onboarding={onboardingState}
       data-shell={
-        disposition === "unknown" ? "unknown" : disposition === "required" ? "gate" : "app"
+        needsLanguage
+          ? "language"
+          : disposition === "unknown"
+            ? "unknown"
+            : disposition === "required"
+              ? "gate"
+              : "app"
       }
     >
       {disposition === "unknown" ? (
@@ -41,11 +52,16 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
           role="status"
           aria-live="polite"
           aria-busy="true"
+          lang={tag}
         >
-          Checking setup…
+          {say("shell.checkingSetup")}
         </div>
       ) : disposition === "required" ? (
-        <SetupGate />
+        needsLanguage ? (
+          <LanguageGate />
+        ) : (
+          <SetupGate />
+        )
       ) : (
         <>
           <Sidebar />
@@ -61,9 +77,7 @@ export function Shell(props: { readonly onReady: () => void }): ReactElement {
                 return (
                   <Suspense
                     key={view.id}
-                    fallback={
-                      <p className="px-8 py-7 text-ink-3">Loading {view.label.toLowerCase()}…</p>
-                    }
+                    fallback={<p className="px-8 py-7 text-ink-3">{say(view.loading)}</p>}
                   >
                     <Page />
                   </Suspense>

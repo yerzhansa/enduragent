@@ -1,7 +1,8 @@
+import { renderLocalized as render } from "./language-harness";
 import { readUiStylesheet } from "./ui-styles";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanActiveProjectionDataSchema } from "@enduragent/coach-contract";

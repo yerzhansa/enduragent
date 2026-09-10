@@ -1,3 +1,5 @@
+import { msg, type Message } from "@enduragent/i18n";
+
 export interface DesktopPlatformProjection {
   readonly platform: "darwin" | "win32";
   readonly capabilities: {
@@ -43,3 +45,29 @@ export function rendererPlatformProjection(
 }
 
 export const PLATFORM_COPY = rendererPlatformProjection().copy;
+
+export function platformCredentialEncryptionUnavailable(
+  projection: DesktopPlatformProjection = rendererPlatformProjection(),
+): Message {
+  return projection.platform === "win32"
+    ? msg("shell.platform.credentialEncryptionUnavailable.windows", {
+        operatingSystem: projection.copy.operatingSystem,
+        encryption: "DPAPI",
+        product: "Enduragent",
+      })
+    : msg("shell.platform.credentialEncryptionUnavailable.mac", {
+        operatingSystem: projection.copy.operatingSystem,
+        keychain: "Keychain",
+      });
+}
+
+export function platformCredentialRecoveryAction(
+  projection: DesktopPlatformProjection = rendererPlatformProjection(),
+): Message {
+  return projection.platform === "win32"
+    ? msg("shell.platform.credentialRecoveryAction.windows", {
+        operatingSystem: projection.copy.operatingSystem,
+        encryption: "DPAPI",
+      })
+    : msg("shell.platform.credentialRecoveryAction.mac");
+}

@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import type { ArchiveReadingState } from "../../archive/controller";
 import type { TranscriptTurn } from "../../chat/hydration";
@@ -45,6 +46,7 @@ function TurnRows(props: {
   readonly turn: TranscriptTurn;
   readonly includeAthlete: boolean;
 }): ReactElement {
+  const { say } = usePhrasebook();
   return (
     <>
       {props.includeAthlete ? (
@@ -52,7 +54,7 @@ function TurnRows(props: {
           className="archive-message archive-message--athlete grid min-w-0 max-w-[78%] justify-self-end gap-[7px] rounded-card rounded-br-ctl border border-line bg-surface px-4 py-3 shadow-elev-1"
           data-turn-id={props.turn.turnId}
         >
-          <p className="m-0 text-xs font-medium text-ink-3">You</p>
+          <p className="m-0 text-xs font-medium text-ink-3">{say("archive.athlete")}</p>
           <AthleteMessage text={props.turn.athleteText} />
         </article>
       ) : null}
@@ -61,7 +63,7 @@ function TurnRows(props: {
         data-turn-id={props.turn.turnId}
         data-delivery={props.turn.delivery ?? "complete"}
       >
-        <p className="m-0 text-xs font-medium text-ink-3">Coach</p>
+        <p className="m-0 text-xs font-medium text-ink-3">{say("archive.coach")}</p>
         <CoachMessage text={props.turn.coachText} />
       </article>
     </>
@@ -69,6 +71,7 @@ function TurnRows(props: {
 }
 
 function ArchiveList(): ReactElement {
+  const { say, format } = usePhrasebook();
   const listStatus = useEnduragentStore((state) => state.archive.listStatus);
   const conversations = useEnduragentStore((state) => state.archive.conversations);
   const truncated = useEnduragentStore((state) => state.archive.truncated);
@@ -77,14 +80,14 @@ function ArchiveList(): ReactElement {
 
   return (
     <>
-      <p className={`${NOTE_CLASS} archive-note`}>{ARCHIVE_READ_ONLY_NOTE}</p>
+      <p className={`${NOTE_CLASS} archive-note`}>{say(ARCHIVE_READ_ONLY_NOTE)}</p>
       <p
         className={`${NOTE_CLASS} archive-status`}
         role="status"
         aria-live="polite"
         hidden={listStatus === "ready"}
       >
-        {failed ? ARCHIVE_LIST_FAILURE_COPY : ARCHIVE_LOADING_COPY}
+        {say(failed ? ARCHIVE_LIST_FAILURE_COPY : ARCHIVE_LOADING_COPY)}
       </p>
       <Button
         type="button"
@@ -98,13 +101,13 @@ function ArchiveList(): ReactElement {
           actions?.retry();
         }}
       >
-        {ARCHIVE_RETRY_COPY}
+        {say(ARCHIVE_RETRY_COPY)}
       </Button>
       <p
         className={`${NOTE_CLASS} archive-empty`}
         hidden={listStatus !== "ready" || conversations.length > 0}
       >
-        {ARCHIVE_EMPTY_COPY}
+        {say(ARCHIVE_EMPTY_COPY)}
       </p>
       <div className="archive-list grid gap-inset">
         {conversations.map((entry) => (
@@ -113,29 +116,47 @@ function ArchiveList(): ReactElement {
             type="button"
             variant="outline"
             className="archive-entry grid h-auto w-full grid-cols-1 items-start justify-start justify-items-start gap-1 whitespace-normal rounded-card border-line bg-surface px-3.5 py-3 text-left font-normal shadow-elev-1 transition-colors hover:border-line-2 hover:bg-surface-2 active:shadow-none"
-            aria-label={`${archiveTimestampCopy(entry.boundaryAt)} · ${archiveTurnCountCopy(entry.turnCount)} · ${archiveReasonCopy(entry.reason)}`}
+            aria-label={say("archive.entryLabel", {
+              timestamp: say(archiveTimestampCopy(entry.boundaryAt, format)),
+              turnCount: say(
+                archiveTurnCountCopy(
+                  entry.turnCount,
+                  format.number(entry.turnCount, { useGrouping: false }),
+                ),
+              ),
+              reason: say(archiveReasonCopy(entry.reason)),
+            })}
             disabled={actions === null}
             onClick={() => {
               actions?.open(entry.boundaryRef);
             }}
           >
             <span className="text-xs leading-4 font-medium tracking-normal">
-              {archiveTimestampCopy(entry.boundaryAt)}
+              {say(archiveTimestampCopy(entry.boundaryAt, format))}
             </span>
             <span className="text-xs text-ink-2">
-              {archiveTurnCountCopy(entry.turnCount)} · {archiveReasonCopy(entry.reason)}
+              {say("archive.entryDetail", {
+                turnCount: say(
+                  archiveTurnCountCopy(
+                    entry.turnCount,
+                    format.number(entry.turnCount, { useGrouping: false }),
+                  ),
+                ),
+                reason: say(archiveReasonCopy(entry.reason)),
+              })}
             </span>
           </Button>
         ))}
       </div>
       <p className={`${NOTE_CLASS} archive-truncated`} hidden={!truncated}>
-        {ARCHIVE_TRUNCATED_COPY}
+        {say(ARCHIVE_TRUNCATED_COPY)}
       </p>
     </>
   );
 }
 
 function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactElement {
+  const { say, format } = usePhrasebook();
   const actions = useEnduragentStore((state) => state.archiveActions);
   const deletion = useEnduragentStore((state) => state.archive.deletion);
   const cancelDelete = useRef<HTMLButtonElement>(null);
@@ -165,10 +186,10 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
             actions?.close();
           }}
         >
-          {ARCHIVE_BACK_COPY}
+          {say(ARCHIVE_BACK_COPY)}
         </Button>
         <p className={`${NOTE_CLASS} archive-reading-when mb-0`}>
-          {reading.boundaryAt === null ? "" : archiveTimestampCopy(reading.boundaryAt)}
+          {reading.boundaryAt === null ? "" : say(archiveTimestampCopy(reading.boundaryAt, format))}
         </p>
         <Dialog
           open={deleteOpen}
@@ -188,7 +209,7 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
               />
             }
           >
-            {ARCHIVE_DELETE_COPY}
+            {say(ARCHIVE_DELETE_COPY)}
           </DialogTrigger>
           <DialogContent
             className="archive-delete-dialog w-[min(460px,calc(100vw-32px))] max-w-none gap-0 p-6 shadow-elev-4 sm:max-w-none"
@@ -197,12 +218,12 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
             aria-busy={deletePending ? "true" : undefined}
           >
             <DialogHeader className="gap-2.5">
-              <DialogTitle className="m-0 text-xl">{ARCHIVE_DELETE_TITLE}</DialogTitle>
+              <DialogTitle className="m-0 text-xl">{say(ARCHIVE_DELETE_TITLE)}</DialogTitle>
               <DialogDescription className="m-0 leading-[1.5]">
-                {ARCHIVE_DELETE_DESCRIPTION}
+                {say(ARCHIVE_DELETE_DESCRIPTION)}
                 {deleteFailed ? (
                   <span className="mt-2 block text-destructive" role="alert">
-                    {ARCHIVE_DELETE_FAILURE_COPY}
+                    {say(ARCHIVE_DELETE_FAILURE_COPY)}
                   </span>
                 ) : null}
               </DialogDescription>
@@ -219,7 +240,7 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
                   />
                 }
               >
-                Cancel
+                {say("common.cancel")}
               </DialogClose>
               <Button
                 type="button"
@@ -230,24 +251,26 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
                   actions?.confirmDeletion();
                 }}
               >
-                {deleteFailed ? ARCHIVE_RETRY_COPY : ARCHIVE_DELETE_COPY}
+                {say(deleteFailed ? ARCHIVE_RETRY_COPY : ARCHIVE_DELETE_COPY)}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      <p className={`${NOTE_CLASS} archive-note`}>{ARCHIVE_READ_ONLY_NOTE}</p>
+      <p className={`${NOTE_CLASS} archive-note`}>{say(ARCHIVE_READ_ONLY_NOTE)}</p>
       <p
         className={`${NOTE_CLASS} archive-reading-status`}
         role="status"
         aria-live="polite"
         hidden={reading.status === "ready"}
       >
-        {failed
-          ? ARCHIVE_PAGE_FAILURE_COPY
-          : unavailable
-            ? ARCHIVE_UNAVAILABLE_COPY
-            : ARCHIVE_LOADING_COPY}
+        {say(
+          failed
+            ? ARCHIVE_PAGE_FAILURE_COPY
+            : unavailable
+              ? ARCHIVE_UNAVAILABLE_COPY
+              : ARCHIVE_LOADING_COPY,
+        )}
       </p>
       <div className="mb-4 hidden items-center gap-inset has-[>*:not([hidden])]:flex">
         <Button
@@ -262,7 +285,7 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
             actions?.loadEarlier();
           }}
         >
-          {ARCHIVE_LOAD_EARLIER_COPY}
+          {say(ARCHIVE_LOAD_EARLIER_COPY)}
         </Button>
         <Button
           type="button"
@@ -276,16 +299,20 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
             actions?.retry();
           }}
         >
-          {ARCHIVE_RETRY_COPY}
+          {say(ARCHIVE_RETRY_COPY)}
         </Button>
       </div>
       <p
         className={`${NOTE_CLASS} archive-empty`}
         hidden={reading.status !== "ready" || reading.turns.length > 0}
       >
-        {ARCHIVE_EMPTY_CONVERSATION_COPY}
+        {say(ARCHIVE_EMPTY_CONVERSATION_COPY)}
       </p>
-      <section className="archive-thread grid gap-6" aria-label="Past conversation" aria-live="off">
+      <section
+        className="archive-thread grid gap-6"
+        aria-label={say("archive.conversation")}
+        aria-live="off"
+      >
         {projectedTurns.map(({ turn, attempt }) => (
           <TurnRows
             key={`${turn.turnId}:attempt:${attempt}`}
@@ -299,6 +326,7 @@ function ArchiveReader(props: { readonly reading: ArchiveReadingState }): ReactE
 }
 
 export function ArchiveView(): ReactElement {
+  const { say } = usePhrasebook();
   const listStatus = useEnduragentStore((state) => state.archive.listStatus);
   const reading = useEnduragentStore((state) => state.archive.reading);
   const actions = useEnduragentStore((state) => state.archiveActions);
@@ -309,7 +337,7 @@ export function ArchiveView(): ReactElement {
 
   return (
     <Page
-      title={ARCHIVE_TITLE}
+      title={say(ARCHIVE_TITLE)}
       busy={listStatus === "loading" || reading?.status === "loading"}
       className="archive-view"
     >

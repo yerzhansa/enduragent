@@ -1,16 +1,8 @@
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  writeAuditEntry,
-  __resetAuditFailureState,
-} from "../src/reference/audit/writer.js";
+import { writeAuditEntry, __resetAuditFailureState } from "../src/reference/audit/writer.js";
 import { parseAuditLog } from "../src/reference/audit/parse.js";
 import {
   AUDIT_SCHEMA_VERSION,
@@ -21,9 +13,7 @@ import {
 const BINARY = "cycling-coach";
 
 const metadata: RecommendationMetadata = {
-  citations: [
-    { field: "current_status.acwr.value", value: 1.12, source: "latest.json" },
-  ],
+  citations: [{ field: "current_status.acwr.value", value: 1.12, source: "latest.json" }],
   confidence: "high",
   frameworks: ["polarized"],
   phase_tag: "build",
@@ -101,9 +91,7 @@ describe("parseAuditLog", () => {
     expect(parsed).toHaveLength(1);
     expect(parsed[0].chatId).toBe("v2-native");
     expect(parsed[0].event_type).toBe("tool_gate_block");
-    expect(parsed[0].verdicts).toEqual([
-      { lens: "citation", ok: false, detail: "missing source" },
-    ]);
+    expect(parsed[0].verdicts).toEqual([{ lens: "citation", ok: false, detail: "missing source" }]);
     expect(parsed[0].prompt_template_hash).toBe("abc123");
   });
 

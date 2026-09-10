@@ -1,3 +1,5 @@
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import type {
@@ -10,6 +12,7 @@ import {
   CONVERSATION_FIELDS,
   MANAGED_BY_ENVIRONMENT_COPY,
   conversationSaveErrorCopy,
+  conversationValidationMessage,
 } from "./copy";
 import { settingsStyles as styles } from "./styles";
 
@@ -26,23 +29,24 @@ function formState(state: SessionSettingsState): SessionSettingsFormState | null
   return null;
 }
 
-function feedbackCopy(state: SessionSettingsState): string | null {
+function feedbackCopy(state: SessionSettingsState, say: Phrasebook["say"]): string | null {
   if (state.status === "closed" || state.status === "loading") {
-    return "Loading conversation settings…";
+    return say("settings.conversation.loading");
   }
-  if (state.status === "refreshing") return "Reconnecting and checking current settings…";
+  if (state.status === "refreshing") return say("settings.conversation.refreshing");
   if (state.status === "error" && state.kind === "load") {
-    return "Conversation settings aren’t available. Reconnect and reload.";
+    return say("settings.conversation.unavailable");
   }
-  if (state.status === "saving") return "Saving conversation settings…";
-  if (state.status === "saved") return "Conversation settings saved.";
+  if (state.status === "saving") return say("settings.conversation.saving");
+  if (state.status === "saved") return say("settings.conversation.saved");
   if (state.status === "error" && state.kind === "save") {
-    return conversationSaveErrorCopy(state.reason);
+    return say(conversationSaveErrorCopy(state.reason));
   }
   return null;
 }
 
 export function ConversationSection(): ReactElement {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.conversation);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.conversation ?? null);
@@ -55,7 +59,7 @@ export function ConversationSection(): ReactElement {
     state.status === "closed";
   const saving = state.status === "saving";
   const retryVisible = state.status === "error" && (state.kind === "load" || state.kind === "save");
-  const feedback = feedbackCopy(state);
+  const feedback = feedbackCopy(state, say);
   const canSave =
     editable !== null &&
     editable.dirtyFields.size > 0 &&
@@ -63,11 +67,9 @@ export function ConversationSection(): ReactElement {
 
   return (
     <>
-      <h2 className={styles.heading}>Conversation &amp; time</h2>
-      <section className={styles.group} aria-label="Conversation and time">
-        <p className={styles.note}>
-          Set when conversations renew and how much recent context your coach carries forward.
-        </p>
+      <h2 className={styles.heading}>{say("settings.conversation.title")}</h2>
+      <section className={styles.group} aria-label={say("settings.conversation.ariaLabel")}>
+        <p className={styles.note}>{say("settings.conversation.detail")}</p>
         {editable === null
           ? null
           : CONVERSATION_FIELDS.map((definition) => {
@@ -82,8 +84,12 @@ export function ConversationSection(): ReactElement {
               return (
                 <div key={definition.field} className={`${styles.row} ${styles.rowStacked}`}>
                   <label className={styles.rowTitle} htmlFor={id}>
-                    {definition.label}
-                    {definition.suffix === undefined ? "" : ` (${definition.suffix})`}
+                    {say(definition.label)}
+                    {definition.suffix === undefined
+                      ? ""
+                      : say("settings.conversation.fieldSuffix", {
+                          suffix: definition.suffix === "%" ? "%" : say(definition.suffix),
+                        })}
                   </label>
                   <input
                     id={id}
@@ -104,15 +110,17 @@ export function ConversationSection(): ReactElement {
                     }}
                   />
                   <p className={styles.help} id={`${id}-help`}>
-                    {definition.help}
+                    {say(definition.help)}
                   </p>
                   {managed ? (
                     <p className={styles.help} id={`${id}-managed`}>
-                      {MANAGED_BY_ENVIRONMENT_COPY}
+                      {say(MANAGED_BY_ENVIRONMENT_COPY)}
                     </p>
                   ) : null}
                   <p className={styles.error} id={`${id}-error`} aria-live="polite">
-                    {error ?? ""}
+                    {error === undefined
+                      ? ""
+                      : say(conversationValidationMessage(definition.field))}
                   </p>
                 </div>
               );
@@ -133,7 +141,7 @@ export function ConversationSection(): ReactElement {
                 port?.retry();
               }}
             >
-              Reconnect &amp; reload
+              {say("settings.conversation.reload")}
             </Button>
           ) : null}
           <Button
@@ -145,7 +153,7 @@ export function ConversationSection(): ReactElement {
               port?.save();
             }}
           >
-            {saving ? "Saving…" : "Save conversation settings"}
+            {saving ? say("settings.saving") : say("settings.conversation.save")}
           </Button>
         </div>
       </section>

@@ -1,66 +1,155 @@
+import { msg } from "@enduragent/i18n";
 import type { SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import { currency, notionalSpendCopy, routeSpendCopy } from "../../state/adapters/spend";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import { useEnduragentStore } from "../../state/store";
 import { settingsStyles as styles } from "./styles";
 
-function localDateLabel(value: string): string {
+function currency(
+  value: number,
+  { say, format }: Pick<Phrasebook, "say" | "format">,
+  detail = false,
+): string {
+  if (value > 0 && value < 0.01 && !detail)
+    return say("settings.spend.amountBelow", {
+      amount: format.number(0.01, {
+        useGrouping: false,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    });
+  const digits = value > 0 && value < 0.01 && detail ? 4 : 2;
+  return say("settings.spend.amount", {
+    amount: format.number(Number(value.toFixed(digits)), {
+      useGrouping: false,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }),
+  });
+}
+
+function notionalSpendCopy(
+  summary: SpendSummary,
+  { say, format }: Pick<Phrasebook, "say" | "format">,
+): string | null {
+  const notional = summary.notionalSpendUsd ?? 0;
+  return notional <= 0
+    ? null
+    : say("settings.spend.notional", { amount: currency(notional, { say, format }, true) });
+}
+
+function routeSpendCopy(route: SpendRouteSummary, { say, format }: Phrasebook): string {
+  const notional = route.notionalSpendUsd ?? 0;
+  const parts: string[] = [];
+  if (notional === 0 || route.knownSpendUsd > 0)
+    parts.push(currency(route.knownSpendUsd, { say, format }, true));
+  if (notional > 0)
+    parts.push(
+      say("settings.spend.routeNotional", { amount: currency(notional, { say, format }, true) }),
+    );
+  parts.push(
+    say("settings.spend.priced", {
+      priced: format.number(route.pricedGenerationCount, { useGrouping: false }),
+      total: format.number(route.generationCount, { useGrouping: false }),
+    }),
+  );
+  return parts.join(" · ");
+}
+
+function localDateLabel(
+  value: string,
+  { say, format }: Pick<Phrasebook, "say" | "format">,
+): string {
   const [, month, day] = value.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2000, (month ?? 1) - 1, day ?? 1)));
+  const date = new Date(Date.UTC(2000, (month ?? 1) - 1, day ?? 1));
+  const months = [
+    msg("settings.spend.month.january"),
+    msg("settings.spend.month.february"),
+    msg("settings.spend.month.march"),
+    msg("settings.spend.month.april"),
+    msg("settings.spend.month.may"),
+    msg("settings.spend.month.june"),
+    msg("settings.spend.month.july"),
+    msg("settings.spend.month.august"),
+    msg("settings.spend.month.september"),
+    msg("settings.spend.month.october"),
+    msg("settings.spend.month.november"),
+    msg("settings.spend.month.december"),
+  ] as const;
+  return say("settings.spend.date", {
+    month: say(months[date.getUTCMonth()] ?? months[0]),
+    day: format.date(date, { day: "numeric", timeZone: "UTC" }),
+  });
 }
 
-function routeCache(route: SpendRouteSummary): string {
-  if (route.cacheReadTokens === 0) return "No cache reads";
+function routeCache(route: SpendRouteSummary, { say, format }: Phrasebook): string {
+  if (route.cacheReadTokens === 0) return say("settings.spend.cache.none");
   if (route.cacheReadSavingsUsd === null) {
-    return `${route.cacheReadTokens.toLocaleString("en-US")} cache-read tokens · savings unavailable`;
+    return say("settings.spend.cache.unknown", { tokens: format.number(route.cacheReadTokens) });
   }
-  return `${route.cacheReadTokens.toLocaleString("en-US")} cache-read tokens · Saved ${currency(route.cacheReadSavingsUsd, true)}`;
+  return say("settings.spend.cache.savings", {
+    tokens: format.number(route.cacheReadTokens),
+    amount: currency(route.cacheReadSavingsUsd, { say, format }, true),
+  });
 }
 
-function routeCaching(route: SpendRouteSummary): string {
-  if (route.caching === "explicit") return "Explicit caching on this route.";
+function routeCaching(route: SpendRouteSummary, say: Phrasebook["say"]): string {
+  if (route.caching === "explicit") return say("settings.spend.cache.explicit");
   if (route.caching === "provider-dependent") {
-    return "Provider-dependent caching; no explicit breakpoint on this route.";
+    return say("settings.spend.cache.providerDependent");
   }
-  return route.disclosure ?? "";
+  return route.disclosure === null ? "" : say("settings.spend.cache.unavailable");
 }
 
-function notices(summary: SpendSummary, stale: boolean): readonly string[] {
+function notices(
+  summary: SpendSummary,
+  stale: boolean,
+  { say, format }: Phrasebook,
+): readonly string[] {
   const messages: string[] = [];
   if (!summary.spendComplete) {
-    messages.push("Some provider costs are unavailable, so today’s total is a known minimum.");
+    messages.push(say("settings.spend.notice.incomplete"));
   }
-  if (summary.malformedLineCount > 0) messages.push("Some usage records could not be read.");
-  const notional = notionalSpendCopy(summary);
+  if (summary.malformedLineCount > 0) messages.push(say("settings.spend.notice.malformed"));
+  const notional = notionalSpendCopy(summary, { say, format });
   if (notional !== null) messages.push(notional);
   messages.push(
-    `${summary.cacheSavingsComplete ? "Saved" : "Saved at least"} ${currency(summary.knownCacheReadSavingsUsd, true)} with cache reads`,
+    summary.cacheSavingsComplete
+      ? say("settings.spend.notice.saved", {
+          amount: currency(summary.knownCacheReadSavingsUsd, { say, format }, true),
+        })
+      : say("settings.spend.notice.savedMinimum", {
+          amount: currency(summary.knownCacheReadSavingsUsd, { say, format }, true),
+        }),
   );
-  if (stale) messages.push("Spend data may be out of date.");
+  if (stale) messages.push(say("settings.spend.notice.stale"));
   return messages;
 }
 
 export function SpendSection(): ReactElement {
+  const phrasebook = usePhrasebook();
+  const { say, format } = phrasebook;
   const spend = useEnduragentStore((store) => store.settings.spend);
   const port = useEnduragentStore((store) => store.settingsPorts?.spend ?? null);
   const summary = spend.summary;
   const known =
     summary === null
       ? "—"
-      : `${currency(summary.knownSpendUsd)}${summary.spendComplete ? "" : "+"}`;
-  const cap = summary === null ? "—" : currency(summary.dailyCapUsd);
+      : summary.spendComplete
+        ? currency(summary.knownSpendUsd, { say, format })
+        : say("settings.spend.minimumAmount", {
+            amount: currency(summary.knownSpendUsd, { say, format }),
+          });
+  const cap = summary === null ? "—" : currency(summary.dailyCapUsd, { say, format });
 
   return (
     <>
-      <h2 className={styles.heading}>Spending</h2>
+      <h2 className={styles.heading}>{say("settings.spend.title")}</h2>
       <section
         className={styles.group}
-        aria-label="Spending"
+        aria-label={say("settings.spend.title")}
         data-spend-meter=""
         data-cap-status={summary?.capStatus}
       >
@@ -68,46 +157,54 @@ export function SpendSection(): ReactElement {
           <div className={styles.bareRow}>
             <div className={styles.label}>
               <div className={styles.rowTitle}>
-                {summary === null ? "Today" : `Today · ${localDateLabel(summary.localDate)}`}
+                {summary === null
+                  ? say("settings.spend.today")
+                  : say("settings.spend.todayDate", {
+                      date: localDateLabel(summary.localDate, { say, format }),
+                    })}
               </div>
               <div className={styles.rowDetail}>
                 {spend.status === "unavailable"
-                  ? "Spend data unavailable."
-                  : "Language model spend against today’s cap"}
+                  ? say("settings.spend.unavailable")
+                  : say("settings.spend.detail")}
               </div>
             </div>
-            <strong className={styles.amount}>{`${known} / ${cap}`}</strong>
+            <strong className={styles.amount}>
+              {say("settings.spend.amountAgainstCap", { known, cap })}
+            </strong>
           </div>
           <progress
             className={styles.meter}
-            aria-label="Daily spend cap"
-            aria-valuetext={summary === null ? undefined : `${known} of ${cap}`}
+            aria-label={say("settings.spend.cap.aria")}
+            aria-valuetext={
+              summary === null ? undefined : say("settings.spend.cap.value", { known, cap })
+            }
             max={summary?.dailyCapUsd ?? 1}
             value={summary === null ? 0 : Math.min(summary.knownSpendUsd, summary.dailyCapUsd)}
           />
         </div>
         {summary === null
           ? null
-          : notices(summary, spend.stale).map((message) => (
+          : notices(summary, spend.stale, phrasebook).map((message) => (
               <p key={message} className={styles.note}>
                 {message}
               </p>
             ))}
         {summary === null || summary.routes.length === 0 ? null : (
-          <div className={styles.routes} aria-label="Spend details">
+          <div className={styles.routes} aria-label={say("settings.spend.routes")}>
             {summary.routes.map((route) => (
               <article key={`${route.provider}/${route.model}`} className={styles.route}>
                 <p className={styles.routeHeading}>{`${route.provider} · ${route.model}`}</p>
-                <p className={styles.routeDetail}>{routeSpendCopy(route)}</p>
-                <p className={styles.routeDetail}>{routeCache(route)}</p>
-                <p className={styles.routeDetail}>{routeCaching(route)}</p>
+                <p className={styles.routeDetail}>{routeSpendCopy(route, phrasebook)}</p>
+                <p className={styles.routeDetail}>{routeCache(route, phrasebook)}</p>
+                <p className={styles.routeDetail}>{routeCaching(route, say)}</p>
               </article>
             ))}
           </div>
         )}
         <div className={styles.capEditor}>
           <label className={styles.capLabel} htmlFor="daily-spend-cap">
-            Daily cap (USD)
+            {say("settings.spend.cap.label")}
           </label>
           <input
             id="daily-spend-cap"
@@ -129,11 +226,13 @@ export function SpendSection(): ReactElement {
               port?.save();
             }}
           >
-            Save cap
+            {say("settings.spend.cap.save")}
           </Button>
           {spend.capError === null ? null : (
             <p className={`${styles.error} ${styles.capError}`} role="status">
-              {spend.capError}
+              {spend.capError === "Enter a daily cap greater than $0."
+                ? say("settings.spend.cap.invalid")
+                : say("settings.spend.cap.failed")}
             </p>
           )}
         </div>

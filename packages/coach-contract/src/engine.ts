@@ -1,3 +1,4 @@
+import { MessageSchema } from "./turn-event.js";
 import { z } from "zod";
 import { LanguageTagSchema, LanguageSourceSchema } from "./language.js";
 import type { TurnEvent } from "./turn-event.js";
@@ -88,6 +89,7 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export const ChatResponseSchema = z
   .object({
     text: z.string(),
+    message: MessageSchema.optional(),
     decision: CoachDecisionReadModelSchema.optional(),
     planIntakePatch: PlanIntakePatchSchema.optional(),
   })

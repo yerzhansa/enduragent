@@ -123,9 +123,8 @@ describe("atomicWriteJson — atomicity invariant", () => {
     vi.resetModules();
     vi.doMock("node:fs/promises", () => ({ ...actual, rename }));
     try {
-      const { atomicWriteJson: isolatedAtomicWriteJson } = await import(
-        "../src/io/atomic-write-json.js"
-      );
+      const { atomicWriteJson: isolatedAtomicWriteJson } =
+        await import("../src/io/atomic-write-json.js");
       const target = join(tempDir, "asynchronous-commit.json");
       await isolatedAtomicWriteJson(target, { committed: true });
       expect(rename).toHaveBeenCalledOnce();
@@ -151,9 +150,8 @@ describe("atomicWriteJson — atomicity invariant", () => {
     vi.resetModules();
     vi.doMock("node:fs/promises", () => ({ ...actual, rename }));
     try {
-      const { atomicWriteJson: isolatedAtomicWriteJson } = await import(
-        "../src/io/atomic-write-json.js"
-      );
+      const { atomicWriteJson: isolatedAtomicWriteJson } =
+        await import("../src/io/atomic-write-json.js");
       const target = join(tempDir, "serialized.json");
       const first = isolatedAtomicWriteJson(target, { gen: 1 });
       await vi.waitFor(() => expect(rename).toHaveBeenCalledTimes(1));

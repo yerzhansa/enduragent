@@ -1,5 +1,7 @@
+import { useEnduragentStore } from "../src/state/store";
+import { renderLocalized as render, renderWithCatalog } from "./language-harness";
 import type { SupportingEvent } from "@enduragent/coach-contract";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SupportingEventFields } from "../src/ui/chat/SupportingEventFields";
@@ -27,6 +29,35 @@ async function choose(label: string, option: string): Promise<void> {
 }
 
 describe("Supporting Event fields", () => {
+  it("reads event controls from an injected Italian catalog", async () => {
+    useEnduragentStore.setState((state) => ({
+      settings: { ...state.settings, language: { status: "ready", value: "it" } },
+    }));
+    await renderWithCatalog(
+      <SupportingEventFields events={[]} candidates={[]} busy={false} onIntentChange={vi.fn()} />,
+      {
+        chat: {
+          supportingEvent: {
+            operationLabel: "Operazione evento",
+            name: "Nome evento",
+            date: "Data evento",
+            planRole: "Ruolo nel piano",
+            operation: { add: "Aggiungi evento" },
+            role: { training: "Allenamento" },
+          },
+        },
+      },
+    );
+    expect(screen.getByRole("combobox", { name: "Operazione evento" })).toHaveTextContent(
+      "Aggiungi evento",
+    );
+    expect(screen.getByLabelText("Nome evento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data evento")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Ruolo nel piano" })).toHaveTextContent(
+      "Allenamento",
+    );
+  });
+
   it("offers every operation and sends only its contract fields", async () => {
     const onIntentChange = vi.fn();
     render(

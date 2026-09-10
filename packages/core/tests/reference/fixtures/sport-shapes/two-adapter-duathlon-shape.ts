@@ -28,6 +28,11 @@ export const twoAdapterDuathlonShape: Pick<
   "id" | "intervalsActivityTypes" | "referenceAdapters"
 > = {
   id: "duathlon",
-  intervalsActivityTypes: ["Ride", "VirtualRide", "Run", "TrailRun"] as readonly IntervalsActivityType[],
+  intervalsActivityTypes: [
+    "Ride",
+    "VirtualRide",
+    "Run",
+    "TrailRun",
+  ] as readonly IntervalsActivityType[],
   referenceAdapters: (): readonly ReferenceSportAdapter[] => [cyclingAdapter, runningAdapter],
 };

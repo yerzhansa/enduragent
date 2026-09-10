@@ -9,6 +9,25 @@ import {
   loadAllowedSenders,
 } from "../src/channels/allowed-senders.js";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 // ─── Fake grammy Bot factory ─────────────────────────────────────────────────
 // Each test sets up its desired bot behavior by pushing onto these queues.
 
@@ -60,13 +79,11 @@ beforeEach(() => {
   delete process.env.CYCLING_COACH_OPERATOR_ID;
   nextBots = [];
   vi.resetModules();
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot(this: unknown, _token: string) {
-      const next = nextBots.shift();
-      if (!next) throw new Error("Test bug: no fake bot queued");
-      return next;
-    },
-  }));
+  grammyFake.bot = () => {
+    const next = nextBots.shift();
+    if (!next) throw new Error("Test bug: no fake bot queued");
+    return next;
+  };
 });
 
 afterEach(() => {
@@ -74,10 +91,10 @@ afterEach(() => {
   else process.env.CYCLING_COACH_OPERATOR_ID = savedEnv;
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
 });
 
 async function importHelper() {
+  vi.resetModules();
   return (await import("../src/channels/operator-capture.js")).captureAndPersistOperator;
 }
 
@@ -170,9 +187,7 @@ describe("captureAndPersistOperator — capture flow", () => {
       log: pairing.log,
     });
     expect(result.status).toBe("captured");
-    expect(bot.start).toHaveBeenCalledWith(
-      expect.objectContaining({ drop_pending_updates: true }),
-    );
+    expect(bot.start).toHaveBeenCalledWith(expect.objectContaining({ drop_pending_updates: true }));
     expect(result.capturedId).toBe("12345");
     expect(result.botUsername).toBe("testbot");
     expect(confirm).toHaveBeenCalledWith(

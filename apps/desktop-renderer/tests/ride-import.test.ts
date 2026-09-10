@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import type {
   CoachOperationProgressNotificationEnvelope,
   ImportFilesRpcResult,
@@ -6,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createRideImportController,
   rideImportStatusCopy,
+  rideFileCountMessage,
+  rideImportStatusMessage,
   subscribeToDroppedRideImports,
   type RideImportState,
   type RideImportTransport,
@@ -269,5 +272,53 @@ describe("dropped ride import routing", () => {
 
     disposeRouter();
     expect(dispose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("setup ride import messages", () => {
+  it("preserves the existing English for every status and both count forms", async () => {
+    const { say, format } = await createPhrasebook({ tag: "en", locale: "en-US" });
+    const idle: RideImportState = { status: "idle", owner: null, progress: null, result: null };
+    const states: RideImportState[] = [
+      idle,
+      { status: "running", owner: "onboarding", stage: "choosing", progress: null, result: null },
+      { status: "running", owner: "onboarding", stage: "importing", progress: null, result: null },
+      { status: "failed", owner: "onboarding", progress: null, result: null },
+      ...[0, 1, 2, 1000].flatMap((imported): RideImportState[] =>
+        [0, 1, 2].flatMap((quarantined): RideImportState[] => [
+          {
+            status: "failed",
+            owner: "onboarding",
+            progress: null,
+            result: result(imported, quarantined),
+          },
+          {
+            status: "succeeded",
+            owner: "onboarding",
+            progress: null,
+            result: result(imported, quarantined),
+          },
+          {
+            status: "succeeded",
+            owner: "onboarding",
+            progress: null,
+            result: result(imported, quarantined, imported, "retryable-failure"),
+          },
+        ]),
+      ),
+    ];
+    for (const state of states) {
+      const imported = state.result?.files.imported ?? 0;
+      const quarantined = state.result?.files.quarantined ?? 0;
+      const message = rideImportStatusMessage(state, {
+        imported: say(
+          rideFileCountMessage(imported, format.number(imported, { useGrouping: false })),
+        ),
+        quarantined: say(
+          rideFileCountMessage(quarantined, format.number(quarantined, { useGrouping: false })),
+        ),
+      });
+      expect(message === null ? "" : say(message)).toBe(rideImportStatusCopy(state));
+    }
   });
 });

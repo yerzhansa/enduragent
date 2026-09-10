@@ -14,6 +14,7 @@ import type {
   PlanChangePendingCheck,
 } from "@enduragent/coach-contract";
 import type { ActivePlanKnowledge } from "../chat/controller";
+import type { WireMessage } from "../chat/message-state";
 import type { StateCreator } from "zustand";
 import type { TranscriptHydrationChange, TranscriptHydrationStatus } from "../chat/hydration";
 import type { FirstSyncState } from "../first-sync";
@@ -28,6 +29,7 @@ export interface ChatMessageView {
   readonly delivery: ChatTranscriptMessage["delivery"];
   readonly historical: boolean;
   readonly text: string;
+  readonly message?: WireMessage;
   readonly attachments?: ChatTranscriptMessage["attachments"];
   readonly planReference?: ChatTranscriptMessage["planReference"];
   readonly planHandoff?: ChatTranscriptMessage["planHandoff"];
@@ -94,6 +96,7 @@ export interface ChatSurfaceState {
   readonly timeline: readonly ChatTranscriptItemView[];
   readonly status: ChatStatus;
   readonly notice: string | null;
+  readonly noticeMessage?: WireMessage;
   readonly coachProgress: string | null;
   readonly interrupted: boolean;
   readonly workBlocked: boolean;
@@ -273,6 +276,7 @@ export function sameChatMessages(
       message.delivery === other.delivery &&
       message.historical === other.historical &&
       message.text === other.text &&
+      JSON.stringify(message.message) === JSON.stringify(other.message) &&
       JSON.stringify(message.planReference) === JSON.stringify(other.planReference) &&
       JSON.stringify(message.planHandoff) === JSON.stringify(other.planHandoff) &&
       sameAttachments(message.attachments, other.attachments)
@@ -354,6 +358,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
   return (
     left.status === right.status &&
     left.notice === right.notice &&
+    JSON.stringify(left.noticeMessage) === JSON.stringify(right.noticeMessage) &&
     left.coachProgress === right.coachProgress &&
     left.interrupted === right.interrupted &&
     left.retryRequired === right.retryRequired &&

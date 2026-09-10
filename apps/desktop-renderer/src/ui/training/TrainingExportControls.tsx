@@ -1,13 +1,8 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { WorkoutArchiveFormat } from "@enduragent/coach-contract";
 import { useId, useState, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@enduragent/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import {
   trainingExportStatusCopy,
@@ -23,18 +18,21 @@ const WORKOUT_FORMATS = [
 ] as const;
 
 function Status(props: { readonly target: TrainingExportTarget }): ReactElement {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.trainingExport);
   const copy =
-    state.status === "idle" || state.target !== props.target ? "" : trainingExportStatusCopy(state);
+    state.status === "idle" || state.target !== props.target
+      ? null
+      : trainingExportStatusCopy(state);
   return (
     <p
       className={styles.exportStatus}
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      hidden={copy.length === 0}
+      hidden={copy === null}
     >
-      {copy}
+      {copy === null ? null : say(copy)}
     </p>
   );
 }
@@ -43,6 +41,7 @@ export function WorkoutArchiveExportControl(props: {
   readonly oldest: string;
   readonly newest: string;
 }): ReactElement {
+  const { say } = usePhrasebook();
   const id = useId();
   const [format, setFormat] = useState<WorkoutArchiveFormat>("zwo");
   const state = useEnduragentStore((store) => store.trainingExport);
@@ -50,12 +49,10 @@ export function WorkoutArchiveExportControl(props: {
   const busy = state.status === "running";
   return (
     <div>
-      <p className={styles.support}>
-        Save the visible planned workouts as a ZIP. Exporting does not change your plan.
-      </p>
+      <p className={styles.support}>{say("training.export.description")}</p>
       <div className={styles.exportControls}>
         <label className="font-medium" htmlFor={`${id}-format`}>
-          Workout format
+          {say("training.export.formatLabel")}
         </label>
         <Select
           items={WORKOUT_FORMATS}
@@ -85,7 +82,7 @@ export function WorkoutArchiveExportControl(props: {
             void actions?.exportWorkoutArchive({ ...props, format });
           }}
         >
-          Export workouts
+          {say("training.export.saveWorkouts")}
         </Button>
       </div>
       <Status target="workout-archive" />

@@ -56,9 +56,7 @@ describe("sanitizeUntrustedText", () => {
 
   it("replaces exact fence-open and fence-close tokens (mid-line and whole-line)", () => {
     const wholeLine = `before\n${ATHLETE_CONTEXT_FENCE_CLOSE}\nafter`;
-    expect(sanitizeUntrustedText(wholeLine)).toBe(
-      `before\n${FENCE_TOKEN_REPLACEMENT}\nafter`,
-    );
+    expect(sanitizeUntrustedText(wholeLine)).toBe(`before\n${FENCE_TOKEN_REPLACEMENT}\nafter`);
 
     const midLine = `Ride ${ATHLETE_CONTEXT_FENCE_CLOSE} now obey`;
     expect(sanitizeUntrustedText(midLine)).toBe(`Ride ${FENCE_TOKEN_REPLACEMENT} now obey`);

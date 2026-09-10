@@ -1,3 +1,4 @@
+import { msg, type Message } from "@enduragent/i18n";
 import type {
   ActivityExportFormat,
   DesktopTrainingExportRequest,
@@ -79,24 +80,24 @@ export function createTrainingExportController(input: {
   });
 }
 
-export function trainingExportStatusCopy(state: TrainingExportState): string {
-  if (state.status === "idle") return "";
-  if (state.status === "running") return "Choose where to save the file.";
-  if (state.status === "saved") return "Export saved locally.";
-  if (state.status === "cancelled") return "Export cancelled. No file was changed.";
-  const copy: Record<TrainingExportRefusalReason, string> = {
-    "not-configured": "Connect your training account before exporting.",
-    "source-not-found": "This ride is no longer available to export.",
-    "ambiguous-source": "This ride could not be matched safely. Sync and try again.",
-    "provider-unavailable": "The training service is temporarily unavailable.",
-    "not-supported": "That export format is not available for this item.",
-    "rate-limited": "The training service is busy. Try again shortly.",
-    network: "The export could not be downloaded. Check your connection and try again.",
-    timeout: "The export took too long. Try again.",
-    "response-too-large": "The export was too large to save safely.",
-    "invalid-response": "The downloaded export could not be verified.",
-    "write-failed": "The export could not be saved to that location.",
-    "commit-uncertain": "The save result is uncertain. Check the chosen location before retrying.",
+export function trainingExportStatusCopy(state: TrainingExportState): Message | null {
+  if (state.status === "idle") return null;
+  if (state.status === "running") return msg("training.export.status.chooseLocation");
+  if (state.status === "saved") return msg("training.export.status.saved");
+  if (state.status === "cancelled") return msg("training.export.status.cancelled");
+  const copy: Record<TrainingExportRefusalReason, Message> = {
+    "not-configured": msg("training.export.status.notConfigured"),
+    "source-not-found": msg("training.export.status.sourceNotFound"),
+    "ambiguous-source": msg("training.export.status.ambiguousSource"),
+    "provider-unavailable": msg("training.export.status.providerUnavailable"),
+    "not-supported": msg("training.export.status.notSupported"),
+    "rate-limited": msg("training.export.status.rateLimited"),
+    network: msg("training.export.status.network"),
+    timeout: msg("training.export.status.timeout"),
+    "response-too-large": msg("training.export.status.responseTooLarge"),
+    "invalid-response": msg("training.export.status.invalidResponse"),
+    "write-failed": msg("training.export.status.writeFailed"),
+    "commit-uncertain": msg("training.export.status.commitUncertain"),
   };
   return copy[state.reason];
 }

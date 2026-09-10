@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  dateKeySchema,
-  validateListRange,
-} from "../src/agent/date-schema.js";
+import { dateKeySchema, validateListRange } from "../src/agent/date-schema.js";
 
 describe("dateKeySchema", () => {
   it("accepts the required shape and rejects alternate formats", () => {
@@ -27,18 +24,12 @@ describe("validateListRange", () => {
   });
 
   it("refuses swapped bounds", () => {
-    expect(validateListRange("2026-07-11", "2026-07-10", 366)?.error).toBe(
-      "invalid_range",
-    );
+    expect(validateListRange("2026-07-11", "2026-07-10", 366)?.error).toBe("invalid_range");
   });
 
   it("refuses impossible dates", () => {
-    expect(validateListRange("2026-02-31", "2026-03-01", 366)?.error).toBe(
-      "invalid_date",
-    );
-    expect(validateListRange("2026-02-01", "2026-02-31", 366)?.error).toBe(
-      "invalid_date",
-    );
+    expect(validateListRange("2026-02-31", "2026-03-01", 366)?.error).toBe("invalid_date");
+    expect(validateListRange("2026-02-01", "2026-02-31", 366)?.error).toBe("invalid_date");
   });
 
   it("caps an omitted newest bound against today in UTC", () => {

@@ -6,7 +6,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildFixtureShape, buildMetricInput, type ReferenceBundle } from "../src/reference/sync/fixture-bridge.js";
+import {
+  buildFixtureShape,
+  buildMetricInput,
+  type ReferenceBundle,
+} from "../src/reference/sync/fixture-bridge.js";
 import type { Activity, FtpHistoryPoint, WellnessDay } from "../src/reference/schemas/inputs.js";
 import { GoldenFixtureSchema, loadFixture } from "./helpers/load-fixture.js";
 

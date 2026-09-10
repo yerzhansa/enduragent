@@ -1,7 +1,4 @@
-import type {
-  AthleteSettingsState,
-  AthleteSettingsView,
-} from "../../settings/athlete-controller";
+import type { AthleteSettingsState, AthleteSettingsView } from "../../settings/athlete-controller";
 import type {
   CredentialSettingsState,
   CredentialSettingsView,
@@ -10,10 +7,7 @@ import type {
   ProviderModelSettingsState,
   ProviderModelSettingsView,
 } from "../../settings/provider-model-controller";
-import type {
-  SessionSettingsState,
-  SessionSettingsView,
-} from "../../settings/session-controller";
+import type { SessionSettingsState, SessionSettingsView } from "../../settings/session-controller";
 import {
   CLOSED_PANE,
   type AthleteSettingsPort,

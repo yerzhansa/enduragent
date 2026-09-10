@@ -1,3 +1,5 @@
+import type { Phrasebook } from "@enduragent/i18n/messages";
+
 export interface TrayTelegramStatus {
   readonly channelState:
     | "disabled"
@@ -19,37 +21,76 @@ export interface TrayTelegramPresentation {
   readonly tone: "active" | "idle" | "warning" | "failed";
 }
 
-export function presentTrayTelegramStatus(status: TrayTelegramStatus): TrayTelegramPresentation {
+export function presentTrayTelegramStatus(
+  status: TrayTelegramStatus,
+  phrasebook: Pick<Phrasebook, "say">,
+): TrayTelegramPresentation {
   if (status.gapWarning) {
-    return { copy: "Check for missed messages", tag: "warning", tone: "warning" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.missedMessages"),
+      tag: phrasebook.say("desktop.tray.tag.warning"),
+      tone: "warning",
+    };
   }
   if (status.channelState === "online") {
-    return { copy: "Connected to Telegram", tag: "online", tone: "active" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.connected"),
+      tag: phrasebook.say("desktop.tray.tag.online"),
+      tone: "active",
+    };
   }
   if (status.channelState === "starting") {
-    return { copy: "Connecting to Telegram", tag: "starting", tone: "idle" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.connecting"),
+      tag: phrasebook.say("desktop.tray.tag.starting"),
+      tone: "idle",
+    };
   }
   if (status.channelState === "suspended") {
     return {
-      copy: "Telegram is paused while this Mac sleeps",
-      tag: "paused",
+      copy: phrasebook.say("desktop.tray.telegram.suspended"),
+      tag: phrasebook.say("desktop.tray.tag.paused"),
       tone: "idle",
     };
   }
   if (status.channelState === "offline-retrying") {
-    return { copy: "Telegram is reconnecting", tag: "retrying", tone: "warning" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.reconnecting"),
+      tag: phrasebook.say("desktop.tray.tag.retrying"),
+      tone: "warning",
+    };
   }
   if (status.channelState === "conflict") {
-    return { copy: "Another poller owns the bot", tag: "conflict", tone: "failed" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.conflict"),
+      tag: phrasebook.say("desktop.tray.tag.conflict"),
+      tone: "failed",
+    };
   }
   if (status.channelState === "invalid-token") {
-    return { copy: "Telegram token rejected", tag: "attention", tone: "failed" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.tokenRejected"),
+      tag: phrasebook.say("desktop.tray.tag.attention"),
+      tone: "failed",
+    };
   }
   if (status.channelState === "transfer-required") {
-    return { copy: "Bot transfer required", tag: "attention", tone: "failed" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.transferRequired"),
+      tag: phrasebook.say("desktop.tray.tag.attention"),
+      tone: "failed",
+    };
   }
   if (status.channelState === "failed") {
-    return { copy: "Telegram needs attention", tag: "attention", tone: "failed" };
+    return {
+      copy: phrasebook.say("desktop.tray.telegram.needsAttention"),
+      tag: phrasebook.say("desktop.tray.tag.attention"),
+      tone: "failed",
+    };
   }
-  return { copy: "Telegram is off", tag: "off", tone: "idle" };
+  return {
+    copy: phrasebook.say("desktop.tray.telegram.off"),
+    tag: phrasebook.say("desktop.tray.tag.off"),
+    tone: "idle",
+  };
 }

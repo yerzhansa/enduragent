@@ -2,6 +2,13 @@ import { z } from "zod";
 import { CoachDecisionReadModelSchema } from "./coach-decision.js";
 import { PlanHandoffSuggestionSchema, PlanReferenceSelectionSchema } from "./plan-chat-card.js";
 
+export const MessageSchema = z
+  .object({
+    key: z.string().min(1),
+    vars: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  })
+  .strict();
+
 /** Engine-internal turn failure classification (frozen field vocabulary). */
 export const TurnErrorClassSchema = z.enum([
   "budget",
@@ -65,6 +72,7 @@ export const FinalTextEventSchema = z
     type: z.literal("final-text"),
     turnId: z.string(),
     text: z.string(),
+    message: MessageSchema.optional(),
   })
   .strict();
 
@@ -85,6 +93,7 @@ export const ErrorEventSchema = z
     error_class: TurnErrorClassSchema,
     kind: AgentErrorKindSchema,
     athleteMessage: z.string(),
+    message: MessageSchema.optional(),
     overflowAttempts: z.number(),
     timeoutAttempts: z.number(),
     rateLimitAttempts: z.number(),

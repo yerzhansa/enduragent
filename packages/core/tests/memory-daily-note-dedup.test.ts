@@ -32,8 +32,7 @@ describe("Memory daily-note dedup", () => {
       })
       .filter(
         (e: unknown): e is Record<string, unknown> =>
-          e !== null &&
-          (e as Record<string, unknown>).event === "daily_note_duplicate_skipped",
+          e !== null && (e as Record<string, unknown>).event === "daily_note_duplicate_skipped",
       );
   }
 

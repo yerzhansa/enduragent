@@ -1,9 +1,10 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import { claudeCliBadgeMessage, claudeCliIdentityMessage } from "../onboarding/copy";
 import { Fragment, useEffect, useRef, type ReactElement, type RefObject } from "react";
 import { Button } from "@enduragent/ui";
 import type { DesktopCredentialId } from "../../onboarding/bridge";
 import { DESKTOP_CREDENTIAL_SLOTS } from "../../onboarding/constants";
 import { onboardingCredentialMutationActive } from "../../onboarding/controller";
-import { claudeCliPresentation } from "../../onboarding/credential-presentation";
 import { PLATFORM_COPY } from "../../platform-copy";
 import type {
   CredentialSettingsEntry,
@@ -17,7 +18,7 @@ import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { SetupRow } from "../onboarding/SetupRow";
 import { InlineConfirmation } from "@enduragent/ui";
-import { credentialRuntimeLabel } from "./copy";
+import { credentialRuntimeLabel, credentialFeedbackMessage, credentialKindMessage } from "./copy";
 
 export const SETUP_CREDENTIAL_EDIT_EVENT = "enduragent:edit-credential";
 
@@ -75,6 +76,7 @@ export function CredentialDeleteButton(props: {
   readonly credential: DesktopCredentialId;
   readonly buttonRef?: RefObject<HTMLButtonElement | null>;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.credentials);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const setupLoading = useEnduragentStore((store) => store.onboarding.loading);
@@ -116,12 +118,12 @@ export function CredentialDeleteButton(props: {
       }
       aria-label={
         props.credential === "intervals-icu"
-          ? "Delete the Intervals.icu connection"
-          : `Delete the ${provider} credential`
+          ? say("settings.credentials.delete.intervalsAria", { intervals: "Intervals.icu" })
+          : say("settings.credentials.delete.aria", { provider })
       }
       onClick={() => port?.requestDelete(props.credential)}
     >
-      Delete
+      {say("settings.credentials.delete.action")}
     </Button>
   );
 }
@@ -129,6 +131,7 @@ export function CredentialDeleteButton(props: {
 export function CredentialDeleteConfirmation(props: {
   readonly credential: DesktopCredentialId;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.credentials);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const onboardingMutating = useEnduragentStore((store) =>
@@ -147,18 +150,29 @@ export function CredentialDeleteConfirmation(props: {
       name={`delete-${entry.credential}`}
       title={
         intervals
-          ? "Delete the Intervals.icu connection?"
-          : `Delete the ${entry.provider} credential?`
+          ? say("settings.credentials.delete.intervalsTitle", { intervals: "Intervals.icu" })
+          : say("settings.credentials.delete.title", { provider: entry.provider })
       }
       copy={
         intervals
-          ? `Your saved API key and imported connection will be removed. Your synced rides and past chats stay on ${PLATFORM_COPY.computer}.`
-          : `This removes it from ${PLATFORM_COPY.computer} only. Enduragent will stop using it if it is active. Your provider account is unchanged.`
+          ? say("settings.credentials.delete.intervalsDetail", { computer: PLATFORM_COPY.computer })
+          : say("settings.credentials.delete.detail", {
+              product: "Enduragent",
+              computer: PLATFORM_COPY.computer,
+            })
       }
-      confirmLabel={intervals ? "Delete connection" : "Delete credential"}
+      confirmLabel={
+        intervals
+          ? say("settings.credentials.delete.connection")
+          : say("settings.credentials.delete.credential")
+      }
       {...(intervals
         ? {}
-        : { confirmAriaLabel: `Confirm deletion of the ${entry.provider} credential` })}
+        : {
+            confirmAriaLabel: say("settings.credentials.delete.confirmAria", {
+              provider: entry.provider,
+            }),
+          })}
       focusTarget={
         target?.target === "confirmation-cancel"
           ? "cancel"
@@ -179,6 +193,7 @@ export function AdditionalCredentialRows(props: {
   readonly primaryAiCredential: DesktopCredentialId | null;
   readonly primaryAiProvider: string | null;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.credentials);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const setupLoading = useEnduragentStore((store) => store.onboarding.loading);
@@ -203,7 +218,10 @@ export function AdditionalCredentialRows(props: {
             id={`saved-${entry.credential}`}
             status="none"
             title={entry.provider}
-            subtitle={`${entry.kind} · ${credentialRuntimeLabel(entry.runtimeState)}`}
+            subtitle={say("settings.credentials.summary", {
+              kind: say(credentialKindMessage(entry.kind)),
+              state: say(credentialRuntimeLabel(entry.runtimeState)),
+            })}
             trailing={
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
@@ -211,10 +229,12 @@ export function AdditionalCredentialRows(props: {
                   variant="ghost"
                   size="sm"
                   disabled={setupLoading || onboardingMutating || changesBlocked}
-                  aria-label={`Change the ${entry.provider} credential`}
+                  aria-label={say("settings.credentials.changeAria", { provider: entry.provider })}
                   onClick={() => openCredentialEditor(entry.credential)}
                 >
-                  {entry.runtimeState === "failed" ? "Enter again" : "Change"}
+                  {entry.runtimeState === "failed"
+                    ? say("settings.credentials.retryEntry")
+                    : say("settings.credentials.change")}
                 </Button>
                 <CredentialDeleteButton credential={entry.credential} />
               </div>
@@ -224,21 +244,29 @@ export function AdditionalCredentialRows(props: {
         </Fragment>
       ))}
       {providerStatuses.map((entry) => {
-        const presentation = claudeCliPresentation(entry.state);
+        const badge = say(claudeCliBadgeMessage(entry.state));
+        const identity = entry.identity === null ? null : claudeCliIdentityMessage(entry.identity);
         return (
           <SetupRow
             key={entry.provider}
             id={`provider-${entry.provider}`}
             dataProvider={entry.provider}
             status="none"
-            title={entry.label}
+            title={
+              entry.provider === "claude-cli"
+                ? say("settings.credentials.claudeProvider", { claude: "Claude" })
+                : say("settings.credentials.codexProvider", { codex: "Codex" })
+            }
             subtitle={
               <>
-                {entry.kind} · {presentation.badge}
+                {entry.kind} · {badge}
                 {entry.identity === null ? null : (
                   <>
                     {" "}
-                    · <span data-provider-identity="">{entry.identity}</span>
+                    ·{" "}
+                    <span data-provider-identity="">
+                      {identity === null ? entry.identity : say(identity)}
+                    </span>
                   </>
                 )}
               </>
@@ -251,6 +279,7 @@ export function AdditionalCredentialRows(props: {
 }
 
 export function CredentialSettingsFeedback(): ReactElement | null {
+  const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.credentials);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.credentials ?? null);
@@ -270,13 +299,18 @@ export function CredentialSettingsFeedback(): ReactElement | null {
   const canReset =
     recovery !== undefined &&
     (repairRequired !== null || recovery.state !== "ready" || recovery.unverifiedEnvelopes > 0);
+  const announcementMessage = credentialFeedbackMessage(
+    "announcement" in state ? state.announcement : "",
+  );
   const announcement =
     "announcement" in state && state.announcement.length > 0
-      ? state.announcement
+      ? announcementMessage === null
+        ? state.announcement
+        : say(announcementMessage)
       : state.status === "closed" && repairRequired !== null
-        ? "Saved credential status needs to be reloaded before setup can continue."
+        ? say("settings.credentials.repairRequired")
         : loading
-          ? "Loading saved credentials…"
+          ? say("settings.credentials.loading")
           : "";
 
   useEffect(() => {
@@ -321,10 +355,10 @@ export function CredentialSettingsFeedback(): ReactElement | null {
                 onClick={() => port?.retry()}
               >
                 {canRetryRecovery
-                  ? "Retry"
+                  ? say("settings.credentials.retry")
                   : repairRequired === null
-                    ? "Reconnect & reload"
-                    : "Reload credential status"}
+                    ? say("settings.credentials.reconnect")
+                    : say("settings.credentials.reload")}
               </Button>
             ) : null}
             {canReset ? (
@@ -335,7 +369,7 @@ export function CredentialSettingsFeedback(): ReactElement | null {
                 disabled={mutating || loading || resetConfirmation}
                 onClick={() => port?.requestReset?.()}
               >
-                Remove all credentials
+                {say("settings.credentials.reset.confirm")}
               </Button>
             ) : null}
           </div>
@@ -344,9 +378,14 @@ export function CredentialSettingsFeedback(): ReactElement | null {
       {resetConfirmation ? (
         <InlineConfirmation
           name="remove-all-credentials"
-          title="Remove all credentials?"
-          copy={`This removes every saved AI credential, ChatGPT profile, Intervals.icu key, Telegram token, and the shared encryption key from ${PLATFORM_COPY.computer}. Accounts and imported data remain unchanged.`}
-          confirmLabel="Remove all credentials"
+          title={say("settings.credentials.reset.title")}
+          copy={say("settings.credentials.reset.detail", {
+            intervals: "Intervals.icu",
+            chatgpt: "ChatGPT",
+            telegram: "Telegram",
+            computer: PLATFORM_COPY.computer,
+          })}
+          confirmLabel={say("settings.credentials.reset.confirm")}
           focusTarget={
             target?.target === "confirmation-cancel"
               ? "cancel"

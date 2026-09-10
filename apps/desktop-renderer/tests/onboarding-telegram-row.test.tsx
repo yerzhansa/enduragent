@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,10 +11,10 @@ import type {
 } from "../src/settings/telegram-controller";
 import { useEnduragentStore } from "../src/state/store";
 import {
-  TELEGRAM_AVAILABILITY_COPY,
-  TELEGRAM_CREATE_COPY,
-  TELEGRAM_CREATE_TITLE,
-  TELEGRAM_DELETE_COPY,
+  TELEGRAM_AVAILABILITY_COPY as TELEGRAM_AVAILABILITY_COPY_MESSAGE,
+  TELEGRAM_CREATE_COPY as TELEGRAM_CREATE_COPY_MESSAGE,
+  TELEGRAM_CREATE_TITLE as TELEGRAM_CREATE_TITLE_MESSAGE,
+  TELEGRAM_DELETE_COPY as TELEGRAM_DELETE_COPY_MESSAGE,
 } from "../src/ui/onboarding/copy";
 import {
   mountWizard,
@@ -25,6 +26,12 @@ import {
   setupRow,
   testBridge,
 } from "./onboarding-harness";
+
+const english = await createPhrasebook({ tag: "en", locale: "en-US" });
+const TELEGRAM_AVAILABILITY_COPY = english.say(TELEGRAM_AVAILABILITY_COPY_MESSAGE);
+const TELEGRAM_CREATE_COPY = english.say(TELEGRAM_CREATE_COPY_MESSAGE);
+const TELEGRAM_CREATE_TITLE = english.say(TELEGRAM_CREATE_TITLE_MESSAGE);
+const TELEGRAM_DELETE_COPY = english.say(TELEGRAM_DELETE_COPY_MESSAGE);
 
 const UNCONFIGURED: TelegramControlStatus = {
   channel: { desiredState: "disabled", state: "disabled" },

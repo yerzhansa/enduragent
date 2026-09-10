@@ -50,10 +50,9 @@ import {
   EMPTY_CHAT_STATE,
   hasClearableConversation,
   nextDrainGroup,
-  reduceChatState,
   type ChatSentAttachment,
-  type ChatState,
 } from "../turn-state";
+import { reduceChatState, type ChatState } from "./message-state";
 import {
   createTranscriptHydrator,
   emptyTranscriptHydration,
@@ -952,7 +951,7 @@ export function createChatController(input: {
           return;
         }
         interruptedQueueOrigin = undefined;
-        reduce({ type: "complete", requestKey });
+        reduce({ type: "complete", requestKey, message: result.message });
         shouldDrain = state.status === "idle" && state.activeTurn?.requestKey === requestKey;
       } catch (error) {
         if (!current()) return;

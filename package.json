@@ -15,7 +15,7 @@
     "lint": "oxlint packages/ apps/",
     "fmt": "oxfmt packages/ apps/",
     "fmt:check": "oxfmt --check packages/ apps/",
-    "check": "pnpm -r build && pnpm -r check && pnpm check:types && oxlint packages/ apps/ && pnpm check:trademarks && pnpm check:fixture-privacy && pnpm check:registry-isolation && pnpm check:changeset-userfacing && pnpm check:contract-deps && pnpm check:package-deps && pnpm check:kernel-discipline && pnpm check:renderer-imports && pnpm check:codex-schema && pnpm check:verification-catalog",
+    "check": "pnpm -r build && pnpm -r check && pnpm check:types && oxlint packages/ apps/ && pnpm check:trademarks && pnpm check:fixture-privacy && pnpm check:registry-isolation && pnpm check:changeset-userfacing && pnpm check:contract-deps && pnpm check:package-deps && pnpm check:kernel-discipline && pnpm check:renderer-imports && pnpm check:codex-schema && pnpm check:verification-catalog && pnpm i18n:check && pnpm check:catalogs",
     "check:verification-catalog": "pnpm --filter @enduragent/desktop check:verification-catalog",
     "check:types": "tsc -p tsconfig.check.json",
     "check:trademarks": "tsx tools/check-trademarks.ts",
@@ -39,7 +39,10 @@
     "usage:cache-band": "tsx tools/usage-cache-band.ts",
     "gate:compaction": "tsx --env-file=.env tools/compaction-gate/run.ts",
     "check:ui-structure": "vitest run --project workspace tools/ui-verification/structure.test.ts",
-    "check:ui-states": "pnpm --filter @enduragent/desktop exec playwright test --config=playwright.ui-states.config.ts"
+    "check:ui-states": "pnpm --filter @enduragent/desktop exec playwright test --config=playwright.ui-states.config.ts",
+    "i18n:extract": "i18next",
+    "i18n:check": "pnpm i18n:extract --fail-on-update",
+    "check:catalogs": "tsx tools/check-catalog-coverage.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
@@ -52,6 +55,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@xmldom/xmldom": "0.9.12",
     "ai": "^6.0.158",
+    "i18next-parser": "^9.4.0",
     "intervals-icu-api": "0.4.0",
     "knip": "^6.34.0",
     "msw": "^2.15.0",

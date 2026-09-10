@@ -1,8 +1,9 @@
 import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
+import { renderLocalized as render } from "./language-harness";
 import { readUiStylesheet } from "./ui-styles";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   AttachmentCapabilitiesReadModel,
@@ -589,17 +590,19 @@ describe("chat surface", () => {
         changesPaused: null,
         changes: [],
       };
+      const model = planCreationModel(goalQuestion("What are you preparing for?"));
       useEnduragentStore.setState({
         planLibrary:
           state === "unloaded"
             ? { status: "loading", value: null }
             : { status: "ready", value: library },
       });
-      render(
-        <PlanCreationSummary
-          model={planCreationModel(goalQuestion("What are you preparing for?"))}
-        />,
-      );
+      render(<Harness />);
+      setChat({
+        planCreation: model,
+        planCreationLoaded: true,
+        timeline: [{ kind: "plan-creation", model }],
+      });
       const tail =
         state === "unloaded"
           ? ""
@@ -609,6 +612,51 @@ describe("chat surface", () => {
       expect(screen.getByText(`0 of 9 answered.${tail}`, { exact: true })).toBeVisible();
     },
   );
+
+  it("keeps a live Chat message after Plan creation answers and out of the progress card", () => {
+    const model = planCreationModel(null, {
+      readiness: "incomplete",
+      answeredSummaries: [
+        {
+          answerKey: "restriction",
+          title: "Training Restriction",
+          detail: "No training restrictions",
+          question: restrictionQuestion("What Training Restriction should this Plan respect?"),
+          answer: { kind: "restriction", restriction: { kind: "none" } },
+        },
+      ],
+    });
+    const ping: ChatMessageView = {
+      id: "ping-two",
+      role: "athlete",
+      delivery: "complete",
+      historical: false,
+      text: "PING two",
+    };
+    render(<Harness />);
+    setChat({
+      planCreation: model,
+      planCreationLoaded: true,
+      planCreationPaused: true,
+      sendDisabled: false,
+      inputDisabled: false,
+      messages: [ping],
+      timeline: [
+        { kind: "plan-creation", model },
+        { kind: "message", message: ping },
+      ],
+    });
+    const conversation = screen.getByRole("main", { name: "Coaching conversation" });
+    const answer = conversation.querySelector("[data-parity='summary.row']");
+    const message = conversation.querySelector("[data-message-id='ping-two']");
+    expect(answer).not.toBeNull();
+    expect(message).not.toBeNull();
+    expect(
+      answer!.compareDocumentPosition(message!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(conversation.querySelector("[data-parity='progress.card']")).toBeNull();
+    expect(screen.getByRole("button", { name: "Discard" }).closest("header")).not.toBeNull();
+  });
 
   it("preserves and focuses the draft after enqueue failure and clears only after acknowledgment", async () => {
     const user = userEvent.setup();
@@ -3238,9 +3286,10 @@ describe("chat surface", () => {
       expect(
         screen.getByText("Endurance ride limited to 60 minutes by your confirmed limits."),
       ).toBeVisible();
-      const discard = screen.getByRole("button", { name: "Discard" });
-      const edit = screen.getByRole("button", { name: "Edit answers" });
-      const activate = screen.getByRole("button", { name: "Activate Plan" });
+      const review = screen.getByRole("region", { name: "Plan Draft review" });
+      const discard = within(review).getByRole("button", { name: "Discard" });
+      const edit = within(review).getByRole("button", { name: "Edit answers" });
+      const activate = within(review).getByRole("button", { name: "Activate Plan" });
       expect(activate).toBeEnabled();
       await userEvent.click(activate);
       expect(actions.openPlanCreationActivate).toHaveBeenCalledOnce();

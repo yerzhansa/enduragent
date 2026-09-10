@@ -1,11 +1,6 @@
 import { create } from "zustand";
 import type { StoredViewId } from "../app/views";
-import {
-  applyPalette,
-  resolveTheme,
-  type Appearance,
-  type ResolvedTheme,
-} from "@enduragent/ui";
+import { applyPalette, resolveTheme, type Appearance, type ResolvedTheme } from "@enduragent/ui";
 import { publishNativeAppearance } from "../theme/nativeAppearance";
 import { paletteById } from "@enduragent/ui";
 import {
@@ -15,19 +10,12 @@ import {
   writeStoredPaletteId,
 } from "../theme/preferences";
 import { createArchiveSlice, type ArchiveSlice } from "./archive-slice";
-import {
-  createActivityAnalysisSlice,
-  type ActivityAnalysisSlice,
-} from "./activity-analysis-slice";
+import { createActivityAnalysisSlice, type ActivityAnalysisSlice } from "./activity-analysis-slice";
 import { createChatSlice, type ChatSlice } from "./chat-slice";
 import { createOnboardingSlice, type OnboardingSlice } from "./onboarding-slice";
 import { createPlanSlice, type PlanSlice } from "./plan-slice";
 import { createRideImportSlice, type RideImportSlice } from "./ride-import-slice";
-import {
-  createSettingsSlice,
-  settingsMutationActive,
-  type SettingsSlice,
-} from "./settings-slice";
+import { createSettingsSlice, settingsMutationActive, type SettingsSlice } from "./settings-slice";
 import { createSyncSlice, type SyncSlice } from "./sync-slice";
 import { createTrainingSlice, type TrainingSlice } from "./training-slice";
 import { createTrainingExportSlice, type TrainingExportSlice } from "./training-export-slice";

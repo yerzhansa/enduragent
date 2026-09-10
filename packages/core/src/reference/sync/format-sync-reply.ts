@@ -1,8 +1,17 @@
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { cliPhrasebook } from "../../cli-copy.js";
 import type { SyncResult } from "./run-sync.js";
 
 export const STRAVA_RESTRICTION_TELEGRAM_COPY = Object.freeze({
-  notice(count: number, total: number): string {
-    return `${count} of ${total} activities are hidden by Strava, so they aren’t included. A Strava API restriction prevents intervals.icu from sharing activities that came from Strava. For future rides, connect your recording source directly to intervals.icu and keep Strava connected. For past rides, use Import All Strava Data in intervals.icu settings; it requires an intervals.icu supporter subscription.`;
+  notice(count: number, total: number, book: Phrasebook = cliPhrasebook()): string {
+    return book.say("telegram.sync.restricted", {
+      count,
+      number: book.format.number(count, { useGrouping: false }),
+      total: book.format.number(total, { useGrouping: false }),
+      source: "Strava",
+      service: "intervals.icu",
+      importAction: "Import All Strava Data",
+    });
   },
 });
 
@@ -19,14 +28,22 @@ export const STRAVA_RESTRICTION_TELEGRAM_COPY = Object.freeze({
  * Plus cooldown / mutex_held / unreachable variants. Pure function over a
  * clock so tests can pin "now."
  */
-export function formatSyncReply(result: SyncResult, now: Date = new Date()): string {
+export function formatSyncReply(
+  result: SyncResult,
+  now: Date = new Date(),
+  book: Phrasebook = cliPhrasebook(),
+): string {
   switch (result.kind) {
     case "skipped":
       switch (result.reason) {
         case "cooldown":
-          return `Just synced — please wait ${Math.ceil((result.retryAfterMs ?? 0) / 1000)}s before forcing another refresh.`;
+          return book.say("telegram.sync.cooldown", {
+            seconds: book.format.number(Math.ceil((result.retryAfterMs ?? 0) / 1000), {
+              useGrouping: false,
+            }),
+          });
         case "mutex_held":
-          return "A sync is already running — it'll finish within about 2 minutes; your data will be fresh then.";
+          return book.say("telegram.sync.running", { minutes: book.format.number(2) });
         default: {
           const _exhaustive: never = result;
           throw new Error(`formatSyncReply: unhandled skipped reason ${String(_exhaustive)}`);
@@ -40,21 +57,23 @@ export function formatSyncReply(result: SyncResult, now: Date = new Date()): str
         case "outer_timeout":
         case "gate_rejected":
         case "fetch_failed":
-          return "I can't reach intervals.icu right now.";
+          return book.say("telegram.sync.unreachable", { service: "intervals.icu" });
         default: {
           const _exhaustive: never = result;
           throw new Error(`formatSyncReply: unhandled failed reason ${String(_exhaustive)}`);
         }
       }
     case "ran": {
-      const lastLine = `Last sync: ${formatTimestamp(result.lastSyncAt, now)}`;
+      const lastLine = book.say("telegram.sync.lastSync", {
+        timestamp: formatTimestamp(result.lastSyncAt, now, book),
+      });
       // The content-hash short-circuit returns `refreshed: []` on a genuine
       // no-op cycle; rendering a bare "Refreshed: " label would be a dangling
       // line, so say nothing-changed instead.
       const detailLine =
         result.refreshed.length === 0
-          ? "Already up to date — nothing changed since the last sync."
-          : `Refreshed: ${result.refreshed.join(", ")}`;
+          ? book.say("telegram.sync.unchanged")
+          : book.say("telegram.sync.refreshed", { sections: result.refreshed.join(", ") });
       const stravaRestriction = result.droppedActivities.overall.restrictions.find((entry) => {
         switch (entry.reason) {
           case "source-restricted":
@@ -73,8 +92,11 @@ export function formatSyncReply(result: SyncResult, now: Date = new Date()): str
           : STRAVA_RESTRICTION_TELEGRAM_COPY.notice(
               stravaRestriction.count,
               result.droppedActivities.overall.total,
+              book,
             );
-      return ["Sync ✅", lastLine, detailLine, restrictionLine].filter(Boolean).join("\n");
+      return [book.say("telegram.sync.complete"), lastLine, detailLine, restrictionLine]
+        .filter(Boolean)
+        .join("\n");
     }
     default: {
       const _exhaustive: never = result;
@@ -89,21 +111,29 @@ export function formatSyncReply(result: SyncResult, now: Date = new Date()): str
 // should surface even a small clock disagreement rather than print "0s ago".
 const FUTURE_DISPLAY_THRESHOLD_MS = 1000;
 
-function formatTimestamp(iso: string, now: Date): string {
+function formatTimestamp(iso: string, now: Date, book: Phrasebook): string {
   const d = new Date(iso);
   const deltaMs = now.getTime() - d.getTime();
-  const utc = `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  const date = (options: Intl.DateTimeFormatOptions) =>
+    book.format.date(d, { ...options, timeZone: "UTC" });
+  const utc = `${date({ year: "numeric" })}-${date({ month: "2-digit" })}-${date({ day: "2-digit" })} ${date({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" })} UTC`;
   if (deltaMs < -FUTURE_DISPLAY_THRESHOLD_MS) {
     // A future timestamp means the cache stamp is ahead of the wall clock —
     // almost always clock skew. Word it honestly instead of clamping to "0s ago".
-    return `${utc} (in the future — check system clock)`;
+    return book.say("telegram.sync.future", { timestamp: utc });
   }
   const diffSec = Math.round(Math.max(0, deltaMs) / 1000);
   const ago =
     diffSec < 60
-      ? `${diffSec}s ago`
+      ? book.say("telegram.sync.secondsAgo", {
+          seconds: book.format.number(diffSec, { useGrouping: false }),
+        })
       : diffSec < 3600
-        ? `${Math.round(diffSec / 60)} min ago`
-        : `${Math.round(diffSec / 3600)} h ago`;
-  return `${utc} (${ago})`;
+        ? book.say("telegram.sync.minutesAgo", {
+            minutes: book.format.number(Math.round(diffSec / 60), { useGrouping: false }),
+          })
+        : book.say("telegram.sync.hoursAgo", {
+            hours: book.format.number(Math.round(diffSec / 3600), { useGrouping: false }),
+          });
+  return book.say("telegram.sync.elapsed", { timestamp: utc, elapsed: ago });
 }

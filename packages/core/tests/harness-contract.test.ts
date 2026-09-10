@@ -26,10 +26,7 @@ const HARNESS_FILES = [
 ];
 
 function readContractRaw(): Record<string, unknown> {
-  return JSON.parse(readFileSync(CONTRACT_PATH, "utf8")) as Record<
-    string,
-    unknown
-  >;
+  return JSON.parse(readFileSync(CONTRACT_PATH, "utf8")) as Record<string, unknown>;
 }
 
 /** Drop the `$comment` documentation keys the contract carries inline. */
@@ -149,9 +146,7 @@ describe("no harness file carries a residual inline copy of the extracted litera
     // The allowlist must be built from the injected contract data
     // (`set(json.loads(...))`), never re-listed as a `{ "FIXTURE..." }` set.
     for (const { rel, text } of sources) {
-      const inlineSet = /_ALLOWED_OPTIONAL_PATHS\s*=\s*\{[^}]*"FIXTURE\./.test(
-        text,
-      );
+      const inlineSet = /_ALLOWED_OPTIONAL_PATHS\s*=\s*\{[^}]*"FIXTURE\./.test(text);
       expect(inlineSet, `${rel} re-grew an inline allowlist set`).toBe(false);
     }
   });
@@ -163,19 +158,17 @@ describe("no harness file carries a residual inline copy of the extracted litera
     // slice (`days=27`, an inclusive-window off-by-one) that stays inline.
     const offending = /timedelta\(days=(?:28|55)\)/;
     for (const { rel, text } of sources) {
-      expect(
-        offending.test(text),
-        `${rel} re-listed a delta-window offset as a magic number`,
-      ).toBe(false);
+      expect(offending.test(text), `${rel} re-listed a delta-window offset as a magic number`).toBe(
+        false,
+      );
     }
   });
 
   it("every harness file references the shared contract", () => {
     for (const { rel, text } of sources) {
-      expect(
-        text.includes("harness-contract"),
-        `${rel} does not read the shared contract`,
-      ).toBe(true);
+      expect(text.includes("harness-contract"), `${rel} does not read the shared contract`).toBe(
+        true,
+      );
     }
   });
 });

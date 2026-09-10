@@ -1,5 +1,5 @@
 import type { TrainingHistoryComputed } from "@enduragent/coach-contract";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Shell } from "../src/app/Shell";
@@ -26,6 +26,7 @@ import {
   takeTrainingRestrictionFocusRequest,
 } from "../src/ui/settings/restriction-focus";
 import { emptyPlanLibrary, planReadModel } from "./plan-fixtures";
+import { renderWithLanguage, renderWithCatalog } from "./language-harness";
 
 const REPAIR_REQUIRED_CREDENTIALS: CredentialSettingsState = {
   status: "ready",
@@ -256,6 +257,8 @@ describe("shell", () => {
   beforeAll(preloadLazyViews);
 
   beforeEach(() => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["en"]);
+    vi.spyOn(navigator, "language", "get").mockReturnValue("en-US");
     useEnduragentStore.setState({
       activeView: "chat",
       runtimeReady: true,
@@ -279,6 +282,7 @@ describe("shell", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     useEnduragentStore.setState({
       chat: EMPTY_CHAT_SURFACE,
       chatActions: null,
@@ -302,8 +306,8 @@ describe("shell", () => {
     resetChatStream();
   });
 
-  it("renders the sidebar and the chat region by default", () => {
-    render(<Shell onReady={() => {}} />);
+  it("renders the sidebar and the chat region by default", async () => {
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(screen.getByText("Enduragent")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New chat" })).toBeEnabled();
@@ -322,8 +326,8 @@ describe("shell", () => {
     expect(document.querySelector('[data-shell="app"]')).not.toBeNull();
   });
 
-  it("retires the training drawer, data spine and topbar strip", () => {
-    render(<Shell onReady={() => {}} />);
+  it("retires the training drawer, data spine and topbar strip", async () => {
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(document.querySelector('.drawer[aria-label="Training data"]')).toBeNull();
     expect(document.querySelector(".data-spine")).toBeNull();
@@ -331,10 +335,10 @@ describe("shell", () => {
     expect(document.querySelector(".setup-button")).toBeNull();
   });
 
-  it("signals boot readiness once", () => {
+  it("signals boot readiness once", async () => {
     const onReady = vi.fn<() => void>();
 
-    const { rerender } = render(<Shell onReady={onReady} />);
+    const { rerender } = await renderWithLanguage(<Shell onReady={onReady} />);
     rerender(<Shell onReady={onReady} />);
 
     expect(onReady).toHaveBeenCalledTimes(1);
@@ -342,7 +346,7 @@ describe("shell", () => {
 
   it("switches the main region between the registered views", async () => {
     const user = userEvent.setup();
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     await user.click(screen.getByRole("button", { name: "Past chats" }));
     expect(await screen.findByRole("region", { name: "Past chats" })).toBeInTheDocument();
@@ -387,7 +391,7 @@ describe("shell", () => {
 
   it("keeps focus on the Training navigation button while switching views", async () => {
     const user = userEvent.setup();
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
     const trainingButton = screen.getByRole("button", { name: "Training" });
 
     await user.click(trainingButton);
@@ -424,7 +428,7 @@ describe("shell", () => {
       }),
       syncActions: { request },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
     expect(screen.getByRole("region", { name: "Ride review" })).toBeInTheDocument();
 
     const remedy = screen.getByRole("link", {
@@ -465,7 +469,7 @@ describe("shell", () => {
       }),
       syncActions: { request },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     const settings = await screen.findByRole("region", { name: "Settings" });
     await user.click(screen.getByRole("link", { name: "60 hidden by Strava. How to fix this" }));
@@ -495,7 +499,7 @@ describe("shell", () => {
         droppedActivities: stravaDroppedActivities(),
       }),
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
     await screen.findByRole("region", { name: "Settings" });
 
     requestTrainingRestrictionFocus();
@@ -508,7 +512,7 @@ describe("shell", () => {
   it("keeps the chat surface mounted while another view is shown", async () => {
     const user = userEvent.setup();
     const onReady = vi.fn<() => void>();
-    render(<Shell onReady={onReady} />);
+    await renderWithLanguage(<Shell onReady={onReady} />);
     const thread = document.querySelector("div.thread");
     const noticeHost = document.querySelector("div.chat-notice-host");
 
@@ -521,9 +525,9 @@ describe("shell", () => {
     expect(onReady).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a neutral shell while the setup decision is unknown", () => {
+  it("keeps a neutral shell while the setup decision is unknown", async () => {
     useEnduragentStore.setState({ onboarding: CLOSED_ONBOARDING });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(setupRequired(useEnduragentStore.getState())).toBe(false);
     expect(setupBlocked(useEnduragentStore.getState())).toBe(true);
@@ -536,12 +540,12 @@ describe("shell", () => {
     expect(document.querySelector("textarea#message")).toBeNull();
   });
 
-  it("keeps an initialized state without a committed setup load neutral", () => {
+  it("keeps an initialized state without a committed setup load neutral", async () => {
     useEnduragentStore.setState({
       activeView: "training",
       onboarding: { ...CLOSED_ONBOARDING, open: true, initialized: true, loading: false },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(document.querySelector('[data-shell="unknown"]')).not.toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent("Checking setup…");
@@ -550,11 +554,11 @@ describe("shell", () => {
     expect(document.querySelector("textarea#message")).toBeNull();
   });
 
-  it("keeps the known app shell mounted while setup status refreshes", () => {
+  it("keeps the known app shell mounted while setup status refreshes", async () => {
     useEnduragentStore.setState({
       onboarding: { ...READY_ONBOARDING, loading: true },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(setupRequired(useEnduragentStore.getState())).toBe(false);
     expect(setupBlocked(useEnduragentStore.getState())).toBe(false);
@@ -565,11 +569,11 @@ describe("shell", () => {
     expect(screen.getByLabelText("Message your coach")).toBeEnabled();
   });
 
-  it("keeps the known app shell mounted when a refresh becomes unavailable", () => {
+  it("keeps the known app shell mounted when a refresh becomes unavailable", async () => {
     useEnduragentStore.setState({
       onboarding: { ...READY_ONBOARDING, loadUnavailable: true },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(document.querySelector('[data-shell="app"]')).not.toBeNull();
     expect(document.querySelector('[data-setup-host="gate"]')).toBeNull();
@@ -578,7 +582,7 @@ describe("shell", () => {
     expect(screen.getByLabelText("Message your coach")).toBeEnabled();
   });
 
-  it("routes an unavailable initial decision to the setup recovery gate", () => {
+  it("routes an unavailable initial decision to the setup recovery gate", async () => {
     useEnduragentStore.setState({
       onboarding: {
         ...CLOSED_ONBOARDING,
@@ -588,7 +592,7 @@ describe("shell", () => {
         loadUnavailable: true,
       },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(document.querySelector('[data-shell="gate"]')).not.toBeNull();
     expect(document.querySelector('[data-setup-host="gate"]')).not.toBeNull();
@@ -599,9 +603,9 @@ describe("shell", () => {
     expect(document.querySelector("textarea#message")).toBeNull();
   });
 
-  it("replaces the shell with the setup gate while setup is required", () => {
+  it("replaces the shell with the setup gate while setup is required", async () => {
     useEnduragentStore.setState({ onboarding: REQUIRED_ONBOARDING });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(setupRequired(useEnduragentStore.getState())).toBe(true);
     expect(setupBlocked(useEnduragentStore.getState())).toBe(true);
@@ -617,12 +621,12 @@ describe("shell", () => {
     expect(document.querySelector("textarea#message")).toBeNull();
   });
 
-  it("ignores the persisted destination while setup is required", () => {
+  it("ignores the persisted destination while setup is required", async () => {
     useEnduragentStore.setState({
       activeView: "training",
       onboarding: REQUIRED_ONBOARDING,
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(setupSurfaceOnScreen(useEnduragentStore.getState())).toBe(true);
     expect(screen.queryByRole("region", { name: "Training" })).toBeNull();
@@ -633,12 +637,12 @@ describe("shell", () => {
     expect(useEnduragentStore.getState().activeView).toBe("training");
   });
 
-  it("holds the gate even when the stored destination is Settings", () => {
+  it("holds the gate even when the stored destination is Settings", async () => {
     useEnduragentStore.setState({
       activeView: "settings",
       onboarding: REQUIRED_ONBOARDING,
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(screen.queryByRole("region", { name: "Settings" })).toBeNull();
     expect(document.querySelector('[data-setup-host="gate"]')).not.toBeNull();
@@ -679,7 +683,7 @@ describe("shell", () => {
         },
         onboardingActions: { finish } as unknown as OnboardingController,
       });
-      render(<Shell onReady={() => {}} />);
+      await renderWithLanguage(<Shell onReady={() => {}} />);
       const gate = document.querySelector('[data-setup-host="gate"]');
 
       await user.click(screen.getByRole("button", { name: "Start coaching" }));
@@ -693,9 +697,9 @@ describe("shell", () => {
     },
   );
 
-  it("offers no dismiss, skip or close control on the gate", () => {
+  it("offers no dismiss, skip or close control on the gate", async () => {
     useEnduragentStore.setState({ onboarding: REQUIRED_ONBOARDING });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     const gate = document.querySelector('[data-setup-host="gate"]');
     if (!(gate instanceof HTMLElement)) throw new TypeError("setup gate missing");
@@ -707,10 +711,10 @@ describe("shell", () => {
     expect(document.querySelector('[data-setup-host="gate"]')).not.toBeNull();
   });
 
-  it("holds the gate at three ready until setup completion is acknowledged", () => {
+  it("holds the gate at three ready until setup completion is acknowledged", async () => {
     const onReady = vi.fn<() => void>();
     useEnduragentStore.setState({ onboarding: REQUIRED_ONBOARDING });
-    render(<Shell onReady={onReady} />);
+    await renderWithLanguage(<Shell onReady={onReady} />);
 
     expect(document.querySelector('[data-setup-host="gate"]')).not.toBeNull();
 
@@ -738,7 +742,7 @@ describe("shell", () => {
     expect(onReady).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps credential repair reachable on the gate for a non-Intervals credential", () => {
+  it("keeps credential repair reachable on the gate for a non-Intervals credential", async () => {
     useEnduragentStore.setState({
       onboarding: READY_ONBOARDING,
       settings: {
@@ -746,7 +750,7 @@ describe("shell", () => {
         credentials: REPAIR_REQUIRED_CREDENTIALS,
       },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     const gate = document.querySelector('[data-setup-host="gate"]');
     expect(gate).not.toBeNull();
@@ -769,7 +773,7 @@ describe("shell", () => {
     });
   });
 
-  it("holds a repair-triggered gate after reconciliation until Start coaching", () => {
+  it("holds a repair-triggered gate after reconciliation until Start coaching", async () => {
     const requireCompletion = vi.fn(() => {
       useEnduragentStore.setState((state) => ({
         onboarding: { ...state.onboarding, completionRequired: true },
@@ -778,7 +782,7 @@ describe("shell", () => {
     useEnduragentStore.getState().bindOnboardingActions({
       requireCompletion,
     } as unknown as OnboardingController);
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     act(() => {
       useEnduragentStore.getState().patchSettings({
@@ -797,9 +801,9 @@ describe("shell", () => {
     expect(screen.queryByRole("navigation", { name: "Main navigation" })).toBeNull();
   });
 
-  it("reports onboarding startup as pending until the decision settles", () => {
+  it("reports onboarding startup as pending until the decision settles", async () => {
     useEnduragentStore.setState({ onboardingStartupSettled: false });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(document.querySelector('[data-onboarding="pending"]')).not.toBeNull();
 
@@ -809,9 +813,9 @@ describe("shell", () => {
     expect(document.querySelector('[data-onboarding="settled"]')).not.toBeNull();
   });
 
-  it("disables the new chat button until the chat controller is bound", () => {
+  it("disables the new chat button until the chat controller is bound", async () => {
     useEnduragentStore.setState({ chatActions: null });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled();
   });
@@ -820,7 +824,7 @@ describe("shell", () => {
     const user = userEvent.setup();
     const actions = stubActions();
     useEnduragentStore.setState({ chatActions: actions, activeView: "settings" });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     await user.click(screen.getByRole("button", { name: "New chat" }));
 
@@ -839,7 +843,7 @@ describe("shell", () => {
         resetPhase: "uncertain",
       },
     });
-    render(<Shell onReady={() => {}} />);
+    await renderWithLanguage(<Shell onReady={() => {}} />);
 
     const opener = screen.getByRole("button", { name: "New chat" });
     expect(opener).toBeEnabled();
@@ -848,4 +852,18 @@ describe("shell", () => {
     await user.click(opener);
     expect(actions.openNewConversation).not.toHaveBeenCalled();
   });
+});
+
+it("reads the startup status from the selected language catalog", async () => {
+  const previous = useEnduragentStore.getState();
+  useEnduragentStore.setState({
+    settings: { ...previous.settings, language: { ...previous.settings.language, value: "it" } },
+    onboarding: { ...CLOSED_ONBOARDING, initialized: false },
+  });
+  await renderWithCatalog(<Shell onReady={() => {}} />, {
+    shell: { checkingSetup: "Verifica della configurazione…" },
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Verifica della configurazione…");
+  expect(screen.getByRole("status")).toHaveAttribute("lang", "it");
+  useEnduragentStore.setState(previous);
 });

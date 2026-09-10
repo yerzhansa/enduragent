@@ -21,9 +21,7 @@ function makeSnapshot(currentStatus: unknown): LatestJson {
 
 function makeMetadata(value: unknown) {
   return {
-    citations: [
-      { field: "current_status.acwr.value", value, source: "latest.json" as const },
-    ],
+    citations: [{ field: "current_status.acwr.value", value, source: "latest.json" as const }],
     confidence: "high" as const,
     frameworks: ["fitness-fatigue"],
     phase_tag: "base",
@@ -40,13 +38,10 @@ const SNAPSHOT = makeSnapshot({ acwr: { value: 1.42 } });
 describe("validateAndRetry — enforce mode", () => {
   it("does not call the LLM when the first attempt validates", async () => {
     const llm = createFakeLLM([]);
-    const result = await validateAndRetry(
-      llm,
-      "how am I doing?",
-      "reply",
-      makeMetadata(1.42),
-      { mode: "enforce", snapshot: SNAPSHOT },
-    );
+    const result = await validateAndRetry(llm, "how am I doing?", "reply", makeMetadata(1.42), {
+      mode: "enforce",
+      snapshot: SNAPSHOT,
+    });
     expect(llm.capturedPrompts.length).toBe(0);
     expect(result.validation_warning).toBeUndefined();
     expect(result.response).toBe("reply");
@@ -67,9 +62,7 @@ describe("validateAndRetry — enforce mode", () => {
     expect(llm.capturedPrompts[0]).toContain(
       "Citation mismatch: cited current_status.acwr.value=1.45, snapshot has 1.42.",
     );
-    expect(llm.capturedPrompts[0]).toContain(
-      "Same coaching content, corrected numbers.",
-    );
+    expect(llm.capturedPrompts[0]).toContain("Same coaching content, corrected numbers.");
     expect(result.response).toBe(corrected);
     expect(result.validation_warning).toBeUndefined();
   });
@@ -92,26 +85,20 @@ describe("validateAndRetry — enforce mode", () => {
   it("never makes a third call even when the retry is also wrong", async () => {
     const stillWrong = withMeta("still wrong", 1.99);
     const llm = createFakeLLM([stillWrong, withMeta("third", 1.42)]);
-    await validateAndRetry(
-      llm,
-      "how am I doing?",
-      "first reply",
-      makeMetadata(1.45),
-      { mode: "enforce", snapshot: SNAPSHOT },
-    );
+    await validateAndRetry(llm, "how am I doing?", "first reply", makeMetadata(1.45), {
+      mode: "enforce",
+      snapshot: SNAPSHOT,
+    });
     expect(llm.capturedPrompts.length).toBe(1);
   });
 });
 describe("validateAndRetry — observe mode", () => {
   it("flags would_have_retried on a mismatch without calling the LLM", async () => {
     const llm = createFakeLLM([]);
-    const result = await validateAndRetry(
-      llm,
-      "how am I doing?",
-      "reply",
-      makeMetadata(1.45),
-      { mode: "observe", snapshot: SNAPSHOT },
-    );
+    const result = await validateAndRetry(llm, "how am I doing?", "reply", makeMetadata(1.45), {
+      mode: "observe",
+      snapshot: SNAPSHOT,
+    });
     expect(llm.capturedPrompts.length).toBe(0);
     expect(result.would_have_retried).toBe(true);
     expect(result.validation_warning).toBeUndefined();
@@ -120,13 +107,10 @@ describe("validateAndRetry — observe mode", () => {
 
   it("does not flag would_have_retried on a match", async () => {
     const llm = createFakeLLM([]);
-    const result = await validateAndRetry(
-      llm,
-      "how am I doing?",
-      "reply",
-      makeMetadata(1.42),
-      { mode: "observe", snapshot: SNAPSHOT },
-    );
+    const result = await validateAndRetry(llm, "how am I doing?", "reply", makeMetadata(1.42), {
+      mode: "observe",
+      snapshot: SNAPSHOT,
+    });
     expect(llm.capturedPrompts.length).toBe(0);
     expect(result.would_have_retried).toBe(false);
   });
@@ -135,13 +119,10 @@ describe("validateAndRetry — observe mode", () => {
 describe("validateAndRetry — off mode", () => {
   it("returns the original response untouched with no validation or retry", async () => {
     const llm = createFakeLLM([]);
-    const result = await validateAndRetry(
-      llm,
-      "how am I doing?",
-      "reply",
-      makeMetadata(1.45),
-      { mode: "off", snapshot: SNAPSHOT },
-    );
+    const result = await validateAndRetry(llm, "how am I doing?", "reply", makeMetadata(1.45), {
+      mode: "off",
+      snapshot: SNAPSHOT,
+    });
     expect(llm.capturedPrompts.length).toBe(0);
     expect(result.response).toBe("reply");
     expect(result.validation_warning).toBeUndefined();

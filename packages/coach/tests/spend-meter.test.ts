@@ -823,7 +823,6 @@ describe("claude-cli notional usage", () => {
   });
 });
 
-
 describe("codex-agent notional usage", () => {
   function codexAgentLine(overrides: Partial<UsageLedgerLine> = {}): UsageLedgerLine {
     return line({

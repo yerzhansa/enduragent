@@ -251,64 +251,64 @@ describe("loadFixture against committed golden fixtures", () => {
     },
   ];
 
-  describe.each(piiScanFixtures)("$slug — PII regression scanner (allowlist)", ({ slug, extraKeys, idSentinel, dynamicKeyAllowed }) => {
-    const allowed = new Set<string>([...ALLOWED_FIXTURE_KEYS, ...extraKeys]);
+  describe.each(piiScanFixtures)(
+    "$slug — PII regression scanner (allowlist)",
+    ({ slug, extraKeys, idSentinel, dynamicKeyAllowed }) => {
+      const allowed = new Set<string>([...ALLOWED_FIXTURE_KEYS, ...extraKeys]);
 
-    it("every key in the committed fixture appears in the allowlist", () => {
-      const data = loadFixture(slug, GoldenFixtureSchema);
-      const offending: string[] = [];
-      const recurse = (v: unknown, path: string): void => {
-        if (Array.isArray(v)) {
-          v.forEach((item, i) => recurse(item, `${path}[${i}]`));
-          return;
-        }
-        if (v !== null && typeof v === "object") {
-          for (const [key, child] of Object.entries(v as Record<string, unknown>)) {
-            const childPath = path === "" ? key : `${path}.${key}`;
-            if (!allowed.has(key) && !(dynamicKeyAllowed?.(key, path) ?? false)) {
-              offending.push(`${childPath} (key not in allowlist)`);
-            }
-            recurse(child, childPath);
+      it("every key in the committed fixture appears in the allowlist", () => {
+        const data = loadFixture(slug, GoldenFixtureSchema);
+        const offending: string[] = [];
+        const recurse = (v: unknown, path: string): void => {
+          if (Array.isArray(v)) {
+            v.forEach((item, i) => recurse(item, `${path}[${i}]`));
+            return;
           }
-        }
-      };
-      recurse(data, "");
-      expect(
-        offending,
-        `Fixture carries keys outside the allowlist — likely PII leak.\n` +
-          `Either regenerate the fixture under the current sanitizer or, if the key is genuinely load-bearing test signal,\n` +
-          `add it to EXTRA_ALLOW in tools/sanitize-fixture-transform.ts (real rows) or CURVE_FIXTURE_BLOCK_KEYS (synthetic blocks) with a one-line justification.\n` +
-          `Offending paths:\n  ${offending.slice(0, 20).join("\n  ")}${offending.length > 20 ? `\n  …+${offending.length - 20} more` : ""}`,
-      ).toEqual([]);
-    });
+          if (v !== null && typeof v === "object") {
+            for (const [key, child] of Object.entries(v as Record<string, unknown>)) {
+              const childPath = path === "" ? key : `${path}.${key}`;
+              if (!allowed.has(key) && !(dynamicKeyAllowed?.(key, path) ?? false)) {
+                offending.push(`${childPath} (key not in allowlist)`);
+              }
+              recurse(child, childPath);
+            }
+          }
+        };
+        recurse(data, "");
+        expect(
+          offending,
+          `Fixture carries keys outside the allowlist — likely PII leak.\n` +
+            `Either regenerate the fixture under the current sanitizer or, if the key is genuinely load-bearing test signal,\n` +
+            `add it to EXTRA_ALLOW in tools/sanitize-fixture-transform.ts (real rows) or CURVE_FIXTURE_BLOCK_KEYS (synthetic blocks) with a one-line justification.\n` +
+            `Offending paths:\n  ${offending.slice(0, 20).join("\n  ")}${offending.length > 20 ? `\n  …+${offending.length - 20} more` : ""}`,
+        ).toEqual([]);
+      });
 
-    it("every `id` / `*_id` numeric value is the redacted sentinel (no real-shaped account-linking id leaks)", () => {
-      const data = loadFixture(slug, GoldenFixtureSchema);
-      const recurse = (v: unknown): void => {
-        if (Array.isArray(v)) {
-          v.forEach(recurse);
-          return;
-        }
-        if (v !== null && typeof v === "object") {
-          for (const [key, child] of Object.entries(v as Record<string, unknown>)) {
-            // Only numeric ids are PII-bearing here; curve ids ("r.<date>.<date>")
-            // and wellness/zone string ids are structural and ride through.
-            if (
-              (key === "id" || key.endsWith("_id")) &&
-              typeof child === "number"
-            ) {
-              expect(
-                idSentinel(child),
-                `${key}=${JSON.stringify(child)} is not the mock sentinel — possible PII leak.`,
-              ).toBe(true);
-            }
-            recurse(child);
+      it("every `id` / `*_id` numeric value is the redacted sentinel (no real-shaped account-linking id leaks)", () => {
+        const data = loadFixture(slug, GoldenFixtureSchema);
+        const recurse = (v: unknown): void => {
+          if (Array.isArray(v)) {
+            v.forEach(recurse);
+            return;
           }
-        }
-      };
-      recurse(data);
-    });
-  });
+          if (v !== null && typeof v === "object") {
+            for (const [key, child] of Object.entries(v as Record<string, unknown>)) {
+              // Only numeric ids are PII-bearing here; curve ids ("r.<date>.<date>")
+              // and wellness/zone string ids are structural and ride through.
+              if ((key === "id" || key.endsWith("_id")) && typeof child === "number") {
+                expect(
+                  idSentinel(child),
+                  `${key}=${JSON.stringify(child)} is not the mock sentinel — possible PII leak.`,
+                ).toBe(true);
+              }
+              recurse(child);
+            }
+          }
+        };
+        recurse(data);
+      });
+    },
+  );
 
   it("loads synthetic/has-intervals-placeholder — ride whose icu_intervals is a single RECOVERY placeholder (section-11 v3.106 regression case)", () => {
     const data = loadFixture("synthetic/has-intervals-placeholder", ActivitySchema);
@@ -321,6 +321,8 @@ describe("loadFixture against committed golden fixtures", () => {
     // signature (no schema-level support for JSON comments). Asserting it
     // landed on `data` confirms the regression-case rationale travels with
     // the fixture for any future maintainer who finds it via grep.
-    expect((data as Record<string, unknown>)._comment).toEqual(expect.stringMatching(/RECOVERY|placeholder|v3\.106/i));
+    expect((data as Record<string, unknown>)._comment).toEqual(
+      expect.stringMatching(/RECOVERY|placeholder|v3\.106/i),
+    );
   });
 });

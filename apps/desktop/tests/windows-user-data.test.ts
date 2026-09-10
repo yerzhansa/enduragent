@@ -1,3 +1,4 @@
+import { initializeDesktopLanguage } from "../src/main/language.js";
 import { win32 } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -25,6 +26,8 @@ function captureFailure(action: () => unknown): unknown {
   }
   throw new TypeError("expected Windows user data binding failure");
 }
+
+await initializeDesktopLanguage();
 
 describe("Windows user data binding decision", () => {
   it("uses LOCALAPPDATA as the primary Windows location", () => {

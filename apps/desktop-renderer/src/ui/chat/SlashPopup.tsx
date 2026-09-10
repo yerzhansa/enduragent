@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import type { ReactElement, RefObject } from "react";
 import type { SlashCommand } from "../../chat/commands";
 import { Popover, PopoverContent } from "@enduragent/ui";
@@ -13,6 +14,7 @@ export function SlashPopup(props: {
   readonly onAccept: (index: number) => void;
   readonly onDismiss: () => void;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   if (!props.open) return null;
 
   return (
@@ -31,12 +33,12 @@ export function SlashPopup(props: {
         className="block w-(--anchor-width) overflow-hidden p-0"
         id={props.listboxId}
         role="listbox"
-        aria-label="Commands"
+        aria-label={say("chat.slashPopup.title")}
         initialFocus={false}
         finalFocus={false}
       >
         <div className="border-b border-line px-[calc(var(--inset)+var(--row-inset))] pt-2.5 pb-1.5 text-xs font-medium tracking-[0.07em] text-ink-3 uppercase">
-          Commands
+          {say("chat.slashPopup.title")}
         </div>
         <ul className="m-0 list-none p-inset">
           {props.matches.map((match, index) => (
@@ -60,7 +62,7 @@ export function SlashPopup(props: {
               <span className="min-w-[86px] flex-none text-sm font-semibold text-ink">
                 {match.command}
               </span>
-              <span className="truncate text-sm text-ink-2">{match.description}</span>
+              <span className="truncate text-sm text-ink-2">{say(match.description)}</span>
             </li>
           ))}
         </ul>
@@ -70,19 +72,19 @@ export function SlashPopup(props: {
             <span className="rounded-[4px] border border-line-2 border-b-2 bg-surface-2 px-1.5 py-px">
               ↑↓
             </span>{" "}
-            choose
+            {say("chat.slashPopup.choose")}
           </span>
           <span>
             <span className="rounded-[4px] border border-line-2 border-b-2 bg-surface-2 px-1.5 py-px">
               ↩
             </span>{" "}
-            insert
+            {say("chat.slashPopup.insert")}
           </span>
           <span>
             <span className="rounded-[4px] border border-line-2 border-b-2 bg-surface-2 px-1.5 py-px">
               esc
             </span>{" "}
-            close
+            {say("chat.slashPopup.close")}
           </span>
         </div>
       </PopoverContent>

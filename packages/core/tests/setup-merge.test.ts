@@ -13,6 +13,9 @@ let origStdinTTY: boolean | undefined;
 let origStdoutTTY: boolean | undefined;
 
 beforeEach(() => {
+  for (const key of ["ENDURAGENT_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"])
+    vi.stubEnv(key, undefined);
+  vi.stubEnv("LANG", "en_US.UTF-8");
   tempHome = mkdtempSync(join(tmpdir(), "cc-merge-"));
   origHome = process.env.HOME;
   process.env.HOME = tempHome;
@@ -34,6 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env.HOME = origHome;
   Object.defineProperty(process.stdin, "isTTY", { value: origStdinTTY, configurable: true });
   Object.defineProperty(process.stdout, "isTTY", { value: origStdoutTTY, configurable: true });

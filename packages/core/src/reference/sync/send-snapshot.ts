@@ -1,4 +1,6 @@
 import { GrammyError } from "grammy";
+import type { Phrasebook } from "@enduragent/i18n/messages";
+import { cliPhrasebook } from "../../cli-copy.js";
 import { snapshotChunkToTelegramHtml, type SnapshotOutput } from "./snapshot-debug.js";
 import { retryWithBackoff } from "../../concurrency/retry.js";
 import { GARMIN_DATA_ATTRIBUTION } from "../../agent/garmin-attribution.js";
@@ -15,6 +17,7 @@ export interface SendOutcome {
 }
 
 export interface SendDeps {
+  readonly book?: Phrasebook;
   readonly reply: (text: string) => Promise<unknown>;
   readonly replyHtml: (html: string) => Promise<unknown>;
   readonly sendDocument?: (buffer: Buffer, filename: string, caption?: string) => Promise<unknown>;
@@ -56,10 +59,17 @@ export async function sendSnapshotOutput(
       deps.replyHtml,
       sleep,
       deps.reply,
+      deps.book ?? cliPhrasebook(),
     );
   }
 
-  return await sendChunks(output.chunks, deps.reply, sleep, deps.reply);
+  return await sendChunks(
+    output.chunks,
+    deps.reply,
+    sleep,
+    deps.reply,
+    deps.book ?? cliPhrasebook(),
+  );
 }
 
 async function sendChunks(
@@ -67,6 +77,7 @@ async function sendChunks(
   reply: SendDeps["reply"],
   sleep: (ms: number) => Promise<void>,
   reportInterrupted: SendDeps["reply"],
+  book: Phrasebook,
 ): Promise<SendOutcome> {
   const total = chunks.length;
   let sent = 0;
@@ -76,7 +87,12 @@ async function sendChunks(
     const ok = await trySendWithSingleRetry(chunk, reply, sleep);
     if (!ok) {
       await reportInterrupted(
-        `Snapshot interrupted at chunk ${i + 1} of ${total}. Run /snapshot raw again — or /snapshot raw <section> to dump just one part.`,
+        book.say("telegram.snapshot.interrupted", {
+          chunk: book.format.number(i + 1, { useGrouping: false }),
+          total: book.format.number(total, { useGrouping: false }),
+          command: "/snapshot raw",
+          sectionCommand: "/snapshot raw <section>",
+        }),
       );
       return { sent, total, interrupted: true };
     }

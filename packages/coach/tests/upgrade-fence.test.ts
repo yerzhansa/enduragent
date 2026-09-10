@@ -1,13 +1,5 @@
 import { createConnection, createServer } from "node:net";
-import {
-  lstat,
-  mkdtemp,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -186,18 +178,24 @@ describe.skipIf(!hasUnixSockets)("upgrade fence", () => {
       exitCode: 3,
       message: HANDOFF_RESERVED_MESSAGE,
     });
-    expect(await admitStartupThroughUpgradeFence({
-      configDir: dir,
-      handoffCapability: Buffer.alloc(32, 8).toString("base64url"),
-    })).toMatchObject({ status: "reserved" });
-    await expect(admitStartupThroughUpgradeFence({
-      configDir: dir,
-      handoffCapability: acquired.handle.handoffCapability,
-    })).resolves.toEqual({ status: "designated" });
-    await expect(admitStartupThroughUpgradeFence({
-      configDir: dir,
-      handoffCapability: acquired.handle.handoffCapability,
-    })).resolves.toMatchObject({ status: "reserved" });
+    expect(
+      await admitStartupThroughUpgradeFence({
+        configDir: dir,
+        handoffCapability: Buffer.alloc(32, 8).toString("base64url"),
+      }),
+    ).toMatchObject({ status: "reserved" });
+    await expect(
+      admitStartupThroughUpgradeFence({
+        configDir: dir,
+        handoffCapability: acquired.handle.handoffCapability,
+      }),
+    ).resolves.toEqual({ status: "designated" });
+    await expect(
+      admitStartupThroughUpgradeFence({
+        configDir: dir,
+        handoffCapability: acquired.handle.handoffCapability,
+      }),
+    ).resolves.toMatchObject({ status: "reserved" });
     expect((await lstat(dir)).mode & 0o777).toBe(0o700);
     expect((await lstat(acquired.handle.socketPath)).mode & 0o777).toBe(0o600);
     await acquired.handle.release();

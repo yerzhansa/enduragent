@@ -1,3 +1,5 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { APP_VERSION } from "../../app-version";
@@ -12,78 +14,79 @@ interface UpdateCopy {
   readonly announcement: string;
 }
 
-function updateCopy(state: DesktopUpdateState): UpdateCopy {
+function updateCopy(state: DesktopUpdateState, say: Phrasebook["say"]): UpdateCopy {
   switch (state.status) {
     case "disabled":
       return {
-        action: "Updates unavailable",
-        label: "Updates unavailable",
-        announcement: "Updates unavailable",
+        action: say("settings.application.unavailable"),
+        label: say("settings.application.unavailable"),
+        announcement: say("settings.application.unavailable"),
       };
     case "current":
       return {
-        action: "Check for updates",
-        label: "Check for updates",
-        announcement: "Enduragent is up to date",
+        action: say("settings.application.check"),
+        label: say("settings.application.check"),
+        announcement: say("settings.application.current", { product: "Enduragent" }),
       };
     case "checking":
       return {
-        action: "Checking…",
-        label: "Checking for updates",
-        announcement: "Checking for updates",
+        action: say("settings.application.checkingAction"),
+        label: say("settings.application.checking"),
+        announcement: say("settings.application.checking"),
       };
     case "downloading":
       return {
-        action: "Downloading…",
-        label: `Downloading update ${state.version}`,
-        announcement: `Downloading update ${state.version}`,
+        action: say("settings.application.downloadingAction"),
+        label: say("settings.application.downloading", { version: state.version }),
+        announcement: say("settings.application.downloading", { version: state.version }),
       };
     case "downloaded":
       return {
-        action: "Restart to update",
-        label: `Restart to update to version ${state.version}`,
-        announcement: `Restart to update to version ${state.version}`,
+        action: say("settings.application.restartAction"),
+        label: say("settings.application.restart", { version: state.version }),
+        announcement: say("settings.application.restart", { version: state.version }),
       };
     case "installing":
       return {
-        action: "Restarting…",
-        label: `Restarting to install version ${state.version}`,
-        announcement: `Restarting to install version ${state.version}`,
+        action: say("settings.application.restartingAction"),
+        label: say("settings.application.restarting", { version: state.version }),
+        announcement: say("settings.application.restarting", { version: state.version }),
       };
     case "failed":
       return {
-        action: "Try update again",
-        label: "Try update again",
+        action: say("settings.application.retry"),
+        label: say("settings.application.retry"),
         announcement:
           state.stage === "download"
-            ? "Update download failed. Try again"
-            : "Update check failed. Try again",
+            ? say("settings.application.downloadFailed")
+            : say("settings.application.checkFailed"),
       };
     case "restart-required":
       return {
         action: null,
-        label: "Restart Enduragent to resume updates",
+        label: say("settings.application.restartRequired", { product: "Enduragent" }),
         announcement:
           state.stage === "download"
-            ? "Update download timed out. Quit and reopen Enduragent to try again."
-            : "Updates could not start. Quit and reopen Enduragent to try again.",
+            ? say("settings.application.downloadTimedOut", { product: "Enduragent" })
+            : say("settings.application.startFailed", { product: "Enduragent" }),
       };
     default:
       return {
-        action: "Check for updates",
-        label: "Check for updates",
-        announcement: "Check for updates",
+        action: say("settings.application.check"),
+        label: say("settings.application.check"),
+        announcement: say("settings.application.check"),
       };
   }
 }
 
 export function ApplicationSection(): ReactElement {
+  const { say } = usePhrasebook();
   const update = useEnduragentStore((store) => store.settings.update);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const ports = useEnduragentStore((store) => store.settingsPorts);
   const chatActions = useEnduragentStore((store) => store.chatActions);
   const setActiveView = useEnduragentStore((store) => store.setActiveView);
-  const copy = updateCopy(update.state);
+  const copy = updateCopy(update.state, say);
   const updateBusy =
     mutating ||
     update.actionDisabled ||
@@ -91,11 +94,18 @@ export function ApplicationSection(): ReactElement {
 
   return (
     <>
-      <h2 className={styles.heading}>Application</h2>
-      <section className={styles.group} aria-label="Application">
+      <h2 className={styles.heading}>{say("settings.application.title")}</h2>
+      <section className={styles.group} aria-label={say("settings.application.title")}>
         <div className={styles.row}>
           <div className={styles.label}>
-            <div className={styles.rowTitle}>Version {APP_VERSION}</div>
+            <div className={styles.rowTitle}>
+              {say("settings.application.version", {
+                version:
+                  APP_VERSION === "unknown"
+                    ? say("settings.application.versionUnknown")
+                    : APP_VERSION,
+              })}
+            </div>
             <div className={styles.rowDetail}>{copy.announcement}</div>
             <span className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
               {copy.announcement}
@@ -118,14 +128,14 @@ export function ApplicationSection(): ReactElement {
           )}
         </div>
       </section>
-      <h2 className={styles.heading}>Danger</h2>
-      <section className={styles.group} aria-label="Danger">
+      <h2 className={styles.heading}>{say("settings.application.danger")}</h2>
+      <section className={styles.group} aria-label={say("settings.application.danger")}>
         <div className={styles.row}>
           <div className={styles.label}>
-            <div className={`${styles.rowTitle} ${styles.dangerTitle}`}>Reset conversation</div>
-            <div className={styles.rowDetail}>
-              Clears the visible conversation. Training data and saved coach memory remain.
+            <div className={`${styles.rowTitle} ${styles.dangerTitle}`}>
+              {say("settings.application.reset")}
             </div>
+            <div className={styles.rowDetail}>{say("settings.application.resetDetail")}</div>
           </div>
           <Button
             type="button"
@@ -137,7 +147,7 @@ export function ApplicationSection(): ReactElement {
               chatActions?.openNewConversation();
             }}
           >
-            Reset conversation
+            {say("settings.application.reset")}
           </Button>
         </div>
       </section>

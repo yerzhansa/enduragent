@@ -63,10 +63,10 @@ describe("sanitize-fixture CLI — main()", () => {
     );
     const lines: string[] = [];
 
-    const exit = await main(
-      [inputPath, "summary-output", "--force"],
-      { outputRoot: outputDir, out: (m) => lines.push(m) },
-    );
+    const exit = await main([inputPath, "summary-output", "--force"], {
+      outputRoot: outputDir,
+      out: (m) => lines.push(m),
+    });
 
     expect(exit).toBe(0);
     const joined = lines.join("\n");
@@ -91,10 +91,10 @@ describe("sanitize-fixture CLI — main()", () => {
     // Operator typo: `--force-overrride` instead of `--force`. Prior CLI
     // silently swallowed unknown flags; now it errors out so the operator
     // sees the typo before the file is (or isn't) written.
-    const exit = await main(
-      [inputPath, "typo-output", "--force-overrride"],
-      { outputRoot: outputDir, err: (m) => errs.push(m) },
-    );
+    const exit = await main([inputPath, "typo-output", "--force-overrride"], {
+      outputRoot: outputDir,
+      err: (m) => errs.push(m),
+    });
 
     expect(exit).not.toBe(0);
     const errMsg = errs.join("\n");
@@ -140,7 +140,10 @@ describe("sanitize-fixture CLI — main()", () => {
     // Second run, mutated input, --force → overwrites.
     writeFileSync(
       inputPath,
-      JSON.stringify({ activities: [{ id: 2, type: "Run" }], wellness: [{ id: "2026-05-11", weight: 73.4 }] }),
+      JSON.stringify({
+        activities: [{ id: 2, type: "Run" }],
+        wellness: [{ id: "2026-05-11", weight: 73.4 }],
+      }),
     );
     const exit = await main([inputPath, "force-output", "--force"], { outputRoot: outputDir });
 
@@ -178,9 +181,7 @@ describe("sanitize-fixture CLI — main()", () => {
     });
 
     expect(exit).toBe(0);
-    const written = JSON.parse(
-      readFileSync(join(outputDir, "rename-wellness.json"), "utf-8"),
-    );
+    const written = JSON.parse(readFileSync(join(outputDir, "rename-wellness.json"), "utf-8"));
     expect(written.wellness[0].fitness).toBe(50);
     expect(written.wellness[0].fatigue).toBe(38);
     expect(written.wellness[0].fitnessContribution).toBe(12);
@@ -219,9 +220,7 @@ describe("sanitize-fixture CLI — main()", () => {
     });
 
     expect(exit).toBe(0);
-    const written = JSON.parse(
-      readFileSync(join(outputDir, "rename-activity.json"), "utf-8"),
-    );
+    const written = JSON.parse(readFileSync(join(outputDir, "rename-activity.json"), "utf-8"));
     expect(written.activities[0].fitnessAtEnd).toBe(50.5);
     expect(written.activities[0].fatigueAtEnd).toBe(38.2);
     expect(written.activities[0]).not.toHaveProperty("icu_ctl");
@@ -261,9 +260,7 @@ describe("sanitize-fixture CLI — main()", () => {
     });
 
     expect(exit).toBe(0);
-    const written = JSON.parse(
-      readFileSync(join(outputDir, "no-tp-keys.json"), "utf-8"),
-    );
+    const written = JSON.parse(readFileSync(join(outputDir, "no-tp-keys.json"), "utf-8"));
     for (const row of written.activities) {
       for (const banned of TP_DENYLIST_FIELDS) {
         expect(row).not.toHaveProperty(banned);
@@ -285,12 +282,8 @@ describe("sanitize-fixture CLI — main()", () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        activities: [
-          { id: "i9876543", type: "Ride", start_date_local: "2026-05-11T08:00:00" },
-        ],
-        wellness: [
-          { id: "2026-05-11", weeklyAggregates: { ctl: 50 } },
-        ],
+        activities: [{ id: "i9876543", type: "Ride", start_date_local: "2026-05-11T08:00:00" }],
+        wellness: [{ id: "2026-05-11", weeklyAggregates: { ctl: 50 } }],
       }),
     );
     const errs: string[] = [];
@@ -333,9 +326,7 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(errs.join("\n")).toMatch(
       /Skipped non-number TP values during rename: ctl \(×2 in wellness\)/,
     );
-    const written = JSON.parse(
-      readFileSync(join(outputDir, "stringy-ctl.json"), "utf-8"),
-    );
+    const written = JSON.parse(readFileSync(join(outputDir, "stringy-ctl.json"), "utf-8"));
     // String-typed ctl was dropped, no fitness emitted.
     expect(written.wellness[0]).not.toHaveProperty("fitness");
     expect(written.wellness[1]).not.toHaveProperty("fitness");

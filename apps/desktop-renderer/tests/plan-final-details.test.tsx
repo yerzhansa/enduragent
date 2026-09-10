@@ -1,5 +1,6 @@
+import { renderLocalized as render } from "./language-harness";
 import type { PlanHistoryResult } from "@enduragent/coach-contract";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PlanFinalDetails } from "../src/ui/plan/PlanFinalDetails";
 import { planCreationDraft } from "./plan-creation-draft-fixtures";

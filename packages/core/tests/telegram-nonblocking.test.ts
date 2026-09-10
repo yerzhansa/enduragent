@@ -5,6 +5,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -17,7 +36,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
 });
 
 interface FakeBot {
@@ -67,12 +85,7 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
     stop: vi.fn(async () => undefined),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
 
   const agent: StubAgent = {
     chat: vi.fn(),
@@ -80,6 +93,8 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
     resetSession: vi.fn(),
     getAthleteState: vi.fn(),
   };
+
+  vi.resetModules();
 
   const [{ createTelegramBot, CHAT_COALESCE_MS }, { createNpmTelegramHost }] = await Promise.all([
     import("../src/channels/telegram.js"),
@@ -253,9 +268,11 @@ describe("non-blocking dispatch", () => {
 
     expect(agent.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:333", message: "first" }),
+      expect.any(Function),
     );
     expect(agent.chat).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: "telegram:333", message: "second" }),
+      expect.any(Function),
     );
     // The synchronous handler prologue captures each message before dispatching,
     // so the two turns must reach agent.chat in send order. A future change that
@@ -269,7 +286,7 @@ describe("setMyCommands menu list", () => {
   it("includes the full command set (with start) and excludes snapshot when reference is present", async () => {
     const reference: StubReference = { runSync: vi.fn(), loadLatest: vi.fn() };
     const { bot } = await buildBot({ reference });
-    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(16));
     const menu = bot.api.setMyCommands.mock.calls[0][0] as {
       command: string;
       description: string;
@@ -297,7 +314,7 @@ describe("setMyCommands menu list", () => {
 
   it("excludes sync when reference is undefined", async () => {
     const { bot } = await buildBot();
-    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bot.api.setMyCommands).toHaveBeenCalledTimes(16));
     const menu = bot.api.setMyCommands.mock.calls[0][0] as {
       command: string;
       description: string;

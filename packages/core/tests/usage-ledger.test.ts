@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, mkdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  statSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,7 +61,13 @@ function anthropicConfig(dataDir: string): Config & EngineConfig {
     llm: { provider: "anthropic", model: "claude-test", apiKey: "sk-test" },
     intervals: { apiKey: "", athleteId: "0" },
     telegram: { botToken: "" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
     dataDir,
@@ -66,7 +80,13 @@ function codexConfig(dataDir: string): Config & EngineConfig {
     llm: { provider: "openai-codex", model: "gpt-5.4", apiKey: "", authProfile: "openai-codex" },
     intervals: { apiKey: "", athleteId: "0" },
     telegram: { botToken: "" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
     dataDir,
@@ -74,7 +94,9 @@ function codexConfig(dataDir: string): Config & EngineConfig {
 }
 
 function readLines(dataDir: string, file = "usage-ledger.jsonl"): string[] {
-  return readFileSync(join(dataDir, file), "utf-8").split("\n").filter((l) => l.length > 0);
+  return readFileSync(join(dataDir, file), "utf-8")
+    .split("\n")
+    .filter((l) => l.length > 0);
 }
 
 function llmPorts() {
@@ -323,7 +345,10 @@ describe("LLM.generate — AI-SDK path", () => {
       totalUsage: { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 },
       steps: [{ s: "a" }],
     });
-    const config: Config & EngineConfig = { ...anthropicConfig(dir), llm: { provider: "anthropic", model: knownId, apiKey: "sk-test" } };
+    const config: Config & EngineConfig = {
+      ...anthropicConfig(dir),
+      llm: { provider: "anthropic", model: knownId, apiKey: "sk-test" },
+    };
     const llm = new LLM(config, llmPorts());
 
     await llm.generate({ prompt: "hi", caller: "chat" });
@@ -383,7 +408,10 @@ describe("codex bridge — usage accumulation across the loop", () => {
     }));
     const { codexGenerateText } = await import("../../engine/src/agent/codex-bridge.js");
     return (input: Parameters<typeof codexGenerateText>[0]) =>
-      codexGenerateText(input, { getAccessToken: async () => "test-access-token", classifyFailure });
+      codexGenerateText(input, {
+        getAccessToken: async () => "test-access-token",
+        classifyFailure,
+      });
   }
 
   it("sums usage across a multi-step loop and keeps last-step usage for back-compat", async () => {

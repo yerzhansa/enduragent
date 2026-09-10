@@ -53,10 +53,7 @@ describe("reference-parity gate — internals", () => {
     });
 
     it("returns one DiffLeaf per leaf for nested objects with multiple diffs", () => {
-      const diff = deepCompare(
-        { a: { b: 1, c: 2 } },
-        { a: { b: 99, c: 2 } },
-      );
+      const diff = deepCompare({ a: { b: 1, c: 2 } }, { a: { b: 99, c: 2 } });
       expect(diff).toEqual([{ path: "$.a.b", expected: 1, actual: 99 }]);
     });
   });
@@ -101,8 +98,16 @@ describe("reference-parity gate — internals", () => {
     it("removes wildcard-map paths and never mutates the input", () => {
       const actual = {
         trailing_by_sport: {
-          cycling: { lt1_estimate: { hr: 138 }, aet_estimate: { hr: 152 }, aet_crossing_sessions: 7 },
-          running: { lt1_estimate: { hr: 150 }, aet_estimate: { hr: 165 }, aet_crossing_sessions: 4 },
+          cycling: {
+            lt1_estimate: { hr: 138 },
+            aet_estimate: { hr: 152 },
+            aet_crossing_sessions: 7,
+          },
+          running: {
+            lt1_estimate: { hr: 150 },
+            aet_estimate: { hr: 165 },
+            aet_crossing_sessions: 4,
+          },
         },
       };
       const stripped = stripAddedPaths(actual, [
@@ -191,7 +196,10 @@ describe("reference-parity gate — registered metric × fixture matrix", () => 
         expect(
           result.passed,
           result.diff
-            .map((d) => `${d.path}: expected ${JSON.stringify(d.expected)} | got ${JSON.stringify(d.actual)}`)
+            .map(
+              (d) =>
+                `${d.path}: expected ${JSON.stringify(d.expected)} | got ${JSON.stringify(d.actual)}`,
+            )
             .join("\n") || "cite-path enforcement failed",
         ).toBe(true);
       });

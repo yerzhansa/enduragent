@@ -200,9 +200,7 @@ describe("mounted onboarding secret boundary", () => {
     const user = userEvent.setup();
     const gate = deferred();
     const rpc: unknown[] = [];
-    expectTypeOf<IntervalsCredentialMutationResult>().toEqualTypeOf<
-      ExpectedIntervalsCredentialMutationResult
-    >();
+    expectTypeOf<IntervalsCredentialMutationResult>().toEqualTypeOf<ExpectedIntervalsCredentialMutationResult>();
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
     bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
     bridge.credentialStatuses.mockResolvedValue([

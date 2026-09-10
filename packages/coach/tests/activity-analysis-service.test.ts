@@ -99,11 +99,13 @@ function setup(input: {
   readonly activityValue?: CanonicalActivityDetail;
   readonly aggregateDeadlineMs?: number;
 }) {
-  const analyzer = input.analyzer ?? { analyze: async () => ({
-    kind: "computed" as const,
-    data: drift,
-    source: "local-canonical" as const,
-  }) };
+  const analyzer = input.analyzer ?? {
+    analyze: async () => ({
+      kind: "computed" as const,
+      data: drift,
+      source: "local-canonical" as const,
+    }),
+  };
   const getActivity = vi.fn(async () => input.activityValue ?? activity);
   const service = createActivityAnalysisService({
     activities: { getActivity },
@@ -168,15 +170,17 @@ describe("activity analysis service", () => {
     };
     await service.getActivityAnalysis(request);
     fail = true;
-    await expect(service.getActivityAnalysis({ ...request, refresh: true })).resolves.toMatchObject({
-      sections: {
-        aerobicDrift: {
-          kind: "stale",
-          lastGood: { provenance: { delivery: "persisted-cache" } },
-          refreshFailure: { code: "timeout", failedAt: "1998-07-06T12:00:00.000Z" },
+    await expect(service.getActivityAnalysis({ ...request, refresh: true })).resolves.toMatchObject(
+      {
+        sections: {
+          aerobicDrift: {
+            kind: "stale",
+            lastGood: { provenance: { delivery: "persisted-cache" } },
+            refreshFailure: { code: "timeout", failedAt: "1998-07-06T12:00:00.000Z" },
+          },
         },
       },
-    });
+    );
   });
 
   it("isolates unsupported sections and does not expose provider identity", async () => {
@@ -200,10 +204,12 @@ describe("activity analysis service", () => {
       analyzer,
       resolver: source(async () => ({ kind: "unavailable", reason: "not_found" })),
     });
-    await expect(service.getActivityAnalysis({
-      canonicalActivityId: ACTIVITY_ID,
-      sections: ["aerobic-drift"],
-    })).resolves.toMatchObject({
+    await expect(
+      service.getActivityAnalysis({
+        canonicalActivityId: ACTIVITY_ID,
+        sections: ["aerobic-drift"],
+      }),
+    ).resolves.toMatchObject({
       sections: { aerobicDrift: { kind: "unavailable", reason: "malformed-response" } },
     });
   });
@@ -219,10 +225,12 @@ describe("activity analysis service", () => {
       },
     };
     const { service } = setup({ analyzer });
-    await expect(service.getActivityAnalysis({
-      canonicalActivityId: ACTIVITY_ID,
-      sections: ["aerobic-drift"],
-    })).resolves.toMatchObject({
+    await expect(
+      service.getActivityAnalysis({
+        canonicalActivityId: ACTIVITY_ID,
+        sections: ["aerobic-drift"],
+      }),
+    ).resolves.toMatchObject({
       sections: { aerobicDrift: { kind: "unavailable", reason: "malformed-response" } },
     });
   });
@@ -279,18 +287,20 @@ describe("activity analysis service", () => {
     const analyzers: ActivityAnalysisSectionAnalyzers = {
       aerobicDrift: { analyze: async () => analyze(drift) },
       intervals: {
-        analyze: async () => analyze({ source: "local-canonical" as const, intervals: [], groups: [] }),
+        analyze: async () =>
+          analyze({ source: "local-canonical" as const, intervals: [], groups: [] }),
       },
       bestEfforts: {
-        analyze: async () => analyze({
-          scope: {
-            kind: "selected-activity" as const,
-            stream: "power" as const,
-            durationSeconds: 60,
-            tieRule: "earliest-start" as const,
-          },
-          efforts: [],
-        }),
+        analyze: async () =>
+          analyze({
+            scope: {
+              kind: "selected-activity" as const,
+              stream: "power" as const,
+              durationSeconds: 60,
+              tieRule: "earliest-start" as const,
+            },
+            efforts: [],
+          }),
       },
     };
     const service = createActivityAnalysisService({
@@ -381,10 +391,12 @@ describe("activity analysis service", () => {
       },
     };
     const { service } = setup({ analyzer, resolver });
-    await expect(service.getActivityAnalysis({
-      canonicalActivityId: ACTIVITY_ID,
-      sections: ["aerobic-drift"],
-    })).resolves.toMatchObject({
+    await expect(
+      service.getActivityAnalysis({
+        canonicalActivityId: ACTIVITY_ID,
+        sections: ["aerobic-drift"],
+      }),
+    ).resolves.toMatchObject({
       revision: REVISION,
       sections: { aerobicDrift: { kind: "unavailable", reason: "temporary-failure" } },
     });
@@ -398,10 +410,12 @@ describe("activity analysis service", () => {
       cache: cache(),
       now: () => 0,
     });
-    await expect(missing.getActivityAnalysis({
-      canonicalActivityId: ACTIVITY_ID,
-      sections: ["intervals"],
-    })).rejects.toEqual(new ActivityAnalysisServiceError("activity-not-found"));
+    await expect(
+      missing.getActivityAnalysis({
+        canonicalActivityId: ACTIVITY_ID,
+        sections: ["intervals"],
+      }),
+    ).rejects.toEqual(new ActivityAnalysisServiceError("activity-not-found"));
     expect(service).toBeDefined();
   });
 

@@ -1,3 +1,5 @@
+import { msg } from "@enduragent/i18n";
+import { say } from "./cli-copy.js";
 import {
   createClaudeWorkingArea,
   ensureClaudeCliReady,
@@ -6,14 +8,18 @@ import {
 
 import type { ClaudeCliBilling } from "./runtime-config.js";
 
-export const CLAUDE_CLI_SIGN_IN_GUIDANCE =
-  "Run `claude` once in your terminal and sign in, then re-run setup.";
+export const CLAUDE_CLI_SIGN_IN_GUIDANCE = msg("cli.setup.runClaudeOnceInYourTerminal", {
+  command: "claude",
+});
 
-export const CLAUDE_CLI_API_KEY_OPT_IN_PROMPT =
-  "Opt in to Anthropic API key billing (llm.claude_cli.billing: api-key)? Usage is charged to your API account.";
+export const CLAUDE_CLI_API_KEY_OPT_IN_PROMPT = msg("cli.setup.optInToAnthropicApiKey", {
+  provider: "Anthropic",
+  billingSetting: "llm.claude_cli.billing: api-key",
+});
 
-export const CLAUDE_CLI_API_KEY_DECLINED =
-  "Left on subscription billing. Sign in with your Claude subscription, then re-run setup.";
+export const CLAUDE_CLI_API_KEY_DECLINED = msg("cli.setup.leftOnSubscriptionBillingSignIn", {
+  claude: "Claude",
+});
 
 export interface ClaudeCliSetupInput {
   readonly binaryPath?: string;
@@ -51,7 +57,10 @@ function configErrorKind(err: unknown): string | null {
 
 function failureMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
-  return `Claude Code CLI setup check failed: ${String(err)}`;
+  return say("cli.setup.claudeCodeCliSetupCheckFailed", {
+    value1: String(err),
+    cli: "Claude Code CLI",
+  });
 }
 
 export async function runClaudeCliSetupStep(
@@ -101,7 +110,7 @@ export async function runClaudeCliSetupStep(
 
   note(first.message);
   if (first.kind === "not-signed-in") {
-    note(CLAUDE_CLI_SIGN_IN_GUIDANCE);
+    note(say(CLAUDE_CLI_SIGN_IN_GUIDANCE));
     return first;
   }
 
@@ -110,7 +119,7 @@ export async function runClaudeCliSetupStep(
 
   const confirmOptIn = deps.confirmApiKeyOptIn ?? (async () => false);
   if (!(await confirmOptIn())) {
-    note(CLAUDE_CLI_API_KEY_DECLINED);
+    note(say(CLAUDE_CLI_API_KEY_DECLINED));
     return first;
   }
 

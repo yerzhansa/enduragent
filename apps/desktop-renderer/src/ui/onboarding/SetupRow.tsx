@@ -1,3 +1,4 @@
+import { usePhrasebook } from "@enduragent/i18n/react";
 import { Check } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { OnboardingSurfaceState } from "../../onboarding/controller";
@@ -95,11 +96,12 @@ export function SetupError(props: {
   readonly surface: OnboardingSurfaceState;
   readonly section: SetupErrorSection;
 }): ReactElement | null {
+  const { say } = usePhrasebook();
   const wizard = props.surface.wizard;
   if (errorSection(wizard.fixedError, props.surface.lastCommit) !== props.section) return null;
   return (
     <p id="onboarding-error" className="mt-2 text-sm text-danger">
-      {wizard.fixedError === null ? "" : ERROR_COPY[wizard.fixedError]}
+      {wizard.fixedError === null ? "" : say(ERROR_COPY[wizard.fixedError])}
     </p>
   );
 }

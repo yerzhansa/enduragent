@@ -5,12 +5,12 @@ import { isDeepStrictEqual } from "node:util";
 import { extractFile, listPackage, statFile, uncache } from "@electron/asar";
 import { parse } from "yaml";
 import { contained } from "./package-plan.mjs";
+import { ELECTRON_LANGUAGES } from "./package-locales.mjs";
 
 export { contained } from "./package-plan.mjs";
 
 export const KEYCHAIN_BINDING_ASAR_PATH = "native/keychain-binding.node";
-export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN =
-  `dist/self-test-asar/${KEYCHAIN_BINDING_ASAR_PATH}`;
+export const KEYCHAIN_BINDING_ASAR_UNPACK_PATTERN = `dist/self-test-asar/${KEYCHAIN_BINDING_ASAR_PATH}`;
 export const KEYCHAIN_BINDING_FUSE_CONFIGURATION = Object.freeze({
   runAsNode: false,
   enableNodeOptionsEnvironmentVariable: false,
@@ -285,9 +285,7 @@ function machoIdentity(bytes, label, expectedFileType, kind) {
     if (
       command === MACH_O_SEGMENT_64_COMMAND &&
       size === MACH_O_SEGMENT_64_COMMAND_BYTES &&
-      trimTrailingNullCharacters(
-        bytes.subarray(offset + 8, offset + 24).toString("latin1"),
-      ) ===
+      trimTrailingNullCharacters(bytes.subarray(offset + 8, offset + 24).toString("latin1")) ===
         MACH_O_LINK_EDIT_SEGMENT
     ) {
       if (linkEditCommand !== undefined) fail("invalid Mach-O link edit segment", label);
@@ -371,9 +369,7 @@ export function validateBuilderInventoryAuthority(config, desktopRoot, options =
   if (
     !exactObject(config) ||
     config.asar !== true ||
-    !Array.isArray(config.electronLanguages) ||
-    config.electronLanguages.length !== 1 ||
-    config.electronLanguages[0] !== "en-US" ||
+    !isDeepStrictEqual(config.electronLanguages, [...ELECTRON_LANGUAGES]) ||
     !exactObject(config.directories) ||
     config.directories.output !== "dist" ||
     !Array.isArray(config.files) ||

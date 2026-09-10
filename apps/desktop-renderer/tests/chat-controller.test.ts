@@ -1061,6 +1061,35 @@ describe("chat controller", () => {
     expect(refreshSpend).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["response", "final-text"])(
+    "retains a descriptor from the %s with its wire text",
+    async (source) => {
+      const message = { key: "coach.fallback.stepLimit" };
+      const text =
+        "I ran out of steps gathering data — ask me to continue and I'll pick up where I left off.";
+      const response = { text, ...(source === "response" ? { message } : {}) };
+      const fake = client(async (_request, options) => {
+        deliver(options, {
+          type: "final-text",
+          turnId: "turn-1",
+          text,
+          ...(source === "final-text" ? { message } : {}),
+        });
+        options?.onTerminalEnvelope?.({ jsonrpc: "2.0", id: 1, result: response });
+        return response;
+      });
+      const { controller, states } = subject(fake);
+
+      await controller.submit("Continue");
+
+      expect(states.at(-1)?.messages.at(-1)).toMatchObject({
+        text,
+        message,
+        delivery: "complete",
+      });
+    },
+  );
+
   it("admits cumulative text deltas at the exact response boundary", async () => {
     const first = "🚴".repeat(30_000);
     const second = "b".repeat(COACH_RESPONSE_CODE_UNIT_LIMIT - first.length);

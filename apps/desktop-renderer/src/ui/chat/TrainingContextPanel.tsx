@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
-import { formatWholeNumber } from "../../training-context/format";
+import { msg, type Message } from "@enduragent/i18n";
+import { usePhrasebook } from "@enduragent/i18n/react";
 
 function ContextSection(props: {
   readonly label: string;
@@ -21,10 +22,10 @@ function ContextSection(props: {
   );
 }
 
-function unavailableCopy(reason: string): string {
+function unavailableCopy(reason: string): Message {
   return reason === "no-plan" || reason === "no-platform-load" || reason === "missing-anchor"
-    ? "Not available yet"
-    : "Waiting for training data";
+    ? msg("chat.trainingContext.notAvailable")
+    : msg("chat.trainingContext.waiting");
 }
 
 export function TrainingContextPanel(props: {
@@ -32,6 +33,7 @@ export function TrainingContextPanel(props: {
   readonly labelledBy?: string;
   readonly className?: string;
 }): ReactElement {
+  const { say, format } = usePhrasebook();
   const training = useEnduragentStore((state) => state.training);
   const planning = useEnduragentStore((state) => state.planSurface);
   const planActions = useEnduragentStore((state) => state.planningReadActions);
@@ -42,89 +44,126 @@ export function TrainingContextPanel(props: {
   return (
     <aside
       className={`training-context min-h-0 overflow-auto [scrollbar-width:none] border-l border-line bg-surface-2 px-[calc(var(--inset)*2)] py-[calc(var(--inset)*2)] ${props.className ?? ""}`}
-      aria-label={props.labelledBy === undefined ? "Training context" : undefined}
+      aria-label={props.labelledBy === undefined ? say("chat.trainingContext.title") : undefined}
       aria-labelledby={props.labelledBy}
     >
       <h2 id={props.titleId} className="m-0 text-sm font-semibold">
-        Training context
+        {say("chat.trainingContext.title")}
       </h2>
       <p className="mt-[calc(var(--inset)/2)] mb-[calc(var(--inset)*2)] text-xs text-ink-2">
-        Available to Coach
+        {say("chat.trainingContext.available")}
       </p>
 
       {training.status === "loading" ? (
         <p className="m-0 text-sm text-ink-2" role="status">
-          Loading training context…
+          {say("chat.trainingContext.loading")}
         </p>
       ) : training.status === "unavailable" ? (
         <p className="m-0 text-sm text-ink-2" role="status">
-          Training context is temporarily unavailable.
+          {say("chat.trainingContext.unavailable")}
         </p>
       ) : (
         <div>
           {todayWorkout === null ? (
             <ContextSection
-              label="Today"
+              label={say("chat.trainingContext.today")}
               title={
                 planning.status === "loading"
-                  ? "Loading Plan…"
+                  ? say("chat.trainingContext.loadingPlan")
                   : planning.value?.status === "no-plan"
-                    ? "No current Plan"
-                    : "No workout today"
+                    ? say("chat.trainingContext.noPlan")
+                    : say("chat.trainingContext.noWorkout")
               }
             />
           ) : (
             <ContextSection
-              label="Today"
+              label={say("chat.trainingContext.today")}
               title={todayWorkout.name}
               detail={
                 todayWorkout.durationSeconds === null
                   ? todayWorkout.sport
-                  : `${Math.round(todayWorkout.durationSeconds / 60)} min · ${todayWorkout.sport}`
+                  : say("chat.trainingContext.workoutDetail", {
+                      minutes: format.number(Math.round(todayWorkout.durationSeconds / 60), {
+                        useGrouping: false,
+                      }),
+                      sport: todayWorkout.sport,
+                    })
               }
             />
           )}
 
           <ContextSection
-            label="Current Plan"
+            label={say("chat.trainingContext.currentPlan")}
             title={
               currentPlan === null
                 ? planning.status === "loading"
-                  ? "Loading Plan…"
-                  : "Not available yet"
+                  ? say("chat.trainingContext.loadingPlan")
+                  : say("chat.trainingContext.notAvailable")
                 : currentPlan.name
             }
             detail={
               currentPlan?.currentWeek === null || currentPlan === null
                 ? undefined
-                : `Week ${currentPlan.currentWeek} of ${currentPlan.totalWeeks}${currentPlan.phase === null ? "" : ` · ${currentPlan.phase}`}`
+                : say(
+                    currentPlan.phase === null
+                      ? "chat.trainingContext.week"
+                      : "chat.trainingContext.weekPhase",
+                    {
+                      week: format.number(currentPlan.currentWeek, { useGrouping: false }),
+                      total: format.number(currentPlan.totalWeeks, { useGrouping: false }),
+                      phase: currentPlan.phase ?? "",
+                    },
+                  )
             }
           />
 
           <ContextSection
-            label="Recent load"
+            label={say("chat.trainingContext.recentLoad")}
             title={
               context.cyclingLoad.kind === "computed"
-                ? formatWholeNumber(context.cyclingLoad.value)
-                : unavailableCopy(context.cyclingLoad.reason)
+                ? format.number(context.cyclingLoad.value, {
+                    maximumFractionDigits: 0,
+                    useGrouping: false,
+                  })
+                : say(unavailableCopy(context.cyclingLoad.reason))
             }
             detail={
               context.cyclingLoad.kind === "computed"
-                ? `${context.cyclingLoad.activityCount} cycling activities · 7 days`
+                ? say("chat.trainingContext.activities", {
+                    count: context.cyclingLoad.activityCount,
+                    formattedCount: format.number(context.cyclingLoad.activityCount, {
+                      useGrouping: false,
+                    }),
+                    days: format.number(7, { useGrouping: false }),
+                  })
                 : undefined
             }
           />
 
           <ContextSection
-            label="Cycling anchor"
+            label={say("chat.trainingContext.cyclingAnchor")}
             title={
               context.anchorZones.kind === "computed"
-                ? `${formatWholeNumber(context.anchorZones.anchor.watts)} W`
-                : unavailableCopy(context.anchorZones.reason)
+                ? say("chat.trainingContext.power", {
+                    watts: format.number(context.anchorZones.anchor.watts, {
+                      maximumFractionDigits: 0,
+                      useGrouping: false,
+                    }),
+                  })
+                : say(unavailableCopy(context.anchorZones.reason))
             }
             detail={
               context.anchorZones.kind === "computed"
-                ? `${context.anchorZones.anchor.source} · ${context.anchorZones.anchor.confidence}`
+                ? say("chat.trainingContext.anchorDetail", {
+                    source: context.anchorZones.anchor.source,
+                    confidence: say(
+                      context.anchorZones.anchor.confidence === "manual"
+                        ? "chat.trainingContext.confidence.manual"
+                        : context.anchorZones.anchor.confidence === "platform"
+                          ? "chat.trainingContext.confidence.platform"
+                          : "chat.trainingContext.confidence.fit",
+                    ),
+                  })
                 : undefined
             }
           />
@@ -133,7 +172,7 @@ export function TrainingContextPanel(props: {
 
       {training.status === "refresh-unavailable" ? (
         <p className="mt-[calc(var(--inset)/2)] mb-0 text-xs text-warn" role="status">
-          Showing saved context; refresh is unavailable.
+          {say("chat.trainingContext.refreshUnavailable")}
         </p>
       ) : null}
       {currentPlan === null ? null : (
@@ -145,7 +184,7 @@ export function TrainingContextPanel(props: {
           onClick={() => planActions?.openFromChat(currentPlan.navigation)}
           disabled={planActions === null}
         >
-          Open Plan
+          {say("chat.trainingContext.openPlan")}
         </Button>
       )}
     </aside>

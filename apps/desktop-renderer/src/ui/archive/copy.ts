@@ -1,30 +1,43 @@
-export const ARCHIVE_TITLE = "Past chats";
-export const ARCHIVE_READ_ONLY_NOTE = "Past conversations are read-only.";
-export const ARCHIVE_EMPTY_COPY =
-  "No past conversations yet. Starting a new conversation keeps the old one here.";
-export const ARCHIVE_LOADING_COPY = "Loading past conversations…";
-export const ARCHIVE_LIST_FAILURE_COPY = "Past conversations are temporarily unavailable.";
-export const ARCHIVE_PAGE_FAILURE_COPY = "This conversation is temporarily unavailable.";
-export const ARCHIVE_UNAVAILABLE_COPY = "This conversation is no longer available.";
-export const ARCHIVE_TRUNCATED_COPY = "Only the most recent past conversations are listed.";
-export const ARCHIVE_BACK_COPY = "All past chats";
-export const ARCHIVE_LOAD_EARLIER_COPY = "Load earlier messages";
-export const ARCHIVE_RETRY_COPY = "Try again";
-export const ARCHIVE_EMPTY_CONVERSATION_COPY = "This conversation has no readable messages.";
-export const ARCHIVE_DELETE_COPY = "Delete conversation";
-export const ARCHIVE_DELETE_TITLE = "Delete this conversation?";
-export const ARCHIVE_DELETE_DESCRIPTION =
-  "This permanently removes this past conversation and its original attachments from this computer. Imported activities in Training and work in Plan stay.";
-export const ARCHIVE_DELETE_FAILURE_COPY = "Deletion could not finish. Try again to complete it.";
+import { msg, type Message } from "@enduragent/i18n";
+import type { Phrasebook } from "@enduragent/i18n/messages";
 
-export function archiveReasonCopy(reason: "explicit-reset" | "stale-reset"): string {
-  return reason === "explicit-reset" ? "You started a new conversation" : "Closed after a break";
+export const ARCHIVE_TITLE = msg("archive.title");
+export const ARCHIVE_READ_ONLY_NOTE = msg("archive.readOnly");
+export const ARCHIVE_EMPTY_COPY = msg("archive.empty");
+export const ARCHIVE_LOADING_COPY = msg("archive.loading");
+export const ARCHIVE_LIST_FAILURE_COPY = msg("archive.listFailure");
+export const ARCHIVE_PAGE_FAILURE_COPY = msg("archive.pageFailure");
+export const ARCHIVE_UNAVAILABLE_COPY = msg("archive.unavailable");
+export const ARCHIVE_TRUNCATED_COPY = msg("archive.truncated");
+export const ARCHIVE_BACK_COPY = msg("archive.back");
+export const ARCHIVE_LOAD_EARLIER_COPY = msg("archive.loadEarlier");
+export const ARCHIVE_RETRY_COPY = msg("archive.retry");
+export const ARCHIVE_EMPTY_CONVERSATION_COPY = msg("archive.emptyConversation");
+export const ARCHIVE_DELETE_COPY = msg("archive.delete.action");
+export const ARCHIVE_DELETE_TITLE = msg("archive.delete.title");
+export const ARCHIVE_DELETE_DESCRIPTION = msg("archive.delete.description");
+export const ARCHIVE_DELETE_FAILURE_COPY = msg("archive.delete.failure");
+
+export function archiveReasonCopy(reason: "explicit-reset" | "stale-reset"): Message {
+  return reason === "explicit-reset" ? msg("archive.reason.explicit") : msg("archive.reason.stale");
 }
 
-export function archiveTurnCountCopy(turnCount: number): string {
-  return turnCount === 1 ? "1 message" : `${turnCount} messages`;
+export function archiveTurnCountCopy(turnCount: number, formattedCount: string): Message {
+  return msg("archive.turnCount", { count: turnCount, formattedCount });
 }
 
-export function archiveTimestampCopy(value: string): string {
-  return `${value.slice(0, 10)} ${value.slice(11, 16)} UTC`;
+export function archiveTimestampCopy(value: string, format: Phrasebook["format"]): Message {
+  const number = (part: string, digits: number): string =>
+    format.number(Number(part), {
+      useGrouping: false,
+      minimumIntegerDigits: digits,
+    });
+  return msg("archive.timestamp", {
+    year: number(value.slice(0, 4), 4),
+    month: number(value.slice(5, 7), 2),
+    day: number(value.slice(8, 10), 2),
+    hour: number(value.slice(11, 13), 2),
+    minute: number(value.slice(14, 16), 2),
+    timezone: "UTC",
+  });
 }

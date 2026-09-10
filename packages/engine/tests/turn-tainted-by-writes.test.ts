@@ -1,3 +1,4 @@
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, readdirSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,8 +11,11 @@ import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-rea
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 import type { TranscriptCompletedTurnInput } from "../src/host-ports.js";
-import { TAINTED_BY_WRITES_MESSAGE } from "../src/agent/coach-agent-copy.js";
+import { TAINTED_BY_WRITES_MESSAGE as TAINTED_BY_WRITES_DESCRIPTOR } from "../src/agent/coach-agent-copy.js";
 import { COACH_EVENT_TAG } from "../src/sport/event-provenance.js";
+
+const english = await createPhrasebook({ tag: "en", locale: "en-GB" });
+const TAINTED_BY_WRITES_MESSAGE = english.say(TAINTED_BY_WRITES_DESCRIPTOR);
 
 let tempHome: string;
 let origHome: string | undefined;
