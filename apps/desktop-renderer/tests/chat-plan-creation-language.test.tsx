@@ -34,6 +34,7 @@ const model: PlanCreationCardModel = {
   draft: null,
   draftStale: false,
   calendarWindow: null,
+  pendingCheck: null,
   pendingCommitment: null,
   readiness: "incomplete",
   answeredSummaries: [],

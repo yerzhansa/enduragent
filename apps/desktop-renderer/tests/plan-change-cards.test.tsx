@@ -2,6 +2,7 @@ import { renderLocalized as render, renderWithCatalog } from "./language-harness
 import type {
   ListPlansResult,
   PlanChangeModel,
+  PlanChangePendingCheck,
   PlanChangeWorkout,
   PlanCreationCardModel,
 } from "@enduragent/coach-contract";
@@ -136,6 +137,7 @@ function setChanges(changes: PlanChangeModel[]): void {
           active,
           creation: null,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes,
         },
@@ -198,6 +200,7 @@ beforeEach(() => {
         active,
         creation: null,
         closed: [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       },
@@ -429,6 +432,7 @@ describe("Plan Change cards", () => {
     if (!value) throw new Error("Missing library");
     const pausedLibrary: ListPlansResult = {
       ...value,
+      pendingChangeCheck: null,
       changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
     };
     useEnduragentStore.getState().setPlanLibrary({ status: "ready", value: pausedLibrary });
@@ -481,6 +485,7 @@ describe("Plan Change cards", () => {
         status: "ready",
         value: {
           ...value,
+          pendingChangeCheck: null,
           changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
         },
       }),
@@ -538,6 +543,7 @@ describe("Plan Change cards", () => {
       status: "ready",
       value: {
         ...value,
+        pendingChangeCheck: null,
         changesPaused: { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 },
       },
     });
@@ -554,6 +560,7 @@ describe("Plan Change cards", () => {
       draft: null,
       draftStale: false,
       calendarWindow: null,
+      pendingCheck: null,
       pendingCommitment: null,
       answeredSummaries: [],
       openQuestion: null,
@@ -576,6 +583,7 @@ describe("Plan Change cards", () => {
           active,
           creation,
           closed: [],
+          pendingChangeCheck: null,
           changesPaused: null,
           changes: [change()],
         },
@@ -1259,5 +1267,84 @@ describe("Plan Change cards", () => {
     expect(
       within(screen.getByRole("region", { name: "What needs to change?" })).getByRole("alert"),
     ).toHaveTextContent("Choose a Supporting Event inside this Plan span.");
+  });
+});
+
+describe("typed Plan Change dock", () => {
+  const check: PlanChangePendingCheck = {
+    schemaVersion: 1,
+    checkId: "check-change-dock",
+    commandId: "command-change-dock",
+    sourceVersion: 7,
+    attempt: 1,
+    submission: { field: "change", text: "Keep my week to six hours" },
+    state: "ready",
+    result: {
+      outcome: "understood",
+      title: "Six hours each week?",
+      body: "Confirm before reviewing the exact change.",
+      value: { kind: "weekly-duration", hours: 6 },
+    },
+  };
+
+  it("restores the check above a disabled composer and preserves the text when editing", async () => {
+    const actions = stubActions();
+    const library = useEnduragentStore.getState().planLibrary.value;
+    if (library === null) throw new Error("Plan library fixture is missing");
+    useEnduragentStore.setState({
+      onboarding: READY_ONBOARDING,
+      chatActions: actions,
+      planLibrary: { status: "ready", value: { ...library, pendingChangeCheck: check } },
+    });
+    render(<ChatView />);
+    const dock = screen.getByRole("region", { name: "Plan change dock" });
+    expect(within(dock).getByRole("heading", { name: check.result.title })).toHaveFocus();
+    expect(screen.getByRole("combobox", { name: "Message your coach" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
+    await userEvent.click(within(dock).getByRole("button", { name: "Change it" }));
+    const editor = screen.getByRole("textbox", { name: "Your change" });
+    expect(editor).toHaveValue(check.submission.text);
+    expect(editor).toHaveFocus();
+    expect(editor).toHaveAttribute("maxlength", "2000");
+    expect(document.querySelector("#message")).toBeNull();
+    await userEvent.clear(editor);
+    await userEvent.type(editor, "Keep my week to five hours");
+    await userEvent.click(within(dock).getByRole("button", { name: "Continue" }));
+    expect(actions.previewPlanChange).toHaveBeenCalledWith({
+      kind: "text",
+      text: "Keep my week to five hours",
+    });
+    await userEvent.click(within(dock).getByRole("button", { name: "Back" }));
+    expect(within(dock).getByRole("heading", { name: check.result.title })).toHaveFocus();
+    await userEvent.click(within(dock).getByRole("button", { name: "Confirm" }));
+    expect(actions.previewPlanChange).toHaveBeenLastCalledWith({
+      kind: "check-action",
+      checkId: check.checkId,
+      action: "confirm",
+    });
+  });
+
+  it("shows a failed check with Retry and Cancel while preserving the submitted text", async () => {
+    const actions = stubActions();
+    useEnduragentStore.setState({ onboarding: READY_ONBOARDING, chatActions: actions });
+    patchChange({
+      pendingCheck: {
+        ...check,
+        state: "error",
+        message: "The coach could not respond. Try again.",
+      },
+    });
+    render(<ChatView />);
+    const dock = screen.getByRole("region", { name: "Plan change dock" });
+    expect(within(dock).getByRole("alert")).toHaveTextContent(
+      "The coach could not respond. Try again.",
+    );
+    expect(within(dock).getByRole("cell", { name: check.submission.text })).toBeVisible();
+    await userEvent.click(within(dock).getByRole("button", { name: "Retry" }));
+    await userEvent.click(within(dock).getByRole("button", { name: "Cancel" }));
+    expect(vi.mocked(actions.previewPlanChange).mock.calls).toEqual([
+      [{ kind: "check-action", checkId: check.checkId, action: "retry" }],
+      [{ kind: "check-action", checkId: check.checkId, action: "cancel" }],
+    ]);
   });
 });

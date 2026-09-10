@@ -18,6 +18,7 @@ import {
   type PlanReadModel,
   type PlanTransitionId,
 } from "@enduragent/coach-contract";
+import type { CoachClientCallOptions } from "@enduragent/coach-client";
 import type { DesktopCoachClientProvider } from "../../coach-client";
 import {
   EMPTY_CHAT_STATE,
@@ -53,10 +54,14 @@ export async function closePlan(
 export async function previewPlanChange(
   clients: DesktopCoachClientProvider,
   input: PlanChangePreviewRpcParams,
+  options?: CoachClientCallOptions<"plan_change.preview">,
 ) {
-  return (await clients.getClient()).call("plan_change.preview", {
-    ...input,
-  });
+  const client = await clients.getClient();
+  const request = { ...input };
+  if (options === undefined) {
+    return client.call("plan_change.preview", request);
+  }
+  return client.call("plan_change.preview", request, options);
 }
 
 export async function applyPlanChange(

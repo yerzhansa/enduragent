@@ -156,8 +156,7 @@ import {
   PlanCreationPreviewRpcResultSchema,
   PlanCreationDiscardRpcParamsSchema,
   PlanCreationDiscardRpcResultSchema,
-  PlanCreationInterpretCommitmentsRpcParamsSchema,
-  PlanCreationInterpretCommitmentsRpcResultSchema,
+  PlanCreationCheckProgressSchema,
   PlanCreationStartRpcParamsSchema,
   PlanCreationStartRpcResultSchema,
   type PlanCreationOperations,
@@ -166,6 +165,7 @@ import {
 import {
   PlanChangePreviewRpcParamsSchema,
   PlanChangePreviewResultSchema,
+  PlanChangeCheckProgressSchema,
   PlanChangeApplyRpcParamsSchema,
   PlanChangeApplyResultSchema,
   type PlanChangeOperations,
@@ -335,7 +335,6 @@ export const COACH_RPC_METHOD_NAMES = [
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
-  "plan_creation.interpretCommitments",
   "plan_creation.start",
   "plan_creation.answer",
   "plan_creation.preview",
@@ -1969,14 +1968,6 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
     .object({
       jsonrpc: z.literal("2.0"),
       id: JsonRpcIdSchema,
-      method: z.literal("plan_creation.interpretCommitments"),
-      params: PlanCreationInterpretCommitmentsRpcParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
       method: z.literal("plan_creation.start"),
       params: PlanCreationStartRpcParamsSchema,
     })
@@ -2072,13 +2063,29 @@ export const CoachOperationProgressNotificationEnvelopeSchema = z
   .object({
     jsonrpc: z.literal("2.0"),
     method: z.literal(COACH_OPERATION_PROGRESS_NOTIFICATION_METHOD),
-    params: z
-      .object({
-        requestId: JsonRpcIdSchema,
-        requestMethod: z.enum(["importFiles", "sync", "selfTest"]),
-        event: OperationProgressEventSchema,
-      })
-      .strict(),
+    params: z.discriminatedUnion("requestMethod", [
+      z
+        .object({
+          requestId: JsonRpcIdSchema,
+          requestMethod: z.enum(["importFiles", "sync", "selfTest"]),
+          event: OperationProgressEventSchema,
+        })
+        .strict(),
+      z
+        .object({
+          requestId: JsonRpcIdSchema,
+          requestMethod: z.literal("plan_creation.answer"),
+          event: PlanCreationCheckProgressSchema,
+        })
+        .strict(),
+      z
+        .object({
+          requestId: JsonRpcIdSchema,
+          requestMethod: z.literal("plan_change.preview"),
+          event: PlanChangeCheckProgressSchema,
+        })
+        .strict(),
+    ]),
   })
   .strict();
 export type CoachOperationProgressNotificationEnvelope = z.infer<
@@ -2579,12 +2586,6 @@ export const COACH_RPC_METHOD_REGISTRY = {
     responseSchema: ListPlanningRequestsRpcResultSchema,
     eventSchema: NoRpcEventSchema,
   },
-  "plan_creation.interpretCommitments": {
-    wireName: "plan_creation.interpretCommitments",
-    requestSchema: PlanCreationInterpretCommitmentsRpcParamsSchema,
-    responseSchema: PlanCreationInterpretCommitmentsRpcResultSchema,
-    eventSchema: NoRpcEventSchema,
-  },
   "plan_creation.start": {
     wireName: "plan_creation.start",
     requestSchema: PlanCreationStartRpcParamsSchema,
@@ -2595,7 +2596,7 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "plan_creation.answer",
     requestSchema: PlanCreationAnswerRpcParamsSchema,
     responseSchema: PlanCreationAnswerRpcResultSchema,
-    eventSchema: NoRpcEventSchema,
+    eventSchema: PlanCreationCheckProgressSchema,
   },
   "plan_creation.preview": {
     wireName: "plan_creation.preview",
@@ -2619,7 +2620,7 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "plan_change.preview",
     requestSchema: PlanChangePreviewRpcParamsSchema,
     responseSchema: PlanChangePreviewResultSchema,
-    eventSchema: NoRpcEventSchema,
+    eventSchema: PlanChangeCheckProgressSchema,
   },
   "plan_change.apply": {
     wireName: "plan_change.apply",
@@ -2644,8 +2645,14 @@ export type CoachRpcNotification<K extends CoachRpcMethodName> = K extends
   | "answerCoachDecision"
   | "resumeCoachDecision"
   ? CoachTurnEventNotificationEnvelope
-  : K extends "importFiles" | "sync" | "selfTest"
-    ? CoachOperationProgressNotificationEnvelope
+  : K extends "importFiles" | "sync" | "selfTest" | "plan_creation.answer" | "plan_change.preview"
+    ? Omit<CoachOperationProgressNotificationEnvelope, "params"> & {
+        params: {
+          requestId: CoachOperationProgressNotificationEnvelope["params"]["requestId"];
+          requestMethod: K;
+          event: CoachRpcEvent<K>;
+        };
+      }
     : K extends "executePlanTransition"
       ? CoachPlanProgressNotificationEnvelope
       : never;

@@ -80,6 +80,7 @@ function library(changes: PlanChangeModel[]): ListPlansResult {
     legacy: null,
     closed: [],
     changes,
+    pendingChangeCheck: null,
     changesPaused: null,
   };
 }

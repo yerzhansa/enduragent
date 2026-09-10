@@ -20,8 +20,6 @@ import {
   PlanCreationPreviewRpcParamsSchema,
   PlanCreationPreviewRpcResultSchema,
   ListPlanningRequestsRpcResultSchema,
-  PlanCreationInterpretCommitmentsRpcParamsSchema,
-  PlanCreationInterpretCommitmentsRpcResultSchema,
   PlanCreationStartRpcParamsSchema,
   PlanCreationStartRpcResultSchema,
   NoRpcEventSchema,
@@ -60,6 +58,7 @@ const card = {
   draftStale: false,
   calendarWindow: null,
   pendingCommitment: null,
+  pendingCheck: null,
   readiness: "incomplete" as const,
   answeredSummaries: [],
   openQuestion: goalQuestion,
@@ -819,7 +818,6 @@ describe("Plan Creation contract", () => {
       }),
     ).toThrow();
     expect(COACH_RPC_METHOD_NAMES.filter((name) => name.startsWith("plan_creation."))).toEqual([
-      "plan_creation.interpretCommitments",
       "plan_creation.start",
       "plan_creation.answer",
       "plan_creation.preview",
@@ -888,65 +886,8 @@ describe("Plan Creation contract", () => {
     });
   });
 
-  it("validates read-only commitment interpretation requests and rules", () => {
-    for (const text of ["x", "x".repeat(2_000)]) {
-      expect(PlanCreationInterpretCommitmentsRpcParamsSchema.parse({ text })).toEqual({ text });
-    }
-    for (const params of [
-      {},
-      { text: "" },
-      { text: "x".repeat(2_001) },
-      { text: 3 },
-      { text: "Wed 45 min", commandId: "interpret" },
-    ]) {
-      expect(PlanCreationInterpretCommitmentsRpcParamsSchema.safeParse(params).success).toBe(false);
-    }
-    const rules = [
-      { kind: "weekday-duration", day: 3, minutes: 45 },
-      { kind: "weekday-unavailable", day: 6 },
-      { kind: "hard-weekday", day: 2 },
-      { kind: "time-off", start: "1998-09-02", end: "1998-09-04" },
-    ];
-    for (const result of [
-      { rules, unparsed: [], status: "confirm" },
-      { rules, unparsed: ["busy sometimes"], status: "clarify" },
-      { rules: [], unparsed: ["How easy should I ride?"], status: "clarify" },
-    ]) {
-      expect(PlanCreationInterpretCommitmentsRpcResultSchema.parse(result)).toEqual(result);
-    }
-    for (const result of [
-      {
-        rules: [{ kind: "weekday-duration", day: 8, minutes: 45 }],
-        unparsed: [],
-        status: "confirm",
-      },
-      {
-        rules: [{ kind: "weekday-duration", day: 3, minutes: 0 }],
-        unparsed: [],
-        status: "confirm",
-      },
-      {
-        rules: [{ kind: "time-off", start: "1998-09-04", end: "1998-09-02" }],
-        unparsed: [],
-        status: "confirm",
-      },
-      { rules, unparsed: [1], status: "clarify" },
-      { rules, unparsed: [], status: "confirmed" },
-      { rules, unparsed: [], status: "confirm", commandId: "interpret" },
-    ]) {
-      expect(PlanCreationInterpretCommitmentsRpcResultSchema.safeParse(result).success).toBe(false);
-    }
-    expect(COACH_RPC_METHOD_REGISTRY["plan_creation.interpretCommitments"]).toEqual({
-      wireName: "plan_creation.interpretCommitments",
-      requestSchema: PlanCreationInterpretCommitmentsRpcParamsSchema,
-      responseSchema: PlanCreationInterpretCommitmentsRpcResultSchema,
-      eventSchema: NoRpcEventSchema,
-    });
-  });
-
-  it("registers strict Plan Creation envelopes without events", () => {
+  it("registers strict Plan Creation request envelopes", () => {
     const requests = [
-      { method: "plan_creation.interpretCommitments", params: { text: "Wed 45 min" } },
       { method: "plan_creation.start", params: { commandId: "start" } },
       {
         method: "plan_creation.answer",
@@ -971,7 +912,6 @@ describe("Plan Creation contract", () => {
       ),
     );
     for (const method of [
-      "plan_creation.interpretCommitments",
       "plan_creation.start",
       "plan_creation.answer",
       "plan_creation.preview",

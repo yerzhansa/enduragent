@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  AnswerCheckActionSchema,
+  AnswerCheckTextSchema,
+  answerCheckResultSchema,
+  pendingAnswerCheckSchema,
+} from "./answer-check.js";
 import { TrainingExportCivilDateSchema } from "./training-export.js";
 
 const PlanCreationUlidSchema = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/u);
@@ -170,11 +176,48 @@ export const PlanCreationCommitmentRuleSchema = z.discriminatedUnion("kind", [
 ]);
 export type PlanCreationCommitmentRule = z.infer<typeof PlanCreationCommitmentRuleSchema>;
 
+export const PlanCreationCheckSubmissionSchema = z.discriminatedUnion("field", [
+  z.object({ field: z.literal("commitments"), text: AnswerCheckTextSchema }).strict(),
+  z.object({ field: z.literal("success"), text: AnswerCheckTextSchema }).strict(),
+  z
+    .object({
+      field: z.literal("event"),
+      text: AnswerCheckTextSchema,
+      date: PlanCreationCivilDateSchema,
+    })
+    .strict(),
+]);
+export type PlanCreationCheckSubmission = z.infer<typeof PlanCreationCheckSubmissionSchema>;
+export const CommitmentCheckResultSchema = answerCheckResultSchema(
+  z.array(PlanCreationCommitmentRuleSchema).min(1).max(20),
+);
+export const SuccessCheckResultSchema = answerCheckResultSchema(AnswerCheckTextSchema);
+const EventCheckOutcomesSchema = answerCheckResultSchema(
+  z.object({ name: z.string().trim().min(1).max(512), date: PlanCreationCivilDateSchema }).strict(),
+);
+export const EventCheckResultSchema = z.discriminatedUnion("outcome", [
+  EventCheckOutcomesSchema.options[0],
+  EventCheckOutcomesSchema.options[1],
+]);
+export const PlanCreationPendingCheckSchema = z.union([
+  pendingAnswerCheckSchema(
+    PlanCreationCheckSubmissionSchema.options[0],
+    CommitmentCheckResultSchema,
+  ),
+  pendingAnswerCheckSchema(PlanCreationCheckSubmissionSchema.options[1], SuccessCheckResultSchema),
+  pendingAnswerCheckSchema(PlanCreationCheckSubmissionSchema.options[2], EventCheckResultSchema),
+]);
+export type PlanCreationPendingCheck = z.infer<typeof PlanCreationPendingCheckSchema>;
+
 const PlanCreationCommitmentTextSchema = z.string().min(1).max(2_000);
 const PlanCreationCommitmentInputTextSchema = PlanCreationCommitmentTextSchema.trim().min(1);
 const PlanCreationNoCommitmentsSchema = z.object({ kind: z.literal("none") }).strict();
 export const PlanCreationAnswerInputSchema = z.discriminatedUnion("kind", [
   ...PlanCreationOrdinaryAnswerSchemas,
+  z
+    .object({ kind: z.literal("check-submit"), submission: PlanCreationCheckSubmissionSchema })
+    .strict(),
+  AnswerCheckActionSchema,
   z
     .object({
       kind: z.literal("commitments"),
@@ -665,6 +708,7 @@ export const PlanCreationCardModelSchema = z
       .strict()
       .nullable(),
     pendingCommitment: PlanCreationPendingCommitmentSchema.nullable(),
+    pendingCheck: PlanCreationPendingCheckSchema.nullable().default(null),
     readiness: z.enum(["incomplete", "ready"]),
     answeredSummaries: z.array(PlanCreationAnswerSummarySchema).max(16),
     openQuestion: PlanCreationOpenQuestionSchema.nullable(),
@@ -681,7 +725,10 @@ export const PlanCreationCardModelSchema = z
         message: "missing Draft cannot be stale",
       });
     }
-    if ((card.readiness === "ready") !== (card.openQuestion === null)) {
+    if (
+      (card.readiness === "ready") !==
+      (card.openQuestion === null && card.pendingCheck === null)
+    ) {
       context.addIssue({
         code: "custom",
         path: ["readiness"],
@@ -846,28 +893,15 @@ export const PlanCloseResultSchema = z.discriminatedUnion("status", [
 ]);
 export type PlanCloseResult = z.infer<typeof PlanCloseResultSchema>;
 
-export const PlanCreationInterpretCommitmentsRpcParamsSchema = z
-  .object({ text: PlanCreationCommitmentTextSchema })
-  .strict();
-export type PlanCreationInterpretCommitmentsRpcParams = z.infer<
-  typeof PlanCreationInterpretCommitmentsRpcParamsSchema
->;
-
-export const PlanCreationInterpretCommitmentsRpcResultSchema = z
+export const PlanCreationCheckProgressSchema = z
   .object({
-    rules: z.array(PlanCreationCommitmentRuleSchema),
-    unparsed: z.array(z.string()),
-    status: z.enum(["confirm", "clarify"]),
+    type: z.literal("answer-check"),
+    planCreation: PlanCreationCardModelSchema,
   })
   .strict();
-export type PlanCreationInterpretCommitmentsRpcResult = z.infer<
-  typeof PlanCreationInterpretCommitmentsRpcResultSchema
->;
+export type PlanCreationCheckProgress = z.infer<typeof PlanCreationCheckProgressSchema>;
 
 export interface PlanCreationOperations {
-  "plan_creation.interpretCommitments"(
-    request: PlanCreationInterpretCommitmentsRpcParams,
-  ): Promise<PlanCreationInterpretCommitmentsRpcResult>;
   "plan.close"(request: PlanCloseRpcParams): Promise<PlanCloseResult>;
   "plan_creation.activate"(
     request: PlanCreationActivateRpcParams,
@@ -878,6 +912,7 @@ export interface PlanCreationOperations {
   "plan_creation.start"(request: PlanCreationStartRpcParams): Promise<PlanCreationStartRpcResult>;
   "plan_creation.answer"(
     request: PlanCreationAnswerRpcParams,
+    onEvent?: (event: PlanCreationCheckProgress) => void,
   ): Promise<PlanCreationAnswerRpcResult>;
   "plan_creation.discard"(
     request: PlanCreationDiscardRpcParams,

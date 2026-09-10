@@ -5,6 +5,7 @@ import {
 } from "./plan-creation-answers.js";
 import {
   PlanChangeModelSchema,
+  PlanChangePendingCheckSchema,
   PlanChangeIntentSchema,
   PlanCloseRpcParamsSchema,
   PlanChangeFtpSourcesSchema,
@@ -19,12 +20,23 @@ import {
   type PlanChangeEventSource,
   type PlanCreationDraft,
   type PlanChangeOperations,
+  type PlanChangePendingCheck,
+  type PlanChangeCheckProgress,
+  type PlanChangePreviewRpcParams,
+  type PlanChangePreviewResult,
   type PlanChangeModel,
   type PlanChangesPaused,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   createPlanChangeRepository,
+  createPlanningPendingCheckRepository,
+  PlanningPendingCheckSchema,
+  PlanCreationStoreError,
+  type PlanningPendingCheck,
+  type PlanningCheckOwner,
+  type PlanCreationCommandStamp,
+  type PlanCreationStore,
   createPlanWorkoutMatchRepository,
   PlanChangeEnvelopeSchema,
   PlanChangePreviewStoreResultSchema,
@@ -266,6 +278,33 @@ export async function projectPlanChanges(input: {
   });
 }
 
+export interface PlanChangeHost extends PlanChangeOperations {
+  ready(): Promise<void>;
+}
+
+export async function projectPendingChangeCheck(
+  store: SqlStore,
+  planId: string,
+): Promise<PlanChangePendingCheck | null> {
+  const row = await store.get(
+    "SELECT pending_check_json FROM planning_plan WHERE plan_id=? AND status='active'",
+    [planId],
+  );
+  if (row === undefined || row.pending_check_json === null) return null;
+  const stored = PlanningPendingCheckSchema.parse(
+    JSON.parse(z.string().parse(row.pending_check_json)),
+  );
+  if (stored.owner.kind !== "change" || stored.owner.planId !== planId)
+    throw new PlanCreationStoreError("corrupt-record");
+  return PlanChangePendingCheckSchema.parse(JSON.parse(stored.checkJson));
+}
+
+class ConfirmedPreviewRejected extends Error {
+  constructor(readonly result: Extract<PlanChangePreviewResult, { status: "rejected" }>) {
+    super(result.reason);
+  }
+}
+
 export function createPlanChangeOperations(input: {
   store: SqlStore & Pick<MigratorStore, "transaction">;
   identity: AuthoredIdentity;
@@ -277,7 +316,8 @@ export function createPlanChangeOperations(input: {
   logger: { warn(event: string): void };
   eventSources: { read(): Promise<PlanChangeEventSource[]> };
   translator?: IntentTranslationPort;
-}): PlanChangeOperations {
+  language?: (text: string) => Promise<string>;
+}): PlanChangeHost {
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -306,8 +346,485 @@ export function createPlanChangeOperations(input: {
         now: input.now,
       })
     )?.reason ?? null;
+  const checks = createPlanningPendingCheckRepository(input.store);
+  const running = new Map<string, { digest: string; result: Promise<PlanChangePreviewResult> }>();
+  const checked = (
+    planId: string,
+    pendingCheck: PlanChangePendingCheck | null,
+  ): PlanChangePreviewResult => ({ status: "checked", planId, pendingCheck });
+  const stale = (): PlanChangePreviewResult => ({ status: "rejected", reason: "stale-version" });
+  const parseResult = (json: string) => {
+    const decoded: unknown = JSON.parse(json);
+    const result = PlanChangePreviewResultSchema.safeParse(decoded);
+    if (result.success) return result.data;
+    const legacy = PlanChangePreviewStoreResultSchema.parse(decoded);
+    return PlanChangePreviewResultSchema.parse(
+      legacy.status === "previewed"
+        ? { ...legacy, change: { ...legacy.change, undo: null } }
+        : legacy,
+    );
+  };
+  let recovery: Promise<void> | undefined;
+  const ready = (): Promise<void> =>
+    (recovery ??= (async () => {
+      for (const { check, command } of await checks.listPendingCommands()) {
+        if (check.owner.kind !== "change") continue;
+        const wire = PlanChangePendingCheckSchema.parse(JSON.parse(check.checkJson));
+        const failed = PlanChangePendingCheckSchema.parse({
+          ...wire,
+          state: "error",
+          message: "The answer check was interrupted. Try again.",
+        });
+        const clock = input.identity.hlcStamp();
+        await checks.settle({
+          command: {
+            ...command,
+            hlcPhysicalMs: clock.physicalMs,
+            hlcCounter: clock.counter,
+            nowMs: input.now(),
+          },
+          check: { ...check, state: "error", checkJson: canonicalJson(failed) },
+          resultJson: canonicalJson(checked(check.owner.planId, failed)),
+          staleResultJson: canonicalJson(stale()),
+        });
+      }
+    })());
+  const previewIntent = async ({
+    store = input.store,
+    planId,
+    expectedVersion,
+    intent,
+    command,
+    expectedChangeSequence,
+    submittedText,
+  }: {
+    store?: PlanCreationStore;
+    planId: string;
+    expectedVersion: number;
+    intent: PlanChangeIntent;
+    command: PlanCreationCommandStamp;
+    expectedChangeSequence?: number;
+    submittedText?: string;
+  }): Promise<PlanChangePreviewResult> => {
+    let occupiedByClosedPlan = false;
+    let previewTodayDateKey: number;
+    let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
+    let eventSources: PlanChangeEventSource[] = [];
+    const previewRepository = createPlanChangeRepository(store, {
+      newId: () => input.identity.newUlid(),
+      sha256,
+    });
+    const result = await previewRepository.preview({
+      ...(expectedChangeSequence === undefined ? {} : { expectedChangeSequence }),
+      async admit(store) {
+        const rejection = await admit(store);
+        if (rejection !== null) return rejection;
+        previewTodayDateKey = input.todayDateKey();
+        if (intent.kind === "choose-workout")
+          occupiedByClosedPlan = await readClosedPlanOccupiesToday(store, previewTodayDateKey);
+        const original =
+          intent.kind === "inverse"
+            ? await readAppliedIntent(store, planId, intent.changeId)
+            : null;
+        if (intent.kind === "ftp" || original?.kind === "ftp")
+          ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
+        const eventIntent =
+          intent.kind === "supporting-event"
+            ? intent
+            : original?.kind === "supporting-event"
+              ? original
+              : null;
+        if (
+          eventIntent !== null &&
+          (await eventNeedsSource(store, planId, eventIntent, intent.kind === "inverse"))
+        )
+          eventSources = await input.eventSources.read();
+        return null;
+      },
+      command,
+      planId,
+      expectedVersion,
+      nowMs: input.now(),
+      changeId: input.identity.newUlid(),
+      build({
+        snapshotJson,
+        previousSnapshotJson,
+        newestApplied,
+        currentRevisionNumber,
+        completedWorkoutIds,
+      }) {
+        const draft = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
+        if (
+          intent.kind === "inverse" &&
+          (newestApplied?.changeId !== intent.changeId ||
+            newestApplied.resultRevisionNumber !== currentRevisionNumber ||
+            previousSnapshotJson === null ||
+            PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse")
+        )
+          return { status: "rejected", reason: "invalid-intent" };
+        if (intent.kind === "choose-workout") {
+          const message = choiceRejection(
+            projectTodayChoice(
+              draft,
+              previewTodayDateKey,
+              occupiedByClosedPlan,
+              completedWorkoutIds,
+            ),
+            intent.workoutId,
+          );
+          if (message !== null) return { status: "rejected", reason: "invalid-intent", message };
+        }
+        const transformation = {
+          draft,
+          completedWorkoutIds,
+          todayDateKey: previewTodayDateKey,
+        };
+        const originalIntent =
+          intent.kind === "inverse" && newestApplied !== null
+            ? PlanChangeModelSchema.shape.intent.parse(newestApplied.intent)
+            : null;
+        const eventIntent =
+          intent.kind === "supporting-event"
+            ? intent
+            : originalIntent?.kind === "supporting-event"
+              ? originalIntent
+              : null;
+        const previousDraft =
+          intent.kind === "inverse" && previousSnapshotJson !== null
+            ? PlanCreationDraftSchema.parse(JSON.parse(previousSnapshotJson))
+            : null;
+        const existingEvent =
+          eventIntent !== null && "eventId" in eventIntent
+            ? [...draft.supportingEvents, ...(previousDraft?.supportingEvents ?? [])].find(
+                (event) => event.id === eventIntent.eventId,
+              )
+            : undefined;
+        const providerId =
+          eventIntent?.operation === "add"
+            ? eventIntent.providerId
+            : existingEvent?.source.kind === "synced"
+              ? existingEvent.source.providerId
+              : undefined;
+        const eventSource = eventSources.find((source) => source.providerId === providerId);
+        if (providerId !== undefined && eventSource === undefined)
+          return {
+            status: "rejected",
+            reason: "invalid-intent",
+            explanation: "Accept synchronized event updates through a fresh source-update preview.",
+          };
+        const transformed =
+          intent.kind === "supporting-event"
+            ? applySupportingEventIntent({
+                ...transformation,
+                intent,
+                ...(intent.operation === "add" ? { eventId: input.identity.newUlid() } : {}),
+                ...(eventSource === undefined ? {} : { source: eventSource }),
+                rules: supportingEventRules(draft),
+              })
+            : intent.kind === "inverse"
+              ? applyScheduleIntent({
+                  ...transformation,
+                  intent,
+                  previousDraft: previousDraft ?? PlanCreationDraftSchema.parse(null),
+                })
+              : applyScheduleIntent({ ...transformation, intent });
+        if (!("after" in transformed))
+          return {
+            status: "rejected",
+            reason: "invalid-intent",
+            explanation: transformed.explanation,
+          };
+        const { after, diff, totals } = transformed;
+        if (eventIntent !== null) {
+          const explanation = supportingEventWorkoutLimitExplanation(after);
+          if (explanation !== null)
+            return { status: "rejected", reason: "invalid-intent", explanation };
+        }
+        if (!PlanCreationDraftSchema.safeParse(after).success)
+          return { status: "rejected", reason: "invalid-intent" };
+        if (intent.kind === "inverse" && diff.length === 0 && !metadataChanged(draft, after))
+          return { status: "rejected", reason: "invalid-intent" };
+        const correctsFtp =
+          intent.kind === "ftp" ||
+          (intent.kind === "inverse" &&
+            newestApplied !== null &&
+            PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "ftp");
+        const window = correctsFtp
+          ? null
+          : planChangeRaceWindow({
+              goal: draft.goal,
+              diff,
+              todayDateKey: transformation.todayDateKey,
+            });
+        if (window !== null) return { status: "rejected", reason: "race-window", window };
+        return {
+          afterSnapshotJson: canonicalJson(after),
+          envelope: PlanChangeEnvelopeSchema.parse({
+            title:
+              intent.kind === "supporting-event"
+                ? eventTitles[intent.operation]
+                : titles[intent.kind],
+            ...(intent.kind === "choose-workout"
+              ? { details: "Only this Workout will receive today’s date after confirmation." }
+              : {}),
+            intent,
+            diff,
+            totals,
+            supersedes: null,
+            premises: [
+              ...(submittedText !== undefined
+                ? [
+                    {
+                      id: "request",
+                      label: "Your request",
+                      source: "Your typed change request",
+                      value: { kind: "text", text: submittedText },
+                    },
+                  ]
+                : []),
+              ...(eventSource === undefined
+                ? []
+                : [
+                    {
+                      id: "event-source",
+                      label: "Supporting Event source at this decision",
+                      source: "Intervals.icu event",
+                      value: eventSource,
+                    },
+                  ]),
+              ...(intent.kind === "choose-workout"
+                ? [
+                    {
+                      id: "today",
+                      label: "Today",
+                      source: "Your local day",
+                      value: { date: civilDate(previewTodayDateKey) },
+                    },
+                  ]
+                : []),
+              ...(correctsFtp
+                ? [
+                    {
+                      id: "ftp-sources",
+                      label: "FTP source comparison at this decision",
+                      source: "Saved profile and synchronized FTP evidence",
+                      value: {
+                        acceptedPlanFtp: draft.ftp,
+                        requestedFtp: after.ftp,
+                        candidates: ftpCandidates,
+                      },
+                    },
+                  ]
+                : []),
+              {
+                id: "confirmed-limits",
+                label: "Confirmed Plan limits",
+                source: "Your confirmed answers",
+                value: draft.answeredSummaries
+                  .flatMap(({ answer }) => {
+                    if (answer.kind === "availability") return [availabilityDetail(answer)];
+                    if (answer.kind === "restriction")
+                      return [restrictionDetail(answer.restriction)];
+                    if (answer.kind === "commitments")
+                      return [commitmentsDetail(answer.commitments)];
+                    return [];
+                  })
+                  .join(" · "),
+              },
+              ...(intent.kind === "inverse" && newestApplied !== null
+                ? [
+                    {
+                      id: "undone-change",
+                      label: "Applied Change",
+                      source: "Plan history",
+                      value: { changeId: newestApplied.changeId, title: newestApplied.title },
+                    },
+                  ]
+                : []),
+            ],
+            confidence:
+              "Moderate confidence. Based on your confirmed limits and the available training record.",
+          }),
+        };
+      },
+    });
+    return PlanChangePreviewResultSchema.parse(
+      result.status === "previewed"
+        ? { ...result, change: { ...result.change, undo: null } }
+        : result,
+    );
+  };
+  const runCheck = async (
+    request: PlanChangePreviewRpcParams,
+    command: PlanCreationCommandStamp,
+    changeRequest: Exclude<PlanChangeRequest, { kind: "intent" }>,
+    onEvent?: (event: PlanChangeCheckProgress) => void,
+  ): Promise<PlanChangePreviewResult> => {
+    const prior = await input.store.get(
+      "SELECT request_digest,status,result_json,aggregate_refs_json FROM planning_command WHERE command_name='plan_change.preview' AND command_id=?",
+      [command.commandId],
+    );
+    if (prior !== undefined) {
+      if (prior.request_digest !== command.requestDigest)
+        return { status: "rejected", reason: "command-conflict" };
+      if (prior.status === "succeeded") return parseResult(z.string().parse(prior.result_json));
+      return stale();
+    }
+    const rejection = await admit(input.store);
+    if (rejection !== null) return { status: "rejected", reason: rejection };
+    const active = await input.store.get(
+      "SELECT plan_id,version FROM planning_plan WHERE status='active'",
+    );
+    if (active === undefined) return { status: "rejected", reason: "no-active-plan" };
+    if (active.plan_id !== request.planId || active.version !== request.expectedVersion)
+      return stale();
+    const owner: Extract<PlanningCheckOwner, { kind: "change" }> = {
+      kind: "change",
+      planId: request.planId,
+      sourceVersion: request.expectedVersion,
+      sourceChangeSequence: await repository.captureChangeSequence(request.planId),
+    };
+    const existing = await checks.read(owner);
+    if (changeRequest.kind === "check-action" && changeRequest.action !== "retry") {
+      if (existing?.checkId !== changeRequest.checkId) return stale();
+      try {
+        const resultJson = await checks.resolve({
+          owner,
+          command,
+          checkId: changeRequest.checkId,
+          async effect(store, stored) {
+            const wire = PlanChangePendingCheckSchema.parse(JSON.parse(stored.checkJson));
+            if (
+              changeRequest.action === "cancel" ||
+              (changeRequest.action === "skip" &&
+                wire.state === "ready" &&
+                wire.result.outcome !== "understood")
+            )
+              return canonicalJson(checked(request.planId, null));
+            if (
+              changeRequest.action !== "confirm" ||
+              wire.state !== "ready" ||
+              wire.result.outcome !== "understood" ||
+              wire.result.value.kind === "inverse"
+            )
+              throw new PlanCreationStoreError("not-ready");
+            const result = await previewIntent({
+              store,
+              planId: request.planId,
+              expectedVersion: request.expectedVersion,
+              expectedChangeSequence: owner.sourceChangeSequence,
+              intent: wire.result.value,
+              submittedText: wire.submission.text,
+              command: {
+                ...command,
+                commandId: `answer-check-preview:${await sha256(canonicalJson({ commandId: command.commandId, checkId: wire.checkId }))}`,
+              },
+            });
+            if (result.status === "rejected") throw new ConfirmedPreviewRejected(result);
+            return canonicalJson(result);
+          },
+        });
+        return parseResult(resultJson);
+      } catch (error) {
+        if (error instanceof ConfirmedPreviewRejected) return error.result;
+        throw error;
+      }
+    }
+    if (
+      changeRequest.kind === "check-action" &&
+      (existing?.checkId !== changeRequest.checkId || existing.state !== "error")
+    )
+      return stale();
+    const previous =
+      existing === null ? null : PlanChangePendingCheckSchema.parse(JSON.parse(existing.checkJson));
+    const submission =
+      changeRequest.kind === "text"
+        ? { field: "change" as const, text: changeRequest.text }
+        : previous?.submission;
+    if (submission === undefined) return stale();
+    const wire = PlanChangePendingCheckSchema.parse({
+      schemaVersion: 1,
+      checkId:
+        changeRequest.kind === "check-action" ? changeRequest.checkId : input.identity.newUlid(),
+      commandId: command.commandId,
+      sourceVersion: owner.sourceVersion,
+      attempt: changeRequest.kind === "check-action" ? (existing?.attempt ?? 0) + 1 : 1,
+      submission,
+      state: "busy",
+    });
+    const stored: PlanningPendingCheck = {
+      owner,
+      checkId: wire.checkId,
+      commandId: wire.commandId,
+      attempt: wire.attempt,
+      state: "busy",
+      submissionJson: canonicalJson(submission),
+      checkJson: canonicalJson(wire),
+    };
+    const admission = await checks.admit({
+      command,
+      check: stored,
+      ...(existing === null ? {} : { replacesCheckId: existing.checkId }),
+    });
+    if (admission.status === "replayed") return parseResult(admission.resultJson);
+    if (admission.status === "pending") return stale();
+    onEvent?.({ type: "answer-check", planId: request.planId, pendingCheck: wire });
+    let completed: PlanChangePendingCheck;
+    try {
+      const current = await repository.readUndoContext(request.planId);
+      if (current === null) throw new PlanCreationStoreError("stale-version");
+      const draft = PlanCreationDraftSchema.parse(JSON.parse(current.snapshotJson));
+      const today = input.todayDateKey();
+      const choice = projectTodayChoice(
+        draft,
+        today,
+        await readClosedPlanOccupiesToday(input.store, today),
+        await readCompletedWorkoutIds(input.store, request.planId),
+      );
+      const language = await input.language?.(submission.text);
+      const currentOwner = await input.store.get(
+        "SELECT version FROM planning_plan WHERE plan_id=? AND status='active'",
+        [request.planId],
+      );
+      if (
+        currentOwner?.version !== owner.sourceVersion ||
+        (await repository.captureChangeSequence(request.planId)) !== owner.sourceChangeSequence
+      )
+        throw new PlanCreationStoreError("stale-version");
+      const result = await translateChangeRequest(submission.text, {
+        allowedKinds: supportedChangeKinds,
+        eligibleWorkouts: (choice?.eligible ?? []).map(({ workoutId }) => ({ workoutId })),
+        supportingEvents: draft.supportingEvents.map(({ id }) => ({ id })),
+        translator: input.translator,
+        today: civilDate(today),
+        ...(language === undefined ? {} : { language }),
+      });
+      completed = PlanChangePendingCheckSchema.parse({ ...wire, state: "ready", result });
+    } catch {
+      completed = PlanChangePendingCheckSchema.parse({
+        ...wire,
+        state: "error",
+        message: "I could not check that request. Try again.",
+      });
+    }
+    const clock = input.identity.hlcStamp();
+    const result = await checks.settle({
+      command: {
+        ...command,
+        nowMs: input.now(),
+        hlcPhysicalMs: clock.physicalMs,
+        hlcCounter: clock.counter,
+      },
+      check: { ...stored, state: completed.state, checkJson: canonicalJson(completed) },
+      resultJson: canonicalJson(checked(request.planId, completed)),
+      staleResultJson: canonicalJson(stale()),
+    });
+    return parseResult(result.resultJson);
+  };
   return {
-    async "plan_change.preview"(request) {
+    ready,
+    async "plan_change.preview"(request, onEvent) {
+      await ready();
       const parsed = PlanChangePreviewRpcParamsSchema.safeParse(request);
       if (!parsed.success) {
         PlanCloseRpcParamsSchema.parse({
@@ -332,313 +849,37 @@ export function createPlanChangeOperations(input: {
           };
         throw parsed.error;
       }
-      const { planId, expectedVersion } = parsed.data;
+      const command = await stamp(parsed.data);
       const changeRequest: PlanChangeRequest =
         "request" in parsed.data
           ? parsed.data.request
           : { kind: "intent", intent: parsed.data.intent };
-      const command = await stamp(parsed.data);
-      let intent: PlanChangeIntent;
-      let expectedChangeSequence: number | undefined;
-      if (changeRequest.kind === "text") {
-        const prior = await input.store.get(
-          "SELECT request_digest,result_json FROM planning_command WHERE command_name='plan_change.preview' AND command_id=? AND status='succeeded'",
-          [command.commandId],
-        );
-        if (prior !== undefined) {
-          if (prior.request_digest !== command.requestDigest)
-            return { status: "rejected", reason: "command-conflict" };
-          const result = PlanChangePreviewStoreResultSchema.parse(
-            JSON.parse(z.string().parse(prior.result_json)),
-          );
-          return PlanChangePreviewResultSchema.parse(
-            result.status === "previewed"
-              ? { ...result, change: { ...result.change, undo: null } }
-              : result,
-          );
-        }
-        const rejection = await admit(input.store);
-        if (rejection !== null) return { status: "rejected", reason: rejection };
-        const active = await input.store.get(
-          "SELECT plan_id,version FROM planning_plan WHERE status='active'",
-        );
-        if (active === undefined) return { status: "rejected", reason: "no-active-plan" };
-        if (active.plan_id !== planId || active.version !== expectedVersion)
-          return { status: "rejected", reason: "stale-version" };
-        expectedChangeSequence = await repository.captureChangeSequence(planId);
-        const current = await repository.readUndoContext(planId);
-        if (current === null) return { status: "rejected", reason: "no-active-plan" };
-        const draft = PlanCreationDraftSchema.parse(JSON.parse(current.snapshotJson));
-        const today = input.todayDateKey();
-        const choice = projectTodayChoice(
-          draft,
-          today,
-          await readClosedPlanOccupiesToday(input.store, today),
-          await readCompletedWorkoutIds(input.store, planId),
-        );
-        const translated = await translateChangeRequest(changeRequest.text, {
-          allowedKinds: supportedChangeKinds,
-          eligibleWorkouts: (choice?.eligible ?? []).map(({ workoutId }) => ({ workoutId })),
-          supportingEvents: draft.supportingEvents.map(({ id }) => ({ id })),
-          ...(input.translator === undefined ? {} : { translator: input.translator }),
-        });
-        if (translated.status !== "translated")
-          return {
-            status: "rejected",
-            reason: "unsupported-request",
-            explanation:
-              translated.status === "combined"
-                ? "Ask for one change at a time."
-                : translated.status === "no-eligible-workout"
-                  ? "No eligible Workout can be selected today."
-                  : "This request is not supported yet. Choose one of the available actions.",
-          };
-        intent = translated.intent;
-      } else intent = changeRequest.intent;
-      let occupiedByClosedPlan = false;
-      let previewTodayDateKey: number;
-      let ftpCandidates: Awaited<ReturnType<typeof readCyclingPlanFtpCandidates>> = [];
-      let eventSources: PlanChangeEventSource[] = [];
-      const result = await repository.preview({
-        ...(expectedChangeSequence === undefined ? {} : { expectedChangeSequence }),
-        async admit(store) {
-          const rejection = await admit(store);
-          if (rejection !== null) return rejection;
-          previewTodayDateKey = input.todayDateKey();
-          if (intent.kind === "choose-workout")
-            occupiedByClosedPlan = await readClosedPlanOccupiesToday(store, previewTodayDateKey);
-          const original =
-            intent.kind === "inverse"
-              ? await readAppliedIntent(store, planId, intent.changeId)
-              : null;
-          if (intent.kind === "ftp" || original?.kind === "ftp")
-            ftpCandidates = await readCyclingPlanFtpCandidates(input.ftp);
-          const eventIntent =
-            intent.kind === "supporting-event"
-              ? intent
-              : original?.kind === "supporting-event"
-                ? original
-                : null;
+      if (changeRequest.kind === "intent")
+        return previewIntent({ ...parsed.data, intent: changeRequest.intent, command });
+      const current = running.get(command.commandId);
+      if (current !== undefined)
+        return current.digest === command.requestDigest
+          ? current.result
+          : { status: "rejected", reason: "command-conflict" };
+      const result = runCheck(parsed.data, command, changeRequest, onEvent).catch(
+        (error: unknown): PlanChangePreviewResult => {
           if (
-            eventIntent !== null &&
-            (await eventNeedsSource(store, planId, eventIntent, intent.kind === "inverse"))
+            error instanceof PlanCreationStoreError &&
+            ["stale-version", "not-ready", "command-conflict"].includes(error.code)
           )
-            eventSources = await input.eventSources.read();
-          return null;
-        },
-        command,
-        planId,
-        expectedVersion,
-        nowMs: input.now(),
-        changeId: input.identity.newUlid(),
-        build({
-          snapshotJson,
-          previousSnapshotJson,
-          newestApplied,
-          currentRevisionNumber,
-          completedWorkoutIds,
-        }) {
-          const draft = PlanCreationDraftSchema.parse(JSON.parse(snapshotJson));
-          if (
-            intent.kind === "inverse" &&
-            (newestApplied?.changeId !== intent.changeId ||
-              newestApplied.resultRevisionNumber !== currentRevisionNumber ||
-              previousSnapshotJson === null ||
-              PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "inverse")
-          )
-            return { status: "rejected", reason: "invalid-intent" };
-          if (intent.kind === "choose-workout") {
-            const message = choiceRejection(
-              projectTodayChoice(
-                draft,
-                previewTodayDateKey,
-                occupiedByClosedPlan,
-                completedWorkoutIds,
-              ),
-              intent.workoutId,
-            );
-            if (message !== null) return { status: "rejected", reason: "invalid-intent", message };
-          }
-          const transformation = {
-            draft,
-            completedWorkoutIds,
-            todayDateKey: previewTodayDateKey,
-          };
-          const originalIntent =
-            intent.kind === "inverse" && newestApplied !== null
-              ? PlanChangeModelSchema.shape.intent.parse(newestApplied.intent)
-              : null;
-          const eventIntent =
-            intent.kind === "supporting-event"
-              ? intent
-              : originalIntent?.kind === "supporting-event"
-                ? originalIntent
-                : null;
-          const previousDraft =
-            intent.kind === "inverse" && previousSnapshotJson !== null
-              ? PlanCreationDraftSchema.parse(JSON.parse(previousSnapshotJson))
-              : null;
-          const existingEvent =
-            eventIntent !== null && "eventId" in eventIntent
-              ? [...draft.supportingEvents, ...(previousDraft?.supportingEvents ?? [])].find(
-                  (event) => event.id === eventIntent.eventId,
-                )
-              : undefined;
-          const providerId =
-            eventIntent?.operation === "add"
-              ? eventIntent.providerId
-              : existingEvent?.source.kind === "synced"
-                ? existingEvent.source.providerId
-                : undefined;
-          const eventSource = eventSources.find((source) => source.providerId === providerId);
-          if (providerId !== undefined && eventSource === undefined)
             return {
               status: "rejected",
-              reason: "invalid-intent",
-              explanation:
-                "Accept synchronized event updates through a fresh source-update preview.",
+              reason: error.code === "command-conflict" ? "command-conflict" : "stale-version",
             };
-          const transformed =
-            intent.kind === "supporting-event"
-              ? applySupportingEventIntent({
-                  ...transformation,
-                  intent,
-                  ...(intent.operation === "add" ? { eventId: input.identity.newUlid() } : {}),
-                  ...(eventSource === undefined ? {} : { source: eventSource }),
-                  rules: supportingEventRules(draft),
-                })
-              : intent.kind === "inverse"
-                ? applyScheduleIntent({
-                    ...transformation,
-                    intent,
-                    previousDraft: previousDraft ?? PlanCreationDraftSchema.parse(null),
-                  })
-                : applyScheduleIntent({ ...transformation, intent });
-          if (!("after" in transformed))
-            return {
-              status: "rejected",
-              reason: "invalid-intent",
-              explanation: transformed.explanation,
-            };
-          const { after, diff, totals } = transformed;
-          if (eventIntent !== null) {
-            const explanation = supportingEventWorkoutLimitExplanation(after);
-            if (explanation !== null)
-              return { status: "rejected", reason: "invalid-intent", explanation };
-          }
-          if (!PlanCreationDraftSchema.safeParse(after).success)
-            return { status: "rejected", reason: "invalid-intent" };
-          if (intent.kind === "inverse" && diff.length === 0 && !metadataChanged(draft, after))
-            return { status: "rejected", reason: "invalid-intent" };
-          const correctsFtp =
-            intent.kind === "ftp" ||
-            (intent.kind === "inverse" &&
-              newestApplied !== null &&
-              PlanChangeModelSchema.shape.intent.parse(newestApplied.intent).kind === "ftp");
-          const window = correctsFtp
-            ? null
-            : planChangeRaceWindow({
-                goal: draft.goal,
-                diff,
-                todayDateKey: transformation.todayDateKey,
-              });
-          if (window !== null) return { status: "rejected", reason: "race-window", window };
-          return {
-            afterSnapshotJson: canonicalJson(after),
-            envelope: PlanChangeEnvelopeSchema.parse({
-              title:
-                intent.kind === "supporting-event"
-                  ? eventTitles[intent.operation]
-                  : titles[intent.kind],
-              ...(intent.kind === "choose-workout"
-                ? { details: "Only this Workout will receive today’s date after confirmation." }
-                : {}),
-              intent,
-              diff,
-              totals,
-              supersedes: null,
-              premises: [
-                ...(changeRequest.kind === "text"
-                  ? [
-                      {
-                        id: "request",
-                        label: "Your request",
-                        source: "Your typed change request",
-                        value: changeRequest,
-                      },
-                    ]
-                  : []),
-                ...(eventSource === undefined
-                  ? []
-                  : [
-                      {
-                        id: "event-source",
-                        label: "Supporting Event source at this decision",
-                        source: "Intervals.icu event",
-                        value: eventSource,
-                      },
-                    ]),
-                ...(intent.kind === "choose-workout"
-                  ? [
-                      {
-                        id: "today",
-                        label: "Today",
-                        source: "Your local day",
-                        value: { date: civilDate(previewTodayDateKey) },
-                      },
-                    ]
-                  : []),
-                ...(correctsFtp
-                  ? [
-                      {
-                        id: "ftp-sources",
-                        label: "FTP source comparison at this decision",
-                        source: "Saved profile and synchronized FTP evidence",
-                        value: {
-                          acceptedPlanFtp: draft.ftp,
-                          requestedFtp: after.ftp,
-                          candidates: ftpCandidates,
-                        },
-                      },
-                    ]
-                  : []),
-                {
-                  id: "confirmed-limits",
-                  label: "Confirmed Plan limits",
-                  source: "Your confirmed answers",
-                  value: draft.answeredSummaries
-                    .flatMap(({ answer }) => {
-                      if (answer.kind === "availability") return [availabilityDetail(answer)];
-                      if (answer.kind === "restriction")
-                        return [restrictionDetail(answer.restriction)];
-                      if (answer.kind === "commitments")
-                        return [commitmentsDetail(answer.commitments)];
-                      return [];
-                    })
-                    .join(" · "),
-                },
-                ...(intent.kind === "inverse" && newestApplied !== null
-                  ? [
-                      {
-                        id: "undone-change",
-                        label: "Applied Change",
-                        source: "Plan history",
-                        value: { changeId: newestApplied.changeId, title: newestApplied.title },
-                      },
-                    ]
-                  : []),
-              ],
-              confidence:
-                "Moderate confidence. Based on your confirmed limits and the available training record.",
-            }),
-          };
+          throw error;
         },
-      });
-      return PlanChangePreviewResultSchema.parse(
-        result.status === "previewed"
-          ? { ...result, change: { ...result.change, undo: null } }
-          : result,
       );
+      running.set(command.commandId, { digest: command.requestDigest, result });
+      try {
+        return await result;
+      } finally {
+        running.delete(command.commandId);
+      }
     },
     async "plan_change.apply"(request) {
       const parsed = PlanChangeApplyRpcParamsSchema.parse(request);

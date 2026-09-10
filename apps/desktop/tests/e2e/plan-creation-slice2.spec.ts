@@ -245,6 +245,10 @@ async function answerAuthoredSuccess(scenario: Scenario): Promise<void> {
   const editor = scenario.page.locator('[data-parity="custom.textarea"]');
   await editor.fill("Ride four steady hours");
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+  await scenario.page
+    .getByRole("region", { name: "Did I read this right?", exact: true })
+    .getByRole("button", { name: "Confirm", exact: true })
+    .click();
   await waitForVersion(scenario.backend, 9);
 }
 
@@ -352,6 +356,10 @@ test("edits the goal, pauses, and resumes the Event success Card", async ({ play
       contentType: "image/png",
     });
     await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+    await scenario.page
+      .getByRole("region", { name: "Did I read this right?", exact: true })
+      .getByRole("button", { name: "Confirm", exact: true })
+      .click();
     const changed = await waitForVersion(scenario.backend, 11);
     expect(changed.answeredSummaries.map((summary) => summary.answerKey)).toEqual([
       "goal",
@@ -507,6 +515,10 @@ for (const appearance of [
       ).toBeDisabled();
       await scenario.page.getByLabel("Event date", { exact: true }).fill("1998-11-08");
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+      await scenario.page
+        .getByRole("region", { name: "Did I read this right?", exact: true })
+        .getByRole("button", { name: "Confirm", exact: true })
+        .click();
       await waitForVersion(scenario.backend, 2);
       await cancelAuthoredEdit("Main Goal", '[data-parity="custom.textarea"]', "schedule-mode");
       await scenario.page.getByRole("button", { name: "Edit Main Goal", exact: true }).click();
@@ -533,23 +545,23 @@ for (const appearance of [
       await scenario.page.locator('[data-parity="choice.custom"]').click();
       await scenario.page.locator('[data-parity="custom.textarea"]').fill("Fridays off");
       await scenario.page
+        .locator('[data-parity="custom.actions"]')
         .getByRole("button", { name: "Review interpretation", exact: true })
         .click();
       await expect(
         scenario.page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
-      const pending = await waitForVersion(scenario.backend, 6);
-      expect(pending.pendingCommitment).toEqual({
-        text: "Fridays off",
-        rules: [{ kind: "weekday-unavailable", day: 5 }],
-        status: "confirm",
-        unparsed: [],
+      const pending = await waitForVersion(scenario.backend, 5);
+      expect(pending.pendingCheck).toMatchObject({
+        submission: { field: "commitments", text: "Fridays off" },
+        state: "ready",
+        result: { outcome: "understood", value: [{ kind: "weekday-unavailable", day: 5 }] },
       });
-      expect(pending.answeredSummaries).toHaveLength(5);
-      expect(await scenario.backend.answers()).toHaveLength(5);
+      expect(pending.answeredSummaries).toHaveLength(4);
+      expect(await scenario.backend.answers()).toHaveLength(4);
       await scenario.page.getByRole("button", { name: "Confirm", exact: true }).click();
-      const confirmed = await waitForVersion(scenario.backend, 7);
-      expect(confirmed.pendingCommitment).toBeNull();
+      const confirmed = await waitForVersion(scenario.backend, 6);
+      expect(confirmed.pendingCheck).toBeNull();
       expect(confirmed.answeredSummaries).toHaveLength(5);
       expect(
         confirmed.answeredSummaries.find((summary) => summary.answerKey === "commitments"),
@@ -566,17 +578,14 @@ for (const appearance of [
         },
       });
       const commitmentAnswers = await scenario.backend.answers();
-      expect(commitmentAnswers).toHaveLength(6);
+      expect(commitmentAnswers).toHaveLength(5);
       expect(
         commitmentAnswers
           .filter((row) => row.answer_key === "commitments")
-          .map((row) => ({
-            version: row.creation_version,
-            value: JSON.parse(row.value_json),
-          })),
-      ).toEqual(
-        ["clarify", "confirmed"].map((status, index) => ({
-          version: 6 + index,
+          .map((row) => ({ version: row.creation_version, value: JSON.parse(row.value_json) })),
+      ).toEqual([
+        {
+          version: 6,
           value: {
             answer: {
               kind: "commitments",
@@ -584,18 +593,18 @@ for (const appearance of [
                 kind: "interpreted",
                 text: "Fridays off",
                 rules: [{ kind: "weekday-unavailable", day: 5 }],
-                status,
+                status: "confirmed",
               },
             },
             source: { kind: "athlete" },
           },
-        })),
-      );
+        },
+      ]);
       await cancelAuthoredEdit("Commitments", '[data-parity="custom.textarea"]', "baseline");
       await relaunch(scenario, playwright);
       await expect(question("baseline")).toBeVisible();
-      await choose(scenario.page, scenario.backend, 8, "occasional");
-      expect(await scenario.backend.answers()).toHaveLength(7);
+      await choose(scenario.page, scenario.backend, 7, "occasional");
+      expect(await scenario.backend.answers()).toHaveLength(6);
       for (const label of ["Finish comfortably", "Finish fast", "Race for a result"]) {
         await expect(scenario.page.getByRole("button", { name: label, exact: true })).toBeVisible();
       }
@@ -604,8 +613,12 @@ for (const appearance of [
         .locator('[data-parity="custom.textarea"]')
         .fill("Finish the final climb steadily");
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-      await waitForVersion(scenario.backend, 9);
-      expect(await scenario.backend.answers()).toHaveLength(8);
+      await scenario.page
+        .getByRole("region", { name: "Did I read this right?", exact: true })
+        .getByRole("button", { name: "Confirm", exact: true })
+        .click();
+      await waitForVersion(scenario.backend, 8);
+      expect(await scenario.backend.answers()).toHaveLength(7);
       await cancelAuthoredEdit("Success", '[data-parity="custom.textarea"]', "restriction");
       await question("restriction").getByRole("heading").focus();
       await scenario.page.keyboard.press("Escape");
@@ -625,7 +638,7 @@ for (const appearance of [
         await capture("restriction-720");
       }
       await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
-      await waitForVersion(scenario.backend, 10);
+      await waitForVersion(scenario.backend, 9);
       const card = await requireCard(scenario.backend);
       expect(card).toMatchObject({ readiness: "ready", openQuestion: null });
       expect(card.answeredSummaries.map((summary) => summary.answerKey)).toEqual([
@@ -639,14 +652,13 @@ for (const appearance of [
         "restriction",
       ]);
       const answers = await scenario.backend.answers();
-      expect(answers).toHaveLength(9);
-      expect(answers.map((row) => row.creation_version)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      expect(answers).toHaveLength(8);
+      expect(answers.map((row) => row.creation_version)).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
       expect(answers.map((row) => row.answer_key)).toEqual([
         "goal",
         "schedule-mode",
         "availability",
         "start-timing",
-        "commitments",
         "commitments",
         "baseline",
         "success",

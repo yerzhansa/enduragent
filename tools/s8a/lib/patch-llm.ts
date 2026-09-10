@@ -1,7 +1,4 @@
-import type {
-  ModelTransportDecorator,
-  ModelTransportRequest,
-} from "@enduragent/engine";
+import type { ModelTransportDecorator, ModelTransportRequest } from "@enduragent/engine";
 import type { GenerateResult } from "@enduragent/engine/sport";
 
 import { canonicalJson, stableSerialize } from "./canonical.js";
@@ -31,7 +28,7 @@ export interface GenerateOptsLike {
   maxSteps?: number;
   maxOutputTokens?: number;
   cacheKey?: string;
-  caller?: "chat" | "flush" | "compact" | "sync-triage" | "dream";
+  caller?: "chat" | "flush" | "compact" | "sync-triage" | "dream" | "intent-translation";
   context?: unknown;
   onTextDelta?: (delta: string) => void;
   [key: string]: unknown;
@@ -67,92 +64,98 @@ export interface RecordHandle {
   calls: RecordedCall[];
   modelTransportDecorator: ModelTransportDecorator;
   setCurrentTurn(turn: TurnRef): void;
+  setCurrentCheck(id: string | undefined): void;
   restore(): void;
 }
 
 export function patchForRecord(): RecordHandle {
   const calls: RecordedCall[] = [];
   let currentTurn: TurnRef = null;
+  let currentCheck: string | undefined;
   let ordinal = 0;
 
   const modelTransportDecorator: ModelTransportDecorator = (next) => ({
     generate: async (request) => {
-    const opts = request.options as GenerateOptsLike;
-    assertSupportedCaller(opts.caller);
-    const callOrdinal = ordinal++;
-    const executions: RecordedToolExecution[] = [];
-    const events: RecordedTextDeltaEvent[] = [];
-    let seq = 0;
+      const opts = request.options as GenerateOptsLike;
+      assertSupportedCaller(opts.caller);
+      const callOrdinal = ordinal++;
+      const executions: RecordedToolExecution[] = [];
+      const events: RecordedTextDeltaEvent[] = [];
+      let seq = 0;
 
-    // Wrap a COPY of each tool so the agent's own tool objects are never
-    // mutated (opts.tools is the agent's long-lived tool set).
-    let tools = opts.tools;
-    if (tools !== undefined) {
-      const wrapped: Record<string, ToolLike> = {};
-      for (const [name, tool] of Object.entries(tools)) {
-        const inner = tool.execute;
-        if (typeof inner !== "function") {
-          wrapped[name] = tool;
-          continue;
+      // Wrap a COPY of each tool so the agent's own tool objects are never
+      // mutated (opts.tools is the agent's long-lived tool set).
+      let tools = opts.tools;
+      if (tools !== undefined) {
+        const wrapped: Record<string, ToolLike> = {};
+        for (const [name, tool] of Object.entries(tools)) {
+          const inner = tool.execute;
+          if (typeof inner !== "function") {
+            wrapped[name] = tool;
+            continue;
+          }
+          wrapped[name] = {
+            ...tool,
+            execute: async (input: unknown, options: unknown) => {
+              const result = await inner.call(tool, input, options);
+              executions.push({
+                seq: seq++,
+                toolName: name,
+                input: structuredClone(input),
+                resultCanonical: stableSerialize(JSON.parse(JSON.stringify(result ?? null))),
+              });
+              return result;
+            },
+          };
         }
-        wrapped[name] = {
-          ...tool,
-          execute: async (input: unknown, options: unknown) => {
-            const result = await inner.call(tool, input, options);
-            executions.push({
-              seq: seq++,
-              toolName: name,
-              input: structuredClone(input),
-              resultCanonical: stableSerialize(JSON.parse(JSON.stringify(result ?? null))),
-            });
-            return result;
-          },
-        };
+        tools = wrapped;
       }
-      tools = wrapped;
-    }
 
-    const originalOnTextDelta = request.options.onTextDelta;
-    const wrappedOnTextDelta = (delta: string): void => {
-      events.push({ type: "text_delta", delta });
-      try {
-        originalOnTextDelta?.(delta);
-      } catch {}
-    };
-    const result = await next.generate({
-      ...request,
-      options: {
-        ...request.options,
-        tools: tools as ModelTransportRequest["options"]["tools"],
-        onTextDelta: wrappedOnTextDelta,
-      },
-    });
-    const recordedEvents = opts.caller === "chat" || opts.caller === undefined ? events : null;
-    assertRecordedTextDeltaEvents(recordedEvents);
-    calls.push({
-      ordinal: callOrdinal,
-      caller: opts.caller ?? "chat",
-      turn: currentTurn,
-      request: buildRecordedRequest(opts),
-      toolExecutions: executions,
-      result: {
-        text: result.text,
-        toolCalls: JSON.parse(JSON.stringify(result.toolCalls ?? [])),
-        finishReason: result.finishReason,
-        usage: JSON.parse(JSON.stringify(result.usage ?? null)),
-        totalUsage: JSON.parse(JSON.stringify(result.totalUsage ?? null)),
-        steps: result.steps ?? 0,
-        ...(result.cost !== undefined ? { cost: JSON.parse(JSON.stringify(result.cost)) } : {}),
-      },
-      events: recordedEvents,
-    });
-    return result;
+      const originalOnTextDelta = request.options.onTextDelta;
+      const wrappedOnTextDelta = (delta: string): void => {
+        events.push({ type: "text_delta", delta });
+        try {
+          originalOnTextDelta?.(delta);
+        } catch {}
+      };
+      const result = await next.generate({
+        ...request,
+        options: {
+          ...request.options,
+          tools: tools as ModelTransportRequest["options"]["tools"],
+          onTextDelta: wrappedOnTextDelta,
+        },
+      });
+      const recordedEvents = opts.caller === "chat" || opts.caller === undefined ? events : null;
+      assertRecordedTextDeltaEvents(recordedEvents);
+      calls.push({
+        ordinal: callOrdinal,
+        caller: opts.caller ?? "chat",
+        turn: currentTurn,
+        ...(currentCheck === undefined ? {} : { checkId: currentCheck }),
+        request: buildRecordedRequest(opts),
+        toolExecutions: executions,
+        result: {
+          text: result.text,
+          toolCalls: JSON.parse(JSON.stringify(result.toolCalls ?? [])),
+          finishReason: result.finishReason,
+          usage: JSON.parse(JSON.stringify(result.usage ?? null)),
+          totalUsage: JSON.parse(JSON.stringify(result.totalUsage ?? null)),
+          steps: result.steps ?? 0,
+          ...(result.cost !== undefined ? { cost: JSON.parse(JSON.stringify(result.cost)) } : {}),
+        },
+        events: recordedEvents,
+      });
+      return result;
     },
   });
 
   return {
     calls,
     modelTransportDecorator,
+    setCurrentCheck: (id) => {
+      currentCheck = id;
+    },
     setCurrentTurn: (turn) => {
       currentTurn = turn;
     },
@@ -161,6 +164,27 @@ export function patchForRecord(): RecordHandle {
 }
 
 function buildRecordedRequest(opts: GenerateOptsLike): RecordedRequest {
+  if (opts.caller === "intent-translation") {
+    if (typeof opts.deadlineMs !== "number" || opts.deadlineMs <= 0 || opts.deadlineMs > 30_000) {
+      throw new S8aDriftError("intent-translation deadline must be within 30 seconds");
+    }
+    const system = opts.system ?? "";
+    return {
+      shape: "intent-translation",
+      caller: "intent-translation",
+      system,
+      systemSha256_16: sha256_16(system),
+      input:
+        opts.prompt !== undefined
+          ? { shape: "prompt", prompt: opts.prompt }
+          : { shape: "messages", messages: structuredClone(opts.messages ?? []) },
+      toolNames: Object.keys(opts.tools ?? {}).sort(),
+      maxSteps: opts.maxSteps ?? null,
+      maxOutputTokens: opts.maxOutputTokens ?? null,
+      cacheKey: opts.cacheKey ?? null,
+      deadlineMs: opts.deadlineMs,
+    };
+  }
   if (opts.prompt !== undefined) {
     return {
       shape: "prompt",
@@ -203,17 +227,16 @@ export interface ReplayHandle {
   state: ReplayState;
   modelTransportDecorator: ModelTransportDecorator;
   setCurrentTurn(turn: TurnRef): void;
+  setCurrentCheck(id: string | undefined): void;
   /** Leftover-cursor A6 check — call after all turns completed. */
   finalize(): void;
   restore(): void;
 }
 
-export function patchForReplay(
-  recording: S8aRecording,
-  scenarioId: string,
-): ReplayHandle {
+export function patchForReplay(recording: S8aRecording, scenarioId: string): ReplayHandle {
   const state: ReplayState = { cursor: 0, failures: [], pendings: [], toolOutcomes: [] };
   let currentTurn: TurnRef = null;
+  let currentCheck: string | undefined;
 
   const fail = (
     assertId: FailureWithDiff["assertId"],
@@ -226,40 +249,45 @@ export function patchForReplay(
 
   const modelTransportDecorator: ModelTransportDecorator = () => ({
     generate: async (request) => {
-    const opts = request.options as GenerateOptsLike;
-    assertSupportedCaller(opts.caller);
-    const entry = recording.calls[state.cursor];
-    const ordinal = state.cursor;
-    state.cursor++;
+      const opts = request.options as GenerateOptsLike;
+      assertSupportedCaller(opts.caller);
+      const entry = recording.calls[state.cursor];
+      const ordinal = state.cursor;
+      state.cursor++;
 
-    if (entry === undefined) {
-      const counts = callerCounts(recording.calls);
-      fail(
-        "A6",
-        `extra generate call at ordinal ${ordinal} with caller=${opts.caller ?? "chat"}`,
-        "budget.diff",
-        `expected ${recording.calls.length} generate calls (${counts}), got at least ${ordinal + 1}; first unexpected at ordinal ${ordinal} caller=${opts.caller ?? "chat"}`,
-      );
-      throw new S8aDriftError(`no recorded entry for generate call at ordinal ${ordinal}`);
-    }
+      if (entry === undefined) {
+        const counts = callerCounts(recording.calls);
+        fail(
+          "A6",
+          `extra generate call at ordinal ${ordinal} with caller=${opts.caller ?? "chat"}`,
+          "budget.diff",
+          `expected ${recording.calls.length} generate calls (${counts}), got at least ${ordinal + 1}; first unexpected at ordinal ${ordinal} caller=${opts.caller ?? "chat"}`,
+        );
+        throw new S8aDriftError(`no recorded entry for generate call at ordinal ${ordinal}`);
+      }
 
-    assertRequest(entry, opts, ordinal, currentTurn, state, fail);
-    await executeRecordedTools(entry, opts, ordinal, state, fail);
+      if (entry.checkId !== currentCheck)
+        fail("A3", `ordinal ${ordinal}: answer-check attribution mismatch`);
+      assertRequest(entry, opts, ordinal, currentTurn, state, fail);
+      await executeRecordedTools(entry, opts, ordinal, state, fail);
 
-    assertRecordedTextDeltaEvents(entry.events);
-    for (const event of entry.events ?? []) {
-      try {
-        request.options.onTextDelta?.(event.delta);
-      } catch {}
-    }
+      assertRecordedTextDeltaEvents(entry.events);
+      for (const event of entry.events ?? []) {
+        try {
+          request.options.onTextDelta?.(event.delta);
+        } catch {}
+      }
 
-    return entry.result as unknown as GenerateResult;
+      return entry.result as unknown as GenerateResult;
     },
   });
 
   return {
     state,
     modelTransportDecorator,
+    setCurrentCheck: (id) => {
+      currentCheck = id;
+    },
     setCurrentTurn: (turn) => {
       currentTurn = turn;
     },
@@ -281,7 +309,7 @@ export function patchForReplay(
 
 function assertSupportedCaller(
   caller: GenerateOptsLike["caller"],
-): asserts caller is "chat" | "flush" | "compact" | undefined {
+): asserts caller is "chat" | "flush" | "compact" | "intent-translation" | undefined {
   if (caller === "sync-triage" || caller === "dream") {
     throw new S8aDriftError(`unsupported Tier-R caller: ${caller}`);
   }
@@ -309,7 +337,7 @@ function assertRecordedTextDeltaEvents(
 
 function callerCounts(calls: RecordedCall[]): string {
   const count = (c: string) => calls.filter((x) => x.caller === c).length;
-  return `chat=${count("chat")}, flush=${count("flush")}, compact=${count("compact")}`;
+  return `chat=${count("chat")}, flush=${count("flush")}, compact=${count("compact")}, intent-translation=${count("intent-translation")}`;
 }
 
 function assertRequest(
@@ -322,7 +350,12 @@ function assertRequest(
 ): void {
   const req = entry.request;
   const liveCaller = opts.caller ?? "chat";
-  const liveShape = opts.prompt !== undefined ? "prompt" : "messages";
+  const liveShape =
+    opts.caller === "intent-translation"
+      ? "intent-translation"
+      : opts.prompt !== undefined
+        ? "prompt"
+        : "messages";
 
   if (liveCaller !== req.caller) {
     fail(
@@ -343,6 +376,27 @@ function assertRequest(
     return;
   }
 
+  if (req.shape === "intent-translation") {
+    const live = buildRecordedRequest(opts);
+    if (live.shape !== "intent-translation") return;
+    const { deadlineMs: recordedDeadline, ...recordedExact } = req;
+    const { deadlineMs: liveDeadline, ...liveExact } = live;
+    if (
+      recordedDeadline <= 0 ||
+      recordedDeadline > 30_000 ||
+      liveDeadline <= 0 ||
+      liveDeadline > 30_000
+    )
+      fail("A6", `ordinal ${ordinal}: answer-check deadline exceeded`);
+    if (canonicalJson(recordedExact) !== canonicalJson(liveExact))
+      fail(
+        "A3",
+        `ordinal ${ordinal}: answer-check request differs from recording`,
+        "messages.diff",
+        jsonDiff("recorded request", recordedExact, "live request", liveExact),
+      );
+    return;
+  }
   if (req.shape === "prompt") {
     const prompt = opts.prompt ?? "";
     if (prompt !== req.prompt) {
@@ -380,7 +434,8 @@ function assertRequest(
   if (liveMessagesCanonical !== recMessagesCanonical) {
     const liveArr = liveMessages as Array<{ role?: unknown }>;
     const recArr = req.messages as Array<{ role?: unknown }>;
-    const roles = (arr: Array<{ role?: unknown }>) => `[${arr.map((m) => String(m?.role)).join(",")}]`;
+    const roles = (arr: Array<{ role?: unknown }>) =>
+      `[${arr.map((m) => String(m?.role)).join(",")}]`;
     let firstDivergent = 0;
     const maxLen = Math.max(liveArr.length, recArr.length);
     for (let i = 0; i < maxLen; i++) {

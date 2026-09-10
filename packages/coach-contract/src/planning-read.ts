@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   PlanChangeEventSourceSchema,
   PlanChangeModelSchema,
+  PlanChangePendingCheckSchema,
   PlanChangesPausedSchema,
 } from "./plan-change.js";
 import { PlanCreationCardModelSchema, PlanCreationDraftSchema } from "./plan-creation.js";
@@ -236,6 +237,7 @@ export const ListPlansResultSchema = z
     closed: z.array(PlanSummarySchema.extend({ status: z.literal("closed") })),
     changes: z.array(PlanChangeModelSchema),
     changesPaused: PlanChangesPausedSchema,
+    pendingChangeCheck: PlanChangePendingCheckSchema.nullable().default(null),
   })
   .strict();
 export type ListPlansResult = z.infer<typeof ListPlansResultSchema>;

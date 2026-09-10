@@ -906,7 +906,14 @@ export async function createLocalCoachComposition(
   const planLifecycle = createPlanLifecycleRepository(input.context.store, {
     newId: () => planningIdentity.newUlid(),
   });
+  let planningTranslator: IntentTranslationPort = { translateIntent: async () => null };
+  let planningLanguage: (text: string) => Promise<string> = async () => "en";
   const planCreationOperations = createPlanCreationOperations({
+    translator: {
+      translateIntent: (text, schema, context) =>
+        planningTranslator.translateIntent(text, schema, context),
+    },
+    language: (text) => planningLanguage(text),
     store: input.context.store,
     repository: createPlanCreationRepository(input.context.store),
     identity: planningIdentity,
@@ -1537,6 +1544,9 @@ export async function createLocalCoachComposition(
     const initialBundle = await buildBundle(approvedConfig());
     let activeTimezone = initialBundle.timezone;
     const reconfigurable = createReconfigurableRuntimeBundle(initialBundle);
+    planningTranslator = reconfigurable.intentTranslator;
+    planningLanguage = async (text) =>
+      (await coachLanguage.resolveFor({ athleteText: text })).language;
     const persistConfig = dependencies.persistRuntimeConfig ?? persistRuntimeConfig;
     const ensureSchedulerStarted = (): void => {
       if (schedulerStarted || closing) return;
@@ -2074,6 +2084,7 @@ export async function createLocalCoachComposition(
       },
     });
     const planChangeOperations = createPlanChangeOperations({
+      language: (text) => planningLanguage(text),
       translator: reconfigurable.intentTranslator,
       ftp,
       eventSources: createPlanChangeEventSourceReader({
@@ -2088,6 +2099,8 @@ export async function createLocalCoachComposition(
       now,
       calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
     });
+    await planCreationOperations.ready();
+    await planChangeOperations.ready();
     const planCalendar = createPlanMirrorCalendarAdapter(() => {
       const intervals = approvedConfig().intervals;
       return intervals.apiKey.length === 0
@@ -2385,8 +2398,6 @@ export async function createLocalCoachComposition(
       ...planChangeOperations,
       "plan_change.apply": kickAfter(planChangeOperations["plan_change.apply"]),
       "plan.history": planCreationOperations["plan.history"],
-      "plan_creation.interpretCommitments":
-        planCreationOperations["plan_creation.interpretCommitments"],
       "plan_creation.start": planCreationOperations["plan_creation.start"],
       "plan_creation.answer": planCreationOperations["plan_creation.answer"],
       "plan_creation.preview": planCreationOperations["plan_creation.preview"],

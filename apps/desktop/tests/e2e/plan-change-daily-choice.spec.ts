@@ -314,18 +314,34 @@ for (const appearance of appearances) {
       const composer = scenario.page.getByRole("combobox", { name: "Message your coach" });
       await composer.fill("WHAT SHOULD I RIDE TODAY?!");
       await scenario.page.getByRole("button", { name: "Send message", exact: true }).click();
-      const chatPending = changeCard(scenario, choiceTitle, "Pending");
-      await expect(chatPending.getByRole("heading")).toBeFocused();
       await expect(composer).toHaveValue("");
+      await expect
+        .poll(
+          () =>
+            scenario.backend.creationRequests
+              .slice(requestsBeforeChat)
+              .filter((request) => request.method === "plan_change.preview").length,
+        )
+        .toBe(1);
       const chatRequests = scenario.backend.creationRequests
         .slice(requestsBeforeChat)
         .filter((request) => request.method === "plan_change.preview");
-      expect(chatRequests).toHaveLength(1);
       expect(PlanChangePreviewRpcParamsSchema.parse(chatRequests[0]?.params)).toMatchObject({
         planId: scenario.seed.planId,
         expectedVersion: 3,
         request: { kind: "text", text: "WHAT SHOULD I RIDE TODAY?!" },
       });
+      expect(
+        (await scenario.backend.library()).changes.filter((change) => change.status === "pending"),
+      ).toHaveLength(0);
+      const typedCheck = scenario.page.getByRole("region", {
+        name: "Did I read this right?",
+        exact: true,
+      });
+      await expect(typedCheck).toBeVisible();
+      await typedCheck.getByRole("button", { name: "Confirm", exact: true }).click();
+      const chatPending = changeCard(scenario, choiceTitle, "Pending");
+      await expect(chatPending.getByRole("heading")).toBeFocused();
       await chatPending.scrollIntoViewIfNeeded();
       await capture(scenario, "chat-choice");
       await chatPending.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -336,7 +352,9 @@ for (const appearance of appearances) {
       const cancelled = await scenario.backend.inspectActivation();
       expect(cancelled.workouts).toEqual(restored.workouts);
       expect(cancelled.revisions).toEqual(restored.revisions);
-      expect(cancelled.planningPlans).toEqual(restored.planningPlans);
+      const planValues = (rows: typeof cancelled.planningPlans) =>
+        rows.map(({ updated_at_ms: _updated, hlc_physical_ms: _physical, ...plan }) => plan);
+      expect(planValues(cancelled.planningPlans)).toEqual(planValues(restored.planningPlans));
       expect((await scenario.backend.library()).active?.todayChoice).toEqual(choice);
     } finally {
       await close(scenario);

@@ -81,6 +81,7 @@ const PlanCreationSnapshotSchema = z
     updatedAtMs: z.number().int().nonnegative(),
     answers: z.array(PlanCreationAnswerRecordSchema).readonly(),
     currentDraft: PlanCreationDraftRevisionSchema.nullable(),
+    pendingCheckJson: z.string().nullable().default(null),
   })
   .readonly();
 export type PlanCreationSnapshot = z.infer<typeof PlanCreationSnapshotSchema>;
@@ -241,6 +242,7 @@ export function createPlanCreationRepository(store: PlanCreationStore): PlanCrea
       version: integer(row, "version"),
       seed,
       currentDraft,
+      pendingCheckJson: z.string().nullable().parse(row.pending_check_json),
       createdAtMs: integer(row, "created_at_ms"),
       updatedAtMs: integer(row, "updated_at_ms"),
       answers: answers.map((answer) => {
@@ -281,7 +283,7 @@ export function createPlanCreationRepository(store: PlanCreationStore): PlanCrea
       .safeParse(json(text(commandRow, "result_json")));
     if (!parsed.success) return fail();
     const row = await store.get("SELECT * FROM plan_creation WHERE id=?", [parsed.data.creationId]);
-    return row === undefined ? fail() : readSnapshot(row);
+    return row === undefined ? fail() : { ...(await readSnapshot(row)), pendingCheckJson: null };
   };
   const replayDraft = async (command: PlanCreationCommandStamp) => {
     const row = await hasReplay("plan_creation.preview", command);
@@ -362,7 +364,7 @@ device_id,hlc_physical_ms,hlc_counter
           ],
         );
         await store.run(
-          `UPDATE plan_creation SET version=?,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=?
+          `UPDATE plan_creation SET version=?,pending_check_json=NULL,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=?
 WHERE id=? AND status IN ('in-progress','review') AND version=?`,
           [
             version,
@@ -399,6 +401,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
         if (current === undefined || current.id !== creationId)
           throw new PlanCreationStoreError("no-unfinished-creation");
         if (current.version !== expectedVersion) throw new PlanCreationStoreError("stale-version");
+        if (current.pendingCheckJson !== null) throw new PlanCreationStoreError("not-ready");
         const parentRevisionNumber = current.currentDraft?.revisionNumber ?? null;
         const revisionNumber = (parentRevisionNumber ?? 0) + 1;
         await store.run(
@@ -480,6 +483,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
         const revision = current.currentDraft;
         if (
           current.status !== "review" ||
+          current.pendingCheckJson !== null ||
           revision === null ||
           !(isDraftCurrent?.(current) ?? revision.inputVersion + 1 === current.version)
         )
@@ -512,7 +516,7 @@ WHERE id=? AND status IN ('in-progress','review') AND version=?`,
         });
         if (closedPlanId !== null) {
           await store.run(
-            `UPDATE planning_plan SET status='closed',close_reason='stopped',close_actor=?,closed_at_ms=?,
+            `UPDATE planning_plan SET status='closed',pending_check_json=NULL,close_reason='stopped',close_actor=?,closed_at_ms=?,
 version=version+1,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE plan_id=? AND status='active'`,
             [
               command.deviceId,
@@ -645,7 +649,7 @@ VALUES (?,?,1,NULL,'activation',?,?,?,?,?,?,?)`,
           ],
         );
         const updated = await store.get(
-          `UPDATE plan_creation SET status='activated',activated_plan_id=?,terminal_at_ms=?,version=version+1,
+          `UPDATE plan_creation SET status='activated',pending_check_json=NULL,activated_plan_id=?,terminal_at_ms=?,version=version+1,
 updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE id=? AND status='review' AND version=? RETURNING version`,
           [
             plan.id,
@@ -673,7 +677,7 @@ updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE id=? AND statu
         if (current.version !== expectedVersion) throw new PlanCreationStoreError("stale-version");
         const version = expectedVersion + 1;
         const updated = await store.get(
-          `UPDATE plan_creation SET status='discarded',terminal_at_ms=?,updated_at_ms=?,version=version+1,
+          `UPDATE plan_creation SET status='discarded',pending_check_json=NULL,terminal_at_ms=?,updated_at_ms=?,version=version+1,
 device_id=?,hlc_physical_ms=?,hlc_counter=?
 WHERE id=? AND status IN ('in-progress','review') AND version=?
 RETURNING status,version`,

@@ -3,6 +3,10 @@ import { WebSocketServer, type WebSocket as ServerWebSocket } from "ws";
 import {
   COACH_RPC_METHOD_REGISTRY,
   PLAN_CHANGE_TRANSLATION_BUDGET_MS,
+  PlanCreationCheckProgressSchema,
+  PlanChangeCheckProgressSchema,
+  type PlanCreationCheckProgress,
+  type PlanChangeCheckProgress,
   PROTOCOL_VERSION,
   createAcceptedServerHandshakeFrame,
   createVersionMismatchServerHandshakeFrame,
@@ -139,7 +143,7 @@ const rpcDeadlineCases = [
       expectedVersion: 1,
       intent: { kind: "longest-workout", minutes: 60 },
     },
-    60_000,
+    45_000,
   ],
   [
     "plan_change.apply",
@@ -252,7 +256,6 @@ const rpcDeadlineCases = [
   ["retryPlanningRequest", { requestId: "request-1" }, 30_000],
   ["resumePlanningRequests", {}, 30_000],
   ["listPlanningRequests", { chatId: "chat-1" }, 30_000],
-  ["plan_creation.interpretCommitments", { text: "Wed 45 min" }, 30_000],
   ["plan_creation.start", { commandId: "plan-start" }, 30_000],
   [
     "plan_creation.answer",
@@ -262,7 +265,7 @@ const rpcDeadlineCases = [
       expectedVersion: 1,
       answer: { kind: "goal", goal: { kind: "fitness", outcome: "Build power" } },
     },
-    30_000,
+    45_000,
   ],
   [
     "plan_creation.preview",
@@ -1065,6 +1068,7 @@ describe("RPC receive and observers", () => {
         "plan.list": {
           calendarConnected: false,
           changesPaused: null,
+          pendingChangeCheck: null,
           legacy: null,
           creation: null,
           active: null,
@@ -1259,7 +1263,6 @@ describe("RPC receive and observers", () => {
         retryPlanningRequest: { status: "missing" },
         resumePlanningRequests: { deliveries: [] },
         listPlanningRequests: { deliveries: [], planCreation: null },
-        "plan_creation.interpretCommitments": { rules: [], unparsed: ["busy"], status: "clarify" },
         "plan_creation.start": { status: "rejected", reason: "command-conflict" },
         "plan_creation.answer": {
           status: "rejected",
@@ -2552,5 +2555,246 @@ describe("public observer types", () => {
       ((envelope: CoachClientTerminalEnvelope) => void) | undefined
     >();
     expectTypeOf<JsonRpcProtocolErrorResponseEnvelope>().not.toExtend<CoachClientTerminalEnvelope>();
+  });
+});
+
+describe("typed answer-check progress", () => {
+  const creationId = "00000000000000000000000001";
+  const metadata = {
+    schemaVersion: 1,
+    checkId: "check-1",
+    commandId: "answer-1",
+    sourceVersion: 2,
+    attempt: 1,
+  };
+  const creationParams = {
+    commandId: "answer-1",
+    creationId,
+    expectedVersion: 2,
+    answer: {
+      kind: "check-submit",
+      submission: { field: "commitments", text: "Wednesdays at most 30 minutes" },
+    },
+  } as const;
+  const creationEvent = PlanCreationCheckProgressSchema.parse({
+    type: "answer-check",
+    planCreation: {
+      creationId,
+      version: 2,
+      status: "in-progress",
+      draft: null,
+      draftStale: false,
+      calendarWindow: null,
+      pendingCommitment: null,
+      pendingCheck: { ...metadata, state: "busy", submission: creationParams.answer.submission },
+      readiness: "incomplete",
+      answeredSummaries: [],
+      openQuestion: null,
+    },
+  });
+  const changeParams = {
+    commandId: "change-1",
+    planId: creationId,
+    expectedVersion: 2,
+    request: { kind: "text", text: "Shorten the long ride to 30 minutes" },
+  } as const;
+  const changeEvent = PlanChangeCheckProgressSchema.parse({
+    type: "answer-check",
+    planId: creationId,
+    pendingCheck: {
+      ...metadata,
+      commandId: "change-1",
+      state: "busy",
+      submission: { field: "change", text: changeParams.request.text },
+    },
+  });
+
+  it("routes concurrent checks only to the callback for their request id and method", async () => {
+    const { socket, connecting } = acceptedSocket();
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const firstEvents: PlanCreationCheckProgress[] = [];
+    const secondEvents: PlanCreationCheckProgress[] = [];
+    const changeEvents: PlanChangeCheckProgress[] = [];
+    const first = client.call("plan_creation.answer", creationParams, {
+      onNotificationEnvelope: (envelope) => {
+        expectTypeOf(envelope.params.requestMethod).toEqualTypeOf<"plan_creation.answer">();
+        expectTypeOf(envelope.params.event).toEqualTypeOf<PlanCreationCheckProgress>();
+      },
+      onEvent: (event) => {
+        expectTypeOf(event).toEqualTypeOf<PlanCreationCheckProgress>();
+        firstEvents.push(event);
+      },
+    });
+    const second = client.call(
+      "plan_creation.answer",
+      { ...creationParams, commandId: "answer-2" },
+      { onEvent: (event) => secondEvents.push(event) },
+    );
+    const change = client.call("plan_change.preview", changeParams, {
+      onNotificationEnvelope: (envelope) => {
+        expectTypeOf(envelope.params.requestMethod).toEqualTypeOf<"plan_change.preview">();
+        expectTypeOf(envelope.params.event).toEqualTypeOf<PlanChangeCheckProgress>();
+      },
+      onEvent: (event) => {
+        expectTypeOf(event).toEqualTypeOf<PlanChangeCheckProgress>();
+        changeEvents.push(event);
+      },
+    });
+    const secondEvent = PlanCreationCheckProgressSchema.parse({
+      ...creationEvent,
+      planCreation: {
+        ...creationEvent.planCreation,
+        pendingCheck: {
+          ...metadata,
+          commandId: "answer-2",
+          checkId: "check-2",
+          state: "busy",
+          submission: creationParams.answer.submission,
+        },
+      },
+    });
+    for (const params of [
+      { requestId: 3, requestMethod: "plan_change.preview", event: changeEvent },
+      { requestId: 2, requestMethod: "plan_creation.answer", event: secondEvent },
+      { requestId: 1, requestMethod: "plan_creation.answer", event: creationEvent },
+    ])
+      socket.emitMessage(
+        JSON.stringify({ jsonrpc: "2.0", method: "coach.operationProgress", params }),
+      );
+    expect(firstEvents).toEqual([creationEvent]);
+    expect(secondEvents).toEqual([secondEvent]);
+    expect(changeEvents).toEqual([changeEvent]);
+    for (const id of [1, 2])
+      socket.emitMessage(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: { status: "rejected", reason: "no-unfinished-creation", planCreation: null },
+        }),
+      );
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        result: { status: "checked", planId: creationId, pendingCheck: null },
+      }),
+    );
+    await Promise.all([first, second, change]);
+    expect(socket.closeCalls).toEqual([]);
+    socket.closeSynchronously = true;
+    await client.close();
+  });
+
+  it.each([
+    {
+      name: "unknown request",
+      requestId: 999,
+      requestMethod: "plan_creation.answer",
+      event: creationEvent,
+    },
+    {
+      name: "wrong request method",
+      requestId: 1,
+      requestMethod: "plan_change.preview",
+      event: changeEvent,
+    },
+    {
+      name: "wrong event shape",
+      requestId: 1,
+      requestMethod: "plan_creation.answer",
+      event: changeEvent,
+    },
+    {
+      name: "invalid field value",
+      requestId: 1,
+      requestMethod: "plan_creation.answer",
+      event: {
+        ...creationEvent,
+        planCreation: {
+          ...creationEvent.planCreation,
+          pendingCheck: {
+            ...metadata,
+            state: "ready",
+            submission: creationParams.answer.submission,
+            result: {
+              outcome: "understood",
+              title: "Confirm",
+              body: "Please confirm this answer.",
+              value: "Finish comfortably",
+            },
+          },
+        },
+      },
+    },
+  ])("rejects $name without publishing progress", async ({ name: _name, ...params }) => {
+    const { socket, connecting } = acceptedSocket();
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const events = vi.fn();
+    const envelopes = vi.fn();
+    const pending = client
+      .call("plan_creation.answer", creationParams, {
+        onEvent: events,
+        onNotificationEnvelope: envelopes,
+      })
+      .catch((error: unknown) => error);
+    socket.emitMessage(
+      JSON.stringify({ jsonrpc: "2.0", method: "coach.operationProgress", params }),
+    );
+    expect(await pending).toBeInstanceOf(CoachClientProtocolError);
+    expect(events).not.toHaveBeenCalled();
+    expect(envelopes).not.toHaveBeenCalled();
+    expect(socket.closeCalls).toHaveLength(1);
+  });
+
+  it("keeps answer checks connected through the model budget and publishes busy before the result", async () => {
+    vi.useFakeTimers();
+    const { socket, connecting } = acceptedSocket();
+    const client = await connecting;
+    socket.sendHook = () => {};
+    const order: string[] = [];
+    const pending = client
+      .call("plan_creation.answer", creationParams, {
+        onEvent: (event) => order.push(event.planCreation.pendingCheck?.state ?? "none"),
+      })
+      .then(() => order.push("result"));
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "coach.operationProgress",
+        params: { requestId: 1, requestMethod: "plan_creation.answer", event: creationEvent },
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(PLAN_CHANGE_TRANSLATION_BUDGET_MS);
+    expect(order).toEqual(["busy"]);
+    expect(socket.closeCalls).toEqual([]);
+    socket.emitMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          status: "answered",
+          planCreation: {
+            ...creationEvent.planCreation,
+            pendingCheck: {
+              ...metadata,
+              state: "ready",
+              submission: creationParams.answer.submission,
+              result: {
+                outcome: "ask",
+                title: "How long?",
+                body: "Tell me the maximum length of a Wednesday ride.",
+                value: null,
+              },
+            },
+          },
+        },
+      }),
+    );
+    await pending;
+    expect(order).toEqual(["busy", "result"]);
+    socket.closeSynchronously = true;
+    await client.close();
   });
 });

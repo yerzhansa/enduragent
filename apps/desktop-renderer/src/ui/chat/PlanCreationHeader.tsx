@@ -94,10 +94,13 @@ export function PlanCreationHeaderActions(): ReactElement | null {
             actions === null ||
             busy ||
             editingKey !== null ||
-            chrome.model.pendingCommitment !== null
+            chrome.model.pendingCommitment !== null ||
+            chrome.model.pendingCheck !== null
           }
           aria-describedby={
-            chrome.model.pendingCommitment === null ? undefined : commitmentSummaryId(chrome.model)
+            chrome.model.pendingCommitment === null && chrome.model.pendingCheck === null
+              ? undefined
+              : commitmentSummaryId(chrome.model)
           }
           onClick={() => actions?.buildPlanCreationDraft()}
         >

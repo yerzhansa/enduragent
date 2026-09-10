@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import {
   ListPlansResultSchema,
-  PlanCreationInterpretCommitmentsRpcResultSchema,
   PlanCloseResultSchema,
   PlanChangePreviewResultSchema,
   PlanChangeApplyResultSchema,
@@ -593,9 +592,9 @@ export async function launchDesktopFixture(input: {
     async "plan.list"(request) {
       return ListPlansResultSchema.parse(finalFrame(await invoke("plan.list", request)));
     },
-    async "plan_change.preview"(request) {
+    async "plan_change.preview"(request, onEvent) {
       return PlanChangePreviewResultSchema.parse(
-        finalFrame(await invoke("plan_change.preview", request)),
+        await scriptedStream(input.script, "plan_change.preview", request, onEvent, 0),
       );
     },
     async "plan_change.apply"(request) {
@@ -609,20 +608,19 @@ export async function launchDesktopFixture(input: {
     async "plan.history"(request) {
       return PlanHistoryResultSchema.parse(finalFrame(await invoke("plan.history", request)));
     },
-    async "plan_creation.interpretCommitments"(request) {
-      return PlanCreationInterpretCommitmentsRpcResultSchema.parse(
-        finalFrame(await invoke("plan_creation.interpretCommitments", request)),
-      );
-    },
     async "plan_creation.start"(request) {
       return finalFrame(await invoke("plan_creation.start", request)) as Awaited<
         ReturnType<PlanCreationOperations["plan_creation.start"]>
       >;
     },
-    async "plan_creation.answer"(request) {
-      return finalFrame(await invoke("plan_creation.answer", request)) as Awaited<
-        ReturnType<PlanCreationOperations["plan_creation.answer"]>
-      >;
+    async "plan_creation.answer"(request, onEvent) {
+      return (await scriptedStream(
+        input.script,
+        "plan_creation.answer",
+        request,
+        onEvent,
+        0,
+      )) as Awaited<ReturnType<PlanCreationOperations["plan_creation.answer"]>>;
     },
     async "plan_creation.preview"(request) {
       return finalFrame(await invoke("plan_creation.preview", request)) as Awaited<
@@ -746,6 +744,19 @@ export async function launchDesktopFixture(input: {
     const debuggerPort = await reservePort();
     remoteDebuggingUrl = `http://127.0.0.1:${debuggerPort}`;
     const mainDebuggerPort = input.inspectMain === true ? await reservePort() : undefined;
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...input.extraEnv,
+      ENDURAGENT_HOME: athleteHome,
+      ENDURAGENT_ACCEPTANCE_HIDDEN: input.hidden === false ? "0" : "1",
+      ENDURAGENT_STARTUP_TRACE: "1",
+      ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
+      ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT: "1",
+    };
+    delete env.ELECTRON_RUN_AS_NODE;
+    delete env.FORCE_COLOR;
+    delete env.NO_COLOR;
+    delete env.CLICOLOR_FORCE;
     const nextChild = spawn(
       executable,
       [
@@ -756,18 +767,7 @@ export async function launchDesktopFixture(input: {
         `--user-data-dir=${userData}`,
       ],
       {
-        env: {
-          ...process.env,
-          ...input.extraEnv,
-          ENDURAGENT_HOME: athleteHome,
-          ENDURAGENT_ACCEPTANCE_HIDDEN: input.hidden === false ? "0" : "1",
-          ENDURAGENT_STARTUP_TRACE: "1",
-          ENDURAGENT_ACCEPTANCE_CREDENTIAL_BACKEND: "memory",
-          ENDURAGENT_DISPOSABLE_SAFE_STORAGE_CONTEXT: "1",
-          FORCE_COLOR: undefined,
-          NO_COLOR: undefined,
-          CLICOLOR_FORCE: undefined,
-        },
+        env,
         stdio: ["ignore", "pipe", "pipe"],
       },
     );

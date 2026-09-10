@@ -21,6 +21,7 @@ describe("Plan controller", () => {
         creation: null,
         active: null,
         closed: [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       }),
@@ -49,6 +50,7 @@ describe("Plan controller", () => {
         creation: null,
         active: null,
         closed: [],
+        pendingChangeCheck: null,
         changesPaused: null,
         changes: [],
       }),
@@ -87,6 +89,7 @@ describe("Plan library refresh", () => {
     creation: null,
     active: null,
     closed: [],
+    pendingChangeCheck: null,
     changesPaused: null,
     changes: [],
   };
