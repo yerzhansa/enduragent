@@ -234,6 +234,7 @@ describe("001_init migration", () => {
       { version: 31, name: "031_training_history_gap_evidence" },
       { version: 32, name: "032_planning_authority" },
       { version: 33, name: "033_athlete_language" },
+      { version: 34, name: "034_planning_pending_checks" },
     ]);
     expect(typeof MIGRATIONS[0].sql).toBe("string");
     expect(MIGRATIONS[0].sql).toContain("CREATE TABLE athlete");

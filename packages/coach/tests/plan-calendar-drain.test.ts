@@ -647,7 +647,10 @@ describe("Plan calendar drain", () => {
       expectedVersion: 1,
       intent: { kind: "longest-workout", minutes: 30 },
     });
-    if (preview.status !== "previewed") throw new Error(`Expected Change: ${preview.reason}`);
+    if (preview.status !== "previewed")
+      throw new Error(
+        `Expected Change: ${preview.status === "rejected" ? preview.reason : preview.status}`,
+      );
     expect(
       await test.changes["plan_change.apply"]({
         commandId: "change-apply",

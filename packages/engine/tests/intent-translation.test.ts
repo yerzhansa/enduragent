@@ -9,6 +9,7 @@ import { createFakeLLM } from "./helpers/fake-llm.js";
 import { LLM } from "../src/llm.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
 import type { EngineConfig, ModelTransportRequest } from "../src/host-ports.js";
+import type { GenerateOptions, GenerateResult } from "../src/sport.js";
 
 const intent = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("ftp"), watts: z.number().positive() }).strict(),
@@ -23,12 +24,15 @@ const context = { candidates: ["candidate-1" as const], events: ["event-1" as co
 const translated = { status: "translated", intent: { kind: "ftp", watts: 220 } };
 
 describe("intent translation", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
 
   it.each([
-    [10_000, 30_000],
-    [29_000, 16_000],
-    [30_000, 15_000],
+    [10_000, 20_000],
+    [20_000, 10_000],
+    [29_000, 1_000],
   ])("shares the translation budget after a %sms first call", async (elapsed, repairBudget) => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
@@ -73,7 +77,7 @@ describe("intent translation", () => {
     const generate = model.generate.bind(model);
     vi.spyOn(model, "generate").mockImplementation(async (options) => {
       const result = await generate(options);
-      now += 30_000;
+      now = model.capturedOpts.length === 1 ? 10_000 : 30_000;
       return result;
     });
 
@@ -81,7 +85,76 @@ describe("intent translation", () => {
       createIntentTranslator(model).translateIntent("threshold 220", schema, context),
     ).resolves.toBeNull();
     expect(model.capturedOpts).toHaveLength(2);
-    expect(model.capturedOpts[1].deadlineMs).toBe(15_000);
+    expect(model.capturedOpts[1].deadlineMs).toBe(20_000);
+  });
+
+  it("rejects a valid first response returned after the deadline", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const model = createFakeLLM([JSON.stringify(translated)]);
+    const generate = model.generate.bind(model);
+    vi.spyOn(model, "generate").mockImplementation(async (options) => {
+      const result = await generate(options);
+      now = PLAN_CHANGE_TRANSLATION_BUDGET_MS;
+      return result;
+    });
+
+    await expect(
+      createIntentTranslator(model).translateIntent("threshold 220", schema, context),
+    ).resolves.toBeNull();
+    expect(model.capturedOpts).toHaveLength(1);
+  });
+
+  it("ends at thirty seconds when the provider ignores its deadline and abort signal", async () => {
+    vi.useFakeTimers();
+    const generate = vi.fn<(options: GenerateOptions) => Promise<GenerateResult>>(
+      () => new Promise(() => {}),
+    );
+    const result = createIntentTranslator({ generate }).translateIntent("request", schema, context);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await expect(result).resolves.toBeNull();
+    expect(generate).toHaveBeenCalledOnce();
+    expect(generate.mock.calls[0][0].signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not repair a provider response that arrives after timeout", async () => {
+    vi.useFakeTimers();
+    const invalid = await createFakeLLM(["invalid JSON"]).generate({});
+    const generate = vi.fn<(options: GenerateOptions) => Promise<GenerateResult>>(
+      () => new Promise((resolve) => setTimeout(() => resolve(invalid), 31_000)),
+    );
+    const result = createIntentTranslator({ generate }).translateIntent("request", schema, context);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(generate).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("times out a stalled repair within the remaining shared budget", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const invalid = await createFakeLLM(["invalid JSON"]).generate({});
+    const generate = vi
+      .fn<(options: GenerateOptions) => Promise<GenerateResult>>()
+      .mockImplementationOnce(
+        () => new Promise((resolve) => setTimeout(() => resolve(invalid), 20_000)),
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const result = createIntentTranslator({ generate }).translateIntent("request", schema, context);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[1][0].deadlineMs).toBe(10_000);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(result).resolves.toBeNull();
+    expect(generate.mock.calls[1][0].signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("uses the exact host schema and context without tools or a model loop", async () => {
@@ -96,7 +169,8 @@ describe("intent translation", () => {
     expect(options.maxSteps).toBe(1);
     expect(options.caller).toBe("intent-translation");
     expect(options.maxOutputTokens).toBe(2_048);
-    expect(options.deadlineMs).toBe(30_000);
+    expect(options.deadlineMs).toBeGreaterThan(0);
+    expect(options.deadlineMs).toBeLessThanOrEqual(30_000);
     expect(options.system).toContain(JSON.stringify(z.toJSONSchema(schema)));
     expect(JSON.parse(options.prompt ?? "null")).toEqual({ text: "my threshold is 220", context });
   });
@@ -114,7 +188,7 @@ describe("intent translation", () => {
           role: "Training",
         },
       ],
-      today: "1998-09-08",
+      athleteBirthday: "1998-09-08",
     };
     const model = createFakeLLM([JSON.stringify({ status: "unsupported" })]);
     await createIntentTranslator(model).translateIntent("unrelated words", schema, privateContext);
@@ -133,6 +207,56 @@ describe("intent translation", () => {
     expect(serialized).toContain("candidate-1");
     expect(serialized).toContain("event-1");
   });
+
+  it.each(["commitments", "success", "event", "change"] as const)(
+    "checks the %s field with host expectations and resolved language",
+    async (field) => {
+      const checkSchema = z
+        .object({
+          outcome: z.literal("ask"),
+          title: z.string(),
+          body: z.string(),
+          value: z.null(),
+        })
+        .strict();
+      const checked = {
+        outcome: "ask",
+        title: "Уточните ответ",
+        body: "Напишите точные ограничения.",
+        value: null,
+      };
+      const checkContext = {
+        ...context,
+        field,
+        expectations: "Use an exact date or duration; ask when one is missing.",
+        today: "1998-09-08",
+        language: "Russian",
+      };
+      const model = createFakeLLM([JSON.stringify(checked)]);
+
+      await expect(
+        createIntentTranslator(model).translateIntent(
+          "Wednesdays short",
+          checkSchema,
+          checkContext,
+        ),
+      ).resolves.toEqual(checked);
+
+      const options = model.capturedOpts[0];
+      expect(JSON.parse(options.prompt ?? "null")).toEqual({
+        text: "Wednesdays short",
+        context: checkContext,
+      });
+      expect(options.system).toContain(JSON.stringify(z.toJSONSchema(checkSchema)));
+      expect(options.system).toContain("The supplied schema is authoritative");
+      expect(options.system).toContain("resolved language context.language");
+      expect(options.system).toContain("outcome literals");
+      expect(options.system).toContain("Never invent missing dates");
+      expect(options.system).not.toContain("Report combined");
+      expect(options.tools).toBeUndefined();
+      expect(options.maxSteps).toBe(1);
+    },
+  );
 
   it.each([
     "not JSON",

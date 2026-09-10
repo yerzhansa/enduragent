@@ -177,9 +177,14 @@ async function choose(scenario: Scenario, answer: string): Promise<void> {
   await expect.poll(async () => (await scenario.backend.card())?.version).toBe(before.version + 1);
 }
 
-async function continueAnswer(scenario: Scenario): Promise<void> {
+async function continueAnswer(scenario: Scenario, confirm = false): Promise<void> {
   const before = await card(scenario.backend);
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+  if (confirm)
+    await scenario.page
+      .getByRole("region", { name: "Did I read this right?", exact: true })
+      .getByRole("button", { name: "Confirm", exact: true })
+      .click();
   await expect.poll(async () => (await scenario.backend.card())?.version).toBe(before.version + 1);
 }
 
@@ -201,7 +206,7 @@ async function completeFitness(scenario: Scenario): Promise<void> {
   await choose(scenario, "regular");
   await scenario.page.locator('[data-parity="choice.custom"][data-answer="custom"]').click();
   await scenario.page.locator('[data-parity="custom.textarea"]').fill("Ride four steady hours");
-  await continueAnswer(scenario);
+  await continueAnswer(scenario, true);
   await choose(scenario, "none");
   await expect(
     scenario.page.getByText("The essentials are complete.", { exact: true }),

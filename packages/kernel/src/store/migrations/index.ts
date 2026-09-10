@@ -32,6 +32,7 @@ import trainingHistoryGapEvidence031 from "./031_training_history_gap_evidence.s
 import planningAuthority032 from "./032_planning_authority.sql";
 
 import athleteLanguage033 from "./033_athlete_language.sql";
+import planningPendingChecks034 from "./034_planning_pending_checks.sql";
 
 export interface Migration {
   /** Ascending schema version this migration advances the store to. */
@@ -80,4 +81,5 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 31, name: "031_training_history_gap_evidence", sql: trainingHistoryGapEvidence031 },
   { version: 32, name: "032_planning_authority", sql: planningAuthority032 },
   { version: 33, name: "033_athlete_language", sql: athleteLanguage033 },
+  { version: 34, name: "034_planning_pending_checks", sql: planningPendingChecks034 },
 ];

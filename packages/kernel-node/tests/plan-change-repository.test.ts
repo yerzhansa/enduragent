@@ -785,12 +785,16 @@ describe("Plan Change repository", () => {
     await activate();
     await repository.preview(previewInput());
     const oldRow = await store.get("SELECT * FROM plan_workout WHERE id=?", [id("31")]);
+    await store.run("UPDATE planning_plan SET pending_check_json='{}' WHERE plan_id=?", [planId]);
     await expect(repository.apply(applyInput())).resolves.toEqual({
       status: "applied",
       changeId: id("90"),
       revisionNumber: 2,
       version: 2,
     });
+    expect(
+      await store.get("SELECT pending_check_json FROM planning_plan WHERE plan_id=?", [planId]),
+    ).toEqual({ pending_check_json: null });
     expect(await store.get("SELECT * FROM plan_workout WHERE id=?", [id("31")])).toEqual(oldRow);
     expect(await store.all("SELECT id FROM plan_workout ORDER BY id")).toEqual([
       { id: id("31") },

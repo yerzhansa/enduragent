@@ -92,6 +92,7 @@ describe("Plan library contract", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     };
     expect(ListPlansResultSchema.parse(library)).toEqual(library);
     expect(
@@ -124,6 +125,7 @@ describe("Plan library contract", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     };
     expect(ListPlansParamsSchema.parse({})).toEqual({});
     expect(ListPlansResultSchema.parse(empty)).toEqual(empty);
@@ -150,6 +152,7 @@ describe("Plan library contract", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     };
     expect(LegacyPlanSummarySchema.parse(legacy)).toEqual(legacy);
     expect(ListPlansResultSchema.parse(library)).toEqual(library);
@@ -205,6 +208,7 @@ describe("Plan library contract", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     };
     expect(ListPlansResultSchema.safeParse(library).success).toBe(false);
     expect(ListPlansResultSchema.safeParse({ ...library, calendarConnected: "true" }).success).toBe(
@@ -238,6 +242,7 @@ describe("Plan library contract", () => {
         closed: [closed],
         changes: [],
         changesPaused: null,
+        pendingChangeCheck: null,
       };
       expect(ListPlansResultSchema.parse(library)).toEqual(library);
       expect(ListPlansResultSchema.safeParse({ ...library, active: closed }).success).toBe(false);

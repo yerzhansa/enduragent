@@ -2396,11 +2396,41 @@ describe("local coach composition", () => {
         createBackend: () => backend(),
         now: () => Date.UTC(1998, 6, 13, 12),
       };
-      let lifecycle = await compose(home, dependencies, {
+      let lifecycle = await compose(
         home,
-        store,
-        listener: inertWriterProtocolListener,
-      });
+        {
+          ...dependencies,
+          createBackend: () => ({
+            ...backend(),
+            async translateIntent(text, schema, context) {
+              if (context.field === "event") {
+                return schema.parse({
+                  outcome: "understood",
+                  title: "Did I read this right?",
+                  body: "Confirm the answer I understood.",
+                  value: { name: text, date: "1998-11-08" },
+                });
+              }
+              return schema.parse({
+                outcome: "understood",
+                title: "Did I read this right?",
+                body: "Confirm the answer I understood.",
+                value: text,
+              });
+            },
+          }),
+        },
+        {
+          home,
+          store,
+          listener: inertWriterProtocolListener,
+        },
+        undefined,
+        {
+          ...config(home),
+          llm: { provider: "anthropic", model: "synthetic", apiKey: "synthetic-key" },
+        },
+      );
       try {
         expect(
           await lifecycle.operations.listPlanningRequests?.({ chatId: "desktop" }),
@@ -2458,6 +2488,21 @@ describe("local coach composition", () => {
           if (result.status !== "answered")
             throw new TypeError(`Plan Creation rejected ${answer.kind}.`);
           card = result.planCreation;
+          if (card.pendingCheck !== null) {
+            const confirmed = await lifecycle.operations["plan_creation.answer"]({
+              commandId: `creation-answer-${index}-confirm`,
+              creationId: card.creationId,
+              expectedVersion: card.version,
+              answer: {
+                kind: "check-action",
+                checkId: card.pendingCheck.checkId,
+                action: "confirm",
+              },
+            });
+            if (confirmed.status !== "answered")
+              throw new TypeError(`Plan Creation rejected ${answer.kind} confirmation.`);
+            card = confirmed.planCreation;
+          }
           expect(card.version).toBe(index + 2);
           if (answer.kind === "commitments") {
             expect(card.openQuestion?.kind).toBe("baseline-question");
@@ -2521,11 +2566,20 @@ describe("local coach composition", () => {
         const commands = await store.all(
           "SELECT * FROM planning_command ORDER BY command_name,command_id",
         );
-        expect(commands).toHaveLength(answers.length + 2);
+        expect(commands).toHaveLength(
+          answers.length + 2 + (goalKind === "event-manual" ? 2 : 0),
+        );
         for (const command of commands) expect(command.status).toBe("succeeded");
         for (const [index] of answers.entries()) {
-          const command = commands.find((row) => row.command_id === `creation-answer-${index}`);
-          expect(JSON.parse(String(command?.result_json))).toMatchObject({
+          const command =
+            commands.find((row) => row.command_id === `creation-answer-${index}-confirm`) ??
+            commands.find((row) => row.command_id === `creation-answer-${index}`);
+          const recorded = JSON.parse(String(command?.result_json)) as {
+            creationId?: string;
+            version?: number;
+            planCreation?: { creationId: string; version: number };
+          };
+          expect(recorded.planCreation ?? recorded).toMatchObject({
             creationId: card.creationId,
             version: index + 2,
           });
@@ -2921,8 +2975,10 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
         async translateIntent(text, schema) {
           translationCalls(text);
           return schema.parse({
-            status: "translated",
-            intent: { kind: "longest-workout", minutes: 30 },
+            outcome: "understood",
+            title: "Did I read this right?",
+            body: "Confirm this change before I prepare the preview.",
+            value: { kind: "longest-workout", minutes: 30 },
           });
         },
       };
@@ -2989,34 +3045,53 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
           expectedVersion: 1,
           request: { kind: "text" as const, text: "Please shorten my longest sessions" },
         };
-        const unsupported = {
-          status: "rejected",
-          reason: "unsupported-request",
-          explanation: "This request is not supported yet. Choose one of the available actions.",
-        };
         const preview = await lifecycle.operations["plan_change.preview"](request);
-        expect(preview).toMatchObject(
-          configured
-            ? {
-                status: "previewed",
-                change: { intent: { kind: "longest-workout", minutes: 30 } },
-              }
-            : unsupported,
-        );
         expect(translationCalls).toHaveBeenCalledTimes(configured ? 1 : 0);
-        if (configured) {
-          expect(translationCalls.mock.calls[0]?.[0]).toBe(request.request.text);
-          await lifecycle.operations.configureRuntime({
-            llm: { provider: "anthropic", clear_credential: true },
+        if (!configured) {
+          expect(preview).toMatchObject({
+            status: "checked",
+            pendingCheck: { state: "error" },
           });
-          await expect(
-            lifecycle.operations["plan_change.preview"]({
-              ...request,
-              commandId: "text-after-credential-removal",
-            }),
-          ).resolves.toEqual(unsupported);
-          expect(translationCalls).toHaveBeenCalledTimes(1);
+          return;
         }
+        expect(preview).toMatchObject({
+          status: "checked",
+          pendingCheck: {
+            state: "ready",
+            result: { outcome: "understood", value: { kind: "longest-workout", minutes: 30 } },
+          },
+        });
+        if (preview.status !== "checked" || preview.pendingCheck === null)
+          throw new Error("Expected a pending Plan Change check");
+        expect(translationCalls.mock.calls[0]?.[0]).toBe(request.request.text);
+        await expect(
+          lifecycle.operations["plan_change.preview"]({
+            commandId: "text-confirm",
+            planId: activated.planId,
+            expectedVersion: 1,
+            request: {
+              kind: "check-action",
+              checkId: preview.pendingCheck.checkId,
+              action: "confirm",
+            },
+          }),
+        ).resolves.toMatchObject({
+          status: "previewed",
+          change: { intent: { kind: "longest-workout", minutes: 30 } },
+        });
+        await lifecycle.operations.configureRuntime({
+          llm: { provider: "anthropic", clear_credential: true },
+        });
+        await expect(
+          lifecycle.operations["plan_change.preview"]({
+            ...request,
+            commandId: "text-after-credential-removal",
+          }),
+        ).resolves.toMatchObject({
+          status: "checked",
+          pendingCheck: { state: "error" },
+        });
+        expect(translationCalls).toHaveBeenCalledTimes(1);
       } finally {
         await lifecycle.close();
       }

@@ -10,10 +10,7 @@ import {
   type CoachClientCallOptions,
   type CoachClientTerminalEnvelope,
 } from "@enduragent/coach-client";
-import type {
-  CoachOperationProgressNotificationEnvelope,
-  SyncRpcResult,
-} from "@enduragent/coach-contract";
+import type { CoachRpcNotification, SyncRpcResult } from "@enduragent/coach-contract";
 import { describe, expect, it, vi } from "vitest";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import { createTrainingSyncCoordinator, type TrainingSyncState } from "../src/training-sync";
@@ -50,12 +47,11 @@ function envelope(
   completed: number,
   total = 1,
   requestId: string | number = 1,
-  requestMethod: "sync" | "importFiles" = "sync",
-): CoachOperationProgressNotificationEnvelope {
+): CoachRpcNotification<"sync"> {
   return {
     jsonrpc: "2.0",
     method: "coach.operationProgress",
-    params: { requestId, requestMethod, event: { phase, completed, total } },
+    params: { requestId, requestMethod: "sync", event: { phase, completed, total } },
   };
 }
 
@@ -449,12 +445,24 @@ describe("training sync coordinator", () => {
     ["wrong started count", [envelope("started", 1), envelope("completed", 1)]],
     ["wrong completed count", [envelope("started", 0), envelope("completed", 0)]],
     ["wrong total", [envelope("started", 0, 2), envelope("completed", 1)]],
-    ["wrong method", [envelope("started", 0, 1, 1, "importFiles"), envelope("completed", 1)]],
+    [
+      "wrong method",
+      [
+        {
+          ...envelope("started", 0),
+          params: { ...envelope("started", 0).params, requestMethod: "importFiles" },
+        },
+        envelope("completed", 1),
+      ],
+    ],
     ["cross request", [envelope("started", 0, 1, 1), envelope("completed", 1, 1, 2)]],
   ])("latches %s progress as a protocol fault without observer throws", async (_name, events) => {
     const client = clientWith(async (options) => {
       for (const event of events) {
-        expect(() => options.onNotificationEnvelope?.(event)).not.toThrow();
+        expect(() => {
+          if (options.onNotificationEnvelope !== undefined)
+            Reflect.apply(options.onNotificationEnvelope, undefined, [event]);
+        }).not.toThrow();
       }
       expect(() => options.onTerminalEnvelope?.(terminal())).not.toThrow();
       return published;

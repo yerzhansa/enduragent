@@ -29,7 +29,7 @@ import { QueuedMessages } from "./QueuedMessages";
 import { SpendNotice } from "./SpendNotice";
 import { TrainingContextPanel } from "./TrainingContextPanel";
 import { Transcript } from "./Transcript";
-import { PlanChangeCards } from "./PlanChangeCards";
+import { PlanChangeCards, PlanChangeCheckDock } from "./PlanChangeCards";
 import {
   PlanCreationActivateDialog,
   PlanCreationDiscardDialog,
@@ -63,6 +63,7 @@ export function ChatView(): ReactElement {
   const [compact, setCompact] = useState(false);
   const [decisionCustomOpen, setDecisionCustomOpen] = useState(false);
   const [planCreationEditorOpen, setPlanCreationEditorOpen] = useState(false);
+  const [planChangeEditorOpen, setPlanChangeEditorOpen] = useState(false);
   const activeView = useEnduragentStore((state) => state.activeView);
   const status = useEnduragentStore((state) => state.chat.status);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
@@ -245,11 +246,12 @@ export function ChatView(): ReactElement {
               <div className="mb-row grid gap-row empty:hidden">
                 <CoachDecisionPanel onCustomOpenChange={setCustomDecisionOpen} />
                 <PlanCreationDock onEditorOpenChange={setPlanEditorOpen} />
+                <PlanChangeCheckDock onEditorOpenChange={setPlanChangeEditorOpen} />
               </div>
               <AttachmentPanel />
               <QueuedMessages />
             </div>
-            {decisionCustomOpen || planCreationEditorOpen ? null : (
+            {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
               <Composer handle={composer} draftMemory={composerDraft} />
             )}
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">

@@ -2,6 +2,8 @@ import { formatCivilDate } from "@enduragent/coach-contract";
 import {
   PLAN_CREATION_ANSWER_KEYS,
   PlanCreationAnswerSchema,
+  CommitmentCheckResultSchema,
+  PlanCreationPendingCheckSchema,
   PlanCreationCardModelSchema,
   PlanCreationDraftSchema,
   type PlanCreationAnswerInput,
@@ -13,10 +15,11 @@ import {
   type PlanCreationGoal,
   type PlanCreationOpenQuestion,
 } from "@enduragent/coach-contract";
-import { interpretCommitments, type CreationDraftInput } from "@enduragent/sport-cycling";
+import { type CreationDraftInput } from "@enduragent/sport-cycling";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   PlanCreationStoreError,
+  PlanningPendingCheckSchema,
   type PlanCreationAnswerRecord,
   type PlanCreationSnapshot,
 } from "@enduragent/kernel/planning";
@@ -111,15 +114,14 @@ export const readPlanCreationAnswers = (
   snapshot: PlanCreationSnapshot,
 ): readonly StoredPlanCreationAnswer[] => snapshot.answers.map(parseStoredAnswer);
 
-export function validateCommitmentInterpretation(text: string) {
-  const interpreted = interpretCommitments(text);
-  return interpreted.rules.length > 20
-    ? {
-        ...interpreted,
-        status: "clarify" as const,
-        unparsed: ["Keep it to a few limits at a time."],
-      }
-    : interpreted;
+export function validateCommitmentInterpretation(value: unknown) {
+  return CommitmentCheckResultSchema.parse(value);
+}
+
+export function pendingPlanCreationCheck(snapshot: PlanCreationSnapshot) {
+  if (snapshot.pendingCheckJson == null) return null;
+  const stored = PlanningPendingCheckSchema.parse(JSON.parse(snapshot.pendingCheckJson));
+  return PlanCreationPendingCheckSchema.parse(JSON.parse(stored.checkJson));
 }
 
 export function pendingPlanCreationCommitment(
@@ -134,18 +136,15 @@ export function pendingPlanCreationCommitment(
     latest.commitments.status === "confirmed"
   )
     return null;
-  const interpreted = validateCommitmentInterpretation(latest.commitments.text);
-  return latest.commitments.rules.length === 0 && interpreted.status === "confirm"
-    ? {
-        text: latest.commitments.text,
-        rules: [],
-        status: "clarify",
-        unparsed: [latest.commitments.text],
-      }
-    : { text: latest.commitments.text, ...interpreted };
+  return {
+    text: latest.commitments.text,
+    rules: [],
+    status: "clarify",
+    unparsed: [latest.commitments.text],
+  };
 }
 
-const confirmedCommitments = (
+export const confirmedCommitments = (
   snapshot: PlanCreationSnapshot,
 ): Extract<PlanCreationAnswer, { kind: "commitments" }> => {
   for (const { answer } of [...readPlanCreationAnswers(snapshot)].reverse()) {
@@ -157,13 +156,6 @@ const confirmedCommitments = (
   }
   return { kind: "commitments", commitments: { kind: "none" } };
 };
-
-export function interpretCommitmentMessage(text: string): PlanCreationAnswerInput | null {
-  const parsed = validateCommitmentInterpretation(text);
-  return parsed.status === "confirm"
-    ? { kind: "commitments", commitments: { kind: "interpreted", text } }
-    : null;
-}
 
 export function resolvePlanCreationAnswer(
   snapshot: PlanCreationSnapshot,
@@ -187,25 +179,13 @@ export function resolvePlanCreationAnswer(
         };
   }
   if (
+    answer.kind === "check-submit" ||
+    answer.kind === "check-action" ||
     answer.kind === "commitments-interpret" ||
     (answer.kind === "commitments" && answer.commitments.kind === "interpreted")
-  ) {
-    const text =
-      answer.kind === "commitments-interpret"
-        ? answer.text
-        : answer.commitments.kind === "interpreted"
-          ? answer.commitments.text
-          : corrupt();
-    return {
-      kind: "commitments",
-      commitments: {
-        kind: "interpreted",
-        text,
-        rules: interpretCommitments(text).rules,
-        status: "clarify",
-      },
-    };
-  }
+  )
+    return null;
+
   return answer.kind === "commitments"
     ? { kind: "commitments", commitments: { kind: "none" } }
     : answer;
@@ -779,6 +759,7 @@ export function projectPlanCreationCard(
   if (snapshot.status !== "in-progress" && snapshot.status !== "review") return corrupt();
   const flow = resolvePlanCreationAnswerFlow(snapshot);
   const question = flow.next === null ? null : questionForKey(snapshot, flow, context, flow.next);
+  const pendingCheck = pendingPlanCreationCheck(snapshot);
   return PlanCreationCardModelSchema.parse({
     creationId: snapshot.id,
     version: snapshot.version,
@@ -790,7 +771,8 @@ export function projectPlanCreationCard(
     draftStale: snapshot.currentDraft !== null && !isPlanCreationDraftCurrent(snapshot),
     calendarWindow: context.calendarWindow ?? null,
     pendingCommitment: pendingPlanCreationCommitment(snapshot),
-    readiness: question === null ? "ready" : "incomplete",
+    pendingCheck,
+    readiness: question === null && pendingCheck === null ? "ready" : "incomplete",
     answeredSummaries: projectPlanCreationAnswerSummaries(snapshot, flow, context),
     openQuestion: question,
   });

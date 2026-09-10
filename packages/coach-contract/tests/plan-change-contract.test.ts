@@ -281,6 +281,7 @@ describe("Plan Change contract", () => {
       closed: [],
       changes: [],
       changesPaused: null,
+      pendingChangeCheck: null,
     };
     expect(ListPlansResultSchema.parse(empty)).toEqual(empty);
     expect(
@@ -346,14 +347,27 @@ describe("Plan Change contract", () => {
   it.each([
     { intent },
     { request: { kind: "intent", intent } },
-    { request: { kind: "text", text: "  my ftp is 220\n" } },
     { request: { kind: "text", text: "x" } },
-    { request: { kind: "text", text: "x".repeat(500) } },
+    { request: { kind: "text", text: "x".repeat(2000) } },
   ])("preserves supported preview requests %j", (request) => {
     const params = { ...command, ...request };
     expect(PlanChangePreviewRpcParamsSchema.parse(params)).toEqual(params);
     const envelope = { jsonrpc: "2.0", id: 1, method: "plan_change.preview", params };
     expect(CoachRpcRequestEnvelopeSchema.parse(envelope)).toEqual(envelope);
+  });
+
+  it("trims written requests before dispatch", () => {
+    const params = { ...command, request: { kind: "text", text: "  my ftp is 220\n" } };
+    const cleaned = { ...command, request: { kind: "text", text: "my ftp is 220" } };
+    expect(PlanChangePreviewRpcParamsSchema.parse(params)).toEqual(cleaned);
+    expect(
+      CoachRpcRequestEnvelopeSchema.parse({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "plan_change.preview",
+        params,
+      }),
+    ).toEqual({ jsonrpc: "2.0", id: 1, method: "plan_change.preview", params: cleaned });
   });
 
   it.each([
@@ -362,7 +376,8 @@ describe("Plan Change contract", () => {
     { request: { kind: "unknown", text: "my ftp is 220" } },
     { request: { kind: "text" } },
     { request: { kind: "text", text: "" } },
-    { request: { kind: "text", text: "x".repeat(501) } },
+    { request: { kind: "text", text: "  " } },
+    { request: { kind: "text", text: "x".repeat(2001) } },
     { request: { kind: "text", text: 220 } },
     { request: { kind: "text", text: "my ftp is 220", intent } },
     { request: { kind: "text", text: "my ftp is 220", extra: true } },

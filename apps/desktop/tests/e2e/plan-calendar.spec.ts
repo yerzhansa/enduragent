@@ -141,10 +141,15 @@ async function choose(scenario: Scenario, answer: string) {
   await expect.poll(async () => (await scenario.backend.card())?.version).toBe(before.version + 1);
 }
 
-async function continueAnswer(scenario: Scenario) {
+async function continueAnswer(scenario: Scenario, confirm = false) {
   const before = await scenario.backend.card();
   if (before === null) throw new TypeError("Plan Creation is unavailable");
   await scenario.page.getByRole("button", { name: "Continue", exact: true }).click();
+  if (confirm)
+    await scenario.page
+      .getByRole("region", { name: "Did I read this right?", exact: true })
+      .getByRole("button", { name: "Confirm", exact: true })
+      .click();
   await expect.poll(async () => (await scenario.backend.card())?.version).toBe(before.version + 1);
 }
 
@@ -173,7 +178,7 @@ async function replacementDraft(scenario: Scenario, mode: "fixed" | "flexible" =
   await choose(scenario, "regular");
   await scenario.page.locator('[data-parity="choice.custom"][data-answer="custom"]').click();
   await scenario.page.locator('[data-parity="custom.textarea"]').fill("Ride four steady hours");
-  await continueAnswer(scenario);
+  await continueAnswer(scenario, true);
   await choose(scenario, "none");
   await scenario.page.getByRole("button", { name: "Build Draft", exact: true }).click();
   await expect(

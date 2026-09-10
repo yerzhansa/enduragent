@@ -1,23 +1,33 @@
+import { createHash } from "node:crypto";
+import type { z } from "zod";
 import { createCyclingPlanFtpAdapter } from "@enduragent/sport-cycling";
 import type { IntentTranslationPort } from "@enduragent/engine";
 import type { PlanFtpSourceValue } from "@enduragent/engine/sport";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   PlanCreationDraftSchema,
+  PlanChangePendingCheckSchema,
   type PlanCreationAnswerInput,
   type PlanChangeIntent,
   type PlanChangeEventSource,
+  type PlanChangePendingCheck,
+  type PlanChangePreviewResult,
+  type PlanChangeCheckProgress,
 } from "@enduragent/coach-contract";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import {
   createPlanCreationRepository,
+  createPlanningPendingCheckRepository,
   createPlanWorkoutMatchRepository,
 } from "@enduragent/kernel/planning";
 import { dumpStore, runMigrations } from "@enduragent/kernel/store";
 import { MIGRATIONS } from "@enduragent/kernel/store/migrations";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createPlanCreationOperations } from "../src/plan-creation-operations.js";
-import { createPlanChangeOperations } from "../src/plan-change-operations.js";
+import {
+  createPlanChangeOperations,
+  projectPendingChangeCheck,
+} from "../src/plan-change-operations.js";
 
 async function activatedPlan(
   todayDateKey = () => 19980902,
@@ -68,6 +78,22 @@ async function activatedPlan(
     eventCandidates: { read: async () => [] },
     eventSources,
     today: () => "1998-09-02",
+    translator: {
+      async translateIntent(text, schema, context) {
+        const value =
+          context.field === "event"
+            ? { name: "Autumn ride", date: eventDate }
+            : text === "Thu unavailable"
+              ? [{ kind: "weekday-unavailable", day: 4 }]
+              : [{ kind: "time-off", start: "1998-09-03", end: "1998-09-04" }];
+        return schema.parse({
+          outcome: "understood",
+          title: "Did I read this right?",
+          body: "Confirm the answer.",
+          value,
+        });
+      },
+    },
   });
   let manual: PlanFtpSourceValue | null = null;
   let intervalsFtp: PlanFtpSourceValue | null = null;
@@ -139,16 +165,16 @@ async function activatedPlan(
     });
     if (result.status !== "answered") throw new Error("Expected answer");
     card = result.planCreation;
-  }
-  if (commitmentText !== undefined) {
-    const confirmed = await creation["plan_creation.answer"]({
-      commandId: "confirm-commitments",
-      creationId: card.creationId,
-      expectedVersion: card.version,
-      answer: { kind: "commitments-confirm" },
-    });
-    if (confirmed.status !== "answered") throw new Error("Expected confirmed commitments");
-    card = confirmed.planCreation;
+    if (card.pendingCheck !== null) {
+      const confirmed = await creation["plan_creation.answer"]({
+        commandId: `confirm-${++sequence}`,
+        creationId: card.creationId,
+        expectedVersion: card.version,
+        answer: { kind: "check-action", checkId: card.pendingCheck.checkId, action: "confirm" },
+      });
+      if (confirmed.status !== "answered") throw new Error("Expected confirmed answer");
+      card = confirmed.planCreation;
+    }
   }
   const draftResult = await creation["plan_creation.preview"]({
     commandId: "draft",
@@ -178,7 +204,8 @@ async function activatedPlan(
       expectedVersion,
       intent,
     });
-    if (result.status !== "previewed") throw new Error(`Expected Change preview: ${result.reason}`);
+    if (result.status !== "previewed")
+      throw new Error(`Expected Change preview: ${JSON.stringify(result)}`);
     return result;
   };
   const workouts = () =>
@@ -199,6 +226,16 @@ async function activatedPlan(
         });
         if (result.status !== "answered") throw new Error("Expected next answer");
         next = result.planCreation;
+        if (next.pendingCheck !== null) {
+          const confirmed = await creation["plan_creation.answer"]({
+            commandId: `next-confirm-${++sequence}`,
+            creationId: next.creationId,
+            expectedVersion: next.version,
+            answer: { kind: "check-action", checkId: next.pendingCheck.checkId, action: "confirm" },
+          });
+          if (confirmed.status !== "answered") throw new Error("Expected confirmed answer");
+          next = confirmed.planCreation;
+        }
       }
       const preview = await creation["plan_creation.preview"]({
         commandId: `next-preview-${++sequence}`,
@@ -215,6 +252,7 @@ async function activatedPlan(
       return result.planId;
     },
     store,
+    dependencies,
     ftp,
     saveManual,
     logger,
@@ -2515,21 +2553,69 @@ it("blocks mirrored closed-Plan Workouts at preview and rechecks mirror completi
   expect(await dumpStore(test.store)).toEqual(before);
 });
 
-describe("written Plan Change requests", () => {
-  it("records the exact typed request in the command and replays after apply without translating again", async () => {
-    const translateIntent: IntentTranslationPort["translateIntent"] = vi.fn(async (_text, schema) =>
-      schema.parse({ status: "translated", intent: { kind: "longest-workout", minutes: 30 } }),
-    );
-    const test = await activatedPlan(undefined, undefined, null, "fixed", { translateIntent });
+const understoodChange = (value: unknown) => ({
+  outcome: "understood",
+  title: "Did I read this right?",
+  body: "Confirm this change before I prepare the preview.",
+  value,
+});
+const pending = (result: PlanChangePreviewResult): PlanChangePendingCheck => {
+  if (result.status !== "checked" || result.pendingCheck === null)
+    throw new Error("Expected a pending check");
+  return result.pendingCheck;
+};
+const confirmChange = (
+  test: Awaited<ReturnType<typeof activatedPlan>>,
+  check: PlanChangePendingCheck,
+  commandId = "confirm-written",
+) =>
+  test.changes["plan_change.preview"]({
+    commandId,
+    planId: test.planId,
+    expectedVersion: check.sourceVersion,
+    request: { kind: "check-action", checkId: check.checkId, action: "confirm" },
+  });
+const checkingModel = (value: unknown) => {
+  const invocations = vi.fn(async () => (typeof value === "function" ? value() : value));
+  return {
+    invocations,
+    async translateIntent<T>(_text: string, schema: z.ZodType<T>): Promise<T | null> {
+      return schema.parse(await invocations());
+    },
+  };
+};
+
+describe("written Plan Change checks", () => {
+  it("stores and replays the checked value without creating a preview until confirmation", async () => {
+    const translator = checkingModel(understoodChange({ kind: "longest-workout", minutes: 30 }));
+    const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
     const request = {
-      commandId: "written-preview",
+      commandId: "written-check",
       planId: test.planId,
       expectedVersion: 1,
-      request: { kind: "text", text: "  Please shorten my longest sessions to half an hour.  " },
+      request: { kind: "text", text: "Please shorten my longest sessions to half an hour." },
     } as const;
     const beforeWorkouts = await test.workouts();
-    const preview = await test.changes["plan_change.preview"](request);
-    expect(preview.status).toBe("previewed");
+    const events: PlanChangeCheckProgress[] = [];
+    const checked = await test.changes["plan_change.preview"](request, (event) =>
+      events.push(event),
+    );
+    const check = pending(checked);
+    expect(check).toMatchObject({
+      state: "ready",
+      submission: { field: "change", text: request.request.text },
+      result: understoodChange({ kind: "longest-workout", minutes: 30 }),
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "answer-check",
+      planId: test.planId,
+      pendingCheck: { state: "busy", checkId: check.checkId },
+    });
+    expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toEqual(check);
+    expect(await test.changes["plan_change.preview"](request)).toEqual(checked);
+    const preview = await confirmChange(test, check);
     if (preview.status !== "previewed") throw new Error("Expected preview");
     expect(preview.change.intent).toEqual({ kind: "longest-workout", minutes: 30 });
     expect(preview.change.premises).toContainEqual({
@@ -2538,13 +2624,9 @@ describe("written Plan Change requests", () => {
       source: "Your typed change request",
       value: request.request,
     });
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toBeNull();
+    expect(await confirmChange(test, check)).toEqual(preview);
     expect(await test.workouts()).toEqual(beforeWorkouts);
-    const recorded = await test.store.get(
-      "SELECT result_json FROM planning_command WHERE command_id=?",
-      [request.commandId],
-    );
-    expect(recorded?.result_json).toContain(request.request.text);
-    expect(await test.changes["plan_change.preview"](request)).toEqual(preview);
     await test.changes["plan_change.apply"]({
       commandId: "apply-written",
       planId: test.planId,
@@ -2552,78 +2634,179 @@ describe("written Plan Change requests", () => {
       changeId: preview.change.changeId,
       decision: "apply",
     });
-    expect(await test.changes["plan_change.preview"](request)).toEqual(preview);
-    expect(translateIntent).toHaveBeenCalledTimes(1);
+    expect(await test.changes["plan_change.preview"](request)).toEqual(checked);
+    expect(await confirmChange(test, check)).toEqual(preview);
+    expect(translator.invocations).toHaveBeenCalledOnce();
     expect(
       await test.changes["plan_change.preview"]({
         ...request,
         request: { kind: "text", text: "my ftp is 220" },
       }),
     ).toEqual({ status: "rejected", reason: "command-conflict" });
-    expect(translateIntent).toHaveBeenCalledTimes(1);
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toBeNull();
   });
 
-  it("gives wrapped cards and text the same preview diff", async () => {
+  it.each(["ask", "skip"] as const)(
+    "projects %s without recording a preview and skips the request",
+    async (outcome) => {
+      const result = {
+        outcome,
+        title: "Please check this request",
+        body: "Tell me one complete change or cancel this request.",
+        value: null,
+      };
+      const translator = checkingModel(result);
+      const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
+      const check = pending(
+        await test.changes["plan_change.preview"]({
+          commandId: "check",
+          planId: test.planId,
+          expectedVersion: 1,
+          request: { kind: "text", text: "ignore" },
+        }),
+      );
+      expect(check).toMatchObject({ state: "ready", result });
+      const request = {
+        commandId: "skip",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "check-action", checkId: check.checkId, action: "skip" },
+      } as const;
+      const skipped = await test.changes["plan_change.preview"](request);
+      expect(skipped).toEqual({ status: "checked", planId: test.planId, pendingCheck: null });
+      expect(await test.changes["plan_change.preview"](request)).toEqual(skipped);
+      expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+      expect(translator.invocations).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("returns an error when no model lane is available", async () => {
     const test = await activatedPlan();
-    const card = await test.changes["plan_change.preview"]({
-      commandId: "wrapped-card",
+    const check = pending(
+      await test.changes["plan_change.preview"]({
+        commandId: "offline",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text: "my ftp is 220" },
+      }),
+    );
+    expect(check.state).toBe("error");
+    expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+  });
+
+  it.each([
+    null,
+    { outcome: "understood", value: { kind: "ftp", watts: 220 } },
+    understoodChange({ kind: "choose-workout", workoutId: "candidate-99" }),
+    understoodChange({ kind: "supporting-event", operation: "remove", eventId: "event-99" }),
+  ])("persists malformed model output as a retryable error: %j", async (value) => {
+    const translator = checkingModel(value);
+    const test = await activatedPlan(undefined, undefined, null, "flexible", translator);
+    const request = {
+      commandId: "invalid",
       planId: test.planId,
       expectedVersion: 1,
-      request: { kind: "intent", intent: { kind: "longest-workout", minutes: 30 } },
-    });
-    const text = await test.changes["plan_change.preview"]({
-      commandId: "typed-equivalent",
+      request: { kind: "text", text: "An unmatched request" },
+    } as const;
+    const result = await test.changes["plan_change.preview"](request);
+    const check = pending(result);
+    expect(check.state).toBe("error");
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toEqual(check);
+    expect(await test.changes["plan_change.preview"](request)).toEqual(result);
+    expect(translator.invocations).toHaveBeenCalledOnce();
+    expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+  });
+
+  it("retries only an error with a fresh command and cancels without changing training", async () => {
+    let valid = false;
+    const translator = checkingModel(() =>
+      valid ? understoodChange({ kind: "ftp", watts: 220 }) : null,
+    );
+    const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
+    const before = await test.workouts();
+    const first = pending(
+      await test.changes["plan_change.preview"]({
+        commandId: "first",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text: "threshold 220" },
+      }),
+    );
+    expect(first.state).toBe("error");
+    valid = true;
+    const retry = {
+      commandId: "retry",
       planId: test.planId,
       expectedVersion: 1,
-      request: { kind: "text", text: "long rides at most 30 minutes" },
+      request: { kind: "check-action", checkId: first.checkId, action: "retry" },
+    } as const;
+    const retried = await test.changes["plan_change.preview"](retry);
+    const second = pending(retried);
+    expect(second).toMatchObject({ checkId: first.checkId, attempt: 2, state: "ready" });
+    expect(await test.changes["plan_change.preview"](retry)).toEqual(retried);
+    expect(
+      await test.changes["plan_change.preview"]({ ...retry, commandId: "retry-ready" }),
+    ).toMatchObject({ status: "rejected" });
+    const cancelled = await test.changes["plan_change.preview"]({
+      commandId: "cancel",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "check-action", checkId: second.checkId, action: "cancel" },
     });
-    if (card.status !== "previewed" || text.status !== "previewed")
-      throw new Error("Expected previews");
+    expect(cancelled).toEqual({ status: "checked", planId: test.planId, pendingCheck: null });
+    expect(await test.workouts()).toEqual(before);
+    expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+    expect(translator.invocations).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps typed and direct intents equivalent after confirmation", async () => {
+    const test = await activatedPlan(
+      undefined,
+      undefined,
+      null,
+      "fixed",
+      checkingModel(understoodChange({ kind: "longest-workout", minutes: 30 })),
+    );
+    const card = await test.preview({ kind: "longest-workout", minutes: 30 });
+    const check = pending(
+      await test.changes["plan_change.preview"]({
+        commandId: "typed-equivalent",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text: "long rides at most 30 minutes" },
+      }),
+    );
+    const text = await confirmChange(test, check);
+    if (text.status !== "previewed") throw new Error("Expected preview");
     expect(text.change.diff).toEqual(card.change.diff);
     expect(text.change.totals).toEqual(card.change.totals);
     expect(text.change.intent).toEqual(card.change.intent);
   });
 
-  it.each([
-    [
-      "Make my bike lighter",
-      "This request is not supported yet. Choose one of the available actions.",
-    ],
-    ["my ftp is 220 and no training on wednesdays", "Ask for one change at a time."],
-    ["my ftp is 220 then no training on wednesdays", "Ask for one change at a time."],
-    ["my ftp is 220, no training on wednesdays", "Ask for one change at a time."],
-    ["what should i ride today", "No eligible Workout can be selected today."],
-  ])("stores nothing for %s", async (text, explanation) => {
-    const test = await activatedPlan();
-    await test.preview();
-    const before = await dumpStore(test.store);
-    expect(
+  it("maps a candidate token and keeps ordinary apply", async () => {
+    const test = await activatedPlan(
+      undefined,
+      undefined,
+      null,
+      "flexible",
+      checkingModel(understoodChange({ kind: "choose-workout", workoutId: "candidate-1" })),
+    );
+    const first = (await test.creation["plan.list"]({})).active?.todayChoice?.eligible[0];
+    if (first === undefined) throw new Error("Expected eligible Workout");
+    const check = pending(
       await test.changes["plan_change.preview"]({
-        commandId: "unsupported-text",
+        commandId: "candidate",
         planId: test.planId,
         expectedVersion: 1,
-        request: { kind: "text", text },
+        request: { kind: "text", text: "what should i ride today" },
       }),
-    ).toEqual({ status: "rejected", reason: "unsupported-request", explanation });
-    expect(await dumpStore(test.store)).toBe(before);
-  });
-
-  it("selects the host's first eligible daily Workout and uses ordinary apply", async () => {
-    const test = await activatedPlan(undefined, undefined, null, "flexible");
-    const listed = await test.creation["plan.list"]({});
-    const first = listed.active?.todayChoice?.eligible[0];
-    if (first === undefined) throw new Error("Expected eligible Workout");
-    const preview = await test.changes["plan_change.preview"]({
-      commandId: "daily-text",
-      planId: test.planId,
-      expectedVersion: 1,
-      request: { kind: "text", text: "what should i ride today" },
-    });
-    if (preview.status !== "previewed") throw new Error("Expected daily preview");
+    );
+    const preview = await confirmChange(test, check);
+    if (preview.status !== "previewed") throw new Error("Expected preview");
     expect(preview.change.intent).toEqual({ kind: "choose-workout", workoutId: first.workoutId });
     expect(
       await test.changes["plan_change.apply"]({
-        commandId: "daily-text-apply",
+        commandId: "apply",
         planId: test.planId,
         expectedVersion: 1,
         changeId: preview.change.changeId,
@@ -2632,64 +2815,13 @@ describe("written Plan Change requests", () => {
     ).toMatchObject({ status: "applied" });
   });
 
-  it("maps a model candidate token to the eligible Workout id", async () => {
-    const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) =>
-      schema.parse({
-        status: "translated",
-        intent: { kind: "choose-workout", workoutId: "candidate-1" },
-      });
-    const test = await activatedPlan(undefined, undefined, null, "flexible", { translateIntent });
-    const first = (await test.creation["plan.list"]({})).active?.todayChoice?.eligible[0];
-    if (first === undefined) throw new Error("Expected eligible Workout");
-    const preview = await test.changes["plan_change.preview"]({
-      commandId: "model-candidate",
-      planId: test.planId,
-      expectedVersion: 1,
-      request: { kind: "text", text: "Select the first candidate" },
-    });
-    expect(preview).toMatchObject({
-      status: "previewed",
-      change: { intent: { kind: "choose-workout", workoutId: first.workoutId } },
-    });
-  });
-
-  it.each([
-    { kind: "choose-workout", workoutId: "candidate-99" },
-    { kind: "supporting-event", operation: "remove", eventId: "event-99" },
-  ])("rejects unknown model references as unsupported-request: %j", async (intent) => {
-    const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) =>
-      schema.parse({ status: "translated", intent });
-    const test = await activatedPlan(undefined, undefined, null, "flexible", { translateIntent });
-    const before = await dumpStore(test.store);
-    expect(
-      await test.changes["plan_change.preview"]({
-        commandId: "unknown-reference",
-        planId: test.planId,
-        expectedVersion: 1,
-        request: { kind: "text", text: "An unmatched request" },
-      }),
-    ).toMatchObject({ status: "rejected", reason: "unsupported-request" });
-    expect(await dumpStore(test.store)).toBe(before);
-  });
-
-  it("checks host version before invoking the model and checks race protection after translation", async () => {
-    let workoutId = "";
-    const translateIntent: IntentTranslationPort["translateIntent"] = vi.fn(async (_text, schema) =>
-      schema.parse({
-        status: "translated",
-        intent: { kind: "choose-workout", workoutId: "candidate-1" },
-      }),
+  it("checks the version before translating and retains race-window checks at confirmation", async () => {
+    const translator = checkingModel(
+      understoodChange({ kind: "choose-workout", workoutId: "candidate-1" }),
     );
-    const test = await activatedPlan(undefined, undefined, "1998-09-07", "flexible", {
-      translateIntent,
-    });
-    const listed = await test.creation["plan.list"]({});
-    const first = listed.active?.todayChoice?.eligible[0];
-    if (first === undefined) throw new Error("Expected eligible Workout");
-    workoutId = first.workoutId;
-    const before = await dumpStore(test.store);
+    const test = await activatedPlan(undefined, undefined, "1998-09-07", "flexible", translator);
     const request = {
-      commandId: "translated-protection",
+      commandId: "race-check",
       planId: test.planId,
       expectedVersion: 5,
       request: { kind: "text", text: "Choose an easy ride for today" },
@@ -2698,18 +2830,147 @@ describe("written Plan Change requests", () => {
       status: "rejected",
       reason: "stale-version",
     });
-    expect(translateIntent).not.toHaveBeenCalled();
-    const card = await test.changes["plan_change.preview"]({
-      commandId: "card-protection",
+    expect(translator.invocations).not.toHaveBeenCalled();
+    const check = pending(
+      await test.changes["plan_change.preview"]({ ...request, expectedVersion: 1 }),
+    );
+    expect(await confirmChange(test, check)).toMatchObject({
+      status: "rejected",
+      reason: "race-window",
+    });
+    expect(await test.store.all("SELECT * FROM plan_change")).toEqual([]);
+    expect(await projectPendingChangeCheck(test.store, test.planId)).toEqual(check);
+    expect(
+      await test.changes["plan_change.preview"]({
+        commandId: "cancel-race",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "check-action", checkId: check.checkId, action: "cancel" },
+      }),
+    ).toEqual({ status: "checked", planId: test.planId, pendingCheck: null });
+  });
+
+  it("rejects confirmation when a newer preview changed only the Change sequence", async () => {
+    const test = await activatedPlan(
+      undefined,
+      undefined,
+      null,
+      "fixed",
+      checkingModel(understoodChange({ kind: "longest-workout", minutes: 30 })),
+    );
+    const check = pending(
+      await test.changes["plan_change.preview"]({
+        commandId: "older",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "text", text: "long rides at most 30 minutes" },
+      }),
+    );
+    const newer = await test.preview({ kind: "longest-workout", minutes: 40 }, "newer");
+    expect(await confirmChange(test, check)).toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    const listed = await test.creation["plan.list"]({});
+    expect(listed.changes).toHaveLength(1);
+    expect(listed.changes[0]?.changeId).toBe(newer.change.changeId);
+  });
+  it("shares a duplicate in-flight request without invoking the model twice", async () => {
+    let finish: (() => void) | undefined;
+    const barrier = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const translator = checkingModel(async () => {
+      await barrier;
+      return understoodChange({ kind: "longest-workout", minutes: 30 });
+    });
+    const test = await activatedPlan(undefined, undefined, null, "fixed", translator);
+    const request = {
+      commandId: "shared",
       planId: test.planId,
       expectedVersion: 1,
-      intent: { kind: "choose-workout", workoutId },
+      request: { kind: "text", text: "Shorten long rides to thirty minutes" },
+    } as const;
+    const first = test.changes["plan_change.preview"](request);
+    await vi.waitFor(() => expect(translator.invocations).toHaveBeenCalledOnce());
+    expect((await projectPendingChangeCheck(test.store, test.planId))?.state).toBe("busy");
+    const duplicate = test.changes["plan_change.preview"](request);
+    if (finish === undefined) throw new Error("Expected response resolver");
+    finish();
+    expect(await duplicate).toEqual(await first);
+    expect(pending(await first).state).toBe("ready");
+    expect(translator.invocations).toHaveBeenCalledOnce();
+  });
+
+  it("recovers an interrupted check as an error and replays it without rechecking", async () => {
+    const test = await activatedPlan();
+    const request = {
+      commandId: "interrupted",
+      planId: test.planId,
+      expectedVersion: 1,
+      request: { kind: "text", text: "Shorten long rides to thirty minutes" },
+    } as const;
+    const wire = PlanChangePendingCheckSchema.parse({
+      schemaVersion: 1,
+      checkId: "interrupted-check",
+      commandId: request.commandId,
+      sourceVersion: 1,
+      attempt: 1,
+      submission: { field: "change", text: request.request.text },
+      state: "busy",
     });
-    expect(card).toMatchObject({ status: "rejected", reason: "race-window" });
-    const text = await test.changes["plan_change.preview"]({ ...request, expectedVersion: 1 });
-    expect(text).toEqual(card);
-    expect(translateIntent).toHaveBeenCalledTimes(1);
-    expect(await dumpStore(test.store)).toBe(before);
+    const clock = test.dependencies.identity.hlcStamp();
+    const repository = createPlanningPendingCheckRepository(test.store);
+    await repository.admit({
+      command: {
+        commandId: request.commandId,
+        requestDigest: createHash("sha256").update(canonicalJson(request)).digest("hex"),
+        nowMs: clock.physicalMs,
+        deviceId: await test.dependencies.identity.deviceId(),
+        hlcPhysicalMs: clock.physicalMs,
+        hlcCounter: clock.counter,
+      },
+      check: {
+        owner: { kind: "change", planId: test.planId, sourceVersion: 1, sourceChangeSequence: 0 },
+        checkId: wire.checkId,
+        commandId: wire.commandId,
+        attempt: 1,
+        state: "busy",
+        submissionJson: canonicalJson(wire.submission),
+        checkJson: canonicalJson(wire),
+      },
+    });
+    const translator = checkingModel(understoodChange({ kind: "longest-workout", minutes: 30 }));
+    const recovered = createPlanChangeOperations({
+      ...test.dependencies,
+      ftp: test.ftp,
+      logger: test.logger,
+      eventSources: test.eventSources,
+      translator,
+    });
+    await recovered.ready();
+    const failed = await projectPendingChangeCheck(test.store, test.planId);
+    expect(failed).toMatchObject({
+      checkId: wire.checkId,
+      state: "error",
+      message: "The answer check was interrupted. Try again.",
+    });
+    expect(await recovered["plan_change.preview"](request)).toEqual({
+      status: "checked",
+      planId: test.planId,
+      pendingCheck: failed,
+    });
+    expect(translator.invocations).not.toHaveBeenCalled();
+    const retry = pending(
+      await recovered["plan_change.preview"]({
+        commandId: "retry-interrupted",
+        planId: test.planId,
+        expectedVersion: 1,
+        request: { kind: "check-action", checkId: wire.checkId, action: "retry" },
+      }),
+    );
+    expect(retry).toMatchObject({ state: "ready", attempt: 2 });
+    expect(translator.invocations).toHaveBeenCalledOnce();
   });
 });
 
@@ -2877,7 +3138,7 @@ it("does not publish an older translated request after a newer preview is cancel
   const translateIntent: IntentTranslationPort["translateIntent"] = async (_text, schema) => {
     entered.resolve();
     await finish.promise;
-    return schema.parse({ status: "translated", intent: { kind: "longest-workout", minutes: 30 } });
+    return schema.parse(understoodChange({ kind: "longest-workout", minutes: 30 }));
   };
   const test = await activatedPlan(undefined, undefined, null, "fixed", { translateIntent });
   const older = test.changes["plan_change.preview"]({

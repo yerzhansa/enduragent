@@ -523,7 +523,7 @@ function RideImportStatus(): ReactElement {
           aria-label={say("training.view.import")}
         >
           <h2>{say("training.view.import")}</h2>
-          {progress === null ? null : (
+          {progress === null || !("completed" in progress.params.event) ? null : (
             <p className={styles.meta}>
               {say("training.view.importProgress", {
                 completed: formatWholeNumber(progress.params.event.completed, format),

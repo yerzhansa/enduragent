@@ -135,6 +135,7 @@ const creation: PlanCreationCardModel = {
   draft: null,
   draftStale: false,
   calendarWindow: null,
+  pendingCheck: null,
   pendingCommitment: null,
   answeredSummaries: [],
   openQuestion: {
@@ -175,6 +176,7 @@ function library(planId: string, pending = false): ListPlansResult {
     },
     closed: [],
     creation,
+    pendingChangeCheck: null,
     changesPaused: null,
     changes: pending
       ? [

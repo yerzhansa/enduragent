@@ -114,7 +114,7 @@ export function PlanCreationDraftCards(props: {
   }, [focusRequest?.revision, focusRequest?.target]);
   const draft = props.draft;
   const stale = props.model.draftStale;
-  const pending = props.model.pendingCommitment !== null;
+  const pending = props.model.pendingCommitment !== null || props.model.pendingCheck !== null;
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =

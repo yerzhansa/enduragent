@@ -106,7 +106,7 @@ export function createPlanLifecycleRepository(
     windowEnd: number;
   }) => {
     await store.run(
-      `UPDATE planning_plan SET status='closed',close_reason=?,close_actor=?,
+      `UPDATE planning_plan SET status='closed',pending_check_json=NULL,close_reason=?,close_actor=?,
       closed_at_ms=?,version=version+1,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=?
       WHERE plan_id=? AND status='active' AND version=?`,
       [

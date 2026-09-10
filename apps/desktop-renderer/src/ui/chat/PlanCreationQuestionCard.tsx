@@ -202,7 +202,10 @@ function GoalForm(props: QuestionFormProps): ReactElement {
       };
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
-      props.onAnswer({ kind: "goal", goal: { kind: "event-manual", name: name.trim(), date } });
+      props.onAnswer({
+        kind: "check-submit",
+        submission: { field: "event", text: name.trim(), date },
+      });
     };
     return (
       <form
@@ -225,7 +228,7 @@ function GoalForm(props: QuestionFormProps): ReactElement {
               data-parity="custom.textarea"
               value={name}
               placeholder={editorCopy.placeholder}
-              maxLength={512}
+              maxLength={2000}
               aria-describedby={errors.name === undefined ? undefined : nameErrorId}
               aria-invalid={errors.name !== undefined}
               onChange={(event) => setName(event.currentTarget.value)}
@@ -347,7 +350,10 @@ function SuccessForm(props: QuestionFormProps): ReactElement {
             return;
           }
           setError(undefined);
-          props.onAnswer({ kind: "success", success: { kind: "authored", text: text.trim() } });
+          props.onAnswer({
+            kind: "check-submit",
+            submission: { field: "success", text: text.trim() },
+          });
         }}
         onKeyDown={(event) => {
           if (event.key !== "Escape") return;
@@ -770,8 +776,8 @@ function CommitmentsForm(props: QuestionFormProps): ReactElement {
           }
           setError(undefined);
           props.onAnswer({
-            kind: "commitments",
-            commitments: { kind: "interpreted", text: text.trim() },
+            kind: "check-submit",
+            submission: { field: "commitments", text: text.trim() },
           });
         }}
         onKeyDown={(event) => {

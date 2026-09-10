@@ -1,6 +1,10 @@
-import { PlanChangeIntentSchema, type PlanChangeIntent } from "@enduragent/coach-contract";
+import {
+  answerCheckResultSchema,
+  PlanChangeCheckResultSchema,
+  PlanChangeIntentSchema,
+  type PlanChangeIntent,
+} from "@enduragent/coach-contract";
 import type { IntentTranslationPort } from "@enduragent/engine";
-import { interpretCommitments } from "@enduragent/sport-cycling";
 import { z } from "zod";
 
 export const supportedChangeKinds = [
@@ -19,13 +23,11 @@ export interface ChangeTranslationContext {
   eligibleWorkouts: readonly { workoutId: string }[];
   supportingEvents: readonly { id: string }[];
   translator?: IntentTranslationPort;
+  today: string;
+  language?: string;
 }
 
-export type ChangeTranslation =
-  | { status: "translated"; intent: PlanChangeIntent }
-  | { status: "unsupported" }
-  | { status: "combined" }
-  | { status: "no-eligible-workout" };
+export type ChangeTranslation = z.infer<typeof PlanChangeCheckResultSchema>;
 
 function translationReferences(
   context: ChangeTranslationContext,
@@ -73,100 +75,46 @@ export function changeTranslationSchema(context: ChangeTranslationContext) {
       : []),
     z.never(),
   ]);
-  return z.discriminatedUnion("status", [
-    z.object({ status: z.literal("translated"), intent }).strict(),
-    z.object({ status: z.literal("unsupported") }).strict(),
-    z.object({ status: z.literal("combined") }).strict(),
-  ]);
-}
-
-function matchChange(text: string, context: ChangeTranslationContext): ChangeTranslation | null {
-  const normalized = text
-    .trim()
-    .replace(/[.!?]+$/u, "")
-    .replace(/\s+/gu, " ")
-    .toLowerCase();
-  if (normalized === "what should i ride today") {
-    const first = context.eligibleWorkouts[0];
-    return first === undefined
-      ? { status: "no-eligible-workout" }
-      : { status: "translated", intent: { kind: "choose-workout", workoutId: first.workoutId } };
-  }
-  const interpreted = interpretCommitments(
-    normalized.replace(/^no hard training on /u, "no hard on "),
-  );
-  if (interpreted.status === "confirm") {
-    if (interpreted.rules.length > 1) return { status: "combined" };
-    const rule = interpreted.rules[0];
-    if (rule !== undefined && rule.kind !== "time-off") {
-      const parsed = PlanChangeIntentSchema.safeParse(rule);
-      return parsed.success
-        ? { status: "translated", intent: parsed.data }
-        : { status: "unsupported" };
-    }
-  }
-  const weekly = /^at most (\d+(?:\.\d+)?) hours each week$/u.exec(normalized);
-  const longest = /^long rides at most (\d+) minutes$/u.exec(normalized);
-  const ftp = /^my ftp is (\d+)$/u.exec(normalized);
-  const parsed = PlanChangeIntentSchema.safeParse(
-    weekly
-      ? { kind: "weekly-duration", hours: Number(weekly[1]) }
-      : longest
-        ? { kind: "longest-workout", minutes: Number(longest[1]) }
-        : ftp
-          ? { kind: "ftp", watts: Number(ftp[1]) }
-          : null,
-  );
-  return parsed.success ? { status: "translated", intent: parsed.data } : null;
+  return answerCheckResultSchema(intent);
 }
 
 export async function translateChangeRequest(
   text: string,
   context: ChangeTranslationContext,
-): Promise<ChangeTranslation> {
-  const fragments = text
-    .split(/\s+(?:and\s+then|and|then)\s+|[,;\n]+|[.!?](?=\s|$)/iu)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (
-    fragments.length > 1 &&
-    fragments.filter((part) => matchChange(part, context) !== null).length > 1
-  )
-    return { status: "combined" };
-  const matched = matchChange(text, context);
-  if (matched?.status === "no-eligible-workout") return matched;
-  if (matched !== null) {
-    return matched.status !== "translated" ||
-      (matched.intent.kind !== "inverse" && context.allowedKinds.includes(matched.intent.kind))
-      ? matched
-      : { status: "unsupported" };
-  }
-  if (context.translator === undefined) return { status: "unsupported" };
+): Promise<ChangeTranslation | null> {
+  if (context.translator === undefined) return null;
   try {
     const schema = changeTranslationSchema(context);
     const references = translationReferences(context);
     const result = schema.safeParse(
-      await context.translator.translateIntent(text, schema, references),
+      await context.translator.translateIntent(text, schema, {
+        ...references,
+        field: "change",
+        today: context.today,
+        ...(context.language === undefined ? {} : { language: context.language }),
+        expectations:
+          "Check one supported Plan change. Ask when the request is unclear, unsupported, or contains multiple changes. Skip when the athlete wants to cancel the request. Return understood only with one complete allowed intent. Do not guess missing amounts or dates. Choose only eligible candidate and event tokens supplied by the host.",
+      }),
     );
-    if (!result.success) return { status: "unsupported" };
-    if (result.data.status !== "translated") return result.data;
-    const intent = result.data.intent;
+    if (!result.success) return null;
+    if (result.data.outcome !== "understood") return result.data;
+    const intent = result.data.value;
     if (intent.kind === "choose-workout") {
       const index = references.candidates.findIndex((token) => token === intent.workoutId);
       const workout = context.eligibleWorkouts[index];
       return workout === undefined
-        ? { status: "unsupported" }
-        : { status: "translated", intent: { ...intent, workoutId: workout.workoutId } };
+        ? null
+        : { ...result.data, value: { ...intent, workoutId: workout.workoutId } };
     }
     if (intent.kind === "supporting-event" && intent.operation !== "add") {
       const index = references.events.findIndex((token) => token === intent.eventId);
       const event = context.supportingEvents[index];
       return event === undefined
-        ? { status: "unsupported" }
-        : { status: "translated", intent: { ...intent, eventId: event.id } };
+        ? null
+        : { ...result.data, value: { ...intent, eventId: event.id } };
     }
-    return { status: "translated", intent };
+    return result.data;
   } catch {
-    return { status: "unsupported" };
+    return null;
   }
 }

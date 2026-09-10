@@ -15,6 +15,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createCoachEngine, loadConfig, type StoredProfileSnapshot } from "@enduragent/core";
+import { createCoachEngine as createCanonicalCoachEngine } from "@enduragent/engine";
+import { createEngineHostAdapter } from "../../packages/core/src/agent/engine-host-adapter.js";
+import { legacyStateReader } from "../../packages/core/src/agent/legacy-athlete-state-reader.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 
 import {
@@ -41,11 +44,11 @@ import {
   type ReplayHandle,
 } from "./lib/patch-llm.js";
 import { isS8aProvider, supportedProviderList } from "./lib/provider-lane.js";
-import { validateRecording } from "./lib/record-validate.js";
 import { loadSupersessions, type SupersessionEntry } from "./lib/supersessions.js";
 import { snapshotHome, stageHome } from "./lib/staging.js";
 import { countCapturedWrites } from "./lib/write-capture.js";
 import type {
+  AnswerCheckObservation,
   AssertFailure,
   FailureWithDiff,
   S8aProvider,
@@ -210,13 +213,22 @@ async function main(): Promise<void> {
     replayHandle = patchForReplay(recording!, scenario.id);
   }
   let toolNames: readonly string[] = [];
-  const agent = createCoachEngine(cyclingSport, config, {
+  const overrides = {
     modelTransportDecorator:
       recordHandle?.modelTransportDecorator ?? replayHandle!.modelTransportDecorator,
-    onToolsAssembled: (names) => {
+    onToolsAssembled: (names: readonly string[]) => {
       toolNames = names;
     },
-  });
+  };
+  const answerChecker =
+    scenario.execution?.kind === "answer-check"
+      ? createCanonicalCoachEngine({
+          sport: cyclingSport,
+          ports: createEngineHostAdapter({ config, stateReader: legacyStateReader, overrides })
+            .ports,
+        })
+      : null;
+  const agent = answerChecker ?? createCoachEngine(cyclingSport, config, overrides);
   const mustHave = new Set([
     "intervals_fetch_athlete",
     "intervals_fetch_wellness",
@@ -224,14 +236,29 @@ async function main(): Promise<void> {
   ]);
   for (const name of mustHave) {
     if (!toolNames.includes(name)) {
-      harnessError(`intervals tools absent: ${name} not in the constructed tool set — check spawn env`);
+      harnessError(
+        `intervals tools absent: ${name} not in the constructed tool set — check spawn env`,
+      );
     }
   }
   emitScenarioStage("DONE", diagnosticScenario, "setup");
 
   const replies: string[] = [];
+  const answerChecks: AnswerCheckObservation[] = [];
   let exitCode = 0;
   try {
+    if (scenario.execution?.kind === "answer-check") {
+      const { runAnswerCheck } = await import("./lib/answer-check.js");
+      for (const test of scenario.execution.cases) {
+        recordHandle?.setCurrentCheck(test.id);
+        replayHandle?.setCurrentCheck(test.id);
+        emitScenarioStage("START", diagnosticScenario, "turn", answerChecks.length);
+        answerChecks.push(await runAnswerCheck(test, answerChecker!));
+        emitScenarioStage("DONE", diagnosticScenario, "turn", answerChecks.length - 1);
+        recordHandle?.setCurrentCheck(undefined);
+        replayHandle?.setCurrentCheck(undefined);
+      }
+    }
     for (let turnIndex = 0; turnIndex < scenario.turns.length; turnIndex++) {
       const turn = scenario.turns[turnIndex];
       recordHandle?.setCurrentTurn({ chatId: turn.chatId, turnIndex });
@@ -257,7 +284,7 @@ async function main(): Promise<void> {
     emitScenarioStage("START", diagnosticScenario, finishStage);
     try {
       if (args.mode === "replay") {
-        exitCode = finishReplay({
+        exitCode = await finishReplay({
           scenario,
           recording: recording!,
           replayHandle: replayHandle!,
@@ -267,9 +294,10 @@ async function main(): Promise<void> {
           fixtureDir: args.fixtureDir,
           msw,
           replies,
+          answerChecks,
         });
       } else {
-        exitCode = finishRecord({
+        exitCode = await finishRecord({
           scenario,
           recordHandle: recordHandle!,
           config: { provider, model: config.llm.model },
@@ -277,6 +305,7 @@ async function main(): Promise<void> {
           fixtureDir: args.fixtureDir,
           msw,
           replies,
+          answerChecks,
         });
       }
     } finally {
@@ -318,7 +347,7 @@ async function main(): Promise<void> {
   process.exit(exitCode);
 }
 
-function finishReplay(params: {
+async function finishReplay(params: {
   scenario: S8aScenario;
   recording: S8aRecording;
   replayHandle: ReplayHandle;
@@ -328,8 +357,10 @@ function finishReplay(params: {
   fixtureDir: string;
   msw: IntervalsMockHandle;
   replies: string[];
-}): number {
-  const { scenario, recording, replayHandle, registry, home, runDir, fixtureDir, msw, replies } = params;
+  answerChecks: AnswerCheckObservation[];
+}): Promise<number> {
+  const { scenario, recording, replayHandle, registry, home, runDir, fixtureDir, msw, replies } =
+    params;
   replayHandle.finalize();
 
   const sessionLineage = collectSessionLineage(home);
@@ -348,6 +379,17 @@ function finishReplay(params: {
   failures.push(...assertMemory(scenario.id, baselineDir, home));
   failures.push(...assertLedgerAndSessions(scenario.id, baselineDir, home, registry ?? []));
   failures.push(...assertNeedles(scenario, replies));
+  if (scenario.execution?.kind === "answer-check") {
+    const { validateAnswerChecks } = await import("./lib/answer-check.js");
+    failures.push(
+      ...validateAnswerChecks(
+        scenario.execution.cases,
+        recording.calls,
+        params.answerChecks,
+        recording.answerChecks ?? [],
+      ).map((detail): FailureWithDiff => ({ assertId: "A6", scenario: scenario.id, detail })),
+    );
+  }
 
   // Write-capture cross-checks.
   const capturedCreates = countCapturedWrites(
@@ -386,7 +428,7 @@ function finishReplay(params: {
   return verdict.pass ? 0 : 1;
 }
 
-function finishRecord(params: {
+async function finishRecord(params: {
   scenario: S8aScenario;
   recordHandle: RecordHandle;
   config: { provider: S8aProvider; model: string };
@@ -394,7 +436,9 @@ function finishRecord(params: {
   fixtureDir: string;
   msw: IntervalsMockHandle;
   replies: string[];
-}): number {
+  answerChecks: AnswerCheckObservation[];
+}): Promise<number> {
+  const { validateRecording } = await import("./lib/record-validate.js");
   const { scenario, recordHandle, config, home, fixtureDir, msw, replies } = params;
   const calls = recordHandle.calls;
 
@@ -427,6 +471,7 @@ function finishRecord(params: {
     replies,
     artifacts,
     deletedEventIds: msw.deletedEventIds,
+    answerChecks: params.answerChecks,
   });
   if (msw.leak.detected) {
     violations.push(`network leak during record: ${msw.leak.firstUrl}`);
@@ -435,14 +480,22 @@ function finishRecord(params: {
   for (let turnIndex = 0; turnIndex < scenario.turns.length; turnIndex++) {
     const turn = scenario.turns[turnIndex];
     if (sessionLineage.get(turn.chatId)?.[turnIndex]?.templateHash === undefined) {
-      violations.push(`turn ${turnIndex} (${turn.chatId}) wrote no lineage-bearing session assistant line`);
+      violations.push(
+        `turn ${turnIndex} (${turn.chatId}) wrote no lineage-bearing session assistant line`,
+      );
     }
   }
   if (violations.length > 0) {
     console.error("record validation failed; writing NOTHING:");
     for (const v of violations) console.error(`  - ${v}`);
     console.log(
-      JSON.stringify({ scenario: scenario.id, pass: false, failures: [], leak: msw.leak, recordViolations: violations }),
+      JSON.stringify({
+        scenario: scenario.id,
+        pass: false,
+        failures: [],
+        leak: msw.leak,
+        recordViolations: violations,
+      }),
     );
     return 2;
   }
@@ -462,6 +515,7 @@ function finishRecord(params: {
     model: config.model,
     lineage: { templateHash, lineageVersion: "unversioned" },
     calls,
+    ...(scenario.execution?.kind === "answer-check" ? { answerChecks: params.answerChecks } : {}),
   };
   mkdirSync(fixtureDir, { recursive: true });
   writeFileSync(join(fixtureDir, "recording.json"), canonicalJson(recording) + "\n", "utf-8");
@@ -474,6 +528,8 @@ function finishRecord(params: {
 }
 
 main().catch((err) => {
-  console.error(`s8a harness error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+  console.error(
+    `s8a harness error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+  );
   process.exit(2);
 });

@@ -557,7 +557,6 @@ const RENDERER_RPC_METHODS = new Set<CoachRpcMethodName>([
   "retryPlanningRequest",
   "resumePlanningRequests",
   "listPlanningRequests",
-  "plan_creation.interpretCommitments",
   "plan_creation.start",
   "plan_creation.answer",
   "plan_creation.preview",
@@ -1394,7 +1393,23 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               if (input.operations["plan_change.preview"] === undefined) {
                 throw new TypeError("Plan Change preview operation is unavailable.");
               }
-              result = await input.operations["plan_change.preview"](request);
+              result = await input.operations["plan_change.preview"](request, (event) => {
+                if (eventFailure !== undefined) return;
+                try {
+                  const notification = CoachOperationProgressNotificationEnvelopeSchema.parse({
+                    jsonrpc: "2.0",
+                    method: "coach.operationProgress",
+                    params: {
+                      requestId: generic.data.id,
+                      requestMethod: "plan_change.preview",
+                      event,
+                    },
+                  });
+                  void enqueueSerialized(state, serializeCoachRpcEnvelope(notification));
+                } catch (error) {
+                  eventFailure = { error };
+                }
+              });
             } catch (error) {
               invocationFailure = { error };
             }
@@ -1929,17 +1944,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
               invocationFailure = { error };
             }
             break;
-          case "plan_creation.interpretCommitments":
-            try {
-              result = await input.operations["plan_creation.interpretCommitments"](
-                COACH_RPC_METHOD_REGISTRY["plan_creation.interpretCommitments"].requestSchema.parse(
-                  generic.data.params,
-                ),
-              );
-            } catch (error) {
-              invocationFailure = { error };
-            }
-            break;
           case "plan_creation.start":
             try {
               result = await input.operations["plan_creation.start"](
@@ -1957,6 +1961,23 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
                 COACH_RPC_METHOD_REGISTRY["plan_creation.answer"].requestSchema.parse(
                   generic.data.params,
                 ),
+                (event) => {
+                  if (eventFailure !== undefined) return;
+                  try {
+                    const notification = CoachOperationProgressNotificationEnvelopeSchema.parse({
+                      jsonrpc: "2.0",
+                      method: "coach.operationProgress",
+                      params: {
+                        requestId: generic.data.id,
+                        requestMethod: "plan_creation.answer",
+                        event,
+                      },
+                    });
+                    void enqueueSerialized(state, serializeCoachRpcEnvelope(notification));
+                  } catch (error) {
+                    eventFailure = { error };
+                  }
+                },
               );
             } catch (error) {
               invocationFailure = { error };

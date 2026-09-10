@@ -1,6 +1,7 @@
+import { validateAnswerChecks } from "./answer-check.js";
 import { stableSerialize } from "./canonical.js";
 import { CANARY_PREFIX, needleLabel, needleMatches } from "./needles.js";
-import type { RecordedCall, S8aScenario } from "./types.js";
+import type { AnswerCheckObservation, RecordedCall, S8aScenario } from "./types.js";
 
 // The mock's no-override default factories are nondeterministic, so any dataset
 // section a captured tool execution actually reads must be explicit in the
@@ -16,6 +17,7 @@ const TOOL_REQUIRED_SECTION: Record<string, "athlete" | "wellness" | "activities
 
 export interface RecordValidationInput {
   scenario: S8aScenario;
+  answerChecks?: AnswerCheckObservation[];
   calls: RecordedCall[];
   replies: string[]; // per turn, final reply text
   /** Post-run artifact presence/content, keyed by relative path (e.g.
@@ -28,6 +30,11 @@ export interface RecordValidationInput {
 export function validateRecording(input: RecordValidationInput): string[] {
   const { scenario, calls, replies, artifacts, deletedEventIds } = input;
   const violations: string[] = [];
+  if (scenario.execution?.kind === "answer-check") {
+    violations.push(
+      ...validateAnswerChecks(scenario.execution.cases, calls, input.answerChecks ?? []),
+    );
+  }
 
   for (const call of calls) {
     if (call.events === null) continue;
@@ -86,7 +93,9 @@ export function validateRecording(input: RecordValidationInput): string[] {
   const callers = new Set(calls.map((c) => c.caller));
   for (const caller of scenario.recordExpectations?.callers ?? []) {
     if (!callers.has(caller)) {
-      violations.push(`recordExpectations: expected a ${caller}-caller generate call; none captured`);
+      violations.push(
+        `recordExpectations: expected a ${caller}-caller generate call; none captured`,
+      );
     }
   }
 
@@ -132,7 +141,9 @@ export function validateRecording(input: RecordValidationInput): string[] {
   // Expected artifacts exist and are non-empty (guards the silent-swallow
   // surfaces: the ledger append swallows fs errors; an empty-reply turn skips
   // the session append).
-  const expected = new Set<string>(["usage-ledger.jsonl"]);
+  const expected = new Set<string>(
+    scenario.execution?.kind === "answer-check" ? [] : ["usage-ledger.jsonl"],
+  );
   for (const turn of scenario.turns) expected.add(`sessions/${turn.chatId}.jsonl`);
   for (const rel of expected) {
     const content = artifacts[rel] ?? null;

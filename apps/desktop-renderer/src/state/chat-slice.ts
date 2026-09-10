@@ -10,6 +10,8 @@ import type {
   PlanCreationCardModel,
   PlanHandoffSuggestion,
   PlanChangeIntent,
+  PlanChangeRequest,
+  PlanChangePendingCheck,
 } from "@enduragent/coach-contract";
 import type { ActivePlanKnowledge } from "../chat/controller";
 import type { WireMessage } from "../chat/message-state";
@@ -115,7 +117,9 @@ export interface ChatSurfaceState {
 export interface ChatActions {
   openPlanChangeEditor(): void;
   backFromPlanChangeEditor(): void;
-  previewPlanChange(intent: PlanChangeIntent): void;
+  previewPlanChange(
+    intent: PlanChangeIntent | Extract<PlanChangeRequest, { kind: "text" | "check-action" }>,
+  ): void;
   applyPlanChange(decision: "apply" | "cancel"): void;
   submit(message: string, attachmentIds?: readonly string[]): Promise<boolean>;
   chooseAttachments(): Promise<void>;
@@ -218,6 +222,8 @@ export const PLAN_CHANGES_RESUMED_NOTICE =
   "Sources are available again. Request a fresh preview before applying.";
 
 export interface PlanChangeSurfaceState {
+  readonly pendingCheck?: PlanChangePendingCheck | null;
+  readonly checkEditing?: boolean;
   readonly open: boolean;
   readonly textRouting: boolean;
   readonly planId: string | null;
@@ -226,7 +232,7 @@ export interface PlanChangeSurfaceState {
   readonly error: string | null;
   readonly notice: string | null;
   readonly focusRequest: {
-    readonly target: "editor" | "preview" | "change";
+    readonly target: "editor" | "preview" | "change" | "check";
     readonly revision: number;
   } | null;
 }

@@ -251,6 +251,20 @@ export function createPlanChangeRepository(
       throw error;
     }
   };
+  const clearPendingCheck = (input: { planId: string; command: PlanCreationCommandStamp }) =>
+    store.run(
+      `UPDATE planning_plan SET pending_check_json=NULL,updated_at_ms=MAX(updated_at_ms,?),device_id=?,
+      hlc_counter=CASE WHEN hlc_physical_ms>? THEN hlc_counter ELSE MAX(hlc_counter,?) END,
+      hlc_physical_ms=MAX(hlc_physical_ms,?) WHERE plan_id=? AND status='active' AND pending_check_json IS NOT NULL`,
+      [
+        input.command.nowMs,
+        input.command.deviceId,
+        input.command.hlcPhysicalMs,
+        input.command.hlcCounter,
+        input.command.hlcPhysicalMs,
+        input.planId,
+      ],
+    );
   const readActive = async () => {
     const row = await store.get(
       "SELECT plan_id,version,current_revision_number FROM planning_plan WHERE status='active'",
@@ -554,6 +568,7 @@ export function createPlanChangeRepository(
             input.command.hlcCounter,
           ],
         );
+        await clearPendingCheck(input);
         const result = PlanChangePreviewStoreResultSchema.parse({
           status: "previewed",
           change: {
@@ -603,6 +618,7 @@ export function createPlanChangeRepository(
         let result: PlanChangeApplyStoreResult;
         if (input.decision === "cancel") {
           await retire(change, input);
+          await clearPendingCheck(input);
           result = { status: "cancelled", changeId: input.changeId, version: active.version };
         } else {
           const { afterSnapshotJson } = z
@@ -676,7 +692,7 @@ export function createPlanChangeRepository(
             ],
           );
           await store.run(
-            `UPDATE planning_plan SET version=version+1,current_revision_number=?,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE plan_id=? AND status='active' AND version=?`,
+            `UPDATE planning_plan SET version=version+1,current_revision_number=?,pending_check_json=NULL,updated_at_ms=?,device_id=?,hlc_physical_ms=?,hlc_counter=? WHERE plan_id=? AND status='active' AND version=?`,
             [
               revisionNumber,
               input.nowMs,
@@ -758,7 +774,7 @@ export function createPlanChangeRepository(
           [planId],
         );
         const commands = await store.all(
-          "SELECT command_name,result_json FROM planning_command WHERE json_extract(aggregate_refs_json,'$.planId')=? AND command_name IN ('plan_change.apply','plan_change.preview') AND status='succeeded'",
+          "SELECT command_name,result_json FROM planning_command WHERE json_extract(aggregate_refs_json,'$.planId')=? AND command_name IN ('plan_change.apply','plan_change.preview') AND status='succeeded' AND COALESCE(json_extract(aggregate_refs_json,'$.check'),0)=0",
           [planId],
         );
         const retirements = new Map<string, Retirement>();
