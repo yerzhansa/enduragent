@@ -1980,16 +1980,16 @@ describe("chat surface", () => {
     });
 
     it("renders Coach progress after the transcript instead of above the composer", () => {
-      setChat({ status: "streaming", coachProgress: "Checking your training data…" });
+      setChat({ status: "streaming", coachProgress: "Coach is working…" });
       render(<Harness />);
 
       const progress = document.querySelector(".coach-progress");
       if (!(progress instanceof HTMLElement)) throw new TypeError("progress missing");
-      expect(progress).toHaveTextContent("Checking your training data…");
+      expect(progress).toHaveTextContent("Coach is working…");
       expect(progress).toHaveAttribute("aria-busy", "true");
-      expect(
-        screen.getByRole("progressbar", { name: "Checking your training data…" }),
-      ).not.toHaveAttribute("value");
+      expect(progress.querySelector(".animate-spin")).not.toBeNull();
+      expect(progress.className).not.toMatch(/rounded-card|border|bg-surface|p-ctl-px/);
+      expect(screen.queryByRole("progressbar")).toBeNull();
       expect(progress.closest(".thread")).not.toBeNull();
       expect(progress.closest(".composer-wrap")).toBeNull();
     });
