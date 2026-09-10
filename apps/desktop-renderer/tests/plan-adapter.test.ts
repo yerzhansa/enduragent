@@ -2152,4 +2152,21 @@ describe("Plan Change RPC adapters", () => {
     });
     expect(new Set(call.mock.calls.map(([, request]) => request.commandId)).size).toBe(3);
   });
+
+  it("forwards preview transport options when supplied", async () => {
+    const call = vi.fn().mockResolvedValue({ status: "rejected", reason: "stale-version" });
+    const clients = { getClient: async () => ({ call }) } as unknown as DesktopCoachClientProvider;
+    const preview = {
+      commandId: "preview-command",
+      planId: "plan-active",
+      expectedVersion: 4,
+      intent: { kind: "weekly-duration", hours: 6 },
+    } as const;
+    const options = { onEvent: vi.fn() };
+    expect(await previewPlanChange(clients, preview, options)).toEqual({
+      status: "rejected",
+      reason: "stale-version",
+    });
+    expect(call).toHaveBeenCalledWith("plan_change.preview", { ...preview }, options);
+  });
 });

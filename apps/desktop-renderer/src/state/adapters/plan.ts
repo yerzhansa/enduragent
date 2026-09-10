@@ -56,13 +56,12 @@ export async function previewPlanChange(
   input: PlanChangePreviewRpcParams,
   options?: CoachClientCallOptions<"plan_change.preview">,
 ) {
-  return (await clients.getClient()).call(
-    "plan_change.preview",
-    {
-      ...input,
-    },
-    options,
-  );
+  const client = await clients.getClient();
+  const request = { ...input };
+  if (options === undefined) {
+    return client.call("plan_change.preview", request);
+  }
+  return client.call("plan_change.preview", request, options);
 }
 
 export async function applyPlanChange(
