@@ -91,6 +91,13 @@ async function editCommitments(page: Page): Promise<void> {
   }
 }
 
+async function reviewCommitments(page: Page): Promise<void> {
+  await page
+    .locator('[data-parity="custom.actions"]')
+    .getByRole("button", { name: "Review interpretation", exact: true })
+    .click();
+}
+
 for (const appearance of [
   { width: 1180, colorScheme: "light" },
   { width: 1180, colorScheme: "dark" },
@@ -155,7 +162,7 @@ for (const appearance of [
       await page.locator('[data-parity="custom.textarea"]').fill(commitments);
       const answersBeforeCheck = await backend.answers();
       const releaseCheck = backend.checker.pause();
-      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await reviewCommitments(page);
       await expect(
         page.getByRole("status").filter({ hasText: "Checking your answer" }),
       ).toBeVisible();
@@ -243,7 +250,7 @@ for (const appearance of [
       await screenshot("confirmed-rebuilt");
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
-      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await reviewCommitments(page);
       const clarification = page.getByRole("region", {
         name: "I could not use that answer",
         exact: true,
@@ -273,7 +280,7 @@ for (const appearance of [
       await screenshot("clarify-editor");
       backend.checker.failures = 1;
       await page.locator('[data-parity="custom.textarea"]').fill("Some evenings are busy");
-      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await reviewCommitments(page);
       await expect(
         page.getByRole("region", { name: "Plan creation dock", exact: true }).getByRole("alert"),
       ).toHaveText("I could not check that answer. Try again.");
@@ -303,7 +310,7 @@ for (const appearance of [
       expect(await card(backend)).toEqual(clarificationBeforeChat);
       await editCommitments(page);
       await page.locator('[data-parity="custom.textarea"]').fill("Saturday unavailable");
-      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await reviewCommitments(page);
       await expect(
         page.getByRole("heading", { name: "Did I read this right?", exact: true }),
       ).toBeVisible();
@@ -313,7 +320,7 @@ for (const appearance of [
       await page.getByRole("button", { name: "Change it", exact: true }).click();
       await expect(page.locator('[data-parity="custom.textarea"]')).toBeFocused();
       await page.locator('[data-parity="custom.textarea"]').fill(ambiguousCommitment);
-      await page.locator('[data-parity="custom.actions"]').getByRole("button", { name: "Continue", exact: true }).click();
+      await reviewCommitments(page);
       await page
         .getByRole("region", { name: "I could not use that answer", exact: true })
         .getByRole("button", { name: "Skip for now", exact: true })

@@ -546,7 +546,7 @@ for (const appearance of [
       await scenario.page.locator('[data-parity="custom.textarea"]').fill("Fridays off");
       await scenario.page
         .locator('[data-parity="custom.actions"]')
-        .getByRole("button", { name: "Continue", exact: true })
+        .getByRole("button", { name: "Review interpretation", exact: true })
         .click();
       await expect(
         scenario.page.getByRole("heading", { name: "Did I read this right?", exact: true }),
