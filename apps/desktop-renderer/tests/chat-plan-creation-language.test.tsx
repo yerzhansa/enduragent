@@ -60,9 +60,10 @@ const catalog = {
       draftReview: "Revisione della bozza",
       draftInputs: "Dati della bozza",
       outlineTitle: "Ogni settimana e allenamento",
-      correctionLabel: "Correzione del calendario",
-      confirmTitle: "Conferma questi limiti",
-      confirmLimits: "Conferma limiti",
+      commitmentsLabelShort: "Tabella impegni",
+      didIReadThis: "Ho letto giusto?",
+      confirmAction: "Conferma azione",
+      youWrote: "Testo inviato",
       maximumDuration: "Durata massima in ore",
       optionalEndDate: "Data finale facoltativa",
       continue: "Continua",
@@ -159,9 +160,9 @@ describe("Plan creation catalog rendering", () => {
       />,
       catalog,
     );
-    expect(screen.getByText("Conferma questi limiti")).toBeVisible();
-    expect(screen.getByRole("table", { name: "Correzione del calendario" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Conferma limiti" })).toBeVisible();
+    expect(screen.getByText("Ho letto giusto?")).toBeVisible();
+    expect(screen.getByRole("table", { name: "Tabella impegni" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Conferma azione" })).toBeVisible();
     expect(screen.getByText("Tuesday unavailable")).toBeVisible();
   });
 
