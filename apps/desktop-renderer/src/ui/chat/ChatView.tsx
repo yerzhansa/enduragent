@@ -219,21 +219,21 @@ export function ChatView(): ReactElement {
       <div
         className={`chat-layout row-start-2 grid min-h-0 min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}
       >
-        <div className="chat-reading-column grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] has-[[data-parity='question.card']]:grid-rows-[minmax(calc(var(--ctl-h-lg)*4),1fr)_minmax(0,auto)]">
+        <div className="chat-reading-column grid min-h-0 min-w-0 px-6 max-md:px-4 grid-rows-[minmax(0,1fr)_auto] has-[[data-plan-creation-dock]]:grid-rows-[minmax(calc(var(--ctl-h-lg)*4),1fr)_minmax(0,auto)]">
           <main
-            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-[calc(var(--inset)*3)] [overflow-anchor:none] max-md:pt-5.5"
+            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
             aria-label={say("chat.view.conversation")}
             data-chat-status={status}
             ref={conversation}
           >
-            <div className="thread mx-auto w-[min(720px,calc(100%-48px))] max-md:w-[calc(100%-32px)]">
+            <div className="thread mx-auto w-full max-w-[720px]">
               <Transcript />
               <PlanChangeCards />
               <CoachProgress />
               <FirstSyncCard />
             </div>
           </main>
-          <div className="composer-wrap z-2 grid max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] px-[max(24px,calc((100%-720px)/2))] pt-7 pb-3.5 max-md:px-[calc(var(--inset)*2)]">
+          <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] pb-3.5">
             <div className="composer-projections min-h-0 overflow-y-auto [scrollbar-width:none] overscroll-contain empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
@@ -247,7 +247,7 @@ export function ChatView(): ReactElement {
                 <Notice />
                 <RetryBar />
               </div>
-              <div className="mb-inset grid gap-inset empty:hidden">
+              <div className="mb-row grid gap-row empty:hidden">
                 <CoachDecisionPanel onCustomOpenChange={setCustomDecisionOpen} />
                 <PlanCreationDock onEditorOpenChange={setPlanEditorOpen} />
               </div>

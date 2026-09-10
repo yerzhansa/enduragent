@@ -357,7 +357,7 @@ export function AttachmentPanel(): ReactElement | null {
     return null;
   }
   return (
-    <AttachmentList aria-live="polite">
+    <AttachmentList className="mb-row gap-row" aria-live="polite">
       {surface.attachmentBusy ? (
         <div className="flex items-center gap-3 rounded-card border border-line-2 bg-surface p-4 text-sm text-ink-2">
           <LoaderCircle

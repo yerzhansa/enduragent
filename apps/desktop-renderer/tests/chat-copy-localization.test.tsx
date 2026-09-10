@@ -37,7 +37,7 @@ describe("Chat status catalog rendering", () => {
       chat: { notice: { checkingTraining: "Controllo dei dati di allenamento…" } },
     });
     expect(
-      screen.getByRole("progressbar", { name: "Controllo dei dati di allenamento…" }),
+      screen.getByRole("status", { name: "Controllo dei dati di allenamento…" }),
     ).toBeVisible();
   });
 

@@ -1282,7 +1282,17 @@
       "weekSummary": "{{week}}주차 · {{start}}~{{end}} · {{minutes}}분",
       "weekWorkouts": "{{week}}주차 워크아웃",
       "workoutSummary": "{{name}} · {{minutes}}분 · {{guidance}}",
-      "yourAnswer": "내 답변"
+      "yourAnswer": "내 답변",
+      "answerAction": "답하기",
+      "changeIt": "수정",
+      "clarifyRetryHint": "요일, 시간 제한, 정확한 날짜를 넣어 다른 방식으로 다시 알려 주세요.",
+      "confirmAction": "확인",
+      "confirmLimitHint": "메모를 이 제한으로 이해했습니다. 확인하면 이미 확인한 다른 제한은 그대로입니다.",
+      "couldNotUseAnswer": "그 답을 사용할 수 없습니다",
+      "didIReadThis": "맞게 이해했나요?",
+      "iUnderstood": "이렇게 이해했습니다",
+      "skipForNow": "지금은 건너뛰기",
+      "youWrote": "작성한 내용"
     },
     "planReference": {
       "active": "활성",

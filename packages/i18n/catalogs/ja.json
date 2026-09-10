@@ -1282,7 +1282,17 @@
       "weekSummary": "第{{week}}週 · {{start}}〜{{end}} · {{minutes}}分",
       "weekWorkouts": "第{{week}}週のワークアウト",
       "workoutSummary": "{{name}} · {{minutes}}分 · {{guidance}}",
-      "yourAnswer": "回答"
+      "yourAnswer": "回答",
+      "answerAction": "答える",
+      "changeIt": "修正する",
+      "clarifyRetryHint": "曜日、時間の上限、正確な日付を入れて、別の言い方でもう一度教えてください。",
+      "confirmAction": "確定",
+      "confirmLimitHint": "メモをこの制限として理解しました。確定すれば、ほかの確定済みの制限はそのままです。",
+      "couldNotUseAnswer": "その回答は使えませんでした",
+      "didIReadThis": "正しく理解できましたか？",
+      "iUnderstood": "こう理解しました",
+      "skipForNow": "今はスキップ",
+      "youWrote": "入力内容"
     },
     "planReference": {
       "active": "有効",

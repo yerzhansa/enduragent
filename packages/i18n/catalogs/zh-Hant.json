@@ -1282,7 +1282,17 @@
       "weekSummary": "第 {{week}} 週 · {{start}} 至 {{end}} · {{minutes}} 分鐘",
       "weekWorkouts": "第 {{week}} 週的訓練課表",
       "workoutSummary": "{{name}} · {{minutes}} 分鐘 · {{guidance}}",
-      "yourAnswer": "您的回答"
+      "yourAnswer": "您的回答",
+      "answerAction": "回答",
+      "changeIt": "修改",
+      "clarifyRetryHint": "請換一種方式再說一次，並附上星期幾、時間上限或確切日期。",
+      "confirmAction": "確認",
+      "confirmLimitHint": "我把你的說明理解成這項限制。確認後，其他已確認的限制維持不變。",
+      "couldNotUseAnswer": "我無法使用這個回答",
+      "didIReadThis": "我理解得對嗎？",
+      "iUnderstood": "我的理解",
+      "skipForNow": "暫時略過",
+      "youWrote": "你寫的是"
     },
     "planReference": {
       "active": "已啟用",

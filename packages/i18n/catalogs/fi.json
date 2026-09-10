@@ -1293,7 +1293,17 @@
       "weekSummary": "Viikko {{week}} · {{start}}–{{end}} · {{minutes}} min",
       "weekWorkouts": "Viikon {{week}} harjoitukset",
       "workoutSummary": "{{name}} · {{minutes}} min · {{guidance}}",
-      "yourAnswer": "vastauksesi"
+      "yourAnswer": "vastauksesi",
+      "answerAction": "Vastaa",
+      "changeIt": "Muuta",
+      "clarifyRetryHint": "Kerro se uudestaan toisella tavalla, viikonpäivineen, aikarajoineen tai tarkkoine päivämäärineen.",
+      "confirmAction": "Vahvista",
+      "confirmLimitHint": "Ymmärsin merkintäsi tänä rajoituksena. Vahvista se, niin muut vahvistetut rajoitukset säilyvät.",
+      "couldNotUseAnswer": "En voinut käyttää tuota vastausta",
+      "didIReadThis": "Ymmärsinkö oikein?",
+      "iUnderstood": "Ymmärsin näin",
+      "skipForNow": "Ohita toistaiseksi",
+      "youWrote": "Kirjoitit"
     },
     "planReference": {
       "active": "Aktiivinen",

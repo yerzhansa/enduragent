@@ -241,7 +241,15 @@ export function PlanCreationDock(props: {
   }, [focusRequest?.revision, focusRequest?.target]);
   if (!loaded) return null;
   if (model === null) return null;
-  if (paused || (editingKey === null && model.openQuestion === null)) return null;
+  if (paused) return null;
+  if (editingKey === null && model.pendingCommitment !== null) {
+    return (
+      <section aria-label="Plan creation dock" data-plan-creation-dock>
+        <PlanCreationCommitmentCard model={model} />
+      </section>
+    );
+  }
+  if (editingKey === null && model.openQuestion === null) return null;
   const editedSummary =
     editingKey === null
       ? null
@@ -249,27 +257,29 @@ export function PlanCreationDock(props: {
   const question = editedSummary?.question ?? model.openQuestion;
   if (question === null) return null;
   return (
-    <PlanCreationQuestionCard
-      key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
-      question={question}
-      currentAnswer={
-        question.kind === "commitments-question" && model.pendingCommitment !== null
-          ? {
-              kind: "commitments",
-              commitments: { kind: "interpreted", text: model.pendingCommitment.text },
-            }
-          : (editedSummary?.answer ?? null)
-      }
-      commitmentStatus={model.pendingCommitment?.status}
-      editing={editingKey !== null}
-      busy={busy}
-      error={model.pendingCommitment === null ? error : null}
-      focusRevision={focusRevision}
-      onAnswer={(answer) => actions?.answerPlanCreation(answer)}
-      onLater={() => actions?.pausePlanCreation()}
-      onCancel={() => actions?.cancelPlanCreationEdit()}
-      onEditorOpenChange={props.onEditorOpenChange}
-    />
+    <section aria-label="Plan creation dock" data-plan-creation-dock>
+      <PlanCreationQuestionCard
+        key={`${model.creationId}:${model.version}:${editingKey ?? question.kind}`}
+        question={question}
+        currentAnswer={
+          question.kind === "commitments-question" && model.pendingCommitment !== null
+            ? {
+                kind: "commitments",
+                commitments: { kind: "interpreted", text: model.pendingCommitment.text },
+              }
+            : (editedSummary?.answer ?? null)
+        }
+        commitmentStatus={model.pendingCommitment?.status}
+        editing={editingKey !== null}
+        busy={busy}
+        error={error}
+        focusRevision={focusRevision}
+        onAnswer={(answer) => actions?.answerPlanCreation(answer)}
+        onLater={() => actions?.pausePlanCreation()}
+        onCancel={() => actions?.cancelPlanCreationEdit()}
+        onEditorOpenChange={props.onEditorOpenChange}
+      />
+    </section>
   );
 }
 
@@ -281,7 +291,6 @@ export function PlanCreationConversation(props: {
   return (
     <section className="grid min-w-0 gap-4" aria-label={say("chat.planCreation.title")}>
       <Notice inPlanCreation />
-      <PlanCreationCommitmentCard model={props.model} />
       <PlanCreationConversationContent model={props.model} />
     </section>
   );

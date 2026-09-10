@@ -9911,6 +9911,46 @@
     "desktop.tray.telegram.transferRequired": {
       "sourceHash": "5273ebd028627b6a9fdc9c8a1c33253b478528a824c8c4132cc6c8ace7342b64",
       "translatedBy": "model"
+    },
+    "chat.planCreation.answerAction": {
+      "sourceHash": "b2a3aa602762a782e47a4f8e93bb5ae1b8819d1b92b7e6ceb3ef46a3c7077eb0",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.changeIt": {
+      "sourceHash": "e6b6ce31b14c6e62457d338b95c34781956e46dc6ebfade920d654d98bb62b3a",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.clarifyRetryHint": {
+      "sourceHash": "cb2f28eb22a1d13acdedfb9f1c9f7bc2302e64a4d7659948d6ee0ba5da59e0b7",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.confirmAction": {
+      "sourceHash": "eebdd24a77d9ad32222660c07777163bf5f6732df2b172351f3f8d5783e4f529",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.confirmLimitHint": {
+      "sourceHash": "e6188a06db89e8912cad36aa83c3b80a81345ba22e8cf634fe912b76efa0c491",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.couldNotUseAnswer": {
+      "sourceHash": "bdbc137fd7144f9bf3391afc54018c611901a201850e7dd1a8e519c6df54334f",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.didIReadThis": {
+      "sourceHash": "cf50dab02918e8ca56e36fe65fbc46019b65699b112352850d5848aa05f45cc3",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.iUnderstood": {
+      "sourceHash": "1003c89bd1b159d4825b477a53ea0e1ef0be8c10ad4f149f202fdd3671c65c2f",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.skipForNow": {
+      "sourceHash": "b58eb52c8810b97857e264ea9de45f7bd7edb754bb0edad30ffab78ff027c45e",
+      "translatedBy": "model"
+    },
+    "chat.planCreation.youWrote": {
+      "sourceHash": "ab8c69ee8ef8f7610c5fcf432d45cf64fdd596bf7b57113c12ebea08558569bf",
+      "translatedBy": "model"
     }
   }
 }

@@ -1293,7 +1293,17 @@
       "weekSummary": "Uge {{week}} · {{start}} til {{end}} · {{minutes}} min",
       "weekWorkouts": "Træninger i uge {{week}}",
       "workoutSummary": "{{name}} · {{minutes}} min · {{guidance}}",
-      "yourAnswer": "dit svar"
+      "yourAnswer": "dit svar",
+      "answerAction": "Svar",
+      "changeIt": "Ret det",
+      "clarifyRetryHint": "Sig det igen på en anden måde, med ugedage, tidsgrænser eller præcise datoer.",
+      "confirmAction": "Bekræft",
+      "confirmLimitHint": "Jeg forstod din note som denne grænse. Bekræft den, så forbliver dine øvrige bekræftede grænser.",
+      "couldNotUseAnswer": "Jeg kunne ikke bruge det svar",
+      "didIReadThis": "Har jeg forstået det rigtigt?",
+      "iUnderstood": "Jeg forstod",
+      "skipForNow": "Spring over for nu",
+      "youWrote": "Du skrev"
     },
     "planReference": {
       "active": "Aktiv",

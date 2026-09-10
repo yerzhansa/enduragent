@@ -1293,7 +1293,17 @@
       "weekSummary": "Week {{week}} · {{start}} tot {{end}} · {{minutes}} min",
       "weekWorkouts": "Trainingen in week {{week}}",
       "workoutSummary": "{{name}} · {{minutes}} min · {{guidance}}",
-      "yourAnswer": "je antwoord"
+      "yourAnswer": "je antwoord",
+      "answerAction": "Beantwoorden",
+      "changeIt": "Aanpassen",
+      "clarifyRetryHint": "Zeg het nog een keer anders, met weekdagen, tijdslimieten of exacte datums.",
+      "confirmAction": "Bevestigen",
+      "confirmLimitHint": "Ik heb je opmerking als deze limiet begrepen. Bevestig hem; je andere bevestigde limieten blijven.",
+      "couldNotUseAnswer": "Dat antwoord kon ik niet gebruiken",
+      "didIReadThis": "Heb ik het goed begrepen?",
+      "iUnderstood": "Zo begreep ik het",
+      "skipForNow": "Voorlopig overslaan",
+      "youWrote": "Je schreef"
     },
     "planReference": {
       "active": "Actief",

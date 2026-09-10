@@ -1,5 +1,5 @@
 import { chatFeedbackMessage } from "./copy";
-import { msg, type CatalogKey } from "@enduragent/i18n";
+import type { CatalogKey } from "@enduragent/i18n";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useChatDate } from "./use-chat-date";
 import type {
@@ -8,7 +8,7 @@ import type {
   PlanCreationDraft,
   PlanCreationCommitmentRule,
 } from "@enduragent/coach-contract";
-import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, type ReactElement, type ReactNode, type Ref } from "react";
 import { Button } from "@enduragent/ui";
 import { Fact, PlanCard } from "../plan/plan-card";
 import { useEnduragentStore } from "../../state/store";
@@ -61,6 +61,17 @@ function AnswerFacts(props: {
   );
 }
 
+export function resolvedAnswerSummaries(
+  summaries: readonly PlanCreationAnswerSummary[],
+): PlanCreationAnswerSummary[] {
+  return summaries.filter(
+    ({ answer }) =>
+      answer.kind !== "commitments" ||
+      answer.commitments.kind !== "interpreted" ||
+      answer.commitments.status === "confirmed",
+  );
+}
+
 function ReviewCard(props: {
   readonly eyebrow?: string;
   readonly title: string;
@@ -68,6 +79,8 @@ function ReviewCard(props: {
   readonly summary?: string;
   readonly summaryId?: string;
   readonly "aria-label"?: string;
+  readonly headingRef?: Ref<HTMLHeadingElement>;
+  readonly headingTabIndex?: number;
   readonly children: ReactNode;
 }): ReactElement {
   return <PlanCard {...props} aria-label={props["aria-label"] ?? props.title} />;
@@ -117,7 +130,7 @@ export function PlanCreationDraftCards(props: {
             className="border-t border-line"
             aria-label={say("chat.planCreation.changedAnswers")}
           >
-            <AnswerFacts summaries={props.model.answeredSummaries} current />
+            <AnswerFacts summaries={resolvedAnswerSummaries(props.model.answeredSummaries)} current />
           </div>
         </ReviewCard>
       ) : null}
@@ -320,8 +333,6 @@ export function PlanCreationDraftCards(props: {
   );
 }
 
-export const pendingCommitmentSummary = msg("chat.planCreation.pendingCommitment");
-
 export function commitmentSummaryId(model: PlanCreationCardModel): string {
   return `commitment-summary-${model.creationId}`;
 }
@@ -370,42 +381,51 @@ export function PlanCreationCommitmentCard(props: {
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const errorMessage = error === null ? null : chatFeedbackMessage(error);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
-  const editingKey = useEnduragentStore((state) => state.chat.planCreationEditingKey);
+  const focusRevision = useEnduragentStore((state) => state.chat.planCreationFocusRevision);
+  const heading = useRef<HTMLHeadingElement>(null);
   const pending = props.model.pendingCommitment;
+  const pendingText = pending?.text ?? null;
+  useEffect(() => {
+    if (pendingText !== null) heading.current?.focus();
+  }, [focusRevision, pendingText]);
   if (pending === null) return null;
   const disabled = busy || actions === null;
+  const clarify = pending.status === "clarify";
+  const resolve = (): void => {
+    void actions?.answerPlanCreation({
+      kind: clarify ? "commitments-cancel" : "commitments-confirm",
+    });
+  };
   return (
     <ReviewCard
-      eyebrow={say("chat.planCreation.correctionLabel")}
+      eyebrow={`${say("chat.planCreation.title")} · ${say("chat.planCreation.commitmentsLabelShort")}`}
       title={
-        pending.status === "clarify"
-          ? say("chat.planCreation.clarifyTitle")
-          : say("chat.planCreation.confirmTitle")
+        clarify
+          ? say("chat.planCreation.couldNotUseAnswer")
+          : say("chat.planCreation.didIReadThis")
       }
-      status={say("chat.planCreation.notConfirmed")}
-      summary={say(pendingCommitmentSummary)}
+      summary={
+        clarify
+          ? say("chat.planCreation.clarifyRetryHint")
+          : say("chat.planCreation.confirmLimitHint")
+      }
       summaryId={commitmentSummaryId(props.model)}
+      headingRef={heading}
+      headingTabIndex={-1}
     >
       <div
         role="table"
         className="border-t border-line"
-        aria-label={say("chat.planCreation.correctionLabel")}
+        aria-label={say("chat.planCreation.commitmentsLabelShort")}
       >
-        <Fact label={say("chat.planCreation.submittedLabel")}>{pending.text}</Fact>
-        {pending.rules.map((rule, index) => (
-          <Fact key={index} label={say("chat.planCreation.interpretedLabel")}>
-            <CommitmentRuleText rule={rule} />
-          </Fact>
-        ))}
-        {pending.unparsed.length === 0 ? null : (
-          <Fact label={say("chat.planCreation.notUnderstood")}>
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {pending.unparsed.map((fragment, index) => (
-                <li key={index}>{fragment}</li>
-              ))}
-            </ul>
-          </Fact>
-        )}
+        <Fact label={say("chat.planCreation.youWrote")}>{pending.text}</Fact>
+        {clarify
+          ? null
+          : pending.rules.map((rule, index) => (
+              <Fact key={index} label={say("chat.planCreation.iUnderstood")}>
+                <CommitmentRuleText rule={rule} />
+              </Fact>
+            ))}
       </div>
       {error === null ? null : (
         <p role="alert" className="m-0 text-xs text-danger">
@@ -417,26 +437,16 @@ export function PlanCreationCommitmentCard(props: {
           variant="outline"
           className="border-line bg-surface"
           disabled={disabled}
-          onClick={() => actions?.answerPlanCreation({ kind: "commitments-cancel" })}
+          onClick={clarify ? resolve : () => actions?.editPlanCreation("commitments")}
         >
-          {say("chat.planCreation.cancelCorrection")}
+          {clarify ? say("chat.planCreation.skipForNow") : say("chat.planCreation.changeIt")}
         </Button>
         <Button
-          variant="outline"
-          className="border-line bg-surface"
-          disabled={disabled || editingKey !== null}
-          onClick={() => actions?.editPlanCreation("commitments")}
+          disabled={disabled}
+          onClick={clarify ? () => actions?.editPlanCreation("commitments") : resolve}
         >
-          {say("chat.planCreation.clarify")}
+          {clarify ? say("chat.planCreation.answerAction") : say("chat.planCreation.confirmAction")}
         </Button>
-        {pending.status === "confirm" ? (
-          <Button
-            disabled={disabled}
-            onClick={() => actions?.answerPlanCreation({ kind: "commitments-confirm" })}
-          >
-            {say("chat.planCreation.confirmLimits")}
-          </Button>
-        ) : null}
       </div>
     </ReviewCard>
   );

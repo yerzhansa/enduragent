@@ -367,6 +367,59 @@ describe("chat view adapter", () => {
     });
   });
 
+  it("blocks the composer while an unresolved typed commitment is docked", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const pending = {
+      text: "Some evenings are busy",
+      status: "clarify" as const,
+      rules: [],
+      unparsed: ["Some evenings are busy"],
+    };
+    const planCreation = (editingKey: "commitments" | null, paused = false) => ({
+      value: {
+        draft: null,
+        draftStale: false,
+        calendarWindow: null,
+        pendingCommitment: pending,
+        creationId: "01J00000000000000000000000",
+        version: 1,
+        status: "in-progress" as const,
+        readiness: "ready" as const,
+        answeredSummaries: [],
+        openQuestion: null,
+      },
+      loaded: true,
+      busy: false,
+      error: null,
+      paused,
+      editingKey,
+      focusRevision: 1,
+      discardConfirmationOpen: false,
+      activateConfirmationOpen: false,
+      activePlanKnowledge: { kind: "unknown" as const },
+      discardEvents: [],
+      notice: null,
+      focusRequest: null,
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation(null) }));
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: true,
+      composerPlaceholder: "Finish the correction above",
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation("commitments") }));
+    expect(published.at(-1)).toMatchObject({
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+    adapter.view.render(EMPTY_CHAT_STATE, controls({ planCreation: planCreation(null, true) }));
+    expect(published.at(-1)).toMatchObject({
+      inputDisabled: false,
+      composerPlaceholder: "Message your coach",
+    });
+  });
+
   it("blocks work during activation and retains its completed transcript notice once", () => {
     const published: ChatSurfaceState[] = [];
     const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });

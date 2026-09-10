@@ -1293,7 +1293,17 @@
       "weekSummary": "Vecka {{week}} · {{start}} till {{end}} · {{minutes}} min",
       "weekWorkouts": "Träningspass vecka {{week}}",
       "workoutSummary": "{{name}} · {{minutes}} min · {{guidance}}",
-      "yourAnswer": "ditt svar"
+      "yourAnswer": "ditt svar",
+      "answerAction": "Svara",
+      "changeIt": "Ändra det",
+      "clarifyRetryHint": "Säg det igen på ett annat sätt, med veckodagar, tidsgränser eller exakta datum.",
+      "confirmAction": "Bekräfta",
+      "confirmLimitHint": "Jag tolkade din anteckning som den här gränsen. Bekräfta den så behålls dina övriga bekräftade gränser.",
+      "couldNotUseAnswer": "Jag kunde inte använda det svaret",
+      "didIReadThis": "Har jag förstått rätt?",
+      "iUnderstood": "Jag förstod",
+      "skipForNow": "Hoppa över tills vidare",
+      "youWrote": "Du skrev"
     },
     "planReference": {
       "active": "Aktiv",

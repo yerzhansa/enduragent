@@ -57,6 +57,7 @@ export function Composer(props: {
   const chatInputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
   const chatPlaceholder = useEnduragentStore((state) => state.chat.composerPlaceholder);
   const chatPlaceholderMessage = chatFeedbackMessage(chatPlaceholder);
+  const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const chatStatus = useEnduragentStore((state) => state.chat.status);
   const actions = useEnduragentStore((state) => state.chatActions);
   const chatReady = useEnduragentStore(setupReady);
@@ -68,6 +69,12 @@ export function Composer(props: {
   const status = props.surface?.status ?? chatStatus;
   const canChat = props.surface === undefined ? chatReady : true;
   const inputId = props.inputId ?? "message";
+  useEffect(() => {
+    if (focusRequest?.target !== "composer" || props.surface !== undefined) return;
+    queueMicrotask(() => {
+      if (textarea.current?.disabled === false) textarea.current.focus();
+    });
+  }, [focusRequest?.revision, focusRequest?.target, props.surface]);
 
   const matches = useMemo(
     () => (props.surface?.allowSlashCommands === false ? [] : filterSlashCommands(draft)),

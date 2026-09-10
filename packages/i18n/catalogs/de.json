@@ -1293,7 +1293,17 @@
       "weekSummary": "Woche {{week}} · {{start}} bis {{end}} · {{minutes}} min",
       "weekWorkouts": "Trainings in Woche {{week}}",
       "workoutSummary": "{{name}} · {{minutes}} min · {{guidance}}",
-      "yourAnswer": "deine Antwort"
+      "yourAnswer": "deine Antwort",
+      "answerAction": "Antworten",
+      "changeIt": "Ändern",
+      "clarifyRetryHint": "Sag es mir noch einmal anders, mit Wochentagen, Zeitlimits oder genauen Daten.",
+      "confirmAction": "Bestätigen",
+      "confirmLimitHint": "Ich habe deine Notiz als dieses Limit verstanden. Bestätige es; deine anderen bestätigten Limits bleiben.",
+      "couldNotUseAnswer": "Diese Antwort konnte ich nicht verwenden",
+      "didIReadThis": "Habe ich das richtig verstanden?",
+      "iUnderstood": "So habe ich es verstanden",
+      "skipForNow": "Vorerst überspringen",
+      "youWrote": "Du hast geschrieben"
     },
     "planReference": {
       "active": "Aktiv",

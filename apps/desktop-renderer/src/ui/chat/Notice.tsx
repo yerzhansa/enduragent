@@ -1,7 +1,8 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
+import { LoaderCircle } from "lucide-react";
 import { chatFeedbackMessage } from "./copy";
 import type { ReactElement } from "react";
-import { Button, ProgressDisplay } from "@enduragent/ui";
+import { Button } from "@enduragent/ui";
 import { useEnduragentStore } from "../../state/store";
 import { useWireMessageText } from "./use-wire-message-text";
 
@@ -39,15 +40,21 @@ export function CoachProgress(): ReactElement | null {
   const progress = useEnduragentStore((state) => state.chat.coachProgress ?? null);
   const message = progress === null ? null : chatFeedbackMessage(progress);
   if (progress === null) return null;
+  const label = message === null ? progress : say(message);
   return (
-    <ProgressDisplay
-      className="coach-progress mt-row rounded-card border border-line bg-surface p-ctl-px"
+    <div
+      className="coach-progress mt-row flex items-center gap-inset text-sm leading-5 text-ink"
       role="status"
       aria-live="polite"
       aria-busy="true"
-      label={message === null ? progress : say(message)}
-      value={{ kind: "indeterminate" }}
-    />
+      aria-label={label}
+    >
+      <LoaderCircle
+        className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+    </div>
   );
 }
 
