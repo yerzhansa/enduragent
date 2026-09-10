@@ -221,14 +221,14 @@ export function ChatView(): ReactElement {
             data-chat-status={status}
             ref={conversation}
           >
-            <div className="thread mx-auto w-full max-w-[720px]">
+            <div className="thread mx-auto grid w-full max-w-[720px] gap-7">
               <Transcript />
               <PlanChangeCards />
               <CoachProgress />
               <FirstSyncCard />
             </div>
           </main>
-          <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] pb-3.5">
+          <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] pt-7 pb-3.5">
             <div className="composer-projections min-h-0 overflow-y-auto [scrollbar-width:none] overscroll-contain empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
