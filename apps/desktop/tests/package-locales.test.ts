@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   ELECTRON_LANGUAGES,
   ELECTRON_LOCALE_PACKS,
+  MACOS_LOCALE_LPROJ_NAMES,
   WINDOWS_INSTALLER_LANGUAGES,
   WINDOWS_LOCALE_PAK_PATHS,
+  macosLocaleLprojName,
 } from "../scripts/package-locales.mjs";
 
 const CHROMIUM_PACK_BY_TAG: Record<string, string> = {
@@ -20,6 +22,10 @@ describe("package locales", () => {
     const expected = LanguageTagSchema.options.map((tag) => CHROMIUM_PACK_BY_TAG[tag] ?? tag);
     expect([...ELECTRON_LOCALE_PACKS]).toEqual(expected);
     expect([...WINDOWS_LOCALE_PAK_PATHS]).toEqual(expected.map((pack) => `locales/${pack}.pak`));
+    expect([...MACOS_LOCALE_LPROJ_NAMES]).toEqual(expected.map((pack) => macosLocaleLprojName(pack)));
+    expect(macosLocaleLprojName("en-US")).toBe("en.lproj");
+    expect(macosLocaleLprojName("pt-PT")).toBe("pt_PT.lproj");
+    expect(macosLocaleLprojName("zh-CN")).toBe("zh_CN.lproj");
   });
 
   it("lists regional packs in both the Windows and macOS spellings", () => {

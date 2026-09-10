@@ -47,3 +47,11 @@ export const WINDOWS_INSTALLER_LANGUAGES = Object.freeze([
 export const WINDOWS_LOCALE_PAK_PATHS = Object.freeze(
   ELECTRON_LOCALE_PACKS.map((pack) => `locales/${pack}.pak`),
 );
+
+export function macosLocaleLprojName(pack) {
+  return pack === "en-US" ? "en.lproj" : `${pack.replace("-", "_")}.lproj`;
+}
+
+export const MACOS_LOCALE_LPROJ_NAMES = Object.freeze(
+  ELECTRON_LOCALE_PACKS.map((pack) => macosLocaleLprojName(pack)),
+);
