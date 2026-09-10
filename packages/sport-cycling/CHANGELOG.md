@@ -1,5 +1,24 @@
 # @enduragent/sport-cycling
 
+## 0.0.8
+
+### Patch Changes
+
+- f09f4e4: User-facing: The coach already knows your profile and today's wellness when you start typing, so replies come faster and cost less.
+- Updated dependencies [2354437]
+- Updated dependencies [5a9f738]
+- Updated dependencies [5ecffcc]
+- Updated dependencies [c090b3e]
+- Updated dependencies [f09f4e4]
+- Updated dependencies [ae70f69]
+- Updated dependencies [aff777d]
+- Updated dependencies [074740b]
+- Updated dependencies [f767b66]
+- Updated dependencies [7972d4c]
+- Updated dependencies [b30d963]
+  - @enduragent/engine@0.0.4
+  - @enduragent/kernel@0.1.2
+
 ## 0.0.7
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @enduragent/kernel-node
 
+## 0.1.2
+
+### Patch Changes
+
+- 2354437: User-facing: Attached PDFs are read in full up to the size limit instead of half, and the coach is told plainly when a document was cut.
+- Updated dependencies [b30d963]
+  - @enduragent/kernel@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

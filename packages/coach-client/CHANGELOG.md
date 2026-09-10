@@ -1,5 +1,13 @@
 # @enduragent/coach-client
 
+## 0.1.3
+
+### Patch Changes
+
+- b30d963: User-facing: Long conversations recover from slow replies more reliably, and the app no longer pauses to tidy its log on every line it writes.
+- Updated dependencies [5ecffcc]
+  - @enduragent/coach-contract@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @enduragent/kernel
 
+## 0.1.2
+
+### Patch Changes
+
+- b30d963: User-facing: Long conversations recover from slow replies more reliably, and the app no longer pauses to tidy its log on every line it writes.
+
 ## 0.1.1
 
 ### Patch Changes

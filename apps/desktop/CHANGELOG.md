@@ -1,5 +1,57 @@
 # @enduragent/desktop
 
+## 0.4.0
+
+### Minor Changes
+
+- e62bd9b: Catalog desktop dialogs, file pickers, and tray copy, and render fixed coach messages in the selected language.
+
+  User-facing: Desktop dialogs and fixed coach replies follow your language preference when translations are available. Your original conversation text stays saved.
+
+- 9e501ea: User-facing: The desktop app now ships the system menus and the Windows installer in all 17 supported languages.
+- 9c07855: User-facing: Chat, including the plan cards, notices, and the composer, now appears in your chosen language.
+- 1f41fe7: User-facing: Setup, Settings, the sidebar, and past conversations now appear in your chosen language.
+- 602dd8c: User-facing: The Training and Plan pages now appear in your chosen language, with counts and dates written the way your language expects.
+- 3e9e0e4: User-facing: On first launch the app asks for your language when your computer's language is not one it speaks, and Settings preferences now show in your chosen language.
+
+### Patch Changes
+
+- 2354437: User-facing: Attached PDFs are read in full up to the size limit instead of half, and the coach is told plainly when a document was cut.
+- 6454dc5: User-facing: Chat leaves space between the last coach message and the card or message box below it.
+- 32a54c4: User-facing: While the coach is writing a reply, Chat shows a spinner and Coach is working… without a box around it.
+- 5a9f738: User-facing: Replies now appear word by word while the coach is still writing, on ChatGPT sign-in as well as API keys.
+- 784f692: User-facing: Cards above the message box now keep a consistent gap, so questions, attachments, and queued messages stay visually separate from the composer.
+- d65e701: User-facing: The coach checks typed event details, success measures, training commitments, and plan changes, then asks you to confirm before using them. If a check fails, you can retry or cancel.
+- c090b3e: User-facing: Saving your conversation to memory is faster and cheaper because the coach only reviews what is new since the last save.
+- f09f4e4: User-facing: The coach already knows your profile and today's wellness when you start typing, so replies come faster and cost less.
+- ae70f69: User-facing: If ChatGPT is still looking something up, a slow reply can retry instead of stopping on the first words. A memory save that fails during a long chat is retried after you reopen the app. Garmin labels stay on the facts they belong to.
+- aff777d: User-facing: When you ask the coach about something you told it before, it finds the exact note and shows your most recent notes first.
+- 47a8e77: User-facing: When the coach could not use a typed commitment, the card asking you to answer again or skip stays above the message box until you deal with it.
+- 074740b: User-facing: Long conversations cost less on API-key providers because earlier messages are reused from cache instead of being resent.
+- 250632d: User-facing: Chat keeps the newest message in view while a plan is being created. Status and Discard live in the Chat header.
+- 025d173: User-facing: When a typed commitment needs clarifying, the Clarify your commitment card now sits right under the Plan creation progress card, next to the Build Draft button it holds back.
+- f767b66: User-facing: If you close the app right after the first chat of the day, what you told the coach is still saved to memory the next time you open it.
+- 35966d7: User-facing: Chat content now lines up with the message box, with no extra padding above the composer.
+- 7972d4c: User-facing: Deep ride reviews load faster because the coach no longer downloads thousands of second-by-second data points it was told not to use.
+- b30d963: User-facing: Long conversations recover from slow replies more reliably, and the app no longer pauses to tidy its log on every line it writes.
+- Updated dependencies [5ecffcc]
+- Updated dependencies [e62bd9b]
+- Updated dependencies [c090b3e]
+- Updated dependencies [a30364f]
+- Updated dependencies [ae70f69]
+- Updated dependencies [aff777d]
+- Updated dependencies [f767b66]
+- Updated dependencies [9c07855]
+- Updated dependencies [1f41fe7]
+- Updated dependencies [602dd8c]
+- Updated dependencies [3e9e0e4]
+- Updated dependencies [b30d963]
+  - @enduragent/core@0.1.5
+  - @enduragent/i18n@0.2.0
+  - @enduragent/coach-contract@0.1.3
+  - @enduragent/coach@0.1.2
+  - @enduragent/coach-client@0.1.3
+
 ## 0.3.0
 
 ### Minor Changes
