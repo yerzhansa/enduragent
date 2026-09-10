@@ -94,8 +94,7 @@ around the clock, see below.
 [**Download for Windows**](https://enduragent.icu/download/windows) — available with the first
 signed release, for Windows 11 x64 only. Windows builds ship only with an Authenticode signature
 from `<PUBLISHER_NAME>`. A valid signature under a new publisher identity can still trigger a
-SmartScreen prompt while its reputation builds. Windows code signing uses SignPath Foundation;
-see [Code signing policy](#code-signing-policy).
+SmartScreen prompt while its reputation builds.
 
 The per-user one-click installer adds a Start Menu shortcut without asking for administrator
 access; it does not add a desktop shortcut. Closing the main window hides it while Enduragent keeps
@@ -239,17 +238,6 @@ install. Built with the [Vercel AI SDK](https://sdk.vercel.ai/),
 
 Enduragent is not a doctor and not a certified coach. A workout on your calendar is a suggestion,
 not an instruction.
-
-## Code signing policy
-
-Free code signing provided by SignPath.io, certificate by SignPath Foundation.
-
-Windows installers are built from this repository. [@yerzhansa](https://github.com/yerzhansa)
-commits, reviews, and approves each signed release.
-
-This program will not transfer any information to other networked systems unless specifically
-requested by the user or the person installing or operating it. Privacy details:
-[enduragent.icu/privacy.html](https://enduragent.icu/privacy.html).
 
 ## Credits
 
