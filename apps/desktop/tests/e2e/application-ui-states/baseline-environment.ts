@@ -15,7 +15,7 @@ export function applicationBaselineForEnvironment(
 ): string {
   const version = /^(\d+)\.(\d+)\.\d+$/u.exec(environment.darwinRelease);
   if (environment.platform === "darwin" && environment.architecture === "arm64") {
-    if (version?.[1] === "25" && version[2] === "2") return "application-ui-extraction-v8";
+    if (version?.[1] === "25" && version[2] === "2") return "application-ui-extraction-v9";
     if (version?.[1] === "25" && version[2] === "5") {
       return "application-ui-extraction-darwin-25-5-v1";
     }
