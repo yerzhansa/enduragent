@@ -624,6 +624,7 @@ describe("chat view adapter", () => {
       draft: null,
       draftStale: false,
       calendarWindow: null,
+      pendingCheck: null,
       pendingCommitment: null,
       creationId: "01J00000000000000000000001",
       version: 1,

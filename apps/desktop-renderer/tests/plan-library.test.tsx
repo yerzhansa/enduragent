@@ -1780,6 +1780,7 @@ it("reads Plan library copy from the selected Italian catalog", async () => {
         closed: [],
         changesPaused: null,
         changes: [],
+        pendingChangeCheck: null,
       }}
       readDetails={vi.fn()}
       readFinalDetails={vi.fn()}
