@@ -2335,7 +2335,7 @@ describe("chat surface", () => {
         text: "Wednesdays short",
         question: commitmentsQuestion("Any fixed commitments?", "Your limits"),
         editor: "Commitments or time off",
-        submit: "Continue",
+        submit: "Review interpretation",
       },
       {
         field: "success",
@@ -2781,7 +2781,7 @@ describe("chat surface", () => {
         "Add only the scheduling details this Plan should account for",
       );
       await user.type(commitments, "Pilates on Thursday");
-      await user.click(screen.getByRole("button", { name: "Continue" }));
+      await user.click(screen.getByRole("button", { name: "Review interpretation" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "check-submit",
         submission: { field: "commitments", text: "Pilates on Thursday" },
@@ -3577,7 +3577,7 @@ describe("chat surface", () => {
       );
       await userEvent.clear(editor);
       await userEvent.type(editor, "Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "check-submit",
         submission: { field: "commitments", text: "Wed 45 min" },
@@ -3610,13 +3610,13 @@ describe("chat surface", () => {
       const editor = screen.getByRole("textbox", { name: "Commitments or time off" });
       await userEvent.clear(editor);
       await userEvent.type(editor, "Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
       const dock = screen.getByRole("region", { name: "Plan creation dock" });
       expect(within(dock).getByRole("alert")).toHaveTextContent(
         "Could not save that answer. Try again.",
       );
       expect(editor).toHaveValue("Wed 45 min");
-      await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+      await userEvent.click(screen.getByRole("button", { name: "Review interpretation" }));
       expect(actions.answerPlanCreation).toHaveBeenCalledTimes(2);
       expect(actions.answerPlanCreation).toHaveBeenLastCalledWith({
         kind: "check-submit",
