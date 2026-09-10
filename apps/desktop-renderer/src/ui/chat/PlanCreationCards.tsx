@@ -335,13 +335,13 @@ function PlanCreationConversationContent(props: {
             </div>
           </CardContent>
         </Card>
-        <PlanCreationSummary model={model} answersOnly />
+        <PlanCreationSummary model={model} />
       </section>
     );
   return (
     <>
       {editingKey !== null || model.openQuestion !== null ? (
-        <PlanCreationSummary model={model} answersOnly />
+        <PlanCreationSummary model={model} />
       ) : null}
       <PlanCreationDraftCards
         model={model}

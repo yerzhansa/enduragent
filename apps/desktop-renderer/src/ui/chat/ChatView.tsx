@@ -1,6 +1,6 @@
 import { chatFeedbackMessage } from "./copy";
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { PanelRightClose, PanelRightOpen, XIcon } from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -15,7 +15,6 @@ import { Button } from "@enduragent/ui";
 import {
   Dialog,
   DialogContent,
-  DialogClose,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
@@ -36,6 +35,7 @@ import {
   PlanCreationDiscardDialog,
   PlanCreationDock,
 } from "./PlanCreationCards";
+import { PlanCreationHeaderActions, PlanCreationSubtitle } from "./PlanCreationHeader";
 
 const COMPACT_CHAT_WIDTH = 900;
 
@@ -164,57 +164,52 @@ export function ChatView(): ReactElement {
       ref={surface}
       className="chat-surface grid min-h-0 min-w-0 flex-1 grid-rows-[52px_minmax(0,1fr)] bg-bg"
     >
-      <header className="flex items-center justify-between border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
-        <h1 className="m-0 text-sm font-semibold">{say("chat.view.title")}</h1>
-        {compact ? (
-          <Dialog open={contextDrawerOpen} onOpenChange={setContextDrawerOpen}>
-            <DialogTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={
-                    contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
-                  }
-                />
-              }
-            >
-              <PanelRightOpen />
-            </DialogTrigger>
-            <DialogContent
-              showCloseButton={false}
-              className="top-0 right-0 left-auto h-full max-h-none w-[min(320px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 content-start overflow-auto [scrollbar-width:none] rounded-none rounded-l-card border-y-0 border-r-0 p-0"
-            >
-              <DialogTitle className="sr-only">{say("chat.view.contextTitle")}</DialogTitle>
-              <DialogDescription className="sr-only">
-                {say("chat.view.contextDetail")}
-              </DialogDescription>
-              <TrainingContextPanel className="h-full border-l-0 pt-12" />
-              <DialogClose
+      <header className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
+        <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
+          <h1 className="m-0 shrink-0 text-sm font-semibold">{say("chat.view.title")}</h1>
+          <PlanCreationSubtitle />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <PlanCreationHeaderActions />
+          {compact ? (
+            <Dialog open={contextDrawerOpen} onOpenChange={setContextDrawerOpen}>
+              <DialogTrigger
                 render={
-                  <Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
+                    }
+                  />
                 }
               >
-                <XIcon />
-                <span className="sr-only">{say("chat.view.closeContext")}</span>
-              </DialogClose>
-            </DialogContent>
-          </Dialog>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={
-              contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
-            }
-            aria-expanded={contextExpanded}
-            onClick={toggleContext}
-          >
-            {contextExpanded ? <PanelRightClose /> : <PanelRightOpen />}
-          </Button>
-        )}
+                <PanelRightOpen />
+              </DialogTrigger>
+              <DialogContent className="top-0 right-0 left-auto h-full max-h-none w-[min(320px,calc(100%-32px))] max-w-none translate-x-0 translate-y-0 content-start overflow-auto [scrollbar-width:none] rounded-none rounded-l-card border-y-0 border-r-0 p-0">
+                <DialogTitle className="sr-only">{say("chat.view.contextTitle")}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {say("chat.view.contextDetail")}
+                </DialogDescription>
+                <TrainingContextPanel className="h-full border-l-0 pt-12" />
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={
+                contextExpanded ? say("chat.view.hideContext") : say("chat.view.showContext")
+              }
+              aria-expanded={contextExpanded}
+              onClick={toggleContext}
+            >
+              {contextExpanded ? <PanelRightClose /> : <PanelRightOpen />}
+            </Button>
+          )}
+        </div>
       </header>
       <div
         className={`chat-layout row-start-2 grid min-h-0 min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}

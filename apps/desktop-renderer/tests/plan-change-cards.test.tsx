@@ -584,7 +584,8 @@ describe("Plan Change cards", () => {
     patchChange({ open: false, planId: null });
     render(<ChatView />);
     expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Plan Creation progress" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
+    expect(screen.getByText("Paused", { exact: true })).toBeVisible();
     expect(screen.getByText("Your separate Plan creation is still open.")).toBeVisible();
     expect(screen.getByText("Training changes need your confirmation.")).toBeVisible();
     const composer = screen.getByRole("combobox", { name: "Message your coach" });

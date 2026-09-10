@@ -15,7 +15,7 @@ import {
   PlanCreationDraftCards,
 } from "../src/ui/chat/PlanCreationDraftCards";
 import { PlanCreationQuestionCard } from "../src/ui/chat/PlanCreationQuestionCard";
-import { PlanCreationSummary } from "../src/ui/chat/PlanCreationSummary";
+import { PlanCreationSubtitle } from "../src/ui/chat/PlanCreationHeader";
 import { useChatDate } from "../src/ui/chat/use-chat-date";
 import { renderLocalized, renderWithCatalog } from "./language-harness";
 import { planCreationDraft } from "./plan-creation-draft-fixtures";
@@ -127,8 +127,8 @@ describe("Plan creation catalog rendering", () => {
   });
 
   it("reads the progress summary from the injected Italian catalog", async () => {
-    await renderWithCatalog(<PlanCreationSummary model={model} />, catalog);
-    expect(screen.getByRole("region", { name: "Avanzamento del piano" })).toBeVisible();
+    await renderWithCatalog(<PlanCreationSubtitle />, catalog);
+    expect(screen.getByText("Creazione del piano")).toBeVisible();
     expect(screen.getByText("Nuovo piano")).toBeVisible();
     expect(screen.getByText("In corso")).toBeVisible();
   });

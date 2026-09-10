@@ -188,6 +188,7 @@ function conversationTimelineWithDiscardEvents(
   historicalItems: readonly ChatTranscriptItemView[],
   liveItems: readonly ChatTranscriptItemView[],
   events: readonly PlanCreationDiscardEvent[],
+  planCreationItems: readonly ChatTranscriptItemView[],
 ): readonly ChatTranscriptItemView[] {
   const appended = new Set<string>();
   const timeline: ChatTranscriptItemView[] = [];
@@ -206,6 +207,7 @@ function conversationTimelineWithDiscardEvents(
   };
   appendItems(historicalItems);
   appendEvents(null);
+  timeline.push(...planCreationItems);
   appendItems(liveItems);
   for (const event of events) {
     if (appended.has(event.eventId)) continue;
@@ -303,19 +305,18 @@ export function createChatViewAdapter(input: {
       .filter((delivery) => delivery.state !== "cancelled")
       .map((delivery) => ({ kind: "planning-request", delivery }));
     const planCreation = controls?.planCreation;
+    const planActivated = planCreation?.notice === "Plan activated locally.";
+    const planCreationItems: readonly ChatTranscriptItemView[] =
+      planCreation?.loaded === true && (planCreation.value !== null || planActivated)
+        ? [{ kind: "plan-creation", model: planCreation.value }]
+        : [];
     const conversationItems = conversationTimelineWithDiscardEvents(
       historicalItems,
       liveItems,
       planCreation?.discardEvents ?? [],
+      planCreationItems,
     );
-    const planActivated = planCreation?.notice === "Plan activated locally.";
-    const timeline = [
-      ...conversationItems,
-      ...planningItems,
-      ...(planCreation?.loaded === true && (planCreation.value !== null || planActivated)
-        ? ([{ kind: "plan-creation", model: planCreation.value }] as const)
-        : []),
-    ];
+    const timeline = [...conversationItems, ...planningItems];
     const decisionBlocksWork =
       decision?.value?.status === "unanswered" ||
       (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
