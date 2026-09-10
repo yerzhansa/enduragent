@@ -1,4 +1,6 @@
 import { createNpmCoachLanguage } from "../src/language-preference.js";
+import { LANGUAGE_OPTIONS, type CoachLanguage } from "@enduragent/i18n";
+import { createPhrasebook } from "@enduragent/i18n/messages";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,6 +8,40 @@ import { join } from "node:path";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 import { defaultPairingState, saveAllowedSenders } from "../src/channels/allowed-senders.js";
 import { GARMIN_DATA_ATTRIBUTION } from "../src/agent/garmin-attribution.js";
+
+const broadcastPhrasebook = await createPhrasebook({ tag: "en", locale: "en-GB" });
+function broadcastLanguage(): CoachLanguage {
+  return {
+    options: LANGUAGE_OPTIONS,
+    resolveFor: async () => ({ language: "en", source: "default", locale: "en-GB" }),
+    phrasebookFor: async () => broadcastPhrasebook,
+    current: async () => ({
+      value: null,
+      origin: "unset",
+      resolved: { language: "en", source: "default", locale: "en-GB" },
+    }),
+    set: async () => ({ value: null, origin: "unset" }),
+  };
+}
+
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
 
 type TestApiCall = (method: string, payload: unknown, signal?: AbortSignal) => Promise<unknown>;
 type TestApiTransformer = (
@@ -41,7 +77,6 @@ afterEach(() => {
   }
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
   vi.doUnmock("../src/updater.js");
   vi.doUnmock("../src/channels/allowed-senders.js");
 });
@@ -71,20 +106,7 @@ function installTelegramBotMock() {
     }),
     catch: vi.fn(),
   };
-  class FakeInputFile {
-    constructor(
-      readonly data: Buffer,
-      readonly filename: string,
-    ) {}
-  }
-  class FakeGrammyError extends Error {}
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: FakeInputFile,
-    GrammyError: FakeGrammyError,
-  }));
+  grammyFake.bot = () => bot;
   return { bot, commandHandlers, onHandlers };
 }
 
@@ -159,12 +181,7 @@ describe("createTelegramBot — webhook ownership", () => {
       }),
       stop: vi.fn(async () => undefined),
     };
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     const agent = {
       chat: vi.fn(),
       resetSession: vi.fn(),
@@ -206,12 +223,7 @@ describe("createTelegramBot — webhook ownership", () => {
       start: vi.fn(async () => undefined),
       stop: vi.fn(async () => undefined),
     };
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     const onPollingSuccess = vi.fn();
     const onPollingFailure = vi.fn();
     await createTestTelegramBot(
@@ -372,7 +384,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       { sendMessage: vi.fn(async () => Promise.reject(new Error("sealed"))) },
       dataDir,
       cyclingBinary,
-      createNpmCoachLanguage(dataDir),
+      broadcastLanguage(),
     );
     expect(setLastNotifiedVersion).not.toHaveBeenCalled();
 
@@ -384,7 +396,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
       },
       dataDir,
       cyclingBinary,
-      createNpmCoachLanguage(dataDir),
+      broadcastLanguage(),
     );
     expect(setLastNotifiedVersion).toHaveBeenCalledOnce();
     expect(setLastNotifiedVersion).toHaveBeenCalledWith(dataDir, "2026.5.10");
@@ -418,12 +430,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate(
-      { sendMessage },
-      dataDir,
-      cyclingBinary,
-      createNpmCoachLanguage(dataDir),
-    );
+    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "22222"]);
@@ -460,10 +467,10 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
     const sender = { sendMessage };
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage());
     expect(sendMessage).toHaveBeenCalledTimes(1);
 
-    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, createNpmCoachLanguage(dataDir));
+    await notifyNpmTelegramUpdate(sender, dataDir, cyclingBinary, broadcastLanguage());
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
@@ -495,12 +502,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate(
-      { sendMessage },
-      dataDir,
-      cyclingBinary,
-      createNpmCoachLanguage(dataDir),
-    );
+    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
 
     const calledIds = sendMessage.mock.calls.map((c: unknown[]) => String(c[0])).sort();
     expect(calledIds).toEqual(["11111", "99999"]);
@@ -526,12 +528,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate(
-      { sendMessage },
-      dataDir,
-      cyclingBinary,
-      createNpmCoachLanguage(dataDir),
-    );
+    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
 
     expect(sendMessage).not.toHaveBeenCalled();
   });
@@ -563,12 +560,7 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
 
     const sendMessage = vi.fn(async (_chatId: string, _message: string) => undefined);
     const { notifyNpmTelegramUpdate } = await import("../src/channels/npm-telegram-host.js");
-    await notifyNpmTelegramUpdate(
-      { sendMessage },
-      dataDir,
-      cyclingBinary,
-      createNpmCoachLanguage(dataDir),
-    );
+    await notifyNpmTelegramUpdate({ sendMessage }, dataDir, cyclingBinary, broadcastLanguage());
 
     const message = sendMessage.mock.calls[0]?.[1] ?? "";
     expect(message).toContain("Update available: 2026.5.5");
@@ -609,11 +601,7 @@ describe("createTelegramBot — startup diagnostic + no security broadcast", () 
       catch: vi.fn(),
     };
 
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-    }));
+    grammyFake.bot = () => bot;
 
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const agent = {
@@ -676,11 +664,7 @@ describe("createTelegramBot — startup diagnostic + no security broadcast", () 
       on: vi.fn(),
       catch: vi.fn(),
     };
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-    }));
+    grammyFake.bot = () => bot;
 
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const agent = {

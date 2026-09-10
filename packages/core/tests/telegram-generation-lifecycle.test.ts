@@ -9,6 +9,25 @@ import { defaultPairingState, saveAllowedSenders } from "../src/channels/allowed
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 import type { CreateTelegramChannelInput } from "../src/channels/telegram.js";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 type Middleware = (ctx: unknown, next: () => Promise<void>) => Promise<void>;
 type ApiCall = (
   method: string,
@@ -117,7 +136,6 @@ afterEach(() => {
   vi.useRealTimers();
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
   vi.doUnmock("@grammyjs/auto-retry");
   vi.doUnmock("../src/logging/index.js");
 });
@@ -130,12 +148,7 @@ describe("Telegram polling generation release", () => {
       markStarted = resolve;
     });
     const bot = createComposingBot();
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry:
         () =>
@@ -201,12 +214,7 @@ describe("Telegram polling generation release", () => {
       return pairing.promise;
     });
     const bot = createComposingBot();
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -267,12 +275,7 @@ describe("Telegram polling generation release", () => {
         return Promise.resolve({ ok: true, result: true });
       },
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -305,12 +308,7 @@ describe("Telegram polling generation release", () => {
   it("tracks each polling start through settlement and refuses direct sends after stop", async () => {
     const polling = deferred<void>();
     const bot = createComposingBot({ start: () => polling.promise });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -347,12 +345,7 @@ describe("Telegram polling generation release", () => {
       rawApi: (method) =>
         method === "setMyCommands" ? commands.promise : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -397,12 +390,7 @@ describe("Telegram polling generation release", () => {
       rawApi: (method) =>
         method === "sendMessage" ? send.promise : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -433,12 +421,7 @@ describe("Telegram polling generation release", () => {
       rawApi: (method) =>
         method === "sendChatAction" ? typing.promise : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -487,12 +470,7 @@ describe("Telegram polling generation release", () => {
       rawApi: (method) =>
         method === "sendMessage" ? reply.promise : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -559,12 +537,7 @@ describe("Telegram polling generation release", () => {
         return callApi("getUpdates", { offset: 8, timeout: 0 }).then(() => undefined);
       },
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry:
         () =>
@@ -613,12 +586,7 @@ describe("Telegram polling generation release", () => {
       },
       isRunning: () => running,
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -657,12 +625,7 @@ describe("Telegram polling generation release", () => {
       stop: (callApi) => callApi("getUpdates", { offset: 8, timeout: 0 }).then(() => undefined),
       isRunning: () => true,
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -687,12 +650,7 @@ describe("Telegram polling generation release", () => {
         return attempts === 1 ? Promise.reject({ error_code: 429 }) : finalAttempt.promise;
       },
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry:
         () => async (previous: ApiCall, method: string, payload: Record<string, unknown>) => {
@@ -736,12 +694,7 @@ describe("Telegram polling generation release", () => {
           ? secondGenerationSend.promise
           : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -786,12 +739,7 @@ describe("Telegram polling generation release", () => {
           ? generationWork.promise
           : Promise.resolve({ ok: true, result: true }),
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -871,12 +819,7 @@ describe("Telegram polling generation release", () => {
         throw new Error("private stop failure");
       },
     });
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),
@@ -947,12 +890,7 @@ describe("Telegram polling generation release", () => {
       };
     });
     const bot = createComposingBot();
-    vi.doMock("grammy", () => ({
-      Bot: function FakeBot() {
-        return bot;
-      },
-      InputFile: class {},
-    }));
+    grammyFake.bot = () => bot;
     vi.doMock("@grammyjs/auto-retry", () => ({
       autoRetry: () => (previous: ApiCall, method: string, payload: Record<string, unknown>) =>
         previous(method, payload),

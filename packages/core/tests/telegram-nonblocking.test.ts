@@ -5,6 +5,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
 
+const grammyFake = vi.hoisted(() => ({
+  bot: undefined as ((token: string) => unknown) | undefined,
+  InputFile: class FakeInputFile {
+    constructor(
+      readonly data: Buffer,
+      readonly filename: string,
+    ) {}
+  },
+  GrammyError: class FakeGrammyError extends Error {},
+}));
+vi.mock("grammy", () => ({
+  Bot: function FakeBot(this: unknown, token: string) {
+    if (grammyFake.bot === undefined) throw new Error("Test bug: no fake bot queued");
+    return grammyFake.bot(token);
+  },
+  InputFile: grammyFake.InputFile,
+  GrammyError: grammyFake.GrammyError,
+}));
+
 let dataDir: string;
 
 beforeEach(() => {
@@ -17,7 +36,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  vi.doUnmock("grammy");
 });
 
 interface FakeBot {
@@ -67,12 +85,7 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
     stop: vi.fn(async () => undefined),
     catch: vi.fn(),
   };
-  vi.doMock("grammy", () => ({
-    Bot: function FakeBot() {
-      return bot;
-    },
-    InputFile: class {},
-  }));
+  grammyFake.bot = () => bot;
 
   const agent: StubAgent = {
     chat: vi.fn(),
@@ -80,6 +93,8 @@ async function buildBot(opts?: { reference?: StubReference }): Promise<BuildBotR
     resetSession: vi.fn(),
     getAthleteState: vi.fn(),
   };
+
+  vi.resetModules();
 
   const [{ createTelegramBot, CHAT_COALESCE_MS }, { createNpmTelegramHost }] = await Promise.all([
     import("../src/channels/telegram.js"),
