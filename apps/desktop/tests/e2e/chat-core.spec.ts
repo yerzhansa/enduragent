@@ -17,6 +17,12 @@ test("streams a coach response through the visible Chat surface", async ({ chatD
   const athleteArticle = transcript.getByText("Your message", { exact: true }).locator("..");
   await expect(athleteArticle.getByText(prompt, { exact: true })).toBeVisible();
   await expect(page.getByText("Coach is working…", { exact: true })).toBeVisible();
+  const working = page.locator(".coach-progress");
+  await expect(working).toBeVisible();
+  await expect(working.locator("svg.animate-spin")).toBeVisible();
+  await expect(working).not.toHaveClass(/rounded-card/);
+  await expect(working).not.toHaveClass(/bg-surface/);
+  await expect(working.getByRole("progressbar")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Stop responding" })).toBeVisible();
 
   coach.emitText(firstDelta);
