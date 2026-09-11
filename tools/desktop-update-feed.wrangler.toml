@@ -1,0 +1,8 @@
+name = "enduragent-desktop-updates"
+main = "desktop-update-feed.worker.ts"
+compatibility_date = "2026-01-15"
+workers_dev = true
+
+[[routes]]
+pattern = "updates.enduragent.icu"
+custom_domain = true

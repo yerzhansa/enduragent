@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 import {
   createWindowsAuthenticodeVerifyMode,
   decideWindowsAuthenticode,
@@ -25,7 +26,7 @@ const version = "0.1.5";
 const publisherDn = "CN=Enduragent Test Publisher, O=Enduragent Test";
 const thumbprint = "a".repeat(40);
 const commit = "c".repeat(40);
-const feedUrl = "https://github.com/yerzhansa/enduragent/releases/latest/download/";
+const feedUrl = DESKTOP_FEED_URL;
 const updaterMetadata = serializeWindowsReleaseUpdaterMetadata(feedUrl, publisherDn);
 const updaterMetadataSha256 = windowsUpdaterMetadataDigest(updaterMetadata);
 const scriptPath = resolve(

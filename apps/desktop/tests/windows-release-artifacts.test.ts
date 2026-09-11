@@ -14,11 +14,12 @@ import {
   windowsReleaseArtifactNames,
   windowsUpdaterMetadataDigest,
 } from "../scripts/windows-release-plan.mjs";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 
 const version = "0.1.5";
 const commit = "a".repeat(40);
 const publisherDn = "CN=Enduragent Test";
-const feedUrl = "https://github.com/yerzhansa/enduragent/releases/latest/download/";
+const feedUrl = DESKTOP_FEED_URL;
 const releaseDate = "2026-08-25T00:00:00.000Z";
 const script = resolve(
   dirname(fileURLToPath(import.meta.url)),

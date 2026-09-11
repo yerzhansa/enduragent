@@ -12,6 +12,7 @@ import {
   windowsReleaseArtifactNames,
   windowsUpdaterMetadataDigest,
 } from "../scripts/windows-release-plan.mjs";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 
 const version = "0.1.5";
 const commit = "a".repeat(40);
@@ -47,7 +48,7 @@ beforeEach(async () => {
     metadata: Buffer.from("metadata"),
   };
   const appUpdateMetadata = serializeWindowsReleaseUpdaterMetadata(
-    "https://github.com/yerzhansa/enduragent/releases/latest/download/",
+    DESKTOP_FEED_URL,
     publisherDn,
   );
   const paths = {

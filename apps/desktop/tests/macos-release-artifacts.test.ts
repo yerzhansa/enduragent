@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { createPackage, uncache } from "@electron/asar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parse, stringify } from "yaml";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 import {
   inspectMacosReleaseApplication,
   safeMacosReleaseVerificationMessage,
@@ -254,7 +255,7 @@ async function signedIdentityFixture() {
         join(application, "Contents/Resources/app-update.yml"),
         [
           "provider: generic",
-          "url: https://github.com/yerzhansa/enduragent/releases/latest/download/",
+          "url: " + DESKTOP_FEED_URL,
           "channel: latest",
           "updaterCacheDirName: '@enduragentdesktop-updater'",
           "",
@@ -399,7 +400,7 @@ describe.skipIf(process.platform === "win32")("macOS signed identity continuity"
     expect(inspected).toEqual({
       version,
       enduragentDesktopRelease: true,
-      feedUrl: "https://github.com/yerzhansa/enduragent/releases/latest/download/",
+      feedUrl: DESKTOP_FEED_URL,
       bundleIdentifier: "icu.enduragent.desktop",
       teamIdentifier: "FA494ACVTF",
       designatedRequirementSha256: createHash("sha256")
@@ -609,7 +610,7 @@ describe.skipIf(process.platform === "win32")("macOS signed identity continuity"
       }),
     ).resolves.toMatchObject({
       enduragentDesktopRelease: true,
-      feedUrl: "https://github.com/yerzhansa/enduragent/releases/latest/download/",
+      feedUrl: DESKTOP_FEED_URL,
     });
     expect(executeFile).toHaveBeenCalledWith(
       "/usr/bin/ditto",

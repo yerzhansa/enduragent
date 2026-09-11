@@ -1,0 +1,43 @@
+name: Desktop update feed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/desktop-update-feed.ts
+      - tools/desktop-update-feed.worker.ts
+      - tools/desktop-update-feed.wrangler.toml
+      - .github/workflows/desktop-update-feed.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ vars.ENABLE_DESKTOP_UPDATE_FEED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: tools
+          command: deploy --config desktop-update-feed.wrangler.toml
+      - name: Confirm the public feed returns YAML without a redirect
+        run: |
+          set -euo pipefail
+          yaml=https://updates.enduragent.icu/latest-mac.yml
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            headers=$(curl -fsSD - -o /dev/null "$yaml") || headers=''
+            location=$(printf '%s' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:" { print $2; exit }')
+            if [ -z "$location" ] && curl -fsS "$yaml" | grep -q '^version: '; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo '::error::Public updater feed did not serve YAML without a redirect'
+          exit 1

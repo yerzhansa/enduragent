@@ -101,7 +101,7 @@ access; it does not add a desktop shortcut. Closing the main window hides it whi
 running in the tray; quit it explicitly from the tray menu.
 
 Uninstalling keeps your data in `%LOCALAPPDATA%\Enduragent`; remove that folder by hand to erase
-it. Windows update checks use the same generic GitHub release feed as macOS and switch on with the
+it. Windows update checks use the same public updater feed as macOS and switch on with the
 first signed release. Windows assets can arrive later than macOS, and Windows may lag or skip a
 version; release notes say which platforms shipped.
 
@@ -177,7 +177,7 @@ once per installation in any 24 hours. The request contains the product, version
 and a random installation UUID — no athlete data, messages, or credentials. Set
 `CYCLING_COACH_NO_UPDATE_CHECK=1` for the bot or `ENDURAGENT_NO_USAGE_PING=1` for Desktop to switch
 it off. Manual commands never initiate telemetry; Desktop update checks remain separate and go
-directly to GitHub.
+to `https://updates.enduragent.icu/`.
 
 Full policy: [enduragent.icu/privacy.html](https://enduragent.icu/privacy.html).
 
