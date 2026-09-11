@@ -25,8 +25,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: tools
-          command: deploy --config desktop-update-feed.wrangler.toml
+          workingDirectory: ${{ runner.temp }}
+          command: deploy --config ${{ github.workspace }}/tools/desktop-update-feed.wrangler.toml
       - name: Confirm the public feed returns YAML without a redirect
         run: |
           set -euo pipefail
