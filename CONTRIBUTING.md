@@ -162,7 +162,7 @@ Changesets-driven and CI-automated. Contributors do **not** create tags or GitHu
 
 2. **Merge your PR to `main`.** `version-pr.yml` opens (or updates) a bot-managed "Version Packages" PR aggregating all pending changesets.
 3. **Merge the "Version Packages" PR when ready to ship.** It bumps only the packages listed by pending changesets. On merge, `version-pr.yml` tags and dispatches only public package versions that changed; if `apps/desktop/package.json` changed, it separately creates `enduragent-desktop@<SemVer>`, creates a draft release bound to the desktop changelog, and dispatches `desktop-release.yml` on that tag.
-4. **The matching release path runs.** `release.yml` publishes changed npm packages via OIDC and keeps their GitHub Releases non-latest. `desktop-release.yml` publishes no npm package; it signs and notarizes on macOS, independently verifies the signed envelope, publishes the exact four updater assets, and promotes the release to repository latest.
+4. **The matching release path runs.** `release.yml` publishes changed npm packages via OIDC and keeps their GitHub Releases non-latest. `desktop-release.yml` publishes no npm package; it signs and notarizes on macOS, independently verifies the signed envelope, publishes the exact four updater assets, and promotes the release to repository latest. Packaged update checks use `https://updates.enduragent.icu/`; GitHub Releases remains the canonical copy of those assets.
 
 Today only `cycling-coach` is `private: false`, so only `cycling-coach@<v>` is tagged. When a stub binary (`running-coach`, `duathlon-coach`) graduates by flipping `private: false`, it auto-tags on the next Version-PR merge.
 
@@ -170,13 +170,29 @@ Today only `cycling-coach` is `private: false`, so only `cycling-coach@<v>` is t
 
 `tools/bump-binaries-to-calver.ts` runs after `changeset version`. It reads the committed pre-Changesets version and all occupied npm versions, then overrides binary versions with the next stable release number for the current UTC month. It rewrites only the new matching changelog header; historical entries are immutable.
 
+## Desktop update feed (operator)
+
+Packaged macOS and Windows update checks use the generic YAML feed at `https://updates.enduragent.icu/`. GitHub Releases remains the canonical copy of `latest-mac.yml`, `latest.yml`, and the artifacts. The Cloudflare Worker in `tools/desktop-update-feed.ts` follows GitHub's download redirects on the server and returns the bytes with no `Location` header.
+
+Do this before the first desktop release that bakes that feed URL:
+
+1. Put `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in this repository's Actions secrets (the same Cloudflare account that already serves `enduragent.icu` and `ping.enduragent.icu`).
+2. Set Actions variable `ENABLE_DESKTOP_UPDATE_FEED` to `true`.
+3. Merge to `main` so `.github/workflows/desktop-update-feed.yml` deploys `tools/desktop-update-feed.wrangler.toml`, or run that workflow with `workflow_dispatch`.
+4. Confirm `updates.enduragent.icu` is attached on that zone if deploy did not create the custom domain.
+5. Confirm `curl -fsS https://updates.enduragent.icu/latest-mac.yml` prints YAML starting with `version:` and that a headers-only GET shows no `Location`.
+
+`desktop-release.yml` refuses to notarize unless that public YAML is already reachable without a redirect. After promote it dual-checks GitHub `/releases/latest/download/latest-mac.yml` and the public feed, and fails if the public YAML still redirects or the versions differ. Installed 0.3.0 builds still point at GitHub and cannot self-update; those athletes install from https://enduragent.icu/download/mac.
+
+Keep publishing the macOS updater assets and the Windows envelope to the GitHub Release. The website `/download/mac` link may keep redirecting to GitHub; browsers can follow that chain.
+
 ## Windows release (operator)
 
 - Keep `desktop-release.yml` macOS-only and fully automatic.
 - Never make `desktop-release.yml` wait for Windows.
 - Use one GitHub release per desktop version.
 - Append Windows assets after the macOS release.
-- Append Windows assets only while `enduragent-desktop@<x.y.z>` is the repository's latest release. The updater feed is `/releases/latest/download/`, so Windows clients cannot discover assets on an older release.
+- Append Windows assets only while `enduragent-desktop@<x.y.z>` is the repository's latest release. The public updater feed proxies GitHub `/releases/latest/download/`, so Windows clients cannot discover assets on an older release.
 - Skip Windows for a version once a newer desktop release exists. Ship it with the next version instead.
 - State which platforms shipped in the release notes.
 - Build and sign in one `electron-builder` run on the operator's Windows VM inside an open SimplySign session.

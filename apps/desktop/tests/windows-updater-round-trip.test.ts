@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 import {
   safeWindowsUpdaterRoundTripMessage,
   verifyWindowsUpdaterRoundTrip,
@@ -35,7 +36,7 @@ function blockmapFor(installer: Buffer, chunkSize = 16): Buffer {
 }
 const releaseDate = "2026-08-25T00:00:00.000Z";
 const preflight: WindowsUpdaterPreflight = {
-  feedUrl: "https://github.com/yerzhansa/enduragent/releases/latest/download/",
+  feedUrl: DESKTOP_FEED_URL,
   channel: "latest",
   publisherName: "CN=Operator Name, O=Open Source Developer, C=KZ",
   disableWebInstaller: true,

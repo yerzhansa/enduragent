@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
 import { createWindowsDevelopmentPackagePlan } from "../scripts/windows-development-package-plan.mjs";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
 import { createWindowsPackagePlan } from "../scripts/windows-package-plan.mjs";
 import {
   WINDOWS_AUTHENTICODE_PENDING,
@@ -20,7 +21,7 @@ import {
   windowsUpdaterMetadataDigest,
 } from "../scripts/windows-release-plan.mjs";
 
-const feedUrl = "https://github.com/yerzhansa/enduragent/releases/latest/download/";
+const feedUrl = DESKTOP_FEED_URL;
 const commit = "a".repeat(40);
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -32,8 +32,9 @@ launch to disable it; disabled and unofficial builds create no heartbeat state.
 The heartbeat endpoint stores those four fields, a count, and the time the request was received for
 up to three months so the project can estimate active installations. Like any HTTPS service, its
 hosting provider can receive ordinary network metadata such as an IP address and user agent. The
-Desktop updater remains separate: it checks the public GitHub release feed directly and never
-depends on the heartbeat endpoint.
+Desktop updater remains separate: it checks `https://updates.enduragent.icu/` for the latest
+GitHub release artifacts and never depends on the heartbeat endpoint. That host can receive the
+same ordinary network metadata as the heartbeat endpoint.
 
 Desktop does not fetch release notes in the background. Choosing **What’s new** explicitly contacts
 `registry.npmjs.org` for the latest published version and the GitHub Releases API for that exact

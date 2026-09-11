@@ -10,6 +10,7 @@ import {
   DESKTOP_MANIFEST,
   DESKTOP_PROVISIONAL_RELEASE_BODY,
   DESKTOP_STABLE_DMG_NAME,
+  GITHUB_DESKTOP_RELEASE_FEED_URL,
   GithubClient,
   activateDesktopRelease,
   compensateDesktopRelease,
@@ -549,6 +550,63 @@ describe("GitHub desktop release transaction", () => {
         "https://github.com/other/repository/releases/download/tag/latest-mac.yml",
       ),
     ).rejects.toThrow("outside the bound repository");
+    await expect(client.anonymousBytes(`${DESKTOP_FEED_URL}latest-mac.yml`)).rejects.toThrow(
+      "outside the bound repository",
+    );
+  });
+
+  it("reads latest metadata from the public feed without following redirects", async () => {
+    const yaml = Buffer.from("version: 0.1.7\n");
+    const digest = createHash("sha256").update(yaml).digest("hex");
+    let feedRedirect: RequestInit["redirect"];
+    const client = new GithubClient("yerzhansa/enduragent", "token", async (input, init = {}) => {
+      const url = String(input);
+      if (url.endsWith("/releases/latest")) {
+        return Response.json({
+          id: 123,
+          tag_name: "enduragent-desktop@0.1.7",
+          draft: false,
+          prerelease: false,
+          assets: [
+            {
+              id: 1,
+              name: "latest-mac.yml",
+              size: yaml.length,
+              digest: `sha256:${digest}`,
+              state: "uploaded",
+              url: "https://api.github.com/repos/yerzhansa/enduragent/releases/assets/1",
+              browser_download_url:
+                "https://github.com/yerzhansa/enduragent/releases/download/enduragent-desktop@0.1.7/latest-mac.yml",
+            },
+          ],
+          upload_url:
+            "https://uploads.github.com/repos/yerzhansa/enduragent/releases/123/assets{?name,label}",
+          body: "body",
+        });
+      }
+      if (url === `${DESKTOP_FEED_URL}latest-mac.yml`) {
+        feedRedirect = init.redirect;
+        expect(new Headers(init.headers).get("Authorization")).toBeNull();
+        return new Response(yaml);
+      }
+      return new Response(null, { status: 599 });
+    });
+    await expect(client.latest()).resolves.toEqual({
+      id: 123,
+      tag: "enduragent-desktop@0.1.7",
+      metadataSha256: digest,
+    });
+    expect(feedRedirect).toBe("error");
+  });
+
+  it("refuses a public feed that still redirects", async () => {
+    const client = new GithubClient("yerzhansa/enduragent", "token", async () => {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: `${GITHUB_DESKTOP_RELEASE_FEED_URL}latest-mac.yml` },
+      });
+    });
+    await expect(client.publicFeedMetadataBytes()).rejects.toThrow("public updater feed redirected");
   });
 
   it("uses injected deadlines for metadata requests without exposing secrets or URLs", async () => {

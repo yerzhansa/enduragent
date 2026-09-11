@@ -5,8 +5,9 @@ import { link, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promis
 import { basename, relative, resolve, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL } from "./desktop-update-feed.js";
 
-export const DESKTOP_FEED_URL = "https://github.com/yerzhansa/enduragent/releases/latest/download/";
+export { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL };
 export const DESKTOP_MANIFEST = "desktop-release-manifest.json";
 export const DESKTOP_RELEASE_SCHEMA_VERSION = 3 as const;
 export const DESKTOP_PROVISIONAL_RELEASE_BODY =
@@ -1129,6 +1130,38 @@ export class GithubClient {
     );
   }
 
+  async publicFeedMetadataBytes(deadlineAt?: number): Promise<Buffer> {
+    const target = new URL("latest-mac.yml", DESKTOP_FEED_URL);
+    if (target.href !== `${DESKTOP_FEED_URL}latest-mac.yml`) {
+      throw new TypeError("public updater feed URL is invalid");
+    }
+    return this.#bounded(
+      "public updater feed transfer",
+      this.#timing.assetTransferTimeoutMs,
+      async (signal) => {
+        const response = await this.#fetch(target, {
+          headers: { Accept: "application/octet-stream" },
+          redirect: "error",
+          signal,
+        });
+        if (response.status >= 300 && response.status < 400) {
+          await response.body?.cancel();
+          throw new TypeError("public updater feed redirected");
+        }
+        if (!response.ok) {
+          await response.arrayBuffer();
+          throw new TypeError(`public updater feed download failed (${response.status})`);
+        }
+        if (response.headers.get("location") !== null) {
+          await response.body?.cancel();
+          throw new TypeError("public updater feed redirected");
+        }
+        return Buffer.from(await response.arrayBuffer());
+      },
+      deadlineAt,
+    );
+  }
+
   release(id: string | number, deadlineAt?: number): Promise<GithubRelease> {
     return this.request(`/repos/${this.#repository}/releases/${id}`, {}, deadlineAt);
   }
@@ -1185,7 +1218,7 @@ export class GithubClient {
       if (metadata.state !== "uploaded" || !match || metadata.size <= 0) {
         throw new TypeError("repository latest metadata digest is invalid");
       }
-      const feedBytes = await this.anonymousBytes(`${DESKTOP_FEED_URL}latest-mac.yml`, deadlineAt);
+      const feedBytes = await this.publicFeedMetadataBytes(deadlineAt);
       metadataSha256 = sha256(feedBytes);
       if (feedBytes.length !== metadata.size || metadataSha256 !== match[1]) {
         throw new TypeError("repository latest and updater feed digest differ");
