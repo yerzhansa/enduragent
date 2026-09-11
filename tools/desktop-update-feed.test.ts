@@ -182,9 +182,10 @@ describe("desktop update feed wiring", () => {
       "utf8",
     );
     expect(workflow).toContain(`ENDURAGENT_DESKTOP_UPDATE_URL: ${DESKTOP_FEED_URL}`);
+    expect(workflow).toContain(`PUBLIC_FEED: ${DESKTOP_FEED_URL}`);
     expect(workflow).toContain("Require the public updater feed");
-    expect(workflow).toContain(`${DESKTOP_FEED_URL}latest-mac.yml`);
-    expect(workflow).toContain(`${DESKTOP_FEED_URL}Enduragent-arm64.dmg`);
+    expect(workflow).toContain('${PUBLIC_FEED}latest-mac.yml');
+    expect(workflow).toContain('${PUBLIC_FEED}Enduragent-arm64.dmg');
     expect(workflow).toContain(
       "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/latest-mac.yml",
     );
