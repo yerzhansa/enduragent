@@ -14,7 +14,7 @@ struct ReadToolsTests {
 			chatId: .main,
 			state: turnState()
 		)
-		guard case .result(let json) = outcome, let rows = json.arrayValue else {
+		guard case .result(let json) = outcome, let rows = unwrapData(json).arrayValue else {
 			Issue.record("expected zone rows")
 			return
 		}
@@ -34,7 +34,7 @@ struct ReadToolsTests {
 			state: turnState()
 		)
 		#expect(intervals.calls == [.activities(days: 7)])
-		guard case .result(let json) = outcome, let rows = json.arrayValue else {
+		guard case .result(let json) = outcome, let rows = unwrapData(json).arrayValue else {
 			Issue.record("expected activities")
 			return
 		}
@@ -71,13 +71,13 @@ struct ReadToolsTests {
 			Issue.record("expected wellness")
 			return
 		}
-		let encoded = canonicalJSON(json)
+		let encoded = canonicalJSON(unwrapData(json))
 		#expect(!encoded.contains("\"ctl\""))
 		#expect(!encoded.contains("\"atl\""))
 		#expect(encoded.contains("\"fitness\""))
 		#expect(encoded.contains("\"Fatigue\"") == false)
-		#expect(json.arrayValue?.first?.objectFields["fatigue"]?.numberValue == 42.1)
-		#expect(json.arrayValue?.first?.objectFields["form"]?.numberValue == 55.2 - 42.1)
+		#expect(unwrapData(json).arrayValue?.first?.objectFields["fatigue"]?.numberValue == 42.1)
+		#expect(unwrapData(json).arrayValue?.first?.objectFields["form"]?.numberValue == 55.2 - 42.1)
 	}
 
 	@Test func fetchAthleteAndActivityAndStreamsAndEvents() async throws {
@@ -117,7 +117,7 @@ struct ReadToolsTests {
 			Issue.record("expected athlete")
 			return
 		}
-		#expect(athleteJSON.objectFields["name"]?.stringValue == "Ada Kovač")
+		#expect(unwrapData(athleteJSON).objectFields["name"]?.stringValue == "Ada Kovač")
 
 		_ = try await tools.execute(
 			name: .intervalsFetchActivity,
@@ -140,7 +140,7 @@ struct ReadToolsTests {
 		#expect(intervals.calls.contains(.activity(activityID)))
 		#expect(intervals.calls.contains(.streams(activityID)))
 		#expect(intervals.calls.contains(.events(oldest: "1998-06-14", newest: "1998-06-20")))
-		guard case .result(let eventsJSON) = listed, let events = eventsJSON.arrayValue else {
+		guard case .result(let eventsJSON) = listed, let events = unwrapData(eventsJSON).arrayValue else {
 			Issue.record("expected events")
 			return
 		}
@@ -159,7 +159,7 @@ struct ReadToolsTests {
 			Issue.record("expected error object")
 			return
 		}
-		#expect(json.objectFields["error"]?.stringValue == "range_too_wide")
+		#expect(unwrapData(json).objectFields["error"]?.stringValue == "range_too_wide")
 		#expect(intervals.calls.isEmpty)
 	}
 
@@ -188,6 +188,10 @@ struct ReadToolsTests {
 		#expect(schemas.contains { $0.description.contains("Form = fitness - fatigue") })
 		#expect(WorkoutReview.windowDays == IntervalsPolicy.reviewWindowDays)
 		#expect(WorkoutReview.windowDays == 7)
+	}
+
+	private func unwrapData(_ json: JSONValue) -> JSONValue {
+		json.objectFields["data"] ?? json
 	}
 
 	private func runtime() -> ToolRuntime {

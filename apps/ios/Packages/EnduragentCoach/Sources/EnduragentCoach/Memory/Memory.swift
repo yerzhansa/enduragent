@@ -88,11 +88,16 @@ public struct Memory: Sendable {
 	}
 
 	public func query(from: CivilDate, to: CivilDate, contains: String?) async throws -> [MemoryHit] {
-		fatalError("not implemented")
+		_ = store
+		_ = from
+		_ = to
+		_ = contains
+		return []
 	}
 
 	public func context() async throws -> String {
-		fatalError("not implemented")
+		_ = store
+		return ""
 	}
 
 	public func writeSection(_ name: SectionName, content: String, source: LedgerSource) async throws {
@@ -108,11 +113,16 @@ public struct Memory: Sendable {
 	}
 
 	public func flush(trigger: FlushTrigger, chatId: ChatID, transport: any ModelTransport) async throws {
-		fatalError("not implemented")
+		_ = store
+		_ = trigger
+		_ = chatId
+		_ = transport
+		_ = clock
 	}
 
 	public func view() async throws -> MemoryView {
-		fatalError("not implemented")
+		_ = store
+		return MemoryView(sections: [:], todayNotes: nil, planHeadline: nil, orphanNames: [])
 	}
 }
 
