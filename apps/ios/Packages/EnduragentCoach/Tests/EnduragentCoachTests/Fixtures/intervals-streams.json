@@ -1,0 +1,7 @@
+[
+  {"type": "watts", "data": [100, 200, 300, 400]},
+  {"type": "heartrate", "data": [140, 150, 160, 150]},
+  {"type": "cadence", "data": [80, 90, 90, 85]},
+  {"type": "time", "data": [0, 1, 2, 3]},
+  {"type": "altitude", "data": [100, 101, 102, 103]}
+]
