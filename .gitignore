@@ -11,7 +11,13 @@ workers/
 .cursor/
 .nvmrc
 /scripts/
-.claude
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/verify-ios/
+!.claude/skills/verify-ios/**
+.build/
+xcuserdata/
 .codex/
 CLAUDE.local.md
 AGENTS.override.md

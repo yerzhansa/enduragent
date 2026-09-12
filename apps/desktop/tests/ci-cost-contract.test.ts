@@ -40,8 +40,12 @@ describe("CI cost contract", () => {
     const native = job(ci, "desktop-packaged-native");
     const packagedStatus = job(ci, "desktop-packaged-self-test");
     const secretsStatus = job(ci, "secrets-macos");
-    expect(ci.match(/runs-on: macos-[^\r\n]+/gu)).toEqual(["runs-on: macos-26"]);
+    expect(ci.match(/runs-on: macos-[^\r\n]+/gu)).toEqual(["runs-on: macos-26", "runs-on: macos-26"]);
     expect(native).toContain("runs-on: macos-26");
+    const iosTests = job(ci, "ios-package-tests");
+    expect(iosTests).toContain("runs-on: macos-26");
+    expect(iosTests).toContain("needs: ios-scope");
+    expect(iosTests).toContain("if: needs.ios-scope.outputs.ios == 'true'");
     expect(native).toContain("needs: desktop-scope");
     expect(native).toContain("if: needs.desktop-scope.outputs.native == 'true'");
     expect(native).toContain("Verify native application UI states");
