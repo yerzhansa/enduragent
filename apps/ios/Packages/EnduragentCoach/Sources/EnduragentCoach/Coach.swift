@@ -123,7 +123,9 @@ public actor Coach {
 	}
 
 	public func waitForMemoryFlush() async {
-		await mailbox(for: .main).runQueuedFlush()
+		for box in mailboxes.values {
+			await box.runQueuedFlush()
+		}
 	}
 
 	public func stop(chatId: ChatID) async {
@@ -167,7 +169,8 @@ public actor Coach {
 			runner: runner,
 			memory: memory,
 			store: store,
-			clock: clock
+			clock: clock,
+			transport: transport
 		)
 		mailboxes[chatId] = created
 		return created

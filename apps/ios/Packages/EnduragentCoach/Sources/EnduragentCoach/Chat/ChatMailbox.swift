@@ -6,8 +6,10 @@ package actor ChatMailbox {
 	private let memory: Memory
 	private let store: any RecordLog
 	private let clock: any Clock
+	private let transport: any ModelTransport
 	private var tail: Task<Void, Never>
 	private var current: Task<Void, Never>?
+	private var flushTask: Task<Void, Never>?
 	package private(set) var busy = false
 
 	package init(
@@ -15,13 +17,15 @@ package actor ChatMailbox {
 		runner: TurnRunner,
 		memory: Memory,
 		store: any RecordLog,
-		clock: any Clock
+		clock: any Clock,
+		transport: any ModelTransport
 	) {
 		self.chatId = chatId
 		self.runner = runner
 		self.memory = memory
 		self.store = store
 		self.clock = clock
+		self.transport = transport
 		self.tail = Task {}
 	}
 
@@ -79,8 +83,26 @@ package actor ChatMailbox {
 	}
 
 	package func runQueuedFlush() async {
-		await enqueue {
-			try? await self.memory.flush(trigger: .softThreshold, chatId: self.chatId, transport: FlushNoopTransport())
+		if let inFlight = flushTask {
+			await inFlight.value
+			return
+		}
+		let previous = tail
+		let next = Task {
+			await previous.value
+			guard !Task.isCancelled else { return }
+			try? await self.memory.flush(
+				trigger: .softThreshold,
+				chatId: self.chatId,
+				transport: self.transport
+			)
+		}
+		tail = next
+		current = next
+		flushTask = next
+		await next.value
+		if flushTask != nil {
+			flushTask = nil
 		}
 	}
 
@@ -94,15 +116,6 @@ package actor ChatMailbox {
 		tail = next
 		current = next
 		await next.value
-	}
-}
-
-private struct FlushNoopTransport: ModelTransport {
-	func stream(_ request: CompletionRequest) -> AsyncThrowingStream<TransportEvent, Error> {
-		AsyncThrowingStream { continuation in
-			_ = request
-			continuation.finish()
-		}
 	}
 }
 

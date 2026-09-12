@@ -630,10 +630,9 @@ extension BodyEnvelope {
 				CompactionSummaryBody(chatId: try decodeChatID(payload.chatId), markdown: payload.markdown)
 			)
 		case .memorySection(let payload):
-			guard let name = SectionName(rawValue: payload.name) else {
-				throw RecordDecodeFailure(reason: "section")
-			}
-			return .memorySection(MemorySectionBody(name: name, content: payload.content))
+			return .memorySection(
+				MemorySectionBody(name: SectionName(rawValue: payload.name), content: payload.content)
+			)
 		case .dailyNote(let payload):
 			return .dailyNote(DailyNoteBody(note: payload.note))
 		case .ledgerEvent(let payload):
