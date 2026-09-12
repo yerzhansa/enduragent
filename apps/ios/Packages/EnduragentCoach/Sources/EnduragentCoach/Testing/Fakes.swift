@@ -9,6 +9,9 @@ public enum ScriptedEvent: Sendable, Equatable {
 public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 	public var script: [ScriptedEvent]
 	public private(set) var requests: [CompletionRequest]
+	public var hangUntilCancelled = false
+	public var finishUsage = Usage(inputTokens: 0, outputTokens: 0, cost: nil)
+	public var requestDelay: Duration?
 	private let lock = NSLock()
 
 	public init() {
@@ -17,6 +20,23 @@ public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 	}
 
 	public func stream(_ request: CompletionRequest) -> AsyncThrowingStream<TransportEvent, Error> {
+		if hangUntilCancelled {
+			return AsyncThrowingStream { continuation in
+				let task = Task {
+					while !Task.isCancelled {
+						do {
+							try await Task.sleep(for: .seconds(60))
+						} catch {
+							break
+						}
+					}
+					continuation.finish()
+				}
+				continuation.onTermination = { _ in
+					task.cancel()
+				}
+			}
+		}
 		let events: [TransportEvent]
 		do {
 			events = try nextBatch(for: request)
@@ -25,11 +45,20 @@ public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 				continuation.finish(throwing: error)
 			}
 		}
+		let delay = requestDelay
 		return AsyncThrowingStream { continuation in
-			for event in events {
-				continuation.yield(event)
+			let task = Task {
+				if let delay {
+					try? await Task.sleep(for: delay)
+				}
+				for event in events {
+					continuation.yield(event)
+				}
+				continuation.finish()
 			}
-			continuation.finish()
+			continuation.onTermination = { _ in
+				task.cancel()
+			}
 		}
 	}
 
@@ -60,7 +89,7 @@ public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 				events.append(
 					.finished(
 						reason: reason,
-						usage: Usage(inputTokens: 0, outputTokens: 0, cost: nil)
+						usage: finishUsage
 					)
 				)
 				return events

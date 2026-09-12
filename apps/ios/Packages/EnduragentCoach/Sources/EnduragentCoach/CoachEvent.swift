@@ -17,6 +17,12 @@ public struct ChatMessage: Sendable, Equatable {
 	public var text: String
 	public var civilDate: CivilDate?
 
+	public init(role: Role, text: String, civilDate: CivilDate? = nil) {
+		self.role = role
+		self.text = text
+		self.civilDate = civilDate
+	}
+
 	public enum Role: String, Sendable {
 		case user
 		case assistant
