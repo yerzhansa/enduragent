@@ -4,10 +4,12 @@ public struct IntervalsRESTClient: IntervalsClient, Sendable {
 	private let credential: IntervalsCredential
 	private let session: URLSession
 	private let athletePath: String
+	private let clock: any Clock
 
-	public init(credential: IntervalsCredential, session: URLSession? = nil) {
+	public init(credential: IntervalsCredential, session: URLSession? = nil, clock: any Clock = SystemClock()) {
 		self.credential = credential
 		self.athletePath = IntervalsPolicy.athletePath
+		self.clock = clock
 		if let session {
 			self.session = session
 		} else {
@@ -81,19 +83,68 @@ public struct IntervalsRESTClient: IntervalsClient, Sendable {
 	}
 
 	public func createChatEvent(_ draft: ChatCalendarCreate) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		let json = try await sendJSON(
+			method: "POST",
+			path: ["athlete", athletePath, "events"],
+			query: [URLQueryItem(name: "upsertOnUid", value: "false")],
+			body: IntervalsPolicy.chatCreateBody(draft)
+		)
+		guard let event = Self.calendarEvent(from: json) else {
+			throw IntervalsError(code: "invalid_json", details: "create event response was not an event")
+		}
+		return event
 	}
 
 	public func createOrUpdatePlanEvent(_ draft: PlanMirrorCreate) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		_ = draft
+		throw IntervalsError(code: "not_implemented", details: "Plan mirror writes are not available.")
 	}
 
 	public func updateEvent(id: EventID, name: String?, description: String?, date: CivilDate?) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		let existing = try await fetchEvent(id: id)
+		let today = IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone)
+		try IntervalsPolicy.refuseMutableEvent(
+			existing,
+			today: today,
+			eventId: id,
+			action: "update",
+			nextDate: date
+		)
+		var fields: [String: JSONValue] = [:]
+		if let name {
+			fields["name"] = .string(name)
+		}
+		if let description {
+			fields["description"] = .string(description)
+		}
+		if let date {
+			fields["start_date_local"] = .string("\(date.rawValue)T00:00:00")
+		}
+		let json = try await sendJSON(
+			method: "PUT",
+			path: ["athlete", athletePath, "events", String(id.rawValue)],
+			body: .object(fields)
+		)
+		guard let event = Self.calendarEvent(from: json) else {
+			throw IntervalsError(code: "invalid_json", details: "update event response was not an event")
+		}
+		return event
 	}
 
 	public func deleteEvent(id: EventID) async throws {
-		fatalError("not implemented")
+		let existing = try await fetchEvent(id: id)
+		let today = IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone)
+		try IntervalsPolicy.refuseMutableEvent(
+			existing,
+			today: today,
+			eventId: id,
+			action: "delete",
+			nextDate: nil
+		)
+		_ = try await send(
+			method: "DELETE",
+			path: ["athlete", athletePath, "events", String(id.rawValue)]
+		)
 	}
 
 	private var authorization: String {
@@ -106,11 +157,37 @@ public struct IntervalsRESTClient: IntervalsClient, Sendable {
 		}
 	}
 
+	private func fetchEvent(id: EventID) async throws -> CalendarEvent {
+		let json = try await getJSON(path: ["athlete", athletePath, "events", String(id.rawValue)])
+		guard let event = Self.calendarEvent(from: json) else {
+			throw IntervalsError(code: "invalid_json", details: "event \(id.rawValue) was not an event")
+		}
+		return event
+	}
+
 	private func getJSON(path: [String], query: [URLQueryItem] = []) async throws -> JSONValue {
-		try parseJSON(try await get(path: path, query: query))
+		try parseJSON(try await send(method: "GET", path: path, query: query))
+	}
+
+	private func sendJSON(
+		method: String,
+		path: [String],
+		query: [URLQueryItem] = [],
+		body: JSONValue
+	) async throws -> JSONValue {
+		try parseJSON(try await send(method: method, path: path, query: query, body: body))
 	}
 
 	private func get(path: [String], query: [URLQueryItem] = []) async throws -> Data {
+		try await send(method: "GET", path: path, query: query)
+	}
+
+	private func send(
+		method: String,
+		path: [String],
+		query: [URLQueryItem] = [],
+		body: JSONValue? = nil
+	) async throws -> Data {
 		var url = IntervalsPolicy.baseURL
 		for component in path {
 			url.append(path: component)
@@ -123,10 +200,14 @@ public struct IntervalsRESTClient: IntervalsClient, Sendable {
 			throw IntervalsError(code: "invalid_url", details: path.joined(separator: "/"))
 		}
 		var request = URLRequest(url: finalURL)
-		request.httpMethod = "GET"
+		request.httpMethod = method
 		request.setValue(authorization, forHTTPHeaderField: "Authorization")
 		request.setValue("application/json", forHTTPHeaderField: "Accept")
 		request.timeoutInterval = IntervalsPolicy.requestTimeout
+		if let body {
+			request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+			request.httpBody = Data(body.canonicalDigestInput().utf8)
+		}
 		let (data, response) = try await session.data(for: request)
 		guard let http = response as? HTTPURLResponse else {
 			throw IntervalsError(code: "network", details: "missing http response")

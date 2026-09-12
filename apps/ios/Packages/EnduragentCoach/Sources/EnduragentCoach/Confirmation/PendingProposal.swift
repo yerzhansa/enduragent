@@ -32,6 +32,7 @@ package enum ProposalLookup: Sendable, Equatable {
 
 package enum ProposalPolicy {
 	package static let ttl: Duration = TurnPolicy.proposalTTL
+	package static let ttlSeconds: TimeInterval = 10 * 60
 
 	package static func propose(
 		chatId: ChatID,
@@ -43,7 +44,39 @@ package enum ProposalPolicy {
 		store: any RecordLog,
 		clock: any Clock
 	) async throws -> PendingProposal {
-		fatalError("not implemented")
+		let records = try await store.fetch(
+			RecordQuery(kinds: [.pendingProposal, .proposalCleared], chatId: chatId, deviceLocalOnly: true)
+		)
+		var last = records.map(\.hlc).max()
+		if let live = UnionMerge.pendingProposal(records, chatId: chatId, now: now) {
+			try await append(
+				.proposalCleared(
+					ProposalClearedBody(chatId: chatId, nonce: live.nonce, reason: .replaced)
+				),
+				store: store,
+				clock: clock,
+				last: &last
+			)
+		}
+		let nonce = Nonce()
+		let expiresAt = now.addingTimeInterval(ttlSeconds)
+		let body = ProposalBody(
+			chatId: chatId,
+			nonce: nonce,
+			tool: tool,
+			toolInput: input,
+			summary: summary,
+			description: description,
+			expiresAt: expiresAt
+		)
+		try await append(.pendingProposal(body), store: store, clock: clock, last: &last)
+		return PendingProposal(
+			chatId: chatId,
+			nonce: nonce,
+			summary: summary,
+			description: description,
+			expiresAt: expiresAt
+		)
 	}
 
 	package static func take(
@@ -53,6 +86,93 @@ package enum ProposalPolicy {
 		clock: any Clock,
 		run: @Sendable (GatedToolInput) async throws -> JSONValue
 	) async throws -> ProposalLookup {
-		fatalError("not implemented")
+		let records = try await store.fetch(
+			RecordQuery(kinds: [.pendingProposal, .proposalCleared], chatId: chatId, deviceLocalOnly: true)
+		)
+		let now = clock.now
+		if let live = UnionMerge.pendingProposal(records, chatId: chatId, now: now) {
+			if live.nonce != nonce {
+				return .mismatch
+			}
+			var last = records.map(\.hlc).max()
+			try await append(
+				.proposalCleared(
+					ProposalClearedBody(chatId: chatId, nonce: nonce, reason: .executed)
+				),
+				store: store,
+				clock: clock,
+				last: &last
+			)
+			_ = try await run(live.toolInput)
+			return .found(live)
+		}
+		if latestUncleared(records, chatId: chatId) != nil {
+			return .expired
+		}
+		return .none
+	}
+
+	package static func summary(for input: GatedToolInput) -> String {
+		switch input {
+		case .createWorkout(let date, let workout):
+			return "Create workout \"\(workout.name)\" on \(date.rawValue)"
+		case .createStrengthWorkout(let date, let name, _):
+			return "Create strength workout \"\(name)\" on \(date.rawValue)"
+		case .deleteWorkout:
+			return "Delete a workout"
+		case .updateWorkout(let update):
+			var fields: [String] = []
+			if let date = update.date {
+				fields.append("date to \(date.rawValue)")
+			}
+			if let name = update.name {
+				fields.append("name to \"\(name)\"")
+			}
+			if update.description != nil {
+				fields.append("description")
+			}
+			let detail = fields.isEmpty ? "selected fields" : fields.joined(separator: ", ")
+			return "Update workout — \(detail)"
+		case .planSave(let headline):
+			if headline.name.isEmpty {
+				return "Save the training plan — replaces the current saved plan"
+			}
+			return "Save the training plan — replaces the current saved plan — \(headline.name)"
+		}
+	}
+
+	private static func latestUncleared(_ records: [AthleteRecord], chatId: ChatID) -> ProposalBody? {
+		let ordered = records.sorted { $0.hlc < $1.hlc }
+		var cleared: Set<Nonce> = []
+		for record in ordered {
+			if case .proposalCleared(let body) = record.body, body.chatId == chatId {
+				cleared.insert(body.nonce)
+			}
+		}
+		for record in ordered.reversed() {
+			guard case .pendingProposal(let body) = record.body, body.chatId == chatId else { continue }
+			if cleared.contains(body.nonce) { continue }
+			return body
+		}
+		return nil
+	}
+
+	private static func append(
+		_ body: RecordBody,
+		store: any RecordLog,
+		clock: any Clock,
+		last: inout HybridLogicalClock?
+	) async throws {
+		let tz = IANATimeZone(identifier: clock.timeZone.identifier) ?? IANATimeZone(identifier: "GMT")!
+		let record = AthleteRecord(
+			ulid: ULID.generate(at: clock.now),
+			deviceId: store.deviceId,
+			hlc: .tick(now: clock.now, deviceId: store.deviceId, last: last),
+			timeZone: tz,
+			civilDate: IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone),
+			body: body
+		)
+		last = record.hlc
+		try await store.append(record)
 	}
 }

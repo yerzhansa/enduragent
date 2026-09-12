@@ -91,4 +91,64 @@ import Testing
 		#expect(hits[0].date == "1998-06-13")
 		#expect(hits[0].kind == .ledger(.decision))
 	}
+
+	@Test func calendarWriteBecomesAPendingProposal() async throws {
+		transport.script = [
+			.toolCall(name: "intervals_create_workout", arguments: workoutArguments),
+			.finish(reason: .toolCalls),
+			.text("I've prepared the ride. Confirm to add it."),
+			.finish(reason: .stop)
+		]
+		let coach = makeCoach()
+
+		var proposal: PendingProposal?
+		for try await event in coach.send("Give me an endurance ride for tomorrow", chatId: "main") {
+			if case .proposalPending(let pending) = event { proposal = pending }
+		}
+
+		let pending = try #require(proposal)
+		#expect(pending.chatId == "main")
+		#expect(pending.summary == "Create workout \"Endurance\" on 1998-06-14")
+		#expect(pending.description.hasPrefix("Warmup\n- 10m 55-65%"))
+		#expect(pending.expiresAt == clock.now.addingTimeInterval(10 * 60))
+		#expect(
+			!intervals.calls.contains { call in
+				if case .createEvent = call { return true }
+				return false
+			}
+		)
+		#expect(await coach.pendingProposal(chatId: "main")?.nonce == pending.nonce)
+	}
+
+	@Test func confirmRunsTheWriteOnce() async throws {
+		let coach = makeCoach()
+		let pending = try await proposeEnduranceRide(coach)
+
+		let outcome = try await coach.confirm(chatId: "main", nonce: pending.nonce)
+
+		#expect(outcome == .executed(summary: "Create workout \"Endurance\" on 1998-06-14"))
+		#expect(intervals.calls.last == .createEvent(date: "1998-06-14", externalId: "cycling-coach:1998-06-14:endurance"))
+		#expect(await coach.pendingProposal(chatId: "main") == nil)
+
+		let again = try await coach.confirm(chatId: "main", nonce: pending.nonce)
+		#expect(again == .none)
+	}
+
+	var workoutArguments: String {
+		#"{"date":"1998-06-14","workout":{"name":"Endurance","steps":[{"type":"warmup","duration":{"value":10,"unit":"minutes"},"power":{"kind":"percent_ftp","low":55,"high":65}},{"type":"steady","duration":{"value":70,"unit":"minutes"},"power":{"kind":"percent_ftp","low":56,"high":75}},{"type":"cooldown","duration":{"value":10,"unit":"minutes"},"power":{"kind":"percent_ftp","value":50}}]}}"#
+	}
+
+	func proposeEnduranceRide(_ coach: Coach) async throws -> PendingProposal {
+		transport.script = [
+			.toolCall(name: "intervals_create_workout", arguments: workoutArguments),
+			.finish(reason: .toolCalls),
+			.text("I've prepared the ride. Confirm to add it."),
+			.finish(reason: .stop)
+		]
+		var proposal: PendingProposal?
+		for try await event in coach.send("Give me an endurance ride for tomorrow", chatId: "main") {
+			if case .proposalPending(let pending) = event { proposal = pending }
+		}
+		return try #require(proposal)
+	}
 }

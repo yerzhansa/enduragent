@@ -106,6 +106,8 @@ public enum FakeIntervalsCall: Sendable, Equatable {
 	case streams(ActivityID)
 	case events(oldest: CivilDate, newest: CivilDate)
 	case createEvent(date: CivilDate, externalId: String)
+	case updateEvent(EventID)
+	case deleteEvent(EventID)
 }
 
 public final class FakeIntervalsClient: IntervalsClient, @unchecked Sendable {
@@ -168,18 +170,39 @@ public final class FakeIntervalsClient: IntervalsClient, @unchecked Sendable {
 	}
 
 	public func createChatEvent(_ draft: ChatCalendarCreate) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		calls.append(.createEvent(date: draft.date, externalId: draft.externalId.rawValue))
+		return CalendarEvent(
+			id: EventID(rawValue: 1),
+			startDateLocal: "\(draft.date.rawValue)T00:00:00",
+			name: draft.name,
+			category: "WORKOUT",
+			externalId: draft.externalId.rawValue,
+			uid: nil,
+			tags: draft.tags,
+			coachCreated: true
+		)
 	}
 
 	public func createOrUpdatePlanEvent(_ draft: PlanMirrorCreate) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		_ = draft
+		throw IntervalsError(code: "not_implemented", details: "Plan mirror writes are not available.")
 	}
 
 	public func updateEvent(id: EventID, name: String?, description: String?, date: CivilDate?) async throws -> CalendarEvent {
-		fatalError("not implemented")
+		calls.append(.updateEvent(id))
+		return CalendarEvent(
+			id: id,
+			startDateLocal: "\(date?.rawValue ?? "1998-06-14")T00:00:00",
+			name: name ?? "",
+			category: "WORKOUT",
+			externalId: nil,
+			uid: nil,
+			tags: [IntervalsPolicy.coachTag],
+			coachCreated: true
+		)
 	}
 
 	public func deleteEvent(id: EventID) async throws {
-		fatalError("not implemented")
+		calls.append(.deleteEvent(id))
 	}
 }
