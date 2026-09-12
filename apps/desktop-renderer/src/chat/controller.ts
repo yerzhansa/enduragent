@@ -15,7 +15,6 @@ import {
   PlanChangeIntentSchema,
   PlanActiveProjectionDataSchema,
   parseFeedbackCommand,
-  submitFeedback,
   type AttachmentAdmissionReadModel,
   type ChatAttachmentComposerReadModel,
   type CoachDecisionAnswer,
@@ -30,6 +29,7 @@ import {
   PlanChangeRequestSchema,
   type PlanChangeRequest,
   type PlanChangePreviewRpcParams,
+  type SubmitFeedbackResult,
   type PlanChangeApplyRpcParams,
   type PlanCreationActivateRpcParams,
   type PlanCreationAnswerInput,
@@ -372,6 +372,7 @@ export function createChatController(input: {
     readonly paste: () => Promise<readonly AttachmentAdmissionReadModel[]>;
   };
   readonly openPlanningRequest?: (chatId: string, requestId: string) => void;
+  readonly submitAthleteFeedback?: (text: string) => Promise<SubmitFeedbackResult>;
 }): ChatController {
   let state =
     input.initialQueueSnapshot === undefined
@@ -2309,11 +2310,15 @@ export function createChatController(input: {
           });
           return false;
         }
-        const result = await submitFeedback({
-          channel: "desktop",
-          id: globalThis.crypto.randomUUID(),
-          text: feedback.text,
-        });
+        let result: SubmitFeedbackResult;
+        try {
+          result =
+            input.submitAthleteFeedback === undefined
+              ? { ok: false, reason: "unavailable" }
+              : await input.submitAthleteFeedback(feedback.text);
+        } catch {
+          result = { ok: false, reason: "unavailable" };
+        }
         if (!result.ok) {
           reduce({ type: "announce", announcement: FEEDBACK_FAILED_COPY });
           return false;

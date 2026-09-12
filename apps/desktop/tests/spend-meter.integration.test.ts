@@ -502,6 +502,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       "retryCredentialRecovery",
       "retryFailedCredentials",
       "setAppearance",
+      "submitAthleteFeedback",
       "telegramStatus",
       "writeCredential",
     ]);

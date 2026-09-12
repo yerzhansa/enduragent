@@ -688,6 +688,9 @@ function subject(
   settleSubmissions = true,
   openPlanningRequest = vi.fn(),
   initialQueueSnapshot: ChatQueueSnapshot = { schemaVersion: 1, revision: 0, items: [] },
+  submitAthleteFeedback?: (text: string) => Promise<
+    { readonly ok: true } | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
+  >,
 ) {
   const states: ChatState[] = [];
   const controls: ChatViewControls[] = [];
@@ -741,6 +744,7 @@ function subject(
     canChat,
     initialQueueSnapshot,
     openPlanningRequest,
+    submitAthleteFeedback,
   });
   const submittedController = {
     ...controller,
@@ -4340,25 +4344,27 @@ describe("Plan library Chat entry", () => {
   });
 
   it("sends /feedback to the mailbox without calling the coach", async () => {
-    const request = vi.fn<(url: string, init: RequestInit) => Promise<{ status: number }>>(
-      async () => ({ status: 204 }),
-    );
+    const mailbox = vi.fn(async () => ({ ok: true as const }));
+    const request = vi.fn(async () => ({ status: 204 }));
     vi.stubGlobal("fetch", request);
     const fake = client(replies());
-    const { controller, states } = subject(fake);
-    await controller.start();
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(
-      "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+    const { controller, states } = subject(
+      fake,
+      fake,
+      async () => {},
+      async () => {},
+      () => true,
+      true,
+      vi.fn(),
+      { schemaVersion: 1, revision: 0, items: [] },
+      mailbox,
     );
+    await controller.start();
 
     await expect(controller.submit("/feedback the watts look high")).resolves.toBe(true);
 
-    expect(request).toHaveBeenCalledOnce();
-    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
-      channel: "desktop",
-      id: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
-      text: "the watts look high",
-    });
+    expect(mailbox.mock.calls).toEqual([["the watts look high"]]);
+    expect(request).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toEqual([]);
     expect(
       vi.mocked(fake.call).mock.calls.filter(([method]) => method === "enqueueChatMessage"),
@@ -4369,16 +4375,28 @@ describe("Plan library Chat entry", () => {
   });
 
   it("keeps an empty or overlong /feedback draft and does not POST", async () => {
+    const mailbox = vi.fn(async () => ({ ok: true as const }));
     const request = vi.fn(async () => ({ status: 204 }));
     vi.stubGlobal("fetch", request);
     const fake = client(replies());
-    const { controller, states } = subject(fake);
+    const { controller, states } = subject(
+      fake,
+      fake,
+      async () => {},
+      async () => {},
+      () => true,
+      true,
+      vi.fn(),
+      { schemaVersion: 1, revision: 0, items: [] },
+      mailbox,
+    );
     await controller.start();
 
     await expect(controller.submit("/feedback")).resolves.toBe(false);
     expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_USAGE_COPY);
     await expect(controller.submit(`/feedback ${"x".repeat(4001)}`)).resolves.toBe(false);
     expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_TOO_LONG_COPY);
+    expect(mailbox).not.toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toEqual([]);
     vi.unstubAllGlobals();
@@ -4386,9 +4404,37 @@ describe("Plan library Chat entry", () => {
   });
 
   it("keeps /feedback text when the mailbox is unavailable", async () => {
-    const request = vi.fn(async () => {
+    const mailbox = vi.fn(async () => {
       throw new Error("offline");
     });
+    const request = vi.fn(async () => ({ status: 204 }));
+    vi.stubGlobal("fetch", request);
+    const fake = client(replies());
+    const { controller, states } = subject(
+      fake,
+      fake,
+      async () => {},
+      async () => {},
+      () => true,
+      true,
+      vi.fn(),
+      { schemaVersion: 1, revision: 0, items: [] },
+      mailbox,
+    );
+    await controller.start();
+
+    await expect(controller.submit("/feedback the watts look high")).resolves.toBe(false);
+
+    expect(mailbox.mock.calls).toEqual([["the watts look high"]]);
+    expect(request).not.toHaveBeenCalled();
+    expect(chatMessages(fake)).toEqual([]);
+    expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_FAILED_COPY);
+    vi.unstubAllGlobals();
+    controller.dispose();
+  });
+
+  it("keeps /feedback text when the desktop mailbox bridge is missing", async () => {
+    const request = vi.fn(async () => ({ status: 204 }));
     vi.stubGlobal("fetch", request);
     const fake = client(replies());
     const { controller, states } = subject(fake);
@@ -4396,6 +4442,7 @@ describe("Plan library Chat entry", () => {
 
     await expect(controller.submit("/feedback the watts look high")).resolves.toBe(false);
 
+    expect(request).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toEqual([]);
     expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_FAILED_COPY);
     vi.unstubAllGlobals();

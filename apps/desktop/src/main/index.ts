@@ -156,6 +156,7 @@ import {
 } from "./quit-coordinator.js";
 import { createDesktopUpdateController } from "./update-controller.js";
 import { isDesktopUpdateReleaseEligible, isOfficialDesktopRelease } from "./update-eligibility.js";
+import { installDesktopAthleteFeedbackIpc } from "./athlete-feedback-ipc.js";
 import { installDesktopUpdateIpc } from "./update-ipc.js";
 import { createDesktopUpdateVersionFloor } from "./update-version-floor.js";
 import {
@@ -360,6 +361,7 @@ async function runDesktop(): Promise<void> {
   let disposeExternalLinkIpc: (() => void) | undefined;
   let disposeAppearanceIpc: (() => void) | undefined;
   let disposeUpdateIpc: (() => void) | undefined;
+  let disposeAthleteFeedbackIpc: (() => void) | undefined;
   let disposeIntervalsIpc: (() => Promise<void>) | undefined;
   let disposeTelegramIpc: (() => Promise<void>) | undefined;
   let disposeOnboarding: (() => void) | undefined;
@@ -455,6 +457,8 @@ async function runDesktop(): Promise<void> {
       disposeAppearanceIpc = undefined;
       disposeUpdateIpc?.();
       disposeUpdateIpc = undefined;
+      disposeAthleteFeedbackIpc?.();
+      disposeAthleteFeedbackIpc = undefined;
       await telegramPower?.close();
       telegramPower = undefined;
       await reportSecuritySmokeShutdownStage("telegram-power-closed");
@@ -1400,6 +1404,19 @@ async function runDesktop(): Promise<void> {
       currentWindow: () => mainWindow.current() ?? undefined,
       isTrusted: (event) => isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),
       controller: updateController,
+    });
+    disposeAthleteFeedbackIpc = installDesktopAthleteFeedbackIpc({
+      ipcMain,
+      isTrusted: (event) => isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),
+      request: async (url, init) => {
+        const response = await net.fetch(url, {
+          method: init.method,
+          headers: init.headers,
+          body: init.body,
+          signal: init.signal,
+        });
+        return { status: response.status };
+      },
     });
     disposeIntervalsIpc = installDesktopIntervalsIpc({
       ipcMain,
