@@ -23,7 +23,7 @@
     "@enduragent/kernel": "workspace:*",
     "@clack/prompts": "^1.7.0",
     "@grammyjs/auto-retry": "^2.0.2",
-    "ai": "^6.0.158",
+    "ai": "^7.0.95",
     "grammy": "^1.46.0",
     "intervals-icu-api": "^0.4.0",
     "yaml": "^2.9.0",
