@@ -2,17 +2,45 @@ import Foundation
 import Testing
 @testable import EnduragentCoach
 
+enum RecordLogKind: String, Sendable, CaseIterable {
+	case inMemory
+	case swiftData
+}
+
+func makeRecordLog(_ kind: RecordLogKind, deviceId: DeviceID) throws -> any RecordLog {
+	switch kind {
+	case .inMemory:
+		return InMemoryRecordLog(deviceId: deviceId)
+	case .swiftData:
+		return try makeSwiftDataLog(deviceId: deviceId)
+	}
+}
+
+func makeSwiftDataLog(deviceId: DeviceID) throws -> SwiftDataRecordLog {
+	let root = FileManager.default.temporaryDirectory.appending(
+		path: "enduragent-records-\(UUID().uuidString)",
+		directoryHint: .isDirectory
+	)
+	try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+	return SwiftDataRecordLog(
+		deviceId: deviceId,
+		synced: try ModelContainerHandle.withoutCloudKit(storeURL: root.appending(path: "synced.store")),
+		local: try ModelContainerHandle.withoutCloudKit(storeURL: root.appending(path: "local.store"))
+	)
+}
+
 @Suite struct RecordLogTests {
 	let amsterdam = IANATimeZone(identifier: "Europe/Amsterdam")!
 	let phoneA = DeviceID(rawValue: "phone-a")
 	let phoneB = DeviceID(rawValue: "phone-b")
 
-	@Test func deviceLocalAppendFromAnotherDeviceThrows() async throws {
-		let log = InMemoryRecordLog(deviceId: phoneA)
+	@Test(arguments: RecordLogKind.allCases)
+	func deviceLocalAppendFromAnotherDeviceThrows(kind: RecordLogKind) async throws {
+		let log = try makeRecordLog(kind, deviceId: phoneA)
 		let foreign = record(
 			device: phoneB,
 			wall: 1,
-			body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date()))
+			body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date(timeIntervalSince1970: 899_164_800)))
 		)
 		await #expect(throws: ForeignDeviceLocalRecord.self) {
 			try await log.append(foreign)
@@ -21,7 +49,7 @@ import Testing
 			record(
 				device: phoneA,
 				wall: 2,
-				body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date()))
+				body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date(timeIntervalSince1970: 899_164_800)))
 			)
 		)
 		try await log.append(
@@ -29,8 +57,9 @@ import Testing
 		)
 	}
 
-	@Test func fetchHonoursEveryQueryField() async throws {
-		let log = InMemoryRecordLog(deviceId: phoneA)
+	@Test(arguments: RecordLogKind.allCases)
+	func fetchHonoursEveryQueryField(kind: RecordLogKind) async throws {
+		let log = try makeRecordLog(kind, deviceId: phoneA)
 		let otherChat = ChatID(rawValue: "other")!
 		try await log.append(
 			record(
@@ -61,7 +90,7 @@ import Testing
 				device: phoneA,
 				wall: 13,
 				date: "1998-06-14",
-				body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date()))
+				body: .pendingProposal(sampleProposal(chatId: .main, nonce: Nonce(), expiresAt: Date(timeIntervalSince1970: 899_164_800)))
 			)
 		)
 
@@ -89,9 +118,13 @@ import Testing
 		)
 		#expect(inclusive.map { text(of: $0) } == ["main 13", "reply 14"])
 
-		let thisDevice = try await log.fetch(
-			RecordQuery(kinds: [.userMessage, .assistantMessage, .pendingProposal], deviceLocalOnly: true)
+		let thisDeviceSynced = try await log.fetch(
+			RecordQuery(kinds: [.userMessage, .assistantMessage], deviceLocalOnly: true)
 		)
+		let thisDeviceLocal = try await log.fetch(
+			RecordQuery(kinds: [.pendingProposal], deviceLocalOnly: true)
+		)
+		let thisDevice = thisDeviceSynced + thisDeviceLocal
 		#expect(thisDevice.map(\.deviceId) == [phoneA, phoneA, phoneA])
 		#expect(Set(thisDevice.map(\.body.kind)) == [.userMessage, .pendingProposal])
 	}
