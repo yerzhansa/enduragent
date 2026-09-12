@@ -1,5 +1,11 @@
 # @enduragent/coach-contract
 
+## 0.1.4
+
+### Patch Changes
+
+- a372f86: User-facing: Send /feedback plus a short note from Telegram or Desktop. It goes to the Enduragent authors, not to the coach.
+
 ## 0.1.3
 
 ### Patch Changes

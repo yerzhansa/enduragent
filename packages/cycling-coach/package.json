@@ -1,6 +1,6 @@
 {
   "name": "cycling-coach",
-  "version": "2026.9.10",
+  "version": "2026.9.12",
   "description": "AI cycling coaching agent — BYOK + intervals.icu + Telegram",
   "type": "module",
   "main": "dist/index.js",

@@ -1,5 +1,11 @@
 # cycling-coach
 
+## 2026.9.12
+
+### Patch Changes
+
+- a372f86: User-facing: Send /feedback plus a short note from Telegram or Desktop. It goes to the Enduragent authors, not to the coach.
+
 ## 2026.9.10
 
 ### Patch Changes
