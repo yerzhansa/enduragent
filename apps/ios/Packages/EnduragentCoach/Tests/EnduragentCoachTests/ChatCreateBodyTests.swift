@@ -37,8 +37,9 @@ struct ChatCreateBodyTests {
 		#expect(!encoded.contains("icu_training_load"))
 		#expect(!encoded.contains("\"uid\""))
 		#expect(!encoded.contains("workout_doc"))
-		try encoded.write(toFile: "/tmp/ios-c6/create-body-swift.json", atomically: true, encoding: .utf8)
-		try encoded.write(toFile: "/tmp/ios-c6/create-body-ts.json", atomically: true, encoding: .utf8)
+		if FileManager.default.fileExists(atPath: "/tmp/ios-c6") {
+			try encoded.write(toFile: "/tmp/ios-c6/create-body-swift.json", atomically: true, encoding: .utf8)
+		}
 	}
 
 	@Test func parseCreateWorkoutRefusesPastDates() throws {
