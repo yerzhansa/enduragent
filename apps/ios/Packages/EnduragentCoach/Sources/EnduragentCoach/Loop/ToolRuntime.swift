@@ -83,10 +83,11 @@ package struct ToolRuntime: Sendable {
 			)
 		}
 		let key = name.rawValue + " " + canonicalJSON(arguments)
-		if let cached = await memo.cached(key) {
+		let replayUnsafe = ReplayUnsafeToolName(rawValue: name.rawValue) != nil
+		if !replayUnsafe, let cached = await memo.cached(key) {
 			return .result(cached)
 		}
-		if let existing = await memo.task(for: key) {
+		if !replayUnsafe, let existing = await memo.task(for: key) {
 			return try await existing.value
 		}
 		let task = Task {
@@ -94,7 +95,11 @@ package struct ToolRuntime: Sendable {
 		}
 		await memo.store(task: task, for: key)
 		do {
-			return try await task.value
+			let outcome = try await task.value
+			if replayUnsafe {
+				await memo.clearTask(key)
+			}
+			return outcome
 		} catch {
 			await memo.clearTask(key)
 			throw error
@@ -123,7 +128,9 @@ package struct ToolRuntime: Sendable {
 				)
 			} else {
 				outcome = .result(enveloped)
-				await memo.store(value: enveloped, for: key)
+				if ReplayUnsafeToolName(rawValue: name.rawValue) == nil {
+					await memo.store(value: enveloped, for: key)
+				}
 			}
 		case .pending, .truncated:
 			outcome = raw
@@ -171,10 +178,17 @@ package struct ToolRuntime: Sendable {
 					events = events.filter(\.coachCreated)
 				}
 				return .result(.array(events.map(encodeEvent)))
+			case .memoryRead:
+				return try await executeMemoryRead()
+			case .memoryQuery:
+				return try await executeMemoryQuery(arguments)
+			case .memoryWrite:
+				return try await executeMemoryWrite(arguments)
+			case .ledgerAppend:
+				return try await executeLedgerAppend(arguments)
 			case .buildPlanSkeleton, .assessFeasibility, .getSampleWeek,
 			     .intervalsCreateWorkout, .intervalsCreateStrengthWorkout,
 			     .intervalsDeleteWorkout, .intervalsUpdateWorkout,
-			     .memoryRead, .memoryQuery, .memoryWrite, .ledgerAppend,
 			     .planSave, .planLoad:
 				fatalError("not implemented")
 			}
@@ -185,8 +199,7 @@ package struct ToolRuntime: Sendable {
 
 	package func toolsForTurn(chatId: ChatID, memory: MemoryView) -> [ToolSchema] {
 		_ = chatId
-		_ = memory
-		return [
+		var schemas = [
 			ToolSchema(
 				name: .calculateZones,
 				description: "Calculate power-zone watt ranges from FTP watts (7-zone numbering)",
@@ -270,6 +283,87 @@ package struct ToolRuntime: Sendable {
 				)
 			),
 		]
+		if shouldOfferMemoryRead(memory) {
+			schemas.append(
+				ToolSchema(
+					name: .memoryRead,
+					description:
+						"Read only stored sections that Athlete Context does not show, plus today's notes and plan state.",
+					parameters: objectSchema(properties: [:], required: [])
+				)
+			)
+		}
+		let sectionNames = SectionName.cyclingEffective.map(\.rawValue) + memory.orphanNames
+		let uniqueSections = uniqueStrings(sectionNames)
+		let sectionList = uniqueSections.map { name in
+			let hint = SectionName(rawValue: name).hint
+			return "\(name) (\(hint))"
+		}.joined(separator: "; ")
+		schemas.append(
+			ToolSchema(
+				name: .memoryQuery,
+				description:
+					"Query dated athlete memory: daily notes, the event ledger, and section history over a date range. "
+					+ "Use this for any question about past notes, decisions, overrides, illness, or "
+					+ "experiments. Returns matching notes, events, and history grouped by date.",
+				parameters: objectSchema(
+					properties: [
+						"from": stringProperty("Start date (inclusive), YYYY-MM-DD"),
+						"to": stringProperty("End date (inclusive), YYYY-MM-DD"),
+						"query": stringProperty(
+							"Case-insensitive substring filter. Omit to return everything in the range."
+						),
+					],
+					required: ["from", "to"]
+				)
+			)
+		)
+		schemas.append(
+			ToolSchema(
+				name: .memoryWrite,
+				description:
+					"Write to long-term memory (replaces section content) or daily notes. "
+					+ "Sections: \(sectionList).",
+				parameters: objectSchema(
+					properties: [
+						"type": .object([
+							"type": .string("string"),
+							"enum": .array([.string("memory"), .string("daily")]),
+							"description": .string("'memory' for long-term facts, 'daily' for today's notes"),
+						]),
+						"section": .object([
+							"type": .string("string"),
+							"enum": .array(uniqueSections.map { .string($0) }),
+							"description": .string(
+								"Memory section to write to. REQUIRED when type='memory' — the write replaces the section content."
+							),
+						]),
+						"content": stringProperty("The information to save"),
+					],
+					required: ["type", "content"]
+				)
+			)
+		)
+		schemas.append(
+			ToolSchema(
+				name: .ledgerAppend,
+				description:
+					"Record a dated event the athlete just stated: decision, override, illness, experiment, outcome. Skip routine training data and anything already in Athlete Context.",
+				parameters: objectSchema(
+					properties: [
+						"date": stringProperty("Event date, YYYY-MM-DD, athlete-local"),
+						"kind": .object([
+							"type": .string("string"),
+							"enum": .array(LedgerKind.allCases.map { .string($0.rawValue) }),
+							"description": .string("Event category"),
+						]),
+						"text": stringProperty("One or two sentences, with rationale or outcome when stated"),
+					],
+					required: ["date", "kind", "text"]
+				)
+			)
+		)
+		return schemas
 	}
 
 	package func rebuildConfirmed(_ input: GatedToolInput) async throws -> JSONValue {
@@ -278,6 +372,96 @@ package struct ToolRuntime: Sendable {
 
 	private static let activityIDDescription =
 		"Activity ID from intervals_fetch_activities — a positive integer or digit string, optionally i-prefixed for intervals-native activities, or a lowercase 64-hex canonical ID. Pass exactly as listed."
+
+	private func memory() -> Memory {
+		Memory(store: store, clock: clock)
+	}
+
+	private func executeMemoryRead() async throws -> ToolOutcome {
+		let text = try await memory().complementContext()
+		if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			return .result(.string("Every stored section is already in your Athlete Context."))
+		}
+		return .result(.string(text))
+	}
+
+	private func executeMemoryQuery(_ arguments: JSONValue) async throws -> ToolOutcome {
+		let fields = arguments.objectFields
+		let fromRaw = fields["from"]?.stringValue ?? ""
+		let toRaw = fields["to"]?.stringValue ?? ""
+		let query = fields["query"]?.stringValue
+		guard let from = CivilDate(rawValue: fromRaw), let to = CivilDate(rawValue: toRaw) else {
+			return .result(
+				.string("Error: \(fromRaw)..\(toRaw) contains an invalid calendar date. Use real YYYY-MM-DD dates.")
+			)
+		}
+		do {
+			let hits = try await memory().query(from: from, to: to, contains: query)
+			return .result(.string(MemoryQuery.render(hits, from: from, to: to, query: query)))
+		} catch let failure as MemoryQueryFailure {
+			return .result(.string(failure.message))
+		}
+	}
+
+	private func executeMemoryWrite(_ arguments: JSONValue) async throws -> ToolOutcome {
+		let fields = arguments.objectFields
+		let type = fields["type"]?.stringValue
+		let content = fields["content"]?.stringValue ?? ""
+		if type == "memory" {
+			guard let section = fields["section"]?.stringValue else {
+				return .result(
+					.object([
+						"details": .string(
+							"type='memory' requires a section. Pick one of the listed sections, or use type='daily' for free-form notes."
+						),
+						"error": .string("section_required"),
+					])
+				)
+			}
+			let allowed = Set(SectionName.cyclingEffective.map(\.rawValue) + ((try? await memory().view())?.orphanNames ?? []))
+			if !allowed.contains(section) {
+				return .result(
+					.object([
+						"details": .string("Unknown memory section."),
+						"error": .string("unknown_section"),
+					])
+				)
+			}
+			try await memory().writeSection(SectionName(rawValue: section), content: content, source: .chat)
+			return .result(.object(["saved": .bool(true)]))
+		}
+		try await memory().appendDailyNote(content)
+		return .result(.object(["saved": .bool(true)]))
+	}
+
+	private func executeLedgerAppend(_ arguments: JSONValue) async throws -> ToolOutcome {
+		let fields = arguments.objectFields
+		guard
+			let dateRaw = fields["date"]?.stringValue,
+			let date = CivilDate(rawValue: dateRaw),
+			let kindRaw = fields["kind"]?.stringValue,
+			let kind = LedgerKind(rawValue: kindRaw),
+			let text = fields["text"]?.stringValue,
+			!text.isEmpty
+		else {
+			let dateRaw = fields["date"]?.stringValue ?? ""
+			return .result(.string("Error: \(dateRaw) is not a real calendar date. Use YYYY-MM-DD."))
+		}
+		let recorded = try await memory().appendEvent(date: date, kind: kind, text: text, source: .chat)
+		if recorded {
+			return .result(.object(["recorded": .bool(true)]))
+		}
+		return .result(.object(["duplicate": .bool(true), "recorded": .bool(false)]))
+	}
+
+	private func shouldOfferMemoryRead(_ view: MemoryView) -> Bool {
+		for name in SectionName.cyclingEffective where !name.inject {
+			if let content = view.sections[name.rawValue], memorySectionHasLogicalContent(content) {
+				return true
+			}
+		}
+		return false
+	}
 
 	private func executeCalculateZones(_ arguments: JSONValue) throws -> ToolOutcome {
 		guard let ftp = arguments.objectFields["ftpWatts"]?.intValue() else {
@@ -412,6 +596,22 @@ package struct ToolRuntime: Sendable {
 			"type": .string("string"),
 			"description": .string(description),
 		])
+	}
+
+	private func uniqueStrings(_ values: [String]) -> [String] {
+		var seen: Set<String> = []
+		var unique: [String] = []
+		for value in values where seen.insert(value).inserted {
+			unique.append(value)
+		}
+		return unique
+	}
+
+	private func memorySectionHasLogicalContent(_ stamped: String) -> Bool {
+		guard let newline = stamped.firstIndex(of: "\n") else { return false }
+		return !stamped[stamped.index(after: newline)...]
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+			.isEmpty
 	}
 
 	private func integerProperty(_ description: String, minimum: Int? = nil, maximum: Int? = nil) -> JSONValue {
