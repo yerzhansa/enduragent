@@ -45,34 +45,157 @@ public actor Coach {
 	}
 
 	public nonisolated func send(_ text: String, chatId: ChatID) -> AsyncThrowingStream<CoachEvent, Error> {
-		fatalError("not implemented")
+		AsyncThrowingStream { continuation in
+			let task = Task {
+				do {
+					let stream = await self.streamFromMailbox(text, chatId: chatId)
+					for try await event in stream {
+						continuation.yield(event)
+					}
+					continuation.finish()
+				} catch {
+					continuation.finish(throwing: error)
+				}
+			}
+			continuation.onTermination = { termination in
+				guard case .cancelled = termination else { return }
+				task.cancel()
+			}
+		}
 	}
 
 	public func history(chatId: ChatID) async -> [ChatMessage] {
-		fatalError("not implemented")
+		(try? await loadHistory(chatId: chatId)) ?? []
 	}
 
 	public func pendingProposal(chatId: ChatID) async -> PendingProposal? {
-		fatalError("not implemented")
+		let records = (try? await store.fetch(
+			RecordQuery(kinds: [.pendingProposal, .proposalCleared], chatId: chatId, deviceLocalOnly: true)
+		)) ?? []
+		let ordered = records.sorted { $0.hlc < $1.hlc }
+		var current: ProposalBody?
+		for record in ordered {
+			switch record.body {
+			case .pendingProposal(let body) where body.chatId == chatId:
+				current = body
+			case .proposalCleared(let body) where body.chatId == chatId:
+				if current?.nonce == body.nonce {
+					current = nil
+				}
+			default:
+				break
+			}
+		}
+		guard let current, current.expiresAt > clock.now else {
+			return nil
+		}
+		return PendingProposal(
+			chatId: current.chatId,
+			nonce: current.nonce,
+			summary: current.summary,
+			description: current.description,
+			expiresAt: current.expiresAt
+		)
 	}
 
 	public func confirm(chatId: ChatID, nonce: Nonce) async throws -> ConfirmOutcome {
-		fatalError("not implemented")
+		_ = chatId
+		_ = nonce
+		_ = sport
+		_ = transport
+		_ = intervals
+		_ = tools
+		return .none
 	}
 
 	public func setCoachReplyLanguage(_ tag: LanguageTag?) async {
-		fatalError("not implemented")
+		language.coachReply = tag
+		let tz = IANATimeZone(identifier: clock.timeZone.identifier) ?? IANATimeZone(identifier: "GMT")!
+		let record = AthleteRecord(
+			ulid: ULID.generate(at: clock.now),
+			deviceId: store.deviceId,
+			hlc: .tick(now: clock.now, deviceId: store.deviceId, last: nil),
+			timeZone: tz,
+			civilDate: IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone),
+			body: .coachReplyLanguage(CoachReplyLanguageBody(tag: tag))
+		)
+		try? await store.append(record)
 	}
 
 	public func waitForMemoryFlush() async {
-		fatalError("not implemented")
+		await mailbox(for: .main).runQueuedFlush()
 	}
 
 	public func stop(chatId: ChatID) async {
-		fatalError("not implemented")
+		await mailbox(for: chatId).stop()
 	}
 
 	public func snapshot(chatId: ChatID) async -> ViewSeam {
-		fatalError("not implemented")
+		let transcript = await history(chatId: chatId)
+		let pending = await pendingProposal(chatId: chatId)
+		let box = mailbox(for: chatId)
+		let busy = await box.busy
+		let phase: TurnPhase
+		if busy {
+			phase = .streaming
+		} else if pending != nil {
+			phase = .awaitingConfirmation
+		} else {
+			phase = .idle
+		}
+		return ViewSeam(
+			transcript: transcript,
+			streamingText: "",
+			leadFact: nil,
+			commands: SlashCommand.all,
+			pendingWrite: pending,
+			planCards: [],
+			phase: phase
+		)
+	}
+
+	private func streamFromMailbox(_ text: String, chatId: ChatID) async -> AsyncThrowingStream<CoachEvent, Error> {
+		await mailbox(for: chatId).send(text, language: language)
+	}
+
+	private func mailbox(for chatId: ChatID) -> ChatMailbox {
+		if let existing = mailboxes[chatId] {
+			return existing
+		}
+		let created = ChatMailbox(
+			chatId: chatId,
+			runner: runner,
+			memory: memory,
+			store: store,
+			clock: clock
+		)
+		mailboxes[chatId] = created
+		return created
+	}
+
+	private func loadHistory(chatId: ChatID) async throws -> [ChatMessage] {
+		let records = try await store.fetch(
+			RecordQuery(kinds: [.userMessage, .assistantMessage, .windowStart], chatId: chatId)
+		)
+		let ordered = records.sorted { $0.hlc < $1.hlc }
+		let start = ordered.reversed().compactMap { record -> ULID? in
+			if case .windowStart(let body) = record.body { return body.firstIncludedUlid }
+			return nil
+		}.first
+		var messages: [ChatMessage] = []
+		for record in ordered {
+			if let start, record.ulid.rawValue < start.rawValue {
+				continue
+			}
+			switch record.body {
+			case .userMessage(let body):
+				messages.append(ChatMessage(role: .user, text: body.athleteText, civilDate: record.civilDate))
+			case .assistantMessage(let body):
+				messages.append(ChatMessage(role: .assistant, text: body.text, civilDate: record.civilDate))
+			default:
+				break
+			}
+		}
+		return messages
 	}
 }

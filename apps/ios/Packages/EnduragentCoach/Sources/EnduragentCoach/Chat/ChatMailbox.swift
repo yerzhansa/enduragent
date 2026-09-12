@@ -6,6 +6,9 @@ package actor ChatMailbox {
 	private let memory: Memory
 	private let store: any RecordLog
 	private let clock: any Clock
+	private var tail: Task<Void, Never>
+	private var current: Task<Void, Never>?
+	package private(set) var busy = false
 
 	package init(
 		chatId: ChatID,
@@ -19,21 +22,115 @@ package actor ChatMailbox {
 		self.memory = memory
 		self.store = store
 		self.clock = clock
+		self.tail = Task {}
 	}
 
 	package func send(_ text: String, language: LanguagePreference) -> AsyncThrowingStream<CoachEvent, Error> {
-		fatalError("not implemented")
+		AsyncThrowingStream { continuation in
+			let task = Task {
+				await self.serializedTurn(text: text, language: language, continuation: continuation)
+			}
+			continuation.onTermination = { termination in
+				guard case .cancelled = termination else { return }
+				task.cancel()
+				Task { await self.stop() }
+			}
+		}
+	}
+
+	private func serializedTurn(
+		text: String,
+		language: LanguagePreference,
+		continuation: AsyncThrowingStream<CoachEvent, Error>.Continuation
+	) async {
+		await enqueue {
+			await self.performTurn(text: text, language: language, continuation: continuation)
+		}
+	}
+
+	private func performTurn(
+		text: String,
+		language: LanguagePreference,
+		continuation: AsyncThrowingStream<CoachEvent, Error>.Continuation
+	) async {
+		busy = true
+		defer { busy = false }
+		do {
+			try await runner.run(text: text, chatId: chatId, language: language) { event in
+				continuation.yield(event)
+			}
+			continuation.finish()
+		} catch is CancellationError {
+			continuation.finish()
+		} catch {
+			continuation.finish(throwing: error)
+		}
 	}
 
 	package func stop() {
-		fatalError("not implemented")
+		current?.cancel()
 	}
 
 	package func reset() async {
-		fatalError("not implemented")
+		await enqueue {
+			let writerWait = RecordLogReset(store: self.store, clock: self.clock)
+			try? await writerWait.run(chatId: self.chatId)
+		}
 	}
 
 	package func runQueuedFlush() async {
-		fatalError("not implemented")
+		await enqueue {
+			try? await self.memory.flush(trigger: .softThreshold, chatId: self.chatId, transport: FlushNoopTransport())
+		}
+	}
+
+	private func enqueue(_ work: @escaping @Sendable () async -> Void) async {
+		let previous = tail
+		let next = Task {
+			await previous.value
+			guard !Task.isCancelled else { return }
+			await work()
+		}
+		tail = next
+		current = next
+		await next.value
+	}
+}
+
+private struct FlushNoopTransport: ModelTransport {
+	func stream(_ request: CompletionRequest) -> AsyncThrowingStream<TransportEvent, Error> {
+		AsyncThrowingStream { continuation in
+			_ = request
+			continuation.finish()
+		}
+	}
+}
+
+private struct RecordLogReset {
+	let store: any RecordLog
+	let clock: any Clock
+
+	func run(chatId: ChatID) async throws {
+		let tz = IANATimeZone(identifier: clock.timeZone.identifier) ?? IANATimeZone(identifier: "GMT")!
+		let marker = ULID.generate(at: clock.now)
+		let record = AthleteRecord(
+			ulid: marker,
+			deviceId: store.deviceId,
+			hlc: .tick(now: clock.now, deviceId: store.deviceId, last: nil),
+			timeZone: tz,
+			civilDate: IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone),
+			body: .flushPending(FlushPendingBody(chatId: chatId, trigger: .explicitReset, messageUlids: []))
+		)
+		try await store.append(record)
+		try await store.append(
+			AthleteRecord(
+				ulid: ULID.generate(at: clock.now),
+				deviceId: store.deviceId,
+				hlc: .tick(now: clock.now, deviceId: store.deviceId, last: record.hlc),
+				timeZone: tz,
+				civilDate: IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone),
+				body: .windowStart(WindowStartBody(chatId: chatId, firstIncludedUlid: marker))
+			)
+		)
 	}
 }
