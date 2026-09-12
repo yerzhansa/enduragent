@@ -1,4 +1,4 @@
 ---
 ---
 
-User-facing: Ask the coach about your recent rides, wellness, and calendar and it reads them from intervals.icu.
+Add intervals.icu read tools and cycling display zones to the Enduragent iOS coach package. No npm or desktop release target yet.
