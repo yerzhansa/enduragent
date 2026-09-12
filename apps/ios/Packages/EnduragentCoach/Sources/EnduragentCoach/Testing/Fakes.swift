@@ -9,6 +9,7 @@ public enum ScriptedEvent: Sendable, Equatable {
 public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 	public var script: [ScriptedEvent]
 	public private(set) var requests: [CompletionRequest]
+	private let lock = NSLock()
 
 	public init() {
 		self.script = []
@@ -16,7 +17,56 @@ public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 	}
 
 	public func stream(_ request: CompletionRequest) -> AsyncThrowingStream<TransportEvent, Error> {
-		fatalError("not implemented")
+		let events: [TransportEvent]
+		do {
+			events = try nextBatch(for: request)
+		} catch {
+			return AsyncThrowingStream { continuation in
+				continuation.finish(throwing: error)
+			}
+		}
+		return AsyncThrowingStream { continuation in
+			for event in events {
+				continuation.yield(event)
+			}
+			continuation.finish()
+		}
+	}
+
+	private func nextBatch(for request: CompletionRequest) throws -> [TransportEvent] {
+		lock.lock()
+		defer { lock.unlock() }
+		requests.append(request)
+		var events: [TransportEvent] = []
+		while !script.isEmpty {
+			let event = script.removeFirst()
+			switch event {
+			case .text(let text):
+				events.append(.textDelta(text))
+			case .toolCall(let name, let arguments):
+				guard let toolName = ToolName(rawValue: name) else {
+					throw OpenRouterParseError.unknownTool(name)
+				}
+				events.append(
+					.toolCall(
+						WireToolCall(
+							id: UUID().uuidString,
+							name: toolName,
+							arguments: arguments
+						)
+					)
+				)
+			case .finish(let reason):
+				events.append(
+					.finished(
+						reason: reason,
+						usage: Usage(inputTokens: 0, outputTokens: 0, cost: nil)
+					)
+				)
+				return events
+			}
+		}
+		return events
 	}
 }
 
