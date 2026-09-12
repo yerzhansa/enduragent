@@ -15,7 +15,8 @@ let package = Package(
 		.target(name: "EnduragentCoach"),
 		.testTarget(
 			name: "EnduragentCoachTests",
-			dependencies: ["EnduragentCoach"]
+			dependencies: ["EnduragentCoach"],
+			resources: [.copy("Fixtures")]
 		),
 	],
 	swiftLanguageModes: [.v6]
