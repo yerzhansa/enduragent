@@ -1,0 +1,5 @@
+data: {"id":"gen-1998-ada-partial","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}],"usage":{"prompt_tokens":4,"completion_tokens":1,"cost":0.25}}
+
+data: {"id":"gen-1998-ada-partial","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"content":" Ada"},"finish_reason":"stop"}],"usage":{"prompt_tokens":4,"completion_tokens":2}}
+
+data: [DONE]
