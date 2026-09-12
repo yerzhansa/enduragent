@@ -182,6 +182,10 @@ struct ReadToolsTests {
 				.memoryQuery,
 				.memoryWrite,
 				.ledgerAppend,
+				.intervalsCreateWorkout,
+				.intervalsCreateStrengthWorkout,
+				.intervalsDeleteWorkout,
+				.intervalsUpdateWorkout,
 			]
 		)
 		let encoded = schemas.map { canonicalJSON($0.parameters) }.joined()

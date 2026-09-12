@@ -109,44 +109,104 @@ struct IntervalsRESTClientTests {
 		#expect(IntervalsURLProtocolStub.lastRequest != nil)
 	}
 
+	@Test func createChatEventPostsSnakeCaseBodyWithoutForbiddenFields() async throws {
+		let client = try makeClient(
+			clock: FixedClock(now: "1998-06-13T08:00:00+02:00", timeZone: "Europe/Amsterdam")
+		)
+		let draft = try CyclingTools.parseCreateWorkout(
+			try JSONValue.parse(
+				#"{"date":"1998-06-14","workout":{"name":"Endurance","steps":[{"type":"warmup","duration":{"value":10,"unit":"minutes"},"power":{"kind":"percent_ftp","low":55,"high":65}}]}}"#
+			),
+			today: "1998-06-13"
+		)
+		let event = try await client.createChatEvent(draft)
+		let request = try #require(IntervalsURLProtocolStub.lastRequest)
+		#expect(request.httpMethod == "POST")
+		#expect(request.url?.path.hasSuffix("/athlete/0/events") == true)
+		#expect(request.url?.query == "upsertOnUid=false")
+		let body = String(data: try #require(IntervalsURLProtocolStub.lastBody), encoding: .utf8)!
+		#expect(body.contains("\"start_date_local\""))
+		#expect(body.contains("\"external_id\""))
+		#expect(!body.contains("moving_time"))
+		#expect(!body.contains("icu_training_load"))
+		#expect(!body.contains("\"uid\""))
+		#expect(!body.contains("workout_doc"))
+		#expect(event.name == "Endurance")
+	}
+
+	@Test func deleteRefusesRaceCategory() async throws {
+		let client = try makeClient(
+			clock: FixedClock(now: "1998-06-13T08:00:00+02:00", timeZone: "Europe/Amsterdam")
+		)
+		do {
+			try await client.deleteEvent(id: EventID(rawValue: 43))
+			Issue.record("expected not_a_workout")
+		} catch let error as IntervalsError {
+			#expect(error.code == "not_a_workout")
+		}
+	}
+
 	private func makeClient(
-		credential: IntervalsCredential = .apiKey("test-key")
+		credential: IntervalsCredential = .apiKey("test-key"),
+		clock: any Clock = SystemClock()
 	) throws -> IntervalsRESTClient {
 		IntervalsURLProtocolStub.reset()
 		IntervalsURLProtocolStub.handler = { request in
 			let path = request.url?.path ?? ""
-			let name: String
+			let method = request.httpMethod ?? "GET"
 			if path.hasSuffix("/streams.json") {
-				name = "intervals-streams"
-			} else if path.contains("/wellness") {
-				name = "intervals-wellness"
-			} else if path.contains("/activities") {
-				name = "intervals-activities"
-			} else if path.contains("/events") {
-				name = "intervals-events"
-			} else if path.contains("/activity/") {
-				name = "intervals-activity"
-			} else {
-				name = "intervals-athlete"
+				return (200, try fixtureData("intervals-streams"))
 			}
-			return (200, try fixtureData(name))
+			if path.contains("/wellness") {
+				return (200, try fixtureData("intervals-wellness"))
+			}
+			if path.contains("/activities") {
+				return (200, try fixtureData("intervals-activities"))
+			}
+			if path.contains("/events/") {
+				if path.hasSuffix("/43") {
+					let race = """
+					{"id":43,"start_date_local":"1998-06-20T00:00:00","name":"Local race","category":"RACE_A","tags":[]}
+					"""
+					return (200, Data(race.utf8))
+				}
+				let owned = """
+				{"id":42,"start_date_local":"1998-06-14T00:00:00","name":"Endurance","category":"WORKOUT","external_id":"cycling-coach:1998-06-14:endurance","tags":["cycling-coach"]}
+				"""
+				return (200, Data(owned.utf8))
+			}
+			if path.contains("/events") {
+				if method == "POST" {
+					let created = """
+					{"id":1,"start_date_local":"1998-06-14T00:00:00","name":"Endurance","category":"WORKOUT","external_id":"cycling-coach:1998-06-14:endurance","tags":["cycling-coach"]}
+					"""
+					return (200, Data(created.utf8))
+				}
+				return (200, try fixtureData("intervals-events"))
+			}
+			if path.contains("/activity/") {
+				return (200, try fixtureData("intervals-activity"))
+			}
+			return (200, try fixtureData("intervals-athlete"))
 		}
 		let configuration = URLSessionConfiguration.ephemeral
 		configuration.protocolClasses = [IntervalsURLProtocolStub.self]
 		configuration.timeoutIntervalForRequest = IntervalsPolicy.requestTimeout
 		let session = URLSession(configuration: configuration)
-		return IntervalsRESTClient(credential: credential, session: session)
+		return IntervalsRESTClient(credential: credential, session: session, clock: clock)
 	}
 }
 
 final class IntervalsURLProtocolStub: URLProtocol, @unchecked Sendable {
 	nonisolated(unsafe) static var lastRequest: URLRequest?
+	nonisolated(unsafe) static var lastBody: Data?
 	nonisolated(unsafe) static var handler: (@Sendable (URLRequest) throws -> (Int, Data))?
 	private static let lock = NSLock()
 
 	static func reset() {
 		lock.lock()
 		lastRequest = nil
+		lastBody = nil
 		handler = nil
 		lock.unlock()
 	}
@@ -157,6 +217,7 @@ final class IntervalsURLProtocolStub: URLProtocol, @unchecked Sendable {
 	override func startLoading() {
 		Self.lock.lock()
 		Self.lastRequest = request
+		Self.lastBody = Self.copyBody(request)
 		let handler = Self.handler
 		Self.lock.unlock()
 		do {
@@ -176,6 +237,29 @@ final class IntervalsURLProtocolStub: URLProtocol, @unchecked Sendable {
 	}
 
 	override func stopLoading() {}
+
+	private static func copyBody(_ request: URLRequest) -> Data? {
+		if let body = request.httpBody {
+			return body
+		}
+		guard let stream = request.httpBodyStream else {
+			return nil
+		}
+		stream.open()
+		defer { stream.close() }
+		var data = Data()
+		let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 4096)
+		defer { buffer.deallocate() }
+		while stream.hasBytesAvailable {
+			let count = stream.read(buffer, maxLength: 4096)
+			if count > 0 {
+				data.append(buffer, count: count)
+			} else {
+				break
+			}
+		}
+		return data
+	}
 }
 
 func fixtureData(_ name: String) throws -> Data {
