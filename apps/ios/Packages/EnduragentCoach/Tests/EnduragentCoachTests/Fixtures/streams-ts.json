@@ -1,0 +1,1 @@
+{"sampleCount":4,"channels":{"watts":{"min":100,"max":400,"mean":250},"heartrate":{"min":140,"max":160,"mean":150},"cadence":{"min":80,"max":90,"mean":86.3},"time":{"min":0,"max":3,"mean":1.5},"altitude":{"min":100,"max":103,"mean":101.5}}}

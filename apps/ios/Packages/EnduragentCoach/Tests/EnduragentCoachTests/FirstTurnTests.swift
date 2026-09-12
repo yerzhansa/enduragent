@@ -23,4 +23,25 @@ import Testing
 		let coach = makeCoach()
 		#expect(await coach.history(chatId: "main").isEmpty)
 	}
+
+	@Test(.disabled("TurnRunner.run is not implemented"))
+	func toolCallRunsAndFeedsBackIntoTheTurn() async throws {
+		intervals.activities = [.ride(name: "Sunday long ride", date: "1998-06-07", durationS: 7200, trainingLoad: 120)]
+		transport.script = [
+			.toolCall(name: "intervals_fetch_activities", arguments: #"{"days":7}"#),
+			.finish(reason: .toolCalls),
+			.text("Sunday long ride, 2 h, load 120."),
+			.finish(reason: .stop)
+		]
+		let coach = makeCoach()
+
+		var toolNames: [String] = []
+		for try await event in coach.send("Review my last ride", chatId: "main") {
+			if case .toolStarted(let name, _) = event { toolNames.append(name) }
+		}
+
+		#expect(toolNames == ["intervals_fetch_activities"])
+		#expect(transport.requests.count == 2)
+		#expect(intervals.calls == [.activities(days: 7)])
+	}
 }
