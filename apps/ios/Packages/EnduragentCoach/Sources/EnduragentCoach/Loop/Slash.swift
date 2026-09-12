@@ -19,6 +19,9 @@ public enum SlashCommand: String, Sendable, CaseIterable {
 
 public enum SlashRouting {
 	public static func parse(_ text: String) -> SlashCommand? {
-		fatalError("not implemented")
+		guard let token = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).first else {
+			return nil
+		}
+		return SlashCommand(rawValue: String(token))
 	}
 }
