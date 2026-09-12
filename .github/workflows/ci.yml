@@ -266,9 +266,19 @@ jobs:
     needs: ios-scope
     if: needs.ios-scope.outputs.ios == 'true'
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check generated iOS catalogs
+        run: |
+          pnpm --filter @enduragent/i18n generate:swift
+          git diff --exit-code apps/ios/Packages/EnduragentCoach/Sources/EnduragentCoach/I18n apps/ios/Packages/EnduragentCoach/Sources/EnduragentCoach/Resources
       - run: swift test --package-path apps/ios/Packages/EnduragentCoach
 
   credits-scope:
