@@ -1,0 +1,65 @@
+{
+  // Secrets via `wrangler secret put` (names only; never in vars or source):
+  // OPENROUTER_MANAGEMENT_KEY
+  // APPLE_APP_STORE_P8
+  // APPLE_APP_STORE_KEY_ID
+  // APPLE_APP_STORE_ISSUER_ID
+  // APPLE_DEVICECHECK_P8
+  // APPLE_DEVICECHECK_KEY_ID
+  // APPLE_DEVICECHECK_TEAM_ID
+  // INTERVALS_OAUTH_CLIENT_SECRET
+  // OPERATOR_TOKEN
+  // OPENROUTER_GUARDRAIL_ID   (optional; unused when GUARDRAIL_MODE is off)
+  // KEY_COUNT_CEILING         (optional; unset means do not enforce)
+  "name": "credits-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BUNDLE_ID": "icu.enduragent.app",
+    "APPLE_ENVIRONMENT": "sandbox",
+    "PURCHASES_ENABLED": "false",
+    "STARTER_CAP_USD": "2",
+    "CREDITS_PER_USD": "100",
+    "APPLE_COMMISSION": "0.15",
+    "OPENROUTER_FEE": "0.055",
+    "RATIO": "1.0",
+    "GUARDRAIL_MODE": "after_create",
+    "CONSUMPTION_REPORTING": "unverified",
+    "REPEAT_REFUND_BAN_THRESHOLD": "2",
+    "INTERVALS_OAUTH_ENABLED": "false"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "credits",
+      "database_id": "00000000-1998-4000-8000-000000000001"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ATHLETE_SESSION",
+        "class_name": "AthleteSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["AthleteSession"]
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMIT_IP",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "RATE_LIMIT_TOKEN",
+      "namespace_id": "1002",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ]
+}

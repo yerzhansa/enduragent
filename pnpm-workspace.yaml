@@ -20,6 +20,7 @@ allowBuilds:
   esbuild: true
   msw: true
   protobufjs: true
+  workerd: true
 
 patchedDependencies:
   "fit-file-parser@3.0.2": "patches/fit-file-parser@3.0.2.patch"
