@@ -54,7 +54,7 @@
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.11",
     "@xmldom/xmldom": "0.9.12",
-    "ai": "^6.0.158",
+    "ai": "^7.0.95",
     "i18next-parser": "^9.4.0",
     "intervals-icu-api": "0.4.0",
     "knip": "^6.34.0",
