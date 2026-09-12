@@ -936,7 +936,8 @@
       "update": "Tarkista ja asenna päivitykset",
       "version": "Näytä nykyinen versio",
       "whatsnew": "Katso uusimman version muutokset",
-      "workout": "Hae tämän päivän harjoitus"
+      "workout": "Hae tämän päivän harjoitus",
+      "feedback": "Lähetä viesti Enduragentin tekijöille"
     },
     "composer": {
       "attach": "Liitä tiedostoja",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Vastaus pysäytetty. Osittainen vastaus säilyy.",
       "retryMessage": "Yritä viestiä uudelleen",
       "savedChoice": "Tallennettu valinta",
-      "working": "Valmentaja työskentelee…"
+      "working": "Valmentaja työskentelee…",
+      "feedbackFailed": "Viestiä ei voitu lähettää. Se on yhä kentässä — yritä uudelleen.",
+      "feedbackSent": "Kiitos — vastaanotimme viestisi.",
+      "feedbackTooLong": "Pidä viesti enintään 4000 merkin pituisena. Mitään ei lähetetty.",
+      "feedbackUsage": "Lähetä /feedback ja sen perään viestisi."
     },
     "planChange": {
       "activePlan": "Aktiivinen suunnitelma",
@@ -2681,7 +2686,8 @@
       "update": "Tarkista ja asenna päivitykset",
       "version": "Näytä nykyinen versio",
       "whatsnew": "Katso uusimman version muutokset",
-      "workout": "Hae tämän päivän harjoitus"
+      "workout": "Hae tämän päivän harjoitus",
+      "feedback": "Lähetä viesti Enduragentin tekijöille"
     },
     "pairing": {
       "askOwner": "Muussa tapauksessa pyydä botin omistajaa valtuuttamaan käyttäjätunnuksesi.",
@@ -2795,9 +2801,15 @@
       "managedInstruction": "Katso muutokset lähettämällä {{whatsnew}}. {{notice}}",
       "prepareFailed": "Päivitystä ei voitu juuri nyt valmistella turvallisesti. Yritä komentoa {{command}} hetken kuluttua uudelleen."
     },
-    "welcome": "Tervetuloa käyttämään sovellusta {{product}}!\n\nOlen tekoälyyn perustuva pyöräilyvalmentajasi. Voin laatia harjoitussuunnitelmia, ehdottaa harjoituksia ja seurata kuntoasi palvelun {{service}} tietojen avulla.\n\nKomennot:\n{{plan}}: Luo harjoitussuunnitelma\n{{workout}}: Hae tämän päivän harjoitus\n{{status}}: Tarkista nykyinen kunto, väsymys ja tuoreus\n{{review}}: Tarkista viimeisin harjoituksesi\n{{sync}}: Pakota harjoitustietojen päivitys palvelusta {{service}}\n{{version}}: Näytä nykyinen versio\n{{whatsnew}}: Katso uusimman version muutokset\n{{update}}: {{updateDescription}}\n\nVoit myös vain jutella kanssani harjoittelustasi!",
+    "welcome": "Tervetuloa käyttämään sovellusta {{product}}!\n\nOlen tekoälyyn perustuva pyöräilyvalmentajasi. Voin laatia harjoitussuunnitelmia, ehdottaa harjoituksia ja seurata kuntoasi palvelun {{service}} tietojen avulla.\n\nKomennot:\n{{plan}}: Luo harjoitussuunnitelma\n{{workout}}: Hae tämän päivän harjoitus\n{{status}}: Tarkista nykyinen kunto, väsymys ja tuoreus\n{{review}}: Tarkista viimeisin harjoituksesi\n{{feedback}}: Lähetä viesti Enduragentin tekijöille\n{{sync}}: Pakota harjoitustietojen päivitys palvelusta {{service}}\n{{version}}: Näytä nykyinen versio\n{{whatsnew}}: Katso uusimman version muutokset\n{{update}}: {{updateDescription}}\n\nVoit myös vain jutella kanssani harjoittelustasi!",
     "workout": {
       "working": "Tarkistan tuoreuttasi ja suunnitelmaasi…"
+    },
+    "feedback": {
+      "failed": "Viestiä ei voitu lähettää. Yritä hetken kuluttua uudelleen.",
+      "sent": "Kiitos — vastaanotimme viestisi.",
+      "tooLong": "Pidä viesti enintään {{limit}} merkin pituisena. Mitään ei lähetetty.",
+      "usage": "Lähetä /feedback ja sen perään viestisi. Esimerkki: /feedback suunnitelmanäkymää on vaikea lukea."
     }
   },
   "desktop": {

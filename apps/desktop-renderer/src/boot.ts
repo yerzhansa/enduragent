@@ -248,6 +248,7 @@ export function bootRenderer(): Disposer {
       choose: () => window.enduragentAuth.chooseChatAttachments(),
       paste: () => window.enduragentAuth.pasteChatAttachment(),
     },
+    submitAthleteFeedback: (text) => window.enduragentAuth.submitAthleteFeedback({ text }),
     openPlanningRequest: (chatId, requestId) => {
       store.getState().setActiveView("plan");
       activePlanAdapter?.openChatRequest(chatId, requestId);

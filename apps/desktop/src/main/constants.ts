@@ -24,6 +24,7 @@ export const DESKTOP_TRAINING_EXPORT_CHANNEL = "desktop:training:export" as cons
 export const DESKTOP_CHAT_ATTACHMENT_PICK_CHANNEL = "desktop:chat-attachment:pick" as const;
 export const DESKTOP_CHAT_ATTACHMENT_DROP_CHANNEL = "desktop:chat-attachment:drop" as const;
 export const DESKTOP_CHAT_ATTACHMENT_PASTE_CHANNEL = "desktop:chat-attachment:paste" as const;
+export const DESKTOP_ATHLETE_FEEDBACK_CHANNEL = "desktop:athlete-feedback" as const;
 export const DESKTOP_UPDATE_GET_CHANNEL = "desktop:update:get" as const;
 export const DESKTOP_UPDATE_CHECK_CHANNEL = "desktop:update:check" as const;
 export const DESKTOP_UPDATE_RESTART_CHANNEL = "desktop:update:restart" as const;

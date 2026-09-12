@@ -936,7 +936,8 @@
       "update": "Rechercher et installer les mises à jour",
       "version": "Afficher la version actuelle",
       "whatsnew": "Voir les changements de la dernière version",
-      "workout": "Obtenir l’entraînement du jour"
+      "workout": "Obtenir l’entraînement du jour",
+      "feedback": "Envoie une note aux autrices et auteurs d’Enduragent"
     },
     "composer": {
       "attach": "Joindre des fichiers",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Réponse arrêtée. La réponse partielle est conservée.",
       "retryMessage": "Réessayer le message",
       "savedChoice": "Choix enregistré",
-      "working": "Le coach travaille…"
+      "working": "Le coach travaille…",
+      "feedbackFailed": "Impossible d’envoyer cette note. Elle reste dans le champ — réessaie.",
+      "feedbackSent": "Merci — nous avons bien reçu ta note.",
+      "feedbackTooLong": "Garde ta note à 4000 caractères ou moins. Rien n’a été envoyé.",
+      "feedbackUsage": "Envoie /feedback suivi de ta note."
     },
     "planChange": {
       "activePlan": "Plan actif",
@@ -2467,7 +2472,8 @@
       "update": "Rechercher et installer des mises à jour",
       "version": "Afficher la version actuelle",
       "whatsnew": "Voir les changements de la dernière version",
-      "workout": "Voir l’entraînement du jour"
+      "workout": "Voir l’entraînement du jour",
+      "feedback": "Envoie une note aux autrices et auteurs d’Enduragent"
     },
     "pairing": {
       "askOwner": "Sinon, demande au propriétaire du bot d’autoriser ton identifiant utilisateur.",
@@ -2581,9 +2587,15 @@
       "managedInstruction": "Envoie {{whatsnew}} pour voir les changements. {{notice}}",
       "prepareFailed": "Impossible de préparer la mise à jour en toute sécurité pour le moment. Réessaie {{command}} dans un instant."
     },
-    "welcome": "Bienvenue dans {{product}} !\n\nJe suis ton coach de cyclisme IA. Je peux créer des plans d’entraînement, te proposer des entraînements et suivre ta condition physique avec les données de {{service}}.\n\nCommandes :\n{{plan}} — Générer un plan d’entraînement\n{{workout}} — Voir l’entraînement du jour\n{{status}} — Voir ta condition physique, ta fatigue et ta forme actuelles\n{{review}} — Analyser ta dernière séance\n{{sync}} — Forcer l’actualisation des données d’entraînement depuis {{service}}\n{{version}} — Afficher la version actuelle\n{{whatsnew}} — Voir les changements de la dernière version\n{{update}} — {{updateDescription}}\n\nTu peux aussi simplement me parler de ton entraînement !",
+    "welcome": "Bienvenue dans {{product}} !\n\nJe suis ton coach de cyclisme IA. Je peux créer des plans d’entraînement, te proposer des entraînements et suivre ta condition physique avec les données de {{service}}.\n\nCommandes :\n{{plan}} — Générer un plan d’entraînement\n{{workout}} — Voir l’entraînement du jour\n{{status}} — Voir ta condition physique, ta fatigue et ta forme actuelles\n{{review}} — Analyser ta dernière séance\n{{feedback}} — Envoie une note aux autrices et auteurs d’Enduragent\n{{sync}} — Forcer l’actualisation des données d’entraînement depuis {{service}}\n{{version}} — Afficher la version actuelle\n{{whatsnew}} — Voir les changements de la dernière version\n{{update}} — {{updateDescription}}\n\nTu peux aussi simplement me parler de ton entraînement !",
     "workout": {
       "working": "Je vérifie ta forme et ton plan…"
+    },
+    "feedback": {
+      "failed": "Impossible d’envoyer cette note. Réessaie dans un moment.",
+      "sent": "Merci — nous avons bien reçu ta note.",
+      "tooLong": "Garde ta note à {{limit}} caractères ou moins. Rien n’a été envoyé.",
+      "usage": "Envoie /feedback suivi de ta note. Exemple : /feedback l’écran du plan est difficile à lire."
     }
   },
   "cli": {

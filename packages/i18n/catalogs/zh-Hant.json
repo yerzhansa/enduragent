@@ -928,7 +928,8 @@
       "update": "檢查並安裝更新",
       "version": "顯示目前版本",
       "whatsnew": "查看最新版本的變更",
-      "workout": "取得今天的訓練課表"
+      "workout": "取得今天的訓練課表",
+      "feedback": "向 Enduragent 作者傳送備註"
     },
     "composer": {
       "attach": "新增附件",
@@ -1008,7 +1009,11 @@
       "responseStopped": "已停止回覆。已產生的部分回覆已保留。",
       "retryMessage": "重試傳送訊息",
       "savedChoice": "已儲存的選擇",
-      "working": "教練正在處理…"
+      "working": "教練正在處理…",
+      "feedbackFailed": "未能傳送該備註。內容仍在輸入框中，請再試一次。",
+      "feedbackSent": "謝謝，我們已收到你的備註。",
+      "feedbackTooLong": "請將備註控制在 4000 個字元以內。未傳送任何內容。",
+      "feedbackUsage": "傳送 /feedback，後接你的備註。"
     },
     "planChange": {
       "activePlan": "目前啟用的計畫",
@@ -2648,7 +2653,8 @@
       "update": "檢查並安裝更新",
       "version": "顯示目前版本",
       "whatsnew": "查看最新版本的變更",
-      "workout": "取得今日訓練課表"
+      "workout": "取得今日訓練課表",
+      "feedback": "向 Enduragent 作者傳送備註"
     },
     "pairing": {
       "askOwner": "否則，請聯絡機器人擁有者授權此使用者 ID。",
@@ -2759,9 +2765,15 @@
       "managedInstruction": "傳送 {{whatsnew}} 查看變更。{{notice}}",
       "prepareFailed": "暫時無法安全地準備更新。請稍後再次嘗試 {{command}}。"
     },
-    "welcome": "歡迎使用 {{product}}！\n\n我是 AI 自行車教練，可以使用 {{service}} 資料制定訓練計畫、推薦訓練課表並追蹤體能（CTL）。\n\n指令：\n{{plan}} — 產生訓練計畫\n{{workout}} — 取得今日訓練課表\n{{status}} — 查看目前體能（CTL）、疲勞（ATL）和狀態（TSB）\n{{review}} — 回顧上次訓練\n{{sync}} — 強制從 {{service}} 重新整理訓練資料\n{{version}} — 顯示目前版本\n{{whatsnew}} — 查看最新版本的變更\n{{update}} — {{updateDescription}}\n\n也可以直接和我聊聊訓練！",
+    "welcome": "歡迎使用 {{product}}！\n\n我是 AI 自行車教練，可以使用 {{service}} 資料制定訓練計畫、推薦訓練課表並追蹤體能（CTL）。\n\n指令：\n{{plan}} — 產生訓練計畫\n{{workout}} — 取得今日訓練課表\n{{status}} — 查看目前體能（CTL）、疲勞（ATL）和狀態（TSB）\n{{review}} — 回顧上次訓練\n{{feedback}} — 向 Enduragent 作者傳送備註\n{{sync}} — 強制從 {{service}} 重新整理訓練資料\n{{version}} — 顯示目前版本\n{{whatsnew}} — 查看最新版本的變更\n{{update}} — {{updateDescription}}\n\n也可以直接和我聊聊訓練！",
     "workout": {
       "working": "正在查看狀態（TSB）和訓練計畫…"
+    },
+    "feedback": {
+      "failed": "未能傳送該備註。請稍後再試。",
+      "sent": "謝謝，我們已收到你的備註。",
+      "tooLong": "請將備註控制在 {{limit}} 個字元以內。未傳送任何內容。",
+      "usage": "傳送 /feedback，後接你的備註。例如：/feedback 計畫畫面不好讀。"
     }
   },
   "desktop": {

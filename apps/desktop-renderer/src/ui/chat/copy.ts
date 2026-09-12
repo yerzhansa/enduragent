@@ -14,6 +14,14 @@ export function chatFeedbackMessage(value: string): Message | null {
       return msg("chat.notice.responseFailure");
     case "The coach returned an empty response. Please try again.":
       return msg("chat.notice.emptyResponse");
+    case "Couldn't send that note. It's still in the box — try again.":
+      return msg("chat.notice.feedbackFailed");
+    case "Thanks — we received your note.":
+      return msg("chat.notice.feedbackSent");
+    case "Keep your note to 4000 characters or fewer. Nothing was sent.":
+      return msg("chat.notice.feedbackTooLong");
+    case "Send /feedback followed by your note.":
+      return msg("chat.notice.feedbackUsage");
     case "We couldn’t continue from your choice. Please try again.":
       return msg("chat.notice.decisionFailure");
     case "We couldn’t skip this question. Please try again.":

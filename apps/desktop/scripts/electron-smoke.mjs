@@ -339,6 +339,7 @@ async function security() {
             "retryCredentialRecovery",
             "retryFailedCredentials",
             "setAppearance",
+            "submitAthleteFeedback",
             "telegramStatus",
             "writeCredential",
           ]),

@@ -59,6 +59,7 @@ const EXPECTED_WELCOME_MESSAGE =
   "/workout — Get today's workout\n" +
   "/status — Check current fitness, fatigue, and form\n" +
   "/review — Review your last session\n" +
+  "/feedback — Send a note to the Enduragent authors\n" +
   "/sync — Force-refresh training data from intervals.icu\n" +
   "/version — Show current version\n" +
   "/whatsnew — See what changed in the latest version\n" +

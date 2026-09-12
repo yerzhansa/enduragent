@@ -1868,6 +1868,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
+        "submitAthleteFeedback",
         "telegramStatus",
         "writeCredential",
       ],

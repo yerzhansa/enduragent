@@ -53,6 +53,7 @@ import {
   DESKTOP_TELEGRAM_REMOVE_WEBHOOK_CHANNEL,
   DESKTOP_TELEGRAM_STATUS_CHANNEL,
   DESKTOP_TRAINING_EXPORT_CHANNEL,
+  DESKTOP_ATHLETE_FEEDBACK_CHANNEL,
   DESKTOP_UPDATE_CHECK_CHANNEL,
   DESKTOP_UPDATE_GET_CHANNEL,
   DESKTOP_UPDATE_RESTART_CHANNEL,
@@ -671,6 +672,21 @@ function parseUpdateState(value: unknown): PreloadUpdateState {
     throw new TypeError();
   }
   return { status: value.status, stage: value.stage };
+}
+
+function parseAthleteFeedbackResult(
+  value: unknown,
+): { readonly ok: true } | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" } {
+  if (!record(value) || typeof value.ok !== "boolean") throw new TypeError();
+  if (value.ok && exactKeys(value, ["ok"])) return { ok: true };
+  if (
+    !value.ok &&
+    exactKeys(value, ["ok", "reason"]) &&
+    (value.reason === "invalid" || value.reason === "rejected" || value.reason === "unavailable")
+  ) {
+    return { ok: false, reason: value.reason };
+  }
+  throw new TypeError();
 }
 
 function parseStatuses(value: unknown): unknown {
@@ -1673,6 +1689,15 @@ contextBridge.exposeInMainWorld(
     acknowledgeTelegramGapWarning: async (...args: unknown[]) => {
       requireZeroArguments(args);
       return invokeTelegramMutation(DESKTOP_TELEGRAM_ACKNOWLEDGE_GAP_WARNING_CHANNEL);
+    },
+    submitAthleteFeedback: async (input: unknown, ...args: unknown[]) => {
+      requireZeroArguments(args);
+      if (!record(input) || !exactKeys(input, ["text"]) || typeof input.text !== "string") {
+        throw new TypeError();
+      }
+      return parseAthleteFeedbackResult(
+        await ipcRenderer.invoke(DESKTOP_ATHLETE_FEEDBACK_CHANNEL, { text: input.text }),
+      );
     },
     setAppearance: (input: unknown, ...args: unknown[]) => {
       requireZeroArguments(args);

@@ -928,7 +928,8 @@
       "update": "アップデートを確認してインストール",
       "version": "現在のバージョンを表示",
       "whatsnew": "最新バージョンの変更内容を確認",
-      "workout": "今日のワークアウトを確認"
+      "workout": "今日のワークアウトを確認",
+      "feedback": "Enduragentの作者にメモを送る"
     },
     "composer": {
       "attach": "ファイルを添付",
@@ -1008,7 +1009,11 @@
       "responseStopped": "回答を停止しました。途中までの回答は残っています。",
       "retryMessage": "メッセージを再試行",
       "savedChoice": "保存済みの選択",
-      "working": "コーチが処理中…"
+      "working": "コーチが処理中…",
+      "feedbackFailed": "メモを送れませんでした。入力欄に残っています。もう一度お試しください。",
+      "feedbackSent": "ありがとうございます。メモを受け取りました。",
+      "feedbackTooLong": "メモは4000文字以内にしてください。送信されていません。",
+      "feedbackUsage": "/feedback のあとにメモを送ってください。"
     },
     "planChange": {
       "activePlan": "有効なプラン",
@@ -2648,7 +2653,8 @@
       "update": "更新を確認してインストール",
       "version": "現在のバージョンを表示",
       "whatsnew": "最新バージョンの変更内容を見る",
-      "workout": "今日のワークアウトを確認"
+      "workout": "今日のワークアウトを確認",
+      "feedback": "Enduragentの作者にメモを送る"
     },
     "pairing": {
       "askOwner": "所有者でない場合は、ボットの所有者にユーザーIDの許可を依頼してください。",
@@ -2759,9 +2765,15 @@
       "managedInstruction": "変更内容を見るには{{whatsnew}}を送ってください。{{notice}}",
       "prepareFailed": "今回は更新を安全に準備できませんでした。少し待ってから{{command}}をもう一度お試しください。"
     },
-    "welcome": "{{product}}へようこそ！\n\nAIサイクリングコーチです。{{service}}のデータを使ってトレーニングプランを作成し、ワークアウトを提案し、フィットネスの変化を確認できます。\n\nコマンド:\n{{plan}} — トレーニングプランを作成\n{{workout}} — 今日のワークアウトを確認\n{{status}} — 現在のフィットネス、ファティーグ、フォームを確認\n{{review}} — 前回のトレーニングを振り返る\n{{sync}} — {{service}}からトレーニングデータを強制更新\n{{version}} — 現在のバージョンを表示\n{{whatsnew}} — 最新バージョンの変更内容を見る\n{{update}} — {{updateDescription}}\n\nトレーニングについて、気軽に話しかけてください！",
+    "welcome": "{{product}}へようこそ！\n\nAIサイクリングコーチです。{{service}}のデータを使ってトレーニングプランを作成し、ワークアウトを提案し、フィットネスの変化を確認できます。\n\nコマンド:\n{{plan}} — トレーニングプランを作成\n{{workout}} — 今日のワークアウトを確認\n{{status}} — 現在のフィットネス、ファティーグ、フォームを確認\n{{review}} — 前回のトレーニングを振り返る\n{{feedback}} — Enduragentの作者にメモを送る\n{{sync}} — {{service}}からトレーニングデータを強制更新\n{{version}} — 現在のバージョンを表示\n{{whatsnew}} — 最新バージョンの変更内容を見る\n{{update}} — {{updateDescription}}\n\nトレーニングについて、気軽に話しかけてください！",
     "workout": {
       "working": "フォームとプランを確認しています..."
+    },
+    "feedback": {
+      "failed": "メモを送れませんでした。しばらくしてからもう一度お試しください。",
+      "sent": "ありがとうございます。メモを受け取りました。",
+      "tooLong": "メモは{{limit}}文字以内にしてください。送信されていません。",
+      "usage": "/feedback のあとにメモを送ってください。例: /feedback プラン画面が読みにくいです。"
     }
   },
   "desktop": {

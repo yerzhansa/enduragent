@@ -9317,7 +9317,7 @@
       "translatedBy": "model"
     },
     "telegram.welcome": {
-      "sourceHash": "24b9e0bc99ffe04e87342e870e260695248413888a563e387819b8c785652071",
+      "sourceHash": "863688d9c3a0abf9cb83ae47fab140ccc922d28c9cced028407452ac8f7ad57b",
       "translatedBy": "model"
     },
     "telegram.workout.working": {
@@ -9662,6 +9662,46 @@
     },
     "chat.planCreation.youWrote": {
       "sourceHash": "ab8c69ee8ef8f7610c5fcf432d45cf64fdd596bf7b57113c12ebea08558569bf",
+      "translatedBy": "model"
+    },
+    "chat.commands.feedback": {
+      "sourceHash": "302a072d5ba6b4c2f89bff54ad4d7d91062b2ce0cde3b7745dc0ff2c5db3327f",
+      "translatedBy": "model"
+    },
+    "chat.notice.feedbackFailed": {
+      "sourceHash": "e7c2db678b738b4247b257a4b4b3f94ba0f5f53bddca31a05303ed24045c09ff",
+      "translatedBy": "model"
+    },
+    "chat.notice.feedbackSent": {
+      "sourceHash": "5d611760b9ad0e2abe3e5d2583190282dd83580b42b5aaed730ab198b21ba717",
+      "translatedBy": "model"
+    },
+    "chat.notice.feedbackTooLong": {
+      "sourceHash": "d298794c44f69d22360cec6071ac39e58865528734139a00cdc1004173c33ad7",
+      "translatedBy": "model"
+    },
+    "chat.notice.feedbackUsage": {
+      "sourceHash": "493025da4e1e839f8cb237a47c4731168b8f525c845348da27d0849226b82080",
+      "translatedBy": "model"
+    },
+    "telegram.feedback.failed": {
+      "sourceHash": "f99f2de413e202dbee1dc4e5ca1bfadea0d33e8537e82a3651a5a96c225393e8",
+      "translatedBy": "model"
+    },
+    "telegram.feedback.sent": {
+      "sourceHash": "5d611760b9ad0e2abe3e5d2583190282dd83580b42b5aaed730ab198b21ba717",
+      "translatedBy": "model"
+    },
+    "telegram.feedback.tooLong": {
+      "sourceHash": "b93fa0f9a0eea8024ede109612adaad8005cd965afdac2d4841a3ab1a90633a1",
+      "translatedBy": "model"
+    },
+    "telegram.feedback.usage": {
+      "sourceHash": "64490e77565507beee8c2bec20198cb6b11f499d9535678af69d47fad0197dad",
+      "translatedBy": "model"
+    },
+    "telegram.menu.feedback": {
+      "sourceHash": "302a072d5ba6b4c2f89bff54ad4d7d91062b2ce0cde3b7745dc0ff2c5db3327f",
       "translatedBy": "model"
     }
   }

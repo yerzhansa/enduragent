@@ -96,6 +96,7 @@
       "skip": "Skip question"
     },
     "commands": {
+      "feedback": "Send a note to the Enduragent authors",
       "plan": "Start a Plan in Chat",
       "review": "Review your last session",
       "start": "Start a fresh session",
@@ -171,6 +172,10 @@
       "decisionLoadFailure": "We couldn’t check for a saved Coach question. Reconnect and try again.",
       "decisionSkipFailure": "We couldn’t skip this question. Please try again.",
       "emptyResponse": "The coach returned an empty response. Please try again.",
+      "feedbackFailed": "Couldn't send that note. It's still in the box — try again.",
+      "feedbackSent": "Thanks — we received your note.",
+      "feedbackTooLong": "Keep your note to 4000 characters or fewer. Nothing was sent.",
+      "feedbackUsage": "Send /feedback followed by your note.",
       "newConversationMemoryWarning": "New conversation started. Some recent details may not have been saved to coach memory.",
       "newConversationSuccess": "New conversation started.",
       "newConversationUncertain": "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.",
@@ -2384,6 +2389,12 @@
       "delivery": "I generated the answer, but {{service}} had trouble delivering it. Send \"{{keyword}}\" and I'll send the same answer again.",
       "transport": "Sorry, something went wrong. Please try again."
     },
+    "feedback": {
+      "failed": "Couldn't send that note. Try again in a moment.",
+      "sent": "Thanks — we received your note.",
+      "tooLong": "Keep your note to {{limit}} characters or fewer. Nothing was sent.",
+      "usage": "Send /feedback followed by your note. Example: /feedback the plan screen is hard to read."
+    },
     "language": {
       "automatic": "Automatic",
       "choose": "Choose your language",
@@ -2391,6 +2402,7 @@
       "environmentWins": "Saved. {{variable}} currently wins."
     },
     "menu": {
+      "feedback": "Send a note to the Enduragent authors",
       "plan": "Generate a training plan",
       "review": "Review your last session",
       "start": "Start a fresh session",
@@ -2513,7 +2525,7 @@
       "managedInstruction": "Send {{whatsnew}} to see what changed. {{notice}}",
       "prepareFailed": "Couldn't safely prepare the update just now. Please try {{command}} again in a moment."
     },
-    "welcome": "Welcome to {{product}}!\n\nI'm your AI cycling coach. I can build training plans, suggest workouts, and track your fitness using {{service}} data.\n\nCommands:\n{{plan}} — Generate a training plan\n{{workout}} — Get today's workout\n{{status}} — Check current fitness, fatigue, and form\n{{review}} — Review your last session\n{{sync}} — Force-refresh training data from {{service}}\n{{version}} — Show current version\n{{whatsnew}} — See what changed in the latest version\n{{update}} — {{updateDescription}}\n\nOr just chat with me about your training!",
+    "welcome": "Welcome to {{product}}!\n\nI'm your AI cycling coach. I can build training plans, suggest workouts, and track your fitness using {{service}} data.\n\nCommands:\n{{plan}} — Generate a training plan\n{{workout}} — Get today's workout\n{{status}} — Check current fitness, fatigue, and form\n{{review}} — Review your last session\n{{feedback}} — Send a note to the Enduragent authors\n{{sync}} — Force-refresh training data from {{service}}\n{{version}} — Show current version\n{{whatsnew}} — See what changed in the latest version\n{{update}} — {{updateDescription}}\n\nOr just chat with me about your training!",
     "workout": {
       "working": "Checking your form and plan..."
     }

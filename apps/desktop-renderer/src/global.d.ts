@@ -75,6 +75,10 @@ interface EnduragentAuth {
   checkForUpdates(): Promise<DesktopUpdateState>;
   restartToUpdate(): Promise<DesktopUpdateState>;
   onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
+  submitAthleteFeedback(input: { readonly text: string }): Promise<
+    | { readonly ok: true }
+    | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
+  >;
 }
 
 type DesktopPlatformProjection = import("./platform-copy").DesktopPlatformProjection;

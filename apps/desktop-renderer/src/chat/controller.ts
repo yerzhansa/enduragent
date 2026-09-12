@@ -14,6 +14,7 @@ import {
   PLAN_CREATION_ANSWER_KEYS,
   PlanChangeIntentSchema,
   PlanActiveProjectionDataSchema,
+  parseFeedbackCommand,
   type AttachmentAdmissionReadModel,
   type ChatAttachmentComposerReadModel,
   type CoachDecisionAnswer,
@@ -28,6 +29,7 @@ import {
   PlanChangeRequestSchema,
   type PlanChangeRequest,
   type PlanChangePreviewRpcParams,
+  type SubmitFeedbackResult,
   type PlanChangeApplyRpcParams,
   type PlanCreationActivateRpcParams,
   type PlanCreationAnswerInput,
@@ -103,6 +105,11 @@ export const NEW_CONVERSATION_MEMORY_WARNING_COPY =
   "New conversation started. Some recent details may not have been saved to coach memory.";
 export const NEW_CONVERSATION_UNCERTAIN_COPY =
   "We couldn’t confirm whether the new conversation started. Your visible conversation is preserved.";
+export const FEEDBACK_USAGE_COPY = "Send /feedback followed by your note.";
+export const FEEDBACK_TOO_LONG_COPY =
+  "Keep your note to 4000 characters or fewer. Nothing was sent.";
+export const FEEDBACK_SENT_COPY = "Thanks — we received your note.";
+export const FEEDBACK_FAILED_COPY = "Couldn't send that note. It's still in the box — try again.";
 
 const PLAN_CREATION_PAUSE_STORAGE_KEY = "enduragent.plan-creation.pause";
 
@@ -365,6 +372,7 @@ export function createChatController(input: {
     readonly paste: () => Promise<readonly AttachmentAdmissionReadModel[]>;
   };
   readonly openPlanningRequest?: (chatId: string, requestId: string) => void;
+  readonly submitAthleteFeedback?: (text: string) => Promise<SubmitFeedbackResult>;
 }): ChatController {
   let state =
     input.initialQueueSnapshot === undefined
@@ -2285,6 +2293,46 @@ export function createChatController(input: {
       const submittedTextRevision = attachmentTextRevision;
       const submittedAttachmentGeneration = attachmentGeneration;
       await waitForPlanningRequestLoad();
+      const feedback = parseFeedbackCommand(message);
+      if (feedback.kind !== "other") {
+        if (disposed || resetBlocksWork() || attachmentIds.length !== 0) {
+          return Promise.resolve(false);
+        }
+        if (feedback.kind === "usage") {
+          reduce({ type: "announce", announcement: FEEDBACK_USAGE_COPY });
+          return false;
+        }
+        if (feedback.kind === "too-long" || feedback.kind === "invalid") {
+          reduce({
+            type: "announce",
+            announcement:
+              feedback.kind === "too-long" ? FEEDBACK_TOO_LONG_COPY : FEEDBACK_FAILED_COPY,
+          });
+          return false;
+        }
+        let result: SubmitFeedbackResult;
+        try {
+          result =
+            input.submitAthleteFeedback === undefined
+              ? { ok: false, reason: "unavailable" }
+              : await input.submitAthleteFeedback(feedback.text);
+        } catch {
+          result = { ok: false, reason: "unavailable" };
+        }
+        if (!result.ok) {
+          reduce({ type: "announce", announcement: FEEDBACK_FAILED_COPY });
+          return false;
+        }
+        reduce({ type: "announce", announcement: FEEDBACK_SENT_COPY });
+        if (
+          attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
+          submittedTextRevision === attachmentTextRevision
+        ) {
+          saveAttachmentDraftText("");
+          await attachmentTextSaveTask;
+        }
+        return true;
+      }
       if (
         message.trim().toLowerCase() === "/plan" &&
         attachmentIds.length === 0 &&

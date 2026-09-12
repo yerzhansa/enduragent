@@ -936,7 +936,8 @@
       "update": "Se etter og installer oppdateringer",
       "version": "Vis nåværende versjon",
       "whatsnew": "Se hva som er endret i den nyeste versjonen",
-      "workout": "Hent dagens treningsøkt"
+      "workout": "Hent dagens treningsøkt",
+      "feedback": "Send et notat til forfatterne av Enduragent"
     },
     "composer": {
       "attach": "Legg ved filer",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Svaret er stoppet. Den ferdige delen av svaret er bevart.",
       "retryMessage": "Prøv meldingen igjen",
       "savedChoice": "Lagret valg",
-      "working": "Treneren jobber…"
+      "working": "Treneren jobber…",
+      "feedbackFailed": "Notatet kunne ikke sendes. Det ligger fortsatt i feltet — prøv igjen.",
+      "feedbackSent": "Takk — vi har mottatt notatet ditt.",
+      "feedbackTooLong": "Hold notatet på 4000 tegn eller færre. Ingenting ble sendt.",
+      "feedbackUsage": "Send /feedback etterfulgt av notatet ditt."
     },
     "planChange": {
       "activePlan": "Aktiv plan",
@@ -2467,7 +2472,8 @@
       "update": "Se etter og installer oppdateringer",
       "version": "Vis nåværende versjon",
       "whatsnew": "Se hva som er nytt i den nyeste versjonen",
-      "workout": "Hent dagens treningsøkt"
+      "workout": "Hent dagens treningsøkt",
+      "feedback": "Send et notat til forfatterne av Enduragent"
     },
     "pairing": {
       "askOwner": "Ellers: be eieren av boten om å godkjenne bruker-ID-en din.",
@@ -2581,9 +2587,15 @@
       "managedInstruction": "Send {{whatsnew}} for å se hva som er nytt. {{notice}}",
       "prepareFailed": "Kunne ikke klargjøre oppdateringen trygt akkurat nå. Prøv {{command}} igjen om litt."
     },
-    "welcome": "Velkommen til {{product}}!\n\nJeg er KI-sykkeltreneren din. Jeg kan lage treningsplaner, foreslå treningsøkter og følge med på formen din med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lag en treningsplan\n{{workout}} — Hent dagens treningsøkt\n{{status}} — Sjekk form (CTL), tretthet (ATL) og form (TSB)\n{{review}} — Se gjennom den siste treningsøkten din\n{{sync}} — Hent oppdaterte treningsdata fra {{service}}\n{{version}} — Vis nåværende versjon\n{{whatsnew}} — Se hva som er nytt i den nyeste versjonen\n{{update}} — {{updateDescription}}\n\nDu kan også bare prate med meg om treningen din!",
+    "welcome": "Velkommen til {{product}}!\n\nJeg er KI-sykkeltreneren din. Jeg kan lage treningsplaner, foreslå treningsøkter og følge med på formen din med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lag en treningsplan\n{{workout}} — Hent dagens treningsøkt\n{{status}} — Sjekk form (CTL), tretthet (ATL) og form (TSB)\n{{review}} — Se gjennom den siste treningsøkten din\n{{feedback}} — Send et notat til forfatterne av Enduragent\n{{sync}} — Hent oppdaterte treningsdata fra {{service}}\n{{version}} — Vis nåværende versjon\n{{whatsnew}} — Se hva som er nytt i den nyeste versjonen\n{{update}} — {{updateDescription}}\n\nDu kan også bare prate med meg om treningen din!",
     "workout": {
       "working": "Sjekker formen og planen din…"
+    },
+    "feedback": {
+      "failed": "Notatet kunne ikke sendes. Prøv igjen om et øyeblikk.",
+      "sent": "Takk — vi har mottatt notatet ditt.",
+      "tooLong": "Hold notatet på {{limit}} tegn eller færre. Ingenting ble sendt.",
+      "usage": "Send /feedback etterfulgt av notatet ditt. Eksempel: /feedback planskjermen er vanskelig å lese."
     }
   },
   "coach": {

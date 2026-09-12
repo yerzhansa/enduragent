@@ -131,6 +131,7 @@ interface AuthBridge {
   checkForUpdates(): Promise<unknown>;
   restartToUpdate(): Promise<unknown>;
   onUpdateState(listener: (state: unknown) => void): () => void;
+  submitAthleteFeedback(input: unknown): Promise<unknown>;
 }
 
 function validTranscriptCursor(): string {
@@ -412,6 +413,7 @@ describe("desktop preload ChatGPT auth", () => {
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
+        "submitAthleteFeedback",
         "telegramStatus",
         "writeCredential",
       ].sort(),
@@ -1453,6 +1455,29 @@ describe("desktop preload ChatGPT auth", () => {
       ["desktop:update:restart"],
       ["desktop:update:get"],
     ]);
+  });
+
+  it("submits athlete feedback through a dedicated channel", async () => {
+    mocks.invoke.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    await expect(bridge.submitAthleteFeedback({ text: "the watts look high" })).resolves.toEqual({
+      ok: true,
+    });
+    await expect(bridge.submitAthleteFeedback({ text: "try again" })).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+    expect(mocks.invoke.mock.calls).toEqual([
+      ["desktop:athlete-feedback", { text: "the watts look high" }],
+      ["desktop:athlete-feedback", { text: "try again" }],
+    ]);
+    await expect(bridge.submitAthleteFeedback("the watts look high")).rejects.toBeInstanceOf(
+      TypeError,
+    );
+    await expect(bridge.submitAthleteFeedback({ text: 1 })).rejects.toBeInstanceOf(TypeError);
   });
 
   it("forwards only strict update events and supports idempotent listener disposal", () => {

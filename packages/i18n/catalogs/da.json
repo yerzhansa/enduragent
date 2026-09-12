@@ -936,7 +936,8 @@
       "update": "Søg efter og installér opdateringer",
       "version": "Vis den aktuelle version",
       "whatsnew": "Se ændringerne i den nyeste version",
-      "workout": "Hent dagens træning"
+      "workout": "Hent dagens træning",
+      "feedback": "Send en note til forfatterne af Enduragent"
     },
     "composer": {
       "attach": "Vedhæft filer",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Svaret er stoppet. Det delvise svar bliver bevaret.",
       "retryMessage": "Prøv beskeden igen",
       "savedChoice": "Gemt valg",
-      "working": "Træneren arbejder…"
+      "working": "Træneren arbejder…",
+      "feedbackFailed": "Noten kunne ikke sendes. Den bliver i feltet — prøv igen.",
+      "feedbackSent": "Tak — vi har modtaget din note.",
+      "feedbackTooLong": "Hold din note på 4000 tegn eller færre. Der blev ikke sendt noget.",
+      "feedbackUsage": "Send /feedback efterfulgt af din note."
     },
     "planChange": {
       "activePlan": "Aktiv træningsplan",
@@ -2467,7 +2472,8 @@
       "update": "Søg efter og installer opdateringer",
       "version": "Vis den aktuelle version",
       "whatsnew": "Se ændringer i den nyeste version",
-      "workout": "Se dagens træning"
+      "workout": "Se dagens træning",
+      "feedback": "Send en note til forfatterne af Enduragent"
     },
     "pairing": {
       "askOwner": "Ellers: bed bottens ejer om at godkende dit bruger-ID.",
@@ -2581,9 +2587,15 @@
       "managedInstruction": "Send {{whatsnew}} for at se ændringerne. {{notice}}",
       "prepareFailed": "Kunne ikke forberede opdateringen sikkert lige nu. Prøv {{command}} igen om lidt."
     },
-    "welcome": "Velkommen til {{product}}!\n\nJeg er din AI-cykeltræner. Jeg kan lave træningsplaner, foreslå træning og følge din fitness med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lav en træningsplan\n{{workout}} — Se dagens træning\n{{status}} — Se din aktuelle fitness, træthed og form\n{{review}} — Gennemgå din seneste træning\n{{sync}} — Gennemtving opdatering af træningsdata fra {{service}}\n{{version}} — Vis den aktuelle version\n{{whatsnew}} — Se ændringer i den nyeste version\n{{update}} — {{updateDescription}}\n\nEller skriv bare til mig om din træning!",
+    "welcome": "Velkommen til {{product}}!\n\nJeg er din AI-cykeltræner. Jeg kan lave træningsplaner, foreslå træning og følge din fitness med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lav en træningsplan\n{{workout}} — Se dagens træning\n{{status}} — Se din aktuelle fitness, træthed og form\n{{review}} — Gennemgå din seneste træning\n{{feedback}} — Send en note til forfatterne af Enduragent\n{{sync}} — Gennemtving opdatering af træningsdata fra {{service}}\n{{version}} — Vis den aktuelle version\n{{whatsnew}} — Se ændringer i den nyeste version\n{{update}} — {{updateDescription}}\n\nEller skriv bare til mig om din træning!",
     "workout": {
       "working": "Tjekker din form og plan..."
+    },
+    "feedback": {
+      "failed": "Noten kunne ikke sendes. Prøv igen om et øjeblik.",
+      "sent": "Tak — vi har modtaget din note.",
+      "tooLong": "Hold din note på {{limit}} tegn eller færre. Der blev ikke sendt noget.",
+      "usage": "Send /feedback efterfulgt af din note. Eksempel: /feedback planskærmen er svær at læse."
     }
   },
   "cli": {

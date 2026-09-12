@@ -558,6 +558,19 @@ describe("desktop turn state", () => {
     expect(rejected.session.announcement).toBe("Keep this announcement.");
   });
 
+  it("sets a host announcement without starting a turn", () => {
+    const announced = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "announce",
+      announcement: "Thanks — we received your note.",
+    });
+    expect(announced.status).toBe("idle");
+    expect(announced.messages).toEqual([]);
+    expect(announced.session.announcement).toBe("Thanks — we received your note.");
+    expect(reduceChatState(announced, { type: "announce", announcement: "Thanks — we received your note." })).toBe(
+      announced,
+    );
+  });
+
   it("ignores old turn events after reset success", () => {
     let state = started(7);
     state = reduceChatState(state, {
