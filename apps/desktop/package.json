@@ -56,7 +56,7 @@
     "@enduragent/desktop-renderer": "workspace:*",
     "@enduragent/kernel": "workspace:*",
     "@enduragent/kernel-node": "workspace:*",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-react": "5.2.0",
