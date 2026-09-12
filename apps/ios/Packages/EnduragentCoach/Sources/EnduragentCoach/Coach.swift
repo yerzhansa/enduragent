@@ -72,21 +72,7 @@ public actor Coach {
 		let records = (try? await store.fetch(
 			RecordQuery(kinds: [.pendingProposal, .proposalCleared], chatId: chatId, deviceLocalOnly: true)
 		)) ?? []
-		let ordered = records.sorted { $0.hlc < $1.hlc }
-		var current: ProposalBody?
-		for record in ordered {
-			switch record.body {
-			case .pendingProposal(let body) where body.chatId == chatId:
-				current = body
-			case .proposalCleared(let body) where body.chatId == chatId:
-				if current?.nonce == body.nonce {
-					current = nil
-				}
-			default:
-				break
-			}
-		}
-		guard let current, current.expiresAt > clock.now else {
+		guard let current = UnionMerge.pendingProposal(records, chatId: chatId, now: clock.now) else {
 			return nil
 		}
 		return PendingProposal(
@@ -99,13 +85,37 @@ public actor Coach {
 	}
 
 	public func confirm(chatId: ChatID, nonce: Nonce) async throws -> ConfirmOutcome {
-		_ = chatId
-		_ = nonce
 		_ = sport
 		_ = transport
 		_ = intervals
-		_ = tools
-		return .none
+		let tools = self.tools
+		do {
+			let lookup = try await ProposalPolicy.take(
+				chatId: chatId,
+				nonce: nonce,
+				store: store,
+				clock: clock,
+				run: { input in
+					try await tools.rebuildConfirmed(input)
+				}
+			)
+			switch lookup {
+			case .found(let body):
+				return .executed(summary: body.summary)
+			case .expired:
+				return .expired
+			case .mismatch:
+				return .mismatch
+			case .none:
+				return .none
+			}
+		} catch let error as IntervalsError {
+			return .refused(message: error.details)
+		} catch let error as InvalidWorkout {
+			return .refused(message: error.message)
+		} catch {
+			return .failed(message: "\(error)")
+		}
 	}
 
 	public func setCoachReplyLanguage(_ tag: LanguageTag?) async {
