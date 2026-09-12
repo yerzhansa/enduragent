@@ -12,7 +12,13 @@ public struct HybridLogicalClock: Sendable, Hashable, Comparable {
 	}
 
 	public static func tick(now: Date, deviceId: DeviceID, last: HybridLogicalClock?) -> HybridLogicalClock {
-		fatalError("not implemented")
+		let nowMs = Int64((now.timeIntervalSince1970 * 1000).rounded(.down))
+		guard let last else {
+			return HybridLogicalClock(wallMs: nowMs, logical: 0, deviceId: deviceId)
+		}
+		let wallMs = max(nowMs, last.wallMs)
+		let logical: UInt32 = wallMs == last.wallMs ? last.logical + 1 : 0
+		return HybridLogicalClock(wallMs: wallMs, logical: logical, deviceId: deviceId)
 	}
 
 	public static func < (lhs: HybridLogicalClock, rhs: HybridLogicalClock) -> Bool {
