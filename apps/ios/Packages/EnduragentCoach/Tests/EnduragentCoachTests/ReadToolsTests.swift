@@ -179,6 +179,9 @@ struct ReadToolsTests {
 				.intervalsFetchStreams,
 				.intervalsFetchActivities,
 				.intervalsListEvents,
+				.memoryQuery,
+				.memoryWrite,
+				.ledgerAppend,
 			]
 		)
 		let encoded = schemas.map { canonicalJSON($0.parameters) }.joined()

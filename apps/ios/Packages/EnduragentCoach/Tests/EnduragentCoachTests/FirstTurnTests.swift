@@ -75,4 +75,20 @@ import Testing
 			]
 		)
 	}
+
+	@Test func memoryIsWrittenAfterTheReplyAndQueryable() async throws {
+		transport.script = [
+			.text("Noted: group ride on Saturdays."), .finish(reason: .stop),
+			.toolCall(name: "ledger_append", arguments: #"{"kind":"decision","date":"1998-06-13","text":"Rides with a group on Saturdays"}"#),
+			.finish(reason: .toolCalls), .finish(reason: .stop)
+		]
+		let coach = makeCoach()
+		for try await _ in coach.send("Remember that I ride with a group on Saturdays", chatId: "main") {}
+		await coach.waitForMemoryFlush()
+
+		let hits = try await coach.memory.query(from: "1998-06-01", to: "1998-06-30", contains: "Saturdays")
+		#expect(hits.count == 1)
+		#expect(hits[0].date == "1998-06-13")
+		#expect(hits[0].kind == .ledger(.decision))
+	}
 }
