@@ -1,5 +1,11 @@
 # @enduragent/sport-cycling
 
+## 0.0.9
+
+### Patch Changes
+
+- @enduragent/engine@0.0.5
+
 ## 0.0.8
 
 ### Patch Changes

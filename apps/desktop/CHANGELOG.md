@@ -1,5 +1,20 @@
 # @enduragent/desktop
 
+## 0.5.0
+
+### Minor Changes
+
+- a372f86: User-facing: Send /feedback plus a short note from Telegram or Desktop. It goes to the Enduragent authors, not to the coach.
+
+### Patch Changes
+
+- Updated dependencies [a372f86]
+  - @enduragent/coach-contract@0.1.4
+  - @enduragent/core@0.1.6
+  - @enduragent/i18n@0.2.1
+  - @enduragent/coach@0.1.3
+  - @enduragent/coach-client@0.1.4
+
 ## 0.4.1
 
 ### Patch Changes

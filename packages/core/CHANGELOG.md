@@ -1,5 +1,15 @@
 # @enduragent/core
 
+## 0.1.6
+
+### Patch Changes
+
+- a372f86: User-facing: Send /feedback plus a short note from Telegram or Desktop. It goes to the Enduragent authors, not to the coach.
+- Updated dependencies [a372f86]
+  - @enduragent/coach-contract@0.1.4
+  - @enduragent/i18n@0.2.1
+  - @enduragent/engine@0.0.5
+
 ## 0.1.5
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # running-coach
 
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies [a372f86]
+  - @enduragent/core@0.1.6
+  - @enduragent/sport-running@0.1.6
+
 ## 0.0.9
 
 ### Patch Changes
