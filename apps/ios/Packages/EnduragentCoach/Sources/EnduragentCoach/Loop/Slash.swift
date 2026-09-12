@@ -19,11 +19,6 @@ public enum SlashCommand: String, Sendable, CaseIterable {
 
 public enum SlashRouting {
 	public static func parse(_ text: String) -> SlashCommand? {
-		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-		let token = trimmed.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
-		if token == "/language" || token.hasPrefix("/language@") {
-			return .language
-		}
-		return nil
+		fatalError("not implemented")
 	}
 }
