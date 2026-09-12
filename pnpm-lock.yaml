@@ -364,8 +364,8 @@ importers:
   packages/core:
     dependencies:
       '@ai-sdk/provider':
-        specifier: ^3.0.9
-        version: 3.0.10
+        specifier: ^4.0.10
+        version: 4.0.10
       '@clack/prompts':
         specifier: ^1.7.0
         version: 1.7.0
@@ -428,8 +428,8 @@ importers:
         specifier: ^3.0.52
         version: 3.0.54(zod@4.5.4)
       '@ai-sdk/provider':
-        specifier: ^3.0.9
-        version: 3.0.10
+        specifier: ^4.0.10
+        version: 4.0.10
       '@ai-sdk/provider-utils':
         specifier: ^4.0.30
         version: 4.0.30(zod@4.5.4)
@@ -545,8 +545,8 @@ importers:
         version: 4.5.4
     devDependencies:
       '@ai-sdk/provider':
-        specifier: ^3.0.10
-        version: 3.0.10
+        specifier: ^4.0.10
+        version: 4.0.10
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
@@ -875,6 +875,10 @@ packages:
   '@ai-sdk/provider@3.0.9':
     resolution: {integrity: sha512-/ngMKqKdL9dSlY/eQ3NFDzzFyw0Hix+cbFFlyuKEKcOgpHdBt/spKUvX/i0wGrDLFPYJeVvv3N0j92LxWRL7yQ==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.10':
+    resolution: {integrity: sha512-fX2ENAc7iDpZ+Wp4+Rk06Usn/Ys7dI9uAkGv0jlF6XVrW13NkRWx5Ou+U6lIM2E1fTLkCs16GGrUAaVvroag7A==}
+    engines: {node: '>=22'}
 
   '@anthropic-ai/claude-agent-sdk@0.3.258':
     resolution: {integrity: sha512-RxJ5fSPCGCxX5qO/b4IPXhldvtLHeYBAzTUJ4eOzO+gTrepZQSDmwSlQD6nnoEquKGJzOMHCjhdEtBfDjbDWUg==}
@@ -6156,6 +6160,10 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.9':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.10':
     dependencies:
       json-schema: 0.4.0
 
