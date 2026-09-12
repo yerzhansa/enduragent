@@ -33,6 +33,16 @@ targets:
         SWIFT_VERSION: "6.0"
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Enduragent/Enduragent.entitlements
+    entitlements:
+      path: Enduragent/Enduragent.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.icu.enduragent.ios
+        com.apple.developer.icloud-services:
+          - CloudKit
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)icu.enduragent.ios
     dependencies:
       - package: EnduragentCoach
 schemes:
