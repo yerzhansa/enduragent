@@ -270,3 +270,46 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - run: swift test --package-path apps/ios/Packages/EnduragentCoach
+
+  credits-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      credits: ${{ steps.scope.outputs.credits }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_SHA:-}" ] || ! printf '%s' "$BASE_SHA" | grep -Eq '^[a-f0-9]{40}$' || printf '%s' "$BASE_SHA" | grep -Eq '^0+$'; then
+            printf 'credits=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! paths="$(git diff --name-only --no-renames "$BASE_SHA" HEAD --)"; then
+            printf 'credits=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$paths" | grep -Eq '^(apps/credits-worker/|\.github/workflows/ci\.yml$)'; then
+            printf 'credits=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'credits=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+  credits-worker:
+    needs: credits-scope
+    if: needs.credits-scope.outputs.credits == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/credits-worker check
+      - run: pnpm --filter @enduragent/credits-worker exec vitest run
