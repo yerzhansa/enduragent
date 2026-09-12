@@ -71,16 +71,8 @@ package struct ToolRuntime: Sendable {
 		chatId: ChatID,
 		state: TurnState
 	) async throws -> ToolOutcome {
-		if GatedToolName(rawValue: name.rawValue) != nil {
-			return .pending(
-				PendingProposal(
-					chatId: chatId,
-					nonce: Nonce(),
-					summary: name.rawValue,
-					description: "",
-					expiresAt: clock.now.addingTimeInterval(600)
-				)
-			)
+		if let gated = GatedToolName(rawValue: name.rawValue) {
+			return try await executeGated(gated, arguments: arguments, chatId: chatId)
 		}
 		let key = name.rawValue + " " + canonicalJSON(arguments)
 		let replayUnsafe = ReplayUnsafeToolName(rawValue: name.rawValue) != nil
@@ -186,10 +178,11 @@ package struct ToolRuntime: Sendable {
 				return try await executeMemoryWrite(arguments)
 			case .ledgerAppend:
 				return try await executeLedgerAppend(arguments)
+			case .intervalsCreateWorkout, .intervalsCreateStrengthWorkout,
+			     .intervalsDeleteWorkout, .intervalsUpdateWorkout, .planSave:
+				fatalError("gated tools are handled in execute")
 			case .buildPlanSkeleton, .assessFeasibility, .getSampleWeek,
-			     .intervalsCreateWorkout, .intervalsCreateStrengthWorkout,
-			     .intervalsDeleteWorkout, .intervalsUpdateWorkout,
-			     .planSave, .planLoad:
+			     .planLoad:
 				fatalError("not implemented")
 			}
 		} catch let error as IntervalsError {
@@ -282,6 +275,59 @@ package struct ToolRuntime: Sendable {
 					required: ["oldest"]
 				)
 			),
+			ToolSchema(
+				name: .intervalsCreateWorkout,
+				description:
+					"Call this only when the current message explicitly asks for it. Create a structured workout on the intervals.icu calendar. Past dates are refused — workouts can only be created for today or later.",
+				parameters: objectSchema(
+					properties: [
+						"date": stringProperty("Workout date (YYYY-MM-DD)"),
+						"workout": .object([
+							"type": .string("object"),
+							"description": .string("Structured workout with name and steps"),
+						]),
+					],
+					required: ["date", "workout"]
+				)
+			),
+			ToolSchema(
+				name: .intervalsCreateStrengthWorkout,
+				description:
+					"Create a strength/gym session on the intervals.icu calendar. Past dates are refused — sessions can only be created for today or later.",
+				parameters: objectSchema(
+					properties: [
+						"date": stringProperty("Session date (YYYY-MM-DD)"),
+						"name": stringProperty("Calendar card title"),
+						"description": stringProperty("Free-text session content"),
+					],
+					required: ["date", "name", "description"]
+				)
+			),
+			ToolSchema(
+				name: .intervalsDeleteWorkout,
+				description:
+					"List and confirm first. Delete a today-or-future coach-owned workout by event ID.",
+				parameters: objectSchema(
+					properties: [
+						"eventId": integerProperty("Event ID from intervals_list_events"),
+					],
+					required: ["eventId"]
+				)
+			),
+			ToolSchema(
+				name: .intervalsUpdateWorkout,
+				description:
+					"Update a today-or-future coach-owned workout by event ID.",
+				parameters: objectSchema(
+					properties: [
+						"eventId": integerProperty("Event ID from intervals_list_events"),
+						"date": stringProperty("New workout date (YYYY-MM-DD)"),
+						"name": stringProperty("New calendar title"),
+						"description": stringProperty("New description"),
+					],
+					required: ["eventId"]
+				)
+			),
 		]
 		if shouldOfferMemoryRead(memory) {
 			schemas.append(
@@ -367,7 +413,129 @@ package struct ToolRuntime: Sendable {
 	}
 
 	package func rebuildConfirmed(_ input: GatedToolInput) async throws -> JSONValue {
-		fatalError("not implemented")
+		let today = IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone)
+		switch input {
+		case .createWorkout(let date, let workout):
+			try IntervalsPolicy.rejectPastCreationDate(date, today: today)
+			let serialized = try IntervalsSerializer.serialize(workout)
+			let draft = ChatCalendarCreate(
+				date: date,
+				name: workout.name,
+				description: serialized.description,
+				type: .ride,
+				externalId: IntervalsSerializer.chatExternalId(date: date, name: workout.name),
+				tags: [IntervalsPolicy.coachTag]
+			)
+			let event = try await intervals.createChatEvent(draft)
+			return .object([
+				"created": .bool(true),
+				"event": encodeEvent(event),
+			])
+		case .createStrengthWorkout(let date, let name, let description):
+			try IntervalsPolicy.rejectPastCreationDate(date, today: today)
+			let draft = ChatCalendarCreate(
+				date: date,
+				name: name,
+				description: description,
+				type: .weightTraining,
+				externalId: IntervalsSerializer.chatExternalId(date: date, name: "strength \(name)"),
+				tags: [IntervalsPolicy.coachTag]
+			)
+			let event = try await intervals.createChatEvent(draft)
+			return .object([
+				"created": .bool(true),
+				"event": encodeEvent(event),
+			])
+		case .deleteWorkout(let eventId):
+			try await intervals.deleteEvent(id: eventId)
+			return .object(["deleted": .bool(true)])
+		case .updateWorkout(let update):
+			let event = try await intervals.updateEvent(
+				id: update.eventId,
+				name: update.name,
+				description: update.description,
+				date: update.date
+			)
+			return .object([
+				"updated": .bool(true),
+				"event": encodeEvent(event),
+			])
+		case .planSave:
+			throw IntervalsError(code: "not_implemented", details: "Saving a plan is not available yet.")
+		}
+	}
+
+	private func executeGated(
+		_ gated: GatedToolName,
+		arguments: JSONValue,
+		chatId: ChatID
+	) async throws -> ToolOutcome {
+		if gated == .planSave {
+			return .result(
+				UntrustedEnvelope.wrap(
+					.object([
+						"error": .string("not_implemented"),
+						"details": .string("Saving a plan is not available yet."),
+					])
+				)
+			)
+		}
+		do {
+			let parsed = try parseGated(gated, arguments: arguments)
+			let proposal = try await ProposalPolicy.propose(
+				chatId: chatId,
+				tool: gated,
+				input: parsed.input,
+				summary: parsed.summary,
+				description: parsed.description,
+				now: clock.now,
+				store: store,
+				clock: clock
+			)
+			return .pending(proposal)
+		} catch let error as IntervalsError {
+			return .result(UntrustedEnvelope.wrap(error.json))
+		} catch let error as InvalidWorkout {
+			return .result(
+				UntrustedEnvelope.wrap(
+					.object([
+						"error": .string("invalid_workout"),
+						"details": .string(error.message),
+					])
+				)
+			)
+		}
+	}
+
+	private func parseGated(
+		_ gated: GatedToolName,
+		arguments: JSONValue
+	) throws -> (input: GatedToolInput, summary: String, description: String) {
+		let today = IntervalsPolicy.today(now: clock.now, timeZone: clock.timeZone)
+		switch gated {
+		case .intervalsCreateWorkout:
+			let parsed = try CyclingTools.parseCreateWorkoutInput(arguments, today: today)
+			let input = GatedToolInput.createWorkout(date: parsed.date, workout: parsed.workout)
+			return (input, ProposalPolicy.summary(for: input), parsed.draft.description)
+		case .intervalsCreateStrengthWorkout:
+			let parsed = try CyclingTools.parseStrengthWorkout(arguments, today: today)
+			let input = GatedToolInput.createStrengthWorkout(
+				date: parsed.date,
+				name: parsed.name,
+				description: parsed.description
+			)
+			return (input, ProposalPolicy.summary(for: input), parsed.description)
+		case .intervalsDeleteWorkout:
+			let eventId = try CyclingTools.parseDeleteWorkout(arguments)
+			let input = GatedToolInput.deleteWorkout(eventId: eventId)
+			return (input, ProposalPolicy.summary(for: input), "")
+		case .intervalsUpdateWorkout:
+			let update = try CyclingTools.parseUpdateWorkout(arguments, today: today)
+			let input = GatedToolInput.updateWorkout(update)
+			return (input, ProposalPolicy.summary(for: input), update.description ?? "")
+		case .planSave:
+			throw IntervalsError(code: "not_implemented", details: "Saving a plan is not available yet.")
+		}
 	}
 
 	private static let activityIDDescription =
