@@ -47,7 +47,19 @@ package enum PromptAssembly {
 	}
 
 	package static func replyLanguageSection(resolution: LanguageResolution) -> String {
-		fatalError("not implemented")
+		let englishName = resolution.language.englishName
+		let endonym = resolution.language.endonym
+		let direction =
+			resolution.source == .preference
+			? "The athlete chose \(englishName) (\(endonym)). Write every athlete-facing sentence in \(englishName), even when the athlete writes in another language. This rule outranks \"Mirror the athlete's register\": mirror register, tone, and level of detail within \(englishName); never mirror the language itself."
+			: "No language is saved. Reply in the language of the athlete's latest message; that is what \"Mirror the athlete's register\" means for language. When the message carries no language signal (a bare command, numbers only), reply in \(englishName) (\(endonym))."
+		return """
+			# Reply language
+
+			\(direction)
+
+			The rule covers your prose only. Leave these exactly as they are: tool arguments and every JSON field name and value, metric names and units (FTP, Fitness, Fatigue, Form, Load, Intensity, weighted average power, W/kg, bpm), memory-file section headings and the numerals inside them, compaction summary headings, plan and workout identifiers, activity names copied from the athlete's data, cited titles, and command names such as /review. Do not translate stored athlete text or rewrite historical content. Do not change numeric values, units, dates, or cited evidence because of the language.
+			"""
 	}
 }
 
