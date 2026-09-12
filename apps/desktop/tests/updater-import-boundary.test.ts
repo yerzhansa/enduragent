@@ -20,10 +20,11 @@ describe("desktop updater import boundary", () => {
   it("loads the real CommonJS updater through the production native ESM loader", async () => {
     const source = await readFile(resolve(desktopRoot, "src/main/index.ts"), "utf8");
     const harness = [
-      'import { createRequire } from "node:module";',
+      'import { createRequire, Module } from "node:module";',
       "const require = createRequire(import.meta.url);",
       'const electronPath = require.resolve("electron");',
-      "require(electronPath);",
+      "require.cache[electronPath] = new Module(electronPath);",
+      "require.cache[electronPath].loaded = true;",
       "const nativeUpdater = { on() { return nativeUpdater; } };",
       "require.cache[electronPath].exports = {",
       "  app: {",
