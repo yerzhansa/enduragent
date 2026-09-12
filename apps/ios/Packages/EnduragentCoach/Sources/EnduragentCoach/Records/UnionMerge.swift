@@ -54,12 +54,8 @@ package enum UnionMerge {
 	}
 
 	package static func ledgerDigest(date: CivilDate, kind: LedgerKind, text: String) -> String {
-		ledgerDigest(date: date.rawValue, kind: kind.rawValue, text: text)
-	}
-
-	package static func ledgerDigest(date: String, kind: String, text: String) -> String {
 		let normalized = text.replacing(/^[\s]+|[\s]+$/, with: "").replacing(/\s+/, with: " ").lowercased()
-		let input = JSONValue.array([.string(date), .string(kind), .string(normalized)]).canonicalDigestInput()
+		let input = JSONValue.array([.string(date.rawValue), .string(kind.rawValue), .string(normalized)]).canonicalDigestInput()
 		return sha256Hex(input)
 	}
 

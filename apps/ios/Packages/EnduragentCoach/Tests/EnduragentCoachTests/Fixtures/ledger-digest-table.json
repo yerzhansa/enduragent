@@ -1,82 +1,82 @@
 [
   {
     "date": "1998-06-13",
-    "kind": "athlete_note",
+    "kind": "decision",
     "text": "Ada Kovač wants Saturdays kept free for the group ride.",
-    "digestInput": "[\"1998-06-13\",\"athlete_note\",\"ada kovač wants saturdays kept free for the group ride.\"]",
-    "digest": "dcf2089e782fb1f9b09f65ad6ca4d355817c8e3ce947872e48f13f949bbd01aa",
+    "digestInput": "[\"1998-06-13\",\"decision\",\"ada kovač wants saturdays kept free for the group ride.\"]",
+    "digest": "39c83e1461510839e370367caac58cf8939edde0a166223261a09c933c76574f",
     "estimateTokens": 17
   },
   {
     "date": "1998-06-13",
-    "kind": "athlete_note",
+    "kind": "override",
     "text": "  Ada Kovač   wants Saturdays kept free for the group ride.  ",
-    "digestInput": "[\"1998-06-13\",\"athlete_note\",\"ada kovač wants saturdays kept free for the group ride.\"]",
-    "digest": "dcf2089e782fb1f9b09f65ad6ca4d355817c8e3ce947872e48f13f949bbd01aa",
+    "digestInput": "[\"1998-06-13\",\"override\",\"ada kovač wants saturdays kept free for the group ride.\"]",
+    "digest": "9b7e1d37db376fd46008f2397325b1e1afb6f8a0eb03c7bac52e70407d9e108a",
     "estimateTokens": 19
   },
   {
     "date": "1998-06-14",
-    "kind": "coach_decision",
+    "kind": "illness",
     "text": "Moved the threshold session to Tuesday because of the Monday travel day.",
-    "digestInput": "[\"1998-06-14\",\"coach_decision\",\"moved the threshold session to tuesday because of the monday travel day.\"]",
-    "digest": "e8d24db0ecfed80e4b440d958d615985c7b6697f4b6f01660f8e3d8454cf8cbb",
+    "digestInput": "[\"1998-06-14\",\"illness\",\"moved the threshold session to tuesday because of the monday travel day.\"]",
+    "digest": "c36e733275fec52faf2d26b220da99918efa9c275e7cb49995208415ebc1b124",
     "estimateTokens": 22
   },
   {
     "date": "1998-06-15",
-    "kind": "athlete_note",
+    "kind": "experiment",
     "text": "Fitness 42, Fatigue 49, Form −7 after the weekend.",
-    "digestInput": "[\"1998-06-15\",\"athlete_note\",\"fitness 42, fatigue 49, form −7 after the weekend.\"]",
-    "digest": "523e31694f8271ac66cdb313375111671ce8238b88ed546b744e79c7afbbd972",
+    "digestInput": "[\"1998-06-15\",\"experiment\",\"fitness 42, fatigue 49, form −7 after the weekend.\"]",
+    "digest": "11caa4b3178a4b1c58d4c6a031d69d43a0a1ac9bc8abfa92bd6b9d2761af9289",
     "estimateTokens": 15
   },
   {
     "date": "1998-06-16",
-    "kind": "athlete_note",
+    "kind": "outcome",
     "text": "Knee felt fine on the 3 × 12 min efforts.\nNo pain after.",
-    "digestInput": "[\"1998-06-16\",\"athlete_note\",\"knee felt fine on the 3 × 12 min efforts. no pain after.\"]",
-    "digest": "014591c17a19840a0780977884382a6fc92cd0f1ee9672adddbbde9d90abed3c",
+    "digestInput": "[\"1998-06-16\",\"outcome\",\"knee felt fine on the 3 × 12 min efforts. no pain after.\"]",
+    "digest": "a970a8047df2f0c835c8fee03be385aa7bce1e55d406cc6e7af693e37110010d",
     "estimateTokens": 17
   },
   {
     "date": "1998-06-17",
-    "kind": "coach_decision",
+    "kind": "decision",
     "text": "FTP stays at 250 W until the next test.",
-    "digestInput": "[\"1998-06-17\",\"coach_decision\",\"ftp stays at 250 w until the next test.\"]",
-    "digest": "c072782d7fe093495df89900aa3f94feb4cbbdaa4b81aa25b3bbfad122895edb",
+    "digestInput": "[\"1998-06-17\",\"decision\",\"ftp stays at 250 w until the next test.\"]",
+    "digest": "4c83c8d6e7b7ce37d5b6eddeb229104f09e7417a234cdc3dc9b5b60074f82d32",
     "estimateTokens": 12
   },
   {
     "date": "1998-06-18",
-    "kind": "athlete_note",
+    "kind": "override",
     "text": "Slept badly, 5 h. Skipped the openers.",
-    "digestInput": "[\"1998-06-18\",\"athlete_note\",\"slept badly, 5 h. skipped the openers.\"]",
-    "digest": "9eed4eb4c29deda3fb354c456e72502656e07841b1c811a4247385e786eba224",
+    "digestInput": "[\"1998-06-18\",\"override\",\"slept badly, 5 h. skipped the openers.\"]",
+    "digest": "fd3de89a95388ea683e6dbfe6b450199ab532f077379b3f58e929e154de6e436",
     "estimateTokens": 12
   },
   {
     "date": "1998-06-19",
-    "kind": "athlete_note",
+    "kind": "illness",
     "text": "Café stop in Škofja Loka, 4 h endurance ride.",
-    "digestInput": "[\"1998-06-19\",\"athlete_note\",\"café stop in škofja loka, 4 h endurance ride.\"]",
-    "digest": "040f909ea1e9c513109e9a289f78c3feb1d0cac973f20d8def6470d4ea35f725",
+    "digestInput": "[\"1998-06-19\",\"illness\",\"café stop in škofja loka, 4 h endurance ride.\"]",
+    "digest": "120d09f2907741e68682860f7a9d6a29eaa7d0c3783a725b7cb2dce86e73ec8c",
     "estimateTokens": 14
   },
   {
     "date": "1998-06-20",
-    "kind": "coach_decision",
+    "kind": "experiment",
     "text": "Race week: taper from Wednesday.",
-    "digestInput": "[\"1998-06-20\",\"coach_decision\",\"race week: taper from wednesday.\"]",
-    "digest": "64b81c884da33492c7369bd342e81cbd69a8be922c15a39907c9185950ade173",
+    "digestInput": "[\"1998-06-20\",\"experiment\",\"race week: taper from wednesday.\"]",
+    "digest": "f1f7c8302cc40993a9c10928f54f1edcb3bc9449ed7bb5fdf329973bddf674fc",
     "estimateTokens": 10
   },
   {
     "date": "1998-06-21",
-    "kind": "athlete_note",
+    "kind": "outcome",
     "text": "",
-    "digestInput": "[\"1998-06-21\",\"athlete_note\",\"\"]",
-    "digest": "0284bc34dfad2a8c8c911c27222a2a2595a985af44d43c9a50e8c0db676ad29b",
+    "digestInput": "[\"1998-06-21\",\"outcome\",\"\"]",
+    "digest": "72007d785525482ef3287435d493bfca2ac09e6d211876b37594a63b657d8dc6",
     "estimateTokens": 0
   }
 ]

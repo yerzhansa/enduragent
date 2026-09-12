@@ -192,33 +192,21 @@ import Testing
 		#expect(UnionMerge.coachReplyLanguage([italian, automatic]) == nil)
 	}
 
-	@Test func ledgerDigestUsesKindRawValue() {
-		let date: CivilDate = "1998-06-13"
-		let text = "Keep Saturdays free."
-		let fromKind = UnionMerge.ledgerDigest(date: date, kind: .decision, text: text)
-		let fromString = UnionMerge.ledgerDigest(date: date.rawValue, kind: LedgerKind.decision.rawValue, text: text)
-		#expect(fromKind == fromString)
-		#expect(fromKind.count == 64)
-	}
-
 	@Test func ledgerDigestMatchesDesktop() throws {
 		let rows = try loadLedgerDigestTable()
 		var computed: [LedgerDigestRow] = []
 		for row in rows {
+			let kind = try #require(LedgerKind(rawValue: row.kind))
+			let date = try #require(CivilDate(rawValue: row.date))
 			let normalized = row.text.replacing(/^[\s]+|[\s]+$/, with: "").replacing(/\s+/, with: " ").lowercased()
 			let digestInput = JSONValue.array([
 				.string(row.date),
 				.string(row.kind),
 				.string(normalized),
 			]).canonicalDigestInput()
-			let digest = UnionMerge.ledgerDigest(date: row.date, kind: row.kind, text: row.text)
-			#expect(digestInput == row.digestInput)
-			#expect(digest == row.digest)
+			let digest = UnionMerge.ledgerDigest(date: date, kind: kind, text: row.text)
 			#expect(Array(digestInput.utf8) == Array(row.digestInput.utf8))
 			#expect(Array(digest.utf8) == Array(row.digest.utf8))
-			if let kind = LedgerKind(rawValue: row.kind), let date = CivilDate(rawValue: row.date) {
-				#expect(UnionMerge.ledgerDigest(date: date, kind: kind, text: row.text) == row.digest)
-			}
 			computed.append(
 				LedgerDigestRow(
 					date: row.date,
