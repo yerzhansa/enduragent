@@ -47,6 +47,7 @@ export default defineConfig({
       "**/.pnpm-store/**",
       "**/.worktrees/**",
       "apps/desktop/tests/e2e/**",
+      "apps/credits-worker/**",
     ],
     coverage: {
       provider: "v8",
@@ -75,6 +76,7 @@ export default defineConfig({
             "**/.pnpm-store/**",
             "**/.worktrees/**",
             "apps/desktop/tests/e2e/**",
+            "apps/credits-worker/**",
             "**/*.test.tsx",
           ],
         },
