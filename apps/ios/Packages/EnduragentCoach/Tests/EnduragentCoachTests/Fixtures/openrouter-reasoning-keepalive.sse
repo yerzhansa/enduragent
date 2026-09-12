@@ -1,0 +1,9 @@
+: keep-alive
+
+data: {"id":"gen-1998-ada-reason","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":"Ada rode on Saturday 1998-06-13."},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-reason","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"content":""},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-reason","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"content":"Rest on Sunday."},"finish_reason":"stop"}],"usage":{"prompt_tokens":11,"completion_tokens":4,"total_tokens":15,"cost":0.25}}
+
+data: [DONE]

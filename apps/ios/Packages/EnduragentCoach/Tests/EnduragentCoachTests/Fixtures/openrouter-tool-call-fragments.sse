@@ -1,0 +1,9 @@
+data: {"id":"gen-1998-ada-tool","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_ada_week","type":"function","function":{"name":"intervals_fetch_activities","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-tool","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-tool","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"days\":"}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-tool","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"7}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":18,"completion_tokens":12,"total_tokens":30,"cost":0.5}}
+
+data: [DONE]

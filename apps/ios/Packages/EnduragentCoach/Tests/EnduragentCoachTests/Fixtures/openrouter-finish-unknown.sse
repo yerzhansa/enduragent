@@ -1,0 +1,3 @@
+data: {"id":"gen-1998-ada-unknown","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"content":"Stopped."},"finish_reason":"content_filter"}]}
+
+data: [DONE]
