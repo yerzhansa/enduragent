@@ -42,7 +42,7 @@ describe("desktop updater import boundary", () => {
       "};",
       `const loadUpdater = async () => {${updaterLoaderBody(source)}\n};`,
       "const updater = await loadUpdater();",
-      'process.stdout.write(typeof updater?.checkForUpdates);',
+      "process.stdout.write(typeof updater?.checkForUpdates);",
     ].join("\n");
 
     const result = await execFileAsync(

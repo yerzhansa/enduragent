@@ -399,8 +399,8 @@ async function runDesktop(): Promise<void> {
     currentVersion: app.getVersion(),
     versionFloor: updateVersionFloor,
     loadUpdater: async () => {
-      const { autoUpdater } = await import("electron-updater");
-      return autoUpdater;
+      const { default: electronUpdater } = await import("electron-updater");
+      return electronUpdater.autoUpdater;
     },
     requestQuit: () => app.quit(),
   });
