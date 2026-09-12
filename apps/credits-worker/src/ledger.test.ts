@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   asCredits,
@@ -12,7 +12,7 @@ import {
   type TransactionId,
 } from "./domain.js";
 import { MemoryLedger } from "./fakes.js";
-import { D1Ledger, SCHEMA_SQL, type Ledger, type PurchaseRecord } from "./ledger.js";
+import { D1Ledger, type Ledger, type PurchaseRecord } from "./ledger.js";
 
 const athleteId = "19980613-0000-4000-8000-000000000001" as AthleteId;
 const tx = "tx-1998-1" as TransactionId;
@@ -34,12 +34,7 @@ function purchaseRow(transactionId: TransactionId = tx): PurchaseRecord {
 }
 
 async function seedSchema(): Promise<void> {
-  const statements = SCHEMA_SQL.split(";")
-    .map((part) => part.replace(/\s+/g, " ").trim())
-    .filter((part) => part.length > 0);
-  for (const sql of statements) {
-    await env.DB.exec(sql);
-  }
+  await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 }
 
 async function clearD1(): Promise<void> {

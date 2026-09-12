@@ -1,5 +1,7 @@
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
+
+const migrations = await readD1Migrations("./migrations");
 
 export default defineConfig({
   plugins: [
@@ -7,6 +9,7 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         bindings: {
+          TEST_MIGRATIONS: migrations,
           OPENROUTER_MANAGEMENT_KEY: "test-openrouter-management",
           APPLE_APP_STORE_P8: "test-app-store-p8",
           APPLE_APP_STORE_KEY_ID: "test-app-store-key",
