@@ -12,7 +12,10 @@ let package = Package(
 		.library(name: "EnduragentCoach", targets: ["EnduragentCoach"]),
 	],
 	targets: [
-		.target(name: "EnduragentCoach"),
+		.target(
+			name: "EnduragentCoach",
+			resources: [.copy("Resources/Localizable.xcstrings")]
+		),
 		.testTarget(
 			name: "EnduragentCoachTests",
 			dependencies: ["EnduragentCoach"],
