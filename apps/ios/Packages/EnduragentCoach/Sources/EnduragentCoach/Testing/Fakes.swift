@@ -22,11 +22,19 @@ public final class FakeModelTransport: ModelTransport, @unchecked Sendable {
 
 public enum FakeIntervalsCall: Sendable, Equatable {
 	case activities(days: Int)
+	case wellness(oldest: CivilDate, newest: CivilDate)
+	case activity(ActivityID)
+	case streams(ActivityID)
+	case events(oldest: CivilDate, newest: CivilDate)
 	case createEvent(date: CivilDate, externalId: String)
 }
 
 public final class FakeIntervalsClient: IntervalsClient, @unchecked Sendable {
 	public var activities: [ActivitySummary]
+	public var wellness: [WellnessDay]
+	public var activity: JSONValue
+	public var streams: JSONValue
+	public var events: [CalendarEvent]
 	public private(set) var calls: [FakeIntervalsCall]
 	public var athleteName: String
 	public var ftp: Int
@@ -35,6 +43,13 @@ public final class FakeIntervalsClient: IntervalsClient, @unchecked Sendable {
 		self.athleteName = athleteName
 		self.ftp = ftp
 		self.activities = []
+		self.wellness = []
+		self.activity = .object([:])
+		self.streams = .object([
+			"sampleCount": .number(0),
+			"channels": .object([:]),
+		])
+		self.events = []
 		self.calls = []
 	}
 
@@ -43,23 +58,34 @@ public final class FakeIntervalsClient: IntervalsClient, @unchecked Sendable {
 	}
 
 	public func fetchWellness(oldest: CivilDate, newest: CivilDate) async throws -> [WellnessDay] {
-		fatalError("not implemented")
+		calls.append(.wellness(oldest: oldest, newest: newest))
+		return wellness.filter { $0.date >= oldest && $0.date <= newest }
 	}
 
 	public func fetchActivities(oldest: CivilDate, newest: CivilDate) async throws -> [ActivitySummary] {
-		fatalError("not implemented")
+		let days = IntervalsPolicy.inclusiveDayCount(from: oldest, to: newest)
+		calls.append(.activities(days: days))
+		return activities.filter { $0.date >= oldest && $0.date <= newest }
 	}
 
 	public func fetchActivity(id: ActivityID) async throws -> JSONValue {
-		fatalError("not implemented")
+		calls.append(.activity(id))
+		return activity
 	}
 
 	public func fetchStreams(id: ActivityID) async throws -> JSONValue {
-		fatalError("not implemented")
+		calls.append(.streams(id))
+		return streams
 	}
 
 	public func listEvents(oldest: CivilDate, newest: CivilDate) async throws -> [CalendarEvent] {
-		fatalError("not implemented")
+		calls.append(.events(oldest: oldest, newest: newest))
+		return events.filter { event in
+			guard let date = CivilDate(rawValue: String(event.startDateLocal.prefix(10))) else {
+				return false
+			}
+			return date >= oldest && date <= newest
+		}
 	}
 
 	public func createChatEvent(_ draft: ChatCalendarCreate) async throws -> CalendarEvent {
