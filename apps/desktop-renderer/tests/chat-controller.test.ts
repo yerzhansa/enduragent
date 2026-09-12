@@ -45,6 +45,10 @@ import {
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
   NEW_CONVERSATION_SUCCESS_COPY,
   NEW_CONVERSATION_UNCERTAIN_COPY,
+  FEEDBACK_FAILED_COPY,
+  FEEDBACK_SENT_COPY,
+  FEEDBACK_TOO_LONG_COPY,
+  FEEDBACK_USAGE_COPY,
   type ChatViewControls,
   createChatController,
 } from "../src/chat/controller";
@@ -4332,6 +4336,69 @@ describe("Plan library Chat entry", () => {
     expect(start).not.toHaveBeenCalled();
     expect(saveText).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toEqual([]);
+    controller.dispose();
+  });
+
+  it("sends /feedback to the mailbox without calling the coach", async () => {
+    const request = vi.fn<(url: string, init: RequestInit) => Promise<{ status: number }>>(
+      async () => ({ status: 204 }),
+    );
+    vi.stubGlobal("fetch", request);
+    const fake = client(replies());
+    const { controller, states } = subject(fake);
+    await controller.start();
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(
+      "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+    );
+
+    await expect(controller.submit("/feedback the watts look high")).resolves.toBe(true);
+
+    expect(request).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      channel: "desktop",
+      id: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+      text: "the watts look high",
+    });
+    expect(chatMessages(fake)).toEqual([]);
+    expect(
+      vi.mocked(fake.call).mock.calls.filter(([method]) => method === "enqueueChatMessage"),
+    ).toEqual([]);
+    expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_SENT_COPY);
+    vi.unstubAllGlobals();
+    controller.dispose();
+  });
+
+  it("keeps an empty or overlong /feedback draft and does not POST", async () => {
+    const request = vi.fn(async () => ({ status: 204 }));
+    vi.stubGlobal("fetch", request);
+    const fake = client(replies());
+    const { controller, states } = subject(fake);
+    await controller.start();
+
+    await expect(controller.submit("/feedback")).resolves.toBe(false);
+    expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_USAGE_COPY);
+    await expect(controller.submit(`/feedback ${"x".repeat(4001)}`)).resolves.toBe(false);
+    expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_TOO_LONG_COPY);
+    expect(request).not.toHaveBeenCalled();
+    expect(chatMessages(fake)).toEqual([]);
+    vi.unstubAllGlobals();
+    controller.dispose();
+  });
+
+  it("keeps /feedback text when the mailbox is unavailable", async () => {
+    const request = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    vi.stubGlobal("fetch", request);
+    const fake = client(replies());
+    const { controller, states } = subject(fake);
+    await controller.start();
+
+    await expect(controller.submit("/feedback the watts look high")).resolves.toBe(false);
+
+    expect(chatMessages(fake)).toEqual([]);
+    expect(states.at(-1)?.session.announcement).toBe(FEEDBACK_FAILED_COPY);
+    vi.unstubAllGlobals();
     controller.dispose();
   });
 

@@ -936,7 +936,8 @@
       "update": "Controleren op updates en deze installeren",
       "version": "Huidige versie tonen",
       "whatsnew": "Bekijk wat er in de nieuwste versie is veranderd",
-      "workout": "De training van vandaag ophalen"
+      "workout": "De training van vandaag ophalen",
+      "feedback": "Stuur een bericht naar de auteurs van Enduragent"
     },
     "composer": {
       "attach": "Bestanden bijvoegen",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Antwoord gestopt. Het gedeeltelijke antwoord blijft bewaard.",
       "retryMessage": "Bericht opnieuw proberen",
       "savedChoice": "Opgeslagen keuze",
-      "working": "De coach is bezig…"
+      "working": "De coach is bezig…",
+      "feedbackFailed": "Dat bericht kon niet worden verzonden. Het blijft in het vak — probeer het opnieuw.",
+      "feedbackSent": "Dank je — we hebben je bericht ontvangen.",
+      "feedbackTooLong": "Houd je bericht op 4000 tekens of minder. Er is niets verzonden.",
+      "feedbackUsage": "Stuur /feedback gevolgd door je bericht."
     },
     "planChange": {
       "activePlan": "Actief trainingsschema",
@@ -2467,7 +2472,8 @@
       "update": "Controleren op updates en deze installeren",
       "version": "Huidige versie tonen",
       "whatsnew": "Bekijk wat er in de nieuwste versie is veranderd",
-      "workout": "De training van vandaag ophalen"
+      "workout": "De training van vandaag ophalen",
+      "feedback": "Stuur een bericht naar de auteurs van Enduragent"
     },
     "pairing": {
       "askOwner": "Anders: vraag de eigenaar van de bot om je gebruikers-ID toegang te geven.",
@@ -2581,9 +2587,15 @@
       "managedInstruction": "Stuur {{whatsnew}} om de wijzigingen te bekijken. {{notice}}",
       "prepareFailed": "De update kon zojuist niet veilig worden voorbereid. Probeer {{command}} zo opnieuw."
     },
-    "welcome": "Welkom bij {{product}}!\n\nIk ben je AI-fietscoach. Ik kan trainingsschema's maken, trainingen voorstellen en je conditie volgen met gegevens van {{service}}.\n\nOpdrachten:\n{{plan}} : Een trainingsschema maken\n{{workout}} : De training van vandaag ophalen\n{{status}} : Je huidige conditie, vermoeidheid en vorm bekijken\n{{review}} : Je laatste training bekijken\n{{sync}} : Trainingsgegevens uit {{service}} geforceerd vernieuwen\n{{version}} : Huidige versie tonen\n{{whatsnew}} : Bekijk wat er in de nieuwste versie is veranderd\n{{update}} : {{updateDescription}}\n\nJe kunt ook gewoon met me praten over je training!",
+    "welcome": "Welkom bij {{product}}!\n\nIk ben je AI-fietscoach. Ik kan trainingsschema's maken, trainingen voorstellen en je conditie volgen met gegevens van {{service}}.\n\nOpdrachten:\n{{plan}} : Een trainingsschema maken\n{{workout}} : De training van vandaag ophalen\n{{status}} : Je huidige conditie, vermoeidheid en vorm bekijken\n{{review}} : Je laatste training bekijken\n{{feedback}} : Stuur een bericht naar de auteurs van Enduragent\n{{sync}} : Trainingsgegevens uit {{service}} geforceerd vernieuwen\n{{version}} : Huidige versie tonen\n{{whatsnew}} : Bekijk wat er in de nieuwste versie is veranderd\n{{update}} : {{updateDescription}}\n\nJe kunt ook gewoon met me praten over je training!",
     "workout": {
       "working": "Je vorm en trainingsschema controleren..."
+    },
+    "feedback": {
+      "failed": "Dat bericht kon niet worden verzonden. Probeer het zo opnieuw.",
+      "sent": "Dank je — we hebben je bericht ontvangen.",
+      "tooLong": "Houd je bericht op {{limit}} tekens of minder. Er is niets verzonden.",
+      "usage": "Stuur /feedback gevolgd door je bericht. Voorbeeld: /feedback het planscherm is lastig te lezen."
     }
   },
   "cli": {

@@ -29,6 +29,16 @@ that preferences directory. It contains no athlete data, message content, creden
 configuration, hardware identifier, or feature activity. Set `ENDURAGENT_NO_USAGE_PING=1` before
 launch to disable it; disabled and unofficial builds create no heartbeat state.
 
+### /feedback
+
+`/feedback` is opt-in. Nothing is sent unless you run the command with a note. Telegram and Desktop
+POST that note to `feedback.enduragent.icu`. The coach model does not receive this path. The stored
+fields are the trimmed note, the channel (`telegram` or `desktop`), a random submission UUID the app
+generated, and the time the mailbox received it. Training data, transcripts, credentials,
+intervals.icu athlete ids, ride files, the installation heartbeat UUID, IP address, and user-agent
+are not stored. Notes are not used to train a model and are not written to the heartbeat dataset.
+The operator deletes a note after reading, and in any case within twelve months.
+
 The heartbeat endpoint stores those four fields, a count, and the time the request was received for
 up to three months so the project can estimate active installations. Like any HTTPS service, its
 hosting provider can receive ordinary network metadata such as an IP address and user agent. The

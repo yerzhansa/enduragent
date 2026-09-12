@@ -132,7 +132,8 @@ export type ChatAction =
   | { readonly type: "cancel-new-conversation" }
   | { readonly type: "begin-reset" }
   | { readonly type: "reset-succeeded"; readonly announcement: string }
-  | { readonly type: "reset-failed"; readonly announcement: string };
+  | { readonly type: "reset-failed"; readonly announcement: string }
+  | { readonly type: "announce"; readonly announcement: string | null };
 
 function current(state: ChatState, requestKey: number): ActiveTurn | null {
   return state.activeTurn?.requestKey === requestKey ? state.activeTurn : null;
@@ -542,6 +543,13 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
               resetPhase: "uncertain",
               announcement: action.announcement,
             },
+          };
+    case "announce":
+      return action.announcement === state.session.announcement
+        ? state
+        : {
+            ...state,
+            session: { ...state.session, announcement: action.announcement },
           };
     default:
       return assertNever(action);

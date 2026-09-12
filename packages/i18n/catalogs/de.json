@@ -936,7 +936,8 @@
       "update": "Nach Updates suchen und sie installieren",
       "version": "Aktuelle Version anzeigen",
       "whatsnew": "Änderungen der neuesten Version ansehen",
-      "workout": "Heutiges Training abrufen"
+      "workout": "Heutiges Training abrufen",
+      "feedback": "Schick eine Notiz an die Autorinnen und Autoren von Enduragent"
     },
     "composer": {
       "attach": "Dateien anhängen",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Antwort gestoppt. Die bisherige Antwort bleibt erhalten.",
       "retryMessage": "Nachricht erneut senden",
       "savedChoice": "Gespeicherte Auswahl",
-      "working": "Der Coach arbeitet…"
+      "working": "Der Coach arbeitet…",
+      "feedbackFailed": "Die Notiz konnte nicht gesendet werden. Sie bleibt im Feld — versuch es noch einmal.",
+      "feedbackSent": "Danke — wir haben deine Notiz erhalten.",
+      "feedbackTooLong": "Halte deine Notiz auf 4000 Zeichen oder weniger. Es wurde nichts gesendet.",
+      "feedbackUsage": "Schick /feedback gefolgt von deiner Notiz."
     },
     "planChange": {
       "activePlan": "Aktiver Plan",
@@ -2681,7 +2686,8 @@
       "update": "Nach Updates suchen und sie installieren",
       "version": "Aktuelle Version anzeigen",
       "whatsnew": "Änderungen der neuesten Version ansehen",
-      "workout": "Heutiges Training abrufen"
+      "workout": "Heutiges Training abrufen",
+      "feedback": "Schick eine Notiz an die Autorinnen und Autoren von Enduragent"
     },
     "pairing": {
       "askOwner": "Andernfalls bitte den Bot-Besitzer, deine Nutzer-ID zu autorisieren.",
@@ -2795,9 +2801,15 @@
       "managedInstruction": "Sende {{whatsnew}} für die Neuerungen. {{notice}}",
       "prepareFailed": "Das Update konnte gerade nicht sicher vorbereitet werden. Versuche {{command}} bitte gleich erneut."
     },
-    "welcome": "Willkommen bei {{product}}!\n\nIch bin dein KI-Radcoach. Ich kann Trainingspläne erstellen, Trainings vorschlagen und deine Fitness anhand von {{service}}-Daten verfolgen.\n\nBefehle:\n{{plan}} — Einen Trainingsplan erstellen\n{{workout}} — Heutiges Training abrufen\n{{status}} — Aktuelle Fitness, Ermüdung und Form prüfen\n{{review}} — Deine letzte Einheit besprechen\n{{sync}} — Trainingsdaten von {{service}} vollständig aktualisieren\n{{version}} — Aktuelle Version anzeigen\n{{whatsnew}} — Änderungen der neuesten Version ansehen\n{{update}} — {{updateDescription}}\n\nOder sprich einfach mit mir über dein Training!",
+    "welcome": "Willkommen bei {{product}}!\n\nIch bin dein KI-Radcoach. Ich kann Trainingspläne erstellen, Trainings vorschlagen und deine Fitness anhand von {{service}}-Daten verfolgen.\n\nBefehle:\n{{plan}} — Einen Trainingsplan erstellen\n{{workout}} — Heutiges Training abrufen\n{{status}} — Aktuelle Fitness, Ermüdung und Form prüfen\n{{review}} — Deine letzte Einheit besprechen\n{{feedback}} — Schick eine Notiz an die Autorinnen und Autoren von Enduragent\n{{sync}} — Trainingsdaten von {{service}} vollständig aktualisieren\n{{version}} — Aktuelle Version anzeigen\n{{whatsnew}} — Änderungen der neuesten Version ansehen\n{{update}} — {{updateDescription}}\n\nOder sprich einfach mit mir über dein Training!",
     "workout": {
       "working": "Ich prüfe deine Form und deinen Plan..."
+    },
+    "feedback": {
+      "failed": "Die Notiz konnte nicht gesendet werden. Versuch es gleich noch einmal.",
+      "sent": "Danke — wir haben deine Notiz erhalten.",
+      "tooLong": "Halte deine Notiz auf {{limit}} Zeichen oder weniger. Es wurde nichts gesendet.",
+      "usage": "Schick /feedback gefolgt von deiner Notiz. Beispiel: /feedback der Plan-Bildschirm ist schwer zu lesen."
     }
   },
   "desktop": {

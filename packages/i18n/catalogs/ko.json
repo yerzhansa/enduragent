@@ -928,7 +928,8 @@
       "update": "업데이트 확인 및 설치",
       "version": "현재 버전 표시",
       "whatsnew": "최신 버전의 변경 사항 보기",
-      "workout": "오늘의 워크아웃 확인"
+      "workout": "오늘의 워크아웃 확인",
+      "feedback": "Enduragent 작성자에게 메모를 보내세요"
     },
     "composer": {
       "attach": "파일 첨부",
@@ -1008,7 +1009,11 @@
       "responseStopped": "답변이 중지되었습니다. 지금까지의 답변은 유지됩니다.",
       "retryMessage": "메시지 재시도",
       "savedChoice": "저장된 선택",
-      "working": "코치가 작업 중…"
+      "working": "코치가 작업 중…",
+      "feedbackFailed": "메모를 보내지 못했습니다. 입력란에 그대로 있습니다. 다시 시도하세요.",
+      "feedbackSent": "감사합니다. 메모를 받았습니다.",
+      "feedbackTooLong": "메모는 4000자 이하로 적어 주세요. 아무것도 전송되지 않았습니다.",
+      "feedbackUsage": "/feedback 다음에 메모를 보내세요."
     },
     "planChange": {
       "activePlan": "활성 계획",
@@ -2648,7 +2653,8 @@
       "update": "업데이트 확인 및 설치",
       "version": "현재 버전 표시",
       "whatsnew": "최신 버전의 변경 사항 보기",
-      "workout": "오늘의 워크아웃 확인"
+      "workout": "오늘의 워크아웃 확인",
+      "feedback": "Enduragent 작성자에게 메모를 보내세요"
     },
     "pairing": {
       "askOwner": "봇 소유자가 아니라면 소유자에게 사용자 ID를 허용해 달라고 요청하세요.",
@@ -2759,9 +2765,15 @@
       "managedInstruction": "변경 사항을 보려면 {{whatsnew}}를 보내세요. {{notice}}",
       "prepareFailed": "지금은 업데이트를 안전하게 준비하지 못했습니다. 잠시 후 {{command}}를 다시 시도해 주세요."
     },
-    "welcome": "{{product}}에 오신 것을 환영합니다!\n\nAI 사이클링 코치입니다. {{service}} 데이터를 바탕으로 훈련 계획을 만들고, 워크아웃을 제안하고, 체력 변화를 살펴볼 수 있습니다.\n\n명령:\n{{plan}} — 훈련 계획 만들기\n{{workout}} — 오늘의 워크아웃 확인\n{{status}} — 현재 체력, 피로도, 밸런스 확인\n{{review}} — 지난 훈련 돌아보기\n{{sync}} — {{service}}에서 훈련 데이터 강제 새로고침\n{{version}} — 현재 버전 표시\n{{whatsnew}} — 최신 버전의 변경 사항 보기\n{{update}} — {{updateDescription}}\n\n편하게 훈련 이야기를 나눠도 좋습니다!",
+    "welcome": "{{product}}에 오신 것을 환영합니다!\n\nAI 사이클링 코치입니다. {{service}} 데이터를 바탕으로 훈련 계획을 만들고, 워크아웃을 제안하고, 체력 변화를 살펴볼 수 있습니다.\n\n명령:\n{{plan}} — 훈련 계획 만들기\n{{workout}} — 오늘의 워크아웃 확인\n{{status}} — 현재 체력, 피로도, 밸런스 확인\n{{review}} — 지난 훈련 돌아보기\n{{feedback}} — Enduragent 작성자에게 메모를 보내세요\n{{sync}} — {{service}}에서 훈련 데이터 강제 새로고침\n{{version}} — 현재 버전 표시\n{{whatsnew}} — 최신 버전의 변경 사항 보기\n{{update}} — {{updateDescription}}\n\n편하게 훈련 이야기를 나눠도 좋습니다!",
     "workout": {
       "working": "밸런스와 계획을 확인하고 있습니다..."
+    },
+    "feedback": {
+      "failed": "메모를 보내지 못했습니다. 잠시 후 다시 시도하세요.",
+      "sent": "감사합니다. 메모를 받았습니다.",
+      "tooLong": "메모는 {{limit}}자 이하로 적어 주세요. 아무것도 전송되지 않았습니다.",
+      "usage": "/feedback 다음에 메모를 보내세요. 예: /feedback 계획 화면이 읽기 어려워요."
     }
   },
   "desktop": {

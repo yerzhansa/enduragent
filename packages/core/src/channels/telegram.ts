@@ -2,7 +2,12 @@ import { telegramReleaseMessage } from "./telegram-copy.js";
 import { languageKeyboard, parseLanguageCallback } from "./telegram-language-menu.js";
 import { Bot, GrammyError, InputFile } from "grammy";
 import { autoRetry } from "@grammyjs/auto-retry";
-import type { CoachEngine } from "@enduragent/coach-contract";
+import {
+  ATHLETE_FEEDBACK_MAX_TEXT_CHARS,
+  prepareFeedbackText,
+  submitFeedback,
+  type CoachEngine,
+} from "@enduragent/coach-contract";
 import { describeLanguage, msg, normalizeLocaleHint, type Message } from "@enduragent/i18n";
 import { messageFromWire, type Phrasebook } from "@enduragent/i18n/messages";
 import {
@@ -112,6 +117,7 @@ const buildWelcomeMessage = (updateDescription: string): Message =>
     workout: "/workout",
     status: "/status",
     review: "/review",
+    feedback: "/feedback",
     sync: "/sync",
     version: "/version",
     whatsnew: "/whatsnew",
@@ -870,6 +876,40 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       reservation,
       replyToMessageId: ctx.message?.message_id,
     });
+  });
+
+  bot.command("feedback", async (ctx) => {
+    const phrasebook = await phrasebookForContext(ctx);
+    const prepared = prepareFeedbackText(String(ctx.match ?? ""));
+    if (prepared.kind === "usage") {
+      await ctx.reply(phrasebook.say(msg("telegram.feedback.usage")));
+      return;
+    }
+    if (prepared.kind === "too-long") {
+      await ctx.reply(
+        phrasebook.say(
+          msg("telegram.feedback.tooLong", { limit: String(ATHLETE_FEEDBACK_MAX_TEXT_CHARS) }),
+        ),
+      );
+      return;
+    }
+    if (prepared.kind === "invalid") {
+      await ctx.reply(phrasebook.say(msg("telegram.feedback.failed")));
+      return;
+    }
+    try {
+      const result = await submitFeedback({
+        channel: "telegram",
+        id: globalThis.crypto.randomUUID(),
+        text: prepared.text,
+      });
+      await ctx.reply(
+        phrasebook.say(msg(result.ok ? "telegram.feedback.sent" : "telegram.feedback.failed")),
+      );
+    } catch (err) {
+      log.error("command_failed", err, { command: "feedback", chatId: `telegram:${ctx.chat.id}` });
+      await ctx.reply(phrasebook.say(msg("telegram.feedback.failed")));
+    }
   });
 
   bot.command("version", async (ctx) => {

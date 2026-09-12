@@ -16,6 +16,7 @@ export function commandMenuFor(
     { command: "workout", description: book.say(msg("telegram.menu.workout")) },
     { command: "status", description: book.say(msg("telegram.menu.status")) },
     { command: "review", description: book.say(msg("telegram.menu.review")) },
+    { command: "feedback", description: book.say(msg("telegram.menu.feedback")) },
     { command: "language", description: book.say(msg("telegram.language.choose")) },
   ];
   if (syncEnabled)

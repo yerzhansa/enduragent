@@ -11,6 +11,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = Object.freeze([
   Object.freeze({ command: "/workout", description: msg("chat.commands.workout") }),
   Object.freeze({ command: "/status", description: msg("chat.commands.status") }),
   Object.freeze({ command: "/review", description: msg("chat.commands.review") }),
+  Object.freeze({ command: "/feedback", description: msg("chat.commands.feedback") }),
   Object.freeze({
     command: "/sync",
     description: msg("chat.commands.sync", { intervals: "intervals.icu" }),

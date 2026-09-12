@@ -936,7 +936,8 @@
       "update": "Sök efter och installera uppdateringar",
       "version": "Visa aktuell version",
       "whatsnew": "Se vad som har ändrats i den senaste versionen",
-      "workout": "Hämta dagens träningspass"
+      "workout": "Hämta dagens träningspass",
+      "feedback": "Skicka en anteckning till Enduragents författare"
     },
     "composer": {
       "attach": "Bifoga filer",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Svaret stoppades. Den del av svaret som kom fram finns kvar.",
       "retryMessage": "Försök skicka meddelandet igen",
       "savedChoice": "Sparat val",
-      "working": "Tränaren arbetar…"
+      "working": "Tränaren arbetar…",
+      "feedbackFailed": "Anteckningen kunde inte skickas. Den ligger kvar i fältet — försök igen.",
+      "feedbackSent": "Tack — vi har tagit emot din anteckning.",
+      "feedbackTooLong": "Håll anteckningen till 4000 tecken eller färre. Inget skickades.",
+      "feedbackUsage": "Skicka /feedback följt av din anteckning."
     },
     "planChange": {
       "activePlan": "Aktiv plan",
@@ -2681,7 +2686,8 @@
       "update": "Sök efter och installera uppdateringar",
       "version": "Visa aktuell version",
       "whatsnew": "Se vad som ändrats i den senaste versionen",
-      "workout": "Hämta dagens träningspass"
+      "workout": "Hämta dagens träningspass",
+      "feedback": "Skicka en anteckning till Enduragents författare"
     },
     "pairing": {
       "askOwner": "Annars kan du be botens ägare att ge ditt användar-ID åtkomst.",
@@ -2795,9 +2801,15 @@
       "managedInstruction": "Skicka {{whatsnew}} för att se vad som ändrats. {{notice}}",
       "prepareFailed": "Kunde inte förbereda uppdateringen på ett säkert sätt just nu. Prova {{command}} igen om en liten stund."
     },
-    "welcome": "Välkommen till {{product}}!\n\nJag är din AI-cykeltränare. Jag kan skapa träningsplaner, föreslå träningspass och följa din fysiska form med data från {{service}}.\n\nKommandon:\n{{plan}} — Skapa en träningsplan\n{{workout}} — Hämta dagens träningspass\n{{status}} — Kontrollera aktuell CTL, trötthet och TSB\n{{review}} — Gå igenom ditt senaste träningspass\n{{sync}} — Tvinga uppdatering av träningsdata från {{service}}\n{{version}} — Visa aktuell version\n{{whatsnew}} — Se vad som ändrats i den senaste versionen\n{{update}} — {{updateDescription}}\n\nDu kan också bara prata med mig om din träning!",
+    "welcome": "Välkommen till {{product}}!\n\nJag är din AI-cykeltränare. Jag kan skapa träningsplaner, föreslå träningspass och följa din fysiska form med data från {{service}}.\n\nKommandon:\n{{plan}} — Skapa en träningsplan\n{{workout}} — Hämta dagens träningspass\n{{status}} — Kontrollera aktuell CTL, trötthet och TSB\n{{review}} — Gå igenom ditt senaste träningspass\n{{feedback}} — Skicka en anteckning till Enduragents författare\n{{sync}} — Tvinga uppdatering av träningsdata från {{service}}\n{{version}} — Visa aktuell version\n{{whatsnew}} — Se vad som ändrats i den senaste versionen\n{{update}} — {{updateDescription}}\n\nDu kan också bara prata med mig om din träning!",
     "workout": {
       "working": "Kontrollerar din TSB och träningsplan..."
+    },
+    "feedback": {
+      "failed": "Anteckningen kunde inte skickas. Försök igen om en stund.",
+      "sent": "Tack — vi har tagit emot din anteckning.",
+      "tooLong": "Håll anteckningen till {{limit}} tecken eller färre. Inget skickades.",
+      "usage": "Skicka /feedback följt av din anteckning. Exempel: /feedback planskärmen är svår att läsa."
     }
   },
   "desktop": {

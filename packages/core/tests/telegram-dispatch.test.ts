@@ -272,7 +272,7 @@ describe("command registration", () => {
     });
   });
 
-  it("registers all 10 commands when reference is provided", async () => {
+  it("registers all 11 commands when reference is provided", async () => {
     const reference: StubReference = { runSync: vi.fn(), loadLatest: vi.fn() };
     const { bot } = await buildBot({ reference });
     const names = bot.command.mock.calls.map((c: unknown[]) => c[0]);
@@ -285,6 +285,7 @@ describe("command registration", () => {
         "sync",
         "snapshot",
         "review",
+        "feedback",
         "version",
         "whatsnew",
         "update",
@@ -304,6 +305,7 @@ describe("command registration", () => {
       "workout",
       "status",
       "review",
+      "feedback",
       "version",
       "whatsnew",
       "update",
@@ -1190,6 +1192,65 @@ describe("/update — ordering invariant", () => {
   });
 });
 
+describe("feedback command", () => {
+  const id = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs the note and confirms without calling the coach", async () => {
+    const request = vi.fn<(url: string, init: RequestInit) => Promise<{ status: number }>>(
+      async () => ({ status: 204 }),
+    );
+    vi.stubGlobal("fetch", request);
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(id);
+    const { bot, agent } = await buildBot();
+    const ctx = makeCtx({ match: "  the watts look high  " });
+    await getCommand(bot, "feedback")(ctx);
+    expect(agent.chat).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      channel: "telegram",
+      id,
+      text: "the watts look high",
+    });
+    expect(someReply(ctx, "Thanks — we received your note.")).toBe(true);
+  });
+
+  it("shows usage when the note is missing", async () => {
+    const request = vi.fn(async () => ({ status: 204 }));
+    vi.stubGlobal("fetch", request);
+    const { bot, agent } = await buildBot();
+    const ctx = makeCtx({ match: "   " });
+    await getCommand(bot, "feedback")(ctx);
+    expect(agent.chat).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+    expect(someReply(ctx, "Send /feedback followed by your note.")).toBe(true);
+  });
+
+  it("keeps an overlong note and does not POST", async () => {
+    const request = vi.fn(async () => ({ status: 204 }));
+    vi.stubGlobal("fetch", request);
+    const { bot } = await buildBot();
+    const ctx = makeCtx({ match: "x".repeat(4001) });
+    await getCommand(bot, "feedback")(ctx);
+    expect(request).not.toHaveBeenCalled();
+    expect(someReply(ctx, "Keep your note to 4000 characters or fewer.")).toBe(true);
+  });
+
+  it("says the note did not send when the mailbox is down", async () => {
+    const request = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    vi.stubGlobal("fetch", request);
+    const { bot } = await buildBot();
+    const ctx = makeCtx({ match: "the watts look high" });
+    await getCommand(bot, "feedback")(ctx);
+    expect(someReply(ctx, "Couldn't send that note.")).toBe(true);
+  });
+});
+
 describe("version / whatsnew / sync", () => {
   it("/version → displayName + version", async () => {
     vi.doMock("../src/updater.js", async () => {
@@ -1283,6 +1344,7 @@ describe("command menu (setMyCommands)", () => {
         { command: "workout", description: "Get today's workout" },
         { command: "status", description: "Check current fitness, fatigue, and form" },
         { command: "review", description: "Review your last session" },
+        { command: "feedback", description: "Send a note to the Enduragent authors" },
         { command: "version", description: "Show current version" },
         { command: "whatsnew", description: "See what changed in the latest version" },
         { command: "update", description: "Check for and install updates" },
@@ -1310,6 +1372,7 @@ describe("command menu (setMyCommands)", () => {
       "workout",
       "status",
       "review",
+      "feedback",
       "version",
       "whatsnew",
       "update",

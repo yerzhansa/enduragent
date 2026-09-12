@@ -952,7 +952,8 @@
       "update": "Sprawdź i zainstaluj aktualizacje",
       "version": "Pokaż bieżącą wersję",
       "whatsnew": "Zobacz zmiany w najnowszej wersji",
-      "workout": "Pobierz dzisiejszy trening"
+      "workout": "Pobierz dzisiejszy trening",
+      "feedback": "Wyślij notatkę do autorek i autorów Enduragent"
     },
     "composer": {
       "attach": "Załącz pliki",
@@ -1032,7 +1033,11 @@
       "responseStopped": "Odpowiedź zatrzymana. Częściowa odpowiedź została zachowana.",
       "retryMessage": "Ponów wiadomość",
       "savedChoice": "Zapisany wybór",
-      "working": "Trener pracuje…"
+      "working": "Trener pracuje…",
+      "feedbackFailed": "Nie udało się wysłać tej notatki. Zostaje w polu — spróbuj ponownie.",
+      "feedbackSent": "Dzięki — otrzymaliśmy twoją notatkę.",
+      "feedbackTooLong": "Zmniejsz notatkę do 4000 znaków lub mniej. Nic nie zostało wysłane.",
+      "feedbackUsage": "Wyślij /feedback, a potem swoją notatkę."
     },
     "planChange": {
       "activePlan": "Aktywny plan",
@@ -2747,7 +2752,8 @@
       "update": "Sprawdź i zainstaluj aktualizacje",
       "version": "Pokaż obecną wersję",
       "whatsnew": "Zobacz zmiany w najnowszej wersji",
-      "workout": "Pokaż dzisiejszy trening"
+      "workout": "Pokaż dzisiejszy trening",
+      "feedback": "Wyślij notatkę do autorek i autorów Enduragent"
     },
     "pairing": {
       "askOwner": "W przeciwnym razie poproś właściciela bota o przyznanie dostępu twojemu identyfikatorowi użytkownika.",
@@ -2867,9 +2873,15 @@
       "managedInstruction": "Wyślij {{whatsnew}}, aby zobaczyć zmiany. {{notice}}",
       "prepareFailed": "Nie udało się teraz bezpiecznie przygotować aktualizacji. Spróbuj ponownie użyć {{command}} za chwilę."
     },
-    "welcome": "Witaj w {{product}}!\n\nJestem twoim trenerem kolarskim AI. Mogę tworzyć plany treningowe, proponować treningi i śledzić twoje wytrenowanie na podstawie danych z {{service}}.\n\nPolecenia:\n{{plan}} — Utwórz plan treningowy\n{{workout}} — Pokaż dzisiejszy trening\n{{status}} — Sprawdź obecne wytrenowanie, zmęczenie i formę\n{{review}} — Przeanalizuj ostatni trening\n{{sync}} — Wymuś odświeżenie danych treningowych z {{service}}\n{{version}} — Pokaż obecną wersję\n{{whatsnew}} — Zobacz zmiany w najnowszej wersji\n{{update}} — {{updateDescription}}\n\nMożesz też po prostu porozmawiać ze mną o swoim treningu!",
+    "welcome": "Witaj w {{product}}!\n\nJestem twoim trenerem kolarskim AI. Mogę tworzyć plany treningowe, proponować treningi i śledzić twoje wytrenowanie na podstawie danych z {{service}}.\n\nPolecenia:\n{{plan}} — Utwórz plan treningowy\n{{workout}} — Pokaż dzisiejszy trening\n{{status}} — Sprawdź obecne wytrenowanie, zmęczenie i formę\n{{review}} — Przeanalizuj ostatni trening\n{{feedback}} — Wyślij notatkę do autorek i autorów Enduragent\n{{sync}} — Wymuś odświeżenie danych treningowych z {{service}}\n{{version}} — Pokaż obecną wersję\n{{whatsnew}} — Zobacz zmiany w najnowszej wersji\n{{update}} — {{updateDescription}}\n\nMożesz też po prostu porozmawiać ze mną o swoim treningu!",
     "workout": {
       "working": "Sprawdzam twoją formę i plan…"
+    },
+    "feedback": {
+      "failed": "Nie udało się wysłać tej notatki. Spróbuj za chwilę.",
+      "sent": "Dzięki — otrzymaliśmy twoją notatkę.",
+      "tooLong": "Zmniejsz notatkę do {{limit}} znaków lub mniej. Nic nie zostało wysłane.",
+      "usage": "Wyślij /feedback, a potem swoją notatkę. Przykład: /feedback ekran planu jest trudny do odczytania."
     }
   },
   "desktop": {

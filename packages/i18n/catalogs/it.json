@@ -936,7 +936,8 @@
       "update": "Cerca e installa aggiornamenti",
       "version": "Mostra la versione attuale",
       "whatsnew": "Scopri le novità dell’ultima versione",
-      "workout": "Mostra l’allenamento di oggi"
+      "workout": "Mostra l’allenamento di oggi",
+      "feedback": "Invia una nota alle autrici e agli autori di Enduragent"
     },
     "composer": {
       "attach": "Allega file",
@@ -1016,7 +1017,11 @@
       "responseStopped": "Risposta interrotta. La risposta parziale è conservata.",
       "retryMessage": "Riprova messaggio",
       "savedChoice": "Scelta salvata",
-      "working": "Il coach sta elaborando…"
+      "working": "Il coach sta elaborando…",
+      "feedbackFailed": "Impossibile inviare quella nota. Resta nel riquadro: riprova.",
+      "feedbackSent": "Grazie: abbiamo ricevuto la tua nota.",
+      "feedbackTooLong": "Tieni la nota entro 4000 caratteri. Non è stato inviato nulla.",
+      "feedbackUsage": "Invia /feedback seguito dalla tua nota."
     },
     "planChange": {
       "activePlan": "Piano attivo",
@@ -2681,7 +2686,8 @@
       "update": "Cerca e installa aggiornamenti",
       "version": "Mostra la versione attuale",
       "whatsnew": "Scopri le novità dell’ultima versione",
-      "workout": "Mostra l’allenamento di oggi"
+      "workout": "Mostra l’allenamento di oggi",
+      "feedback": "Invia una nota alle autrici e agli autori di Enduragent"
     },
     "pairing": {
       "askOwner": "Altrimenti, chiedi al proprietario del bot di autorizzare il tuo ID utente.",
@@ -2795,9 +2801,15 @@
       "managedInstruction": "Invia {{whatsnew}} per vedere le novità. {{notice}}",
       "prepareFailed": "Non è stato possibile preparare l’aggiornamento in sicurezza. Riprova con {{command}} tra poco."
     },
-    "welcome": "Ti do il benvenuto su {{product}}!\n\nSono il tuo coach di ciclismo con IA. Posso creare piani di allenamento, suggerire allenamenti e seguire il tuo fitness con i dati di {{service}}.\n\nComandi:\n{{plan}} — Genera un piano di allenamento\n{{workout}} — Mostra l’allenamento di oggi\n{{status}} — Controlla fitness, fatica e forma attuali\n{{review}} — Rivedi la tua ultima sessione\n{{sync}} — Forza l’aggiornamento dei dati di allenamento da {{service}}\n{{version}} — Mostra la versione attuale\n{{whatsnew}} — Scopri le novità dell’ultima versione\n{{update}} — {{updateDescription}}\n\nOppure parlami del tuo allenamento!",
+    "welcome": "Ti do il benvenuto su {{product}}!\n\nSono il tuo coach di ciclismo con IA. Posso creare piani di allenamento, suggerire allenamenti e seguire il tuo fitness con i dati di {{service}}.\n\nComandi:\n{{plan}} — Genera un piano di allenamento\n{{workout}} — Mostra l’allenamento di oggi\n{{status}} — Controlla fitness, fatica e forma attuali\n{{review}} — Rivedi la tua ultima sessione\n{{feedback}} — Invia una nota alle autrici e agli autori di Enduragent\n{{sync}} — Forza l’aggiornamento dei dati di allenamento da {{service}}\n{{version}} — Mostra la versione attuale\n{{whatsnew}} — Scopri le novità dell’ultima versione\n{{update}} — {{updateDescription}}\n\nOppure parlami del tuo allenamento!",
     "workout": {
       "working": "Sto controllando la tua forma e il piano..."
+    },
+    "feedback": {
+      "failed": "Impossibile inviare quella nota. Riprova tra un momento.",
+      "sent": "Grazie: abbiamo ricevuto la tua nota.",
+      "tooLong": "Tieni la nota entro {{limit}} caratteri. Non è stato inviato nulla.",
+      "usage": "Invia /feedback seguito dalla tua nota. Esempio: /feedback la schermata del piano è difficile da leggere."
     }
   },
   "desktop": {
