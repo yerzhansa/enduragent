@@ -778,9 +778,10 @@ async function cdpPage(port: number, authority: DebuggerAuthority) {
 async function waitForButton(
   page: Awaited<ReturnType<typeof cdpPage>>,
   label: string,
+  scopeSelector = "body",
 ): Promise<void> {
   await waitUntil(`renderer button ${label}`, () =>
-    page.evaluate<boolean>(`[...document.querySelectorAll("button")].some((candidate) =>
+    page.evaluate<boolean>(`[...document.querySelectorAll(${JSON.stringify(`${scopeSelector} button`)})].some((candidate) =>
       candidate.textContent?.trim() === ${JSON.stringify(label)} && !candidate.disabled
     )`),
   );
@@ -1161,6 +1162,8 @@ async function main(): Promise<void> {
         .catch(() => false),
     );
     try {
+      await waitForButton(page, "Connect", 'section[aria-label="Telegram"]');
+      await page.clickButton("Connect", 'section[aria-label="Telegram"]');
       await waitForButton(page, "Paste token from clipboard");
     } catch (error) {
       const renderer = telegramAcceptanceJsonDiagnostic(
@@ -1510,7 +1513,7 @@ async function main(): Promise<void> {
       ),
     );
     await page.clickButton("Delete connection", '[data-inline-confirmation="delete-telegram"]');
-    await waitForButton(page, "Paste token from clipboard");
+    await waitForButton(page, "Connect", 'section[aria-label="Telegram"]');
     await waitUntil("Telegram polling stop after removal", () => telegram?.activePollCount() === 0);
     assert(!existsSync(profilePath), "Telegram profile remained after removal");
     const acceptanceKeyPath = join(userData, ".enduragent-acceptance-key");
@@ -1594,7 +1597,7 @@ async function main(): Promise<void> {
     await waitForSettledAppShell(page);
     await waitForButton(page, "Settings");
     await page.clickButton("Settings");
-    await waitForButton(page, "Paste token from clipboard");
+    await waitForButton(page, "Connect", 'section[aria-label="Telegram"]');
     assert(!existsSync(profilePath), "Telegram profile returned after removal relaunch");
     assert(
       !existsSync(acceptanceKeyPath),
