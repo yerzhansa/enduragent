@@ -1910,7 +1910,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       },
       syncChip: {
         status: "synced",
-        text: "Training data synced2026-07-19 07:55:00 UTCSync now",
+        text: "Training data syncedSync now",
       },
       documentOverflow: false,
     });
@@ -2130,6 +2130,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         readonly initialLabel: string | null;
         readonly syncingObserved: boolean;
         readonly syncingLabel: string | null;
+        readonly actionHiddenWhileSyncing: boolean;
         readonly disabledWhileSyncing: boolean;
         readonly ariaBusyAbsentWhileSyncing: boolean;
         readonly terminalStatus: string;
@@ -2179,6 +2180,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       }
       const syncingObserved = syncButton.dataset.status === "syncing";
       const syncingLabel = syncButton.getAttribute("aria-label");
+      const actionHiddenWhileSyncing =
+        syncSurface.querySelector("[data-sync-action]") === null;
       const disabledWhileSyncing = syncButton.disabled;
       const ariaBusyAbsentWhileSyncing = !syncButton.hasAttribute("aria-busy");
       syncButton.click();
@@ -2206,6 +2209,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         initialLabel,
         syncingObserved,
         syncingLabel,
+        actionHiddenWhileSyncing,
         disabledWhileSyncing,
         ariaBusyAbsentWhileSyncing,
         terminalStatus: syncButton.dataset.status,
@@ -2243,9 +2247,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       sync: {
         buttonResident: true,
         initialStatus: "synced",
-        initialLabel: "Sync now · Training data synced · 2026-07-19 07:55:00 UTC",
+        initialLabel: "Sync now · Training data synced",
         syncingObserved: true,
-        syncingLabel: "Sync now · Syncing · Sync queued.",
+        syncingLabel: "Syncing",
+        actionHiddenWhileSyncing: true,
         disabledWhileSyncing: true,
         ariaBusyAbsentWhileSyncing: true,
         terminalStatus: "synced",
@@ -2255,7 +2260,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         keyboardFocusRestored: true,
         syncDetailChanged: true,
         trainingPanelsUnchanged: true,
-        detailBefore: "2026-07-19 07:55:00 UTC",
+        detailBefore: "",
         detailAfter: "Local training-data processing completed.",
         chipFitsSidebar: true,
         chipHasNoOverflow: true,
@@ -2705,6 +2710,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly chipReachable: boolean;
       readonly sidebarFullyVisible: boolean;
       readonly syncingObserved: boolean;
+      readonly actionHiddenWhileSyncing: boolean;
       readonly disabledWhileSyncing: boolean;
       readonly ariaBusyAbsentWhileSyncing: boolean;
       readonly terminalStatus: string;
@@ -2737,6 +2743,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         await new Promise((resolve) => setTimeout(resolve, 5));
       }
       const syncingObserved = syncButton.dataset.status === "syncing";
+      const actionHiddenWhileSyncing =
+        syncSurface.querySelector("[data-sync-action]") === null;
       const disabledWhileSyncing = syncButton.disabled;
       const ariaBusyAbsentWhileSyncing = !syncButton.hasAttribute("aria-busy");
       syncButton.click();
@@ -2770,6 +2778,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
           sidebarRect.top >= 0 &&
           sidebarRect.bottom <= window.innerHeight,
         syncingObserved,
+        actionHiddenWhileSyncing,
         disabledWhileSyncing,
         ariaBusyAbsentWhileSyncing,
         terminalStatus: syncButton.dataset.status,
@@ -2805,6 +2814,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       chipReachable: true,
       sidebarFullyVisible: true,
       syncingObserved: true,
+      actionHiddenWhileSyncing: true,
       disabledWhileSyncing: true,
       ariaBusyAbsentWhileSyncing: true,
       terminalStatus: "attention",

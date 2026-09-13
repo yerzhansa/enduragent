@@ -451,18 +451,24 @@ describe("sidebar sync chip", () => {
     });
     expect(chip()).toHaveAttribute("data-status", "synced");
     expect(chipSurface()).toHaveTextContent("Training data synced");
-    expect(chipSurface()).toHaveTextContent("1998-07-19 07:55:00 UTC");
+    expect(chipSurface()).not.toHaveTextContent("1998-07-19 07:55:00 UTC");
     expect(screen.getByText("Sync now")).toHaveAttribute("data-sync-action");
-    expect(chip()).toHaveAccessibleName(
-      "Sync now · Training data synced · 1998-07-19 07:55:00 UTC",
-    );
+    expect(chip()).toHaveAccessibleName("Sync now · Training data synced");
+
+    update({ sync: toManualSyncViewState({ status: "queued", operation: 1 }) });
+    expect(chip()).toHaveAttribute("data-status", "syncing");
+    expect(chip()).toBeDisabled();
+    expect(chipSurface()).toHaveTextContent("Sync queued.");
+    expect(chipSurface().querySelector("[data-sync-action]")).toBeNull();
+    expect(chip()).toHaveAccessibleName("Syncing");
 
     update({ sync: toManualSyncViewState({ status: "running", operation: 1 }) });
     expect(chip()).toHaveAttribute("data-status", "syncing");
     expect(chip()).toBeDisabled();
     expect(chipSurface()).toHaveTextContent("Syncing");
-    expect(screen.getByText("Sync now")).toHaveAttribute("data-sync-action");
-    expect(chip()).toHaveAccessibleName("Sync now · Syncing · Syncing training data…");
+    expect(chipSurface()).not.toHaveTextContent("Syncing training data…");
+    expect(chipSurface().querySelector("[data-sync-action]")).toBeNull();
+    expect(chip()).toHaveAccessibleName("Syncing");
 
     update({
       sync: toManualSyncViewState({
@@ -501,7 +507,7 @@ describe("sidebar sync chip", () => {
     expect(chipSurface()).not.toHaveTextContent("Training data synced");
   });
 
-  it("shows and politely announces each exact manual sync message once", () => {
+  it("announces concise busy states and exact terminal messages once", () => {
     render(<Sidebar />);
 
     const announcement = chipSurface().querySelector('[role="status"]');
@@ -510,7 +516,7 @@ describe("sidebar sync chip", () => {
 
     const syncMessages = [
       [toManualSyncViewState({ status: "queued", operation: 1 }), "Sync queued."],
-      [toManualSyncViewState({ status: "running", operation: 1 }), "Syncing training data…"],
+      [toManualSyncViewState({ status: "running", operation: 1 }), "Syncing"],
       [
         toManualSyncViewState({
           status: "succeeded",
@@ -586,7 +592,7 @@ describe("sidebar sync chip", () => {
     expect(chipSurface()).toHaveTextContent("How to fix this");
     expect(screen.getByText("Sync again")).toHaveAttribute("data-sync-action");
     expect(chipSurface()).not.toHaveTextContent("1998-07-19 07:55:00 UTC");
-    expect(chip()).toHaveAttribute("title", "1998-07-19 07:55:00 UTC");
+    expect(chip()).not.toHaveAttribute("title");
     expect(chip()).toHaveAccessibleName(
       "Sync again · Training data synced · Training-data check completed. A Strava API restriction prevents intervals.icu from sharing 60 activities, so they aren’t included.",
     );

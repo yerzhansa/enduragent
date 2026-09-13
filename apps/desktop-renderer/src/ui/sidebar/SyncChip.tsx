@@ -1,6 +1,5 @@
 import type { Message } from "@enduragent/i18n";
 import { msg } from "@enduragent/i18n";
-import type { Phrasebook } from "@enduragent/i18n/messages";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useEffect, useRef, type ReactElement } from "react";
 import { Button } from "@enduragent/ui";
@@ -13,9 +12,9 @@ import { useEnduragentStore } from "../../state/store";
 import type { TrainingContextViewState } from "../../training-context/controller";
 import {
   sourceRestrictionSummary,
+  SYNC_RUNNING_COPY,
   type ManualSyncViewState,
 } from "../../training-context/manual-sync";
-import { formatUtcTimestamp } from "../../training-context/format";
 import { InfoTip } from "../onboarding/InfoTip";
 import {
   focusTrainingRestrictionIfPresent,
@@ -49,26 +48,8 @@ const HEADLINE: Readonly<Record<SyncChipStatus, Message>> = {
   unavailable: msg("sidebar.sync.headline.unavailable"),
 };
 
-function syncTimestamp(value: string, { say, format }: Phrasebook): string {
-  const normalized = formatUtcTimestamp(value);
-  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) UTC$/u.exec(normalized);
-  if (match === null) return say("sidebar.sync.unknownTimestamp");
-  const component = (index: number, digits = 2): string =>
-    format.number(Number(match[index]), { minimumIntegerDigits: digits, useGrouping: false });
-  return say("sidebar.sync.timestamp", {
-    year: component(1, 4),
-    month: component(2),
-    day: component(3),
-    hour: component(4),
-    minute: component(5),
-    second: component(6),
-    timezone: "UTC",
-  });
-}
-
 export function SyncChip(): ReactElement {
-  const phrasebook = usePhrasebook();
-  const { say, format } = phrasebook;
+  const { say, format } = usePhrasebook();
   const training = useEnduragentStore((store) => store.training);
   const sync = useEnduragentStore((store) => store.sync);
   const actions = useEnduragentStore((store) => store.syncActions);
@@ -76,15 +57,13 @@ export function SyncChip(): ReactElement {
   const chip = useRef<HTMLButtonElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const status = syncChipStatus(training, sync);
-  const synced = training.metadata?.lastSynced ?? null;
-  const syncedDetail =
-    status === "synced" && synced !== null ? syncTimestamp(synced, phrasebook) : null;
   const restriction = sourceRestrictionSummary(sync.droppedActivities, "STRAVA");
   const formattedCount = format.number(restriction?.count ?? 0, { useGrouping: false });
   const message = manualSyncStatusMessage(sync, formattedCount);
-  const detail = message === null ? syncedDetail : say(message);
-  const action = say(manualSyncActionMessage(sync.label));
+  const detail = message === null || sync.message === SYNC_RUNNING_COPY ? null : say(message);
+  const action = sync.busy ? null : say(manualSyncActionMessage(sync.label));
   const headline = say(HEADLINE[status]);
+  const statusAnnouncement = detail ?? (sync.busy ? headline : null);
   const restrictionVars = { count: restriction?.count ?? 0, formattedCount, source: "Strava" };
   const restrictionLabel =
     restriction === null
@@ -111,12 +90,13 @@ export function SyncChip(): ReactElement {
         size="default"
         className="sync-chip absolute inset-0 z-0 h-auto w-full p-0"
         data-status={status}
-        title={restriction === null || syncedDetail === null ? undefined : syncedDetail}
         disabled={sync.disabled || actions === null}
         aria-label={
-          detail === null
-            ? say("sidebar.sync.ariaLabel", { action, headline })
-            : say("sidebar.sync.ariaLabelDetail", { action, headline, detail })
+          action === null
+            ? headline
+            : detail === null
+              ? say("sidebar.sync.ariaLabel", { action, headline })
+              : say("sidebar.sync.ariaLabelDetail", { action, headline, detail })
         }
         onClick={(event) => {
           const keyboard = event.detail === 0;
@@ -145,7 +125,7 @@ export function SyncChip(): ReactElement {
           aria-live="polite"
           aria-atomic="true"
         >
-          {detail}
+          {statusAnnouncement}
         </span>
         {restriction === null ? null : (
           <InfoTip
@@ -186,13 +166,15 @@ export function SyncChip(): ReactElement {
             })}
           />
         )}
-        <span
-          className="mt-px block whitespace-normal text-xs text-ink-3"
-          data-sync-action=""
-          aria-hidden="true"
-        >
-          {action}
-        </span>
+        {action === null ? null : (
+          <span
+            className="mt-px block whitespace-normal text-xs text-ink-3"
+            data-sync-action=""
+            aria-hidden="true"
+          >
+            {action}
+          </span>
+        )}
       </span>
     </div>
   );
