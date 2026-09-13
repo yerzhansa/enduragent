@@ -20,3 +20,51 @@
     transform: translateX(250%);
   }
 }
+
+@layer utilities {
+  .composer-shell:not(:has(.composer-adjacent > *, .composer)) {
+    display: none;
+  }
+
+  .composer-shell .chat-composer__controls {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .composer-shell .chat-composer__controls:focus-within {
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .composer-shell:not(:has(.composer)) .composer-adjacent {
+    border-bottom: 0;
+  }
+
+  .composer-shell .chat-attachment-panel {
+    gap: 0;
+    margin: 0;
+  }
+
+  .composer-shell .chat-attachment-panel > * {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .composer-shell .chat-attachment-panel > * + * {
+    border-top: 1px solid var(--line);
+  }
+
+  .composer-shell .chat-queue {
+    margin: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}

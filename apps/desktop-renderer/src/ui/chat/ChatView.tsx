@@ -229,7 +229,7 @@ export function ChatView(): ReactElement {
               <FirstSyncCard />
             </div>
           </main>
-          <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden bg-bg bg-[linear-gradient(transparent,var(--bg)_22%)] pt-7 pb-3.5">
+          <div className="composer-wrap z-2 mx-auto grid w-full max-w-[720px] max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto_auto] bg-bg pb-3.5">
             <div className="composer-projections min-h-0 overflow-y-auto [scrollbar-width:none] overscroll-contain empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
@@ -248,12 +248,16 @@ export function ChatView(): ReactElement {
                 <PlanCreationDock onEditorOpenChange={setPlanEditorOpen} />
                 <PlanChangeCheckDock onEditorOpenChange={setPlanChangeEditorOpen} />
               </div>
-              <AttachmentPanel />
-              <QueuedMessages />
             </div>
-            {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
-              <Composer handle={composer} draftMemory={composerDraft} />
-            )}
+            <div className="composer-shell grid max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] rounded-card border border-line-2 bg-surface shadow-elev-2 transition-[border-color,box-shadow] duration-120 motion-reduce:transition-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
+              <div className="composer-adjacent min-h-0 overflow-y-auto border-b border-line [scrollbar-width:none] overscroll-contain empty:hidden">
+                <AttachmentPanel />
+                <QueuedMessages />
+              </div>
+              {decisionCustomOpen || planCreationEditorOpen || planChangeEditorOpen ? null : (
+                <Composer handle={composer} draftMemory={composerDraft} />
+              )}
+            </div>
             <p className="mt-inset mb-0 text-center text-xs text-ink-3 max-md:hidden">
               {changeSurfaceVisible ? say("chat.view.confirmation") : say("chat.view.disclaimer")}
             </p>
