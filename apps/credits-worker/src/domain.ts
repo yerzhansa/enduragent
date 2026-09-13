@@ -12,6 +12,7 @@ export type DeviceCheckToken = Brand<string, "DeviceCheckToken">;
 export type LotId = Brand<string, "LotId">;
 export type GrantId = Brand<string, "GrantId">;
 export type ProviderMutationId = Brand<string, "ProviderMutationId">;
+export type DeviceGrantOwnerId = Brand<string, "DeviceGrantOwnerId">;
 export type UsdMillis = Brand<number, "UsdMillis">;
 export type Credits = Brand<number, "Credits">;
 
@@ -96,10 +97,7 @@ export function capForListPrice(
   credits: Credits;
 } {
   const cap =
-    listPriceUsdMillis *
-    (1 - policy.appleCommission) *
-    (1 - policy.openrouterFee) *
-    policy.ratio;
+    listPriceUsdMillis * (1 - policy.appleCommission) * (1 - policy.openrouterFee) * policy.ratio;
   const capUsdMillis = asUsdMillis(Math.round(cap));
   const credits = asCredits(Math.round((capUsdMillis / 1000) * policy.creditsPerUsd));
   return { capUsdMillis, credits };
@@ -116,7 +114,11 @@ export type Lot = {
   createdAt: string;
 };
 
-export type ConsumptionStatus = "undeclared" | "not_consumed" | "partially_consumed" | "fully_consumed";
+export type ConsumptionStatus =
+  | "undeclared"
+  | "not_consumed"
+  | "partially_consumed"
+  | "fully_consumed";
 
 export type RefundPreference = "decline" | "prorate" | "grant";
 
@@ -239,4 +241,5 @@ export type IdFactory = {
   lotId(): LotId;
   grantId(): GrantId;
   mutationId(): ProviderMutationId;
+  deviceGrantOwnerId(): DeviceGrantOwnerId;
 };

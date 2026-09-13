@@ -1,4 +1,4 @@
-import type { AppleStore, DeviceCheck } from "./apple.js";
+import type { AppleNotification, AppleStore, DeviceCheck } from "./apple.js";
 import { encodeCommand, decodeResult, type AthleteRuntime } from "./athlete-session.js";
 import type {
   AthleteCommand,
@@ -6,6 +6,7 @@ import type {
   AthleteResult,
   DeviceCheckToken,
   DomainErrorCode,
+  ProductId,
 } from "./domain.js";
 import { DomainError, athleteIdFromUuid, asCredits, asUsdMillis } from "./domain.js";
 import type { Env } from "./env.js";
@@ -119,14 +120,104 @@ export function createCreditsApp(ports: AppPorts): CreditsApp {
       const route = routes.find(
         (entry) => entry.method === request.method && entry.path === url.pathname,
       );
-      if (!route || !PHONE_ROUTES.has(route.name)) {
+      if (!route || route.name === "intervalsToken") {
         return new Response("Not Found", { status: 404 });
       }
+      if (route.name === "health") return Response.json({ ok: true });
+      if (
+        route.audience === "operator" &&
+        (!env.OPERATOR_TOKEN ||
+          request.headers.get("authorization") !== `Bearer ${env.OPERATOR_TOKEN}`)
+      )
+        return Response.json({ error: "unauthorized" }, { status: 401 });
       try {
-        if ((await ports.ipLimit.take(clientIp(request))) === "deny") {
+        if (
+          PHONE_ROUTES.has(route.name) &&
+          (await ports.ipLimit.take(clientIp(request))) === "deny"
+        ) {
           throw new DomainError("rate_limited");
         }
         switch (route.name) {
+          case "apple": {
+            const notification = await parseNotification(request, ports.apple, env);
+            if (notification.type === "ignored") {
+              ports.log.info({ route: "apple", outcome: "ignored" });
+              return Response.json({ kind: "ignored" });
+            }
+            const purchase = await ports.ledger.purchase(notification.transactionId);
+            const indexed = await ports.ledger.athleteByOriginalTransaction(
+              notification.originalTransactionId,
+            );
+            if (
+              (purchase &&
+                (purchase.athleteId !== notification.athleteId ||
+                  purchase.originalTransactionId !== notification.originalTransactionId)) ||
+              (indexed && indexed.athleteId !== notification.athleteId)
+            )
+              throw new DomainError("identity_mismatch");
+            const kind =
+              notification.type === "consumption_request"
+                ? "consumptionRequest"
+                : notification.type;
+            const result = await ports.runtime.run(
+              purchase?.athleteId ?? indexed?.athleteId ?? notification.athleteId,
+              {
+                kind,
+                transactionId: notification.transactionId,
+                notificationId: notification.notificationId,
+              },
+            );
+            ports.log.info({
+              route: "apple",
+              outcome: result.kind,
+            });
+            return Response.json(result);
+          }
+          case "opsPricing": {
+            const body: unknown = await request.json();
+            if (!isRecord(body)) throw new DomainError("identity_mismatch");
+            return Response.json(
+              await ports.operator.setRatio({ ratio: positiveDecimal(body.ratio) }),
+            );
+          }
+          case "opsPacks": {
+            const body: unknown = await request.json();
+            if (
+              !isRecord(body) ||
+              typeof body.productId !== "string" ||
+              !/^[A-Za-z0-9._-]{1,255}$/.test(body.productId)
+            )
+              throw new DomainError("identity_mismatch");
+            await ports.operator.addPack({
+              productId: body.productId as ProductId,
+              listPriceUsdMillis: asUsdMillis(
+                Math.round(positiveDecimal(body.listPriceUsd) * 1000),
+              ),
+            });
+            return Response.json({ ok: true });
+          }
+          case "opsBan": {
+            const body: unknown = await request.json();
+            if (!isRecord(body) || "athleteId" in body === "originalTransactionId" in body)
+              throw new DomainError("identity_mismatch");
+            if (typeof body.athleteId === "string")
+              await ports.operator.ban({ athleteId: athleteIdFromUuid(body.athleteId) });
+            else if (
+              typeof body.originalTransactionId === "string" &&
+              body.originalTransactionId.length > 0
+            )
+              await ports.operator.ban({ originalTransactionId: body.originalTransactionId });
+            else throw new DomainError("identity_mismatch");
+            return Response.json({ ok: true });
+          }
+          case "opsSpend": {
+            const id = url.searchParams.get("athleteId");
+            return Response.json(
+              id === null
+                ? await ports.operator.spendAll()
+                : await ports.operator.spend(athleteIdFromUuid(id)),
+            );
+          }
           case "grant": {
             const grant = await parseGrant(request);
             if ((await ports.tokenLimit.take(grant.athleteId)) === "deny") {
@@ -140,7 +231,6 @@ export function createCreditsApp(ports: AppPorts): CreditsApp {
             });
             ports.log.info({
               route: route.name,
-              athleteId: grant.athleteId,
               outcome: result.kind,
             });
             return Response.json(result);
@@ -154,8 +244,6 @@ export function createCreditsApp(ports: AppPorts): CreditsApp {
             const result = await ports.runtime.run(command.purchase.athleteId, command);
             ports.log.info({
               route: route.name,
-              athleteId: command.purchase.athleteId,
-              transactionId: command.purchase.transactionId,
               outcome: result.kind,
             });
             return Response.json(result);
@@ -168,8 +256,6 @@ export function createCreditsApp(ports: AppPorts): CreditsApp {
             const result = await ports.runtime.run(command.purchase.athleteId, command);
             ports.log.info({
               route: route.name,
-              athleteId: command.purchase.athleteId,
-              transactionId: command.purchase.transactionId,
               outcome: result.kind,
             });
             return Response.json(result);
@@ -198,7 +284,9 @@ export function createCreditsApp(ports: AppPorts): CreditsApp {
           ports.log.warn({ route: route.name, outcome: error.code });
           return Response.json({ error: error.code }, { status: statusFor(error.code) });
         }
-        throw error;
+        const code = error instanceof SyntaxError ? "identity_mismatch" : "unavailable";
+        ports.log.warn({ route: route.name, outcome: code });
+        return Response.json({ error: code }, { status: statusFor(code) });
       }
     },
   };
@@ -288,3 +376,28 @@ export function bindDurableRuntime(env: Env): AthleteRuntime {
 }
 
 export { athleteIdFromUuid, DomainError };
+
+function positiveDecimal(value: unknown): number {
+  if (
+    (typeof value !== "number" && typeof value !== "string") ||
+    (typeof value === "string" && !/^[0-9]+(?:\.[0-9]+)?$/.test(value))
+  )
+    throw new DomainError("identity_mismatch");
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new DomainError("identity_mismatch");
+  return parsed;
+}
+
+export async function parseNotification(
+  request: Request,
+  apple: AppleStore,
+  env: Env,
+): Promise<AppleNotification> {
+  const body: unknown = await request.json();
+  if (!isRecord(body) || typeof body.signedPayload !== "string" || !body.signedPayload)
+    throw new DomainError("identity_mismatch");
+  return apple.verifyNotification(body.signedPayload, {
+    bundleId: env.BUNDLE_ID,
+    environment: env.APPLE_ENVIRONMENT,
+  });
+}

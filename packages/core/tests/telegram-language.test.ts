@@ -1,6 +1,7 @@
 import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { Readable } from "node:stream";
 import { join } from "node:path";
 import type { CoachEngine } from "@enduragent/coach-contract";
 import { createCoachLanguage, type CatalogKey, type Message } from "@enduragent/i18n";
@@ -58,15 +59,16 @@ vi.mock("grammy", async (importOriginal) => {
                 statusText: response.statusText,
                 type: response.type,
                 url: response.url,
-                body: null,
+                body: Readable.from([body]),
                 bodyUsed: false,
                 size: 0,
+                timeout: 0,
                 buffer: async () => Buffer.from(body),
                 arrayBuffer: () => response.arrayBuffer(),
-                formData: () => response.formData(),
                 blob: () => response.blob(),
                 json: () => response.json(),
                 text: () => response.text(),
+                textConverted: () => response.text(),
                 clone: () => result,
               };
               return result;

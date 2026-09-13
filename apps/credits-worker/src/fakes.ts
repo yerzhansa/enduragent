@@ -7,6 +7,7 @@ import type {
   Clock,
   ConsumptionStatus,
   DeviceCheckToken,
+  DeviceGrantOwnerId,
   GrantId,
   IdFactory,
   KeyHash,
@@ -23,6 +24,7 @@ import type {
   VerifiedPurchase,
 } from "./domain.js";
 import { asUsdMillis } from "./domain.js";
+import { PricingConflict } from "./ledger.js";
 import type {
   AthleteRecord,
   BanRecord,
@@ -35,6 +37,7 @@ import type {
 import type { GuardrailMode, OpenRouterKeyView, OpenRouterKeys } from "./openrouter.js";
 
 export class MemoryLedger implements Ledger {
+  private revision = 0;
   policies: PricingPolicy[] = [];
   packs: Pack[] = [];
   athletes = new Map<string, AthleteRecord>();
@@ -47,14 +50,27 @@ export class MemoryLedger implements Ledger {
   pendingMutations: PendingProviderMutation[] = [];
   bans = new Map<string, BanRecord>();
   bannedOriginals = new Set<string>();
+  deviceGrantOwner: { ownerId: DeviceGrantOwnerId; expiresAt: string } | undefined;
 
   async currentPolicy(): Promise<PricingPolicy> {
     const last = this.policies.at(-1);
     if (!last) throw new Error("not implemented");
     return last;
   }
-  async insertPolicy(policy: PricingPolicy): Promise<void> {
+  async pricingRevision(): Promise<number> {
+    return this.revision;
+  }
+  async publishPolicy(
+    policy: PricingPolicy,
+    packs: readonly Pack[],
+    revision: number,
+  ): Promise<void> {
+    if (revision !== this.revision) throw new PricingConflict("pricing changed");
+    if (this.policies.some((row) => row.version === policy.version))
+      throw new Error("duplicate policy");
     this.policies.push(policy);
+    this.packs.push(...packs);
+    this.revision++;
   }
   async activePacks(policyVersion: number): Promise<readonly Pack[]> {
     return this.packs.filter((p) => p.policyVersion === policyVersion && p.active);
@@ -62,8 +78,13 @@ export class MemoryLedger implements Ledger {
   async pack(productId: ProductId, policyVersion: number): Promise<Pack | undefined> {
     return this.packs.find((p) => p.productId === productId && p.policyVersion === policyVersion);
   }
-  async putPack(pack: Pack): Promise<void> {
+  async putPack(pack: Pack, revision: number): Promise<void> {
+    if (revision !== this.revision) throw new PricingConflict("pricing changed");
+    this.packs = this.packs.filter(
+      (row) => row.productId !== pack.productId || row.policyVersion !== pack.policyVersion,
+    );
     this.packs.push(pack);
+    this.revision++;
   }
   async athlete(athleteId: AthleteId): Promise<AthleteRecord | undefined> {
     return this.athletes.get(athleteId);
@@ -126,6 +147,25 @@ export class MemoryLedger implements Ledger {
     const row = this.pendingMutations.find((mutation) => mutation.mutationId === mutationId);
     if (row) row.completedAt = at;
   }
+  async tryClaimDeviceGrant(lease: {
+    ownerId: DeviceGrantOwnerId;
+    now: string;
+    expiresAt: string;
+  }): Promise<"claimed" | "busy"> {
+    if (this.deviceGrantOwner && this.deviceGrantOwner.expiresAt > lease.now) return "busy";
+    this.deviceGrantOwner = { ownerId: lease.ownerId, expiresAt: lease.expiresAt };
+    return "claimed";
+  }
+  async authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean> {
+    if (this.deviceGrantOwner?.ownerId !== ownerId || this.deviceGrantOwner.expiresAt <= now) {
+      return false;
+    }
+    this.deviceGrantOwner = undefined;
+    return true;
+  }
+  async cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void> {
+    if (this.deviceGrantOwner?.ownerId === ownerId) this.deviceGrantOwner = undefined;
+  }
   async insertLot(lot: Lot): Promise<void> {
     this.lots.push(lot);
   }
@@ -139,6 +179,10 @@ export class MemoryLedger implements Ledger {
         return a.lotId.localeCompare(b.lotId);
       });
   }
+  async hasNotification(notificationId: NotificationId): Promise<boolean> {
+    return this.notifications.has(notificationId);
+  }
+
   async insertNotification(row: NotificationRecord): Promise<"inserted" | "duplicate"> {
     if (this.notifications.has(row.notificationId)) return "duplicate";
     this.notifications.set(row.notificationId, row);
@@ -305,6 +349,7 @@ export const testIds: IdFactory = {
   lotId: () => "lot_1998_1" as LotId,
   grantId: () => "grant_1998_1" as GrantId,
   mutationId: () => "mut_1998_1" as ProviderMutationId,
+  deviceGrantOwnerId: () => "device_owner_1998_1" as DeviceGrantOwnerId,
 };
 
 export function testRuntime(ports: Parameters<typeof directRuntime>[0]): AthleteRuntime {

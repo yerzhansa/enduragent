@@ -4,8 +4,10 @@ import {
   asCredits,
   asUsdMillis,
   type AthleteId,
+  type DeviceGrantOwnerId,
   type KeyHash,
   type LotId,
+  type NotificationId,
   type OriginalTransactionId,
   type ProductId,
   type ProviderMutationId,
@@ -40,6 +42,7 @@ async function seedSchema(): Promise<void> {
 async function clearD1(): Promise<void> {
   await env.DB.exec(`
 DELETE FROM pending_provider_mutations;
+DELETE FROM device_grant_gate;
 DELETE FROM pending_refunds;
 DELETE FROM apple_notifications;
 DELETE FROM lots;
@@ -56,6 +59,21 @@ DELETE FROM pricing_policies;
 
 function contract(name: string, makeLedger: () => Promise<Ledger>): void {
   describe(name, () => {
+    it("notification identity appears only after a recorded outcome", async () => {
+      const ledger = await makeLedger();
+      const notificationId = "synthetic-consumption" as NotificationId;
+      expect(await ledger.hasNotification(notificationId)).toBe(false);
+      await ledger.insertNotification({
+        notificationId,
+        type: "consumption_request",
+        transactionId: tx,
+        processedAt: "1998-06-13T00:00:00Z",
+        outcome: "not_reported",
+      });
+      expect(await ledger.hasNotification(notificationId)).toBe(true);
+      expect(await ledger.hasNotification("synthetic-other" as NotificationId)).toBe(false);
+    });
+
     it("insertPurchase duplicate", async () => {
       const ledger = await makeLedger();
       const row = purchaseRow();
@@ -69,6 +87,7 @@ function contract(name: string, makeLedger: () => Promise<Ledger>): void {
         mutationId: "mut_1998_1" as ProviderMutationId,
         athleteId,
         mutation: { kind: "setDisabled", hash: "hash_1" as KeyHash, disabled: true },
+        recovery: "replay",
         startedAt: "1998-06-13T06:00:00.000Z",
         completedAt: undefined,
       });
@@ -76,6 +95,7 @@ function contract(name: string, makeLedger: () => Promise<Ledger>): void {
         mutationId: "mut_1998_2" as ProviderMutationId,
         athleteId,
         mutation: { kind: "deleteKey", hash: "hash_2" as KeyHash },
+        recovery: "replay",
         startedAt: "1998-06-13T07:00:00.000Z",
         completedAt: undefined,
       });
@@ -86,6 +106,35 @@ function contract(name: string, makeLedger: () => Promise<Ledger>): void {
       const pending = await ledger.takePendingMutation(athleteId);
       expect(pending?.mutationId).toBe("mut_1998_2");
       expect(pending?.completedAt).toBeUndefined();
+    });
+
+    it("device grant ownership expires and fences the previous owner", async () => {
+      const ledger = await makeLedger();
+      const first = "device_owner_1998_first" as DeviceGrantOwnerId;
+      const second = "device_owner_1998_second" as DeviceGrantOwnerId;
+      expect(
+        await ledger.tryClaimDeviceGrant({
+          ownerId: first,
+          now: "1998-06-13T06:00:00.000Z",
+          expiresAt: "1998-06-13T06:01:00.000Z",
+        }),
+      ).toBe("claimed");
+      expect(
+        await ledger.tryClaimDeviceGrant({
+          ownerId: second,
+          now: "1998-06-13T06:00:30.000Z",
+          expiresAt: "1998-06-13T06:01:30.000Z",
+        }),
+      ).toBe("busy");
+      expect(
+        await ledger.tryClaimDeviceGrant({
+          ownerId: second,
+          now: "1998-06-13T06:01:00.000Z",
+          expiresAt: "1998-06-13T06:02:00.000Z",
+        }),
+      ).toBe("claimed");
+      expect(await ledger.authorizeDeviceGrant(first, "1998-06-13T06:01:01.000Z")).toBe(false);
+      expect(await ledger.authorizeDeviceGrant(second, "1998-06-13T06:01:01.000Z")).toBe(true);
     });
 
     it("lotsOldestFirst order", async () => {

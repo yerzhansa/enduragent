@@ -23,6 +23,7 @@ allowBuilds:
   workerd: true
 
 patchedDependencies:
+  "@apple/app-store-server-library@3.1.0": "apps/credits-worker/patches/apple-app-store-server-library-3.1.0.patch"
   "fit-file-parser@3.0.2": "patches/fit-file-parser@3.0.2.patch"
 
 ignoredOptionalDependencies:

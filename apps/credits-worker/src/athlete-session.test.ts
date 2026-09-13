@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SessionPorts } from "./athlete-session.js";
 import {
   asCredits,
@@ -6,6 +6,7 @@ import {
   capForListPrice,
   type AthleteId,
   type DeviceCheckToken,
+  type DeviceGrantOwnerId,
   type GrantId,
   type IdFactory,
   type LotId,
@@ -40,6 +41,7 @@ function sequentialIds(): IdFactory {
     lotId: () => `lot_1998_${n++}` as LotId,
     grantId: () => `grant_1998_${n++}` as GrantId,
     mutationId: () => `mut_1998_${n++}` as ProviderMutationId,
+    deviceGrantOwnerId: () => `device_owner_1998_${n++}` as DeviceGrantOwnerId,
   };
 }
 
@@ -83,7 +85,7 @@ function makePorts(): SessionPorts & { keys: FakeOpenRouterKeys; deviceCheck: Fa
   const ledger = new MemoryLedger();
   seedLaunchPolicy(ledger);
   const policy = launchPolicy();
-  void ledger.putPack(packForPolicy(policy));
+  ledger.packs.push(packForPolicy(policy));
   const keys = new FakeOpenRouterKeys();
   const deviceCheck = new FakeDeviceCheck();
   const apple = new FakeAppleStore();
@@ -211,9 +213,9 @@ describe("athlete session", () => {
     const runtime = runtimeFromFakes(ports);
     await runtime.run(athleteId, grant("dc-1998-1" as DeviceCheckToken));
     const tx = "tx-1998-1" as TransactionId;
-    await expect(
-      runtime.run(athleteId, { kind: "claim", purchase: purchase(tx) }),
-    ).rejects.toThrow("mid-flight");
+    await expect(runtime.run(athleteId, { kind: "claim", purchase: purchase(tx) })).rejects.toThrow(
+      "mid-flight",
+    );
     await runtime.run(athleteId, grant("dc-1998-1" as DeviceCheckToken));
     const athlete = await ports.ledger.athlete(athleteId);
     if (!athlete) throw new Error("missing athlete");
@@ -277,3 +279,201 @@ describe("athlete session", () => {
     expect(updated?.disabled).toBe(true);
   });
 });
+
+it.each([false, true])(
+  "banned grant repairs the ban bit while preserving claimed=%s",
+  async (grantClaimed) => {
+    const ports = makePorts();
+    const token = "synthetic-token" as DeviceCheckToken;
+    await ports.deviceCheck.update(token, { grantClaimed });
+    await ports.ledger.insertBan({
+      athleteId,
+      reason: "operator",
+      bannedAt: "1998-06-13T00:00:00Z",
+    });
+    await expect(runtimeFromFakes(ports).run(athleteId, grant(token))).rejects.toThrow("banned");
+    await expect(ports.deviceCheck.query(token)).resolves.toEqual({ grantClaimed, banned: true });
+    expect(await ports.keys.count()).toBe(0);
+  },
+);
+
+it("failed lazy ban update never mints a key", async () => {
+  const ports = makePorts();
+  await ports.ledger.insertBan({ athleteId, reason: "operator", bannedAt: "1998-06-13T00:00:00Z" });
+  ports.deviceCheck.update = async () => {
+    throw new Error("synthetic update failure");
+  };
+  await expect(
+    runtimeFromFakes(ports).run(athleteId, grant("synthetic-token" as DeviceCheckToken)),
+  ).rejects.toThrow();
+  expect(await ports.keys.count()).toBe(0);
+});
+
+it("marks DeviceCheck before creating a grant key", async () => {
+  const ports = makePorts();
+  const order: string[] = [];
+  const update = ports.deviceCheck.update.bind(ports.deviceCheck);
+  ports.deviceCheck.update = async (token, bits) => {
+    order.push("mark");
+    await update(token, bits);
+  };
+  const create = ports.keys.create.bind(ports.keys);
+  ports.keys.create = async (input) => {
+    order.push("fund");
+    return create(input);
+  };
+
+  await runtimeFromFakes(ports).run(
+    athleteId,
+    grant("dc-1998-mark-before-fund" as DeviceCheckToken),
+  );
+
+  expect(order).toEqual(["mark", "fund"]);
+});
+
+it("a failed DeviceCheck mark never funds or compensates the grant", async () => {
+  const ports = makePorts();
+  ports.deviceCheck.update = async () => {
+    throw new Error("synthetic mark failure");
+  };
+
+  await expect(
+    runtimeFromFakes(ports).run(athleteId, grant("dc-1998-mark-failure" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic mark failure");
+  expect(ports.keys.createdCount).toBe(0);
+  expect(await ports.ledger.grantsFor(athleteId)).toHaveLength(0);
+});
+
+it("a lost DeviceCheck mark response leaves the claimed trial unfunded", async () => {
+  const ports = makePorts();
+  const token = "dc-1998-lost-mark-response" as DeviceCheckToken;
+  const update = ports.deviceCheck.update.bind(ports.deviceCheck);
+  let loseResponse = true;
+  ports.deviceCheck.update = async (value, bits) => {
+    await update(value, bits);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost mark response");
+    }
+  };
+  const runtime = runtimeFromFakes(ports);
+
+  await expect(runtime.run(athleteId, grant(token))).rejects.toThrow(
+    "synthetic lost mark response",
+  );
+  await expect(runtime.run(athleteId, grant(token))).resolves.toEqual({
+    kind: "grantAlreadyGranted",
+  });
+  expect(ports.keys.createdCount).toBe(0);
+  expect(await ports.ledger.grantsFor(athleteId)).toHaveLength(0);
+});
+
+it("an ambiguous grant key creation is fenced without replay", async () => {
+  const ports = makePorts();
+  const create = ports.keys.create.bind(ports.keys);
+  let loseResponse = true;
+  ports.keys.create = async (input) => {
+    const created = await create(input);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost create response");
+    }
+    return created;
+  };
+  const runtime = runtimeFromFakes(ports);
+
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-create-uncertain" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic lost create response");
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-after-create-uncertain" as DeviceCheckToken)),
+  ).rejects.toThrow("unavailable");
+  expect(ports.keys.createdCount).toBe(1);
+});
+
+it("an ambiguous grant top-up is fenced without replay", async () => {
+  const ports = makePorts();
+  const runtime = runtimeFromFakes(ports);
+  await runtime.run(athleteId, grant("dc-1998-first-device" as DeviceCheckToken));
+  const setLimit = ports.keys.setLimit.bind(ports.keys);
+  let loseResponse = true;
+  ports.keys.setLimit = async (hash, limit) => {
+    await setLimit(hash, limit);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost limit response");
+    }
+  };
+
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-second-device" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic lost limit response");
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-third-device" as DeviceCheckToken)),
+  ).rejects.toThrow("unavailable");
+  expect(ports.keys.setLimitCount).toBe(1);
+});
+
+it("unavailable consumption preserves retry and records no reported notification", async () => {
+  const ports = makePorts();
+  ports.consumptionReporting = "enabled";
+  const runtime = runtimeFromFakes(ports);
+  const tx = "synthetic-consumption" as TransactionId;
+  await runtime.run(athleteId, { kind: "claim", purchase: purchase(tx) });
+  const send = vi
+    .spyOn(ports.apple, "reportConsumption")
+    .mockRejectedValue(new Error("unavailable"));
+  const command = {
+    kind: "consumptionRequest" as const,
+    notificationId: "synthetic-retry" as NotificationId,
+    transactionId: tx,
+  };
+  await expect(runtime.run(athleteId, command)).rejects.toThrow("unavailable");
+  await expect(runtime.run(athleteId, command)).rejects.toThrow("unavailable");
+  expect(send).toHaveBeenCalledTimes(2);
+  expect((ports.ledger as MemoryLedger).notifications.has(command.notificationId)).toBe(false);
+});
+
+it("successful consumption is sent once and recorded after completion", async () => {
+  const ports = makePorts();
+  ports.consumptionReporting = "enabled";
+  const runtime = runtimeFromFakes(ports);
+  const tx = "synthetic-success" as TransactionId;
+  await runtime.run(athleteId, { kind: "claim", purchase: purchase(tx) });
+  const command = {
+    kind: "consumptionRequest" as const,
+    notificationId: "synthetic-success" as NotificationId,
+    transactionId: tx,
+  };
+  const send = vi.spyOn(ports.apple, "reportConsumption").mockImplementation(async () => {
+    expect((ports.ledger as MemoryLedger).notifications.has(command.notificationId)).toBe(false);
+  });
+  await expect(runtime.run(athleteId, command)).resolves.toEqual({
+    kind: "consumptionReported",
+    status: "not_consumed",
+  });
+  await runtime.run(athleteId, command);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+
+it.each(["unverified", "disabled"] as const)(
+  "%s consumption records no send",
+  async (reporting) => {
+    const ports = makePorts();
+    ports.consumptionReporting = reporting;
+    const send = vi.spyOn(ports.apple, "reportConsumption");
+    const command = {
+      kind: "consumptionRequest" as const,
+      notificationId: "synthetic-no-send" as NotificationId,
+      transactionId: "synthetic-tx" as TransactionId,
+    };
+    await expect(runtimeFromFakes(ports).run(athleteId, command)).resolves.toEqual({
+      kind: "consumptionReported",
+      status: "undeclared",
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect((ports.ledger as MemoryLedger).notifications.get(command.notificationId)?.outcome).toBe(
+      "not_reported",
+    );
+  },
+);

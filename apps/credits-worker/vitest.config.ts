@@ -1,3 +1,4 @@
+import ocspFixtures from "./scripts/proof-fixtures.json" with { type: "json" };
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
@@ -8,6 +9,31 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
+        outboundService: async (request) => {
+          const url = new URL(request.url);
+          if (url.origin === "http://ocsp.apple.com" && request.method === "POST") {
+            const variant = url.pathname.replace("/synthetic-", "");
+            if (variant === "intermediate")
+              return new Response(Buffer.from(ocspFixtures.ocsp.good[1]!, "hex"));
+            if (Object.hasOwn(ocspFixtures.ocsp, variant)) {
+              return new Response(
+                Buffer.from(
+                  ocspFixtures.ocsp[variant as keyof typeof ocspFixtures.ocsp][0]!,
+                  "hex",
+                ),
+              );
+            }
+          }
+          if (
+            url.origin === "https://api.storekit-sandbox.apple.com" &&
+            url.pathname === "/inApps/v1/notifications/test" &&
+            request.method === "POST" &&
+            request.headers.get("authorization")?.startsWith("Bearer ")
+          ) {
+            return Response.json({ testNotificationToken: "synthetic-notification" });
+          }
+          return new Response("Unexpected test request", { status: 502 });
+        },
         bindings: {
           TEST_MIGRATIONS: migrations,
           OPENROUTER_MANAGEMENT_KEY: "test-openrouter-management",

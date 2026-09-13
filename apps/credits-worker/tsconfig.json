@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "strict": true,
+    "resolveJsonModule": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2022",
@@ -10,5 +11,5 @@
     "verbatimModuleSyntax": false,
     "types": []
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts"]
 }

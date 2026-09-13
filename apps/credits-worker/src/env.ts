@@ -1,3 +1,4 @@
+import { DomainError, asCredits, asUsdMillis } from "./domain.js";
 export type RateLimitBinding = {
   limit(input: { key: string }): Promise<{ success: boolean }>;
 };
@@ -25,6 +26,7 @@ export type D1PreparedStatement = {
 };
 
 export type D1Database = {
+  batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
   prepare(query: string): D1PreparedStatement;
   exec(query: string): Promise<unknown>;
 };
@@ -58,3 +60,44 @@ export type Env = {
   REPEAT_REFUND_BAN_THRESHOLD: string;
   INTERVALS_OAUTH_ENABLED: string;
 };
+
+export function workerConfig(env: Env) {
+  const number = (raw: string, integer = false) => {
+    if (typeof raw !== "string" || !/^[0-9]+(?:\.[0-9]+)?$/.test(raw))
+      throw new DomainError("unavailable");
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0 || (integer && !Number.isSafeInteger(value)))
+      throw new DomainError("unavailable");
+    return value;
+  };
+  if (
+    env.KEY_COUNT_CEILING !== undefined ||
+    !["at_create", "after_create", "off"].includes(env.GUARDRAIL_MODE) ||
+    env.APPLE_ENVIRONMENT !== "sandbox" ||
+    !["unverified", "enabled", "disabled"].includes(env.CONSUMPTION_REPORTING)
+  )
+    throw new DomainError("unavailable");
+  for (const value of [env.PURCHASES_ENABLED, env.INTERVALS_OAUTH_ENABLED])
+    if (value !== "true" && value !== "false") throw new DomainError("unavailable");
+  const creditsPerUsd = number(env.CREDITS_PER_USD, true);
+  const starter = number(env.STARTER_CAP_USD);
+  const repeatRefundBanThreshold = number(env.REPEAT_REFUND_BAN_THRESHOLD, true);
+  if (
+    creditsPerUsd === 0 ||
+    repeatRefundBanThreshold === 0 ||
+    number(env.APPLE_COMMISSION) >= 1 ||
+    number(env.OPENROUTER_FEE) >= 1 ||
+    number(env.RATIO) === 0
+  )
+    throw new DomainError("unavailable");
+  return {
+    openRouter: {
+      guardrailMode: env.GUARDRAIL_MODE,
+      guardrailId: env.OPENROUTER_GUARDRAIL_ID,
+      keyCountCeiling: undefined,
+    },
+    starterCapUsdMillis: asUsdMillis(Math.round(starter * 1000)),
+    starterCredits: asCredits(Math.round(starter * creditsPerUsd)),
+    repeatRefundBanThreshold,
+  };
+}

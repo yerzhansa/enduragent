@@ -3,6 +3,7 @@ import type {
   AthleteId,
   BanReason,
   Credits,
+  DeviceGrantOwnerId,
   GrantId,
   KeyHash,
   NotificationId,
@@ -15,8 +16,8 @@ import type {
   UsdMillis,
   Lot,
 } from "./domain.js";
-import { asCredits, asUsdMillis } from "./domain.js";
-import type { D1Database } from "./env.js";
+import { DomainError, asCredits, asUsdMillis } from "./domain.js";
+import type { D1Database, D1PreparedStatement } from "./env.js";
 
 export type AthleteRecord = {
   athleteId: AthleteId;
@@ -58,8 +59,15 @@ export type PendingProviderMutation = {
   mutationId: ProviderMutationId;
   athleteId: AthleteId;
   mutation: ProviderMutation;
+  recovery: "replay" | "fence";
   startedAt: string;
   completedAt: string | undefined;
+};
+
+export type DeviceGrantLease = {
+  ownerId: DeviceGrantOwnerId;
+  now: string;
+  expiresAt: string;
 };
 
 export type NotificationRecord = {
@@ -67,7 +75,7 @@ export type NotificationRecord = {
   type: "refund" | "revoke" | "consumption_request";
   transactionId: TransactionId | undefined;
   processedAt: string;
-  outcome: "applied" | "duplicate" | "pending_purchase" | "reported";
+  outcome: "applied" | "duplicate" | "pending_purchase" | "reported" | "not_reported";
 };
 
 export type BanRecord = {
@@ -81,12 +89,15 @@ export type LinkedAppleId = {
   athleteId: AthleteId;
 };
 
+export class PricingConflict extends Error {}
+
 export type Ledger = {
   currentPolicy(): Promise<PricingPolicy>;
-  insertPolicy(policy: PricingPolicy): Promise<void>;
+  pricingRevision(): Promise<number>;
+  publishPolicy(policy: PricingPolicy, packs: readonly Pack[], revision: number): Promise<void>;
   activePacks(policyVersion: number): Promise<readonly Pack[]>;
   pack(productId: ProductId, policyVersion: number): Promise<Pack | undefined>;
-  putPack(pack: Pack): Promise<void>;
+  putPack(pack: Pack, revision: number): Promise<void>;
 
   athlete(athleteId: AthleteId): Promise<AthleteRecord | undefined>;
   athleteByOriginalTransaction(
@@ -110,9 +121,14 @@ export type Ledger = {
   takePendingMutation(athleteId: AthleteId): Promise<PendingProviderMutation | undefined>;
   markPendingMutationDone(mutationId: ProviderMutationId, at: string): Promise<void>;
 
+  tryClaimDeviceGrant(lease: DeviceGrantLease): Promise<"claimed" | "busy">;
+  authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean>;
+  cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void>;
+
   insertLot(lot: Lot): Promise<void>;
   lotsOldestFirst(athleteId: AthleteId): Promise<readonly Lot[]>;
 
+  hasNotification(notificationId: NotificationId): Promise<boolean>;
   insertNotification(row: NotificationRecord): Promise<"inserted" | "duplicate">;
   insertPendingRefund(transactionId: TransactionId, notificationId: NotificationId): Promise<void>;
   takePendingRefund(transactionId: TransactionId): Promise<NotificationId | undefined>;
@@ -189,6 +205,7 @@ type MutationRow = {
   athlete_id: string;
   kind: string;
   payload_json: string;
+  recovery: string;
   started_at: string;
   completed_at: string | null;
 };
@@ -269,10 +286,14 @@ function mapLot(row: LotRow): Lot {
 }
 
 function mapMutation(row: MutationRow): PendingProviderMutation {
+  if (row.recovery !== "replay" && row.recovery !== "fence") {
+    throw new DomainError("unavailable");
+  }
   return {
     mutationId: row.mutation_id as ProviderMutationId,
     athleteId: row.athlete_id as AthleteId,
     mutation: JSON.parse(row.payload_json) as ProviderMutation,
+    recovery: row.recovery,
     startedAt: row.started_at,
     completedAt: row.completed_at ?? undefined,
   };
@@ -306,22 +327,68 @@ export class D1Ledger implements Ledger {
     return mapPolicy(row);
   }
 
-  async insertPolicy(policy: PricingPolicy): Promise<void> {
-    await this.db
-      .prepare(
-        `INSERT INTO pricing_policies
-          (version, ratio, apple_commission, openrouter_fee, credits_per_usd, effective_from)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+  async pricingRevision(): Promise<number> {
+    const row = await this.db
+      .prepare("SELECT revision FROM pricing_revision WHERE id = 1")
+      .first<{ revision: number }>();
+    if (!row) throw new DomainError("unavailable");
+    return row.revision;
+  }
+
+  private async writePricing(revision: number, statements: D1PreparedStatement[]): Promise<void> {
+    try {
+      await this.db.batch([
+        this.db
+          .prepare(
+            `UPDATE pricing_revision
+           SET revision = CASE WHEN revision = ? THEN revision + 1 ELSE -1 END WHERE id = 1`,
+          )
+          .bind(revision),
+        ...statements,
+      ]);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("CHECK constraint failed: pricing_revision_conflict")
       )
-      .bind(
-        policy.version,
-        String(policy.ratio),
-        String(policy.appleCommission),
-        String(policy.openrouterFee),
-        policy.creditsPerUsd,
-        policy.effectiveFrom,
-      )
-      .run();
+        throw new PricingConflict("pricing changed");
+      throw error;
+    }
+  }
+
+  async publishPolicy(
+    policy: PricingPolicy,
+    packs: readonly Pack[],
+    revision: number,
+  ): Promise<void> {
+    await this.writePricing(revision, [
+      this.db
+        .prepare(
+          `INSERT INTO pricing_policies (version, ratio, apple_commission, openrouter_fee, credits_per_usd, effective_from) VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          policy.version,
+          String(policy.ratio),
+          String(policy.appleCommission),
+          String(policy.openrouterFee),
+          policy.creditsPerUsd,
+          policy.effectiveFrom,
+        ),
+      ...packs.map((pack) =>
+        this.db
+          .prepare(
+            `INSERT INTO packs (product_id, policy_version, list_price_usd_millis, cap_usd_millis, credits, active) VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            pack.productId,
+            pack.policyVersion,
+            pack.listPriceUsdMillis,
+            pack.capUsdMillis,
+            pack.credits,
+            pack.active ? 1 : 0,
+          ),
+      ),
+    ]);
   }
 
   async activePacks(policyVersion: number): Promise<readonly Pack[]> {
@@ -346,22 +413,23 @@ export class D1Ledger implements Ledger {
     return row ? mapPack(row) : undefined;
   }
 
-  async putPack(pack: Pack): Promise<void> {
-    await this.db
-      .prepare(
-        `INSERT OR REPLACE INTO packs
+  async putPack(pack: Pack, revision: number): Promise<void> {
+    await this.writePricing(revision, [
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO packs
           (product_id, policy_version, list_price_usd_millis, cap_usd_millis, credits, active)
          VALUES (?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        pack.productId,
-        pack.policyVersion,
-        pack.listPriceUsdMillis,
-        pack.capUsdMillis,
-        pack.credits,
-        pack.active ? 1 : 0,
-      )
-      .run();
+        )
+        .bind(
+          pack.productId,
+          pack.policyVersion,
+          pack.listPriceUsdMillis,
+          pack.capUsdMillis,
+          pack.credits,
+          pack.active ? 1 : 0,
+        ),
+    ]);
   }
 
   async athlete(athleteId: AthleteId): Promise<AthleteRecord | undefined> {
@@ -528,14 +596,15 @@ export class D1Ledger implements Ledger {
     await this.db
       .prepare(
         `INSERT INTO pending_provider_mutations
-          (mutation_id, athlete_id, kind, payload_json, started_at, completed_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+          (mutation_id, athlete_id, kind, payload_json, recovery, started_at, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         row.mutationId,
         row.athleteId,
         row.mutation.kind,
         JSON.stringify(row.mutation),
+        row.recovery,
         row.startedAt,
         row.completedAt ?? null,
       )
@@ -545,7 +614,7 @@ export class D1Ledger implements Ledger {
   async takePendingMutation(athleteId: AthleteId): Promise<PendingProviderMutation | undefined> {
     const row = await this.db
       .prepare(
-        `SELECT mutation_id, athlete_id, kind, payload_json, started_at, completed_at
+        `SELECT mutation_id, athlete_id, kind, payload_json, recovery, started_at, completed_at
          FROM pending_provider_mutations
          WHERE athlete_id = ? AND completed_at IS NULL
          ORDER BY started_at ASC
@@ -560,6 +629,38 @@ export class D1Ledger implements Ledger {
     await this.db
       .prepare(`UPDATE pending_provider_mutations SET completed_at = ? WHERE mutation_id = ?`)
       .bind(at, mutationId)
+      .run();
+  }
+
+  async tryClaimDeviceGrant(lease: DeviceGrantLease): Promise<"claimed" | "busy"> {
+    const result = (await this.db
+      .prepare(
+        `INSERT INTO device_grant_gate (gate_id, owner_id, expires_at)
+         VALUES (1, ?, ?)
+         ON CONFLICT(gate_id) DO UPDATE
+         SET owner_id = excluded.owner_id, expires_at = excluded.expires_at
+         WHERE device_grant_gate.expires_at <= ?`,
+      )
+      .bind(lease.ownerId, lease.expiresAt, lease.now)
+      .run()) as D1RunResult;
+    return (result.meta?.changes ?? 0) === 1 ? "claimed" : "busy";
+  }
+
+  async authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean> {
+    const result = (await this.db
+      .prepare(
+        `DELETE FROM device_grant_gate
+         WHERE gate_id = 1 AND owner_id = ? AND expires_at > ?`,
+      )
+      .bind(ownerId, now)
+      .run()) as D1RunResult;
+    return (result.meta?.changes ?? 0) === 1;
+  }
+
+  async cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void> {
+    await this.db
+      .prepare(`DELETE FROM device_grant_gate WHERE gate_id = 1 AND owner_id = ?`)
+      .bind(ownerId)
       .run();
   }
 
@@ -593,6 +694,14 @@ export class D1Ledger implements Ledger {
     return results.map(mapLot);
   }
 
+  async hasNotification(notificationId: NotificationId): Promise<boolean> {
+    const row = await this.db
+      .prepare("SELECT notification_uuid FROM apple_notifications WHERE notification_uuid = ?")
+      .bind(notificationId)
+      .first<{ notification_uuid: string }>();
+    return row !== null;
+  }
+
   async insertNotification(row: NotificationRecord): Promise<"inserted" | "duplicate"> {
     return insertOrDuplicate(
       this.db
@@ -601,13 +710,7 @@ export class D1Ledger implements Ledger {
             (notification_uuid, type, transaction_id, processed_at, outcome)
            VALUES (?, ?, ?, ?, ?)`,
         )
-        .bind(
-          row.notificationId,
-          row.type,
-          row.transactionId ?? null,
-          row.processedAt,
-          row.outcome,
-        )
+        .bind(row.notificationId, row.type, row.transactionId ?? null, row.processedAt, row.outcome)
         .run(),
     );
   }
@@ -640,9 +743,7 @@ export class D1Ledger implements Ledger {
 
   async insertBan(row: BanRecord): Promise<void> {
     await this.db
-      .prepare(
-        `INSERT OR REPLACE INTO bans (athlete_id, reason, banned_at) VALUES (?, ?, ?)`,
-      )
+      .prepare(`INSERT OR REPLACE INTO bans (athlete_id, reason, banned_at) VALUES (?, ?, ?)`)
       .bind(row.athleteId, row.reason, row.bannedAt)
       .run();
   }
