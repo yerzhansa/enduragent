@@ -206,7 +206,7 @@ export function AdditionalCredentialRows(props: {
   );
   const changesBlocked = credentialChangesBlocked(state, mutating);
   const providerStatuses = (content(state)?.providerStatuses ?? []).filter(
-    (entry) => entry.provider !== props.primaryAiProvider,
+    (entry) => entry.provider !== "claude-cli" && entry.provider !== props.primaryAiProvider,
   );
 
   if (entries.length === 0 && providerStatuses.length === 0) return null;
