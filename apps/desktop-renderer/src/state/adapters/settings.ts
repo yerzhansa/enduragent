@@ -143,7 +143,7 @@ export function createConversationSettingsAdapter(input: {
     port: {
       retry: () => handlers?.onRetry(),
       change: (field, value) => handlers?.onChange(field, value),
-      save: () => handlers?.onSave(),
+      commit: () => handlers?.onCommit(),
     },
   };
 }

@@ -26,7 +26,14 @@ for (const appearance of ["light", "dark"] as const) {
       await page
         .getByRole("heading", { name: "Conversation & time", exact: true })
         .scrollIntoViewIfNeeded();
-      await expect(page.getByLabel("Idle reset (minutes)")).toBeVisible();
+      await expect(page.getByLabel("Timezone", { exact: true })).toBeVisible();
+      await expect(page.getByLabel("Daily reset hour", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("Idle reset (minutes)", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("Archive retention (days)", { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel("History budget (%)", { exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Save conversation settings", exact: true }),
+      ).toHaveCount(0);
       await page.screenshot({ path: info.outputPath("settings-account-hidden.png") });
       await navigation.getByRole("button", { name: "Chat", exact: true }).click();
       await expect(page.getByRole("combobox", { name: "Message your coach" })).toBeVisible();

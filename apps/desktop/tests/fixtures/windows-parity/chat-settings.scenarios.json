@@ -248,9 +248,9 @@
     {
       "id": "settings.conversation.lifecycle",
       "surface": "settings",
-      "expected": "Conversation settings expose timezone, daily reset hour, idle reset minutes, archive retention days, and history budget; only dirty unmanaged fields are saved and lifecycle effects are disclosed.",
+      "expected": "Conversation settings expose only timezone to the athlete, save a valid timezone on blur or Enter, and preserve hidden reset, retention, and history configuration through a timezone-only patch.",
       "automation": "deterministic",
-      "test": "apps/desktop-renderer/tests/settings-surface.test.tsx > sends only the dirty fields"
+      "test": "apps/desktop-renderer/tests/settings-surface.test.tsx > hides technical controls and saves a valid timezone when focus leaves the field"
     },
     {
       "id": "settings.spend.daily-cap",

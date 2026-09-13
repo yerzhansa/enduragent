@@ -60,7 +60,6 @@ import type { TrainingSyncDroppedActivities } from "../src/training-sync";
 import { toManualSyncViewState } from "../src/training-context/manual-sync";
 import type { DesktopUpdateState } from "../src/update/controller";
 import { createDesktopUpdateController } from "../src/update/controller";
-import { CONVERSATION_FIELDS } from "../src/ui/settings/copy";
 import { SettingsView } from "../src/ui/settings/SettingsView";
 import {
   clearTrainingRestrictionFocusRequest,
@@ -221,19 +220,36 @@ interface HarnessOptions {
 function createHarness(options: HarnessOptions = {}) {
   const store = useEnduragentStore;
   const calls: { readonly method: string; readonly params: unknown }[] = [];
-  const runtime = options.runtime ?? (() => snapshot());
+  let defaultRuntime = snapshot();
+  const runtime = options.runtime ?? (() => defaultRuntime);
   const client = {
     call: vi.fn(async (method: string, params: unknown) => {
       calls.push({ method, params });
       if (method === "getRuntimeConfig") return runtime();
       if (method === "configureRuntime") {
-        return options.configureRuntime === undefined
-          ? {
-              schemaVersion: 3,
-              status: "applied",
-              applied: { llm: true, intervals: true, session: true },
-            }
-          : await options.configureRuntime(params);
+        const result =
+          options.configureRuntime === undefined
+            ? {
+                schemaVersion: 3 as const,
+                status: "applied" as const,
+                applied: { llm: true, intervals: true, session: true },
+              }
+            : await options.configureRuntime(params);
+        const patch = params as { readonly session?: { readonly timezone?: string } };
+        if (
+          options.runtime === undefined &&
+          typeof result === "object" &&
+          result !== null &&
+          "status" in result &&
+          result.status === "applied" &&
+          patch.session?.timezone !== undefined
+        ) {
+          defaultRuntime = snapshot({
+            ...defaultRuntime,
+            session: { ...defaultRuntime.session, timezone: patch.session.timezone },
+          });
+        }
+        return result;
       }
       if (method === "getSpendSummary") {
         return options.spend === undefined ? spendSummary() : await options.spend();
@@ -802,9 +818,10 @@ describe("settings mutation lock", () => {
       configureRuntime: () => pending.promise,
     });
 
-    await user.clear(screen.getByLabelText("Idle reset (minutes)"));
-    await user.type(screen.getByLabelText("Idle reset (minutes)"), "45");
-    await user.click(screen.getByRole("button", { name: "Save conversation settings" }));
+    const timezone = screen.getByLabelText("Timezone");
+    await user.clear(timezone);
+    await user.type(timezone, "Asia/Qyzylorda");
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.savingOwners).toEqual(["session"]);
@@ -854,9 +871,10 @@ describe("settings mutation lock", () => {
     });
     expect(updateAction).toBeEnabled();
 
-    await user.clear(screen.getByLabelText("Idle reset (minutes)"));
-    await user.type(screen.getByLabelText("Idle reset (minutes)"), "45");
-    await user.click(screen.getByRole("button", { name: "Save conversation settings" }));
+    const timezone = screen.getByLabelText("Timezone");
+    await user.clear(timezone);
+    await user.type(timezone, "Asia/Qyzylorda");
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.savingOwners).toEqual(["session"]);
@@ -885,31 +903,55 @@ describe("settings mutation lock", () => {
 });
 
 describe("conversation settings", () => {
-  it("sends only the dirty fields", async () => {
+  it("hides technical controls and saves a valid timezone when focus leaves the field", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings();
 
-    await user.clear(screen.getByLabelText("Idle reset (minutes)"));
-    await user.type(screen.getByLabelText("Idle reset (minutes)"), "45");
-    await user.click(screen.getByRole("button", { name: "Save conversation settings" }));
+    const conversation = within(screen.getByRole("region", { name: "Conversation and time" }));
+    expect(conversation.getByLabelText("Timezone")).toBeEnabled();
+    expect(conversation.queryByLabelText("Daily reset hour")).not.toBeInTheDocument();
+    expect(conversation.queryByLabelText("Idle reset (minutes)")).not.toBeInTheDocument();
+    expect(conversation.queryByLabelText("Archive retention (days)")).not.toBeInTheDocument();
+    expect(conversation.queryByLabelText("History budget (%)")).not.toBeInTheDocument();
+    expect(
+      conversation.queryByRole("button", { name: "Save conversation settings" }),
+    ).not.toBeInTheDocument();
+    expect(
+      conversation.queryByText(/may make your next message start a fresh conversation/u),
+    ).not.toBeInTheDocument();
+    expect(
+      conversation.queryByText(/changes apply only to future pruning/u),
+    ).not.toBeInTheDocument();
+
+    const timezone = conversation.getByLabelText("Timezone");
+    await user.clear(timezone);
+    await user.type(timezone, "Asia/Qyzylorda");
+    expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(0);
+    await user.tab();
 
     await waitFor(() => {
       expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(1);
     });
     expect(subject.calls.find((call) => call.method === "configureRuntime")?.params).toEqual({
-      session: { idleMinutes: 45 },
+      session: { timezone: "Asia/Qyzylorda" },
     });
   });
 
-  it("keeps the timezone field editable and saves the zone in one runtime mutation", async () => {
+  it("saves a valid timezone with Enter and ignores incomplete text", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings();
 
     const timezone = screen.getByLabelText("Timezone");
     expect(timezone).toBeEnabled();
     await user.clear(timezone);
+    await user.type(timezone, "Asia/");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(0);
+    expect(timezone).toHaveAttribute("aria-invalid", "true");
+    await user.clear(timezone);
     await user.type(timezone, "Asia/Qyzylorda");
-    await user.click(screen.getByRole("button", { name: "Save conversation settings" }));
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.conversation.status).toBe("saved");
@@ -918,6 +960,95 @@ describe("conversation settings", () => {
       session: { timezone: "Asia/Qyzylorda" },
     });
     expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(1);
+  });
+
+  it("keeps timezone editable and applies the latest committed value during a save", async () => {
+    const user = userEvent.setup();
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    let attempts = 0;
+    const subject = await renderSettings({
+      configureRuntime: () => {
+        attempts += 1;
+        return attempts === 1 ? first.promise : second.promise;
+      },
+    });
+    const conversation = within(screen.getByRole("region", { name: "Conversation and time" }));
+    const timezone = conversation.getByLabelText("Timezone");
+
+    await user.clear(timezone);
+    await user.type(timezone, "Asia/Qyzylorda");
+    await user.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(1);
+    });
+    expect(timezone).toBeEnabled();
+    expect(screen.getByRole("combobox", { name: /Provider/u })).toBeDisabled();
+
+    await user.clear(timezone);
+    await user.type(timezone, "Europe/London");
+    await user.keyboard("{Enter}");
+    first.resolve({
+      schemaVersion: 3,
+      status: "applied",
+      applied: { llm: true, intervals: true, session: true },
+    });
+    await waitFor(() => {
+      expect(subject.calls.filter((call) => call.method === "configureRuntime")).toHaveLength(2);
+    });
+    expect(useEnduragentStore.getState().settings.conversation.status).toBe("saving");
+
+    second.resolve({
+      schemaVersion: 3,
+      status: "applied",
+      applied: { llm: true, intervals: true, session: true },
+    });
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.conversation.status).toBe("saved");
+    });
+    expect(
+      subject.calls.filter((call) => call.method === "configureRuntime").map((call) => call.params),
+    ).toEqual([
+      { session: { timezone: "Asia/Qyzylorda" } },
+      { session: { timezone: "Europe/London" } },
+    ]);
+  });
+
+  it("reloads authority before retrying a failed automatic save", async () => {
+    const user = userEvent.setup();
+    const configureRuntime = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValue({
+        schemaVersion: 3,
+        status: "applied",
+        applied: { llm: true, intervals: true, session: true },
+      });
+    const subject = await renderSettings({ configureRuntime });
+    const initialReads = subject.calls.filter((call) => call.method === "getRuntimeConfig").length;
+    const timezone = screen.getByLabelText("Timezone");
+
+    await user.clear(timezone);
+    await user.type(timezone, "Asia/Qyzylorda");
+    await user.keyboard("{Enter}");
+    expect(
+      await screen.findByText(
+        "Conversation settings couldn’t be saved. Your edits are still here.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reconnect & reload" }));
+    await screen.findByText("Conversation settings saved.");
+
+    expect(configureRuntime).toHaveBeenCalledTimes(2);
+    expect(configureRuntime).toHaveBeenNthCalledWith(1, {
+      session: { timezone: "Asia/Qyzylorda" },
+    });
+    expect(configureRuntime).toHaveBeenNthCalledWith(2, {
+      session: { timezone: "Asia/Qyzylorda" },
+    });
+    expect(subject.calls.filter((call) => call.method === "getRuntimeConfig")).toHaveLength(
+      initialReads + 2,
+    );
   });
 
   it("keeps a managed field read-only", async () => {
@@ -970,36 +1101,22 @@ describe("conversation settings", () => {
     expect(screen.queryByText(/Verifying the connected training account/u)).toBeNull();
   });
 
-  it("warns the athlete about the session-lifecycle side effects", async () => {
+  it("keeps hidden runtime values in authority without rendering their labels or help", async () => {
     await renderSettings();
 
-    const resetHour = CONVERSATION_FIELDS.find((field) => field.field === "dailyResetHour");
-    const retention = CONVERSATION_FIELDS.find(
-      (field) => field.field === "resetArchiveRetentionDays",
-    );
-    const english = await createPhrasebook({ tag: "en", locale: "en-US" });
-    expect(resetHour === undefined ? "" : english.say(resetHour.help)).toContain(
-      "may make your next message start a fresh conversation",
-    );
-    expect(retention === undefined ? "" : english.say(retention.help)).toContain(
-      "changes apply only to future pruning",
-    );
-
-    expect(
-      screen.getByText(/may make your next message start a fresh conversation/u),
-    ).toHaveAttribute("id", "conversation-dailyResetHour-help");
-    expect(screen.getByText(/changes apply only to future pruning/u)).toHaveAttribute(
-      "id",
-      "conversation-resetArchiveRetentionDays-help",
-    );
-    expect(screen.getByLabelText("Daily reset hour")).toHaveAttribute(
-      "aria-describedby",
-      "conversation-dailyResetHour-help",
-    );
-    expect(screen.getByLabelText("Archive retention (days)")).toHaveAttribute(
-      "aria-describedby",
-      "conversation-resetArchiveRetentionDays-help",
-    );
+    expect(useEnduragentStore.getState().settings.conversation).toMatchObject({
+      effective: {
+        dailyResetHour: 4,
+        idleMinutes: 0,
+        resetArchiveRetentionDays: 0,
+        historyTokenBudgetRatio: 0.3,
+      },
+      draft: { timezone: "UTC" },
+    });
+    expect(screen.queryByText("Daily reset hour")).not.toBeInTheDocument();
+    expect(screen.queryByText("Idle reset")).not.toBeInTheDocument();
+    expect(screen.queryByText("Archive retention")).not.toBeInTheDocument();
+    expect(screen.queryByText("History budget")).not.toBeInTheDocument();
   });
 });
 
