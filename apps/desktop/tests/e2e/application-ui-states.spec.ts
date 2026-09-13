@@ -263,7 +263,7 @@ test.describe.serial("production application UI states", () => {
         const values = Array.from(page.querySelectorAll("h2")).map(
           (heading) => (heading.textContent ?? "").replace(/\\s+/gu, " ").trim(),
         );
-        return values.length === 10 ? values : false;
+        return values.length === 9 ? values : false;
       })()`,
       "the complete Settings page",
     );
@@ -271,7 +271,6 @@ test.describe.serial("production application UI states", () => {
       "Setup",
       "Channels",
       "Coach",
-      "Training account",
       "Conversation & time",
       "Spending",
       "Preferences",
