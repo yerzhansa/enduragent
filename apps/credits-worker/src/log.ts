@@ -1,7 +1,5 @@
 export type LogFields = {
   route: string;
-  athleteId?: string;
-  transactionId?: string;
   outcome: string;
 };
 
@@ -12,9 +10,9 @@ export type RedactingLog = {
 
 export const consoleLog: RedactingLog = {
   info(fields) {
-    console.log(JSON.stringify(fields));
+    console.log(JSON.stringify({ route: fields.route, outcome: fields.outcome }));
   },
   warn(fields) {
-    console.warn(JSON.stringify(fields));
+    console.warn(JSON.stringify({ route: fields.route, outcome: fields.outcome }));
   },
 };

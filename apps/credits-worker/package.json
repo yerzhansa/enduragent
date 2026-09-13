@@ -5,11 +5,19 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && node --test scripts/proof-bundle.test.mjs",
+    "test:proof": "node --test scripts/proof-bundle.test.mjs",
+    "proof:build": "node scripts/proof-build.mjs",
+    "proof": "node dist/live-proof.mjs"
+  },
+  "dependencies": {
+    "@apple/app-store-server-library": "3.1.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.22.0",
     "@cloudflare/workers-types": "5.20260911.1",
+    "esbuild": "0.28.1",
+    "node-fetch": "2.7.0",
     "typescript": "6.0.3",
     "vitest": "4.1.11",
     "wrangler": "4.131.1"

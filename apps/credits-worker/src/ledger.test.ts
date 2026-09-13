@@ -6,6 +6,7 @@ import {
   type AthleteId,
   type KeyHash,
   type LotId,
+  type NotificationId,
   type OriginalTransactionId,
   type ProductId,
   type ProviderMutationId,
@@ -56,6 +57,21 @@ DELETE FROM pricing_policies;
 
 function contract(name: string, makeLedger: () => Promise<Ledger>): void {
   describe(name, () => {
+    it("notification identity appears only after a recorded outcome", async () => {
+      const ledger = await makeLedger();
+      const notificationId = "synthetic-consumption" as NotificationId;
+      expect(await ledger.hasNotification(notificationId)).toBe(false);
+      await ledger.insertNotification({
+        notificationId,
+        type: "consumption_request",
+        transactionId: tx,
+        processedAt: "1998-06-13T00:00:00Z",
+        outcome: "not_reported",
+      });
+      expect(await ledger.hasNotification(notificationId)).toBe(true);
+      expect(await ledger.hasNotification("synthetic-other" as NotificationId)).toBe(false);
+    });
+
     it("insertPurchase duplicate", async () => {
       const ledger = await makeLedger();
       const row = purchaseRow();

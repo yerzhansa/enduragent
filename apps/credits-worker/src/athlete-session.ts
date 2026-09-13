@@ -1,3 +1,4 @@
+import { workerConfig } from "./env.js";
 import { AppStoreServerClient, DeviceCheckClient } from "./apple.js";
 import type { AppleStore, DeviceCheck } from "./apple.js";
 import type {
@@ -255,7 +256,10 @@ export async function handleGrantCommand(
   const bits = await ports.deviceCheck.query(command.deviceCheckToken);
   if (bits.banned) throw new DomainErr("banned");
   const banned = await ports.ledger.ban(athleteId);
-  if (banned) throw new DomainErr("banned");
+  if (banned) {
+    await ports.deviceCheck.update(command.deviceCheckToken, { banned: true });
+    throw new DomainErr("banned");
+  }
   if (bits.grantClaimed) return { kind: "grantAlreadyGranted" };
 
   const athlete = await ports.ledger.athlete(athleteId);
@@ -510,13 +514,6 @@ async function handleConsumptionCommand(
   command: Extract<AthleteCommand, { kind: "consumptionRequest" }>,
   ports: SessionPorts,
 ): Promise<AthleteResult> {
-  const inserted = await ports.ledger.insertNotification({
-    notificationId: command.notificationId,
-    type: "consumption_request",
-    transactionId: command.transactionId,
-    processedAt: nowIso(ports),
-    outcome: "reported",
-  });
   let openRouterReachable = true;
   let remaining = asUsdMillis(0);
   try {
@@ -542,11 +539,20 @@ async function handleConsumptionCommand(
     openRouterReachable,
     status,
   });
-  if (inserted !== "duplicate") {
-    await ports.apple.reportConsumption({
+  if (!(await ports.ledger.hasNotification(command.notificationId))) {
+    if (reported !== "undeclared") {
+      await ports.apple.reportConsumption({
+        transactionId: command.transactionId,
+        status: reported,
+        delivered: true,
+      });
+    }
+    await ports.ledger.insertNotification({
+      notificationId: command.notificationId,
+      type: "consumption_request",
       transactionId: command.transactionId,
-      status: reported,
-      delivered: true,
+      processedAt: nowIso(ports),
+      outcome: reported === "undeclared" ? "not_reported" : "reported",
     });
   }
   return { kind: "consumptionReported", status: reported };
@@ -597,7 +603,10 @@ export function directRuntime(ports: SessionPorts): AthleteRuntime {
       const gate = new Promise((resolve) => {
         release = resolve;
       });
-      tails.set(athleteId, prev.then(() => gate));
+      tails.set(
+        athleteId,
+        prev.then(() => gate),
+      );
       try {
         await prev.catch(() => undefined);
         return await handleAthleteCommand(athleteId, command, ports);
@@ -633,20 +642,13 @@ export async function decodeResult(response: Response): Promise<AthleteResult> {
 }
 
 function sessionPortsFromEnv(env: Env): SessionPorts {
+  const config = workerConfig(env);
   return {
     ledger: new D1Ledger(env.DB),
-    keys: new OpenRouterManagementClient(env.OPENROUTER_MANAGEMENT_KEY, {
-      guardrailMode: env.GUARDRAIL_MODE,
-      guardrailId: env.OPENROUTER_GUARDRAIL_ID,
-      keyCountCeiling: env.KEY_COUNT_CEILING ? Number(env.KEY_COUNT_CEILING) : undefined,
-    }),
+    keys: new OpenRouterManagementClient(env.OPENROUTER_MANAGEMENT_KEY, config.openRouter),
     deviceCheck: new DeviceCheckClient(env),
     apple: new AppStoreServerClient(env),
-    openRouter: {
-      guardrailMode: env.GUARDRAIL_MODE,
-      guardrailId: env.OPENROUTER_GUARDRAIL_ID,
-      keyCountCeiling: env.KEY_COUNT_CEILING ? Number(env.KEY_COUNT_CEILING) : undefined,
-    },
+    openRouter: config.openRouter,
     clock: { now: () => new Date() },
     ids: {
       lotId: () => crypto.randomUUID() as LotId,
@@ -657,7 +659,7 @@ function sessionPortsFromEnv(env: Env): SessionPorts {
     consumptionReporting: env.CONSUMPTION_REPORTING,
     bundleId: env.BUNDLE_ID,
     environment: env.APPLE_ENVIRONMENT,
-    repeatRefundBanThreshold: Number(env.REPEAT_REFUND_BAN_THRESHOLD),
+    repeatRefundBanThreshold: config.repeatRefundBanThreshold,
   };
 }
 
@@ -680,7 +682,13 @@ export class AthleteSession {
     } catch (error) {
       if (error instanceof DomainErr) {
         const status =
-          error.code === "banned" ? 403 : error.code === "rate_limited" ? 429 : error.code === "unavailable" ? 503 : 400;
+          error.code === "banned"
+            ? 403
+            : error.code === "rate_limited"
+              ? 429
+              : error.code === "unavailable"
+                ? 503
+                : 400;
         return Response.json({ code: error.code }, { status });
       }
       throw error;

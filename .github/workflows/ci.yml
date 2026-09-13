@@ -322,4 +322,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @enduragent/credits-worker check
-      - run: pnpm --filter @enduragent/credits-worker exec vitest run
+      - run: pnpm --filter @enduragent/credits-worker test
+      - run: pnpm --filter @enduragent/credits-worker exec wrangler deploy --dry-run --env testflight

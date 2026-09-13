@@ -1,3 +1,4 @@
+import { workerConfig } from "./env.js";
 import { AppStoreServerClient, DeviceCheckClient } from "./apple.js";
 import { bindDurableRuntime, createCreditsApp, type AppPorts } from "./app.js";
 import { AthleteSession } from "./athlete-session.js";
@@ -9,14 +10,11 @@ import { createOperator } from "./ops.js";
 import { OpenRouterManagementClient } from "./openrouter.js";
 
 export function productionPorts(env: Env): AppPorts {
+  const config = workerConfig(env);
   const ledger = new D1Ledger(env.DB);
   const apple = new AppStoreServerClient(env);
   const deviceCheck = new DeviceCheckClient(env);
-  const keys = new OpenRouterManagementClient(env.OPENROUTER_MANAGEMENT_KEY, {
-    guardrailMode: env.GUARDRAIL_MODE,
-    guardrailId: env.OPENROUTER_GUARDRAIL_ID,
-    keyCountCeiling: env.KEY_COUNT_CEILING ? Number(env.KEY_COUNT_CEILING) : undefined,
-  });
+  const keys = new OpenRouterManagementClient(env.OPENROUTER_MANAGEMENT_KEY, config.openRouter);
   const runtime = bindDurableRuntime(env);
   const intervals = new IntervalsOAuthClient(env.INTERVALS_OAUTH_CLIENT_SECRET);
   return {
@@ -39,8 +37,8 @@ export function productionPorts(env: Env): AppPorts {
       },
     },
     log: consoleLog,
-    starterCapUsdMillis: Math.round(Number(env.STARTER_CAP_USD) * 1000),
-    starterCredits: Math.round(Number(env.STARTER_CAP_USD) * Number(env.CREDITS_PER_USD)),
+    starterCapUsdMillis: config.starterCapUsdMillis,
+    starterCredits: config.starterCredits,
     purchasesEnabled: env.PURCHASES_ENABLED === "true",
     intervalsOAuthEnabled: env.INTERVALS_OAUTH_ENABLED === "true",
     intervalsExchange: (code) => intervals.exchange(code),
@@ -53,7 +51,13 @@ export default {
     env: Env,
     ctx: { waitUntil(p: Promise<unknown>): void },
   ): Promise<Response> {
-    return createCreditsApp(productionPorts(env)).fetch(request, env, ctx);
+    if (request.method === "GET" && new URL(request.url).pathname === "/health")
+      return Response.json({ ok: true });
+    try {
+      return await createCreditsApp(productionPorts(env)).fetch(request, env, ctx);
+    } catch {
+      return Response.json({ error: "unavailable" }, { status: 503 });
+    }
   },
 };
 

@@ -1,5 +1,5 @@
 import { env, runInDurableObject } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bindDurableRuntime } from "./app.js";
 import { AthleteSession, type SessionPorts } from "./athlete-session.js";
 import {
@@ -78,7 +78,7 @@ function purchase(transactionId: TransactionId): VerifiedPurchase {
 function makePorts(): SessionPorts {
   const ledger = new MemoryLedger();
   seedLaunchPolicy(ledger);
-  void ledger.putPack(packForPolicy(launchPolicy()));
+  ledger.packs.push(packForPolicy(launchPolicy()));
   return {
     ledger,
     keys: new FakeOpenRouterKeys(),
@@ -119,4 +119,85 @@ describe("turnstile", () => {
     expect(counts.created).toBe(1);
     expect(counts.setLimit).toBe(1);
   });
+});
+
+import { applyD1Migrations } from "cloudflare:test";
+import { createCreditsApp } from "./app.js";
+import { productionPorts } from "./index.js";
+import { D1Ledger } from "./ledger.js";
+
+it("production catalog reads migrated D1 and production construction rejects invalid ceilings", async () => {
+  await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+  const configured = {
+    ...env,
+    DB: env.DB,
+    ATHLETE_SESSION: env.ATHLETE_SESSION,
+    RATE_LIMIT_IP: env.RATE_LIMIT_IP,
+    RATE_LIMIT_TOKEN: env.RATE_LIMIT_TOKEN,
+  };
+  const ports = productionPorts(configured);
+  const response = await createCreditsApp(ports).fetch(
+    new Request("https://credits.test/catalog"),
+    configured,
+    { waitUntil() {} },
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ purchasesEnabled: false, creditsPerUsd: 100, packs: [] });
+  const transport = vi.spyOn(globalThis, "fetch");
+  try {
+    for (const ceiling of ["1", "100", "0", "", "NaN"])
+      expect(() => productionPorts({ ...configured, KEY_COUNT_CEILING: ceiling })).toThrow(
+        "unavailable",
+      );
+    expect(transport).not.toHaveBeenCalled();
+  } finally {
+    transport.mockRestore();
+  }
+  const session = new AthleteSession(
+    { id: { toString: () => "synthetic" } },
+    { ...configured, KEY_COUNT_CEILING: "1" },
+  );
+  await expect(
+    session.fetch(
+      new Request(`https://athlete.session/${athleteId}`, {
+        method: "POST",
+        body: JSON.stringify({ kind: "ban", reason: "operator" }),
+      }),
+    ),
+  ).rejects.toThrow("unavailable");
+});
+
+it("verified refund HTTP dispatch reaches the production Durable Object and D1", async () => {
+  await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+  const apple = new FakeAppleStore();
+  apple.notifications.push({
+    type: "refund",
+    notificationId: "synthetic-prod-refund" as import("./domain.js").NotificationId,
+    transactionId: "synthetic-prod-tx" as TransactionId,
+    originalTransactionId: originalTx,
+    athleteId,
+  });
+  await runInDurableObject(
+    env.ATHLETE_SESSION.get(env.ATHLETE_SESSION.idFromName(athleteId)),
+    (instance) => {
+      if (!(instance instanceof AthleteSession)) throw new Error("unexpected session");
+      instance.ports = undefined;
+    },
+  );
+  const configured = productionPorts(env);
+  const app = createCreditsApp({ ...configured, apple });
+  const response = await app.fetch(
+    new Request("https://credits.test/apple", {
+      method: "POST",
+      body: JSON.stringify({ signedPayload: "synthetic" }),
+    }),
+    env,
+    { waitUntil() {} },
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ kind: "refundPendingPurchase" });
+  const ledger = new D1Ledger(env.DB);
+  expect(await ledger.takePendingRefund("synthetic-prod-tx" as TransactionId)).toBe(
+    "synthetic-prod-refund",
+  );
 });
