@@ -1048,7 +1048,7 @@ async function switchModelAndReadBlockedDraft(fixture: RunningDesktopFixture) {
     setter?.call(custom, model);
     custom.dispatchEvent(new Event("input", { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
-    custom.blur();
+    custom.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     const savedDeadline = Date.now() + 10000;
     while (
       !document.body.textContent?.includes("Coach settings saved.") &&
