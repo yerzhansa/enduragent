@@ -7,7 +7,7 @@ import {
   type ModelCatalogSnapshot,
 } from "@enduragent/coach-contract/model-catalog";
 import { installedProfileFor, type VisibleModelCatalogProvider } from "./model-catalog-policy.js";
-import { LLM_MODEL_CATALOGUE } from "./runtime-config.js";
+import { LLM_MODEL_CATALOGUE, isModelEnabledForProvider } from "./runtime-config.js";
 
 export interface EffectiveCatalogModel {
   readonly modelId: string;
@@ -69,7 +69,12 @@ function effectiveProvider(
         compiled.provider,
         model.compatibilityProfile,
       );
-      if (compatibilityProfile === undefined) return [];
+      if (
+        compatibilityProfile === undefined ||
+        !isModelEnabledForProvider(compiled.provider, model.modelId)
+      ) {
+        return [];
+      }
       return [
         Object.freeze({
           modelId: model.modelId,
