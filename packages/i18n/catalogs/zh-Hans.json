@@ -295,7 +295,7 @@
         "failed": "无法保存每日上限。",
         "invalid": "请输入大于 $0 的每日上限。",
         "label": "每日上限（美元）",
-        "save": "保存上限",
+        "retry": "重试",
         "value": "{{known}}，上限 {{cap}}"
       },
       "date": "{{month}}{{day}}日",

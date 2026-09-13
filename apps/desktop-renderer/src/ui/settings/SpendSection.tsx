@@ -143,6 +143,14 @@ export function SpendSection(): ReactElement {
             amount: currency(summary.knownSpendUsd, { say, format }),
           });
   const cap = summary === null ? "—" : currency(summary.dailyCapUsd, { say, format });
+  const capInvalid = summary !== null && spend.capDraft.kind === "invalid";
+  const capSaveFailure = spend.capOperation.kind === "error" && spend.capDraft.kind === "valid";
+  const capFeedback =
+    spend.capOperation.kind === "saving"
+      ? say("settings.saving")
+      : spend.capOperation.kind === "error"
+        ? say("settings.spend.cap.failed")
+        : null;
 
   return (
     <>
@@ -212,30 +220,50 @@ export function SpendSection(): ReactElement {
             step="any"
             inputMode="decimal"
             className={styles.control}
-            value={spend.capDraft}
+            value={spend.capDraft.text}
+            aria-invalid={capInvalid ? "true" : undefined}
+            aria-describedby={capInvalid ? "daily-spend-cap-error" : undefined}
             onChange={(event) => {
               port?.changeCap(event.target.value);
             }}
-          />
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled={spend.saving}
-            onClick={() => {
-              port?.save();
+            onBlur={() => port?.commitCap()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                port?.commitCap();
+              }
             }}
-          >
-            {say("settings.spend.cap.save")}
-          </Button>
-          {spend.capError === null ? null : (
-            <p className={`${styles.error} ${styles.capError}`} role="status">
-              {spend.capError === "Enter a daily cap greater than $0."
-                ? say("settings.spend.cap.invalid")
-                : say("settings.spend.cap.failed")}
+          />
+          {capInvalid ? (
+            <p
+              className={`${styles.error} ${styles.capError}`}
+              id="daily-spend-cap-error"
+              role="status"
+              aria-live="polite"
+            >
+              {say("settings.spend.cap.invalid")}
             </p>
-          )}
+          ) : null}
         </div>
+        {capFeedback === null ? null : (
+          <p className={styles.feedback} role="status" aria-live="polite" aria-atomic="true">
+            {capFeedback}
+          </p>
+        )}
+        {capSaveFailure ? (
+          <div className={styles.actions}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                port?.retryCap();
+              }}
+            >
+              {say("settings.spend.cap.retry")}
+            </Button>
+          </div>
+        ) : null}
       </section>
     </>
   );

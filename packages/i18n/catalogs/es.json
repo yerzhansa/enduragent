@@ -296,7 +296,7 @@
         "failed": "No se ha podido guardar el límite diario.",
         "invalid": "Introduce un límite diario superior a $0.",
         "label": "Límite diario (USD)",
-        "save": "Guardar límite",
+        "retry": "Reintentar",
         "value": "{{known}} de {{cap}}"
       },
       "date": "{{day}} {{month}}",

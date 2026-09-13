@@ -298,7 +298,7 @@
         "failed": "Nie udało się zapisać dziennego limitu.",
         "invalid": "Wpisz dzienny limit większy niż 0 USD.",
         "label": "Dzienny limit (USD)",
-        "save": "Zapisz limit",
+        "retry": "Spróbuj ponownie",
         "value": "{{known}} z {{cap}}"
       },
       "date": "{{day}} {{month}}",

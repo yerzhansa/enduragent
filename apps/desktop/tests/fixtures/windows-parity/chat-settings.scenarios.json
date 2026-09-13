@@ -257,7 +257,7 @@
       "surface": "settings",
       "expected": "Spend shows the current daily cap and usage truth, publishes the cap warning to Chat, and saves a revised cap without losing an in-progress edit on refresh.",
       "automation": "deterministic",
-      "test": "apps/desktop-renderer/tests/settings-surface.test.tsx > publishes the cap warning for the chat surface and saves a new cap"
+      "test": "apps/desktop-renderer/tests/settings-surface.test.tsx > publishes the cap warning and saves a valid cap when the input loses focus"
     },
     {
       "id": "settings.preferences.units",

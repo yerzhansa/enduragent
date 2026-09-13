@@ -198,7 +198,6 @@ export function bootRenderer(): Disposer {
     request: (kind) => void manualSyncController.activate(kind),
   });
   const spendAdapter = createSpendSettingsAdapter({
-    read: () => store.getState().settings.spend,
     publish: (next) => store.getState().patchSettings({ spend: next }),
   });
   const spendController = createSpendMeterController({

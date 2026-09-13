@@ -296,7 +296,7 @@
         "failed": "Den daglige grensen kunne ikke lagres.",
         "invalid": "Angi en daglig grense over $0.",
         "label": "Daglig grense (USD)",
-        "save": "Lagre grense",
+        "retry": "Prøv igjen",
         "value": "{{known}} av {{cap}}"
       },
       "date": "{{day}}. {{month}}",

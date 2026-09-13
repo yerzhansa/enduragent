@@ -1,4 +1,4 @@
-import type { LanguageTag, SpendSummary, UnitsPreference } from "@enduragent/coach-contract";
+import type { LanguageTag, UnitsPreference } from "@enduragent/coach-contract";
 import type { StateCreator } from "zustand";
 import type { DesktopCredentialId } from "../onboarding/bridge";
 import type { AthleteSettingsState } from "../settings/athlete-controller";
@@ -10,6 +10,7 @@ import type { LanguagePreferenceViewState } from "../settings/language-controlle
 import type { ProviderModelSettingsState } from "../settings/provider-model-controller";
 import type { SessionSettingField, SessionSettingsState } from "../settings/session-controller";
 import type { TelegramSettingsState } from "../settings/telegram-controller";
+import { INITIAL_SPEND_METER_STATE, type SpendMeterState } from "../spend-meter/controller";
 import type { UnitsPreferenceViewState } from "../training-context/controller";
 import type { DesktopUpdateState } from "../update/controller";
 import type { EnduragentState } from "./store";
@@ -53,7 +54,8 @@ export interface ConversationSettingsPort {
 
 export interface SpendSettingsPort {
   changeCap(value: string): void;
-  save(): void;
+  commitCap(): void;
+  retryCap(): void;
 }
 
 export interface TelegramSettingsPort {
@@ -97,14 +99,7 @@ interface SettingsPorts {
   openSetup(): void;
 }
 
-export interface SpendSurfaceState {
-  readonly status: "loading" | "ready" | "unavailable";
-  readonly summary: SpendSummary | null;
-  readonly stale: boolean;
-  readonly capDraft: string;
-  readonly capDirty: boolean;
-  readonly saving: boolean;
-  readonly capError: string | null;
+export interface SpendSurfaceState extends SpendMeterState {
   readonly warning: string | null;
 }
 
@@ -129,13 +124,7 @@ interface SettingsSurfaceState {
 export const CLOSED_PANE = Object.freeze({ status: "closed" } as const);
 
 const EMPTY_SPEND_SURFACE: SpendSurfaceState = Object.freeze({
-  status: "loading",
-  summary: null,
-  stale: false,
-  capDraft: "",
-  capDirty: false,
-  saving: false,
-  capError: null,
+  ...INITIAL_SPEND_METER_STATE,
   warning: null,
 });
 

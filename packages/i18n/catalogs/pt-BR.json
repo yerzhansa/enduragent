@@ -319,7 +319,7 @@
         "failed": "Não foi possível salvar o limite diário.",
         "invalid": "Insira um limite diário maior que $0.",
         "label": "Limite diário (USD)",
-        "save": "Salvar limite",
+        "retry": "Tentar novamente",
         "value": "{{known}} de {{cap}}"
       },
       "date": "{{day}} de {{month}}",
