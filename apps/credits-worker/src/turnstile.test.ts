@@ -3,9 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { bindDurableRuntime } from "./app.js";
 import { AthleteSession, type SessionPorts } from "./athlete-session.js";
 import {
+  asCredits,
   asUsdMillis,
   capForListPrice,
+  DomainError,
   type AthleteId,
+  type DeviceGrantOwnerId,
+  type DeviceCheckToken,
   type GrantId,
   type IdFactory,
   type LotId,
@@ -36,6 +40,7 @@ function sequentialIds(): IdFactory {
     lotId: () => `lot_1998_${n++}` as LotId,
     grantId: () => `grant_1998_${n++}` as GrantId,
     mutationId: () => `mut_1998_${n++}` as ProviderMutationId,
+    deviceGrantOwnerId: () => `device_owner_1998_${n++}` as DeviceGrantOwnerId,
   };
 }
 
@@ -72,6 +77,15 @@ function purchase(transactionId: TransactionId): VerifiedPurchase {
     athleteId,
     priceMillis: 4990,
     currency: "USD",
+  };
+}
+
+function grant(deviceCheckToken: DeviceCheckToken) {
+  return {
+    kind: "grant" as const,
+    deviceCheckToken,
+    starterCapUsdMillis: asUsdMillis(2000),
+    starterCredits: asCredits(200),
   };
 }
 
@@ -118,6 +132,97 @@ describe("turnstile", () => {
     });
     expect(counts.created).toBe(1);
     expect(counts.setLimit).toBe(1);
+  });
+
+  it("AthleteSession keeps a second grant behind a paused provider call", async () => {
+    const ports = makePorts();
+    const stub = env.ATHLETE_SESSION.get(env.ATHLETE_SESSION.idFromName(athleteId));
+    await runInDurableObject(stub, (instance) => {
+      (instance as AthleteSession).ports = ports;
+    });
+    const runtime = bindDurableRuntime(env);
+    const deviceCheck = ports.deviceCheck;
+    let queryCount = 0;
+    const query = deviceCheck.query.bind(deviceCheck);
+    deviceCheck.query = async (token) => {
+      queryCount += 1;
+      return query(token);
+    };
+    const keys = ports.keys as FakeOpenRouterKeys;
+    const create = keys.create.bind(keys);
+    let reportCreate = () => {};
+    let releaseCreate = () => {};
+    const createStarted = new Promise<void>((resolve) => {
+      reportCreate = resolve;
+    });
+    const holdCreate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    keys.create = async (input) => {
+      reportCreate();
+      await holdCreate;
+      return create(input);
+    };
+
+    const first = runtime.run(athleteId, grant("dc-1998-queue-first" as DeviceCheckToken));
+    await createStarted;
+    const queriesBeforeSecond = queryCount;
+    const second = runtime.run(athleteId, grant("dc-1998-queue-second" as DeviceCheckToken));
+    for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+    expect(queryCount).toBe(queriesBeforeSecond);
+    releaseCreate();
+
+    await expect(first).resolves.toMatchObject({ kind: "grantMinted" });
+    await expect(second).resolves.toMatchObject({ kind: "grantToppedUp" });
+    expect(keys.createdCount).toBe(1);
+    expect(keys.setLimitCount).toBe(1);
+  });
+
+  it("a ban follows an ambiguous grant top-up and disables the existing key", async () => {
+    const ports = makePorts();
+    const stub = env.ATHLETE_SESSION.get(env.ATHLETE_SESSION.idFromName(athleteId));
+    await runInDurableObject(stub, (instance) => {
+      (instance as AthleteSession).ports = ports;
+    });
+    const runtime = bindDurableRuntime(env);
+    await runtime.run(athleteId, grant("dc-1998-ban-first" as DeviceCheckToken));
+    const keys = ports.keys as FakeOpenRouterKeys;
+    const setLimit = keys.setLimit.bind(keys);
+    const setDisabled = keys.setDisabled.bind(keys);
+    const order: string[] = [];
+    let reportLimit = () => {};
+    let releaseLimit = () => {};
+    const limitStarted = new Promise<void>((resolve) => {
+      reportLimit = resolve;
+    });
+    const holdLimit = new Promise<void>((resolve) => {
+      releaseLimit = resolve;
+    });
+    keys.setLimit = async (hash, limit) => {
+      order.push("limit-start");
+      reportLimit();
+      await holdLimit;
+      await setLimit(hash, limit);
+      order.push("limit-finish");
+      throw new DomainError("unavailable");
+    };
+    keys.setDisabled = async (hash, disabled) => {
+      order.push("disable");
+      await setDisabled(hash, disabled);
+    };
+
+    const topUp = runtime.run(athleteId, grant("dc-1998-ban-second" as DeviceCheckToken));
+    const topUpSettled = Promise.allSettled([topUp]);
+    await limitStarted;
+    const ban = runtime.run(athleteId, { kind: "ban", reason: "operator" });
+    releaseLimit();
+
+    await expect(topUpSettled).resolves.toMatchObject([{ status: "rejected" }]);
+    await expect(ban).resolves.toMatchObject({ kind: "banned" });
+    expect(order).toEqual(["limit-start", "limit-finish", "disable"]);
+    const athlete = await ports.ledger.athlete(athleteId);
+    if (!athlete) throw new Error("missing athlete");
+    await expect(keys.get(athlete.keyHash)).resolves.toMatchObject({ disabled: true });
   });
 });
 

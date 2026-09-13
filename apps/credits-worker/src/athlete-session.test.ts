@@ -6,6 +6,7 @@ import {
   capForListPrice,
   type AthleteId,
   type DeviceCheckToken,
+  type DeviceGrantOwnerId,
   type GrantId,
   type IdFactory,
   type LotId,
@@ -40,6 +41,7 @@ function sequentialIds(): IdFactory {
     lotId: () => `lot_1998_${n++}` as LotId,
     grantId: () => `grant_1998_${n++}` as GrantId,
     mutationId: () => `mut_1998_${n++}` as ProviderMutationId,
+    deviceGrantOwnerId: () => `device_owner_1998_${n++}` as DeviceGrantOwnerId,
   };
 }
 
@@ -305,6 +307,111 @@ it("failed lazy ban update never mints a key", async () => {
     runtimeFromFakes(ports).run(athleteId, grant("synthetic-token" as DeviceCheckToken)),
   ).rejects.toThrow();
   expect(await ports.keys.count()).toBe(0);
+});
+
+it("marks DeviceCheck before creating a grant key", async () => {
+  const ports = makePorts();
+  const order: string[] = [];
+  const update = ports.deviceCheck.update.bind(ports.deviceCheck);
+  ports.deviceCheck.update = async (token, bits) => {
+    order.push("mark");
+    await update(token, bits);
+  };
+  const create = ports.keys.create.bind(ports.keys);
+  ports.keys.create = async (input) => {
+    order.push("fund");
+    return create(input);
+  };
+
+  await runtimeFromFakes(ports).run(
+    athleteId,
+    grant("dc-1998-mark-before-fund" as DeviceCheckToken),
+  );
+
+  expect(order).toEqual(["mark", "fund"]);
+});
+
+it("a failed DeviceCheck mark never funds or compensates the grant", async () => {
+  const ports = makePorts();
+  ports.deviceCheck.update = async () => {
+    throw new Error("synthetic mark failure");
+  };
+
+  await expect(
+    runtimeFromFakes(ports).run(athleteId, grant("dc-1998-mark-failure" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic mark failure");
+  expect(ports.keys.createdCount).toBe(0);
+  expect(await ports.ledger.grantsFor(athleteId)).toHaveLength(0);
+});
+
+it("a lost DeviceCheck mark response leaves the claimed trial unfunded", async () => {
+  const ports = makePorts();
+  const token = "dc-1998-lost-mark-response" as DeviceCheckToken;
+  const update = ports.deviceCheck.update.bind(ports.deviceCheck);
+  let loseResponse = true;
+  ports.deviceCheck.update = async (value, bits) => {
+    await update(value, bits);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost mark response");
+    }
+  };
+  const runtime = runtimeFromFakes(ports);
+
+  await expect(runtime.run(athleteId, grant(token))).rejects.toThrow(
+    "synthetic lost mark response",
+  );
+  await expect(runtime.run(athleteId, grant(token))).resolves.toEqual({
+    kind: "grantAlreadyGranted",
+  });
+  expect(ports.keys.createdCount).toBe(0);
+  expect(await ports.ledger.grantsFor(athleteId)).toHaveLength(0);
+});
+
+it("an ambiguous grant key creation is fenced without replay", async () => {
+  const ports = makePorts();
+  const create = ports.keys.create.bind(ports.keys);
+  let loseResponse = true;
+  ports.keys.create = async (input) => {
+    const created = await create(input);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost create response");
+    }
+    return created;
+  };
+  const runtime = runtimeFromFakes(ports);
+
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-create-uncertain" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic lost create response");
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-after-create-uncertain" as DeviceCheckToken)),
+  ).rejects.toThrow("unavailable");
+  expect(ports.keys.createdCount).toBe(1);
+});
+
+it("an ambiguous grant top-up is fenced without replay", async () => {
+  const ports = makePorts();
+  const runtime = runtimeFromFakes(ports);
+  await runtime.run(athleteId, grant("dc-1998-first-device" as DeviceCheckToken));
+  const setLimit = ports.keys.setLimit.bind(ports.keys);
+  let loseResponse = true;
+  ports.keys.setLimit = async (hash, limit) => {
+    await setLimit(hash, limit);
+    if (loseResponse) {
+      loseResponse = false;
+      throw new Error("synthetic lost limit response");
+    }
+  };
+
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-second-device" as DeviceCheckToken)),
+  ).rejects.toThrow("synthetic lost limit response");
+  await expect(
+    runtime.run(athleteId, grant("dc-1998-third-device" as DeviceCheckToken)),
+  ).rejects.toThrow("unavailable");
+  expect(ports.keys.setLimitCount).toBe(1);
 });
 
 it("unavailable consumption preserves retry and records no reported notification", async () => {

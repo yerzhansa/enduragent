@@ -9,6 +9,7 @@ import type {
   Clock,
   ConsumptionReporting,
   Credits,
+  DeviceGrantOwnerId,
   DomainError,
   GrantId,
   GrantResult,
@@ -113,7 +114,7 @@ export async function handleAthleteCommand(
   command: AthleteCommand,
   ports: SessionPorts,
 ): Promise<AthleteResult> {
-  await finishPendingProviderMutation(athleteId, ports);
+  if (command.kind !== "ban") await finishPendingProviderMutation(athleteId, ports);
   switch (command.kind) {
     case "grant":
       return handleGrantCommand(athleteId, command, ports);
@@ -143,6 +144,7 @@ export async function finishPendingProviderMutation(
   for (;;) {
     const pending = await ports.ledger.takePendingMutation(athleteId);
     if (!pending) return;
+    if (pending.recovery === "fence") throw new DomainErr("unavailable");
     if (pending.mutation.kind === "createKey") {
       const existing = await ports.ledger.athlete(athleteId);
       if (existing) {
@@ -171,6 +173,7 @@ export async function executeProviderMutation(
     mutationId,
     athleteId,
     mutation,
+    recovery: "replay",
     startedAt: nowIso(ports),
     completedAt: undefined,
   });
@@ -253,34 +256,89 @@ export async function handleGrantCommand(
   command: Extract<AthleteCommand, { kind: "grant" }>,
   ports: SessionPorts,
 ): Promise<GrantResult> {
-  const bits = await ports.deviceCheck.query(command.deviceCheckToken);
-  if (bits.banned) throw new DomainErr("banned");
-  const banned = await ports.ledger.ban(athleteId);
-  if (banned) {
-    await ports.deviceCheck.update(command.deviceCheckToken, { banned: true });
-    throw new DomainErr("banned");
-  }
-  if (bits.grantClaimed) return { kind: "grantAlreadyGranted" };
+  const ownerId = ports.ids.deviceGrantOwnerId();
+  const leaseStart = ports.clock.now();
+  const claimed = await ports.ledger.tryClaimDeviceGrant({
+    ownerId,
+    now: leaseStart.toISOString(),
+    expiresAt: new Date(leaseStart.getTime() + 60_000).toISOString(),
+  });
+  if (claimed === "busy") throw new DomainErr("unavailable");
 
+  try {
+    const bits = await ports.deviceCheck.query(command.deviceCheckToken);
+    if (bits.banned) throw new DomainErr("banned");
+    const banned = await ports.ledger.ban(athleteId);
+    if (banned) {
+      await ports.deviceCheck.update(command.deviceCheckToken, { banned: true });
+      throw new DomainErr("banned");
+    }
+    if (bits.grantClaimed) return { kind: "grantAlreadyGranted" };
+
+    await ports.deviceCheck.update(command.deviceCheckToken, { grantClaimed: true });
+    const authorized = await ports.ledger.authorizeDeviceGrant(ownerId, nowIso(ports));
+    if (!authorized) throw new DomainErr("unavailable");
+  } finally {
+    await ports.ledger.cancelDeviceGrant(ownerId);
+  }
+
+  return fundGrant(athleteId, command, ports);
+}
+
+async function fundGrant(
+  athleteId: AthleteId,
+  command: Extract<AthleteCommand, { kind: "grant" }>,
+  ports: SessionPorts,
+): Promise<GrantResult> {
   const athlete = await ports.ledger.athlete(athleteId);
   if (!athlete) {
-    const minted = await mintKey(athleteId, command.starterCapUsdMillis, ports);
+    const mutationId = ports.ids.mutationId();
+    const mutation: ProviderMutation = {
+      kind: "createKey",
+      name: athleteId,
+      limitUsdMillis: command.starterCapUsdMillis,
+    };
+    await ports.ledger.putPendingMutation({
+      mutationId,
+      athleteId,
+      mutation,
+      recovery: "fence",
+      startedAt: nowIso(ports),
+      completedAt: undefined,
+    });
+    const created = await applyProviderCall(mutation, ports);
+    if (created.kind !== "createKey") throw new DomainErr("unavailable");
     await ports.ledger.insertAthlete({
       athleteId,
-      keyHash: minted.hash,
+      keyHash: created.hash,
       keyGeneration: 1,
       disabled: false,
       refundsAfterUse: 0,
       createdAt: nowIso(ports),
     });
     await insertGrantLot(athleteId, command.starterCapUsdMillis, command.starterCredits, ports);
-    await ports.deviceCheck.update(command.deviceCheckToken, { grantClaimed: true });
-    return { kind: "grantMinted", key: minted.key, credits: command.starterCredits };
+    await ports.ledger.markPendingMutationDone(mutationId, nowIso(ports));
+    return { kind: "grantMinted", key: created.key, credits: command.starterCredits };
   }
 
-  await raiseLimit(athleteId, athlete.keyHash, command.starterCapUsdMillis, ports);
+  const view = await ports.keys.get(athlete.keyHash);
+  const mutationId = ports.ids.mutationId();
+  const mutation: ProviderMutation = {
+    kind: "setLimit",
+    hash: athlete.keyHash,
+    limitUsdMillis: plusMillis(view.limitUsdMillis, command.starterCapUsdMillis),
+  };
+  await ports.ledger.putPendingMutation({
+    mutationId,
+    athleteId,
+    mutation,
+    recovery: "fence",
+    startedAt: nowIso(ports),
+    completedAt: undefined,
+  });
+  await applyProviderCall(mutation, ports);
   await insertGrantLot(athleteId, command.starterCapUsdMillis, command.starterCredits, ports);
-  await ports.deviceCheck.update(command.deviceCheckToken, { grantClaimed: true });
+  await ports.ledger.markPendingMutationDone(mutationId, nowIso(ports));
   return { kind: "grantToppedUp", added: command.starterCredits };
 }
 
@@ -654,6 +712,7 @@ function sessionPortsFromEnv(env: Env): SessionPorts {
       lotId: () => crypto.randomUUID() as LotId,
       grantId: () => crypto.randomUUID() as GrantId,
       mutationId: () => crypto.randomUUID() as ProviderMutationId,
+      deviceGrantOwnerId: () => crypto.randomUUID() as DeviceGrantOwnerId,
     },
     purchasesEnabled: env.PURCHASES_ENABLED === "true",
     consumptionReporting: env.CONSUMPTION_REPORTING,
@@ -665,13 +724,23 @@ function sessionPortsFromEnv(env: Env): SessionPorts {
 
 export class AthleteSession {
   ports: SessionPorts | undefined;
+  private tail: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly ctx: DurableObjectState,
     private readonly env: Env,
   ) {}
 
-  async fetch(request: Request): Promise<Response> {
+  fetch(request: Request): Promise<Response> {
+    const response = this.tail.then(() => this.handleFetch(request));
+    this.tail = response.then(
+      () => undefined,
+      () => undefined,
+    );
+    return response;
+  }
+
+  private async handleFetch(request: Request): Promise<Response> {
     void this.ctx;
     const athleteId = athleteIdFromUuid(new URL(request.url).pathname.split("/").pop() ?? "");
     const command = (await request.json()) as AthleteCommand;

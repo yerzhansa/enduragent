@@ -7,6 +7,7 @@ import type {
   Clock,
   ConsumptionStatus,
   DeviceCheckToken,
+  DeviceGrantOwnerId,
   GrantId,
   IdFactory,
   KeyHash,
@@ -49,6 +50,7 @@ export class MemoryLedger implements Ledger {
   pendingMutations: PendingProviderMutation[] = [];
   bans = new Map<string, BanRecord>();
   bannedOriginals = new Set<string>();
+  deviceGrantOwner: { ownerId: DeviceGrantOwnerId; expiresAt: string } | undefined;
 
   async currentPolicy(): Promise<PricingPolicy> {
     const last = this.policies.at(-1);
@@ -144,6 +146,25 @@ export class MemoryLedger implements Ledger {
   async markPendingMutationDone(mutationId: ProviderMutationId, at: string): Promise<void> {
     const row = this.pendingMutations.find((mutation) => mutation.mutationId === mutationId);
     if (row) row.completedAt = at;
+  }
+  async tryClaimDeviceGrant(lease: {
+    ownerId: DeviceGrantOwnerId;
+    now: string;
+    expiresAt: string;
+  }): Promise<"claimed" | "busy"> {
+    if (this.deviceGrantOwner && this.deviceGrantOwner.expiresAt > lease.now) return "busy";
+    this.deviceGrantOwner = { ownerId: lease.ownerId, expiresAt: lease.expiresAt };
+    return "claimed";
+  }
+  async authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean> {
+    if (this.deviceGrantOwner?.ownerId !== ownerId || this.deviceGrantOwner.expiresAt <= now) {
+      return false;
+    }
+    this.deviceGrantOwner = undefined;
+    return true;
+  }
+  async cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void> {
+    if (this.deviceGrantOwner?.ownerId === ownerId) this.deviceGrantOwner = undefined;
   }
   async insertLot(lot: Lot): Promise<void> {
     this.lots.push(lot);
@@ -328,6 +349,7 @@ export const testIds: IdFactory = {
   lotId: () => "lot_1998_1" as LotId,
   grantId: () => "grant_1998_1" as GrantId,
   mutationId: () => "mut_1998_1" as ProviderMutationId,
+  deviceGrantOwnerId: () => "device_owner_1998_1" as DeviceGrantOwnerId,
 };
 
 export function testRuntime(ports: Parameters<typeof directRuntime>[0]): AthleteRuntime {

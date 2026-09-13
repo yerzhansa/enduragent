@@ -3,6 +3,7 @@ import type {
   AthleteId,
   BanReason,
   Credits,
+  DeviceGrantOwnerId,
   GrantId,
   KeyHash,
   NotificationId,
@@ -58,8 +59,15 @@ export type PendingProviderMutation = {
   mutationId: ProviderMutationId;
   athleteId: AthleteId;
   mutation: ProviderMutation;
+  recovery: "replay" | "fence";
   startedAt: string;
   completedAt: string | undefined;
+};
+
+export type DeviceGrantLease = {
+  ownerId: DeviceGrantOwnerId;
+  now: string;
+  expiresAt: string;
 };
 
 export type NotificationRecord = {
@@ -112,6 +120,10 @@ export type Ledger = {
   putPendingMutation(row: PendingProviderMutation): Promise<void>;
   takePendingMutation(athleteId: AthleteId): Promise<PendingProviderMutation | undefined>;
   markPendingMutationDone(mutationId: ProviderMutationId, at: string): Promise<void>;
+
+  tryClaimDeviceGrant(lease: DeviceGrantLease): Promise<"claimed" | "busy">;
+  authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean>;
+  cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void>;
 
   insertLot(lot: Lot): Promise<void>;
   lotsOldestFirst(athleteId: AthleteId): Promise<readonly Lot[]>;
@@ -193,6 +205,7 @@ type MutationRow = {
   athlete_id: string;
   kind: string;
   payload_json: string;
+  recovery: string;
   started_at: string;
   completed_at: string | null;
 };
@@ -273,10 +286,14 @@ function mapLot(row: LotRow): Lot {
 }
 
 function mapMutation(row: MutationRow): PendingProviderMutation {
+  if (row.recovery !== "replay" && row.recovery !== "fence") {
+    throw new DomainError("unavailable");
+  }
   return {
     mutationId: row.mutation_id as ProviderMutationId,
     athleteId: row.athlete_id as AthleteId,
     mutation: JSON.parse(row.payload_json) as ProviderMutation,
+    recovery: row.recovery,
     startedAt: row.started_at,
     completedAt: row.completed_at ?? undefined,
   };
@@ -579,14 +596,15 @@ export class D1Ledger implements Ledger {
     await this.db
       .prepare(
         `INSERT INTO pending_provider_mutations
-          (mutation_id, athlete_id, kind, payload_json, started_at, completed_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+          (mutation_id, athlete_id, kind, payload_json, recovery, started_at, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         row.mutationId,
         row.athleteId,
         row.mutation.kind,
         JSON.stringify(row.mutation),
+        row.recovery,
         row.startedAt,
         row.completedAt ?? null,
       )
@@ -596,7 +614,7 @@ export class D1Ledger implements Ledger {
   async takePendingMutation(athleteId: AthleteId): Promise<PendingProviderMutation | undefined> {
     const row = await this.db
       .prepare(
-        `SELECT mutation_id, athlete_id, kind, payload_json, started_at, completed_at
+        `SELECT mutation_id, athlete_id, kind, payload_json, recovery, started_at, completed_at
          FROM pending_provider_mutations
          WHERE athlete_id = ? AND completed_at IS NULL
          ORDER BY started_at ASC
@@ -611,6 +629,38 @@ export class D1Ledger implements Ledger {
     await this.db
       .prepare(`UPDATE pending_provider_mutations SET completed_at = ? WHERE mutation_id = ?`)
       .bind(at, mutationId)
+      .run();
+  }
+
+  async tryClaimDeviceGrant(lease: DeviceGrantLease): Promise<"claimed" | "busy"> {
+    const result = (await this.db
+      .prepare(
+        `INSERT INTO device_grant_gate (gate_id, owner_id, expires_at)
+         VALUES (1, ?, ?)
+         ON CONFLICT(gate_id) DO UPDATE
+         SET owner_id = excluded.owner_id, expires_at = excluded.expires_at
+         WHERE device_grant_gate.expires_at <= ?`,
+      )
+      .bind(lease.ownerId, lease.expiresAt, lease.now)
+      .run()) as D1RunResult;
+    return (result.meta?.changes ?? 0) === 1 ? "claimed" : "busy";
+  }
+
+  async authorizeDeviceGrant(ownerId: DeviceGrantOwnerId, now: string): Promise<boolean> {
+    const result = (await this.db
+      .prepare(
+        `DELETE FROM device_grant_gate
+         WHERE gate_id = 1 AND owner_id = ? AND expires_at > ?`,
+      )
+      .bind(ownerId, now)
+      .run()) as D1RunResult;
+    return (result.meta?.changes ?? 0) === 1;
+  }
+
+  async cancelDeviceGrant(ownerId: DeviceGrantOwnerId): Promise<void> {
+    await this.db
+      .prepare(`DELETE FROM device_grant_gate WHERE gate_id = 1 AND owner_id = ?`)
+      .bind(ownerId)
       .run();
   }
 
