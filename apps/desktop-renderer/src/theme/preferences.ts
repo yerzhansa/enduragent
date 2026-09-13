@@ -1,5 +1,5 @@
 import type { Appearance } from "@enduragent/ui";
-import { DEFAULT_PALETTE_ID, PALETTES } from "@enduragent/ui";
+import { paletteById } from "@enduragent/ui";
 
 export const PALETTE_STORAGE_KEY = "enduragent.ui.palette";
 export const APPEARANCE_STORAGE_KEY = "enduragent.ui.appearance";
@@ -32,9 +32,9 @@ function write(key: string, value: string): void {
 
 export function readStoredPaletteId(): string {
   const stored = read(PALETTE_STORAGE_KEY);
-  return PALETTES.some((palette) => palette.id === stored) && stored !== null
-    ? stored
-    : DEFAULT_PALETTE_ID;
+  const paletteId = paletteById(stored).id;
+  if (stored !== null && stored !== paletteId) write(PALETTE_STORAGE_KEY, paletteId);
+  return paletteId;
 }
 
 export function writeStoredPaletteId(id: string): void {
