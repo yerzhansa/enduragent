@@ -1123,7 +1123,7 @@
       "noChanges": "Brak zmian w treningach.",
       "none": "Brak",
       "notInPlan": "Poza planem",
-      "openPlan": "Otwórz plan",
+      "openPlan": "Otwórz aktywny plan",
       "option": {
         "ftp": "Skoryguj FTP",
         "hardWeekday": "Bez ciężkiego treningu w wybrany dzień tygodnia",
@@ -1476,6 +1476,10 @@
       "conversation": "Rozmowa z trenerem",
       "disclaimer": "To nie jest porada medyczna ani zastępstwo lekarza lub certyfikowanego trenera.",
       "hideContext": "Ukryj kontekst treningowy",
+      "pendingDraft": "Twój Plan treningowy jest gotowy do przejrzenia.",
+      "reviewChange": "Przejrzyj zmianę",
+      "reviewChoices": "Przejrzyj opcje",
+      "reviewDraft": "Przejrzyj wersję roboczą",
       "showContext": "Pokaż kontekst treningowy",
       "title": "Czat"
     }

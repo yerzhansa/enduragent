@@ -1099,7 +1099,7 @@
       "noChanges": "ワークアウトの変更はありません。",
       "none": "なし",
       "notInPlan": "プランに含まれていません",
-      "openPlan": "プランを開く",
+      "openPlan": "アクティブなプランを開く",
       "option": {
         "ftp": "FTPを修正",
         "hardWeekday": "指定の曜日は高強度トレーニングなし",
@@ -1437,6 +1437,10 @@
       "conversation": "コーチとの会話",
       "disclaimer": "医療上の助言ではなく、医師や資格を持つコーチの代わりにはなりません。",
       "hideContext": "トレーニング情報を非表示",
+      "pendingDraft": "トレーニングプランの確認準備ができました。",
+      "reviewChange": "変更を確認",
+      "reviewChoices": "選択肢を確認",
+      "reviewDraft": "ドラフトを確認",
       "showContext": "トレーニング情報を表示",
       "title": "チャット"
     }

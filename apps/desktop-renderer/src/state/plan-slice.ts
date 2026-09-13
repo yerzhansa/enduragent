@@ -74,6 +74,7 @@ export interface PlanLibraryActions {
   refresh(): Promise<void>;
   startCreation(): void;
   continueCreation(creation: PlanCreationCardModel): void;
+  changeOneThingInChat(): void;
   changeInChat(): void;
 }
 

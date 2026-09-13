@@ -303,6 +303,48 @@ function PlanningRequestRow(props: { readonly delivery: PlanningRequestDelivery 
   );
 }
 
+export function transcriptItemKey(item: ChatTranscriptItemView): string {
+  switch (item.kind) {
+    case "message":
+      return `message:${item.message.id}`;
+    case "choice":
+      return `choice:${item.choice.id}`;
+    case "planning-request":
+      return `planning-request:${item.delivery.requestId}`;
+    case "plan-creation":
+      return `plan-creation:${item.model?.creationId ?? "active"}`;
+    case "plan-creation-discard":
+      return `plan-creation-discard:${item.eventId}`;
+    default: {
+      const exhaustive: never = item;
+      return exhaustive;
+    }
+  }
+}
+
+export function TranscriptItem(props: {
+  readonly item: ChatTranscriptItemView;
+  readonly bufferedStreaming: boolean;
+}): ReactElement | null {
+  const item = props.item;
+  switch (item.kind) {
+    case "message":
+      return <MessageRow message={item.message} bufferedStreaming={props.bufferedStreaming} />;
+    case "choice":
+      return <ChoiceRow choice={item.choice} />;
+    case "planning-request":
+      return <PlanningRequestRow delivery={item.delivery} />;
+    case "plan-creation":
+      return <PlanCreationConversation model={item.model} />;
+    case "plan-creation-discard":
+      return <PlanCreationDiscardConsequence eventId={item.eventId} />;
+    default: {
+      const exhaustive: never = item;
+      return exhaustive;
+    }
+  }
+}
+
 export function ConversationTranscript(props: {
   readonly messages: readonly ChatMessageView[];
   readonly timeline?: readonly ChatTranscriptItemView[];
@@ -330,32 +372,13 @@ export function ConversationTranscript(props: {
       <div className="chat-messages grid gap-7">
         {items.length === 0 ? null : (
           <div className="contents">
-            {items.map((item) =>
-              item.kind === "message" ? (
-                <MessageRow
-                  key={`message:${item.message.id}`}
-                  message={item.message}
-                  bufferedStreaming={props.bufferedStreaming ?? false}
-                />
-              ) : item.kind === "choice" ? (
-                <ChoiceRow key={`choice:${item.choice.id}`} choice={item.choice} />
-              ) : item.kind === "planning-request" ? (
-                <PlanningRequestRow
-                  key={`planning-request:${item.delivery.requestId}`}
-                  delivery={item.delivery}
-                />
-              ) : item.kind === "plan-creation" ? (
-                <PlanCreationConversation
-                  key={`plan-creation:${item.model?.creationId ?? "active"}`}
-                  model={item.model}
-                />
-              ) : (
-                <PlanCreationDiscardConsequence
-                  key={`plan-creation-discard:${item.eventId}`}
-                  eventId={item.eventId}
-                />
-              ),
-            )}
+            {items.map((item) => (
+              <TranscriptItem
+                key={transcriptItemKey(item)}
+                item={item}
+                bufferedStreaming={props.bufferedStreaming ?? false}
+              />
+            ))}
           </div>
         )}
       </div>

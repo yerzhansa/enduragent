@@ -1107,7 +1107,7 @@
       "noChanges": "Inga ändringar av träningspass.",
       "none": "Inget",
       "notInPlan": "Ingår inte i planen",
-      "openPlan": "Öppna Plan",
+      "openPlan": "Öppna aktiv Plan",
       "option": {
         "ftp": "Korrigera FTP",
         "hardWeekday": "Ingen hård träning på en veckodag",
@@ -1450,6 +1450,10 @@
       "conversation": "Tränarsamtal",
       "disclaimer": "Detta är inte medicinsk rådgivning och ersätter inte en läkare eller certifierad tränare.",
       "hideContext": "Dölj träningsunderlag",
+      "pendingDraft": "Din träningsplan är klar att granskas.",
+      "reviewChange": "Granska ändring",
+      "reviewChoices": "Granska val",
+      "reviewDraft": "Granska utkast",
       "showContext": "Visa träningsunderlag",
       "title": "Chatt"
     }

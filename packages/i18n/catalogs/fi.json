@@ -1107,7 +1107,7 @@
       "noChanges": "Ei muutoksia harjoituksiin.",
       "none": "Ei mitään",
       "notInPlan": "Ei suunnitelmassa",
-      "openPlan": "Avaa suunnitelma",
+      "openPlan": "Avaa aktiivinen suunnitelma",
       "option": {
         "ftp": "Korjaa FTP",
         "hardWeekday": "Ei kovaa harjoittelua tiettynä viikonpäivänä",
@@ -1450,6 +1450,10 @@
       "conversation": "Valmennuskeskustelu",
       "disclaimer": "Ei lääketieteellisiä neuvoja eikä korvaa lääkäriä tai pätevää valmentajaa.",
       "hideContext": "Piilota harjoittelun taustatiedot",
+      "pendingDraft": "Harjoitussuunnitelmasi on valmis tarkistettavaksi.",
+      "reviewChange": "Tarkista muutos",
+      "reviewChoices": "Tarkista valinnat",
+      "reviewDraft": "Tarkista luonnos",
       "showContext": "Näytä harjoittelun taustatiedot",
       "title": "Keskustelu"
     }

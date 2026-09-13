@@ -1107,7 +1107,7 @@
       "noChanges": "Ingen ændringer af træninger.",
       "none": "Ingen",
       "notInPlan": "Ikke i træningsplanen",
-      "openPlan": "Åbn Plan",
+      "openPlan": "Åbn aktiv Plan",
       "option": {
         "ftp": "Ret FTP",
         "hardWeekday": "Ingen hård træning på en bestemt ugedag",
@@ -1450,6 +1450,10 @@
       "conversation": "Trænersamtale",
       "disclaimer": "Ikke lægefaglig rådgivning og ikke en erstatning for en læge eller en certificeret træner.",
       "hideContext": "Skjul træningskontekst",
+      "pendingDraft": "Din træningsplan er klar til gennemgang.",
+      "reviewChange": "Gennemgå ændring",
+      "reviewChoices": "Gennemgå valg",
+      "reviewDraft": "Gennemgå udkast",
       "showContext": "Vis træningskontekst",
       "title": "Chat"
     }

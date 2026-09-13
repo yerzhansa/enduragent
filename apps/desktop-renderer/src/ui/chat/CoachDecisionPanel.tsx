@@ -243,6 +243,7 @@ export function CoachDecisionPanel(props: {
 
   if (decision?.status !== "unanswered") return null;
 
+  const pendingNavigationKey = `coach-decision:${decision.decisionId}`;
   const skip = (): void => {
     skipDecision(decision.decisionId);
   };
@@ -278,10 +279,15 @@ export function CoachDecisionPanel(props: {
 
   return (
     <QuestionCard
-      title={decision.question}
+      title={
+        <span data-pending-navigation-heading={pendingNavigationKey} tabIndex={-1}>
+          {decision.question}
+        </span>
+      }
       titleId={questionId}
       eyebrow={say("chat.coachDecision.eyebrow")}
       aria-live="polite"
+      data-pending-navigation-card={pendingNavigationKey}
       onKeyDown={onKeyDown}
       actions={
         <Button
@@ -297,50 +303,52 @@ export function CoachDecisionPanel(props: {
       }
     >
       {customOpen ? (
-        <QuestionEditor>
-          <label
-            className="text-xs font-semibold leading-4 text-ink-2"
-            htmlFor="decision-custom-answer"
-          >
-            {say("chat.coachDecision.customPrompt")}
-          </label>
-          <QuestionInput
-            id="decision-custom-answer"
-            ref={customInput}
-            rows={2}
-            maxLength={2000}
-            value={customText}
-            onChange={(event) => {
-              setCustomText(event.currentTarget.value);
-            }}
-          />
-          <div className="flex justify-end gap-inset pt-[calc(var(--inset)/2)]">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                restoreCustomTriggerFocus.current = true;
-                setCustomOpen(false);
-              }}
+        <div data-pending-navigation-source={pendingNavigationKey}>
+          <QuestionEditor>
+            <label
+              className="text-xs font-semibold leading-4 text-ink-2"
+              htmlFor="decision-custom-answer"
             >
-              {say("common.back")}
-            </Button>
-            <Button
-              type="button"
-              disabled={!/\S/u.test(customText) || !available}
-              onClick={() => {
-                answer(decision.decisionId, {
-                  kind: "custom",
-                  text: customText.trim(),
-                });
+              {say("chat.coachDecision.customPrompt")}
+            </label>
+            <QuestionInput
+              id="decision-custom-answer"
+              ref={customInput}
+              rows={2}
+              maxLength={2000}
+              value={customText}
+              onChange={(event) => {
+                setCustomText(event.currentTarget.value);
               }}
-            >
-              {say("common.continue")}
-            </Button>
-          </div>
-        </QuestionEditor>
+            />
+            <div className="flex justify-end gap-inset pt-[calc(var(--inset)/2)]">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  restoreCustomTriggerFocus.current = true;
+                  setCustomOpen(false);
+                }}
+              >
+                {say("common.back")}
+              </Button>
+              <Button
+                type="button"
+                disabled={!/\S/u.test(customText) || !available}
+                onClick={() => {
+                  answer(decision.decisionId, {
+                    kind: "custom",
+                    text: customText.trim(),
+                  });
+                }}
+              >
+                {say("common.continue")}
+              </Button>
+            </div>
+          </QuestionEditor>
+        </div>
       ) : (
-        <QuestionOptions>
+        <QuestionOptions data-pending-navigation-source={pendingNavigationKey}>
           {displayedOptions.map((option, index) => (
             <QuestionOption
               key={option.id}

@@ -286,6 +286,32 @@ export function bootRenderer(): Disposer {
       store.getState().setActiveView("chat");
       requestAnimationFrame(focusComposer);
     },
+    changeOneThingInChat: () => {
+      const state = store.getState();
+      const library = state.planLibrary.value;
+      const planId = library?.active?.planId ?? null;
+      const pendingCheck =
+        state.planChange.pendingCheck === undefined
+          ? library?.pendingChangeCheck
+          : state.planChange.pendingCheck;
+      if (
+        planId === null ||
+        state.planChange.busy ||
+        library?.changesPaused != null ||
+        pendingCheck != null
+      )
+        return;
+      chatController.requestPlanLibraryFocus("change");
+      chatController.pausePlanCreation();
+      state.setPlanChange({
+        ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
+        open: true,
+        textRouting: true,
+        planId,
+      });
+      store.getState().setActiveView("chat");
+      chatController.openPlanChangeEditor();
+    },
   });
   const disposePlanLibraryRefresh = subscribePlanLibraryRefresh(planController);
   let pendingChangePauseRequested = false;

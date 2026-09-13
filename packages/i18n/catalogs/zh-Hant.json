@@ -1099,7 +1099,7 @@
       "noChanges": "訓練課表未變更。",
       "none": "無",
       "notInPlan": "不在計畫中",
-      "openPlan": "開啟計畫",
+      "openPlan": "開啟目前計畫",
       "option": {
         "ftp": "修正 FTP",
         "hardWeekday": "每週某天不安排高強度訓練",
@@ -1437,6 +1437,10 @@
       "conversation": "教練對話",
       "disclaimer": "此內容不是醫療建議，也不能取代醫師或認證教練的指導。",
       "hideContext": "隱藏訓練背景",
+      "pendingDraft": "你的訓練計畫已可供審核。",
+      "reviewChange": "審核變更",
+      "reviewChoices": "審核選項",
+      "reviewDraft": "審核草稿",
       "showContext": "顯示訓練背景",
       "title": "聊天"
     }

@@ -43,38 +43,6 @@ const statusLabels = {
   stale: "chat.planChange.status.stale",
 } satisfies Record<PlanChangeModel["status"], CatalogKey>;
 
-function calendarStatusLabel(
-  calendar: NonNullable<ListPlansResult["active"]>["calendar"],
-  { say }: Phrasebook,
-  formatCivilDate: (value: string) => string,
-): string {
-  switch (calendar.status) {
-    case "verified":
-      return calendar.window === null
-        ? say("chat.planChange.calendar.current")
-        : say("chat.planChange.calendar.window", {
-            start: formatCivilDate(calendar.window.start),
-            end: formatCivilDate(calendar.window.end),
-          });
-    case "pending":
-      return say(
-        calendar.window === null
-          ? "chat.planChange.calendar.local"
-          : "chat.planChange.calendar.updating",
-      );
-    case "running":
-      return say("chat.planChange.calendar.updating");
-    case "not-connected":
-      return say("chat.planChange.calendar.connect");
-    case "failed":
-      return say(
-        calendar.error.endsWith("Retry available.")
-          ? "chat.planChange.calendar.failedRetry"
-          : "chat.planChange.calendar.failed",
-      );
-  }
-}
-
 function sayFeedback(value: string, say: Phrasebook["say"]): string {
   const message = chatFeedbackMessage(value);
   return message === null ? value : say(message);
@@ -86,6 +54,7 @@ function ChangeCard(props: {
   status?: string;
   summary?: string;
   headingRef?: Ref<HTMLHeadingElement>;
+  pendingNavigationKey?: string;
   children: ReactNode;
 }): ReactElement {
   return (
@@ -385,7 +354,8 @@ function ChangeEditor(): ReactElement {
   const actions = useEnduragentStore((store) => store.chatActions);
   const firstControl = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    firstControl.current?.focus();
+    firstControl.current?.scrollIntoView?.({ block: "center" });
+    firstControl.current?.focus({ preventScroll: true });
   }, []);
   const weekday =
     kind === "weekday-duration" || kind === "weekday-unavailable" || kind === "hard-weekday";
@@ -667,38 +637,84 @@ export function PlanChangeCheckDock(props: {
   );
 }
 
-export function PlanChangeCards(): ReactElement | null {
+export function PlanChangeNotice(): ReactElement | null {
+  const { say, format } = usePhrasebook();
+  const library = useEnduragentStore((store) => store.planLibrary.value);
+  const state = useEnduragentStore((store) => store.planChange);
+  if (library?.active == null) return null;
+  const paused = library.changesPaused != null;
+  const notice = paused
+    ? say("chat.planChange.paused", { hours: format.number(24, { useGrouping: false }) })
+    : state.notice;
+  if (notice === null) return null;
+  return (
+    <div
+      id="plan-changes-notice"
+      role="status"
+      tabIndex={-1}
+      className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink"
+    >
+      <p className="m-0 text-xs leading-4 text-ink-2">{sayFeedback(notice, say)}</p>
+    </div>
+  );
+}
+
+export function PlanChangeCards(
+  props: {
+    readonly changeId?: string | null;
+    readonly labelled?: boolean;
+  } = {},
+): ReactElement | null {
   const phrasebook = usePhrasebook();
   const { say, format } = phrasebook;
   const formatCivilDate = useChatDate();
   const library = useEnduragentStore((store) => store.planLibrary.value);
   const state = useEnduragentStore((store) => store.planChange);
   const actions = useEnduragentStore((store) => store.chatActions);
-  const setActiveView = useEnduragentStore((store) => store.setActiveView);
   const activeView = useEnduragentStore((store) => store.activeView);
   const [source, setSource] = useState<{ change: PlanChangeModel; difference: boolean } | null>(
     null,
   );
   const sourceHeading = useRef<HTMLHeadingElement>(null);
   const sourceOpener = useRef<HTMLButtonElement | null>(null);
-  const changeButton = useRef<HTMLButtonElement>(null);
-  const pauseNotice = useRef<HTMLDivElement>(null);
   const previewHeading = useRef<HTMLHeadingElement>(null);
-  const pending = library?.changes.find((change) => change.status === "pending");
+  const includeCurrent = props.changeId === undefined || props.changeId === null;
+  const changes =
+    props.changeId === undefined
+      ? (library?.changes ?? [])
+      : props.changeId === null
+        ? []
+        : (library?.changes.filter((change) => change.changeId === props.changeId) ?? []);
+  const pending = changes.find((change) => change.status === "pending");
+  const hasLibraryPendingChange = library?.changes.some((change) => change.status === "pending");
+  const pendingChangeId = pending?.changeId;
+  const focusTarget = state.focusRequest?.target;
+  const focusRevision = state.focusRequest?.revision;
   const paused = library?.changesPaused != null;
   const checkPending =
     (state.pendingCheck === undefined ? library?.pendingChangeCheck : state.pendingCheck) != null;
   useEffect(() => {
     if (activeView !== "chat" || state.busy) return;
-    if (state.focusRequest?.target === "preview" && pending) previewHeading.current?.focus();
-    if (state.focusRequest?.target === "change") {
-      if (!state.open && !pending) {
-        const composer = document.querySelector("#message");
-        if (composer instanceof HTMLTextAreaElement) composer.focus();
-      } else if (paused) pauseNotice.current?.focus();
-      else changeButton.current?.focus();
+    if (focusTarget === "preview" && pendingChangeId !== undefined)
+      previewHeading.current?.focus();
+    if (focusTarget === "change") {
+      if (pendingChangeId !== undefined) previewHeading.current?.focus();
+      else if (includeCurrent) {
+        if (paused) document.getElementById("plan-changes-notice")?.focus();
+        else if (!state.editorOpen && !checkPending) document.getElementById("message")?.focus();
+      }
     }
-  }, [state.focusRequest, state.busy, state.open, pending?.changeId, activeView, paused]);
+  }, [
+    focusTarget,
+    focusRevision,
+    state.busy,
+    state.editorOpen,
+    pendingChangeId,
+    activeView,
+    paused,
+    checkPending,
+    includeCurrent,
+  ]);
   useEffect(() => {
     if (source) sourceHeading.current?.focus();
   }, [source]);
@@ -706,10 +722,17 @@ export function PlanChangeCards(): ReactElement | null {
   useEffect(() => {
     setSource(null);
   }, [activePlanId]);
+  const hasCards =
+    (includeCurrent &&
+      (state.editorOpen ||
+        (!state.editorOpen && state.error !== null) ||
+        library?.active?.todayChoice != null)) ||
+    changes.length > 0;
   if (
     !library?.active ||
+    !hasCards ||
     (library.creation !== null &&
-      !pending &&
+      !hasLibraryPendingChange &&
       !(state.open && state.planId === library.active.planId))
   )
     return null;
@@ -721,62 +744,21 @@ export function PlanChangeCards(): ReactElement | null {
     sourceOpener.current = button;
     setSource({ change, difference });
   };
-  const notice = paused
-    ? say("chat.planChange.paused", { hours: format.number(24, { useGrouping: false }) })
-    : (state.notice ?? (pending ? say("chat.planChange.reviewNotice") : null));
   const pausedReason = paused ? "plan-changes-notice" : undefined;
+  const pendingNavigationKey =
+    pending === undefined ? undefined : `plan-change:${pending.changeId}`;
   return (
-    <section aria-label={say("chat.planChange.section")} className="grid min-w-0 gap-4">
-      {notice ? (
-        <div
-          ref={pauseNotice}
-          id="plan-changes-notice"
-          role="status"
-          tabIndex={-1}
-          className="m-0 rounded-ctl bg-surface-2 p-row text-sm text-ink"
-        >
-          <p className="m-0 text-xs leading-4 text-ink-2">{sayFeedback(notice, say)}</p>
-        </div>
-      ) : null}
-      {!state.editorOpen && state.error ? (
+    <section
+      aria-label={props.labelled === false ? undefined : say("chat.planChange.section")}
+      className="grid min-w-0 gap-4"
+    >
+      {includeCurrent && !state.editorOpen && state.error ? (
         <p role="alert" className="m-0 text-xs text-danger">
           {sayFeedback(state.error, say)}
         </p>
       ) : null}
-      <ChangeCard
-        eyebrow={say("chat.planChange.activePlan")}
-        title={library.active.name}
-        summary={
-          library.creation
-            ? say("chat.planChange.separateCreation")
-            : say("chat.planChange.futureChanges")
-        }
-      >
-        <p aria-live="polite" className="m-0 mb-inset text-sm leading-5 text-ink-2">
-          {calendarStatusLabel(library.active.calendar, phrasebook, formatCivilDate)}
-        </p>
-        <div className="flex flex-wrap gap-inset">
-          <Button
-            ref={changeButton}
-            variant="outline"
-            className="border-line bg-surface"
-            disabled={paused || state.busy || checkPending || actions === null}
-            aria-describedby={pausedReason}
-            onClick={() => actions?.openPlanChangeEditor()}
-          >
-            {say("chat.planChange.changeOne")}
-          </Button>
-          <Button
-            variant="outline"
-            className="border-line bg-surface"
-            onClick={() => setActiveView("plan")}
-          >
-            {say("chat.planChange.openPlan")}
-          </Button>
-        </div>
-      </ChangeCard>
-      {state.editorOpen && !paused ? <ChangeEditor /> : null}
-      {library.active.todayChoice ? (
+      {includeCurrent && state.editorOpen && !paused ? <ChangeEditor /> : null}
+      {includeCurrent && library.active.todayChoice ? (
         <ChangeCard
           eyebrow={say("chat.planChange.today")}
           title={say("chat.planChange.chooseWorkout")}
@@ -830,6 +812,7 @@ export function PlanChangeCards(): ReactElement | null {
           title={pending.title}
           status={say("chat.planChange.status.pending")}
           headingRef={previewHeading}
+          pendingNavigationKey={pendingNavigationKey}
           summary={
             pending.intent.kind === "inverse"
               ? say("chat.planChange.restoreSummary")
@@ -867,7 +850,10 @@ export function PlanChangeCards(): ReactElement | null {
               {say("chat.planChange.viewEvidence")}
             </Button>
           </div>
-          <div className="mt-row flex flex-wrap gap-inset">
+          <div
+            className="mt-row flex flex-wrap gap-inset"
+            data-pending-navigation-source={pendingNavigationKey}
+          >
             <Button
               variant="outline"
               className="border-line bg-surface"
@@ -886,7 +872,7 @@ export function PlanChangeCards(): ReactElement | null {
           </div>
         </ChangeCard>
       ) : null}
-      {library.changes
+      {changes
         .filter((change) => change.status !== "pending")
         .map((change) => (
           <ChangeCard

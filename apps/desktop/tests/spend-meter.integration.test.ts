@@ -554,7 +554,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       return {
         amount: spending.querySelector("strong").textContent,
         status: spending.dataset.capStatus,
-        warningHidden: document.querySelector("#spend-cap-warning").hidden,
+        warningHidden: document.querySelector("#spend-cap-warning")?.hidden ?? true,
         disclosure: spending.textContent,
       };
     `);
@@ -595,7 +595,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       return {
         amount: current.querySelector("strong").textContent,
         status: current.dataset.capStatus,
-        warningHidden: document.querySelector("#spend-cap-warning").hidden,
+        warningHidden: document.querySelector("#spend-cap-warning")?.hidden ?? true,
         disclosure: current.textContent,
           inputValue: current.querySelector("#daily-spend-cap").value,
           saveButtonMissing: !Array.from(current.querySelectorAll("button")).some(

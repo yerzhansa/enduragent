@@ -1107,7 +1107,7 @@
       "noChanges": "Geen wijzigingen aan trainingen.",
       "none": "Geen",
       "notInPlan": "Niet in het trainingsschema",
-      "openPlan": "Plan openen",
+      "openPlan": "Actief Plan openen",
       "option": {
         "ftp": "FTP corrigeren",
         "hardWeekday": "Geen zware training op een bepaalde dag van de week",
@@ -1450,6 +1450,10 @@
       "conversation": "Coachingsgesprek",
       "disclaimer": "Geen medisch advies en geen vervanging voor een arts of een gecertificeerde coach.",
       "hideContext": "Trainingscontext verbergen",
+      "pendingDraft": "Je trainingsplan is klaar om te beoordelen.",
+      "reviewChange": "Wijziging bekijken",
+      "reviewChoices": "Keuzes bekijken",
+      "reviewDraft": "Concept bekijken",
       "showContext": "Trainingscontext tonen",
       "title": "Chat"
     }

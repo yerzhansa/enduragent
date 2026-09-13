@@ -1107,7 +1107,7 @@
       "noChanges": "Keine Änderungen an Trainings.",
       "none": "Keine",
       "notInPlan": "Nicht im Plan",
-      "openPlan": "Plan öffnen",
+      "openPlan": "Aktiven Plan öffnen",
       "option": {
         "ftp": "FTP korrigieren",
         "hardWeekday": "Kein hartes Training an einem Wochentag",
@@ -1450,6 +1450,10 @@
       "conversation": "Coaching-Gespräch",
       "disclaimer": "Keine medizinische Beratung und kein Ersatz für einen Arzt oder einen zertifizierten Coach.",
       "hideContext": "Trainingskontext ausblenden",
+      "pendingDraft": "Dein Trainingsplan kann jetzt geprüft werden.",
+      "reviewChange": "Änderung prüfen",
+      "reviewChoices": "Auswahl prüfen",
+      "reviewDraft": "Entwurf prüfen",
       "showContext": "Trainingskontext anzeigen",
       "title": "Chat"
     }

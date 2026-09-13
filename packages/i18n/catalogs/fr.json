@@ -1107,7 +1107,7 @@
       "noChanges": "Aucune modification d’entraînement.",
       "none": "Aucun",
       "notInPlan": "Absent du plan",
-      "openPlan": "Ouvrir le plan",
+      "openPlan": "Ouvrir le plan actif",
       "option": {
         "ftp": "Corriger la FTP",
         "hardWeekday": "Pas d’entraînement intense un jour de la semaine",
@@ -1450,6 +1450,10 @@
       "conversation": "Conversation avec le coach",
       "disclaimer": "Ces informations ne sont pas un avis médical et ne remplacent pas un médecin ou un coach certifié.",
       "hideContext": "Masquer le contexte d’entraînement",
+      "pendingDraft": "Votre Plan d’entraînement est prêt à être examiné.",
+      "reviewChange": "Examiner la modification",
+      "reviewChoices": "Examiner les choix",
+      "reviewDraft": "Examiner le brouillon",
       "showContext": "Afficher le contexte d’entraînement",
       "title": "Conversation"
     }

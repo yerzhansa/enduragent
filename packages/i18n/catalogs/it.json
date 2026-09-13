@@ -1107,7 +1107,7 @@
       "noChanges": "Nessuna modifica agli allenamenti.",
       "none": "Nessuno",
       "notInPlan": "Non nel piano",
-      "openPlan": "Apri piano",
+      "openPlan": "Apri il piano attivo",
       "option": {
         "ftp": "Correggi FTP",
         "hardWeekday": "Nessun allenamento intenso in un giorno della settimana",
@@ -1450,6 +1450,10 @@
       "conversation": "Conversazione con il coach",
       "disclaimer": "Non è un consiglio medico e non sostituisce un medico o un coach certificato.",
       "hideContext": "Nascondi contesto di allenamento",
+      "pendingDraft": "Il tuo Piano di allenamento è pronto per la revisione.",
+      "reviewChange": "Rivedi modifica",
+      "reviewChoices": "Rivedi opzioni",
+      "reviewDraft": "Rivedi bozza",
       "showContext": "Mostra contesto di allenamento",
       "title": "Chat"
     }

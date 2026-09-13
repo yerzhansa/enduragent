@@ -196,7 +196,7 @@ async function close(scenario: Scenario): Promise<void> {
 }
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function pendingCard(scenario: Scenario) {
@@ -221,13 +221,12 @@ async function refreshLibrary(scenario: Scenario) {
 
 async function assertPaused(scenario: Scenario) {
   const section = changes(scenario);
-  const notice = section.getByRole("status");
+  const notice = scenario.page.locator("#plan-changes-notice");
   await expect(notice).toHaveText(pausedNotice);
-  await expect(section.locator(":scope > :first-child")).toHaveAttribute("role", "status");
+  await expect(scenario.page.locator(".chat-pinned-row")).toContainText(pausedNotice);
   const noticeId = await notice.getAttribute("id");
   if (!noticeId) throw new TypeError("Pause notice has no accessible reference");
   for (const button of [
-    section.getByRole("button", { name: "Change one thing", exact: true }),
     section.getByRole("button", { name: "Undo", exact: true }),
     pendingCard(scenario).getByRole("button", { name: "Apply to Plan", exact: true }),
   ]) {
@@ -257,7 +256,7 @@ for (const appearance of [
     try {
       const stored = await scenario.backend.inspectActivation();
       await assertPaused(scenario);
-      await changes(scenario).getByRole("status").scrollIntoViewIfNeeded();
+      await scenario.page.locator("#plan-changes-notice").scrollIntoViewIfNeeded();
       await capture(scenario, "paused-launch");
       await pendingCard(scenario)
         .getByRole("button", { name: "Apply to Plan", exact: true })
@@ -270,10 +269,7 @@ for (const appearance of [
 
       await scenario.backend.recordSuccessfulSync(staleAtMs);
       await refreshLibrary(scenario);
-      await expect(changes(scenario).getByRole("status")).toHaveText(resumedNotice);
-      await expect(
-        changes(scenario).getByRole("button", { name: "Change one thing", exact: true }),
-      ).toBeEnabled();
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(resumedNotice);
       await expect(
         pendingCard(scenario).getByRole("button", { name: "Apply to Plan", exact: true }),
       ).toBeEnabled();
@@ -283,17 +279,19 @@ for (const appearance of [
       expect((await scenario.backend.library()).changesPaused).toBeNull();
       expect((await scenario.backend.library()).changes).toContainEqual(scenario.pending);
       await capture(scenario, "sources-available-actions");
-      await changes(scenario).getByRole("status").scrollIntoViewIfNeeded();
+      await scenario.page.locator("#plan-changes-notice").scrollIntoViewIfNeeded();
       await capture(scenario, "sources-available");
 
-      await changes(scenario)
+      await navigate(scenario, "Plan");
+      await scenario.page
+        .getByRole("region", { name: "Plan library", exact: true })
         .getByRole("button", { name: "Change one thing", exact: true })
         .click();
       await changes(scenario).getByRole("button", { name: "Preview change", exact: true }).click();
       await expect(pendingCard(scenario).getByRole("heading")).toBeFocused();
-      await expect(changes(scenario).getByRole("status")).not.toHaveText(resumedNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).not.toHaveText(resumedNotice);
       await refreshLibrary(scenario);
-      await expect(changes(scenario).getByRole("status")).not.toHaveText(resumedNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).not.toHaveText(resumedNotice);
       const pending = (await scenario.backend.library()).changes.find(
         (change) => change.status === "pending",
       );
@@ -304,7 +302,7 @@ for (const appearance of [
       await pendingCard(scenario)
         .getByRole("button", { name: "Apply to Plan", exact: true })
         .click();
-      await expect(changes(scenario).getByRole("status")).toHaveText(pausedNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(pausedNotice);
       await expect(changes(scenario).getByRole("alert")).toHaveCount(0);
       await expect.poll(() => scenario.backend.planListRequests.length).toBeGreaterThan(reads);
       expect(scenario.backend.changeApplyResponses.at(-1)?.result).toEqual({
@@ -324,7 +322,7 @@ for (const appearance of [
       const afterCancel = await scenario.backend.inspectActivation();
       expect(afterCancel.revisions).toEqual(beforeRefusal.revisions);
       expect(afterCancel.workouts).toEqual(beforeRefusal.workouts);
-      await expect(changes(scenario).getByRole("status")).toHaveText(pausedNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(pausedNotice);
       await capture(scenario, "cancelled-while-paused");
 
       await scenario.backend.recordSuccessfulSync();
@@ -335,7 +333,7 @@ for (const appearance of [
       const beforeUndoReads = scenario.backend.planListRequests.length;
       scenario.backend.setSyncClock(staleAtMs + 50 * 60 * 60 * 1_000);
       await undo.click();
-      await expect(changes(scenario).getByRole("status")).toHaveText(pausedNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(pausedNotice);
       await expect(changes(scenario).getByRole("alert")).toHaveCount(0);
       await expect(undo).toBeDisabled();
       await expect(undo).toHaveAccessibleDescription(pausedNotice);

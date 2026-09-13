@@ -73,34 +73,36 @@
     {
       "id": "training.first-sync.provider-backfill",
       "surface": "first-sync",
-      "expected": "Completing provider-backed setup starts one shared training-history sync, shows the first-sync progress card only while it is active, refreshes training context before publishing success, and then focuses Chat once.",
+      "expected": "Completing provider-backed setup starts one shared training-history sync, exposes progress through the sidebar sync status while keeping synchronization status out of Chat, refreshes training context before publishing success, and then focuses Chat once.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/first-sync.test.ts > strictly validates completion and joins one synchronous coordinator flight",
         "apps/desktop-renderer/tests/training-sync.test.ts > queues synchronously, validates the exact progress sequence, and announces only after refresh",
-        "apps/desktop-renderer/tests/chat-surface.test.tsx > first sync card > shows nothing until the first sync is under way"
+        "apps/desktop-renderer/tests/sidebar-surface.test.tsx > sidebar sync chip > walks the loading, synced, syncing and attention states",
+        "apps/desktop-renderer/tests/chat-surface.test.tsx > first sync status > does not add synchronization status to the conversation"
       ]
     },
     {
       "id": "training.first-sync.file-only",
       "surface": "first-sync",
-      "expected": "Completing setup from durable local ride files skips provider sync, clears any stale first-sync failure, keeps the card hidden, and focuses the composer once.",
+      "expected": "Completing setup from durable local ride files skips provider sync, clears any stale first-sync failure, keeps synchronization status out of Chat, and focuses the composer once.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/first-sync.test.ts > skips provider sync for file-only completion and leaves retry inert",
         "apps/desktop-renderer/tests/first-sync.test.ts > clears a stale first-sync failure when file-only setup completes",
-        "apps/desktop-renderer/tests/chat-surface.test.tsx > first sync card > shows nothing until the first sync is under way"
+        "apps/desktop-renderer/tests/chat-surface.test.tsx > first sync status > does not add synchronization status to the conversation"
       ]
     },
     {
       "id": "training.first-sync.failure-recovery",
       "surface": "first-sync",
-      "expected": "Retryable first-sync failures preserve saved progress and offer Retry sync; an interrupted connection remains retryable, while an unverifiable protocol result requires relaunch and offers no retry.",
+      "expected": "Retryable first-sync failures preserve saved progress and remain retryable through the shared sidebar sync control; an interrupted connection remains retryable, while an unverifiable protocol result requires relaunch and disables the control.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/first-sync.test.ts > preserves first-sync mapping for %o",
         "apps/desktop-renderer/tests/first-sync.test.ts > retries only a retryable shared outcome and focuses the composer once",
-        "apps/desktop-renderer/tests/chat-surface.test.tsx > first sync card > retries a recoverable sync failure and refuses one that needs a relaunch"
+        "apps/desktop-renderer/tests/sidebar-surface.test.tsx > sidebar sync chip > walks the loading, synced, syncing and attention states",
+        "apps/desktop/tests/e2e/application-ui-states.spec.ts > production application UI states > desktop--chat-sync-failed"
       ]
     },
     {

@@ -1099,7 +1099,7 @@
       "noChanges": "训练课程未更改。",
       "none": "无",
       "notInPlan": "不在计划中",
-      "openPlan": "打开计划",
+      "openPlan": "打开当前计划",
       "option": {
         "ftp": "修正 FTP",
         "hardWeekday": "每周某天不安排高强度训练",
@@ -1437,6 +1437,10 @@
       "conversation": "教练对话",
       "disclaimer": "此内容不是医疗建议，也不能替代医生或认证教练的指导。",
       "hideContext": "隐藏训练背景",
+      "pendingDraft": "你的训练计划已可供审核。",
+      "reviewChange": "审核更改",
+      "reviewChoices": "审核选项",
+      "reviewDraft": "审核草稿",
       "showContext": "显示训练背景",
       "title": "聊天"
     }

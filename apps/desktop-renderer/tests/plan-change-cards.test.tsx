@@ -19,7 +19,7 @@ import {
 import { useEnduragentStore } from "../src/state/store";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { ChatView } from "../src/ui/chat/ChatView";
-import { PlanChangeCards } from "../src/ui/chat/PlanChangeCards";
+import { PlanChangeCards, PlanChangeNotice } from "../src/ui/chat/PlanChangeCards";
 
 function stubActions(): ChatActions {
   return {
@@ -232,7 +232,7 @@ describe("Plan Change cards", () => {
     expect(screen.getByText("In attesa")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Applica al piano" })).toBeInTheDocument();
     expect(screen.getByText("Da 1234 a 1204 minuti")).toBeInTheDocument();
-    expect(screen.getByText("Solo locale")).toBeInTheDocument();
+    expect(screen.queryByText("Solo locale")).toBeNull();
   });
 
   it("reads the persisted typed request from pending Change evidence after remount", async () => {
@@ -251,7 +251,12 @@ describe("Plan Change cards", () => {
     ]);
     const view = render(<PlanChangeCards />);
     view.unmount();
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "View evidence" }));
 
@@ -291,7 +296,12 @@ describe("Plan Change cards", () => {
       ],
       reason: null,
     });
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     const card = screen.getByRole("region", { name: "Choose one eligible Workout" });
     expect(within(card).getByText("Today")).toBeVisible();
     expect(within(card).getByText("Easy ride · 30 min")).toBeVisible();
@@ -386,7 +396,12 @@ describe("Plan Change cards", () => {
     );
     expect(useEnduragentStore.getState().planChange.notice).toBeNull();
     patchChange({ open: true, planId: active.planId });
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
     act(() => useEnduragentStore.getState().setPlanLibrary({ status: "ready", value }));
     expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
@@ -406,7 +421,12 @@ describe("Plan Change cards", () => {
         { status: "rejected", reason: "sync-stale" },
         refresh,
       );
-      render(<PlanChangeCards />);
+      render(
+        <>
+          <PlanChangeNotice />
+          <PlanChangeCards />
+        </>,
+      );
       await act(async () => {
         if (action === "preview") await controller.previewPlanChange(change().intent);
         else await controller.applyPlanChange("apply");
@@ -452,8 +472,12 @@ describe("Plan Change cards", () => {
       "plan_change.apply",
       expect.objectContaining({ decision: "cancel" }),
     );
-    const section = screen.getByRole("region", { name: "Plan Changes" });
-    const notice = within(section).getByRole("status");
+    const section = document.querySelector<HTMLElement>(
+      '[data-conversation-projection^="plan-change:"]',
+    );
+    if (section === null) throw new TypeError("Plan Change projection is missing");
+    const notice = document.getElementById("plan-changes-notice");
+    if (notice === null) throw new TypeError("Plan Change notice is missing");
     await waitFor(() => expect(notice).toHaveFocus());
     expect(notice).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
     expect(useEnduragentStore.getState().planChange).toMatchObject({
@@ -461,7 +485,7 @@ describe("Plan Change cards", () => {
       textRouting: false,
     });
     expect(within(section).getByText("Cancelled", { exact: true })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Open Active Plan" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
     controller.dispose();
   });
@@ -477,7 +501,12 @@ describe("Plan Change cards", () => {
       }),
     ]);
     patchChange({ editorOpen: true, error: "Earlier validation error" });
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     const value = useEnduragentStore.getState().planLibrary.value;
     if (!value) throw new Error("Missing library");
     act(() =>
@@ -490,11 +519,9 @@ describe("Plan Change cards", () => {
         },
       }),
     );
-    const section = screen.getByRole("region", { name: "Plan Changes" });
-    const notice = within(section).getByRole("status");
+    const notice = screen.getByRole("status");
     expect(notice).toHaveTextContent(PLAN_CHANGES_PAUSED_NOTICE);
-    expect(section.firstElementChild).toBe(notice);
-    for (const name of ["Change one thing", "Undo", "Apply to Plan"]) {
+    for (const name of ["Undo", "Apply to Plan"]) {
       const button = screen.getByRole("button", { name });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute("aria-describedby", notice.id);
@@ -509,7 +536,12 @@ describe("Plan Change cards", () => {
 
   it("announces a fresh sync once and lets the next preview replace the notice", () => {
     setChanges([change()]);
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     const value = useEnduragentStore.getState().planLibrary.value;
     if (!value) throw new Error("Missing library");
     const refresh = (changesPaused: ListPlansResult["changesPaused"]) =>
@@ -521,7 +553,7 @@ describe("Plan Change cards", () => {
     refresh({ reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 });
     refresh(null);
     expect(screen.getByRole("status")).toHaveTextContent(PLAN_CHANGES_RESUMED_NOTICE);
-    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Change one thing" })).toBeNull();
     expect(screen.getByRole("button", { name: "Apply to Plan" })).not.toHaveAttribute(
       "aria-describedby",
     );
@@ -585,55 +617,158 @@ describe("Plan Change cards", () => {
           closed: [],
           pendingChangeCheck: null,
           changesPaused: null,
-          changes: [change()],
+          changes: [
+            change({ changeId: "change-history", title: "Earlier Change", status: "applied" }),
+            change(),
+          ],
         },
       },
     });
     patchChange({ open: false, planId: null });
     render(<ChatView />);
-    expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
+    expect(document.querySelector('[data-conversation-projection^="plan-change:"]')).toBeVisible();
     expect(document.querySelector(".thread")).toHaveClass("grid", "gap-7");
     expect(document.querySelector(".composer-wrap")).not.toHaveClass("pt-7");
     expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
     expect(screen.getByText("Paused", { exact: true })).toBeVisible();
-    expect(screen.getByText("Your separate Plan creation is still open.")).toBeVisible();
-    expect(screen.getByText("Training changes need your confirmation.")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Limit Wednesday training" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Earlier Change" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Open Active Plan" })).toBeVisible();
     const composer = screen.getByRole("combobox", { name: "Message your coach" });
     expect(composer).toBeEnabled();
     await userEvent.type(composer, "How should I pace tomorrow?");
     expect(composer).toHaveValue("How should I pace tomorrow?");
   });
 
-  it("renders the Active Plan actions without a creation, pending Change, or open Change surface", async () => {
-    patchChange({ open: false, planId: null });
-    render(<PlanChangeCards />);
+  it("does not replay a fulfilled Change focus request on library refresh", async () => {
+    useEnduragentStore.setState({
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+    });
+    patchChange({ focusRequest: { target: "change", revision: 1 } });
+    render(<ChatView />);
+    const composer = screen.getByRole("combobox", { name: "Message your coach" });
+    await waitFor(() => expect(composer).toHaveFocus());
+    const openPlan = screen.getByRole("button", { name: "Open Active Plan" });
+    openPlan.focus();
+    expect(openPlan).toHaveFocus();
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (value === null) throw new TypeError("Plan library missing");
 
-    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
+    act(() => {
+      useEnduragentStore
+        .getState()
+        .setPlanLibrary({ status: "ready", value: { ...value, changes: [...value.changes] } });
+    });
+    await act(async () => Promise.resolve());
+
+    expect(openPlan).toHaveFocus();
+  });
+
+  it("renders the Active Plan header action without a standalone Chat card", async () => {
+    patchChange({ open: false, planId: null });
+    useEnduragentStore.setState({ runtimeReady: true, onboarding: READY_ONBOARDING });
+    render(<ChatView />);
+
+    expect(screen.queryByRole("heading", { name: active.name })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Change one thing" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Change one thing" }));
-    expect(useEnduragentStore.getState().chatActions?.openPlanChangeEditor).toHaveBeenCalledOnce();
-    await userEvent.click(screen.getByRole("button", { name: "Open Plan" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open Active Plan" }));
     expect(useEnduragentStore.getState().activeView).toBe("plan");
   });
 
-  it("shows the active Plan before entry and restores a pending preview without entry", () => {
+  it("restores a pending preview without rendering an Active Plan card", () => {
     patchChange({ open: false, planId: null });
-    const view = render(<PlanChangeCards />);
-    expect(screen.getByRole("region", { name: "Plan Changes" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Open Plan" })).toBeEnabled();
+    useEnduragentStore.setState({ runtimeReady: true, onboarding: READY_ONBOARDING });
+    const view = render(<ChatView />);
+    expect(document.querySelector('[data-conversation-projection^="plan-change:"]')).toBeNull();
+    expect(screen.queryByRole("heading", { name: active.name })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open Active Plan" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Apply to Plan" })).toBeNull();
     setChanges([change()]);
-    expect(screen.getByRole("heading", { name: active.name })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Limit Wednesday training" })).toBeVisible();
-    expect(screen.getByText("Changes affect future, uncompleted training.")).toBeVisible();
     view.unmount();
-    render(<PlanChangeCards />);
+    render(<ChatView />);
     expect(screen.getByText("Pending", { exact: true })).toBeVisible();
   });
 
-  it("orders notice, active Plan, editor, pending preview, then oldest to newest history", () => {
+  it("keeps each persisted Change at the conversation edge where it first appeared", () => {
+    const before = {
+      id: "message-before",
+      role: "athlete" as const,
+      delivery: "complete" as const,
+      historical: false,
+      text: "Change my Wednesday limit",
+    };
+    const after = {
+      id: "message-after",
+      role: "athlete" as const,
+      delivery: "complete" as const,
+      historical: false,
+      text: "How should I pace tomorrow?",
+    };
+    setChanges([change({ changeId: "change-old", title: "Earlier Change", status: "applied" })]);
+    useEnduragentStore.setState({
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+      chat: {
+        ...EMPTY_CHAT_SURFACE,
+        hydrationStatus: "ready",
+        messages: [before],
+        timeline: [{ kind: "message", message: before }],
+      },
+    });
+    render(<ChatView />);
+
+    act(() =>
+      useEnduragentStore.setState((state) => ({
+        chat: {
+          ...state.chat,
+          messages: [before, after],
+          timeline: [
+            { kind: "message", message: before },
+            { kind: "message", message: after },
+          ],
+        },
+      })),
+    );
+    setChanges([
+      change({ changeId: "change-old", title: "Earlier Change", status: "applied" }),
+      change({ changeId: "change-new", title: "Later Change", status: "cancelled" }),
+    ]);
+
+    const earlier = screen.getByRole("heading", { name: "Earlier Change" });
+    const laterMessage = document.querySelector('[data-message-id="message-after"]');
+    const later = screen.getByRole("heading", { name: "Later Change" });
+    expect(laterMessage).not.toBeNull();
+    expect(
+      earlier.compareDocumentPosition(laterMessage!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      laterMessage!.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("restores a pending Change after older Change history", () => {
+    setChanges([
+      change({ changeId: "change-old", title: "Earlier Change", status: "applied" }),
+      change({ changeId: "change-pending", title: "Pending Change", status: "pending" }),
+    ]);
+    useEnduragentStore.setState((state) => ({
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+      chat: { ...state.chat, hydrationStatus: "ready" },
+    }));
+    render(<ChatView />);
+
+    const earlier = screen.getByRole("heading", { name: "Earlier Change" });
+    const pending = screen.getByRole("heading", { name: "Pending Change" });
+    expect(
+      earlier.compareDocumentPosition(pending) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("orders the editor, pending preview, then oldest to newest history", () => {
     setChanges([
       change({ changeId: "old", title: "Old decision", status: "applied" }),
       change({ changeId: "new", title: "New decision", status: "cancelled" }),
@@ -646,20 +781,30 @@ describe("Plan Change cards", () => {
       .getAllByRole("heading")
       .map((heading) => heading.textContent);
     expect(headings).toEqual([
-      active.name,
       "What needs to change?",
       "Limit Wednesday training",
       "Old decision",
       "New decision",
     ]);
-    expect(
-      screen
-        .getByText("Review the exact changes before confirming.")
-        .compareDocumentPosition(screen.getByRole("heading", { name: active.name })),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.queryByText("Review the exact changes before confirming.")).toBeNull();
     expect(screen.getByText("Applied", { exact: true })).toBeVisible();
     expect(screen.getByText("Cancelled", { exact: true })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Undo|Refresh preview/ })).toBeNull();
+  });
+
+  it("does not replay pending preview focus when its model object is refreshed", async () => {
+    setChanges([change()]);
+    patchChange({ focusRequest: { target: "preview", revision: 1 } });
+    render(<PlanChangeCards />);
+    const heading = screen.getByRole("heading", { name: "Limit Wednesday training" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    const evidence = screen.getByRole("button", { name: "View evidence" });
+    evidence.focus();
+    expect(evidence).toHaveFocus();
+
+    setChanges([change()]);
+
+    expect(evidence).toHaveFocus();
   });
 
   it("offers Undo only on the eligible applied history card and shares preview busy state", async () => {
@@ -680,7 +825,12 @@ describe("Plan Change cards", () => {
       change({ changeId: "stale", status: "stale" }),
       change(),
     ]);
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(1);
     const history = screen.getByRole("region", { name: "Latest limit" });
     expect(
@@ -947,13 +1097,18 @@ describe("Plan Change cards", () => {
     patchChange({
       notice: "The FTP sources changed. Request a fresh preview before applying this correction.",
     });
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     expect(screen.getByRole("status")).toHaveTextContent(
       "The FTP sources changed. Request a fresh preview before applying this correction.",
     );
     expect(screen.getByText("Pending", { exact: true })).toBeVisible();
     expect(screen.getByRole("button", { name: "View evidence" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Change one thing" })).toBeNull();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
 
@@ -1055,11 +1210,8 @@ describe("Plan Change cards", () => {
     expect(within(source).queryByText("Evidence 0")).toBeNull();
   });
 
-  it("moves focus to the editor, back to Change one thing, and to a new preview heading", async () => {
+  it("moves focus to the editor, pending preview heading, and composer after cancellation", async () => {
     const actions = stubActions();
-    actions.openPlanChangeEditor = vi.fn(() =>
-      patchChange({ editorOpen: true, focusRequest: { target: "editor", revision: 1 } }),
-    );
     actions.backFromPlanChangeEditor = vi.fn(() =>
       patchChange({ editorOpen: false, focusRequest: { target: "change", revision: 2 } }),
     );
@@ -1067,13 +1219,18 @@ describe("Plan Change cards", () => {
       setChanges([change({ status: "cancelled" })]);
       patchChange({ busy: true, focusRequest: { target: "change", revision: 4 } });
     });
-    useEnduragentStore.setState({ chatActions: actions });
-    render(<PlanChangeCards />);
-    const entry = screen.getByRole("button", { name: "Change one thing" });
-    await userEvent.click(entry);
+    useEnduragentStore.setState({
+      chatActions: actions,
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+    });
+    render(<ChatView />);
+    patchChange({ editorOpen: true, focusRequest: { target: "editor", revision: 1 } });
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Change" })).toHaveFocus());
     await userEvent.click(screen.getByRole("button", { name: "Back" }));
-    await waitFor(() => expect(entry).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Message your coach" })).toHaveFocus(),
+    );
     setChanges([change()]);
     patchChange({ focusRequest: { target: "preview", revision: 3 } });
     await waitFor(() =>
@@ -1088,10 +1245,11 @@ describe("Plan Change cards", () => {
     ).toEqual(["Cancel", "Apply to Plan"]);
     await userEvent.click(within(preview).getByRole("button", { name: "Cancel" }));
     expect(actions.applyPlanChange).toHaveBeenCalledWith("cancel");
-    expect(entry).toBeDisabled();
-    expect(entry).not.toHaveFocus();
+    expect(screen.getByRole("button", { name: "Open Active Plan" })).toBeEnabled();
     patchChange({ busy: false });
-    await waitFor(() => expect(entry).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Message your coach" })).toHaveFocus(),
+    );
   });
 
   it.each([
@@ -1107,7 +1265,12 @@ describe("Plan Change cards", () => {
     "This Change could not be applied. Training and the pending preview are unchanged.",
   ])("announces %s", (notice) => {
     patchChange({ notice });
-    render(<PlanChangeCards />);
+    render(
+      <>
+        <PlanChangeNotice />
+        <PlanChangeCards />
+      </>,
+    );
     expect(screen.getByRole("status")).toHaveTextContent(notice);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -1302,7 +1465,7 @@ describe("typed Plan Change dock", () => {
     const dock = screen.getByRole("region", { name: "Plan change dock" });
     expect(within(dock).getByRole("heading", { name: check.result.title })).toHaveFocus();
     expect(screen.getByRole("combobox", { name: "Message your coach" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Open Active Plan" })).toBeEnabled();
     await userEvent.click(within(dock).getByRole("button", { name: "Change it" }));
     const editor = screen.getByRole("textbox", { name: "Your change" });
     expect(editor).toHaveValue(check.submission.text);

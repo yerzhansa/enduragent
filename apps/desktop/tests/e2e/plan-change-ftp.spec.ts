@@ -161,7 +161,7 @@ const changeTitle = "Correct FTP";
 const inverseTitle = "Undo the latest Change";
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function changeCard(scenario: Scenario, title: string, status: string) {
@@ -191,9 +191,6 @@ for (const appearance of appearances) {
         .click();
       await scenario.page
         .getByRole("region", { name: "Plan library", exact: true })
-        .getByRole("button", { name: "Change in Chat", exact: true })
-        .click();
-      await changes(scenario)
         .getByRole("button", { name: "Change one thing", exact: true })
         .click();
       const editor = changes(scenario).getByRole("region", {
@@ -254,7 +251,7 @@ for (const appearance of appearances) {
       await capture(scenario, "evidence");
       await evidence.getByRole("button", { name: "Back", exact: true }).click();
       await pending.getByRole("button", { name: "Apply to Plan", exact: true }).click();
-      await expect(changes(scenario).getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "Change applied locally. Training now matches the confirmed preview.",
       );
       const applied = changeCard(scenario, changeTitle, "Applied");

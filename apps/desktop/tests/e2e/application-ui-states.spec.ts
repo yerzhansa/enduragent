@@ -147,16 +147,12 @@ test.describe.serial("production application UI states", () => {
     expect(
       await harness.fixture.evaluate(`
         const heading = document.querySelector('h1');
-        const sync = document.querySelector('.first-sync[data-state="syncing"]');
         return {
           heading: heading?.textContent?.trim(),
-          sync: sync?.textContent?.replace(/\\s+/gu, " ").trim(),
+          firstSync: document.querySelector('.first-sync') !== null,
         };
       `),
-    ).toMatchObject({
-      heading: "Chat",
-      sync: expect.stringContaining("Syncing your training history…"),
-    });
+    ).toEqual({ heading: "Chat", firstSync: false });
     expect(harness.backend.calls.map((call) => call.method)).toEqual(
       expect.arrayContaining(["verify_intervals_credential", "configureRuntime", "sync"]),
     );
@@ -206,24 +202,31 @@ test.describe.serial("production application UI states", () => {
   test("desktop--chat-sync-failed", async ({ browserName: _browserName }, info) => {
     harness.backend.failSyncProtocol();
     const state = await waitFor<{
-      readonly text: string;
+      readonly firstSync: boolean;
+      readonly heading: string;
       readonly retry: boolean;
+      readonly sync: string;
     }>(
       `(() => {
-        const card = document.querySelector('.first-sync[data-state="failed"]');
-        if (card === null) return false;
+        const chip = document.querySelector('[data-sync-chip]');
+        const sync = chip?.textContent?.replace(/\\s+/gu, " ").trim() ?? "";
+        if (!(chip instanceof HTMLElement) || chip.dataset.status !== "attention") return false;
+        if (!sync.includes("Quit and reopen Enduragent.")) return false;
         return {
-          text: (card.textContent ?? "").replace(/\\s+/gu, " ").trim(),
-          retry: Array.from(card.querySelectorAll("button")).some(
+          firstSync: document.querySelector('.first-sync') !== null,
+          heading: document.querySelector('h1')?.textContent?.trim() ?? "",
+          retry: Array.from(document.querySelectorAll("button")).some(
             (button) => (button.textContent ?? "").trim() === "Retry sync",
           ),
+          sync,
         };
       })()`,
-      "the failed first sync state",
+      "the failed sidebar sync state",
     );
-    expect(state.text).toContain("Enduragent needs to reconnect safely");
-    expect(state.text).toContain("Quit and reopen Enduragent.");
-    expect(state.retry).toBe(false);
+    expect(state).toMatchObject({ firstSync: false, heading: "Chat", retry: false });
+    expect(state.sync).toContain("Sync needs attention");
+    expect(state.sync).toContain("Quit and reopen Enduragent.");
+    expect(state.sync).toContain("Sync unavailable");
     await capture("desktop--chat-sync-failed", info);
   });
 

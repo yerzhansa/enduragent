@@ -1107,7 +1107,7 @@
       "noChanges": "Nenhuma alteração aos treinos.",
       "none": "Nenhum",
       "notInPlan": "Fora do plano",
-      "openPlan": "Abrir Plano",
+      "openPlan": "Abrir Plano ativo",
       "option": {
         "ftp": "Corrigir FTP",
         "hardWeekday": "Sem treino intenso num dia da semana",
@@ -1450,6 +1450,10 @@
       "conversation": "Conversa com o treinador",
       "disclaimer": "Não constitui aconselhamento médico nem substitui um médico ou um treinador certificado.",
       "hideContext": "Ocultar contexto de treino",
+      "pendingDraft": "O teu Plano de treino está pronto para revisão.",
+      "reviewChange": "Rever alteração",
+      "reviewChoices": "Rever escolhas",
+      "reviewDraft": "Rever Rascunho",
       "showContext": "Mostrar contexto de treino",
       "title": "Conversa"
     }

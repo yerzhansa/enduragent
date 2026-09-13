@@ -160,7 +160,7 @@ const appearances = [
 ] as const;
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function changeCard(scenario: Scenario, title: string, status: string) {
@@ -176,17 +176,17 @@ async function openChanges(scenario: Scenario) {
     .click();
   await scenario.page
     .getByRole("region", { name: "Plan library", exact: true })
-    .getByRole("button", { name: "Change in Chat", exact: true })
+    .getByRole("button", { name: "Change one thing", exact: true })
     .click();
-  await expect(changes(scenario)).toBeVisible();
+  await expect(changes(scenario).last()).toBeVisible();
 }
 
 async function editEvent(scenario: Scenario, operation: string) {
-  await changes(scenario).getByRole("button", { name: "Change one thing", exact: true }).click();
   const editor = changes(scenario).getByRole("region", {
     name: "What needs to change?",
     exact: true,
   });
+  if (!(await editor.isVisible())) await openChanges(scenario);
   await editor.getByRole("combobox", { name: "Change", exact: true }).click();
   await scenario.page.getByRole("option", { name: "Supporting Event", exact: true }).click();
   await editor.getByRole("combobox", { name: "Supporting Event operation", exact: true }).click();
@@ -207,7 +207,7 @@ async function applyEvent(scenario: Scenario, title: string) {
   await changeCard(scenario, title, "Pending")
     .getByRole("button", { name: "Apply to Plan", exact: true })
     .click();
-  await expect(changes(scenario).getByRole("status")).toHaveText(
+  await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
     "Change applied locally. Training now matches the confirmed preview.",
   );
   await expect(changeCard(scenario, title, "Applied")).toBeVisible();
@@ -391,7 +391,7 @@ for (const appearance of appearances) {
       const listRequests = scenario.backend.planListRequests.length;
       scenario.backend.setSyncedEventCandidate({ name: "Changed supporting ride" });
       await pending.getByRole("button", { name: "Apply to Plan", exact: true }).click();
-      await expect(changes(scenario).getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "The synchronized event changed. Request a fresh preview before applying.",
       );
       await expect(pending).toBeVisible();
@@ -410,7 +410,7 @@ for (const appearance of appearances) {
         PlanChangeWorkoutSchema.parse(JSON.parse(String(row.structure_json))),
       );
       expect(workouts.some((workout) => workout.kind === "event")).toBe(false);
-      await changes(scenario).getByRole("status").scrollIntoViewIfNeeded();
+      await scenario.page.locator("#plan-changes-notice").scrollIntoViewIfNeeded();
       await capture(scenario, "synchronized-drift-refusal");
     } finally {
       await close(scenario);

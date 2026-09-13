@@ -182,6 +182,7 @@ describe("Plan surface", () => {
       readPlanHistory: vi.fn(),
       refresh: vi.fn(),
       continueCreation: vi.fn(),
+      changeOneThingInChat: vi.fn(),
       changeInChat: vi.fn(),
     };
     const noPlan = {
@@ -223,6 +224,7 @@ describe("Plan surface", () => {
         readPlanHistory: vi.fn(),
         refresh: vi.fn(),
         continueCreation: vi.fn(),
+        changeOneThingInChat: vi.fn(),
         changeInChat: vi.fn(),
       },
     });

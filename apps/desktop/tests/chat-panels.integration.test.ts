@@ -905,28 +905,27 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
   readonly planningIssue: boolean;
   readonly composerWithinViewport: boolean;
   readonly disclaimerWithinViewport: boolean;
-  readonly projectionsScrollLocally: boolean;
-  readonly disclaimerStableAfterProjectionScroll: boolean;
+  readonly adjacentScrollsLocally: boolean;
+  readonly disclaimerStableAfterAdjacentScroll: boolean;
   readonly footerOrder: boolean;
   readonly documentVerticalOverflow: boolean;
 }> {
   return fixture.evaluate(`
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const composerWrap = document.querySelector(".composer-wrap");
-    const projections = document.querySelector(".composer-projections");
     const shell = composerWrap?.querySelector(":scope > .composer-shell");
     const adjacent = shell?.querySelector(":scope > .composer-adjacent");
     const composer = shell?.querySelector(":scope > form");
     const disclaimer = composerWrap?.querySelector(":scope > p:last-child");
-    if (!(composerWrap instanceof HTMLElement) || !(projections instanceof HTMLElement) ||
-        !(shell instanceof HTMLElement) || !(adjacent instanceof HTMLElement) ||
+    if (!(composerWrap instanceof HTMLElement) || !(shell instanceof HTMLElement) ||
+        !(adjacent instanceof HTMLElement) ||
         !(composer instanceof HTMLFormElement) || !(disclaimer instanceof HTMLElement)) {
       throw new Error("stacked composer surface is incomplete");
     }
     const text = composerWrap.textContent ?? "";
     const wrapRect = composerWrap.getBoundingClientRect();
     const disclaimerBefore = disclaimer.getBoundingClientRect();
-    projections.scrollTop = projections.scrollHeight;
+    adjacent.scrollTop = adjacent.scrollHeight;
     await new Promise((resolve) => requestAnimationFrame(resolve));
     const disclaimerAfter = disclaimer.getBoundingClientRect();
     return {
@@ -935,12 +934,12 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
       composerWithinViewport: wrapRect.top >= 0 && wrapRect.bottom <= window.innerHeight,
       disclaimerWithinViewport:
         disclaimerAfter.top >= 0 && disclaimerAfter.bottom <= window.innerHeight,
-      projectionsScrollLocally: getComputedStyle(projections).overflowY === "auto",
-      disclaimerStableAfterProjectionScroll:
+      adjacentScrollsLocally: getComputedStyle(adjacent).overflowY === "auto",
+      disclaimerStableAfterAdjacentScroll:
         Math.abs(disclaimerBefore.top - disclaimerAfter.top) < 1 &&
         Math.abs(disclaimerBefore.bottom - disclaimerAfter.bottom) < 1,
       footerOrder:
-        projections.nextElementSibling === shell && shell.nextElementSibling === disclaimer &&
+        shell.nextElementSibling === disclaimer &&
         adjacent.nextElementSibling === composer,
       documentVerticalOverflow:
         document.documentElement.scrollHeight > document.documentElement.clientHeight,
@@ -1977,8 +1976,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -1988,8 +1987,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -2068,7 +2067,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly composerInputDisabled: boolean;
       readonly resetDisabled: boolean;
       readonly focused: string | null;
-      readonly transcriptClearMutations: number;
+      readonly transcriptClearBatches: number;
     }>(`
       const opener = document.querySelector(".new-conversation-button");
       const textarea = document.querySelector("#message");
@@ -2080,8 +2079,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       if (enabledBefore) opener.click();
       const dialog = document.querySelector(".new-conversation-dialog");
       const dialogOpen = dialog !== null;
-      const clearRecords = [];
-      const clearObserver = new MutationObserver((records) => clearRecords.push(...records));
+      const clearBatches = [];
+      const clearObserver = new MutationObserver((records) => {
+        if (records.some((record) => record.type === "childList")) clearBatches.push(records);
+      });
       clearObserver.observe(document.querySelector(".chat-messages"), { childList: true });
       if (dialogOpen) dialog.querySelector(".new-conversation-dialog__confirm").click();
       const resetDeadline = Date.now() + 5000;
@@ -2098,7 +2099,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         composerInputDisabled: textarea.disabled,
         resetDisabled: opener.disabled,
         focused: document.activeElement?.id ?? null,
-        transcriptClearMutations: clearRecords.filter((record) => record.type === "childList").length,
+        transcriptClearBatches: clearBatches.length,
       };
     `);
     expect(reset).toEqual({
@@ -2109,7 +2110,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       composerInputDisabled: false,
       resetDisabled: true,
       focused: "message",
-      transcriptClearMutations: 1,
+      transcriptClearBatches: 1,
     });
     expect(calls.filter((call) => call.method === "resetSession")).toEqual([
       {
@@ -2992,8 +2993,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -3004,8 +3005,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });

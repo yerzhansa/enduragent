@@ -338,11 +338,11 @@ export async function launchApplicationUiHarness(input: {
       fixture,
       `(() => {
         const shell = document.querySelector("[data-shell]");
-        const sync = document.querySelector(".first-sync");
         return shell?.getAttribute("data-shell") === "app" &&
-          sync?.getAttribute("data-state") === "syncing";
+          document.querySelector("h1")?.textContent?.trim() === "Chat" &&
+          document.querySelector(".first-sync") === null;
       })()`,
-      "the initial training sync",
+      "Chat while the initial training sync runs",
     );
     await backend.syncStarted.promise;
   } catch (error) {

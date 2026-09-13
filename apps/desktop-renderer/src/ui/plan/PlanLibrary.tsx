@@ -178,6 +178,13 @@ export function PlanLibrary(props: {
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const paused = useEnduragentStore((state) => state.chat.planCreationPaused);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
+  const planChangeBusy = useEnduragentStore((state) => state.planChange.busy);
+  const planChangePendingCheck = useEnduragentStore(
+    (state) =>
+      state.planChange.pendingCheck === undefined
+        ? (state.planLibrary.value?.pendingChangeCheck ?? null)
+        : state.planChange.pendingCheck,
+  );
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discard = useRef<HTMLButtonElement>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
@@ -419,6 +426,19 @@ export function PlanLibrary(props: {
               onClick={props.readDetails}
             >
               {say("plan.library.readDetails")}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-line bg-surface"
+              disabled={
+                actions === null ||
+                props.library.changesPaused !== null ||
+                planChangeBusy ||
+                planChangePendingCheck !== null
+              }
+              onClick={() => actions?.changeOneThingInChat()}
+            >
+              {say("chat.planChange.changeOne")}
             </Button>
             <Button
               ref={changeButton}

@@ -221,10 +221,7 @@ async function build(scenario: Scenario): Promise<PlanCreationCardModel> {
 }
 
 async function showActivePlan(scenario: Scenario, name = "active-plan"): Promise<void> {
-  await scenario.page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("button", { name: "Plan", exact: true })
-    .click();
+  await scenario.page.getByRole("button", { name: "Open Active Plan", exact: true }).click();
   await expect(
     scenario.page.getByRole("heading", { name: "Plan active · week 1 of 4", exact: true }),
   ).toBeVisible();
@@ -385,14 +382,12 @@ for (const appearance of [
           })
           .click();
         await assertActivated(scenario, reviewed, before);
-        const activeCard = scenario.page.getByRole("region", {
-          name: "Improve fitness",
-          exact: true,
-        });
-        await expect(activeCard).toContainText("Improve fitness");
         await expect(
-          activeCard.getByText("Connect to mirror Workouts", { exact: true }),
-        ).toBeVisible();
+          scenario.page.getByRole("region", { name: "Improve fitness", exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          scenario.page.getByRole("button", { name: "Open Active Plan", exact: true }),
+        ).toBeEnabled();
         await expect(scenario.page.getByText("Plan activated locally.")).toHaveCount(0);
         const request = scenario.backend.creationRequests.at(-1);
         expect(request).toMatchObject({

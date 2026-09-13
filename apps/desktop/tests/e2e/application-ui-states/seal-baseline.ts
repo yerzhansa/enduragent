@@ -94,10 +94,10 @@ async function main(): Promise<void> {
   const value = {
     schemaVersion: 1,
     version: applicationBaselineVersion,
-    reviewedBy: "Codex, GPT-6",
+    reviewedBy: "Codex, GPT-5.6 Sol",
     review: "native-application-regression-reference",
     reviewNote:
-      "Inspected all 20 new Electron application captures in light and dark, wide and compact layouts. The captures record current rendering and do not approve product behavior.",
+      "Inspected all 20 Electron application captures in light and dark, wide and compact layouts after removing standalone synchronization cards from Chat. The captures record current rendering and do not approve product behavior.",
     coverage: {
       projects: Object.keys(applicationProjects).length,
       scenarios: applicationScenarios.length,

@@ -275,7 +275,7 @@
       "noChanges": "No Workout changes.",
       "none": "None",
       "notInPlan": "Not in Plan",
-      "openPlan": "Open Plan",
+      "openPlan": "Open Active Plan",
       "option": {
         "ftp": "Correct FTP",
         "hardWeekday": "No hard training on a weekday",
@@ -618,6 +618,10 @@
       "conversation": "Coaching conversation",
       "disclaimer": "Not medical advice, and not a substitute for a doctor or a certified coach.",
       "hideContext": "Hide training context",
+      "pendingDraft": "Your training Plan is ready to review.",
+      "reviewChange": "Review Change",
+      "reviewChoices": "Review choices",
+      "reviewDraft": "Review Draft",
       "showContext": "Show training context",
       "title": "Chat"
     }
