@@ -1,5 +1,5 @@
 import { renderLocalized as render } from "./language-harness";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonVariants } from "@enduragent/ui";
@@ -96,6 +96,7 @@ describe("Telegram settings surface", () => {
     } as const satisfies CredentialSettingsState;
     const port = setup(readyState(status()), recovery);
 
+    await user.click(screen.getByRole("button", { name: "Connect" }));
     const paste = screen.getByRole("button", { name: "Paste token from clipboard" });
     expect(paste).toBeDisabled();
     await user.click(paste);
@@ -165,6 +166,19 @@ describe("Telegram settings surface", () => {
     const port = setup(readyState(status()));
     const section = screen.getByRole("region", { name: "Telegram" });
 
+    expect(within(section).getByText("Create a bot with BotFather")).toBeVisible();
+    expect(within(section).getByText("Connect a Telegram bot with a copied token.")).toBeVisible();
+    expect(within(section).getByText("Off")).toBeVisible();
+    const initialConnect = within(section).getByRole("button", { name: "Connect" });
+    expect(initialConnect).toHaveAttribute("aria-expanded", "false");
+    expect(within(section).queryByRole("link", { name: "@BotFather" })).toBeNull();
+    expect(within(section).queryByRole("button", { name: "Cancel Telegram bot setup" })).toBeNull();
+    expect(
+      within(section).queryByRole("button", { name: "Paste token from clipboard" }),
+    ).toBeNull();
+    expect(port.pasteToken).not.toHaveBeenCalled();
+    await user.click(initialConnect);
+
     expect(within(section).getByText(/creates a new @username and Telegram chat/u)).toBeVisible();
     expect(
       within(section).getByText(/visible history from a previous bot does not move/u),
@@ -212,6 +226,123 @@ describe("Telegram settings surface", () => {
       }),
     );
     expect(port.pasteToken).toHaveBeenCalledWith();
+  });
+
+  it("keeps explicit setup open through clipboard validation and allows another paste", async () => {
+    const user = userEvent.setup();
+    const port = setup(readyState(status()));
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(screen.getByRole("button", { name: "Paste token from clipboard" }));
+
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: {
+          ...current.settings,
+          telegram: {
+            ...readyState(status()),
+            status: "working",
+            operation: "paste-token",
+          },
+        },
+      }));
+    });
+    expect(screen.getByRole("button", { name: "Paste token from clipboard" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel Telegram bot setup" })).toBeDisabled();
+
+    const message =
+      "The clipboard does not contain a valid Telegram bot token. The current Telegram bot is unchanged.";
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: {
+          ...current.settings,
+          telegram: {
+            ...readyState(status()),
+            status: "error",
+            kind: "action",
+            feedback: { tone: "error", message },
+          },
+        },
+      }));
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Paste token from clipboard" }));
+    expect(port.pasteToken).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: {
+          ...current.settings,
+          telegram: readyState(
+            status({
+              bot: { state: "ready", username: "desktop_coach_bot" },
+              credentialConfigured: true,
+            }),
+          ),
+        },
+      }));
+    });
+    expect(screen.getByText("@desktop_coach_bot")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: { ...current.settings, telegram: readyState(status()) },
+      }));
+    });
+    expect(screen.getByRole("button", { name: "Connect" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+  });
+
+  it("keeps setup collapsed after delayed status loading", () => {
+    const port = setup({ status: "loading" });
+    expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: { ...current.settings, telegram: readyState(status()) },
+      }));
+    });
+
+    expect(screen.getByRole("button", { name: "Connect" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+    expect(port.pasteToken).not.toHaveBeenCalled();
+  });
+
+  it("returns to collapsed setup after leaving and reentering the surface", async () => {
+    const user = userEvent.setup();
+    const port = setup(readyState(status()));
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    expect(screen.getByRole("button", { name: "Paste token from clipboard" })).toBeVisible();
+
+    cleanup();
+    render(<TelegramSection />);
+
+    expect(screen.getByRole("button", { name: "Connect" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+    expect(port.pasteToken).not.toHaveBeenCalled();
+  });
+
+  it("resets open setup when settings close and load again", async () => {
+    const user = userEvent.setup();
+    const port = setup(readyState(status()));
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: { ...current.settings, telegram: { status: "closed" } },
+      }));
+    });
+    act(() => {
+      useEnduragentStore.setState((current) => ({
+        settings: { ...current.settings, telegram: readyState(status()) },
+      }));
+    });
+
+    expect(screen.getByRole("button", { name: "Connect" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+    expect(port.pasteToken).not.toHaveBeenCalled();
   });
 
   it("keeps clipboard setup closed until the missing identity is authoritative", async () => {
@@ -577,12 +708,10 @@ describe("Telegram settings surface", () => {
       }));
     });
 
-    const firstTimeHeading = await screen.findByRole("heading", {
-      name: "Create a bot with BotFather",
-    });
-    await waitFor(() => expect(firstTimeHeading).toHaveFocus());
+    const connect = await screen.findByRole("button", { name: "Connect" });
+    await waitFor(() => expect(connect).toHaveFocus());
     expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Paste token from clipboard" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
   });
 
   it("fails closed after an uncertain deletion leaves identity unverified", async () => {
@@ -757,17 +886,10 @@ describe("Telegram settings surface", () => {
       }));
     });
 
-    const firstTimeHeading = await screen.findByRole("heading", {
-      name: "Create a bot with BotFather",
-    });
-    await waitFor(() => expect(firstTimeHeading).toHaveFocus());
-    const firstTimePanel = firstTimeHeading.closest<HTMLElement>("#telegram-first-time-panel");
-    expect(firstTimePanel).not.toBeNull();
-    expect(
-      within(firstTimePanel as HTMLElement)
-        .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["Cancel", "Paste token from clipboard"]);
+    const connect = await screen.findByRole("button", { name: "Connect" });
+    await waitFor(() => expect(connect).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "Paste token from clipboard" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel Telegram bot setup" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Replace token from clipboard" })).toBeNull();
 
