@@ -2609,11 +2609,12 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         open: page.getAttribute("aria-hidden") === null,
         onePage: document.querySelectorAll('section[aria-label="Settings"]').length === 1,
         hasEverySection:
-          ["Coach", "Training account", "Conversation and time", "Spending", "Preferences", "Application"].every(
+          ["Coach", "Conversation and time", "Spending", "Preferences", "Application"].every(
             (label) => document.querySelectorAll('section[aria-label="' + label + '"]').length === 1,
           ) &&
           copy.includes("Coach route") &&
-          copy.includes("Athlete ID") &&
+          !copy.includes("Training account") &&
+          !copy.includes("Athlete ID") &&
           copy.includes("Daily reset hour"),
         horizontalOverflow:
           document.documentElement.scrollWidth > document.documentElement.clientWidth ||

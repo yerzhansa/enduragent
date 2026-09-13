@@ -810,7 +810,7 @@ describe("settings mutation lock", () => {
       expect(useEnduragentStore.getState().settings.savingOwners).toEqual(["session"]);
     });
     expect(screen.getByRole("region", { name: "Settings" })).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByRole("button", { name: "Save athlete ID" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save athlete ID" })).toBeNull();
     expect(screen.getByRole("combobox", { name: /Provider/u })).toBeDisabled();
     expect(
       within(screen.getByRole("region", { name: "Application" })).queryByRole("button", {
@@ -940,7 +940,7 @@ describe("conversation settings", () => {
     ).not.toHaveLength(0);
   });
 
-  it("shows the training credential as verifying while owner verification is pending", async () => {
+  it("hides the training account form while preserving pending account verification", async () => {
     await renderSettings({
       runtime: () =>
         snapshot({
@@ -953,11 +953,21 @@ describe("conversation settings", () => {
         }),
     });
 
-    const note = await screen.findByText(/Verifying the connected training account/u);
-    expect(note).toHaveAttribute("id", "athlete-id-verifying");
-    expect(screen.getByLabelText("Athlete ID").getAttribute("aria-describedby")).toContain(
-      "athlete-id-verifying",
-    );
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.athlete).toMatchObject({
+        status: "ready",
+        effective: {
+          athlete_id: "i1",
+          credential_configured: true,
+          credential_verification_pending: true,
+        },
+      });
+    });
+    expect(screen.queryByRole("heading", { name: "Training account" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Training account" })).toBeNull();
+    expect(screen.queryByLabelText("Athlete ID")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save athlete ID" })).toBeNull();
+    expect(screen.queryByText(/Verifying the connected training account/u)).toBeNull();
   });
 
   it("warns the athlete about the session-lifecycle side effects", async () => {

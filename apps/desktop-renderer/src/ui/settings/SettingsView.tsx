@@ -11,7 +11,7 @@ import { PreferencesSection } from "./PreferencesSection";
 import { takeTrainingRestrictionFocusRequest } from "./restriction-focus";
 import { SpendSection } from "./SpendSection";
 import { TelegramSection } from "./TelegramSection";
-import { TrainingAccountSection } from "./TrainingAccountSection";
+import { TrainingRestrictionCard } from "./TrainingRestrictionCard";
 
 export function SettingsView(): ReactElement {
   const { say } = usePhrasebook();
@@ -45,7 +45,7 @@ export function SettingsView(): ReactElement {
       <SetupPanel placement="settings" />
       <TelegramSection />
       <CoachSection />
-      <TrainingAccountSection restrictionCard={restrictionCard} />
+      <TrainingRestrictionCard restrictionCard={restrictionCard} />
       <ConversationSection />
       <SpendSection />
       <PreferencesSection />
