@@ -27,6 +27,7 @@ describe("theme preferences", () => {
     localStorage.setItem(APPEARANCE_STORAGE_KEY, "synthetic-missing-appearance");
 
     expect(readStoredPaletteId()).toBe("patrol");
+    expect(localStorage.getItem(PALETTE_STORAGE_KEY)).toBe("patrol");
     expect(readStoredAppearance()).toBe("system");
   });
 });
