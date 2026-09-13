@@ -42,7 +42,8 @@
     "check:ui-states": "pnpm --filter @enduragent/desktop exec playwright test --config=playwright.ui-states.config.ts",
     "i18n:extract": "i18next",
     "i18n:check": "pnpm i18n:extract --fail-on-update",
-    "check:catalogs": "tsx tools/check-catalog-coverage.ts"
+    "check:catalogs": "tsx tools/check-catalog-coverage.ts",
+    "models:generate-seed": "pnpm --filter @enduragent/coach-contract build && tsx tools/generate-model-catalog-seed.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

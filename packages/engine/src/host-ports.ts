@@ -8,10 +8,12 @@ import type {
   CoachDecisionAnswer,
   CoachDecisionContinuationLineage,
   CoachDecisionReadModel,
+  LlmProvider,
   PlanIntakePatch,
   PlanHandoffSuggestion,
   RequestUserDecisionInput,
   RequestUserDecisionResult,
+  ResolvedModelProfile,
 } from "@enduragent/coach-contract";
 import type { LanguageResolution } from "@enduragent/i18n";
 import type { ModelMessage } from "ai";
@@ -23,19 +25,14 @@ import type { ClaudeWorkingAreaPort } from "./agent/claude-cli/working-area.js";
 
 export type EngineDataSource = "platform" | "store";
 
-export type EngineLlmProvider =
-  | "anthropic"
-  | "openai"
-  | "google"
-  | "openai-codex"
-  | "claude-cli"
-  | "codex-agent"
-  | "deepseek"
-  | "qwen"
-  | "minimax"
-  | "kimi"
-  | "zai"
-  | "openrouter";
+export type EngineLlmProvider = LlmProvider;
+
+export type EngineResolvedModelProfiles = Readonly<{
+  catalogRevision: number;
+  chat: ResolvedModelProfile;
+  compact: ResolvedModelProfile;
+  flush: ResolvedModelProfile;
+}>;
 
 export interface EngineConfig {
   readonly dataSource: EngineDataSource;
