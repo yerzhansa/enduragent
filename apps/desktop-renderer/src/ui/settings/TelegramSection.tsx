@@ -168,7 +168,7 @@ export function TelegramSection(): ReactElement {
   const [senderError, setSenderError] = useState<Message | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmRemoveSenderId, setConfirmRemoveSenderId] = useState<number | null>(null);
-  const [firstTimeOpen, setFirstTimeOpen] = useState(() => telegram?.credentialConfigured !== true);
+  const [firstTimeOpen, setFirstTimeOpen] = useState(false);
   const deleteTrigger = useRef<HTMLButtonElement>(null);
   const removeSenderTrigger = useRef<HTMLButtonElement>(null);
   const firstTimeTrigger = useRef<HTMLButtonElement>(null);
@@ -253,15 +253,15 @@ export function TelegramSection(): ReactElement {
   }, [credentialIdentityMissing]);
 
   useLayoutEffect(() => {
-    if (telegram === null) {
-      previousCredentialIdentityMissing.current = null;
+    const previous = previousCredentialIdentityMissing.current;
+    previousCredentialIdentityMissing.current =
+      telegram === null ? null : credentialIdentityMissing;
+    if (!credentialIdentityMissing) {
+      setFirstTimeOpen(false);
       return;
     }
-    const previous = previousCredentialIdentityMissing.current;
-    previousCredentialIdentityMissing.current = credentialIdentityMissing;
-    if (previous !== false || !credentialIdentityMissing) return;
-    focusFirstTimeHeading.current = true;
-    setFirstTimeOpen(true);
+    if (previous !== false) return;
+    firstTimeTrigger.current?.focus();
   }, [credentialIdentityMissing, telegram]);
 
   useLayoutEffect(() => {
