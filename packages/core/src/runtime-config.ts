@@ -436,6 +436,10 @@ function familyContextWindow(model: string): number | undefined {
   return family === undefined ? undefined : CONTEXT_WINDOWS[family];
 }
 
+export function knownContextWindowForModel(model: string): number | undefined {
+  return CONTEXT_WINDOWS[model];
+}
+
 export function contextWindowForModel(model: string, provider?: LlmProvider): number {
   if (provider === "claude-cli") {
     return familyContextWindow(model) ?? CONTEXT_WINDOWS[model] ?? FALLBACK_CONTEXT_WINDOW;
