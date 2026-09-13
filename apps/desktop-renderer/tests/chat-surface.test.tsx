@@ -1191,17 +1191,26 @@ describe("chat surface", () => {
   });
 
   describe("composer", () => {
-    it("leaves the bordered shell to the shared composer controls", () => {
+    it("gives the composer and adjacent work one unclipped outer shell", () => {
       render(<Harness />);
       const form = composer().closest("form");
+      const shell = document.querySelector(".composer-shell");
 
       expect(form).toHaveAttribute("class", "composer relative");
       expect(form).toHaveAttribute("data-parity", "composer");
       expect(composer()).toHaveAttribute("data-parity", "composer.textarea");
-      expect(form?.querySelectorAll(".rounded-card.border")).toHaveLength(1);
+      expect(shell).toHaveClass(
+        "rounded-card",
+        "border",
+        "border-line-2",
+        "bg-surface",
+        "shadow-elev-2",
+      );
+      expect(shell).not.toHaveClass("overflow-hidden");
+      expect(form?.parentElement).toBe(shell);
     });
 
-    it("places the medical disclaimer directly below the composer", () => {
+    it("places the medical disclaimer directly below the composer shell", () => {
       render(<Harness />);
 
       const disclaimer = screen.getByText(
@@ -1209,10 +1218,11 @@ describe("chat surface", () => {
       );
       const form = composer().closest("form");
 
-      expect(form?.nextElementSibling).toBe(disclaimer);
+      expect(form?.parentElement?.nextElementSibling).toBe(disclaimer);
       expect(disclaimer.parentElement).toHaveClass("composer-wrap");
       expect(disclaimer.parentElement).toHaveClass("bg-bg");
-      expect(disclaimer.parentElement).toHaveClass("max-h-full", "overflow-hidden");
+      expect(disclaimer.parentElement).toHaveClass("max-h-full");
+      expect(disclaimer.parentElement).not.toHaveClass("overflow-hidden");
       expect(disclaimer).toHaveClass("mt-inset", "text-xs");
       expect(document.querySelector(".composer-projections")).toHaveClass(
         "min-h-0",
@@ -1221,7 +1231,7 @@ describe("chat surface", () => {
       );
     });
 
-    it("orders decision, attachment, and queued work before the composer", () => {
+    it("keeps decision cards outside the shared attachment and composer shell", () => {
       setChat({
         decision: unansweredDecision(),
         sendDisabled: true,
@@ -1232,6 +1242,8 @@ describe("chat surface", () => {
       render(<Harness />);
 
       const projections = document.querySelector(".composer-projections");
+      const shell = document.querySelector(".composer-shell");
+      const adjacent = document.querySelector(".composer-adjacent");
       const decision = screen
         .getByText("Coach needs your answer")
         .closest("section")?.parentElement;
@@ -1241,6 +1253,8 @@ describe("chat surface", () => {
 
       if (
         !(projections instanceof HTMLElement) ||
+        !(shell instanceof HTMLElement) ||
+        !(adjacent instanceof HTMLElement) ||
         !(decision instanceof HTMLElement) ||
         !(attachment instanceof HTMLElement) ||
         !(form instanceof HTMLFormElement)
@@ -1248,15 +1262,13 @@ describe("chat surface", () => {
         throw new TypeError("Composer projections are incomplete.");
       }
       expect(decision.parentElement).toBe(projections);
-      expect(attachment.parentElement).toBe(projections);
-      expect(queue.parentElement).toBe(projections);
-      expect(
-        decision.compareDocumentPosition(attachment) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      expect(attachment.parentElement).toBe(adjacent);
+      expect(queue.parentElement).toBe(adjacent);
       expect(
         attachment.compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
-      expect(projections.nextElementSibling).toBe(form);
+      expect(projections.nextElementSibling).toBe(shell);
+      expect(adjacent.nextElementSibling).toBe(form);
     });
 
     it("focuses the enabled composer when Chat mounts after required setup", () => {

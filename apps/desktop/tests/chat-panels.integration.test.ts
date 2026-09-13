@@ -914,9 +914,12 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const composerWrap = document.querySelector(".composer-wrap");
     const projections = document.querySelector(".composer-projections");
-    const composer = composerWrap?.querySelector("form");
+    const shell = composerWrap?.querySelector(":scope > .composer-shell");
+    const adjacent = shell?.querySelector(":scope > .composer-adjacent");
+    const composer = shell?.querySelector(":scope > form");
     const disclaimer = composerWrap?.querySelector(":scope > p:last-child");
     if (!(composerWrap instanceof HTMLElement) || !(projections instanceof HTMLElement) ||
+        !(shell instanceof HTMLElement) || !(adjacent instanceof HTMLElement) ||
         !(composer instanceof HTMLFormElement) || !(disclaimer instanceof HTMLElement)) {
       throw new Error("stacked composer surface is incomplete");
     }
@@ -937,7 +940,8 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
         Math.abs(disclaimerBefore.top - disclaimerAfter.top) < 1 &&
         Math.abs(disclaimerBefore.bottom - disclaimerAfter.bottom) < 1,
       footerOrder:
-        projections.nextElementSibling === composer && composer.nextElementSibling === disclaimer,
+        projections.nextElementSibling === shell && shell.nextElementSibling === disclaimer &&
+        adjacent.nextElementSibling === composer,
       documentVerticalOverflow:
         document.documentElement.scrollHeight > document.documentElement.clientHeight,
     };
