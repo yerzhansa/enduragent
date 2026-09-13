@@ -94,6 +94,9 @@ importers:
 
   apps/credits-worker:
     devDependencies:
+      '@types/node-fetch':
+        specifier: 2.6.13
+        version: 2.6.13
       "@cloudflare/vitest-pool-workers":
         specifier: 0.22.0
         version: 0.22.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11)

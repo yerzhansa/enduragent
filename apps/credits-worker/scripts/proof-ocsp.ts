@@ -1,5 +1,5 @@
 import fetch, { Headers, type RequestInit, type Response } from "node-fetch";
-export * from "node-fetch";
+export { Headers };
 
 type OcspTransport = (url: string, options: RequestInit) => Promise<Response>;
 
