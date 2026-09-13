@@ -53,7 +53,7 @@ export interface ProviderModelSettingsView {
     readonly onProviderChange: (provider: string) => void;
     readonly onModelChange: (model: string) => void;
     readonly onCustomModelChange: (model: string) => void;
-    readonly onSave: () => void;
+    readonly onCommitCustomModel: () => void;
     readonly onOpenSetup: () => void;
   }): void;
   open(): void;
@@ -153,18 +153,22 @@ export function createProviderModelSettingsController(input: {
   let currentState: ProviderModelSettingsState = { status: "closed" };
   let generation = 0;
   let disposed = false;
+  let visible = false;
+  let queuedSelection: OnboardingLlmSelection | undefined;
   let loadOperation: Promise<void> | undefined;
   let saveOperation: Promise<void> | undefined;
   let providerDrafts = new Map<string, ProviderModelDraft>();
+  const committedCustomModels = new Map<string, string>();
 
   const render = (state: Exclude<ProviderModelSettingsState, { status: "closed" }>): void => {
     currentState = state;
-    input.view.render(state);
+    if (visible && !disposed) input.view.render(state);
   };
 
   const startLoad = (): Promise<void> => {
     if (disposed) return Promise.resolve();
     const operationGeneration = ++generation;
+    visible = true;
     render({ status: "loading" });
     input.view.open();
     const pending = Promise.resolve()
@@ -187,11 +191,17 @@ export function createProviderModelSettingsController(input: {
             return;
           }
           providerDrafts = new Map();
+          committedCustomModels.clear();
           const draft =
             configuration.active === null || activeProvider === undefined
               ? null
               : draftFor(activeProvider, configuration.active.model);
-          if (draft !== null) providerDrafts.set(draft.provider.provider, draft);
+          if (draft !== null) {
+            providerDrafts.set(draft.provider.provider, draft);
+            if (draft.modelChoice === CUSTOM_MODEL_SELECTION) {
+              committedCustomModels.set(draft.provider.provider, selectedModel(draft));
+            }
+          }
           render({
             status: "ready",
             ...formState(
@@ -225,32 +235,35 @@ export function createProviderModelSettingsController(input: {
     if (disposed) return;
     ++generation;
     loadOperation = undefined;
-    saveOperation = undefined;
-    currentState = { status: "closed" };
+    visible = false;
+    if (saveOperation === undefined) currentState = { status: "closed" };
     input.view.close();
   };
 
   const updateDraft = (draft: ProviderModelDraft): void => {
-    if (disposed || currentState.status === "saving") return;
+    if (disposed || !visible) return;
     const editable = editableState(currentState);
     if (editable === null) return;
+    queuedSelection = undefined;
     providerDrafts.set(draft.provider.provider, draft);
     render({
-      status: "ready",
+      status: saveOperation === undefined ? "ready" : "saving",
       ...formState({ ...editable, draft }, input.codexAgentSupported ?? true),
     });
   };
 
   const changeProvider = (providerName: string): void => {
-    if (disposed || currentState.status === "saving") return;
+    if (disposed || !visible) return;
     const editable = editableState(currentState);
     const provider = editable?.providers.find((entry) => entry.provider === providerName);
     if (editable === null || provider === undefined) return;
-    updateDraft(providerDrafts.get(provider.provider) ?? draftFor(provider));
+    const draft = providerDrafts.get(provider.provider) ?? draftFor(provider);
+    updateDraft(draft);
+    commit(committedCustomModels.get(provider.provider) === selectedModel(draft));
   };
 
   const changeModel = (model: string): void => {
-    if (disposed || currentState.status === "saving") return;
+    if (disposed || !visible) return;
     const editable = editableState(currentState);
     const draft = editable?.draft;
     if (
@@ -262,10 +275,11 @@ export function createProviderModelSettingsController(input: {
       return;
     }
     updateDraft({ ...draft, modelChoice: model });
+    commit(false);
   };
 
   const changeCustomModel = (model: string): void => {
-    if (disposed || currentState.status === "saving") return;
+    if (disposed || !visible) return;
     const editable = editableState(currentState);
     const draft = editable?.draft;
     if (draft === null || draft === undefined || draft.modelChoice !== CUSTOM_MODEL_SELECTION) {
@@ -274,69 +288,95 @@ export function createProviderModelSettingsController(input: {
     updateDraft({ ...draft, customModel: model });
   };
 
-  const save = (): Promise<void> => {
-    if (disposed || saveOperation !== undefined) return saveOperation ?? Promise.resolve();
-    const editable = editableState(currentState);
-    if (editable === null || currentState.status === "saving") return Promise.resolve();
-    const form = formState(editable, input.codexAgentSupported ?? true);
-    if (form.draft === null || !form.dirty || form.validationError !== null) {
-      return Promise.resolve();
+  const drain = async (): Promise<void> => {
+    while (!disposed && queuedSelection !== undefined) {
+      const selection = queuedSelection;
+      queuedSelection = undefined;
+      const editable = editableState(currentState);
+      if (editable === null) return;
+      if (
+        editable.active?.provider === selection.provider &&
+        editable.active.model === selection.model
+      ) {
+        continue;
+      }
+      const result = await Promise.resolve()
+        .then(() => input.apply(selection))
+        .catch((): { readonly status: "refused"; readonly reason: "request-failed" } => ({
+          status: "refused",
+          reason: "request-failed",
+        }));
+      if (disposed) return;
+      const latest = editableState(currentState);
+      if (latest === null) return;
+      if (result.status === "refused") {
+        if (queuedSelection !== undefined) continue;
+        render({
+          status: "error",
+          kind: "save",
+          reason: result.reason,
+          ...formState(latest, input.codexAgentSupported ?? true),
+        });
+        return;
+      }
+      render({
+        status: "saving",
+        ...formState(
+          { ...latest, active: { provider: selection.provider, model: selection.model } },
+          input.codexAgentSupported ?? true,
+        ),
+      });
+      await Promise.resolve()
+        .then(() => input.onSaved?.(selection))
+        .catch(() => undefined);
     }
-    const releaseMutation = input.beginMutation === undefined ? () => {} : input.beginMutation();
-    if (releaseMutation === null) return Promise.resolve();
-    const selection: OnboardingLlmSelection = {
+    if (disposed) return;
+    const latest = editableState(currentState);
+    if (latest !== null) {
+      const form = formState(latest, input.codexAgentSupported ?? true);
+      render({ status: form.dirty ? "ready" : "saved", ...form });
+    }
+  };
+
+  const commit = (custom: boolean): void => {
+    if (disposed || !visible) return;
+    const editable = editableState(currentState);
+    if (editable === null) return;
+    const form = formState(editable, input.codexAgentSupported ?? true);
+    if (
+      form.draft === null ||
+      form.validationError !== null ||
+      (form.draft.modelChoice === CUSTOM_MODEL_SELECTION && !custom) ||
+      (!form.dirty && saveOperation === undefined)
+    )
+      return;
+    if (form.draft.modelChoice === CUSTOM_MODEL_SELECTION) {
+      committedCustomModels.set(form.draft.provider.provider, selectedModel(form.draft));
+    }
+    queuedSelection = {
       provider: form.draft.provider.provider,
       model: selectedModel(form.draft),
       endpoint: { mode: "automatic" },
     };
-    const operationGeneration = ++generation;
+    if (saveOperation !== undefined) return;
+    const releaseMutation = input.beginMutation === undefined ? () => {} : input.beginMutation();
+    if (releaseMutation === null) {
+      queuedSelection = undefined;
+      return;
+    }
     render({ status: "saving", ...form });
-    const pending = Promise.resolve()
-      .then(() => input.apply(selection))
-      .then(
-        async (result) => {
-          if (disposed || generation !== operationGeneration) return;
-          if (result.status === "refused") {
-            render({
-              status: "error",
-              kind: "save",
-              reason: result.reason,
-              ...form,
-            });
-            return;
-          }
-          await input.onSaved?.(selection);
-          if (disposed || generation !== operationGeneration) return;
-          const active = { provider: selection.provider, model: selection.model };
-          render({
-            status: "saved",
-            ...formState(
-              {
-                providers: form.providers,
-                active,
-                draft: form.draft,
-              },
-              input.codexAgentSupported ?? true,
-            ),
-          });
-        },
-        () => {
-          if (!disposed && generation === operationGeneration) {
-            render({
-              status: "error",
-              kind: "save",
-              reason: "request-failed",
-              ...form,
-            });
-          }
-        },
-      )
-      .finally(() => {
+    const pending = Promise.resolve().then(async () => {
+      try {
+        do {
+          await drain();
+        } while (!disposed && queuedSelection !== undefined);
+      } finally {
+        saveOperation = undefined;
+        if (!visible) currentState = { status: "closed" };
         releaseMutation();
-        if (saveOperation === pending) saveOperation = undefined;
-      });
+      }
+    });
     saveOperation = pending;
-    return pending;
   };
 
   const retry = (): void => {
@@ -345,7 +385,7 @@ export function createProviderModelSettingsController(input: {
       void startLoad();
       return;
     }
-    if (currentState.status === "error" && currentState.kind === "save") void save();
+    if (currentState.status === "error" && currentState.kind === "save") commit(true);
   };
 
   const openSetup = (): void => {
@@ -362,35 +402,45 @@ export function createProviderModelSettingsController(input: {
   };
 
   input.view.bind({
-    onOpen: () => void startLoad(),
+    onOpen: () => void activate(),
     onClose: close,
     onRetry: retry,
     onProviderChange: changeProvider,
     onModelChange: changeModel,
     onCustomModelChange: changeCustomModel,
-    onSave: () => void save(),
+    onCommitCustomModel: () => {
+      const editable = editableState(currentState);
+      if (editable?.draft?.modelChoice === CUSTOM_MODEL_SELECTION) commit(true);
+    },
     onOpenSetup: openSetup,
   });
 
+  const activate = (): Promise<void> => {
+    if (disposed) return Promise.resolve();
+    if (currentState.status !== "closed") {
+      visible = true;
+      input.view.open();
+      input.view.render(currentState);
+      return loadOperation ?? saveOperation ?? Promise.resolve();
+    }
+    return startLoad();
+  };
+
   return {
-    activate() {
-      if (disposed) return Promise.resolve();
-      if (currentState.status !== "closed") {
-        input.view.open();
-        return loadOperation ?? saveOperation ?? Promise.resolve();
-      }
-      return startLoad();
-    },
+    activate,
     close,
-    state: () => currentState,
+    state: () => (visible ? currentState : { status: "closed" }),
     dispose() {
       if (disposed) return;
       disposed = true;
+      visible = false;
+      queuedSelection = undefined;
       ++generation;
       loadOperation = undefined;
       saveOperation = undefined;
       currentState = { status: "closed" };
       providerDrafts.clear();
+      committedCustomModels.clear();
       input.view.dispose();
     },
   };

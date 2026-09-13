@@ -131,7 +131,7 @@
         "credentialRequired": "Este provedor precisa de uma credencial salva para orientar seu treinamento. Use a área de configuração acima para adicionar uma.",
         "invalidInput": "Esse provedor ou modelo não foi aceito. Confira o nome do modelo e tente novamente.",
         "requestFailed": "Não foi possível salvar as configurações do treinador agora. Tente novamente.",
-        "runtimeUnavailable": "Não foi possível ativar as configurações do treinador. Tente salvar novamente."
+        "runtimeUnavailable": "Não foi possível ativar as configurações do treinador. Tente novamente."
       },
       "inactive": "Inativo",
       "loading": "Carregando configurações do treinador…",
@@ -153,7 +153,7 @@
       "title": "Treinador",
       "unavailable": "As configurações do treinador não estão disponíveis agora. Tente novamente.",
       "unsaved": "Não salvo",
-      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolha a assinatura {{claude}} ou um provedor com chave de API e salve a rota do treinador. Suas credenciais, dados de atleta, conversas e outras configurações permanecem inalterados.",
+      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolha a assinatura {{claude}} ou um provedor com chave de API. Suas credenciais, dados de atleta, conversas e outras configurações permanecem inalterados.",
       "validation": {
         "modelControlCharacters": "Nomes de modelo não podem conter caracteres de controle.",
         "modelRequired": "Insira um nome de modelo.",

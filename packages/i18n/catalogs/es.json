@@ -116,7 +116,7 @@
         "credentialRequired": "Este proveedor necesita una credencial guardada para poder entrenarte. Usa el área de configuración de arriba para añadir una.",
         "invalidInput": "No se ha aceptado ese proveedor o modelo. Comprueba el nombre del modelo e inténtalo de nuevo.",
         "requestFailed": "No se han podido guardar los ajustes del entrenador ahora. Inténtalo de nuevo.",
-        "runtimeUnavailable": "No se han podido activar los ajustes del entrenador. Intenta guardarlos de nuevo."
+        "runtimeUnavailable": "No se han podido activar los ajustes del entrenador. Inténtalo de nuevo."
       },
       "inactive": "Inactivo",
       "loading": "Cargando ajustes del entrenador…",
@@ -138,7 +138,7 @@
       "title": "Entrenador",
       "unavailable": "Los ajustes del entrenador no están disponibles ahora. Inténtalo de nuevo.",
       "unsaved": "Sin guardar",
-      "unsupported": "El agente {{codex}} no es compatible con {{operatingSystem}}. Elige la suscripción a {{claude}} o un proveedor con clave de API y guarda la conexión del entrenador. Tus credenciales, datos de deportista, conversaciones y demás ajustes no cambian.",
+      "unsupported": "El agente {{codex}} no es compatible con {{operatingSystem}}. Elige la suscripción a {{claude}} o un proveedor con clave de API. Tus credenciales, datos de deportista, conversaciones y demás ajustes no cambian.",
       "validation": {
         "modelControlCharacters": "Los nombres de modelo no pueden contener caracteres de control.",
         "modelRequired": "Introduce un nombre de modelo.",

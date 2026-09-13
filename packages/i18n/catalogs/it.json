@@ -116,7 +116,7 @@
         "credentialRequired": "Questo fornitore richiede una credenziale salvata prima di poterti allenare. Usa l’area di configurazione qui sopra per aggiungerne una.",
         "invalidInput": "Il fornitore o il modello non è stato accettato. Controlla il nome del modello e riprova.",
         "requestFailed": "Impossibile salvare le impostazioni del coach al momento. Riprova.",
-        "runtimeUnavailable": "Impossibile attivare le impostazioni del coach. Prova a salvarle di nuovo."
+        "runtimeUnavailable": "Impossibile attivare le impostazioni del coach. Riprova."
       },
       "inactive": "Non attivo",
       "loading": "Caricamento delle impostazioni del coach…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Le impostazioni del coach non sono disponibili al momento. Riprova.",
       "unsaved": "Non salvato",
-      "unsupported": "L’agente {{codex}} non è supportato su {{operatingSystem}}. Scegli l’abbonamento {{claude}} o un fornitore con chiave API, poi salva la configurazione del coach. Le credenziali, i dati dell’atleta, le conversazioni e le altre impostazioni rimangono invariati.",
+      "unsupported": "L’agente {{codex}} non è supportato su {{operatingSystem}}. Scegli l’abbonamento {{claude}} o un fornitore con chiave API. Le credenziali, i dati dell’atleta, le conversazioni e le altre impostazioni rimangono invariati.",
       "validation": {
         "modelControlCharacters": "I nomi dei modelli non possono contenere caratteri di controllo.",
         "modelRequired": "Inserisci un nome di modello.",

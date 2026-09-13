@@ -116,7 +116,7 @@
         "credentialRequired": "Deze aanbieder heeft opgeslagen toegangsgegevens nodig om je te kunnen coachen. Voeg ze toe in het configuratiegedeelte hierboven.",
         "invalidInput": "Die aanbieder of dat model is niet geaccepteerd. Controleer de modelnaam en probeer het opnieuw.",
         "requestFailed": "Coachinstellingen konden nu niet worden opgeslagen. Probeer het opnieuw.",
-        "runtimeUnavailable": "Coachinstellingen konden niet worden geactiveerd. Probeer opnieuw op te slaan."
+        "runtimeUnavailable": "Coachinstellingen konden niet worden geactiveerd. Probeer het opnieuw."
       },
       "inactive": "Niet actief",
       "loading": "Coachinstellingen laden…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Coachinstellingen zijn nu niet beschikbaar. Probeer het opnieuw.",
       "unsaved": "Niet opgeslagen",
-      "unsupported": "De {{codex}}-agent wordt niet ondersteund op {{operatingSystem}}. Kies een {{claude}}-abonnement of een aanbieder met een API-sleutel en sla de coachroute op. Je toegangsgegevens, atleetgegevens, gesprekken en andere instellingen blijven ongewijzigd.",
+      "unsupported": "De {{codex}}-agent wordt niet ondersteund op {{operatingSystem}}. Kies een {{claude}}-abonnement of een aanbieder met een API-sleutel. Je toegangsgegevens, atleetgegevens, gesprekken en andere instellingen blijven ongewijzigd.",
       "validation": {
         "modelControlCharacters": "Modelnamen mogen geen stuurtekens bevatten.",
         "modelRequired": "Voer een modelnaam in.",

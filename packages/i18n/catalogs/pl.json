@@ -118,7 +118,7 @@
         "credentialRequired": "Ten dostawca wymaga zapisanych danych dostępowych, zanim będzie mógł cię trenować. Dodaj je w sekcji konfiguracji powyżej.",
         "invalidInput": "Ten dostawca lub model nie został zaakceptowany. Sprawdź nazwę modelu i spróbuj ponownie.",
         "requestFailed": "Nie można teraz zapisać ustawień trenera. Spróbuj ponownie.",
-        "runtimeUnavailable": "Nie udało się aktywować ustawień trenera. Spróbuj zapisać ponownie."
+        "runtimeUnavailable": "Nie udało się aktywować ustawień trenera. Spróbuj ponownie."
       },
       "inactive": "Nieaktywne",
       "loading": "Wczytywanie ustawień trenera…",
@@ -140,7 +140,7 @@
       "title": "Trener",
       "unavailable": "Ustawienia trenera są teraz niedostępne. Spróbuj ponownie.",
       "unsaved": "Niezapisane",
-      "unsupported": "Agent {{codex}} nie jest obsługiwany w {{operatingSystem}}. Wybierz subskrypcję {{claude}} lub dostawcę z kluczem API, a następnie zapisz połączenie trenera. Twoje dane dostępowe, dane sportowca, rozmowy i pozostałe ustawienia pozostaną bez zmian.",
+      "unsupported": "Agent {{codex}} nie jest obsługiwany w {{operatingSystem}}. Wybierz subskrypcję {{claude}} lub dostawcę z kluczem API. Twoje dane dostępowe, dane sportowca, rozmowy i pozostałe ustawienia pozostaną bez zmian.",
       "validation": {
         "modelControlCharacters": "Nazwy modeli nie mogą zawierać znaków sterujących.",
         "modelRequired": "Wpisz nazwę modelu.",

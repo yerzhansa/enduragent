@@ -116,7 +116,7 @@
         "credentialRequired": "Den här leverantören behöver sparade inloggningsuppgifter för att kunna träna dig. Lägg till dem i konfigurationen ovan.",
         "invalidInput": "Leverantören eller modellen godkändes inte. Kontrollera modellnamnet och försök igen.",
         "requestFailed": "Tränarinställningarna kunde inte sparas just nu. Försök igen.",
-        "runtimeUnavailable": "Tränarinställningarna kunde inte aktiveras. Försök spara igen."
+        "runtimeUnavailable": "Tränarinställningarna kunde inte aktiveras. Försök igen."
       },
       "inactive": "Inte aktiv",
       "loading": "Läser in tränarinställningar…",
@@ -138,7 +138,7 @@
       "title": "Tränare",
       "unavailable": "Tränarinställningarna är inte tillgängliga just nu. Försök igen.",
       "unsaved": "Osparat",
-      "unsupported": "{{codex}}-agenten stöds inte på {{operatingSystem}}. Välj ett {{claude}}-abonnemang eller en leverantör med API-nyckel och spara sedan tränaranslutningen. Dina inloggningsuppgifter, träningsdata, samtal och övriga inställningar förblir oförändrade.",
+      "unsupported": "{{codex}}-agenten stöds inte på {{operatingSystem}}. Välj ett {{claude}}-abonnemang eller en leverantör med API-nyckel. Dina inloggningsuppgifter, träningsdata, samtal och övriga inställningar förblir oförändrade.",
       "validation": {
         "modelControlCharacters": "Modellnamn får inte innehålla kontrolltecken.",
         "modelRequired": "Ange ett modellnamn.",

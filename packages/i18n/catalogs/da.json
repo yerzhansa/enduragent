@@ -116,7 +116,7 @@
         "credentialRequired": "Denne udbyder kræver gemte adgangsoplysninger for at kunne træne dig. Tilføj dem i opsætningsområdet ovenfor.",
         "invalidInput": "Udbyderen eller modellen blev ikke accepteret. Kontrollér modelnavnet, og prøv igen.",
         "requestFailed": "Trænerindstillingerne kunne ikke gemmes lige nu. Prøv igen.",
-        "runtimeUnavailable": "Trænerindstillingerne kunne ikke aktiveres. Prøv at gemme igen."
+        "runtimeUnavailable": "Trænerindstillingerne kunne ikke aktiveres. Prøv igen."
       },
       "inactive": "Ikke aktiv",
       "loading": "Indlæser trænerindstillinger…",
@@ -138,7 +138,7 @@
       "title": "Træner",
       "unavailable": "Trænerindstillingerne er utilgængelige lige nu. Prøv igen.",
       "unsaved": "Ikke gemt",
-      "unsupported": "{{codex}}-agenten understøttes ikke på {{operatingSystem}}. Vælg et {{claude}}-abonnement eller en udbyder med API-nøgle, og gem trænerruten. Dine adgangsoplysninger, atletdata, samtaler og andre indstillinger forbliver uændrede.",
+      "unsupported": "{{codex}}-agenten understøttes ikke på {{operatingSystem}}. Vælg et {{claude}}-abonnement eller en udbyder med API-nøgle. Dine adgangsoplysninger, atletdata, samtaler og andre indstillinger forbliver uændrede.",
       "validation": {
         "modelControlCharacters": "Modelnavne må ikke indeholde kontroltegn.",
         "modelRequired": "Indtast et modelnavn.",

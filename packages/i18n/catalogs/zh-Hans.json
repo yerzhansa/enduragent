@@ -115,7 +115,7 @@
         "credentialRequired": "需要先保存此服务商的凭据才能使用教练。请在上方的设置区域添加。",
         "invalidInput": "服务商或模型未被接受。请检查模型名称后重试。",
         "requestFailed": "暂时无法保存教练设置。请重试。",
-        "runtimeUnavailable": "教练设置无法生效。请重新保存。"
+        "runtimeUnavailable": "教练设置无法生效。请重试。"
       },
       "inactive": "未启用",
       "loading": "正在加载教练设置…",
@@ -137,7 +137,7 @@
       "title": "教练",
       "unavailable": "教练设置暂时不可用。请重试。",
       "unsaved": "未保存",
-      "unsupported": "{{operatingSystem}} 不支持 {{codex}} 智能体。请选择 {{claude}} 订阅或使用 API 密钥的服务商，然后保存教练配置。凭据、运动员数据、对话及其他设置保持不变。",
+      "unsupported": "{{operatingSystem}} 不支持 {{codex}} 智能体。请选择 {{claude}} 订阅或使用 API 密钥的服务商。凭据、运动员数据、对话及其他设置保持不变。",
       "validation": {
         "modelControlCharacters": "模型名称不能包含控制字符。",
         "modelRequired": "请输入模型名称。",

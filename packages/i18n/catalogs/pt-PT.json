@@ -131,7 +131,7 @@
         "credentialRequired": "Este fornecedor precisa de uma credencial guardada para te orientar. Usa a área de configuração acima para adicionares uma.",
         "invalidInput": "Esse fornecedor ou modelo não foi aceite. Verifica o nome do modelo e tenta novamente.",
         "requestFailed": "Não foi possível guardar as definições do treinador agora. Tenta novamente.",
-        "runtimeUnavailable": "Não foi possível ativar as definições do treinador. Tenta guardar novamente."
+        "runtimeUnavailable": "Não foi possível ativar as definições do treinador. Tenta novamente."
       },
       "inactive": "Inativo",
       "loading": "A carregar definições do treinador…",
@@ -153,7 +153,7 @@
       "title": "Treinador",
       "unavailable": "As definições do treinador não estão disponíveis agora. Tenta novamente.",
       "unsaved": "Por guardar",
-      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolhe a subscrição {{claude}} ou um fornecedor com chave de API e guarda a ligação do treinador. As tuas credenciais, dados de atleta, conversas e outras definições mantêm-se.",
+      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolhe a subscrição {{claude}} ou um fornecedor com chave de API. As tuas credenciais, dados de atleta, conversas e outras definições mantêm-se.",
       "validation": {
         "modelControlCharacters": "Os nomes de modelos não podem conter carateres de controlo.",
         "modelRequired": "Introduz um nome de modelo.",

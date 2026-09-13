@@ -116,7 +116,7 @@
         "credentialRequired": "Ce fournisseur a besoin d’une donnée d’authentification enregistrée pour te coacher. Utilise la zone de configuration ci-dessus pour en ajouter une.",
         "invalidInput": "Ce fournisseur ou ce modèle n’a pas été accepté. Vérifie le nom du modèle et réessaie.",
         "requestFailed": "Les paramètres du coach n’ont pas pu être enregistrés pour le moment. Réessaie.",
-        "runtimeUnavailable": "Les paramètres du coach n’ont pas pu être activés. Réessaie de les enregistrer."
+        "runtimeUnavailable": "Les paramètres du coach n’ont pas pu être activés. Réessaie."
       },
       "inactive": "Inactif",
       "loading": "Chargement des paramètres du coach…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Les paramètres du coach sont indisponibles pour le moment. Réessaie.",
       "unsaved": "Non enregistré",
-      "unsupported": "L’agent {{codex}} n’est pas pris en charge sur {{operatingSystem}}. Choisis l’abonnement {{claude}} ou un fournisseur avec clé API, puis enregistre la configuration du coach. Tes données d’authentification, tes données d’athlète, tes conversations et tes autres paramètres restent inchangés.",
+      "unsupported": "L’agent {{codex}} n’est pas pris en charge sur {{operatingSystem}}. Choisis l’abonnement {{claude}} ou un fournisseur avec clé API. Tes données d’authentification, tes données d’athlète, tes conversations et tes autres paramètres restent inchangés.",
       "validation": {
         "modelControlCharacters": "Les noms de modèles ne peuvent pas contenir de caractères de contrôle.",
         "modelRequired": "Saisis un nom de modèle.",

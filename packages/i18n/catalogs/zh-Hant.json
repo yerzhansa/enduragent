@@ -115,7 +115,7 @@
         "credentialRequired": "此供應商需要已儲存的憑證才能提供指導。請在上方的初始設定區新增。",
         "invalidInput": "未接受此供應商或模型。請檢查模型名稱後重試。",
         "requestFailed": "目前無法儲存教練設定。請重試。",
-        "runtimeUnavailable": "無法啟用教練設定。請再次儲存。"
+        "runtimeUnavailable": "無法啟用教練設定。請再試一次。"
       },
       "inactive": "未啟用",
       "loading": "正在載入教練設定…",
@@ -137,7 +137,7 @@
       "title": "教練",
       "unavailable": "目前無法使用教練設定。請重試。",
       "unsaved": "未儲存",
-      "unsupported": "{{operatingSystem}} 不支援 {{codex}} 代理程式。請選擇 {{claude}} 訂閱或使用 API 金鑰的供應商，再儲存教練連線。憑證、運動員資料、對話及其他設定不會變更。",
+      "unsupported": "{{operatingSystem}} 不支援 {{codex}} 代理程式。請選擇 {{claude}} 訂閱或使用 API 金鑰的供應商。憑證、運動員資料、對話及其他設定不會變更。",
       "validation": {
         "modelControlCharacters": "模型名稱不可包含控制字元。",
         "modelRequired": "請輸入模型名稱。",
