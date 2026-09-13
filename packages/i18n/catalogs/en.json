@@ -1641,7 +1641,7 @@
         "credentialRequired": "This provider needs a saved credential before it can coach you. Use the setup area above to add one.",
         "invalidInput": "That provider or model wasn’t accepted. Check the model name and try again.",
         "requestFailed": "Coach settings couldn’t be saved right now. Try again.",
-        "runtimeUnavailable": "Coach settings couldn’t become active. Try saving again."
+        "runtimeUnavailable": "Coach settings couldn’t become active. Try again."
       },
       "inactive": "Not active",
       "loading": "Loading coach settings…",
@@ -1663,7 +1663,7 @@
       "title": "Coach",
       "unavailable": "Coach settings aren’t available right now. Try again.",
       "unsaved": "Unsaved",
-      "unsupported": "{{codex}} agent isn’t supported on {{operatingSystem}}. Choose {{claude}} subscription or an API-key provider, then save the coach route. Your credentials, athlete data, conversations, and other settings stay unchanged.",
+      "unsupported": "{{codex}} agent isn’t supported on {{operatingSystem}}. Choose {{claude}} subscription or an API-key provider. Your credentials, athlete data, conversations, and other settings stay unchanged.",
       "validation": {
         "modelControlCharacters": "Model names can’t contain control characters.",
         "modelRequired": "Enter a model name.",

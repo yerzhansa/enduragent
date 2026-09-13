@@ -24,7 +24,7 @@ export interface CoachSettingsPort {
   changeProvider(provider: string): void;
   changeModel(model: string): void;
   changeCustomModel(model: string): void;
-  save(): void;
+  commitCustomModel(): void;
   openSetup(): void;
 }
 

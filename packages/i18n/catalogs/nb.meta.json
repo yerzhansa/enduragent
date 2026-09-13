@@ -481,7 +481,7 @@
       "translatedBy": "model"
     },
     "settings.coach.error.runtimeUnavailable": {
-      "sourceHash": "ee831e9e8fa5ba7fb24173812a571d76e32c47cb9e0e1fdd50ed08a9980422fe",
+      "sourceHash": "88a0d8514bb90ec3c52279cf69adec5e4c8d34a742c64c2ddbca0d41ce096c0f",
       "translatedBy": "model"
     },
     "settings.coach.inactive": {
@@ -557,7 +557,7 @@
       "translatedBy": "model"
     },
     "settings.coach.unsupported": {
-      "sourceHash": "eb98f649e7b55fbc551c688859e762b693e5448544fb3ca526dadcd5a9387286",
+      "sourceHash": "ecaef2970d77fdfbad8b4495e6cdfd0ca474a5d9d148bc9ede8f5c107cb11dbb",
       "translatedBy": "model"
     },
     "settings.coach.validation.modelControlCharacters": {

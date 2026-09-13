@@ -116,7 +116,7 @@
         "credentialRequired": "Tämä palveluntarjoaja tarvitsee tallennetun tunnistautumistiedon voidakseen valmentaa sinua. Lisää se yllä olevassa käyttöönotto-osiossa.",
         "invalidInput": "Palveluntarjoajaa tai mallia ei hyväksytty. Tarkista mallin nimi ja yritä uudelleen.",
         "requestFailed": "Valmentajan asetuksia ei voitu juuri nyt tallentaa. Yritä uudelleen.",
-        "runtimeUnavailable": "Valmentajan asetuksia ei voitu ottaa käyttöön. Yritä tallentaa uudelleen."
+        "runtimeUnavailable": "Valmentajan asetuksia ei voitu ottaa käyttöön. Yritä uudelleen."
       },
       "inactive": "Ei käytössä",
       "loading": "Ladataan valmentajan asetuksia…",
@@ -138,7 +138,7 @@
       "title": "Valmentaja",
       "unavailable": "Valmentajan asetukset eivät ole juuri nyt käytettävissä. Yritä uudelleen.",
       "unsaved": "Tallentamatta",
-      "unsupported": "{{codex}}-agenttia ei tueta käyttöjärjestelmässä {{operatingSystem}}. Valitse {{claude}}-tilaus tai API-avainta käyttävä palveluntarjoaja ja tallenna sitten valmentajan yhteys. Tunnistautumistietosi, urheilijatietosi, keskustelusi ja muut asetuksesi säilyvät ennallaan.",
+      "unsupported": "{{codex}}-agenttia ei tueta käyttöjärjestelmässä {{operatingSystem}}. Valitse {{claude}}-tilaus tai API-avainta käyttävä palveluntarjoaja. Tunnistautumistietosi, urheilijatietosi, keskustelusi ja muut asetuksesi säilyvät ennallaan.",
       "validation": {
         "modelControlCharacters": "Mallien nimissä ei voi olla ohjausmerkkejä.",
         "modelRequired": "Anna mallin nimi.",

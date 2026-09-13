@@ -1048,13 +1048,7 @@ async function switchModelAndReadBlockedDraft(fixture: RunningDesktopFixture) {
     setter?.call(custom, model);
     custom.dispatchEvent(new Event("input", { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const save = [...document.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Save coach route",
-    );
-    if (!(save instanceof HTMLButtonElement) || save.disabled) {
-      throw new Error("save coach route action unavailable");
-    }
-    save.click();
+    custom.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     const savedDeadline = Date.now() + 10000;
     while (
       !document.body.textContent?.includes("Coach settings saved.") &&

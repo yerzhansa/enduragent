@@ -116,7 +116,7 @@
         "credentialRequired": "Dieser Anbieter benötigt gespeicherte Zugangsdaten, bevor er dich coachen kann. Füge sie im Einrichtungsbereich oben hinzu.",
         "invalidInput": "Dieser Anbieter oder dieses Modell wurde nicht akzeptiert. Prüfe den Modellnamen und versuche es erneut.",
         "requestFailed": "Die Coach-Einstellungen konnten gerade nicht gespeichert werden. Versuche es erneut.",
-        "runtimeUnavailable": "Die Coach-Einstellungen konnten nicht aktiviert werden. Versuche erneut zu speichern."
+        "runtimeUnavailable": "Die Coach-Einstellungen konnten nicht aktiviert werden. Versuche es erneut."
       },
       "inactive": "Nicht aktiv",
       "loading": "Coach-Einstellungen werden geladen…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Die Coach-Einstellungen sind gerade nicht verfügbar. Versuche es erneut.",
       "unsaved": "Nicht gespeichert",
-      "unsupported": "Der {{codex}}-Agent wird unter {{operatingSystem}} nicht unterstützt. Wähle das {{claude}}-Abo oder einen Anbieter mit API-Schlüssel und speichere dann die Coach-Verbindung. Deine Zugangsdaten, Athletendaten, Gespräche und anderen Einstellungen bleiben unverändert.",
+      "unsupported": "Der {{codex}}-Agent wird unter {{operatingSystem}} nicht unterstützt. Wähle das {{claude}}-Abo oder einen Anbieter mit API-Schlüssel. Deine Zugangsdaten, Athletendaten, Gespräche und anderen Einstellungen bleiben unverändert.",
       "validation": {
         "modelControlCharacters": "Modellnamen dürfen keine Steuerzeichen enthalten.",
         "modelRequired": "Gib einen Modellnamen ein.",

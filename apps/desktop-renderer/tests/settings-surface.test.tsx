@@ -558,7 +558,6 @@ afterEach(() => {
 async function renderSettings(options: HarnessOptions = {}) {
   harness = createHarness(options);
   await render(<SettingsView />);
-  await screen.findByRole("button", { name: /Save coach route|Salva configurazione del coach/ });
   await waitFor(() => {
     expect(useEnduragentStore.getState().settings.coach.status).toBe("ready");
     expect(useEnduragentStore.getState().settings.conversation.status).toBe("ready");
@@ -1074,7 +1073,7 @@ describe("settings lifecycle", () => {
         },
       });
       await render(<Shell onReady={() => {}} />);
-      await screen.findByRole("button", { name: "Save coach route" });
+      await screen.findByRole("combobox", { name: /Provider/ });
 
       await user.click(screen.getByRole("button", { name: "Remove all credentials" }));
       const confirmation = screen.getByRole("group", { name: "Remove all credentials?" });
@@ -1155,7 +1154,7 @@ describe("settings lifecycle", () => {
   it("keeps the resident Telegram controller active when Settings unmounts and remounts", async () => {
     harness = createHarness();
     const view = await render(<SettingsView />);
-    await screen.findByRole("button", { name: "Save coach route" });
+    await screen.findByRole("combobox", { name: /Provider/ });
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.conversation.status).toBe("ready");
       expect(useEnduragentStore.getState().settings.coach.status).toBe("ready");
@@ -1330,6 +1329,12 @@ describe("credential deletion", () => {
     );
     await waitFor(() => expect(subject.deleteCredential).toHaveBeenCalledOnce());
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.getByRole("combobox", { name: /Provider/u })).toBeDisabled();
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toBeDisabled();
+    await user.click(coach.getByRole("combobox", { name: /Provider/u }));
+    expect(screen.queryByRole("option", { name: "OpenRouter" })).not.toBeInTheDocument();
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
     expect(
       screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
     ).toBeDisabled();
@@ -1927,7 +1932,8 @@ describe("coach route", () => {
       expect(custom).toHaveFocus();
     });
     await user.type(custom, "vendor/experimental");
-    await user.click(screen.getByRole("button", { name: "Save coach route" }));
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+    await user.tab();
 
     await waitFor(() => {
       expect(subject.applyLlmSelection).toHaveBeenCalledWith({
@@ -1939,6 +1945,81 @@ describe("coach route", () => {
     expect(await screen.findByText("Coach settings saved.")).toBeInTheDocument();
   });
 
+  it("removes the save action and automatic endpoint row", async () => {
+    await renderSettings();
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    expect(coach.queryByRole("button", { name: "Save coach route" })).not.toBeInTheDocument();
+    expect(coach.queryByText("Endpoint")).not.toBeInTheDocument();
+    expect(coach.queryByText("Automatic")).not.toBeInTheDocument();
+    expect(coach.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("commits valid custom text with Enter and rejects invalid blur or Enter", async () => {
+    const user = userEvent.setup();
+    const subject = await renderSettings();
+    await user.click(screen.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: "Other model…" }));
+    const custom = await screen.findByLabelText("Custom model name");
+    await user.type(custom, "   ");
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+    expect(custom).toHaveAttribute("aria-invalid", "true");
+    await user.clear(custom);
+    await user.type(custom, "vendor/keyboard-model");
+    expect(subject.applyLlmSelection).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
+    await screen.findByText("Coach settings saved.");
+    await user.tab();
+    expect(subject.applyLlmSelection).toHaveBeenCalledOnce();
+    expect(subject.applyLlmSelection).toHaveBeenCalledWith({
+      provider: "anthropic",
+      model: "vendor/keyboard-model",
+      endpoint: { mode: "automatic" },
+    });
+  });
+
+  it("keeps coach controls editable and other settings locked throughout rapid saves", async () => {
+    const user = userEvent.setup();
+    const first = deferred<OnboardingLlmSelectionResult>();
+    const second = deferred<OnboardingLlmSelectionResult>();
+    const apply = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const subject = await renderSettings({ applyLlmSelection: apply });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: /Synthetic fast/u }));
+    await waitFor(() => expect(subject.applyLlmSelection).toHaveBeenCalledOnce());
+    expect(coach.getByRole("combobox", { name: /Provider/u })).toBeEnabled();
+    expect(coach.getByRole("combobox", { name: /^Model$/u })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
+    await user.click(coach.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: /^Synthetic$/u }));
+    expect(coach.queryByText("Active")).not.toBeInTheDocument();
+    first.resolve({ status: "configured", runtimeReady: true });
+    await waitFor(() => expect(subject.applyLlmSelection).toHaveBeenCalledTimes(2));
+    expect(coach.queryByText("Active")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
+    second.resolve({ status: "configured", runtimeReady: true });
+    await screen.findByText("Coach settings saved.");
+    expect(coach.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
+  });
+
+  it("retries a failed automatic save without reselecting the model", async () => {
+    const user = userEvent.setup();
+    const apply = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValue({ status: "configured", runtimeReady: true });
+    const subject = await renderSettings({ applyLlmSelection: apply });
+    const coach = within(screen.getByRole("region", { name: "Coach" }));
+    await user.click(coach.getByRole("combobox", { name: /^Model$/u }));
+    await user.click(await screen.findByRole("option", { name: /Synthetic fast/u }));
+    await user.click(await coach.findByRole("button", { name: "Retry" }));
+    await screen.findByText("Coach settings saved.");
+    expect(subject.applyLlmSelection).toHaveBeenCalledTimes(2);
+  });
+
   it("focuses the setup area when the provider needs a credential", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings({
@@ -1947,7 +2028,6 @@ describe("coach route", () => {
 
     await user.click(screen.getByRole("combobox", { name: /Provider/u }));
     await user.click(await screen.findByRole("option", { name: "OpenRouter" }));
-    await user.click(screen.getByRole("button", { name: "Save coach route" }));
 
     const openSetup = await within(screen.getByRole("region", { name: "Coach" })).findByRole(
       "button",
@@ -1993,7 +2073,7 @@ describe("coach route", () => {
 
     await user.click(coach.getByRole("combobox", { name: /Provider/u }));
     await user.click(await screen.findByRole("option", { name: "Anthropic" }));
-    await user.click(coach.getByRole("button", { name: "Save coach route" }));
+
     await screen.findByText("Coach settings saved.");
 
     expect(subject.applyLlmSelection).toHaveBeenCalledWith({

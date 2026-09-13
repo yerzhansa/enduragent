@@ -79,6 +79,9 @@ export function CoachSection(): ReactElement {
   const state = useEnduragentStore((store) => store.settings.coach);
   const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.coach ?? null);
+  const controlsDisabled = useEnduragentStore((store) =>
+    store.settings.savingOwners.some((owner) => owner !== "provider-model"),
+  );
   const customModel = useRef<HTMLInputElement>(null);
   const focusCustomModel = useRef(false);
 
@@ -95,9 +98,6 @@ export function CoachSection(): ReactElement {
   const loadError = state.status === "error" && state.kind === "load";
   const credentialRequired =
     state.status === "error" && state.kind === "save" && state.reason === "credential-required";
-  const saving = state.status === "saving";
-  const canSave =
-    editable !== null && draft !== null && editable.dirty && editable.validationError === null;
   const feedback = feedbackCopy(state, say);
   const routeSummary = editable === null ? null : routeLabel(editable, say);
   const route = routeSummary ?? say("settings.coach.notConfigured");
@@ -107,9 +107,11 @@ export function CoachSection(): ReactElement {
       ? say("settings.coach.inactive")
       : providerChangeRequired
         ? say("settings.coach.changeRequired")
-        : editable?.dirty === true
-          ? say("settings.coach.unsaved")
-          : say("settings.coach.active");
+        : state.status === "saving"
+          ? say("settings.saving")
+          : editable?.dirty === true
+            ? say("settings.coach.unsaved")
+            : say("settings.coach.active");
   const validation =
     editable?.validationError == null ? "" : say(COACH_VALIDATION_COPY[editable.validationError]);
 
@@ -161,7 +163,7 @@ export function CoachSection(): ReactElement {
                   label: providerLabel(ONBOARDING_LLM_PROVIDER_LABELS[entry.provider], say),
                 }))}
                 value={draft?.provider.provider ?? null}
-                disabled={mutating}
+                disabled={controlsDisabled}
                 onValueChange={(value) => {
                   if (value !== null) port?.changeProvider(value);
                 }}
@@ -204,7 +206,7 @@ export function CoachSection(): ReactElement {
                         })
                 }
                 value={draft?.modelChoice ?? null}
-                disabled={mutating || draft === null}
+                disabled={controlsDisabled || draft === null}
                 onValueChange={(value) => {
                   if (value === null) return;
                   focusCustomModel.current = value === CUSTOM_MODEL_SELECTION;
@@ -249,9 +251,16 @@ export function CoachSection(): ReactElement {
                   spellCheck={false}
                   className={`${styles.control} ${styles.controlWide}`}
                   value={draft.customModel}
-                  disabled={mutating}
+                  disabled={controlsDisabled}
                   aria-invalid={editable.validationError === null ? undefined : "true"}
                   aria-describedby="coach-model-validation"
+                  onBlur={() => port?.commitCustomModel()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      port?.commitCustomModel();
+                    }
+                  }}
                   onChange={(event) => {
                     port?.changeCustomModel(event.target.value);
                   }}
@@ -261,15 +270,6 @@ export function CoachSection(): ReactElement {
                 </p>
               </div>
             ) : null}
-            <div className={styles.row}>
-              <div className={styles.label}>
-                <div className={styles.rowTitle}>{say("settings.coach.endpoint")}</div>
-                <div className={styles.rowDetail}>
-                  {say("settings.coach.endpointDetail", { product: "Enduragent" })}
-                </div>
-              </div>
-              <span className={styles.amount}>{say("settings.coach.automatic")}</span>
-            </div>
           </>
         )}
         {feedback === null ? null : (
@@ -277,45 +277,36 @@ export function CoachSection(): ReactElement {
             {feedback}
           </p>
         )}
-        <div className={styles.actions}>
-          {loadError ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={mutating}
-              onClick={() => {
-                port?.retry();
-              }}
-            >
-              {say("settings.coach.retry")}
-            </Button>
-          ) : null}
-          {credentialRequired ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={mutating}
-              onClick={() => {
-                port?.openSetup();
-              }}
-            >
-              {say("settings.coach.reviewSetup")}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled={mutating || !canSave}
-            onClick={() => {
-              port?.save();
-            }}
-          >
-            {saving ? say("settings.saving") : say("settings.coach.save")}
-          </Button>
-        </div>
+        {state.status === "error" ? (
+          <div className={styles.actions}>
+            {loadError || !credentialRequired ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={mutating}
+                onClick={() => {
+                  port?.retry();
+                }}
+              >
+                {say("settings.coach.retry")}
+              </Button>
+            ) : null}
+            {credentialRequired ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={mutating}
+                onClick={() => {
+                  port?.openSetup();
+                }}
+              >
+                {say("settings.coach.reviewSetup")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </>
   );
