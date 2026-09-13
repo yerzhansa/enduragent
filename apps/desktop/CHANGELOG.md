@@ -1,5 +1,11 @@
 # @enduragent/desktop
 
+## 0.5.1
+
+### Patch Changes
+
+- a1f4c72: User-facing: Desktop can check for and install updates again.
+
 ## 0.5.0
 
 ### Minor Changes
