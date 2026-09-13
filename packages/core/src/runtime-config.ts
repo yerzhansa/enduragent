@@ -26,6 +26,10 @@ export const LLM_PROVIDERS = [
 
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
+export function isModelEnabledForProvider(provider: LlmProvider, model: string): boolean {
+  return model !== "gpt-6-astra" || (provider !== "openai-codex" && provider !== "codex-agent");
+}
+
 export const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-5",
   openai: "gpt-5.6-sol",
@@ -563,7 +567,7 @@ export function resolveRuntimeConfig(
     : current !== undefined && !providerChanged
       ? current.llm.model
       : DEFAULT_MODELS[provider];
-  if (model === "gpt-6-astra" && (provider === "openai-codex" || provider === "codex-agent")) {
+  if (!isModelEnabledForProvider(provider, model)) {
     throw new TypeError("GPT-6 Astra is not enabled for this connection; use the public OpenAI API.");
   }
   const selectionChanged = current === undefined || providerChanged || model !== current.llm.model;

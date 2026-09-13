@@ -101,6 +101,35 @@ describe("model catalog compatibility filtering", () => {
     ).toMatchObject({ kind: "suggested", initialModel: "gpt-5.6-sol" });
   });
 
+  it("filters models refused by the compiled provider eligibility policy", () => {
+    const candidate = cloneSeed();
+    candidate.revision = 2;
+    const codex = candidate.providers.find(
+      (provider) => provider.providerId === "openai-codex",
+    );
+    if (codex === undefined) throw new Error("missing OpenAI Codex seed provider");
+    codex.recommendedModelId = "gpt-6-astra";
+    codex.models.unshift({
+      modelId: "gpt-6-astra",
+      label: "GPT-6 Astra",
+      order: 2,
+      compatibilityProfile: "openai-codex-v1",
+      contextWindow: { kind: "unknown" },
+      imageInput: "unknown",
+      pricing: { kind: "unknown" },
+    });
+
+    const accepted = acceptModelCatalogSnapshot(candidate, "candidate-etag");
+    const effectiveCodex = accepted?.effective.providers.find(
+      (provider) => provider.provider === "openai-codex",
+    );
+    expect(effectiveCodex).toMatchObject({ kind: "suggested", initialModel: "gpt-5.6-sol" });
+    if (effectiveCodex?.kind !== "suggested") {
+      throw new Error("OpenAI Codex is not suggested");
+    }
+    expect(effectiveCodex.models.map((model) => model.modelId)).not.toContain("gpt-6-astra");
+  });
+
   it("represents an installed provider with no compatible entries as custom-only", () => {
     const candidate = cloneSeed();
     candidate.revision = 2;
