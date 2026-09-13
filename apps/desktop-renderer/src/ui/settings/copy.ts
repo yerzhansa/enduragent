@@ -48,11 +48,6 @@ export interface ConversationFieldDefinition {
   readonly field: SessionSettingField;
   readonly label: Message;
   readonly help: Message;
-  readonly type: "text" | "number";
-  readonly min?: string;
-  readonly max?: string;
-  readonly step?: string;
-  readonly suffix?: Message | "%";
 }
 
 export const CONVERSATION_FIELDS: readonly ConversationFieldDefinition[] = [
@@ -63,44 +58,6 @@ export const CONVERSATION_FIELDS: readonly ConversationFieldDefinition[] = [
       product: "Enduragent",
       timezone: "Europe/London",
     }),
-    type: "text",
-  },
-  {
-    field: "dailyResetHour",
-    label: msg("settings.conversation.fields.dailyResetHour.label"),
-    help: msg("settings.conversation.fields.dailyResetHour.help"),
-    type: "number",
-    min: "0",
-    max: "23",
-    step: "1",
-  },
-  {
-    field: "idleMinutes",
-    label: msg("settings.conversation.fields.idleMinutes.label"),
-    help: msg("settings.conversation.fields.idleMinutes.help"),
-    type: "number",
-    min: "0",
-    step: "1",
-    suffix: msg("settings.conversation.fields.idleMinutes.suffix"),
-  },
-  {
-    field: "resetArchiveRetentionDays",
-    label: msg("settings.conversation.fields.resetArchiveRetentionDays.label"),
-    help: msg("settings.conversation.fields.resetArchiveRetentionDays.help"),
-    type: "number",
-    min: "0",
-    step: "1",
-    suffix: msg("settings.conversation.fields.resetArchiveRetentionDays.suffix"),
-  },
-  {
-    field: "historyTokenBudgetRatio",
-    label: msg("settings.conversation.fields.historyTokenBudgetRatio.label"),
-    help: msg("settings.conversation.fields.historyTokenBudgetRatio.help"),
-    type: "number",
-    min: "0",
-    max: "100",
-    step: "any",
-    suffix: "%",
   },
 ] as const;
 
@@ -396,14 +353,6 @@ export function conversationValidationMessage(field: SessionSettingField): Messa
   switch (field) {
     case "timezone":
       return msg("settings.conversation.validation.timezone", { timezone: "Europe/London" });
-    case "dailyResetHour":
-      return msg("settings.conversation.validation.dailyResetHour");
-    case "idleMinutes":
-      return msg("settings.conversation.validation.idleMinutes");
-    case "resetArchiveRetentionDays":
-      return msg("settings.conversation.validation.resetArchiveRetentionDays");
-    case "historyTokenBudgetRatio":
-      return msg("settings.conversation.validation.historyTokenBudgetRatio");
   }
 }
 

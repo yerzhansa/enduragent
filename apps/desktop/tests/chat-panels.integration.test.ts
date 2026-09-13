@@ -2562,10 +2562,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly hasEverySection: boolean;
       readonly horizontalOverflow: boolean;
       readonly withinViewport: boolean;
-      readonly saveReachableAfterScroll: boolean;
+      readonly timezoneReachableAfterScroll: boolean;
       readonly scrolled: boolean;
-      readonly resetWarningVisible: boolean;
-      readonly retentionWarningVisible: boolean;
+      readonly technicalConversationControlsAbsent: boolean;
       readonly paletteSwatchesFillButtons: boolean;
     }>(`
       const settings = Array.from(
@@ -2580,9 +2579,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
       const page = document.querySelector('section[aria-label="Settings"]');
-      const sessionSave = Array.from(page.querySelectorAll("button")).find(
-        (entry) => entry.textContent === "Save conversation settings",
-      );
+      const timezone = document.querySelector("#conversation-timezone");
+      if (!(timezone instanceof HTMLInputElement)) throw new Error("timezone input did not mount");
       const rect = page.getBoundingClientRect();
       const scroll = page.querySelector("[data-page-scroll]");
       if (!(scroll instanceof HTMLElement)) throw new Error("page scrollport did not mount");
@@ -2596,9 +2594,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         previousScrollHeight = nextScrollHeight;
       }
       if (stableFrames < 2) throw new Error("page scrollport did not stabilize");
-      sessionSave.scrollIntoView({ block: "nearest" });
+      timezone.scrollIntoView({ block: "nearest" });
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const saveRect = sessionSave.getBoundingClientRect();
+      const timezoneRect = timezone.getBoundingClientRect();
       const scrollRect = scroll.getBoundingClientRect();
       const subpixelTolerance = 1;
       const copy = page.textContent;
@@ -2615,7 +2613,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
           copy.includes("Coach route") &&
           !copy.includes("Training account") &&
           !copy.includes("Athlete ID") &&
-          copy.includes("Daily reset hour"),
+          copy.includes("Timezone"),
         horizontalOverflow:
           document.documentElement.scrollWidth > document.documentElement.clientWidth ||
           Array.from(page.querySelectorAll("section, div")).some(
@@ -2626,16 +2624,18 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
           rect.right <= window.innerWidth &&
           rect.top >= 0 &&
           rect.bottom <= window.innerHeight,
-        saveReachableAfterScroll:
-          saveRect.left >= scrollRect.left - subpixelTolerance &&
-          saveRect.right <= scrollRect.right + subpixelTolerance &&
-          saveRect.top >= scrollRect.top - subpixelTolerance &&
-          saveRect.bottom <= scrollRect.bottom + subpixelTolerance,
+        timezoneReachableAfterScroll:
+          timezoneRect.left >= scrollRect.left - subpixelTolerance &&
+          timezoneRect.right <= scrollRect.right + subpixelTolerance &&
+          timezoneRect.top >= scrollRect.top - subpixelTolerance &&
+          timezoneRect.bottom <= scrollRect.bottom + subpixelTolerance,
         scrolled: scroll.scrollTop > 0,
-        resetWarningVisible: copy.includes(
-          "may make your next message start a fresh conversation",
-        ),
-        retentionWarningVisible: copy.includes("changes apply only to future pruning"),
+        technicalConversationControlsAbsent:
+          !copy.includes("Daily reset hour") &&
+          !copy.includes("Idle reset") &&
+          !copy.includes("Archive retention") &&
+          !copy.includes("History budget") &&
+          !copy.includes("Save conversation settings"),
         paletteSwatchesFillButtons:
           paletteButtons.length > 0 &&
           paletteButtons.every((button) => {
@@ -2653,10 +2653,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       hasEverySection: true,
       horizontalOverflow: false,
       withinViewport: true,
-      saveReachableAfterScroll: true,
+      timezoneReachableAfterScroll: true,
       scrolled: true,
-      resetWarningVisible: true,
-      retentionWarningVisible: true,
+      technicalConversationControlsAbsent: true,
       paletteSwatchesFillButtons: true,
     });
     const preferences = await fixture.evaluate<StructuralSnapshot>(

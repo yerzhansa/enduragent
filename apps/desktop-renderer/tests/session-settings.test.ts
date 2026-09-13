@@ -4,7 +4,6 @@ import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
 import type { DesktopCoachClientProvider } from "../src/coach-client";
 import {
   createSessionSettingsController,
-  percentTextForRatio,
   type SessionSettingField,
   type SessionSettingsController,
   type SessionSettingsView,
@@ -59,12 +58,20 @@ function snapshot(
   };
 }
 
+function applied() {
+  return {
+    schemaVersion: 3 as const,
+    status: "applied" as const,
+    applied: { llm: false, intervals: false, session: true },
+  };
+}
+
 function fakeView() {
   let handlers:
     | {
         readonly onRetry: () => void;
         readonly onChange: (field: SessionSettingField, value: string) => void;
-        readonly onSave: () => void;
+        readonly onCommit: () => void;
       }
     | undefined;
   const view: SessionSettingsView = {
@@ -78,7 +85,7 @@ function fakeView() {
     view,
     retry: () => handlers?.onRetry(),
     change: (field: SessionSettingField, value: string) => handlers?.onChange(field, value),
-    save: () => handlers?.onSave(),
+    commit: () => handlers?.onCommit(),
   };
 }
 
@@ -98,23 +105,19 @@ function providerWith(client: CoachClient): DesktopCoachClientProvider {
   };
 }
 
-function createSubject(input: {
-  readonly client?: CoachClient;
-  readonly clients?: DesktopCoachClientProvider;
-  readonly beginMutation?: () => (() => void) | null;
-}) {
+function createSubject(
+  input: {
+    readonly client?: CoachClient;
+    readonly clients?: DesktopCoachClientProvider;
+    readonly beginMutation?: () => (() => void) | null;
+  } = {},
+) {
   const subject = fakeView();
   const client =
     input.client ??
     clientWith(async (method) => {
       if (method === "getRuntimeConfig") return snapshot();
-      if (method === "configureRuntime") {
-        return {
-          schemaVersion: 3,
-          status: "applied",
-          applied: { llm: false, intervals: false, session: true },
-        };
-      }
+      if (method === "configureRuntime") return applied();
       throw new Error(`Unexpected method ${method}`);
     });
   const clients = input.clients ?? providerWith(client);
@@ -141,42 +144,53 @@ function form(controller: SessionSettingsController) {
 }
 
 describe("conversation and time settings controller", () => {
-  it("loads all effective values and excludes environment-managed fields from edits and validation", async () => {
+  it("loads only timezone into the athlete editor while retaining the full runtime snapshot", async () => {
     const effective = snapshot({
-      dailyResetHour: -4,
-      managedByEnvironment: {
-        historyTokenBudgetRatio: false,
-        idleMinutes: false,
-        dailyResetHour: true,
-        resetArchiveRetentionDays: false,
-        timezone: false,
-      },
+      historyTokenBudgetRatio: 0.41,
+      idleMinutes: 37,
+      dailyResetHour: 8,
+      resetArchiveRetentionDays: 92,
     });
     const call = vi.fn(async () => effective);
-    const { controller, subject } = createSubject({
-      client: clientWith(call),
-      beginMutation: () => () => {},
-    });
+    const { controller } = createSubject({ client: clientWith(call) });
 
     await controller.activate();
+
     expect(form(controller)).toMatchObject({
       status: "ready",
-      draft: {
-        timezone: "UTC",
-        dailyResetHour: "-4",
-        idleMinutes: "0",
-        resetArchiveRetentionDays: "0",
-        historyTokenBudgetRatio: "30",
+      draft: { timezone: "UTC" },
+      effective: {
+        historyTokenBudgetRatio: 0.41,
+        idleMinutes: 37,
+        dailyResetHour: 8,
+        resetArchiveRetentionDays: 92,
       },
       validationErrors: {},
     });
+    expect(Object.keys(form(controller).draft)).toEqual(["timezone"]);
+  });
 
-    subject.change("dailyResetHour", "9");
-    expect(form(controller).draft.dailyResetHour).toBe("-4");
+  it("keeps an environment-managed timezone read-only", async () => {
+    const effective = snapshot({
+      managedByEnvironment: {
+        ...snapshot().session.managedByEnvironment,
+        timezone: true,
+      },
+    });
+    const { controller, subject } = createSubject({
+      client: clientWith(async () => effective),
+    });
+
+    await controller.activate();
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
+    await Promise.resolve();
+
+    expect(form(controller).draft.timezone).toBe("UTC");
     expect(form(controller).dirtyFields.size).toBe(0);
   });
 
-  it("rejects invalid values without clamping or sending a mutation", async () => {
+  it("rejects an incomplete timezone without sending a mutation", async () => {
     const call = vi.fn(async (method: string) => {
       if (method === "getRuntimeConfig") return snapshot();
       throw new Error("configure should not run");
@@ -184,46 +198,35 @@ describe("conversation and time settings controller", () => {
     const { controller, subject } = createSubject({ client: clientWith(call) });
     await controller.activate();
 
-    for (const [field, value] of [
-      ["timezone", "Not/AZone"],
-      ["dailyResetHour", "24"],
-      ["idleMinutes", "-1"],
-      ["resetArchiveRetentionDays", String(Number.MAX_SAFE_INTEGER + 1)],
-      ["historyTokenBudgetRatio", "0"],
-    ] as const) {
-      subject.change(field, value);
-    }
+    subject.change("timezone", "Asia/");
+    subject.commit();
+    await Promise.resolve();
+
     expect(form(controller).validationErrors).toEqual({
       timezone: "Enter a valid IANA timezone, such as Europe/London.",
-      dailyResetHour: "Enter a whole hour from 0 to 23.",
-      idleMinutes: "Enter a safe whole number of minutes, 0 or more.",
-      resetArchiveRetentionDays: "Enter a safe whole number of days, 0 or more.",
-      historyTokenBudgetRatio: "Enter a history budget above 0% and no more than 100%.",
     });
-    subject.save();
-    await Promise.resolve();
-    expect(call).toHaveBeenCalledTimes(1);
-    expect(form(controller).draft).toMatchObject({
-      timezone: "Not/AZone",
-      dailyResetHour: "24",
-      idleMinutes: "-1",
-      resetArchiveRetentionDays: String(Number.MAX_SAFE_INTEGER + 1),
-      historyTokenBudgetRatio: "0",
-    });
+    expect(call).toHaveBeenCalledExactlyOnceWith("getRuntimeConfig", {});
   });
 
-  it("sends only semantically dirty fields, requires applied.session, and rereads authority", async () => {
+  it("sends an exact timezone-only patch and rereads the complete authority", async () => {
     const calls: Array<{ readonly method: string; readonly request: unknown }> = [];
     const call = vi.fn(async (method: string, request: unknown) => {
       calls.push({ method, request });
-      if (method === "configureRuntime") {
-        return {
-          schemaVersion: 3,
-          status: "applied",
-          applied: { llm: false, intervals: false, session: true },
-        };
-      }
-      return calls.length === 1 ? snapshot() : snapshot({ idleMinutes: 45 });
+      if (method === "configureRuntime") return applied();
+      return calls.length === 1
+        ? snapshot({
+            historyTokenBudgetRatio: 0.41,
+            idleMinutes: 37,
+            dailyResetHour: 8,
+            resetArchiveRetentionDays: 92,
+          })
+        : snapshot({
+            timezone: "Asia/Qyzylorda",
+            historyTokenBudgetRatio: 0.41,
+            idleMinutes: 37,
+            dailyResetHour: 8,
+            resetArchiveRetentionDays: 92,
+          });
     });
     const release = vi.fn();
     const beginMutation = vi.fn(() => release);
@@ -233,87 +236,109 @@ describe("conversation and time settings controller", () => {
     });
     await controller.activate();
 
-    subject.change("historyTokenBudgetRatio", "30.0");
-    subject.change("idleMinutes", "45");
-    expect([...form(controller).dirtyFields]).toEqual(["idleMinutes"]);
-    subject.save();
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
 
     expect(calls).toEqual([
       { method: "getRuntimeConfig", request: {} },
-      { method: "configureRuntime", request: { session: { idleMinutes: 45 } } },
+      {
+        method: "configureRuntime",
+        request: { session: { timezone: "Asia/Qyzylorda" } },
+      },
       { method: "getRuntimeConfig", request: {} },
     ]);
     expect(beginMutation).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledOnce();
     expect(form(controller)).toMatchObject({
       status: "saved",
-      draft: { idleMinutes: "45", historyTokenBudgetRatio: "30" },
+      draft: { timezone: "Asia/Qyzylorda" },
+      effective: {
+        historyTokenBudgetRatio: 0.41,
+        idleMinutes: 37,
+        dailyResetHour: 8,
+        resetArchiveRetentionDays: 92,
+      },
     });
-    expect(form(controller).dirtyFields.size).toBe(0);
   });
 
-  it("saves a changed timezone in one configure transaction", async () => {
-    const saved = vi.fn(async (method: string, request: unknown) => {
-      if (method === "configureRuntime") {
-        expect(request).toEqual({ session: { timezone: "Asia/Qyzylorda" } });
-        return {
-          schemaVersion: 3,
-          status: "applied",
-          applied: { llm: false, intervals: false, session: true },
-        };
+  it("serializes rapid commits and applies the latest timezone", async () => {
+    const first = deferred<ReturnType<typeof applied>>();
+    const second = deferred<ReturnType<typeof applied>>();
+    const requests: unknown[] = [];
+    let reads = 0;
+    const call = vi.fn((method: string, request: unknown) => {
+      if (method === "getRuntimeConfig") {
+        reads += 1;
+        if (reads === 1) return Promise.resolve(snapshot());
+        if (reads === 2) return Promise.resolve(snapshot({ timezone: "Asia/Qyzylorda" }));
+        return Promise.resolve(snapshot({ timezone: "UTC" }));
       }
-      return snapshot();
+      requests.push(request);
+      return requests.length === 1 ? first.promise : second.promise;
     });
-    const timezoneEdit = createSubject({ client: clientWith(saved) });
-    await timezoneEdit.controller.activate();
-    timezoneEdit.subject.change("timezone", "Asia/Qyzylorda");
-    expect([...form(timezoneEdit.controller).dirtyFields]).toEqual(["timezone"]);
-    timezoneEdit.subject.save();
-    await vi.waitFor(() => expect(timezoneEdit.controller.state().status).toBe("saved"));
-    expect(saved.mock.calls.map(([method]) => method)).toEqual([
-      "getRuntimeConfig",
-      "configureRuntime",
-      "getRuntimeConfig",
-    ]);
-  });
-
-  it("retains the draft when the daemon refuses to apply the session patch", async () => {
-    const call = vi.fn(async (method: string) => {
-      if (method === "getRuntimeConfig") return snapshot();
-      return {
-        schemaVersion: 3,
-        status: "refused",
-        reason: "managed-by-environment",
-      };
-    });
-    const beginMutation = vi.fn(() => () => {});
+    const release = vi.fn();
     const { controller, subject } = createSubject({
       client: clientWith(call),
-      beginMutation,
+      beginMutation: () => release,
     });
     await controller.activate();
-    subject.change("idleMinutes", "20");
-    expect([...form(controller).dirtyFields]).toEqual(["idleMinutes"]);
-    expect(form(controller).validationErrors).toEqual({});
-    subject.save();
-    expect(beginMutation).toHaveBeenCalledOnce();
-    expect(controller.state().status).toBe("saving");
-    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
 
-    expect(controller.state()).toMatchObject({
-      status: "error",
-      kind: "save",
-      reason: "not-applied",
-      draft: { idleMinutes: "20" },
-    });
-    expect(call).toHaveBeenCalledTimes(2);
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    subject.change("timezone", "UTC");
+    subject.commit();
+    expect(form(controller)).toMatchObject({ status: "saving", draft: { timezone: "UTC" } });
+
+    first.resolve(applied());
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(controller.state().status).toBe("saving");
+    second.resolve(applied());
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+
+    expect(requests).toEqual([
+      { session: { timezone: "Asia/Qyzylorda" } },
+      { session: { timezone: "UTC" } },
+    ]);
+    expect(form(controller).draft.timezone).toBe("UTC");
+    expect(release).toHaveBeenCalledOnce();
   });
 
-  it("never replays a disconnected save and reconciles the retained draft after reconnect", async () => {
+  it("does not save or overwrite newer uncommitted text", async () => {
+    const configure = deferred<ReturnType<typeof applied>>();
+    let reads = 0;
+    const call = vi.fn((method: string) => {
+      if (method === "getRuntimeConfig") {
+        reads += 1;
+        return Promise.resolve(reads === 1 ? snapshot() : snapshot({ timezone: "Asia/Qyzylorda" }));
+      }
+      return configure.promise;
+    });
+    const { controller, subject } = createSubject({ client: clientWith(call) });
+    await controller.activate();
+
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
+    await vi.waitFor(() => expect(controller.state().status).toBe("saving"));
+    subject.change("timezone", "Asia/");
+    subject.commit();
+    configure.resolve(applied());
+    await vi.waitFor(() => expect(controller.state().status).toBe("ready"));
+
+    expect(call.mock.calls.filter(([method]) => method === "configureRuntime")).toHaveLength(1);
+    expect(form(controller)).toMatchObject({
+      draft: { timezone: "Asia/" },
+      validationErrors: {
+        timezone: "Enter a valid IANA timezone, such as Europe/London.",
+      },
+    });
+  });
+
+  it("reloads authority before retrying an ambiguous disconnected save", async () => {
     const disconnected = new CoachClientDisconnectedError(1006, "");
     const firstCall = vi.fn().mockResolvedValueOnce(snapshot()).mockRejectedValueOnce(disconnected);
-    const secondCall = vi.fn(async () => snapshot({ idleMinutes: 15 }));
+    const secondCall = vi.fn(async () => snapshot({ timezone: "Asia/Qyzylorda" }));
     const first = clientWith(firstCall);
     const second = clientWith(secondCall);
     const clients: DesktopCoachClientProvider = {
@@ -323,44 +348,77 @@ describe("conversation and time settings controller", () => {
     };
     const { controller, subject } = createSubject({ clients });
     await controller.activate();
-    subject.change("idleMinutes", "30");
-    expect([...form(controller).dirtyFields]).toEqual(["idleMinutes"]);
-    expect(form(controller).validationErrors).toEqual({});
-    subject.save();
-    expect(controller.state().status).toBe("saving");
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
     await vi.waitFor(() => expect(controller.state().status).toBe("error"));
-    expect(form(controller).draft.idleMinutes).toBe("30");
 
     subject.retry();
-    await vi.waitFor(() => expect(controller.state().status).toBe("ready"));
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+
     expect(clients.reconnect).toHaveBeenCalledOnce();
     expect(secondCall).toHaveBeenCalledExactlyOnceWith("getRuntimeConfig", {});
     expect(firstCall.mock.calls.filter(([method]) => method === "configureRuntime")).toHaveLength(
       1,
     );
-    expect(secondCall).toHaveBeenCalledTimes(1);
-    expect(form(controller).draft.idleMinutes).toBe("30");
-    expect([...form(controller).dirtyFields]).toEqual(["idleMinutes"]);
+    expect(form(controller).draft.timezone).toBe("Asia/Qyzylorda");
   });
 
-  it("does not start a save while another settings mutation owns the shell", async () => {
+  it("does not start a commit while another settings mutation owns the shell", async () => {
     const call = vi.fn(async () => snapshot());
     const { controller, subject } = createSubject({
       client: clientWith(call),
       beginMutation: () => null,
     });
     await controller.activate();
-    subject.change("idleMinutes", "5");
-    subject.save();
+
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
     await Promise.resolve();
+
     expect(call).toHaveBeenCalledExactlyOnceWith("getRuntimeConfig", {});
     expect(form(controller)).toMatchObject({
       status: "ready",
-      draft: { idleMinutes: "5" },
+      draft: { timezone: "Asia/Qyzylorda" },
     });
   });
 
-  it("fences a stale load completion after the dialog closes", async () => {
+  it("continues an in-flight commit across Settings close and re-entry", async () => {
+    const configure = deferred<ReturnType<typeof applied>>();
+    let reads = 0;
+    const call = vi.fn((method: string) => {
+      if (method === "getRuntimeConfig") {
+        reads += 1;
+        return Promise.resolve(reads === 1 ? snapshot() : snapshot({ timezone: "Asia/Qyzylorda" }));
+      }
+      return configure.promise;
+    });
+    const { controller, subject } = createSubject({ client: clientWith(call) });
+    await controller.activate();
+
+    subject.change("timezone", "Asia/Qyzylorda");
+    subject.commit();
+    await vi.waitFor(() => expect(controller.state().status).toBe("saving"));
+    controller.close();
+
+    expect(controller.state()).toEqual({ status: "closed" });
+    const reentry = controller.activate();
+    expect(form(controller)).toMatchObject({
+      status: "saving",
+      draft: { timezone: "Asia/Qyzylorda" },
+    });
+    expect(reads).toBe(1);
+
+    configure.resolve(applied());
+    await reentry;
+
+    expect(reads).toBe(2);
+    expect(form(controller)).toMatchObject({
+      status: "saved",
+      draft: { timezone: "Asia/Qyzylorda" },
+    });
+  });
+
+  it("fences a stale load completion after Settings closes", async () => {
     const gate = deferred<RuntimeConfigSnapshot>();
     const { controller, subject } = createSubject({
       client: clientWith(async () => gate.promise),
@@ -369,23 +427,9 @@ describe("conversation and time settings controller", () => {
     controller.close();
     gate.resolve(snapshot());
     await pending;
+
     expect(controller.state()).toEqual({ status: "closed" });
     expect(subject.view.render).toHaveBeenCalledTimes(1);
     expect(subject.view.render).toHaveBeenLastCalledWith({ status: "loading" });
-  });
-
-  it("keeps an unchanged displayed percentage lossless even when decimal scaling is not invertible", async () => {
-    for (const ratio of [0.3, 0.3333333333333333, 0.30000000000000004, 1]) {
-      const text = percentTextForRatio(ratio);
-      expect(Number.isFinite(Number(text))).toBe(true);
-      const call = vi.fn(async () => snapshot({ historyTokenBudgetRatio: ratio }));
-      const { controller, subject } = createSubject({ client: clientWith(call) });
-      await controller.activate();
-      expect(form(controller).draft.historyTokenBudgetRatio).toBe(text);
-      expect(form(controller).dirtyFields.size).toBe(0);
-      subject.save();
-      await Promise.resolve();
-      expect(call).toHaveBeenCalledTimes(1);
-    }
   });
 });

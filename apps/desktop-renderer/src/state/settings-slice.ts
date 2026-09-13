@@ -48,7 +48,7 @@ export interface AthleteSettingsPort {
 export interface ConversationSettingsPort {
   retry(): void;
   change(field: SessionSettingField, value: string): void;
-  save(): void;
+  commit(): void;
 }
 
 export interface SpendSettingsPort {
