@@ -54,6 +54,25 @@ export {
   type UsageLedgerReadResult,
 } from "./usage-ledger.js";
 export { atomicWriteJson } from "./io/atomic-write-json.js";
+export {
+  MODEL_CATALOG_ENDPOINT,
+  MODEL_CATALOG_REFRESH_INTERVAL_MS,
+  MODEL_CATALOG_REQUEST_TIMEOUT_MS,
+  MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
+  openModelCatalog,
+  resolveModelCatalogPaths,
+} from "./model-catalog-owner.js";
+export type {
+  LocalModelCatalogOrigin,
+  LocalModelCatalogSnapshot,
+  ModelCatalog,
+  ModelCatalogDiagnostics,
+  ModelCatalogLifecycleOutcome,
+  ModelCatalogOpenInput,
+  ModelCatalogPaths,
+  ModelCatalogRefreshOutcome,
+  ModelCatalogRefreshRetainedReason,
+} from "./model-catalog-owner.js";
 
 // ─── Logging substrate ────────────────────────────────────────────────
 export {
