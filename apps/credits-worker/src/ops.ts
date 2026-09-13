@@ -23,15 +23,28 @@ export type NewPack = {
 
 export type SpendReport = {
   athleteId: AthleteId | undefined;
-  keyHash: KeyHash | undefined;
-  orphanedRemoteKey: boolean;
+  keyHash: KeyHash;
   grantedUsdMillis: UsdMillis;
   refundedUsdMillis: UsdMillis;
-  remainingUsdMillis: UsdMillis;
-  usageUsdMillis: UsdMillis;
-  creditsRemaining: Credits;
-  disabled: boolean;
-};
+} & (
+  | {
+      missingRemoteKey: false;
+      orphanedRemoteKey: boolean;
+      remainingUsdMillis: UsdMillis;
+      usageUsdMillis: UsdMillis;
+      creditsRemaining: Credits;
+      disabled: boolean;
+    }
+  | {
+      missingRemoteKey: true;
+      orphanedRemoteKey: false;
+      athleteId: AthleteId;
+      remainingUsdMillis: null;
+      usageUsdMillis: null;
+      creditsRemaining: null;
+      disabled: null;
+    }
+);
 
 export type Operator = {
   setRatio(change: PricingChange): Promise<{ policyVersion: number }>;
@@ -60,17 +73,18 @@ export function createOperator(ports: {
     }
     throw new DomainError("unavailable");
   }
-  async function report(athleteId: AthleteId, view?: OpenRouterKeyView): Promise<SpendReport> {
+  async function report(
+    athleteId: AthleteId,
+    view?: OpenRouterKeyView | null,
+  ): Promise<SpendReport> {
     const athlete = await ledger.athlete(athleteId);
     if (!athlete) throw new DomainError("identity_mismatch");
-    const remote = view ?? (await keys.get(athlete.keyHash));
+    const remote = view === undefined ? await keys.get(athlete.keyHash) : view;
     const grants = await ledger.grantsFor(athleteId);
     const purchases = await ledger.purchasesFor(athleteId);
-    const policy = await ledger.currentPolicy();
-    return {
+    const totals = {
       athleteId,
       keyHash: athlete.keyHash,
-      orphanedRemoteKey: false,
       grantedUsdMillis: asUsdMillis(
         [...grants, ...purchases].reduce((sum, row) => sum + row.capUsdMillis, 0),
       ),
@@ -79,6 +93,23 @@ export function createOperator(ports: {
           .filter((row) => row.refundedAt !== undefined)
           .reduce((sum, row) => sum + row.capUsdMillis, 0),
       ),
+    };
+    if (remote === null) {
+      return {
+        ...totals,
+        missingRemoteKey: true,
+        orphanedRemoteKey: false,
+        remainingUsdMillis: null,
+        usageUsdMillis: null,
+        creditsRemaining: null,
+        disabled: null,
+      };
+    }
+    const policy = await ledger.currentPolicy();
+    return {
+      ...totals,
+      missingRemoteKey: false,
+      orphanedRemoteKey: false,
       remainingUsdMillis: remote.remainingUsdMillis,
       usageUsdMillis: remote.usageUsdMillis,
       creditsRemaining: asCredits(
@@ -150,6 +181,7 @@ export function createOperator(ports: {
             athleteId: undefined,
             keyHash: view.hash,
             orphanedRemoteKey: true,
+            missingRemoteKey: false,
             grantedUsdMillis: asUsdMillis(0),
             refundedUsdMillis: asUsdMillis(0),
             remainingUsdMillis: view.remainingUsdMillis,
@@ -162,7 +194,7 @@ export function createOperator(ports: {
       }
       for (const athlete of athletes) {
         if (!remote.some((view) => view.hash === athlete.keyHash))
-          reports.push(await report(athlete.athleteId));
+          reports.push(await report(athlete.athleteId, null));
       }
       return reports;
     },

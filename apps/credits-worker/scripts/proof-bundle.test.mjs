@@ -289,3 +289,28 @@ test("built proof rejects configured ceilings without provider activity", async 
   );
   assert.equal(requests, 0);
 });
+
+test("built spend proof preserves missing-key markers and null provider values", async () => {
+  const row = {
+    athleteId: "19980613-0000-4000-8000-000000000002",
+    keyHash: "synthetic-missing",
+    orphanedRemoteKey: false,
+    missingRemoteKey: true,
+    grantedUsdMillis: 3000,
+    refundedUsdMillis: 1000,
+    remainingUsdMillis: null,
+    usageUsdMillis: null,
+    creditsRemaining: null,
+    disabled: null,
+  };
+  const result = await harness.module.runProof(
+    {
+      WORKER_ORIGIN: "https://credits.test",
+      APPLE_ENVIRONMENT: "sandbox",
+      PROOF_MODE: "spend",
+      OPERATOR_TOKEN: "synthetic-operator",
+    },
+    async () => new Response(JSON.stringify([{ ...row, authorization: "synthetic-private" }])),
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), [row]);
+});

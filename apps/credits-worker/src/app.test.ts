@@ -286,7 +286,6 @@ it.each([
   });
 });
 
-
 it.each(["claim", "recover"] as const)("%s logs only route and outcome", async (route) => {
   const apple = new FakeAppleStore();
   const purchase = {
@@ -317,4 +316,168 @@ it.each(["claim", "recover"] as const)("%s logs only route and outcome", async (
   expect(await response.json()).toEqual({ kind: "claimAlreadyClaimed" });
   expect(run).toHaveBeenCalledExactlyOnceWith(athleteId, { kind: route, purchase });
   expect(info).toHaveBeenCalledExactlyOnceWith({ route, outcome: "claimAlreadyClaimed" });
+});
+
+import { OpenRouterManagementClient } from "./openrouter.js";
+import { asCredits, asUsdMillis, type GrantId, type KeyHash } from "./domain.js";
+
+async function inventoryApp() {
+  const ports = sessionPorts();
+  ports.keys = new OpenRouterManagementClient("synthetic-management", {
+    guardrailMode: "off",
+    guardrailId: undefined,
+    keyCountCeiling: undefined,
+  });
+  const missingId = "19980613-0000-4000-8000-000000000002" as AthleteId;
+  for (const [id, hash] of [
+    [athleteId, "synthetic-present"],
+    [missingId, "synthetic-missing"],
+  ] as const) {
+    await ports.ledger.insertAthlete({
+      athleteId: id,
+      keyHash: hash as KeyHash,
+      keyGeneration: 1,
+      disabled: false,
+      refundsAfterUse: 0,
+      createdAt: "1998-06-13T00:00:00Z",
+    });
+  }
+  await ports.ledger.insertGrant({
+    grantId: "synthetic-grant" as GrantId,
+    athleteId: missingId,
+    capUsdMillis: asUsdMillis(2000),
+    credits: asCredits(200),
+    grantedAt: "1998-06-13T00:00:00Z",
+  });
+  await ports.ledger.insertPurchase({
+    transactionId: "synthetic-purchase" as TransactionId,
+    originalTransactionId: "synthetic-original" as OriginalTransactionId,
+    athleteId: missingId,
+    productId: "synthetic-pack" as ProductId,
+    environment: "sandbox",
+    capUsdMillis: asUsdMillis(1000),
+    credits: asCredits(100),
+    policyVersion: 1,
+    claimedAt: "1998-06-13T00:00:00Z",
+    refundedAt: "1998-06-14T00:00:00Z",
+  });
+  return { app: createCreditsApp(appFrom(ports)), missingId };
+}
+
+const inventoryPage = [
+  { hash: "synthetic-present", disabled: false, limit: 2, limit_remaining: 1.5, usage: 0.5 },
+  { hash: "synthetic-orphan", disabled: true, limit: 4, limit_remaining: 3.5, usage: 0.5 },
+];
+
+it("bulk spend reports missing provider values without losing normal or orphan rows", async () => {
+  const { app, missingId } = await inventoryApp();
+  const transport = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith("offset=0")) return Response.json({ data: inventoryPage });
+    if (url.endsWith("offset=2")) return Response.json({ data: [] });
+    return new Response(null, { status: 404 });
+  });
+  try {
+    const response = await app.fetch(
+      new Request("https://credits.test/ops/spend", {
+        headers: { authorization: "Bearer synthetic-operator" },
+      }),
+      { ...envStub(), OPERATOR_TOKEN: "synthetic-operator" },
+      ctx(),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      {
+        athleteId,
+        keyHash: "synthetic-present",
+        orphanedRemoteKey: false,
+        missingRemoteKey: false,
+        grantedUsdMillis: 0,
+        refundedUsdMillis: 0,
+        remainingUsdMillis: 1500,
+        usageUsdMillis: 500,
+        creditsRemaining: 150,
+        disabled: false,
+      },
+      {
+        keyHash: "synthetic-orphan",
+        orphanedRemoteKey: true,
+        missingRemoteKey: false,
+        grantedUsdMillis: 0,
+        refundedUsdMillis: 0,
+        remainingUsdMillis: 3500,
+        usageUsdMillis: 500,
+        creditsRemaining: 350,
+        disabled: true,
+      },
+      {
+        athleteId: missingId,
+        keyHash: "synthetic-missing",
+        orphanedRemoteKey: false,
+        missingRemoteKey: true,
+        grantedUsdMillis: 3000,
+        refundedUsdMillis: 1000,
+        remainingUsdMillis: null,
+        usageUsdMillis: null,
+        creditsRemaining: null,
+        disabled: null,
+      },
+    ]);
+    expect(transport.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://openrouter.ai/api/v1/keys?include_disabled=true&offset=0",
+      "https://openrouter.ai/api/v1/keys?include_disabled=true&offset=2",
+    ]);
+  } finally {
+    transport.mockRestore();
+  }
+});
+
+it.each(["unauthorized", "timeout", "malformed", "repeated"])(
+  "bulk spend fails closed when inventory is %s",
+  async (failure) => {
+    const { app } = await inventoryApp();
+    const transport = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).endsWith("offset=0")) return Response.json({ data: inventoryPage });
+      if (failure === "timeout") throw new Error("synthetic timeout");
+      if (failure === "unauthorized") return new Response(null, { status: 401 });
+      return Response.json({ data: failure === "malformed" ? null : inventoryPage });
+    });
+    try {
+      const response = await app.fetch(
+        new Request("https://credits.test/ops/spend", {
+          headers: { authorization: "Bearer synthetic-operator" },
+        }),
+        { ...envStub(), OPERATOR_TOKEN: "synthetic-operator" },
+        ctx(),
+      );
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "unavailable" });
+      expect(transport).toHaveBeenCalledTimes(2);
+    } finally {
+      transport.mockRestore();
+    }
+  },
+);
+
+it("single-athlete spend still fails when its remote key cannot be fetched", async () => {
+  const { app, missingId } = await inventoryApp();
+  const transport = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(new Response(null, { status: 404 }));
+  try {
+    const response = await app.fetch(
+      new Request(`https://credits.test/ops/spend?athleteId=${missingId}`, {
+        headers: { authorization: "Bearer synthetic-operator" },
+      }),
+      { ...envStub(), OPERATOR_TOKEN: "synthetic-operator" },
+      ctx(),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
+    expect(transport.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://openrouter.ai/api/v1/keys/synthetic-missing",
+    ]);
+  } finally {
+    transport.mockRestore();
+  }
 });

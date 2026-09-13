@@ -141,6 +141,7 @@ export async function runProof(
     "athleteId",
     "keyHash",
     "orphanedRemoteKey",
+    "missingRemoteKey",
     "grantedUsdMillis",
     "refundedUsdMillis",
     "remainingUsdMillis",
