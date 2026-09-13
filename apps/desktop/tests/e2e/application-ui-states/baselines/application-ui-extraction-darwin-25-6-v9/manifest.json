@@ -3,7 +3,7 @@
   "version": "application-ui-extraction-darwin-25-6-v9",
   "reviewedBy": "Codex, GPT-6",
   "review": "native-application-regression-reference",
-  "reviewNote": "Inspected the wide settings-preferences captures from the Version Packages CI run 34703583734 on changeset-release/main: only the Settings version line changed to 0.5.0. The other 18 captures are retained from darwin-25-6-v9. The captures record current rendering and do not approve feature behaviour.",
+  "reviewNote": "Inspected the wide settings-preferences captures from CI run 34742185781. Only the final Settings version digit changed from 0.5.0 to 0.5.1, within x=474..483 and y=799..810. The other 18 captures are retained. These captures record rendering and do not approve feature behavior.",
   "coverage": {
     "projects": 4,
     "scenarios": 5,
@@ -12,8 +12,8 @@
     "structuralNegativeControls": 0
   },
   "sourceRevision": {
-    "commit": "f2e5d67f7e23cd62515509ff6eb288b37f27df09",
-    "dirty": true
+    "commit": "5cb39c337e7dda86b4f05ae8ab16ec8763de7291",
+    "dirty": false
   },
   "identity": {
     "schemaVersion": 1,
@@ -33,7 +33,7 @@
     "applicationBuild": {
       "fileCount": 30,
       "sha256": "450429a83741edc99f33e0d3d1ead92f562653c216bd862e403b0e105bb6393c",
-      "desktopVersion": "0.5.0",
+      "desktopVersion": "0.5.1",
       "rendererVersion": "0.3.0"
     },
     "uiPackage": {
@@ -129,25 +129,25 @@
     "wide-dark/desktop--chat-empty.png": "acb7e73e3c7f54c38479e6bbc89ea6feb16e91c4f65b6caf8243b71e1211bbd6",
     "wide-dark/desktop--chat-sync-failed.png": "3b92ba0946e5343af6bc067077d8a79bea65629d95dbea49b9deb004894d8e3d",
     "wide-dark/desktop--chat-syncing.png": "a3a98a7cfd7b2d3ccaf8d4c8d41afc660efc7ee272b8a5979385217121b3dbd0",
-    "wide-dark/desktop--settings-preferences.png": "13d6eb11a8d7680abcff753e5030e72705b169594e348efde4120886580671da",
+    "wide-dark/desktop--settings-preferences.png": "28a739d88cc06eabbaafd6435b15cd1af820a550ecf97af94843c39589281296",
     "wide-dark/desktop--training-loading.png": "2bcd8ac961018e15df58c12e208c4b01e13714e9924b64509b589e33c4b294b2",
     "wide-light/desktop--chat-empty.png": "ab21135b3a20472e497bc44f3bf5bc7e44017375c20fc213e99a55fdfb194e27",
     "wide-light/desktop--chat-sync-failed.png": "4e26a1ac5fe7eb098733414e5ecda529c0587a970eb6308e84c5f60bffae5b72",
     "wide-light/desktop--chat-syncing.png": "3c8e7406ce86f560e1764b393bb652abfb913bd6590631e3ae49a6e3eac5e4a6",
-    "wide-light/desktop--settings-preferences.png": "481bea147de60594ab9e2b714f2bb38b555f5e561fdedc6a64fe99c06c6b23de",
+    "wide-light/desktop--settings-preferences.png": "a4007ab99f08331f50fc8b7966d7c659ce6794d4d78ef86545e359183859c1cb",
     "wide-light/desktop--training-loading.png": "ac38b54801d5dbba389774fe18b2fcd2ac107f0171c450eb8af9aeb45a437c9d"
   },
   "captureProvenance": {
     "currentCaptures": 2,
     "retainedScreenshots": 18,
     "retainedVersion": "application-ui-extraction-darwin-25-6-v9",
-    "retainedManifestSha256": "073a5619de2def446192b348d8fda27973c96dc676480bf4a170f0854964bdba",
+    "retainedManifestSha256": "5997ae629b74758e61aadbf784de74f7b0ac4a800c2a6fe1693ed17b49f348a8",
     "fullMatrixVerification": "Pending subsequent CI run against this reviewed reference.",
     "runs": [
-      "https://github.com/yerzhansa/enduragent/actions/runs/34703583734"
+      "https://github.com/yerzhansa/enduragent/actions/runs/34742185781"
     ],
     "artifactIds": [
-      10300792142
+      10312532440
     ]
   }
 }
