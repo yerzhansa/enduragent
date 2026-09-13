@@ -1874,7 +1874,7 @@ describe("credential deletion", () => {
 });
 
 describe("keyless provider status", () => {
-  it("shows the signed-in identity with no credential value and no delete control", async () => {
+  it("omits the separate Claude subscription row and signed-in identity", async () => {
     await renderSettings({
       runtime: () =>
         snapshot({
@@ -1889,18 +1889,12 @@ describe("keyless provider status", () => {
       }),
     });
 
-    const row = document.querySelector<HTMLElement>('[data-provider="claude-cli"]');
-    expect(row).not.toBeNull();
-    expect(row?.textContent).toContain("Claude subscription");
-    expect(row?.textContent).toContain("Claude Code CLI");
-    expect(row?.textContent).toContain(
-      "Signed in as athlete@example.test - Claude Max subscription",
-    );
-    expect(row?.textContent).not.toContain("2.1.0");
-    expect(within(row as HTMLElement).queryByRole("button")).toBeNull();
+    expect(document.querySelector('[data-provider="claude-cli"]')).toBeNull();
+    expect(screen.queryByText(/athlete@example\.test/u)).toBeNull();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
   });
 
-  it("renders api-key billing honestly and never as a subscription", async () => {
+  it("omits the separate Claude status row for API-key billing", async () => {
     await renderSettings({
       runtime: () =>
         snapshot({
@@ -1910,10 +1904,8 @@ describe("keyless provider status", () => {
       claudeCliStatus: async () => ({ state: "ready-api-key" }),
     });
 
-    const row = document.querySelector<HTMLElement>('[data-provider="claude-cli"]');
-    expect(row?.querySelector("[data-provider-identity]")?.textContent).toBe(
-      "Using Anthropic API key billing - usage is charged to your API account.",
-    );
+    expect(document.querySelector('[data-provider="claude-cli"]')).toBeNull();
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
   });
 
   it("keeps credential-backed providers free of status rows", async () => {
