@@ -310,15 +310,22 @@ const NAVIGATE = `
   };
 `;
 
-async function launch(initial: "reached" | "complete" = "reached") {
+async function launch(
+  initial: "reached" | "complete" = "reached",
+  display: {
+    readonly width?: number;
+    readonly height?: number;
+    readonly colorScheme?: "light" | "dark";
+  } = {},
+) {
   const calls: ScriptRequest[] = [];
   const scripted = script(calls, initial);
   const fixture = await launchDesktopFixture({
     script: scripted.fixture,
     token,
-    width: 1440,
-    height: 900,
-    colorScheme: "light",
+    width: display.width ?? 1440,
+    height: display.height ?? 900,
+    colorScheme: display.colorScheme ?? "light",
     reducedMotion: false,
   });
   fixtures.push(fixture);
@@ -523,14 +530,25 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
     await expect(fixture.close()).resolves.toEqual({ livePids: [], listenerCount: 0 });
   }, 60_000);
 
-  it("renders complete and provider-dependent details, saves an unknown cap, and preserves it as stale", async () => {
-    const { fixture, calls, failSpend } = await launch("complete");
-    const complete = await fixture.evaluate<{
-      readonly amount: string;
-      readonly status: string;
-      readonly warningHidden: boolean;
-      readonly disclosure: string;
-    }>(`
+  it.each([
+    { label: "wide light", width: 1180, height: 820, colorScheme: "light" as const },
+    { label: "wide dark", width: 1180, height: 820, colorScheme: "dark" as const },
+    { label: "compact light", width: 760, height: 820, colorScheme: "light" as const },
+    { label: "compact dark", width: 760, height: 820, colorScheme: "dark" as const },
+  ])(
+    "autosaves and restores the cap on reentry in $label mode",
+    async ({ width, height, colorScheme }) => {
+      const { fixture, calls, failSpend } = await launch("complete", {
+        width,
+        height,
+        colorScheme,
+      });
+      const complete = await fixture.evaluate<{
+        readonly amount: string;
+        readonly status: string;
+        readonly warningHidden: boolean;
+        readonly disclosure: string;
+      }>(`
       ${NAVIGATE}
       const spending = await openSpending("$0.14 / $0.50");
       return {
@@ -540,53 +558,71 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
         disclosure: spending.textContent,
       };
     `);
-    expect(complete).toMatchObject({
-      amount: "$0.14 / $0.50",
-      status: "below",
-      warningHidden: true,
-    });
-    expect(complete.disclosure).toContain(
-      "Provider-dependent caching; no explicit breakpoint on this route.",
-    );
+      expect(complete).toMatchObject({
+        amount: "$0.14 / $0.50",
+        status: "below",
+        warningHidden: true,
+      });
+      expect(complete.disclosure).toContain(
+        "Provider-dependent caching; no explicit breakpoint on this route.",
+      );
 
-    const saved = await fixture.evaluate<{
-      readonly amount: string;
-      readonly status: string;
-      readonly warningHidden: boolean;
-      readonly disclosure: string;
-    }>(`
+      const saved = await fixture.evaluate<{
+        readonly amount: string;
+        readonly status: string;
+        readonly warningHidden: boolean;
+        readonly disclosure: string;
+        readonly inputValue: string;
+        readonly saveButtonMissing: boolean;
+        readonly colorScheme: string;
+        readonly overflow: boolean;
+      }>(`
+        ${NAVIGATE}
       const spending = document.querySelector("[data-spend-meter]");
       const cap = document.querySelector("#daily-spend-cap");
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      cap.focus();
       setter.call(cap, "0.75");
       cap.dispatchEvent(new Event("input", { bubbles: true }));
-      Array.from(spending.querySelectorAll("button")).find((entry) => entry.textContent === "Save cap").click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      cap.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
       const deadline = Date.now() + 5000;
       while (document.querySelector("[data-spend-meter]").dataset.capStatus !== "unknown" && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
-      const current = document.querySelector("[data-spend-meter]");
+        await navigate("Chat");
+        const current = await openSpending("$0.60+ / $0.75");
       return {
         amount: current.querySelector("strong").textContent,
         status: current.dataset.capStatus,
         warningHidden: document.querySelector("#spend-cap-warning").hidden,
         disclosure: current.textContent,
+          inputValue: current.querySelector("#daily-spend-cap").value,
+          saveButtonMissing: !Array.from(current.querySelectorAll("button")).some(
+            (entry) => entry.textContent === "Save cap",
+          ),
+          colorScheme: getComputedStyle(document.documentElement).colorScheme,
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
     `);
-    expect(saved).toMatchObject({
-      amount: "$0.60+ / $0.75",
-      status: "unknown",
-      warningHidden: true,
-    });
-    expect(saved.disclosure).toContain(
-      "Some provider costs are unavailable, so today’s total is a known minimum.",
-    );
-    expect(calls.filter((call) => call.method === "setDailySpendCap")).toEqual([
-      expect.objectContaining({ params: { dailyCapUsd: 0.75 } }),
-    ]);
+      expect(saved).toMatchObject({
+        amount: "$0.60+ / $0.75",
+        status: "unknown",
+        warningHidden: true,
+        inputValue: "0.75",
+        saveButtonMissing: true,
+        colorScheme,
+        overflow: false,
+      });
+      expect(saved.disclosure).toContain(
+        "Some provider costs are unavailable, so today’s total is a known minimum.",
+      );
+      expect(calls.filter((call) => call.method === "setDailySpendCap")).toEqual([
+        expect.objectContaining({ params: { dailyCapUsd: 0.75 } }),
+      ]);
 
-    failSpend();
-    const stale = await fixture.evaluate<string>(`
+      failSpend();
+      const stale = await fixture.evaluate<string>(`
       const textarea = document.querySelector("#message");
       textarea.value = "Refresh the spend display";
       textarea.closest("form").requestSubmit();
@@ -596,8 +632,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop spend me
       }
       return document.querySelector("[data-spend-meter]").textContent;
     `);
-    expect(stale).toContain("Spend data may be out of date.");
-    expect(calls.filter((call) => call.method === "enqueueChatMessage")).toHaveLength(1);
-    expect(calls.filter((call) => call.method === "resumeChatQueue")).toHaveLength(1);
-  }, 60_000);
+      expect(stale).toContain("Spend data may be out of date.");
+      expect(calls.filter((call) => call.method === "enqueueChatMessage")).toHaveLength(1);
+      expect(calls.filter((call) => call.method === "resumeChatQueue")).toHaveLength(1);
+    },
+    60_000,
+  );
 });

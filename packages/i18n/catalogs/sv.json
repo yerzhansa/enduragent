@@ -297,7 +297,7 @@
         "failed": "Den dagliga gränsen kunde inte sparas.",
         "invalid": "Ange en daglig gräns över $0.",
         "label": "Daglig gräns (USD)",
-        "save": "Spara gräns",
+        "retry": "Försök igen",
         "value": "{{known}} av {{cap}}"
       },
       "date": "{{day}} {{month}}",

@@ -296,7 +296,7 @@
         "failed": "Le plafond quotidien n’a pas pu être enregistré.",
         "invalid": "Saisis un plafond quotidien supérieur à 0 $.",
         "label": "Plafond quotidien (USD)",
-        "save": "Enregistrer le plafond",
+        "retry": "Réessayer",
         "value": "{{known}} sur {{cap}}"
       },
       "date": "{{day}} {{month}}",

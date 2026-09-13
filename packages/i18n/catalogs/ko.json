@@ -296,7 +296,7 @@
         "failed": "일일 한도를 저장하지 못했습니다.",
         "invalid": "$0보다 큰 일일 한도를 입력하세요.",
         "label": "일일 한도(USD)",
-        "save": "한도 저장",
+        "retry": "다시 시도",
         "value": "{{cap}} 중 {{known}}"
       },
       "date": "{{month}} {{day}}일",

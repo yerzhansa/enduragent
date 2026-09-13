@@ -1000,8 +1000,8 @@
       "sourceHash": "91c71544598846da3ad6f5d1890fa6f8cafdebc5661308e50c39e8f406a954fb",
       "translatedBy": "model"
     },
-    "settings.spend.cap.save": {
-      "sourceHash": "79700fb03e29b5cf880c7c8123fa6651f9cbb7c3ddcbba0164651923a38982fe",
+    "settings.spend.cap.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
       "translatedBy": "model"
     },
     "settings.spend.cap.value": {

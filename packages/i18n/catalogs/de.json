@@ -296,7 +296,7 @@
         "failed": "Das Tageslimit konnte nicht gespeichert werden.",
         "invalid": "Gib ein Tageslimit über 0 $ ein.",
         "label": "Tageslimit (USD)",
-        "save": "Limit speichern",
+        "retry": "Erneut versuchen",
         "value": "{{known}} von {{cap}}"
       },
       "date": "{{day}}. {{month}}",

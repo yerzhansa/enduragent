@@ -1567,7 +1567,7 @@ export type CatalogKey =
   | "settings.spend.cap.failed"
   | "settings.spend.cap.invalid"
   | "settings.spend.cap.label"
-  | "settings.spend.cap.save"
+  | "settings.spend.cap.retry"
   | "settings.spend.cap.value"
   | "settings.spend.date"
   | "settings.spend.detail"

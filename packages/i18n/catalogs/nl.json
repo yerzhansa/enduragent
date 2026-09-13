@@ -296,7 +296,7 @@
         "failed": "De daglimiet kon niet worden opgeslagen.",
         "invalid": "Voer een daglimiet hoger dan $0 in.",
         "label": "Daglimiet (USD)",
-        "save": "Limiet opslaan",
+        "retry": "Opnieuw proberen",
         "value": "{{known}} van {{cap}}"
       },
       "date": "{{day}} {{month}}",

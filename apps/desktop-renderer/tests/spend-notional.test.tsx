@@ -49,7 +49,6 @@ function summary(overrides: Partial<SpendSummary> = {}): SpendSummary {
 function adapter() {
   let state = EMPTY_SETTINGS_SURFACE.spend;
   const created = createSpendSettingsAdapter({
-    read: () => state,
     publish: (next) => {
       state = next;
     },
@@ -94,7 +93,11 @@ describe("notional spend copy", () => {
   it("never raises the cap warning for a notional-only day above the cap", () => {
     const subject = adapter();
 
-    subject.view.renderSummary(summary(), { stale: false });
+    subject.view.render({
+      ...EMPTY_SETTINGS_SURFACE.spend,
+      status: "ready",
+      summary: summary(),
+    });
 
     expect(subject.current().warning).toBeNull();
     expect(subject.current().summary?.knownSpendUsd).toBe(0);
@@ -103,14 +106,15 @@ describe("notional spend copy", () => {
   it("still warns when real spend reaches the cap", () => {
     const subject = adapter();
 
-    subject.view.renderSummary(
-      summary({
+    subject.view.render({
+      ...EMPTY_SETTINGS_SURFACE.spend,
+      status: "ready",
+      summary: summary({
         knownSpendUsd: 0.5,
         capStatus: "reached",
         routes: [route({ knownSpendUsd: 0.5 })],
       }),
-      { stale: false },
-    );
+    });
 
     expect(subject.current().warning).toBe(
       "You’ve reached today’s $0.50 spend cap. You can keep chatting; this is a warning, not a block.",

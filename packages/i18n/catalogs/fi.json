@@ -296,7 +296,7 @@
         "failed": "Päivittäistä rajaa ei voitu tallentaa.",
         "invalid": "Anna päivittäinen raja, joka on suurempi kuin 0 $.",
         "label": "Päivittäinen raja (USD)",
-        "save": "Tallenna raja",
+        "retry": "Yritä uudelleen",
         "value": "{{known}} / {{cap}}"
       },
       "date": "{{day}}. {{month}}",

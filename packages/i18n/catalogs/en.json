@@ -1829,7 +1829,7 @@
         "failed": "The daily cap could not be saved.",
         "invalid": "Enter a daily cap greater than $0.",
         "label": "Daily cap (USD)",
-        "save": "Save cap",
+        "retry": "Retry",
         "value": "{{known}} of {{cap}}"
       },
       "date": "{{month}} {{day}}",

@@ -1,7 +1,7 @@
 import { LANGUAGE_OPTIONS } from "@enduragent/i18n";
 import type { CoachClient } from "@enduragent/coach-client";
 import type { LanguageTag, RuntimeConfigSnapshot, SpendSummary } from "@enduragent/coach-contract";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithLanguage as render, renderWithCatalog } from "./language-harness";
@@ -213,6 +213,7 @@ interface HarnessOptions {
   readonly onReconciled?: () => Promise<void> | void;
   readonly updateState?: DesktopUpdateState;
   readonly spend?: () => Promise<SpendSummary>;
+  readonly setSpendCap?: (value: number) => Promise<SpendSummary>;
   readonly telegram?: TelegramControlStatus;
   readonly codexAgentSupported?: boolean;
 }
@@ -256,7 +257,9 @@ function createHarness(options: HarnessOptions = {}) {
       }
       if (method === "setDailySpendCap") {
         const cap = (params as { readonly dailyCapUsd: number }).dailyCapUsd;
-        return spendSummary({ dailyCapUsd: cap, capStatus: "unknown" });
+        return options.setSpendCap === undefined
+          ? spendSummary({ dailyCapUsd: cap, capStatus: "unknown" })
+          : await options.setSpendCap(cap);
       }
       throw new TypeError(`unexpected rpc ${method}`);
     }),
@@ -321,7 +324,6 @@ function createHarness(options: HarnessOptions = {}) {
     publish: (state) => store.getState().patchSettings({ telegram: state }),
   });
   const spendAdapter = createSpendSettingsAdapter({
-    read: () => store.getState().settings.spend,
     publish: (next) => store.getState().patchSettings({ spend: next }),
   });
   const updateAdapter = createUpdateSettingsAdapter({
@@ -2290,7 +2292,7 @@ describe("application section", () => {
 });
 
 describe("spending", () => {
-  it("publishes the cap warning for the chat surface and saves a new cap", async () => {
+  it("publishes the cap warning and saves a valid cap when the input loses focus", async () => {
     const user = userEvent.setup();
     const subject = await renderSettings();
     act(() => {
@@ -2309,7 +2311,9 @@ describe("spending", () => {
     const cap = screen.getByLabelText("Daily cap (USD)");
     await user.clear(cap);
     await user.type(cap, "0.75");
-    await user.click(screen.getByRole("button", { name: "Save cap" }));
+    expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Save cap" })).toBeNull();
+    await user.tab();
 
     await waitFor(() => {
       expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toEqual([
@@ -2321,7 +2325,71 @@ describe("spending", () => {
     });
   });
 
-  it("keeps a cap edit in progress across a refresh and reconciles the committed cap", async () => {
+  it("commits on Enter but ignores composing Enter and invalid intermediate text", async () => {
+    const user = userEvent.setup();
+    const subject = await renderSettings();
+    act(() => {
+      subject.spendController.start();
+    });
+    const cap = await screen.findByLabelText("Daily cap (USD)");
+
+    await user.clear(cap);
+    fireEvent.keyDown(cap, { key: "Enter", isComposing: true });
+    expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toHaveLength(0);
+    fireEvent.keyDown(cap, { key: "Enter" });
+    expect(screen.getByText("Enter a daily cap greater than $0.")).toBeInTheDocument();
+    expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toHaveLength(0);
+
+    await user.type(cap, "0.1234567890123456");
+    await user.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toEqual([
+        {
+          method: "setDailySpendCap",
+          params: { dailyCapUsd: 0.1234567890123456 },
+        },
+      ]);
+    });
+  });
+
+  it("keeps the input editable while saving and offers Retry only after a failed save", async () => {
+    const user = userEvent.setup();
+    const first = deferred<SpendSummary>();
+    let authority = 0.5;
+    let writes = 0;
+    const subject = await renderSettings({
+      spend: async () => spendSummary({ dailyCapUsd: authority }),
+      setSpendCap: async (value) => {
+        writes += 1;
+        if (writes === 1) return first.promise;
+        authority = value;
+        return spendSummary({ dailyCapUsd: value, capStatus: "unknown" });
+      },
+    });
+    act(() => {
+      subject.spendController.start();
+    });
+    const cap = await screen.findByLabelText("Daily cap (USD)");
+    await user.clear(cap);
+    await user.type(cap, "0.75");
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("Saving…")).toBeInTheDocument();
+    expect(cap).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    first.reject(new Error("unavailable"));
+    expect(await screen.findByText("The daily cap could not be saved.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+      expect(subject.calls.filter((call) => call.method === "getSpendSummary")).toHaveLength(2);
+      expect(subject.calls.filter((call) => call.method === "setDailySpendCap")).toHaveLength(2);
+    });
+  });
+
+  it("keeps an uncommitted cap edit byte-for-byte across authoritative refreshes", async () => {
     const user = userEvent.setup();
     const pending = [
       spendSummary(),
@@ -2342,29 +2410,27 @@ describe("spending", () => {
     const cap = screen.getByLabelText("Daily cap (USD)") as HTMLInputElement;
     expect(cap.value).toBe("0.5");
     await user.clear(cap);
-    await user.type(cap, "0.75");
+    await user.type(cap, "0.7500");
     const draft = cap.value;
     expect(Number(draft)).toBe(0.75);
-    expect(useEnduragentStore.getState().settings.spend.capDirty).toBe(true);
 
     await act(async () => {
       await subject.spendController.refresh();
     });
     expect(useEnduragentStore.getState().settings.spend.summary?.knownSpendUsd).toBe(0.2);
     expect(cap.value).toBe(draft);
-    expect(useEnduragentStore.getState().settings.spend.capDirty).toBe(true);
 
     await act(async () => {
       await subject.spendController.refresh();
     });
-    expect(Number(cap.value)).toBe(0.75);
-    expect(useEnduragentStore.getState().settings.spend.capDirty).toBe(false);
+    expect(useEnduragentStore.getState().settings.spend.summary?.dailyCapUsd).toBe(0.75);
+    expect(cap.value).toBe(draft);
 
     await act(async () => {
       await subject.spendController.refresh();
     });
-    expect(cap.value).toBe("0.5");
-    expect(useEnduragentStore.getState().settings.spend.capDirty).toBe(false);
+    expect(useEnduragentStore.getState().settings.spend.summary?.dailyCapUsd).toBe(0.5);
+    expect(cap.value).toBe(draft);
   });
 });
 
