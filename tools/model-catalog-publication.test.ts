@@ -354,7 +354,12 @@ describe("private model catalog archive", () => {
       mkdirSync(lockPath, { recursive: true });
       writeFileSync(
         join(lockPath, "owner.json"),
-        JSON.stringify({ pid: 2_147_483_647, createdAt: 0, deploymentStartedAt: Date.now() }),
+        JSON.stringify({
+          lockId: "00000000-0000-4000-8000-000000000001",
+          pid: 2_147_483_647,
+          createdAt: 0,
+          deploymentStartedAt: Date.now(),
+        }),
       );
       const archive = new ModelCatalogArchive(archivePath);
       await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
@@ -362,9 +367,56 @@ describe("private model catalog archive", () => {
       );
       writeFileSync(
         join(lockPath, "owner.json"),
-        JSON.stringify({ pid: 2_147_483_647, createdAt: 0, deploymentStartedAt: 0 }),
+        JSON.stringify({
+          lockId: "00000000-0000-4000-8000-000000000001",
+          pid: 2_147_483_647,
+          createdAt: 0,
+          deploymentStartedAt: 0,
+        }),
       );
       await expect(archive.withExclusiveLock(async () => undefined)).resolves.toBeUndefined();
+    });
+  });
+
+  it("allows only one concurrent recovery of the same abandoned lock", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archivePath = join(directory, "private-archive");
+      const lockPath = join(archivePath, ".publication.lock");
+      mkdirSync(lockPath, { recursive: true });
+      writeFileSync(
+        join(lockPath, "owner.json"),
+        JSON.stringify({
+          lockId: "00000000-0000-4000-8000-000000000002",
+          pid: 2_147_483_647,
+          createdAt: 0,
+          deploymentStartedAt: 0,
+        }),
+      );
+      const archive = new ModelCatalogArchive(archivePath);
+      let entrants = 0;
+      let release = (): void => {};
+      let entered = (): void => {};
+      const held = new Promise<void>((resolveHeld) => {
+        release = resolveHeld;
+      });
+      const ready = new Promise<void>((resolveEntered) => {
+        entered = resolveEntered;
+      });
+      const action = async (): Promise<void> => {
+        entrants += 1;
+        entered();
+        await held;
+      };
+      const outcomesPromise = Promise.allSettled([
+        archive.withExclusiveLock(action),
+        archive.withExclusiveLock(action),
+      ]);
+      await ready;
+      expect(entrants).toBe(1);
+      release();
+      const outcomes = await outcomesPromise;
+      expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
     });
   });
 });

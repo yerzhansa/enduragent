@@ -100,6 +100,7 @@ async function writeImmutable(path: string, bytes: Uint8Array): Promise<void> {
 }
 
 interface ArchiveLockOwner {
+  readonly lockId: string;
   readonly pid: number;
   readonly createdAt: number;
   readonly deploymentStartedAt: number | null;
@@ -114,6 +115,8 @@ function parseLockOwner(input: unknown): ArchiveLockOwner {
   }
   const owner = input as Record<string, unknown>;
   if (
+    typeof owner.lockId !== "string" ||
+    !/^[a-f0-9-]{36}$/iu.test(owner.lockId) ||
     !Number.isSafeInteger(owner.pid) ||
     Number(owner.pid) <= 0 ||
     !Number.isFinite(owner.createdAt) ||
@@ -122,11 +125,56 @@ function parseLockOwner(input: unknown): ArchiveLockOwner {
     throw new CatalogPublicationError("conflict", "the model catalog archive lock is invalid");
   }
   return {
+    lockId: owner.lockId,
     pid: Number(owner.pid),
     createdAt: Number(owner.createdAt),
     deploymentStartedAt:
       owner.deploymentStartedAt === null ? null : Number(owner.deploymentStartedAt),
   };
+}
+
+async function acquireRecoveryClaim(lockPath: string): Promise<string> {
+  const claimPath = `${lockPath}.recovery`;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let handle;
+    try {
+      handle = await open(claimPath, "wx", 0o600);
+      const claim = {
+        lockId: randomUUID(),
+        pid: process.pid,
+        createdAt: Date.now(),
+        deploymentStartedAt: null,
+      } satisfies ArchiveLockOwner;
+      await handle.writeFile(`${JSON.stringify(claim)}\n`);
+      await handle.sync();
+      return claimPath;
+    } catch (error) {
+      if (errorCode(error) !== "EEXIST") throw error;
+      let claim: ArchiveLockOwner | undefined;
+      try {
+        claim = parseLockOwner(JSON.parse(await readFile(claimPath, "utf8")));
+      } catch {
+        const claimAge = Date.now() - (await stat(claimPath)).mtimeMs;
+        if (claimAge < DEPLOYMENT_RECOVERY_GRACE_MS) {
+          throw new CatalogPublicationError("conflict", "archive recovery is already in progress");
+        }
+      }
+      if (
+        claim !== undefined &&
+        (processIsAlive(claim.pid) || Date.now() - claim.createdAt < DEPLOYMENT_RECOVERY_GRACE_MS)
+      ) {
+        throw new CatalogPublicationError("conflict", "archive recovery is already in progress");
+      }
+      try {
+        await unlink(claimPath);
+      } catch (unlinkError) {
+        if (errorCode(unlinkError) !== "ENOENT") throw unlinkError;
+      }
+    } finally {
+      await handle?.close();
+    }
+  }
+  throw new CatalogPublicationError("conflict", "archive recovery could not claim the lock");
 }
 
 async function readLockOwner(lockPath: string): Promise<ArchiveLockOwner> {
@@ -277,10 +325,12 @@ export class ModelCatalogArchive {
   ): Promise<T> {
     await mkdir(this.root, { recursive: true, mode: 0o700 });
     const lockPath = join(this.root, ".publication.lock");
+    let recoveryClaimPath: string | undefined;
     try {
       await mkdir(lockPath, { mode: 0o700 });
     } catch (error) {
       if (errorCode(error) !== "EEXIST") throw error;
+      const observedLock = await stat(lockPath);
       let owner: ArchiveLockOwner | undefined;
       try {
         owner = await readLockOwner(lockPath);
@@ -296,10 +346,33 @@ export class ModelCatalogArchive {
       ) {
         throw new CatalogPublicationError("conflict", "the model catalog archive is locked");
       }
+      recoveryClaimPath = await acquireRecoveryClaim(lockPath);
+      const currentLock = await stat(lockPath);
+      if (currentLock.dev !== observedLock.dev || currentLock.ino !== observedLock.ino) {
+        await unlink(recoveryClaimPath);
+        throw new CatalogPublicationError("conflict", "the model catalog archive lock changed");
+      }
+      let currentOwner: ArchiveLockOwner | undefined;
+      try {
+        currentOwner = await readLockOwner(lockPath);
+      } catch {
+        currentOwner = undefined;
+      }
+      if (
+        (owner !== undefined && currentOwner?.lockId !== owner.lockId) ||
+        (owner === undefined &&
+          currentOwner !== undefined &&
+          (processIsAlive(currentOwner.pid) ||
+            Date.now() - currentOwner.createdAt < DEPLOYMENT_RECOVERY_GRACE_MS))
+      ) {
+        await unlink(recoveryClaimPath);
+        throw new CatalogPublicationError("conflict", "the model catalog archive lock changed");
+      }
       const abandonedPath = `${lockPath}.abandoned-${randomUUID()}`;
       try {
         await rename(lockPath, abandonedPath);
       } catch (renameError) {
+        await unlink(recoveryClaimPath);
         if (errorCode(renameError) === "ENOENT") {
           throw new CatalogPublicationError("conflict", "the model catalog archive lock changed");
         }
@@ -309,21 +382,42 @@ export class ModelCatalogArchive {
       await mkdir(lockPath, { mode: 0o700 });
     }
     const owner: ArchiveLockOwner = {
+      lockId: randomUUID(),
       pid: process.pid,
       createdAt: Date.now(),
       deploymentStartedAt: null,
     };
     try {
       await writeLockOwner(lockPath, owner);
+      if (recoveryClaimPath !== undefined) await unlink(recoveryClaimPath);
     } catch (error) {
+      if (recoveryClaimPath !== undefined) {
+        try {
+          await unlink(recoveryClaimPath);
+        } catch (unlinkError) {
+          if (errorCode(unlinkError) !== "ENOENT") throw unlinkError;
+        }
+      }
       await rm(lockPath, { recursive: true });
       throw error;
     }
+    const outcome = await action(new LockedModelCatalogArchive(this.root, lockPath, owner)).then(
+      (value) => ({ kind: "success", value }) as const,
+      (error: unknown) => ({ kind: "failure", error }) as const,
+    );
+    let releaseError: unknown;
     try {
-      return await action(new LockedModelCatalogArchive(this.root, lockPath, owner));
-    } finally {
+      const releasedOwner = await readLockOwner(lockPath);
+      if (releasedOwner.lockId !== owner.lockId || releasedOwner.pid !== owner.pid) {
+        throw new CatalogPublicationError("conflict", "the model catalog archive lock changed");
+      }
       await unlink(join(lockPath, LOCK_OWNER_FILE));
       await rmdir(lockPath);
+    } catch (error) {
+      releaseError = error;
     }
+    if (outcome.kind === "failure") throw outcome.error;
+    if (releaseError !== undefined) throw releaseError;
+    return outcome.value;
   }
 }
