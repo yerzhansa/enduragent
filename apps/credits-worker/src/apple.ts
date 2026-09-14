@@ -1,11 +1,4 @@
-import {
-  AppStoreServerAPIClient,
-  Environment,
-  GetTransactionHistoryVersion,
-  SignedDataVerifier,
-  VerificationException,
-  VerificationStatus,
-} from "@apple/app-store-server-library";
+import type { AppStoreServerAPIClient, SignedDataVerifier } from "@apple/app-store-server-library";
 import { Buffer } from "node:buffer";
 import { sign } from "node:crypto";
 import { DomainError, athleteIdFromUuid } from "./domain.js";
@@ -85,8 +78,13 @@ type AppleClients = {
   api?: Pick<AppStoreServerAPIClient, "getTransactionHistory">;
 };
 
-function appleError(error: unknown): DomainError {
+function loadAppleSdk() {
+  return import("@apple/app-store-server-library");
+}
+
+async function appleError(error: unknown): Promise<DomainError> {
   if (error instanceof DomainError) return error;
+  const { VerificationException, VerificationStatus } = await loadAppleSdk();
   if (error instanceof VerificationException) {
     if (error.status === VerificationStatus.RETRYABLE_VERIFICATION_FAILURE)
       return new DomainError("unavailable");
@@ -105,15 +103,16 @@ export class AppStoreServerClient implements AppleStore {
     private readonly clients?: AppleClients,
   ) {}
 
-  private verifier(expected: {
+  private async verifier(expected: {
     bundleId: string;
     environment: AppleEnvironment;
-  }): SignedDataVerifier {
+  }): Promise<SignedDataVerifier> {
     if (expected.bundleId !== this.env.BUNDLE_ID) throw new DomainError("not_our_bundle");
     if (expected.environment !== this.env.APPLE_ENVIRONMENT)
       throw new DomainError("wrong_environment");
     if (this.clients) return this.clients.verifier;
     if (this.env.APPLE_ENVIRONMENT !== "sandbox") throw new DomainError("unavailable");
+    const { Environment, SignedDataVerifier } = await loadAppleSdk();
     return new SignedDataVerifier(
       [Buffer.from(roots.G2, "base64"), Buffer.from(roots.G3, "base64")],
       true,
@@ -122,9 +121,10 @@ export class AppStoreServerClient implements AppleStore {
     );
   }
 
-  private api(): Pick<AppStoreServerAPIClient, "getTransactionHistory"> {
+  private async api(): Promise<Pick<AppStoreServerAPIClient, "getTransactionHistory">> {
     if (this.clients?.api) return this.clients.api;
     if (this.env.APPLE_ENVIRONMENT !== "sandbox") throw new DomainError("unavailable");
+    const { AppStoreServerAPIClient, Environment } = await loadAppleSdk();
     return new AppStoreServerAPIClient(
       this.env.APPLE_APP_STORE_P8,
       this.env.APPLE_APP_STORE_KEY_ID,
@@ -139,7 +139,8 @@ export class AppStoreServerClient implements AppleStore {
     expected: { bundleId: string; environment: AppleEnvironment },
   ): Promise<VerifiedPurchase> {
     try {
-      const payload = await this.verifier(expected).verifyAndDecodeTransaction(jws);
+      const verifier = await this.verifier(expected);
+      const payload = await verifier.verifyAndDecodeTransaction(jws);
       if (payload.bundleId !== expected.bundleId) throw new DomainError("not_our_bundle");
       if (payload.environment !== (expected.environment === "sandbox" ? "Sandbox" : "Production"))
         throw new DomainError("wrong_environment");
@@ -172,7 +173,7 @@ export class AppStoreServerClient implements AppleStore {
         currency: payload.currency,
       };
     } catch (error) {
-      throw appleError(error);
+      throw await appleError(error);
     }
   }
 
@@ -181,7 +182,8 @@ export class AppStoreServerClient implements AppleStore {
     expected: { bundleId: string; environment: AppleEnvironment },
   ): Promise<AppleNotification> {
     try {
-      const notification = await this.verifier(expected).verifyAndDecodeNotification(signedPayload);
+      const verifier = await this.verifier(expected);
+      const notification = await verifier.verifyAndDecodeNotification(signedPayload);
       if (!notification.notificationUUID) throw new DomainError("identity_mismatch");
       const notificationId = notification.notificationUUID as NotificationId;
       const type =
@@ -206,7 +208,7 @@ export class AppStoreServerClient implements AppleStore {
         athleteId: purchase.athleteId,
       };
     } catch (error) {
-      throw appleError(error);
+      throw await appleError(error);
     }
   }
 
@@ -214,11 +216,13 @@ export class AppStoreServerClient implements AppleStore {
     originalTransactionId: OriginalTransactionId,
   ): Promise<readonly OriginalTransactionId[]> {
     try {
+      const api = await this.api();
+      const { GetTransactionHistoryVersion } = await loadAppleSdk();
       const originals = new Set<OriginalTransactionId>();
       const revisions = new Set<string>();
       let revision: string | null = null;
       for (;;) {
-        const page = await this.api().getTransactionHistory(
+        const page = await api.getTransactionHistory(
           originalTransactionId,
           revision,
           {},
@@ -239,7 +243,7 @@ export class AppStoreServerClient implements AppleStore {
         revision = page.revision;
       }
     } catch (error) {
-      throw appleError(error);
+      throw await appleError(error);
     }
   }
 
@@ -297,7 +301,7 @@ export class DeviceCheckClient implements DeviceCheck {
       if (!response.ok) throw new DomainError("unavailable");
       return response;
     } catch (error) {
-      throw appleError(error);
+      throw await appleError(error);
     }
   }
 
