@@ -3,6 +3,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
   "compatibility_flags": ["nodejs_compat"],
+  "alias": {
+    "node-fetch": "./src/native-fetch.ts",
+  },
   "vars": {
     "BUNDLE_ID": "icu.enduragent.app",
     "APPLE_ENVIRONMENT": "sandbox",
