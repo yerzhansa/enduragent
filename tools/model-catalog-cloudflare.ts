@@ -54,8 +54,6 @@ const WorkerVersionSchema = z
   })
   .passthrough();
 
-const WorkerVersionListSchema = z.array(WorkerVersionSchema);
-
 export type ModelCatalogTargetState =
   | Readonly<{
       kind: "absent";
@@ -191,20 +189,20 @@ export class WranglerModelCatalogCloudflare implements ModelCatalogCloudflareBou
     if (versionId === undefined) {
       throw new CatalogPublicationError("integrity", "active Worker version is missing");
     }
-    const versionsOutput = await this.runner.run([
+    const versionOutput = await this.runner.run([
       "versions",
-      "list",
+      "view",
+      versionId,
       ...this.args(target),
       "--json",
     ]);
-    const versions = WorkerVersionListSchema.safeParse(
-      parseJsonOutput(versionsOutput, "Wrangler versions list"),
+    const version = WorkerVersionSchema.safeParse(
+      parseJsonOutput(versionOutput, "Wrangler versions view"),
     );
-    if (!versions.success) {
-      throw new CatalogPublicationError("integrity", "Wrangler version list is invalid");
+    if (!version.success || version.data.id !== versionId) {
+      throw new CatalogPublicationError("integrity", "active Worker version is invalid");
     }
-    const version = versions.data.find((candidate) => candidate.id === versionId);
-    const tag = version?.annotations?.["workers/tag"];
+    const tag = version.data.annotations?.["workers/tag"];
     if (tag === undefined) {
       throw new CatalogPublicationError("integrity", "active Worker version has no tag");
     }

@@ -453,6 +453,47 @@ describe("Cloudflare deployment reconciliation", () => {
     expect(fetched).toBe(false);
   });
 
+  it("reads the active Worker version directly by ID", async () => {
+    const active = await record(7, 6, "older-active-version");
+    const bytes = modelCatalogBytes(active);
+    const calls: string[][] = [];
+    const runner: WranglerCommandRunner = {
+      run: async (args) => {
+        calls.push([...args]);
+        if (args[0] === "deployments") {
+          return JSON.stringify({
+            id: "deployment-7",
+            versions: [{ version_id: "older-version-7", percentage: 100 }],
+          });
+        }
+        if (args[0] === "versions" && args[1] === "view" && args[2] === "older-version-7") {
+          return JSON.stringify({
+            id: "older-version-7",
+            annotations: { "workers/tag": modelCatalogDeploymentTag(7, active.catalogDigest) },
+          });
+        }
+        throw new Error(`unexpected Wrangler command: ${args.join(" ")}`);
+      },
+    };
+    const boundary = new WranglerModelCatalogCloudflare(
+      runner,
+      async () =>
+        new Response(bytes.slice(), {
+          status: 200,
+          headers: { "Content-Length": String(bytes.byteLength), ETag: '"etag-7"' },
+        }),
+    );
+    await expect(boundary.inspect("staging")).resolves.toMatchObject({
+      kind: "published",
+      revision: 7,
+      versionId: "older-version-7",
+    });
+    expect(calls.map((args) => args.slice(0, 3))).toEqual([
+      ["deployments", "status", "--config"],
+      ["versions", "view", "older-version-7"],
+    ]);
+  });
+
   it.each([
     { failure: "before", recovery: "retried-after-unchanged-predecessor", calls: 2 },
     { failure: "after", recovery: "verified-after-uncertain-response", calls: 1 },
