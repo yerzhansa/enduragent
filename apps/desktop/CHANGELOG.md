@@ -1,5 +1,19 @@
 # @enduragent/desktop
 
+## 0.5.2
+
+### Patch Changes
+
+- 69d56c1: User-facing: Your daily spending cap now saves automatically when you leave the field or press Enter. Invalid or incomplete values stay unsaved so your existing cap remains active.
+- 4a2012d: User-facing: Setup no longer shows a separate Claude subscription status row.
+- 0bf9483: User-facing: Settings no longer shows the Training account section or athlete ID editor. Your connected account stays saved and remains manageable in Setup.
+- baf483d: User-facing: Attachments and queued messages now share one rounded composer, and your latest chat message stays fully visible above it.
+- 52532e6: User-facing: Your saved color palette stays selected when its name changes.
+- d3b69ee: User-facing: Training sync status is now easier to scan. Successful syncs no longer show a date, and Sync now stays hidden while a sync is in progress.
+- 3610880: User-facing: Telegram setup now stays collapsed until you choose Connect. Cancel or returning to Settings brings back the compact connection row.
+- c75c305: User-facing: Conversation settings now show only your timezone and save a valid timezone when you leave the field or press Enter. Your existing conversation timing and history preferences stay unchanged.
+- 76b59b4: User-facing: Your coach provider and model choices now save automatically. Custom model names save when you leave the field or press Enter.
+
 ## 0.5.1
 
 ### Patch Changes
