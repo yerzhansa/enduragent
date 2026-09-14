@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
 import { createWindowsDevelopmentPackagePlan } from "../scripts/windows-development-package-plan.mjs";
-import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-contract.js";
 import { createWindowsPackagePlan } from "../scripts/windows-package-plan.mjs";
 import {
   WINDOWS_AUTHENTICODE_PENDING,

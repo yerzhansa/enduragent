@@ -5,7 +5,7 @@ import { link, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promis
 import { basename, relative, resolve, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL } from "./desktop-update-feed.js";
+import { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL } from "./desktop-update-contract.js";
 
 export { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL };
 export const DESKTOP_MANIFEST = "desktop-release-manifest.json";

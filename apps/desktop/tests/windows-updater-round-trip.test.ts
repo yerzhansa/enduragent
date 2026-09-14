@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
-import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-contract.js";
 import {
   safeWindowsUpdaterRoundTripMessage,
   verifyWindowsUpdaterRoundTrip,
