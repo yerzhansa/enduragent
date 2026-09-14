@@ -450,10 +450,10 @@ describe("sidebar sync chip", () => {
       },
     });
     expect(chip()).toHaveAttribute("data-status", "synced");
-    expect(chipSurface()).toHaveTextContent("Training data synced");
+    expect(screen.getByText("Training data synced")).toHaveClass("sr-only");
     expect(chipSurface()).not.toHaveTextContent("1998-07-19 07:55:00 UTC");
-    expect(screen.getByText("Sync now")).toHaveAttribute("data-sync-action");
-    expect(chip()).toHaveAccessibleName("Sync now · Training data synced");
+    expect(screen.getByText("Sync")).toHaveAttribute("data-sync-action");
+    expect(chip()).toHaveAccessibleName("Sync · Training data synced");
 
     update({ sync: toManualSyncViewState({ status: "queued", operation: 1 }) });
     expect(chip()).toHaveAttribute("data-status", "syncing");
@@ -559,6 +559,7 @@ describe("sidebar sync chip", () => {
       update({ sync: state });
       expect(announcement?.textContent).toBe(message);
       expect(chipSurface().querySelectorAll('[role="status"]')).toHaveLength(1);
+      if (state.tone === "success") expect(announcement).toHaveClass("sr-only");
     }
   });
 
@@ -588,13 +589,15 @@ describe("sidebar sync chip", () => {
     });
 
     expect(chip()).toHaveAttribute("data-status", "synced");
+    expect(screen.getByText("Training data synced")).toHaveClass("sr-only");
+    expect(chipSurface().querySelector("[data-sync-detail]")).toHaveClass("sr-only");
     expect(chipSurface()).toHaveTextContent("60 hidden by Strava");
     expect(chipSurface()).toHaveTextContent("How to fix this");
-    expect(screen.getByText("Sync again")).toHaveAttribute("data-sync-action");
+    expect(screen.getByText("Sync")).toHaveAttribute("data-sync-action");
     expect(chipSurface()).not.toHaveTextContent("1998-07-19 07:55:00 UTC");
     expect(chip()).not.toHaveAttribute("title");
     expect(chip()).toHaveAccessibleName(
-      "Sync again · Training data synced · Training-data check completed. A Strava API restriction prevents intervals.icu from sharing 60 activities, so they aren’t included.",
+      "Sync · Training data synced · Training-data check completed. A Strava API restriction prevents intervals.icu from sharing 60 activities, so they aren’t included.",
     );
     expect(
       chip().querySelector("a, button, input, select, textarea, [role='button'], [tabindex]"),
