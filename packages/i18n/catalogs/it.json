@@ -805,7 +805,7 @@
     "planAttention_other": "Piano, {{formattedCount}} elementi richiedono attenzione",
     "sync": {
       "action": {
-        "again": "Sincronizza di nuovo",
+        "again": "Sincronizza",
         "now": "Sincronizza ora",
         "retry": "Riprova",
         "unavailable": "Sincronizzazione non disponibile"

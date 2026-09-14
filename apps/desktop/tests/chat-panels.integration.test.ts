@@ -1909,7 +1909,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       },
       syncChip: {
         status: "synced",
-        text: "Training data syncedSync now",
+        text: "Training data syncedSync",
       },
       documentOverflow: false,
     });
@@ -2248,15 +2248,14 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       sync: {
         buttonResident: true,
         initialStatus: "synced",
-        initialLabel: "Sync now · Training data synced",
+        initialLabel: "Sync · Training data synced",
         syncingObserved: true,
         syncingLabel: "Syncing",
         actionHiddenWhileSyncing: true,
         disabledWhileSyncing: true,
         ariaBusyAbsentWhileSyncing: true,
         terminalStatus: "synced",
-        terminalLabel:
-          "Sync again · Training data synced · Local training-data processing completed.",
+        terminalLabel: "Sync · Training data synced · Local training-data processing completed.",
         busyCleared: true,
         keyboardFocusRestored: true,
         syncDetailChanged: true,
@@ -2459,7 +2458,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly chipReachable: boolean;
       readonly syncFitsRail: boolean;
       readonly syncHasNoOverflow: boolean;
-      readonly completeStatusVisible: boolean;
+      readonly conciseSuccessVisible: boolean;
       readonly surfaceMinWidthZero: boolean;
       readonly readableWrapping: boolean;
       readonly trainingOpen: boolean;
@@ -2467,7 +2466,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly retiredPanelsAbsent: boolean;
       readonly chipResident: boolean;
       readonly chipAccessibleLabel: string | null;
-      readonly syncOutcomeVisible: boolean;
+      readonly syncOutcomeAnnounced: boolean;
       readonly horizontalOverflow: boolean;
     }>(`
       const rail = document.querySelector('nav[aria-label="Main navigation"]');
@@ -2516,18 +2515,19 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         syncFitsRail:
           syncRect.left >= sidebarRect.left && syncRect.right <= sidebarRect.right,
         syncHasNoOverflow: syncSurface.scrollWidth <= syncSurface.clientWidth,
-        completeStatusVisible:
+        conciseSuccessVisible:
           headline.textContent === "Training data synced" &&
           detail.textContent === "Local training-data processing completed." &&
-          action.textContent === "Sync again" &&
-          [headline, detail, action].every((row) => getComputedStyle(row).display !== "none"),
+          action.textContent === "Sync" &&
+          headline.classList.contains("sr-only") &&
+          detail.classList.contains("sr-only") &&
+          !action.classList.contains("sr-only") &&
+          getComputedStyle(action).display !== "none",
         surfaceMinWidthZero: getComputedStyle(syncSurface).minWidth === "0px",
         readableWrapping:
           syncSurface.querySelectorAll(".truncate").length === 0 &&
-          [headline, detail, action].every(
-            (row) =>
-              getComputedStyle(row).whiteSpace === "normal" && row.scrollWidth <= row.clientWidth,
-          ),
+          getComputedStyle(action).whiteSpace === "normal" &&
+          action.scrollWidth <= action.clientWidth,
         trainingOpen: page.getAttribute("aria-hidden") === null,
         panelOrder: panels.map((panel) => panel.dataset.panel),
         retiredPanelsAbsent: ["anchor", "load", "wellness", "plan", "adherence"].every(
@@ -2536,9 +2536,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         chipResident:
           sidebar.contains(chip) && document.querySelectorAll("button.sync-chip").length === 1,
         chipAccessibleLabel: chip.getAttribute("aria-label"),
-        syncOutcomeVisible: syncSurface.textContent.includes(
-          "Local training-data processing completed.",
-        ),
+        syncOutcomeAnnounced:
+          detail.getAttribute("role") === "status" &&
+          detail.getAttribute("aria-live") === "polite" &&
+          detail.textContent === "Local training-data processing completed.",
         horizontalOverflow: page.scrollWidth > page.clientWidth,
       };
     `);
@@ -2551,7 +2552,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       chipReachable: true,
       syncFitsRail: true,
       syncHasNoOverflow: true,
-      completeStatusVisible: true,
+      conciseSuccessVisible: true,
       surfaceMinWidthZero: true,
       readableWrapping: true,
       trainingOpen: true,
@@ -2559,8 +2560,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       retiredPanelsAbsent: true,
       chipResident: true,
       chipAccessibleLabel:
-        "Sync again · Training data synced · Local training-data processing completed.",
-      syncOutcomeVisible: true,
+        "Sync · Training data synced · Local training-data processing completed.",
+      syncOutcomeAnnounced: true,
       horizontalOverflow: false,
     });
     const runtimeReadsBeforeSettings = calls.filter(

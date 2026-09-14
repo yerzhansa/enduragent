@@ -801,7 +801,7 @@
     "planAttention_other": "计划，{{formattedCount}} 项需要处理",
     "sync": {
       "action": {
-        "again": "再次同步",
+        "again": "同步",
         "now": "立即同步",
         "retry": "重试",
         "unavailable": "同步不可用"

@@ -801,7 +801,7 @@
     "planAttention_other": "계획, 항목 {{formattedCount}}개 확인 필요",
     "sync": {
       "action": {
-        "again": "다시 동기화",
+        "again": "동기화",
         "now": "지금 동기화",
         "retry": "다시 시도",
         "unavailable": "동기화 불가"

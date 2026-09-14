@@ -2319,7 +2319,7 @@
     "planAttention_other": "Plan, {{formattedCount}} items need attention",
     "sync": {
       "action": {
-        "again": "Sync again",
+        "again": "Sync",
         "now": "Sync now",
         "retry": "Try again",
         "unavailable": "Sync unavailable"

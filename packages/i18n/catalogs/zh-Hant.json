@@ -801,7 +801,7 @@
     "planAttention_other": "計畫，{{formattedCount}} 個項目需要處理",
     "sync": {
       "action": {
-        "again": "再次同步",
+        "again": "同步",
         "now": "立即同步",
         "retry": "重試",
         "unavailable": "無法同步"

@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} punkter behöver åtgärdas",
     "sync": {
       "action": {
-        "again": "Synkronisera igen",
+        "again": "Synkronisera",
         "now": "Synkronisera nu",
         "retry": "Försök igen",
         "unavailable": "Synkronisering är inte tillgänglig"

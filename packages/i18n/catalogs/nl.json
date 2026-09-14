@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} onderdelen hebben aandacht nodig",
     "sync": {
       "action": {
-        "again": "Opnieuw synchroniseren",
+        "again": "Synchroniseren",
         "now": "Nu synchroniseren",
         "retry": "Opnieuw proberen",
         "unavailable": "Synchronisatie niet beschikbaar"

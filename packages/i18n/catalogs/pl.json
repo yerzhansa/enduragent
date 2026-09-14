@@ -811,7 +811,7 @@
     "planAttention_other": "Plan, {{formattedCount}} elementu wymaga uwagi",
     "sync": {
       "action": {
-        "again": "Synchronizuj ponownie",
+        "again": "Synchronizuj",
         "now": "Synchronizuj teraz",
         "retry": "Spróbuj ponownie",
         "unavailable": "Synchronizacja niedostępna"

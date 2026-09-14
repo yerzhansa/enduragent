@@ -509,6 +509,18 @@ describe("sidebar sync chip", () => {
 
   it("announces concise busy states and exact terminal messages once", () => {
     render(<Sidebar />);
+    update({
+      training: {
+        ...EMPTY_TRAINING_SURFACE,
+        status: "ready",
+        metadata: {
+          lastUpdated: "1998-07-19T08:00:00.000Z",
+          lastSynced: "1998-07-19T07:55:00.000Z",
+          freshness: "fresh",
+          degraded: false,
+        },
+      },
+    });
 
     const announcement = chipSurface().querySelector('[role="status"]');
     expect(announcement).toHaveAttribute("aria-live", "polite");

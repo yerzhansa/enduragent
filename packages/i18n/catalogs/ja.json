@@ -801,7 +801,7 @@
     "planAttention_other": "プラン、{{formattedCount}}項目の確認が必要です",
     "sync": {
       "action": {
-        "again": "再同期",
+        "again": "同期",
         "now": "今すぐ同期",
         "retry": "再試行",
         "unavailable": "同期を利用できません"

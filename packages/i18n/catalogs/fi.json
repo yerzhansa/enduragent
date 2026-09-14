@@ -805,7 +805,7 @@
     "planAttention_other": "Suunnitelma, {{formattedCount}} kohtaa vaatii huomiota",
     "sync": {
       "action": {
-        "again": "Synkronoi uudelleen",
+        "again": "Synkronoi",
         "now": "Synkronoi nyt",
         "retry": "Yritä uudelleen",
         "unavailable": "Synkronointi ei ole käytettävissä"
