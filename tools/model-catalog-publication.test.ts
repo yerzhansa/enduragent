@@ -171,6 +171,7 @@ class FakeCloudflareBoundary implements ModelCatalogCloudflareBoundary {
     readonly message: string;
   }> = [];
   deployAttempts = 0;
+  deployFailuresBefore = 0;
   verifyFailures = 0;
   failure: FakeFailure = { kind: "none" };
   private deploymentCount = 0;
@@ -194,6 +195,10 @@ class FakeCloudflareBoundary implements ModelCatalogCloudflareBoundary {
   }): Promise<void> {
     this.deployAttempts += 1;
     const bytes = readFileSync(join(input.assetDirectory, "models/v1/catalog.json"));
+    if (this.deployFailuresBefore > 0) {
+      this.deployFailuresBefore -= 1;
+      throw new Error("synthetic failure before deployment");
+    }
     const failure = this.failure;
     this.failure = { kind: "none" };
     if (failure.kind === "before") throw new Error("uncertain before deployment");
@@ -446,6 +451,44 @@ describe("Cloudflare deployment reconciliation", () => {
 });
 
 describe("model catalog commands", () => {
+  it("reuses an archived record after deployment failed before staging changed", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archivePath = join(directory, "private-archive");
+      const publicationPath = join(directory, "publication.json");
+      writeFileSync(publicationPath, jsonBytes(publicationFile("retry-model")));
+      const boundary = new FakeCloudflareBoundary();
+      boundary.deployFailuresBefore = 2;
+      let now = PUBLISHED_AT;
+      const dependencies: ModelCatalogCommandDependencies = {
+        now: () => now,
+        output: () => undefined,
+        boundary,
+        createArchive: (path) => new ModelCatalogArchive(path),
+        createAssetDirectory: () => mkdtempSync(join(directory, "assets-")),
+        removeAssetDirectory: (path) => rmSync(path, { force: true, recursive: true }),
+      };
+      const args = [
+        "publish-to-staging",
+        publicationPath,
+        "--expect-revision",
+        "0",
+        "--archive",
+        archivePath,
+      ];
+      await expect(runModelCatalogCommand(args, dependencies)).rejects.toMatchObject({
+        code: "uncertain",
+      });
+      now += 60_000;
+      await expect(runModelCatalogCommand(args, dependencies)).resolves.toBeUndefined();
+      await new ModelCatalogArchive(archivePath).withExclusiveLock(async (locked) => {
+        expect((await locked.readPublicationRecord(1)).publishedAt).toBe(
+          new Date(PUBLISHED_AT).toISOString(),
+        );
+      });
+      expect(boundary.deployAttempts).toBe(3);
+    });
+  });
+
   it("reconciles an intended staging deployment after verification interrupted publication", async () => {
     await withTemporaryDirectory(async (directory) => {
       const archivePath = join(directory, "private-archive");
@@ -550,17 +593,19 @@ describe("model catalog commands", () => {
         ),
       ).rejects.toThrow("staging no longer serves the archived deployment receipt");
       boundary.states.staging = stagedRevisionSix;
-      await runModelCatalogCommand(
-        [
-          "promote-existing-staged-revision-to-production",
-          "6",
-          "--expect-revision",
-          "5",
-          "--archive",
-          archivePath,
-        ],
-        dependencies,
+      const promotionArgs = [
+        "promote-existing-staged-revision-to-production",
+        "6",
+        "--expect-revision",
+        "5",
+        "--archive",
+        archivePath,
+      ];
+      boundary.verifyFailures = 1;
+      await expect(runModelCatalogCommand(promotionArgs, dependencies)).rejects.toThrow(
+        "synthetic verification failure",
       );
+      await expect(runModelCatalogCommand(promotionArgs, dependencies)).resolves.toBeUndefined();
       const productionDeploy = boundary.deploys.find(
         (deployment) => deployment.target === "production",
       );
@@ -568,6 +613,9 @@ describe("model catalog commands", () => {
         productionDeploy !== undefined &&
           bytesEqual(productionDeploy.bytes, modelCatalogBytes(revisionSix)),
       ).toBe(true);
+      expect(
+        boundary.deploys.filter((deployment) => deployment.target === "production"),
+      ).toHaveLength(1);
       await runModelCatalogCommand(
         ["rollback-to-staging", "1", "--expect-revision", "6", "--archive", archivePath],
         dependencies,

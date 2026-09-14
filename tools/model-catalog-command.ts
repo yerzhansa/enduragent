@@ -181,6 +181,54 @@ function receiptMatchesState(
   );
 }
 
+async function reconcileExistingDeployment(input: {
+  readonly dependencies: ModelCatalogCommandDependencies;
+  readonly archive: LockedModelCatalogArchive;
+  readonly target: "staging" | "production";
+  readonly state: ModelCatalogTargetState;
+  readonly record: ModelCatalogPublicationRecord;
+}): Promise<ModelCatalogDeploymentReceipt> {
+  if (!stateMatchesRecord(input.state, input.record)) {
+    throw new CatalogPublicationError(
+      "conflict",
+      `${input.target} does not serve the archived deployment`,
+    );
+  }
+  let existingReceipt: ModelCatalogDeploymentReceipt | undefined;
+  try {
+    existingReceipt = await input.archive.readDeploymentReceipt(
+      input.target,
+      input.record.revision,
+    );
+  } catch (error) {
+    if (!(error instanceof CatalogPublicationError) || error.code !== "not-found") throw error;
+  }
+  if (existingReceipt !== undefined) {
+    if (!receiptMatchesState(existingReceipt, input.state, input.record)) {
+      throw new CatalogPublicationError(
+        "conflict",
+        `stored ${input.target} receipt does not match the live deployment`,
+      );
+    }
+    await input.dependencies.boundary.verify({
+      target: input.target,
+      catalogBytes: modelCatalogBytes(input.record),
+      revision: input.record.revision,
+      digest: input.record.catalogDigest,
+    });
+    return existingReceipt;
+  }
+  const receipt = await reconcilePublishedModelCatalogAssets({
+    boundary: input.dependencies.boundary,
+    target: input.target,
+    record: input.record,
+    state: input.state,
+    now: input.dependencies.now(),
+  });
+  await input.archive.writeDeploymentReceipt(receipt);
+  return receipt;
+}
+
 async function targetStates(boundary: ModelCatalogCloudflareBoundary): Promise<{
   readonly staging: ModelCatalogTargetState;
   readonly production: ModelCatalogTargetState;
@@ -297,40 +345,13 @@ async function publishOrRollback(input: {
               input.expectedRevision === 0
                 ? undefined
                 : (await locked.readPublicationRecord(input.expectedRevision)).catalog;
-            let existingReceipt: ModelCatalogDeploymentReceipt | undefined;
-            try {
-              existingReceipt = await locked.readDeploymentReceipt("staging", archived.revision);
-            } catch (error) {
-              if (!(error instanceof CatalogPublicationError) || error.code !== "not-found") {
-                throw error;
-              }
-            }
-            if (existingReceipt !== undefined) {
-              if (!receiptMatchesState(existingReceipt, states.staging, archived)) {
-                throw new CatalogPublicationError(
-                  "conflict",
-                  "stored staging receipt does not match the live deployment",
-                );
-              }
-              await input.dependencies.boundary.verify({
-                target: "staging",
-                catalogBytes: modelCatalogBytes(archived),
-                revision: archived.revision,
-                digest: archived.catalogDigest,
-              });
-              return {
-                receipt: existingReceipt,
-                diff: diffModelCatalogs(previous, archived.catalog),
-              };
-            }
-            const receipt = await reconcilePublishedModelCatalogAssets({
-              boundary: input.dependencies.boundary,
+            const receipt = await reconcileExistingDeployment({
+              dependencies: input.dependencies,
+              archive: locked,
               target: "staging",
-              record: archived,
               state: states.staging,
-              now: input.dependencies.now(),
+              record: archived,
             });
-            await locked.writeDeploymentReceipt(receipt);
             return { receipt, diff: diffModelCatalogs(previous, archived.catalog) };
           }
         }
@@ -340,9 +361,25 @@ async function publishOrRollback(input: {
         `expected global revision ${input.expectedRevision}, found ${predecessorRevision}`,
       );
     }
-    const record = await input.createRecord(predecessorRevision + 1, predecessorRevision, locked);
-    await locked.writePublicationRecord(record);
-    const archived = await locked.readPublicationRecord(record.revision);
+    const candidate = await input.createRecord(
+      predecessorRevision + 1,
+      predecessorRevision,
+      locked,
+    );
+    let archived: ModelCatalogPublicationRecord;
+    try {
+      archived = await locked.readPublicationRecord(candidate.revision);
+      if (!samePublicationIntent(archived, candidate)) {
+        throw new CatalogPublicationError(
+          "conflict",
+          `revision ${candidate.revision} is archived for a different publication`,
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof CatalogPublicationError) || error.code !== "not-found") throw error;
+      await locked.writePublicationRecord(candidate);
+      archived = await locked.readPublicationRecord(candidate.revision);
+    }
     const diff = diffModelCatalogs(globalCatalog(states), archived.catalog);
     const receipt = await deployArchivedRecord({
       dependencies: input.dependencies,
@@ -461,6 +498,15 @@ export async function runModelCatalogCommand(
       }
       const productionRevision = modelCatalogTargetRevision(states.production);
       if (productionRevision !== expectedRevision) {
+        if (productionRevision === record.revision && productionRevision > expectedRevision) {
+          return reconcileExistingDeployment({
+            dependencies,
+            archive: locked,
+            target: "production",
+            state: states.production,
+            record,
+          });
+        }
         throw new CatalogPublicationError(
           "conflict",
           `expected production revision ${expectedRevision}, found ${productionRevision}`,
