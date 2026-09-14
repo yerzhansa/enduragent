@@ -17,6 +17,7 @@ import {
   createConversationInsertionLedger,
   forgetConversationProjection,
   orderConversationRows,
+  recoverConversationPredecessor,
   resetConversationInsertionLedger,
   type ConversationInsertionLedger,
   type ConversationProjection,
@@ -133,7 +134,11 @@ export function ConversationTimeline(props: {
       projections.push({
         projection,
         value: <TranscriptItem item={item} bufferedStreaming />,
-        afterKey: previousTimelineKey,
+        afterKey: recoverConversationPredecessor(
+          durable,
+          transcriptItemOccurredAtMs(item) ?? null,
+          previousTimelineKey,
+        ),
       });
       previousTimelineKey = conversationProjectionKey(projection);
     } else if (item.kind === "plan-creation" && item.model !== null) {
@@ -141,7 +146,11 @@ export function ConversationTimeline(props: {
       projections.push({
         projection,
         value: <PlanCreationConversation model={item.model} />,
-        afterKey: previousTimelineKey,
+        afterKey: recoverConversationPredecessor(
+          durable,
+          transcriptItemOccurredAtMs(item) ?? null,
+          previousTimelineKey,
+        ),
       });
       previousTimelineKey = conversationProjectionKey(projection);
     } else if (item.kind !== "plan-creation") {

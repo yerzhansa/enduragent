@@ -144,6 +144,15 @@ export function chronologicalConversationPredecessor(
   return predecessor;
 }
 
+export function recoverConversationPredecessor(
+  rows: readonly ConversationRow<unknown>[],
+  occurredAtMs: number | null,
+  structuralPredecessor: string | null,
+): string | null {
+  const chronological = chronologicalConversationPredecessor(rows, occurredAtMs);
+  return chronological === undefined ? structuralPredecessor : chronological;
+}
+
 export function forgetConversationProjection(
   ledger: ConversationInsertionLedger,
   projection: ConversationProjection,
@@ -192,7 +201,9 @@ export function orderConversationRows<Durable, Projection>(input: {
       input.ledger.placements.set(key, placement);
     }
     const anchorIndex = resolveAnchorIndex(rows, placement.afterKey, input.ledger);
-    rows.splice(anchorIndex + 1, 0, {
+    let insertionIndex = anchorIndex + 1;
+    while (rows[insertionIndex]?.kind === "projection") insertionIndex += 1;
+    rows.splice(insertionIndex, 0, {
       kind: "projection",
       key,
       projection: entry.projection,

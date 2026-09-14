@@ -9,6 +9,7 @@ import {
   forgetConversationProjection,
   orderConversationRows,
   pendingNavigations,
+  recoverConversationPredecessor,
   resetConversationInsertionLedger,
   sourceActionIsAbove,
   type ConversationProjection,
@@ -28,6 +29,7 @@ function orderedValues(input: {
   readonly projections: readonly {
     readonly projection: ConversationProjection;
     readonly value: string;
+    readonly afterKey?: string | null;
   }[];
   readonly ledger: ReturnType<typeof createConversationInsertionLedger>;
   readonly rememberNewPlacements?: boolean;
@@ -73,6 +75,26 @@ describe("conversation insertion ledger", () => {
         1,
       ),
     ).toBeUndefined();
+    expect(
+      recoverConversationPredecessor(
+        [
+          { key: "message-a", value: "message-a", occurredAtMs: 0 },
+          { key: "message-b", value: "message-b", occurredAtMs: 2 },
+        ],
+        1,
+        "message-b",
+      ),
+    ).toBe("message-a");
+    expect(
+      recoverConversationPredecessor(
+        [
+          { key: "message-a", value: "message-a", occurredAtMs: 0 },
+          { key: "live-message", value: "live-message" },
+        ],
+        1,
+        "live-message",
+      ),
+    ).toBe("live-message");
   });
 
   it("keeps later durable rows below projections already shown", () => {
@@ -107,6 +129,20 @@ describe("conversation insertion ledger", () => {
         rememberNewPlacements: true,
       }).map((row) => row.value),
     ).toEqual(["message-a", "draft", "message-b"]);
+  });
+
+  it("preserves projection order when cards share one transcript predecessor", () => {
+    const ledger = createConversationInsertionLedger(0);
+    expect(
+      orderedValues({
+        durable: ["message-a", "message-b"],
+        projections: [
+          { projection: firstProjection, value: "draft", afterKey: "message-a" },
+          { projection: secondProjection, value: "choice", afterKey: "message-a" },
+        ],
+        ledger,
+      }),
+    ).toEqual(["message-a", "draft", "choice", "message-b"]);
   });
 
   it("anchors new projections at the current edge without duplicating an identity", () => {
