@@ -9,6 +9,7 @@ import type { EngineConfig } from "@enduragent/engine";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import type { CoachStoreWriterContext, CoachStoreWriterPlan } from "../src/runtime.js";
+import { testModelProfiles } from "../../engine/tests/helpers/model-profiles.js";
 
 const mocks = vi.hoisted(() => ({
   withWriter: vi.fn(),
@@ -168,6 +169,11 @@ const engineConfig: EngineConfig = {
   dataSource: "store",
   llm: { provider: "anthropic", model: "synthetic", apiKey: "" },
   session: config.session,
+  models: testModelProfiles({
+    provider: "anthropic",
+    chat: "synthetic",
+    chatContextWindowTokens: 1000,
+  }),
   contextWindowTokens: 1000,
   compactContextWindowTokens: 1000,
 };

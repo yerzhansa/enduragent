@@ -130,6 +130,8 @@ export interface GenerateResult {
   totalUsage?: LanguageModelUsage;
   steps?: number;
   providerReportedCostUsd?: number;
+  catalogRevision?: number;
+  cacheReadSavingsUsd?: number;
   costBasis?: UsageCostBasis;
   cost?: UsageCost;
 }

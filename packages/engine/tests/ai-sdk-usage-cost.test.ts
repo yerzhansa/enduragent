@@ -2,6 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineConfig, UsageLedgerLine } from "../src/host-ports.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
 
+const resolvedProfile = {
+  kind: "catalog" as const,
+  catalogRevision: 31,
+  provider: "anthropic" as const,
+  model: "claude-sonnet-5",
+  compatibilityProfile: "anthropic-ai-sdk-v1" as const,
+  contextWindowTokens: 1_000,
+  imageInput: "supported" as const,
+  pricing: {
+    kind: "token-rates" as const,
+    inputUsdPerMillion: 2,
+    outputUsdPerMillion: 10,
+    cacheReadUsdPerMillion: 0.2,
+    cacheWriteUsdPerMillion: 2.5,
+  },
+};
+
 const config: EngineConfig = {
   dataSource: "platform",
   llm: {
@@ -16,6 +33,12 @@ const config: EngineConfig = {
     resetArchiveRetentionDays: 0,
     timezone: "UTC",
   },
+  models: {
+    catalogRevision: 31,
+    chat: resolvedProfile,
+    compact: resolvedProfile,
+    flush: resolvedProfile,
+  },
   contextWindowTokens: 1_000,
   compactContextWindowTokens: 1_000,
 };
@@ -27,8 +50,7 @@ const inclusiveUsage = {
   inputTokenDetails: { noCacheTokens: 1_000, cacheReadTokens: 8_000, cacheWriteTokens: 1_000 },
 };
 
-const expectedTotal =
-  (1_000 * 2 + 8_000 * 0.2 + 1_000 * 2.5 + 100 * 10) / 1_000_000;
+const expectedTotal = (1_000 * 2 + 8_000 * 0.2 + 1_000 * 2.5 + 100 * 10) / 1_000_000;
 
 function streamed() {
   return {
@@ -92,5 +114,8 @@ describe("AI SDK usage pricing charges only the uncached input share", () => {
     expect(generated.cost?.total).toBeCloseTo(expectedTotal, 9);
     expect(generated.cost?.input).toBeCloseTo((1_000 * 2) / 1_000_000, 9);
     expect(lines.at(-1)?.cost?.total).toBeCloseTo(expectedTotal, 9);
+    expect(generated.catalogRevision).toBe(31);
+    expect(lines.at(-1)?.catalogRevision).toBe(31);
+    expect(lines.at(-1)?.cacheReadSavingsUsd).toBeCloseTo((8_000 * 1.8) / 1_000_000, 9);
   });
 });

@@ -67,6 +67,51 @@ async function ledger(file: string, values: readonly (UsageLedgerLine | string)[
 }
 
 describe("spend meter service", () => {
+  it("uses generation-bound cost metadata without repricing historical rows", async () => {
+    await ledger("usage-ledger.jsonl", [
+      line({
+        catalogRevision: 7,
+        cost: { input: 0.01, output: 0.02, cacheRead: 0.003, cacheWrite: 0.004, total: 0.037 },
+        cacheReadSavingsUsd: 0.123,
+      }),
+    ]);
+
+    const summary = await createSpendMeterService({
+      dataDir: root,
+      configDir,
+      timezone: "UTC",
+      now: () => Date.UTC(1998, 6, 6, 18),
+    }).getSpendSummary();
+
+    expect(summary).toMatchObject({
+      knownSpendUsd: 0.037,
+      knownCacheReadSavingsUsd: 0.123,
+      pricedGenerationCount: 1,
+      unpricedGenerationCount: 0,
+      spendComplete: true,
+      cacheSavingsComplete: true,
+    });
+  });
+
+  it("keeps unknown generation-bound pricing unknown", async () => {
+    await ledger("usage-ledger.jsonl", [line({ catalogRevision: 8 })]);
+
+    const summary = await createSpendMeterService({
+      dataDir: root,
+      configDir,
+      timezone: "UTC",
+      now: () => Date.UTC(1998, 6, 6, 18),
+    }).getSpendSummary();
+
+    expect(summary).toMatchObject({
+      knownSpendUsd: 0,
+      pricedGenerationCount: 0,
+      unpricedGenerationCount: 1,
+      spendComplete: false,
+      cacheSavingsComplete: false,
+    });
+  });
+
   it("aggregates rotated and live generations once with native precedence and honest gaps", async () => {
     await ledger("usage-ledger.jsonl.1", [
       line({

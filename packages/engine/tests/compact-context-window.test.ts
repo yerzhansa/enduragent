@@ -16,7 +16,7 @@ describe("compact context window", () => {
       dataSource: "platform",
       llm: {
         provider: "anthropic",
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         compactModel: "claude-haiku-4-5-20251001",
         apiKey: "test",
       },

@@ -45,7 +45,7 @@ describe("runtime configuration authority", () => {
         compactModel: "custom-compact-model",
       },
     });
-    expect(initial.contextWindowTokens).toBe(1_000_000);
+    expect(initial.contextWindowTokens).toBe(200_000);
 
     const next = resolveRuntimeConfig(
       { llm: { provider: "zai", apiKey: "obviously-fake-zai-key" } },
@@ -82,7 +82,7 @@ describe("runtime configuration authority", () => {
     const next = resolveRuntimeConfig({ llm: { model: "gpt-5.4-mini" } }, initial);
     expect(next.llm.compactModel).toBe("gpt-5.4-mini");
     expect(next.llm.authProfile).toBe("test-profile");
-    expect(next.contextWindowTokens).toBe(400_000);
+    expect(next.contextWindowTokens).toBe(200_000);
   });
 
   it("treats an explicit ChatGPT provider as a default-profile selection", () => {

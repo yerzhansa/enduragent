@@ -2,6 +2,7 @@ import {
   AttachmentCapabilitiesReadModelSchema,
   isKeylessProvider,
   type AttachmentCapabilitiesReadModel,
+  type ResolvedModelProfile,
 } from "@enduragent/coach-contract";
 import type { EngineLlmProvider } from "./host-ports.js";
 import {
@@ -13,8 +14,7 @@ import {
 export type NativeMediaTransport = "ai-sdk" | "openai-codex" | "claude-cli" | "codex-agent";
 
 export interface ActiveAttachmentModel {
-  readonly provider: EngineLlmProvider;
-  readonly model: string;
+  readonly profile: ResolvedModelProfile;
   readonly transport: NativeMediaTransport;
   readonly apiKey?: string;
 }
@@ -34,26 +34,12 @@ export interface AttachmentCapabilityResolverOptions {
   readonly openRouterBaseUrl?: string;
 }
 
-const KNOWN_IMAGE_MODELS: Readonly<Record<string, ReadonlySet<string>>> = Object.freeze({
-  anthropic: new Set(["claude-sonnet-5", "claude-haiku-4-5-20251001", "claude-opus-5"]),
-  openai: new Set(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]),
-  google: new Set(["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash-lite"]),
-});
-
-const KNOWN_TEXT_ONLY_PROVIDERS = new Set<EngineLlmProvider>([
-  "deepseek",
-  "qwen",
-  "minimax",
-  "kimi",
-  "zai",
-]);
-
 function base(active: ActiveAttachmentModel) {
   return {
     schemaVersion: 1 as const,
     active: {
-      provider: active.provider,
-      model: active.model,
+      provider: active.profile.provider,
+      model: active.profile.model,
       transport: active.transport,
     },
     documents: {
@@ -123,9 +109,9 @@ export function resolveAttachmentCapabilities(input: {
   if (active.transport !== "ai-sdk") {
     return disabled(active, "transport_incompatible", "transport_blocked", nowMs);
   }
-  if (active.provider === "openrouter") {
+  if (active.profile.provider === "openrouter") {
     const metadata = input.openRouterMetadata;
-    if (metadata === undefined || metadata.modelId !== active.model) {
+    if (metadata === undefined || metadata.modelId !== active.profile.model) {
       return disabled(active, "unknown_model", "unknown", nowMs);
     }
     if (metadata.fetchedAtMs > nowMs || nowMs - metadata.fetchedAtMs > input.metadataMaxAgeMs) {
@@ -135,14 +121,15 @@ export function resolveAttachmentCapabilities(input: {
       ? enabled(active, "provider_metadata", metadata.fetchedAtMs)
       : disabled(active, "model_incompatible", "provider_metadata", metadata.fetchedAtMs);
   }
-  const known = KNOWN_IMAGE_MODELS[active.provider];
-  if (known?.has(active.model) === true) {
-    return enabled(active, "maintained_catalogue", nowMs);
+  switch (active.profile.imageInput) {
+    case "supported":
+      return enabled(active, "maintained_catalogue", nowMs);
+    case "incompatible":
+      return disabled(active, "model_incompatible", "maintained_catalogue", nowMs);
+    case "provider-metadata":
+    case "unknown":
+      return disabled(active, "unknown_model", "unknown", nowMs);
   }
-  if (KNOWN_TEXT_ONLY_PROVIDERS.has(active.provider)) {
-    return disabled(active, "model_incompatible", "maintained_catalogue", nowMs);
-  }
-  return disabled(active, "unknown_model", "unknown", nowMs);
 }
 
 export function createAttachmentCapabilityResolver(
@@ -152,9 +139,9 @@ export function createAttachmentCapabilityResolver(
     async resolve(active: ActiveAttachmentModel, signal?: AbortSignal) {
       const now = options.now ?? Date.now;
       const openRouterMetadata =
-        active.provider === "openrouter"
+        active.profile.provider === "openrouter"
           ? await resolveOpenRouterModelMetadata({
-              modelId: active.model,
+              modelId: active.profile.model,
               cache: options.openRouterCache,
               maxAgeMs: options.metadataMaxAgeMs,
               now,

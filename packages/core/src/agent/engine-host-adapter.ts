@@ -7,6 +7,7 @@ import type {
   AthleteStateReaderPort,
   EngineConfig,
   EngineHostPorts,
+  EngineResolvedModelProfiles,
   ModelTransportDecorator,
   PlatformCalendarMutationsPort,
   ReferenceStateSnapshot,
@@ -14,7 +15,9 @@ import type {
 import { resolveUserTimezone } from "@enduragent/engine/sport";
 import { ErrorStateSchema, LatestJsonSchema } from "@enduragent/kernel/reference/schemas";
 import type { Config } from "../config.js";
-import { contextWindowForModel } from "../runtime-config.js";
+import type { AcceptedModelCatalogRecord } from "../model-catalog.js";
+import { openModelCatalog } from "../model-catalog-owner.js";
+import { resolveModelRuntimeGeneration } from "../model-runtime-generation.js";
 import {
   createMissingPlatformCalendarMutations,
   createPlatformAthleteDataReader,
@@ -44,8 +47,37 @@ export interface EngineHostAdapterOverrides {
   readonly confirmations?: ConfirmationGate;
 }
 
-export function engineConfigFromConfig(config: Config): EngineConfig {
+export interface EngineConfigProjectionOptions {
+  readonly catalog?: AcceptedModelCatalogRecord;
+  readonly profileStorageDirectory?: string;
+  readonly models?: EngineResolvedModelProfiles;
+}
+
+export function engineConfigFromConfig(
+  config: Config,
+  options: EngineConfigProjectionOptions = {},
+): EngineConfig {
   const compactModel = config.llm.compactModel ?? config.llm.model;
+  const flushModel = config.llm.flushModel ?? config.llm.model;
+  const models =
+    options.models ??
+    resolveModelRuntimeGeneration({
+      catalog:
+        options.catalog ??
+        openModelCatalog({
+          cacheDirectory: join(config.dataDir, "config", "model-catalog", "runtime-cache"),
+          installationRoot: config.dataDir,
+        }).current(),
+      provider: config.llm.provider,
+      chatModel: config.llm.model,
+      compactModel,
+      flushModel,
+      ...(config.contextWindowTokensOverride === undefined
+        ? {}
+        : { chatContextWindowTokensOverride: config.contextWindowTokensOverride }),
+      profileStorageDirectory:
+        options.profileStorageDirectory ?? join(config.dataDir, "config", "model-catalog"),
+    });
   const { claudeCli, codexAgent, ...llm } = config.llm;
   return Object.freeze({
     dataSource: config.dataSource,
@@ -62,11 +94,9 @@ export function engineConfigFromConfig(config: Config): EngineConfig {
       ...(codexAgent === undefined ? {} : { codexAgent: Object.freeze({ ...codexAgent }) }),
     }),
     session: Object.freeze({ ...config.session }),
-    contextWindowTokens: config.contextWindowTokens,
-    compactContextWindowTokens:
-      compactModel === config.llm.model
-        ? config.contextWindowTokens
-        : contextWindowForModel(compactModel, config.llm.provider),
+    models,
+    contextWindowTokens: models.chat.contextWindowTokens,
+    compactContextWindowTokens: models.compact.contextWindowTokens,
   });
 }
 

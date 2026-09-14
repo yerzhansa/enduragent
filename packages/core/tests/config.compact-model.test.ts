@@ -54,6 +54,6 @@ describe("config — compact-model resolution", () => {
     const { contextWindowForModel } = await import("../src/config.js");
     expect(contextWindowForModel("claude-haiku-4-5-20251001")).toBe(200_000);
     expect(contextWindowForModel("no-such-model")).toBe(200_000);
-    expect(contextWindowForModel("claude-sonnet-4-6")).toBe(1_000_000);
+    expect(contextWindowForModel("claude-sonnet-4-6")).toBe(200_000);
   });
 });

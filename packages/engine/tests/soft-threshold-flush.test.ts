@@ -1,15 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  mkdtempSync,
-  rmSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  readdirSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 import { shouldRunMemoryFlush } from "../src/agent/memory-flush.js";
@@ -134,7 +128,7 @@ async function setupAgent(complete: ReturnType<typeof vi.fn>) {
   const ports = baseAgentConfig(dataDir);
   return new CoachAgent(cyclingSport as unknown as Sport, {
     ...ports,
-    config: { ...ports.config, contextWindowTokens: 80_000 },
+    config: withTestModelProfiles({ ...ports.config, contextWindowTokens: 80_000 }),
   });
 }
 
@@ -301,8 +295,6 @@ describe("soft-threshold flush in chat()", () => {
       f.startsWith("trim.jsonl.precompact."),
     );
     expect(archives).toHaveLength(1);
-    expect(
-      warnSpy.mock.calls.some((c) => String(c[0]).includes("Soft-threshold")),
-    ).toBe(false);
+    expect(warnSpy.mock.calls.some((c) => String(c[0]).includes("Soft-threshold"))).toBe(false);
   });
 });

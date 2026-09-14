@@ -37,6 +37,7 @@ import {
 import type { EngineConfig, MemorySnapshot } from "../../src/host-ports.js";
 import { LLM } from "../../src/llm.js";
 import { llmTestPorts } from "../helpers/base-agent-config.js";
+import { testModelProfiles } from "../helpers/model-profiles.js";
 
 const ENABLED = process.env.CODEX_CLI_E2E !== undefined && process.env.CODEX_CLI_E2E !== "";
 const MODEL = process.env.CODEX_CLI_E2E_MODEL ?? "gpt-5.6-sol";
@@ -185,6 +186,11 @@ function codexAgentConfig(binaryPath: string): EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({
+      provider: "codex-agent",
+      chat: MODEL,
+      chatContextWindowTokens: 1_050_000,
+    }),
     contextWindowTokens: 1_050_000,
     compactContextWindowTokens: 1_050_000,
   };

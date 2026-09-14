@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 
@@ -44,10 +45,7 @@ afterEach(() => {
 
 type Call = { system?: string; messages: unknown };
 
-async function setupAgent(
-  complete: ReturnType<typeof vi.fn>,
-  contextWindowTokens: number,
-) {
+async function setupAgent(complete: ReturnType<typeof vi.fn>, contextWindowTokens: number) {
   vi.doMock("../src/agent/codex/responses.js", () => ({
     codexResponses: complete,
   }));
@@ -66,7 +64,7 @@ async function setupAgent(
   const ports = baseAgentConfig(dataDir);
   return new CoachAgent(cyclingSport as unknown as Sport, {
     ...ports,
-    config: { ...ports.config, contextWindowTokens },
+    config: withTestModelProfiles({ ...ports.config, contextWindowTokens }),
   });
 }
 

@@ -7,12 +7,11 @@ import { createAlibaba } from "@ai-sdk/alibaba";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel, ModelMessage } from "ai";
-import { isKeylessProvider } from "@enduragent/coach-contract";
+import { isKeylessProvider, type ResolvedModelProfile } from "@enduragent/coach-contract";
 import { dirname } from "node:path";
 
 import { splitSystemPromptAtBoundary } from "./agent/system-prompt.js";
-import { isPriced } from "./agent/codex/cost.js";
-import { priceInclusiveUsage } from "./usage-cost.js";
+import { priceResolvedModelUsage, resolvedModelCacheReadSavingsUsd } from "./usage-cost.js";
 
 import type {
   EngineConfig,
@@ -95,13 +94,10 @@ export function cacheBreakpointKey(
 
 export class LLM {
   private config: EngineConfig;
+  private profile: ResolvedModelProfile;
   private ports: LLMHostPorts;
   private transport: ModelTransport;
   private aiSdkModel: LanguageModel | null;
-  // Provider + model are fixed for the instance, so resolve once whether this
-  // configuration is in the vendored price catalog. A miss yields undefined cost
-  // on the ledger (best-effort), never a fabricated figure.
-  private priced: boolean;
   // Instance-constant for the same reason: the cache-breakpoint decision depends
   // only on provider + model, so resolve it once rather than per dispatch().
   private breakpointKey: "anthropic" | "openrouter" | undefined;
@@ -109,12 +105,19 @@ export class LLM {
   private claudeCliPool: ClaudeCliSessionPool | null = null;
   private claudeWorkingArea: ClaudeWorkingAreaPort | null;
 
-  constructor(config: EngineConfig, ports: LLMHostPorts) {
-    this.config = config;
+  constructor(
+    config: EngineConfig,
+    ports: LLMHostPorts,
+    profile: ResolvedModelProfile = config.models.chat,
+  ) {
+    this.config = {
+      ...config,
+      llm: { ...config.llm, provider: profile.provider, model: profile.model },
+    };
+    this.profile = profile;
     this.ports = ports;
-    this.aiSdkModel = usesKeylessTransport(config.llm.provider) ? null : buildAiSdkModel(config);
-    this.priced = isPriced(config.llm.provider, config.llm.model);
-    this.breakpointKey = cacheBreakpointKey(config.llm.provider, config.llm.model);
+    this.aiSdkModel = usesKeylessTransport(profile.provider) ? null : buildAiSdkModel(this.config);
+    this.breakpointKey = cacheBreakpointKey(profile.provider, profile.model);
     this.chatStreamTimeouts = validateChatStreamTimeouts(
       ports.chatStreamTimeouts ?? DEFAULT_CHAT_STREAM_TIMEOUTS,
     );
@@ -155,7 +158,7 @@ export class LLM {
     };
     let result: GenerateResult;
     try {
-      result = await this.transport.generate({
+      const generated = await this.transport.generate({
         provider: this.config.llm.provider,
         model: this.config.llm.model,
         options: {
@@ -165,6 +168,7 @@ export class LLM {
           onStreamActivity: handleStreamActivity,
         },
       });
+      result = applyResolvedModelMetadata(generated, this.profile);
     } catch (err) {
       if (watchdog?.error !== undefined && isAbortError(err, watchdog.signal)) {
         throw watchdog.error;
@@ -386,12 +390,6 @@ export class LLM {
           this.config.llm.provider === "openrouter"
             ? providerReportedCostFromSteps(steps)
             : undefined,
-        cost: priceAiSdkUsage(
-          this.config.llm.provider,
-          this.config.llm.model,
-          this.priced,
-          totalUsage,
-        ),
       };
     }
 
@@ -412,12 +410,6 @@ export class LLM {
         this.config.llm.provider === "openrouter"
           ? providerReportedCostFromSteps(result.steps)
           : undefined,
-      cost: priceAiSdkUsage(
-        this.config.llm.provider,
-        this.config.llm.model,
-        this.priced,
-        result.totalUsage,
-      ),
     };
   }
 
@@ -434,6 +426,36 @@ export class LLM {
       stopReason: result.finishReason,
     });
   }
+}
+
+function applyResolvedModelMetadata(
+  result: GenerateResult,
+  profile: ResolvedModelProfile,
+): GenerateResult {
+  const details = cacheTokenDetails(result.totalUsage);
+  const usage =
+    result.totalUsage === undefined
+      ? undefined
+      : {
+          inputTokens: result.totalUsage.inputTokens ?? 0,
+          outputTokens: result.totalUsage.outputTokens ?? 0,
+          cacheReadTokens: details?.cacheReadTokens ?? 0,
+          cacheWriteTokens: details?.cacheWriteTokens ?? 0,
+        };
+  const catalogCost =
+    usage === undefined ? undefined : priceResolvedModelUsage(profile.pricing, usage);
+  const cacheReadSavingsUsd =
+    usage === undefined
+      ? undefined
+      : resolvedModelCacheReadSavingsUsd(profile.pricing, usage.cacheReadTokens);
+  const cost = result.costBasis === "actual" ? result.cost : catalogCost;
+  const { cost: _discardedCost, cacheReadSavingsUsd: _discardedSavings, ...base } = result;
+  return {
+    ...base,
+    catalogRevision: profile.catalogRevision,
+    ...(cost === undefined ? {} : { cost }),
+    ...(cacheReadSavingsUsd === undefined ? {} : { cacheReadSavingsUsd }),
+  };
 }
 
 class ChatStreamTimeoutError extends Error {
@@ -557,26 +579,6 @@ function providerReportedCostFromSteps(steps: readonly unknown[]): number | unde
     if (!Number.isFinite(total)) return undefined;
   }
   return total;
-}
-
-// The AI SDK reports token usage but no cost, so derive it from the vendored
-// per-million price catalog (the same numbers the codex path prices against).
-// `priced` is resolved once at construction; an uncatalogued configuration
-// yields undefined rather than a fabricated figure (best-effort ledger).
-function priceAiSdkUsage(
-  provider: string,
-  modelId: string,
-  priced: boolean,
-  totalUsage: GenerateResult["totalUsage"],
-): GenerateResult["cost"] | undefined {
-  if (!priced || !totalUsage) return undefined;
-  const details = cacheTokenDetails(totalUsage);
-  return priceInclusiveUsage(provider, modelId, {
-    inputTokens: totalUsage.inputTokens ?? 0,
-    outputTokens: totalUsage.outputTokens ?? 0,
-    cacheReadTokens: details?.cacheReadTokens ?? 0,
-    cacheWriteTokens: details?.cacheWriteTokens ?? 0,
-  });
 }
 
 function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {

@@ -8,12 +8,27 @@ import type {
   OpenRouterModelMetadataCache,
   OpenRouterModelMetadataSnapshot,
 } from "../src/openrouter-model-metadata.js";
+import type { CatalogImageInput, ResolvedModelProfile } from "@enduragent/coach-contract";
 
 const DAY = 86_400_000;
 const NOW = 2_000_000_000_000;
 
-function active(provider: Parameters<typeof transportForProvider>[0], model: string) {
-  return { provider, model, transport: transportForProvider(provider) } as const;
+function active(
+  provider: Parameters<typeof transportForProvider>[0],
+  model: string,
+  imageInput: CatalogImageInput,
+) {
+  const profile: ResolvedModelProfile = {
+    kind: "catalog",
+    catalogRevision: 1,
+    provider,
+    model,
+    compatibilityProfile: "openai-ai-sdk-v1",
+    contextWindowTokens: 200_000,
+    imageInput,
+    pricing: { kind: "unknown" },
+  };
+  return { profile, transport: transportForProvider(provider) };
 }
 
 describe("attachment capability resolution", () => {
@@ -24,7 +39,7 @@ describe("attachment capability resolution", () => {
   ] as const)("enables maintained %s image input", (provider, model) => {
     expect(
       resolveAttachmentCapabilities({
-        active: active(provider, model),
+        active: active(provider, model, "supported"),
         nowMs: NOW,
         metadataMaxAgeMs: DAY,
       }).images,
@@ -34,7 +49,7 @@ describe("attachment capability resolution", () => {
   it("fails closed for custom models and every bridge transport", () => {
     expect(
       resolveAttachmentCapabilities({
-        active: active("openai", "custom-model"),
+        active: active("openai", "custom-model", "unknown"),
         nowMs: NOW,
         metadataMaxAgeMs: DAY,
       }).images,
@@ -42,7 +57,7 @@ describe("attachment capability resolution", () => {
     for (const provider of ["openai-codex", "claude-cli", "codex-agent"] as const) {
       expect(
         resolveAttachmentCapabilities({
-          active: active(provider, "known-looking-model"),
+          active: active(provider, "known-looking-model", "supported"),
           nowMs: NOW,
           metadataMaxAgeMs: DAY,
         }).images,
@@ -62,7 +77,7 @@ describe("attachment capability resolution", () => {
     };
     expect(
       resolveAttachmentCapabilities({
-        active: active("openrouter", metadata.modelId),
+        active: active("openrouter", metadata.modelId, "provider-metadata"),
         nowMs: NOW,
         metadataMaxAgeMs: DAY,
         openRouterMetadata: metadata,
@@ -70,7 +85,7 @@ describe("attachment capability resolution", () => {
     ).toMatchObject({ enabled: true, source: "provider_metadata" });
     expect(
       resolveAttachmentCapabilities({
-        active: active("openrouter", metadata.modelId),
+        active: active("openrouter", metadata.modelId, "provider-metadata"),
         nowMs: NOW + DAY + 1_001,
         metadataMaxAgeMs: DAY,
         openRouterMetadata: metadata,
@@ -78,7 +93,7 @@ describe("attachment capability resolution", () => {
     ).toMatchObject({ enabled: false, reason: "metadata_stale" });
     expect(
       resolveAttachmentCapabilities({
-        active: active("openrouter", metadata.modelId),
+        active: active("openrouter", metadata.modelId, "provider-metadata"),
         nowMs: NOW,
         metadataMaxAgeMs: DAY,
         openRouterMetadata: { ...metadata, inputModalities: ["text"] },
@@ -105,14 +120,18 @@ describe("attachment capability resolution", () => {
       now: () => NOW,
       fetch: fetcher,
     });
-    await expect(resolver.resolve(active("openrouter", stored.modelId))).resolves.toMatchObject({
+    await expect(
+      resolver.resolve(active("openrouter", stored.modelId, "provider-metadata")),
+    ).resolves.toMatchObject({
       images: { enabled: true },
     });
     expect(fetcher).not.toHaveBeenCalled();
 
     stored = { ...stored, fetchedAtMs: NOW - DAY - 1 };
     fetcher.mockRejectedValueOnce(new Error("offline"));
-    await expect(resolver.resolve(active("openrouter", stored.modelId))).resolves.toMatchObject({
+    await expect(
+      resolver.resolve(active("openrouter", stored.modelId, "provider-metadata")),
+    ).resolves.toMatchObject({
       images: { enabled: false, reason: "metadata_stale" },
     });
   });
@@ -144,7 +163,7 @@ describe("attachment capability resolution", () => {
       fetch: fetcher,
     });
     await expect(
-      resolver.resolve(active("openrouter", "vendor/vision-model")),
+      resolver.resolve(active("openrouter", "vendor/vision-model", "provider-metadata")),
     ).resolves.toMatchObject({ images: { enabled: true } });
     expect(stored).toEqual({
       modelId: "vendor/vision-model",
