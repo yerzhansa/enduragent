@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
-import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-contract.js";
 import {
   createWindowsAuthenticodeVerifyMode,
   decideWindowsAuthenticode,
