@@ -1,28 +1,34 @@
-name = "enduragent-model-catalog"
-main = "model-catalog.worker.ts"
+name = "enduragent-model-catalog-config"
 compatibility_date = "2026-09-14"
 workers_dev = false
+preview_urls = false
 
 [env.production]
 name = "enduragent-model-catalog"
 workers_dev = false
+preview_urls = false
 
-[[env.production.r2_buckets]]
-binding = "MODEL_CATALOG"
-bucket_name = "enduragent-model-catalog"
+[env.production.assets]
+directory = "./.model-catalog-assets"
+run_worker_first = false
+html_handling = "none"
+not_found_handling = "none"
 
 [[env.production.routes]]
-pattern = "https://api.enduragent.icu/models/v1/*"
-zone_name = "enduragent.icu"
+pattern = "api.enduragent.icu"
+custom_domain = true
 
 [env.staging]
 name = "enduragent-model-catalog-staging"
 workers_dev = false
+preview_urls = false
 
-[[env.staging.r2_buckets]]
-binding = "MODEL_CATALOG"
-bucket_name = "enduragent-model-catalog-staging"
+[env.staging.assets]
+directory = "./.model-catalog-assets"
+run_worker_first = false
+html_handling = "none"
+not_found_handling = "none"
 
 [[env.staging.routes]]
-pattern = "https://api-staging.enduragent.icu/models/v1/*"
-zone_name = "enduragent.icu"
+pattern = "api-staging.enduragent.icu"
+custom_domain = true

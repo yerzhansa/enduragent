@@ -18,9 +18,6 @@ importers:
 
   .:
     devDependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.1131.0
-        version: 3.1131.0
       '@changesets/cli':
         specifier: ^2.27.0
         version: 2.31.0(@types/node@25.6.0)
@@ -54,9 +51,6 @@ importers:
       ai:
         specifier: ^6.0.158
         version: 6.0.170(zod@4.5.4)
-      esbuild:
-        specifier: 0.28.2
-        version: 0.28.2
       i18next-parser:
         specifier: ^9.4.0
         version: 9.4.0(supports-color@7.2.0)
