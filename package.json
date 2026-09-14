@@ -43,10 +43,16 @@
     "i18n:extract": "i18next",
     "i18n:check": "pnpm i18n:extract --fail-on-update",
     "check:catalogs": "tsx tools/check-catalog-coverage.ts",
-    "models:generate-seed": "pnpm --filter @enduragent/coach-contract build && tsx tools/generate-model-catalog-seed.ts"
+    "models:generate-seed": "pnpm --filter @enduragent/coach-contract build && tsx tools/generate-model-catalog-seed.ts",
+    "models:validate": "tsx tools/model-catalog-cli.ts validate",
+    "models:publish": "tsx tools/model-catalog-cli.ts publish",
+    "models:rollback": "tsx tools/model-catalog-cli.ts rollback",
+    "models:verify-service": "tsx tools/verify-model-catalog-service.ts"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
     "@changesets/cli": "^2.27.0",
+    "@enduragent/coach-contract": "workspace:*",
     "@enduragent/core": "workspace:*",
     "@enduragent/engine": "workspace:*",
     "@enduragent/kernel": "workspace:*",
@@ -56,6 +62,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@xmldom/xmldom": "0.9.12",
     "ai": "^6.0.158",
+    "esbuild": "0.28.2",
     "i18next-parser": "^9.4.0",
     "intervals-icu-api": "0.4.0",
     "knip": "^6.34.0",

@@ -1,0 +1,28 @@
+name = "enduragent-model-catalog"
+main = "model-catalog.worker.ts"
+compatibility_date = "2026-09-14"
+workers_dev = false
+
+[env.production]
+name = "enduragent-model-catalog"
+workers_dev = false
+
+[[env.production.r2_buckets]]
+binding = "MODEL_CATALOG"
+bucket_name = "enduragent-model-catalog"
+
+[[env.production.routes]]
+pattern = "https://api.enduragent.icu/models/v1/*"
+zone_name = "enduragent.icu"
+
+[env.staging]
+name = "enduragent-model-catalog-staging"
+workers_dev = false
+
+[[env.staging.r2_buckets]]
+binding = "MODEL_CATALOG"
+bucket_name = "enduragent-model-catalog-staging"
+
+[[env.staging.routes]]
+pattern = "https://api-staging.enduragent.icu/models/v1/*"
+zone_name = "enduragent.icu"

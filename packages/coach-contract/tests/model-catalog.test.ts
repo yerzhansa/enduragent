@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ModelCatalogDraftSchema,
   ModelCatalogSnapshotSchema,
   ResolvedModelProfileSchema,
   type CatalogModelEntry,
@@ -45,6 +46,12 @@ function snapshot(): ModelCatalogSnapshot {
 }
 
 describe("ModelCatalogSnapshotSchema", () => {
+  it("accepts the publication draft before revision metadata is assigned", () => {
+    const { revision: _revision, provenance: _provenance, ...draft } = snapshot();
+
+    expect(ModelCatalogDraftSchema.parse(draft).providers).toHaveLength(1);
+  });
+
   it("accepts provider-local model identity and structurally valid future references", () => {
     const candidate = snapshot();
     candidate.providers = [provider("openai"), provider("future-provider")];

@@ -1,0 +1,47 @@
+{
+  "catalog": {
+    "schemaVersion": 1,
+    "providers": [
+      {
+        "providerId": "openai",
+        "label": "Synthetic provider",
+        "order": 0,
+        "recommendedModelId": "synthetic-model",
+        "models": [
+          {
+            "modelId": "synthetic-model",
+            "label": "Synthetic model",
+            "order": 0,
+            "compatibilityProfile": "openai-ai-sdk-v1",
+            "contextWindow": {
+              "kind": "unknown"
+            },
+            "imageInput": "unknown",
+            "pricing": {
+              "kind": "unknown"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "providerId": "openai",
+      "modelId": "synthetic-model",
+      "connections": [
+        {
+          "connectionId": "synthetic",
+          "textCall": {
+            "verifiedAt": "1998-09-14T08:00:00.000Z",
+            "reference": "record:synthetic-text-call"
+          },
+          "toolCall": {
+            "verifiedAt": "1998-09-14T08:00:00.000Z",
+            "reference": "record:synthetic-tool-call"
+          }
+        }
+      ]
+    }
+  ]
+}

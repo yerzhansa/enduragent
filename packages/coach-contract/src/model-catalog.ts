@@ -126,6 +126,31 @@ export const CatalogProviderEntrySchema = z
     }
   });
 
+const CatalogProvidersSchema = z
+  .array(CatalogProviderEntrySchema)
+  .min(1)
+  .max(MODEL_CATALOG_LIMITS.providers)
+  .superRefine((providers, context) => {
+    const providerIds = new Set<string>();
+    for (const [index, provider] of providers.entries()) {
+      if (providerIds.has(provider.providerId)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "providerId"],
+          message: "providerId must be unique",
+        });
+      }
+      providerIds.add(provider.providerId);
+    }
+  });
+
+export const ModelCatalogDraftSchema = z
+  .object({
+    schemaVersion: z.literal(MODEL_CATALOG_SCHEMA_VERSION),
+    providers: CatalogProvidersSchema,
+  })
+  .strict();
+
 export const CatalogProvenanceSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -146,22 +171,9 @@ export const ModelCatalogSnapshotSchema = z
     schemaVersion: z.literal(MODEL_CATALOG_SCHEMA_VERSION),
     revision: z.number().int().positive().safe(),
     provenance: CatalogProvenanceSchema,
-    providers: z.array(CatalogProviderEntrySchema).min(1).max(MODEL_CATALOG_LIMITS.providers),
+    providers: CatalogProvidersSchema,
   })
-  .strict()
-  .superRefine((snapshot, context) => {
-    const providerIds = new Set<string>();
-    for (const [index, provider] of snapshot.providers.entries()) {
-      if (providerIds.has(provider.providerId)) {
-        context.addIssue({
-          code: "custom",
-          path: ["providers", index, "providerId"],
-          message: "providerId must be unique",
-        });
-      }
-      providerIds.add(provider.providerId);
-    }
-  });
+  .strict();
 
 const ResolvedModelMetadataSchema = z.object({
   catalogRevision: z.number().int().positive().safe(),
@@ -196,5 +208,6 @@ export type CatalogPricing = z.infer<typeof CatalogPricingSchema>;
 export type CatalogModelEntry = z.infer<typeof CatalogModelEntrySchema>;
 export type CatalogProviderEntry = z.infer<typeof CatalogProviderEntrySchema>;
 export type CatalogProvenance = z.infer<typeof CatalogProvenanceSchema>;
+export type ModelCatalogDraft = z.infer<typeof ModelCatalogDraftSchema>;
 export type ModelCatalogSnapshot = z.infer<typeof ModelCatalogSnapshotSchema>;
 export type ResolvedModelProfile = z.infer<typeof ResolvedModelProfileSchema>;
