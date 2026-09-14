@@ -30,6 +30,8 @@ type OperationResult = { readonly kind: "passed" } | { readonly kind: "failed"; 
 
 type ScenarioVerifier = (harness: ApplicationUiHarness, info: TestInfo) => Promise<void>;
 
+const SETTINGS_BASELINE_VERSION_LABEL = "Version 0.5.1";
+
 function viewport(info: TestInfo): { readonly width: number; readonly height: number } {
   const value = info.project.use.viewport;
   if (value === null || value === undefined || "width" in value === false) {
@@ -187,6 +189,26 @@ async function prepareDurableChat(harness: ApplicationUiHarness): Promise<void> 
   await harness.fixture.relaunch();
 }
 
+async function stabilizeSettingsVersion(harness: ApplicationUiHarness): Promise<void> {
+  const identity = await collectApplicationBuildIdentity();
+  const expectedVersionLabel = `Version ${identity.applicationBuild.desktopVersion}`;
+  const displayedVersionLabel = await waitFor<string>(
+    harness,
+    `(() => {
+      const section = document.querySelector('section[aria-label="Application"]');
+      const label = [...(section?.querySelectorAll("div") ?? [])].find(
+        (candidate) => candidate.textContent?.trim() === ${JSON.stringify(expectedVersionLabel)},
+      );
+      if (!(label instanceof HTMLElement)) return false;
+      const displayed = label.textContent?.trim() ?? "";
+      label.textContent = ${JSON.stringify(SETTINGS_BASELINE_VERSION_LABEL)};
+      return displayed;
+    })()`,
+    "the current application version",
+  );
+  expect(displayedVersionLabel).toBe(expectedVersionLabel);
+}
+
 async function prepareSettingsControl(
   harness: ApplicationUiHarness,
   info: TestInfo,
@@ -278,6 +300,7 @@ async function prepareSettingsControl(
     body: JSON.stringify(original),
     contentType: "application/json",
   });
+  await stabilizeSettingsVersion(harness);
   await scrollToPreferences(harness);
 }
 
@@ -285,7 +308,7 @@ async function verifyChatSyncing(harness: ApplicationUiHarness, info: TestInfo):
   expect(
     await harness.fixture.evaluate(`
       const heading = document.querySelector('h1');
-      const sync = document.querySelector('.first-sync[data-state="syncing"]');
+      const sync = document.querySelector('[data-sync-chip][data-status="syncing"]');
       return {
         heading: heading?.textContent?.trim(),
         sync: sync?.textContent?.replace(/\\s+/gu, " ").trim(),
@@ -293,7 +316,7 @@ async function verifyChatSyncing(harness: ApplicationUiHarness, info: TestInfo):
     `),
   ).toMatchObject({
     heading: "Chat",
-    sync: expect.stringContaining("Syncing your training history…"),
+    sync: expect.stringContaining("Syncing"),
   });
   expect(harness.backend.calls.map((call) => call.method)).toEqual(
     expect.arrayContaining(["verify_intervals_credential", "configureRuntime", "sync"]),
@@ -349,18 +372,18 @@ async function verifyChatSyncFailed(harness: ApplicationUiHarness, info: TestInf
   }>(
     harness,
     `(() => {
-      const card = document.querySelector('.first-sync[data-state="failed"]');
-      if (card === null) return false;
+      const chip = document.querySelector('[data-sync-chip][data-status="attention"]');
+      if (chip === null) return false;
       return {
-        text: (card.textContent ?? "").replace(/\\s+/gu, " ").trim(),
-        retry: Array.from(card.querySelectorAll("button")).some(
+        text: (chip.textContent ?? "").replace(/\\s+/gu, " ").trim(),
+        retry: Array.from(chip.querySelectorAll("button")).some(
           (button) => (button.textContent ?? "").trim() === "Retry sync",
         ),
       };
     })()`,
     "the failed first sync state",
   );
-  expect(state.text).toContain("Enduragent needs to reconnect safely");
+  expect(state.text).toContain("Enduragent couldn’t verify the sync result.");
   expect(state.text).toContain("Quit and reopen Enduragent.");
   expect(state.retry).toBe(false);
   await capture(harness, "desktop--chat-sync-failed", info);
@@ -562,6 +585,7 @@ export async function verifySettingsMutationRecovery(info: TestInfo): Promise<vo
       const recoveredStructure = await structure(harness);
       expect(checkStructure(recoveredStructure, preferencesContract)).toEqual([]);
       await screenshot(harness, "settings-recovered-control", info, clip);
+      await stabilizeSettingsVersion(harness);
       await capture(harness, "desktop--settings-preferences", info);
       await info.attach("recovered-structure", {
         body: JSON.stringify(recoveredStructure),
