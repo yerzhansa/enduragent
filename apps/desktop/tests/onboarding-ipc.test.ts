@@ -1224,6 +1224,7 @@ describe("desktop onboarding IPC", () => {
 
   it("gates correlated ChatGPT login, progress, and cancellation invokes", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     subject.chatGptAuth.login.mockImplementationOnce(
       async (
         operationId: string,
@@ -1278,8 +1279,32 @@ describe("desktop onboarding IPC", () => {
     expect(subject.chatGptAuth.cancelLogin).toHaveBeenCalledWith("login-1");
   });
 
+  it("does not start ChatGPT login for a selection whose revision was not pinned", async () => {
+    const subject = harness();
+    const selection = {
+      catalogRevision: 999,
+      provider: "openai-codex" as const,
+      model: "gpt-5.5",
+      endpoint: { mode: "automatic" as const },
+    };
+
+    await expect(
+      subject.invoke(DESKTOP_CHATGPT_LOGIN_CHANNEL, subject.trustedEvent, {
+        operationId: "login-stale",
+        selection,
+      }),
+    ).resolves.toEqual({
+      status: "stale-draft",
+      operationId: "login-stale",
+      reason: "catalog-unavailable",
+      selection,
+    });
+    expect(subject.chatGptAuth.login).not.toHaveBeenCalled();
+  });
+
   it("does not publish delayed ChatGPT progress after requester navigation or disposal", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     let publish!: (phase: "waiting-for-browser" | "completing-sign-in") => void;
     subject.chatGptAuth.login.mockImplementationOnce(
       async (operationId, _selection, onProgress) => {

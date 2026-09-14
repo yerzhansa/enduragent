@@ -155,7 +155,7 @@ export async function withLocalCoach<T>(
     try {
       await modelCatalog.shutdown();
     } catch (error) {
-      runnerFailure ??= { error };
+      runnerFailure ??= { error: operationOutcome?.error ?? error };
     }
   }
   if (runnerFailure !== undefined) throw runnerFailure.error;

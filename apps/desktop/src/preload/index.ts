@@ -993,6 +993,19 @@ function parseChatGptLogin(value: unknown, operationId: string): unknown {
     return { status: "stored", operationId };
   }
   if (
+    value.status === "stale-draft" &&
+    exactKeys(value, ["status", "operationId", "reason", "selection"]) &&
+    value.operationId === operationId &&
+    value.reason === "catalog-unavailable"
+  ) {
+    return {
+      status: "stale-draft",
+      operationId,
+      reason: "catalog-unavailable",
+      selection: parseChatGptSelection(value.selection),
+    };
+  }
+  if (
     value.status === "refused" &&
     exactKeys(value, ["status", "operationId", "reason"]) &&
     value.operationId === operationId &&

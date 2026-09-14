@@ -514,6 +514,31 @@ describe("local coach runner", () => {
     await expect(withLocalCoach(input(async () => "done"))).rejects.toBe(cleanupFailure);
   });
 
+  it("preserves the operation failure when catalog shutdown also fails", async () => {
+    const operationFailure = { kind: "operation" };
+    const shutdownFailure = { kind: "catalog-shutdown" };
+    mocks.openModelCatalog.mockImplementationOnce(() => ({
+      current: () => acceptedCatalog,
+      start: async () => {
+        trace.push("catalog-start");
+      },
+      forceRefresh: async () => acceptedCatalog,
+      shutdown: async () => {
+        trace.push("catalog-close");
+        throw shutdownFailure;
+      },
+    }));
+
+    await expect(
+      withLocalCoach(
+        input(async () => {
+          throw operationFailure;
+        }),
+      ),
+    ).rejects.toBe(operationFailure);
+    expect(trace.at(-1)).toBe("catalog-close");
+  });
+
   it("supports idempotent lifecycle close and does not resolve before writer release", async () => {
     let closerCalls = 0;
     let closed = false;

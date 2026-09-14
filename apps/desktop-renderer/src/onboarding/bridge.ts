@@ -191,7 +191,7 @@ export interface OnboardingBridge {
   llmConfiguration(): Promise<OnboardingLlmConfiguration>;
   applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
   chatGptStatus(): Promise<ChatGptStatus>;
-  chatGptLogin(input: ChatGptLoginInput): Promise<ChatGptLoginResult>;
+  chatGptLogin(input: ChatGptLoginInput): Promise<ChatGptLoginResult<OnboardingLlmSelection>>;
   cancelChatGptLogin(operationId: string): Promise<ChatGptCancelLoginResult>;
   onChatGptLoginProgress(listener: (progress: ChatGptLoginProgress) => void): () => void;
   claudeCliStatus(): Promise<ClaudeCliStatus>;
@@ -218,7 +218,7 @@ export interface DesktopOnboardingAuth {
   llmConfiguration(): Promise<OnboardingLlmConfiguration>;
   applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
   chatgptStatus(): Promise<ChatGptStatus>;
-  chatgptLogin(input: ChatGptLoginInput): Promise<ChatGptLoginResult>;
+  chatgptLogin(input: ChatGptLoginInput): Promise<ChatGptLoginResult<OnboardingLlmSelection>>;
   cancelChatgptLogin(operationId: string): Promise<ChatGptCancelLoginResult>;
   onChatgptLoginProgress(listener: (progress: ChatGptLoginProgress) => void): () => void;
   claudeCliStatus(): Promise<ClaudeCliStatus>;

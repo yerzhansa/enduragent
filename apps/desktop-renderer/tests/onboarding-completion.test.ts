@@ -838,6 +838,41 @@ describe("onboarding runtime completion gate", () => {
     harness.controller.dispose();
   });
 
+  it("keeps the ChatGPT draft when sign-in receives an unpinned revision", async () => {
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.chatGptLogin.mockImplementation(async ({ operationId, selection }) => ({
+      status: "stale-draft",
+      operationId,
+      reason: "catalog-unavailable",
+      selection,
+    }));
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+    harness.controller.selectProvider("openai-codex");
+    const draft = harness.surface().draft;
+
+    harness.controller.startChatGptLogin();
+
+    await vi.waitFor(() => {
+      expect(harness.controller.state()).toMatchObject({
+        busy: false,
+        fixedError: "configuration-unavailable",
+      });
+    });
+    expect(harness.surface().draft).toBe(draft);
+    expect(bridge.chatGptLogin).toHaveBeenCalledWith({
+      operationId: expect.any(String),
+      selection: {
+        catalogRevision: 7,
+        provider: "openai-codex",
+        model: "gpt-5.5",
+        endpoint: { mode: "automatic" },
+      },
+    });
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+    harness.controller.dispose();
+  });
+
   it("keeps the credential draft when its captured catalog revision is no longer pinned", async () => {
     const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
     bridge.writeCredential.mockImplementation(async (input) => {

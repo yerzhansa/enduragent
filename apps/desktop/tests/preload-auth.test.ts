@@ -2120,6 +2120,43 @@ describe("desktop preload ChatGPT auth", () => {
     ]);
   });
 
+  it("copies only an exact ChatGPT stale-draft envelope", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openai-codex",
+      model: "gpt-5.5",
+      endpoint: { mode: "automatic" },
+    };
+    const response = {
+      status: "stale-draft",
+      operationId: "login-1",
+      reason: "catalog-unavailable",
+      selection,
+    };
+    mocks.invoke.mockResolvedValueOnce(response);
+
+    const result = await bridge.chatgptLogin(chatGptLoginInput);
+
+    expect(result).toEqual(response);
+    expect(result).not.toBe(response);
+    selection.model = "mutated-after-parse";
+    expect(result).toEqual({
+      status: "stale-draft",
+      operationId: "login-1",
+      reason: "catalog-unavailable",
+      selection: chatGptSelection,
+    });
+
+    for (const value of [
+      { ...response, extra: true },
+      { ...response, selection: { ...chatGptSelection, provider: "anthropic" } },
+      { ...response, reason: "stale-draft" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(value);
+      await expect(bridge.chatgptLogin(chatGptLoginInput)).rejects.toBeInstanceOf(TypeError);
+    }
+  });
+
   it("correlates cancellation and forwards only closed progress events", async () => {
     mocks.invoke.mockResolvedValueOnce({ status: "cancelling", operationId: "login-1" });
     await expect(bridge.cancelChatgptLogin("login-1")).resolves.toEqual({

@@ -426,6 +426,12 @@ interface ClaudeCliStatus {
 type ChatGptLoginResult =
   | { readonly status: "stored"; readonly operationId: string }
   | {
+      readonly status: "stale-draft";
+      readonly operationId: string;
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
+    }
+  | {
       readonly status: "refused";
       readonly operationId: string;
       readonly reason:

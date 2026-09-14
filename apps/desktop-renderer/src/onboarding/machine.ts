@@ -57,8 +57,14 @@ export interface ClaudeCliStatus {
   readonly version?: string;
 }
 
-export type ChatGptLoginResult =
+export type ChatGptLoginResult<Selection = unknown> =
   | { readonly status: "stored"; readonly operationId: string }
+  | {
+      readonly status: "stale-draft";
+      readonly operationId: string;
+      readonly reason: "catalog-unavailable";
+      readonly selection: Selection;
+    }
   | {
       readonly status: "refused";
       readonly operationId: string;
@@ -223,6 +229,15 @@ export function withChatGptLoginResult(
 ): OnboardingState {
   if (state.chatGptOperationId !== result.operationId || state.chatGptLoginPhase === "idle") {
     return state;
+  }
+  if (result.status === "stale-draft") {
+    return {
+      ...state,
+      chatGptLoginPhase: "idle",
+      chatGptOperationId: null,
+      busy: false,
+      fixedError: "configuration-unavailable",
+    };
   }
   return result.status === "stored"
     ? {

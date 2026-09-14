@@ -572,6 +572,20 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     requireTrusted(event);
     if (args.length !== 1) throw new TypeError();
     const input = parseChatGptLoginInput(args[0]);
+    const pinnedCatalog = pinnedCatalogs.get(input.selection.catalogRevision);
+    if (
+      pinnedCatalog === undefined ||
+      !pinnedCatalog.effective.providers.some(
+        (provider) => provider.provider === input.selection.provider,
+      )
+    ) {
+      return {
+        status: "stale-draft",
+        operationId: input.operationId,
+        reason: "catalog-unavailable",
+        selection: input.selection,
+      };
+    }
     return minimizeChatGptLogin(
       await options.chatGptAuth.login(input.operationId, input.selection, (phase) => {
         publishChatGptProgress(event.sender, input.operationId, phase);
