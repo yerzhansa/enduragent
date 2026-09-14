@@ -330,11 +330,12 @@ describe.each(BILLING_MODES)("claude-cli ledger and error surfaces (%s billing)"
 
     const { CoachAgent } = await import("../../src/agent/coach-agent.js");
     const { baseAgentConfig } = await import("../helpers/base-agent-config.js");
+    const { withTestModelProfiles } = await import("../helpers/model-profiles.js");
     const { cyclingSport } = await import("@enduragent/sport-cycling");
     const base = baseAgentConfig(dataDir);
     const agent = new CoachAgent(cyclingSport as never, {
       ...base,
-      config: {
+      config: withTestModelProfiles({
         ...base.config,
         llm: {
           provider: "claude-cli",
@@ -347,7 +348,7 @@ describe.each(BILLING_MODES)("claude-cli ledger and error surfaces (%s billing)"
             cursorStorePath: join(dataDir, "claude-cli-sessions.json"),
           },
         },
-      },
+      }),
     });
 
     const error = await agent.chat("sentinel-scan", text).then(

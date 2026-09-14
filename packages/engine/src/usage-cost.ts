@@ -1,4 +1,4 @@
-import type { SpendCaching } from "@enduragent/coach-contract";
+import type { CatalogPricing, SpendCaching } from "@enduragent/coach-contract";
 import { PRICE_TABLE, isPriced, priceUsage } from "./agent/codex/cost.js";
 import type { UsageCost } from "./host-ports.js";
 
@@ -34,6 +34,44 @@ function validCost(value: UsageCost | undefined): value is UsageCost {
       (dimension) => Number.isFinite(dimension) && dimension >= 0,
     )
   );
+}
+
+export function priceResolvedModelUsage(
+  pricing: CatalogPricing,
+  usage: UsageTokenCounts,
+): UsageCost | undefined {
+  if (
+    pricing.kind === "unknown" ||
+    !validTokenCount(usage.inputTokens) ||
+    !validTokenCount(usage.outputTokens) ||
+    !validTokenCount(usage.cacheReadTokens) ||
+    !validTokenCount(usage.cacheWriteTokens)
+  ) {
+    return undefined;
+  }
+  const uncachedInputTokens = Math.max(
+    0,
+    usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens,
+  );
+  const input = (pricing.inputUsdPerMillion / 1_000_000) * uncachedInputTokens;
+  const output = (pricing.outputUsdPerMillion / 1_000_000) * usage.outputTokens;
+  const cacheRead = (pricing.cacheReadUsdPerMillion / 1_000_000) * usage.cacheReadTokens;
+  const cacheWrite = (pricing.cacheWriteUsdPerMillion / 1_000_000) * usage.cacheWriteTokens;
+  const total = input + output + cacheRead + cacheWrite;
+  return validCost({ input, output, cacheRead, cacheWrite, total })
+    ? { input, output, cacheRead, cacheWrite, total }
+    : undefined;
+}
+
+export function resolvedModelCacheReadSavingsUsd(
+  pricing: CatalogPricing,
+  cacheReadTokens: number,
+): number | undefined {
+  if (pricing.kind === "unknown" || !validTokenCount(cacheReadTokens)) return undefined;
+  const savings =
+    (Math.max(0, pricing.inputUsdPerMillion - pricing.cacheReadUsdPerMillion) * cacheReadTokens) /
+    1_000_000;
+  return Number.isFinite(savings) && savings >= 0 ? savings : undefined;
 }
 
 export function priceInclusiveUsage(

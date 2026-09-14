@@ -66,8 +66,24 @@ function currentImageInput(
   provider: (typeof LLM_MODEL_CATALOGUE)[number]["provider"],
   model: string,
 ) {
+  const baseline = MODEL_CATALOG_BASELINE.find((entry) => entry.provider === provider)?.models.find(
+    (candidate) => candidate.value === model,
+  );
+  if (baseline === undefined) throw new Error("Model catalog baseline entry is missing");
   const capabilities = resolveAttachmentCapabilities({
-    active: { provider, model, transport: transportForProvider(provider) },
+    active: {
+      profile: {
+        kind: "catalog",
+        catalogRevision: 1,
+        provider,
+        model,
+        compatibilityProfile: "openai-ai-sdk-v1",
+        contextWindowTokens: baseline.contextWindowTokens,
+        imageInput: baseline.imageInput,
+        pricing: { kind: "unknown" },
+      },
+      transport: transportForProvider(provider),
+    },
     nowMs: 883_612_800_000,
     metadataMaxAgeMs: 86_400_000,
   });

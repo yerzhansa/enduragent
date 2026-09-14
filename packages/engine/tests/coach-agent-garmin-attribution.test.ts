@@ -10,6 +10,7 @@ import type { SourceProvenance } from "../src/provenance.js";
 import type { Sport, SportRuntimePorts, ToolRegistration } from "../src/sport.js";
 import { createMemoryTools } from "../src/sport.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { GARMIN_DATA_ATTRIBUTION } from "../src/agent/garmin-attribution.js";
 import { ConfirmationGate } from "../../core/src/agent/confirmation-gate.js";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
@@ -121,11 +122,11 @@ function withWindow(ports: EngineHostPorts, contextWindowTokens?: number): Engin
   if (contextWindowTokens === undefined) return ports;
   return {
     ...ports,
-    config: {
+    config: withTestModelProfiles({
       ...ports.config,
       contextWindowTokens,
       compactContextWindowTokens: contextWindowTokens,
-    },
+    }),
   };
 }
 

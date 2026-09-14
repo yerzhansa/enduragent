@@ -22,7 +22,7 @@ function config(dataDir: string): Config {
     dataSource: "platform",
     llm: {
       provider: "anthropic",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       compactModel: "claude-haiku-4-5-20251001",
       apiKey: "test",
     },
@@ -149,13 +149,34 @@ describe("engine host adapter", () => {
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
-    expect(ports.config).toEqual({
+    expect(ports.config).toMatchObject({
       dataSource: "platform",
       llm: {
         provider: "anthropic",
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         compactModel: "claude-haiku-4-5-20251001",
         apiKey: "test",
+      },
+      models: {
+        catalogRevision: 1,
+        chat: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-sonnet-5",
+          contextWindowTokens: 1_000_000,
+        },
+        compact: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-haiku-4-5-20251001",
+          contextWindowTokens: 200_000,
+        },
+        flush: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-sonnet-5",
+          contextWindowTokens: 1_000_000,
+        },
       },
       session: {
         historyTokenBudgetRatio: 0.3,
@@ -170,6 +191,7 @@ describe("engine host adapter", () => {
     expect(Object.isFrozen(ports.config)).toBe(true);
     expect(Object.isFrozen(ports.config.llm)).toBe(true);
     expect(Object.isFrozen(ports.config.session)).toBe(true);
+    expect(Object.isFrozen(ports.config.models)).toBe(true);
   });
 
   it("exposes one stable Core-owned conversation coordinator for both ports", () => {

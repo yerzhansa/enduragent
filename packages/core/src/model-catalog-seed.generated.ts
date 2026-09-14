@@ -611,6 +611,34 @@ export const GENERATED_MODEL_CATALOG_SEED = {
           }
         }
       ]
+    },
+    {
+      "providerId": "codex-agent",
+      "label": "Codex agent (ChatGPT subscription)",
+      "order": 11,
+      "hint": "hidden",
+      "recommendedModelId": "gpt-5.6-sol",
+      "models": [
+        {
+          "modelId": "gpt-5.6-sol",
+          "label": "GPT-5.6 Sol",
+          "order": 0,
+          "hint": "recommended",
+          "compatibilityProfile": "codex-agent-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1050000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "token-rates",
+            "inputUsdPerMillion": 5,
+            "outputUsdPerMillion": 30,
+            "cacheReadUsdPerMillion": 0.5,
+            "cacheWriteUsdPerMillion": 0
+          }
+        }
+      ]
     }
   ]
 } as const;

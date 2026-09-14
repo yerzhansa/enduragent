@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelMessage } from "ai";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 import type { LLM, GenerateResult, GenerateOpts } from "../src/llm.js";
@@ -64,7 +65,7 @@ async function setupAgent(complete: ReturnType<typeof vi.fn>) {
   const ports = baseAgentConfig(dataDir);
   return new CoachAgent(cyclingSport as unknown as Sport, {
     ...ports,
-    config: { ...ports.config, contextWindowTokens: 80_000 },
+    config: withTestModelProfiles({ ...ports.config, contextWindowTokens: 80_000 }),
   });
 }
 
@@ -192,7 +193,9 @@ describe("flush dedupe — at most one memory flush per chat() turn", () => {
     expect(text).toBe("trim-reply");
     const calls = complete.mock.calls;
     const replyIndex = calls.findIndex(
-      (c) => !isFlushCall(c) && !String((c[0] as { system?: string }).system).includes(COMPACTION_MARKER),
+      (c) =>
+        !isFlushCall(c) &&
+        !String((c[0] as { system?: string }).system).includes(COMPACTION_MARKER),
     );
     const flushIndexes = calls.map((c, i) => (isFlushCall(c) ? i : -1)).filter((i) => i >= 0);
     expect(flushIndexes).toHaveLength(2);

@@ -4,6 +4,7 @@ import { CODEX_AGENT_DISABLED_MESSAGE } from "@enduragent/coach-contract";
 import type { EngineConfig } from "../src/host-ports.js";
 import type { ClaudeWorkingAreaPort } from "../src/agent/claude-cli/working-area.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 import { createFakeCodex } from "./codex-agent/helpers/fake-codex.js";
 
 const MINIMAL_RESULT = {
@@ -26,6 +27,11 @@ function codexConfig(): EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({
+      provider: "openai-codex",
+      chat: "gpt-5.4",
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
@@ -42,6 +48,11 @@ function anthropicConfig(): EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({
+      provider: "anthropic",
+      chat: "claude-test",
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
@@ -69,6 +80,7 @@ function claudeCliConfig(enabled = true): EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({ provider: "claude-cli", chat: "sonnet" }),
     contextWindowTokens: 200_000,
     compactContextWindowTokens: 200_000,
   };
@@ -243,13 +255,11 @@ describe("LLM dispatch — codex path forwards maxSteps to bridge", () => {
   });
 
   it("streams chat text through the bridge without re-emitting the assembled reply", async () => {
-    const codexGenerateText = vi.fn(
-      async (o: { onTextDelta?: (delta: string) => void }) => {
-        o.onTextDelta?.("o");
-        o.onTextDelta?.("k");
-        return MINIMAL_RESULT;
-      },
-    );
+    const codexGenerateText = vi.fn(async (o: { onTextDelta?: (delta: string) => void }) => {
+      o.onTextDelta?.("o");
+      o.onTextDelta?.("k");
+      return MINIMAL_RESULT;
+    });
     vi.doMock("../src/agent/codex-bridge.js", () => ({ codexGenerateText }));
     const { LLM } = await import("../src/llm.js");
     const llm = new LLM(codexConfig(), llmTestPorts());
@@ -762,6 +772,11 @@ function codexAgentConfig(): EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({
+      provider: "codex-agent",
+      chat: "gpt-5.6-sol",
+      chatContextWindowTokens: 1_050_000,
+    }),
     contextWindowTokens: 1_050_000,
     compactContextWindowTokens: 1_050_000,
   };

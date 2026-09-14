@@ -893,7 +893,7 @@ export async function createLocalCoachComposition(
   if (input.config.dataDir !== input.home.root) {
     throw new TypeError("Configured data directory does not match the selected athlete home.");
   }
-  const projected = engineConfigFromConfig(input.config);
+  const projected = engineConfigFromConfig(input.config, { models: input.engineConfig.models });
   if (JSON.stringify(projected) !== JSON.stringify(input.engineConfig)) {
     throw new TypeError("Ready engine configuration does not match the selected athlete home.");
   }
@@ -1305,9 +1305,8 @@ export async function createLocalCoachComposition(
         metadataMaxAgeMs: CHAT_ATTACHMENT_LIMITS.capabilityMetadataMaxAgeMs,
         now,
       }).resolve({
-        provider: config.llm.provider,
-        model: config.llm.model,
-        transport: transportForProvider(config.llm.provider),
+        profile: config.models.chat,
+        transport: transportForProvider(config.models.chat.provider),
         ...(config.llm.apiKey.length === 0 ? {} : { apiKey: config.llm.apiKey }),
       });
     };
@@ -1344,7 +1343,10 @@ export async function createLocalCoachComposition(
       calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
       droppedActivitiesSource: () => runtime!.currentDroppedActivities(),
     });
-    const buildBundle = async (config: Config): Promise<RuntimeBundle> => {
+    const buildBundle = async (
+      config: Config,
+      capturedEngineConfig?: EngineConfig,
+    ): Promise<RuntimeBundle> => {
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
         timezone === config.session.timezone
@@ -1376,7 +1378,10 @@ export async function createLocalCoachComposition(
         timezone,
         now,
       });
-      const projectedConfig = engineConfigFromConfig(effectiveConfig);
+      const projectedConfig = engineConfigFromConfig(
+        effectiveConfig,
+        capturedEngineConfig === undefined ? {} : { models: capturedEngineConfig.models },
+      );
       const attachmentCapabilityResolver = createAttachmentCapabilityResolver({
         openRouterCache: openRouterModelMetadata,
         metadataMaxAgeMs: CHAT_ATTACHMENT_LIMITS.capabilityMetadataMaxAgeMs,
@@ -1472,9 +1477,8 @@ export async function createLocalCoachComposition(
           resolve: (signal) =>
             attachmentCapabilityResolver.resolve(
               {
-                provider: projectedConfig.llm.provider,
-                model: projectedConfig.llm.model,
-                transport: transportForProvider(projectedConfig.llm.provider),
+                profile: projectedConfig.models.chat,
+                transport: transportForProvider(projectedConfig.models.chat.provider),
                 ...(projectedConfig.llm.apiKey.length === 0
                   ? {}
                   : { apiKey: projectedConfig.llm.apiKey }),
@@ -1541,7 +1545,7 @@ export async function createLocalCoachComposition(
         }),
       };
     };
-    const initialBundle = await buildBundle(approvedConfig());
+    const initialBundle = await buildBundle(approvedConfig(), input.engineConfig);
     let activeTimezone = initialBundle.timezone;
     const reconfigurable = createReconfigurableRuntimeBundle(initialBundle);
     planningTranslator = reconfigurable.intentTranslator;

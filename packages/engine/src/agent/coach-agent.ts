@@ -403,23 +403,25 @@ export class CoachAgent {
     this.sport = sport;
     this.config = config;
     this.ports = ports;
-    this.llm = new LLM(config, ports);
+    this.llm = new LLM(config, ports, config.models.chat);
     this.translateIntent = createIntentTranslator(this.llm).translateIntent;
     // Per-role lanes share one LLM instance per distinct model, so adding a
     // lane never needs pairwise equality checks against the existing ones.
-    const llmByModel = new Map<string, LLM>([[config.llm.model, this.llm]]);
-    const llmFor = (model: string): LLM => {
-      let lane = llmByModel.get(model);
+    const profileKey = (profile: EngineConfig["models"]["chat"]): string =>
+      JSON.stringify([profile.provider, profile.model]);
+    const llmByModel = new Map<string, LLM>([[profileKey(config.models.chat), this.llm]]);
+    const llmFor = (profile: EngineConfig["models"]["chat"]): LLM => {
+      const key = profileKey(profile);
+      let lane = llmByModel.get(key);
       if (lane === undefined) {
-        lane = new LLM({ ...config, llm: { ...config.llm, model } }, ports);
-        llmByModel.set(model, lane);
+        lane = new LLM(config, ports, profile);
+        llmByModel.set(key, lane);
       }
       return lane;
     };
-    this.flushLlm = llmFor(config.llm.flushModel ?? config.llm.model);
-    const compactModel = config.llm.compactModel ?? config.llm.model;
-    this.compactLlm = llmFor(compactModel);
-    this.compactContextWindowTokens = config.compactContextWindowTokens;
+    this.flushLlm = llmFor(config.models.flush);
+    this.compactLlm = llmFor(config.models.compact);
+    this.compactContextWindowTokens = config.models.compact.contextWindowTokens;
     this.tz = resolveUserTimezone(config.session.timezone);
     this.memory = ports.memory;
     this.chatStore = ports.chatStore;
@@ -477,7 +479,7 @@ export class CoachAgent {
       ]),
     ) as ToolSet;
     const decisionToolEnabled =
-      config.llm.provider === "openai-codex" &&
+      config.models.chat.provider === "openai-codex" &&
       ports.modelTransportDecorator === undefined &&
       ports.coachDecisions !== undefined;
     this.decisionTool = decisionToolEnabled
@@ -553,11 +555,16 @@ export class CoachAgent {
       : null;
     const planNone = planGate === null && this.memory.loadPlan() === null;
     if (chatId.startsWith("plan:")) {
-      const systemPrompt = buildPlanCoachSystemPrompt(this.memory, this.tz, this.buildDegradeBlock(), {
-        outputLanguage: language,
-        excludeSections: this.excludedSectionNames,
-        planNone,
-      });
+      const systemPrompt = buildPlanCoachSystemPrompt(
+        this.memory,
+        this.tz,
+        this.buildDegradeBlock(),
+        {
+          outputLanguage: language,
+          excludeSections: this.excludedSectionNames,
+          planNone,
+        },
+      );
       return { systemPrompt, athleteSnapshot: undefined };
     }
     const athleteSnapshot = await loadAthleteSnapshotBlock({
@@ -569,13 +576,19 @@ export class CoachAgent {
           reason: error instanceof AthleteSnapshotTimeoutError ? "timeout" : "read",
         }),
     });
-    const systemPrompt = buildSystemPrompt(this.sport, this.memory, this.tz, this.buildDegradeBlock(), {
-      outputLanguage: language,
-      excludeSections: this.excludedSectionNames,
-      confirmationGate: this.confirmationGate,
-      athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
-      planNone,
-    });
+    const systemPrompt = buildSystemPrompt(
+      this.sport,
+      this.memory,
+      this.tz,
+      this.buildDegradeBlock(),
+      {
+        outputLanguage: language,
+        excludeSections: this.excludedSectionNames,
+        confirmationGate: this.confirmationGate,
+        athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
+        planNone,
+      },
+    );
     return { systemPrompt, athleteSnapshot };
   }
 
@@ -589,7 +602,7 @@ export class CoachAgent {
             confirmationGate: this.confirmationGate,
           }),
       toolSchemas: tools,
-      model: this.config.llm.model,
+      model: this.config.models.chat.model,
     });
   }
 
@@ -1065,7 +1078,7 @@ export class CoachAgent {
         );
 
         const budget = computeHistoryTokenBudget({
-          contextWindowTokens: this.config.contextWindowTokens,
+          contextWindowTokens: this.config.models.chat.contextWindowTokens,
           systemPrompt,
           budgetRatio: this.config.session.historyTokenBudgetRatio,
         });
@@ -1201,7 +1214,7 @@ export class CoachAgent {
             shouldCompact({
               messages: compacted.messages,
               systemPrompt,
-              contextWindowTokens: this.config.contextWindowTokens,
+              contextWindowTokens: this.config.models.chat.contextWindowTokens,
             })
           ) {
             throw new Error(
@@ -1233,7 +1246,7 @@ export class CoachAgent {
               shouldCompact({
                 messages,
                 systemPrompt,
-                contextWindowTokens: this.config.contextWindowTokens,
+                contextWindowTokens: this.config.models.chat.contextWindowTokens,
               })
             ) {
               if (!flushedThisTurn) {
@@ -1329,7 +1342,7 @@ export class CoachAgent {
                 isWindowExceededFinish({
                   finishReason,
                   usage: result.usage,
-                  contextWindowTokens: this.config.contextWindowTokens,
+                  contextWindowTokens: this.config.models.chat.contextWindowTokens,
                 })
               ) {
                 const overflow = new Error(WINDOW_EXCEEDED_FINISH_MESSAGE);
@@ -1371,8 +1384,8 @@ export class CoachAgent {
               const lineage: ChatLineage = {
                 templateHash,
                 assembledHash,
-                provider: this.config.llm.provider,
-                model: this.config.llm.model,
+                provider: this.config.models.chat.provider,
+                model: this.config.models.chat.model,
                 lineageVersion: promptLineageSchemaVersion(providerMessages),
                 provenance: ctx.provenance.value,
               };
@@ -1396,8 +1409,8 @@ export class CoachAgent {
                 ts: this.ports.now(),
                 kind: "turn",
                 caller: "chat",
-                provider: this.config.llm.provider,
-                model: this.config.llm.model,
+                provider: this.config.models.chat.provider,
+                model: this.config.models.chat.model,
                 durationMs: this.ports.now() - turnStart,
                 templateHash,
                 ...usageFieldsFromResult(result),
@@ -1575,7 +1588,7 @@ export class CoachAgent {
               if (failure === "timeout" && timeoutAttempts < MAX_TIMEOUT_ATTEMPTS) {
                 const ratio =
                   estimatePromptTokens({ messages, systemPrompt }) /
-                  (effectiveEstimatorWindowTokens(this.config.contextWindowTokens) -
+                  (effectiveEstimatorWindowTokens(this.config.models.chat.contextWindowTokens) -
                     RESERVE_TOKENS);
                 if (ratio > TIMEOUT_COMPACTION_THRESHOLD) {
                   timeoutAttempts++;
@@ -1681,8 +1694,8 @@ export class CoachAgent {
               this.chatStore.appendTurn(chatId, userMessageWithTime, streamedText, {
                 templateHash,
                 assembledHash: computeAssembledHash(systemPrompt, providerMessages),
-                provider: this.config.llm.provider,
-                model: this.config.llm.model,
+                provider: this.config.models.chat.provider,
+                model: this.config.models.chat.model,
                 lineageVersion: promptLineageSchemaVersion(providerMessages),
                 provenance: ctx.provenance.value,
               });
@@ -2050,7 +2063,7 @@ export class CoachAgent {
             this.decisionTool === undefined
               ? undefined
               : { [COACH_DECISION_TOOL_NAME]: this.decisionTool },
-          model: this.config.llm.model,
+          model: this.config.models.chat.model,
         });
     const system =
       (await this.buildChatSystemPrompt(decision.chatId, context.language)).systemPrompt +
@@ -2196,8 +2209,8 @@ export class CoachAgent {
     const lineage: CoachDecisionContinuationLineage = {
       templateHash: lineageInput.templateHash,
       assembledHash: computeAssembledHash(lineageInput.system, lineageInput.messages),
-      provider: this.config.llm.provider,
-      model: this.config.llm.model,
+      provider: this.config.models.chat.provider,
+      model: this.config.models.chat.model,
       lineageVersion: promptLineageSchemaVersion(lineageInput.messages),
       ...(lineageInput.planIntakePatch === null
         ? {}

@@ -22,6 +22,8 @@ export function usageFieldsFromResult(
   | "cacheReadTokens"
   | "cacheWriteTokens"
   | "providerReportedCostUsd"
+  | "catalogRevision"
+  | "cacheReadSavingsUsd"
   | "costBasis"
   | "cost"
 > {
@@ -34,6 +36,8 @@ export function usageFieldsFromResult(
     cacheReadTokens: details?.cacheReadTokens,
     cacheWriteTokens: details?.cacheWriteTokens,
     providerReportedCostUsd: result.providerReportedCostUsd,
+    catalogRevision: result.catalogRevision,
+    cacheReadSavingsUsd: result.cacheReadSavingsUsd,
     costBasis: result.costBasis,
     cost: result.cost,
   };

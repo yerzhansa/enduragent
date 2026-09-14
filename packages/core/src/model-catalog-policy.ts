@@ -2,7 +2,7 @@ import {
   InstalledCompatibilityProfileSchema,
   type InstalledCompatibilityProfile,
 } from "@enduragent/coach-contract/model-catalog";
-import { LLM_MODEL_CATALOGUE } from "./runtime-config.js";
+import { LLM_MODEL_CATALOGUE, type LlmProvider } from "./runtime-config.js";
 
 export type VisibleModelCatalogProvider = (typeof LLM_MODEL_CATALOGUE)[number]["provider"];
 
@@ -22,7 +22,7 @@ export const INSTALLED_MODEL_CATALOG_PROFILES = {
 } as const satisfies Record<VisibleModelCatalogProvider, readonly InstalledCompatibilityProfile[]>;
 
 export function installedProfileFor(
-  provider: VisibleModelCatalogProvider,
+  provider: LlmProvider,
   profile: string,
 ): InstalledCompatibilityProfile | undefined {
   const parsed = InstalledCompatibilityProfileSchema.safeParse(profile);

@@ -64,6 +64,7 @@ export interface EngineConfig {
     readonly resetArchiveRetentionDays: number;
     readonly timezone: string;
   };
+  readonly models: EngineResolvedModelProfiles;
   readonly contextWindowTokens: number;
   readonly compactContextWindowTokens: number;
 }
@@ -436,6 +437,8 @@ export interface UsageLedgerLine {
   readonly cacheReadTokens?: number;
   readonly cacheWriteTokens?: number;
   readonly providerReportedCostUsd?: number;
+  readonly catalogRevision?: number;
+  readonly cacheReadSavingsUsd?: number;
   readonly costBasis?: UsageCostBasis;
   readonly cost?: UsageCost;
   readonly stopReason?: string;

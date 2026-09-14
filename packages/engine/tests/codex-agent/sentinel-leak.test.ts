@@ -25,6 +25,7 @@ import {
 } from "../../src/agent/codex-agent/probe.js";
 import type { Sport } from "../../src/sport.js";
 import { baseAgentConfig } from "../helpers/base-agent-config.js";
+import { withTestModelProfiles } from "../helpers/model-profiles.js";
 import { createFakeCodex, FAIL_VERSION, type FakeCodex } from "./helpers/fake-codex.js";
 
 const TEST_TIMEOUT_MS = 30_000;
@@ -333,7 +334,7 @@ describe("codex-agent ledger surface (AC-11, AC-13)", () => {
       const base = baseAgentConfig(dataDir);
       const agent = new CoachAgent(cyclingSport as unknown as Sport, {
         ...base,
-        config: {
+        config: withTestModelProfiles({
           ...base.config,
           llm: {
             provider: "codex-agent",
@@ -341,7 +342,7 @@ describe("codex-agent ledger surface (AC-11, AC-13)", () => {
             apiKey: "",
             codexAgent: { enabled: true, binaryPath: staged.binaryPath },
           },
-        },
+        }),
       });
 
       const reply = await agent.chat("sentinel-scan", "what should I ride today?");

@@ -45,6 +45,7 @@ import { createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { createManagedWorkoutReader } from "@enduragent/sport-cycling/workout-import";
 import { afterEach, describe, expect, it } from "vitest";
+import { testModelProfiles } from "../../../packages/engine/tests/helpers/model-profiles.js";
 import {
   createActivityAttachmentOperations,
   type ActivityAttachmentOperations,
@@ -440,8 +441,14 @@ class AttachmentLifecycleBackend {
     });
     const capabilities = () =>
       capabilityResolver.resolve({
-        provider: "openai",
-        model: this.activeModel,
+        profile: testModelProfiles({
+          provider: "openai",
+          chat: this.activeModel,
+          catalog: {
+            compatibilityProfile: "openai-ai-sdk-v1",
+            imageInput: this.activeModel === incompatibleModel ? "incompatible" : "supported",
+          },
+        }).chat,
         transport: transportForProvider("openai"),
         apiKey: "fixture",
       });
@@ -618,6 +625,11 @@ class AttachmentLifecycleBackend {
           resetArchiveRetentionDays: 0,
           timezone: "UTC",
         },
+        models: testModelProfiles({
+          provider: "openai",
+          chat: this.activeModel,
+          chatContextWindowTokens: 272_000,
+        }),
         contextWindowTokens: 272_000,
         compactContextWindowTokens: 272_000,
       },

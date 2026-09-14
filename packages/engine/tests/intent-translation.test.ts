@@ -8,6 +8,7 @@ import { createIntentTranslator } from "../src/intent-translation.js";
 import { createFakeLLM } from "./helpers/fake-llm.js";
 import { LLM } from "../src/llm.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 import type { EngineConfig, ModelTransportRequest } from "../src/host-ports.js";
 import type { GenerateOptions, GenerateResult } from "../src/sport.js";
 
@@ -333,6 +334,7 @@ describe("intent translation", () => {
           resetArchiveRetentionDays: 0,
           timezone: "UTC",
         },
+        models: testModelProfiles({ provider, chat: "configured-model" }),
         contextWindowTokens: 100_000,
         compactContextWindowTokens: 100_000,
       };

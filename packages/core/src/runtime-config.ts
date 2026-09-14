@@ -3,8 +3,10 @@ import {
   CODEX_AGENT_WINDOWS_MESSAGE,
   KEYLESS_LLM_PROVIDERS,
   isKeylessProvider,
+  type CatalogModelEntry,
   type KeylessLlmProvider,
 } from "@enduragent/coach-contract";
+import { GENERATED_MODEL_CATALOG_SEED } from "./model-catalog-seed.generated.js";
 
 export { KEYLESS_LLM_PROVIDERS, isKeylessProvider };
 export type { KeylessLlmProvider };
@@ -197,48 +199,6 @@ export const COMPACT_MODEL_DEFAULTS = {
   openrouter: "deepseek/deepseek-v4-flash",
 } as const satisfies Partial<Record<LlmProvider, string>>;
 
-const CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
-  "claude-sonnet-5": 1_000_000,
-  "claude-opus-5": 1_000_000,
-  "claude-sonnet-4-6": 1_000_000,
-  "claude-opus-4-8": 1_000_000,
-  "claude-haiku-4-5-20251001": 200_000,
-  sonnet: 200_000,
-  opus: 200_000,
-  haiku: 200_000,
-  "gpt-4o": 128_000,
-  "gpt-5.6-sol": 1_050_000,
-  "gpt-5.6-terra": 1_050_000,
-  "gpt-5.6-luna": 1_050_000,
-  "gpt-5.5": 1_050_000,
-  "gpt-5.4": 1_050_000,
-  "gpt-5.4-mini": 400_000,
-  "gpt-5.4-nano": 400_000,
-  "gemini-3.6-flash": 1_048_576,
-  "gemini-3.5-flash": 1_048_576,
-  "gemini-3.5-flash-lite": 1_048_576,
-  "gemini-3.1-pro-preview": 1_048_576,
-  "gemini-3.1-flash-lite": 1_048_576,
-  "deepseek-v4-flash": 1_000_000,
-  "deepseek-v4-pro": 1_000_000,
-  "qwen3.7-plus": 1_000_000,
-  "qwen3.5-plus": 1_000_000,
-  "qwen3-max": 262_144,
-  "MiniMax-M2.7": 204_800,
-  "MiniMax-M3": 1_000_000,
-  "kimi-k3": 1_000_000,
-  "kimi-k2.6": 262_144,
-  "kimi-k2.5": 262_144,
-  "glm-5.2": 1_000_000,
-  "glm-4.7": 200_000,
-  "glm-4.7-flashx": 200_000,
-  "deepseek/deepseek-v4-flash": 1_000_000,
-  "z-ai/glm-5.2": 1_000_000,
-  "qwen/qwen3.7-plus": 1_000_000,
-  "moonshotai/kimi-k3": 1_000_000,
-  "moonshotai/kimi-k2.6": 262_000,
-};
-
 export const CLAUDE_CLI_BILLING_MODES = ["subscription", "api-key"] as const;
 
 export type ClaudeCliBilling = (typeof CLAUDE_CLI_BILLING_MODES)[number];
@@ -289,6 +249,7 @@ export interface EffectiveRuntimeConfig {
     timezone: string;
   };
   contextWindowTokens: number;
+  contextWindowTokensOverride?: number;
 }
 
 export interface ClaudeCliRuntimeConfigPatch {
@@ -426,29 +387,26 @@ export function resolveLlmProvider(value: unknown): LlmProvider {
   throw new TypeError("Unsupported LLM provider.");
 }
 
-const CLAUDE_MODEL_FAMILIES = ["sonnet", "opus", "haiku"] as const;
-
-function claudeModelFamily(model: string): string | undefined {
-  const normalized = model.toLowerCase();
-  return CLAUDE_MODEL_FAMILIES.find((family) => normalized.includes(family));
-}
-
 const FALLBACK_CONTEXT_WINDOW = 200_000;
 
-function familyContextWindow(model: string): number | undefined {
-  const family = claudeModelFamily(model);
-  return family === undefined ? undefined : CONTEXT_WINDOWS[family];
-}
-
-export function knownContextWindowForModel(model: string): number | undefined {
-  return CONTEXT_WINDOWS[model];
+export function knownContextWindowForModel(
+  model: string,
+  provider?: LlmProvider,
+): number | undefined {
+  for (const candidate of GENERATED_MODEL_CATALOG_SEED.providers) {
+    if (provider !== undefined && candidate.providerId !== provider) continue;
+    const entry = (candidate.models as readonly CatalogModelEntry[]).find(
+      (modelEntry) => modelEntry.modelId === model,
+    );
+    if (entry !== undefined) {
+      return entry.contextWindow.kind === "known" ? entry.contextWindow.tokens : undefined;
+    }
+  }
+  return undefined;
 }
 
 export function contextWindowForModel(model: string, provider?: LlmProvider): number {
-  if (provider === "claude-cli") {
-    return familyContextWindow(model) ?? CONTEXT_WINDOWS[model] ?? FALLBACK_CONTEXT_WINDOW;
-  }
-  return CONTEXT_WINDOWS[model] ?? familyContextWindow(model) ?? FALLBACK_CONTEXT_WINDOW;
+  return knownContextWindowForModel(model, provider) ?? FALLBACK_CONTEXT_WINDOW;
 }
 
 function providerBaseUrl(provider: LlmProvider): string | undefined {
@@ -474,7 +432,10 @@ function requireBoolean(value: unknown, name: string): boolean {
 }
 
 function requireClaudeCliBilling(value: unknown): ClaudeCliBilling {
-  if (typeof value === "string" && (CLAUDE_CLI_BILLING_MODES as readonly string[]).includes(value)) {
+  if (
+    typeof value === "string" &&
+    (CLAUDE_CLI_BILLING_MODES as readonly string[]).includes(value)
+  ) {
     return value as ClaudeCliBilling;
   }
   throw new TypeError('llm.claudeCli.billing must be "subscription" or "api-key".');
@@ -568,7 +529,9 @@ export function resolveRuntimeConfig(
       ? current.llm.model
       : DEFAULT_MODELS[provider];
   if (!isModelEnabledForProvider(provider, model)) {
-    throw new TypeError("GPT-6 Astra is not enabled for this connection; use the public OpenAI API.");
+    throw new TypeError(
+      "GPT-6 Astra is not enabled for this connection; use the public OpenAI API.",
+    );
   }
   const selectionChanged = current === undefined || providerChanged || model !== current.llm.model;
   const keyless = isKeylessProvider(provider);
@@ -697,12 +660,15 @@ export function resolveRuntimeConfig(
       : (current?.session.timezone ?? ""),
   };
 
-  const contextWindowTokens =
+  const contextWindowTokensOverride =
     options.contextWindowTokens !== undefined
       ? requireInteger(options.contextWindowTokens, "contextWindowTokens")
-      : current !== undefined && !selectionChanged
-        ? current.contextWindowTokens
-        : contextWindowForModel(model, provider);
+      : current?.contextWindowTokensOverride;
+  const contextWindowTokens =
+    contextWindowTokensOverride ??
+    (current !== undefined && !selectionChanged
+      ? current.contextWindowTokens
+      : contextWindowForModel(model, provider));
   if (contextWindowTokens <= 0) throw new TypeError("contextWindowTokens must be positive.");
 
   const authProfile =
@@ -733,5 +699,6 @@ export function resolveRuntimeConfig(
     intervals,
     session,
     contextWindowTokens,
+    ...(contextWindowTokensOverride === undefined ? {} : { contextWindowTokensOverride }),
   };
 }
