@@ -487,6 +487,37 @@ describe("sidebar sync chip", () => {
     );
   });
 
+  it("shows completed sync success before persisted metadata refreshes", () => {
+    useEnduragentStore.setState({
+      training: {
+        ...EMPTY_TRAINING_SURFACE,
+        status: "ready",
+        metadata: {
+          lastUpdated: "1998-07-19T08:00:00.000Z",
+          lastSynced: null,
+          freshness: "fresh",
+          degraded: false,
+        },
+      },
+      sync: toManualSyncViewState({
+        status: "succeeded",
+        operation: 1,
+        kind: "published",
+        droppedActivities: noDroppedActivities(),
+      }),
+    });
+    render(<Sidebar />);
+
+    expect(chip()).toHaveAttribute("data-status", "synced");
+    expect(chipSurface().querySelector('span[data-status="synced"]')).toHaveClass("bg-ok");
+    expect(screen.getByText("Training data synced")).toHaveClass("sr-only");
+    expect(chipSurface().querySelector("[data-sync-detail]")).toHaveClass("sr-only");
+    expect(screen.getByText("Sync")).toHaveAttribute("data-sync-action");
+    expect(chip()).toHaveAccessibleName(
+      "Sync · Training data synced · Training-data check completed.",
+    );
+  });
+
   it("keeps refresh failure ahead of retained sync success", () => {
     useEnduragentStore.setState({
       training: {

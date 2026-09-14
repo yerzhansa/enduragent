@@ -35,6 +35,7 @@ function syncChipStatus(
   if (training.status === "loading") return "loading";
   if (training.status === "refresh-unavailable") return "attention";
   if (training.status === "unavailable") return "unavailable";
+  if (sync.tone === "success") return "synced";
   if (training.metadata !== null && training.metadata.lastSynced !== null) return "synced";
   return "never";
 }
