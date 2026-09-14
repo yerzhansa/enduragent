@@ -1,5 +1,15 @@
 # @enduragent/desktop-renderer
 
+## 0.3.1
+
+### Patch Changes
+
+- 4a2012d: User-facing: Setup no longer shows a separate Claude subscription status row.
+- 0bf9483: User-facing: Settings no longer shows the Training account section or athlete ID editor. Your connected account stays saved and remains manageable in Setup.
+- baf483d: User-facing: Attachments and queued messages now share one rounded composer, and your latest chat message stays fully visible above it.
+- d3b69ee: User-facing: Training sync status is now easier to scan. Successful syncs no longer show a date, and Sync now stays hidden while a sync is in progress.
+- c75c305: User-facing: Conversation settings now show only your timezone and save a valid timezone when you leave the field or press Enter. Your existing conversation timing and history preferences stay unchanged.
+
 ## 0.3.0
 
 ### Minor Changes
