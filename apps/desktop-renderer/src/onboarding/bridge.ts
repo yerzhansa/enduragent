@@ -31,6 +31,12 @@ export type CredentialWriteResult =
     }
   | {
       readonly slot: DesktopCredentialSlot;
+      readonly status: "stale-draft";
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
+    }
+  | {
+      readonly slot: DesktopCredentialSlot;
       readonly status: "refused";
       readonly reason:
         | "invalid-input"
@@ -133,6 +139,7 @@ export interface OnboardingLlmProviderConfiguration {
 
 export interface OnboardingLlmConfiguration {
   readonly schemaVersion: 1;
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: {
     readonly provider: LlmProvider;
@@ -146,6 +153,7 @@ export type OnboardingLlmEndpointSelection =
   | { readonly mode: "custom"; readonly value: string };
 
 export interface OnboardingLlmSelection {
+  readonly catalogRevision: number;
   readonly provider: LlmProvider;
   readonly model: string;
   readonly endpoint: OnboardingLlmEndpointSelection;
@@ -153,6 +161,11 @@ export interface OnboardingLlmSelection {
 
 export type OnboardingLlmSelectionResult =
   | { readonly status: "configured"; readonly runtimeReady: true }
+  | {
+      readonly status: "stale-draft";
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
+    }
   | {
       readonly status: "refused";
       readonly reason: "invalid-input" | "credential-required" | "runtime-unavailable";

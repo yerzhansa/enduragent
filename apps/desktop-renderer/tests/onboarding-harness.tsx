@@ -281,6 +281,7 @@ export function seedSecret(slot: string, secret: string): HTMLInputElement {
 
 export const TEST_LLM_CONFIGURATION: OnboardingLlmConfiguration = {
   schemaVersion: 1,
+  catalogRevision: 7,
   providers: [
     {
       provider: "anthropic",

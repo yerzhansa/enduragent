@@ -63,6 +63,20 @@ export {
   resolveModelCatalogPaths,
 } from "./model-catalog-owner.js";
 export {
+  acceptModelCatalogSnapshot,
+  evaluateModelCatalogCandidate,
+  modelCatalogSelectorConfiguration,
+} from "./model-catalog.js";
+export type {
+  AcceptedModelCatalogRecord,
+  EffectiveCatalogModel,
+  EffectiveCatalogProvider,
+  EffectiveModelCatalog,
+  ModelCatalogCandidateEvaluation,
+  ModelCatalogSelectorConfiguration,
+  ModelCatalogSelectorProvider,
+} from "./model-catalog.js";
+export {
   CONSERVATIVE_MODEL_CONTEXT_WINDOW_TOKENS,
   resolveModelRuntimeGeneration,
   SELECTED_MODEL_PROFILES_FILE,

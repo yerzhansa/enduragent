@@ -189,7 +189,7 @@ function runChild(input: {
   endpoint: string;
   extraCaCertificatePath?: string;
   installationRoot: string;
-  mode?: "read" | "refresh" | "pause-after-claim" | "refresh-and-hold";
+  mode?: "read" | "select" | "refresh" | "pause-after-claim" | "refresh-and-hold";
   now?: number;
   readyPath?: string;
   releasePath?: string;
@@ -552,15 +552,66 @@ describe("model catalog interprocess request boundary", () => {
 
     writeFileSync(releasePath, "release\n");
     await childOutput(owner);
-    const exitedOwnerRevision = await childOutput(
+    const exitedOwnerSelection: unknown = JSON.parse(
+      await childOutput(
+        runChild({
+          cacheDirectory: tempDirectory("catalog-exited-reader-cache-"),
+          endpoint: server.url,
+          installationRoot,
+          mode: "select",
+        }),
+      ),
+    );
+    expect(exitedOwnerSelection).toMatchObject({
+      revision: 2,
+      providers: expect.arrayContaining([
+        expect.objectContaining({
+          provider: "anthropic",
+          models: expect.arrayContaining(["claude-sonnet-5"]),
+        }),
+      ]),
+    });
+    expect(server.requests).toHaveLength(1);
+  });
+
+  it("keeps picker reads and a restart inside the claimed daily request", async () => {
+    const server = await startCountedHttpServer(() => ({
+      status: 200,
+      headers: { ETag: '"revision-2"' },
+      chunks: [JSON.stringify(candidate())],
+    }));
+    servers.push(server);
+    const installationRoot = tempDirectory("catalog-picker-restart-");
+
+    await childOutput(
       runChild({
-        cacheDirectory: tempDirectory("catalog-exited-reader-cache-"),
+        cacheDirectory: tempDirectory("catalog-picker-startup-cache-"),
         endpoint: server.url,
         installationRoot,
-        mode: "read",
       }),
     );
-    expect(exitedOwnerRevision).toBe("2");
+
+    const selection: unknown = JSON.parse(
+      await childOutput(
+        runChild({
+          cacheDirectory: tempDirectory("catalog-picker-cache-"),
+          endpoint: server.url,
+          installationRoot,
+          mode: "select",
+        }),
+      ),
+    );
+    expect(selection).toMatchObject({ revision: 2 });
+
+    await childOutput(
+      runChild({
+        cacheDirectory: tempDirectory("catalog-picker-restart-cache-"),
+        endpoint: server.url,
+        installationRoot,
+        now: baseTime + MODEL_CATALOG_REFRESH_INTERVAL_MS - 1,
+      }),
+    );
+
     expect(server.requests).toHaveLength(1);
   });
 });

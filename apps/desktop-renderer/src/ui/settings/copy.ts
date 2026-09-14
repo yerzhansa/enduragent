@@ -18,6 +18,7 @@ export const COACH_SAVE_ERROR_COPY = {
   "invalid-input": msg("settings.coach.error.invalidInput"),
   "credential-required": msg("settings.coach.error.credentialRequired"),
   "runtime-unavailable": msg("settings.coach.error.runtimeUnavailable"),
+  "configuration-unavailable": msg("settings.coach.unavailable"),
   "request-failed": msg("settings.coach.error.requestFailed"),
 } as const;
 

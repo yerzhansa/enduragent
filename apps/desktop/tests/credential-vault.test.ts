@@ -36,6 +36,7 @@ import {
   sealCredentialEnvelope,
 } from "../src/main/keychain-credential-encryption.js";
 import { KEYCHAIN_KEY_BYTES } from "../src/main/keychain-binding.js";
+import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
 
 const roots: string[] = [];
 const posixIt = it.skipIf(process.platform === "win32");
@@ -1577,6 +1578,7 @@ describe("desktop credential vault", () => {
       "intervals-icu",
       "synthetic-intervals-key",
       undefined,
+      undefined,
       VERIFICATION_APPROVAL,
     );
     const persisted = await readFile(join(root, "intervals-icu.bin"));
@@ -1899,10 +1901,12 @@ describe("desktop credential vault", () => {
         slot: "openrouter",
         value: "selected-openrouter-secret",
         selection: {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
           provider: "openrouter",
           model: "deepseek/deepseek-v4-flash",
           endpoint: { mode: "automatic" },
         },
+        catalogSnapshot: BUNDLED_MODEL_CATALOG,
       }),
     ).resolves.toEqual({
       slot: "openrouter",
@@ -1930,6 +1934,7 @@ describe("desktop credential vault", () => {
       applyCredential,
     });
     const modelSelection = {
+      catalogRevision: BUNDLED_MODEL_CATALOG.revision,
       provider: "openrouter" as const,
       model: "athlete-model",
       endpoint: { mode: "default" as const },
@@ -1940,6 +1945,7 @@ describe("desktop credential vault", () => {
         slot: "openrouter",
         value: "  obviously-fake-key  ",
         selection: modelSelection,
+        catalogSnapshot: BUNDLED_MODEL_CATALOG,
       }),
     ).resolves.toEqual({
       slot: "openrouter",
@@ -1951,6 +1957,7 @@ describe("desktop credential vault", () => {
       "openrouter",
       "obviously-fake-key",
       modelSelection,
+      BUNDLED_MODEL_CATALOG,
     );
   });
 
@@ -1974,13 +1981,14 @@ describe("desktop credential vault", () => {
       value: "stored-openrouter-secret",
     });
     const modelSelection = {
+      catalogRevision: BUNDLED_MODEL_CATALOG.revision,
       provider: "anthropic" as const,
       model: "athlete-model",
       endpoint: { mode: "automatic" as const },
     };
 
     failSelection = true;
-    const failed = await vault.applyLlmSelection(modelSelection);
+    const failed = await vault.applyLlmSelection(modelSelection, BUNDLED_MODEL_CATALOG);
     expect(failed).toEqual({ status: "refused", reason: "runtime-unavailable" });
     expect(JSON.stringify(failed)).not.toContain("stored-anthropic-secret");
     await expect(vault.credentialStatuses()).resolves.toContainEqual({
@@ -1990,7 +1998,7 @@ describe("desktop credential vault", () => {
     });
 
     failSelection = false;
-    await expect(vault.applyLlmSelection(modelSelection)).resolves.toEqual({
+    await expect(vault.applyLlmSelection(modelSelection, BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "configured",
       runtimeReady: true,
     });
@@ -2004,6 +2012,7 @@ describe("desktop credential vault", () => {
       "anthropic",
       "stored-anthropic-secret",
       modelSelection,
+      BUNDLED_MODEL_CATALOG,
     );
   });
 
@@ -2017,18 +2026,26 @@ describe("desktop credential vault", () => {
     });
 
     await expect(
-      vault.applyLlmSelection({
-        provider: "anthropic",
-        model: "model",
-        endpoint: { mode: "automatic" },
-      }),
+      vault.applyLlmSelection(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "anthropic",
+          model: "model",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "credential-required" });
     await expect(
-      vault.applyLlmSelection({
-        provider: "openai-codex",
-        model: "model",
-        endpoint: { mode: "automatic" },
-      }),
+      vault.applyLlmSelection(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "openai-codex",
+          model: "model",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "invalid-input" });
     expect(applyCredential).not.toHaveBeenCalled();
   });

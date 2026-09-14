@@ -10,13 +10,20 @@ import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import type { CoachStoreWriterContext, CoachStoreWriterPlan } from "../src/runtime.js";
 import { testModelProfiles } from "../../engine/tests/helpers/model-profiles.js";
+import { acceptModelCatalogSnapshot } from "../../core/src/model-catalog.js";
+import { BUNDLED_MODEL_CATALOG } from "../../core/src/model-catalog-seed.js";
 
 const mocks = vi.hoisted(() => ({
   withWriter: vi.fn(),
   readiness: vi.fn(),
   composition: vi.fn(),
+  openModelCatalog: vi.fn(),
 }));
 
+vi.mock("@enduragent/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@enduragent/core")>()),
+  openModelCatalog: mocks.openModelCatalog,
+}));
 vi.mock("../src/runtime.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/runtime.js")>()),
   withCoachStoreWriter: mocks.withWriter,
@@ -178,6 +185,9 @@ const engineConfig: EngineConfig = {
   compactContextWindowTokens: 1000,
 };
 
+const acceptedCatalog = acceptModelCatalogSnapshot(BUNDLED_MODEL_CATALOG);
+if (acceptedCatalog === undefined) throw new TypeError("bundled model catalog is invalid");
+
 const roots: string[] = [];
 let selectedHome: AthleteHome;
 let context: CoachStoreWriterContext;
@@ -239,6 +249,17 @@ beforeEach(async () => {
   mocks.withWriter.mockReset();
   mocks.readiness.mockReset();
   mocks.composition.mockReset();
+  mocks.openModelCatalog.mockReset();
+  mocks.openModelCatalog.mockImplementation(() => ({
+    current: () => acceptedCatalog,
+    start: async () => {
+      trace.push("catalog-start");
+    },
+    forceRefresh: async () => acceptedCatalog,
+    shutdown: async () => {
+      trace.push("catalog-close");
+    },
+  }));
   readyConfig = { ...config, dataDir: selectedHome.root };
   mocks.readiness.mockImplementation(async () => {
     trace.push("readiness");
@@ -292,6 +313,7 @@ describe("local coach runner", () => {
     ).resolves.toEqual({ status: "completed", value: "done" });
     expect(trace).toEqual([
       "resolve-supplied-home",
+      "catalog-start",
       "writer-acquired",
       "store-open",
       "schema-migrations",
@@ -301,16 +323,23 @@ describe("local coach runner", () => {
       "lifecycle-close",
       "store-close",
       "writer-release",
+      "catalog-close",
     ]);
     expect(mocks.composition).toHaveBeenCalledWith(
       expect.objectContaining({
         config: readyConfig,
-        engineConfig,
       }),
     );
     const compositionInput = mocks.composition.mock.calls[0]![0];
     expect(compositionInput.config).toBe(readyConfig);
-    expect(compositionInput.engineConfig).toBe(engineConfig);
+    expect(compositionInput.engineConfig).not.toBe(engineConfig);
+    expect(compositionInput.engineConfig).toMatchObject({
+      llm: engineConfig.llm,
+      models: {
+        catalogRevision: acceptedCatalog.snapshot.revision,
+        chat: { model: "synthetic" },
+      },
+    });
   });
 
   it("publishes deferred initialization without starting it before the operation", async () => {
@@ -391,7 +420,7 @@ describe("local coach runner", () => {
     });
     expect(mocks.composition).not.toHaveBeenCalled();
     expect(operation).not.toHaveBeenCalled();
-    expect(trace.slice(-2)).toEqual(["store-close", "writer-release"]);
+    expect(trace.slice(-3)).toEqual(["store-close", "writer-release", "catalog-close"]);
   });
 
   it.each(["unreadable", "malformed"] as const)(
@@ -403,7 +432,7 @@ describe("local coach runner", () => {
       await expect(withLocalCoach(input(operation))).resolves.toEqual({ status });
       expect(mocks.composition).not.toHaveBeenCalled();
       expect(operation).not.toHaveBeenCalled();
-      expect(trace.slice(-2)).toEqual(["store-close", "writer-release"]);
+      expect(trace.slice(-3)).toEqual(["store-close", "writer-release", "catalog-close"]);
     },
   );
 
@@ -456,11 +485,12 @@ describe("local coach runner", () => {
         }),
       ),
     ).rejects.toBe(failure);
-    expect(trace.slice(-4)).toEqual([
+    expect(trace.slice(-5)).toEqual([
       "operation",
       "lifecycle-close",
       "store-close",
       "writer-release",
+      "catalog-close",
     ]);
   });
 
@@ -504,7 +534,7 @@ describe("local coach runner", () => {
       ),
     ).resolves.toEqual({ status: "completed", value: "done" });
     expect(closerCalls).toBe(1);
-    expect(trace.at(-1)).toBe("writer-release");
+    expect(trace.slice(-2)).toEqual(["writer-release", "catalog-close"]);
   });
 
   it("preserves actionable healthy-holder contention without engine work", async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   OnboardingLlmConfiguration,
   OnboardingLlmProviderConfiguration,
+  OnboardingLlmSelection,
   OnboardingLlmSelectionResult,
 } from "../src/onboarding/bridge";
 import { CUSTOM_MODEL_SELECTION } from "../src/onboarding/constants";
@@ -52,7 +53,7 @@ function configuration(
     model: "claude-sonnet",
   },
 ): OnboardingLlmConfiguration {
-  return { schemaVersion: 1, providers: PROVIDERS, active };
+  return { schemaVersion: 1, catalogRevision: 7, providers: PROVIDERS, active };
 }
 
 function fakeView() {
@@ -92,7 +93,7 @@ function fakeView() {
 
 function createSubject(input: {
   readonly load?: () => Promise<OnboardingLlmConfiguration>;
-  readonly apply?: () => Promise<OnboardingLlmSelectionResult>;
+  readonly apply?: (selection: OnboardingLlmSelection) => Promise<OnboardingLlmSelectionResult>;
   readonly onSaved?: () => Promise<void> | void;
   readonly openSetup?: () => void;
   readonly codexAgentSupported?: boolean;
@@ -222,6 +223,7 @@ describe("provider and model settings controller", () => {
     subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "openai",
       model: "gpt-standard",
       endpoint: { mode: "automatic" },
@@ -249,6 +251,7 @@ describe("provider and model settings controller", () => {
     subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "claude-sonnet",
       endpoint: { mode: "automatic" },
@@ -262,7 +265,12 @@ describe("provider and model settings controller", () => {
 
   it("treats an empty provider catalogue as an unavailable configuration", async () => {
     const { controller } = createSubject({
-      load: vi.fn(async () => ({ schemaVersion: 1 as const, providers: [], active: null })),
+      load: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        catalogRevision: 7,
+        providers: [],
+        active: null,
+      })),
     });
 
     await controller.activate();
@@ -296,6 +304,34 @@ describe("provider and model settings controller", () => {
     });
   });
 
+  it("opens a custom-only provider with its compiled default ready for editing", async () => {
+    const customOnly = {
+      provider: "openai" as const,
+      defaultModel: "gpt-standard",
+      models: [],
+    };
+    const { controller, subject } = createSubject({
+      load: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        catalogRevision: 7,
+        providers: [customOnly],
+        active: null,
+      })),
+    });
+
+    await controller.activate();
+    subject.provider("openai");
+
+    expect(formState(controller)).toMatchObject({
+      draft: {
+        provider: customOnly,
+        modelChoice: CUSTOM_MODEL_SELECTION,
+        customModel: "gpt-standard",
+      },
+      validationError: null,
+    });
+  });
+
   it("validates trimmed custom model names for presence, length, and control characters", async () => {
     const { controller, subject, apply } = createSubject({});
     await controller.activate();
@@ -320,6 +356,7 @@ describe("provider and model settings controller", () => {
     subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "x".repeat(512),
       endpoint: { mode: "automatic" },
@@ -344,6 +381,7 @@ describe("provider and model settings controller", () => {
     subject.save();
     await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(1));
     expect(apply).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "claude-private",
       endpoint: { mode: "automatic" },
@@ -379,6 +417,7 @@ describe("provider and model settings controller", () => {
 
     expect(apply).toHaveBeenCalledOnce();
     expect(onSaved).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "claude-opus",
       endpoint: { mode: "automatic" },
@@ -417,6 +456,53 @@ describe("provider and model settings controller", () => {
       expect(apply).toHaveBeenCalledTimes(2);
     },
   );
+
+  it("preserves a stale draft and adopts the latest catalog only after reopening", async () => {
+    const revisionEight = {
+      ...configuration(),
+      catalogRevision: 8,
+      providers: PROVIDERS.map((provider) =>
+        provider.provider === "openai"
+          ? {
+              ...provider,
+              models: [...provider.models, { value: "gpt-next", label: "GPT Next" }],
+            }
+          : provider,
+      ),
+    } satisfies OnboardingLlmConfiguration;
+    const load = vi
+      .fn<() => Promise<OnboardingLlmConfiguration>>()
+      .mockResolvedValueOnce(configuration())
+      .mockResolvedValueOnce(revisionEight);
+    const apply = vi.fn(async (selection: OnboardingLlmSelection) => ({
+      status: "stale-draft" as const,
+      reason: "catalog-unavailable" as const,
+      selection,
+    }));
+    const { controller, subject } = createSubject({ load, apply });
+    await controller.activate();
+    subject.provider("openai");
+    subject.model("gpt-reasoning");
+
+    subject.save();
+    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+
+    expect(formState(controller)).toMatchObject({
+      catalogRevision: 7,
+      reason: "configuration-unavailable",
+      draft: { modelChoice: "gpt-reasoning" },
+      dirty: true,
+    });
+
+    controller.close();
+    await controller.activate();
+    expect(formState(controller).catalogRevision).toBe(8);
+    subject.provider("openai");
+    expect(formState(controller).draft?.provider.models).toContainEqual({
+      value: "gpt-next",
+      label: "GPT Next",
+    });
+  });
 
   it("closes Settings before opening Setup for credential recovery", async () => {
     const sequence: string[] = [];

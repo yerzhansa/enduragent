@@ -12,6 +12,7 @@ import {
   EMPTY_DROPPED_ACTIVITIES,
   type AthleteState,
   type CoachEngine,
+  type ModelCatalogSnapshot,
   type PlanCreationAnswerInput,
 } from "@enduragent/coach-contract";
 import {
@@ -216,12 +217,40 @@ async function writeAcceptedModelCatalog(
   revision: number,
   contextWindowTokens: number,
   inputUsdPerMillion: number,
-): Promise<void> {
+): Promise<ModelCatalogSnapshot> {
   const models = [
     ["claude-sonnet-5", "Claude Sonnet 5"],
     ["claude-haiku-4-5-20251001", "Claude Haiku 4.5"],
     ["claude-opus-5", "Claude Opus 5"],
   ] as const;
+  const snapshot = {
+    schemaVersion: 1,
+    revision,
+    provenance: { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" },
+    providers: [
+      {
+        providerId: "anthropic",
+        label: "Anthropic",
+        order: 0,
+        recommendedModelId: models[0][0],
+        models: models.map(([modelId, label], order) => ({
+          modelId,
+          label,
+          order,
+          compatibilityProfile: "anthropic-ai-sdk-v1",
+          contextWindow: { kind: "known", tokens: contextWindowTokens + order * 1_000 },
+          imageInput: "supported",
+          pricing: {
+            kind: "token-rates",
+            inputUsdPerMillion: inputUsdPerMillion + order,
+            outputUsdPerMillion: 10 + order,
+            cacheReadUsdPerMillion: 0.2 + order,
+            cacheWriteUsdPerMillion: 2.5 + order,
+          },
+        })),
+      },
+    ],
+  } satisfies ModelCatalogSnapshot;
   await mkdir(join(home.configDir, "model-catalog"), { recursive: true });
   await writeFile(
     join(home.configDir, "model-catalog", "accepted-snapshot.json"),
@@ -229,36 +258,10 @@ async function writeAcceptedModelCatalog(
       formatVersion: 1,
       etag: `revision-${revision}`,
       lastSuccessfulRefreshAt: "1998-07-18T00:00:00.000Z",
-      snapshot: {
-        schemaVersion: 1,
-        revision,
-        provenance: { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" },
-        providers: [
-          {
-            providerId: "anthropic",
-            label: "Anthropic",
-            order: 0,
-            recommendedModelId: models[0][0],
-            models: models.map(([modelId, label], order) => ({
-              modelId,
-              label,
-              order,
-              compatibilityProfile: "anthropic-ai-sdk-v1",
-              contextWindow: { kind: "known", tokens: contextWindowTokens + order * 1_000 },
-              imageInput: "supported",
-              pricing: {
-                kind: "token-rates",
-                inputUsdPerMillion: inputUsdPerMillion + order,
-                outputUsdPerMillion: 10 + order,
-                cacheReadUsdPerMillion: 0.2 + order,
-                cacheWriteUsdPerMillion: 2.5 + order,
-              },
-            })),
-          },
-        ],
-      },
+      snapshot,
     })}\n`,
   );
+  return snapshot;
 }
 
 function intervalsAccountFingerprint(account: string): string {
@@ -2618,9 +2621,7 @@ describe("local coach composition", () => {
         const commands = await store.all(
           "SELECT * FROM planning_command ORDER BY command_name,command_id",
         );
-        expect(commands).toHaveLength(
-          answers.length + 2 + (goalKind === "event-manual" ? 2 : 0),
-        );
+        expect(commands).toHaveLength(answers.length + 2 + (goalKind === "event-manual" ? 2 : 0));
         for (const command of commands) expect(command.status).toBe("succeeded");
         for (const [index] of answers.entries()) {
           const command =
@@ -3735,6 +3736,62 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     await expect(
       lifecycle.engine.chat({ chatId: "catalog", message: "use revision 18" }),
     ).resolves.toEqual({ text: "18" });
+    await lifecycle.close();
+  });
+
+  it("uses the selector's pinned catalog snapshot after the owner advances", async () => {
+    const home = await freshHome();
+    const pinnedSnapshot = await writeAcceptedModelCatalog(home, 17, 310_000, 17);
+    const catalogConfig = {
+      ...config(home),
+      llm: {
+        provider: "anthropic" as const,
+        model: "claude-sonnet-5",
+        compactModel: "claude-haiku-4-5-20251001",
+        flushModel: "claude-opus-5",
+        apiKey: "",
+      },
+    };
+    const received: CreateCoachEngineInput[] = [];
+    const lifecycle = await compose(
+      home,
+      {
+        bootstrap: async () => reference(),
+        createRuntime: () => runtime(),
+        createBackend: (input) => {
+          received.push(input);
+          return backend();
+        },
+        createRepository: () => ({
+          insertIfAbsent: async () => false,
+          readCurrent: async () => undefined,
+        }),
+        createResolver: () => missingResolver(),
+      },
+      fakeContext(home),
+      undefined,
+      catalogConfig,
+    );
+
+    await writeAcceptedModelCatalog(home, 18, 410_000, 18);
+    await lifecycle.operations.configureRuntime({
+      llm: {
+        provider: "anthropic",
+        model: "claude-opus-5",
+        api_key: "replacement",
+        catalog_snapshot: pinnedSnapshot,
+      },
+    });
+
+    expect(received).toHaveLength(2);
+    expect(received[1]?.ports.config.models).toMatchObject({
+      catalogRevision: 17,
+      chat: {
+        model: "claude-opus-5",
+        contextWindowTokens: 312_000,
+        pricing: { kind: "token-rates", inputUsdPerMillion: 19 },
+      },
+    });
     await lifecycle.close();
   });
 

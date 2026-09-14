@@ -32,6 +32,7 @@ function twoProviderBridge(overrides: Partial<OnboardingBridge>): TestBridge {
   bridge.chatGptStatus.mockResolvedValue({ state: "absent", runtimeReady: false });
   bridge.llmConfiguration.mockResolvedValue({
     schemaVersion: 1,
+    catalogRevision: 7,
     providers: [
       {
         provider: "anthropic",

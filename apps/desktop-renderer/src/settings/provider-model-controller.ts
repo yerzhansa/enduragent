@@ -13,6 +13,7 @@ export type ProviderModelValidationError =
 
 export type ProviderModelSaveError =
   | Extract<OnboardingLlmSelectionResult, { readonly status: "refused" }>["reason"]
+  | "configuration-unavailable"
   | "request-failed";
 
 export interface ProviderModelDraft {
@@ -22,6 +23,7 @@ export interface ProviderModelDraft {
 }
 
 export interface ProviderModelFormState {
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: OnboardingLlmConfiguration["active"];
   readonly draft: ProviderModelDraft | null;
@@ -70,6 +72,7 @@ export interface ProviderModelSettingsController {
 }
 
 interface EditableState {
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: OnboardingLlmConfiguration["active"];
   readonly draft: ProviderModelDraft | null;
@@ -120,6 +123,7 @@ function isDirty(
 
 function formState(editable: EditableState, codexAgentSupported: boolean): ProviderModelFormState {
   return {
+    catalogRevision: editable.catalogRevision,
     providers: editable.providers,
     active: editable.active,
     draft: editable.draft,
@@ -196,6 +200,7 @@ export function createProviderModelSettingsController(input: {
             status: "ready",
             ...formState(
               {
+                catalogRevision: configuration.catalogRevision,
                 providers: configuration.providers,
                 active: configuration.active,
                 draft,
@@ -285,6 +290,7 @@ export function createProviderModelSettingsController(input: {
     const releaseMutation = input.beginMutation === undefined ? () => {} : input.beginMutation();
     if (releaseMutation === null) return Promise.resolve();
     const selection: OnboardingLlmSelection = {
+      catalogRevision: form.catalogRevision,
       provider: form.draft.provider.provider,
       model: selectedModel(form.draft),
       endpoint: { mode: "automatic" },
@@ -296,11 +302,11 @@ export function createProviderModelSettingsController(input: {
       .then(
         async (result) => {
           if (disposed || generation !== operationGeneration) return;
-          if (result.status === "refused") {
+          if (result.status === "refused" || result.status === "stale-draft") {
             render({
               status: "error",
               kind: "save",
-              reason: result.reason,
+              reason: result.status === "stale-draft" ? "configuration-unavailable" : result.reason,
               ...form,
             });
             return;
@@ -312,6 +318,7 @@ export function createProviderModelSettingsController(input: {
             status: "saved",
             ...formState(
               {
+                catalogRevision: form.catalogRevision,
                 providers: form.providers,
                 active,
                 draft: form.draft,

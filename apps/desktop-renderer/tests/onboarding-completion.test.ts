@@ -48,6 +48,7 @@ function memoryStorage(
 
 const KEYLESS_CONFIGURATION: OnboardingLlmConfiguration = {
   schemaVersion: 1,
+  catalogRevision: 7,
   providers: [
     {
       provider: "anthropic",
@@ -147,14 +148,16 @@ function activationBridge(
   };
 }
 
-function onboardingHarness(bridge: OnboardingBridge) {
+function onboardingHarness(
+  bridge: OnboardingBridge,
+  credentials: CredentialDraftPort = {
+    harvest: () => [],
+    clear: vi.fn(),
+  },
+) {
   let surface: OnboardingSurfaceState | undefined;
   const onComplete = vi.fn<(value: OnboardingCompletion) => void>();
   const onReady = vi.fn<() => void>();
-  const credentials: CredentialDraftPort = {
-    harvest: () => [],
-    clear: vi.fn(),
-  };
   const controller = createOnboardingController({
     bridge,
     credentials,
@@ -594,6 +597,38 @@ describe("settings intake persistence", () => {
     harness.controller.dispose();
   });
 
+  it("keeps an open selector on its captured revision and adopts a newer revision after reopening", async () => {
+    const bridge = readyAuthoritativeBridge();
+    bridge.llmConfiguration
+      .mockResolvedValueOnce(KEYLESS_CONFIGURATION)
+      .mockResolvedValue({ ...KEYLESS_CONFIGURATION, catalogRevision: 8 });
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+    harness.controller.selectProvider("claude-cli");
+
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 7,
+      provider: { provider: "claude-cli" },
+      modelChoice: "sonnet",
+    });
+
+    await harness.controller.refresh();
+
+    expect(harness.surface().configuration?.catalogRevision).toBe(7);
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 7,
+      provider: { provider: "claude-cli" },
+      modelChoice: "sonnet",
+    });
+
+    harness.controller.close();
+    await harness.controller.open();
+    expect(harness.surface().configuration?.catalogRevision).toBe(8);
+    harness.controller.selectProvider("claude-cli");
+    expect(harness.surface().draft?.catalogRevision).toBe(8);
+    harness.controller.dispose();
+  });
+
   it.each(["close", "dispose"] as const)(
     "ignores late settlements and stale intake actions after %s",
     async (lifecycle) => {
@@ -749,6 +784,7 @@ describe("onboarding runtime completion gate", () => {
     await vi.waitFor(() => {
       expect(bridge.claudeCliStatus).toHaveBeenCalledOnce();
       expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+        catalogRevision: 7,
         provider: "claude-cli",
         model: "sonnet",
         endpoint: { mode: "automatic" },
@@ -777,6 +813,75 @@ describe("onboarding runtime completion gate", () => {
     expect(bridge.applyLlmSelection.mock.invocationCallOrder[0]).toBeLessThan(
       bridge.saveIntake.mock.invocationCallOrder[0]!,
     );
+    harness.controller.dispose();
+  });
+
+  it("keeps the selected lane when its captured catalog revision is no longer pinned", async () => {
+    const bridge = activationBridge(async (selection) => ({
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection,
+    }));
+    const harness = onboardingHarness(bridge);
+    await harness.controller.open();
+
+    harness.controller.selectProvider("claude-cli");
+
+    await vi.waitFor(() => {
+      expect(harness.controller.state().fixedError).toBe("configuration-unavailable");
+    });
+    expect(harness.surface().draft).toMatchObject({
+      catalogRevision: 7,
+      provider: { provider: "claude-cli" },
+      modelChoice: "sonnet",
+    });
+    harness.controller.dispose();
+  });
+
+  it("keeps the credential draft when its captured catalog revision is no longer pinned", async () => {
+    const bridge = activationBridge(async () => ({ status: "configured", runtimeReady: true }));
+    bridge.writeCredential.mockImplementation(async (input) => {
+      if (input.selection === undefined) throw new TypeError();
+      return {
+        slot: input.slot,
+        status: "stale-draft",
+        reason: "catalog-unavailable",
+        selection: input.selection,
+      };
+    });
+    const credentialInput = {
+      value: "obviously-fake-key",
+      dataset: { slot: "anthropic" },
+    };
+    const credentials: CredentialDraftPort = {
+      harvest: () => [credentialInput],
+      clear: vi.fn(),
+    };
+    const harness = onboardingHarness(bridge, credentials);
+    await harness.controller.open();
+    const draft = harness.surface().draft;
+
+    harness.controller.saveModelKey();
+
+    await vi.waitFor(() => {
+      expect(harness.controller.state()).toMatchObject({
+        busy: false,
+        fixedError: "configuration-unavailable",
+      });
+    });
+    expect(harness.surface().draft).toBe(draft);
+    expect(bridge.credentialStatuses).toHaveBeenCalledOnce();
+    expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
+    expect(bridge.writeCredential).toHaveBeenCalledWith({
+      slot: "anthropic",
+      value: "obviously-fake-key",
+      selection: {
+        catalogRevision: 7,
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        endpoint: { mode: "automatic" },
+      },
+    });
     harness.controller.dispose();
   });
 
@@ -826,6 +931,7 @@ describe("onboarding runtime completion gate", () => {
       expect(harness.surface().readiness.provider).toBe(true);
     });
     expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "openai-codex",
       model: "gpt-5.5",
       endpoint: { mode: "automatic" },

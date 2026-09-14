@@ -4,8 +4,10 @@ import { extname, isAbsolute } from "node:path";
 import type {
   ConfigureRuntimeRpcParams,
   LlmProvider,
+  ModelCatalogSnapshot,
   RuntimeConfigSnapshot,
 } from "@enduragent/coach-contract";
+import type { LocalModelCatalogSnapshot, ModelCatalog } from "@enduragent/core";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 import {
   CHATGPT_ACTIVATION_TIMEOUT_MS,
@@ -76,8 +78,10 @@ interface RegisterOnboardingIpcOptions {
   readonly chatGptAuth: ChatGptAuthController;
   readonly claudeCli: ClaudeCliStatusController;
   readonly getRuntimeConfig: () => Promise<RuntimeConfigSnapshot>;
+  readonly modelCatalog: Pick<ModelCatalog, "current">;
   readonly applyExistingLlmSelection: (
     selection: OnboardingLlmSelection,
+    catalogSnapshot: ModelCatalogSnapshot,
     signal?: AbortSignal,
   ) => Promise<boolean>;
   readonly chatGptActivationTimeoutMs?: number;
@@ -129,6 +133,7 @@ export function runtimeConfigurationForCredential(
   slot: DesktopCredentialSlot,
   value: string,
   selection?: OnboardingLlmSelection,
+  catalogSnapshot?: ModelCatalogSnapshot,
 ): ConfigureRuntimeRpcParams {
   if (slot === "intervals-icu") {
     if (selection !== undefined) throw new TypeError();
@@ -137,7 +142,7 @@ export function runtimeConfigurationForCredential(
   if (selection !== undefined) {
     const parsed = parseOnboardingLlmSelection(selection);
     if (parsed.provider !== slot) throw new TypeError();
-    return runtimeConfigurationForSelection(parsed, value);
+    return runtimeConfigurationForSelection(parsed, value, catalogSnapshot);
   }
   return {
     llm: {
@@ -250,6 +255,13 @@ function minimizeDelete(
 
 function minimizeSelection(value: OnboardingLlmSelectionResult): OnboardingLlmSelectionResult {
   if (value.status === "configured") return { status: "configured", runtimeReady: true };
+  if (value.status === "stale-draft") {
+    return {
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: value.selection,
+    };
+  }
   return { status: "refused", reason: value.reason };
 }
 
@@ -314,6 +326,7 @@ function parseChatGptCancelInput(value: unknown): { readonly operationId: string
 
 async function llmConfiguration(
   getRuntimeConfig: () => Promise<RuntimeConfigSnapshot>,
+  catalog: LocalModelCatalogSnapshot,
 ): Promise<OnboardingLlmConfiguration> {
   let active: OnboardingLlmConfiguration["active"] = null;
   try {
@@ -324,13 +337,15 @@ async function llmConfiguration(
   } catch {}
   return {
     schemaVersion: 1,
-    providers: publicLlmProviderConfiguration(),
+    catalogRevision: catalog.revision,
+    providers: publicLlmProviderConfiguration(catalog),
     active,
   };
 }
 
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {
   let disposed = false;
+  const pinnedCatalogs = new Map<number, LocalModelCatalogSnapshot>();
   const requireTrusted = (event: IpcMainInvokeEvent): void => {
     if (!options.isTrusted(event)) throw new TypeError();
   };
@@ -376,6 +391,26 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     if (args.length !== 1) throw new TypeError();
     const input = parseWriteInput(args[0]);
     try {
+      let catalogSnapshot: ModelCatalogSnapshot | undefined;
+      if (input.selection !== undefined) {
+        const pinned = pinnedCatalogs.get(input.selection.catalogRevision);
+        if (pinned === undefined) {
+          return {
+            slot: input.slot,
+            status: "stale-draft",
+            reason: "catalog-unavailable",
+            selection: input.selection,
+          };
+        }
+        if (
+          !pinned.effective.providers.some(
+            (provider) => provider.provider === input.selection?.provider,
+          )
+        ) {
+          return { slot: input.slot, status: "refused", reason: "invalid-input" };
+        }
+        catalogSnapshot = pinned.snapshot;
+      }
       if (input.slot === "intervals-icu") {
         const ownership = await options
           .checkIntervalsCredentialOwner(input.value)
@@ -388,10 +423,11 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
           };
         }
       }
+      const trustedInput = catalogSnapshot === undefined ? input : { ...input, catalogSnapshot };
       const stored =
         input.slot !== "intervals-icu" && input.selection === undefined
-          ? await options.vault.writeCredential(input, { activate: false })
-          : await options.vault.writeCredential(input);
+          ? await options.vault.writeCredential(trustedInput, { activate: false })
+          : await options.vault.writeCredential(trustedInput);
       return minimizeWrite(stored);
     } catch {
       return { slot: input.slot, status: "refused", reason: "storage-failed" };
@@ -447,7 +483,9 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
   options.ipcMain.handle(DESKTOP_LLM_CONFIGURATION_CHANNEL, async (event, ...args) => {
     requireTrusted(event);
     if (args.length !== 0) throw new TypeError();
-    return llmConfiguration(options.getRuntimeConfig);
+    const catalog = options.modelCatalog.current();
+    pinnedCatalogs.set(catalog.revision, catalog);
+    return llmConfiguration(options.getRuntimeConfig, catalog);
   });
   options.ipcMain.handle(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, async (event, ...args) => {
     requireTrusted(event);
@@ -458,6 +496,17 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     } catch {
       return { status: "refused", reason: "invalid-input" };
     }
+    const pinnedCatalog = pinnedCatalogs.get(selection.catalogRevision);
+    if (pinnedCatalog === undefined) {
+      return { status: "stale-draft", reason: "catalog-unavailable", selection };
+    }
+    if (
+      !pinnedCatalog.effective.providers.some(
+        (provider) => provider.provider === selection.provider,
+      )
+    ) {
+      return { status: "refused", reason: "invalid-input" };
+    }
     const chatGptActivationSignal =
       selection.provider === "openai-codex"
         ? AbortSignal.timeout(options.chatGptActivationTimeoutMs ?? CHATGPT_ACTIVATION_TIMEOUT_MS)
@@ -465,13 +514,17 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     try {
       let existingSelection: boolean | Promise<boolean>;
       if (chatGptActivationSignal === undefined) {
-        existingSelection = options.applyExistingLlmSelection(selection);
+        existingSelection = options.applyExistingLlmSelection(selection, pinnedCatalog.snapshot);
       } else {
         const runtime = await withAbort(options.getRuntimeConfig(), chatGptActivationSignal);
         existingSelection =
           runtime.llm.provider === selection.provider && runtime.llm.credential_configured
             ? withAbort(
-                options.applyExistingLlmSelection(selection, chatGptActivationSignal),
+                options.applyExistingLlmSelection(
+                  selection,
+                  pinnedCatalog.snapshot,
+                  chatGptActivationSignal,
+                ),
                 chatGptActivationSignal,
               )
             : false;
@@ -490,16 +543,22 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
         return minimizeSelection(
           await options.chatGptAuth.activate(
             parseChatGptLlmSelection(selection),
+            pinnedCatalog.snapshot,
             chatGptActivationSignal,
           ),
         );
       }
       if (selection.provider === "claude-cli") {
         return minimizeSelection(
-          await options.claudeCli.activate(parseClaudeCliLlmSelection(selection)),
+          await options.claudeCli.activate(
+            parseClaudeCliLlmSelection(selection),
+            pinnedCatalog.snapshot,
+          ),
         );
       }
-      return minimizeSelection(await options.vault.applyLlmSelection(selection));
+      return minimizeSelection(
+        await options.vault.applyLlmSelection(selection, pinnedCatalog.snapshot),
+      );
     } catch {
       return { status: "refused", reason: "runtime-unavailable" };
     }
@@ -566,6 +625,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
   });
   return () => {
     disposed = true;
+    pinnedCatalogs.clear();
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_STATUS_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_RETRY_CHANNEL);
     options.ipcMain.removeHandler(DESKTOP_CREDENTIAL_WRITE_CHANNEL);

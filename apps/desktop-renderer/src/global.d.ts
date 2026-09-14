@@ -75,7 +75,9 @@ interface EnduragentAuth {
   checkForUpdates(): Promise<DesktopUpdateState>;
   restartToUpdate(): Promise<DesktopUpdateState>;
   onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
-  submitAthleteFeedback(input: { readonly text: string }): Promise<
+  submitAthleteFeedback(input: {
+    readonly text: string;
+  }): Promise<
     | { readonly ok: true }
     | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
   >;
@@ -354,6 +356,7 @@ interface OnboardingLlmProviderConfiguration {
 
 interface OnboardingLlmConfiguration {
   readonly schemaVersion: 1;
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: {
     readonly provider: LlmProvider;
@@ -367,6 +370,7 @@ type OnboardingLlmEndpointSelection =
   | { readonly mode: "custom"; readonly value: string };
 
 interface OnboardingLlmSelection {
+  readonly catalogRevision: number;
   readonly provider: LlmProvider;
   readonly model: string;
   readonly endpoint: OnboardingLlmEndpointSelection;
@@ -379,6 +383,11 @@ interface ChatGptLoginInput {
 
 type OnboardingLlmSelectionResult =
   | { readonly status: "configured"; readonly runtimeReady: true }
+  | {
+      readonly status: "stale-draft";
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
+    }
   | {
       readonly status: "refused";
       readonly reason: "invalid-input" | "credential-required" | "runtime-unavailable";
@@ -444,6 +453,12 @@ type CredentialWriteResult =
       readonly slot: DesktopCredentialSlot;
       readonly status: "configured";
       readonly runtimeReady: boolean;
+    }
+  | {
+      readonly slot: DesktopCredentialSlot;
+      readonly status: "stale-draft";
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
     }
   | {
       readonly slot: DesktopCredentialSlot;

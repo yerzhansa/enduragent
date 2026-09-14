@@ -15,7 +15,8 @@ import {
   prepareDesktopAthleteHome,
   startDesktopDaemonInitialRefresh,
 } from "@enduragent/coach/enduragent";
-import { AthleteHomeIdentitySchema } from "@enduragent/coach-contract";
+import { AthleteHomeIdentitySchema, type ModelCatalogSnapshot } from "@enduragent/coach-contract";
+import { openModelCatalog } from "@enduragent/core";
 import {
   app,
   BrowserWindow,
@@ -340,6 +341,14 @@ async function runDesktop(): Promise<void> {
   } catch {
     process.stderr.write("desktop-first-run-config-failure seed\n");
   }
+  const modelCatalogRoot = resolveDesktopAthleteHome(environment);
+  const modelCatalog = openModelCatalog({
+    installationRoot: modelCatalogRoot,
+    cacheDirectory: join(app.getPath("userData"), "model-catalog", "desktop-main"),
+  });
+  await modelCatalog.start();
+  const onModelCatalogResume = (): void => modelCatalog.notifyResumed();
+  powerMonitor.on("resume", onModelCatalogResume);
   const supervisor = new DesktopDaemonSupervisor(
     {
       env: environment,
@@ -469,12 +478,14 @@ async function runDesktop(): Promise<void> {
       updateController.close();
       disposeOnboarding?.();
       disposeOnboarding = undefined;
+      powerMonitor.off("resume", onModelCatalogResume);
       if (protocolInstalled) {
         session.defaultSession.protocol.unhandle(DESKTOP_SCHEME);
         protocolInstalled = false;
       }
       await (daemonLifecycle?.close() ?? supervisor.close());
       await reportSecuritySmokeShutdownStage("daemon-closed");
+      await modelCatalog.shutdown();
     })();
     return shutdownPromise;
   };
@@ -940,11 +951,11 @@ async function runDesktop(): Promise<void> {
           return canPublish;
         };
       },
-      async applyCredential(slot, value, selection, verificationApproval) {
+      async applyCredential(slot, value, selection, catalogSnapshot, verificationApproval) {
         const binding = activeRuntimeBinding!;
         const lifecycleState = daemonLifecycle?.snapshot();
         if (lifecycleState?.status !== "ready") throw new TypeError();
-        const request = runtimeConfigurationForCredential(slot, value, selection);
+        const request = runtimeConfigurationForCredential(slot, value, selection, catalogSnapshot);
         await applyExplicitCredentialToRuntime(binding.credentials, request, verificationApproval);
         const currentLifecycleState = daemonLifecycle?.snapshot();
         if (
@@ -1207,8 +1218,10 @@ async function runDesktop(): Promise<void> {
             chatGptAuth,
             claudeCli,
             getRuntimeConfig: readActiveRuntimeConfig,
+            modelCatalog,
             applyExistingLlmSelection: async (
               selection: OnboardingLlmSelection,
+              catalogSnapshot: ModelCatalogSnapshot,
               signal?: AbortSignal,
             ) => {
               signal?.throwIfAborted();
@@ -1219,7 +1232,7 @@ async function runDesktop(): Promise<void> {
               }
               const applied = await binding.credentials.applyExistingLlmSelection(
                 selection.provider,
-                runtimeConfigurationForExistingSelection(selection),
+                runtimeConfigurationForExistingSelection(selection, catalogSnapshot),
                 signal,
               );
               signal?.throwIfAborted();

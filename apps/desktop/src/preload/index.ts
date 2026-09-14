@@ -542,6 +542,7 @@ function normalizedEndpoint(value: unknown): string {
 }
 
 type PreloadLlmSelection = {
+  readonly catalogRevision: number;
   readonly provider: (typeof LLM_PROVIDER_ORDER)[number];
   readonly model: string;
   readonly endpoint:
@@ -551,7 +552,10 @@ type PreloadLlmSelection = {
 };
 
 function parseLlmSelection(value: unknown): PreloadLlmSelection {
-  if (!record(value) || !exactKeys(value, ["provider", "model", "endpoint"])) {
+  if (!record(value) || !exactKeys(value, ["catalogRevision", "provider", "model", "endpoint"])) {
+    throw new TypeError();
+  }
+  if (!Number.isSafeInteger(value.catalogRevision) || Number(value.catalogRevision) <= 0) {
     throw new TypeError();
   }
   if (typeof value.provider !== "string" || !LLM_PROVIDERS.has(value.provider)) {
@@ -575,7 +579,7 @@ function parseLlmSelection(value: unknown): PreloadLlmSelection {
   if (endpoint.mode !== "automatic" && !DEFAULT_ENDPOINT_PROVIDERS.has(provider)) {
     throw new TypeError();
   }
-  return { provider, model, endpoint };
+  return { catalogRevision: Number(value.catalogRevision), provider, model, endpoint };
 }
 
 function parseChatGptSelection(value: unknown): PreloadLlmSelection {
@@ -676,7 +680,9 @@ function parseUpdateState(value: unknown): PreloadUpdateState {
 
 function parseAthleteFeedbackResult(
   value: unknown,
-): { readonly ok: true } | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" } {
+):
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" } {
   if (!record(value) || typeof value.ok !== "boolean") throw new TypeError();
   if (value.ok && exactKeys(value, ["ok"])) return { ok: true };
   if (
@@ -714,13 +720,31 @@ function parseStatuses(value: unknown): unknown {
 }
 
 function parseWriteResult(value: unknown): unknown {
-  if (!record(value) || !SLOTS.has(value.slot as string)) throw new TypeError();
+  if (!record(value) || typeof value.slot !== "string" || !SLOTS.has(value.slot)) {
+    throw new TypeError();
+  }
   if (
     value.status === "configured" &&
     exactKeys(value, ["slot", "status", "runtimeReady"]) &&
     typeof value.runtimeReady === "boolean"
   ) {
     return { slot: value.slot, status: "configured", runtimeReady: value.runtimeReady };
+  }
+  if (
+    value.status === "stale-draft" &&
+    exactKeys(value, ["slot", "status", "reason", "selection"]) &&
+    value.reason === "catalog-unavailable"
+  ) {
+    const selection = parseLlmSelection(value.selection);
+    if (value.slot === "intervals-icu" || selection.provider !== value.slot) {
+      throw new TypeError();
+    }
+    return {
+      slot: value.slot,
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection,
+    };
   }
   if (
     value.status === "refused" &&
@@ -818,18 +842,22 @@ function parseCredentialResetResult(value: unknown): unknown {
 function parseLlmConfiguration(value: unknown): unknown {
   if (
     !record(value) ||
-    !exactKeys(value, ["schemaVersion", "providers", "active"]) ||
+    !exactKeys(value, ["schemaVersion", "catalogRevision", "providers", "active"]) ||
     value.schemaVersion !== 1 ||
+    !Number.isSafeInteger(value.catalogRevision) ||
+    Number(value.catalogRevision) <= 0 ||
     !Array.isArray(value.providers) ||
     value.providers.length !== LLM_CATALOGUE_PROVIDER_ORDER.length
   ) {
     throw new TypeError();
   }
-  const providers = value.providers.map((entry, index) => {
+  const providers = value.providers.map((entry) => {
     if (
       !record(entry) ||
-      entry.provider !== LLM_CATALOGUE_PROVIDER_ORDER[index] ||
-      typeof entry.provider !== "string"
+      typeof entry.provider !== "string" ||
+      !LLM_CATALOGUE_PROVIDER_ORDER.includes(
+        entry.provider as (typeof LLM_CATALOGUE_PROVIDER_ORDER)[number],
+      )
     ) {
       throw new TypeError();
     }
@@ -843,8 +871,7 @@ function parseLlmConfiguration(value: unknown): unknown {
       ) ||
       !safeString(entry.defaultModel, 512) ||
       !Array.isArray(entry.models) ||
-      entry.models.length === 0 ||
-      entry.models.length > 100
+      entry.models.length > 256
     ) {
       throw new TypeError();
     }
@@ -874,7 +901,7 @@ function parseLlmConfiguration(value: unknown): unknown {
     });
     if (
       new Set(models.map((model) => model.value)).size !== models.length ||
-      !models.some((model) => model.value === entry.defaultModel)
+      (models.length > 0 && !models.some((model) => model.value === entry.defaultModel))
     ) {
       throw new TypeError();
     }
@@ -885,6 +912,14 @@ function parseLlmConfiguration(value: unknown): unknown {
       ...(hasDefaultBaseUrl ? { defaultBaseUrl: entry.defaultBaseUrl } : {}),
     };
   });
+  if (
+    new Set(providers.map((provider) => provider.provider)).size !== providers.length ||
+    LLM_CATALOGUE_PROVIDER_ORDER.some(
+      (provider) => !providers.some((entry) => entry.provider === provider),
+    )
+  ) {
+    throw new TypeError();
+  }
   let active: { readonly provider: string; readonly model: string } | null = null;
   if (value.active !== null) {
     if (
@@ -898,7 +933,12 @@ function parseLlmConfiguration(value: unknown): unknown {
     }
     active = { provider: value.active.provider, model: value.active.model };
   }
-  return { schemaVersion: 1, providers, active };
+  return {
+    schemaVersion: 1,
+    catalogRevision: Number(value.catalogRevision),
+    providers,
+    active,
+  };
 }
 
 function parseLlmSelectionResult(value: unknown): unknown {
@@ -909,6 +949,17 @@ function parseLlmSelectionResult(value: unknown): unknown {
     value.runtimeReady === true
   ) {
     return { status: "configured", runtimeReady: true };
+  }
+  if (
+    value.status === "stale-draft" &&
+    exactKeys(value, ["status", "reason", "selection"]) &&
+    value.reason === "catalog-unavailable"
+  ) {
+    return {
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: parseLlmSelection(value.selection),
+    };
   }
   if (
     value.status === "refused" &&

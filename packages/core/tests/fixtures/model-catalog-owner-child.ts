@@ -4,6 +4,7 @@ import {
   __openModelCatalogForTesting,
   type ModelCatalogRefreshOutcome,
 } from "../../src/model-catalog-owner.js";
+import { modelCatalogSelectorConfiguration } from "../../src/model-catalog.js";
 
 const [
   mode,
@@ -57,6 +58,18 @@ const catalog = __openModelCatalogForTesting(
 
 if (mode === "read") {
   process.stdout.write(`${catalog.current().revision}\n`);
+  await catalog.shutdown();
+} else if (mode === "select") {
+  const selection = modelCatalogSelectorConfiguration(catalog.current());
+  process.stdout.write(
+    `${JSON.stringify({
+      revision: selection.revision,
+      providers: selection.providers.map((provider) => ({
+        provider: provider.provider,
+        models: provider.models.map((model) => model.value),
+      })),
+    })}\n`,
+  );
   await catalog.shutdown();
 } else {
   const lifecycle = await catalog.start();

@@ -9,7 +9,11 @@ import {
   type CodexLoginProgressPhase,
   type CodexLoginOptions,
 } from "@enduragent/core";
-import type { ConfigureRuntimeRpcParams, RuntimeConfigSnapshot } from "@enduragent/coach-contract";
+import type {
+  ConfigureRuntimeRpcParams,
+  ModelCatalogSnapshot,
+  RuntimeConfigSnapshot,
+} from "@enduragent/coach-contract";
 import {
   parseChatGptLlmSelection,
   runtimeConfigurationForSelection,
@@ -72,6 +76,7 @@ export interface ChatGptAuthController {
   cancelLogin(operationId: string): ChatGptCancelLoginResult;
   activate(
     selection: OnboardingLlmSelection,
+    catalogSnapshot: ModelCatalogSnapshot,
     signal?: AbortSignal,
   ): Promise<OnboardingLlmSelectionResult>;
   deleteCredential(): Promise<ChatGptDeleteResult>;
@@ -231,6 +236,7 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
 
   const applySelection = async (
     selection: OnboardingLlmSelection,
+    catalogSnapshot: ModelCatalogSnapshot,
     activationSignal?: AbortSignal,
   ): Promise<OnboardingLlmSelectionResult> => {
     let parsed: ReturnType<typeof parseChatGptLlmSelection>;
@@ -252,7 +258,10 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
     try {
       signal.throwIfAborted();
       await withAbort(
-        options.applyRuntimeConfig(runtimeConfigurationForSelection(parsed), signal),
+        options.applyRuntimeConfig(
+          runtimeConfigurationForSelection(parsed, undefined, catalogSnapshot),
+          signal,
+        ),
         signal,
       );
     } catch {
@@ -349,8 +358,8 @@ export function createChatGptAuth(options: CreateChatGptAuthOptions): ChatGptAut
       active.controller.abort(new DOMException("Cancelled", "AbortError"));
       return { status: "cancelling", operationId };
     },
-    activate: (selection, signal) =>
-      serializeCredentialMutation(() => applySelection(selection, signal)),
+    activate: (selection, catalogSnapshot, signal) =>
+      serializeCredentialMutation(() => applySelection(selection, catalogSnapshot, signal)),
     deleteCredential() {
       return serializeCredentialMutation(async () => {
         const stored = await hasChatGptProfile(options.configDir);
