@@ -58,6 +58,13 @@
   ],
   "env": {
     "testflight": {
+      "account_id": "7938d1c111e4a7f02ef5f525fef2efdb",
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["AthleteSession"],
+        },
+      ],
       "vars": {
         "BUNDLE_ID": "icu.enduragent.app",
         "APPLE_ENVIRONMENT": "sandbox",
@@ -76,7 +83,7 @@
         {
           "binding": "DB",
           "database_name": "credits",
-          "database_id": "00000000-1998-4000-8000-000000000001",
+          "database_id": "b21dc5aa-96ca-4c03-b794-1d936e7cbf3d",
         },
       ],
       "durable_objects": {
