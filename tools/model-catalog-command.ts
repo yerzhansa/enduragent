@@ -347,10 +347,16 @@ async function publishOrRollback(input: {
             samePublicationIntent(archived, candidate) &&
             stateMatchesRecord(states.staging, archived)
           ) {
-            const previous =
-              input.expectedRevision === 0
-                ? undefined
-                : (await locked.readPublicationRecord(input.expectedRevision)).catalog;
+            let previous: ModelCatalogPublicationRecord["catalog"] | undefined;
+            if (input.expectedRevision !== 0) {
+              try {
+                previous = (await locked.readPublicationRecord(input.expectedRevision)).catalog;
+              } catch (error) {
+                if (!(error instanceof CatalogPublicationError) || error.code !== "not-found") {
+                  throw error;
+                }
+              }
+            }
             const receipt = await reconcileExistingDeployment({
               dependencies: input.dependencies,
               archive: locked,

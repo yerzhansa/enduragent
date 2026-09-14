@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -316,7 +316,8 @@ describe("private model catalog archive", () => {
         await expect(locked.writePublicationRecord(different)).rejects.toThrow("different bytes");
         expect(await locked.readPublicationRecord(1)).toEqual(first);
         expect(await locked.inventory()).toEqual([
-          ".publication.lock/owner.json",
+          ".publication-lock.sqlite",
+          ".publication-lock.sqlite-journal",
           "records/1.json",
         ]);
       });
@@ -347,52 +348,29 @@ describe("private model catalog archive", () => {
     });
   });
 
-  it("recovers a dead owner's lock after any deployment grace has elapsed", async () => {
+  it("waits for an interrupted deployment grace before recovery", async () => {
     await withTemporaryDirectory(async (directory) => {
       const archivePath = join(directory, "private-archive");
-      const lockPath = join(archivePath, ".publication.lock");
-      mkdirSync(lockPath, { recursive: true });
-      writeFileSync(
-        join(lockPath, "owner.json"),
-        JSON.stringify({
-          lockId: "00000000-0000-4000-8000-000000000001",
-          pid: 2_147_483_647,
-          createdAt: 0,
-          deploymentStartedAt: Date.now(),
-        }),
-      );
+      const markerPath = join(archivePath, ".deployment-in-progress.json");
       const archive = new ModelCatalogArchive(archivePath);
-      await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
-        "archive is locked",
-      );
+      await archive.withExclusiveLock(async (locked) => locked.markDeploymentStarted(Date.now()));
       writeFileSync(
-        join(lockPath, "owner.json"),
-        JSON.stringify({
-          lockId: "00000000-0000-4000-8000-000000000001",
-          pid: 2_147_483_647,
-          createdAt: 0,
-          deploymentStartedAt: 0,
-        }),
+        markerPath,
+        JSON.stringify({ startedAt: Date.now() }),
       );
+      await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
+        "interrupted model catalog deployment may still be running",
+      );
+      writeFileSync(markerPath, JSON.stringify({ startedAt: 0 }));
       await expect(archive.withExclusiveLock(async () => undefined)).resolves.toBeUndefined();
     });
   });
 
-  it("allows only one concurrent recovery of the same abandoned lock", async () => {
+  it("allows only one concurrent recovery of an interrupted deployment", async () => {
     await withTemporaryDirectory(async (directory) => {
       const archivePath = join(directory, "private-archive");
-      const lockPath = join(archivePath, ".publication.lock");
-      mkdirSync(lockPath, { recursive: true });
-      writeFileSync(
-        join(lockPath, "owner.json"),
-        JSON.stringify({
-          lockId: "00000000-0000-4000-8000-000000000002",
-          pid: 2_147_483_647,
-          createdAt: 0,
-          deploymentStartedAt: 0,
-        }),
-      );
       const archive = new ModelCatalogArchive(archivePath);
+      await archive.withExclusiveLock(async (locked) => locked.markDeploymentStarted(0));
       let entrants = 0;
       let release = (): void => {};
       let entered = (): void => {};
@@ -640,10 +618,19 @@ describe("model catalog commands", () => {
           dependencies,
         ),
       ).rejects.toThrow("expected global revision 3, found 5");
-      await runModelCatalogCommand(
-        ["publish-to-staging", publicationPath, "--expect-revision", "5", "--archive", archivePath],
-        dependencies,
+      const publishArgs = [
+        "publish-to-staging",
+        publicationPath,
+        "--expect-revision",
+        "5",
+        "--archive",
+        archivePath,
+      ];
+      boundary.verifyFailures = 1;
+      await expect(runModelCatalogCommand(publishArgs, dependencies)).rejects.toThrow(
+        "synthetic verification failure",
       );
+      await expect(runModelCatalogCommand(publishArgs, dependencies)).resolves.toBeUndefined();
       let revisionSix: ModelCatalogPublicationRecord | undefined;
       await archive.withExclusiveLock(async (locked) => {
         revisionSix = await locked.readPublicationRecord(6);
