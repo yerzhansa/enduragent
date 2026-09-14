@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "vitest run && node --test scripts/proof-bundle.test.mjs",
+    "test": "vitest run && node --test --test-timeout=60000 scripts/proof-bundle.test.mjs scripts/worker-startup.test.mjs",
     "test:proof": "node --test scripts/proof-bundle.test.mjs",
+    "test:startup": "node --test --test-timeout=60000 scripts/worker-startup.test.mjs",
     "proof:build": "node scripts/proof-build.mjs",
     "proof": "node dist/live-proof.mjs"
   },
