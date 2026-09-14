@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -315,6 +315,10 @@ describe("private model catalog archive", () => {
         await locked.writePublicationRecord(first);
         await expect(locked.writePublicationRecord(different)).rejects.toThrow("different bytes");
         expect(await locked.readPublicationRecord(1)).toEqual(first);
+        expect(await locked.inventory()).toEqual([
+          ".publication.lock/owner.json",
+          "records/1.json",
+        ]);
       });
     });
   });
@@ -340,6 +344,27 @@ describe("private model catalog archive", () => {
       );
       release();
       await first;
+    });
+  });
+
+  it("recovers a dead owner's lock after any deployment grace has elapsed", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archivePath = join(directory, "private-archive");
+      const lockPath = join(archivePath, ".publication.lock");
+      mkdirSync(lockPath, { recursive: true });
+      writeFileSync(
+        join(lockPath, "owner.json"),
+        JSON.stringify({ pid: 2_147_483_647, createdAt: 0, deploymentStartedAt: Date.now() }),
+      );
+      const archive = new ModelCatalogArchive(archivePath);
+      await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
+        "archive is locked",
+      );
+      writeFileSync(
+        join(lockPath, "owner.json"),
+        JSON.stringify({ pid: 2_147_483_647, createdAt: 0, deploymentStartedAt: 0 }),
+      );
+      await expect(archive.withExclusiveLock(async () => undefined)).resolves.toBeUndefined();
     });
   });
 });

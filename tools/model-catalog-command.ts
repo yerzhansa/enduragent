@@ -290,14 +290,20 @@ async function deployArchivedRecord(input: {
       catalogBytes,
       contentDigest: digest.contentDigest,
     });
-    const receipt = await deployModelCatalogAssets({
-      boundary: input.dependencies.boundary,
-      target: input.target,
-      assetDirectory,
-      predecessor: input.predecessor,
-      record: input.record,
-      now: input.dependencies.now(),
-    });
+    await input.archive.markDeploymentStarted(input.dependencies.now());
+    let receipt: ModelCatalogDeploymentReceipt;
+    try {
+      receipt = await deployModelCatalogAssets({
+        boundary: input.dependencies.boundary,
+        target: input.target,
+        assetDirectory,
+        predecessor: input.predecessor,
+        record: input.record,
+        now: input.dependencies.now(),
+      });
+    } finally {
+      await input.archive.markDeploymentFinished();
+    }
     await input.archive.writeDeploymentReceipt(receipt);
     return receipt;
   } finally {
