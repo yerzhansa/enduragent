@@ -25,12 +25,14 @@ export const applicationProjects = {
 } as const;
 
 export const applicationScenarios = [
-  "desktop--chat-empty",
-  "desktop--chat-sync-failed",
   "desktop--chat-syncing",
+  "desktop--chat-sync-failed",
+  "desktop--chat-empty",
   "desktop--settings-preferences",
   "desktop--training-loading",
 ] as const;
+
+export type NativeScenarioId = (typeof applicationScenarios)[number];
 
 export interface FileSetIdentity {
   readonly fileCount: number;
@@ -247,6 +249,7 @@ export async function collectApplicationBuildIdentity(): Promise<ApplicationBuil
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/fixture.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/global-setup.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/identity.ts"),
+        resolve(repository, "apps/desktop/tests/e2e/application-ui-states/scenarios.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/baseline-environment.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/seal-baseline.ts"),
         resolve(repository, "apps/desktop/tests/e2e/application-ui-states/exit-after-report.ts"),
