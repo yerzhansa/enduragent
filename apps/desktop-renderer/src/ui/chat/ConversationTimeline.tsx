@@ -1,7 +1,7 @@
 import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useRef, type ReactElement } from "react";
-import type { PlanChangeSurfaceState } from "../../state/chat-slice";
+import type { ChatTranscriptItemView, PlanChangeSurfaceState } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "./CoachDecisionPanel";
 import { CoachProgress } from "./Notice";
@@ -10,7 +10,10 @@ import { PlanChangeCards, PlanChangeCheckDock } from "./PlanChangeCards";
 import { PlanCreationConversation, PlanCreationDock } from "./PlanCreationCards";
 import { TranscriptItem, transcriptItemKey } from "./Transcript";
 import {
+  chronologicalConversationPredecessor,
+  conversationDateStartTime,
   conversationProjectionKey,
+  conversationUlidTime,
   createConversationInsertionLedger,
   forgetConversationProjection,
   orderConversationRows,
@@ -58,6 +61,27 @@ function usePlanCreationModel(): PlanCreationCardModel | null {
   return useEnduragentStore((state) => state.chat.planCreation);
 }
 
+function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | undefined {
+  switch (item.kind) {
+    case "message":
+      return item.message.occurredAtMs;
+    case "choice":
+      return item.choice.occurredAtMs;
+    case "planning-request":
+      return item.delivery.createdAtMs;
+    case "plan-creation":
+      return item.model === null
+        ? undefined
+        : (conversationUlidTime(item.model.creationId) ?? undefined);
+    case "plan-creation-discard":
+      return undefined;
+    default: {
+      const exhaustive: never = item;
+      return exhaustive;
+    }
+  }
+}
+
 export function ConversationTimeline(props: {
   readonly onDecisionEditorOpenChange: (open: boolean) => void;
   readonly onPlanCreationEditorOpenChange: (open: boolean) => void;
@@ -91,7 +115,11 @@ export function ConversationTimeline(props: {
       : messages.map((message) => ({ kind: "message" as const, message }));
   const durable = items
     .filter((item) => item.kind !== "planning-request" && item.kind !== "plan-creation")
-    .map((item) => ({ key: transcriptItemKey(item), value: item }));
+    .map((item) => ({
+      key: transcriptItemKey(item),
+      value: item,
+      occurredAtMs: transcriptItemOccurredAtMs(item),
+    }));
   const projections: Array<{
     readonly projection: ConversationProjection;
     readonly value: ReactElement;
@@ -130,12 +158,27 @@ export function ConversationTimeline(props: {
       projections.push({
         projection: { kind: "plan-change-current", id: library.active.planId },
         value: <PlanChangeCards changeId={null} labelled={false} />,
+        afterKey: chronologicalConversationPredecessor(
+          durable,
+          library.active.todayChoice === null
+            ? null
+            : conversationDateStartTime(
+                library.active.todayChoice.date,
+                library.active.todayChoice.timezone ??
+                  Intl.DateTimeFormat().resolvedOptions().timeZone ??
+                  "UTC",
+              ),
+        ),
       });
     }
     for (const change of library.changes) {
       projections.push({
         projection: { kind: "plan-change", id: change.changeId },
         value: <PlanChangeCards changeId={change.changeId} labelled={false} />,
+        afterKey: chronologicalConversationPredecessor(
+          durable,
+          conversationUlidTime(change.changeId),
+        ),
       });
     }
   }
@@ -179,6 +222,10 @@ export function ConversationTimeline(props: {
     projections.push({
       projection: { kind: "plan-change-check", id: pendingPlanChangeCheck.checkId },
       value: <PlanChangeCheckDock onEditorOpenChange={props.onPlanChangeEditorOpenChange} />,
+      afterKey: chronologicalConversationPredecessor(
+        durable,
+        conversationUlidTime(pendingPlanChangeCheck.checkId),
+      ),
     });
   }
 

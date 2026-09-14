@@ -1,8 +1,4 @@
-import type {
-  CoachClient,
-  CoachClientCallOptions,
-  CoachClientTerminalEnvelope,
-} from "@enduragent/coach-client";
+import type { CoachClientCallOptions, CoachClientTerminalEnvelope } from "@enduragent/coach-client";
 import {
   CoachClientCallAbortedError,
   CoachClientCallTimeoutError,
@@ -46,7 +42,7 @@ import {
   PLAN_CHANGES_PAUSED_NOTICE,
   type PlanChangeSurfaceState,
 } from "../state/chat-slice";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 import {
   DESKTOP_CHAT_ID,
   EMPTY_CHAT_STATE,
@@ -392,7 +388,7 @@ export function createChatController(input: {
   const outstandingChatTasks = new Set<Promise<void>>();
   let queuedRetry: QueuedRetry | undefined;
   let interruptedQueueOrigin: InterruptedQueueOrigin | undefined;
-  let retryClient: CoachClient | undefined;
+  let retryClient: DesktopCoachClient | undefined;
   let probeTask: Promise<void> | undefined;
   let resetTask: Promise<void> | undefined;
   let activeStopRequest: ActiveStopRequest | undefined;
@@ -673,7 +669,7 @@ export function createChatController(input: {
       let protocolFault = false;
       let requestedDecision: CoachDecisionReadModel | undefined;
       const callAbortController = new AbortController();
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       let stopRequested = false;
       let stopTask: Promise<void> | undefined;
       const current = (): boolean => !disposed && state.activeTurn?.requestKey === requestKey;
@@ -701,11 +697,13 @@ export function createChatController(input: {
       try {
         if (reconnect) {
           if (retryClient === undefined) {
-            client = await input.clients.reconnect();
+            client = await input.clients.reconnect({ kind: "replace-current" });
           } else {
             const currentClient = await input.clients.getClient();
             client =
-              currentClient === retryClient ? await input.clients.reconnect() : currentClient;
+              currentClient === retryClient
+                ? await input.clients.reconnect({ kind: "failed-client", client: retryClient })
+                : currentClient;
           }
           retryClient = undefined;
         } else {
@@ -1050,7 +1048,9 @@ export function createChatController(input: {
     );
   };
 
-  const refreshDecision = async (client?: CoachClient): Promise<CoachDecisionReadModel | null> => {
+  const refreshDecision = async (
+    client?: DesktopCoachClient,
+  ): Promise<CoachDecisionReadModel | null> => {
     const activeClient = client ?? (await input.clients.getClient());
     const result = await activeClient.call("getCoachDecision", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return null;
@@ -1067,7 +1067,7 @@ export function createChatController(input: {
     return decision;
   };
 
-  const refreshQueue = async (client?: CoachClient): Promise<ChatQueueSnapshot> => {
+  const refreshQueue = async (client?: DesktopCoachClient): Promise<ChatQueueSnapshot> => {
     const activeClient = client ?? (await input.clients.getClient());
     const snapshot = await activeClient.call("getChatQueue", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return snapshot;
@@ -1079,12 +1079,12 @@ export function createChatController(input: {
   };
 
   const refreshAttachments = async (
-    client?: CoachClient,
+    client?: DesktopCoachClient,
     generation = attachmentGeneration,
     reportError = true,
   ): Promise<void> => {
     const attemptRevision = attachmentSurfaceRevision;
-    let activeClient: CoachClient;
+    let activeClient: DesktopCoachClient;
     try {
       activeClient = client ?? (await input.clients.getClient());
     } catch {
@@ -1125,7 +1125,7 @@ export function createChatController(input: {
     );
   };
 
-  const loadPlanningRequests = async (client?: CoachClient): Promise<void> => {
+  const loadPlanningRequests = async (client?: DesktopCoachClient): Promise<void> => {
     const activeClient = client ?? (await input.clients.getClient());
     const result = await activeClient.call("listPlanningRequests", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return;
@@ -1397,7 +1397,7 @@ export function createChatController(input: {
   };
 
   const mutateAttachment = async (
-    operation: (client: CoachClient) => Promise<ChatAttachmentComposerReadModel>,
+    operation: (client: DesktopCoachClient) => Promise<ChatAttachmentComposerReadModel>,
   ): Promise<void> => {
     if (attachmentBusyTokens.size > 0) return;
     const ownership = beginAttachmentWrite(true);
@@ -1487,7 +1487,7 @@ export function createChatController(input: {
       includeUser: false,
     });
     const task = (async () => {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       let boundRequestId: string | number | undefined;
       let boundTurnId: string | undefined;
       let pendingEnvelope: CoachTurnEventNotificationEnvelope | undefined;
@@ -3178,7 +3178,7 @@ export function createChatController(input: {
       render();
       const task = (async () => {
         try {
-          const client = await input.clients.reconnect();
+          const client = await input.clients.reconnect({ kind: "replace-current" });
           const [loaded] = await Promise.all([refreshDecision(client), refreshQueue(client)]);
           if (
             loaded?.status === "answered" &&

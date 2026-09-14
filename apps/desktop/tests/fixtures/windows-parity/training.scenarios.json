@@ -102,7 +102,7 @@
         "apps/desktop-renderer/tests/first-sync.test.ts > preserves first-sync mapping for %o",
         "apps/desktop-renderer/tests/first-sync.test.ts > retries only a retryable shared outcome and focuses the composer once",
         "apps/desktop-renderer/tests/sidebar-surface.test.tsx > sidebar sync chip > walks the loading, synced, syncing and attention states",
-        "apps/desktop/tests/e2e/application-ui-states.spec.ts > production application UI states > desktop--chat-sync-failed"
+        "apps/desktop/tests/e2e/application-ui-states/scenarios.ts > desktop--chat-sync-failed"
       ]
     },
     {

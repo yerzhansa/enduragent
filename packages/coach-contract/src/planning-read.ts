@@ -6,6 +6,7 @@ import {
   PlanChangesPausedSchema,
 } from "./plan-change.js";
 import { PlanCreationCardModelSchema, PlanCreationDraftSchema } from "./plan-creation.js";
+import { isActiveIanaZone } from "./time-zone.js";
 
 export const PlanDateKeySchema = z.number().int().min(1_000_101).max(99_991_231);
 
@@ -194,6 +195,7 @@ export type LegacyPlanSummary = z.infer<typeof LegacyPlanSummarySchema>;
 export const PlanTodayChoiceSchema = z
   .object({
     date: z.iso.date(),
+    timezone: z.string().trim().min(1).max(512).refine(isActiveIanaZone).optional(),
     eligible: z.array(
       z
         .object({

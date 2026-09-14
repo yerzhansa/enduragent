@@ -14,6 +14,7 @@ export interface PerformCoachClientHandshakeInput {
   readonly socket: WebSocket;
   readonly token: string;
   readonly expectedAthleteHome?: string;
+  readonly signal?: AbortSignal;
   readonly timeoutMs: number;
   readonly onReadyFrame: (data: unknown) => void;
 }
@@ -40,22 +41,27 @@ export function performCoachClientHandshake(
       input.socket.removeEventListener("message", onMessage);
       input.socket.removeEventListener("close", onClose);
       input.socket.removeEventListener("error", onError);
+      input.signal?.removeEventListener("abort", onAbort);
     };
 
-    const requestProtocolClose = (): void => {
+    const requestHandshakeClose = (code = 1002): void => {
       if (input.socket.readyState !== 1) return;
       try {
-        input.socket.close(1002);
+        input.socket.close(code);
       } catch {}
     };
 
-    const fail = (error: Error): void => {
+    const fail = (error: Error, closeCode = 1002): void => {
       if (settled) return;
       settled = true;
       dispose();
-      requestProtocolClose();
+      requestHandshakeClose(closeCode);
       reject(error);
     };
+
+    function onAbort(): void {
+      fail(new CoachClientHandshakeError("Coach client connection aborted"), 1000);
+    }
 
     function onMessage(event: MessageEvent): void {
       if (accepted) {
@@ -86,7 +92,7 @@ export function performCoachClientHandshake(
       if (frame.status === "version-mismatch") {
         settled = true;
         dispose();
-        requestProtocolClose();
+        requestHandshakeClose();
         reject(
           new CoachClientVersionMismatchError(
             frame.clientProtocolVersion,
@@ -112,6 +118,7 @@ export function performCoachClientHandshake(
       settled = true;
       if (timer !== undefined) clearTimeout(timer);
       timer = undefined;
+      input.signal?.removeEventListener("abort", onAbort);
       resolve({ accepted: frame, dispose });
     }
 
@@ -126,11 +133,16 @@ export function performCoachClientHandshake(
     input.socket.addEventListener("message", onMessage);
     input.socket.addEventListener("close", onClose);
     input.socket.addEventListener("error", onError);
+    input.signal?.addEventListener("abort", onAbort, { once: true });
     timer = setTimeout(() => {
       fail(new CoachClientHandshakeError("Coach client handshake timed out"));
     }, input.timeoutMs);
 
     try {
+      if (input.signal?.aborted) {
+        onAbort();
+        return;
+      }
       input.socket.send(JSON.stringify(createClientHandshakeFrame(input.token)));
     } catch {
       fail(new CoachClientHandshakeError("Coach client handshake send failed"));

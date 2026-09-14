@@ -21,6 +21,7 @@ import {
 import {
   CoachClientBackpressureError,
   CoachClientCallAbortedError,
+  CoachClientCallNotAdmittedError,
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientHandshakeError,
@@ -67,6 +68,12 @@ export interface CoachClient {
     request: CoachRpcRequest<K>,
     options?: CoachClientCallOptions<K>,
   ): Promise<CoachRpcResponse<K>>;
+  close(code?: number, reason?: string): Promise<void>;
+}
+
+export interface CoachClientConnection {
+  readonly client: CoachClient;
+  closeWhenIdle(): Promise<void>;
   close(code?: number, reason?: string): Promise<void>;
 }
 
@@ -348,6 +355,13 @@ class CoachClientRuntime {
   private publicClient: CoachClient | undefined;
   private ready = false;
   private closePromise: Promise<void> | undefined;
+  private resolveClose: (() => void) | undefined;
+  private closeTimer: ReturnType<typeof setTimeout> | undefined;
+  private closeStarted = false;
+  private closeSettled = false;
+  private idleCloseRequested = false;
+  private idleCloseCheckQueued = false;
+  private sealedForRetirement = false;
 
   constructor(
     private readonly socket: WebSocket,
@@ -386,7 +400,7 @@ class CoachClientRuntime {
     this.handleTerminal(envelope);
   };
 
-  activate(binding: CoachClientHandshakeBinding): CoachClient {
+  activate(binding: CoachClientHandshakeBinding): CoachClientConnection {
     this.handshakeBinding = binding;
     const client: CoachClient = {
       handshake: binding.accepted,
@@ -400,7 +414,11 @@ class CoachClientRuntime {
     this.publicClient = client;
     this.ready = true;
     if (this.preActivationCause !== undefined) this.latchTerminal(this.preActivationCause);
-    return client;
+    return {
+      client,
+      closeWhenIdle: () => this.closeWhenIdle(),
+      close: (code?: number, reason?: string) => this.close(code, reason),
+    };
   }
 
   disposeBeforeReady(): void {
@@ -413,6 +431,9 @@ class CoachClientRuntime {
     request: CoachRpcRequest<K>,
     options?: CoachClientCallOptions<K>,
   ): Promise<CoachRpcResponse<K>> {
+    if (this.sealedForRetirement) {
+      return Promise.reject(new CoachClientCallNotAdmittedError());
+    }
     if (this.terminalCause !== undefined) {
       return Promise.reject(this.terminalCause);
     }
@@ -609,6 +630,7 @@ class CoachClientRuntime {
         observer?.(envelope);
       } catch {}
       pending.resolve(result);
+      this.scheduleIdleClose();
       return;
     }
 
@@ -623,6 +645,7 @@ class CoachClientRuntime {
       observer?.(envelope);
     } catch {}
     pending.reject(remoteError);
+    this.scheduleIdleClose();
   }
 
   private failProtocol(): CoachClientProtocolError {
@@ -675,6 +698,7 @@ class CoachClientRuntime {
         this.options.onTerminal?.(client, error);
       } catch {}
     }
+    this.scheduleIdleClose();
   }
 
   private readonly onSocketClose = (event: CloseEvent): void => {
@@ -697,46 +721,73 @@ class CoachClientRuntime {
     this.latchTerminal(error);
   };
 
-  private close(code = 1000, reason = ""): Promise<void> {
+  private readonly finishClose = (): void => {
+    if (this.closeSettled) return;
+    this.closeSettled = true;
+    if (this.closeTimer !== undefined) clearTimeout(this.closeTimer);
+    this.closeTimer = undefined;
+    this.socket.removeEventListener("close", this.finishClose);
+    this.resolveClose?.();
+    this.resolveClose = undefined;
+  };
+
+  private ensureClosePromise(): Promise<void> {
     if (this.closePromise !== undefined) return this.closePromise;
-    let resolveClose!: () => void;
-    const promise = new Promise<void>((resolve) => {
-      resolveClose = resolve;
+    this.closePromise = new Promise<void>((resolve) => {
+      this.resolveClose = resolve;
     });
-    this.closePromise = promise;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let settled = false;
+    this.socket.addEventListener("close", this.finishClose);
+    if (this.socket.readyState === 3) this.finishClose();
+    return this.closePromise;
+  }
 
-    const cleanup = (): void => {
-      if (timer !== undefined) clearTimeout(timer);
-      timer = undefined;
-      this.socket.removeEventListener("close", onClose);
-    };
-
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolveClose();
-    };
-
-    const onClose = (): void => {
-      finish();
-    };
-
-    this.socket.addEventListener("close", onClose);
-    timer = setTimeout(finish, this.options.closeTimeoutMs);
+  private beginClose(code: number, reason: string, retirement: boolean): Promise<void> {
+    const promise = this.ensureClosePromise();
+    if (this.closeStarted) return promise;
+    this.closeStarted = true;
+    if (retirement) this.sealedForRetirement = true;
+    this.closeTimer = setTimeout(this.finishClose, this.options.closeTimeoutMs);
     if (this.terminalCause === undefined) {
       this.latchTerminal(new CoachClientDisconnectedError(code, reason), code, reason);
     } else {
       requestSocketClose(this.socket, code, reason);
     }
-    if (this.socket.readyState === 3) finish();
+    if (this.socket.readyState === 3) this.finishClose();
     return promise;
+  }
+
+  private scheduleIdleClose(): void {
+    if (
+      !this.idleCloseRequested ||
+      this.closeStarted ||
+      this.idleCloseCheckQueued ||
+      this.pending.size > 0
+    ) {
+      return;
+    }
+    this.idleCloseCheckQueued = true;
+    queueMicrotask(() => {
+      this.idleCloseCheckQueued = false;
+      if (!this.idleCloseRequested || this.closeStarted || this.pending.size > 0) return;
+      void this.beginClose(1000, "", true);
+    });
+  }
+
+  private closeWhenIdle(): Promise<void> {
+    this.idleCloseRequested = true;
+    const promise = this.ensureClosePromise();
+    this.scheduleIdleClose();
+    return promise;
+  }
+
+  private close(code = 1000, reason = ""): Promise<void> {
+    return this.beginClose(code, reason, false);
   }
 }
 
-export async function connectCoachClient(options: ConnectCoachClientOptions): Promise<CoachClient> {
+export async function connectCoachClientConnection(
+  options: ConnectCoachClientOptions,
+): Promise<CoachClientConnection> {
   let validated: ValidatedOptions;
   try {
     validated = validateOptions(options);
@@ -755,6 +806,7 @@ export async function connectCoachClient(options: ConnectCoachClientOptions): Pr
       socket,
       token: validated.token,
       expectedAthleteHome: validated.expectedAthleteHome,
+      signal: validated.signal,
       timeoutMs: validated.handshakeTimeoutMs,
       onReadyFrame: runtime.handleRawFrame,
     });
@@ -763,4 +815,8 @@ export async function connectCoachClient(options: ConnectCoachClientOptions): Pr
     throw error;
   }
   return runtime.activate(binding);
+}
+
+export async function connectCoachClient(options: ConnectCoachClientOptions): Promise<CoachClient> {
+  return (await connectCoachClientConnection(options)).client;
 }

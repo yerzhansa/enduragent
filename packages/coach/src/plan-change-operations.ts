@@ -169,19 +169,21 @@ export function projectTodayChoice(
   todayDateKey: number,
   occupiedByClosedPlan: boolean,
   completedWorkoutIds: ReadonlySet<string> = new Set(),
+  timezone = "UTC",
 ) {
   if (draft.mode !== "flexible") return null;
   const answers = draft.answeredSummaries.map((summary) => summary.answer);
   const availability = answers.find((answer) => answer.kind === "availability");
   const restriction = answers.find((answer) => answer.kind === "restriction");
   if (availability === undefined || restriction === undefined) return null;
-  return readTodayChoice({
+  const choice = readTodayChoice({
     draft,
     todayDateKey,
     occupiedByClosedPlan,
     completedWorkoutIds,
     answers: supportingEventRules(draft),
   });
+  return choice === null ? null : { ...choice, timezone };
 }
 
 function choiceRejection(
@@ -310,6 +312,7 @@ export function createPlanChangeOperations(input: {
   identity: AuthoredIdentity;
   crypto: Crypto;
   todayDateKey: () => number;
+  timezone?: () => string;
   now: () => number;
   calendarConnected: () => Promise<boolean>;
   ftp: Pick<PlanFtpAdapter, "read" | "saveManual">;
@@ -318,6 +321,7 @@ export function createPlanChangeOperations(input: {
   translator?: IntentTranslationPort;
   language?: (text: string) => Promise<string>;
 }): PlanChangeHost {
+  const timezone = input.timezone ?? (() => "UTC");
   const sha256 = async (text: string): Promise<string> => {
     const digest = await input.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -469,6 +473,7 @@ export function createPlanChangeOperations(input: {
               previewTodayDateKey,
               occupiedByClosedPlan,
               completedWorkoutIds,
+              timezone(),
             ),
             intent.workoutId,
           );
@@ -780,6 +785,7 @@ export function createPlanChangeOperations(input: {
         today,
         await readClosedPlanOccupiesToday(input.store, today),
         await readCompletedWorkoutIds(input.store, request.planId),
+        timezone(),
       );
       const language = await input.language?.(submission.text);
       const currentOwner = await input.store.get(
@@ -920,6 +926,7 @@ export function createPlanChangeOperations(input: {
                 todayDateKey,
                 await readClosedPlanOccupiesToday(store, todayDateKey),
                 await readCompletedWorkoutIds(store, parsed.planId),
+                timezone(),
               ),
               intent.workoutId,
             );

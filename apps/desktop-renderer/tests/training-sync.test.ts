@@ -1,5 +1,6 @@
 import {
   CoachClientCallAbortedError,
+  CoachClientCallNotAdmittedError,
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientHandshakeError,
@@ -304,6 +305,37 @@ describe("training sync coordinator", () => {
       retryable: false,
     });
     expect(refreshTrainingContext).not.toHaveBeenCalled();
+  });
+
+  it("treats an idle-retirement admission race as retryable without rotating the provider", async () => {
+    const retired = clientWith(async () => {
+      throw new CoachClientCallNotAdmittedError();
+    });
+    const successor = clientWith((options) => exactCall(options, published));
+    const clients: DesktopCoachClientProvider = {
+      getClient: vi.fn().mockResolvedValueOnce(retired).mockResolvedValueOnce(successor),
+      reconnect: vi.fn(async () => successor),
+      close: vi.fn(async () => {}),
+    };
+    const coordinator = createTrainingSyncCoordinator({
+      clients,
+      refreshTrainingContext: vi.fn(async () => {}),
+    });
+
+    await coordinator.request();
+    expect(coordinator.getState()).toEqual({
+      status: "failed",
+      operation: 1,
+      kind: "operation",
+      retryable: true,
+    });
+    expect(clients.reconnect).not.toHaveBeenCalled();
+
+    await coordinator.request();
+    expect(retired.callMock).toHaveBeenCalledTimes(1);
+    expect(successor.callMock).toHaveBeenCalledTimes(1);
+    expect(clients.reconnect).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({ status: "succeeded", operation: 2 });
   });
 
   it.each([

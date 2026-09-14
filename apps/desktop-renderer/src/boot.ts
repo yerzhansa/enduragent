@@ -1,14 +1,10 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import { SaveIntakeRpcParamsSchema } from "@enduragent/coach-contract";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
 import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
-import { createDesktopCoachClientProvider } from "./coach-client";
+import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
 import { createFirstSyncController } from "./first-sync";
 import { createArchiveViewAdapter } from "./state/adapters/archive";
 import { createChatViewAdapter } from "./state/adapters/chat";
@@ -140,10 +136,12 @@ export function bootRenderer(): Disposer {
     selectedAnalysisRide = selected;
     void rideAnalysisController.select(selected);
   });
-  const clientAfterFailure = async (failedClient: CoachClient | undefined) => {
-    if (failedClient === undefined) return clients.reconnect();
+  const clientAfterFailure = async (failedClient: DesktopCoachClient | undefined) => {
+    if (failedClient === undefined) return clients.reconnect({ kind: "replace-current" });
     const current = await clients.getClient();
-    return current === failedClient ? clients.reconnect() : current;
+    return current === failedClient
+      ? clients.reconnect({ kind: "failed-client", client: failedClient })
+      : current;
   };
   const trainingAdapter = createTrainingViewAdapter({
     readUnits: () => store.getState().settings.units,
@@ -537,7 +535,7 @@ export function bootRenderer(): Disposer {
   });
 
   let onboardingNeedsReconnect = false;
-  let onboardingFailedClient: CoachClient | undefined;
+  let onboardingFailedClient: DesktopCoachClient | undefined;
   const onboardingClient = async () => {
     const client = onboardingNeedsReconnect
       ? await clientAfterFailure(onboardingFailedClient)
@@ -567,7 +565,7 @@ export function bootRenderer(): Disposer {
     chooseImportFiles: () => window.enduragentAuth.chooseImportFiles(),
     onDroppedImportFiles: (listener) => window.enduragentAuth.onDroppedImportFiles(listener),
     async importFiles(paths, onProgress) {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       try {
         client = await onboardingClient();
         return await client.call(
@@ -584,7 +582,7 @@ export function bootRenderer(): Disposer {
       }
     },
     async saveIntake(value) {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       try {
         client = await onboardingClient();
         const result = await client.call("saveIntake", SaveIntakeRpcParamsSchema.parse(value));

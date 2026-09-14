@@ -23,6 +23,7 @@ import type { EnduragentState } from "./store";
 
 export interface ChatMessageView {
   readonly id: string;
+  readonly occurredAtMs?: number;
   readonly turnId?: string;
   readonly decisionId?: string;
   readonly role: ChatTranscriptMessage["role"];
@@ -44,6 +45,7 @@ export interface ChatQueuedView {
 
 export interface ChatChoiceView {
   readonly id: string;
+  readonly occurredAtMs?: number;
   readonly label: string;
   readonly consequence: string | null;
   readonly skipped: boolean;
@@ -272,6 +274,7 @@ export function sameChatMessages(
     return (
       other !== undefined &&
       message.id === other.id &&
+      message.occurredAtMs === other.occurredAtMs &&
       message.turnId === other.turnId &&
       message.decisionId === other.decisionId &&
       message.role === other.role &&
@@ -337,6 +340,7 @@ export function sameChatTimeline(
     if (item.kind === "choice" && other.kind === "choice") {
       return (
         item.choice.id === other.choice.id &&
+        item.choice.occurredAtMs === other.choice.occurredAtMs &&
         item.choice.label === other.choice.label &&
         item.choice.consequence === other.choice.consequence &&
         item.choice.skipped === other.choice.skipped &&

@@ -2351,6 +2351,7 @@ describe("Flexible daily choice", () => {
     const list = await test.creation["plan.list"]({});
     const choice = list.active?.todayChoice;
     expect(choice?.date).toBe("1998-09-02");
+    expect(choice?.timezone).toBe("UTC");
     const selected = choice?.eligible[0];
     if (!selected) throw new Error("Expected eligible Workout");
     expect(await test.workouts()).toEqual([]);

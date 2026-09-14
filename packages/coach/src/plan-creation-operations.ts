@@ -125,6 +125,7 @@ export function createPlanCreationOperations(input: {
   language?: (text: string) => Promise<string>;
   today?: () => string;
   todayDateKey?: () => number;
+  timezone?: () => string;
   now?: () => number;
 }): PlanCreationHost {
   const plans = createPlanRepository(input.store);
@@ -134,6 +135,7 @@ export function createPlanCreationOperations(input: {
   const baselineEvidence = input.baselineEvidence ?? defaultBaselineEvidence;
   const today = input.today ?? (() => new Date().toISOString().slice(0, 10));
   const todayDateKey = input.todayDateKey ?? (() => dateKeyFromText(today()));
+  const timezone = input.timezone ?? (() => "UTC");
   const now = input.now ?? Date.now;
   const calendarConnected = input.calendarConnected ?? (() => false);
   const legacyPlan = input.legacyPlan ?? (async () => null);
@@ -423,6 +425,8 @@ export function createPlanCreationOperations(input: {
               activeDraft.data,
               choiceDateKey,
               await readClosedPlanOccupiesToday(transactionStore, choiceDateKey),
+              new Set(),
+              timezone(),
             );
         return ListPlansResultSchema.parse({
           calendarConnected: calendarConnected(),

@@ -10,6 +10,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatController } from "../src/chat/controller";
+import { createChatViewAdapter } from "../src/state/adapters/chat";
 import {
   EMPTY_CHAT_SURFACE,
   PLAN_CHANGES_PAUSED_NOTICE,
@@ -20,6 +21,7 @@ import { useEnduragentStore } from "../src/state/store";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { ChatView } from "../src/ui/chat/ChatView";
 import { PlanChangeCards, PlanChangeNotice } from "../src/ui/chat/PlanChangeCards";
+import { EMPTY_CHAT_STATE } from "../src/turn-state";
 
 function stubActions(): ChatActions {
   return {
@@ -125,6 +127,17 @@ function change(patch: Partial<PlanChangeModel> = {}): PlanChangeModel {
     ],
     ...patch,
   };
+}
+
+function ulidAt(occurredAtMs: number): string {
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  let remaining = occurredAtMs;
+  let time = "";
+  for (let index = 0; index < 10; index += 1) {
+    time = alphabet[remaining % 32]! + time;
+    remaining = Math.floor(remaining / 32);
+  }
+  return `${time}${"0".repeat(16)}`;
 }
 function setChanges(changes: PlanChangeModel[]): void {
   act(() =>
@@ -746,6 +759,136 @@ describe("Plan Change cards", () => {
     ).toBeTruthy();
     expect(
       laterMessage!.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("restores a persisted Change before a historical turn completed after its creation", () => {
+    const beforeTime = Date.parse("1998-09-01T08:00:00.000Z");
+    const changeTime = Date.parse("1998-09-01T09:00:00.000Z");
+    const afterTime = Date.parse("1998-09-01T10:00:00.000Z");
+    let hydrated = EMPTY_CHAT_SURFACE;
+    createChatViewAdapter({ publish: (next) => (hydrated = next) }).view.render(EMPTY_CHAT_STATE, {
+      newConversationDisabled: false,
+      workBlocked: false,
+      hydration: {
+        status: "ready",
+        hasEarlier: false,
+        revision: 1,
+        change: "initial",
+        entries: [
+          {
+            kind: "turn",
+            turnId: "before",
+            completedAt: new Date(beforeTime).toISOString(),
+            athleteText: "Earlier question",
+            coachText: "Earlier coaching",
+          },
+          {
+            kind: "turn",
+            turnId: "later",
+            completedAt: new Date(afterTime).toISOString(),
+            athleteText: "Test the connection",
+            coachText: "Test received. Everything is working.",
+          },
+        ],
+      },
+    });
+    setChanges([
+      change({
+        changeId: ulidAt(changeTime),
+        title: "Persisted Change",
+        status: "applied",
+      }),
+    ]);
+    useEnduragentStore.setState({
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+      chat: {
+        ...EMPTY_CHAT_SURFACE,
+        hydrationStatus: "ready",
+        messages: hydrated.messages,
+        timeline: hydrated.timeline,
+      },
+    });
+    const view = render(<ChatView />);
+    view.unmount();
+    render(<ChatView />);
+
+    const earlier = document.querySelector('[data-message-id="history:coach:before"]');
+    const persisted = screen.getByRole("heading", { name: "Persisted Change" });
+    const later = document.querySelector('[data-message-id="history:athlete:later"]');
+    expect(earlier).not.toBeNull();
+    expect(later).not.toBeNull();
+    expect(
+      earlier!.compareDocumentPosition(persisted) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      persisted.compareDocumentPosition(later!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("restores the Today card before replies recorded later that day", () => {
+    const earlier = {
+      id: "history:coach:earlier",
+      role: "coach" as const,
+      delivery: "complete" as const,
+      historical: true,
+      text: "Yesterday's guidance",
+      occurredAtMs: Date.parse("1998-09-06T16:59:59.999Z"),
+    };
+    const later = {
+      id: "history:coach:later",
+      role: "coach" as const,
+      delivery: "complete" as const,
+      historical: true,
+      text: "Test received. Everything is working.",
+      occurredAtMs: Date.parse("1998-09-06T18:00:00.000Z"),
+    };
+    const value = useEnduragentStore.getState().planLibrary.value;
+    if (value === null) throw new TypeError("Plan library missing");
+    useEnduragentStore.setState({
+      runtimeReady: true,
+      onboarding: READY_ONBOARDING,
+      chat: {
+        ...EMPTY_CHAT_SURFACE,
+        hydrationStatus: "ready",
+        messages: [earlier, later],
+        timeline: [
+          { kind: "message", message: earlier },
+          { kind: "message", message: later },
+        ],
+      },
+      planLibrary: {
+        status: "ready",
+        value: {
+          ...value,
+          active: {
+            ...active,
+            todayChoice: {
+              date: "1998-09-07",
+              timezone: "Asia/Almaty",
+              eligible: [{ workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" }],
+              blocked: [],
+              reason: null,
+            },
+          },
+        },
+      },
+    });
+    const view = render(<ChatView />);
+    view.unmount();
+    render(<ChatView />);
+
+    const earlierReply = document.querySelector('[data-message-id="history:coach:earlier"]');
+    const today = screen.getByRole("region", { name: "Choose one eligible Workout" });
+    const laterReply = document.querySelector('[data-message-id="history:coach:later"]');
+    expect(earlierReply).not.toBeNull();
+    expect(laterReply).not.toBeNull();
+    expect(
+      earlierReply!.compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      today.compareDocumentPosition(laterReply!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

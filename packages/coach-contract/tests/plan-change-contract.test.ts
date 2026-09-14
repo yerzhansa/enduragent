@@ -586,6 +586,7 @@ describe("Supporting Event contracts", () => {
 it("validates daily choice candidates and preserves the day premise and rejection copy", () => {
   const todayChoice = {
     date: "1998-09-02",
+    timezone: "Asia/Almaty",
     eligible: [{ workoutId: workout.id, name: workout.name, kind: "endurance", minutes: 60 }],
     blocked: [
       { workoutId: "hard-ride", name: "Controlled effort", reason: "No hard training today." },
@@ -594,6 +595,9 @@ it("validates daily choice candidates and preserves the day premise and rejectio
   };
   expect(PlanTodayChoiceSchema.parse(todayChoice)).toEqual(todayChoice);
   expect(PlanTodayChoiceSchema.safeParse({ ...todayChoice, date: "1998-02-30" }).success).toBe(
+    false,
+  );
+  expect(PlanTodayChoiceSchema.safeParse({ ...todayChoice, timezone: "Not/AZone" }).success).toBe(
     false,
   );
   expect(

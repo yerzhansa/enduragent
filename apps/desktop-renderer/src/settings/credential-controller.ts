@@ -1,6 +1,6 @@
-import { CoachClientDisconnectedError, type CoachClient } from "@enduragent/coach-client";
+import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 import type {
   CredentialDeleteResult,
   CredentialRecoveryStatus,
@@ -338,19 +338,19 @@ export function createCredentialSettingsController(input: {
   let operation: Promise<void> | undefined;
   let activeResetOperation: symbol | undefined;
   let reconnectRequired = false;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
 
   const render = (state: CredentialSettingsState): void => {
     currentState = state;
     input.view.render(state);
   };
 
-  const runtimeClient = async (): Promise<CoachClient> => {
+  const runtimeClient = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
     const current = await input.clients.getClient();
     const client =
       failedClient !== undefined && current === failedClient
-        ? await input.clients.reconnect()
+        ? await input.clients.reconnect({ kind: "failed-client", client: failedClient })
         : current;
     reconnectRequired = false;
     failedClient = undefined;

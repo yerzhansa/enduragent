@@ -1,6 +1,6 @@
-import { CoachClientDisconnectedError, type CoachClient } from "@enduragent/coach-client";
+import { CoachClientDisconnectedError } from "@enduragent/coach-client";
 import type { SpendSummary } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export const SPEND_REFRESH_INTERVAL_MS = 30_000;
 
@@ -92,7 +92,7 @@ export function createSpendMeterController(input: {
   let postSaveRefresh: Promise<void> | undefined;
   let queuedCap: CommittedCap | undefined;
   let reconnectRequired = false;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
   let recoveryRequired = false;
 
   const render = (state: SpendMeterState): void => {
@@ -111,19 +111,23 @@ export function createSpendMeterController(input: {
     });
   };
 
-  const clientForOperation = async (): Promise<CoachClient> => {
+  const clientForOperation = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
     const current = await input.clients.getClient();
     const client =
       failedClient === undefined || current === failedClient
-        ? await input.clients.reconnect()
+        ? await input.clients.reconnect(
+            failedClient === undefined
+              ? { kind: "replace-current" }
+              : { kind: "failed-client", client: failedClient },
+          )
         : current;
     reconnectRequired = false;
     failedClient = undefined;
     return client;
   };
 
-  const noteFailure = (error: unknown, client: CoachClient | undefined): void => {
+  const noteFailure = (error: unknown, client: DesktopCoachClient | undefined): void => {
     if (error instanceof CoachClientDisconnectedError) {
       reconnectRequired = true;
       failedClient = client;
@@ -133,7 +137,7 @@ export function createSpendMeterController(input: {
   const executeRefresh = (): Promise<void> => {
     if (disposed) return Promise.resolve();
     if (refreshOperation !== undefined) return refreshOperation;
-    let activeClient: CoachClient | undefined;
+    let activeClient: DesktopCoachClient | undefined;
     const pending = Promise.resolve()
       .then(async () => {
         activeClient = await clientForOperation();
@@ -204,7 +208,7 @@ export function createSpendMeterController(input: {
         if (draftRevision === committed.revision) draftDirty = false;
         continue;
       }
-      let activeClient: CoachClient | undefined;
+      let activeClient: DesktopCoachClient | undefined;
       try {
         activeClient = await clientForOperation();
         const summary = await activeClient.call("setDailySpendCap", {
