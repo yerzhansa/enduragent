@@ -1,10 +1,12 @@
 import {
   claudeCliDisabledByEnvironment,
-  LLM_MODEL_CATALOGUE,
   LLM_PROVIDERS,
+  PROVIDER_BASE_URLS,
+  modelCatalogSelectorConfiguration,
+  type AcceptedModelCatalogRecord,
   type LlmProvider,
 } from "@enduragent/core";
-import type { ConfigureRuntimeRpcParams } from "@enduragent/coach-contract";
+import type { ConfigureRuntimeRpcParams, ModelCatalogSnapshot } from "@enduragent/coach-contract";
 
 export interface OnboardingLlmModelOption {
   readonly value: string;
@@ -21,6 +23,7 @@ export interface OnboardingLlmProviderConfiguration {
 
 export interface OnboardingLlmConfiguration {
   readonly schemaVersion: 1;
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: {
     readonly provider: LlmProvider;
@@ -34,6 +37,7 @@ export type OnboardingLlmEndpointSelection =
   | { readonly mode: "custom"; readonly value: string };
 
 export interface OnboardingLlmSelection {
+  readonly catalogRevision: number;
   readonly provider: LlmProvider;
   readonly model: string;
   readonly endpoint: OnboardingLlmEndpointSelection;
@@ -41,6 +45,11 @@ export interface OnboardingLlmSelection {
 
 export type OnboardingLlmSelectionResult =
   | { readonly status: "configured"; readonly runtimeReady: true }
+  | {
+      readonly status: "stale-draft";
+      readonly reason: "catalog-unavailable";
+      readonly selection: OnboardingLlmSelection;
+    }
   | {
       readonly status: "refused";
       readonly reason: "invalid-input" | "credential-required" | "runtime-unavailable";
@@ -107,12 +116,14 @@ function normalizedEndpoint(value: unknown): string {
   return normalized;
 }
 
-function providerCatalogue(provider: LlmProvider) {
-  return LLM_MODEL_CATALOGUE.find((entry) => entry.provider === provider);
-}
-
 export function parseOnboardingLlmSelection(value: unknown): OnboardingLlmSelection {
-  if (!isRecord(value) || !hasExactKeys(value, ["provider", "model", "endpoint"])) {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ["catalogRevision", "provider", "model", "endpoint"])
+  ) {
+    throw new TypeError();
+  }
+  if (!Number.isSafeInteger(value.catalogRevision) || Number(value.catalogRevision) <= 0) {
     throw new TypeError();
   }
   if (
@@ -136,10 +147,13 @@ export function parseOnboardingLlmSelection(value: unknown): OnboardingLlmSelect
   } else {
     throw new TypeError();
   }
-  if (endpoint.mode !== "automatic" && providerCatalogue(provider)?.defaultBaseUrl === undefined) {
+  if (
+    endpoint.mode !== "automatic" &&
+    PROVIDER_BASE_URLS[provider as keyof typeof PROVIDER_BASE_URLS] === undefined
+  ) {
     throw new TypeError();
   }
-  return { provider, model, endpoint };
+  return { catalogRevision: Number(value.catalogRevision), provider, model, endpoint };
 }
 
 export function parseChatGptLlmSelection(value: unknown): OnboardingLlmSelection & {
@@ -180,6 +194,7 @@ export function isClaudeCliLaneEligible(input: {
 export function runtimeConfigurationForSelection(
   selection: OnboardingLlmSelection,
   apiKey?: string,
+  catalogSnapshot?: ModelCatalogSnapshot,
 ): ConfigureRuntimeRpcParams {
   const endpoint =
     selection.endpoint.mode === "automatic"
@@ -193,12 +208,14 @@ export function runtimeConfigurationForSelection(
       model: selection.model,
       ...(apiKey === undefined ? {} : { api_key: apiKey }),
       ...endpoint,
+      ...(catalogSnapshot === undefined ? {} : { catalog_snapshot: catalogSnapshot }),
     },
   };
 }
 
 export function runtimeConfigurationForExistingSelection(
   selection: OnboardingLlmSelection,
+  catalogSnapshot?: ModelCatalogSnapshot,
 ): ConfigureRuntimeRpcParams {
   const endpoint =
     selection.endpoint.mode === "automatic"
@@ -210,12 +227,15 @@ export function runtimeConfigurationForExistingSelection(
     llm: {
       model: selection.model,
       ...endpoint,
+      ...(catalogSnapshot === undefined ? {} : { catalog_snapshot: catalogSnapshot }),
     },
   };
 }
 
-export function publicLlmProviderConfiguration(): readonly OnboardingLlmProviderConfiguration[] {
-  return LLM_MODEL_CATALOGUE.map((entry) => ({
+export function publicLlmProviderConfiguration(
+  catalog: AcceptedModelCatalogRecord,
+): readonly OnboardingLlmProviderConfiguration[] {
+  return modelCatalogSelectorConfiguration(catalog).providers.map((entry) => ({
     provider: entry.provider,
     defaultModel: entry.defaultModel,
     models: entry.models.map((model) => ({

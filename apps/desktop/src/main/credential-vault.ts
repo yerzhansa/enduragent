@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import {
   isKeylessProvider,
   type ConfigureRuntimeRpcRefusalReason,
+  type ModelCatalogSnapshot,
 } from "@enduragent/coach-contract";
 import {
   assertWindowsPrivateDirectoryStable,
@@ -105,6 +106,7 @@ export interface CredentialWriteInput {
   readonly slot: DesktopCredentialSlot;
   readonly value: string;
   readonly selection?: OnboardingLlmSelection;
+  readonly catalogSnapshot?: ModelCatalogSnapshot;
 }
 
 export interface CredentialWriteBehavior {
@@ -145,7 +147,10 @@ export interface CredentialVault {
     behavior?: CredentialWriteBehavior,
   ): Promise<CredentialWriteResult>;
   runExclusiveMutation<T>(operation: (mutation: CredentialVaultMutation) => Promise<T>): Promise<T>;
-  applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
+  applyLlmSelection(
+    input: OnboardingLlmSelection,
+    catalogSnapshot: ModelCatalogSnapshot,
+  ): Promise<OnboardingLlmSelectionResult>;
   credentialStatuses(): Promise<readonly CredentialSlotStatus[]>;
   deleteCredential(slot: DesktopCredentialSlot): Promise<CredentialDeleteResult>;
   reapplyConfigured(): Promise<void>;
@@ -162,6 +167,7 @@ interface CredentialVaultOptions {
     slot: DesktopCredentialSlot,
     value: string,
     selection?: OnboardingLlmSelection,
+    catalogSnapshot?: ModelCatalogSnapshot,
     verificationApproval?: string,
   ) => Promise<void>;
   readonly reapplyCredential?: (
@@ -788,12 +794,13 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             input.slot,
             value,
             selection,
+            input.catalogSnapshot,
             behavior.verificationApproval,
           );
         } else if (selection === undefined) {
           await options.applyCredential(input.slot, value);
         } else {
-          await options.applyCredential(input.slot, value, selection);
+          await options.applyCredential(input.slot, value, selection, input.catalogSnapshot);
         }
         if (canPublish !== undefined && !canPublish()) throw new TypeError();
         setRuntimeState(input.slot, "active");
@@ -903,7 +910,7 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       );
     },
 
-    applyLlmSelection(input): Promise<OnboardingLlmSelectionResult> {
+    applyLlmSelection(input, catalogSnapshot): Promise<OnboardingLlmSelectionResult> {
       return serializeCredentialMutation(() =>
         exclusive(async () => {
           let selection: OnboardingLlmSelection;
@@ -923,7 +930,7 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
           }
           try {
             const canPublish = options.createRuntimePublicationGuard?.(slot);
-            await options.applyCredential(slot, credential.value, selection);
+            await options.applyCredential(slot, credential.value, selection, catalogSnapshot);
             if (canPublish !== undefined && !canPublish()) throw new TypeError();
             setRuntimeState(slot, "active");
             return { status: "configured", runtimeReady: true };

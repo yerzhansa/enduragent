@@ -23,6 +23,7 @@ import {
 
 const CLAUDE_CLI_CONFIGURATION: OnboardingLlmConfiguration = {
   schemaVersion: 1,
+  catalogRevision: 7,
   providers: [
     {
       provider: "anthropic",

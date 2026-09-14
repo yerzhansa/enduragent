@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LlmProviderSchema, type LlmProvider } from "./llm-provider.js";
+import { ModelCatalogSnapshotSchema } from "./model-catalog.js";
 import { LanguageTagSchema } from "./language.js";
 import { AthleteStateSchema } from "./athlete-state.js";
 import { isActiveIanaZone } from "./time-zone.js";
@@ -949,6 +950,7 @@ const RuntimeLlmSchema = z
     compact_model: RuntimeOptionalStringSchema.optional(),
     claude_cli: RuntimeClaudeCliSchema.optional(),
     codex_agent: RuntimeCodexAgentSchema.optional(),
+    catalog_snapshot: ModelCatalogSnapshotSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {

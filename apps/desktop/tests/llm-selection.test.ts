@@ -10,17 +10,24 @@ describe("desktop claude-cli selection parsing", () => {
   it("accepts a claude-cli selection with an automatic endpoint", () => {
     expect(
       parseClaudeCliLlmSelection({
+        catalogRevision: 7,
         provider: "claude-cli",
         model: "  sonnet  ",
         endpoint: { mode: "automatic" },
       }),
-    ).toEqual({ provider: "claude-cli", model: "sonnet", endpoint: { mode: "automatic" } });
+    ).toEqual({
+      catalogRevision: 7,
+      provider: "claude-cli",
+      model: "sonnet",
+      endpoint: { mode: "automatic" },
+    });
   });
 
   it("builds a keyless runtime request for the lane", () => {
     expect(
       runtimeConfigurationForSelection(
         parseClaudeCliLlmSelection({
+          catalogRevision: 7,
           provider: "claude-cli",
           model: "opus",
           endpoint: { mode: "automatic" },
@@ -32,21 +39,32 @@ describe("desktop claude-cli selection parsing", () => {
   it.each([
     [
       "another provider",
-      { provider: "openai-codex", model: "gpt-5.5", endpoint: { mode: "automatic" } },
+      {
+        catalogRevision: 7,
+        provider: "openai-codex",
+        model: "gpt-5.5",
+        endpoint: { mode: "automatic" },
+      },
     ],
     [
       "a default endpoint",
-      { provider: "claude-cli", model: "sonnet", endpoint: { mode: "default" } },
+      {
+        catalogRevision: 7,
+        provider: "claude-cli",
+        model: "sonnet",
+        endpoint: { mode: "default" },
+      },
     ],
     [
       "a custom endpoint",
       {
+        catalogRevision: 7,
         provider: "claude-cli",
         model: "sonnet",
         endpoint: { mode: "custom", value: "http://127.0.0.1:4321" },
       },
     ],
-    ["an unknown key", { provider: "claude-cli", model: "sonnet" }],
+    ["an unknown key", { catalogRevision: 7, provider: "claude-cli", model: "sonnet" }],
   ])("rejects %s", (_case, selection) => {
     expect(() => parseClaudeCliLlmSelection(selection)).toThrow(TypeError);
   });
@@ -54,6 +72,7 @@ describe("desktop claude-cli selection parsing", () => {
   it("keeps the ChatGPT parser pinned to its own provider", () => {
     expect(() =>
       parseChatGptLlmSelection({
+        catalogRevision: 7,
         provider: "claude-cli",
         model: "sonnet",
         endpoint: { mode: "automatic" },

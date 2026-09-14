@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LlmProvider, RuntimeConfigSnapshot } from "@enduragent/coach-contract";
+import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
 import {
   createChatGptAuth as createChatGptAuthSubject,
   deleteChatGptProfile,
@@ -29,6 +30,7 @@ function credentials() {
 
 function selection(model = "gpt-5.5") {
   return {
+    catalogRevision: BUNDLED_MODEL_CATALOG.revision,
     provider: "openai-codex" as const,
     model,
     endpoint: { mode: "automatic" as const },
@@ -515,7 +517,9 @@ describe("desktop ChatGPT auth", () => {
       },
     });
 
-    await expect(auth.activate(selection(), overallActivationSignal)).resolves.toEqual({
+    await expect(
+      auth.activate(selection(), BUNDLED_MODEL_CATALOG, overallActivationSignal),
+    ).resolves.toEqual({
       status: "refused",
       reason: "runtime-unavailable",
     });
@@ -620,12 +624,18 @@ describe("desktop ChatGPT auth", () => {
     });
     expect(applyRuntimeConfig).not.toHaveBeenCalled();
     expect(order).toEqual(["browser", "storage"]);
-    await expect(auth.activate(selection())).resolves.toEqual({
+    await expect(auth.activate(selection(), BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "configured",
       runtimeReady: true,
     });
     expect(applyRuntimeConfig).toHaveBeenCalledWith(
-      { llm: { provider: "openai-codex", model: "gpt-5.5" } },
+      {
+        llm: {
+          provider: "openai-codex",
+          model: "gpt-5.5",
+          catalog_snapshot: BUNDLED_MODEL_CATALOG,
+        },
+      },
       expect.any(AbortSignal),
     );
     expect(order).toEqual(["browser", "storage", "runtime"]);
@@ -644,12 +654,20 @@ describe("desktop ChatGPT auth", () => {
       dependencies: { loginCodex },
     });
 
-    await expect(auth.activate(selection("athlete-custom-model"))).resolves.toEqual({
+    await expect(
+      auth.activate(selection("athlete-custom-model"), BUNDLED_MODEL_CATALOG),
+    ).resolves.toEqual({
       status: "configured",
       runtimeReady: true,
     });
     expect(applyRuntimeConfig).toHaveBeenCalledWith(
-      { llm: { provider: "openai-codex", model: "athlete-custom-model" } },
+      {
+        llm: {
+          provider: "openai-codex",
+          model: "athlete-custom-model",
+          catalog_snapshot: BUNDLED_MODEL_CATALOG,
+        },
+      },
       expect.any(AbortSignal),
     );
     expect(loginCodex).not.toHaveBeenCalled();
@@ -662,16 +680,20 @@ describe("desktop ChatGPT auth", () => {
       openExternal: async () => {},
       applyRuntimeConfig: async () => {},
     });
-    await expect(absent.activate(selection())).resolves.toEqual({
+    await expect(absent.activate(selection(), BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "refused",
       reason: "credential-required",
     });
     await expect(
-      absent.activate({
-        provider: "anthropic",
-        model: "model",
-        endpoint: { mode: "automatic" },
-      }),
+      absent.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "anthropic",
+          model: "model",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "invalid-input" });
 
     await writeChatGptProfile(directory, credentials());
@@ -682,7 +704,7 @@ describe("desktop ChatGPT auth", () => {
         throw new Error("private runtime detail");
       },
     });
-    await expect(unavailable.activate(selection())).resolves.toEqual({
+    await expect(unavailable.activate(selection(), BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "refused",
       reason: "runtime-unavailable",
     });
@@ -806,7 +828,7 @@ describe("desktop ChatGPT auth", () => {
       status: "stored",
       operationId: "runtime",
     });
-    await expect(runtime.activate(selection())).resolves.toEqual({
+    await expect(runtime.activate(selection(), BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "refused",
       reason: "runtime-unavailable",
     });

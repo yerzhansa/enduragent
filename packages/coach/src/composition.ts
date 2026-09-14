@@ -23,6 +23,7 @@ import {
   ConfirmationGate,
   RefreshTokenReusedError,
   appendUsageLine,
+  acceptModelCatalogSnapshot,
   bootstrapReference,
   classifyFailure,
   compareAndSaveStoredProfile,
@@ -45,6 +46,7 @@ import {
   type ClaudeCliRuntimeConfigPatch,
   type CodexAgentRuntimeConfigPatch,
   type Config,
+  type AcceptedModelCatalogRecord,
   type ConversationStorePort,
   type ReferenceRuntime,
   type RuntimeConfigPatch,
@@ -1346,6 +1348,7 @@ export async function createLocalCoachComposition(
     const buildBundle = async (
       config: Config,
       capturedEngineConfig?: EngineConfig,
+      catalog?: AcceptedModelCatalogRecord,
     ): Promise<RuntimeBundle> => {
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
@@ -1380,7 +1383,11 @@ export async function createLocalCoachComposition(
       });
       const projectedConfig = engineConfigFromConfig(
         effectiveConfig,
-        capturedEngineConfig === undefined ? {} : { models: capturedEngineConfig.models },
+        catalog !== undefined
+          ? { catalog }
+          : capturedEngineConfig === undefined
+            ? {}
+            : { models: capturedEngineConfig.models },
       );
       const attachmentCapabilityResolver = createAttachmentCapabilityResolver({
         openRouterCache: openRouterModelMetadata,
@@ -1601,6 +1608,13 @@ export async function createLocalCoachComposition(
         }
       }
       let effectiveRequest = request;
+      const pinnedCatalog =
+        request.llm?.catalog_snapshot === undefined
+          ? undefined
+          : acceptModelCatalogSnapshot(request.llm.catalog_snapshot);
+      if (request.llm?.catalog_snapshot !== undefined && pinnedCatalog === undefined) {
+        throw new TypeError("runtime model catalog snapshot is not compatible");
+      }
       let verificationEvidence: IntervalsCredentialVerificationEvidence | undefined;
       if (request.intervals?.verification_approval !== undefined) {
         const preliminaryCandidate = mergedRuntimeConfig(unapprovedConfig, request);
@@ -1726,6 +1740,8 @@ export async function createLocalCoachComposition(
             replacementOwnerReady,
             replacement: await buildBundle(
               approvedRuntimeConfig(latestCandidate, replacementOwnerReady),
+              undefined,
+              pinnedCatalog,
             ),
           };
         },

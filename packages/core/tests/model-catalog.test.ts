@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
-import { acceptModelCatalogSnapshot, evaluateModelCatalogCandidate } from "../src/model-catalog.js";
+import {
+  acceptModelCatalogSnapshot,
+  evaluateModelCatalogCandidate,
+  modelCatalogSelectorConfiguration,
+} from "../src/model-catalog.js";
 
 function cloneSeed() {
   return structuredClone(BUNDLED_MODEL_CATALOG);
@@ -13,6 +17,60 @@ function acceptedSeed() {
 }
 
 describe("model catalog compatibility filtering", () => {
+  it("projects the accepted revision, published order, and compatible model choices", () => {
+    const candidate = cloneSeed();
+    candidate.revision = 7;
+    candidate.providers = candidate.providers.map((provider) => ({
+      ...provider,
+      order: candidate.providers.length - provider.order,
+    }));
+    const openai = candidate.providers.find((provider) => provider.providerId === "openai");
+    if (openai === undefined) throw new Error("missing OpenAI seed provider");
+    openai.models.push({
+      modelId: "new-compatible-model",
+      label: "New Compatible Model",
+      order: 40,
+      compatibilityProfile: "openai-ai-sdk-v1",
+      contextWindow: { kind: "unknown" },
+      imageInput: "unknown",
+      pricing: { kind: "unknown" },
+    });
+
+    const accepted = acceptModelCatalogSnapshot(candidate);
+    if (accepted === undefined) throw new Error("candidate was not accepted");
+    const configuration = modelCatalogSelectorConfiguration(accepted);
+
+    expect(configuration.revision).toBe(7);
+    expect(configuration.providers[0]?.provider).toBe("openrouter");
+    expect(
+      configuration.providers
+        .find((provider) => provider.provider === "openai")
+        ?.models.map((model) => model.value),
+    ).toContain("new-compatible-model");
+  });
+
+  it("keeps a provider available for custom entry when all published models are incompatible", () => {
+    const candidate = cloneSeed();
+    const openai = candidate.providers.find((provider) => provider.providerId === "openai");
+    if (openai === undefined) throw new Error("missing OpenAI seed provider");
+    openai.models = openai.models.map((model) => ({
+      ...model,
+      compatibilityProfile: "future-profile-v2",
+    }));
+
+    const accepted = acceptModelCatalogSnapshot(candidate);
+    if (accepted === undefined) throw new Error("candidate was not accepted");
+    const provider = modelCatalogSelectorConfiguration(accepted).providers.find(
+      (entry) => entry.provider === "openai",
+    );
+
+    expect(provider).toMatchObject({
+      provider: "openai",
+      defaultModel: "gpt-5.6-sol",
+      models: [],
+    });
+  });
+
   it("filters future providers and profiles while accepting compatible new models", () => {
     const candidate = cloneSeed();
     candidate.revision = 2;
@@ -104,9 +162,7 @@ describe("model catalog compatibility filtering", () => {
   it("filters models refused by the compiled provider eligibility policy", () => {
     const candidate = cloneSeed();
     candidate.revision = 2;
-    const codex = candidate.providers.find(
-      (provider) => provider.providerId === "openai-codex",
-    );
+    const codex = candidate.providers.find((provider) => provider.providerId === "openai-codex");
     if (codex === undefined) throw new Error("missing OpenAI Codex seed provider");
     codex.recommendedModelId = "gpt-6-astra";
     codex.models.unshift({

@@ -6,6 +6,7 @@ import { parse as parseYaml, stringify as toYaml } from "yaml";
 
 import { scriptedPrompts } from "./helpers/scripted-prompts.js";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
+import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 
 // Ordered prompt contract for a NEW (non-codex) provider with a BASE_URL default:
 //   selects: [provider, model, backend]
@@ -51,6 +52,62 @@ afterEach(() => {
 const CONFIG = () => join(tempHome, ".cycling-coach", "config.yaml");
 
 describe("setup — new providers", () => {
+  it("offers a compatible model from the shared accepted catalog without refreshing", async () => {
+    const candidate = structuredClone(BUNDLED_MODEL_CATALOG);
+    candidate.revision = 2;
+    candidate.provenance = {
+      kind: "published",
+      publishedAt: "1998-01-01T00:00:00.000Z",
+    };
+    const anthropic = candidate.providers.find((provider) => provider.providerId === "anthropic");
+    if (anthropic === undefined) throw new Error("missing Anthropic seed provider");
+    anthropic.recommendedModelId = "claude-new-compatible";
+    anthropic.models.push({
+      modelId: "claude-new-compatible",
+      label: "Claude New Compatible",
+      order: 0,
+      compatibilityProfile: "anthropic-ai-sdk-v1",
+      contextWindow: { kind: "known", tokens: 200_000 },
+      imageInput: "supported",
+      pricing: { kind: "unknown" },
+    });
+    const catalogDirectory = join(tempHome, ".cycling-coach", "config", "model-catalog");
+    mkdirSync(catalogDirectory, { recursive: true });
+    writeFileSync(
+      join(catalogDirectory, "accepted-snapshot.json"),
+      `${JSON.stringify({
+        formatVersion: 1,
+        etag: '"revision-2"',
+        lastSuccessfulRefreshAt: "1998-01-01T00:00:00.000Z",
+        snapshot: candidate,
+      })}\n`,
+    );
+    const prompts = scriptedPrompts({
+      selects: ["anthropic", "claude-new-compatible", "plain"],
+      texts: [],
+      passwords: ["synthetic-key", "", ""],
+      confirms: [],
+    });
+    vi.doMock("@clack/prompts", () => prompts);
+
+    const { runSetup } = await import("../src/setup.js");
+    await runSetup(cyclingBinary);
+
+    expect(prompts.select).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: "claude-new-compatible" }),
+        ]),
+      }),
+    );
+    const config = parseYaml(readFileSync(CONFIG(), "utf-8"));
+    expect(config.llm).toMatchObject({
+      provider: "anthropic",
+      model: "claude-new-compatible",
+    });
+  });
+
   it("zai fresh install: Enter at base-URL prompt persists the provider default", async () => {
     vi.doMock("@clack/prompts", () =>
       scriptedPrompts({

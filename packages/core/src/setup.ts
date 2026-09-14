@@ -22,10 +22,14 @@ import {
 } from "@clack/prompts";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync, chmodSync } from "node:fs";
+import { join } from "node:path";
 import { stringify as toYaml } from "yaml";
 import { type BinaryConfig, binaryEnvVar } from "./binary.js";
 import { CONFIG_DIR, CONFIG_FILE, envInt, readConfigYaml } from "./config.js";
-import { LLM_MODEL_CATALOGUE, isKeylessProvider } from "./runtime-config.js";
+import { isKeylessProvider } from "./runtime-config.js";
+import { modelCatalogSelectorConfiguration } from "./model-catalog.js";
+import { openModelCatalog } from "./model-catalog-owner.js";
+import type { ModelCatalogSelectorConfiguration } from "./model-catalog.js";
 import { captureAndPersistOperator } from "./channels/operator-capture.js";
 import { loadAllowedSenders } from "./channels/allowed-senders.js";
 import { runCodexLogin } from "./auth/openai-codex-login.js";
@@ -292,16 +296,30 @@ export async function selectSetupLanguage(
 export async function runSetup(binary: BinaryConfig): Promise<void> {
   const previous = readConfigYaml();
   const dataDir = typeof previous.data_dir === "string" ? previous.data_dir : CONFIG_DIR;
-  const language = createNpmCoachLanguage(dataDir);
-  const phrasebook = await language.phrasebookFor({});
-  await withCliPhrasebook(phrasebook, async () => {
-    _assertTTY(binary);
-    await selectSetupLanguage(language, readEnvironmentSurfaceHint(process.env));
-    await withCliPhrasebook(await language.phrasebookFor({}), () => runSetupWizard(binary));
+  const modelCatalog = openModelCatalog({
+    installationRoot: dataDir,
+    cacheDirectory: join(dataDir, "config", "model-catalog", "cli-setup"),
   });
+  const selectorConfiguration = modelCatalogSelectorConfiguration(modelCatalog.current());
+  const language = createNpmCoachLanguage(dataDir);
+  try {
+    const phrasebook = await language.phrasebookFor({});
+    await withCliPhrasebook(phrasebook, async () => {
+      _assertTTY(binary);
+      await selectSetupLanguage(language, readEnvironmentSurfaceHint(process.env));
+      await withCliPhrasebook(await language.phrasebookFor({}), () =>
+        runSetupWizard(binary, selectorConfiguration),
+      );
+    });
+  } finally {
+    await modelCatalog.shutdown();
+  }
 }
 
-async function runSetupWizard(binary: BinaryConfig): Promise<void> {
+async function runSetupWizard(
+  binary: BinaryConfig,
+  selectorConfiguration: ModelCatalogSelectorConfiguration,
+): Promise<void> {
   const ctx: WizardCtx = { createdThisRun: [] };
   const sigintHandler = _createSignalHandler(ctx, "SIGINT", binary);
   const sigtermHandler = _createSignalHandler(ctx, "SIGTERM", binary);
@@ -309,7 +327,7 @@ async function runSetupWizard(binary: BinaryConfig): Promise<void> {
   process.once("SIGTERM", sigtermHandler);
 
   try {
-    await _runWizardCore(ctx, binary);
+    await _runWizardCore(ctx, binary, selectorConfiguration);
   } catch (err) {
     await _guardedCleanup(ctx, binary);
     cancel(
@@ -336,18 +354,19 @@ async function _runLlmPrompts(
   previous: Record<string, unknown>,
   prevProvider: string | undefined,
   prevModel: string | undefined,
+  selectorConfiguration: ModelCatalogSelectorConfiguration,
 ): Promise<LlmPromptOutcome> {
   // Provider
   const providerResp = await select({
     message: say("cli.setup.provider"),
-    options: LLM_MODEL_CATALOGUE.map(({ provider, label, hint }) =>
+    options: selectorConfiguration.providers.map(({ provider, label, hint }) =>
       setupOption({ value: provider, label, ...(hint === undefined ? {} : { hint }) }),
     ),
     initialValue: prevProvider ?? "anthropic",
   });
   handleCancel(providerResp, ctx, binary);
   const provider = providerResp as string;
-  const catalogue = LLM_MODEL_CATALOGUE.find((entry) => entry.provider === provider);
+  const catalogue = selectorConfiguration.providers.find((entry) => entry.provider === provider);
 
   // Model
   const sameProvider = provider === prevProvider;
@@ -482,7 +501,11 @@ async function _runLlmPrompts(
   return { provider, model, baseUrl, claudeCliBlock, freshCodexCreds };
 }
 
-async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<void> {
+async function _runWizardCore(
+  ctx: WizardCtx,
+  binary: BinaryConfig,
+  selectorConfiguration: ModelCatalogSelectorConfiguration,
+): Promise<void> {
   intro(say("cli.setup.setup", { displayName: binary.displayName }));
 
   const previous = readConfigYaml();
@@ -496,7 +519,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
   let keepLlmBlock = false;
   if (
     prevProvider !== undefined &&
-    !LLM_MODEL_CATALOGUE.some((entry) => entry.provider === prevProvider)
+    !selectorConfiguration.providers.some((entry) => entry.provider === prevProvider)
   ) {
     log.warn(say("cli.setup.yourCurrentProviderIsNotOffered", { prevProvider: prevProvider }));
     const replaceProvider = await confirm({
@@ -512,7 +535,7 @@ async function _runWizardCore(ctx: WizardCtx, binary: BinaryConfig): Promise<voi
 
   const llm = keepLlmBlock
     ? null
-    : await _runLlmPrompts(ctx, binary, previous, prevProvider, prevModel);
+    : await _runLlmPrompts(ctx, binary, previous, prevProvider, prevModel, selectorConfiguration);
   const freshCodexCreds = llm?.freshCodexCreds ?? null;
 
   // Detect backends + pick secret backend (D12 + D9)

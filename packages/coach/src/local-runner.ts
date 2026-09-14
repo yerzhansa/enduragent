@@ -1,4 +1,5 @@
 import type { CoachLanguage } from "@enduragent/i18n";
+import { engineConfigFromConfig, openModelCatalog, type ConfirmationGate } from "@enduragent/core";
 import type {
   CoachEngine,
   CoachOperations,
@@ -7,7 +8,7 @@ import type {
   PlanningReadOperations,
   PlanningRequestOperations,
 } from "@enduragent/coach-contract";
-import type { ConfirmationGate } from "@enduragent/core";
+import { join } from "node:path";
 import { prepareAthleteHome, type AthleteHome } from "@enduragent/kernel-node/home";
 import type { WriterProtocolListener } from "@enduragent/kernel-node/lock";
 import { createLocalCoachComposition, type LocalCoachComposition } from "./composition.js";
@@ -65,9 +66,15 @@ export async function withLocalCoach<T>(
   }
   const selectedHome = await prepareAthleteHome(input.home);
   const writerEnv = { ...input.env, ENDURAGENT_HOME: selectedHome.root };
+  const modelCatalog = openModelCatalog({
+    installationRoot: selectedHome.root,
+    cacheDirectory: join(selectedHome.configDir, "model-catalog", "daemon-cache"),
+  });
   let operationOutcome: Extract<WriterValue<T>, { kind: "rejected" }> | undefined;
-  let writerValue: WriterValue<T>;
+  let writerValue: WriterValue<T> | undefined;
+  let runnerFailure: { readonly error: unknown } | undefined;
   try {
+    await modelCatalog.start();
     writerValue = await withCoachStoreWriter(writerEnv, {
       beforeStoreOpen: async (resolvedHome) => {
         if (!sameHome(resolvedHome, selectedHome)) {
@@ -100,7 +107,9 @@ export async function withLocalCoach<T>(
             home: selectedHome,
             context,
             config: compositionConfig,
-            engineConfig: readiness.engineConfig,
+            engineConfig: engineConfigFromConfig(compositionConfig, {
+              catalog: modelCatalog.current(),
+            }),
             ...(input.deferInitialRefresh === undefined
               ? {}
               : { deferInitialRefresh: input.deferInitialRefresh }),
@@ -141,9 +150,16 @@ export async function withLocalCoach<T>(
       },
     });
   } catch (error) {
-    if (operationOutcome !== undefined) throw operationOutcome.error;
-    throw error;
+    runnerFailure = { error: operationOutcome?.error ?? error };
+  } finally {
+    try {
+      await modelCatalog.shutdown();
+    } catch (error) {
+      runnerFailure ??= { error: operationOutcome?.error ?? error };
+    }
   }
+  if (runnerFailure !== undefined) throw runnerFailure.error;
+  if (writerValue === undefined) throw new TypeError("local coach produced no result");
   if (writerValue.kind === "rejected") throw writerValue.error;
   if (writerValue.kind === "readiness-failure") return writerValue.result;
   return { status: "completed", value: writerValue.value };

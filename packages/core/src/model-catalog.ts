@@ -7,7 +7,13 @@ import {
   type ModelCatalogSnapshot,
 } from "@enduragent/coach-contract/model-catalog";
 import { installedProfileFor, type VisibleModelCatalogProvider } from "./model-catalog-policy.js";
-import { LLM_MODEL_CATALOGUE, isModelEnabledForProvider } from "./runtime-config.js";
+import {
+  DEFAULT_MODELS,
+  LLM_MODEL_CATALOGUE,
+  PROVIDER_BASE_URLS,
+  isModelEnabledForProvider,
+  type LlmModelOption,
+} from "./runtime-config.js";
 
 export interface EffectiveCatalogModel {
   readonly modelId: string;
@@ -45,6 +51,20 @@ export interface AcceptedModelCatalogRecord {
   readonly snapshot: ModelCatalogSnapshot;
   readonly effective: EffectiveModelCatalog;
   readonly etag?: string;
+}
+
+export interface ModelCatalogSelectorProvider {
+  readonly provider: VisibleModelCatalogProvider;
+  readonly label: string;
+  readonly hint?: string;
+  readonly defaultModel: string;
+  readonly models: readonly LlmModelOption[];
+  readonly defaultBaseUrl?: string;
+}
+
+export interface ModelCatalogSelectorConfiguration {
+  readonly revision: number;
+  readonly providers: readonly ModelCatalogSelectorProvider[];
 }
 
 export type ModelCatalogCandidateEvaluation =
@@ -153,6 +173,37 @@ export function acceptModelCatalogSnapshot(
     snapshot: parsed.data,
     effective,
     ...(etag === undefined ? {} : { etag }),
+  });
+}
+
+export function modelCatalogSelectorConfiguration(
+  catalog: AcceptedModelCatalogRecord,
+): ModelCatalogSelectorConfiguration {
+  const providers = catalog.effective.providers.map((provider) => {
+    const models =
+      provider.kind === "suggested"
+        ? provider.models.map((model) =>
+            Object.freeze({
+              value: model.modelId,
+              label: model.label,
+              ...(model.hint === undefined ? {} : { hint: model.hint }),
+            }),
+          )
+        : [];
+    const defaultBaseUrl = PROVIDER_BASE_URLS[provider.provider as keyof typeof PROVIDER_BASE_URLS];
+    return Object.freeze({
+      provider: provider.provider,
+      label: provider.label,
+      ...(provider.hint === undefined ? {} : { hint: provider.hint }),
+      defaultModel:
+        provider.kind === "suggested" ? provider.initialModel : DEFAULT_MODELS[provider.provider],
+      models: Object.freeze(models),
+      ...(defaultBaseUrl === undefined ? {} : { defaultBaseUrl }),
+    });
+  });
+  return Object.freeze({
+    revision: catalog.effective.revision,
+    providers: Object.freeze(providers),
   });
 }
 

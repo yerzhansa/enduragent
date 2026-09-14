@@ -8,6 +8,7 @@ import { CUSTOM_MODEL_SELECTION } from "./constants";
 import type { ChatGptStatus, CredentialSlotStatus, OnboardingErrorCode } from "./machine";
 
 export interface LlmSelectionDraft {
+  readonly catalogRevision: number;
   readonly provider: OnboardingLlmProviderConfiguration;
   readonly modelChoice: string;
   readonly customModel: string;
@@ -15,11 +16,16 @@ export interface LlmSelectionDraft {
   readonly customEndpoint: string;
 }
 
-export function draftForProvider(provider: OnboardingLlmProviderConfiguration): LlmSelectionDraft {
+export function draftForProvider(
+  provider: OnboardingLlmProviderConfiguration,
+  catalogRevision: number,
+): LlmSelectionDraft {
+  const defaultIsSuggested = provider.models.some((model) => model.value === provider.defaultModel);
   return {
+    catalogRevision,
     provider,
-    modelChoice: provider.defaultModel,
-    customModel: "",
+    modelChoice: defaultIsSuggested ? provider.defaultModel : CUSTOM_MODEL_SELECTION,
+    customModel: defaultIsSuggested ? "" : provider.defaultModel,
     endpointMode: "automatic",
     customEndpoint: "",
   };
@@ -47,6 +53,7 @@ export function initialLlmDraft(
   const activeModel = active?.provider === provider.provider ? active.model : provider.defaultModel;
   const knownModel = provider.models.some((model) => model.value === activeModel);
   return {
+    catalogRevision: configuration.catalogRevision,
     provider,
     modelChoice: knownModel ? activeModel : CUSTOM_MODEL_SELECTION,
     customModel: knownModel ? "" : activeModel,
@@ -132,6 +139,7 @@ export function llmSelectionFromDraft(
   }
   return {
     selection: {
+      catalogRevision: draft.catalogRevision,
       provider: draft.provider.provider,
       model,
       endpoint,

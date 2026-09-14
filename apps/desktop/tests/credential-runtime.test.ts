@@ -195,6 +195,11 @@ async function pollCredentialStatuses(vault: CredentialVault): Promise<void> {
       activate: async () => ({ status: "refused", reason: "credential-required" }),
     },
     getRuntimeConfig: async () => runtimeSnapshot("anthropic"),
+    modelCatalog: {
+      current: () => {
+        throw new Error("unexpected model catalog read");
+      },
+    },
     applyExistingLlmSelection: async () => false,
     credentialRecoveryStatus: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
     retryCredentialRecovery: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
