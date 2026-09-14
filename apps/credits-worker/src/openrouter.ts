@@ -83,7 +83,7 @@ export class OpenRouterManagementClient implements OpenRouterKeys {
           "content-type": "application/json",
         },
         body: body === undefined ? undefined : JSON.stringify(body),
-        redirect: "error",
+        redirect: "manual",
       });
       if (!response.ok) throw new DomainError("unavailable");
       return response.status === 204 ? undefined : await response.json();

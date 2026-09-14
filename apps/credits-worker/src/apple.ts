@@ -284,7 +284,7 @@ export class DeviceCheckClient implements DeviceCheck {
         `https://api.development.devicecheck.apple.com/v1/${operation}`,
         {
           method: "POST",
-          redirect: "error",
+          redirect: "manual",
           headers: {
             authorization: `Bearer ${data}.${signature}`,
             "content-type": "application/json",
