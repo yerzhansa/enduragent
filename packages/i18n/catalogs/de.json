@@ -1003,6 +1003,7 @@
       "decisionFailure": "Mit deiner Auswahl konnte nicht fortgefahren werden. Bitte versuche es erneut.",
       "decisionLoadFailure": "Es konnte nicht nach einer gespeicherten Coach-Frage gesucht werden. Verbinde dich erneut und versuche es noch einmal.",
       "decisionSkipFailure": "Diese Frage konnte nicht übersprungen werden. Bitte versuche es erneut.",
+      "draftSaveFailure": "Wir konnten deinen Nachrichtenentwurf nicht speichern. Er ist in diesem Fenster weiterhin verfügbar.",
       "emptyResponse": "Der Coach hat eine leere Antwort zurückgegeben. Bitte versuche es erneut.",
       "newConversationMemoryWarning": "Neues Gespräch gestartet. Einige aktuelle Details wurden möglicherweise nicht in den Erinnerungen des Coaches gespeichert.",
       "newConversationSuccess": "Neues Gespräch gestartet.",

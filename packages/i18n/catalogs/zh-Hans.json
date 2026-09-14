@@ -995,6 +995,7 @@
       "decisionFailure": "无法根据所选答案继续。请重试。",
       "decisionLoadFailure": "无法检查已保存的教练问题。请重新连接后重试。",
       "decisionSkipFailure": "无法跳过此问题。请重试。",
+      "draftSaveFailure": "无法保存你的消息草稿。它仍保留在此窗口中。",
       "emptyResponse": "教练返回了空回复。请重试。",
       "newConversationMemoryWarning": "已开始新对话。部分近期细节可能未保存到教练记忆。",
       "newConversationSuccess": "已开始新对话。",

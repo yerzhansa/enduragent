@@ -37,7 +37,9 @@ import type {
   TurnEvent,
 } from "@enduragent/coach-contract";
 import {
+  CHAT_ATTACHMENT_FAILURE_COPY,
   CHAT_CONNECTION_INTERRUPTED_COPY,
+  CHAT_DRAFT_SAVE_FAILURE_COPY,
   CHAT_EMPTY_RESPONSE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
@@ -3720,6 +3722,50 @@ describe("chat controller", () => {
     releaseSave();
     await submission;
     expect(order).toEqual(["save-start", "save-end", "chat"]);
+  });
+
+  it("reports a disconnected plain-text draft save separately from attachments and clears it after recovery", async () => {
+    let attempt = 0;
+    const saveText = vi.fn(async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        throw new CoachClientDisconnectedError(1006, "private close reason");
+      }
+      return emptyComposer();
+    });
+    const fake = client(replies(), {
+      composer: async () => {
+        throw new CoachClientDisconnectedError(1006, "private close reason");
+      },
+      saveAttachmentDraftText: saveText,
+    });
+    const { controller, controls } = subject(fake);
+
+    controller.saveAttachmentDraftText("test");
+    await vi.waitFor(() => {
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+        error: null,
+      });
+    });
+
+    controller.saveAttachmentDraftText("test again");
+    await vi.waitFor(() => {
+      expect(saveText).toHaveBeenCalledTimes(2);
+      expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null, error: null });
+    });
+
+    await controller.refreshAttachments();
+    expect(controls.at(-1)?.attachments).toMatchObject({
+      draftError: null,
+      error: CHAT_ATTACHMENT_FAILURE_COPY,
+    });
+    controller.saveAttachmentDraftText("test after attachment failure");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(3));
+    expect(controls.at(-1)?.attachments).toMatchObject({
+      draftError: null,
+      error: CHAT_ATTACHMENT_FAILURE_COPY,
+    });
   });
 
   it("starts one exact session probe and deduplicates repeated starts", async () => {

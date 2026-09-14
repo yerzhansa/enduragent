@@ -1003,6 +1003,7 @@
       "decisionFailure": "Valinnastasi ei voitu jatkaa. Yritä uudelleen.",
       "decisionLoadFailure": "Valmentajan tallennettua kysymystä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "decisionSkipFailure": "Tätä kysymystä ei voitu ohittaa. Yritä uudelleen.",
+      "draftSaveFailure": "Viestiluonnostasi ei voitu tallentaa. Se on yhä käytettävissä tässä ikkunassa.",
       "emptyResponse": "Valmentaja palautti tyhjän vastauksen. Yritä uudelleen.",
       "newConversationMemoryWarning": "Uusi keskustelu aloitettu. Joitakin viimeaikaisia tietoja ei ehkä tallennettu valmentajan muistiin.",
       "newConversationSuccess": "Uusi keskustelu aloitettu.",

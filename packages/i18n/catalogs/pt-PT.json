@@ -1003,6 +1003,7 @@
       "decisionFailure": "Não foi possível continuar a partir da tua escolha. Tenta novamente.",
       "decisionLoadFailure": "Não foi possível verificar se existe uma pergunta guardada do treinador. Volta a ligar e tenta novamente.",
       "decisionSkipFailure": "Não foi possível saltar esta pergunta. Tenta novamente.",
+      "draftSaveFailure": "Não foi possível guardar o rascunho da tua mensagem. Continua disponível nesta janela.",
       "emptyResponse": "O treinador devolveu uma resposta vazia. Tenta novamente.",
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido guardados na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",

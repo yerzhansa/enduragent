@@ -369,6 +369,7 @@ export function createChatViewAdapter(input: {
       attachments: attachments?.value ?? null,
       attachmentAdmissions: attachments?.admissions ?? EMPTY_CHAT_SURFACE.attachmentAdmissions,
       attachmentBusy: attachments?.busy ?? false,
+      draftError: attachments?.draftError ?? null,
       attachmentError: attachments?.error ?? null,
       planningRequests,
       planningRequestsLoaded: controls?.planningRequests?.loaded ?? false,

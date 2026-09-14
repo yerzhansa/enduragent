@@ -1019,6 +1019,7 @@
       "decisionFailure": "Nie udało się kontynuować po twoim wyborze. Spróbuj ponownie.",
       "decisionLoadFailure": "Nie udało się sprawdzić zapisanego pytania trenera. Połącz ponownie i spróbuj jeszcze raz.",
       "decisionSkipFailure": "Nie udało się pominąć tego pytania. Spróbuj ponownie.",
+      "draftSaveFailure": "Nie udało się zapisać wersji roboczej wiadomości. Nadal jest dostępna w tym oknie.",
       "emptyResponse": "Trener zwrócił pustą odpowiedź. Spróbuj ponownie.",
       "newConversationMemoryWarning": "Rozpoczęto nową rozmowę. Niektóre ostatnie szczegóły mogły nie zostać zapisane w pamięci trenera.",
       "newConversationSuccess": "Rozpoczęto nową rozmowę.",

@@ -72,6 +72,7 @@ export interface ChatSurfaceState {
   readonly attachments: ChatAttachmentComposerReadModel | null;
   readonly attachmentAdmissions: readonly AttachmentAdmissionReadModel[];
   readonly attachmentBusy: boolean;
+  readonly draftError: string | null;
   readonly attachmentError: string | null;
   readonly planningRequests: readonly PlanningRequestDelivery[];
   readonly planningRequestsLoaded: boolean;
@@ -177,6 +178,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   attachments: null,
   attachmentAdmissions: Object.freeze([]),
   attachmentBusy: false,
+  draftError: null,
   attachmentError: null,
   planningRequests: Object.freeze([]),
   planningRequestsLoaded: false,
@@ -371,6 +373,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.attachments === right.attachments &&
     left.attachmentAdmissions === right.attachmentAdmissions &&
     left.attachmentBusy === right.attachmentBusy &&
+    left.draftError === right.draftError &&
     left.attachmentError === right.attachmentError &&
     left.planningRequestsLoaded === right.planningRequestsLoaded &&
     left.planningRequestBusyId === right.planningRequestBusyId &&

@@ -146,6 +146,7 @@ export type CatalogKey =
   | "chat.notice.decisionFailure"
   | "chat.notice.decisionLoadFailure"
   | "chat.notice.decisionSkipFailure"
+  | "chat.notice.draftSaveFailure"
   | "chat.notice.emptyResponse"
   | "chat.notice.feedbackFailed"
   | "chat.notice.feedbackSent"

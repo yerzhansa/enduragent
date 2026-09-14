@@ -89,6 +89,8 @@ export const CHAT_QUEUE_LOAD_FAILURE_COPY =
 export const CHAT_QUEUE_REMOVE_FAILURE_COPY = "We couldn’t remove that saved message. Try again.";
 export const CHAT_ATTACHMENT_FAILURE_COPY =
   "We couldn’t update that attachment. Your message draft is preserved.";
+export const CHAT_DRAFT_SAVE_FAILURE_COPY =
+  "We couldn’t save your message draft. It’s still available in this window.";
 export const CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY =
   "We couldn’t check saved Plan requests. Reconnect and try again.";
 export const CHAT_PLANNING_REQUEST_FAILURE_COPY =
@@ -188,6 +190,7 @@ export interface ChatViewControls {
     readonly value: ChatAttachmentComposerReadModel | null;
     readonly admissions: readonly AttachmentAdmissionReadModel[];
     readonly busy: boolean;
+    readonly draftError: string | null;
     readonly error: string | null;
   };
   readonly planningRequests?: {
@@ -407,6 +410,7 @@ export function createChatController(input: {
   let queueMutationCount = 0;
   let attachmentSurface: ChatAttachmentComposerReadModel | null = null;
   let attachmentAdmissions: readonly AttachmentAdmissionReadModel[] = [];
+  let draftError: string | null = null;
   let attachmentError: string | null = null;
   let attachmentTextRevision = 0;
   let attachmentTextSaveTask: Promise<void> = Promise.resolve();
@@ -521,6 +525,7 @@ export function createChatController(input: {
             value: attachmentSurface,
             admissions: attachmentAdmissions,
             busy: attachmentBusyTokens.size > 0,
+            draftError,
             error: attachmentError,
           },
           planningRequests: {
@@ -1847,7 +1852,7 @@ export function createChatController(input: {
             return;
           }
           attachmentSurface = surface;
-          attachmentError = null;
+          draftError = null;
           render();
         } catch {
           if (
@@ -1856,7 +1861,7 @@ export function createChatController(input: {
           ) {
             return;
           }
-          attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
+          draftError = CHAT_DRAFT_SAVE_FAILURE_COPY;
           render();
         }
       })
@@ -3261,6 +3266,7 @@ export function createChatController(input: {
           }
           attachmentSurface = clearedAttachmentSurface;
           attachmentAdmissions = [];
+          draftError = null;
           attachmentError = null;
           sequence += 1;
           retryClient = undefined;

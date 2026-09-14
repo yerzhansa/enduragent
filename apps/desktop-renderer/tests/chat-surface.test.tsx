@@ -1919,6 +1919,21 @@ describe("chat surface", () => {
       expect(actions.submit).not.toHaveBeenCalled();
     });
 
+    it("shows a truthful draft-save failure with no attachments", () => {
+      setChat({
+        attachments: { schemaVersion: 1, capabilities: ATTACHMENT_CAPABILITIES, draft: null },
+        draftError: "We couldn’t save your message draft. It’s still available in this window.",
+      });
+      render(<Harness />);
+
+      expect(
+        screen.getByText(
+          "We couldn’t save your message draft. It’s still available in this window.",
+        ),
+      ).toBeVisible();
+      expect(screen.queryByText(/update that attachment/u)).toBeNull();
+    });
+
     it("opens the native picker from the centered Composer attachment control", async () => {
       const user = userEvent.setup();
       setChat({

@@ -171,6 +171,7 @@
       "decisionFailure": "We couldn’t continue from your choice. Please try again.",
       "decisionLoadFailure": "We couldn’t check for a saved Coach question. Reconnect and try again.",
       "decisionSkipFailure": "We couldn’t skip this question. Please try again.",
+      "draftSaveFailure": "We couldn’t save your message draft. It’s still available in this window.",
       "emptyResponse": "The coach returned an empty response. Please try again.",
       "feedbackFailed": "Couldn't send that note. It's still in the box — try again.",
       "feedbackSent": "Thanks — we received your note.",

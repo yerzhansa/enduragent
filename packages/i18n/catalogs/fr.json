@@ -1003,6 +1003,7 @@
       "decisionFailure": "Impossible de poursuivre à partir de ton choix. Réessaie.",
       "decisionLoadFailure": "Impossible de vérifier si une question du coach a été enregistrée. Reconnecte et réessaie.",
       "decisionSkipFailure": "Impossible de passer cette question. Réessaie.",
+      "draftSaveFailure": "Nous n’avons pas pu enregistrer ton brouillon de message. Il reste disponible dans cette fenêtre.",
       "emptyResponse": "Le coach a renvoyé une réponse vide. Réessaie.",
       "newConversationMemoryWarning": "Nouvelle conversation commencée. Certains détails récents n’ont peut-être pas été enregistrés dans la mémoire du coach.",
       "newConversationSuccess": "Nouvelle conversation commencée.",

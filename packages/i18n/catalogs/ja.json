@@ -995,6 +995,7 @@
       "decisionFailure": "選択した内容で続行できませんでした。もう一度お試しください。",
       "decisionLoadFailure": "保存済みのコーチの質問を確認できませんでした。再接続して、もう一度お試しください。",
       "decisionSkipFailure": "この質問をスキップできませんでした。もう一度お試しください。",
+      "draftSaveFailure": "メッセージの下書きを保存できませんでした。このウィンドウには引き続き残っています。",
       "emptyResponse": "コーチの回答が空でした。もう一度お試しください。",
       "newConversationMemoryWarning": "新しい会話を開始しました。最近の詳細の一部がコーチの記憶に保存されていない可能性があります。",
       "newConversationSuccess": "新しい会話を開始しました。",

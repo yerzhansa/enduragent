@@ -1003,6 +1003,7 @@
       "decisionFailure": "Vi kunne ikke fortsette fra valget ditt. Prøv igjen.",
       "decisionLoadFailure": "Vi kunne ikke se etter et lagret spørsmål fra treneren. Koble til på nytt og prøv igjen.",
       "decisionSkipFailure": "Vi kunne ikke hoppe over dette spørsmålet. Prøv igjen.",
+      "draftSaveFailure": "Vi kunne ikke lagre meldingsutkastet ditt. Det er fortsatt tilgjengelig i dette vinduet.",
       "emptyResponse": "Treneren ga et tomt svar. Prøv igjen.",
       "newConversationMemoryWarning": "Ny samtale startet. Enkelte nylige detaljer er kanskje ikke lagret i trenerens hukommelse.",
       "newConversationSuccess": "Ny samtale startet.",

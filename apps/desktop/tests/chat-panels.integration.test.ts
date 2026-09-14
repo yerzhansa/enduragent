@@ -334,12 +334,14 @@ function makeScript(
   syncOutcome: SyncOutcome,
   transcriptHistory: boolean,
   liveTurn?: LiveTurnControl,
+  initialDraftSaveFailures = 0,
 ): DesktopFixtureScript {
   let units: "metric" | "imperial" = "metric";
   let hasSession = false;
   let lastSynced: string = athleteState.lastSynced;
   let queueRevision = 0;
   let archivedDeleted = false;
+  let draftSaveFailures = initialDraftSaveFailures;
   let queueItems: Array<{
     queuedMessageId: string;
     messageId: string;
@@ -570,9 +572,15 @@ function makeScript(
         return response({ value: units, source: "cycling" });
       }
       if (request.method === "getChatQueue") return response(queueSnapshot());
+      if (request.method === "saveChatAttachmentDraftText") {
+        if (draftSaveFailures > 0) {
+          draftSaveFailures -= 1;
+          throw new Error("synthetic draft save failure");
+        }
+        return response(emptyAttachmentComposer);
+      }
       if (
         request.method === "getChatAttachmentComposer" ||
-        request.method === "saveChatAttachmentDraftText" ||
         request.method === "removeChatAttachment" ||
         request.method === "retryChatAttachment" ||
         request.method === "selectChatAttachmentWorkout" ||
@@ -831,6 +839,7 @@ async function launch(input: {
   readonly transcriptHistory?: boolean;
   readonly liveTurn?: LiveTurnControl;
   readonly hidden?: boolean;
+  readonly draftSaveFailures?: number;
 }): Promise<{ readonly fixture: RunningDesktopFixture; readonly calls: ScriptRequest[] }> {
   const calls: ScriptRequest[] = [];
   const fixture = await launchDesktopFixture({
@@ -839,6 +848,7 @@ async function launch(input: {
       input.syncOutcome ?? "no-change",
       input.transcriptHistory ?? false,
       input.liveTurn,
+      input.draftSaveFailures,
     ),
     token,
     width: input.width,
@@ -956,6 +966,84 @@ afterEach(async () => {
 });
 
 describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat panels", () => {
+  it("keeps a draft visible and clears its truthful save warning after recovery", async () => {
+    const evidencePath = process.env.PR1048_DRAFT_EVIDENCE_PATH;
+    const { fixture, calls } = await launch({
+      width: 1180,
+      height: 820,
+      reducedMotion: true,
+      hidden: true,
+      draftSaveFailures: 1,
+    });
+    const failedSave = await fixture.evaluate<{
+      readonly draft: string;
+      readonly alerts: string[];
+      readonly attachmentCards: number;
+    }>(`
+      const textarea = document.querySelector("textarea#message");
+      if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("composer missing");
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      if (valueSetter === undefined) throw new Error("textarea value setter missing");
+      valueSetter.call(textarea, "test");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      const expected = "We couldn’t save your message draft. It’s still available in this window.";
+      const deadline = Date.now() + 5000;
+      const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
+        (node) => node.textContent?.trim() ?? "",
+      );
+      while (!alerts().includes(expected) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return {
+        draft: textarea.value,
+        alerts: alerts(),
+        attachmentCards: document.querySelectorAll(".chat-attachment-card").length,
+      };
+    `);
+    expect(failedSave.draft).toBe("test");
+    expect(failedSave.attachmentCards).toBe(0);
+    expect(failedSave.alerts).toContain(
+      "We couldn’t save your message draft. It’s still available in this window.",
+    );
+    expect(failedSave.alerts).not.toContain(
+      "We couldn’t update that attachment. Your message draft is preserved.",
+    );
+    if (evidencePath !== undefined) await fixture.screenshot(evidencePath);
+
+    const recovered = await fixture.evaluate<{
+      readonly draft: string;
+      readonly alerts: string[];
+    }>(`
+      const textarea = document.querySelector("textarea#message");
+      if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("composer missing");
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      if (valueSetter === undefined) throw new Error("textarea value setter missing");
+      valueSetter.call(textarea, "test again");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      const expected = "We couldn’t save your message draft. It’s still available in this window.";
+      const deadline = Date.now() + 5000;
+      const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
+        (node) => node.textContent?.trim() ?? "",
+      );
+      while (alerts().includes(expected) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return { draft: textarea.value, alerts: alerts() };
+    `);
+    expect(recovered.draft).toBe("test again");
+    expect(recovered.alerts).not.toContain(
+      "We couldn’t save your message draft. It’s still available in this window.",
+    );
+    expect(calls.filter((call) => call.method === "saveChatAttachmentDraftText")).toHaveLength(2);
+    expect(calls.some((call) => call.method === "enqueueChatMessage")).toBe(false);
+  }, 90_000);
+
   it("hydrates persisted conversation pages without replay, focus loss, or row churn", async () => {
     const { fixture, calls } = await launch({
       width: 1440,

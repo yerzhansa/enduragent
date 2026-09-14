@@ -1003,6 +1003,7 @@
       "decisionFailure": "Det gick inte att fortsätta med ditt val. Försök igen.",
       "decisionLoadFailure": "Det gick inte att kontrollera om tränaren har en sparad fråga. Anslut på nytt och försök igen.",
       "decisionSkipFailure": "Frågan kunde inte hoppas över. Försök igen.",
+      "draftSaveFailure": "Vi kunde inte spara ditt meddelandeutkast. Det finns fortfarande kvar i det här fönstret.",
       "emptyResponse": "Tränaren gav ett tomt svar. Försök igen.",
       "newConversationMemoryWarning": "Ett nytt samtal har startats. Vissa nya uppgifter kanske inte har sparats i tränarens minne.",
       "newConversationSuccess": "Ett nytt samtal har startats.",

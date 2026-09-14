@@ -3212,6 +3212,10 @@
       "sourceHash": "f4b566a95c60c2e91b74c70cf6aa3b1e7fcedb102b31d6db419f45921e40bfc0",
       "translatedBy": "model"
     },
+    "chat.notice.draftSaveFailure": {
+      "sourceHash": "b10a054df565809e15f32e0c8a3d06ffaa327ca717ff4f8ff82f1dfbf835770e",
+      "translatedBy": "model"
+    },
     "chat.notice.emptyResponse": {
       "sourceHash": "2f9e432fa9341aac70504ef47ada9797288d71b018e6456f3fbb53d27ebed4b2",
       "translatedBy": "model"

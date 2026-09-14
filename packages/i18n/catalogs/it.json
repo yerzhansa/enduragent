@@ -1003,6 +1003,7 @@
       "decisionFailure": "Impossibile proseguire con la tua scelta. Riprova.",
       "decisionLoadFailure": "Impossibile verificare se c’è una domanda salvata del coach. Riconnetti e riprova.",
       "decisionSkipFailure": "Impossibile saltare questa domanda. Riprova.",
+      "draftSaveFailure": "Non è stato possibile salvare la bozza del messaggio. È ancora disponibile in questa finestra.",
       "emptyResponse": "Il coach ha restituito una risposta vuota. Riprova.",
       "newConversationMemoryWarning": "Nuova conversazione iniziata. Alcuni dettagli recenti potrebbero non essere stati salvati nella memoria del coach.",
       "newConversationSuccess": "Nuova conversazione iniziata.",
