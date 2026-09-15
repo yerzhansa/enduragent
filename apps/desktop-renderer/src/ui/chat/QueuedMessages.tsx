@@ -31,30 +31,16 @@ export function QueuedMessages(): ReactElement | null {
       announcement={queueLabel}
       aria-label={say("chat.queued.label", { queueLabel })}
       notice={
-        <>
-          {retryRequired !== null ? (
-            <div className="border-t border-line px-[var(--ctl-px)] py-[var(--inset)]">
-              <Button
-                variant="secondary"
-                size="xs"
-                disabled={!canChat || workBlocked || actions === null}
-                onClick={() => actions?.retryQueuedTurn(retryRequired.claimId)}
-              >
-                {say("chat.queued.retry")}
-              </Button>
-            </div>
-          ) : null}
-          {queueMutationError !== null ? (
-            <p
-              className="m-0 border-t border-line px-ctl-px py-inset text-xs text-danger"
-              role="status"
-            >
-              {queueMutationErrorMessage === null
-                ? queueMutationError
-                : say(queueMutationErrorMessage)}
-            </p>
-          ) : null}
-        </>
+        queueMutationError !== null ? (
+          <p
+            className="m-0 border-t border-line px-ctl-px py-inset text-xs text-danger"
+            role="status"
+          >
+            {queueMutationErrorMessage === null
+              ? queueMutationError
+              : say(queueMutationErrorMessage)}
+          </p>
+        ) : null
       }
     >
       {queued.map((message, index) => (
@@ -78,12 +64,7 @@ export function QueuedMessages(): ReactElement | null {
                 variant="ghost"
                 size="xs"
                 aria-label={say("chat.queued.removeLabel", { number: format.number(index + 1) })}
-                disabled={
-                  !canChat ||
-                  workBlocked ||
-                  actions === null ||
-                  retryRequired?.queuedMessageIds.includes(message.id) === true
-                }
+                disabled={!canChat || workBlocked || actions === null}
                 onClick={() => actions?.removeQueued(message.id)}
               >
                 {say("chat.queued.remove")}

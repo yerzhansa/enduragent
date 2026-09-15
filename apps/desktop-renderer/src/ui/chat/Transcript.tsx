@@ -5,6 +5,7 @@ import {
   Activity,
   CalendarDays,
   Check,
+  CircleAlert,
   FileText,
   Image as ImageIcon,
   LoaderCircle,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactElement } from "react";
 import type { PlanHandoffSuggestion, PlanningRequestDelivery } from "@enduragent/coach-contract";
+import type { WireMessage } from "../../chat/message-state";
 import type {
   ChatChoiceView,
   ChatMessageView,
@@ -26,6 +28,7 @@ import { HistoryControls } from "./HistoryControls";
 import { PlanReferenceCard } from "./PlanReferenceCard";
 import { StreamingMessage } from "./StreamingMessage";
 import { PlanCreationConversation, PlanCreationDiscardConsequence } from "./PlanCreationCards";
+import { useWireMessageText } from "./use-wire-message-text";
 
 function planHandoffSummary(suggestion: PlanHandoffSuggestion): Message {
   if (suggestion.kind === "plan_creation") {
@@ -66,6 +69,38 @@ function PlanHandoffCard(props: {
         </Button>
       </div>
     </aside>
+  );
+}
+
+function MessageRetry(props: {
+  readonly error?: string;
+  readonly errorMessage?: WireMessage;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
+  const actions = useEnduragentStore((state) => state.chatActions);
+  const text = useWireMessageText(props.error ?? "", props.errorMessage);
+  return (
+    <div
+      className="flex items-center justify-end gap-inset text-sm leading-5 text-danger"
+      role={props.error == null ? undefined : "alert"}
+    >
+      <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+      {props.error == null ? null : <span className="min-w-0">{text}</span>}
+      <Button
+        type="button"
+        className="chat-message-retry shrink-0"
+        variant="outline"
+        size="xs"
+        disabled={workBlocked || actions === null}
+        onClick={() => {
+          if (workBlocked) return;
+          actions?.retry();
+        }}
+      >
+        {say("chat.notice.retryMessage")}
+      </Button>
+    </div>
   );
 }
 
@@ -131,6 +166,9 @@ function MessageRow(props: {
             );
           })}
           {message.text.length === 0 ? null : <AthleteMessage text={message.text} />}
+          {message.retry === true ? (
+            <MessageRetry error={message.error} errorMessage={message.errorMessage} />
+          ) : null}
         </div>
       ) : streaming && props.bufferedStreaming && message.message === undefined ? (
         <StreamingMessage messageId={message.id} />

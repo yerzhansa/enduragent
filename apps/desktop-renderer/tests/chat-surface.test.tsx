@@ -1988,15 +1988,21 @@ describe("chat surface", () => {
       expect(actions.removeQueued).toHaveBeenNthCalledWith(2, "queued-1");
     });
 
-    it("runs only restored commands and offers durable recovery without a second retry", async () => {
+    it("runs only restored commands and retries a failed send from the athlete message", async () => {
       const user = userEvent.setup();
       render(<Harness />);
       setChat({
-        interrupted: true,
-        queued: [
-          { id: "queued-1", text: "Try this again", command: false, restored: true },
-          { id: "queued-2", text: "/status", command: true, restored: true },
+        messages: [
+          {
+            id: "athlete-1",
+            role: "athlete",
+            delivery: "complete",
+            historical: false,
+            text: "Try this again",
+            retry: true,
+          },
         ],
+        queued: [{ id: "queued-2", text: "/status", command: true, restored: true }],
         retryRequired: {
           claimId: "claim-1",
           queuedMessageIds: ["queued-1"],
@@ -2005,17 +2011,74 @@ describe("chat surface", () => {
         },
       });
 
-      expect(screen.getByRole("button", { name: "Retry interrupted message" })).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Remove queued message 1" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Retry interrupted message" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Retry message" })).toBeEnabled();
+      expect(texts()).toEqual(["/status"]);
+      expect(screen.getByRole("button", { name: "Remove queued message 1" })).toBeEnabled();
       const ordinaryRetry = document.querySelector(".chat-retry");
       expect(ordinaryRetry).toBeInstanceOf(HTMLButtonElement);
       expect((ordinaryRetry as HTMLButtonElement).hidden).toBe(true);
-      await user.click(screen.getByRole("button", { name: "Retry interrupted message" }));
-      expect(actions.retryQueuedTurn).toHaveBeenCalledWith("claim-1");
+      await user.click(screen.getByRole("button", { name: "Retry message" }));
+      expect(actions.retry).toHaveBeenCalledTimes(1);
 
-      setChat({ interrupted: false, retryRequired: null });
+      setChat({ retryRequired: null, messages: [] });
       await user.click(screen.getByRole("button", { name: "Run command" }));
       expect(actions.runQueuedCommand).toHaveBeenCalledWith("queued-2");
+    });
+
+    it("keeps a failed send on the athlete bubble instead of the pinned notice", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({
+        notice: null,
+        noticeRetry: false,
+        messages: [
+          {
+            id: "athlete-1",
+            role: "athlete",
+            delivery: "complete",
+            historical: false,
+            text: "How is my form?",
+            retry: true,
+            error: "Rate limited — please try again shortly.",
+          },
+        ],
+      });
+
+      expect(screen.queryByRole("region", { name: /Queued messages/u })).toBeNull();
+      expect(screen.getByRole("button", { name: "Retry message" })).toBeEnabled();
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Rate limited — please try again shortly.",
+      );
+      const pinned = document.querySelector(".chat-notice");
+      expect(pinned).toBeInstanceOf(HTMLElement);
+      expect((pinned as HTMLElement).hidden).toBe(true);
+      await user.click(screen.getByRole("button", { name: "Retry message" }));
+      expect(actions.retry).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries restored recovery from the pinned notice when no athlete row is in view", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({
+        noticeRetry: true,
+        queued: [{ id: "queued-2", text: "/status", command: true, restored: true }],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      });
+
+      expect(screen.queryByRole("button", { name: "Retry interrupted message" })).toBeNull();
+      expect(texts()).toEqual(["/status"]);
+      const ordinaryRetry = document.querySelector(".chat-retry");
+      expect(ordinaryRetry).toBeInstanceOf(HTMLButtonElement);
+      expect((ordinaryRetry as HTMLButtonElement).hidden).toBe(false);
+      expect(document.querySelector(".chat-message-retry")).toBeNull();
+      await user.click(ordinaryRetry as HTMLButtonElement);
+      expect(actions.retry).toHaveBeenCalledTimes(1);
     });
 
     it("wraps long rows, announces queue changes, and shows removal feedback", () => {
@@ -2154,7 +2217,7 @@ describe("chat surface", () => {
       render(<Harness />);
       expect(retry().hidden).toBe(true);
 
-      setChat({ interrupted: true });
+      setChat({ noticeRetry: true });
       expect(retry().hidden).toBe(false);
       await user.click(retry());
       expect(actions.retry).toHaveBeenCalledTimes(1);
@@ -2164,14 +2227,14 @@ describe("chat surface", () => {
       await user.click(retry());
       expect(actions.retry).toHaveBeenCalledTimes(1);
 
-      setChat({ workBlocked: false, interrupted: false });
+      setChat({ workBlocked: false, noticeRetry: false });
       expect(retry().hidden).toBe(true);
     });
 
     it("groups interrupted recovery above later queued messages", () => {
       setChat({
         notice: "Response stopped. Your partial response is preserved.",
-        interrupted: true,
+        noticeRetry: true,
         queued: [
           {
             id: "queued-1",
@@ -2200,7 +2263,7 @@ describe("chat surface", () => {
       setChat({
         notice: "Rate limited — please try again shortly.",
         noticeTone: "danger",
-        interrupted: true,
+        noticeRetry: true,
       });
       render(<Harness />);
 
@@ -2213,7 +2276,7 @@ describe("chat surface", () => {
       expect(document.querySelector(".chat-pinned-row")).toContainElement(notice());
       expect(document.querySelector(".composer-feedback")).not.toContainElement(retry());
 
-      setChat({ notice: "Coach is working…", noticeTone: "neutral", interrupted: false });
+      setChat({ notice: "Coach is working…", noticeTone: "neutral", noticeRetry: false });
       expect(notice()).toHaveAttribute("role", "status");
       expect(notice()).not.toHaveClass("text-danger");
       expect(notice().querySelector("svg")).toBeNull();
@@ -2232,7 +2295,7 @@ describe("chat surface", () => {
         ],
         notice: "Rate limited — please try again shortly.",
         noticeTone: "danger",
-        interrupted: true,
+        noticeRetry: true,
       });
       render(<Harness />);
 
@@ -2281,7 +2344,7 @@ describe("chat surface", () => {
         useEnduragentStore.setState({ chatActions: null });
       });
       render(<Harness />);
-      setChat({ interrupted: true });
+      setChat({ noticeRetry: true });
 
       act(() => {
         retry().click();

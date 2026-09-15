@@ -11,8 +11,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const notice = useEnduragentStore((state) => state.chat.notice);
   const descriptor = useEnduragentStore((state) => state.chat.noticeMessage);
   const tone = useEnduragentStore((state) => state.chat.noticeTone);
-  const interrupted = useEnduragentStore((state) => state.chat.interrupted);
-  const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
+  const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const message = notice === null ? null : chatFeedbackMessage(notice);
   const text = useWireMessageText(
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
@@ -20,7 +19,6 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   );
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
-  const retryOffered = interrupted && retryRequired === null;
   const danger = tone === "danger";
   return (
     <div
@@ -31,7 +29,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
       }`}
       role={danger ? "alert" : "status"}
       data-tone={tone}
-      hidden={notice === null && !retryOffered}
+      hidden={notice === null && !noticeRetry}
     >
       <span className="flex min-w-0 items-center gap-inset">
         {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
@@ -67,8 +65,7 @@ export function CoachProgress(): ReactElement | null {
 
 export function RetryBar(): ReactElement {
   const { say } = usePhrasebook();
-  const interrupted = useEnduragentStore((state) => state.chat.interrupted);
-  const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
+  const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
   const actions = useEnduragentStore((state) => state.chatActions);
 
@@ -78,10 +75,10 @@ export function RetryBar(): ReactElement {
       className="chat-retry shrink-0"
       variant="outline"
       size="xs"
-      hidden={!interrupted || retryRequired !== null}
-      disabled={workBlocked}
+      hidden={!noticeRetry}
+      disabled={workBlocked || actions === null}
       onClick={() => {
-        if (!interrupted || retryRequired !== null || workBlocked) return;
+        if (!noticeRetry || workBlocked) return;
         actions?.retry();
       }}
     >
