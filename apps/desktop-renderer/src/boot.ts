@@ -136,13 +136,8 @@ export function bootRenderer(): Disposer {
     selectedAnalysisRide = selected;
     void rideAnalysisController.select(selected);
   });
-  const clientAfterFailure = async (failedClient: DesktopCoachClient | undefined) => {
-    if (failedClient === undefined) return clients.reconnect({ kind: "replace-current" });
-    const current = await clients.getClient();
-    return current === failedClient
-      ? clients.reconnect({ kind: "failed-client", client: failedClient })
-      : current;
-  };
+  const clientAfterFailure = (failedClient: DesktopCoachClient | undefined) =>
+    clients.reconnect(failedClient);
   const trainingAdapter = createTrainingViewAdapter({
     readUnits: () => store.getState().settings.units,
     publish: (next) => store.getState().setTraining(next),

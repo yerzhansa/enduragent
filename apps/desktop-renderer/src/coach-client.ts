@@ -9,13 +9,9 @@ import { validateRendererDaemonConnection } from "./daemon-connection";
 
 export type DesktopCoachClient = Pick<CoachClient, "handshake" | "call">;
 
-export type DesktopCoachClientReconnect =
-  | { readonly kind: "failed-client"; readonly client: DesktopCoachClient }
-  | { readonly kind: "replace-current" };
-
 export interface DesktopCoachClientProvider {
   getClient(): Promise<DesktopCoachClient>;
-  reconnect(request: DesktopCoachClientReconnect): Promise<DesktopCoachClient>;
+  reconnect(failedClient?: DesktopCoachClient): Promise<DesktopCoachClient>;
   close(): Promise<void>;
 }
 
@@ -153,13 +149,14 @@ export function createDesktopCoachClientProvider(
     return pending;
   };
 
-  const reconnect = (request: DesktopCoachClientReconnect): Promise<OwnedClient> => {
+  const alreadyReplaced = (
+    owner: OwnedClient,
+    failedClient: DesktopCoachClient | undefined,
+  ): boolean => failedClient !== undefined && owner.client !== failedClient;
+
+  const reconnect = (failedClient: DesktopCoachClient | undefined): Promise<OwnedClient> => {
     if (shutdownCause !== undefined) return Promise.reject(shutdownCause);
-    if (
-      request.kind === "failed-client" &&
-      selected !== undefined &&
-      selected.client !== request.client
-    ) {
+    if (selected !== undefined && alreadyReplaced(selected, failedClient)) {
       return Promise.resolve(selected);
     }
     if (reconnection !== undefined) return reconnection;
@@ -170,13 +167,7 @@ export function createDesktopCoachClientProvider(
       if (previous === undefined && previousConnection !== undefined) {
         previous = await previousConnection.catch(() => undefined);
       }
-      if (
-        request.kind === "failed-client" &&
-        previous !== undefined &&
-        previous.client !== request.client
-      ) {
-        return previous;
-      }
+      if (previous !== undefined && alreadyReplaced(previous, failedClient)) return previous;
       if (selected === previous) selected = undefined;
       if (previous !== undefined) void retire(previous);
       return connectFresh(previous?.generation ?? failedGeneration);
@@ -195,8 +186,8 @@ export function createDesktopCoachClientProvider(
         ? Promise.resolve(selected!.client)
         : available.then((owner) => owner.client);
     },
-    reconnect(request) {
-      return reconnect(request).then((owner) => owner.client);
+    reconnect(failedClient) {
+      return reconnect(failedClient).then((owner) => owner.client);
     },
     close() {
       if (closing !== undefined) return closing;

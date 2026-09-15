@@ -77,13 +77,8 @@ export function createTrainingContextController(input: {
     render();
   };
 
-  const clientAfterFailure = async (failedClient: DesktopCoachClient | undefined) => {
-    if (failedClient === undefined) return input.clients.reconnect({ kind: "replace-current" });
-    const current = await input.clients.getClient();
-    return current === failedClient
-      ? input.clients.reconnect({ kind: "failed-client", client: failedClient })
-      : current;
-  };
+  const clientAfterFailure = (failedClient: DesktopCoachClient | undefined) =>
+    input.clients.reconnect(failedClient);
 
   const fetchState = (): Promise<void> => {
     if (stateRequest !== undefined) return stateRequest;

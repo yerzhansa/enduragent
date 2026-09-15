@@ -147,15 +147,10 @@ export function createTrainingSyncCoordinator(input: {
     });
   };
 
-  const clientAfterFailure = async (
+  const clientAfterFailure = (
     previous: DesktopCoachClient | undefined,
-  ): Promise<DesktopCoachClient> => {
-    if (previous === undefined) return input.clients.getClient();
-    const client = await input.clients.getClient();
-    return client === previous
-      ? input.clients.reconnect({ kind: "failed-client", client: previous })
-      : client;
-  };
+  ): Promise<DesktopCoachClient> =>
+    previous === undefined ? input.clients.getClient() : input.clients.reconnect(previous);
 
   const begin = (): Promise<void> => {
     const selectedEpoch = ++epoch;

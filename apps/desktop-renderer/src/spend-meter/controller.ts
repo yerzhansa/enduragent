@@ -113,15 +113,7 @@ export function createSpendMeterController(input: {
 
   const clientForOperation = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
-    const current = await input.clients.getClient();
-    const client =
-      failedClient === undefined || current === failedClient
-        ? await input.clients.reconnect(
-            failedClient === undefined
-              ? { kind: "replace-current" }
-              : { kind: "failed-client", client: failedClient },
-          )
-        : current;
+    const client = await input.clients.reconnect(failedClient);
     reconnectRequired = false;
     failedClient = undefined;
     return client;

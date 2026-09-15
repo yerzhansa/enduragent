@@ -167,13 +167,13 @@
     {
       "id": "training.view.context-recovery",
       "surface": "training",
-      "expected": "A failed refresh renders the retained week as Last recorded with one warning and no current-period callout; a later explicit refresh reconnects after disconnection and reuses a newer healthy client.",
+      "expected": "A failed refresh renders the retained week as Last recorded with one warning and no current-period callout; a later explicit refresh reconnects after disconnection and continues on the client the provider recovers.",
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/training-surface.test.tsx > training history states and import status > renders a retained stale wrapper as last-recorded with one refresh-failure warning",
         "apps/desktop-renderer/tests/training-context.test.ts > uses the explicit fallback for an older state and retains it on refresh failure",
         "apps/desktop-renderer/tests/training-context.test.ts > reconnects the next athlete-state read after a disconnect",
-        "apps/desktop-renderer/tests/training-context.test.ts > uses a shared recovered client instead of reconnecting a stale failed instance"
+        "apps/desktop-renderer/tests/training-context.test.ts > asks the provider to replace the failed client and continues on the recovered one"
       ]
     },
     {

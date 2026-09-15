@@ -696,15 +696,7 @@ export function createChatController(input: {
 
       try {
         if (reconnect) {
-          if (retryClient === undefined) {
-            client = await input.clients.reconnect({ kind: "replace-current" });
-          } else {
-            const currentClient = await input.clients.getClient();
-            client =
-              currentClient === retryClient
-                ? await input.clients.reconnect({ kind: "failed-client", client: retryClient })
-                : currentClient;
-          }
+          client = await input.clients.reconnect(retryClient);
           retryClient = undefined;
         } else {
           client = await input.clients.getClient();
@@ -3178,7 +3170,7 @@ export function createChatController(input: {
       render();
       const task = (async () => {
         try {
-          const client = await input.clients.reconnect({ kind: "replace-current" });
+          const client = await input.clients.reconnect();
           const [loaded] = await Promise.all([refreshDecision(client), refreshQueue(client)]);
           if (
             loaded?.status === "answered" &&

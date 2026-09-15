@@ -347,11 +347,10 @@ export function createCredentialSettingsController(input: {
 
   const runtimeClient = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
-    const current = await input.clients.getClient();
     const client =
-      failedClient !== undefined && current === failedClient
-        ? await input.clients.reconnect({ kind: "failed-client", client: failedClient })
-        : current;
+      failedClient === undefined
+        ? await input.clients.getClient()
+        : await input.clients.reconnect(failedClient);
     reconnectRequired = false;
     failedClient = undefined;
     return client;

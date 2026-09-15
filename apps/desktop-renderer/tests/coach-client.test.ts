@@ -142,7 +142,7 @@ describe("desktop coach client lifecycle", () => {
       void operation.catch(() => undefined);
       const pending = await admitted.promise;
 
-      const replacement = await clients.reconnect({ kind: "replace-current" });
+      const replacement = await clients.reconnect();
       expect(replacement).not.toBe(first);
       await expect(replacement.call("hasSession", { chatId: "desktop" })).resolves.toEqual({
         hasSession: false,
@@ -208,7 +208,7 @@ describe("desktop coach client lifecycle", () => {
       vi.fn(async () => Promise.reject(new Error())),
     );
     await expect(clients.getClient()).rejects.toThrow();
-    await expect(clients.reconnect({ kind: "replace-current" })).rejects.toThrow();
+    await expect(clients.reconnect()).rejects.toThrow();
     expect(order).toEqual(["coordinates", "recover-7"]);
     expect(auth.getDaemonConnection).toHaveBeenNthCalledWith(2, 7);
   });
@@ -296,8 +296,8 @@ describe("desktop coach client lifecycle", () => {
     vi.stubGlobal("window", { enduragentAuth: auth });
     const clients = createDesktopCoachClientProvider(connect);
     await expect(clients.getClient()).resolves.toBe(first);
-    const reconnecting = clients.reconnect({ kind: "replace-current" });
-    const duplicate = clients.reconnect({ kind: "replace-current" });
+    const reconnecting = clients.reconnect();
+    const duplicate = clients.reconnect();
     await expect(reconnecting).resolves.toBe(second);
     await expect(duplicate).resolves.toBe(second);
     expect(closeFirstWhenIdle).toHaveBeenCalledTimes(1);
@@ -496,10 +496,10 @@ describe("desktop coach client lifecycle", () => {
     const clients = createDesktopCoachClientProvider(connect);
     await clients.getClient();
     const oldOptions = connect.mock.calls[0]![0] as ConnectCoachClientOptions;
-    await expect(clients.reconnect({ kind: "replace-current" })).resolves.toBe(second);
+    await expect(clients.reconnect()).resolves.toBe(second);
 
     oldOptions.onTerminal?.(first, new CoachClientDisconnectedError(1000, "old close"));
-    await expect(clients.reconnect({ kind: "failed-client", client: first })).resolves.toBe(second);
+    await expect(clients.reconnect(first)).resolves.toBe(second);
 
     await expect(clients.getClient()).resolves.toBe(second);
     expect(auth.getDaemonConnection).toHaveBeenCalledTimes(2);
@@ -540,7 +540,7 @@ describe("desktop coach client lifecycle", () => {
     const clients = createDesktopCoachClientProvider(connect);
 
     await expect(clients.getClient()).resolves.toBe(first);
-    await expect(clients.reconnect({ kind: "replace-current" })).resolves.toBe(second);
+    await expect(clients.reconnect()).resolves.toBe(second);
     const closing = clients.close();
 
     expect(clients.close()).toBe(closing);
@@ -618,7 +618,7 @@ describe("desktop coach client lifecycle", () => {
 
     const getDuringClose = await clients.getClient().catch((error: unknown) => error);
     const reconnectDuringClose = await clients
-      .reconnect({ kind: "replace-current" })
+      .reconnect()
       .catch((error: unknown) => error);
     expect(closeSettled).toBe(false);
     expect(getDuringClose).toBeInstanceOf(CoachClientDisconnectedError);
@@ -633,7 +633,7 @@ describe("desktop coach client lifecycle", () => {
 
     const getAfterClose = await clients.getClient().catch((error: unknown) => error);
     const reconnectAfterClose = await clients
-      .reconnect({ kind: "replace-current" })
+      .reconnect()
       .catch((error: unknown) => error);
     expect(getAfterClose).toBe(getDuringClose);
     expect(reconnectAfterClose).toBe(getDuringClose);
