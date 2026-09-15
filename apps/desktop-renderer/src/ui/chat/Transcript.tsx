@@ -5,6 +5,7 @@ import {
   Activity,
   CalendarDays,
   Check,
+  CircleAlert,
   FileText,
   Image as ImageIcon,
   LoaderCircle,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactElement } from "react";
 import type { PlanHandoffSuggestion, PlanningRequestDelivery } from "@enduragent/coach-contract";
+import type { WireMessage } from "../../chat/message-state";
 import type {
   ChatChoiceView,
   ChatMessageView,
@@ -26,6 +28,7 @@ import { HistoryControls } from "./HistoryControls";
 import { PlanReferenceCard } from "./PlanReferenceCard";
 import { StreamingMessage } from "./StreamingMessage";
 import { PlanCreationConversation, PlanCreationDiscardConsequence } from "./PlanCreationCards";
+import { useWireMessageText } from "./use-wire-message-text";
 
 function planHandoffSummary(suggestion: PlanHandoffSuggestion): Message {
   if (suggestion.kind === "plan_creation") {
@@ -66,6 +69,38 @@ function PlanHandoffCard(props: {
         </Button>
       </div>
     </aside>
+  );
+}
+
+function MessageRetry(props: {
+  readonly error?: string;
+  readonly errorMessage?: WireMessage;
+}): ReactElement {
+  const { say } = usePhrasebook();
+  const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
+  const actions = useEnduragentStore((state) => state.chatActions);
+  const text = useWireMessageText(props.error ?? "", props.errorMessage);
+  return (
+    <div
+      className="flex items-center justify-end gap-inset text-sm leading-5 text-danger"
+      role={props.error == null ? undefined : "alert"}
+    >
+      <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+      {props.error == null ? null : <span className="min-w-0">{text}</span>}
+      <Button
+        type="button"
+        className="chat-message-retry shrink-0"
+        variant="outline"
+        size="xs"
+        disabled={workBlocked || actions === null}
+        onClick={() => {
+          if (workBlocked) return;
+          actions?.retry();
+        }}
+      >
+        {say("chat.notice.retryMessage")}
+      </Button>
+    </div>
   );
 }
 
@@ -131,6 +166,9 @@ function MessageRow(props: {
             );
           })}
           {message.text.length === 0 ? null : <AthleteMessage text={message.text} />}
+          {message.retry === true ? (
+            <MessageRetry error={message.error} errorMessage={message.errorMessage} />
+          ) : null}
         </div>
       ) : streaming && props.bufferedStreaming && message.message === undefined ? (
         <StreamingMessage messageId={message.id} />
@@ -303,6 +341,48 @@ function PlanningRequestRow(props: { readonly delivery: PlanningRequestDelivery 
   );
 }
 
+export function transcriptItemKey(item: ChatTranscriptItemView): string {
+  switch (item.kind) {
+    case "message":
+      return `message:${item.message.id}`;
+    case "choice":
+      return `choice:${item.choice.id}`;
+    case "planning-request":
+      return `planning-request:${item.delivery.requestId}`;
+    case "plan-creation":
+      return `plan-creation:${item.model?.creationId ?? "active"}`;
+    case "plan-creation-discard":
+      return `plan-creation-discard:${item.eventId}`;
+    default: {
+      const exhaustive: never = item;
+      return exhaustive;
+    }
+  }
+}
+
+export function TranscriptItem(props: {
+  readonly item: ChatTranscriptItemView;
+  readonly bufferedStreaming: boolean;
+}): ReactElement | null {
+  const item = props.item;
+  switch (item.kind) {
+    case "message":
+      return <MessageRow message={item.message} bufferedStreaming={props.bufferedStreaming} />;
+    case "choice":
+      return <ChoiceRow choice={item.choice} />;
+    case "planning-request":
+      return <PlanningRequestRow delivery={item.delivery} />;
+    case "plan-creation":
+      return <PlanCreationConversation model={item.model} />;
+    case "plan-creation-discard":
+      return <PlanCreationDiscardConsequence eventId={item.eventId} />;
+    default: {
+      const exhaustive: never = item;
+      return exhaustive;
+    }
+  }
+}
+
 export function ConversationTranscript(props: {
   readonly messages: readonly ChatMessageView[];
   readonly timeline?: readonly ChatTranscriptItemView[];
@@ -330,32 +410,13 @@ export function ConversationTranscript(props: {
       <div className="chat-messages grid gap-7">
         {items.length === 0 ? null : (
           <div className="contents">
-            {items.map((item) =>
-              item.kind === "message" ? (
-                <MessageRow
-                  key={`message:${item.message.id}`}
-                  message={item.message}
-                  bufferedStreaming={props.bufferedStreaming ?? false}
-                />
-              ) : item.kind === "choice" ? (
-                <ChoiceRow key={`choice:${item.choice.id}`} choice={item.choice} />
-              ) : item.kind === "planning-request" ? (
-                <PlanningRequestRow
-                  key={`planning-request:${item.delivery.requestId}`}
-                  delivery={item.delivery}
-                />
-              ) : item.kind === "plan-creation" ? (
-                <PlanCreationConversation
-                  key={`plan-creation:${item.model?.creationId ?? "active"}`}
-                  model={item.model}
-                />
-              ) : (
-                <PlanCreationDiscardConsequence
-                  key={`plan-creation-discard:${item.eventId}`}
-                  eventId={item.eventId}
-                />
-              ),
-            )}
+            {items.map((item) => (
+              <TranscriptItem
+                key={transcriptItemKey(item)}
+                item={item}
+                bufferedStreaming={props.bufferedStreaming ?? false}
+              />
+            ))}
           </div>
         )}
       </div>

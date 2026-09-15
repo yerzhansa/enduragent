@@ -14,6 +14,7 @@ function started(requestKey = 1): ChatState {
   return reduceChatState(EMPTY_CHAT_STATE, {
     type: "submit",
     requestKey,
+    occurredAtMs: 0,
     userMessage: "How should I train?",
     userMessageId: "message-1",
     assistantMessageId: "message-2",
@@ -184,6 +185,7 @@ describe("desktop turn state", () => {
       let state = reduceChatState(absent, {
         type: "submit",
         requestKey: 1,
+        occurredAtMs: 0,
         userMessage: "How should I train?",
         userMessageId: "message-1",
         assistantMessageId: "message-2",
@@ -397,6 +399,7 @@ describe("desktop turn state", () => {
     let visible = reduceChatState(absent, {
       type: "submit",
       requestKey: 1,
+      occurredAtMs: 0,
       userMessage: "Keep this visible",
       userMessageId: "message-2",
       assistantMessageId: "message-3",
@@ -421,6 +424,7 @@ describe("desktop turn state", () => {
     let state = reduceChatState(absent, {
       type: "submit",
       requestKey: 4,
+      occurredAtMs: 0,
       userMessage: "How should I train?",
       userMessageId: "message-1",
       assistantMessageId: "message-2",
@@ -528,6 +532,7 @@ describe("desktop turn state", () => {
     const submitted = reduceChatState(announced, {
       type: "submit",
       requestKey: 4,
+      occurredAtMs: 0,
       userMessage: "What should I ride today?",
       userMessageId: "message-4",
       assistantMessageId: "message-5",
@@ -549,6 +554,7 @@ describe("desktop turn state", () => {
       {
         type: "submit",
         requestKey: 5,
+        occurredAtMs: 0,
         userMessage: "Do not accept this yet.",
         userMessageId: "message-6",
         assistantMessageId: "message-7",

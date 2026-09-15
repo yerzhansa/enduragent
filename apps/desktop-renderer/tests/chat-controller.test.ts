@@ -37,7 +37,9 @@ import type {
   TurnEvent,
 } from "@enduragent/coach-contract";
 import {
+  CHAT_ATTACHMENT_FAILURE_COPY,
   CHAT_CONNECTION_INTERRUPTED_COPY,
+  CHAT_DRAFT_SAVE_FAILURE_COPY,
   CHAT_EMPTY_RESPONSE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
@@ -688,8 +690,11 @@ function subject(
   settleSubmissions = true,
   openPlanningRequest = vi.fn(),
   initialQueueSnapshot: ChatQueueSnapshot = { schemaVersion: 1, revision: 0, items: [] },
-  submitAthleteFeedback?: (text: string) => Promise<
-    { readonly ok: true } | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
+  submitAthleteFeedback?: (
+    text: string,
+  ) => Promise<
+    | { readonly ok: true }
+    | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
   >,
 ) {
   const states: ChatState[] = [];
@@ -1427,7 +1432,7 @@ describe("chat controller", () => {
     await controller.submit("Same message");
     await vi.waitFor(() => expect(states.at(-1)?.status).toBe("interrupted"));
     expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
-    await controller.retryQueuedTurn("claim-1");
+    await controller.retry();
     expect(provider.reconnect).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toHaveLength(2);
     expect(states.at(-1)?.messages.at(-1)?.text).toBe("Recovered");
@@ -3720,6 +3725,50 @@ describe("chat controller", () => {
     releaseSave();
     await submission;
     expect(order).toEqual(["save-start", "save-end", "chat"]);
+  });
+
+  it("reports a disconnected plain-text draft save separately from attachments and clears it after recovery", async () => {
+    let attempt = 0;
+    const saveText = vi.fn(async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        throw new CoachClientDisconnectedError(1006, "private close reason");
+      }
+      return emptyComposer();
+    });
+    const fake = client(replies(), {
+      composer: async () => {
+        throw new CoachClientDisconnectedError(1006, "private close reason");
+      },
+      saveAttachmentDraftText: saveText,
+    });
+    const { controller, controls } = subject(fake);
+
+    controller.saveAttachmentDraftText("test");
+    await vi.waitFor(() => {
+      expect(controls.at(-1)?.attachments).toMatchObject({
+        draftError: CHAT_DRAFT_SAVE_FAILURE_COPY,
+        error: null,
+      });
+    });
+
+    controller.saveAttachmentDraftText("test again");
+    await vi.waitFor(() => {
+      expect(saveText).toHaveBeenCalledTimes(2);
+      expect(controls.at(-1)?.attachments).toMatchObject({ draftError: null, error: null });
+    });
+
+    await controller.refreshAttachments();
+    expect(controls.at(-1)?.attachments).toMatchObject({
+      draftError: null,
+      error: CHAT_ATTACHMENT_FAILURE_COPY,
+    });
+    controller.saveAttachmentDraftText("test after attachment failure");
+    await vi.waitFor(() => expect(saveText).toHaveBeenCalledTimes(3));
+    expect(controls.at(-1)?.attachments).toMatchObject({
+      draftError: null,
+      error: CHAT_ATTACHMENT_FAILURE_COPY,
+    });
   });
 
   it("starts one exact session probe and deduplicates repeated starts", async () => {

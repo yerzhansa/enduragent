@@ -131,7 +131,7 @@
         "credentialRequired": "Este fornecedor precisa de uma credencial guardada para te orientar. Usa a área de configuração acima para adicionares uma.",
         "invalidInput": "Esse fornecedor ou modelo não foi aceite. Verifica o nome do modelo e tenta novamente.",
         "requestFailed": "Não foi possível guardar as definições do treinador agora. Tenta novamente.",
-        "runtimeUnavailable": "Não foi possível ativar as definições do treinador. Tenta guardar novamente."
+        "runtimeUnavailable": "Não foi possível ativar as definições do treinador. Tenta novamente."
       },
       "inactive": "Inativo",
       "loading": "A carregar definições do treinador…",
@@ -153,7 +153,7 @@
       "title": "Treinador",
       "unavailable": "As definições do treinador não estão disponíveis agora. Tenta novamente.",
       "unsaved": "Por guardar",
-      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolhe a subscrição {{claude}} ou um fornecedor com chave de API e guarda a ligação do treinador. As tuas credenciais, dados de atleta, conversas e outras definições mantêm-se.",
+      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolhe a subscrição {{claude}} ou um fornecedor com chave de API. As tuas credenciais, dados de atleta, conversas e outras definições mantêm-se.",
       "validation": {
         "modelControlCharacters": "Os nomes de modelos não podem conter carateres de controlo.",
         "modelRequired": "Introduz um nome de modelo.",
@@ -319,7 +319,7 @@
         "failed": "Não foi possível guardar o limite diário.",
         "invalid": "Introduz um limite diário superior a $0.",
         "label": "Limite diário (USD)",
-        "save": "Guardar limite",
+        "retry": "Tentar novamente",
         "value": "{{known}} de {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plano, {{formattedCount}} itens precisam de atenção",
     "sync": {
       "action": {
-        "again": "Sincronizar novamente",
+        "again": "Sincronizar",
         "now": "Sincronizar agora",
         "retry": "Tentar novamente",
         "unavailable": "Sincronização indisponível"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Envia uma mensagem ao teu treinador",
       "responding": "O treinador está a responder…",
       "send": "Enviar mensagem",
+      "sendConnecting": "O Chat ainda está a ligar-se, por isso Enviar ainda não está pronto.",
       "stop": "Parar resposta"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Não foi possível continuar a partir da tua escolha. Tenta novamente.",
       "decisionLoadFailure": "Não foi possível verificar se existe uma pergunta guardada do treinador. Volta a ligar e tenta novamente.",
       "decisionSkipFailure": "Não foi possível saltar esta pergunta. Tenta novamente.",
+      "draftSaveFailure": "Não foi possível contactar o coach, por isso a tua mensagem continua na caixa.",
       "emptyResponse": "O treinador devolveu uma resposta vazia. Tenta novamente.",
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido guardados na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Nenhuma alteração aos treinos.",
       "none": "Nenhum",
       "notInPlan": "Fora do plano",
-      "openPlan": "Abrir Plano",
+      "openPlan": "Abrir Plano ativo",
       "option": {
         "ftp": "Corrigir FTP",
         "hardWeekday": "Sem treino intenso num dia da semana",
@@ -1450,6 +1452,10 @@
       "conversation": "Conversa com o treinador",
       "disclaimer": "Não constitui aconselhamento médico nem substitui um médico ou um treinador certificado.",
       "hideContext": "Ocultar contexto de treino",
+      "pendingDraft": "O teu Plano de treino está pronto para revisão.",
+      "reviewChange": "Rever alteração",
+      "reviewChoices": "Rever escolhas",
+      "reviewDraft": "Rever Rascunho",
       "showContext": "Mostrar contexto de treino",
       "title": "Conversa"
     }

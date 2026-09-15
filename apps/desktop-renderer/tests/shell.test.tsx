@@ -791,14 +791,18 @@ describe("shell", () => {
     });
 
     expect(requireCompletion).toHaveBeenCalledOnce();
-    expect(document.querySelector('[data-shell="gate"]')).not.toBeNull();
+    await waitFor(() => {
+      expect(document.querySelector('[data-shell="gate"]')).not.toBeNull();
+    });
 
     act(() => {
       useEnduragentStore.getState().patchSettings({ credentials: { status: "closed" } });
     });
 
-    expect(document.querySelector('[data-shell="gate"]')).not.toBeNull();
-    expect(screen.queryByRole("navigation", { name: "Main navigation" })).toBeNull();
+    await waitFor(() => {
+      expect(document.querySelector('[data-shell="gate"]')).not.toBeNull();
+      expect(screen.queryByRole("navigation", { name: "Main navigation" })).toBeNull();
+    });
   });
 
   it("reports onboarding startup as pending until the decision settles", async () => {

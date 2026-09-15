@@ -334,12 +334,15 @@ function makeScript(
   syncOutcome: SyncOutcome,
   transcriptHistory: boolean,
   liveTurn?: LiveTurnControl,
+  initialDraftSaveFailures = 0,
+  holdCoachDecision?: Promise<void>,
 ): DesktopFixtureScript {
   let units: "metric" | "imperial" = "metric";
   let hasSession = false;
   let lastSynced: string = athleteState.lastSynced;
   let queueRevision = 0;
   let archivedDeleted = false;
+  let draftSaveFailures = initialDraftSaveFailures;
   let queueItems: Array<{
     queuedMessageId: string;
     messageId: string;
@@ -570,9 +573,15 @@ function makeScript(
         return response({ value: units, source: "cycling" });
       }
       if (request.method === "getChatQueue") return response(queueSnapshot());
+      if (request.method === "saveChatAttachmentDraftText") {
+        if (draftSaveFailures > 0) {
+          draftSaveFailures -= 1;
+          throw new Error("synthetic draft save failure");
+        }
+        return response(emptyAttachmentComposer);
+      }
       if (
         request.method === "getChatAttachmentComposer" ||
-        request.method === "saveChatAttachmentDraftText" ||
         request.method === "removeChatAttachment" ||
         request.method === "retryChatAttachment" ||
         request.method === "selectChatAttachmentWorkout" ||
@@ -644,7 +653,12 @@ ${"nonwrapping".repeat(36)}
         ];
       }
       if (request.method === "hasSession") return response({ hasSession });
-      if (request.method === "getCoachDecision") return response({ decision: null });
+      if (request.method === "getCoachDecision") {
+        if (holdCoachDecision !== undefined) {
+          return holdCoachDecision.then(() => response({ decision: null }));
+        }
+        return response({ decision: null });
+      }
       if (request.method === "getTranscriptPage") {
         if (!transcriptHistory) {
           return response({
@@ -831,6 +845,8 @@ async function launch(input: {
   readonly transcriptHistory?: boolean;
   readonly liveTurn?: LiveTurnControl;
   readonly hidden?: boolean;
+  readonly draftSaveFailures?: number;
+  readonly holdCoachDecision?: Promise<void>;
 }): Promise<{ readonly fixture: RunningDesktopFixture; readonly calls: ScriptRequest[] }> {
   const calls: ScriptRequest[] = [];
   const fixture = await launchDesktopFixture({
@@ -839,6 +855,8 @@ async function launch(input: {
       input.syncOutcome ?? "no-change",
       input.transcriptHistory ?? false,
       input.liveTurn,
+      input.draftSaveFailures,
+      input.holdCoachDecision,
     ),
     token,
     width: input.width,
@@ -905,25 +923,27 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
   readonly planningIssue: boolean;
   readonly composerWithinViewport: boolean;
   readonly disclaimerWithinViewport: boolean;
-  readonly projectionsScrollLocally: boolean;
-  readonly disclaimerStableAfterProjectionScroll: boolean;
+  readonly adjacentScrollsLocally: boolean;
+  readonly disclaimerStableAfterAdjacentScroll: boolean;
   readonly footerOrder: boolean;
   readonly documentVerticalOverflow: boolean;
 }> {
   return fixture.evaluate(`
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const composerWrap = document.querySelector(".composer-wrap");
-    const projections = document.querySelector(".composer-projections");
-    const composer = composerWrap?.querySelector("form");
+    const shell = composerWrap?.querySelector(":scope > .composer-shell");
+    const adjacent = shell?.querySelector(":scope > .composer-adjacent");
+    const composer = shell?.querySelector(":scope > form");
     const disclaimer = composerWrap?.querySelector(":scope > p:last-child");
-    if (!(composerWrap instanceof HTMLElement) || !(projections instanceof HTMLElement) ||
+    if (!(composerWrap instanceof HTMLElement) || !(shell instanceof HTMLElement) ||
+        !(adjacent instanceof HTMLElement) ||
         !(composer instanceof HTMLFormElement) || !(disclaimer instanceof HTMLElement)) {
       throw new Error("stacked composer surface is incomplete");
     }
     const text = composerWrap.textContent ?? "";
     const wrapRect = composerWrap.getBoundingClientRect();
     const disclaimerBefore = disclaimer.getBoundingClientRect();
-    projections.scrollTop = projections.scrollHeight;
+    adjacent.scrollTop = adjacent.scrollHeight;
     await new Promise((resolve) => requestAnimationFrame(resolve));
     const disclaimerAfter = disclaimer.getBoundingClientRect();
     return {
@@ -932,12 +952,13 @@ async function stackedProjectionGeometry(fixture: RunningDesktopFixture): Promis
       composerWithinViewport: wrapRect.top >= 0 && wrapRect.bottom <= window.innerHeight,
       disclaimerWithinViewport:
         disclaimerAfter.top >= 0 && disclaimerAfter.bottom <= window.innerHeight,
-      projectionsScrollLocally: getComputedStyle(projections).overflowY === "auto",
-      disclaimerStableAfterProjectionScroll:
+      adjacentScrollsLocally: getComputedStyle(adjacent).overflowY === "auto",
+      disclaimerStableAfterAdjacentScroll:
         Math.abs(disclaimerBefore.top - disclaimerAfter.top) < 1 &&
         Math.abs(disclaimerBefore.bottom - disclaimerAfter.bottom) < 1,
       footerOrder:
-        projections.nextElementSibling === composer && composer.nextElementSibling === disclaimer,
+        shell.nextElementSibling === disclaimer &&
+        adjacent.nextElementSibling === composer,
       documentVerticalOverflow:
         document.documentElement.scrollHeight > document.documentElement.clientHeight,
     };
@@ -953,6 +974,135 @@ afterEach(async () => {
 });
 
 describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat panels", () => {
+  it("keeps a draft visible and clears its truthful save warning after recovery", async () => {
+    const evidencePath = process.env.PR1048_DRAFT_EVIDENCE_PATH;
+    const { fixture, calls } = await launch({
+      width: 1180,
+      height: 820,
+      reducedMotion: true,
+      hidden: true,
+      draftSaveFailures: 1,
+    });
+    const failedSave = await fixture.evaluate<{
+      readonly draft: string;
+      readonly alerts: string[];
+      readonly attachmentCards: number;
+    }>(`
+      const textarea = document.querySelector("textarea#message");
+      if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("composer missing");
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      if (valueSetter === undefined) throw new Error("textarea value setter missing");
+      valueSetter.call(textarea, "test");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      const expected = "Couldn’t reach the coach, so your message is still in the box.";
+      const deadline = Date.now() + 5000;
+      const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
+        (node) => node.textContent?.trim() ?? "",
+      );
+      while (!alerts().includes(expected) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return {
+        draft: textarea.value,
+        alerts: alerts(),
+        attachmentCards: document.querySelectorAll(".chat-attachment-card").length,
+      };
+    `);
+    expect(failedSave.draft).toBe("test");
+    expect(failedSave.attachmentCards).toBe(0);
+    expect(failedSave.alerts).toContain(
+      "Couldn’t reach the coach, so your message is still in the box.",
+    );
+    expect(failedSave.alerts).not.toContain(
+      "We couldn’t update that attachment. Your message draft is preserved.",
+    );
+    if (evidencePath !== undefined) await fixture.screenshot(evidencePath);
+
+    const recovered = await fixture.evaluate<{
+      readonly draft: string;
+      readonly alerts: string[];
+    }>(`
+      const textarea = document.querySelector("textarea#message");
+      if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("composer missing");
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      if (valueSetter === undefined) throw new Error("textarea value setter missing");
+      valueSetter.call(textarea, "test again");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      const expected = "Couldn’t reach the coach, so your message is still in the box.";
+      const deadline = Date.now() + 5000;
+      const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
+        (node) => node.textContent?.trim() ?? "",
+      );
+      while (alerts().includes(expected) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return { draft: textarea.value, alerts: alerts() };
+    `);
+    expect(recovered.draft).toBe("test again");
+    expect(recovered.alerts).not.toContain(
+      "Couldn’t reach the coach, so your message is still in the box.",
+    );
+    expect(calls.filter((call) => call.method === "saveChatAttachmentDraftText")).toHaveLength(2);
+    expect(calls.some((call) => call.method === "enqueueChatMessage")).toBe(false);
+  }, 90_000);
+
+  it("explains why Send is off while Chat is still connecting", async () => {
+    const hold = deferred<void>();
+    const { fixture } = await launch({
+      width: 1180,
+      height: 820,
+      reducedMotion: true,
+      hidden: true,
+      holdCoachDecision: hold.promise,
+    });
+    const held = await fixture.evaluate<{
+      readonly sendDisabled: boolean;
+      readonly connecting: string;
+      readonly draftAlert: boolean;
+    }>(`
+      const send = document.querySelector('button[aria-label="Send message"]');
+      const holdLine = document.querySelector(".composer-send-hold");
+      return {
+        sendDisabled: send instanceof HTMLButtonElement ? send.disabled : true,
+        connecting: holdLine?.textContent?.trim() ?? "",
+        draftAlert: Array.from(document.querySelectorAll('[role="alert"]')).some(
+          (node) => node.textContent?.includes("Couldn’t reach the coach"),
+        ),
+      };
+    `);
+    expect(held).toEqual({
+      sendDisabled: true,
+      connecting: "Chat is still connecting, so Send isn’t ready yet.",
+      draftAlert: false,
+    });
+    hold.resolve(undefined);
+    const released = await fixture.evaluate<{
+      readonly sendDisabled: boolean;
+      readonly connecting: string;
+    }>(`
+      const deadline = Date.now() + 5000;
+      const send = () => document.querySelector('button[aria-label="Send message"]');
+      const holdLine = () => document.querySelector(".composer-send-hold");
+      while (
+        (!(send() instanceof HTMLButtonElement) || send().disabled) &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return {
+        sendDisabled: send() instanceof HTMLButtonElement ? send().disabled : true,
+        connecting: holdLine()?.textContent?.trim() ?? "",
+      };
+    `);
+    expect(released).toEqual({ sendDisabled: false, connecting: "" });
+  }, 90_000);
+
   it("hydrates persisted conversation pages without replay, focus loss, or row churn", async () => {
     const { fixture, calls } = await launch({
       width: 1440,
@@ -1906,7 +2056,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       },
       syncChip: {
         status: "synced",
-        text: "Training data synced2026-07-19 07:55:00 UTCSync now",
+        text: "Training data syncedSync",
       },
       documentOverflow: false,
     });
@@ -1973,8 +2123,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -1984,8 +2134,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -2064,7 +2214,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly composerInputDisabled: boolean;
       readonly resetDisabled: boolean;
       readonly focused: string | null;
-      readonly transcriptClearMutations: number;
+      readonly transcriptClearBatches: number;
     }>(`
       const opener = document.querySelector(".new-conversation-button");
       const textarea = document.querySelector("#message");
@@ -2076,8 +2226,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       if (enabledBefore) opener.click();
       const dialog = document.querySelector(".new-conversation-dialog");
       const dialogOpen = dialog !== null;
-      const clearRecords = [];
-      const clearObserver = new MutationObserver((records) => clearRecords.push(...records));
+      const clearBatches = [];
+      const clearObserver = new MutationObserver((records) => {
+        if (records.some((record) => record.type === "childList")) clearBatches.push(records);
+      });
       clearObserver.observe(document.querySelector(".chat-messages"), { childList: true });
       if (dialogOpen) dialog.querySelector(".new-conversation-dialog__confirm").click();
       const resetDeadline = Date.now() + 5000;
@@ -2094,7 +2246,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         composerInputDisabled: textarea.disabled,
         resetDisabled: opener.disabled,
         focused: document.activeElement?.id ?? null,
-        transcriptClearMutations: clearRecords.filter((record) => record.type === "childList").length,
+        transcriptClearBatches: clearBatches.length,
       };
     `);
     expect(reset).toEqual({
@@ -2105,7 +2257,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       composerInputDisabled: false,
       resetDisabled: true,
       focused: "message",
-      transcriptClearMutations: 1,
+      transcriptClearBatches: 1,
     });
     expect(calls.filter((call) => call.method === "resetSession")).toEqual([
       {
@@ -2126,6 +2278,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         readonly initialLabel: string | null;
         readonly syncingObserved: boolean;
         readonly syncingLabel: string | null;
+        readonly actionHiddenWhileSyncing: boolean;
         readonly disabledWhileSyncing: boolean;
         readonly ariaBusyAbsentWhileSyncing: boolean;
         readonly terminalStatus: string;
@@ -2175,6 +2328,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       }
       const syncingObserved = syncButton.dataset.status === "syncing";
       const syncingLabel = syncButton.getAttribute("aria-label");
+      const actionHiddenWhileSyncing =
+        syncSurface.querySelector("[data-sync-action]") === null;
       const disabledWhileSyncing = syncButton.disabled;
       const ariaBusyAbsentWhileSyncing = !syncButton.hasAttribute("aria-busy");
       syncButton.click();
@@ -2202,6 +2357,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         initialLabel,
         syncingObserved,
         syncingLabel,
+        actionHiddenWhileSyncing,
         disabledWhileSyncing,
         ariaBusyAbsentWhileSyncing,
         terminalStatus: syncButton.dataset.status,
@@ -2239,19 +2395,19 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       sync: {
         buttonResident: true,
         initialStatus: "synced",
-        initialLabel: "Sync now · Training data synced · 2026-07-19 07:55:00 UTC",
+        initialLabel: "Sync · Training data synced",
         syncingObserved: true,
-        syncingLabel: "Sync now · Syncing · Sync queued.",
+        syncingLabel: "Syncing",
+        actionHiddenWhileSyncing: true,
         disabledWhileSyncing: true,
         ariaBusyAbsentWhileSyncing: true,
         terminalStatus: "synced",
-        terminalLabel:
-          "Sync again · Training data synced · Local training-data processing completed.",
+        terminalLabel: "Sync · Training data synced · Local training-data processing completed.",
         busyCleared: true,
         keyboardFocusRestored: true,
         syncDetailChanged: true,
         trainingPanelsUnchanged: true,
-        detailBefore: "2026-07-19 07:55:00 UTC",
+        detailBefore: "",
         detailAfter: "Local training-data processing completed.",
         chipFitsSidebar: true,
         chipHasNoOverflow: true,
@@ -2449,7 +2605,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly chipReachable: boolean;
       readonly syncFitsRail: boolean;
       readonly syncHasNoOverflow: boolean;
-      readonly completeStatusVisible: boolean;
+      readonly conciseSuccessVisible: boolean;
       readonly surfaceMinWidthZero: boolean;
       readonly readableWrapping: boolean;
       readonly trainingOpen: boolean;
@@ -2457,7 +2613,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly retiredPanelsAbsent: boolean;
       readonly chipResident: boolean;
       readonly chipAccessibleLabel: string | null;
-      readonly syncOutcomeVisible: boolean;
+      readonly syncOutcomeAnnounced: boolean;
       readonly horizontalOverflow: boolean;
     }>(`
       const rail = document.querySelector('nav[aria-label="Main navigation"]');
@@ -2506,18 +2662,19 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         syncFitsRail:
           syncRect.left >= sidebarRect.left && syncRect.right <= sidebarRect.right,
         syncHasNoOverflow: syncSurface.scrollWidth <= syncSurface.clientWidth,
-        completeStatusVisible:
+        conciseSuccessVisible:
           headline.textContent === "Training data synced" &&
           detail.textContent === "Local training-data processing completed." &&
-          action.textContent === "Sync again" &&
-          [headline, detail, action].every((row) => getComputedStyle(row).display !== "none"),
+          action.textContent === "Sync" &&
+          headline.classList.contains("sr-only") &&
+          detail.classList.contains("sr-only") &&
+          !action.classList.contains("sr-only") &&
+          getComputedStyle(action).display !== "none",
         surfaceMinWidthZero: getComputedStyle(syncSurface).minWidth === "0px",
         readableWrapping:
           syncSurface.querySelectorAll(".truncate").length === 0 &&
-          [headline, detail, action].every(
-            (row) =>
-              getComputedStyle(row).whiteSpace === "normal" && row.scrollWidth <= row.clientWidth,
-          ),
+          getComputedStyle(action).whiteSpace === "normal" &&
+          action.scrollWidth <= action.clientWidth,
         trainingOpen: page.getAttribute("aria-hidden") === null,
         panelOrder: panels.map((panel) => panel.dataset.panel),
         retiredPanelsAbsent: ["anchor", "load", "wellness", "plan", "adherence"].every(
@@ -2526,9 +2683,10 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         chipResident:
           sidebar.contains(chip) && document.querySelectorAll("button.sync-chip").length === 1,
         chipAccessibleLabel: chip.getAttribute("aria-label"),
-        syncOutcomeVisible: syncSurface.textContent.includes(
-          "Local training-data processing completed.",
-        ),
+        syncOutcomeAnnounced:
+          detail.getAttribute("role") === "status" &&
+          detail.getAttribute("aria-live") === "polite" &&
+          detail.textContent === "Local training-data processing completed.",
         horizontalOverflow: page.scrollWidth > page.clientWidth,
       };
     `);
@@ -2541,7 +2699,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       chipReachable: true,
       syncFitsRail: true,
       syncHasNoOverflow: true,
-      completeStatusVisible: true,
+      conciseSuccessVisible: true,
       surfaceMinWidthZero: true,
       readableWrapping: true,
       trainingOpen: true,
@@ -2549,8 +2707,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       retiredPanelsAbsent: true,
       chipResident: true,
       chipAccessibleLabel:
-        "Sync again · Training data synced · Local training-data processing completed.",
-      syncOutcomeVisible: true,
+        "Sync · Training data synced · Local training-data processing completed.",
+      syncOutcomeAnnounced: true,
       horizontalOverflow: false,
     });
     const runtimeReadsBeforeSettings = calls.filter(
@@ -2562,10 +2720,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly hasEverySection: boolean;
       readonly horizontalOverflow: boolean;
       readonly withinViewport: boolean;
-      readonly saveReachableAfterScroll: boolean;
+      readonly timezoneReachableAfterScroll: boolean;
       readonly scrolled: boolean;
-      readonly resetWarningVisible: boolean;
-      readonly retentionWarningVisible: boolean;
+      readonly technicalConversationControlsAbsent: boolean;
       readonly paletteSwatchesFillButtons: boolean;
     }>(`
       const settings = Array.from(
@@ -2580,9 +2737,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
       const page = document.querySelector('section[aria-label="Settings"]');
-      const sessionSave = Array.from(page.querySelectorAll("button")).find(
-        (entry) => entry.textContent === "Save conversation settings",
-      );
+      const timezone = document.querySelector("#conversation-timezone");
+      if (!(timezone instanceof HTMLInputElement)) throw new Error("timezone input did not mount");
       const rect = page.getBoundingClientRect();
       const scroll = page.querySelector("[data-page-scroll]");
       if (!(scroll instanceof HTMLElement)) throw new Error("page scrollport did not mount");
@@ -2596,9 +2752,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         previousScrollHeight = nextScrollHeight;
       }
       if (stableFrames < 2) throw new Error("page scrollport did not stabilize");
-      sessionSave.scrollIntoView({ block: "nearest" });
+      timezone.scrollIntoView({ block: "nearest" });
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const saveRect = sessionSave.getBoundingClientRect();
+      const timezoneRect = timezone.getBoundingClientRect();
       const scrollRect = scroll.getBoundingClientRect();
       const subpixelTolerance = 1;
       const copy = page.textContent;
@@ -2609,12 +2765,13 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         open: page.getAttribute("aria-hidden") === null,
         onePage: document.querySelectorAll('section[aria-label="Settings"]').length === 1,
         hasEverySection:
-          ["Coach", "Training account", "Conversation and time", "Spending", "Preferences", "Application"].every(
+          ["Coach", "Conversation and time", "Spending", "Preferences", "Application"].every(
             (label) => document.querySelectorAll('section[aria-label="' + label + '"]').length === 1,
           ) &&
           copy.includes("Coach route") &&
-          copy.includes("Athlete ID") &&
-          copy.includes("Daily reset hour"),
+          !copy.includes("Training account") &&
+          !copy.includes("Athlete ID") &&
+          copy.includes("Timezone"),
         horizontalOverflow:
           document.documentElement.scrollWidth > document.documentElement.clientWidth ||
           Array.from(page.querySelectorAll("section, div")).some(
@@ -2625,16 +2782,18 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
           rect.right <= window.innerWidth &&
           rect.top >= 0 &&
           rect.bottom <= window.innerHeight,
-        saveReachableAfterScroll:
-          saveRect.left >= scrollRect.left - subpixelTolerance &&
-          saveRect.right <= scrollRect.right + subpixelTolerance &&
-          saveRect.top >= scrollRect.top - subpixelTolerance &&
-          saveRect.bottom <= scrollRect.bottom + subpixelTolerance,
+        timezoneReachableAfterScroll:
+          timezoneRect.left >= scrollRect.left - subpixelTolerance &&
+          timezoneRect.right <= scrollRect.right + subpixelTolerance &&
+          timezoneRect.top >= scrollRect.top - subpixelTolerance &&
+          timezoneRect.bottom <= scrollRect.bottom + subpixelTolerance,
         scrolled: scroll.scrollTop > 0,
-        resetWarningVisible: copy.includes(
-          "may make your next message start a fresh conversation",
-        ),
-        retentionWarningVisible: copy.includes("changes apply only to future pruning"),
+        technicalConversationControlsAbsent:
+          !copy.includes("Daily reset hour") &&
+          !copy.includes("Idle reset") &&
+          !copy.includes("Archive retention") &&
+          !copy.includes("History budget") &&
+          !copy.includes("Save conversation settings"),
         paletteSwatchesFillButtons:
           paletteButtons.length > 0 &&
           paletteButtons.every((button) => {
@@ -2652,10 +2811,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       hasEverySection: true,
       horizontalOverflow: false,
       withinViewport: true,
-      saveReachableAfterScroll: true,
+      timezoneReachableAfterScroll: true,
       scrolled: true,
-      resetWarningVisible: true,
-      retentionWarningVisible: true,
+      technicalConversationControlsAbsent: true,
       paletteSwatchesFillButtons: true,
     });
     const preferences = await fixture.evaluate<StructuralSnapshot>(
@@ -2701,6 +2859,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       readonly chipReachable: boolean;
       readonly sidebarFullyVisible: boolean;
       readonly syncingObserved: boolean;
+      readonly actionHiddenWhileSyncing: boolean;
       readonly disabledWhileSyncing: boolean;
       readonly ariaBusyAbsentWhileSyncing: boolean;
       readonly terminalStatus: string;
@@ -2733,6 +2892,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
         await new Promise((resolve) => setTimeout(resolve, 5));
       }
       const syncingObserved = syncButton.dataset.status === "syncing";
+      const actionHiddenWhileSyncing =
+        syncSurface.querySelector("[data-sync-action]") === null;
       const disabledWhileSyncing = syncButton.disabled;
       const ariaBusyAbsentWhileSyncing = !syncButton.hasAttribute("aria-busy");
       syncButton.click();
@@ -2766,6 +2927,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
           sidebarRect.top >= 0 &&
           sidebarRect.bottom <= window.innerHeight,
         syncingObserved,
+        actionHiddenWhileSyncing,
         disabledWhileSyncing,
         ariaBusyAbsentWhileSyncing,
         terminalStatus: syncButton.dataset.status,
@@ -2801,6 +2963,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       chipReachable: true,
       sidebarFullyVisible: true,
       syncingObserved: true,
+      actionHiddenWhileSyncing: true,
       disabledWhileSyncing: true,
       ariaBusyAbsentWhileSyncing: true,
       terminalStatus: "attention",
@@ -2978,8 +3141,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });
@@ -2990,8 +3153,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       planningIssue: true,
       composerWithinViewport: true,
       disclaimerWithinViewport: true,
-      projectionsScrollLocally: true,
-      disclaimerStableAfterProjectionScroll: true,
+      adjacentScrollsLocally: true,
+      disclaimerStableAfterAdjacentScroll: true,
       footerOrder: true,
       documentVerticalOverflow: false,
     });

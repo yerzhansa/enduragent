@@ -1,14 +1,10 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import { SaveIntakeRpcParamsSchema } from "@enduragent/coach-contract";
 import { flushSync } from "react-dom";
 import { createArchiveController } from "./archive/controller";
 import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
-import { createDesktopCoachClientProvider } from "./coach-client";
+import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
 import { createFirstSyncController } from "./first-sync";
 import { createArchiveViewAdapter } from "./state/adapters/archive";
 import { createChatViewAdapter } from "./state/adapters/chat";
@@ -32,7 +28,7 @@ import { createTelegramSettingsAdapter } from "./state/adapters/telegram";
 import { createManualSyncViewAdapter } from "./state/adapters/sync";
 import { createTrainingViewAdapter } from "./state/adapters/training";
 import { createUpdateSettingsAdapter } from "./state/adapters/update";
-import { EMPTY_PLAN_CHANGE_SURFACE } from "./state/chat-slice";
+import { EMPTY_PLAN_CHANGE_SURFACE, planChangePendingCheck } from "./state/chat-slice";
 import { credentialDrafts } from "./state/credential-drafts";
 import { restoreManualSyncFocus } from "./state/manual-sync-focus";
 import { useEnduragentStore, type EnduragentState } from "./state/store";
@@ -140,11 +136,8 @@ export function bootRenderer(): Disposer {
     selectedAnalysisRide = selected;
     void rideAnalysisController.select(selected);
   });
-  const clientAfterFailure = async (failedClient: CoachClient | undefined) => {
-    if (failedClient === undefined) return clients.reconnect();
-    const current = await clients.getClient();
-    return current === failedClient ? clients.reconnect() : current;
-  };
+  const clientAfterFailure = (failedClient: DesktopCoachClient | undefined) =>
+    clients.reconnect(failedClient);
   const trainingAdapter = createTrainingViewAdapter({
     readUnits: () => store.getState().settings.units,
     publish: (next) => store.getState().setTraining(next),
@@ -198,7 +191,6 @@ export function bootRenderer(): Disposer {
     request: (kind) => void manualSyncController.activate(kind),
   });
   const spendAdapter = createSpendSettingsAdapter({
-    read: () => store.getState().settings.spend,
     publish: (next) => store.getState().patchSettings({ spend: next }),
   });
   const spendController = createSpendMeterController({
@@ -257,6 +249,19 @@ export function bootRenderer(): Disposer {
   const disposeSetupReadiness = store.subscribe((state, previousState) => {
     if (!setupReady(previousState) && setupReady(state)) void chatController.resume();
   });
+  function openPlanChangeInChat(): void {
+    chatController.requestPlanLibraryFocus("change");
+    chatController.pausePlanCreation();
+    const state = store.getState();
+    const planId = state.planLibrary.value?.active?.planId ?? null;
+    state.setPlanChange({
+      ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
+      open: true,
+      textRouting: true,
+      planId,
+    });
+    store.getState().setActiveView("chat");
+  }
   store.getState().bindPlanLibraryActions({
     closePlan: (input) => closePlan(clients, input),
     readPlanHistory: (planId) => readPlanHistory(clients, planId),
@@ -274,18 +279,22 @@ export function bootRenderer(): Disposer {
       void chatController.continueCreationFromLibrary(creation.creationId);
     },
     changeInChat: () => {
-      chatController.requestPlanLibraryFocus("change");
-      chatController.pausePlanCreation();
-      const state = store.getState();
-      const planId = state.planLibrary.value?.active?.planId ?? null;
-      state.setPlanChange({
-        ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
-        open: true,
-        textRouting: true,
-        planId,
-      });
-      store.getState().setActiveView("chat");
+      openPlanChangeInChat();
       requestAnimationFrame(focusComposer);
+    },
+    changeOneThingInChat: () => {
+      const state = store.getState();
+      const library = state.planLibrary.value;
+      if (
+        library?.active == null ||
+        state.planChange.busy ||
+        library.changesPaused != null ||
+        planChangePendingCheck(state.planChange, library) !== null
+      ) {
+        return;
+      }
+      openPlanChangeInChat();
+      chatController.openPlanChangeEditor();
     },
   });
   const disposePlanLibraryRefresh = subscribePlanLibraryRefresh(planController);
@@ -499,7 +508,7 @@ export function bootRenderer(): Disposer {
     removeQueued: (id) => chatController.removeQueued(id),
     runQueuedCommand: (id) => void chatController.runQueuedCommand(id),
     retryQueuedTurn: (claimId) => void chatController.retryQueuedTurn(claimId),
-    retry: () => void chatController.retryInterrupted(),
+    retry: () => void chatController.retry(),
     loadEarlier: () => void chatController.loadEarlier(),
     retryHydration: () => void chatController.retryHydration(),
     retryDecision: () => void chatController.retryDecision(),
@@ -512,7 +521,7 @@ export function bootRenderer(): Disposer {
   });
 
   let onboardingNeedsReconnect = false;
-  let onboardingFailedClient: CoachClient | undefined;
+  let onboardingFailedClient: DesktopCoachClient | undefined;
   const onboardingClient = async () => {
     const client = onboardingNeedsReconnect
       ? await clientAfterFailure(onboardingFailedClient)
@@ -542,7 +551,7 @@ export function bootRenderer(): Disposer {
     chooseImportFiles: () => window.enduragentAuth.chooseImportFiles(),
     onDroppedImportFiles: (listener) => window.enduragentAuth.onDroppedImportFiles(listener),
     async importFiles(paths, onProgress) {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       try {
         client = await onboardingClient();
         return await client.call(
@@ -559,7 +568,7 @@ export function bootRenderer(): Disposer {
       }
     },
     async saveIntake(value) {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       try {
         client = await onboardingClient();
         const result = await client.call("saveIntake", SaveIntakeRpcParamsSchema.parse(value));

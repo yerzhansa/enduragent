@@ -21,6 +21,7 @@ import {
 import {
   CoachClientBackpressureError,
   CoachClientCallAbortedError,
+  CoachClientCallNotAdmittedError,
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientHandshakeError,
@@ -67,6 +68,12 @@ export interface CoachClient {
     request: CoachRpcRequest<K>,
     options?: CoachClientCallOptions<K>,
   ): Promise<CoachRpcResponse<K>>;
+  close(code?: number, reason?: string): Promise<void>;
+}
+
+export interface CoachClientConnection {
+  readonly client: CoachClient;
+  closeWhenIdle(): Promise<void>;
   close(code?: number, reason?: string): Promise<void>;
 }
 
@@ -334,6 +341,22 @@ function openCoachSocket(options: ValidatedOptions): Promise<WebSocket> {
   });
 }
 
+interface CloseSettlement {
+  readonly promise: Promise<void>;
+  readonly settle: () => void;
+}
+
+type CloseLifecycle =
+  | { readonly phase: "open" }
+  | { readonly phase: "idle-requested"; readonly settlement: CloseSettlement }
+  | {
+      readonly phase: "closing";
+      readonly settlement: CloseSettlement;
+      readonly timer: ReturnType<typeof setTimeout>;
+      readonly retirement: boolean;
+    }
+  | { readonly phase: "closed"; readonly promise: Promise<void>; readonly retirement: boolean };
+
 class CoachClientRuntime {
   private readonly pending = new Map<JsonRpcId, PendingCall>();
   private readonly sendQueue: OutboundFrame[] = [];
@@ -347,7 +370,7 @@ class CoachClientRuntime {
   private handshakeBinding: CoachClientHandshakeBinding | undefined;
   private publicClient: CoachClient | undefined;
   private ready = false;
-  private closePromise: Promise<void> | undefined;
+  private lifecycle: CloseLifecycle = { phase: "open" };
 
   constructor(
     private readonly socket: WebSocket,
@@ -386,7 +409,7 @@ class CoachClientRuntime {
     this.handleTerminal(envelope);
   };
 
-  activate(binding: CoachClientHandshakeBinding): CoachClient {
+  activate(binding: CoachClientHandshakeBinding): CoachClientConnection {
     this.handshakeBinding = binding;
     const client: CoachClient = {
       handshake: binding.accepted,
@@ -400,7 +423,11 @@ class CoachClientRuntime {
     this.publicClient = client;
     this.ready = true;
     if (this.preActivationCause !== undefined) this.latchTerminal(this.preActivationCause);
-    return client;
+    return {
+      client,
+      closeWhenIdle: () => this.closeWhenIdle(),
+      close: (code?: number, reason?: string) => this.close(code, reason),
+    };
   }
 
   disposeBeforeReady(): void {
@@ -413,6 +440,12 @@ class CoachClientRuntime {
     request: CoachRpcRequest<K>,
     options?: CoachClientCallOptions<K>,
   ): Promise<CoachRpcResponse<K>> {
+    if (
+      (this.lifecycle.phase === "closing" || this.lifecycle.phase === "closed") &&
+      this.lifecycle.retirement
+    ) {
+      return Promise.reject(new CoachClientCallNotAdmittedError());
+    }
     if (this.terminalCause !== undefined) {
       return Promise.reject(this.terminalCause);
     }
@@ -609,6 +642,7 @@ class CoachClientRuntime {
         observer?.(envelope);
       } catch {}
       pending.resolve(result);
+      this.scheduleIdleClose();
       return;
     }
 
@@ -623,6 +657,7 @@ class CoachClientRuntime {
       observer?.(envelope);
     } catch {}
     pending.reject(remoteError);
+    this.scheduleIdleClose();
   }
 
   private failProtocol(): CoachClientProtocolError {
@@ -675,6 +710,7 @@ class CoachClientRuntime {
         this.options.onTerminal?.(client, error);
       } catch {}
     }
+    this.scheduleIdleClose();
   }
 
   private readonly onSocketClose = (event: CloseEvent): void => {
@@ -697,46 +733,75 @@ class CoachClientRuntime {
     this.latchTerminal(error);
   };
 
-  private close(code = 1000, reason = ""): Promise<void> {
-    if (this.closePromise !== undefined) return this.closePromise;
-    let resolveClose!: () => void;
+  private readonly finishClose = (): void => {
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "open" || lifecycle.phase === "closed") return;
+    if (lifecycle.phase === "closing") clearTimeout(lifecycle.timer);
+    this.socket.removeEventListener("close", this.finishClose);
+    this.lifecycle = {
+      phase: "closed",
+      promise: lifecycle.settlement.promise,
+      retirement: lifecycle.phase === "closing" && lifecycle.retirement,
+    };
+    lifecycle.settlement.settle();
+  };
+
+  private openSettlement(): CloseSettlement {
+    let settle!: () => void;
     const promise = new Promise<void>((resolve) => {
-      resolveClose = resolve;
+      settle = resolve;
     });
-    this.closePromise = promise;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let settled = false;
+    this.socket.addEventListener("close", this.finishClose);
+    return { promise, settle };
+  }
 
-    const cleanup = (): void => {
-      if (timer !== undefined) clearTimeout(timer);
-      timer = undefined;
-      this.socket.removeEventListener("close", onClose);
+  private beginClose(code: number, reason: string, retirement: boolean): Promise<void> {
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "closed") return lifecycle.promise;
+    if (lifecycle.phase === "closing") return lifecycle.settlement.promise;
+    const settlement = lifecycle.phase === "open" ? this.openSettlement() : lifecycle.settlement;
+    this.lifecycle = {
+      phase: "closing",
+      settlement,
+      timer: setTimeout(this.finishClose, this.options.closeTimeoutMs),
+      retirement,
     };
-
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolveClose();
-    };
-
-    const onClose = (): void => {
-      finish();
-    };
-
-    this.socket.addEventListener("close", onClose);
-    timer = setTimeout(finish, this.options.closeTimeoutMs);
     if (this.terminalCause === undefined) {
       this.latchTerminal(new CoachClientDisconnectedError(code, reason), code, reason);
     } else {
       requestSocketClose(this.socket, code, reason);
     }
-    if (this.socket.readyState === 3) finish();
-    return promise;
+    if (this.socket.readyState === 3) this.finishClose();
+    return settlement.promise;
+  }
+
+  private scheduleIdleClose(): void {
+    if (this.lifecycle.phase !== "idle-requested" || this.pending.size > 0) return;
+    queueMicrotask(() => {
+      if (this.lifecycle.phase !== "idle-requested" || this.pending.size > 0) return;
+      void this.beginClose(1000, "", true);
+    });
+  }
+
+  private closeWhenIdle(): Promise<void> {
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "closed") return lifecycle.promise;
+    if (lifecycle.phase !== "open") return lifecycle.settlement.promise;
+    const settlement = this.openSettlement();
+    this.lifecycle = { phase: "idle-requested", settlement };
+    if (this.socket.readyState === 3) this.finishClose();
+    else this.scheduleIdleClose();
+    return settlement.promise;
+  }
+
+  private close(code = 1000, reason = ""): Promise<void> {
+    return this.beginClose(code, reason, false);
   }
 }
 
-export async function connectCoachClient(options: ConnectCoachClientOptions): Promise<CoachClient> {
+export async function connectCoachClientConnection(
+  options: ConnectCoachClientOptions,
+): Promise<CoachClientConnection> {
   let validated: ValidatedOptions;
   try {
     validated = validateOptions(options);
@@ -755,6 +820,7 @@ export async function connectCoachClient(options: ConnectCoachClientOptions): Pr
       socket,
       token: validated.token,
       expectedAthleteHome: validated.expectedAthleteHome,
+      signal: validated.signal,
       timeoutMs: validated.handshakeTimeoutMs,
       onReadyFrame: runtime.handleRawFrame,
     });
@@ -763,4 +829,8 @@ export async function connectCoachClient(options: ConnectCoachClientOptions): Pr
     throw error;
   }
   return runtime.activate(binding);
+}
+
+export async function connectCoachClient(options: ConnectCoachClientOptions): Promise<CoachClient> {
+  return (await connectCoachClientConnection(options)).client;
 }

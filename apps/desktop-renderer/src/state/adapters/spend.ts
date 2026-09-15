@@ -1,5 +1,5 @@
 import type { SpendRouteSummary, SpendSummary } from "@enduragent/coach-contract";
-import type { SpendMeterView } from "../../spend-meter/controller";
+import type { SpendMeterState, SpendMeterView } from "../../spend-meter/controller";
 import type { SpendSettingsPort, SpendSurfaceState } from "../settings-slice";
 
 const SPEND_CAP_REACHED_PREFIX = "You’ve reached today’s ";
@@ -10,8 +10,8 @@ export function currency(value: number, detail = false): string {
   return `$${value.toFixed(2)}`;
 }
 
-function capWarningCopy(summary: SpendSummary): string | null {
-  if (summary.capStatus !== "reached") return null;
+function capWarningCopy(summary: SpendSummary | null): string | null {
+  if (summary?.capStatus !== "reached") return null;
   return `${SPEND_CAP_REACHED_PREFIX}${currency(summary.dailyCapUsd)} spend cap. You can keep chatting; this is a warning, not a block.`;
 }
 
@@ -36,83 +36,40 @@ export interface SpendSettingsAdapter {
 }
 
 export function createSpendSettingsAdapter(input: {
-  readonly read: () => SpendSurfaceState;
   readonly publish: (next: SpendSurfaceState) => void;
 }): SpendSettingsAdapter {
-  let saveHandler: (() => void) | undefined;
+  let handlers:
+    | {
+        readonly onChangeCap: (value: string) => void;
+        readonly onCommitCap: () => void;
+        readonly onRetryCap: () => void;
+      }
+    | undefined;
   let disposed = false;
-  let lastSummary: SpendSummary | undefined;
-
-  const renderSummary = (summary: SpendSummary, options: { readonly stale: boolean }): void => {
-    if (disposed) return;
-    lastSummary = summary;
-    const current = input.read();
-    const keepDraft = current.capDirty && Number(current.capDraft) !== summary.dailyCapUsd;
-    input.publish({
-      ...current,
-      status: "ready",
-      summary,
-      stale: options.stale,
-      capDraft: keepDraft ? current.capDraft : String(summary.dailyCapUsd),
-      capDirty: keepDraft,
-      warning: capWarningCopy(summary),
-    });
-  };
 
   return {
     view: {
-      renderLoading() {
+      bind(next) {
+        handlers = next;
+      },
+      render(state: SpendMeterState) {
         if (disposed) return;
-        input.publish({
-          ...input.read(),
-          status: "loading",
-          summary: null,
-          stale: false,
-          warning: null,
-        });
-      },
-      renderSummary,
-      renderUnavailable({ hadSummary }) {
-        if (disposed) return;
-        if (hadSummary && lastSummary !== undefined) {
-          renderSummary(lastSummary, { stale: true });
-          return;
-        }
-        input.publish({
-          ...input.read(),
-          status: "unavailable",
-          summary: null,
-          stale: false,
-          warning: null,
-        });
-      },
-      bindSave(handler) {
-        saveHandler = handler;
-      },
-      readDailyCapUsd() {
-        return Number(input.read().capDraft);
-      },
-      setSaving(saving) {
-        if (disposed) return;
-        input.publish({ ...input.read(), saving });
-      },
-      showCapInputError(message) {
-        if (disposed) return;
-        input.publish({ ...input.read(), capError: message });
+        input.publish({ ...state, warning: capWarningCopy(state.summary) });
       },
       dispose() {
-        if (disposed) return;
         disposed = true;
-        saveHandler = undefined;
-        input.publish({ ...input.read(), warning: null });
+        handlers = undefined;
       },
     },
     port: {
       changeCap(value) {
-        input.publish({ ...input.read(), capDraft: value, capDirty: true });
+        handlers?.onChangeCap(value);
       },
-      save() {
-        saveHandler?.();
+      commitCap() {
+        handlers?.onCommitCap();
+      },
+      retryCap() {
+        handlers?.onRetryCap();
       },
     },
   };

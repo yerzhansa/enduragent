@@ -173,6 +173,7 @@ async function assertMixedLibrary(scenario: Scenario): Promise<void> {
     "Continue in Chat",
     "Stop Plan",
     "Read Plan details",
+    "Change one thing",
     "Change in Chat",
     "Read final details",
     "Read final details",

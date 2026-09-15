@@ -116,7 +116,7 @@
         "credentialRequired": "Deze aanbieder heeft opgeslagen toegangsgegevens nodig om je te kunnen coachen. Voeg ze toe in het configuratiegedeelte hierboven.",
         "invalidInput": "Die aanbieder of dat model is niet geaccepteerd. Controleer de modelnaam en probeer het opnieuw.",
         "requestFailed": "Coachinstellingen konden nu niet worden opgeslagen. Probeer het opnieuw.",
-        "runtimeUnavailable": "Coachinstellingen konden niet worden geactiveerd. Probeer opnieuw op te slaan."
+        "runtimeUnavailable": "Coachinstellingen konden niet worden geactiveerd. Probeer het opnieuw."
       },
       "inactive": "Niet actief",
       "loading": "Coachinstellingen laden…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Coachinstellingen zijn nu niet beschikbaar. Probeer het opnieuw.",
       "unsaved": "Niet opgeslagen",
-      "unsupported": "De {{codex}}-agent wordt niet ondersteund op {{operatingSystem}}. Kies een {{claude}}-abonnement of een aanbieder met een API-sleutel en sla de coachroute op. Je toegangsgegevens, atleetgegevens, gesprekken en andere instellingen blijven ongewijzigd.",
+      "unsupported": "De {{codex}}-agent wordt niet ondersteund op {{operatingSystem}}. Kies een {{claude}}-abonnement of een aanbieder met een API-sleutel. Je toegangsgegevens, atleetgegevens, gesprekken en andere instellingen blijven ongewijzigd.",
       "validation": {
         "modelControlCharacters": "Modelnamen mogen geen stuurtekens bevatten.",
         "modelRequired": "Voer een modelnaam in.",
@@ -296,7 +296,7 @@
         "failed": "De daglimiet kon niet worden opgeslagen.",
         "invalid": "Voer een daglimiet hoger dan $0 in.",
         "label": "Daglimiet (USD)",
-        "save": "Limiet opslaan",
+        "retry": "Opnieuw proberen",
         "value": "{{known}} van {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} onderdelen hebben aandacht nodig",
     "sync": {
       "action": {
-        "again": "Opnieuw synchroniseren",
+        "again": "Synchroniseren",
         "now": "Nu synchroniseren",
         "retry": "Opnieuw proberen",
         "unavailable": "Synchronisatie niet beschikbaar"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Stuur je coach een bericht",
       "responding": "De coach antwoordt…",
       "send": "Bericht verzenden",
+      "sendConnecting": "Chat is nog aan het verbinden, dus Verzenden is nog niet klaar.",
       "stop": "Antwoord stoppen"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Er kon niet worden doorgegaan met je keuze. Probeer het opnieuw.",
       "decisionLoadFailure": "Er kon niet worden gecontroleerd op een opgeslagen vraag van de coach. Maak opnieuw verbinding en probeer het opnieuw.",
       "decisionSkipFailure": "Deze vraag kon niet worden overgeslagen. Probeer het opnieuw.",
+      "draftSaveFailure": "De coach was niet bereikbaar, dus je bericht blijft in het vak.",
       "emptyResponse": "De coach gaf een leeg antwoord. Probeer het opnieuw.",
       "newConversationMemoryWarning": "Nieuw gesprek gestart. Sommige recente details zijn mogelijk niet opgeslagen in het coachgeheugen.",
       "newConversationSuccess": "Nieuw gesprek gestart.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Geen wijzigingen aan trainingen.",
       "none": "Geen",
       "notInPlan": "Niet in het trainingsschema",
-      "openPlan": "Plan openen",
+      "openPlan": "Actief Plan openen",
       "option": {
         "ftp": "FTP corrigeren",
         "hardWeekday": "Geen zware training op een bepaalde dag van de week",
@@ -1450,6 +1452,10 @@
       "conversation": "Coachingsgesprek",
       "disclaimer": "Geen medisch advies en geen vervanging voor een arts of een gecertificeerde coach.",
       "hideContext": "Trainingscontext verbergen",
+      "pendingDraft": "Je trainingsplan is klaar om te beoordelen.",
+      "reviewChange": "Wijziging bekijken",
+      "reviewChoices": "Keuzes bekijken",
+      "reviewDraft": "Concept bekijken",
       "showContext": "Trainingscontext tonen",
       "title": "Chat"
     }

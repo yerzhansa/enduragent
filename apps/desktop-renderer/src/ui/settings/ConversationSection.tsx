@@ -6,7 +6,6 @@ import type {
   SessionSettingsFormState,
   SessionSettingsState,
 } from "../../settings/session-controller";
-import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import {
   CONVERSATION_FIELDS,
@@ -48,28 +47,24 @@ function feedbackCopy(state: SessionSettingsState, say: Phrasebook["say"]): stri
 export function ConversationSection(): ReactElement {
   const { say } = usePhrasebook();
   const state = useEnduragentStore((store) => store.settings.conversation);
-  const mutating = useEnduragentStore((store) => settingsMutationActive(store.settings));
   const port = useEnduragentStore((store) => store.settingsPorts?.conversation ?? null);
+  const controlsDisabled = useEnduragentStore((store) =>
+    store.settings.savingOwners.some((owner) => owner !== "session"),
+  );
 
   const editable = formState(state);
   const busy =
-    mutating ||
+    controlsDisabled ||
     state.status === "refreshing" ||
     state.status === "loading" ||
     state.status === "closed";
-  const saving = state.status === "saving";
   const retryVisible = state.status === "error" && (state.kind === "load" || state.kind === "save");
   const feedback = feedbackCopy(state, say);
-  const canSave =
-    editable !== null &&
-    editable.dirtyFields.size > 0 &&
-    Object.keys(editable.validationErrors).length === 0;
 
   return (
     <>
       <h2 className={styles.heading}>{say("settings.conversation.title")}</h2>
       <section className={styles.group} aria-label={say("settings.conversation.ariaLabel")}>
-        <p className={styles.note}>{say("settings.conversation.detail")}</p>
         {editable === null
           ? null
           : CONVERSATION_FIELDS.map((definition) => {
@@ -85,21 +80,12 @@ export function ConversationSection(): ReactElement {
                 <div key={definition.field} className={`${styles.row} ${styles.rowStacked}`}>
                   <label className={styles.rowTitle} htmlFor={id}>
                     {say(definition.label)}
-                    {definition.suffix === undefined
-                      ? ""
-                      : say("settings.conversation.fieldSuffix", {
-                          suffix: definition.suffix === "%" ? "%" : say(definition.suffix),
-                        })}
                   </label>
                   <input
                     id={id}
-                    type={definition.type}
+                    type="text"
                     autoComplete="off"
-                    inputMode={definition.type === "number" ? "decimal" : undefined}
-                    spellCheck={definition.field === "timezone" ? false : undefined}
-                    min={definition.min}
-                    max={definition.max}
-                    step={definition.step}
+                    spellCheck={false}
                     className={`${styles.control} ${styles.controlWide}`}
                     value={editable.draft[definition.field]}
                     disabled={busy || managed}
@@ -107,6 +93,13 @@ export function ConversationSection(): ReactElement {
                     aria-describedby={describedBy}
                     onChange={(event) => {
                       port?.change(definition.field, event.target.value);
+                    }}
+                    onBlur={() => port?.commit()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        port?.commit();
+                      }
                     }}
                   />
                   <p className={styles.help} id={`${id}-help`}>
@@ -130,8 +123,8 @@ export function ConversationSection(): ReactElement {
             {feedback}
           </p>
         )}
-        <div className={styles.actions}>
-          {retryVisible ? (
+        {retryVisible ? (
+          <div className={styles.actions}>
             <Button
               type="button"
               variant="outline"
@@ -143,19 +136,8 @@ export function ConversationSection(): ReactElement {
             >
               {say("settings.conversation.reload")}
             </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled={busy || !canSave}
-            onClick={() => {
-              port?.save();
-            }}
-          >
-            {saving ? say("settings.saving") : say("settings.conversation.save")}
-          </Button>
-        </div>
+          </div>
+        ) : null}
       </section>
     </>
   );

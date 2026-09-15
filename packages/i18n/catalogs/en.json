@@ -114,6 +114,7 @@
       "messagePlaceholder": "Message your coach",
       "responding": "Coach is responding…",
       "send": "Send message",
+      "sendConnecting": "Chat is still connecting, so Send isn’t ready yet.",
       "stop": "Stop responding"
     },
     "date": {
@@ -171,6 +172,7 @@
       "decisionFailure": "We couldn’t continue from your choice. Please try again.",
       "decisionLoadFailure": "We couldn’t check for a saved Coach question. Reconnect and try again.",
       "decisionSkipFailure": "We couldn’t skip this question. Please try again.",
+      "draftSaveFailure": "Couldn’t reach the coach, so your message is still in the box.",
       "emptyResponse": "The coach returned an empty response. Please try again.",
       "feedbackFailed": "Couldn't send that note. It's still in the box — try again.",
       "feedbackSent": "Thanks — we received your note.",
@@ -275,7 +277,7 @@
       "noChanges": "No Workout changes.",
       "none": "None",
       "notInPlan": "Not in Plan",
-      "openPlan": "Open Plan",
+      "openPlan": "Open Active Plan",
       "option": {
         "ftp": "Correct FTP",
         "hardWeekday": "No hard training on a weekday",
@@ -618,6 +620,10 @@
       "conversation": "Coaching conversation",
       "disclaimer": "Not medical advice, and not a substitute for a doctor or a certified coach.",
       "hideContext": "Hide training context",
+      "pendingDraft": "Your training Plan is ready to review.",
+      "reviewChange": "Review Change",
+      "reviewChoices": "Review choices",
+      "reviewDraft": "Review Draft",
       "showContext": "Show training context",
       "title": "Chat"
     }
@@ -1641,7 +1647,7 @@
         "credentialRequired": "This provider needs a saved credential before it can coach you. Use the setup area above to add one.",
         "invalidInput": "That provider or model wasn’t accepted. Check the model name and try again.",
         "requestFailed": "Coach settings couldn’t be saved right now. Try again.",
-        "runtimeUnavailable": "Coach settings couldn’t become active. Try saving again."
+        "runtimeUnavailable": "Coach settings couldn’t become active. Try again."
       },
       "inactive": "Not active",
       "loading": "Loading coach settings…",
@@ -1663,7 +1669,7 @@
       "title": "Coach",
       "unavailable": "Coach settings aren’t available right now. Try again.",
       "unsaved": "Unsaved",
-      "unsupported": "{{codex}} agent isn’t supported on {{operatingSystem}}. Choose {{claude}} subscription or an API-key provider, then save the coach route. Your credentials, athlete data, conversations, and other settings stay unchanged.",
+      "unsupported": "{{codex}} agent isn’t supported on {{operatingSystem}}. Choose {{claude}} subscription or an API-key provider. Your credentials, athlete data, conversations, and other settings stay unchanged.",
       "validation": {
         "modelControlCharacters": "Model names can’t contain control characters.",
         "modelRequired": "Enter a model name.",
@@ -1829,7 +1835,7 @@
         "failed": "The daily cap could not be saved.",
         "invalid": "Enter a daily cap greater than $0.",
         "label": "Daily cap (USD)",
-        "save": "Save cap",
+        "retry": "Retry",
         "value": "{{known}} of {{cap}}"
       },
       "date": "{{month}} {{day}}",
@@ -2315,7 +2321,7 @@
     "planAttention_other": "Plan, {{formattedCount}} items need attention",
     "sync": {
       "action": {
-        "again": "Sync again",
+        "again": "Sync",
         "now": "Sync now",
         "retry": "Try again",
         "unavailable": "Sync unavailable"

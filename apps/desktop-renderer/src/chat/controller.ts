@@ -1,8 +1,4 @@
-import type {
-  CoachClient,
-  CoachClientCallOptions,
-  CoachClientTerminalEnvelope,
-} from "@enduragent/coach-client";
+import type { CoachClientCallOptions, CoachClientTerminalEnvelope } from "@enduragent/coach-client";
 import {
   CoachClientCallAbortedError,
   CoachClientCallTimeoutError,
@@ -44,9 +40,10 @@ import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
 import {
   EMPTY_PLAN_CHANGE_SURFACE,
   PLAN_CHANGES_PAUSED_NOTICE,
+  planChangePendingCheck,
   type PlanChangeSurfaceState,
 } from "../state/chat-slice";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 import {
   DESKTOP_CHAT_ID,
   EMPTY_CHAT_STATE,
@@ -89,6 +86,9 @@ export const CHAT_QUEUE_LOAD_FAILURE_COPY =
 export const CHAT_QUEUE_REMOVE_FAILURE_COPY = "We couldn’t remove that saved message. Try again.";
 export const CHAT_ATTACHMENT_FAILURE_COPY =
   "We couldn’t update that attachment. Your message draft is preserved.";
+export const CHAT_DRAFT_SAVE_FAILURE_COPY =
+  "Couldn’t reach the coach, so your message is still in the box.";
+export const CHAT_SEND_CONNECTING_COPY = "Chat is still connecting, so Send isn’t ready yet.";
 export const CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY =
   "We couldn’t check saved Plan requests. Reconnect and try again.";
 export const CHAT_PLANNING_REQUEST_FAILURE_COPY =
@@ -188,6 +188,7 @@ export interface ChatViewControls {
     readonly value: ChatAttachmentComposerReadModel | null;
     readonly admissions: readonly AttachmentAdmissionReadModel[];
     readonly busy: boolean;
+    readonly draftError: string | null;
     readonly error: string | null;
   };
   readonly planningRequests?: {
@@ -295,6 +296,7 @@ export interface ChatController {
   runQueuedCommand(id: string): Promise<void>;
   retryQueuedTurn(claimId: string): Promise<void>;
   retryInterrupted(): Promise<void>;
+  retry(): Promise<void>;
   loadEarlier(): Promise<void>;
   retryHydration(): Promise<void>;
   retryDecision(): Promise<void>;
@@ -353,6 +355,7 @@ type PendingPlanningRequestCreate =
 export function createChatController(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly view: ChatView;
+  readonly now?: () => number;
   readonly refreshTrainingContext: () => Promise<void>;
   readonly refreshSpend: () => Promise<void>;
   readonly refreshPlan?: () => Promise<void>;
@@ -389,7 +392,7 @@ export function createChatController(input: {
   const outstandingChatTasks = new Set<Promise<void>>();
   let queuedRetry: QueuedRetry | undefined;
   let interruptedQueueOrigin: InterruptedQueueOrigin | undefined;
-  let retryClient: CoachClient | undefined;
+  let retryClient: DesktopCoachClient | undefined;
   let probeTask: Promise<void> | undefined;
   let resetTask: Promise<void> | undefined;
   let activeStopRequest: ActiveStopRequest | undefined;
@@ -407,6 +410,7 @@ export function createChatController(input: {
   let queueMutationCount = 0;
   let attachmentSurface: ChatAttachmentComposerReadModel | null = null;
   let attachmentAdmissions: readonly AttachmentAdmissionReadModel[] = [];
+  let draftError: string | null = null;
   let attachmentError: string | null = null;
   let attachmentTextRevision = 0;
   let attachmentTextSaveTask: Promise<void> = Promise.resolve();
@@ -456,6 +460,7 @@ export function createChatController(input: {
   const canChat = input.canChat ?? (() => true);
 
   const nextId = (prefix: "request" | "message"): string => `${prefix}-${++sequence}`;
+  const now = input.now ?? Date.now;
   const resetBlocksWork = (): boolean =>
     state.session.resetPhase === "confirming" || state.session.resetPhase === "resetting";
   const decisionBlocksWork = (): boolean =>
@@ -521,6 +526,7 @@ export function createChatController(input: {
             value: attachmentSurface,
             admissions: attachmentAdmissions,
             busy: attachmentBusyTokens.size > 0,
+            draftError,
             error: attachmentError,
           },
           planningRequests: {
@@ -646,6 +652,7 @@ export function createChatController(input: {
     reduce({
       type: "submit",
       requestKey,
+      occurredAtMs: now(),
       userMessage,
       userMessageId,
       assistantMessageId,
@@ -668,7 +675,7 @@ export function createChatController(input: {
       let protocolFault = false;
       let requestedDecision: CoachDecisionReadModel | undefined;
       const callAbortController = new AbortController();
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       let stopRequested = false;
       let stopTask: Promise<void> | undefined;
       const current = (): boolean => !disposed && state.activeTurn?.requestKey === requestKey;
@@ -695,13 +702,7 @@ export function createChatController(input: {
 
       try {
         if (reconnect) {
-          if (retryClient === undefined) {
-            client = await input.clients.reconnect();
-          } else {
-            const currentClient = await input.clients.getClient();
-            client =
-              currentClient === retryClient ? await input.clients.reconnect() : currentClient;
-          }
+          client = await input.clients.reconnect(retryClient);
           retryClient = undefined;
         } else {
           client = await input.clients.getClient();
@@ -1045,7 +1046,9 @@ export function createChatController(input: {
     );
   };
 
-  const refreshDecision = async (client?: CoachClient): Promise<CoachDecisionReadModel | null> => {
+  const refreshDecision = async (
+    client?: DesktopCoachClient,
+  ): Promise<CoachDecisionReadModel | null> => {
     const activeClient = client ?? (await input.clients.getClient());
     const result = await activeClient.call("getCoachDecision", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return null;
@@ -1062,7 +1065,7 @@ export function createChatController(input: {
     return decision;
   };
 
-  const refreshQueue = async (client?: CoachClient): Promise<ChatQueueSnapshot> => {
+  const refreshQueue = async (client?: DesktopCoachClient): Promise<ChatQueueSnapshot> => {
     const activeClient = client ?? (await input.clients.getClient());
     const snapshot = await activeClient.call("getChatQueue", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return snapshot;
@@ -1074,12 +1077,12 @@ export function createChatController(input: {
   };
 
   const refreshAttachments = async (
-    client?: CoachClient,
+    client?: DesktopCoachClient,
     generation = attachmentGeneration,
     reportError = true,
   ): Promise<void> => {
     const attemptRevision = attachmentSurfaceRevision;
-    let activeClient: CoachClient;
+    let activeClient: DesktopCoachClient;
     try {
       activeClient = client ?? (await input.clients.getClient());
     } catch {
@@ -1120,7 +1123,7 @@ export function createChatController(input: {
     );
   };
 
-  const loadPlanningRequests = async (client?: CoachClient): Promise<void> => {
+  const loadPlanningRequests = async (client?: DesktopCoachClient): Promise<void> => {
     const activeClient = client ?? (await input.clients.getClient());
     const result = await activeClient.call("listPlanningRequests", { chatId: DESKTOP_CHAT_ID });
     if (disposed) return;
@@ -1392,7 +1395,7 @@ export function createChatController(input: {
   };
 
   const mutateAttachment = async (
-    operation: (client: CoachClient) => Promise<ChatAttachmentComposerReadModel>,
+    operation: (client: DesktopCoachClient) => Promise<ChatAttachmentComposerReadModel>,
   ): Promise<void> => {
     if (attachmentBusyTokens.size > 0) return;
     const ownership = beginAttachmentWrite(true);
@@ -1444,6 +1447,7 @@ export function createChatController(input: {
       reduce({
         type: "submit",
         requestKey,
+        occurredAtMs: now(),
         userMessage: "",
         userMessageId,
         assistantMessageId,
@@ -1476,13 +1480,14 @@ export function createChatController(input: {
     reduce({
       type: "submit",
       requestKey,
+      occurredAtMs: now(),
       userMessage: "",
       userMessageId,
       assistantMessageId,
       includeUser: false,
     });
     const task = (async () => {
-      let client: CoachClient | undefined;
+      let client: DesktopCoachClient | undefined;
       let boundRequestId: string | number | undefined;
       let boundTurnId: string | undefined;
       let pendingEnvelope: CoachTurnEventNotificationEnvelope | undefined;
@@ -1816,9 +1821,7 @@ export function createChatController(input: {
     );
   };
   const pendingChangeCheck = () =>
-    readChange().pendingCheck === undefined
-      ? input.readPlanLibrary?.()?.pendingChangeCheck
-      : readChange().pendingCheck;
+    planChangePendingCheck(readChange(), input.readPlanLibrary?.() ?? null);
   const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
   const changeFocus = (target: "editor" | "preview" | "change" | "check") => ({
     target,
@@ -1847,7 +1850,7 @@ export function createChatController(input: {
             return;
           }
           attachmentSurface = surface;
-          attachmentError = null;
+          draftError = null;
           render();
         } catch {
           if (
@@ -1856,7 +1859,7 @@ export function createChatController(input: {
           ) {
             return;
           }
-          attachmentError = CHAT_ATTACHMENT_FAILURE_COPY;
+          draftError = CHAT_DRAFT_SAVE_FAILURE_COPY;
           render();
         }
       })
@@ -2368,11 +2371,7 @@ export function createChatController(input: {
         return Promise.resolve(false);
       }
       const changeSurface = readChange();
-      const pendingChangeCheck =
-        changeSurface.pendingCheck === undefined
-          ? input.readPlanLibrary?.()?.pendingChangeCheck
-          : changeSurface.pendingCheck;
-      if (pendingChangeCheck != null) return false;
+      if (pendingChangeCheck() !== null) return false;
       if (routesTextToPlanChange() && attachmentIds.length === 0) {
         if (changeSurface.busy) return false;
         if (changesPaused()) {
@@ -2380,7 +2379,12 @@ export function createChatController(input: {
           return false;
         }
         publishChange({ busy: true, error: null, notice: null });
-        reduce({ type: "append-athlete-message", id: nextId("message"), text: message });
+        reduce({
+          type: "append-athlete-message",
+          id: nextId("message"),
+          text: message,
+          occurredAtMs: now(),
+        });
         if (
           attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
           submittedTextRevision === attachmentTextRevision
@@ -3159,6 +3163,11 @@ export function createChatController(input: {
       reduce({ type: "retry-pending", requestKey });
       return pending;
     },
+    retry() {
+      const claim = state.retryRequired;
+      if (claim != null) return controller.retryQueuedTurn(claim.claimId);
+      return controller.retryInterrupted();
+    },
     loadEarlier() {
       return hydrator.loadEarlier();
     },
@@ -3261,6 +3270,7 @@ export function createChatController(input: {
           }
           attachmentSurface = clearedAttachmentSurface;
           attachmentAdmissions = [];
+          draftError = null;
           attachmentError = null;
           sequence += 1;
           retryClient = undefined;

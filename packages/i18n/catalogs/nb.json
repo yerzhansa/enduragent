@@ -116,7 +116,7 @@
         "credentialRequired": "Denne leverandøren trenger lagrede tilgangsopplysninger før den kan veilede deg. Legg dem til i oppsettområdet ovenfor.",
         "invalidInput": "Denne leverandøren eller modellen ble ikke godtatt. Sjekk modellnavnet og prøv igjen.",
         "requestFailed": "Trenerinnstillingene kunne ikke lagres akkurat nå. Prøv igjen.",
-        "runtimeUnavailable": "Trenerinnstillingene kunne ikke aktiveres. Prøv å lagre igjen."
+        "runtimeUnavailable": "Trenerinnstillingene kunne ikke aktiveres. Prøv igjen."
       },
       "inactive": "Ikke aktiv",
       "loading": "Laster inn trenerinnstillinger…",
@@ -138,7 +138,7 @@
       "title": "Trener",
       "unavailable": "Trenerinnstillingene er ikke tilgjengelige akkurat nå. Prøv igjen.",
       "unsaved": "Ikke lagret",
-      "unsupported": "{{codex}}-agenten støttes ikke på {{operatingSystem}}. Velg et {{claude}}-abonnement eller en leverandør med API-nøkkel, og lagre treneroppsettet. Tilgangsopplysninger, utøverdata, samtaler og andre innstillinger forblir uendret.",
+      "unsupported": "{{codex}}-agenten støttes ikke på {{operatingSystem}}. Velg et {{claude}}-abonnement eller en leverandør med API-nøkkel. Tilgangsopplysninger, utøverdata, samtaler og andre innstillinger forblir uendret.",
       "validation": {
         "modelControlCharacters": "Modellnavn kan ikke inneholde kontrolltegn.",
         "modelRequired": "Skriv inn et modellnavn.",
@@ -296,7 +296,7 @@
         "failed": "Den daglige grensen kunne ikke lagres.",
         "invalid": "Angi en daglig grense over $0.",
         "label": "Daglig grense (USD)",
-        "save": "Lagre grense",
+        "retry": "Prøv igjen",
         "value": "{{known}} av {{cap}}"
       },
       "date": "{{day}}. {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} punkter trenger oppfølging",
     "sync": {
       "action": {
-        "again": "Synkroniser igjen",
+        "again": "Synkroniser",
         "now": "Synkroniser nå",
         "retry": "Prøv igjen",
         "unavailable": "Synkronisering er utilgjengelig"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Skriv til treneren din",
       "responding": "Treneren svarer…",
       "send": "Send melding",
+      "sendConnecting": "Chat kobler fortsatt til, så Send er ikke klar ennå.",
       "stop": "Stopp svaret"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Vi kunne ikke fortsette fra valget ditt. Prøv igjen.",
       "decisionLoadFailure": "Vi kunne ikke se etter et lagret spørsmål fra treneren. Koble til på nytt og prøv igjen.",
       "decisionSkipFailure": "Vi kunne ikke hoppe over dette spørsmålet. Prøv igjen.",
+      "draftSaveFailure": "Nådde ikke coachen, så meldingen din ligger fortsatt i feltet.",
       "emptyResponse": "Treneren ga et tomt svar. Prøv igjen.",
       "newConversationMemoryWarning": "Ny samtale startet. Enkelte nylige detaljer er kanskje ikke lagret i trenerens hukommelse.",
       "newConversationSuccess": "Ny samtale startet.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Ingen endringer i treningsøkter.",
       "none": "Ingen",
       "notInPlan": "Ikke i planen",
-      "openPlan": "Åpne Plan",
+      "openPlan": "Åpne aktiv Plan",
       "option": {
         "ftp": "Korriger FTP",
         "hardWeekday": "Ingen hard trening på en ukedag",
@@ -1450,6 +1452,10 @@
       "conversation": "Trenersamtale",
       "disclaimer": "Dette er ikke medisinske råd og erstatter ikke en lege eller en sertifisert trener.",
       "hideContext": "Skjul treningskontekst",
+      "pendingDraft": "Treningsplanen din er klar for gjennomgang.",
+      "reviewChange": "Gå gjennom endring",
+      "reviewChoices": "Gå gjennom valg",
+      "reviewDraft": "Gå gjennom utkast",
       "showContext": "Vis treningskontekst",
       "title": "Chat"
     }

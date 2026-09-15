@@ -81,6 +81,7 @@ function ReviewCard(props: {
   readonly "aria-label"?: string;
   readonly headingRef?: Ref<HTMLHeadingElement>;
   readonly headingTabIndex?: number;
+  readonly pendingNavigationKey?: string;
   readonly children: ReactNode;
 }): ReactElement {
   return <PlanCard {...props} aria-label={props["aria-label"] ?? props.title} />;
@@ -115,6 +116,7 @@ export function PlanCreationDraftCards(props: {
   const draft = props.draft;
   const stale = props.model.draftStale;
   const pending = props.model.pendingCommitment !== null || props.model.pendingCheck !== null;
+  const pendingNavigationKey = `plan-creation:${props.model.creationId}`;
   const workouts = draft.weeks.flatMap((week) => week.workouts);
   const goal = draft.answeredSummaries.find((answer) => answer.answerKey === "goal");
   const title =
@@ -130,7 +132,10 @@ export function PlanCreationDraftCards(props: {
             className="border-t border-line"
             aria-label={say("chat.planCreation.changedAnswers")}
           >
-            <AnswerFacts summaries={resolvedAnswerSummaries(props.model.answeredSummaries)} current />
+            <AnswerFacts
+              summaries={resolvedAnswerSummaries(props.model.answeredSummaries)}
+              current
+            />
           </div>
         </ReviewCard>
       ) : null}
@@ -204,6 +209,8 @@ export function PlanCreationDraftCards(props: {
       <ReviewCard
         eyebrow={say("chat.planCreation.outlineLabel")}
         title={say("chat.planCreation.outlineTitle")}
+        pendingNavigationKey={pendingNavigationKey}
+        headingTabIndex={-1}
         status={stale ? say("chat.planCreation.outOfDate") : say("chat.planCreation.draft")}
         summary={say("chat.planCreation.outlineSummary", {
           count: workouts.length,
@@ -281,7 +288,10 @@ export function PlanCreationDraftCards(props: {
             {errorMessage === null ? error : say(errorMessage)}
           </p>
         )}
-        <div className="mt-4 flex flex-wrap gap-inset">
+        <div
+          className="mt-4 flex flex-wrap gap-inset"
+          data-pending-navigation-source={pendingNavigationKey}
+        >
           <Button
             ref={discardButton}
             variant="destructive"
@@ -400,9 +410,7 @@ export function PlanCreationCommitmentCard(props: {
     <ReviewCard
       eyebrow={`${say("chat.planCreation.title")} · ${say("chat.planCreation.commitmentsLabelShort")}`}
       title={
-        clarify
-          ? say("chat.planCreation.couldNotUseAnswer")
-          : say("chat.planCreation.didIReadThis")
+        clarify ? say("chat.planCreation.couldNotUseAnswer") : say("chat.planCreation.didIReadThis")
       }
       summary={
         clarify

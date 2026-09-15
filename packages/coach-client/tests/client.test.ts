@@ -19,6 +19,7 @@ import {
 import {
   CoachClientBackpressureError,
   CoachClientCallAbortedError,
+  CoachClientCallNotAdmittedError,
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientHandshakeError,
@@ -27,6 +28,7 @@ import {
   CoachClientVersionMismatchError,
   CoachRpcRemoteError,
   connectCoachClient,
+  connectCoachClientConnection,
   resolveCoachWebSocketFactory,
   type CoachClient,
   type CoachClientCallOptions,
@@ -604,6 +606,23 @@ describe("connection and transport", () => {
     });
     expect(socket.sent).toEqual([]);
     expect(socket.closeCalls).toHaveLength(1);
+
+    const duringHandshake = new AbortController();
+    const handshakeSocket = new ControllableSocket();
+    const handshake = connectCoachClient({
+      url: "ws://127.0.0.1:49152",
+      token,
+      signal: duringHandshake.signal,
+      webSocketFactory: () => handshakeSocket as unknown as WebSocket,
+    });
+    handshakeSocket.emitOpen();
+    await vi.waitFor(() => expect(handshakeSocket.sent).toHaveLength(1));
+    duringHandshake.abort();
+    await expect(handshake).rejects.toMatchObject({
+      name: "CoachClientHandshakeError",
+      message: "Coach client connection aborted",
+    });
+    expect(handshakeSocket.closeCalls).toEqual([{ code: 1000, reason: undefined }]);
   });
 });
 
@@ -2063,6 +2082,125 @@ describe("RPC receive and observers", () => {
 });
 
 describe("disconnect, close, and send bounds", () => {
+  it("keeps a draining connection available to stop its admitted work", async () => {
+    const socket = new ControllableSocket();
+    socket.sendHook = (text) => {
+      const frame = JSON.parse(text) as { type?: string };
+      if (frame.type === "handshake") {
+        socket.emitMessage(
+          JSON.stringify(
+            createAcceptedServerHandshakeFrame(
+              "service-managed",
+              PROTOCOL_VERSION,
+              acceptedHandshakeBinding,
+            ),
+          ),
+        );
+      }
+    };
+    const connecting = connectCoachClientConnection({
+      url: "ws://127.0.0.1:49152",
+      token,
+      webSocketFactory: () => socket as unknown as WebSocket,
+    });
+    socket.emitOpen();
+    const connection = await connecting;
+    const client = connection.client;
+    socket.sendHook = () => {};
+    const sync = client.call("sync", {});
+
+    const retirement = connection.closeWhenIdle();
+    const stop = client.call("stopChat", { chatId: "chat-1", turnId: "turn-1" });
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({
+        jsonrpc: "2.0",
+        id: 2,
+        result: { stopped: true },
+      }),
+    );
+    await expect(stop).resolves.toEqual({ stopped: true });
+    expect(socket.closeCalls).toEqual([]);
+
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          schemaVersion: 1,
+          published: false,
+          referenceSucceeded: true,
+          requests: { store: 0, reference: 0, total: 0 },
+          droppedActivities: {
+            overall: { total: 0, visible: 0, restrictions: [], other: 0 },
+            recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
+          },
+        },
+      }),
+    );
+    await expect(sync).resolves.toMatchObject({ schemaVersion: 1 });
+    await vi.waitFor(() => expect(socket.closeCalls).toEqual([{ code: 1000, reason: "" }]));
+    const sentBeforeSealedCall = socket.sent.length;
+    await expect(client.call("hasSession", { chatId: "future" })).rejects.toBeInstanceOf(
+      CoachClientCallNotAdmittedError,
+    );
+    expect(socket.sent).toHaveLength(sentBeforeSealedCall);
+    socket.emitClose(1000, "");
+    await expect(retirement).resolves.toBeUndefined();
+  });
+
+  it("admits a same-turn follow-up started by a draining call's terminal observer", async () => {
+    const socket = new ControllableSocket();
+    socket.sendHook = (text) => {
+      const frame = JSON.parse(text) as { type?: string };
+      if (frame.type === "handshake") {
+        socket.emitMessage(
+          JSON.stringify(
+            createAcceptedServerHandshakeFrame(
+              "service-managed",
+              PROTOCOL_VERSION,
+              acceptedHandshakeBinding,
+            ),
+          ),
+        );
+      }
+    };
+    const connecting = connectCoachClientConnection({
+      url: "ws://127.0.0.1:49152",
+      token,
+      webSocketFactory: () => socket as unknown as WebSocket,
+    });
+    socket.emitOpen();
+    const connection = await connecting;
+    const client = connection.client;
+    socket.sendHook = () => {};
+    let followUp: Promise<{ readonly hasSession: boolean }> | undefined;
+    const first = client.call(
+      "hasSession",
+      { chatId: "first" },
+      {
+        onTerminalEnvelope: () => {
+          followUp = client.call("hasSession", { chatId: "follow-up" });
+        },
+      },
+    );
+    const retirement = connection.closeWhenIdle();
+
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({ jsonrpc: "2.0", id: 1, result: { hasSession: true } }),
+    );
+    await expect(first).resolves.toEqual({ hasSession: true });
+    expect(followUp).toBeDefined();
+    expect(socket.closeCalls).toEqual([]);
+
+    socket.emitMessage(
+      serializeCoachRpcEnvelope({ jsonrpc: "2.0", id: 2, result: { hasSession: false } }),
+    );
+    await expect(followUp).resolves.toEqual({ hasSession: false });
+    await vi.waitFor(() => expect(socket.closeCalls).toEqual([{ code: 1000, reason: "" }]));
+    socket.emitClose(1000, "");
+    await expect(retirement).resolves.toBeUndefined();
+  });
+
   it("rejects a pre-aborted call without sending or consuming an id", async () => {
     const { socket, connecting } = acceptedSocket();
     const client = await connecting;

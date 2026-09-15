@@ -473,7 +473,7 @@
       "translatedBy": "model"
     },
     "settings.coach.error.runtimeUnavailable": {
-      "sourceHash": "ee831e9e8fa5ba7fb24173812a571d76e32c47cb9e0e1fdd50ed08a9980422fe",
+      "sourceHash": "88a0d8514bb90ec3c52279cf69adec5e4c8d34a742c64c2ddbca0d41ce096c0f",
       "translatedBy": "model"
     },
     "settings.coach.inactive": {
@@ -549,7 +549,7 @@
       "translatedBy": "model"
     },
     "settings.coach.unsupported": {
-      "sourceHash": "eb98f649e7b55fbc551c688859e762b693e5448544fb3ca526dadcd5a9387286",
+      "sourceHash": "ecaef2970d77fdfbad8b4495e6cdfd0ca474a5d9d148bc9ede8f5c107cb11dbb",
       "translatedBy": "model"
     },
     "settings.coach.validation.modelControlCharacters": {
@@ -992,8 +992,8 @@
       "sourceHash": "91c71544598846da3ad6f5d1890fa6f8cafdebc5661308e50c39e8f406a954fb",
       "translatedBy": "model"
     },
-    "settings.spend.cap.save": {
-      "sourceHash": "79700fb03e29b5cf880c7c8123fa6651f9cbb7c3ddcbba0164651923a38982fe",
+    "settings.spend.cap.retry": {
+      "sourceHash": "942087cc2d41e01304b7195558d093d10c72af8e838c7556d6a02d471ee71852",
       "translatedBy": "model"
     },
     "settings.spend.cap.value": {
@@ -2477,7 +2477,7 @@
       "translatedBy": "model"
     },
     "sidebar.sync.action.again": {
-      "sourceHash": "e353f7f080ca4c390ec3a7186e34bb2c55bb14516afcc11c7b84ed8192e30a69",
+      "sourceHash": "8d261a372fde1461cc4a5f53e938b337cfe335e2bd6d4e58d866ab97c5556052",
       "translatedBy": "model"
     },
     "sidebar.sync.action.now": {
@@ -2936,6 +2936,10 @@
       "sourceHash": "93a26b1eaff99b3a84dd80366660991d15703a96514497afd997c12c43000ed7",
       "translatedBy": "model"
     },
+    "chat.composer.sendConnecting": {
+      "sourceHash": "6150c50619ad4788cf3e123e82bff095c71675494929832d1ea288f258339e1c",
+      "translatedBy": "model"
+    },
     "chat.composer.stop": {
       "sourceHash": "18c6fb3fee2f764dac4c5b172ca5ea5e2c8ef832ae29520b7241a9df60bbf311",
       "translatedBy": "model"
@@ -3114,6 +3118,10 @@
     },
     "chat.notice.decisionSkipFailure": {
       "sourceHash": "f4b566a95c60c2e91b74c70cf6aa3b1e7fcedb102b31d6db419f45921e40bfc0",
+      "translatedBy": "model"
+    },
+    "chat.notice.draftSaveFailure": {
+      "sourceHash": "ad5d7eae7935ce412085de43fa3ae32929504b508902e59c0ec178ea26fe0258",
       "translatedBy": "model"
     },
     "chat.notice.emptyResponse": {
@@ -3477,7 +3485,7 @@
       "translatedBy": "model"
     },
     "chat.planChange.openPlan": {
-      "sourceHash": "eb6fc9da5268bc60bc45296d50f50bde0d3fa9c416af8ae66d3e773374332996",
+      "sourceHash": "2a35684add6a6e969da0c6e7b4a6602419706bc53758b7cfd7adfb73d07709d1",
       "translatedBy": "model"
     },
     "chat.planChange.option.ftp": {
@@ -4634,6 +4642,22 @@
     },
     "chat.view.hideContext": {
       "sourceHash": "46c08560d230ac6afcbd49d4152c94670794184d2efa1b2682c6934fd0bf910a",
+      "translatedBy": "model"
+    },
+    "chat.view.pendingDraft": {
+      "sourceHash": "5ccdaf6d70537f4b3052e9f7901a3c3b46675a29d1bb656d75dfa19bc8c08f93",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewChange": {
+      "sourceHash": "7b7ee5db5b1844a1219f8d72b2881cfd5a14b8862aae77bc2536ff79a995fa92",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewChoices": {
+      "sourceHash": "bcbd521c77689a77cb73038c2a6a4efb125cb979bed677b457db449b127d9aa8",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewDraft": {
+      "sourceHash": "50494e32ed6a8853e9e55c793591b766d8a061c3a8ad1f2fffa832049864334f",
       "translatedBy": "model"
     },
     "chat.view.showContext": {

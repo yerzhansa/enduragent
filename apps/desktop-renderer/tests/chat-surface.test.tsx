@@ -10,6 +10,7 @@ import type {
   ChatAttachmentComposerReadModel,
   CoachDecisionReadModel,
   ListPlansResult,
+  PlanChangePendingCheck,
   PlanCreationCardModel,
   PlanCreationOpenQuestion,
   PlanningRequestDelivery,
@@ -714,6 +715,9 @@ describe("chat surface", () => {
       expect(screen.queryByRole("button", { name: /Prioritize recovery/u })).toBeNull();
       expect(normalComposer).not.toBeVisible();
       const custom = screen.getByLabelText("What would work better?");
+      expect(
+        document.querySelector('[data-pending-navigation-source="coach-decision:decision-1"]'),
+      ).toContainElement(custom);
       await user.type(custom, "Move tempo to Thursday");
       const back = screen.getByRole("button", { name: "Back" });
       const continueButton = screen.getByRole("button", { name: "Continue" });
@@ -1191,17 +1195,26 @@ describe("chat surface", () => {
   });
 
   describe("composer", () => {
-    it("leaves the bordered shell to the shared composer controls", () => {
+    it("gives the composer and adjacent work one unclipped outer shell", () => {
       render(<Harness />);
       const form = composer().closest("form");
+      const shell = document.querySelector(".composer-shell");
 
       expect(form).toHaveAttribute("class", "composer relative");
       expect(form).toHaveAttribute("data-parity", "composer");
       expect(composer()).toHaveAttribute("data-parity", "composer.textarea");
-      expect(form?.querySelectorAll(".rounded-card.border")).toHaveLength(1);
+      expect(shell).toHaveClass(
+        "rounded-card",
+        "border",
+        "border-line-2",
+        "bg-surface",
+        "shadow-elev-2",
+      );
+      expect(shell).not.toHaveClass("overflow-hidden");
+      expect(form?.parentElement).toBe(shell);
     });
 
-    it("places the medical disclaimer directly below the composer", () => {
+    it("places the medical disclaimer directly below the composer shell", () => {
       render(<Harness />);
 
       const disclaimer = screen.getByText(
@@ -1209,19 +1222,16 @@ describe("chat surface", () => {
       );
       const form = composer().closest("form");
 
-      expect(form?.nextElementSibling).toBe(disclaimer);
+      expect(form?.parentElement?.nextElementSibling).toBe(disclaimer);
       expect(disclaimer.parentElement).toHaveClass("composer-wrap");
       expect(disclaimer.parentElement).toHaveClass("bg-bg");
-      expect(disclaimer.parentElement).toHaveClass("max-h-full", "overflow-hidden");
+      expect(disclaimer.parentElement).toHaveClass("max-h-full");
+      expect(disclaimer.parentElement).not.toHaveClass("overflow-hidden");
       expect(disclaimer).toHaveClass("mt-inset", "text-xs");
-      expect(document.querySelector(".composer-projections")).toHaveClass(
-        "min-h-0",
-        "overflow-y-auto",
-        "overscroll-contain",
-      );
+      expect(document.querySelector(".conversation")).toHaveClass("overflow-auto");
     });
 
-    it("orders decision, attachment, and queued work before the composer", () => {
+    it("keeps decision cards outside the shared attachment and composer shell", () => {
       setChat({
         decision: unansweredDecision(),
         sendDisabled: true,
@@ -1231,7 +1241,10 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      const projections = document.querySelector(".composer-projections");
+      const conversation = document.querySelector(".conversation");
+      const transcript = screen.getByRole("log", { name: "Coach conversation" });
+      const shell = document.querySelector(".composer-shell");
+      const adjacent = document.querySelector(".composer-adjacent");
       const decision = screen
         .getByText("Coach needs your answer")
         .closest("section")?.parentElement;
@@ -1240,23 +1253,24 @@ describe("chat surface", () => {
       const form = composer().closest("form");
 
       if (
-        !(projections instanceof HTMLElement) ||
+        !(conversation instanceof HTMLElement) ||
+        !(shell instanceof HTMLElement) ||
+        !(adjacent instanceof HTMLElement) ||
         !(decision instanceof HTMLElement) ||
         !(attachment instanceof HTMLElement) ||
         !(form instanceof HTMLFormElement)
       ) {
         throw new TypeError("Composer projections are incomplete.");
       }
-      expect(decision.parentElement).toBe(projections);
-      expect(attachment.parentElement).toBe(projections);
-      expect(queue.parentElement).toBe(projections);
-      expect(
-        decision.compareDocumentPosition(attachment) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      expect(transcript).toContainElement(decision);
+      expect(conversation).toContainElement(decision);
+      expect(shell).not.toContainElement(decision);
+      expect(attachment.parentElement).toBe(adjacent);
+      expect(queue.parentElement).toBe(adjacent);
       expect(
         attachment.compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
-      expect(projections.nextElementSibling).toBe(form);
+      expect(adjacent.nextElementSibling).toBe(form);
     });
 
     it("focuses the enabled composer when Chat mounts after required setup", () => {
@@ -1264,6 +1278,79 @@ describe("chat surface", () => {
 
       expect(composer()).toBeEnabled();
       expect(composer()).toHaveFocus();
+    });
+
+    it("returns focus after an explicit check clear even when the library snapshot is stale", async () => {
+      const pendingChangeCheck: PlanChangePendingCheck = {
+        schemaVersion: 1,
+        checkId: "check-stale",
+        commandId: "command-stale",
+        sourceVersion: 1,
+        attempt: 1,
+        submission: { field: "change", text: "Keep my week to six hours" },
+        state: "ready",
+        result: {
+          outcome: "understood",
+          title: "Six hours each week?",
+          body: "Confirm before reviewing the exact change.",
+          value: { kind: "weekly-duration", hours: 6 },
+        },
+      };
+      useEnduragentStore.setState({
+        planLibrary: {
+          status: "ready",
+          value: {
+            calendarConnected: false,
+            legacy: null,
+            creation: null,
+            active: {
+              supportingEventCandidates: [],
+              planId: "plan-focus",
+              version: 1,
+              name: "Build steady power",
+              start: "1998-09-07",
+              end: "1998-10-04",
+              weeks: 4,
+              status: "active",
+              closeReason: null,
+              closedAt: null,
+              activatedAt: "1998-09-07",
+              todayChoice: null,
+              calendar: {
+                status: "not-connected",
+                window: null,
+                currentThrough: null,
+                error: null,
+              },
+              creationId: null,
+            },
+            closed: [],
+            pendingChangeCheck,
+            changesPaused: null,
+            changes: [],
+          },
+        },
+        planChange: {
+          ...useEnduragentStore.getState().planChange,
+          open: true,
+          planId: "plan-focus",
+          pendingCheck: null,
+        },
+      });
+      render(<Harness />);
+      composer().blur();
+
+      act(() => {
+        useEnduragentStore.setState({
+          planChange: {
+            ...useEnduragentStore.getState().planChange,
+            focusRequest: { target: "change", revision: 1 },
+          },
+        });
+      });
+
+      await waitFor(() => expect(composer()).toHaveFocus());
+      expect(screen.queryByText("Six hours each week?")).toBeNull();
     });
 
     it("removes the file drop target while chat work is blocked", () => {
@@ -1832,6 +1919,46 @@ describe("chat surface", () => {
       expect(actions.submit).not.toHaveBeenCalled();
     });
 
+    it("shows a truthful draft-save failure with no attachments", () => {
+      setChat({
+        attachments: { schemaVersion: 1, capabilities: ATTACHMENT_CAPABILITIES, draft: null },
+        draftError: "Couldn’t reach the coach, so your message is still in the box.",
+      });
+      render(<Harness />);
+
+      expect(
+        screen.getByText("Couldn’t reach the coach, so your message is still in the box."),
+      ).toBeVisible();
+      expect(screen.queryByText(/update that attachment/u)).toBeNull();
+    });
+
+    it("explains why Send is off while Chat is still connecting", () => {
+      setChat({
+        sendDisabled: true,
+        inputDisabled: false,
+        composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
+      });
+      render(<Harness />);
+
+      expect(screen.getByText("Chat is still connecting, so Send isn’t ready yet.")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    });
+
+    it("hides a draft-save failure while Send is waiting to connect", () => {
+      setChat({
+        sendDisabled: true,
+        inputDisabled: false,
+        composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
+        draftError: "Couldn’t reach the coach, so your message is still in the box.",
+      });
+      render(<Harness />);
+
+      expect(screen.getByText("Chat is still connecting, so Send isn’t ready yet.")).toBeVisible();
+      expect(
+        screen.queryByText("Couldn’t reach the coach, so your message is still in the box."),
+      ).toBeNull();
+    });
+
     it("opens the native picker from the centered Composer attachment control", async () => {
       const user = userEvent.setup();
       setChat({
@@ -1886,15 +2013,21 @@ describe("chat surface", () => {
       expect(actions.removeQueued).toHaveBeenNthCalledWith(2, "queued-1");
     });
 
-    it("runs only restored commands and offers durable recovery without a second retry", async () => {
+    it("runs only restored commands and retries a failed send from the athlete message", async () => {
       const user = userEvent.setup();
       render(<Harness />);
       setChat({
-        interrupted: true,
-        queued: [
-          { id: "queued-1", text: "Try this again", command: false, restored: true },
-          { id: "queued-2", text: "/status", command: true, restored: true },
+        messages: [
+          {
+            id: "athlete-1",
+            role: "athlete",
+            delivery: "complete",
+            historical: false,
+            text: "Try this again",
+            retry: true,
+          },
         ],
+        queued: [{ id: "queued-2", text: "/status", command: true, restored: true }],
         retryRequired: {
           claimId: "claim-1",
           queuedMessageIds: ["queued-1"],
@@ -1903,17 +2036,74 @@ describe("chat surface", () => {
         },
       });
 
-      expect(screen.getByRole("button", { name: "Retry interrupted message" })).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Remove queued message 1" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Retry interrupted message" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Retry message" })).toBeEnabled();
+      expect(texts()).toEqual(["/status"]);
+      expect(screen.getByRole("button", { name: "Remove queued message 1" })).toBeEnabled();
       const ordinaryRetry = document.querySelector(".chat-retry");
       expect(ordinaryRetry).toBeInstanceOf(HTMLButtonElement);
       expect((ordinaryRetry as HTMLButtonElement).hidden).toBe(true);
-      await user.click(screen.getByRole("button", { name: "Retry interrupted message" }));
-      expect(actions.retryQueuedTurn).toHaveBeenCalledWith("claim-1");
+      await user.click(screen.getByRole("button", { name: "Retry message" }));
+      expect(actions.retry).toHaveBeenCalledTimes(1);
 
-      setChat({ interrupted: false, retryRequired: null });
+      setChat({ retryRequired: null, messages: [] });
       await user.click(screen.getByRole("button", { name: "Run command" }));
       expect(actions.runQueuedCommand).toHaveBeenCalledWith("queued-2");
+    });
+
+    it("keeps a failed send on the athlete bubble instead of the pinned notice", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({
+        notice: null,
+        noticeRetry: false,
+        messages: [
+          {
+            id: "athlete-1",
+            role: "athlete",
+            delivery: "complete",
+            historical: false,
+            text: "How is my form?",
+            retry: true,
+            error: "Rate limited — please try again shortly.",
+          },
+        ],
+      });
+
+      expect(screen.queryByRole("region", { name: /Queued messages/u })).toBeNull();
+      expect(screen.getByRole("button", { name: "Retry message" })).toBeEnabled();
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Rate limited — please try again shortly.",
+      );
+      const pinned = document.querySelector(".chat-notice");
+      expect(pinned).toBeInstanceOf(HTMLElement);
+      expect((pinned as HTMLElement).hidden).toBe(true);
+      await user.click(screen.getByRole("button", { name: "Retry message" }));
+      expect(actions.retry).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries restored recovery from the pinned notice when no athlete row is in view", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({
+        noticeRetry: true,
+        queued: [{ id: "queued-2", text: "/status", command: true, restored: true }],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      });
+
+      expect(screen.queryByRole("button", { name: "Retry interrupted message" })).toBeNull();
+      expect(texts()).toEqual(["/status"]);
+      const ordinaryRetry = document.querySelector(".chat-retry");
+      expect(ordinaryRetry).toBeInstanceOf(HTMLButtonElement);
+      expect((ordinaryRetry as HTMLButtonElement).hidden).toBe(false);
+      expect(document.querySelector(".chat-message-retry")).toBeNull();
+      await user.click(ordinaryRetry as HTMLButtonElement);
+      expect(actions.retry).toHaveBeenCalledTimes(1);
     });
 
     it("wraps long rows, announces queue changes, and shows removal feedback", () => {
@@ -2019,7 +2209,7 @@ describe("chat surface", () => {
     it("hides the notice until the coach reports progress or an error", () => {
       render(<Harness />);
       expect(notice().hidden).toBe(true);
-      expect(notice().textContent).toBe("");
+      expect(notice().querySelector("span")?.textContent).toBe("");
 
       setChat({ notice: "Coach is working…" });
       expect(notice().hidden).toBe(false);
@@ -2052,7 +2242,7 @@ describe("chat surface", () => {
       render(<Harness />);
       expect(retry().hidden).toBe(true);
 
-      setChat({ interrupted: true });
+      setChat({ noticeRetry: true });
       expect(retry().hidden).toBe(false);
       await user.click(retry());
       expect(actions.retry).toHaveBeenCalledTimes(1);
@@ -2062,14 +2252,14 @@ describe("chat surface", () => {
       await user.click(retry());
       expect(actions.retry).toHaveBeenCalledTimes(1);
 
-      setChat({ workBlocked: false, interrupted: false });
+      setChat({ workBlocked: false, noticeRetry: false });
       expect(retry().hidden).toBe(true);
     });
 
     it("groups interrupted recovery above later queued messages", () => {
       setChat({
         notice: "Response stopped. Your partial response is preserved.",
-        interrupted: true,
+        noticeRetry: true,
         queued: [
           {
             id: "queued-1",
@@ -2082,17 +2272,96 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      const host = document.querySelector(".chat-notice-host");
+      const pinned = document.querySelector(".chat-pinned-row");
       const queue = screen.getByRole("region", { name: "Queued messages, 2 queued messages" });
-      if (!(host instanceof HTMLElement)) throw new TypeError("notice host missing");
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("pinned row missing");
 
-      expect(host).toContainElement(notice());
-      expect(host).toContainElement(retry());
+      expect(pinned).toContainElement(notice());
+      expect(notice()).toContainElement(retry());
       expect(queue).not.toContainElement(retry());
-      expect(retry()).toHaveClass("mt-row", "mb-row");
       expect(
         retry().compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
+    });
+
+    it("pins a turn error in the danger tone with the retry action beside it", () => {
+      setChat({
+        notice: "Rate limited — please try again shortly.",
+        noticeTone: "danger",
+        noticeRetry: true,
+      });
+      render(<Harness />);
+
+      expect(notice()).toHaveAttribute("role", "alert");
+      expect(notice()).toHaveAttribute("data-tone", "danger");
+      expect(notice()).toHaveClass("text-danger", "border-danger/40");
+      expect(notice().querySelector("svg")).not.toBeNull();
+      expect(notice()).toContainElement(retry());
+      expect(retry().hidden).toBe(false);
+      expect(document.querySelector(".chat-pinned-row")).toContainElement(notice());
+      expect(document.querySelector(".composer-feedback")).not.toContainElement(retry());
+
+      setChat({ notice: "Coach is working…", noticeTone: "neutral", noticeRetry: false });
+      expect(notice()).toHaveAttribute("role", "status");
+      expect(notice()).not.toHaveClass("text-danger");
+      expect(notice().querySelector("svg")).toBeNull();
+    });
+
+    it("keeps Retry reachable inside the Plan creation notice when a turn is interrupted", () => {
+      setChat({
+        planCreation: planCreationModel(goalQuestion("What are you preparing for?")),
+        planCreationLoaded: true,
+        planCreationPaused: true,
+        timeline: [
+          {
+            kind: "plan-creation",
+            model: planCreationModel(goalQuestion("What are you preparing for?")),
+          },
+        ],
+        notice: "Rate limited — please try again shortly.",
+        noticeTone: "danger",
+        noticeRetry: true,
+      });
+      render(<Harness />);
+
+      expect(document.querySelector(".chat-pinned-row .chat-notice")).toBeNull();
+      expect(notice().closest(".conversation")).not.toBeNull();
+      expect(notice()).toHaveAttribute("data-tone", "danger");
+      expect(notice()).toContainElement(retry());
+      expect(retry().hidden).toBe(false);
+    });
+
+    it("keeps the pinned row inside the reading column beside the Training context", () => {
+      setChat({ notice: "Rate limited — please try again shortly.", noticeTone: "danger" });
+      render(<Harness />);
+
+      const pinned = document.querySelector(".chat-pinned-row");
+      const column = document.querySelector(".chat-reading-column");
+      const surface = document.querySelector(".chat-surface");
+      const context = screen.getByRole("complementary", { name: "Training context" });
+      if (!(pinned instanceof HTMLElement) || !(column instanceof HTMLElement)) {
+        throw new TypeError("reading column missing");
+      }
+
+      expect(column).toContainElement(pinned);
+      expect(column.firstElementChild).toBe(pinned);
+      expect(column).not.toContainElement(context);
+      expect(column.parentElement).toBe(context.parentElement);
+      expect(surface).toHaveClass("grid-rows-[52px_minmax(0,1fr)]");
+      expect(pinned.className).not.toMatch(/grid-cols/);
+    });
+
+    it("keeps the conversation and composer in their rows while the pinned row is hidden", () => {
+      render(<Harness />);
+
+      const pinned = document.querySelector(".chat-pinned-row");
+      const conversation = document.querySelector(".conversation");
+      const composer = document.querySelector(".composer-wrap");
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("pinned row missing");
+
+      expect(pinned.hidden).toBe(true);
+      expect(conversation).toHaveClass("row-start-2");
+      expect(composer).toHaveClass("row-start-3");
     });
 
     it("keeps the retry bar inert until the chat actions are bound", () => {
@@ -2100,7 +2369,7 @@ describe("chat surface", () => {
         useEnduragentStore.setState({ chatActions: null });
       });
       render(<Harness />);
-      setChat({ interrupted: true });
+      setChat({ noticeRetry: true });
 
       act(() => {
         retry().click();
@@ -2410,46 +2679,29 @@ describe("chat surface", () => {
     );
   });
 
-  describe("first sync card", () => {
-    it("shows nothing until the first sync is under way", () => {
+  describe("first sync status", () => {
+    it("does not add synchronization status to the conversation", () => {
       render(<Harness />);
       expect(document.querySelector(".first-sync")).toBeNull();
 
       act(() => {
         useEnduragentStore.setState({ firstSync: { status: "syncing" } });
       });
-      const progress = screen.getByRole("progressbar", { name: "Syncing training history" });
-      expect(progress).toBeVisible();
-      expect(progress).not.toHaveAttribute("value");
-      expect(progress.closest(".first-sync__track")).not.toBeNull();
-
-      act(() => {
-        useEnduragentStore.setState({ firstSync: { status: "ready" } });
-      });
       expect(document.querySelector(".first-sync")).toBeNull();
-    });
 
-    it("retries a recoverable sync failure and refuses one that needs a relaunch", async () => {
-      const user = userEvent.setup();
-      render(<Harness />);
       act(() => {
         useEnduragentStore.setState({
           firstSync: { status: "failed", kind: "operation", retryable: true },
         });
       });
-
-      const retry = screen.getByRole("button", { name: "Retry sync" });
-      await user.click(retry);
-      expect(actions.retryFirstSync).toHaveBeenCalledTimes(1);
-      expect(retry).toBeDisabled();
+      expect(document.querySelector(".first-sync")).toBeNull();
 
       act(() => {
         useEnduragentStore.setState({
           firstSync: { status: "failed", kind: "protocol", retryable: false },
         });
       });
-      expect(screen.queryByRole("button", { name: "Retry sync" })).toBeNull();
-      expect(screen.getByText("Quit and reopen Enduragent.")).toBeInTheDocument();
+      expect(document.querySelector(".first-sync")).toBeNull();
     });
   });
 
@@ -3300,6 +3552,137 @@ describe("chat surface", () => {
       await userEvent.click(discard);
       expect(actions.openPlanCreationDiscard).toHaveBeenCalledOnce();
       expect(composer()).toBeEnabled();
+    });
+
+    it("offers Draft review only after its actions leave the viewport and returns to the Card", async () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+
+      const key = `plan-creation:${model.creationId}`;
+      const conversation = screen.getByRole("main", { name: "Coaching conversation" });
+      const card = document.querySelector<HTMLElement>(`[data-pending-navigation-card="${key}"]`);
+      const heading = document.querySelector<HTMLElement>(
+        `[data-pending-navigation-heading="${key}"]`,
+      );
+      const source = document.querySelector<HTMLElement>(
+        `[data-pending-navigation-source="${key}"]`,
+      );
+      expect(card).not.toBeNull();
+      expect(heading).not.toBeNull();
+      expect(source).not.toBeNull();
+
+      let sourceBottom = 500;
+      vi.spyOn(conversation, "getBoundingClientRect").mockReturnValue({
+        top: 100,
+      } as DOMRect);
+      vi.spyOn(card!, "getBoundingClientRect").mockReturnValue({ top: 340 } as DOMRect);
+      vi.spyOn(source!, "getBoundingClientRect").mockImplementation(
+        () => ({ top: sourceBottom - 40, bottom: sourceBottom }) as DOMRect,
+      );
+      conversation.scrollTop = 240;
+
+      fireEvent.scroll(conversation);
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+
+      sourceBottom = 99;
+      fireEvent.scroll(conversation);
+      const reviewDraft = await screen.findByRole("button", { name: "Review Draft" });
+
+      const expectedScrollTop = conversation.scrollTop + 340 - 100 - 8;
+      sourceBottom = 500;
+      await userEvent.click(reviewDraft);
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(conversation.scrollTop).toBe(expectedScrollTop);
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+      expect(actions.openPlanCreationActivate).not.toHaveBeenCalled();
+      expect(actions.openPlanCreationDiscard).not.toHaveBeenCalled();
+      expect(actions.editPlanCreation).not.toHaveBeenCalled();
+
+      sourceBottom = 99;
+      fireEvent.scroll(conversation);
+      expect(await screen.findByRole("button", { name: "Review Draft" })).toBeVisible();
+
+      setChat({ planCreation: null, timeline: [] });
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+    });
+
+    it("offers Draft review when a pinned-row resize moves its actions above the viewport", async () => {
+      const observations: Array<{
+        readonly callback: ResizeObserverCallback;
+        readonly observer: ResizeObserver;
+        readonly target: Element;
+      }> = [];
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(private readonly callback: ResizeObserverCallback) {}
+
+          observe(target: Element): void {
+            observations.push({
+              callback: this.callback,
+              observer: this as unknown as ResizeObserver,
+              target,
+            });
+          }
+
+          disconnect(): void {}
+
+          unobserve(): void {}
+        },
+      );
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+
+      try {
+        render(<Harness />);
+        const key = `plan-creation:${model.creationId}`;
+        const conversation = screen.getByRole("main", { name: "Coaching conversation" });
+        const source = document.querySelector<HTMLElement>(
+          `[data-pending-navigation-source="${key}"]`,
+        );
+        const pinned = document.querySelector(".chat-pinned-row");
+        const observation = observations.find((entry) => entry.target === pinned);
+        expect(source).not.toBeNull();
+        expect(observation).toBeDefined();
+        if (observation === undefined) throw new TypeError("Pinned row observation missing");
+
+        let conversationTop = 100;
+        vi.spyOn(conversation, "getBoundingClientRect").mockImplementation(
+          () => ({ top: conversationTop }) as DOMRect,
+        );
+        vi.spyOn(source!, "getBoundingClientRect").mockReturnValue({
+          top: 70,
+          bottom: 110,
+        } as DOMRect);
+        fireEvent.scroll(conversation);
+        expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+
+        conversationTop = 120;
+        act(() => {
+          observation.callback([{ target: pinned } as ResizeObserverEntry], observation.observer);
+        });
+
+        expect(await screen.findByRole("button", { name: "Review Draft" })).toBeVisible();
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it("keeps the Draft visible when an edited answer starts a check without changing version", async () => {
@@ -4185,6 +4568,7 @@ describe("chat surface", () => {
           readPlanHistory: vi.fn(),
           startCreation: vi.fn(),
           continueCreation: vi.fn(),
+          changeOneThingInChat: vi.fn(),
           changeInChat: vi.fn(),
         },
       });

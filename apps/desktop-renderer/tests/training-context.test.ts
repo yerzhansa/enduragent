@@ -177,7 +177,7 @@ describe("training context controller", () => {
     expect(states.at(-1)?.status).toBe("ready");
   });
 
-  it("uses a shared recovered client instead of reconnecting a stale failed instance", async () => {
+  it("asks the provider to replace the failed client and continues on the recovered one", async () => {
     const failed = {
       handshake: {} as CoachClient["handshake"],
       call: vi.fn(async (method: string) => {
@@ -210,7 +210,7 @@ describe("training context controller", () => {
     await controller.start();
     current = recovered;
     await controller.refresh();
-    expect(clients.reconnect).not.toHaveBeenCalled();
+    expect(clients.reconnect).toHaveBeenCalledWith(failed);
     expect(states.at(-1)?.status).toBe("ready");
   });
 

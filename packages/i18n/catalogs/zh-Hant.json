@@ -115,7 +115,7 @@
         "credentialRequired": "此供應商需要已儲存的憑證才能提供指導。請在上方的初始設定區新增。",
         "invalidInput": "未接受此供應商或模型。請檢查模型名稱後重試。",
         "requestFailed": "目前無法儲存教練設定。請重試。",
-        "runtimeUnavailable": "無法啟用教練設定。請再次儲存。"
+        "runtimeUnavailable": "無法啟用教練設定。請再試一次。"
       },
       "inactive": "未啟用",
       "loading": "正在載入教練設定…",
@@ -137,7 +137,7 @@
       "title": "教練",
       "unavailable": "目前無法使用教練設定。請重試。",
       "unsaved": "未儲存",
-      "unsupported": "{{operatingSystem}} 不支援 {{codex}} 代理程式。請選擇 {{claude}} 訂閱或使用 API 金鑰的供應商，再儲存教練連線。憑證、運動員資料、對話及其他設定不會變更。",
+      "unsupported": "{{operatingSystem}} 不支援 {{codex}} 代理程式。請選擇 {{claude}} 訂閱或使用 API 金鑰的供應商。憑證、運動員資料、對話及其他設定不會變更。",
       "validation": {
         "modelControlCharacters": "模型名稱不可包含控制字元。",
         "modelRequired": "請輸入模型名稱。",
@@ -295,7 +295,7 @@
         "failed": "無法儲存每日上限。",
         "invalid": "請輸入大於 $0 的每日上限。",
         "label": "每日上限（美元）",
-        "save": "儲存上限",
+        "retry": "重試",
         "value": "{{known}}，上限 {{cap}}"
       },
       "date": "{{month}}{{day}} 日",
@@ -801,7 +801,7 @@
     "planAttention_other": "計畫，{{formattedCount}} 個項目需要處理",
     "sync": {
       "action": {
-        "again": "再次同步",
+        "again": "同步",
         "now": "立即同步",
         "retry": "重試",
         "unavailable": "無法同步"
@@ -938,6 +938,7 @@
       "messagePlaceholder": "傳送訊息給教練",
       "responding": "教練正在回覆…",
       "send": "傳送訊息",
+      "sendConnecting": "Chat 仍在連線，因此還不能傳送。",
       "stop": "停止回覆"
     },
     "date": {
@@ -995,6 +996,7 @@
       "decisionFailure": "無法依所選答案繼續。請重試。",
       "decisionLoadFailure": "無法檢查已儲存的教練問題。請重新連線後重試。",
       "decisionSkipFailure": "無法略過此問題。請重試。",
+      "draftSaveFailure": "暫時聯繫不上教練，所以你的訊息仍在輸入框中。",
       "emptyResponse": "教練回傳了空白回覆。請重試。",
       "newConversationMemoryWarning": "已開始新對話。部分近期細節可能未儲存至教練記憶。",
       "newConversationSuccess": "已開始新對話。",
@@ -1099,7 +1101,7 @@
       "noChanges": "訓練課表未變更。",
       "none": "無",
       "notInPlan": "不在計畫中",
-      "openPlan": "開啟計畫",
+      "openPlan": "開啟目前計畫",
       "option": {
         "ftp": "修正 FTP",
         "hardWeekday": "每週某天不安排高強度訓練",
@@ -1437,6 +1439,10 @@
       "conversation": "教練對話",
       "disclaimer": "此內容不是醫療建議，也不能取代醫師或認證教練的指導。",
       "hideContext": "隱藏訓練背景",
+      "pendingDraft": "你的訓練計畫已可供審核。",
+      "reviewChange": "審核變更",
+      "reviewChoices": "審核選項",
+      "reviewDraft": "審核草稿",
       "showContext": "顯示訓練背景",
       "title": "聊天"
     }

@@ -118,7 +118,7 @@
         "credentialRequired": "Ten dostawca wymaga zapisanych danych dostępowych, zanim będzie mógł cię trenować. Dodaj je w sekcji konfiguracji powyżej.",
         "invalidInput": "Ten dostawca lub model nie został zaakceptowany. Sprawdź nazwę modelu i spróbuj ponownie.",
         "requestFailed": "Nie można teraz zapisać ustawień trenera. Spróbuj ponownie.",
-        "runtimeUnavailable": "Nie udało się aktywować ustawień trenera. Spróbuj zapisać ponownie."
+        "runtimeUnavailable": "Nie udało się aktywować ustawień trenera. Spróbuj ponownie."
       },
       "inactive": "Nieaktywne",
       "loading": "Wczytywanie ustawień trenera…",
@@ -140,7 +140,7 @@
       "title": "Trener",
       "unavailable": "Ustawienia trenera są teraz niedostępne. Spróbuj ponownie.",
       "unsaved": "Niezapisane",
-      "unsupported": "Agent {{codex}} nie jest obsługiwany w {{operatingSystem}}. Wybierz subskrypcję {{claude}} lub dostawcę z kluczem API, a następnie zapisz połączenie trenera. Twoje dane dostępowe, dane sportowca, rozmowy i pozostałe ustawienia pozostaną bez zmian.",
+      "unsupported": "Agent {{codex}} nie jest obsługiwany w {{operatingSystem}}. Wybierz subskrypcję {{claude}} lub dostawcę z kluczem API. Twoje dane dostępowe, dane sportowca, rozmowy i pozostałe ustawienia pozostaną bez zmian.",
       "validation": {
         "modelControlCharacters": "Nazwy modeli nie mogą zawierać znaków sterujących.",
         "modelRequired": "Wpisz nazwę modelu.",
@@ -298,7 +298,7 @@
         "failed": "Nie udało się zapisać dziennego limitu.",
         "invalid": "Wpisz dzienny limit większy niż 0 USD.",
         "label": "Dzienny limit (USD)",
-        "save": "Zapisz limit",
+        "retry": "Spróbuj ponownie",
         "value": "{{known}} z {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -811,7 +811,7 @@
     "planAttention_other": "Plan, {{formattedCount}} elementu wymaga uwagi",
     "sync": {
       "action": {
-        "again": "Synchronizuj ponownie",
+        "again": "Synchronizuj",
         "now": "Synchronizuj teraz",
         "retry": "Spróbuj ponownie",
         "unavailable": "Synchronizacja niedostępna"
@@ -962,6 +962,7 @@
       "messagePlaceholder": "Napisz do trenera",
       "responding": "Trener odpowiada…",
       "send": "Wyślij wiadomość",
+      "sendConnecting": "Czat wciąż się łączy, więc Wyślij nie jest jeszcze gotowe.",
       "stop": "Zatrzymaj odpowiedź"
     },
     "date": {
@@ -1019,6 +1020,7 @@
       "decisionFailure": "Nie udało się kontynuować po twoim wyborze. Spróbuj ponownie.",
       "decisionLoadFailure": "Nie udało się sprawdzić zapisanego pytania trenera. Połącz ponownie i spróbuj jeszcze raz.",
       "decisionSkipFailure": "Nie udało się pominąć tego pytania. Spróbuj ponownie.",
+      "draftSaveFailure": "Nie udało się połączyć z coachem, więc wiadomość zostaje w polu.",
       "emptyResponse": "Trener zwrócił pustą odpowiedź. Spróbuj ponownie.",
       "newConversationMemoryWarning": "Rozpoczęto nową rozmowę. Niektóre ostatnie szczegóły mogły nie zostać zapisane w pamięci trenera.",
       "newConversationSuccess": "Rozpoczęto nową rozmowę.",
@@ -1123,7 +1125,7 @@
       "noChanges": "Brak zmian w treningach.",
       "none": "Brak",
       "notInPlan": "Poza planem",
-      "openPlan": "Otwórz plan",
+      "openPlan": "Otwórz aktywny plan",
       "option": {
         "ftp": "Skoryguj FTP",
         "hardWeekday": "Bez ciężkiego treningu w wybrany dzień tygodnia",
@@ -1476,6 +1478,10 @@
       "conversation": "Rozmowa z trenerem",
       "disclaimer": "To nie jest porada medyczna ani zastępstwo lekarza lub certyfikowanego trenera.",
       "hideContext": "Ukryj kontekst treningowy",
+      "pendingDraft": "Twój Plan treningowy jest gotowy do przejrzenia.",
+      "reviewChange": "Przejrzyj zmianę",
+      "reviewChoices": "Przejrzyj opcje",
+      "reviewDraft": "Przejrzyj wersję roboczą",
       "showContext": "Pokaż kontekst treningowy",
       "title": "Czat"
     }

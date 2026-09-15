@@ -116,7 +116,7 @@
         "credentialRequired": "Questo fornitore richiede una credenziale salvata prima di poterti allenare. Usa l’area di configurazione qui sopra per aggiungerne una.",
         "invalidInput": "Il fornitore o il modello non è stato accettato. Controlla il nome del modello e riprova.",
         "requestFailed": "Impossibile salvare le impostazioni del coach al momento. Riprova.",
-        "runtimeUnavailable": "Impossibile attivare le impostazioni del coach. Prova a salvarle di nuovo."
+        "runtimeUnavailable": "Impossibile attivare le impostazioni del coach. Riprova."
       },
       "inactive": "Non attivo",
       "loading": "Caricamento delle impostazioni del coach…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Le impostazioni del coach non sono disponibili al momento. Riprova.",
       "unsaved": "Non salvato",
-      "unsupported": "L’agente {{codex}} non è supportato su {{operatingSystem}}. Scegli l’abbonamento {{claude}} o un fornitore con chiave API, poi salva la configurazione del coach. Le credenziali, i dati dell’atleta, le conversazioni e le altre impostazioni rimangono invariati.",
+      "unsupported": "L’agente {{codex}} non è supportato su {{operatingSystem}}. Scegli l’abbonamento {{claude}} o un fornitore con chiave API. Le credenziali, i dati dell’atleta, le conversazioni e le altre impostazioni rimangono invariati.",
       "validation": {
         "modelControlCharacters": "I nomi dei modelli non possono contenere caratteri di controllo.",
         "modelRequired": "Inserisci un nome di modello.",
@@ -296,7 +296,7 @@
         "failed": "Impossibile salvare il limite giornaliero.",
         "invalid": "Inserisci un limite giornaliero superiore a $0.",
         "label": "Limite giornaliero (USD)",
-        "save": "Salva limite",
+        "retry": "Riprova",
         "value": "{{known}} su {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Piano, {{formattedCount}} elementi richiedono attenzione",
     "sync": {
       "action": {
-        "again": "Sincronizza di nuovo",
+        "again": "Sincronizza",
         "now": "Sincronizza ora",
         "retry": "Riprova",
         "unavailable": "Sincronizzazione non disponibile"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Scrivi al tuo coach",
       "responding": "Il coach sta rispondendo…",
       "send": "Invia messaggio",
+      "sendConnecting": "Chat si sta ancora collegando, quindi Invia non è ancora pronto.",
       "stop": "Interrompi risposta"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Impossibile proseguire con la tua scelta. Riprova.",
       "decisionLoadFailure": "Impossibile verificare se c’è una domanda salvata del coach. Riconnetti e riprova.",
       "decisionSkipFailure": "Impossibile saltare questa domanda. Riprova.",
+      "draftSaveFailure": "Impossibile raggiungere il coach, quindi il messaggio resta nel riquadro.",
       "emptyResponse": "Il coach ha restituito una risposta vuota. Riprova.",
       "newConversationMemoryWarning": "Nuova conversazione iniziata. Alcuni dettagli recenti potrebbero non essere stati salvati nella memoria del coach.",
       "newConversationSuccess": "Nuova conversazione iniziata.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Nessuna modifica agli allenamenti.",
       "none": "Nessuno",
       "notInPlan": "Non nel piano",
-      "openPlan": "Apri piano",
+      "openPlan": "Apri il piano attivo",
       "option": {
         "ftp": "Correggi FTP",
         "hardWeekday": "Nessun allenamento intenso in un giorno della settimana",
@@ -1450,6 +1452,10 @@
       "conversation": "Conversazione con il coach",
       "disclaimer": "Non è un consiglio medico e non sostituisce un medico o un coach certificato.",
       "hideContext": "Nascondi contesto di allenamento",
+      "pendingDraft": "Il tuo Piano di allenamento è pronto per la revisione.",
+      "reviewChange": "Rivedi modifica",
+      "reviewChoices": "Rivedi opzioni",
+      "reviewDraft": "Rivedi bozza",
       "showContext": "Mostra contesto di allenamento",
       "title": "Chat"
     }

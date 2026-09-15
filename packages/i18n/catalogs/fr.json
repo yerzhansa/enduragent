@@ -116,7 +116,7 @@
         "credentialRequired": "Ce fournisseur a besoin d’une donnée d’authentification enregistrée pour te coacher. Utilise la zone de configuration ci-dessus pour en ajouter une.",
         "invalidInput": "Ce fournisseur ou ce modèle n’a pas été accepté. Vérifie le nom du modèle et réessaie.",
         "requestFailed": "Les paramètres du coach n’ont pas pu être enregistrés pour le moment. Réessaie.",
-        "runtimeUnavailable": "Les paramètres du coach n’ont pas pu être activés. Réessaie de les enregistrer."
+        "runtimeUnavailable": "Les paramètres du coach n’ont pas pu être activés. Réessaie."
       },
       "inactive": "Inactif",
       "loading": "Chargement des paramètres du coach…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Les paramètres du coach sont indisponibles pour le moment. Réessaie.",
       "unsaved": "Non enregistré",
-      "unsupported": "L’agent {{codex}} n’est pas pris en charge sur {{operatingSystem}}. Choisis l’abonnement {{claude}} ou un fournisseur avec clé API, puis enregistre la configuration du coach. Tes données d’authentification, tes données d’athlète, tes conversations et tes autres paramètres restent inchangés.",
+      "unsupported": "L’agent {{codex}} n’est pas pris en charge sur {{operatingSystem}}. Choisis l’abonnement {{claude}} ou un fournisseur avec clé API. Tes données d’authentification, tes données d’athlète, tes conversations et tes autres paramètres restent inchangés.",
       "validation": {
         "modelControlCharacters": "Les noms de modèles ne peuvent pas contenir de caractères de contrôle.",
         "modelRequired": "Saisis un nom de modèle.",
@@ -296,7 +296,7 @@
         "failed": "Le plafond quotidien n’a pas pu être enregistré.",
         "invalid": "Saisis un plafond quotidien supérieur à 0 $.",
         "label": "Plafond quotidien (USD)",
-        "save": "Enregistrer le plafond",
+        "retry": "Réessayer",
         "value": "{{known}} sur {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} éléments à vérifier",
     "sync": {
       "action": {
-        "again": "Synchroniser à nouveau",
+        "again": "Synchroniser",
         "now": "Synchroniser maintenant",
         "retry": "Réessayer",
         "unavailable": "Synchronisation indisponible"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Écris à ton coach",
       "responding": "Le coach répond…",
       "send": "Envoyer le message",
+      "sendConnecting": "Chat est encore en train de se connecter, donc Envoyer n’est pas encore prêt.",
       "stop": "Arrêter la réponse"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Impossible de poursuivre à partir de ton choix. Réessaie.",
       "decisionLoadFailure": "Impossible de vérifier si une question du coach a été enregistrée. Reconnecte et réessaie.",
       "decisionSkipFailure": "Impossible de passer cette question. Réessaie.",
+      "draftSaveFailure": "Impossible de joindre le coach, donc ton message reste dans le champ.",
       "emptyResponse": "Le coach a renvoyé une réponse vide. Réessaie.",
       "newConversationMemoryWarning": "Nouvelle conversation commencée. Certains détails récents n’ont peut-être pas été enregistrés dans la mémoire du coach.",
       "newConversationSuccess": "Nouvelle conversation commencée.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Aucune modification d’entraînement.",
       "none": "Aucun",
       "notInPlan": "Absent du plan",
-      "openPlan": "Ouvrir le plan",
+      "openPlan": "Ouvrir le plan actif",
       "option": {
         "ftp": "Corriger la FTP",
         "hardWeekday": "Pas d’entraînement intense un jour de la semaine",
@@ -1450,6 +1452,10 @@
       "conversation": "Conversation avec le coach",
       "disclaimer": "Ces informations ne sont pas un avis médical et ne remplacent pas un médecin ou un coach certifié.",
       "hideContext": "Masquer le contexte d’entraînement",
+      "pendingDraft": "Votre Plan d’entraînement est prêt à être examiné.",
+      "reviewChange": "Examiner la modification",
+      "reviewChoices": "Examiner les choix",
+      "reviewDraft": "Examiner le brouillon",
       "showContext": "Afficher le contexte d’entraînement",
       "title": "Conversation"
     }

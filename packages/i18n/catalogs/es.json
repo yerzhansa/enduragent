@@ -116,7 +116,7 @@
         "credentialRequired": "Este proveedor necesita una credencial guardada para poder entrenarte. Usa el área de configuración de arriba para añadir una.",
         "invalidInput": "No se ha aceptado ese proveedor o modelo. Comprueba el nombre del modelo e inténtalo de nuevo.",
         "requestFailed": "No se han podido guardar los ajustes del entrenador ahora. Inténtalo de nuevo.",
-        "runtimeUnavailable": "No se han podido activar los ajustes del entrenador. Intenta guardarlos de nuevo."
+        "runtimeUnavailable": "No se han podido activar los ajustes del entrenador. Inténtalo de nuevo."
       },
       "inactive": "Inactivo",
       "loading": "Cargando ajustes del entrenador…",
@@ -138,7 +138,7 @@
       "title": "Entrenador",
       "unavailable": "Los ajustes del entrenador no están disponibles ahora. Inténtalo de nuevo.",
       "unsaved": "Sin guardar",
-      "unsupported": "El agente {{codex}} no es compatible con {{operatingSystem}}. Elige la suscripción a {{claude}} o un proveedor con clave de API y guarda la conexión del entrenador. Tus credenciales, datos de deportista, conversaciones y demás ajustes no cambian.",
+      "unsupported": "El agente {{codex}} no es compatible con {{operatingSystem}}. Elige la suscripción a {{claude}} o un proveedor con clave de API. Tus credenciales, datos de deportista, conversaciones y demás ajustes no cambian.",
       "validation": {
         "modelControlCharacters": "Los nombres de modelo no pueden contener caracteres de control.",
         "modelRequired": "Introduce un nombre de modelo.",
@@ -296,7 +296,7 @@
         "failed": "No se ha podido guardar el límite diario.",
         "invalid": "Introduce un límite diario superior a $0.",
         "label": "Límite diario (USD)",
-        "save": "Guardar límite",
+        "retry": "Reintentar",
         "value": "{{known}} de {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} elementos requieren atención",
     "sync": {
       "action": {
-        "again": "Sincronizar de nuevo",
+        "again": "Sincronizar",
         "now": "Sincronizar ahora",
         "retry": "Intentar de nuevo",
         "unavailable": "Sincronización no disponible"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Escribe a tu entrenador",
       "responding": "El entrenador está respondiendo…",
       "send": "Enviar mensaje",
+      "sendConnecting": "Chat sigue conectando, así que Enviar aún no está listo.",
       "stop": "Detener respuesta"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "No se pudo continuar con tu elección. Inténtalo de nuevo.",
       "decisionLoadFailure": "No se pudo comprobar si había una pregunta del entrenador guardada. Vuelve a conectar e inténtalo de nuevo.",
       "decisionSkipFailure": "No se pudo omitir esta pregunta. Inténtalo de nuevo.",
+      "draftSaveFailure": "No se pudo contactar al coach, así que tu mensaje sigue en el recuadro.",
       "emptyResponse": "El entrenador devolvió una respuesta vacía. Inténtalo de nuevo.",
       "newConversationMemoryWarning": "Se ha iniciado una nueva conversación. Puede que algunos detalles recientes no se hayan guardado en la memoria del entrenador.",
       "newConversationSuccess": "Se ha iniciado una nueva conversación.",
@@ -1107,7 +1109,7 @@
       "noChanges": "No hay cambios en los entrenamientos.",
       "none": "Ninguno",
       "notInPlan": "No está en el plan",
-      "openPlan": "Abrir Plan",
+      "openPlan": "Abrir Plan activo",
       "option": {
         "ftp": "Corregir FTP",
         "hardWeekday": "Sin entrenamiento intenso en un día de la semana",
@@ -1450,6 +1452,10 @@
       "conversation": "Conversación con el entrenador",
       "disclaimer": "No es asesoramiento médico ni sustituye a un médico o a un entrenador certificado.",
       "hideContext": "Ocultar contexto de entrenamiento",
+      "pendingDraft": "Tu Plan de entrenamiento está listo para revisar.",
+      "reviewChange": "Revisar cambio",
+      "reviewChoices": "Revisar opciones",
+      "reviewDraft": "Revisar borrador",
       "showContext": "Mostrar contexto de entrenamiento",
       "title": "Chat"
     }

@@ -116,7 +116,7 @@
         "credentialRequired": "Tämä palveluntarjoaja tarvitsee tallennetun tunnistautumistiedon voidakseen valmentaa sinua. Lisää se yllä olevassa käyttöönotto-osiossa.",
         "invalidInput": "Palveluntarjoajaa tai mallia ei hyväksytty. Tarkista mallin nimi ja yritä uudelleen.",
         "requestFailed": "Valmentajan asetuksia ei voitu juuri nyt tallentaa. Yritä uudelleen.",
-        "runtimeUnavailable": "Valmentajan asetuksia ei voitu ottaa käyttöön. Yritä tallentaa uudelleen."
+        "runtimeUnavailable": "Valmentajan asetuksia ei voitu ottaa käyttöön. Yritä uudelleen."
       },
       "inactive": "Ei käytössä",
       "loading": "Ladataan valmentajan asetuksia…",
@@ -138,7 +138,7 @@
       "title": "Valmentaja",
       "unavailable": "Valmentajan asetukset eivät ole juuri nyt käytettävissä. Yritä uudelleen.",
       "unsaved": "Tallentamatta",
-      "unsupported": "{{codex}}-agenttia ei tueta käyttöjärjestelmässä {{operatingSystem}}. Valitse {{claude}}-tilaus tai API-avainta käyttävä palveluntarjoaja ja tallenna sitten valmentajan yhteys. Tunnistautumistietosi, urheilijatietosi, keskustelusi ja muut asetuksesi säilyvät ennallaan.",
+      "unsupported": "{{codex}}-agenttia ei tueta käyttöjärjestelmässä {{operatingSystem}}. Valitse {{claude}}-tilaus tai API-avainta käyttävä palveluntarjoaja. Tunnistautumistietosi, urheilijatietosi, keskustelusi ja muut asetuksesi säilyvät ennallaan.",
       "validation": {
         "modelControlCharacters": "Mallien nimissä ei voi olla ohjausmerkkejä.",
         "modelRequired": "Anna mallin nimi.",
@@ -296,7 +296,7 @@
         "failed": "Päivittäistä rajaa ei voitu tallentaa.",
         "invalid": "Anna päivittäinen raja, joka on suurempi kuin 0 $.",
         "label": "Päivittäinen raja (USD)",
-        "save": "Tallenna raja",
+        "retry": "Yritä uudelleen",
         "value": "{{known}} / {{cap}}"
       },
       "date": "{{day}}. {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Suunnitelma, {{formattedCount}} kohtaa vaatii huomiota",
     "sync": {
       "action": {
-        "again": "Synkronoi uudelleen",
+        "again": "Synkronoi",
         "now": "Synkronoi nyt",
         "retry": "Yritä uudelleen",
         "unavailable": "Synkronointi ei ole käytettävissä"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Lähetä viesti valmentajallesi",
       "responding": "Valmentaja vastaa…",
       "send": "Lähetä viesti",
+      "sendConnecting": "Chat on yhä yhdistymässä, joten Lähetä ei ole vielä valmis.",
       "stop": "Pysäytä vastaus"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Valinnastasi ei voitu jatkaa. Yritä uudelleen.",
       "decisionLoadFailure": "Valmentajan tallennettua kysymystä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "decisionSkipFailure": "Tätä kysymystä ei voitu ohittaa. Yritä uudelleen.",
+      "draftSaveFailure": "Valmentajaan ei saatu yhteyttä, joten viestisi on yhä kentässä.",
       "emptyResponse": "Valmentaja palautti tyhjän vastauksen. Yritä uudelleen.",
       "newConversationMemoryWarning": "Uusi keskustelu aloitettu. Joitakin viimeaikaisia tietoja ei ehkä tallennettu valmentajan muistiin.",
       "newConversationSuccess": "Uusi keskustelu aloitettu.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Ei muutoksia harjoituksiin.",
       "none": "Ei mitään",
       "notInPlan": "Ei suunnitelmassa",
-      "openPlan": "Avaa suunnitelma",
+      "openPlan": "Avaa aktiivinen suunnitelma",
       "option": {
         "ftp": "Korjaa FTP",
         "hardWeekday": "Ei kovaa harjoittelua tiettynä viikonpäivänä",
@@ -1450,6 +1452,10 @@
       "conversation": "Valmennuskeskustelu",
       "disclaimer": "Ei lääketieteellisiä neuvoja eikä korvaa lääkäriä tai pätevää valmentajaa.",
       "hideContext": "Piilota harjoittelun taustatiedot",
+      "pendingDraft": "Harjoitussuunnitelmasi on valmis tarkistettavaksi.",
+      "reviewChange": "Tarkista muutos",
+      "reviewChoices": "Tarkista valinnat",
+      "reviewDraft": "Tarkista luonnos",
       "showContext": "Näytä harjoittelun taustatiedot",
       "title": "Keskustelu"
     }

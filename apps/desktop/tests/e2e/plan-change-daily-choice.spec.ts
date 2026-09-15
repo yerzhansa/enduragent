@@ -160,7 +160,7 @@ const inverseTitle = "Undo the latest Change";
 const occupiedReason = "Today already belongs to a dated Workout.";
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function todayCard(scenario: Scenario) {
@@ -240,7 +240,7 @@ for (const appearance of appearances) {
       await capture(scenario, "pending-choice");
       await pending.getByRole("button", { name: "Apply to Plan", exact: true }).click();
       await expect(changeCard(scenario, choiceTitle, "Applied")).toBeVisible();
-      await expect(changes(scenario).getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "Change applied locally. Training now matches the confirmed preview.",
       );
       const applied = await scenario.backend.inspectActivation();
@@ -307,8 +307,13 @@ for (const appearance of appearances) {
       ).toBeEnabled();
       await today.getByRole("heading").scrollIntoViewIfNeeded();
       await capture(scenario, "restored-choice");
-      await changes(scenario)
-        .getByRole("button", { name: "Change one thing", exact: true })
+      await scenario.page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("button", { name: "Plan", exact: true })
+        .click();
+      await scenario.page
+        .getByRole("region", { name: "Plan library", exact: true })
+        .getByRole("button", { name: "Change in Chat", exact: true })
         .click();
       const requestsBeforeChat = scenario.backend.creationRequests.length;
       const composer = scenario.page.getByRole("combobox", { name: "Message your coach" });
@@ -346,7 +351,7 @@ for (const appearance of appearances) {
       await capture(scenario, "chat-choice");
       await chatPending.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(changeCard(scenario, choiceTitle, "Cancelled")).toBeVisible();
-      await expect(changes(scenario).getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "Change cancelled. Training is unchanged; the preview remains in history.",
       );
       const cancelled = await scenario.backend.inspectActivation();

@@ -934,6 +934,7 @@ export async function createLocalCoachComposition(
       }),
     today: () => todayInTZ(planningTimezone, new Date(now())),
     todayDateKey: planningDateKey,
+    timezone: () => planningTimezone,
     now,
   });
   const planningRepository = createLegacyPlanRepository(input.context.store);
@@ -2116,6 +2117,7 @@ export async function createLocalCoachComposition(
       identity: planningIdentity,
       crypto: globalThis.crypto,
       todayDateKey: planningDateKey,
+      timezone: () => planningTimezone,
       now,
       calendarConnected: async () => approvedConfig().intervals.apiKey.length > 0,
     });

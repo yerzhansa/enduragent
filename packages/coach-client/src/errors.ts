@@ -81,6 +81,15 @@ export class CoachClientDisconnectedError extends Error {
   }
 }
 
+export class CoachClientCallNotAdmittedError extends CoachClientDisconnectedError {
+  readonly callStatus = "not-admitted" as const;
+
+  constructor() {
+    super(1001, "");
+    this.name = "CoachClientCallNotAdmittedError";
+  }
+}
+
 export class CoachRpcRemoteError extends Error {
   readonly data: JsonValue | undefined;
 

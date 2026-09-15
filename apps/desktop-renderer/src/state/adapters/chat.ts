@@ -1,6 +1,11 @@
 import type { CoachDecisionReadModel, TranscriptPageEntry } from "@enduragent/coach-contract";
-import type { ChatView, ChatViewControls, PlanCreationDiscardEvent } from "../../chat/controller";
-import type { ChatState } from "../../chat/message-state";
+import {
+  CHAT_SEND_CONNECTING_COPY,
+  type ChatView,
+  type ChatViewControls,
+  type PlanCreationDiscardEvent,
+} from "../../chat/controller";
+import type { ChatState, WireMessage } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,
   sameChatMessages,
@@ -30,6 +35,175 @@ export interface ChatViewAdapter {
 
 function isStreamingCoach(message: { readonly role: string; readonly delivery: string }): boolean {
   return message.role === "coach" && message.delivery === "streaming";
+}
+
+function hasVisibleText(text: string): boolean {
+  return /\S/u.test(text);
+}
+
+function historyAthleteId(turnId: string): string {
+  return `history:athlete:${turnId}`;
+}
+
+function recoveredTurnId(state: ChatState): string | null {
+  return state.retryRequired?.turnId ?? state.activeTurn?.turnId ?? null;
+}
+
+function claimedQueuedText(state: ChatState): ReadonlySet<string> {
+  const claimed = new Set(state.retryRequired?.queuedMessageIds ?? []);
+  return new Set(state.queued.filter((item) => claimed.has(item.id)).map((item) => item.text));
+}
+
+function athleteIdForRecovery(
+  state: ChatState,
+  entries: readonly TranscriptPageEntry[],
+): string | null {
+  if (state.activeTurn?.userMessageId != null) return state.activeTurn.userMessageId;
+  const turnId = recoveredTurnId(state);
+  const claimedText = claimedQueuedText(state);
+  let claimedMatch: string | null = null;
+  let turnMatch: string | null = null;
+  for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+    const message = state.messages[index];
+    if (message === undefined || message.role !== "athlete") continue;
+    if (turnId !== null && (message.turnId === turnId || message.id === historyAthleteId(turnId))) {
+      turnMatch ??= message.id;
+    }
+    if (claimedText.has(message.text)) claimedMatch ??= message.id;
+  }
+  if (turnMatch !== null) return turnMatch;
+  if (claimedMatch !== null) return claimedMatch;
+  if (turnId === null) return null;
+  const entry = [...entries]
+    .reverse()
+    .find(
+      (item): item is Extract<TranscriptPageEntry, { readonly kind: "turn" }> =>
+        item.kind === "turn" && item.turnId === turnId,
+    );
+  if (
+    entry !== undefined &&
+    (hasVisibleText(entry.athleteText) || (entry.attachments?.length ?? 0) > 0)
+  ) {
+    return historyAthleteId(turnId);
+  }
+  return null;
+}
+
+function coachHasVisibleText(state: ChatState, entries: readonly TranscriptPageEntry[]): boolean {
+  const assistantId = state.activeTurn?.assistantMessageId;
+  if (assistantId !== undefined) {
+    const assistant = state.messages.find((message) => message.id === assistantId);
+    if (assistant !== undefined) return hasVisibleText(assistant.text);
+  }
+  const turnId = recoveredTurnId(state);
+  if (
+    state.messages.some(
+      (message) =>
+        message.role === "coach" &&
+        hasVisibleText(message.text) &&
+        (turnId === null ||
+          message.turnId === turnId ||
+          message.id.startsWith(`history:coach:${turnId}`)),
+    )
+  ) {
+    return true;
+  }
+  return (
+    turnId !== null &&
+    entries.some(
+      (entry) =>
+        entry.kind === "turn" && entry.turnId === turnId && hasVisibleText(entry.coachText),
+    )
+  );
+}
+
+type TurnRecovery = {
+  readonly messageId: string | null;
+  readonly messageError: string | null;
+  readonly messageErrorMessage: WireMessage | undefined;
+  readonly notice: string | null;
+  readonly noticeTone: "danger" | "neutral";
+  readonly noticeMessage: WireMessage | undefined;
+  readonly noticeRetry: boolean;
+};
+
+function stampRecoveredMessage(message: ChatMessageView, recovery: TurnRecovery): ChatMessageView {
+  if (recovery.messageId !== message.id) return message;
+  return {
+    ...message,
+    retry: true,
+    ...(recovery.messageError == null ? {} : { error: recovery.messageError }),
+    ...(recovery.messageErrorMessage === undefined
+      ? {}
+      : { errorMessage: recovery.messageErrorMessage }),
+  };
+}
+
+function stampRecoveredTimeline(
+  timeline: readonly ChatTranscriptItemView[],
+  recovery: TurnRecovery,
+): readonly ChatTranscriptItemView[] {
+  if (recovery.messageId == null) return timeline;
+  return timeline.map((item) =>
+    item.kind === "message"
+      ? { kind: "message", message: stampRecoveredMessage(item.message, recovery) }
+      : item,
+  );
+}
+
+function projectTurnRecovery(
+  state: ChatState,
+  input: {
+    readonly decisionBlocksWork: boolean;
+    readonly planActivated: boolean;
+    readonly planNotice: string | null | undefined;
+    readonly planError: string | null | undefined;
+    readonly planValueMissing: boolean;
+    readonly entries: readonly TranscriptPageEntry[];
+  },
+): TurnRecovery {
+  const empty: TurnRecovery = {
+    messageId: null,
+    messageError: null,
+    messageErrorMessage: undefined,
+    notice: null,
+    noticeTone: "neutral",
+    noticeMessage: undefined,
+    noticeRetry: false,
+  };
+  const planDanger = input.planNotice == null && input.planValueMissing && input.planError != null;
+  const planNotice = input.planActivated
+    ? null
+    : (input.planNotice ?? (input.planValueMissing ? (input.planError ?? null) : null));
+  if (input.decisionBlocksWork) return empty;
+  const turnError = state.activeTurn?.error ?? null;
+  const errorNotice: Pick<TurnRecovery, "notice" | "noticeTone" | "noticeMessage"> = {
+    notice: turnError?.athleteMessage ?? planNotice ?? null,
+    noticeTone: turnError != null || planDanger ? "danger" : "neutral",
+    noticeMessage: turnError?.message,
+  };
+  if (state.status === "streaming") {
+    return { ...empty, ...errorNotice };
+  }
+  const offered = state.retryRequired != null || state.status === "interrupted";
+  const athleteId = athleteIdForRecovery(state, input.entries);
+  if (offered && athleteId != null && !coachHasVisibleText(state, input.entries)) {
+    return {
+      messageId: athleteId,
+      messageError: turnError?.athleteMessage ?? null,
+      messageErrorMessage: turnError?.message,
+      notice: planNotice,
+      noticeTone: planDanger ? "danger" : "neutral",
+      noticeMessage: undefined,
+      noticeRetry: false,
+    };
+  }
+  return {
+    ...empty,
+    ...errorNotice,
+    notice: turnError?.athleteMessage ?? planNotice ?? state.progress,
+    noticeRetry: offered,
+  };
 }
 
 function choiceFromDecision(
@@ -77,12 +251,13 @@ function historicalTimeline(
       turnAttempts.set(entry.turnId, attempt);
       if (
         attempt === 1 &&
-        (/\S/u.test(entry.athleteText) || (entry.attachments?.length ?? 0) > 0)
+        (hasVisibleText(entry.athleteText) || (entry.attachments?.length ?? 0) > 0)
       ) {
         timeline.push({
           kind: "message",
           message: {
-            id: `history:athlete:${entry.turnId}`,
+            id: historyAthleteId(entry.turnId),
+            occurredAtMs: Date.parse(entry.completedAt),
             turnId: entry.turnId,
             role: "athlete",
             delivery: "complete",
@@ -99,6 +274,7 @@ function historicalTimeline(
             attempt === 1
               ? `history:coach:${entry.turnId}`
               : `history:coach:${entry.turnId}:attempt:${attempt}`,
+          occurredAtMs: Date.parse(entry.completedAt),
           turnId: entry.turnId,
           role: "coach",
           delivery: entry.delivery ?? "complete",
@@ -120,6 +296,7 @@ function historicalTimeline(
           kind: "message",
           message: {
             id: `history:decision-athlete:${entry.decision.decisionId}`,
+            occurredAtMs: Date.parse(entry.recordedAt),
             role: "athlete",
             delivery: "complete",
             historical: true,
@@ -138,6 +315,7 @@ function historicalTimeline(
         kind: "choice",
         choice: {
           id: entry.decisionId,
+          occurredAtMs: Date.parse(entry.recordedAt),
           label: "Question skipped",
           consequence: "No coaching choice was applied.",
           skipped: true,
@@ -160,6 +338,7 @@ function historicalTimeline(
           kind: "choice",
           choice: {
             id: entry.decisionId,
+            occurredAtMs: Date.parse(savedAnswer.recordedAt),
             label,
             consequence: answer.kind === "custom" ? null : savedAnswer.consequence,
             skipped: false,
@@ -172,6 +351,7 @@ function historicalTimeline(
         kind: "message",
         message: {
           id: `history:decision-coach:${entry.continuationId}`,
+          occurredAtMs: Date.parse(entry.completedAt),
           turnId: entry.turnId,
           role: "coach",
           delivery: "complete",
@@ -227,27 +407,48 @@ export function createChatViewAdapter(input: {
   let published = EMPTY_CHAT_SURFACE;
 
   const project = (state: ChatState, controls: ChatViewControls | undefined): ChatSurfaceState => {
+    const hydration = controls?.hydration;
+    const decision = controls?.decision;
+    const planCreation = controls?.planCreation;
+    const planActivated = planCreation?.notice === "Plan activated locally.";
+    const decisionBlocksWork =
+      decision?.value?.status === "unanswered" ||
+      (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
+    const recovery = projectTurnRecovery(state, {
+      decisionBlocksWork,
+      planActivated,
+      planNotice: planCreation?.notice,
+      planError: planCreation?.error,
+      planValueMissing: planCreation?.value == null,
+      entries: hydration?.entries ?? [],
+    });
     const visible = state.messages.filter(
       (message) => message.role === "athlete" || message.text.length > 0,
     );
-    const messages: readonly ChatMessageView[] = visible.map((message) => ({
-      id: message.id,
-      ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
-      ...(message.decisionId === undefined ? {} : { decisionId: message.decisionId }),
-      role: message.role,
-      delivery: message.delivery,
-      historical: message.historical === true,
-      text:
-        input.bufferStreaming !== false &&
-        isStreamingCoach(message) &&
-        message.message === undefined
-          ? ""
-          : message.text,
-      ...(message.message === undefined ? {} : { message: message.message }),
-      ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
-      ...(message.planReference === undefined ? {} : { planReference: message.planReference }),
-      ...(message.planHandoff === undefined ? {} : { planHandoff: message.planHandoff }),
-    }));
+    const messages: readonly ChatMessageView[] = visible.map((message) =>
+      stampRecoveredMessage(
+        {
+          id: message.id,
+          ...(message.occurredAtMs === undefined ? {} : { occurredAtMs: message.occurredAtMs }),
+          ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
+          ...(message.decisionId === undefined ? {} : { decisionId: message.decisionId }),
+          role: message.role,
+          delivery: message.delivery,
+          historical: message.historical === true,
+          text:
+            input.bufferStreaming !== false &&
+            isStreamingCoach(message) &&
+            message.message === undefined
+              ? ""
+              : message.text,
+          ...(message.message === undefined ? {} : { message: message.message }),
+          ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
+          ...(message.planReference === undefined ? {} : { planReference: message.planReference }),
+          ...(message.planHandoff === undefined ? {} : { planHandoff: message.planHandoff }),
+        },
+        recovery,
+      ),
+    );
     const workBlocked =
       controls?.workBlocked ??
       (state.session.resetPhase === "confirming" || state.session.resetPhase === "resetting");
@@ -256,14 +457,15 @@ export function createChatViewAdapter(input: {
       (state.session.presence !== "present" ||
         state.session.resetPhase !== "idle" ||
         state.status === "streaming");
-    const hydration = controls?.hydration;
-    const decision = controls?.decision;
-    const queued: readonly ChatQueuedView[] = state.queued.map((message) => ({
-      id: message.id,
-      text: message.text,
-      command: message.command,
-      restored: message.restored === true,
-    }));
+    const claimed = new Set(state.retryRequired?.queuedMessageIds ?? []);
+    const queued: readonly ChatQueuedView[] = state.queued
+      .filter((message) => !claimed.has(message.id))
+      .map((message) => ({
+        id: message.id,
+        text: message.text,
+        command: message.command,
+        restored: message.restored === true,
+      }));
     const liveDecisionIds = new Set(
       messages.flatMap((message) => (message.decisionId === undefined ? [] : [message.decisionId])),
     );
@@ -304,8 +506,6 @@ export function createChatViewAdapter(input: {
     const planningItems: ChatTranscriptItemView[] = planningRequests
       .filter((delivery) => delivery.state !== "cancelled")
       .map((delivery) => ({ kind: "planning-request", delivery }));
-    const planCreation = controls?.planCreation;
-    const planActivated = planCreation?.notice === "Plan activated locally.";
     const planCreationItems: readonly ChatTranscriptItemView[] =
       planCreation?.loaded === true && (planCreation.value !== null || planActivated)
         ? [{ kind: "plan-creation", model: planCreation.value }]
@@ -316,10 +516,7 @@ export function createChatViewAdapter(input: {
       planCreation?.discardEvents ?? [],
       planCreationItems,
     );
-    const timeline = [...conversationItems, ...planningItems];
-    const decisionBlocksWork =
-      decision?.value?.status === "unanswered" ||
-      (decision?.value?.status === "answered" && decision.value.continuation.status === "pending");
+    const timeline = stampRecoveredTimeline([...conversationItems, ...planningItems], recovery);
     const planCreationPaused = planCreation?.paused ?? false;
     const planCreationEditingKey = planCreation?.editingKey ?? null;
     const planCreationBlocksWork =
@@ -369,6 +566,7 @@ export function createChatViewAdapter(input: {
       attachments: attachments?.value ?? null,
       attachmentAdmissions: attachments?.admissions ?? EMPTY_CHAT_SURFACE.attachmentAdmissions,
       attachmentBusy: attachments?.busy ?? false,
+      draftError: attachments?.draftError ?? null,
       attachmentError: attachments?.error ?? null,
       planningRequests,
       planningRequestsLoaded: controls?.planningRequests?.loaded ?? false,
@@ -389,13 +587,10 @@ export function createChatViewAdapter(input: {
       planCreationFocusRequest: planCreation?.focusRequest ?? null,
       timeline: sameChatTimeline(published.timeline, timeline) ? published.timeline : timeline,
       status: state.status,
-      noticeMessage: decisionBlocksWork ? undefined : state.activeTurn?.error?.message,
-      notice: decisionBlocksWork
-        ? null
-        : (state.activeTurn?.error?.athleteMessage ??
-          (planActivated ? null : planCreation?.notice) ??
-          (planCreation?.value == null ? planCreation?.error : null) ??
-          (state.status === "streaming" ? null : state.progress)),
+      noticeMessage: recovery.noticeMessage,
+      notice: recovery.notice,
+      noticeTone: recovery.noticeTone,
+      noticeRetry: recovery.noticeRetry,
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,
       interrupted: state.status === "interrupted" && !decisionBlocksWork && !planCreationBlocksWork,
@@ -413,6 +608,16 @@ export function createChatViewAdapter(input: {
         : planCreationBlocksWork
           ? "Finish the Plan question above"
           : "Message your coach",
+      composerStatus:
+        decisionLoading &&
+        decisionLoadError === null &&
+        !workBlocked &&
+        !decisionBlocksWork &&
+        !attachmentUnavailable &&
+        !planCreationBlocksWork &&
+        !pendingCheckDocked
+          ? CHAT_SEND_CONNECTING_COPY
+          : null,
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,

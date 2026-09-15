@@ -172,7 +172,7 @@ const inverseSummary =
   "Restore the previewed future training. Completed and past training stays unchanged.";
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function changeCard(scenario: Scenario, title: string, status: string) {
@@ -198,11 +198,10 @@ async function applyDurationChange(scenario: Scenario) {
     .click();
   await scenario.page
     .getByRole("region", { name: "Plan library", exact: true })
-    .getByRole("button", { name: "Change in Chat", exact: true })
+    .getByRole("button", { name: "Change one thing", exact: true })
     .click();
-  await expect(changes(scenario)).toBeVisible();
+  await expect(changes(scenario).last()).toBeVisible();
   await expect(changes(scenario).getByRole("button", { name: "Undo", exact: true })).toHaveCount(0);
-  await changes(scenario).getByRole("button", { name: "Change one thing", exact: true }).click();
   const editor = changes(scenario).getByRole("region", {
     name: "What needs to change?",
     exact: true,
@@ -218,7 +217,7 @@ async function applyDurationChange(scenario: Scenario) {
   const pending = changeCard(scenario, changeTitle, "Pending");
   await expect(pending.getByRole("heading")).toBeFocused();
   await pending.getByRole("button", { name: "Apply to Plan", exact: true }).click();
-  await expect(changes(scenario).getByRole("status")).toHaveText(
+  await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
     "Change applied locally. Training now matches the confirmed preview.",
   );
   const applied = (await scenario.backend.library()).changes.find(
@@ -296,7 +295,7 @@ async function previewUndo(scenario: Scenario, applied: PlanChangeModel) {
 }
 
 async function assertRestored(scenario: Scenario, initial: Stored, inverse: PlanChangeModel) {
-  await expect(changes(scenario).getByRole("status")).toHaveText(
+  await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
     "Change applied locally. Training now matches the confirmed preview.",
   );
   await expect(changeCard(scenario, inverseTitle, "Applied")).toBeVisible();
@@ -353,7 +352,7 @@ for (const appearance of appearances) {
       await changeCard(scenario, inverseTitle, "Pending")
         .getByRole("button", { name: "Cancel", exact: true })
         .click();
-      await expect(changes(scenario).getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "Change cancelled. Training is unchanged; the preview remains in history.",
       );
       await expect(changeCard(scenario, inverseTitle, "Cancelled")).toBeVisible();

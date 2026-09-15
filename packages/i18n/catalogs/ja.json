@@ -115,7 +115,7 @@
         "credentialRequired": "このプロバイダーでコーチを利用するには、認証情報の保存が必要です。上のセットアップ欄で追加してください。",
         "invalidInput": "そのプロバイダーまたはモデルは受け付けられませんでした。モデル名を確認して、もう一度お試しください。",
         "requestFailed": "現在、コーチ設定を保存できません。もう一度お試しください。",
-        "runtimeUnavailable": "コーチ設定を有効にできませんでした。もう一度保存してください。"
+        "runtimeUnavailable": "コーチ設定を有効にできませんでした。もう一度お試しください。"
       },
       "inactive": "無効",
       "loading": "コーチ設定を読み込み中…",
@@ -137,7 +137,7 @@
       "title": "コーチ",
       "unavailable": "現在、コーチ設定を利用できません。もう一度お試しください。",
       "unsaved": "未保存",
-      "unsupported": "{{codex}}エージェントは{{operatingSystem}}に対応していません。{{claude}}サブスクリプションまたはAPIキーを使うプロバイダーを選び、コーチの接続先を保存してください。認証情報、アスリートデータ、会話、その他の設定は変更されません。",
+      "unsupported": "{{codex}}エージェントは{{operatingSystem}}に対応していません。{{claude}}サブスクリプションまたはAPIキーを使うプロバイダーを選んでください。認証情報、アスリートデータ、会話、その他の設定は変更されません。",
       "validation": {
         "modelControlCharacters": "モデル名に制御文字は使用できません。",
         "modelRequired": "モデル名を入力してください。",
@@ -295,7 +295,7 @@
         "failed": "1日の上限を保存できませんでした。",
         "invalid": "1日の上限を$0より大きい金額で入力してください。",
         "label": "1日の上限（USD）",
-        "save": "上限を保存",
+        "retry": "再試行",
         "value": "上限{{cap}}のうち{{known}}"
       },
       "date": "{{month}}{{day}}日",
@@ -801,7 +801,7 @@
     "planAttention_other": "プラン、{{formattedCount}}項目の確認が必要です",
     "sync": {
       "action": {
-        "again": "再同期",
+        "again": "同期",
         "now": "今すぐ同期",
         "retry": "再試行",
         "unavailable": "同期を利用できません"
@@ -938,6 +938,7 @@
       "messagePlaceholder": "コーチにメッセージを送る",
       "responding": "コーチが回答中…",
       "send": "メッセージを送信",
+      "sendConnecting": "Chatはまだ接続中のため、送信の準備ができていません。",
       "stop": "回答を停止"
     },
     "date": {
@@ -995,6 +996,7 @@
       "decisionFailure": "選択した内容で続行できませんでした。もう一度お試しください。",
       "decisionLoadFailure": "保存済みのコーチの質問を確認できませんでした。再接続して、もう一度お試しください。",
       "decisionSkipFailure": "この質問をスキップできませんでした。もう一度お試しください。",
+      "draftSaveFailure": "コーチに届かなかったため、メッセージは入力欄に残っています。",
       "emptyResponse": "コーチの回答が空でした。もう一度お試しください。",
       "newConversationMemoryWarning": "新しい会話を開始しました。最近の詳細の一部がコーチの記憶に保存されていない可能性があります。",
       "newConversationSuccess": "新しい会話を開始しました。",
@@ -1099,7 +1101,7 @@
       "noChanges": "ワークアウトの変更はありません。",
       "none": "なし",
       "notInPlan": "プランに含まれていません",
-      "openPlan": "プランを開く",
+      "openPlan": "アクティブなプランを開く",
       "option": {
         "ftp": "FTPを修正",
         "hardWeekday": "指定の曜日は高強度トレーニングなし",
@@ -1437,6 +1439,10 @@
       "conversation": "コーチとの会話",
       "disclaimer": "医療上の助言ではなく、医師や資格を持つコーチの代わりにはなりません。",
       "hideContext": "トレーニング情報を非表示",
+      "pendingDraft": "トレーニングプランの確認準備ができました。",
+      "reviewChange": "変更を確認",
+      "reviewChoices": "選択肢を確認",
+      "reviewDraft": "ドラフトを確認",
       "showContext": "トレーニング情報を表示",
       "title": "チャット"
     }

@@ -1,8 +1,4 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import {
   UNKNOWN_CYCLING_TRAINING_CONTEXT,
   UnitsPreferenceSchema,
@@ -10,7 +6,7 @@ import {
   type Freshness,
   type UnitsPreference,
 } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export type TrainingContextStatus = "loading" | "ready" | "unavailable" | "refresh-unavailable";
 
@@ -59,9 +55,9 @@ export function createTrainingContextController(input: {
   let unitsTail = Promise.resolve();
   let hasState = false;
   let stateNeedsReconnect = false;
-  let stateFailedClient: CoachClient | undefined;
+  let stateFailedClient: DesktopCoachClient | undefined;
   let unitsNeedRead = false;
-  let unitsFailedClient: CoachClient | undefined;
+  let unitsFailedClient: DesktopCoachClient | undefined;
   let state: TrainingContextViewState = {
     status: "loading",
     metadata: null,
@@ -81,17 +77,14 @@ export function createTrainingContextController(input: {
     render();
   };
 
-  const clientAfterFailure = async (failedClient: CoachClient | undefined) => {
-    if (failedClient === undefined) return input.clients.reconnect();
-    const current = await input.clients.getClient();
-    return current === failedClient ? input.clients.reconnect() : current;
-  };
+  const clientAfterFailure = (failedClient: DesktopCoachClient | undefined) =>
+    input.clients.reconnect(failedClient);
 
   const fetchState = (): Promise<void> => {
     if (stateRequest !== undefined) return stateRequest;
     const selectedGeneration = ++generation;
     if (!hasState) update({ status: "loading" });
-    let selectedClient: CoachClient | undefined;
+    let selectedClient: DesktopCoachClient | undefined;
     const pending = (
       stateNeedsReconnect ? clientAfterFailure(stateFailedClient) : input.clients.getClient()
     )
@@ -153,7 +146,7 @@ export function createTrainingContextController(input: {
   const fetchUnits = (reconnect: boolean): Promise<void> => {
     if (unitsRequest !== undefined) return unitsRequest;
     updateUnits({ ...state.unitsPreference, status: "loading" });
-    let selectedClient: CoachClient | undefined;
+    let selectedClient: DesktopCoachClient | undefined;
     const pending = (reconnect ? clientAfterFailure(unitsFailedClient) : input.clients.getClient())
       .then((client) => {
         selectedClient = client;
@@ -200,7 +193,7 @@ export function createTrainingContextController(input: {
         }
         const previous = state.unitsPreference;
         updateUnits({ ...previous, status: "saving" });
-        let client: CoachClient | undefined;
+        let client: DesktopCoachClient | undefined;
         try {
           client = await input.clients.getClient();
           const result = await client.call("setUnitsPreference", { value: parsed });

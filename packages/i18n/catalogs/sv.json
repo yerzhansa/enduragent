@@ -116,7 +116,7 @@
         "credentialRequired": "Den här leverantören behöver sparade inloggningsuppgifter för att kunna träna dig. Lägg till dem i konfigurationen ovan.",
         "invalidInput": "Leverantören eller modellen godkändes inte. Kontrollera modellnamnet och försök igen.",
         "requestFailed": "Tränarinställningarna kunde inte sparas just nu. Försök igen.",
-        "runtimeUnavailable": "Tränarinställningarna kunde inte aktiveras. Försök spara igen."
+        "runtimeUnavailable": "Tränarinställningarna kunde inte aktiveras. Försök igen."
       },
       "inactive": "Inte aktiv",
       "loading": "Läser in tränarinställningar…",
@@ -138,7 +138,7 @@
       "title": "Tränare",
       "unavailable": "Tränarinställningarna är inte tillgängliga just nu. Försök igen.",
       "unsaved": "Osparat",
-      "unsupported": "{{codex}}-agenten stöds inte på {{operatingSystem}}. Välj ett {{claude}}-abonnemang eller en leverantör med API-nyckel och spara sedan tränaranslutningen. Dina inloggningsuppgifter, träningsdata, samtal och övriga inställningar förblir oförändrade.",
+      "unsupported": "{{codex}}-agenten stöds inte på {{operatingSystem}}. Välj ett {{claude}}-abonnemang eller en leverantör med API-nyckel. Dina inloggningsuppgifter, träningsdata, samtal och övriga inställningar förblir oförändrade.",
       "validation": {
         "modelControlCharacters": "Modellnamn får inte innehålla kontrolltecken.",
         "modelRequired": "Ange ett modellnamn.",
@@ -297,7 +297,7 @@
         "failed": "Den dagliga gränsen kunde inte sparas.",
         "invalid": "Ange en daglig gräns över $0.",
         "label": "Daglig gräns (USD)",
-        "save": "Spara gräns",
+        "retry": "Försök igen",
         "value": "{{known}} av {{cap}}"
       },
       "date": "{{day}} {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} punkter behöver åtgärdas",
     "sync": {
       "action": {
-        "again": "Synkronisera igen",
+        "again": "Synkronisera",
         "now": "Synkronisera nu",
         "retry": "Försök igen",
         "unavailable": "Synkronisering är inte tillgänglig"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Skriv till din tränare",
       "responding": "Tränaren svarar…",
       "send": "Skicka meddelande",
+      "sendConnecting": "Chatten ansluter fortfarande, så Skicka är inte redo än.",
       "stop": "Stoppa svaret"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Det gick inte att fortsätta med ditt val. Försök igen.",
       "decisionLoadFailure": "Det gick inte att kontrollera om tränaren har en sparad fråga. Anslut på nytt och försök igen.",
       "decisionSkipFailure": "Frågan kunde inte hoppas över. Försök igen.",
+      "draftSaveFailure": "Kunde inte nå coachen, så ditt meddelande ligger kvar i fältet.",
       "emptyResponse": "Tränaren gav ett tomt svar. Försök igen.",
       "newConversationMemoryWarning": "Ett nytt samtal har startats. Vissa nya uppgifter kanske inte har sparats i tränarens minne.",
       "newConversationSuccess": "Ett nytt samtal har startats.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Inga ändringar av träningspass.",
       "none": "Inget",
       "notInPlan": "Ingår inte i planen",
-      "openPlan": "Öppna Plan",
+      "openPlan": "Öppna aktiv Plan",
       "option": {
         "ftp": "Korrigera FTP",
         "hardWeekday": "Ingen hård träning på en veckodag",
@@ -1450,6 +1452,10 @@
       "conversation": "Tränarsamtal",
       "disclaimer": "Detta är inte medicinsk rådgivning och ersätter inte en läkare eller certifierad tränare.",
       "hideContext": "Dölj träningsunderlag",
+      "pendingDraft": "Din träningsplan är klar att granskas.",
+      "reviewChange": "Granska ändring",
+      "reviewChoices": "Granska val",
+      "reviewDraft": "Granska utkast",
       "showContext": "Visa träningsunderlag",
       "title": "Chatt"
     }

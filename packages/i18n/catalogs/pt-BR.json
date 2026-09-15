@@ -131,7 +131,7 @@
         "credentialRequired": "Este provedor precisa de uma credencial salva para orientar seu treinamento. Use a área de configuração acima para adicionar uma.",
         "invalidInput": "Esse provedor ou modelo não foi aceito. Confira o nome do modelo e tente novamente.",
         "requestFailed": "Não foi possível salvar as configurações do treinador agora. Tente novamente.",
-        "runtimeUnavailable": "Não foi possível ativar as configurações do treinador. Tente salvar novamente."
+        "runtimeUnavailable": "Não foi possível ativar as configurações do treinador. Tente novamente."
       },
       "inactive": "Inativo",
       "loading": "Carregando configurações do treinador…",
@@ -153,7 +153,7 @@
       "title": "Treinador",
       "unavailable": "As configurações do treinador não estão disponíveis agora. Tente novamente.",
       "unsaved": "Não salvo",
-      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolha a assinatura {{claude}} ou um provedor com chave de API e salve a rota do treinador. Suas credenciais, dados de atleta, conversas e outras configurações permanecem inalterados.",
+      "unsupported": "O agente {{codex}} não é compatível com {{operatingSystem}}. Escolha a assinatura {{claude}} ou um provedor com chave de API. Suas credenciais, dados de atleta, conversas e outras configurações permanecem inalterados.",
       "validation": {
         "modelControlCharacters": "Nomes de modelo não podem conter caracteres de controle.",
         "modelRequired": "Insira um nome de modelo.",
@@ -319,7 +319,7 @@
         "failed": "Não foi possível salvar o limite diário.",
         "invalid": "Insira um limite diário maior que $0.",
         "label": "Limite diário (USD)",
-        "save": "Salvar limite",
+        "retry": "Tentar novamente",
         "value": "{{known}} de {{cap}}"
       },
       "date": "{{day}} de {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plano, {{formattedCount}} itens precisam de atenção",
     "sync": {
       "action": {
-        "again": "Sincronizar novamente",
+        "again": "Sincronizar",
         "now": "Sincronizar agora",
         "retry": "Tentar novamente",
         "unavailable": "Sincronização indisponível"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Envie uma mensagem ao seu treinador",
       "responding": "O treinador está respondendo…",
       "send": "Enviar mensagem",
+      "sendConnecting": "O Chat ainda está conectando, então Enviar ainda não está pronto.",
       "stop": "Parar resposta"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Não foi possível continuar a partir da sua escolha. Tente novamente.",
       "decisionLoadFailure": "Não foi possível verificar se existe uma pergunta salva do treinador. Reconecte e tente novamente.",
       "decisionSkipFailure": "Não foi possível pular esta pergunta. Tente novamente.",
+      "draftSaveFailure": "Não foi possível falar com o coach, então sua mensagem continua na caixa.",
       "emptyResponse": "O treinador devolveu uma resposta vazia. Tente novamente.",
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido salvos na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Nenhuma alteração aos treinos.",
       "none": "Nenhum",
       "notInPlan": "Fora do plano",
-      "openPlan": "Abrir Plano",
+      "openPlan": "Abrir Plano ativo",
       "option": {
         "ftp": "Corrigir FTP",
         "hardWeekday": "Sem treino intenso em um dia da semana",
@@ -1450,6 +1452,10 @@
       "conversation": "Conversa com o treinador",
       "disclaimer": "Não constitui aconselhamento médico nem substitui um médico ou um treinador certificado.",
       "hideContext": "Ocultar contexto de treinamento",
+      "pendingDraft": "Seu Plano de treinamento está pronto para revisão.",
+      "reviewChange": "Revisar alteração",
+      "reviewChoices": "Revisar opções",
+      "reviewDraft": "Revisar Rascunho",
       "showContext": "Mostrar contexto de treinamento",
       "title": "Chat"
     }

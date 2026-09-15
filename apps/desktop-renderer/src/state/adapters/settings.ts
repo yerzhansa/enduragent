@@ -62,7 +62,7 @@ export function createCoachSettingsAdapter(input: {
       changeProvider: (provider) => handlers?.onProviderChange(provider),
       changeModel: (model) => handlers?.onModelChange(model),
       changeCustomModel: (model) => handlers?.onCustomModelChange(model),
-      save: () => handlers?.onSave(),
+      commitCustomModel: () => handlers?.onCommitCustomModel(),
       openSetup: () => handlers?.onOpenSetup(),
     },
   };
@@ -143,7 +143,7 @@ export function createConversationSettingsAdapter(input: {
     port: {
       retry: () => handlers?.onRetry(),
       change: (field, value) => handlers?.onChange(field, value),
-      save: () => handlers?.onSave(),
+      commit: () => handlers?.onCommit(),
     },
   };
 }

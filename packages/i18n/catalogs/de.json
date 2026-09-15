@@ -116,7 +116,7 @@
         "credentialRequired": "Dieser Anbieter benötigt gespeicherte Zugangsdaten, bevor er dich coachen kann. Füge sie im Einrichtungsbereich oben hinzu.",
         "invalidInput": "Dieser Anbieter oder dieses Modell wurde nicht akzeptiert. Prüfe den Modellnamen und versuche es erneut.",
         "requestFailed": "Die Coach-Einstellungen konnten gerade nicht gespeichert werden. Versuche es erneut.",
-        "runtimeUnavailable": "Die Coach-Einstellungen konnten nicht aktiviert werden. Versuche erneut zu speichern."
+        "runtimeUnavailable": "Die Coach-Einstellungen konnten nicht aktiviert werden. Versuche es erneut."
       },
       "inactive": "Nicht aktiv",
       "loading": "Coach-Einstellungen werden geladen…",
@@ -138,7 +138,7 @@
       "title": "Coach",
       "unavailable": "Die Coach-Einstellungen sind gerade nicht verfügbar. Versuche es erneut.",
       "unsaved": "Nicht gespeichert",
-      "unsupported": "Der {{codex}}-Agent wird unter {{operatingSystem}} nicht unterstützt. Wähle das {{claude}}-Abo oder einen Anbieter mit API-Schlüssel und speichere dann die Coach-Verbindung. Deine Zugangsdaten, Athletendaten, Gespräche und anderen Einstellungen bleiben unverändert.",
+      "unsupported": "Der {{codex}}-Agent wird unter {{operatingSystem}} nicht unterstützt. Wähle das {{claude}}-Abo oder einen Anbieter mit API-Schlüssel. Deine Zugangsdaten, Athletendaten, Gespräche und anderen Einstellungen bleiben unverändert.",
       "validation": {
         "modelControlCharacters": "Modellnamen dürfen keine Steuerzeichen enthalten.",
         "modelRequired": "Gib einen Modellnamen ein.",
@@ -296,7 +296,7 @@
         "failed": "Das Tageslimit konnte nicht gespeichert werden.",
         "invalid": "Gib ein Tageslimit über 0 $ ein.",
         "label": "Tageslimit (USD)",
-        "save": "Limit speichern",
+        "retry": "Erneut versuchen",
         "value": "{{known}} von {{cap}}"
       },
       "date": "{{day}}. {{month}}",
@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} Einträge erfordern Aufmerksamkeit",
     "sync": {
       "action": {
-        "again": "Erneut synchronisieren",
+        "again": "Synchronisieren",
         "now": "Jetzt synchronisieren",
         "retry": "Erneut versuchen",
         "unavailable": "Synchronisierung nicht verfügbar"
@@ -946,6 +946,7 @@
       "messagePlaceholder": "Schreib deinem Coach",
       "responding": "Der Coach antwortet…",
       "send": "Nachricht senden",
+      "sendConnecting": "Chat verbindet sich noch, daher ist Senden noch nicht bereit.",
       "stop": "Antwort stoppen"
     },
     "date": {
@@ -1003,6 +1004,7 @@
       "decisionFailure": "Mit deiner Auswahl konnte nicht fortgefahren werden. Bitte versuche es erneut.",
       "decisionLoadFailure": "Es konnte nicht nach einer gespeicherten Coach-Frage gesucht werden. Verbinde dich erneut und versuche es noch einmal.",
       "decisionSkipFailure": "Diese Frage konnte nicht übersprungen werden. Bitte versuche es erneut.",
+      "draftSaveFailure": "Der Coach war nicht erreichbar, daher bleibt deine Nachricht im Feld.",
       "emptyResponse": "Der Coach hat eine leere Antwort zurückgegeben. Bitte versuche es erneut.",
       "newConversationMemoryWarning": "Neues Gespräch gestartet. Einige aktuelle Details wurden möglicherweise nicht in den Erinnerungen des Coaches gespeichert.",
       "newConversationSuccess": "Neues Gespräch gestartet.",
@@ -1107,7 +1109,7 @@
       "noChanges": "Keine Änderungen an Trainings.",
       "none": "Keine",
       "notInPlan": "Nicht im Plan",
-      "openPlan": "Plan öffnen",
+      "openPlan": "Aktiven Plan öffnen",
       "option": {
         "ftp": "FTP korrigieren",
         "hardWeekday": "Kein hartes Training an einem Wochentag",
@@ -1450,6 +1452,10 @@
       "conversation": "Coaching-Gespräch",
       "disclaimer": "Keine medizinische Beratung und kein Ersatz für einen Arzt oder einen zertifizierten Coach.",
       "hideContext": "Trainingskontext ausblenden",
+      "pendingDraft": "Dein Trainingsplan kann jetzt geprüft werden.",
+      "reviewChange": "Änderung prüfen",
+      "reviewChoices": "Auswahl prüfen",
+      "reviewDraft": "Entwurf prüfen",
       "showContext": "Trainingskontext anzeigen",
       "title": "Chat"
     }

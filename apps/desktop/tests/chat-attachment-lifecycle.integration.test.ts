@@ -843,7 +843,9 @@ async function sendAndWaitForInterruption(fixture: RunningDesktopFixture) {
     let retry;
     while (Date.now() < deadline) {
       retry = [...document.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       );
       const athleteReady = [...document.querySelectorAll("article.chat-message--athlete")].some(
         (row) => row.textContent?.includes(name),
@@ -863,7 +865,9 @@ async function sendAndWaitForInterruption(fixture: RunningDesktopFixture) {
     );
     return {
       retryCount: [...document.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       ).length,
       athleteAttachmentCount: athleteRows.length,
       partialCount: coachRows.length,
@@ -883,7 +887,9 @@ async function readRetrySurface(fixture: RunningDesktopFixture) {
     let retry;
     while (Date.now() < deadline) {
       retry = [...document.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       );
       const athleteReady = [...document.querySelectorAll("article.chat-message--athlete")].some(
         (row) => row.textContent?.includes(name),
@@ -897,7 +903,9 @@ async function readRetrySurface(fixture: RunningDesktopFixture) {
     if (!(retry instanceof HTMLButtonElement)) throw new Error("restored retry action missing");
     return {
       retryCount: [...document.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       ).length,
       athleteAttachmentCount: [...document.querySelectorAll("article.chat-message--athlete")].filter(
         (row) => row.textContent?.includes(name),
@@ -918,7 +926,9 @@ async function retryAndReadCompleted(fixture: RunningDesktopFixture) {
     const name = ${JSON.stringify(activityName)};
     const completed = ${JSON.stringify(completedText)};
     const retry = [...document.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Retry interrupted message",
+      (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
     );
     if (!(retry instanceof HTMLButtonElement)) throw new Error("retry action missing");
     retry.click();
@@ -928,14 +938,18 @@ async function retryAndReadCompleted(fixture: RunningDesktopFixture) {
         (row) => row.textContent?.includes(completed),
       );
       const retryCount = [...document.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       ).length;
       if (completedRows.length === 1 && retryCount === 0) break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     return {
       retryCount: [...document.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === "Retry interrupted message",
+        (button) => !button.hidden &&
+            (button.textContent?.trim() === "Retry message" ||
+              (button.getAttribute("aria-label") ?? "").includes("Retry message")),
       ).length,
       athleteAttachmentCount: [...document.querySelectorAll("article.chat-message--athlete")].filter(
         (row) => row.textContent?.includes(name),
@@ -1060,13 +1074,7 @@ async function switchModelAndReadBlockedDraft(fixture: RunningDesktopFixture) {
     setter?.call(custom, model);
     custom.dispatchEvent(new Event("input", { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const save = [...document.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Save coach route",
-    );
-    if (!(save instanceof HTMLButtonElement) || save.disabled) {
-      throw new Error("save coach route action unavailable");
-    }
-    save.click();
+    custom.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     const savedDeadline = Date.now() + 10000;
     while (
       !document.body.textContent?.includes("Coach settings saved.") &&

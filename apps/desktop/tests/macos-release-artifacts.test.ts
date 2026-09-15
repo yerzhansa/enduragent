@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import { createPackage, uncache } from "@electron/asar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parse, stringify } from "yaml";
-import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-contract.js";
 import {
   inspectMacosReleaseApplication,
   safeMacosReleaseVerificationMessage,

@@ -4,7 +4,11 @@ import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
-import type { ChatView, ChatViewControls } from "../src/chat/controller";
+import {
+  CHAT_SEND_CONNECTING_COPY,
+  type ChatView,
+  type ChatViewControls,
+} from "../src/chat/controller";
 import { mergeHydratedMessages } from "../src/chat/hydration";
 import { createChatViewAdapter } from "../src/state/adapters/chat";
 import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "../src/state/chat-slice";
@@ -34,6 +38,7 @@ function submitted(message = "How is my form?"): ChatState {
   return reduceChatState(EMPTY_CHAT_STATE, {
     type: "submit",
     requestKey: 1,
+    occurredAtMs: 0,
     userMessage: message,
     userMessageId: "m1",
     assistantMessageId: "m2",
@@ -84,6 +89,7 @@ describe("chat view adapter", () => {
       messages: [
         {
           id: "m1",
+          occurredAtMs: 0,
           role: "athlete",
           delivery: "complete",
           historical: false,
@@ -101,6 +107,7 @@ describe("chat view adapter", () => {
       attachments: null,
       attachmentAdmissions: [],
       attachmentBusy: false,
+      draftError: null,
       attachmentError: null,
       planningRequests: [],
       planningRequestsLoaded: false,
@@ -123,6 +130,7 @@ describe("chat view adapter", () => {
           kind: "message",
           message: {
             id: "m1",
+            occurredAtMs: 0,
             role: "athlete",
             delivery: "complete",
             historical: false,
@@ -132,12 +140,16 @@ describe("chat view adapter", () => {
       ],
       status: "streaming",
       notice: null,
+      noticeMessage: undefined,
+      noticeTone: "neutral",
+      noticeRetry: false,
       coachProgress: CHAT_WORKING_COPY,
       interrupted: false,
       workBlocked: true,
       sendDisabled: true,
       inputDisabled: true,
       composerPlaceholder: "Message your coach",
+      composerStatus: null,
       newConversationUnavailable: false,
       resetPhase: "idle",
       resetCount: 0,
@@ -183,7 +195,11 @@ describe("chat view adapter", () => {
         decision: { value: decision, phase: "idle", answerLabel: null, error: null },
       }),
     );
-    expect(published.at(-1)).toMatchObject({ sendDisabled: true, inputDisabled: false });
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: false,
+      composerStatus: null,
+    });
 
     adapter.view.render(
       EMPTY_CHAT_STATE,
@@ -229,6 +245,26 @@ describe("chat view adapter", () => {
       sendDisabled: true,
       inputDisabled: false,
       newConversationUnavailable: true,
+      composerStatus: CHAT_SEND_CONNECTING_COPY,
+    });
+  });
+
+  it("does not explain Send as connecting when the saved Coach question failed to load", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        decisionLoading: true,
+        decisionLoadError: "We couldn’t check for a saved Coach question. Reconnect and try again.",
+      }),
+    );
+
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: false,
+      composerStatus: null,
     });
   });
 
@@ -892,6 +928,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:athlete:turn-retry",
+          occurredAtMs: Date.parse("1998-08-24T08:05:00.000Z"),
           turnId: "turn-retry",
           role: "athlete",
           text: "",
@@ -904,6 +941,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-retry",
+          occurredAtMs: Date.parse("1998-08-24T08:05:00.000Z"),
           turnId: "turn-retry",
           role: "coach",
           text: "Interrupted response.",
@@ -915,6 +953,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-retry:attempt:2",
+          occurredAtMs: Date.parse("1998-08-24T08:06:00.000Z"),
           turnId: "turn-retry",
           role: "coach",
           text: "Recovered response.",
@@ -994,6 +1033,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:decision-athlete:decision-stopped",
+          occurredAtMs: Date.parse("1998-08-24T08:00:00.000Z"),
           role: "athlete",
           delivery: "complete",
           historical: true,
@@ -1004,6 +1044,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-stopped",
+          occurredAtMs: Date.parse("1998-08-24T08:02:00.000Z"),
           turnId: "turn-stopped",
           role: "coach",
           delivery: "interrupted",
@@ -1097,6 +1138,7 @@ describe("chat view adapter", () => {
     let stopped = reduceChatState(EMPTY_CHAT_STATE, {
       type: "submit",
       requestKey: 1,
+      occurredAtMs: 0,
       userMessage: "",
       userMessageId: "unused-athlete",
       assistantMessageId: "decision-continuation",
@@ -1305,7 +1347,191 @@ describe("chat view adapter", () => {
 
     adapter.view.render(state, controls());
 
-    expect(published.at(-1)?.notice).toBe("The coach is unreachable right now.");
+    const surface = published.at(-1);
+    expect(surface?.status).toBe("streaming");
+    expect(surface?.notice).toBe("The coach is unreachable right now.");
+    expect(surface?.noticeTone).toBe("danger");
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.messages.find((message) => message.id === "m1")?.retry).toBeUndefined();
+  });
+
+  it("retries a failed send from the athlete message after the turn ends", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const failed = reduceChatState(
+      reduceChatState(submitted(), {
+        type: "event",
+        requestKey: 1,
+        event: {
+          type: "error",
+          turnId: TURN_ID,
+          chatId: "desktop",
+          error_class: "unknown",
+          kind: "rate_limit",
+          athleteMessage: "Rate limited — please try again shortly.",
+          overflowAttempts: 0,
+          timeoutAttempts: 0,
+          rateLimitAttempts: 0,
+          duration_ms: 12,
+          compactions: 0,
+        },
+      }),
+      { type: "fail", requestKey: 1, copy: "Rate limited — please try again shortly." },
+    );
+
+    adapter.view.render(
+      {
+        ...failed,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "How is my form?", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls(),
+    );
+
+    const surface = published.at(-1);
+    expect(surface?.notice).toBeNull();
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+    expect(surface?.messages.find((message) => message.id === "m1")).toMatchObject({
+      retry: true,
+      error: "Rate limited — please try again shortly.",
+    });
+  });
+
+  it("retries an interrupted send with no coach text from the athlete message", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render({ ...submitted(), status: "interrupted" }, controls());
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.messages.find((message) => message.id === "m1")).toMatchObject({ retry: true });
+  });
+
+  it("pins a partial coach reply on the notice and omits claimed queue rows", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const { state: partial } = delta(submitted(), "Keep Tuesday easy.");
+    adapter.view.render(
+      {
+        ...partial,
+        status: "interrupted",
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "How is my form?", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls(),
+    );
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(true);
+    expect(surface?.messages.some((message) => message.retry === true)).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+  });
+
+  it("retries a restored failed send from the hydrated athlete message", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render(
+      {
+        ...EMPTY_CHAT_STATE,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "Try this again", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: TURN_ID,
+              completedAt: "2001-01-01T00:00:00.000Z",
+              athleteText: "Try this again",
+              coachText: "",
+              delivery: "interrupted",
+            },
+          ],
+        },
+      }),
+    );
+    const surface = published.at(-1);
+    const athlete = surface?.timeline.find(
+      (item) => item.kind === "message" && item.message.id === `history:athlete:${TURN_ID}`,
+    );
+    expect(athlete).toMatchObject({
+      kind: "message",
+      message: { id: `history:athlete:${TURN_ID}`, retry: true, text: "Try this again" },
+    });
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+  });
+
+  it("keeps restored partial-reply recovery on the notice after relaunch", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render(
+      {
+        ...EMPTY_CHAT_STATE,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "Try this again", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: TURN_ID,
+              completedAt: "2001-01-01T00:00:00.000Z",
+              athleteText: "Try this again",
+              coachText: "Keep Tuesday easy.",
+              delivery: "interrupted",
+            },
+          ],
+        },
+      }),
+    );
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(true);
+    expect(
+      surface?.timeline.some((item) => item.kind === "message" && item.message.retry === true),
+    ).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
   });
 
   it("carries hydrated history through the port and flags it for the reset copy", () => {

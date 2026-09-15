@@ -340,8 +340,11 @@ export function AttachmentPanel(): ReactElement | null {
   const { say } = usePhrasebook();
   const surface = useEnduragentStore((state) => state.chat);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const hideDraftError = surface.composerStatus !== null;
   const attachmentError =
     surface.attachmentError === null ? null : chatFeedbackMessage(surface.attachmentError);
+  const draftError =
+    hideDraftError || surface.draftError === null ? null : chatFeedbackMessage(surface.draftError);
   const planningRequestError =
     surface.planningRequestError === null
       ? null
@@ -351,13 +354,14 @@ export function AttachmentPanel(): ReactElement | null {
     attachments.length === 0 &&
     surface.attachmentAdmissions.length === 0 &&
     !surface.attachmentBusy &&
+    (hideDraftError || surface.draftError === null) &&
     surface.attachmentError === null &&
     surface.planningRequestError === null
   ) {
     return null;
   }
   return (
-    <AttachmentList className="mb-row gap-row" aria-live="polite">
+    <AttachmentList className="chat-attachment-panel mb-row gap-row" aria-live="polite">
       {surface.attachmentBusy ? (
         <div className="flex items-center gap-3 rounded-card border border-line-2 bg-surface p-4 text-sm text-ink-2">
           <LoaderCircle
@@ -373,6 +377,14 @@ export function AttachmentPanel(): ReactElement | null {
           role="alert"
         >
           {attachmentError === null ? surface.attachmentError : say(attachmentError)}
+        </div>
+      )}
+      {hideDraftError || surface.draftError === null ? null : (
+        <div
+          className="rounded-card border border-danger/40 bg-surface p-4 text-sm text-danger"
+          role="alert"
+        >
+          {draftError === null ? surface.draftError : say(draftError)}
         </div>
       )}
       {surface.planningRequestError === null ? null : (

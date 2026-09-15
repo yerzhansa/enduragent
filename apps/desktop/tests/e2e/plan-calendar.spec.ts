@@ -204,13 +204,22 @@ async function confirmReplacement(scenario: Scenario, connected = true) {
   );
   await dialog.getByRole("button", { name: "Activate new Plan", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  const activeCard = scenario.page.getByRole("region", { name: "Improve fitness", exact: true });
-  await expect(activeCard).toContainText("Improve fitness");
   await expect(
-    activeCard.getByText(
+    scenario.page.getByRole("region", { name: "Improve fitness", exact: true }),
+  ).toHaveCount(0);
+  const openActivePlan = scenario.page.getByRole("button", {
+    name: "Open Active Plan",
+    exact: true,
+  });
+  await expect(openActivePlan).toBeEnabled();
+  await openActivePlan.click();
+  await expect(active(scenario)).toContainText("Improve fitness");
+  await expect(
+    active(scenario).getByText(
       connected ? /Up to date|Updating calendar/ : "Connect to mirror Workouts",
     ),
   ).toBeVisible();
+  await navigate(scenario, "Chat");
 }
 
 test("shows calendar progress and the verified seven-day window", async ({ playwright }) => {

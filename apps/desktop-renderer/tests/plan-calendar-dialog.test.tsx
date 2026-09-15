@@ -53,6 +53,7 @@ beforeEach(() => {
       refresh: vi.fn(async () => {}),
       startCreation: vi.fn(),
       continueCreation: vi.fn(),
+      changeOneThingInChat: vi.fn(),
       changeInChat: vi.fn(),
     } as never,
     chatActions: {

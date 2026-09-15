@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   appendCurrentTimeLine,
   buildCurrentTimeLine,
+  dayStartInTZ,
   isValidTimezone,
   resolveUserTimezone,
   todayInTZ,
@@ -20,6 +21,21 @@ import type { PlatformCalendarMutationsPort } from "../src/host-ports.js";
 // ────────────────────────────────────────────────────────────────────────
 // resolveUserTimezone — chain: configured (validated) → host → "UTC"
 // ────────────────────────────────────────────────────────────────────────
+
+describe("dayStartInTZ", () => {
+  it("returns local midnight for a fixed-offset zone", () => {
+    expect(dayStartInTZ("1998-09-02", "Asia/Tokyo")).toBe(Date.UTC(1998, 8, 1, 15));
+    expect(dayStartInTZ("1998-09-02", "UTC")).toBe(Date.UTC(1998, 8, 2));
+  });
+
+  it("returns local midnight on the day daylight saving starts and ends", () => {
+    expect(dayStartInTZ("1998-04-05", "America/New_York")).toBe(Date.UTC(1998, 3, 5, 5));
+    expect(dayStartInTZ("1998-10-25", "America/New_York")).toBe(Date.UTC(1998, 9, 25, 4));
+    expect(dayStartInTZ("1998-09-02", "Pacific/Auckland")).toBe(Date.UTC(1998, 8, 1, 12));
+    expect(dayStartInTZ("1998-03-29", "America/Havana")).toBe(Date.UTC(1998, 2, 29, 5));
+    expect(dayStartInTZ("1998-09-07", "Asia/Almaty")).toBe(Date.UTC(1998, 8, 6, 17));
+  });
+});
 
 describe("resolveUserTimezone", () => {
   it("returns the configured TZ when valid IANA", () => {

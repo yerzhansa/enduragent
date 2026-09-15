@@ -65,7 +65,7 @@ function fakeView() {
         readonly onProviderChange: (provider: string) => void;
         readonly onModelChange: (model: string) => void;
         readonly onCustomModelChange: (model: string) => void;
-        readonly onSave: () => void;
+        readonly onCommitCustomModel: () => void;
         readonly onOpenSetup: () => void;
       }
     | undefined;
@@ -86,7 +86,7 @@ function fakeView() {
     provider: (value: string) => handlers?.onProviderChange(value),
     model: (value: string) => handlers?.onModelChange(value),
     customModel: (value: string) => handlers?.onCustomModelChange(value),
-    save: () => handlers?.onSave(),
+    commitCustomModel: () => handlers?.onCommitCustomModel(),
     openSetup: () => handlers?.onOpenSetup(),
   };
 }
@@ -220,7 +220,6 @@ describe("provider and model settings controller", () => {
       dirty: true,
     });
 
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
       catalogRevision: 7,
@@ -248,7 +247,6 @@ describe("provider and model settings controller", () => {
     });
 
     subject.provider("anthropic");
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
       catalogRevision: 7,
@@ -346,14 +344,14 @@ describe("provider and model settings controller", () => {
 
     subject.customModel("x".repeat(513));
     expect(formState(controller).validationError).toBe("model-too-long");
-    subject.save();
+    subject.commitCustomModel();
     await Promise.resolve();
     expect(apply).not.toHaveBeenCalled();
 
     subject.customModel(`  ${"x".repeat(512)}  `);
     expect(formState(controller).validationError).toBeNull();
 
-    subject.save();
+    subject.commitCustomModel();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
     expect(apply).toHaveBeenCalledWith({
       catalogRevision: 7,
@@ -377,8 +375,8 @@ describe("provider and model settings controller", () => {
     subject.model(CUSTOM_MODEL_SELECTION);
     subject.customModel("  claude-private  ");
 
-    subject.save();
-    subject.save();
+    subject.commitCustomModel();
+    subject.commitCustomModel();
     await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(1));
     expect(apply).toHaveBeenCalledWith({
       catalogRevision: 7,
@@ -411,8 +409,6 @@ describe("provider and model settings controller", () => {
     });
     await controller.activate();
     subject.model("claude-opus");
-
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
 
     expect(apply).toHaveBeenCalledOnce();
@@ -426,7 +422,7 @@ describe("provider and model settings controller", () => {
   });
 
   it.each(["invalid-input", "credential-required", "runtime-unavailable"] as const)(
-    "retains the draft after %s and allows Save to retry",
+    "retains the draft after %s and allows Retry to retry",
     async (reason) => {
       const apply = vi
         .fn()
@@ -436,8 +432,6 @@ describe("provider and model settings controller", () => {
       await controller.activate();
       subject.provider("openai");
       subject.model("gpt-reasoning");
-
-      subject.save();
       await vi.waitFor(() =>
         expect(controller.state()).toMatchObject({
           status: "error",
@@ -451,7 +445,7 @@ describe("provider and model settings controller", () => {
         }),
       );
 
-      subject.save();
+      subject.retry();
       await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
       expect(apply).toHaveBeenCalledTimes(2);
     },
@@ -483,8 +477,6 @@ describe("provider and model settings controller", () => {
     await controller.activate();
     subject.provider("openai");
     subject.model("gpt-reasoning");
-
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("error"));
 
     expect(formState(controller)).toMatchObject({
@@ -516,7 +508,6 @@ describe("provider and model settings controller", () => {
     vi.mocked(subject.view.close).mockImplementation(() => sequence.push("close"));
     await controller.activate();
     subject.provider("openai");
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("error"));
 
     subject.openSetup();
@@ -546,30 +537,23 @@ describe("provider and model settings controller", () => {
     });
   });
 
-  it("ignores a stale save after close and a fresh reload", async () => {
+  it("continues a save across close and reentry without a stale reload", async () => {
     const saveGate = deferred<OnboardingLlmSelectionResult>();
-    const load = vi
-      .fn()
-      .mockResolvedValueOnce(configuration())
-      .mockResolvedValueOnce(configuration({ provider: "openai", model: "gpt-standard" }));
-    const { controller, subject } = createSubject({
-      load,
-      apply: vi.fn(() => saveGate.promise),
-    });
+    const { controller, subject, load } = createSubject({ apply: vi.fn(() => saveGate.promise) });
     await controller.activate();
     subject.model("claude-opus");
-    subject.save();
     await vi.waitFor(() => expect(controller.state().status).toBe("saving"));
     controller.close();
-    await controller.activate();
-
+    expect(controller.state()).toEqual({ status: "closed" });
+    const reopened = controller.activate();
+    expect(controller.state().status).toBe("saving");
+    expect(load).toHaveBeenCalledOnce();
     saveGate.resolve({ status: "configured", runtimeReady: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await reopened;
     expect(formState(controller)).toMatchObject({
-      status: "ready",
-      active: { provider: "openai", model: "gpt-standard" },
-      draft: { provider: { provider: "openai" }, modelChoice: "gpt-standard" },
+      status: "saved",
+      active: { provider: "anthropic", model: "claude-opus" },
+      dirty: false,
     });
   });
 
@@ -586,7 +570,6 @@ describe("provider and model settings controller", () => {
       if (operation === "save") {
         await pending;
         subject.model("claude-opus");
-        subject.save();
         await vi.waitFor(() => expect(controller.state().status).toBe("saving"));
       }
       const renders = vi.mocked(subject.view.render).mock.calls.length;
@@ -618,5 +601,128 @@ describe("provider and model settings controller", () => {
     subject.retry();
     await vi.waitFor(() => expect(controller.state().status).toBe("ready"));
     expect(load).toHaveBeenCalledTimes(2);
+  });
+  it("serializes rapid selections and coalesces the latest committed route", async () => {
+    const first = deferred<OnboardingLlmSelectionResult>();
+    const second = deferred<OnboardingLlmSelectionResult>();
+    const apply = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { controller, subject } = createSubject({ apply });
+    await controller.activate();
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+    subject.provider("openai");
+    subject.model("gpt-reasoning");
+    expect(apply).toHaveBeenCalledOnce();
+    first.resolve({ status: "configured", runtimeReady: true });
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(2));
+    expect(apply).toHaveBeenLastCalledWith({
+      catalogRevision: 7,
+      provider: "openai",
+      model: "gpt-reasoning",
+      endpoint: { mode: "automatic" },
+    });
+    expect(formState(controller)).toMatchObject({
+      status: "saving",
+      active: { provider: "anthropic", model: "claude-opus" },
+      draft: { modelChoice: "gpt-reasoning" },
+      dirty: true,
+    });
+    second.resolve({ status: "configured", runtimeReady: true });
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(formState(controller).active).toEqual({ provider: "openai", model: "gpt-reasoning" });
+  });
+
+  it("queues a return to the previous active route while another route saves", async () => {
+    const first = deferred<OnboardingLlmSelectionResult>();
+    const apply = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ status: "configured", runtimeReady: true });
+    const { controller, subject } = createSubject({ apply });
+    await controller.activate();
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+    subject.model("claude-sonnet");
+    first.resolve({ status: "configured", runtimeReady: true });
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(apply).toHaveBeenCalledTimes(2);
+    expect(formState(controller).active?.model).toBe("claude-sonnet");
+  });
+
+  it("keeps custom typing uncommitted and cancels a queued custom commit", async () => {
+    const first = deferred<OnboardingLlmSelectionResult>();
+    const apply = vi.fn(() => first.promise);
+    const { controller, subject } = createSubject({ apply });
+    await controller.activate();
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledOnce());
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.customModel("private-model");
+    subject.commitCustomModel();
+    subject.customModel("private-model-in-progress");
+    first.resolve({ status: "configured", runtimeReady: true });
+    await vi.waitFor(() => expect(controller.state().status).toBe("ready"));
+    expect(apply).toHaveBeenCalledOnce();
+    expect(formState(controller)).toMatchObject({
+      active: { model: "claude-opus" },
+      draft: { customModel: "private-model-in-progress" },
+      dirty: true,
+    });
+  });
+
+  it("keeps successful persistence visible when dependent refresh rejects", async () => {
+    const { controller, subject, apply } = createSubject({
+      onSaved: async () => {
+        throw new Error("refresh unavailable");
+      },
+    });
+    await controller.activate();
+    subject.model("claude-opus");
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(formState(controller)).toMatchObject({ active: { model: "claude-opus" }, dirty: false });
+    subject.model("claude-sonnet");
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+  });
+
+  it("allows Retry after a rejected persistence request", async () => {
+    const apply = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValue({ status: "configured", runtimeReady: true });
+    const { controller, subject } = createSubject({ apply });
+    await controller.activate();
+    subject.model("claude-opus");
+    await vi.waitFor(() =>
+      expect(controller.state()).toMatchObject({
+        status: "error",
+        reason: "request-failed",
+        active: { model: "claude-sonnet" },
+      }),
+    );
+    subject.retry();
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    expect(apply).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores a committed custom route when returning to its provider", async () => {
+    const { controller, subject, apply } = createSubject({
+      load: async () => configuration({ provider: "anthropic", model: "private-model" }),
+    });
+    await controller.activate();
+    subject.provider("openai");
+    await vi.waitFor(() => expect(controller.state().status).toBe("saved"));
+    subject.provider("anthropic");
+    await vi.waitFor(() => expect(formState(controller).active?.model).toBe("private-model"));
+    expect(apply).toHaveBeenCalledTimes(2);
+    subject.model(CUSTOM_MODEL_SELECTION);
+    subject.customModel("new-private-model");
+    subject.commitCustomModel();
+    await vi.waitFor(() => expect(formState(controller).active?.model).toBe("new-private-model"));
+    subject.provider("openai");
+    await vi.waitFor(() => expect(formState(controller).active?.provider).toBe("openai"));
+    subject.provider("anthropic");
+    await vi.waitFor(() => expect(formState(controller).active?.model).toBe("new-private-model"));
+    expect(apply).toHaveBeenCalledTimes(5);
   });
 });
