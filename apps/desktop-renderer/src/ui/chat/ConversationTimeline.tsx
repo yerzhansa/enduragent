@@ -1,12 +1,17 @@
 import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
 import { useRef, type ReactElement } from "react";
-import type { ChatTranscriptItemView, PlanChangeSurfaceState } from "../../state/chat-slice";
+import {
+  currentPlanChangeCardsVisible,
+  planChangeCardsAllowed,
+  planChangePendingCheck,
+  type ChatTranscriptItemView,
+} from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 import { CoachDecisionPanel } from "./CoachDecisionPanel";
 import { CoachProgress } from "./Notice";
 import { HistoryControls } from "./HistoryControls";
-import { PlanChangeCards, PlanChangeCheckDock } from "./PlanChangeCards";
+import { CurrentPlanChangeCards, PlanChangeCard, PlanChangeCheckDock } from "./PlanChangeCards";
 import { PlanCreationConversation, PlanCreationDock } from "./PlanCreationCards";
 import { TranscriptItem, transcriptItemKey } from "./Transcript";
 import {
@@ -22,24 +27,6 @@ import {
   type ConversationInsertionLedger,
   type ConversationProjection,
 } from "./conversation-timeline";
-
-function planChangeSurfaceVisible(
-  library: ListPlansResult | null,
-  state: PlanChangeSurfaceState,
-): boolean {
-  if (library === null) return false;
-  const active = library.active;
-  if (active === null || active === undefined) return false;
-  const pending = library.changes.find((change) => change.status === "pending");
-  if (
-    library.creation !== null &&
-    pending === undefined &&
-    !(state.open && state.planId === active.planId)
-  ) {
-    return false;
-  }
-  return true;
-}
 
 function planCreationDockVisible(input: {
   readonly loaded: boolean;
@@ -108,8 +95,7 @@ export function ConversationTimeline(props: {
   const insertionLedger = useRef<ConversationInsertionLedger>(
     createConversationInsertionLedger(resetCount),
   );
-  const pendingPlanChangeCheck =
-    planChange.pendingCheck === undefined ? library?.pendingChangeCheck : planChange.pendingCheck;
+  const pendingPlanChangeCheck = planChangePendingCheck(planChange, library);
   const items =
     timeline.length > 0
       ? timeline
@@ -158,15 +144,11 @@ export function ConversationTimeline(props: {
     }
   }
 
-  if (planChangeSurfaceVisible(library, planChange) && library?.active != null) {
-    const currentCardsVisible =
-      planChange.editorOpen ||
-      (!planChange.editorOpen && planChange.error !== null) ||
-      library.active.todayChoice != null;
-    if (currentCardsVisible) {
+  if (planChangeCardsAllowed(planChange, library) && library?.active != null) {
+    if (currentPlanChangeCardsVisible(planChange, library)) {
       projections.push({
         projection: { kind: "plan-change-current", id: library.active.planId },
-        value: <PlanChangeCards changeId={null} labelled={false} />,
+        value: <CurrentPlanChangeCards />,
         afterKey: chronologicalConversationPredecessor(
           durable,
           library.active.todayChoice === null
@@ -183,7 +165,7 @@ export function ConversationTimeline(props: {
     for (const change of library.changes) {
       projections.push({
         projection: { kind: "plan-change", id: change.changeId },
-        value: <PlanChangeCards changeId={change.changeId} labelled={false} />,
+        value: <PlanChangeCard change={change} />,
         afterKey: chronologicalConversationPredecessor(
           durable,
           conversationUlidTime(change.changeId),
@@ -227,7 +209,7 @@ export function ConversationTimeline(props: {
       value: <PlanCreationDock onEditorOpenChange={props.onPlanCreationEditorOpenChange} />,
     });
   }
-  if (library?.active != null && pendingPlanChangeCheck != null) {
+  if (library?.active != null && pendingPlanChangeCheck !== null) {
     projections.push({
       projection: { kind: "plan-change-check", id: pendingPlanChangeCheck.checkId },
       value: <PlanChangeCheckDock onEditorOpenChange={props.onPlanChangeEditorOpenChange} />,

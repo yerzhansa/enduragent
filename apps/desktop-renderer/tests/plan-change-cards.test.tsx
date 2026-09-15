@@ -15,13 +15,39 @@ import {
   EMPTY_CHAT_SURFACE,
   PLAN_CHANGES_PAUSED_NOTICE,
   PLAN_CHANGES_RESUMED_NOTICE,
+  currentPlanChangeCardsVisible,
+  planChangeCardsAllowed,
   type ChatActions,
 } from "../src/state/chat-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { ChatView } from "../src/ui/chat/ChatView";
-import { PlanChangeCards, PlanChangeNotice } from "../src/ui/chat/PlanChangeCards";
+import {
+  CurrentPlanChangeCards,
+  PlanChangeCard,
+  PlanChangeNotice,
+} from "../src/ui/chat/PlanChangeCards";
 import { EMPTY_CHAT_STATE } from "../src/turn-state";
+import { usePhrasebook } from "@enduragent/i18n/react";
+import type { ReactElement } from "react";
+
+function PlanChangeCards(): ReactElement | null {
+  const { say } = usePhrasebook();
+  const library = useEnduragentStore((state) => state.planLibrary.value);
+  const surface = useEnduragentStore((state) => state.planChange);
+  if (!planChangeCardsAllowed(surface, library) || library === null) return null;
+  const changes = [...library.changes].sort(
+    (left, right) => Number(right.status === "pending") - Number(left.status === "pending"),
+  );
+  return (
+    <section aria-label={say("chat.planChange.section")} className="grid min-w-0 gap-4">
+      {currentPlanChangeCardsVisible(surface, library) ? <CurrentPlanChangeCards /> : null}
+      {changes.map((change) => (
+        <PlanChangeCard key={change.changeId} change={change} />
+      ))}
+    </section>
+  );
+}
 
 function stubActions(): ChatActions {
   return {
