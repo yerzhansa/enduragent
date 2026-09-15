@@ -13,6 +13,11 @@ const tag = `enduragent-desktop@${version}`;
 const repository = "yerzhansa/enduragent";
 const releaseId = "123";
 const commit = "a".repeat(40);
+const catalog = {
+  releaseGroupId: commit,
+  revision: 1,
+  digest: "0".repeat(64),
+};
 const evidenceName = `Enduragent-${version}-x64-verification.json`;
 const uploadUrl = `https://uploads.github.com/repos/${repository}/releases/${releaseId}/assets{?name,label}`;
 
@@ -35,10 +40,11 @@ beforeEach(async () => {
   evidencePath = join(directory, evidenceName);
   evidenceBytes = Buffer.from(
     `${JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: 3,
       tag,
       version,
       commit,
+      catalog,
       arch: "x64",
       authenticode: "verified",
       installerSha256: "b".repeat(64),
@@ -436,6 +442,28 @@ describe("Windows verification evidence upload", () => {
       "release identity mismatch before evidence upload",
     );
     expect(fake.uploadAsset).not.toHaveBeenCalled();
+  });
+
+  it("rejects schemaVersion 2 evidence", async () => {
+    const legacy = Buffer.from(
+      `${JSON.stringify({
+        schemaVersion: 2,
+        tag,
+        version,
+        commit,
+        arch: "x64",
+        authenticode: "verified",
+        installerSha256: "b".repeat(64),
+        publisherDnSha256: "c".repeat(64),
+        files: verifiedFiles.map((file) =>
+          file.name === `Enduragent-${version}-x64.exe` ? { ...file, sha256: "b".repeat(64) } : file,
+        ),
+      })}\n`,
+    );
+    await writeFile(evidencePath, legacy);
+    await expect(runWindowsVerificationEvidenceUpload(input(), harness())).rejects.toThrow(
+      "Windows verification evidence input is invalid",
+    );
   });
 
   it("redacts unexpected failures from the CLI-safe error surface", () => {

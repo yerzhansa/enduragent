@@ -110,16 +110,27 @@ function parseEvidence(bytes, input) {
       "tag",
       "version",
       "commit",
+      "catalog",
       "arch",
       "authenticode",
       "installerSha256",
       "publisherDnSha256",
       "files",
     ]) ||
-    evidence.schemaVersion !== 2 ||
+    evidence.schemaVersion !== 3 ||
     evidence.tag !== input.tag ||
     evidence.version !== input.version ||
     evidence.commit !== input.commit ||
+    !exactObject(evidence.catalog) ||
+    !hasExactKeys(evidence.catalog, ["releaseGroupId", "revision", "digest"]) ||
+    typeof evidence.catalog.releaseGroupId !== "string" ||
+    !/^[0-9a-f]{40}$/u.test(evidence.catalog.releaseGroupId) ||
+    evidence.catalog.releaseGroupId !== evidence.commit ||
+    typeof evidence.catalog.revision !== "number" ||
+    !Number.isSafeInteger(evidence.catalog.revision) ||
+    evidence.catalog.revision < 1 ||
+    typeof evidence.catalog.digest !== "string" ||
+    !/^[0-9a-f]{64}$/u.test(evidence.catalog.digest) ||
     evidence.arch !== "x64" ||
     evidence.authenticode !== "verified" ||
     typeof evidence.installerSha256 !== "string" ||

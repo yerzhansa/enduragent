@@ -114,10 +114,16 @@ async function sealed(
   directories.push(directory);
   writeEnvelope(directory, version);
   const baselineZip = baseline?.manifest.files.find((file) => file.name.endsWith("-arm64.zip"));
+  const commit = version === candidateVersion ? candidateCommit : "b".repeat(40);
   const manifest = await sealDesktopRelease(directory, {
     tag: `enduragent-desktop@${version}`,
     desktopVersion: version,
-    commit: version === candidateVersion ? candidateCommit : "b".repeat(40),
+    commit,
+    catalog: {
+      releaseGroupId: commit,
+      revision: 1,
+      digest: "0".repeat(64),
+    },
     draftId,
     mode: "steady",
     workflowRunId: "456",

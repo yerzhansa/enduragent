@@ -39,6 +39,11 @@ const binding = {
   tag: `enduragent-desktop@${desktopVersion}`,
   desktopVersion,
   commit: "a".repeat(40),
+  catalog: {
+    releaseGroupId: "a".repeat(40),
+    revision: 1,
+    digest: "0".repeat(64),
+  },
   draftId: "123",
   mode: "steady" as const,
   workflowRunId: "456",
@@ -374,6 +379,36 @@ describe("desktop release envelope", () => {
     await expect(verifyDesktopRelease(directory, binding)).resolves.toEqual(manifest);
   });
 
+  it("changes transactionSha256 when only catalog.digest differs and still seals four updater files", async () => {
+    writeEnvelope();
+    const first = await sealDesktopRelease(directory, binding);
+    const otherDirectory = mkdtempSync(join(tmpdir(), "desktop-release-catalog-"));
+    try {
+      const [dmgName, zipName, blockmapName] = releaseFileNames(desktopVersion);
+      writeFileSync(join(otherDirectory, dmgName), readFileSync(join(directory, dmgName)));
+      writeFileSync(join(otherDirectory, zipName), readFileSync(join(directory, zipName)));
+      writeFileSync(join(otherDirectory, blockmapName), readFileSync(join(directory, blockmapName)));
+      writeFileSync(
+        join(otherDirectory, "latest-mac.yml"),
+        readFileSync(join(directory, "latest-mac.yml")),
+      );
+      const second = await sealDesktopRelease(otherDirectory, {
+        ...binding,
+        catalog: { ...binding.catalog, digest: "1".repeat(64) },
+      });
+      expect(second.transactionSha256).not.toBe(first.transactionSha256);
+      expect(readdirSync(directory).sort()).toEqual(
+        [...releaseFileNames(desktopVersion), DESKTOP_MANIFEST].sort(),
+      );
+      expect(readdirSync(otherDirectory).sort()).toEqual(
+        [...releaseFileNames(desktopVersion), DESKTOP_MANIFEST].sort(),
+      );
+      expect(releaseFileNames(desktopVersion)).toHaveLength(4);
+    } finally {
+      rmSync(otherDirectory, { recursive: true, force: true });
+    }
+  });
+
   it("materializes a digest-verified exact-four hardlink view for the native verifier", async () => {
     writeEnvelope();
     const manifest = await sealDesktopRelease(directory, binding);
@@ -457,6 +492,7 @@ describe("desktop release envelope", () => {
     const path = join(directory, DESKTOP_MANIFEST);
     const manifest = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
     manifest.commit = "b".repeat(40);
+    manifest.catalog = { releaseGroupId: "b".repeat(40), revision: 1, digest: "0".repeat(64) };
     writeFileSync(path, `${JSON.stringify(manifest)}\n`);
     await expect(verifyDesktopRelease(directory, binding)).rejects.toThrow("transaction hash");
   });

@@ -48,6 +48,7 @@
     "models:publish": "tsx tools/model-catalog-cli.ts publish-to-staging",
     "models:promote": "tsx tools/model-catalog-cli.ts promote-existing-staged-revision-to-production",
     "models:rollback": "tsx tools/model-catalog-cli.ts rollback-to-staging",
+    "models:release-pin": "tsx tools/model-catalog-release-pin-cli.ts",
     "models:verify-service": "tsx tools/verify-model-catalog-service.ts"
   },
   "devDependencies": {
