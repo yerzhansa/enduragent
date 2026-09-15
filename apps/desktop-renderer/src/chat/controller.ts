@@ -296,6 +296,7 @@ export interface ChatController {
   runQueuedCommand(id: string): Promise<void>;
   retryQueuedTurn(claimId: string): Promise<void>;
   retryInterrupted(): Promise<void>;
+  retry(): Promise<void>;
   loadEarlier(): Promise<void>;
   retryHydration(): Promise<void>;
   retryDecision(): Promise<void>;
@@ -3161,6 +3162,11 @@ export function createChatController(input: {
       queuedRetry = { requestKey, promise: pending, token };
       reduce({ type: "retry-pending", requestKey });
       return pending;
+    },
+    retry() {
+      const claim = state.retryRequired;
+      if (claim != null) return controller.retryQueuedTurn(claim.claimId);
+      return controller.retryInterrupted();
     },
     loadEarlier() {
       return hydrator.loadEarlier();

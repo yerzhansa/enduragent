@@ -327,7 +327,7 @@ async function readQueueSurface(fixture: RunningDesktopFixture) {
     readonly commandAthleteCount: number;
     readonly commandCoachCount: number;
   }>(`
-    const expected = ${JSON.stringify([retryText, removableText, ordinaryText, commandText])};
+    const expected = ${JSON.stringify([removableText, ordinaryText, commandText])};
     const deadline = Date.now() + 10000;
     let queue;
     while (Date.now() < deadline) {
@@ -336,8 +336,14 @@ async function readQueueSurface(fixture: RunningDesktopFixture) {
         (node) => node.textContent?.trim() ?? "",
       );
       const transcript = [...document.querySelectorAll(".chat-message")];
+      const retryReady = [...document.querySelectorAll("button")].some(
+        (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
+      );
       if (
         JSON.stringify(texts) === JSON.stringify(expected) &&
+        retryReady &&
         transcript.some((message) => message.textContent?.includes(${JSON.stringify(retryText)})) &&
         transcript.some((message) => message.textContent?.includes(${JSON.stringify(interruptedText)}))
       ) break;
@@ -346,7 +352,9 @@ async function readQueueSurface(fixture: RunningDesktopFixture) {
     const messages = [...document.querySelectorAll(".chat-message")];
     const count = (text) => messages.filter((message) => message.textContent?.includes(text)).length;
     const retry = [...document.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Retry interrupted message",
+      (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
     );
     const run = [...document.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Run command",
@@ -464,12 +472,12 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
 
         const restored = await readQueueSurface(fixture);
         expect(restored).toEqual({
-          queueTexts: [retryText, removableText, ordinaryText, commandText],
+          queueTexts: [removableText, ordinaryText, commandText],
           retryVisible: true,
           retryEnabled: true,
           runVisible: true,
           runEnabled: false,
-          removeEnabled: [false, true, true, true],
+          removeEnabled: [true, true, true],
           error: "",
           retryAthleteCount: 1,
           retryCoachCount: 1,
@@ -514,7 +522,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         await visibleQaCheckpoint("que-03-restored-recovery");
 
         await fixture.evaluate<void>(`
-        const remove = document.querySelector('button[aria-label="Remove queued message 2"]');
+        const remove = document.querySelector('button[aria-label="Remove queued message 1"]');
         if (!(remove instanceof HTMLButtonElement) || remove.disabled) {
           throw new Error("Removable queued message is unavailable");
         }
@@ -538,9 +546,11 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           if (copy === expectedCopy) break;
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
-        const remove = document.querySelector('button[aria-label="Remove queued message 2"]');
+        const remove = document.querySelector('button[aria-label="Remove queued message 1"]');
         const retry = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Retry interrupted message",
+          (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
         );
         const run = [...document.querySelectorAll("button")].find(
           (button) => button.textContent?.trim() === "Run command",
@@ -560,7 +570,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         };
       `);
         expect(failedRemoval).toEqual({
-          texts: [retryText, removableText, ordinaryText, commandText],
+          texts: [removableText, ordinaryText, commandText],
           copy: removeFailureCopy,
           rawFailureMissing: true,
           removeEnabled: true,
@@ -579,7 +589,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           readonly retryEnabled: boolean;
           readonly runEnabled: boolean;
         }>(`
-        const remove = document.querySelector('button[aria-label="Remove queued message 2"]');
+        const remove = document.querySelector('button[aria-label="Remove queued message 1"]');
         if (!(remove instanceof HTMLButtonElement) || remove.disabled) {
           throw new Error("Removal retry is unavailable");
         }
@@ -594,7 +604,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
         const retry = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Retry interrupted message",
+          (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
         );
         const run = [...document.querySelectorAll("button")].find(
           (button) => button.textContent?.trim() === "Run command",
@@ -609,7 +621,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         };
       `);
         expect(removed).toEqual({
-          texts: [retryText, ordinaryText, commandText],
+          texts: [ordinaryText, commandText],
           error: "",
           retryEnabled: true,
           runEnabled: false,
@@ -631,7 +643,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
 
         await fixture.evaluate<void>(`
         const retry = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Retry interrupted message",
+          (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
         );
         if (!(retry instanceof HTMLButtonElement) || retry.disabled) {
           throw new Error("Queue recovery is unavailable");
@@ -679,7 +693,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
           ),
           runEnabled: run instanceof HTMLButtonElement && !run.disabled,
           retryCount: [...document.querySelectorAll("button")].filter(
-            (button) => button.textContent?.trim() === "Retry interrupted message",
+            (button) => !button.hidden &&
+          (button.textContent?.trim() === "Retry message" ||
+            (button.getAttribute("aria-label") ?? "").includes("Retry message")),
           ).length,
           retryAthleteCount: count(${JSON.stringify(retryText)}),
           retryCoachCount: count(${JSON.stringify(retriedText)}),

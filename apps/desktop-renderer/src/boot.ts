@@ -508,7 +508,7 @@ export function bootRenderer(): Disposer {
     removeQueued: (id) => chatController.removeQueued(id),
     runQueuedCommand: (id) => void chatController.runQueuedCommand(id),
     retryQueuedTurn: (claimId) => void chatController.retryQueuedTurn(claimId),
-    retry: () => void chatController.retryInterrupted(),
+    retry: () => void chatController.retry(),
     loadEarlier: () => void chatController.loadEarlier(),
     retryHydration: () => void chatController.retryHydration(),
     retryDecision: () => void chatController.retryDecision(),

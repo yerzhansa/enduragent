@@ -35,6 +35,9 @@ export interface ChatMessageView {
   readonly attachments?: ChatTranscriptMessage["attachments"];
   readonly planReference?: ChatTranscriptMessage["planReference"];
   readonly planHandoff?: ChatTranscriptMessage["planHandoff"];
+  readonly retry?: true;
+  readonly error?: string;
+  readonly errorMessage?: WireMessage;
 }
 
 export interface ChatQueuedView {
@@ -102,6 +105,7 @@ export interface ChatSurfaceState {
   readonly notice: string | null;
   readonly noticeMessage?: WireMessage;
   readonly noticeTone: "danger" | "neutral";
+  readonly noticeRetry: boolean;
   readonly coachProgress: string | null;
   readonly interrupted: boolean;
   readonly workBlocked: boolean;
@@ -205,6 +209,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   status: "idle",
   notice: null,
   noticeTone: "neutral",
+  noticeRetry: false,
   coachProgress: null,
   interrupted: false,
   workBlocked: false,
@@ -331,6 +336,9 @@ export function sameChatMessages(
       JSON.stringify(message.message) === JSON.stringify(other.message) &&
       JSON.stringify(message.planReference) === JSON.stringify(other.planReference) &&
       JSON.stringify(message.planHandoff) === JSON.stringify(other.planHandoff) &&
+      message.retry === other.retry &&
+      message.error === other.error &&
+      JSON.stringify(message.errorMessage) === JSON.stringify(other.errorMessage) &&
       sameAttachments(message.attachments, other.attachments)
     );
   });
@@ -413,6 +421,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.notice === right.notice &&
     JSON.stringify(left.noticeMessage) === JSON.stringify(right.noticeMessage) &&
     left.noticeTone === right.noticeTone &&
+    left.noticeRetry === right.noticeRetry &&
     left.coachProgress === right.coachProgress &&
     left.interrupted === right.interrupted &&
     left.retryRequired === right.retryRequired &&
