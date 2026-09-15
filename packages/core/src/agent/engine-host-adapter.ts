@@ -16,7 +16,6 @@ import { resolveUserTimezone } from "@enduragent/engine/sport";
 import { ErrorStateSchema, LatestJsonSchema } from "@enduragent/kernel/reference/schemas";
 import type { Config } from "../config.js";
 import type { AcceptedModelCatalogRecord } from "../model-catalog.js";
-import { openModelCatalog } from "../model-catalog-owner.js";
 import { resolveModelRuntimeGeneration } from "../model-runtime-generation.js";
 import {
   createMissingPlatformCalendarMutations,
@@ -47,27 +46,29 @@ export interface EngineHostAdapterOverrides {
   readonly confirmations?: ConfirmationGate;
 }
 
-export interface EngineConfigProjectionOptions {
-  readonly catalog?: AcceptedModelCatalogRecord;
+export type EngineConfigProjectionOptions = {
   readonly profileStorageDirectory?: string;
-  readonly models?: EngineResolvedModelProfiles;
-}
+} & (
+  | { readonly catalog: AcceptedModelCatalogRecord; readonly models?: EngineResolvedModelProfiles }
+  | { readonly models: EngineResolvedModelProfiles; readonly catalog?: AcceptedModelCatalogRecord }
+);
 
 export function engineConfigFromConfig(
   config: Config,
-  options: EngineConfigProjectionOptions = {},
+  options: EngineConfigProjectionOptions,
 ): EngineConfig {
   const compactModel = config.llm.compactModel ?? config.llm.model;
   const flushModel = config.llm.flushModel ?? config.llm.model;
-  const models =
-    options.models ??
+  if (options.models !== undefined) {
+    return freezeEngineConfig(config, options.models);
+  }
+  if (options.catalog === undefined) {
+    throw new TypeError("engineConfigFromConfig requires catalog or models");
+  }
+  return freezeEngineConfig(
+    config,
     resolveModelRuntimeGeneration({
-      catalog:
-        options.catalog ??
-        openModelCatalog({
-          cacheDirectory: join(config.dataDir, "config", "model-catalog", "runtime-cache"),
-          installationRoot: config.dataDir,
-        }).current(),
+      catalog: options.catalog,
       provider: config.llm.provider,
       chatModel: config.llm.model,
       compactModel,
@@ -77,7 +78,11 @@ export function engineConfigFromConfig(
         : { chatContextWindowTokensOverride: config.contextWindowTokensOverride }),
       profileStorageDirectory:
         options.profileStorageDirectory ?? join(config.dataDir, "config", "model-catalog"),
-    });
+    }),
+  );
+}
+
+function freezeEngineConfig(config: Config, models: EngineResolvedModelProfiles): EngineConfig {
   const { claudeCli, codexAgent, ...llm } = config.llm;
   return Object.freeze({
     dataSource: config.dataSource,
@@ -100,18 +105,36 @@ export function engineConfigFromConfig(
   });
 }
 
-export function createEngineHostAdapter(input: {
-  readonly config: Config;
-  readonly stateReader: AthleteStateReaderPort;
-  readonly overrides?: EngineHostAdapterOverrides;
-}): {
+export function createEngineHostAdapter(
+  input: {
+    readonly config: Config;
+    readonly stateReader: AthleteStateReaderPort;
+    readonly overrides?: EngineHostAdapterOverrides;
+  } & (
+    | {
+        readonly catalog: AcceptedModelCatalogRecord;
+        readonly models?: EngineResolvedModelProfiles;
+      }
+    | {
+        readonly models: EngineResolvedModelProfiles;
+        readonly catalog?: AcceptedModelCatalogRecord;
+      }
+  ),
+): {
   readonly ports: EngineHostPorts;
   readonly memory: Memory;
   readonly conversationStore: ConversationStorePort;
 } {
   const { config } = input;
   const overrides = input.overrides ?? {};
-  const engineConfig = engineConfigFromConfig(config);
+  let engineConfig: EngineConfig;
+  if (input.models !== undefined) {
+    engineConfig = engineConfigFromConfig(config, { models: input.models });
+  } else if (input.catalog !== undefined) {
+    engineConfig = engineConfigFromConfig(config, { catalog: input.catalog });
+  } else {
+    throw new TypeError("createEngineHostAdapter requires catalog or models");
+  }
   const coachLanguage = overrides.language ?? createNpmCoachLanguage(config.dataDir);
   const memory = new Memory(config.dataDir, config.session.timezone || "UTC");
   const conversationStore = createConversationStore(

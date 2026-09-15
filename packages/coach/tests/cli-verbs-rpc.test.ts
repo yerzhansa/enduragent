@@ -18,6 +18,7 @@ import {
   createConversationStore,
   createMissingPlatformCalendarMutations,
   engineConfigFromConfig,
+  bundledAcceptedCatalog,
   extractRetryAfterMs,
   type Config,
 } from "@enduragent/core";
@@ -354,7 +355,7 @@ describe.skipIf(!hasLoopback)("CLI verbs over real RPC framing", () => {
     let idSequence = 0;
     const ports: EngineHostPorts = {
       language: createTestCoachLanguage(),
-      config: engineConfigFromConfig(config),
+      config: engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
       memory: new Memory(dataDir, "UTC"),
       chatStore: conversation,
       transcriptWriter: conversation,

@@ -60,10 +60,12 @@ export {
   MODEL_CATALOG_REQUEST_TIMEOUT_MS,
   MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
   openModelCatalog,
+  readAcceptedInstallationCatalog,
   resolveModelCatalogPaths,
 } from "./model-catalog-owner.js";
 export {
   acceptModelCatalogSnapshot,
+  bundledAcceptedCatalog,
   evaluateModelCatalogCandidate,
   modelCatalogSelectorConfiguration,
 } from "./model-catalog.js";

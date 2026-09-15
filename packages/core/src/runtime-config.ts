@@ -67,7 +67,6 @@ export interface LlmModelCatalogueEntry {
   readonly label: string;
   readonly hint?: string;
   readonly defaultModel: string;
-  readonly models: readonly LlmModelOption[];
   readonly defaultBaseUrl?: string;
 }
 
@@ -76,103 +75,58 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
     provider: "anthropic",
     label: "Anthropic (Claude)",
     defaultModel: DEFAULT_MODELS.anthropic,
-    models: [
-      { value: "claude-sonnet-5", label: "Claude Sonnet 5", hint: "recommended" },
-      { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", hint: "fast & cheap" },
-      { value: "claude-opus-5", label: "Claude Opus 5", hint: "most capable" },
-    ],
   },
   {
     provider: "openai",
     label: "OpenAI (GPT)",
     defaultModel: DEFAULT_MODELS.openai,
-    models: [
-      { value: "gpt-5.6-sol", label: "GPT-5.6 Sol", hint: "recommended" },
-      { value: "gpt-5.6-terra", label: "GPT-5.6 Terra", hint: "balanced" },
-      { value: "gpt-5.6-luna", label: "GPT-5.6 Luna", hint: "cheapest" },
-    ],
   },
   {
     provider: "google",
     label: "Google (Gemini)",
     defaultModel: DEFAULT_MODELS.google,
-    models: [
-      { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash", hint: "recommended" },
-      { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", hint: "most capable" },
-      { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite", hint: "cheapest" },
-    ],
   },
   {
     provider: "openai-codex",
     label: "OpenAI Codex (ChatGPT subscription)",
     hint: "experimental",
     defaultModel: DEFAULT_MODELS["openai-codex"],
-    models: [
-      { value: "gpt-5.6-sol", label: "GPT-5.6 Sol", hint: "recommended" },
-      { value: "gpt-5.6-luna", label: "GPT-5.6 Luna", hint: "faster" },
-    ],
   },
   {
     provider: "claude-cli",
     label: "Claude subscription (Claude Code CLI)",
     hint: "experimental",
     defaultModel: DEFAULT_MODELS["claude-cli"],
-    models: [
-      { value: "sonnet", label: "Claude Sonnet", hint: "recommended" },
-      { value: "opus", label: "Claude Opus", hint: "most capable" },
-      { value: "haiku", label: "Claude Haiku", hint: "fast" },
-    ],
   },
   {
     provider: "deepseek",
     label: "DeepSeek",
     defaultModel: DEFAULT_MODELS.deepseek,
     defaultBaseUrl: PROVIDER_BASE_URLS.deepseek,
-    models: [
-      { value: "deepseek-v4-flash", label: "DeepSeek V4 Flash", hint: "recommended" },
-      { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro", hint: "most capable" },
-    ],
   },
   {
     provider: "qwen",
     label: "Qwen (Alibaba Model Studio)",
     defaultModel: DEFAULT_MODELS.qwen,
     defaultBaseUrl: PROVIDER_BASE_URLS.qwen,
-    models: [
-      { value: "qwen3.7-plus", label: "Qwen3.7 Plus", hint: "recommended" },
-      { value: "qwen3.7-max", label: "Qwen3.7 Max", hint: "most capable" },
-    ],
   },
   {
     provider: "minimax",
     label: "MiniMax",
     defaultModel: DEFAULT_MODELS.minimax,
     defaultBaseUrl: PROVIDER_BASE_URLS.minimax,
-    models: [
-      { value: "MiniMax-M3", label: "MiniMax M3", hint: "recommended" },
-      { value: "MiniMax-M2.7", label: "MiniMax M2.7" },
-    ],
   },
   {
     provider: "kimi",
     label: "Kimi (Moonshot AI)",
     defaultModel: DEFAULT_MODELS.kimi,
     defaultBaseUrl: PROVIDER_BASE_URLS.kimi,
-    models: [
-      { value: "kimi-k3", label: "Kimi K3", hint: "recommended" },
-      { value: "kimi-k2.6", label: "Kimi K2.6", hint: "cheaper" },
-    ],
   },
   {
     provider: "zai",
     label: "Z.AI (GLM)",
     defaultModel: DEFAULT_MODELS.zai,
     defaultBaseUrl: PROVIDER_BASE_URLS.zai,
-    models: [
-      { value: "glm-4.7", label: "GLM-4.7", hint: "recommended" },
-      { value: "glm-5.2", label: "GLM-5.2", hint: "most capable" },
-      { value: "glm-4.7-flashx", label: "GLM-4.7 FlashX", hint: "cheapest" },
-    ],
   },
   {
     provider: "openrouter",
@@ -180,16 +134,6 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
     hint: "one key, many models",
     defaultModel: DEFAULT_MODELS.openrouter,
     defaultBaseUrl: PROVIDER_BASE_URLS.openrouter,
-    models: [
-      {
-        value: "deepseek/deepseek-v4-flash",
-        label: "DeepSeek V4 Flash (via OpenRouter)",
-        hint: "cheap",
-      },
-      { value: "z-ai/glm-5.2", label: "GLM-5.2 (via OpenRouter)", hint: "most capable" },
-      { value: "qwen/qwen3.7-plus", label: "Qwen3.7 Plus (via OpenRouter)" },
-      { value: "moonshotai/kimi-k3", label: "Kimi K3 (via OpenRouter)" },
-    ],
   },
 ] as const;
 

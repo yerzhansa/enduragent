@@ -12,6 +12,7 @@ import {
   isKeylessProvider,
   resolveRuntimeConfig,
 } from "../src/runtime-config.js";
+import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 import {
   MODEL_CATALOG_BASELINE,
   MODEL_CATALOG_BASELINE_ASTRA_REFUSALS,
@@ -95,27 +96,33 @@ function currentImageInput(
 
 describe("compiled model catalog baseline", () => {
   it("captures the current ordered menus, defaults, context behavior, image behavior, and prices", () => {
-    const current = LLM_MODEL_CATALOGUE.map((provider) => ({
-      provider: provider.provider,
-      label: provider.label,
-      ...(provider.hint === undefined ? {} : { hint: provider.hint }),
-      defaultModel: provider.defaultModel,
-      models: provider.models.map((model) => ({
-        value: model.value,
-        label: model.label,
-        ...(model.hint === undefined ? {} : { hint: model.hint }),
-        contextWindowTokens: contextWindowForModel(model.value, provider.provider),
-        catalogContext:
-          provider.provider === "qwen" && model.value === "qwen3.7-max"
-            ? { kind: "unknown" as const }
-            : {
-                kind: "known" as const,
-                tokens: contextWindowForModel(model.value, provider.provider),
-              },
-        imageInput: currentImageInput(provider.provider, model.value),
-        pricing: currentPricing(provider.provider, model.value),
-      })),
-    }));
+    const current = LLM_MODEL_CATALOGUE.map((provider) => {
+      const seed = BUNDLED_MODEL_CATALOG.providers.find(
+        (candidate) => candidate.providerId === provider.provider,
+      );
+      if (seed === undefined) throw new Error(`bundled seed is missing ${provider.provider}`);
+      return {
+        provider: provider.provider,
+        label: provider.label,
+        ...(provider.hint === undefined ? {} : { hint: provider.hint }),
+        defaultModel: provider.defaultModel,
+        models: seed.models.map((model) => ({
+          value: model.modelId,
+          label: model.label,
+          ...(model.hint === undefined ? {} : { hint: model.hint }),
+          contextWindowTokens: contextWindowForModel(model.modelId, provider.provider),
+          catalogContext:
+            provider.provider === "qwen" && model.modelId === "qwen3.7-max"
+              ? { kind: "unknown" as const }
+              : {
+                  kind: "known" as const,
+                  tokens: contextWindowForModel(model.modelId, provider.provider),
+                },
+          imageInput: currentImageInput(provider.provider, model.modelId),
+          pricing: currentPricing(provider.provider, model.modelId),
+        })),
+      };
+    });
 
     expect(current).toEqual(MODEL_CATALOG_BASELINE);
     expect(current.map((entry) => entry.provider)).toEqual(MODEL_CATALOG_BASELINE_PROVIDER_IDS);
@@ -140,8 +147,10 @@ describe("compiled model catalog baseline", () => {
       expect(config.llm.model).toBe(model);
       expect(config.contextWindowTokens).toBe(200_000);
       expect(
-        LLM_MODEL_CATALOGUE.find((entry) => entry.provider === provider)?.models,
-      ).not.toContainEqual(expect.objectContaining({ value: model }));
+        BUNDLED_MODEL_CATALOG.providers
+          .find((entry) => entry.providerId === provider)
+          ?.models.map((model) => model.modelId),
+      ).not.toContain(model);
     },
   );
 

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../core/src/model-catalog.js";
 import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-reader.js";
 import type { Config } from "../../core/src/config.js";
 
@@ -32,7 +33,11 @@ describe("compact context window", () => {
       contextWindowTokens: 1_000_000,
       dataDir,
     };
-    const { ports } = createEngineHostAdapter({ config, stateReader: legacyStateReader });
+    const { ports } = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    });
     expect(ports.config.contextWindowTokens).toBe(1_000_000);
     expect(ports.config.compactContextWindowTokens).toBe(200_000);
   });

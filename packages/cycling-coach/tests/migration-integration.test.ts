@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CoachAgent } from "@enduragent/core";
+import { bundledAcceptedCatalog, CoachAgent } from "@enduragent/core";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { migrateCyclingLegacySections } from "@enduragent/sport-cycling/migrate";
 import { baseAgentConfig } from "../../core/tests/helpers/base-agent-config.js";
@@ -39,7 +39,9 @@ describe("legacy-section migration — binary startup integration (steps 1-3)", 
     );
 
     // Step 2: construct the agent (mirrors src/index.ts startup path).
-    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir));
+    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir), {
+      catalog: bundledAcceptedCatalog(),
+    });
 
     // Wiring: this is exactly what src/index.ts does immediately after
     // agent construction. The integration test asserts that calling the
@@ -71,7 +73,9 @@ describe("legacy-section migration — binary startup integration (steps 1-3)", 
 
   it("is a no-op for fresh installs (no MEMORY.md present)", () => {
     // No file pre-seeded. Construct agent, run migrator, file should not be created.
-    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir));
+    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir), {
+      catalog: bundledAcceptedCatalog(),
+    });
     expect(() => migrateCyclingLegacySections(agent.getMemory())).not.toThrow();
 
     const events = logSpy.mock.calls.map((args: unknown[]) => JSON.parse(String(args[0])));
@@ -85,7 +89,9 @@ describe("legacy-section migration — binary startup integration (steps 1-3)", 
   it("is idempotent — second call after construction leaves file unchanged", () => {
     writeFileSync(memoryFile, "## profile\nFTP 247W\n## schedule\nMon, Wed, Fri\n", "utf-8");
 
-    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir));
+    const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir), {
+      catalog: bundledAcceptedCatalog(),
+    });
     migrateCyclingLegacySections(agent.getMemory());
     const afterFirst = readFileSync(memoryFile, "utf-8");
 

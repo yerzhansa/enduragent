@@ -8,7 +8,11 @@ import type { Sport } from "@enduragent/engine/sport";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { Config } from "../src/config.js";
-import { createEngineHostAdapter } from "../src/agent/engine-host-adapter.js";
+import {
+  createEngineHostAdapter,
+  engineConfigFromConfig,
+} from "../src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import type { RefreshFailureReason } from "../src/auth/refresh-failure.js";
 import {
@@ -105,6 +109,7 @@ describe("engine host adapter", () => {
     const language = createNpmCoachLanguage(dataDir);
     const resolve = vi.spyOn(language, "resolveFor");
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
       overrides: { language },
@@ -125,6 +130,7 @@ describe("engine host adapter", () => {
     vi.stubEnv("ENDURAGENT_LANGUAGE", "fr");
     const language = createNpmCoachLanguage(dataDir);
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
       overrides: { language },
@@ -143,9 +149,23 @@ describe("engine host adapter", () => {
     });
   });
 
+  it("refuses to open a catalog as a projection side effect", () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-required-catalog-"));
+    expect(() =>
+      createEngineHostAdapter({
+        config: config(dataDir),
+        stateReader: legacyStateReader,
+      } as never),
+    ).toThrow("createEngineHostAdapter requires catalog or models");
+    expect(() => engineConfigFromConfig(config(dataDir), {} as never)).toThrow(
+      "engineConfigFromConfig requires catalog or models",
+    );
+  });
+
   it("projects immutable engine config with independent chat and compact windows", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
@@ -197,6 +217,7 @@ describe("engine host adapter", () => {
   it("exposes one stable Core-owned conversation coordinator for both ports", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-transcript-"));
     const { ports, conversationStore } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
@@ -209,6 +230,7 @@ describe("engine host adapter", () => {
   it("wires the exact rejecting legacy athlete-state reader", async () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
@@ -338,6 +360,7 @@ describe("engine host adapter", () => {
       const { ports } = createFreshAdapter({
         config: codexConfig(dataDir),
         stateReader: legacyStateReader,
+        catalog: bundledAcceptedCatalog(),
       });
       const engine = createCoachEngine({ sport, ports });
 

@@ -7,6 +7,7 @@ import {
   type ModelCatalogSnapshot,
 } from "@enduragent/coach-contract/model-catalog";
 import { installedProfileFor, type VisibleModelCatalogProvider } from "./model-catalog-policy.js";
+import { BUNDLED_MODEL_CATALOG } from "./model-catalog-seed.js";
 import {
   DEFAULT_MODELS,
   LLM_MODEL_CATALOGUE,
@@ -159,6 +160,14 @@ function deriveEffectiveCatalog(snapshot: ModelCatalogSnapshot): EffectiveModelC
     provenance: snapshot.provenance,
     providers: Object.freeze(providers),
   });
+}
+
+export function bundledAcceptedCatalog(): AcceptedModelCatalogRecord {
+  const accepted = acceptModelCatalogSnapshot(BUNDLED_MODEL_CATALOG);
+  if (accepted === undefined) {
+    throw new Error("Bundled model catalog has no usable choices");
+  }
+  return accepted;
 }
 
 export function acceptModelCatalogSnapshot(

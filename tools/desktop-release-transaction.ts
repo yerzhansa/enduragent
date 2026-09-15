@@ -722,7 +722,6 @@ export async function verifyDesktopRelease(
       "tag",
       "desktopVersion",
       "commit",
-      "catalog",
       "draftId",
       "mode",
       "workflowRunId",
@@ -738,14 +737,11 @@ export async function verifyDesktopRelease(
       "baselineSigningIdentity",
       "baselineCdHash",
     ] as const) {
-      if (key === "catalog") {
-        if (JSON.stringify(manifest.catalog) !== JSON.stringify(expected.catalog)) {
-          throw new TypeError("desktop release manifest catalog mismatch");
-        }
-        continue;
-      }
       if (manifest[key] !== expected[key])
         throw new TypeError(`desktop release manifest ${key} mismatch`);
+    }
+    if (JSON.stringify(manifest.catalog) !== JSON.stringify(expected.catalog)) {
+      throw new TypeError("desktop release manifest catalog mismatch");
     }
   }
   const snapshots = new Map<string, { bytes: Buffer; size: number }>();

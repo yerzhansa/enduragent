@@ -18,6 +18,8 @@ import {
 import {
   RefreshTokenReusedError,
   engineConfigFromConfig,
+  bundledAcceptedCatalog,
+  readAcceptedInstallationCatalog,
   loadConfig,
   loadStoredProfileSnapshot,
   saveStoredProfile,
@@ -493,13 +495,16 @@ async function compose(
   deferInitialRefresh?: boolean,
 ) {
   const coreConfig = configOverride ?? config(home, intervals);
+  const catalog = readAcceptedInstallationCatalog(home.root) ?? bundledAcceptedCatalog();
   return createLocalCoachComposition(
     {
       env,
       home,
       context,
       config: coreConfig,
+      catalog,
       engineConfig: engineConfigFromConfig(coreConfig, {
+        catalog,
         profileStorageDirectory: join(home.configDir, "model-catalog"),
       }),
       ...(deferInitialRefresh === undefined ? {} : { deferInitialRefresh }),
@@ -911,7 +916,9 @@ describe("local coach composition", () => {
     });
     expect(received?.ports.platform.legacyClient).toBeNull();
     expect(received?.ports.platform.athleteData).toBe(selectedRuntime.athleteData);
-    expect(received?.ports.config).toEqual(engineConfigFromConfig(config(home)));
+    expect(received?.ports.config).toEqual(
+      engineConfigFromConfig(config(home), { catalog: bundledAcceptedCatalog() }),
+    );
     await expect(lifecycle.spendMeter.getSpendSummary()).resolves.toMatchObject({
       timezone: "UTC",
       dailyCapUsd: 0.5,

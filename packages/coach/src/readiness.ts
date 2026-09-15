@@ -1,6 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  bundledAcceptedCatalog,
   engineConfigFromConfig,
   loadConfigFromYaml,
   type Config,
@@ -40,7 +41,7 @@ const readinessDependencies: ReadinessDependencies = {
   readConfigFile: readFile,
   resolvePhysicalPath: realpath,
   loadConfig: loadConfigFromYaml,
-  projectConfig: engineConfigFromConfig,
+  projectConfig: (config) => engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
 };
 
 function isMap(value: unknown): value is Record<string, unknown> {
@@ -66,8 +67,9 @@ function parseConfig(source: string): Record<string, unknown> | undefined {
 
 export async function checkHomeReadiness(
   home: AthleteHome,
-  dependencies: ReadinessDependencies = readinessDependencies,
+  overrides: Partial<ReadinessDependencies> = {},
 ): Promise<ReadinessResult> {
+  const dependencies = { ...readinessDependencies, ...overrides };
   const configPath = join(home.configDir, "config.yaml");
   let initialSource: string;
   try {

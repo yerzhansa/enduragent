@@ -17,6 +17,7 @@ import type { Config } from "../src/config.js";
 import type { Sport } from "../src/sport.js";
 import type { UsageLedgerLine } from "../src/usage-ledger.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 import { testModelProfiles } from "../../engine/tests/helpers/model-profiles.js";
 import { classifyFailure } from "../src/agent/token-utils.js";
 import { appendUsageLine, readUsageLedger } from "../src/usage-ledger.js";
@@ -582,6 +583,7 @@ describe("turn line — winning generation usage and cost", () => {
         llm: { ...config.llm, model: "gpt-5.6-sol" },
       },
       {
+        catalog: bundledAcceptedCatalog(),
         modelTransportDecorator: () => ({
           generate: async () => {
             const result = await complete();

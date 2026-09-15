@@ -332,6 +332,7 @@ describe("local coach runner", () => {
     );
     const compositionInput = mocks.composition.mock.calls[0]![0];
     expect(compositionInput.config).toBe(readyConfig);
+    expect(compositionInput.catalog).toBe(acceptedCatalog);
     expect(compositionInput.engineConfig).not.toBe(engineConfig);
     expect(compositionInput.engineConfig).toMatchObject({
       llm: engineConfig.llm,
@@ -400,7 +401,10 @@ describe("local coach runner", () => {
       value: "done",
     });
 
-    expect(mocks.readiness).toHaveBeenCalledExactlyOnceWith(physicalHome);
+    expect(mocks.readiness).toHaveBeenCalledExactlyOnceWith(
+      physicalHome,
+      expect.objectContaining({ projectConfig: expect.any(Function) }),
+    );
     expect(mocks.composition).toHaveBeenCalledWith(
       expect.objectContaining({ home: physicalHome, context }),
     );

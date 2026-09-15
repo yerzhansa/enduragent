@@ -7,6 +7,7 @@ import { http, HttpResponse } from "msw";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 import { createMockIntervalsServer } from "../../core/tests/helpers/mock-intervals.js";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../core/src/model-catalog.js";
 import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-reader.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
@@ -65,7 +66,7 @@ function intervalsConfig() {
     ...baseAgentConfig(dataDir),
     intervals: { apiKey: "test-key", athleteId: "i1" },
   };
-  const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+  const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader, catalog: bundledAcceptedCatalog() }).ports;
   return {
     ...ports,
     getAccessToken: async () => "token",

@@ -419,6 +419,39 @@ describe("LLM dispatch — AI SDK path forwards abort signals", () => {
   });
 });
 
+describe("LLM dispatch uses the resolved profile", () => {
+  it("records the profile connection when EngineConfig.llm names another provider", async () => {
+    const lines: Array<{ provider: string; model: string }> = [];
+    vi.doMock("ai", () => ({
+      generateText: vi.fn(async () => MINIMAL_RESULT),
+      streamText: vi.fn(),
+      stepCountIs: vi.fn((count: number) => ({ type: "step-count", count })),
+    }));
+    vi.doMock("@ai-sdk/anthropic", () => ({
+      createAnthropic: () => () => ({ provider: "anthropic-stub" }),
+    }));
+    const { LLM } = await import("../src/llm.js");
+    const selected = anthropicConfig();
+    const llm = new LLM(
+      {
+        ...selected,
+        llm: { ...selected.llm, provider: "openai", model: "gpt-5.6-sol" },
+      },
+      {
+        ...llmTestPorts(),
+        usage: {
+          append: (line) => {
+            lines.push({ provider: line.provider, model: line.model });
+          },
+        },
+      },
+      selected.models.chat,
+    );
+    await llm.generate({ caller: "compact", prompt: "hi" });
+    expect(lines).toEqual([{ provider: "anthropic", model: "claude-test" }]);
+  });
+});
+
 describe("LLM generate — per-call deadline bounded by opts.deadlineMs", () => {
   it("uses the smaller of the caller deadline and opts.deadlineMs", async () => {
     const timeoutSpy = vi
