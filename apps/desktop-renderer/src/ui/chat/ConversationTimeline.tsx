@@ -1,6 +1,6 @@
-import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
+import type { PlanCreationCardModel } from "@enduragent/coach-contract";
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { useRef, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import {
   currentPlanChangeCardsVisible,
   planChangeCardsAllowed,
@@ -12,19 +12,13 @@ import { CoachDecisionPanel } from "./CoachDecisionPanel";
 import { CoachProgress } from "./Notice";
 import { HistoryControls } from "./HistoryControls";
 import { CurrentPlanChangeCards, PlanChangeCard, PlanChangeCheckDock } from "./PlanChangeCards";
-import { PlanCreationConversation, PlanCreationDock } from "./PlanCreationCards";
+import { PlanCreationDock } from "./PlanCreationCards";
 import { TranscriptItem, transcriptItemKey } from "./Transcript";
 import {
-  chronologicalConversationPredecessor,
   conversationProjectionKey,
   conversationUlidTime,
-  createConversationInsertionLedger,
-  forgetConversationProjection,
   orderConversationRows,
-  recoverConversationPredecessor,
-  resetConversationInsertionLedger,
-  type ConversationInsertionLedger,
-  type ConversationProjection,
+  type ConversationProjectionRow,
 } from "./conversation-timeline";
 
 function planCreationDockVisible(input: {
@@ -42,10 +36,6 @@ function planCreationDockVisible(input: {
       input.model.pendingCommitment !== null ||
       input.model.openQuestion !== null)
   );
-}
-
-function usePlanCreationModel(): PlanCreationCardModel | null {
-  return useEnduragentStore((state) => state.chat.planCreation);
 }
 
 function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | undefined {
@@ -69,6 +59,28 @@ function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | unde
   }
 }
 
+function restoredCardProjection(
+  item: ChatTranscriptItemView,
+): ConversationProjectionRow<ReactElement> | null {
+  const occurredAtMs = transcriptItemOccurredAtMs(item);
+  if (occurredAtMs === undefined) return null;
+  if (item.kind === "planning-request") {
+    return {
+      projection: { kind: "planning-request", id: item.delivery.requestId },
+      value: <TranscriptItem item={item} bufferedStreaming />,
+      occurredAtMs,
+    };
+  }
+  if (item.kind === "plan-creation" && item.model !== null) {
+    return {
+      projection: { kind: "plan-creation", id: item.model.creationId },
+      value: <TranscriptItem item={item} bufferedStreaming />,
+      occurredAtMs,
+    };
+  }
+  return null;
+}
+
 export function ConversationTimeline(props: {
   readonly onDecisionEditorOpenChange: (open: boolean) => void;
   readonly onPlanCreationEditorOpenChange: (open: boolean) => void;
@@ -77,9 +89,7 @@ export function ConversationTimeline(props: {
   const { say } = usePhrasebook();
   const timeline = useEnduragentStore((state) => state.chat.timeline);
   const messages = useEnduragentStore((state) => state.chat.messages);
-  const resetCount = useEnduragentStore((state) => state.chat.resetCount);
-  const hydrationStatus = useEnduragentStore((state) => state.chat.hydrationStatus);
-  const planCreation = usePlanCreationModel();
+  const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   const planCreationLoaded = useEnduragentStore((state) => state.chat.planCreationLoaded);
   const planCreationPaused = useEnduragentStore((state) => state.chat.planCreationPaused);
   const planCreationEditing = useEnduragentStore(
@@ -91,85 +101,51 @@ export function ConversationTimeline(props: {
   const coachProgress = useEnduragentStore((state) => state.chat.coachProgress);
   const library = useEnduragentStore((state) => state.planLibrary.value);
   const planChange = useEnduragentStore((state) => state.planChange);
-  const insertionLedger = useRef<ConversationInsertionLedger>(
-    createConversationInsertionLedger(resetCount),
-  );
   const pendingPlanChangeCheck = planChangePendingCheck(planChange, library);
   const items =
     timeline.length > 0
       ? timeline
       : messages.map((message) => ({ kind: "message" as const, message }));
+  const timedConversation = items.every(
+    (item) => item.kind !== "message" || item.message.occurredAtMs !== undefined,
+  );
+  const restored = new Map<ChatTranscriptItemView, ConversationProjectionRow<ReactElement>>();
+  if (timedConversation) {
+    for (const item of items) {
+      const card = restoredCardProjection(item);
+      if (card !== null) restored.set(item, card);
+    }
+  }
   const durable = items
-    .filter((item) => item.kind !== "planning-request" && item.kind !== "plan-creation")
+    .filter((item) => !restored.has(item))
     .map((item) => ({
       key: transcriptItemKey(item),
       value: item,
       occurredAtMs: transcriptItemOccurredAtMs(item),
     }));
-  const projections: Array<{
-    readonly projection: ConversationProjection;
-    readonly value: ReactElement;
-    readonly afterKey?: string | null;
-  }> = [];
-
-  let previousTimelineKey: string | null = null;
-  for (const item of items) {
-    if (item.kind === "planning-request") {
-      const projection = { kind: "planning-request", id: item.delivery.requestId } as const;
-      projections.push({
-        projection,
-        value: <TranscriptItem item={item} bufferedStreaming />,
-        afterKey: recoverConversationPredecessor(
-          durable,
-          transcriptItemOccurredAtMs(item) ?? null,
-          previousTimelineKey,
-        ),
-      });
-      previousTimelineKey = conversationProjectionKey(projection);
-    } else if (item.kind === "plan-creation" && item.model !== null) {
-      const projection = { kind: "plan-creation", id: item.model.creationId } as const;
-      projections.push({
-        projection,
-        value: <PlanCreationConversation model={item.model} />,
-        afterKey: recoverConversationPredecessor(
-          durable,
-          transcriptItemOccurredAtMs(item) ?? null,
-          previousTimelineKey,
-        ),
-      });
-      previousTimelineKey = conversationProjectionKey(projection);
-    } else if (item.kind !== "plan-creation") {
-      previousTimelineKey = transcriptItemKey(item);
-    }
-  }
+  const projections: ConversationProjectionRow<ReactElement>[] = [...restored.values()];
 
   if (planChangeCardsAllowed(planChange, library) && library?.active != null) {
     if (currentPlanChangeCardsVisible(planChange, library)) {
       projections.push({
         projection: { kind: "plan-change-current", id: library.active.planId },
         value: <CurrentPlanChangeCards />,
-        afterKey: chronologicalConversationPredecessor(
-          durable,
-          library.active.todayChoice?.dayStartMs ?? null,
-        ),
+        occurredAtMs: library.active.todayChoice?.dayStartMs ?? null,
       });
     }
     for (const change of library.changes) {
       projections.push({
         projection: { kind: "plan-change", id: change.changeId },
         value: <PlanChangeCard change={change} />,
-        afterKey: chronologicalConversationPredecessor(
-          durable,
-          conversationUlidTime(change.changeId),
-        ),
+        occurredAtMs: conversationUlidTime(change.changeId),
       });
     }
   }
   if (coachProgress !== null) {
-    const activeRow = durable.at(-1)?.key ?? "current";
     projections.push({
-      projection: { kind: "coach-progress", id: activeRow },
+      projection: { kind: "coach-progress" },
       value: <CoachProgress />,
+      occurredAtMs: null,
     });
   }
   const decisionVisible =
@@ -185,6 +161,7 @@ export function ConversationTimeline(props: {
           ? { kind: "coach-decision-availability" }
           : { kind: "coach-decision", id: decision.decisionId },
       value: <CoachDecisionPanel onCustomOpenChange={props.onDecisionEditorOpenChange} />,
+      occurredAtMs: null,
     });
   }
   if (
@@ -199,37 +176,18 @@ export function ConversationTimeline(props: {
     projections.push({
       projection: { kind: "plan-creation-dock", id: planCreation.creationId },
       value: <PlanCreationDock onEditorOpenChange={props.onPlanCreationEditorOpenChange} />,
+      occurredAtMs: null,
     });
   }
   if (library?.active != null && pendingPlanChangeCheck !== null) {
     projections.push({
       projection: { kind: "plan-change-check", id: pendingPlanChangeCheck.checkId },
       value: <PlanChangeCheckDock onEditorOpenChange={props.onPlanChangeEditorOpenChange} />,
-      afterKey: chronologicalConversationPredecessor(
-        durable,
-        conversationUlidTime(pendingPlanChangeCheck.checkId),
-      ),
+      occurredAtMs: conversationUlidTime(pendingPlanChangeCheck.checkId),
     });
   }
 
-  if (insertionLedger.current.resetCount !== resetCount) {
-    insertionLedger.current = resetConversationInsertionLedger({
-      previous: insertionLedger.current,
-      resetCount,
-      projections: projections.map((entry) => entry.projection),
-    });
-  }
-  if (decision !== null || decisionLoadError === null) {
-    forgetConversationProjection(insertionLedger.current, {
-      kind: "coach-decision-availability",
-    });
-  }
-  const rows = orderConversationRows({
-    durable,
-    projections,
-    ledger: insertionLedger.current,
-    rememberNewPlacements: hydrationStatus === "ready",
-  });
+  const rows = orderConversationRows({ durable, projections });
   return (
     <section
       className="chat-transcript grid gap-[18px]"

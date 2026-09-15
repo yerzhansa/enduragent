@@ -353,6 +353,7 @@ type PendingPlanningRequestCreate =
 export function createChatController(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly view: ChatView;
+  readonly now?: () => number;
   readonly refreshTrainingContext: () => Promise<void>;
   readonly refreshSpend: () => Promise<void>;
   readonly refreshPlan?: () => Promise<void>;
@@ -457,6 +458,7 @@ export function createChatController(input: {
   const canChat = input.canChat ?? (() => true);
 
   const nextId = (prefix: "request" | "message"): string => `${prefix}-${++sequence}`;
+  const now = input.now ?? Date.now;
   const resetBlocksWork = (): boolean =>
     state.session.resetPhase === "confirming" || state.session.resetPhase === "resetting";
   const decisionBlocksWork = (): boolean =>
@@ -648,6 +650,7 @@ export function createChatController(input: {
     reduce({
       type: "submit",
       requestKey,
+      occurredAtMs: now(),
       userMessage,
       userMessageId,
       assistantMessageId,
@@ -1442,6 +1445,7 @@ export function createChatController(input: {
       reduce({
         type: "submit",
         requestKey,
+        occurredAtMs: now(),
         userMessage: "",
         userMessageId,
         assistantMessageId,
@@ -1474,6 +1478,7 @@ export function createChatController(input: {
     reduce({
       type: "submit",
       requestKey,
+      occurredAtMs: now(),
       userMessage: "",
       userMessageId,
       assistantMessageId,
@@ -2372,7 +2377,12 @@ export function createChatController(input: {
           return false;
         }
         publishChange({ busy: true, error: null, notice: null });
-        reduce({ type: "append-athlete-message", id: nextId("message"), text: message });
+        reduce({
+          type: "append-athlete-message",
+          id: nextId("message"),
+          text: message,
+          occurredAtMs: now(),
+        });
         if (
           attachmentGenerationIsCurrent(submittedAttachmentGeneration) &&
           submittedTextRevision === attachmentTextRevision

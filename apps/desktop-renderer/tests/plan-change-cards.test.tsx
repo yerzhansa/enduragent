@@ -731,13 +731,14 @@ describe("Plan Change cards", () => {
     expect(screen.getByText("Pending", { exact: true })).toBeVisible();
   });
 
-  it("keeps each persisted Change at the conversation edge where it first appeared", () => {
+  it("keeps each persisted Change between the messages recorded around its creation", () => {
     const before = {
       id: "message-before",
       role: "athlete" as const,
       delivery: "complete" as const,
       historical: false,
       text: "Change my Wednesday limit",
+      occurredAtMs: 1_000,
     };
     const after = {
       id: "message-after",
@@ -745,8 +746,11 @@ describe("Plan Change cards", () => {
       delivery: "complete" as const,
       historical: false,
       text: "How should I pace tomorrow?",
+      occurredAtMs: 3_000,
     };
-    setChanges([change({ changeId: "change-old", title: "Earlier Change", status: "applied" })]);
+    const olderId = ulidAt(2_000);
+    const newerId = ulidAt(4_000);
+    setChanges([change({ changeId: olderId, title: "Earlier Change", status: "applied" })]);
     useEnduragentStore.setState({
       runtimeReady: true,
       onboarding: READY_ONBOARDING,
@@ -772,8 +776,8 @@ describe("Plan Change cards", () => {
       })),
     );
     setChanges([
-      change({ changeId: "change-old", title: "Earlier Change", status: "applied" }),
-      change({ changeId: "change-new", title: "Later Change", status: "cancelled" }),
+      change({ changeId: olderId, title: "Earlier Change", status: "applied" }),
+      change({ changeId: newerId, title: "Later Change", status: "cancelled" }),
     ]);
 
     const earlier = screen.getByRole("heading", { name: "Earlier Change" });

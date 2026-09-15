@@ -34,6 +34,7 @@ function submitted(message = "How is my form?"): ChatState {
   return reduceChatState(EMPTY_CHAT_STATE, {
     type: "submit",
     requestKey: 1,
+    occurredAtMs: 0,
     userMessage: message,
     userMessageId: "m1",
     assistantMessageId: "m2",
@@ -84,6 +85,7 @@ describe("chat view adapter", () => {
       messages: [
         {
           id: "m1",
+          occurredAtMs: 0,
           role: "athlete",
           delivery: "complete",
           historical: false,
@@ -124,6 +126,7 @@ describe("chat view adapter", () => {
           kind: "message",
           message: {
             id: "m1",
+            occurredAtMs: 0,
             role: "athlete",
             delivery: "complete",
             historical: false,
@@ -1104,6 +1107,7 @@ describe("chat view adapter", () => {
     let stopped = reduceChatState(EMPTY_CHAT_STATE, {
       type: "submit",
       requestKey: 1,
+      occurredAtMs: 0,
       userMessage: "",
       userMessageId: "unused-athlete",
       assistantMessageId: "decision-continuation",

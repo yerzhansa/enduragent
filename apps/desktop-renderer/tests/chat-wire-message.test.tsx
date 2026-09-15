@@ -24,6 +24,7 @@ function submitted(): ChatState {
   return reduceChatState(EMPTY_CHAT_STATE, {
     type: "submit",
     requestKey: 1,
+    occurredAtMs: 0,
     userMessage: "Continue",
     userMessageId: "athlete-1",
     assistantMessageId: "coach-1",

@@ -238,6 +238,7 @@ export function createChatViewAdapter(input: {
     );
     const messages: readonly ChatMessageView[] = visible.map((message) => ({
       id: message.id,
+      ...(message.occurredAtMs === undefined ? {} : { occurredAtMs: message.occurredAtMs }),
       ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
       ...(message.decisionId === undefined ? {} : { decisionId: message.decisionId }),
       role: message.role,

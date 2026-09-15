@@ -1,248 +1,108 @@
 import { describe, expect, it } from "vitest";
 import {
-  chronologicalConversationPredecessor,
   compensateScrollTop,
   conversationUlidTime,
-  createConversationInsertionLedger,
   destinationScrollTop,
-  forgetConversationProjection,
   orderConversationRows,
   pendingNavigations,
-  recoverConversationPredecessor,
-  resetConversationInsertionLedger,
   sourceActionIsAbove,
   type ConversationProjection,
 } from "../src/ui/chat/conversation-timeline";
 
-const firstProjection = {
-  kind: "plan-creation",
-  id: "creation-a",
-} satisfies ConversationProjection;
-const secondProjection = {
-  kind: "coach-decision",
-  id: "decision-b",
-} satisfies ConversationProjection;
+const draft = { kind: "plan-creation", id: "creation-a" } satisfies ConversationProjection;
+const change = { kind: "plan-change", id: "change-b" } satisfies ConversationProjection;
+const progress = { kind: "coach-progress" } satisfies ConversationProjection;
 
-function orderedValues(input: {
-  readonly durable: readonly string[];
+function ordered(input: {
+  readonly durable: readonly (readonly [key: string, occurredAtMs?: number])[];
   readonly projections: readonly {
     readonly projection: ConversationProjection;
     readonly value: string;
-    readonly afterKey?: string | null;
+    readonly occurredAtMs: number | null;
   }[];
-  readonly ledger: ReturnType<typeof createConversationInsertionLedger>;
-  readonly rememberNewPlacements?: boolean;
 }): readonly string[] {
   return orderConversationRows({
-    durable: input.durable.map((value) => ({ key: value, value })),
+    durable: input.durable.map(([key, occurredAtMs]) => ({ key, value: key, occurredAtMs })),
     projections: input.projections,
-    ledger: input.ledger,
-    rememberNewPlacements: input.rememberNewPlacements ?? true,
   }).map((row) => row.value);
 }
 
-describe("conversation insertion ledger", () => {
-  it("recovers a persisted projection predecessor from its ULID time", () => {
+describe("conversation row order", () => {
+  it("reads the creation instant out of a ULID", () => {
     expect(conversationUlidTime("00000000010000000000000000")).toBe(1);
     expect(conversationUlidTime("invalid")).toBeNull();
-    expect(
-      chronologicalConversationPredecessor(
-        [
-          { key: "message-a", value: "message-a", occurredAtMs: 0 },
-          { key: "message-b", value: "message-b", occurredAtMs: 2 },
-        ],
-        1,
-      ),
-    ).toBe("message-a");
-    expect(
-      chronologicalConversationPredecessor(
-        [
-          { key: "message-a", value: "message-a", occurredAtMs: 0 },
-          { key: "live-message", value: "live-message" },
-        ],
-        1,
-      ),
-    ).toBeUndefined();
-    expect(
-      recoverConversationPredecessor(
-        [
-          { key: "message-a", value: "message-a", occurredAtMs: 0 },
-          { key: "message-b", value: "message-b", occurredAtMs: 2 },
-        ],
-        1,
-        "message-b",
-      ),
-    ).toBe("message-a");
-    expect(
-      recoverConversationPredecessor(
-        [
-          { key: "message-a", value: "message-a", occurredAtMs: 0 },
-          { key: "live-message", value: "live-message" },
-        ],
-        1,
-        "live-message",
-      ),
-    ).toBe("live-message");
   });
 
-  it("keeps later durable rows below projections already shown", () => {
-    const ledger = createConversationInsertionLedger(0);
+  it("places a timed card after the last row recorded at or before its instant", () => {
     expect(
-      orderedValues({
-        durable: ["message-a"],
-        projections: [{ projection: firstProjection, value: "draft" }],
-        ledger,
+      ordered({
+        durable: [["message-a", 0], ["message-b", 2]],
+        projections: [{ projection: draft, value: "draft", occurredAtMs: 1 }],
       }),
-    ).toEqual(["message-a", "draft"]);
-
-    expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
-        projections: [{ projection: firstProjection, value: "updated draft" }],
-        ledger,
-      }),
-    ).toEqual(["message-a", "updated draft", "message-b"]);
-  });
-
-  it("uses a projection's transcript predecessor when it first appears", () => {
-    const ledger = createConversationInsertionLedger(0);
-    expect(
-      orderConversationRows({
-        durable: [
-          { key: "message-a", value: "message-a" },
-          { key: "message-b", value: "message-b" },
-        ],
-        projections: [{ projection: firstProjection, value: "draft", afterKey: "message-a" }],
-        ledger,
-        rememberNewPlacements: true,
-      }).map((row) => row.value),
     ).toEqual(["message-a", "draft", "message-b"]);
+    expect(
+      ordered({
+        durable: [["message-a", 0], ["message-b", 2]],
+        projections: [{ projection: draft, value: "draft", occurredAtMs: 2 }],
+      }),
+    ).toEqual(["message-a", "message-b", "draft"]);
   });
 
-  it("preserves projection order when cards share one transcript predecessor", () => {
-    const ledger = createConversationInsertionLedger(0);
+  it("keeps cards recorded at the same instant in the order they were given", () => {
     expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
+      ordered({
+        durable: [["message-a", 0], ["message-b", 2]],
         projections: [
-          { projection: firstProjection, value: "draft", afterKey: "message-a" },
-          { projection: secondProjection, value: "choice", afterKey: "message-a" },
+          { projection: draft, value: "draft", occurredAtMs: 1 },
+          { projection: change, value: "change", occurredAtMs: 1 },
         ],
-        ledger,
       }),
-    ).toEqual(["message-a", "draft", "choice", "message-b"]);
+    ).toEqual(["message-a", "draft", "change", "message-b"]);
   });
 
-  it("anchors new projections at the current edge without duplicating an identity", () => {
-    const ledger = createConversationInsertionLedger(0);
-    orderedValues({
-      durable: ["message-a"],
-      projections: [{ projection: firstProjection, value: "draft" }],
-      ledger,
-    });
-
+  it("lets an untimed row inherit the instant of the row before it", () => {
     expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
+      ordered({
+        durable: [["message-a", 0], ["discard"], ["message-b", 2]],
+        projections: [{ projection: draft, value: "draft", occurredAtMs: 1 }],
+      }),
+    ).toEqual(["message-a", "discard", "draft", "message-b"]);
+  });
+
+  it("never reorders rows whose instants run backwards", () => {
+    expect(
+      ordered({
+        durable: [["message-a", 5], ["message-b", 2]],
+        projections: [{ projection: draft, value: "draft", occurredAtMs: 3 }],
+      }),
+    ).toEqual(["draft", "message-a", "message-b"]);
+    expect(
+      ordered({
+        durable: [["message-a", 5], ["message-b", 2]],
+        projections: [{ projection: draft, value: "draft", occurredAtMs: 6 }],
+      }),
+    ).toEqual(["message-a", "message-b", "draft"]);
+  });
+
+  it("keeps live prompts at the current edge after every timed card", () => {
+    expect(
+      ordered({
+        durable: [["message-a", 0]],
         projections: [
-          { projection: firstProjection, value: "draft" },
-          { projection: secondProjection, value: "choice" },
-          { projection: secondProjection, value: "duplicate" },
+          { projection: progress, value: "progress", occurredAtMs: null },
+          { projection: draft, value: "draft", occurredAtMs: 9 },
         ],
-        ledger,
       }),
-    ).toEqual(["message-a", "draft", "message-b", "choice"]);
+    ).toEqual(["message-a", "draft", "progress"]);
   });
 
-  it("restores a reentered projection to its original insertion point", () => {
-    const ledger = createConversationInsertionLedger(0);
-    orderedValues({
-      durable: ["message-a"],
-      projections: [{ projection: firstProjection, value: "draft" }],
-      ledger,
-    });
+  it("drops a projection whose key already exists as a row", () => {
     expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
-        projections: [],
-        ledger,
+      ordered({
+        durable: [["plan-creation:creation-a", 0]],
+        projections: [{ projection: draft, value: "duplicate", occurredAtMs: null }],
       }),
-    ).toEqual(["message-a", "message-b"]);
-    expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
-        projections: [{ projection: firstProjection, value: "draft returned" }],
-        ledger,
-      }),
-    ).toEqual(["message-a", "draft returned", "message-b"]);
-  });
-
-  it("places surviving projections before the first row after reset", () => {
-    const previous = createConversationInsertionLedger(0);
-    orderedValues({
-      durable: ["old-message"],
-      projections: [{ projection: firstProjection, value: "draft" }],
-      ledger: previous,
-    });
-    const reset = resetConversationInsertionLedger({
-      previous,
-      resetCount: 1,
-      projections: [firstProjection],
-    });
-    expect(
-      orderedValues({
-        durable: ["new-message"],
-        projections: [{ projection: firstProjection, value: "surviving draft" }],
-        ledger: reset,
-      }),
-    ).toEqual(["surviving draft", "new-message"]);
-  });
-
-  it("places a later availability failure at the current edge after recovery", () => {
-    const ledger = createConversationInsertionLedger(0);
-    const availability = { kind: "coach-decision-availability" } satisfies ConversationProjection;
-    orderedValues({
-      durable: ["message-a"],
-      projections: [{ projection: availability, value: "first failure" }],
-      ledger,
-    });
-    forgetConversationProjection(ledger, availability);
-    expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
-        projections: [{ projection: availability, value: "later failure" }],
-        ledger,
-      }),
-    ).toEqual(["message-a", "message-b", "later failure"]);
-  });
-
-  it("waits for initial hydration before remembering a current-edge placement", () => {
-    const ledger = createConversationInsertionLedger(0);
-    expect(
-      orderedValues({
-        durable: [],
-        projections: [{ projection: firstProjection, value: "draft" }],
-        ledger,
-        rememberNewPlacements: false,
-      }),
-    ).toEqual(["draft"]);
-    expect(ledger.placements.size).toBe(0);
-
-    expect(
-      orderedValues({
-        durable: ["message-a"],
-        projections: [{ projection: firstProjection, value: "hydrated draft" }],
-        ledger,
-        rememberNewPlacements: true,
-      }),
-    ).toEqual(["message-a", "hydrated draft"]);
-    expect(
-      orderedValues({
-        durable: ["message-a", "message-b"],
-        projections: [{ projection: firstProjection, value: "stable draft" }],
-        ledger,
-      }),
-    ).toEqual(["message-a", "stable draft", "message-b"]);
+    ).toEqual(["plan-creation:creation-a"]);
   });
 });
 

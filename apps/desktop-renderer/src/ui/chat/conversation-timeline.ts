@@ -9,7 +9,7 @@ export type ConversationProjection =
   | { readonly kind: "plan-change-current"; readonly id: string }
   | { readonly kind: "plan-change"; readonly id: string }
   | { readonly kind: "plan-change-check"; readonly id: string }
-  | { readonly kind: "coach-progress"; readonly id: string };
+  | { readonly kind: "coach-progress" };
 
 export interface PendingNavigation {
   readonly key: `plan-creation:${string}` | `plan-change:${string}` | `coach-decision:${string}`;
@@ -22,6 +22,12 @@ export interface ConversationRow<Value> {
   readonly occurredAtMs?: number;
 }
 
+export interface ConversationProjectionRow<Value> {
+  readonly projection: ConversationProjection;
+  readonly value: Value;
+  readonly occurredAtMs: number | null;
+}
+
 export type OrderedConversationRow<Durable, Projection> =
   | { readonly kind: "durable"; readonly key: string; readonly value: Durable }
   | {
@@ -31,38 +37,8 @@ export type OrderedConversationRow<Durable, Projection> =
       readonly value: Projection;
     };
 
-interface ProjectionPlacement {
-  readonly afterKey: string | null;
-}
-
-export interface ConversationInsertionLedger {
-  readonly resetCount: number;
-  readonly placements: Map<string, ProjectionPlacement>;
-}
-
-export function createConversationInsertionLedger(resetCount: number): ConversationInsertionLedger {
-  return { resetCount, placements: new Map() };
-}
-
-export function resetConversationInsertionLedger(input: {
-  readonly previous: ConversationInsertionLedger;
-  readonly resetCount: number;
-  readonly projections: readonly ConversationProjection[];
-}): ConversationInsertionLedger {
-  const next = createConversationInsertionLedger(input.resetCount);
-  let afterKey: string | null = null;
-  for (const projection of input.projections) {
-    const key = conversationProjectionKey(projection);
-    if (!input.previous.placements.has(key)) continue;
-    next.placements.set(key, { afterKey });
-    afterKey = key;
-  }
-  return next;
-}
-
 export function conversationProjectionKey(projection: ConversationProjection): string {
-  if (projection.kind === "coach-decision-availability") return projection.kind;
-  return `${projection.kind}:${projection.id}`;
+  return "id" in projection ? `${projection.kind}:${projection.id}` : projection.kind;
 }
 
 export function conversationUlidTime(value: string): number | null {
@@ -77,88 +53,38 @@ export function conversationUlidTime(value: string): number | null {
   return result;
 }
 
-export function chronologicalConversationPredecessor(
-  rows: readonly ConversationRow<unknown>[],
-  occurredAtMs: number | null,
-): string | null | undefined {
-  if (occurredAtMs === null || rows.some((row) => row.occurredAtMs === undefined)) {
-    return undefined;
-  }
-  let predecessor: string | null = null;
-  for (const row of rows) {
-    if (row.occurredAtMs === undefined) return undefined;
-    if (row.occurredAtMs <= occurredAtMs) predecessor = row.key;
-  }
-  return predecessor;
-}
-
-export function recoverConversationPredecessor(
-  rows: readonly ConversationRow<unknown>[],
-  occurredAtMs: number | null,
-  structuralPredecessor: string | null,
-): string | null {
-  const chronological = chronologicalConversationPredecessor(rows, occurredAtMs);
-  return chronological === undefined ? structuralPredecessor : chronological;
-}
-
-export function forgetConversationProjection(
-  ledger: ConversationInsertionLedger,
-  projection: ConversationProjection,
-): void {
-  ledger.placements.delete(conversationProjectionKey(projection));
-}
-
-function resolveAnchorIndex(
-  rows: readonly { readonly key: string }[],
-  afterKey: string | null,
-  ledger: ConversationInsertionLedger,
-): number {
-  let candidate = afterKey;
-  const visited = new Set<string>();
-  while (candidate !== null && !visited.has(candidate)) {
-    const index = rows.findIndex((row) => row.key === candidate);
-    if (index !== -1) return index;
-    visited.add(candidate);
-    candidate = ledger.placements.get(candidate)?.afterKey ?? null;
-  }
-  return -1;
-}
-
 export function orderConversationRows<Durable, Projection>(input: {
   readonly durable: readonly ConversationRow<Durable>[];
-  readonly projections: readonly {
-    readonly projection: ConversationProjection;
-    readonly value: Projection;
-    readonly afterKey?: string | null;
-  }[];
-  readonly ledger: ConversationInsertionLedger;
-  readonly rememberNewPlacements: boolean;
+  readonly projections: readonly ConversationProjectionRow<Projection>[];
 }): readonly OrderedConversationRow<Durable, Projection>[] {
-  const rows: OrderedConversationRow<Durable, Projection>[] = input.durable.map((row) => ({
-    kind: "durable",
-    ...row,
-  }));
-  const present = new Set(rows.map((row) => row.key));
-  for (const entry of input.projections) {
-    const key = conversationProjectionKey(entry.projection);
-    if (present.has(key)) continue;
-    const placement = input.ledger.placements.get(key) ?? {
-      afterKey: entry.afterKey === undefined ? (rows.at(-1)?.key ?? null) : entry.afterKey,
-    };
-    if (!input.ledger.placements.has(key) && input.rememberNewPlacements) {
-      input.ledger.placements.set(key, placement);
-    }
-    const anchorIndex = resolveAnchorIndex(rows, placement.afterKey, input.ledger);
-    let insertionIndex = anchorIndex + 1;
-    while (rows[insertionIndex]?.kind === "projection") insertionIndex += 1;
-    rows.splice(insertionIndex, 0, {
+  const present = new Set(input.durable.map((row) => row.key));
+  const fresh = input.projections
+    .map((entry) => ({ ...entry, key: conversationProjectionKey(entry.projection) }))
+    .filter((entry) => !present.has(entry.key));
+  const timed = fresh
+    .filter((entry) => entry.occurredAtMs !== null)
+    .sort((left, right) => left.occurredAtMs! - right.occurredAtMs!);
+  const live = fresh.filter((entry) => entry.occurredAtMs === null);
+  const rows: OrderedConversationRow<Durable, Projection>[] = [];
+  const pushProjection = (entry: (typeof fresh)[number]): void => {
+    rows.push({
       kind: "projection",
-      key,
+      key: entry.key,
       projection: entry.projection,
       value: entry.value,
     });
-    present.add(key);
+  };
+  let next = 0;
+  let reached = Number.NEGATIVE_INFINITY;
+  for (const row of input.durable) {
+    reached = Math.max(reached, row.occurredAtMs ?? reached);
+    while (next < timed.length && timed[next]!.occurredAtMs! < reached) {
+      pushProjection(timed[next]!);
+      next += 1;
+    }
+    rows.push({ kind: "durable", key: row.key, value: row.value });
   }
+  for (const entry of [...timed.slice(next), ...live]) pushProjection(entry);
   return rows;
 }
 
