@@ -2263,6 +2263,19 @@ describe("chat surface", () => {
       expect(pinned.className).not.toMatch(/grid-cols/);
     });
 
+    it("keeps the conversation and composer in their rows while the pinned row is hidden", () => {
+      render(<Harness />);
+
+      const pinned = document.querySelector(".chat-pinned-row");
+      const conversation = document.querySelector(".conversation");
+      const composer = document.querySelector(".composer-wrap");
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("pinned row missing");
+
+      expect(pinned.hidden).toBe(true);
+      expect(conversation).toHaveClass("row-start-2");
+      expect(composer).toHaveClass("row-start-3");
+    });
+
     it("keeps the retry bar inert until the chat actions are bound", () => {
       act(() => {
         useEnduragentStore.setState({ chatActions: null });

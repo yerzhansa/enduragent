@@ -425,7 +425,7 @@ export function ChatView(): ReactElement {
             })}
           </div>
           <main
-            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
+            className="conversation row-start-2 overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
             aria-label={say("chat.view.conversation")}
             data-chat-status={status}
             ref={conversation}
@@ -438,7 +438,7 @@ export function ChatView(): ReactElement {
               />
             </div>
           </main>
-          <div className="composer-wrap z-2 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
+          <div className="composer-wrap z-2 row-start-3 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
             <div className="composer-feedback empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
