@@ -137,6 +137,7 @@ describe("chat view adapter", () => {
       status: "streaming",
       notice: null,
       noticeMessage: undefined,
+      noticeTone: "neutral",
       coachProgress: CHAT_WORKING_COPY,
       interrupted: false,
       workBlocked: true,

@@ -404,6 +404,14 @@ export function createChatViewAdapter(input: {
           (planActivated ? null : planCreation?.notice) ??
           (planCreation?.value == null ? planCreation?.error : null) ??
           (state.status === "streaming" ? null : state.progress)),
+      noticeTone:
+        !decisionBlocksWork &&
+        (state.activeTurn?.error != null ||
+          (planCreation?.notice == null &&
+            planCreation?.value == null &&
+            planCreation?.error != null))
+          ? "danger"
+          : "neutral",
       coachProgress:
         state.status === "streaming" && state.activeTurn?.error === null ? state.progress : null,
       interrupted: state.status === "interrupted" && !decisionBlocksWork && !planCreationBlocksWork,

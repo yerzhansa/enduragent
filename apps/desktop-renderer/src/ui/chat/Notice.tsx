@@ -1,5 +1,5 @@
 import { usePhrasebook } from "@enduragent/i18n/react";
-import { LoaderCircle } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import { chatFeedbackMessage } from "./copy";
 import type { ReactElement } from "react";
 import { Button } from "@enduragent/ui";
@@ -10,6 +10,9 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   const { say } = usePhrasebook();
   const notice = useEnduragentStore((state) => state.chat.notice);
   const descriptor = useEnduragentStore((state) => state.chat.noticeMessage);
+  const tone = useEnduragentStore((state) => state.chat.noticeTone);
+  const interrupted = useEnduragentStore((state) => state.chat.interrupted);
+  const retryRequired = useEnduragentStore((state) => state.chat.retryRequired);
   const message = notice === null ? null : chatFeedbackMessage(notice);
   const text = useWireMessageText(
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
@@ -28,10 +31,25 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
       </div>
     );
   }
+  const retryOffered = interrupted && retryRequired === null;
+  const danger = tone === "danger";
   return (
-    <p className="chat-notice m-0 text-sm leading-5 text-ink-2" hidden={notice === null}>
-      {text}
-    </p>
+    <div
+      className={`chat-notice flex items-center justify-between gap-inset rounded-ctl p-row ${
+        danger
+          ? "border border-danger/40 bg-surface text-sm leading-5 text-danger"
+          : "bg-surface-2 text-xs leading-4 text-ink-2"
+      }`}
+      role={danger ? "alert" : "status"}
+      data-tone={tone}
+      hidden={notice === null && !retryOffered}
+    >
+      <span className="flex min-w-0 items-center gap-inset">
+        {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+        <span>{text}</span>
+      </span>
+      <RetryBar />
+    </div>
   );
 }
 
@@ -68,9 +86,9 @@ export function RetryBar(): ReactElement {
   return (
     <Button
       type="button"
-      className="chat-retry mt-row mb-row justify-self-start"
+      className="chat-retry shrink-0"
       variant="outline"
-      size="sm"
+      size="xs"
       hidden={!interrupted || retryRequired !== null}
       disabled={workBlocked}
       onClick={() => {

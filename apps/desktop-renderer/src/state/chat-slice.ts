@@ -101,6 +101,7 @@ export interface ChatSurfaceState {
   readonly status: ChatStatus;
   readonly notice: string | null;
   readonly noticeMessage?: WireMessage;
+  readonly noticeTone: "danger" | "neutral";
   readonly coachProgress: string | null;
   readonly interrupted: boolean;
   readonly workBlocked: boolean;
@@ -202,6 +203,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   timeline: Object.freeze([]),
   status: "idle",
   notice: null,
+  noticeTone: "neutral",
   coachProgress: null,
   interrupted: false,
   workBlocked: false,
@@ -408,6 +410,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.status === right.status &&
     left.notice === right.notice &&
     JSON.stringify(left.noticeMessage) === JSON.stringify(right.noticeMessage) &&
+    left.noticeTone === right.noticeTone &&
     left.coachProgress === right.coachProgress &&
     left.interrupted === right.interrupted &&
     left.retryRequired === right.retryRequired &&
