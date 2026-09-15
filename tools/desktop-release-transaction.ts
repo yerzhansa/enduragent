@@ -9,7 +9,7 @@ import { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL } from "./desktop-upd
 
 export { DESKTOP_FEED_URL, GITHUB_DESKTOP_RELEASE_FEED_URL };
 export const DESKTOP_MANIFEST = "desktop-release-manifest.json";
-export const DESKTOP_RELEASE_SCHEMA_VERSION = 3 as const;
+export const DESKTOP_RELEASE_SCHEMA_VERSION = 4 as const;
 export const DESKTOP_PROVISIONAL_RELEASE_BODY =
   "Desktop update validation is in progress. This release is not yet generally available.";
 export const WINDOWS_DESKTOP_METADATA_NAME = "latest.yml";
@@ -34,6 +34,13 @@ const DesktopReleaseManifestSchema = z
     tag: z.string(),
     desktopVersion: z.string(),
     commit: z.string(),
+    catalog: z
+      .object({
+        releaseGroupId: z.string().regex(/^[0-9a-f]{40}$/u),
+        revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+        digest: sha256HexSchema,
+      })
+      .strict(),
     draftId: z.string(),
     mode: z.enum(["steady", "genesis"]),
     feedUrl: z.literal(DESKTOP_FEED_URL),
@@ -263,10 +270,34 @@ export function macosOwnedAssets<T extends Pick<GithubAsset, "name">>(
   return assets.filter((asset) => !windowsNames.has(asset.name));
 }
 
+function requireCatalog(
+  value: unknown,
+  commit: string,
+): { releaseGroupId: string; revision: number; digest: string } {
+  if (!exactObject(value) || !exactKeys(value, ["releaseGroupId", "revision", "digest"])) {
+    throw new TypeError("desktop release catalog is invalid");
+  }
+  if (typeof value.releaseGroupId !== "string" || !commitPattern.test(value.releaseGroupId)) {
+    throw new TypeError("desktop release catalog is invalid");
+  }
+  if (value.releaseGroupId !== commit) {
+    throw new TypeError("desktop release catalog does not bind the commit");
+  }
+  const revision = Number(value.revision);
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new TypeError("desktop release catalog is invalid");
+  }
+  if (typeof value.digest !== "string" || !/^[0-9a-f]{64}$/u.test(value.digest)) {
+    throw new TypeError("desktop release catalog is invalid");
+  }
+  return { releaseGroupId: value.releaseGroupId, revision, digest: value.digest };
+}
+
 function requireBinding(input: {
   tag: unknown;
   desktopVersion: unknown;
   commit: unknown;
+  catalog: unknown;
   draftId: unknown;
   mode: unknown;
   workflowRunId?: unknown;
@@ -288,6 +319,7 @@ function requireBinding(input: {
   if (typeof input.commit !== "string" || !commitPattern.test(input.commit)) {
     throw new TypeError("desktop release commit is invalid");
   }
+  const catalog = requireCatalog(input.catalog, input.commit);
   if (typeof input.draftId !== "string" || !/^[1-9]\d*$/u.test(input.draftId)) {
     throw new TypeError("desktop release draft id is invalid");
   }
@@ -343,6 +375,7 @@ function requireBinding(input: {
     tag,
     desktopVersion,
     commit: input.commit,
+    catalog,
     draftId: input.draftId,
     mode,
     workflowRunId: input.workflowRunId,
@@ -631,6 +664,7 @@ function parseManifest(value: unknown): DesktopReleaseManifest {
     tag: manifest.tag,
     desktopVersion: manifest.desktopVersion,
     commit: manifest.commit,
+    catalog: manifest.catalog,
     draftId: manifest.draftId,
     mode: manifest.mode,
     workflowRunId: manifest.workflowRunId,
@@ -688,6 +722,7 @@ export async function verifyDesktopRelease(
       "tag",
       "desktopVersion",
       "commit",
+      "catalog",
       "draftId",
       "mode",
       "workflowRunId",
@@ -703,6 +738,12 @@ export async function verifyDesktopRelease(
       "baselineSigningIdentity",
       "baselineCdHash",
     ] as const) {
+      if (key === "catalog") {
+        if (JSON.stringify(manifest.catalog) !== JSON.stringify(expected.catalog)) {
+          throw new TypeError("desktop release manifest catalog mismatch");
+        }
+        continue;
+      }
       if (manifest[key] !== expected[key])
         throw new TypeError(`desktop release manifest ${key} mismatch`);
     }
@@ -2347,6 +2388,11 @@ function bindingArguments(): Parameters<typeof requireBinding>[0] {
     tag: argument("tag"),
     desktopVersion: argument("desktop-version"),
     commit: argument("commit"),
+    catalog: {
+      releaseGroupId: argument("catalog-release-group-id"),
+      revision: argument("catalog-revision"),
+      digest: argument("catalog-digest"),
+    },
     draftId: argument("draft-id"),
     mode: argument("mode"),
     workflowRunId: argument("workflow-run-id"),

@@ -29,14 +29,69 @@ env:
   ALIAS_IMAGE_NAME: ghcr.io/yerzhansa/enduragent
 
 jobs:
+  prepare-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      catalog_release_group_id: ${{ steps.pin.outputs.catalog_release_group_id }}
+      catalog_revision: ${{ steps.pin.outputs.catalog_revision }}
+      catalog_digest: ${{ steps.pin.outputs.catalog_digest }}
+      now_iso: ${{ steps.pin.outputs.now_iso }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare catalog pin
+        id: pin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          NOW_ISO=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at)
+          test -n "$NOW_ISO"
+          echo "now_iso=$NOW_ISO" >> "$GITHUB_OUTPUT"
+          pnpm --silent models:release-pin prepare --source-commit "$GITHUB_SHA" --now-iso "$NOW_ISO"
+
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: prepare-catalog
+    permissions:
+      contents: read
+      packages: write
     concurrency:
       group: publish-image-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Materialize release catalog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+        run: |
+          set -euo pipefail
+          test -n "$NOW_ISO"
+          pnpm --silent models:release-pin read --source-commit "$GITHUB_SHA" --now-iso "$NOW_ISO"
+          pnpm --silent models:release-pin materialize --source-commit "$GITHUB_SHA" --now-iso "$NOW_ISO" --workspace "$GITHUB_WORKSPACE"
 
       - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
         with:
@@ -99,3 +154,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=cycling-coach
           cache-to: type=gha,mode=max,scope=cycling-coach
+
+      - name: Extract bundled catalog from published images
+        env:
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
+        run: |
+          set -euo pipefail
+          test -n "$NOW_ISO"
+          short_sha="${GITHUB_SHA::12}"
+          for image in cycling-coach enduragent; do
+            if [ "$image" = cycling-coach ]; then
+              reference="${IMAGE_NAME}:main-${short_sha}"
+            else
+              reference="${ALIAS_IMAGE_NAME}:main-${short_sha}"
+            fi
+            for platform in linux/amd64 linux/arm64; do
+              pnpm --silent models:release-pin extract --kind oci-image \
+                --reference "$reference" \
+                --image "$image" \
+                --platform "$platform" \
+                --now-iso "$NOW_ISO" \
+                --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+                --expected-revision "$CATALOG_REVISION" \
+                --expected-digest "$CATALOG_DIGEST"
+            done
+          done

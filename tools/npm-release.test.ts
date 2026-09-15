@@ -36,6 +36,11 @@ const preparation = { runId: "456", attempt: "2", workflowCommit: "b".repeat(40)
 const publisher = { runId: "789", attempt: "1", workflowCommit: "c".repeat(40) };
 const coordinator = { runId: "123", attempt: "1", workflowCommit: source };
 const reservationSha = "d".repeat(40);
+const catalog = {
+  releaseGroupId: source,
+  revision: 1,
+  digest: "0".repeat(64),
+};
 const stageId = "12345678-1234-1234-1234-123456789abc";
 const policyRevision = "1998-08-07T00:00:00Z";
 const tagPolicy = (extra: Record<string, unknown> = {}) => ({
@@ -166,10 +171,11 @@ beforeEach(() => {
     return { name, filename, size: bytes.length, sha512: sha(bytes, "sha512") };
   });
   release = manifest({
-    schema: 1,
+    schema: 2,
     tag,
     version,
     sourceCommit: source,
+    catalog,
     coordinator,
     preparation,
     archives,
@@ -286,9 +292,25 @@ describe("protected workflow and source identities", () => {
   });
 
   it("rejects a coordinator for another source before accepting its manifest", () => {
-    expect(() => manifest({ ...release, sourceCommit: publisher.workflowCommit })).toThrow(
-      "Coordinator",
-    );
+    expect(() =>
+      manifest({
+        ...release,
+        sourceCommit: publisher.workflowCommit,
+        catalog: { ...catalog, releaseGroupId: publisher.workflowCommit },
+      }),
+    ).toThrow("Coordinator");
+  });
+
+  it("requires schema 2 catalog identity bound to the source commit", () => {
+    expect(() => manifest({ ...release, schema: 1 })).toThrow("Unsupported release manifest");
+    const { catalog: _omitted, ...withoutCatalog } = release;
+    expect(() => manifest(withoutCatalog)).toThrow("Missing catalog");
+    expect(() =>
+      manifest({
+        ...release,
+        catalog: { ...catalog, releaseGroupId: publisher.workflowCommit },
+      }),
+    ).toThrow("Catalog does not bind the source commit");
   });
 
   it.each(["head_sha", "head_branch", "path", "event", "id", "run_attempt"])(
@@ -487,6 +509,41 @@ describe("policy and sealed artifact gates", () => {
     await expect(restore(tag, join(directory, "restore-extra"))).rejects.toThrow(
       "Unexpected artifact entries",
     );
+  });
+
+  it("rejects a reservation whose catalog digest differs from the prepared manifest", async () => {
+    routes.set(`git/tags/${reservationSha}`, {
+      tag: `npm-stage/${tag}`,
+      object: { type: "commit", sha: source },
+      message: json({
+        ...reservation,
+        manifest: {
+          ...release,
+          catalog: { ...catalog, digest: "1".repeat(64) },
+        },
+      }),
+    });
+    await expect(restore(tag, join(directory, "restore-catalog"))).rejects.toThrow(
+      "Reservation does not match prepared manifest",
+    );
+  });
+
+  it("synthesizes a dummy catalog when validating input and ignores RELEASE_CATALOG", async () => {
+    vi.stubEnv("RELEASE_COMMIT", source);
+    vi.stubEnv("COORDINATOR_RUN_ID", coordinator.runId);
+    vi.stubEnv("COORDINATOR_RUN_ATTEMPT", coordinator.attempt);
+    vi.stubEnv("RELEASE_CATALOG", "not-json");
+    vi.stubEnv("GITHUB_SHA", preparation.workflowCommit);
+    await runNpmRelease("validate-input", directory);
+    expect(readFileSync(join(directory, "output"), "utf8")).toContain(`commit=${source}\n`);
+  });
+
+  it("requires RELEASE_CATALOG when sealing archives", async () => {
+    vi.stubEnv("RELEASE_VERSION", version);
+    vi.stubEnv("RELEASE_COMMIT", source);
+    vi.stubEnv("COORDINATOR_RUN_ID", coordinator.runId);
+    vi.stubEnv("COORDINATOR_RUN_ATTEMPT", coordinator.attempt);
+    await expect(runNpmRelease("seal", directory)).rejects.toThrow("Missing RELEASE_CATALOG");
   });
 });
 
