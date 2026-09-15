@@ -100,9 +100,7 @@ export function ChatView(): ReactElement {
   const actions = useEnduragentStore((state) => state.chatActions);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   const chatNotice = useEnduragentStore((state) => state.chat.notice);
-  const retryOffered = useEnduragentStore(
-    (state) => state.chat.interrupted && state.chat.retryRequired === null,
-  );
+  const noticeRetry = useEnduragentStore((state) => state.chat.noticeRetry);
   const decision = useEnduragentStore((state) => state.chat.decision);
   const planLibrary = useEnduragentStore((state) => state.planLibrary.value);
   const planChangeNotice = useEnduragentStore((state) => state.planChange.notice);
@@ -141,7 +139,7 @@ export function ChatView(): ReactElement {
   const planChangesPaused = planLibrary?.changesPaused != null;
   const persistentNoticeVisible =
     spendWarning !== null ||
-    ((chatNotice !== null || retryOffered) && planCreation === null) ||
+    ((chatNotice !== null || noticeRetry) && planCreation === null) ||
     (planLibrary?.active != null && (planChangesPaused || planChangeNotice !== null));
   const pinnedVisible = persistentNoticeVisible || visiblePending.length > 0;
 

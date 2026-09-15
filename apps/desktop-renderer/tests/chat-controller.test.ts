@@ -690,8 +690,11 @@ function subject(
   settleSubmissions = true,
   openPlanningRequest = vi.fn(),
   initialQueueSnapshot: ChatQueueSnapshot = { schemaVersion: 1, revision: 0, items: [] },
-  submitAthleteFeedback?: (text: string) => Promise<
-    { readonly ok: true } | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
+  submitAthleteFeedback?: (
+    text: string,
+  ) => Promise<
+    | { readonly ok: true }
+    | { readonly ok: false; readonly reason: "invalid" | "rejected" | "unavailable" }
   >,
 ) {
   const states: ChatState[] = [];
@@ -1429,7 +1432,7 @@ describe("chat controller", () => {
     await controller.submit("Same message");
     await vi.waitFor(() => expect(states.at(-1)?.status).toBe("interrupted"));
     expect(states.at(-1)?.retryRequired?.claimId).toBe("claim-1");
-    await controller.retryQueuedTurn("claim-1");
+    await controller.retry();
     expect(provider.reconnect).not.toHaveBeenCalled();
     expect(chatMessages(fake)).toHaveLength(2);
     expect(states.at(-1)?.messages.at(-1)?.text).toBe("Recovered");

@@ -158,6 +158,47 @@ describe("wire message rendering", () => {
       await screen.findByText(italian.say("coach.error.reauth", descriptor.vars)),
     ).toBeVisible();
     expect(useEnduragentStore.getState().chat.notice).toBe(athleteMessage);
+    expect(useEnduragentStore.getState().chat.noticeMessage).toEqual(descriptor);
     expect(state.activeTurn?.error).toMatchObject({ athleteMessage, message: descriptor });
+  });
+
+  it("renders a failed-send error descriptor on the athlete message", async () => {
+    const descriptor = { key: "coach.error.reauth", vars: { provider: "Synthetic provider" } };
+    const athleteMessage = english.say("coach.error.reauth", descriptor.vars);
+    const errored = reduceChatState(submitted(), {
+      type: "event",
+      requestKey: 1,
+      event: {
+        type: "error",
+        turnId: "turn-1",
+        chatId: "desktop",
+        error_class: "unknown",
+        kind: "provider-auth",
+        athleteMessage,
+        message: descriptor,
+        overflowAttempts: 0,
+        timeoutAttempts: 0,
+        rateLimitAttempts: 0,
+        duration_ms: 0,
+        compactions: 0,
+      },
+    });
+    publish({ ...errored, status: "interrupted" });
+    render(
+      <LanguageProvider tag="it" locale="it-IT" phrasebook={italian}>
+        <Transcript />
+      </LanguageProvider>,
+    );
+    expect(
+      await screen.findByText(italian.say("coach.error.reauth", descriptor.vars)),
+    ).toBeVisible();
+    expect(useEnduragentStore.getState().chat.notice).toBeNull();
+    expect(
+      useEnduragentStore.getState().chat.messages.find((message) => message.id === "athlete-1"),
+    ).toMatchObject({
+      retry: true,
+      error: athleteMessage,
+      errorMessage: descriptor,
+    });
   });
 });

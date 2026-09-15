@@ -138,6 +138,7 @@ describe("chat view adapter", () => {
       notice: null,
       noticeMessage: undefined,
       noticeTone: "neutral",
+      noticeRetry: false,
       coachProgress: CHAT_WORKING_COPY,
       interrupted: false,
       workBlocked: true,
@@ -1317,7 +1318,191 @@ describe("chat view adapter", () => {
 
     adapter.view.render(state, controls());
 
-    expect(published.at(-1)?.notice).toBe("The coach is unreachable right now.");
+    const surface = published.at(-1);
+    expect(surface?.status).toBe("streaming");
+    expect(surface?.notice).toBe("The coach is unreachable right now.");
+    expect(surface?.noticeTone).toBe("danger");
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.messages.find((message) => message.id === "m1")?.retry).toBeUndefined();
+  });
+
+  it("retries a failed send from the athlete message after the turn ends", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const failed = reduceChatState(
+      reduceChatState(submitted(), {
+        type: "event",
+        requestKey: 1,
+        event: {
+          type: "error",
+          turnId: TURN_ID,
+          chatId: "desktop",
+          error_class: "unknown",
+          kind: "rate_limit",
+          athleteMessage: "Rate limited — please try again shortly.",
+          overflowAttempts: 0,
+          timeoutAttempts: 0,
+          rateLimitAttempts: 0,
+          duration_ms: 12,
+          compactions: 0,
+        },
+      }),
+      { type: "fail", requestKey: 1, copy: "Rate limited — please try again shortly." },
+    );
+
+    adapter.view.render(
+      {
+        ...failed,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "How is my form?", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls(),
+    );
+
+    const surface = published.at(-1);
+    expect(surface?.notice).toBeNull();
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+    expect(surface?.messages.find((message) => message.id === "m1")).toMatchObject({
+      retry: true,
+      error: "Rate limited — please try again shortly.",
+    });
+  });
+
+  it("retries an interrupted send with no coach text from the athlete message", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render({ ...submitted(), status: "interrupted" }, controls());
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.messages.find((message) => message.id === "m1")).toMatchObject({ retry: true });
+  });
+
+  it("pins a partial coach reply on the notice and omits claimed queue rows", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const { state: partial } = delta(submitted(), "Keep Tuesday easy.");
+    adapter.view.render(
+      {
+        ...partial,
+        status: "interrupted",
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "How is my form?", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls(),
+    );
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(true);
+    expect(surface?.messages.some((message) => message.retry === true)).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+  });
+
+  it("retries a restored failed send from the hydrated athlete message", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render(
+      {
+        ...EMPTY_CHAT_STATE,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "Try this again", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: TURN_ID,
+              completedAt: "2001-01-01T00:00:00.000Z",
+              athleteText: "Try this again",
+              coachText: "",
+              delivery: "interrupted",
+            },
+          ],
+        },
+      }),
+    );
+    const surface = published.at(-1);
+    const athlete = surface?.timeline.find(
+      (item) => item.kind === "message" && item.message.id === `history:athlete:${TURN_ID}`,
+    );
+    expect(athlete).toMatchObject({
+      kind: "message",
+      message: { id: `history:athlete:${TURN_ID}`, retry: true, text: "Try this again" },
+    });
+    expect(surface?.noticeRetry).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+  });
+
+  it("keeps restored partial-reply recovery on the notice after relaunch", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    adapter.view.render(
+      {
+        ...EMPTY_CHAT_STATE,
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+        queued: [
+          { id: "q1", text: "Try this again", command: false, restored: true },
+          { id: "q2", text: "/status", command: true, restored: true },
+        ],
+      },
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: TURN_ID,
+              completedAt: "2001-01-01T00:00:00.000Z",
+              athleteText: "Try this again",
+              coachText: "Keep Tuesday easy.",
+              delivery: "interrupted",
+            },
+          ],
+        },
+      }),
+    );
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(true);
+    expect(
+      surface?.timeline.some((item) => item.kind === "message" && item.message.retry === true),
+    ).toBe(false);
+    expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
   });
 
   it("carries hydrated history through the port and flags it for the reset copy", () => {

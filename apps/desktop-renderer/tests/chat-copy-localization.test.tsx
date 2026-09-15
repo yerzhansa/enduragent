@@ -43,7 +43,7 @@ describe("Chat status catalog rendering", () => {
 
   it("renders retry from the supplied Italian catalog", async () => {
     useEnduragentStore.setState({
-      chat: { ...EMPTY_CHAT_SURFACE, interrupted: true },
+      chat: { ...EMPTY_CHAT_SURFACE, noticeRetry: true },
     });
     await renderWithCatalog(<RetryBar />, {
       chat: { notice: { retryMessage: "Riprova il messaggio" } },
