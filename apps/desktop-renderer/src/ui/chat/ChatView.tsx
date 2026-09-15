@@ -47,19 +47,11 @@ import {
 const COMPACT_CHAT_WIDTH = 900;
 
 function pendingElement(
-  attribute: "card" | "heading" | "source",
+  conversation: HTMLElement,
+  part: "card" | "heading" | "source",
   key: PendingNavigation["key"],
 ): HTMLElement | null {
-  return (
-    [...document.querySelectorAll<HTMLElement>(`[data-pending-navigation-${attribute}]`)].find(
-      (element) =>
-        (attribute === "card"
-          ? element.dataset.pendingNavigationCard
-          : attribute === "heading"
-            ? element.dataset.pendingNavigationHeading
-            : element.dataset.pendingNavigationSource) === key,
-    ) ?? null
-  );
+  return conversation.querySelector<HTMLElement>(`[data-pending-navigation-${part}="${key}"]`);
 }
 
 function sameKeys(left: readonly string[], right: readonly string[]): boolean {
@@ -157,7 +149,7 @@ export function ChatView(): ReactElement {
     const next = pending
       .filter((item) => {
         if (item.key === navigatingKey) return false;
-        const source = pendingElement("source", item.key);
+        const source = pendingElement(target, "source", item.key);
         const sourceRect = source?.getBoundingClientRect();
         return (
           source !== null &&
@@ -212,8 +204,8 @@ export function ChatView(): ReactElement {
   useLayoutEffect(() => {
     if (navigatingKey === null) return;
     const target = conversation.current;
-    const card = pendingElement("card", navigatingKey);
-    const heading = pendingElement("heading", navigatingKey);
+    const card = target === null ? null : pendingElement(target, "card", navigatingKey);
+    const heading = target === null ? null : pendingElement(target, "heading", navigatingKey);
     if (target !== null && card !== null && heading !== null) {
       heading.focus({ preventScroll: true });
       target.scrollTop = destinationScrollTop({
