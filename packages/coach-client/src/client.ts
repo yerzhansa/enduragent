@@ -341,6 +341,22 @@ function openCoachSocket(options: ValidatedOptions): Promise<WebSocket> {
   });
 }
 
+interface CloseSettlement {
+  readonly promise: Promise<void>;
+  readonly settle: () => void;
+}
+
+type CloseLifecycle =
+  | { readonly phase: "open" }
+  | { readonly phase: "idle-requested"; readonly settlement: CloseSettlement }
+  | {
+      readonly phase: "closing";
+      readonly settlement: CloseSettlement;
+      readonly timer: ReturnType<typeof setTimeout>;
+      readonly retirement: boolean;
+    }
+  | { readonly phase: "closed"; readonly promise: Promise<void>; readonly retirement: boolean };
+
 class CoachClientRuntime {
   private readonly pending = new Map<JsonRpcId, PendingCall>();
   private readonly sendQueue: OutboundFrame[] = [];
@@ -354,14 +370,7 @@ class CoachClientRuntime {
   private handshakeBinding: CoachClientHandshakeBinding | undefined;
   private publicClient: CoachClient | undefined;
   private ready = false;
-  private closePromise: Promise<void> | undefined;
-  private resolveClose: (() => void) | undefined;
-  private closeTimer: ReturnType<typeof setTimeout> | undefined;
-  private closeStarted = false;
-  private closeSettled = false;
-  private idleCloseRequested = false;
-  private idleCloseCheckQueued = false;
-  private sealedForRetirement = false;
+  private lifecycle: CloseLifecycle = { phase: "open" };
 
   constructor(
     private readonly socket: WebSocket,
@@ -431,7 +440,10 @@ class CoachClientRuntime {
     request: CoachRpcRequest<K>,
     options?: CoachClientCallOptions<K>,
   ): Promise<CoachRpcResponse<K>> {
-    if (this.sealedForRetirement) {
+    if (
+      (this.lifecycle.phase === "closing" || this.lifecycle.phase === "closed") &&
+      this.lifecycle.retirement
+    ) {
       return Promise.reject(new CoachClientCallNotAdmittedError());
     }
     if (this.terminalCause !== undefined) {
@@ -722,62 +734,64 @@ class CoachClientRuntime {
   };
 
   private readonly finishClose = (): void => {
-    if (this.closeSettled) return;
-    this.closeSettled = true;
-    if (this.closeTimer !== undefined) clearTimeout(this.closeTimer);
-    this.closeTimer = undefined;
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "open" || lifecycle.phase === "closed") return;
+    if (lifecycle.phase === "closing") clearTimeout(lifecycle.timer);
     this.socket.removeEventListener("close", this.finishClose);
-    this.resolveClose?.();
-    this.resolveClose = undefined;
+    this.lifecycle = {
+      phase: "closed",
+      promise: lifecycle.settlement.promise,
+      retirement: lifecycle.phase === "closing" && lifecycle.retirement,
+    };
+    lifecycle.settlement.settle();
   };
 
-  private ensureClosePromise(): Promise<void> {
-    if (this.closePromise !== undefined) return this.closePromise;
-    this.closePromise = new Promise<void>((resolve) => {
-      this.resolveClose = resolve;
+  private openSettlement(): CloseSettlement {
+    let settle!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      settle = resolve;
     });
     this.socket.addEventListener("close", this.finishClose);
-    if (this.socket.readyState === 3) this.finishClose();
-    return this.closePromise;
+    return { promise, settle };
   }
 
   private beginClose(code: number, reason: string, retirement: boolean): Promise<void> {
-    const promise = this.ensureClosePromise();
-    if (this.closeStarted) return promise;
-    this.closeStarted = true;
-    if (retirement) this.sealedForRetirement = true;
-    this.closeTimer = setTimeout(this.finishClose, this.options.closeTimeoutMs);
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "closed") return lifecycle.promise;
+    if (lifecycle.phase === "closing") return lifecycle.settlement.promise;
+    const settlement = lifecycle.phase === "open" ? this.openSettlement() : lifecycle.settlement;
+    this.lifecycle = {
+      phase: "closing",
+      settlement,
+      timer: setTimeout(this.finishClose, this.options.closeTimeoutMs),
+      retirement,
+    };
     if (this.terminalCause === undefined) {
       this.latchTerminal(new CoachClientDisconnectedError(code, reason), code, reason);
     } else {
       requestSocketClose(this.socket, code, reason);
     }
     if (this.socket.readyState === 3) this.finishClose();
-    return promise;
+    return settlement.promise;
   }
 
   private scheduleIdleClose(): void {
-    if (
-      !this.idleCloseRequested ||
-      this.closeStarted ||
-      this.idleCloseCheckQueued ||
-      this.pending.size > 0
-    ) {
-      return;
-    }
-    this.idleCloseCheckQueued = true;
+    if (this.lifecycle.phase !== "idle-requested" || this.pending.size > 0) return;
     queueMicrotask(() => {
-      this.idleCloseCheckQueued = false;
-      if (!this.idleCloseRequested || this.closeStarted || this.pending.size > 0) return;
+      if (this.lifecycle.phase !== "idle-requested" || this.pending.size > 0) return;
       void this.beginClose(1000, "", true);
     });
   }
 
   private closeWhenIdle(): Promise<void> {
-    this.idleCloseRequested = true;
-    const promise = this.ensureClosePromise();
-    this.scheduleIdleClose();
-    return promise;
+    const lifecycle = this.lifecycle;
+    if (lifecycle.phase === "closed") return lifecycle.promise;
+    if (lifecycle.phase !== "open") return lifecycle.settlement.promise;
+    const settlement = this.openSettlement();
+    this.lifecycle = { phase: "idle-requested", settlement };
+    if (this.socket.readyState === 3) this.finishClose();
+    else this.scheduleIdleClose();
+    return settlement.promise;
   }
 
   private close(code = 1000, reason = ""): Promise<void> {
