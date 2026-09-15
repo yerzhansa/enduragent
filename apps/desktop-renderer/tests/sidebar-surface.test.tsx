@@ -640,7 +640,7 @@ describe("sidebar sync chip", () => {
     expect(chipSurface()).not.toHaveTextContent("1998-07-19 07:55:00 UTC");
     expect(chip()).not.toHaveAttribute("title");
     expect(chip()).toHaveAccessibleName(
-      "Sync · Training data synced · Training-data check completed. A Strava API restriction prevents intervals.icu from sharing 60 activities, so they aren’t included.",
+      "Sync · Training data synced · Training-data check completed. Strava does not allow third-party AI tools to use data from its API, so 60 activities aren’t included.",
     );
     expect(
       chip().querySelector("a, button, input, select, textarea, [role='button'], [tabindex]"),
@@ -657,9 +657,10 @@ describe("sidebar sync chip", () => {
     });
     expect(screen.getByText("60 activities hidden by Strava")).toBeInTheDocument();
     const popup = document.querySelector<HTMLElement>("[data-info-tip-popup]");
-    expect(
-      popup?.querySelector("a, button, input, select, textarea, [role='button'], [tabindex]"),
-    ).toBeNull();
+    const help = screen.getByRole("link", { name: "How to get those rides" });
+    expect(help).toHaveAttribute("href", "https://enduragent.icu/help/strava");
+    expect(help).toHaveAttribute("target", "_blank");
+    expect(popup?.contains(help)).toBe(true);
 
     await user.click(link);
     expect(useEnduragentStore.getState().activeView).toBe("settings");

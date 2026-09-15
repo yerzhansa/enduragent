@@ -3,7 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import type { ReactElement, RefObject } from "react";
 import { useEnduragentStore } from "../../state/store";
 import { sourceRestrictionSummary } from "../../training-context/manual-sync";
-import { STRAVA_RESTRICTION_CARD_ID } from "./restriction-focus";
+import { STRAVA_HELP_HREF, STRAVA_RESTRICTION_CARD_ID } from "./restriction-focus";
 
 export function TrainingRestrictionCard(props: {
   readonly restrictionCard: RefObject<HTMLDivElement | null>;
@@ -46,11 +46,17 @@ export function TrainingRestrictionCard(props: {
               </p>
               <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
                 {say("settings.athlete.restriction.cause", {
-                  intervalsLower: "intervals.icu",
-                  product: "Enduragent",
                   strava: "Strava",
                 })}
               </p>
+              <a
+                className="mt-1 inline-block text-[12.5px] font-medium text-brand underline-offset-2 hover:underline"
+                href={STRAVA_HELP_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {say("settings.athlete.restriction.helpAction")}
+              </a>
             </div>
           </div>
           <div className="mt-3 grid gap-2.5 border-t border-line pt-3">

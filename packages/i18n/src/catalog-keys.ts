@@ -1406,6 +1406,7 @@ export type CatalogKey =
   | "settings.athlete.reload"
   | "settings.athlete.restriction.cause"
   | "settings.athlete.restriction.future"
+  | "settings.athlete.restriction.helpAction"
   | "settings.athlete.restriction.past"
   | "settings.athlete.restriction.title"
   | "settings.athlete.restriction.title_one"

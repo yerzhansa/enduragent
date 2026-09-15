@@ -361,7 +361,7 @@
       "translatedBy": "model"
     },
     "settings.athlete.restriction.cause": {
-      "sourceHash": "1850fabf46233ce3a38f70bc3d1a585f98ac7f22a20c0e240b8a10223decb03d",
+      "sourceHash": "5e564114cc7344ed1204271477ad1b07e997603c8280c147fad9267ac3f601e9",
       "translatedBy": "model"
     },
     "settings.athlete.restriction.future": {
@@ -2553,11 +2553,11 @@
       "translatedBy": "model"
     },
     "sidebar.sync.message.noChangeRestricted_one": {
-      "sourceHash": "330db88a85e3c6c425c45e77f3d9a87a71c2e38ccbaf221702d816e1466dee3c",
+      "sourceHash": "910a39ced5fe3ee08748e83b25564e6122ccccf8da9325b27ff1eb9e6df310aa",
       "translatedBy": "model"
     },
     "sidebar.sync.message.noChangeRestricted_other": {
-      "sourceHash": "e67cde0436c0b4b3503cf077a2f390586a67802be3b31fed5609e83a726f6f46",
+      "sourceHash": "1ced8a70419b9b76a1beef93a1df0dc59999c4ef5c7e3ef16360bd5a518c0e14",
       "translatedBy": "model"
     },
     "sidebar.sync.message.operationFailure": {
@@ -2577,11 +2577,11 @@
       "translatedBy": "model"
     },
     "sidebar.sync.message.publishedRestricted_one": {
-      "sourceHash": "c461ad5223a7a8da1408207cf2f7f5e5021d9d292752e8f5a73208c7d2821277",
+      "sourceHash": "615717e10a46af7a1484c35be38003dac0485d7aef4666168568df9627875b2b",
       "translatedBy": "model"
     },
     "sidebar.sync.message.publishedRestricted_other": {
-      "sourceHash": "ed7b17927a62789a6779b2c4ec35e0312603956750f376576adc07a264ebfbb4",
+      "sourceHash": "ff94d508fa195ea9b30a97c893e3c2969779720aacbce607816829c9c857297f",
       "translatedBy": "model"
     },
     "sidebar.sync.message.queued": {
@@ -2609,7 +2609,7 @@
       "translatedBy": "model"
     },
     "sidebar.sync.restriction.tooltipBody": {
-      "sourceHash": "920269d99b69d1dee16b5ad113cdc2ea86aaf195d01da4872aaa14951117aabb",
+      "sourceHash": "52b34c66cb8955fa2b27ae66c3842d2421ea4850364b541344ee74fdc46487ab",
       "translatedBy": "model"
     },
     "sidebar.sync.restriction.tooltipLabel": {
@@ -2705,19 +2705,19 @@
       "translatedBy": "model"
     },
     "sidebar.sync.message.noChangeRestricted_few": {
-      "sourceHash": "e67cde0436c0b4b3503cf077a2f390586a67802be3b31fed5609e83a726f6f46",
+      "sourceHash": "1ced8a70419b9b76a1beef93a1df0dc59999c4ef5c7e3ef16360bd5a518c0e14",
       "translatedBy": "model"
     },
     "sidebar.sync.message.noChangeRestricted_many": {
-      "sourceHash": "e67cde0436c0b4b3503cf077a2f390586a67802be3b31fed5609e83a726f6f46",
+      "sourceHash": "1ced8a70419b9b76a1beef93a1df0dc59999c4ef5c7e3ef16360bd5a518c0e14",
       "translatedBy": "model"
     },
     "sidebar.sync.message.publishedRestricted_few": {
-      "sourceHash": "ed7b17927a62789a6779b2c4ec35e0312603956750f376576adc07a264ebfbb4",
+      "sourceHash": "ff94d508fa195ea9b30a97c893e3c2969779720aacbce607816829c9c857297f",
       "translatedBy": "model"
     },
     "sidebar.sync.message.publishedRestricted_many": {
-      "sourceHash": "ed7b17927a62789a6779b2c4ec35e0312603956750f376576adc07a264ebfbb4",
+      "sourceHash": "ff94d508fa195ea9b30a97c893e3c2969779720aacbce607816829c9c857297f",
       "translatedBy": "model"
     },
     "sidebar.sync.restriction.label_few": {
@@ -9645,19 +9645,19 @@
       "translatedBy": "model"
     },
     "telegram.sync.restricted_one": {
-      "sourceHash": "71f8683ea974ec3e52ef34fd9a3ab4dae386dd3ed1dee09ee7ebf56d301af5ea",
+      "sourceHash": "bfb7dc0b8dc1e6595517c429e4af5f73645ac9d96cb85e4662c605637b4864c4",
       "translatedBy": "model"
     },
     "telegram.sync.restricted_few": {
-      "sourceHash": "71f8683ea974ec3e52ef34fd9a3ab4dae386dd3ed1dee09ee7ebf56d301af5ea",
+      "sourceHash": "bfb7dc0b8dc1e6595517c429e4af5f73645ac9d96cb85e4662c605637b4864c4",
       "translatedBy": "model"
     },
     "telegram.sync.restricted_many": {
-      "sourceHash": "71f8683ea974ec3e52ef34fd9a3ab4dae386dd3ed1dee09ee7ebf56d301af5ea",
+      "sourceHash": "bfb7dc0b8dc1e6595517c429e4af5f73645ac9d96cb85e4662c605637b4864c4",
       "translatedBy": "model"
     },
     "telegram.sync.restricted_other": {
-      "sourceHash": "71f8683ea974ec3e52ef34fd9a3ab4dae386dd3ed1dee09ee7ebf56d301af5ea",
+      "sourceHash": "bfb7dc0b8dc1e6595517c429e4af5f73645ac9d96cb85e4662c605637b4864c4",
       "translatedBy": "model"
     },
     "desktop.credentials.macRecovery": {
@@ -10014,6 +10014,10 @@
     },
     "telegram.menu.feedback": {
       "sourceHash": "302a072d5ba6b4c2f89bff54ad4d7d91062b2ce0cde3b7745dc0ff2c5db3327f",
+      "translatedBy": "model"
+    },
+    "settings.athlete.restriction.helpAction": {
+      "sourceHash": "7617896316637b16068a38542b6be8c4b4f2adb86e9d9075421f20e02594f734",
       "translatedBy": "model"
     }
   }

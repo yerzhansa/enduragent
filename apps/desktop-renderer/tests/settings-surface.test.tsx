@@ -600,9 +600,13 @@ describe("training restriction repair", () => {
     const notice = settings.querySelector("#strava-restricted-activities");
     expect(notice).not.toBeNull();
     expect(notice).toHaveTextContent("60 of 67 activities are hidden by Strava");
+    expect(notice).toHaveTextContent("third-party AI tools");
     expect(notice).toHaveTextContent("recording source directly to intervals.icu");
     expect(notice).toHaveTextContent("Import All Strava Data");
     expect(notice).toHaveTextContent("intervals.icu supporter subscription");
+    const help = screen.getByRole("link", { name: "How to get those rides" });
+    expect(help).toHaveAttribute("href", "https://enduragent.icu/help/strava");
+    expect(help).toHaveAttribute("target", "_blank");
 
     act(() => {
       useEnduragentStore.setState({

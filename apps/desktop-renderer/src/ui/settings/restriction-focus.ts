@@ -1,4 +1,5 @@
 export const STRAVA_RESTRICTION_CARD_ID = "strava-restricted-activities";
+export const STRAVA_HELP_HREF = "https://enduragent.icu/help/strava";
 
 let focusRequested = false;
 

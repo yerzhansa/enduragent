@@ -59,7 +59,7 @@ describe("formatSyncReply", () => {
 
     expect(cleanText).not.toContain("hidden by Strava");
     expect(restrictedText).toContain("60 of 67 activities are hidden by Strava");
-    expect(restrictedText).toContain("Strava API restriction");
+    expect(restrictedText).toContain("third-party AI tools");
     expect(restrictedText).toContain("recording source directly to intervals.icu");
     expect(restrictedText).toContain("Import All Strava Data");
     expect(restrictedText).toContain("intervals.icu supporter subscription");
