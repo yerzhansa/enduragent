@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { engineConfigFromConfig } from "../src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
+import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 import { loadConfigFromYaml, type Config } from "../src/config.js";
 import {
   COMPACT_MODEL_DEFAULTS,
@@ -66,7 +68,11 @@ describe("claude-cli provider registry", () => {
     expect(entry?.label).toBe("Claude subscription (Claude Code CLI)");
     expect(entry?.hint).toBe("experimental");
     expect(entry?.defaultBaseUrl).toBeUndefined();
-    expect(entry?.models.map((model) => model.value)).toEqual(["sonnet", "opus", "haiku"]);
+    expect(
+      BUNDLED_MODEL_CATALOG.providers
+        .find((provider) => provider.providerId === "claude-cli")
+        ?.models.map((model) => model.modelId),
+    ).toEqual(["sonnet", "opus", "haiku"]);
   });
 
   it("defaults the chat model to sonnet and the compaction model to haiku", () => {
@@ -279,7 +285,9 @@ describe("claude-cli engine config mapping", () => {
       },
       configDir,
     );
-    expect(engineConfigFromConfig(config).llm.claudeCli).toEqual({
+    expect(
+      engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }).llm.claudeCli,
+    ).toEqual({
       enabled: true,
       binaryPath: "/opt/synthetic/bin/claude",
       billing: "subscription",
@@ -290,6 +298,8 @@ describe("claude-cli engine config mapping", () => {
   it("omits the engine block for other providers", () => {
     process.env.ANTHROPIC_API_KEY = "obviously-fake-key";
     const config = loadConfigFromYaml({ llm: { provider: "anthropic" } }, configDir);
-    expect(engineConfigFromConfig(config).llm.claudeCli).toBeUndefined();
+    expect(
+      engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }).llm.claudeCli,
+    ).toBeUndefined();
   });
 });

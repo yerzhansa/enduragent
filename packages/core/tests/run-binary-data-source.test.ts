@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCoachEngine } from "../src/agent/coach-engine.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
 
 const sport = {
@@ -32,7 +33,9 @@ describe("runBinary data-source composition", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "run-binary-data-source-"));
     try {
       const config = { ...baseAgentConfig(dataDir), dataSource: "store" as const };
-      expect(() => createCoachEngine(sport, config)).toThrow(
+      expect(() =>
+        createCoachEngine(sport, config, { catalog: bundledAcceptedCatalog() }),
+      ).toThrow(
         "Store data source requires an athlete data reader.",
       );
     } finally {

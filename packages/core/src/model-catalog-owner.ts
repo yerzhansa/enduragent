@@ -1,31 +1,48 @@
 import { mkdirSync, readFileSync } from "node:fs";
-import { request as requestHttp } from "node:http";
-import { request as requestHttps } from "node:https";
 import { uptime } from "node:os";
 import { join, resolve } from "node:path";
-import { TextDecoder } from "node:util";
 import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-catalog";
 import { z } from "zod";
-import { atomicWriteFileSync } from "./io/atomic-write-file-sync.js";
 import {
   InterprocessFileLockTimeoutError,
   withInterprocessFileLock,
-  withInterprocessFileLockSync,
 } from "./io/interprocess-file-lock-sync.js";
 import {
   acceptModelCatalogSnapshot,
   evaluateModelCatalogCandidate,
   type AcceptedModelCatalogRecord,
 } from "./model-catalog.js";
+import {
+  MODEL_CATALOG_REFRESH_INTERVAL_MS,
+  claimAttempt,
+  completeAttempt,
+  readAttempt,
+  reanchorAttempt,
+  serializedTime,
+  writeJson,
+  type ModelCatalogPaths,
+} from "./model-catalog-attempt.js";
+import {
+  MODEL_CATALOG_ENDPOINT,
+  MODEL_CATALOG_REQUEST_TIMEOUT_MS,
+  MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
+  ResponseLimitError,
+  cancelResponseBody,
+  nodeTlsVerificationEnabled,
+  readBoundedBody,
+  singleDispatchFetch,
+} from "./model-catalog-http.js";
 import { BUNDLED_MODEL_CATALOG } from "./model-catalog-seed.js";
 
-export const MODEL_CATALOG_ENDPOINT = "https://api.enduragent.icu/models/v1/catalog.json";
-export const MODEL_CATALOG_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1_000;
-export const MODEL_CATALOG_REQUEST_TIMEOUT_MS = 5_000;
-export const MODEL_CATALOG_RESPONSE_LIMIT_BYTES = 512 * 1_024;
+export {
+  MODEL_CATALOG_ENDPOINT,
+  MODEL_CATALOG_REFRESH_INTERVAL_MS,
+  MODEL_CATALOG_REQUEST_TIMEOUT_MS,
+  MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
+};
+export type { ModelCatalogPaths };
 
 const RECORD_FORMAT_VERSION = 1;
-const ATTEMPT_STATE_VERSION = 1;
 const OWNER_ACQUIRE_TIMEOUT_MS = 50;
 const SCHEDULER_RECHECK_LIMIT_MS = MODEL_CATALOG_REFRESH_INTERVAL_MS;
 const SCHEDULER_MIN_DELAY_MS = 1_000;
@@ -51,26 +68,6 @@ const PersistedCatalogSchema = z
     snapshot: ModelCatalogSnapshotSchema,
   })
   .strict();
-const InFlightAttemptStateSchema = z
-  .object({
-    schemaVersion: z.literal(ATTEMPT_STATE_VERSION),
-    attemptStatus: z.literal("in-flight"),
-    lastAttemptAt: z.string().datetime({ offset: true }),
-    systemUptimeMs: z.number().finite().nonnegative(),
-  })
-  .strict();
-const CompletedAttemptStateSchema = z
-  .object({
-    schemaVersion: z.literal(ATTEMPT_STATE_VERSION),
-    attemptStatus: z.literal("completed"),
-    lastAttemptAt: z.string().datetime({ offset: true }),
-    systemUptimeMs: z.number().finite().nonnegative(),
-  })
-  .strict();
-const AttemptStateSchema = z.discriminatedUnion("attemptStatus", [
-  InFlightAttemptStateSchema,
-  CompletedAttemptStateSchema,
-]);
 
 type PersistedCatalog = z.infer<typeof PersistedCatalogSchema>;
 
@@ -114,16 +111,6 @@ export interface ModelCatalogDiagnostics {
   readonly lastAttemptAt?: string;
   readonly lastSuccessfulRefreshAt?: string;
   readonly ownsLifecycle: boolean;
-}
-
-export interface ModelCatalogPaths {
-  readonly attemptLock: string;
-  readonly attemptState: string;
-  readonly installationDirectory: string;
-  readonly ownerLock: string;
-  readonly ownerSnapshot: string;
-  readonly privateDirectory: string;
-  readonly privateSnapshot: string;
 }
 
 export interface ModelCatalogOpenInput {
@@ -171,35 +158,6 @@ interface ElapsedClock {
   readonly now: () => number;
   readonly resolutionMs: number;
 }
-
-interface AttemptAnchor {
-  readonly lastAttemptAt: number;
-  readonly serialized: string;
-  readonly systemUptimeMs: number;
-}
-
-type AttemptRead =
-  | Readonly<{ kind: "missing" }>
-  | Readonly<{ kind: "invalid" }>
-  | Readonly<{ kind: "in-flight"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "completed"; anchor: AttemptAnchor }>;
-
-type DurableAttempt =
-  | Readonly<{ kind: "in-flight"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "completed"; anchor: AttemptAnchor }>;
-
-type AttemptClaim =
-  | Readonly<{ kind: "claimed"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "not-due"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "repaired"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "failed" }>;
-
-type AttemptTransition =
-  | Readonly<{ kind: "transitioned"; anchor: AttemptAnchor }>
-  | Readonly<{ kind: "superseded" }>
-  | Readonly<{ kind: "failed" }>;
-
-class ResponseLimitError extends Error {}
 
 interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -249,116 +207,6 @@ function defaultDependencies(
   };
 }
 
-function nodeTlsVerificationEnabled(): boolean {
-  return process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0";
-}
-
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-
-const singleDispatchFetch: typeof globalThis.fetch = async (input, init) => {
-  if (input instanceof Request) throw new TypeError("Request objects are not supported");
-  if (init?.body !== undefined && init.body !== null) {
-    throw new TypeError("Request bodies are not supported");
-  }
-  const endpoint = new URL(input);
-  if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new TypeError("Unsupported model catalog protocol");
-  }
-  const method = init?.method ?? "GET";
-  if (method.toUpperCase() !== "GET") throw new TypeError("Only GET requests are supported");
-  const headers = Object.fromEntries(new Headers(init?.headers));
-  const request = endpoint.protocol === "https:" ? requestHttps : requestHttp;
-  return await new Promise<Response>((resolve, reject) => {
-    const outgoing = request(
-      endpoint,
-      {
-        headers,
-        method: "GET",
-        rejectUnauthorized: true,
-        signal: init?.signal ?? undefined,
-      },
-      (incoming) => {
-        const status = incoming.statusCode;
-        if (status === undefined) {
-          incoming.destroy();
-          reject(new Error("Model catalog response omitted a status"));
-          return;
-        }
-        if (REDIRECT_STATUSES.has(status)) {
-          incoming.destroy();
-          reject(new Error("Model catalog redirects are not allowed"));
-          return;
-        }
-        try {
-          const responseHeaders = new Headers();
-          for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
-            const name = incoming.rawHeaders[index];
-            const value = incoming.rawHeaders[index + 1];
-            if (name !== undefined && value !== undefined) responseHeaders.append(name, value);
-          }
-          let closed = false;
-          let receivedBytes = 0;
-          const body =
-            status === 204 || status === 205 || status === 304
-              ? null
-              : new ReadableStream<Uint8Array>({
-                  start(controller) {
-                    const fail = (error: unknown): void => {
-                      if (closed) return;
-                      closed = true;
-                      controller.error(error);
-                    };
-                    incoming.on("data", (chunk: Buffer) => {
-                      if (closed) return;
-                      receivedBytes += chunk.byteLength;
-                      if (receivedBytes > MODEL_CATALOG_RESPONSE_LIMIT_BYTES) {
-                        closed = true;
-                        controller.error(new ResponseLimitError());
-                        incoming.destroy();
-                        return;
-                      }
-                      controller.enqueue(chunk);
-                    });
-                    incoming.once("aborted", () => fail(new Error("Response aborted")));
-                    incoming.once("error", fail);
-                    incoming.once("end", () => {
-                      if (closed) return;
-                      closed = true;
-                      controller.close();
-                    });
-                  },
-                  cancel() {
-                    closed = true;
-                    incoming.destroy();
-                  },
-                });
-          resolve(
-            new Response(body, {
-              headers: responseHeaders,
-              status,
-              statusText: incoming.statusMessage,
-            }),
-          );
-        } catch (error) {
-          incoming.destroy();
-          reject(error);
-        }
-      },
-    );
-    outgoing.once("error", reject);
-    outgoing.once("upgrade", (_response, socket) => {
-      socket.destroy();
-      reject(new Error("Model catalog protocol upgrades are not allowed"));
-    });
-    outgoing.end();
-  });
-};
-
-function errorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
-  return typeof error.code === "string" ? error.code : undefined;
-}
-
 export function resolveModelCatalogPaths(input: ModelCatalogOpenInput): ModelCatalogPaths {
   const installationRoot = resolve(input.installationRoot);
   const installationDirectory = join(installationRoot, "config", "model-catalog");
@@ -372,168 +220,6 @@ export function resolveModelCatalogPaths(input: ModelCatalogOpenInput): ModelCat
     privateDirectory,
     privateSnapshot: join(privateDirectory, "model-catalog.json"),
   });
-}
-
-function readAttempt(path: string): AttemptRead {
-  let raw: string;
-  try {
-    raw = readFileSync(path, "utf8");
-  } catch (error) {
-    return errorCode(error) === "ENOENT" ? { kind: "missing" } : { kind: "invalid" };
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { kind: "invalid" };
-  }
-  const state = AttemptStateSchema.safeParse(parsed);
-  if (!state.success) return { kind: "invalid" };
-  const lastAttemptAt = Date.parse(state.data.lastAttemptAt);
-  if (!Number.isFinite(lastAttemptAt)) return { kind: "invalid" };
-  return {
-    kind: state.data.attemptStatus,
-    anchor: {
-      lastAttemptAt,
-      serialized: state.data.lastAttemptAt,
-      systemUptimeMs: state.data.systemUptimeMs,
-    },
-  };
-}
-
-function serializedTime(now: number): string | undefined {
-  if (!Number.isFinite(now)) return undefined;
-  try {
-    return new Date(now).toISOString();
-  } catch {
-    return undefined;
-  }
-}
-
-function writeJson(path: string, value: unknown): void {
-  atomicWriteFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-function attemptAnchor(lastAttemptAt: number, systemUptimeMs: number): AttemptAnchor | undefined {
-  const serialized = serializedTime(lastAttemptAt);
-  if (serialized === undefined || !Number.isFinite(systemUptimeMs) || systemUptimeMs < 0) {
-    return undefined;
-  }
-  return { lastAttemptAt, serialized, systemUptimeMs };
-}
-
-function writeAttempt(path: string, attempt: DurableAttempt): void {
-  writeJson(path, {
-    schemaVersion: ATTEMPT_STATE_VERSION,
-    attemptStatus: attempt.kind,
-    lastAttemptAt: attempt.anchor.serialized,
-    systemUptimeMs: attempt.anchor.systemUptimeMs,
-  });
-}
-
-function sameAttempt(left: AttemptAnchor, right: AttemptAnchor): boolean {
-  return left.serialized === right.serialized && left.systemUptimeMs === right.systemUptimeMs;
-}
-
-function claimAttempt(
-  paths: ModelCatalogPaths,
-  now: number,
-  systemUptimeMs: number,
-  elapsedWindowMs: number,
-): AttemptClaim {
-  try {
-    mkdirSync(paths.installationDirectory, { recursive: true, mode: 0o700 });
-    return withInterprocessFileLockSync(paths.attemptLock, () => {
-      const observed = attemptAnchor(now, systemUptimeMs);
-      if (observed === undefined) return { kind: "failed" };
-      const prior = readAttempt(paths.attemptState);
-      if (prior.kind === "in-flight") {
-        const repaired = attemptAnchor(Math.max(now, prior.anchor.lastAttemptAt), systemUptimeMs);
-        if (repaired === undefined) return { kind: "failed" };
-        writeAttempt(paths.attemptState, { kind: "completed", anchor: repaired });
-        return { kind: "repaired", anchor: repaired };
-      }
-      if (prior.kind === "completed") {
-        if (systemUptimeMs < prior.anchor.systemUptimeMs) {
-          const repaired = attemptAnchor(Math.max(now, prior.anchor.lastAttemptAt), systemUptimeMs);
-          if (repaired === undefined) return { kind: "failed" };
-          writeAttempt(paths.attemptState, { kind: "completed", anchor: repaired });
-          return { kind: "repaired", anchor: repaired };
-        }
-        const wallElapsed = now - prior.anchor.lastAttemptAt;
-        const uptimeElapsed = systemUptimeMs - prior.anchor.systemUptimeMs;
-        if (wallElapsed < MODEL_CATALOG_REFRESH_INTERVAL_MS || uptimeElapsed < elapsedWindowMs) {
-          return { kind: "not-due", anchor: prior.anchor };
-        }
-      }
-      if (prior.kind === "invalid") {
-        const repaired = attemptAnchor(now, systemUptimeMs);
-        if (repaired === undefined) return { kind: "failed" };
-        writeAttempt(paths.attemptState, { kind: "completed", anchor: repaired });
-        return { kind: "repaired", anchor: repaired };
-      }
-      writeAttempt(paths.attemptState, { kind: "in-flight", anchor: observed });
-      return { kind: "claimed", anchor: observed };
-    });
-  } catch {
-    return { kind: "failed" };
-  }
-}
-
-function transitionAttempt(
-  paths: ModelCatalogPaths,
-  expected: DurableAttempt,
-  next: DurableAttempt,
-): AttemptTransition {
-  try {
-    return withInterprocessFileLockSync(paths.attemptLock, () => {
-      const current = readAttempt(paths.attemptState);
-      if (current.kind !== expected.kind || !sameAttempt(current.anchor, expected.anchor)) {
-        return { kind: "superseded" };
-      }
-      writeAttempt(paths.attemptState, next);
-      return { kind: "transitioned", anchor: next.anchor };
-    });
-  } catch {
-    return { kind: "failed" };
-  }
-}
-
-function reanchorAttempt(
-  paths: ModelCatalogPaths,
-  claimed: AttemptAnchor,
-  now: number,
-  systemUptimeMs: number,
-): AttemptTransition {
-  const observed = attemptAnchor(now, systemUptimeMs);
-  if (observed === undefined) return { kind: "failed" };
-  return transitionAttempt(
-    paths,
-    { kind: "in-flight", anchor: claimed },
-    { kind: "in-flight", anchor: observed },
-  );
-}
-
-function completeAttempt(
-  paths: ModelCatalogPaths,
-  pending: AttemptAnchor,
-  now: number,
-  systemUptimeMs: number,
-): AttemptTransition {
-  const observed = attemptAnchor(now, systemUptimeMs);
-  if (observed === undefined) return { kind: "failed" };
-  return transitionAttempt(
-    paths,
-    { kind: "in-flight", anchor: pending },
-    { kind: "completed", anchor: observed },
-  );
-}
-
-async function cancelResponseBody(response: Response, controller: AbortController): Promise<void> {
-  controller.abort();
-  try {
-    await response.body?.cancel();
-  } catch {}
 }
 
 function readPersistedCatalog(path: string): PersistedCatalog | undefined {
@@ -612,41 +298,6 @@ function newerSnapshot(
   if (candidateOriginRank > currentOriginRank) return candidate;
   if (candidateOriginRank < currentOriginRank) return current;
   return successfulRefreshTime(candidate) > successfulRefreshTime(current) ? candidate : current;
-}
-
-async function readBoundedBody(response: Response): Promise<string> {
-  const declaredLength = response.headers.get("content-length");
-  if (declaredLength !== null) {
-    const parsedLength = Number(declaredLength);
-    if (Number.isFinite(parsedLength) && parsedLength > MODEL_CATALOG_RESPONSE_LIMIT_BYTES) {
-      throw new ResponseLimitError();
-    }
-  }
-  if (response.body === null) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    for (;;) {
-      const item = await reader.read();
-      if (item.done) break;
-      length += item.value.byteLength;
-      if (length > MODEL_CATALOG_RESPONSE_LIMIT_BYTES) {
-        await reader.cancel();
-        throw new ResponseLimitError();
-      }
-      chunks.push(item.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const body = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8", { fatal: true }).decode(body);
 }
 
 class InstallationModelCatalog implements ModelCatalog {
@@ -1045,6 +696,16 @@ class InstallationModelCatalog implements ModelCatalog {
       }
     }
   }
+}
+
+export function readAcceptedInstallationCatalog(
+  installationRoot: string,
+): AcceptedModelCatalogRecord | undefined {
+  const persisted = readPersistedCatalog(
+    join(resolve(installationRoot), "config", "model-catalog", "accepted-snapshot.json"),
+  );
+  if (persisted === undefined) return undefined;
+  return acceptModelCatalogSnapshot(persisted.snapshot, persisted.etag);
 }
 
 export function openModelCatalog(input: ModelCatalogOpenInput): ModelCatalog {

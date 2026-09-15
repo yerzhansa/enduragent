@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { PlanIntakePatch } from "@enduragent/coach-contract";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../core/src/model-catalog.js";
 import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-reader.js";
 import type { Sport } from "../src/sport.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
@@ -140,7 +141,11 @@ describe("Plan coach authority", () => {
       RefreshTokenReusedError: class extends Error {},
     }));
     const config = baseAgentConfig(join(root, "data"));
-    const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+    const ports = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    }).ports;
     const { CoachAgent } = await import("../src/agent/coach-agent.js");
     const agent = new CoachAgent(cyclingSport as unknown as Sport, {
       ...ports,
@@ -230,7 +235,11 @@ describe("Plan coach authority", () => {
       RefreshTokenReusedError: class extends Error {},
     }));
     const config = baseAgentConfig(join(root, "data"));
-    const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+    const ports = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    }).ports;
     const { CoachAgent } = await import("../src/agent/coach-agent.js");
     const agent = new CoachAgent(cyclingSport as unknown as Sport, {
       ...ports,
@@ -299,7 +308,11 @@ describe("Plan coach authority", () => {
       RefreshTokenReusedError: class extends Error {},
     }));
     const config = baseAgentConfig(join(root, "data"));
-    const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+    const ports = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    }).ports;
     const { CoachAgent } = await import("../src/agent/coach-agent.js");
     type Deferred = import("../src/agent/coach-agent.js").DeferredPlanTurn;
     const agent = new CoachAgent(cyclingSport as unknown as Sport, {
@@ -393,7 +406,11 @@ describe("Plan coach authority", () => {
       RefreshTokenReusedError: class extends Error {},
     }));
     const config = baseAgentConfig(join(root, "data"));
-    const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+    const ports = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    }).ports;
     const chatId = "plan:01KPLANDECISION000000000";
     ports.coachDecisions!.appendDecisionRequested({
       turnId: "decision-turn",
@@ -494,7 +511,11 @@ describe("Plan coach authority", () => {
       RefreshTokenReusedError: class extends Error {},
     }));
     const config = baseAgentConfig(join(root, "data"));
-    const ports = createEngineHostAdapter({ config, stateReader: legacyStateReader }).ports;
+    const ports = createEngineHostAdapter({
+      config,
+      stateReader: legacyStateReader,
+      catalog: bundledAcceptedCatalog(),
+    }).ports;
     const chatId = "plan:01KPLANAUTHORITY00000000";
     ports.coachDecisions!.appendDecisionRequested({
       turnId: "decision-turn",

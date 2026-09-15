@@ -82,7 +82,10 @@ export async function withLocalCoach<T>(
         }
       },
       operation: async (context): Promise<WriterValue<T>> => {
-        const readiness = await checkHomeReadiness(context.home);
+        const readiness = await checkHomeReadiness(context.home, {
+          projectConfig: (config) =>
+            engineConfigFromConfig(config, { catalog: modelCatalog.current() }),
+        });
         if (readiness.status !== "ready") {
           return {
             kind: "readiness-failure",
@@ -93,6 +96,7 @@ export async function withLocalCoach<T>(
           readiness.config.dataDir === selectedHome.root
             ? readiness.config
             : { ...readiness.config, dataDir: selectedHome.root };
+        const catalog = modelCatalog.current();
         let lifecycle: LocalCoachComposition | undefined;
         let lifecycleCloseOutcome: { kind: "succeeded" } | { kind: "failed"; error: unknown } = {
           kind: "succeeded",
@@ -107,9 +111,9 @@ export async function withLocalCoach<T>(
             home: selectedHome,
             context,
             config: compositionConfig,
-            engineConfig: engineConfigFromConfig(compositionConfig, {
-              catalog: modelCatalog.current(),
-            }),
+            catalog,
+            readCatalog: () => modelCatalog.current(),
+            engineConfig: engineConfigFromConfig(compositionConfig, { catalog }),
             ...(input.deferInitialRefresh === undefined
               ? {}
               : { deferInitialRefresh: input.deferInitialRefresh }),

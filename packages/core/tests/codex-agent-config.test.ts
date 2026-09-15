@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LlmProviderSchema } from "@enduragent/coach-contract";
 import { engineConfigFromConfig } from "../src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 import { codexAgentPatchFrom, loadConfigFromYaml, type Config } from "../src/config.js";
 import {
   CODEX_AGENT_DISABLED_MESSAGE,
@@ -284,17 +285,23 @@ describe("codex-agent engine config mapping", () => {
       },
       configDir,
     );
-    expect(engineConfigFromConfig(config).llm.codexAgent).toEqual({
+    expect(
+      engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }).llm.codexAgent,
+    ).toEqual({
       enabled: true,
       binaryPath: "/opt/synthetic/bin/codex",
       reasoningEffort: "low",
     });
-    expect(engineConfigFromConfig(config).llm.claudeCli).toBeUndefined();
+    expect(
+      engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }).llm.claudeCli,
+    ).toBeUndefined();
   });
 
   it("omits the engine block for other providers", () => {
     process.env.ANTHROPIC_API_KEY = "obviously-fake-key";
     const config = loadConfigFromYaml({ llm: { provider: "anthropic" } }, configDir);
-    expect(engineConfigFromConfig(config).llm.codexAgent).toBeUndefined();
+    expect(
+      engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }).llm.codexAgent,
+    ).toBeUndefined();
   });
 });

@@ -300,6 +300,7 @@ export async function runSetup(binary: BinaryConfig): Promise<void> {
     installationRoot: dataDir,
     cacheDirectory: join(dataDir, "config", "model-catalog", "cli-setup"),
   });
+  await modelCatalog.start();
   const selectorConfiguration = modelCatalogSelectorConfiguration(modelCatalog.current());
   const language = createNpmCoachLanguage(dataDir);
   try {

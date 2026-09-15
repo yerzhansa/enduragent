@@ -14,6 +14,7 @@ import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { GARMIN_DATA_ATTRIBUTION } from "../src/agent/garmin-attribution.js";
 import { ConfirmationGate } from "../../core/src/agent/confirmation-gate.js";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../core/src/model-catalog.js";
 import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-reader.js";
 
 let tempHome: string;
@@ -205,6 +206,7 @@ async function setupGatedAgent(complete: ReturnType<typeof vi.fn>, sport: Sport)
   mockRuntimeModules(complete);
   const confirmations = new ConfirmationGate();
   const adapted = createEngineHostAdapter({
+    catalog: bundledAcceptedCatalog(),
     config: baseAgentConfig(dataDir),
     stateReader: legacyStateReader,
     overrides: { confirmations },
