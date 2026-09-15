@@ -892,7 +892,7 @@ describe("Plan Change cards", () => {
             ...active,
             todayChoice: {
               date: "1998-09-07",
-              timezone: "Asia/Almaty",
+              dayStartMs: Date.parse("1998-09-06T17:00:00.000Z"),
               eligible: [{ workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" }],
               blocked: [],
               reason: null,

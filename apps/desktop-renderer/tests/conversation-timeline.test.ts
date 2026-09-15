@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   chronologicalConversationPredecessor,
   compensateScrollTop,
-  conversationDateStartTime,
   conversationUlidTime,
   createConversationInsertionLedger,
   destinationScrollTop,
@@ -46,17 +45,6 @@ describe("conversation insertion ledger", () => {
   it("recovers a persisted projection predecessor from its ULID time", () => {
     expect(conversationUlidTime("00000000010000000000000000")).toBe(1);
     expect(conversationUlidTime("invalid")).toBeNull();
-    expect(conversationDateStartTime("1998-09-07", "UTC")).toBe(
-      Date.parse("1998-09-07T00:00:00.000Z"),
-    );
-    expect(conversationDateStartTime("1998-09-07", "Asia/Almaty")).toBe(
-      Date.parse("1998-09-06T17:00:00.000Z"),
-    );
-    expect(conversationDateStartTime("1998-03-29", "America/Havana")).toBe(
-      Date.parse("1998-03-29T05:00:00.000Z"),
-    );
-    expect(conversationDateStartTime("7 September 1998", "UTC")).toBeNull();
-    expect(conversationDateStartTime("1998-09-07", "Not/AZone")).toBeNull();
     expect(
       chronologicalConversationPredecessor(
         [

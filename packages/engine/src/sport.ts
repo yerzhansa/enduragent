@@ -240,7 +240,7 @@ export {
   createCoreToolsWithSportConfig,
   createPureCoreIntervalsTools,
 } from "./sport/platform-tools.js";
-export { resolveUserTimezone, todayInTZ } from "./sport/user-time.js";
+export { dayStartInTZ, resolveUserTimezone, todayInTZ } from "./sport/user-time.js";
 export { addCivilDays, mondayOfWeek } from "./planning/civil-week.js";
 export type {
   PlanFtpAdapter,

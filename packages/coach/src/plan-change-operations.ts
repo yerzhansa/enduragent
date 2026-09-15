@@ -54,7 +54,7 @@ import {
   readCyclingPlanFtpCandidates,
   readTodayChoice,
 } from "@enduragent/sport-cycling";
-import type { PlanFtpAdapter } from "@enduragent/engine/sport";
+import { dayStartInTZ, type PlanFtpAdapter } from "@enduragent/engine/sport";
 import { z } from "zod";
 import type { IntentTranslationPort } from "@enduragent/engine";
 import { supportedChangeKinds, translateChangeRequest } from "./plan-change-translator.js";
@@ -183,7 +183,7 @@ export function projectTodayChoice(
     completedWorkoutIds,
     answers: supportingEventRules(draft),
   });
-  return choice === null ? null : { ...choice, timezone };
+  return choice === null ? null : { ...choice, dayStartMs: dayStartInTZ(choice.date, timezone) };
 }
 
 function choiceRejection(

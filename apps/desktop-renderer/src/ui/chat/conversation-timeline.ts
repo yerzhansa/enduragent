@@ -77,58 +77,6 @@ export function conversationUlidTime(value: string): number | null {
   return result;
 }
 
-const conversationDateStartCache = new Map<string, number | null>();
-
-export function conversationDateStartTime(value: string, timezone: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return null;
-  const cacheKey = `${timezone}\u0000${value}`;
-  const cached = conversationDateStartCache.get(cacheKey);
-  if (cached !== undefined || conversationDateStartCache.has(cacheKey)) return cached ?? null;
-  const [year, month, day] = value.split("-").map(Number);
-  const target = Date.UTC(year!, month! - 1, day!);
-  let formatter: Intl.DateTimeFormat;
-  try {
-    formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return null;
-  }
-  const dateAt = (instant: number): string => {
-    const values = new Map(
-      formatter
-        .formatToParts(new Date(instant))
-        .filter((part) => part.type !== "literal")
-        .map((part) => [part.type, part.value]),
-    );
-    return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
-  };
-  const step = 15 * 60_000;
-  const start = target - 36 * 60 * 60_000;
-  const end = target + 36 * 60 * 60_000;
-  let previous = start;
-  for (let candidate = start; candidate <= end; candidate += step) {
-    if (dateAt(candidate) !== value) {
-      previous = candidate;
-      continue;
-    }
-    let lower = previous;
-    let upper = candidate;
-    while (upper - lower > 1) {
-      const middle = lower + Math.floor((upper - lower) / 2);
-      if (dateAt(middle) === value) upper = middle;
-      else lower = middle;
-    }
-    conversationDateStartCache.set(cacheKey, upper);
-    return upper;
-  }
-  conversationDateStartCache.set(cacheKey, null);
-  return null;
-}
-
 export function chronologicalConversationPredecessor(
   rows: readonly ConversationRow<unknown>[],
   occurredAtMs: number | null,

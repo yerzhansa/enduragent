@@ -16,7 +16,6 @@ import { PlanCreationConversation, PlanCreationDock } from "./PlanCreationCards"
 import { TranscriptItem, transcriptItemKey } from "./Transcript";
 import {
   chronologicalConversationPredecessor,
-  conversationDateStartTime,
   conversationProjectionKey,
   conversationUlidTime,
   createConversationInsertionLedger,
@@ -151,14 +150,7 @@ export function ConversationTimeline(props: {
         value: <CurrentPlanChangeCards />,
         afterKey: chronologicalConversationPredecessor(
           durable,
-          library.active.todayChoice === null
-            ? null
-            : conversationDateStartTime(
-                library.active.todayChoice.date,
-                library.active.todayChoice.timezone ??
-                  Intl.DateTimeFormat().resolvedOptions().timeZone ??
-                  "UTC",
-              ),
+          library.active.todayChoice?.dayStartMs ?? null,
         ),
       });
     }
