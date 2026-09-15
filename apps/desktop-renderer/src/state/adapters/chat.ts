@@ -436,6 +436,7 @@ export function createChatViewAdapter(input: {
           : "Message your coach",
       composerStatus:
         decisionLoading &&
+        decisionLoadError === null &&
         !workBlocked &&
         !decisionBlocksWork &&
         !attachmentUnavailable &&

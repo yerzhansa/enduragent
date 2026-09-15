@@ -255,6 +255,7 @@ describe("chat view adapter", () => {
     adapter.view.render(
       EMPTY_CHAT_STATE,
       controls({
+        decisionLoading: true,
         decisionLoadError: "We couldn’t check for a saved Coach question. Reconnect and try again.",
       }),
     );
