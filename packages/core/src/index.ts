@@ -80,6 +80,7 @@ export type {
 } from "./model-catalog.js";
 export {
   CONSERVATIVE_MODEL_CONTEXT_WINDOW_TOKENS,
+  persistResolvedModelProfiles,
   resolveModelRuntimeGeneration,
   SELECTED_MODEL_PROFILES_FILE,
 } from "./model-runtime-generation.js";

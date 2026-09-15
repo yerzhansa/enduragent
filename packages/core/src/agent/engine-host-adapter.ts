@@ -16,7 +16,10 @@ import { resolveUserTimezone } from "@enduragent/engine/sport";
 import { ErrorStateSchema, LatestJsonSchema } from "@enduragent/kernel/reference/schemas";
 import type { Config } from "../config.js";
 import type { AcceptedModelCatalogRecord } from "../model-catalog.js";
-import { resolveModelRuntimeGeneration } from "../model-runtime-generation.js";
+import {
+  persistResolvedModelProfiles,
+  resolveModelRuntimeGeneration,
+} from "../model-runtime-generation.js";
 import {
   createMissingPlatformCalendarMutations,
   createPlatformAthleteDataReader,
@@ -46,25 +49,27 @@ export interface EngineHostAdapterOverrides {
   readonly confirmations?: ConfirmationGate;
 }
 
-export type EngineConfigProjectionOptions = {
-  readonly profileStorageDirectory?: string;
-} & (
-  | { readonly catalog: AcceptedModelCatalogRecord; readonly models?: EngineResolvedModelProfiles }
-  | { readonly models: EngineResolvedModelProfiles; readonly catalog?: AcceptedModelCatalogRecord }
-);
+export type EngineConfigProjectionOptions =
+  | {
+      readonly catalog: AcceptedModelCatalogRecord;
+      readonly profileStorageDirectory?: string;
+    }
+  | {
+      readonly models: EngineResolvedModelProfiles;
+    };
 
 export function engineConfigFromConfig(
   config: Config,
   options: EngineConfigProjectionOptions,
 ): EngineConfig {
-  const compactModel = config.llm.compactModel ?? config.llm.model;
-  const flushModel = config.llm.flushModel ?? config.llm.model;
-  if (options.models !== undefined) {
+  if ("models" in options) {
     return freezeEngineConfig(config, options.models);
   }
-  if (options.catalog === undefined) {
+  if (!("catalog" in options)) {
     throw new TypeError("engineConfigFromConfig requires catalog or models");
   }
+  const compactModel = config.llm.compactModel ?? config.llm.model;
+  const flushModel = config.llm.flushModel ?? config.llm.model;
   return freezeEngineConfig(
     config,
     resolveModelRuntimeGeneration({
@@ -111,14 +116,8 @@ export function createEngineHostAdapter(
     readonly stateReader: AthleteStateReaderPort;
     readonly overrides?: EngineHostAdapterOverrides;
   } & (
-    | {
-        readonly catalog: AcceptedModelCatalogRecord;
-        readonly models?: EngineResolvedModelProfiles;
-      }
-    | {
-        readonly models: EngineResolvedModelProfiles;
-        readonly catalog?: AcceptedModelCatalogRecord;
-      }
+    | { readonly catalog: AcceptedModelCatalogRecord }
+    | { readonly models: EngineResolvedModelProfiles }
   ),
 ): {
   readonly ports: EngineHostPorts;
@@ -128,10 +127,14 @@ export function createEngineHostAdapter(
   const { config } = input;
   const overrides = input.overrides ?? {};
   let engineConfig: EngineConfig;
-  if (input.models !== undefined) {
+  if ("models" in input) {
     engineConfig = engineConfigFromConfig(config, { models: input.models });
-  } else if (input.catalog !== undefined) {
+  } else if ("catalog" in input) {
     engineConfig = engineConfigFromConfig(config, { catalog: input.catalog });
+    persistResolvedModelProfiles(
+      join(config.dataDir, "config", "model-catalog"),
+      engineConfig.models,
+    );
   } else {
     throw new TypeError("createEngineHostAdapter requires catalog or models");
   }

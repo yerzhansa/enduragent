@@ -113,7 +113,6 @@ export async function withLocalCoach<T>(
             config: compositionConfig,
             catalog,
             readCatalog: () => modelCatalog.current(),
-            engineConfig: engineConfigFromConfig(compositionConfig, { catalog }),
             ...(input.deferInitialRefresh === undefined
               ? {}
               : { deferInitialRefresh: input.deferInitialRefresh }),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { bytesEqual, jsonBytes, sha256 } from "./model-catalog-bytes.js";
+import { bytesEqual, sha256 } from "./model-catalog-bytes.js";
 import {
   CatalogDigestSchema,
   CatalogReleasePinError,
@@ -8,24 +8,12 @@ import {
   type CatalogDigest,
   type CreateGroupResult,
   type ReleasePinStore,
-  type RetainedProductionBundle,
 } from "./model-catalog-release-pin.js";
 
 const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const REVISION_NAME_PATTERN = /^[1-9]\d*$/u;
 const GROUP_TAG_PREFIX = "catalog-pin/group/";
 const BYTES_TAG_PREFIX = "catalog-pin/bytes/";
-const RETAINED_TAG_PREFIX = "catalog-pin/retained/";
 const BYTES_FILE = "bytes";
-const CATALOG_FILE = "catalog.json";
-const PUBLICATION_RECORD_FILE = "publication-record.json";
-const PRODUCTION_RECEIPT_FILE = "production-receipt.json";
-const RETAINED_FILES = Object.freeze([
-  CATALOG_FILE,
-  PUBLICATION_RECORD_FILE,
-  PRODUCTION_RECEIPT_FILE,
-] as const);
-const MATCHING_RETAINED_REFS_PATH = "git/matching-refs/tags/catalog-pin/retained/";
 const BLOB_MODE = "100644";
 
 const GitShaSchema = z.string().regex(GIT_SHA_PATTERN);
@@ -109,18 +97,6 @@ function cloneBytes(bytes: Uint8Array): Uint8Array {
   return bytes.slice();
 }
 
-function freezeBundle(bundle: RetainedProductionBundle): RetainedProductionBundle {
-  return Object.freeze({
-    revision: bundle.revision,
-    catalogDigest: bundle.catalogDigest,
-    publicationRecordDigest: bundle.publicationRecordDigest,
-    productionReceiptDigest: bundle.productionReceiptDigest,
-    catalogBytes: cloneBytes(bundle.catalogBytes),
-    recordBytes: cloneBytes(bundle.recordBytes),
-    receiptBytes: cloneBytes(bundle.receiptBytes),
-  });
-}
-
 function parseGithub<T>(schema: z.ZodType<T>, value: unknown): T {
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
@@ -176,18 +152,6 @@ function parseRepository(repository: "yerzhansa/enduragent"): {
     throw new CatalogReleasePinError("validation", "repository is invalid");
   }
   return Object.freeze({ owner, name });
-}
-
-function retainedEqual(left: RetainedProductionBundle, right: RetainedProductionBundle): boolean {
-  return (
-    left.revision === right.revision &&
-    left.catalogDigest === right.catalogDigest &&
-    left.publicationRecordDigest === right.publicationRecordDigest &&
-    left.productionReceiptDigest === right.productionReceiptDigest &&
-    bytesEqual(left.catalogBytes, right.catalogBytes) &&
-    bytesEqual(left.recordBytes, right.recordBytes) &&
-    bytesEqual(left.receiptBytes, right.receiptBytes)
-  );
 }
 
 function fileMap(entries: readonly z.infer<typeof GitTreeEntrySchema>[]): Map<string, string> {
@@ -384,28 +348,6 @@ export function createGitHubReleasePinStore(input: GitHubReleasePinStoreInput): 
     return bytes === undefined ? undefined : cloneBytes(bytes);
   }
 
-  async function hydrateRetained(revision: number): Promise<RetainedProductionBundle | undefined> {
-    const tag = await readAnnotatedTag(`${RETAINED_TAG_PREFIX}${revision}`);
-    if (tag === undefined) return undefined;
-    const files = await readTreeFiles(tag.object.sha);
-    if (files === undefined || files.size !== RETAINED_FILES.length) return undefined;
-    const catalogBytes = files.get(CATALOG_FILE);
-    const recordBytes = files.get(PUBLICATION_RECORD_FILE);
-    const receiptBytes = files.get(PRODUCTION_RECEIPT_FILE);
-    if (catalogBytes === undefined || recordBytes === undefined || receiptBytes === undefined) {
-      return undefined;
-    }
-    return freezeBundle({
-      revision,
-      catalogDigest: await digestOf(catalogBytes),
-      publicationRecordDigest: await digestOf(recordBytes),
-      productionReceiptDigest: await digestOf(receiptBytes),
-      catalogBytes,
-      recordBytes,
-      receiptBytes,
-    });
-  }
-
   const store: ReleasePinStore = {
     async createGroup(input) {
       const tagName = `${GROUP_TAG_PREFIX}${input.releaseGroupId}`;
@@ -457,81 +399,6 @@ export function createGitHubReleasePinStore(input: GitHubReleasePinStoreInput): 
     },
     async getBytes(digest) {
       return getBytes(digest);
-    },
-    async putRetainedRevision(bundle) {
-      const catalogDigest = await digestOf(bundle.catalogBytes);
-      const publicationRecordDigest = await digestOf(bundle.recordBytes);
-      const productionReceiptDigest = await digestOf(bundle.receiptBytes);
-      if (
-        catalogDigest !== bundle.catalogDigest ||
-        publicationRecordDigest !== bundle.publicationRecordDigest ||
-        productionReceiptDigest !== bundle.productionReceiptDigest
-      ) {
-        throw new CatalogReleasePinError("integrity", "retained bundle digest does not match bytes");
-      }
-      const existing = await hydrateRetained(bundle.revision);
-      if (existing !== undefined) {
-        if (retainedEqual(existing, bundle)) return "exists";
-        throw new CatalogReleasePinError(
-          "conflict",
-          "retained revision already exists with different bytes",
-        );
-      }
-      const retainedMessage = utf8Text(
-        jsonBytes({
-          revision: bundle.revision,
-          catalogDigest: bundle.catalogDigest,
-          publicationRecordDigest: bundle.publicationRecordDigest,
-          productionReceiptDigest: bundle.productionReceiptDigest,
-        }),
-      );
-      const commitSha = await createFilesCommit({
-        files: [
-          { path: CATALOG_FILE, bytes: bundle.catalogBytes },
-          { path: PUBLICATION_RECORD_FILE, bytes: bundle.recordBytes },
-          { path: PRODUCTION_RECEIPT_FILE, bytes: bundle.receiptBytes },
-        ],
-        message: retainedMessage,
-      });
-      const created = await createAnnotatedTagRef({
-        tagName: `${RETAINED_TAG_PREFIX}${bundle.revision}`,
-        message: retainedMessage,
-        commitSha,
-      });
-      if (created === "created") return "created";
-      const winner = await hydrateRetained(bundle.revision);
-      if (winner === undefined) {
-        throw new CatalogReleasePinError("unrecoverable", "existing retained revision is unrecoverable");
-      }
-      if (!retainedEqual(winner, bundle)) {
-        throw new CatalogReleasePinError(
-          "conflict",
-          "retained revision already exists with different bytes",
-        );
-      }
-      return "exists";
-    },
-    async getRetainedRevision(revision) {
-      return hydrateRetained(revision);
-    },
-    async listRetainedRevisions() {
-      const value = await githubGet(MATCHING_RETAINED_REFS_PATH);
-      if (value === undefined) return Object.freeze([]);
-      const refs = parseGithub(z.array(GitRefSchema), value);
-      const bundles: RetainedProductionBundle[] = [];
-      for (const ref of refs) {
-        const prefix = `refs/tags/${RETAINED_TAG_PREFIX}`;
-        if (!ref.ref.startsWith(prefix)) continue;
-        const revisionText = ref.ref.slice(prefix.length);
-        if (!REVISION_NAME_PATTERN.test(revisionText)) continue;
-        const bundle = await hydrateRetained(Number(revisionText));
-        if (bundle !== undefined) bundles.push(bundle);
-      }
-      return Object.freeze(
-        bundles
-          .sort((left, right) => right.revision - left.revision)
-          .map((bundle) => freezeBundle(bundle)),
-      );
     },
   };
   return Object.freeze(store);

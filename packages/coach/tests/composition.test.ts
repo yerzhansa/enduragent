@@ -503,10 +503,7 @@ async function compose(
       context,
       config: coreConfig,
       catalog,
-      engineConfig: engineConfigFromConfig(coreConfig, {
-        catalog,
-        profileStorageDirectory: join(home.configDir, "model-catalog"),
-      }),
+      readCatalog: () => readAcceptedInstallationCatalog(home.root) ?? catalog,
       ...(deferInitialRefresh === undefined ? {} : { deferInitialRefresh }),
     },
     {
