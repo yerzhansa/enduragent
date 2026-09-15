@@ -38,15 +38,10 @@ describe("legacy-section migration — binary startup integration (steps 1-3)", 
       "utf-8",
     );
 
-    // Step 2: construct the agent (mirrors src/index.ts startup path).
     const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir), {
       catalog: bundledAcceptedCatalog(),
     });
 
-    // Wiring: this is exactly what src/index.ts does immediately after
-    // agent construction. The integration test asserts that calling the
-    // migrator via the agent's getMemory() accessor produces the expected
-    // file shape — proving the seam used by the binary is correct.
     migrateCyclingLegacySections(agent.getMemory());
 
     // Step 3: assert post-migration file shape.
@@ -72,7 +67,6 @@ describe("legacy-section migration — binary startup integration (steps 1-3)", 
   });
 
   it("is a no-op for fresh installs (no MEMORY.md present)", () => {
-    // No file pre-seeded. Construct agent, run migrator, file should not be created.
     const agent = new CoachAgent(cyclingSport, baseAgentConfig(dataDir), {
       catalog: bundledAcceptedCatalog(),
     });

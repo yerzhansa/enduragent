@@ -623,10 +623,6 @@ function toTimeoutError(err: unknown): Error {
   return out;
 }
 
-// ============================================================================
-// AI SDK MODEL FACTORY
-// ============================================================================
-
 function buildAiSdkModel(config: EngineConfig, profile: ResolvedModelProfile): LanguageModel {
   switch (profile.provider) {
     case "anthropic": {
