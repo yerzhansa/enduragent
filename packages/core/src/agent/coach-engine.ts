@@ -20,20 +20,21 @@ export interface LocalCoachEngine extends CoachEngine {
   settle(request?: SettleRequest): Promise<void>;
 }
 
-export interface LegacyEngineOverrides {
+export type LegacyEngineOverrides = {
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;
   readonly modelTransportDecorator?: ModelTransportDecorator;
   readonly onToolsAssembled?: (names: readonly string[]) => void;
-  readonly catalog?: AcceptedModelCatalogRecord;
-  readonly models?: EngineResolvedModelProfiles;
-}
+} & (
+  | { readonly catalog: AcceptedModelCatalogRecord }
+  | { readonly models: EngineResolvedModelProfiles }
+);
 
 export function createCoachEngine(
   sport: Sport,
   config: Config,
-  deps?: LegacyEngineOverrides,
+  deps: LegacyEngineOverrides,
 ): LocalCoachEngine {
-  return deps === undefined ? new CoachAgent(sport, config) : new CoachAgent(sport, config, deps);
+  return new CoachAgent(sport, config, deps);
 }

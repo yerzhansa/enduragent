@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelCatalogSnapshot } from "@enduragent/coach-contract/model-catalog";
@@ -7,6 +7,10 @@ import type { Config } from "../src/config.js";
 import { engineConfigFromConfig } from "../src/agent/engine-host-adapter.js";
 import { acceptModelCatalogSnapshot } from "../src/model-catalog.js";
 import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
+import {
+  persistResolvedModelProfiles,
+  SELECTED_MODEL_PROFILES_FILE,
+} from "../src/model-runtime-generation.js";
 
 const directories: string[] = [];
 
@@ -101,6 +105,7 @@ describe("model runtime generation", () => {
     expect(Object.isFrozen(projected.models)).toBe(true);
     expect(Object.isFrozen(projected.models.chat)).toBe(true);
     expect(Object.isFrozen(projected.models.chat.pricing)).toBe(true);
+    expect(existsSync(join(dataDir, "profiles", SELECTED_MODEL_PROFILES_FILE))).toBe(false);
   });
 
   it("keeps retired primary and background metadata across restart", () => {
@@ -137,10 +142,13 @@ describe("model runtime generation", () => {
     selected.llm.compactModel = "retired-background";
     selected.llm.flushModel = "retired-background";
 
-    engineConfigFromConfig(selected, {
-      catalog: accepted(available),
+    persistResolvedModelProfiles(
       profileStorageDirectory,
-    });
+      engineConfigFromConfig(selected, {
+        catalog: accepted(available),
+        profileStorageDirectory,
+      }).models,
+    );
 
     const retired = revision(9);
     const retiredCatalog = accepted(retired);
@@ -182,10 +190,13 @@ describe("model runtime generation", () => {
     const profileStorageDirectory = join(dataDir, "profiles");
     const selected = config(dataDir);
 
-    engineConfigFromConfig(selected, {
-      catalog: accepted(revision(14)),
+    persistResolvedModelProfiles(
       profileStorageDirectory,
-    });
+      engineConfigFromConfig(selected, {
+        catalog: accepted(revision(14)),
+        profileStorageDirectory,
+      }).models,
+    );
 
     const incompatible = revision(15);
     const openai = incompatible.providers.find((provider) => provider.providerId === "openai");
@@ -253,10 +264,13 @@ describe("model runtime generation", () => {
     const openaiConfig = config(dataDir, "shared-id");
     openaiConfig.llm.compactModel = "shared-id";
     openaiConfig.llm.flushModel = "shared-id";
-    engineConfigFromConfig(openaiConfig, {
-      catalog: accepted(first),
+    persistResolvedModelProfiles(
       profileStorageDirectory,
-    });
+      engineConfigFromConfig(openaiConfig, {
+        catalog: accepted(first),
+        profileStorageDirectory,
+      }).models,
+    );
 
     const second = revision(12);
     const googleConfig = config(dataDir, "shared-id");

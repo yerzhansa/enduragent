@@ -4,21 +4,7 @@ import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-cat
 import { acceptModelCatalogSnapshot } from "../packages/core/src/model-catalog.js";
 import { z } from "zod";
 import { bytesEqual, jsonBytes, sha256 } from "./model-catalog-bytes.js";
-import {
-  modelCatalogDeploymentMessage,
-  modelCatalogDeploymentTag,
-} from "./model-catalog-cloudflare.js";
-import {
-  MODEL_CATALOG_FUTURE_TOLERANCE_MS,
-  MODEL_CATALOG_MAX_BYTES,
-  MODEL_CATALOG_PUBLIC_URL,
-} from "./model-catalog-constants.js";
-import {
-  ModelCatalogDeploymentReceiptSchema,
-  ModelCatalogPublicationRecordSchema,
-  type ModelCatalogDeploymentReceipt,
-  type ModelCatalogPublicationRecord,
-} from "./model-catalog-publication.js";
+import { MODEL_CATALOG_MAX_BYTES } from "./model-catalog-constants.js";
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/u;
 const RELEASE_GROUP_ID_PATTERN = /^[a-f0-9]{40}$/u;
@@ -44,13 +30,6 @@ const IsoTimestampField = IsoTimestampSchema;
 const DigestField = CatalogDigestSchema;
 const RevisionField = z.number().int().positive().safe();
 
-export const PublishedProvenanceSchema = z
-  .object({
-    kind: z.literal("published"),
-    publishedAt: IsoTimestampField,
-  })
-  .strict();
-
 export const BundledSeedProvenanceSchema = z
   .object({
     kind: z.literal("bundled-seed"),
@@ -58,43 +37,9 @@ export const BundledSeedProvenanceSchema = z
   })
   .strict();
 
-export const PublishedSnapshotSchema = ModelCatalogSnapshotSchema.extend({
-  provenance: PublishedProvenanceSchema,
-}).strict();
-
 export const BundledSeedSnapshotSchema = ModelCatalogSnapshotSchema.extend({
   provenance: BundledSeedProvenanceSchema,
 }).strict();
-
-function refineCatalogAge(
-  pin: { acquiredAt: string; publishedAt: string; catalogAgeMs: number },
-  context: z.core.$RefinementCtx,
-): void {
-  const catalogAgeMs = Date.parse(pin.acquiredAt) - Date.parse(pin.publishedAt);
-  if (pin.catalogAgeMs !== catalogAgeMs) {
-    context.addIssue({
-      code: "custom",
-      path: ["catalogAgeMs"],
-      message: "catalogAgeMs must equal acquiredAt minus publishedAt",
-    });
-  }
-}
-
-const PublishedReleasePinObjectSchema = z
-  .object({
-    kind: z.literal("published"),
-    acquisition: z.enum(["production-fetch", "retained-production"]),
-    revision: RevisionField,
-    digest: DigestField,
-    acquiredAt: IsoTimestampField,
-    publishedAt: IsoTimestampField,
-    catalogAgeMs: z.number().int(),
-    publicationRecordDigest: DigestField,
-    productionReceiptDigest: DigestField,
-  })
-  .strict();
-
-export const PublishedReleasePinSchema = PublishedReleasePinObjectSchema.superRefine(refineCatalogAge);
 
 const BundledSeedReleasePinObjectSchema = z
   .object({
@@ -108,45 +53,18 @@ const BundledSeedReleasePinObjectSchema = z
   .strict();
 
 export const BundledSeedReleasePinSchema = BundledSeedReleasePinObjectSchema;
-
-export const ReleaseCatalogPinSchema = z.discriminatedUnion("kind", [
-  PublishedReleasePinObjectSchema,
-  BundledSeedReleasePinObjectSchema,
-]);
-
-export const PublishedReleaseGroupRecordSchema = PublishedReleasePinObjectSchema.extend({
-  releaseGroupId: ReleaseGroupIdSchema,
-}).strict();
-
+export const ReleaseCatalogPinSchema = BundledSeedReleasePinObjectSchema;
 export const BundledSeedReleaseGroupRecordSchema = BundledSeedReleasePinObjectSchema.extend({
   releaseGroupId: ReleaseGroupIdSchema,
 }).strict();
-
-export const ReleaseGroupRecordSchema = z.discriminatedUnion("kind", [
-  PublishedReleaseGroupRecordSchema,
-  BundledSeedReleaseGroupRecordSchema,
-]);
-
-const ProductionFetchResultSchema = z.discriminatedUnion("kind", [
-  z
-    .object({
-      kind: z.literal("response"),
-      etag: z.string().min(1),
-      bytes: z.custom<Uint8Array>((value) => value instanceof Uint8Array),
-    })
-    .strict(),
-  z.object({ kind: z.literal("unavailable") }).strict(),
-]);
+export const ReleaseGroupRecordSchema = BundledSeedReleaseGroupRecordSchema;
 
 export type IsoTimestamp = z.infer<typeof IsoTimestampSchema>;
 export type CatalogDigest = z.infer<typeof CatalogDigestSchema>;
 export type ReleaseGroupId = z.infer<typeof ReleaseGroupIdSchema>;
-export type PublishedSnapshot = z.infer<typeof PublishedSnapshotSchema>;
 export type BundledSeedSnapshot = z.infer<typeof BundledSeedSnapshotSchema>;
 export type ReleaseCatalogPin = z.infer<typeof ReleaseCatalogPinSchema>;
-export type PublishedReleasePin = z.infer<typeof PublishedReleasePinSchema>;
 export type BundledSeedReleasePin = z.infer<typeof BundledSeedReleasePinSchema>;
-export type PublishedReleaseGroupRecord = z.infer<typeof PublishedReleaseGroupRecordSchema>;
 export type BundledSeedReleaseGroupRecord = z.infer<typeof BundledSeedReleaseGroupRecordSchema>;
 export type ReleaseGroupRecord = z.infer<typeof ReleaseGroupRecordSchema>;
 
@@ -160,19 +78,12 @@ export const ReleaseBindingSchema = z
 
 export type ReleaseBinding = Readonly<z.infer<typeof ReleaseBindingSchema>>;
 
-export type PreparedRelease =
-  | Readonly<{
-      record: PublishedReleaseGroupRecord;
-      snapshot: PublishedSnapshot;
-      bytes: Uint8Array;
-      binding: ReleaseBinding;
-    }>
-  | Readonly<{
-      record: BundledSeedReleaseGroupRecord;
-      snapshot: BundledSeedSnapshot;
-      bytes: Uint8Array;
-      binding: ReleaseBinding;
-    }>;
+export type PreparedRelease = Readonly<{
+  record: BundledSeedReleaseGroupRecord;
+  snapshot: BundledSeedSnapshot;
+  bytes: Uint8Array;
+  binding: ReleaseBinding;
+}>;
 
 export const MATERIALIZED_MODEL_CATALOG_SEED_PATH =
   "packages/core/src/model-catalog-seed.generated.ts";
@@ -189,21 +100,6 @@ export type MaterializedCatalogSeed = Readonly<{
   path: string;
   digest: CatalogDigest;
   revision: number;
-}>;
-
-export type ModelCatalogProductionFetchResult = z.infer<typeof ProductionFetchResultSchema>;
-export type ModelCatalogProductionFetch = (
-  url: typeof MODEL_CATALOG_PUBLIC_URL,
-) => Promise<ModelCatalogProductionFetchResult>;
-
-export type RetainedProductionBundle = Readonly<{
-  revision: number;
-  catalogDigest: CatalogDigest;
-  publicationRecordDigest: CatalogDigest;
-  productionReceiptDigest: CatalogDigest;
-  catalogBytes: Uint8Array;
-  recordBytes: Uint8Array;
-  receiptBytes: Uint8Array;
 }>;
 
 export type BytesWriteResult = "created" | "exists";
@@ -223,15 +119,11 @@ export interface ReleasePinStore {
     readonly bytes: Uint8Array;
   }): Promise<BytesWriteResult>;
   getBytes(digest: string): Promise<Uint8Array | undefined>;
-  putRetainedRevision(bundle: RetainedProductionBundle): Promise<BytesWriteResult>;
-  getRetainedRevision(revision: number): Promise<RetainedProductionBundle | undefined>;
-  listRetainedRevisions(): Promise<readonly RetainedProductionBundle[]>;
 }
 
 export type PrepareReleaseGroupInput = {
   readonly sourceCommit: string;
   readonly store: ReleasePinStore;
-  readonly fetch: ModelCatalogProductionFetch;
   readonly acquisitionTime: string;
   readonly seed: unknown;
 };
@@ -242,44 +134,18 @@ export type ReadReleaseGroupInput = {
   readonly seed: unknown;
 };
 
-export type RetainProductionCatalogInput = {
-  readonly store: ReleasePinStore;
-  readonly record: unknown;
-  readonly receipt: unknown;
-};
-
 type GroupResolution =
   | Readonly<{ status: "absent" }>
   | Readonly<{ status: "ready"; prepared: PreparedRelease }>
   | Readonly<{ status: "broken" }>;
 
-type PublishedMaterials = Readonly<{
-  snapshot: PublishedSnapshot;
-  bytes: Uint8Array;
-  recordBytes: Uint8Array;
-  receiptBytes: Uint8Array;
-}>;
-
 function cloneBytes(bytes: Uint8Array): Uint8Array {
   return bytes.slice();
-}
-
-function freezeBundle(bundle: RetainedProductionBundle): RetainedProductionBundle {
-  return Object.freeze({
-    revision: bundle.revision,
-    catalogDigest: bundle.catalogDigest,
-    publicationRecordDigest: bundle.publicationRecordDigest,
-    productionReceiptDigest: bundle.productionReceiptDigest,
-    catalogBytes: cloneBytes(bundle.catalogBytes),
-    recordBytes: cloneBytes(bundle.recordBytes),
-    receiptBytes: cloneBytes(bundle.receiptBytes),
-  });
 }
 
 export function createMemoryReleasePinStore(): ReleasePinStore {
   const groups = new Map<string, Uint8Array>();
   const blobs = new Map<string, Uint8Array>();
-  const retained = new Map<number, RetainedProductionBundle>();
   const store: ReleasePinStore = {
     async createGroup(input) {
       const existing = groups.get(input.releaseGroupId);
@@ -311,48 +177,6 @@ export function createMemoryReleasePinStore(): ReleasePinStore {
       const bytes = blobs.get(digest);
       return bytes === undefined ? undefined : cloneBytes(bytes);
     },
-    async putRetainedRevision(bundle) {
-      const catalogDigest = await digestOf(bundle.catalogBytes);
-      const publicationRecordDigest = await digestOf(bundle.recordBytes);
-      const productionReceiptDigest = await digestOf(bundle.receiptBytes);
-      if (
-        catalogDigest !== bundle.catalogDigest ||
-        publicationRecordDigest !== bundle.publicationRecordDigest ||
-        productionReceiptDigest !== bundle.productionReceiptDigest
-      ) {
-        throw new CatalogReleasePinError("integrity", "retained bundle digest does not match bytes");
-      }
-      const existing = retained.get(bundle.revision);
-      if (existing !== undefined) {
-        if (
-          existing.catalogDigest === bundle.catalogDigest &&
-          existing.publicationRecordDigest === bundle.publicationRecordDigest &&
-          existing.productionReceiptDigest === bundle.productionReceiptDigest &&
-          bytesEqual(existing.catalogBytes, bundle.catalogBytes) &&
-          bytesEqual(existing.recordBytes, bundle.recordBytes) &&
-          bytesEqual(existing.receiptBytes, bundle.receiptBytes)
-        ) {
-          return "exists";
-        }
-        throw new CatalogReleasePinError(
-          "conflict",
-          "retained revision already exists with different bytes",
-        );
-      }
-      retained.set(bundle.revision, freezeBundle(bundle));
-      return "created";
-    },
-    async getRetainedRevision(revision) {
-      const bundle = retained.get(revision);
-      return bundle === undefined ? undefined : freezeBundle(bundle);
-    },
-    async listRetainedRevisions() {
-      return Object.freeze(
-        [...retained.values()]
-          .sort((left, right) => right.revision - left.revision)
-          .map((bundle) => freezeBundle(bundle)),
-      );
-    },
   };
   return Object.freeze(store);
 }
@@ -382,17 +206,6 @@ function parseReleaseGroupRecordBytes(bytes: Uint8Array): ReleaseGroupRecord | u
   if (json === undefined) return undefined;
   const parsed = ReleaseGroupRecordSchema.safeParse(json);
   if (!parsed.success || !bytesEqual(bytes, jsonBytes(parsed.data))) return undefined;
-  if (parsed.data.kind === "published") {
-    const catalogAgeMs = Date.parse(parsed.data.acquiredAt) - Date.parse(parsed.data.publishedAt);
-    if (parsed.data.catalogAgeMs !== catalogAgeMs) return undefined;
-  }
-  return parsed.data;
-}
-
-function acceptedPublishedSnapshot(candidate: unknown): PublishedSnapshot | undefined {
-  const parsed = PublishedSnapshotSchema.safeParse(candidate);
-  if (!parsed.success) return undefined;
-  if (acceptModelCatalogSnapshot(parsed.data) === undefined) return undefined;
   return parsed.data;
 }
 
@@ -403,120 +216,11 @@ function acceptedSeedSnapshot(candidate: unknown): BundledSeedSnapshot | undefin
   return parsed.data;
 }
 
-function parsePublicationRecordBytes(
-  bytes: Uint8Array,
-): ModelCatalogPublicationRecord | undefined {
-  const json = tryUtf8Json(bytes);
-  if (json === undefined) return undefined;
-  const parsed = ModelCatalogPublicationRecordSchema.safeParse(json);
-  if (!parsed.success || !bytesEqual(bytes, jsonBytes(parsed.data))) return undefined;
-  return parsed.data;
-}
-
-function parseProductionReceiptBytes(
-  bytes: Uint8Array,
-): ModelCatalogDeploymentReceipt | undefined {
-  const json = tryUtf8Json(bytes);
-  if (json === undefined) return undefined;
-  const parsed = ModelCatalogDeploymentReceiptSchema.safeParse(json);
-  if (!parsed.success || !bytesEqual(bytes, jsonBytes(parsed.data))) return undefined;
-  return parsed.data;
-}
-
-function catalogAgeMs(acquiredAt: string, publishedAt: string): number | undefined {
-  const acquiredAtMs = Date.parse(acquiredAt);
-  const publishedAtMs = Date.parse(publishedAt);
-  if (!Number.isFinite(acquiredAtMs) || !Number.isFinite(publishedAtMs)) return undefined;
-  const age = acquiredAtMs - publishedAtMs;
-  if (age < -MODEL_CATALOG_FUTURE_TOLERANCE_MS) return undefined;
-  return age;
-}
-
-function productionReceiptMatches(
-  receipt: ModelCatalogDeploymentReceipt,
-  snapshot: PublishedSnapshot,
-  digest: CatalogDigest,
-): boolean {
-  return (
-    receipt.target === "production" &&
-    receipt.revision === snapshot.revision &&
-    receipt.catalogDigest === digest &&
-    receipt.tag === modelCatalogDeploymentTag(snapshot.revision, digest) &&
-    receipt.message === modelCatalogDeploymentMessage(snapshot.revision, digest)
-  );
-}
-
-function publicationRecordMatches(
-  record: ModelCatalogPublicationRecord,
-  snapshot: PublishedSnapshot,
-  digest: CatalogDigest,
-): boolean {
-  return (
-    record.revision === snapshot.revision &&
-    record.catalogDigest === digest &&
-    record.publishedAt === snapshot.provenance.publishedAt &&
-    record.catalog.revision === snapshot.revision &&
-    record.catalog.provenance.kind === "published" &&
-    record.catalog.provenance.publishedAt === snapshot.provenance.publishedAt
-  );
-}
-
-async function publishedMaterialsFromParts(input: {
-  readonly snapshot: PublishedSnapshot;
-  readonly recordBytes: Uint8Array;
-  readonly receiptBytes: Uint8Array;
-  readonly etag?: string;
-}): Promise<PublishedMaterials | undefined> {
-  const bytes = jsonBytes(input.snapshot);
-  if (bytes.byteLength > MODEL_CATALOG_MAX_BYTES) return undefined;
-  const digest = await digestOf(bytes);
-  const record = parsePublicationRecordBytes(input.recordBytes);
-  const receipt = parseProductionReceiptBytes(input.receiptBytes);
-  if (record === undefined || receipt === undefined) return undefined;
-  if (!publicationRecordMatches(record, input.snapshot, digest)) return undefined;
-  if (!productionReceiptMatches(receipt, input.snapshot, digest)) return undefined;
-  if (input.etag !== undefined && receipt.liveEtag !== input.etag) return undefined;
-  if ((await digestOf(jsonBytes(record.catalog))) !== digest) return undefined;
-  return Object.freeze({
-    snapshot: input.snapshot,
-    bytes,
-    recordBytes: cloneBytes(input.recordBytes),
-    receiptBytes: cloneBytes(input.receiptBytes),
-  });
-}
-
-async function publishedMaterialsFromBundle(
-  bundle: RetainedProductionBundle,
-): Promise<PublishedMaterials | undefined> {
-  if (bundle.catalogBytes.byteLength > MODEL_CATALOG_MAX_BYTES) return undefined;
-  const snapshot = acceptedPublishedSnapshot(tryUtf8Json(bundle.catalogBytes));
-  if (snapshot === undefined) return undefined;
-  if ((await digestOf(jsonBytes(snapshot))) !== bundle.catalogDigest) return undefined;
-  return publishedMaterialsFromParts({
-    snapshot,
-    recordBytes: bundle.recordBytes,
-    receiptBytes: bundle.receiptBytes,
-  });
-}
-
 function bindingOf(record: ReleaseGroupRecord): ReleaseBinding {
   return Object.freeze({
     releaseGroupId: record.releaseGroupId,
     revision: record.revision,
     digest: record.digest,
-  });
-}
-
-function preparedPublished(
-  record: PublishedReleaseGroupRecord,
-  snapshot: PublishedSnapshot,
-  bytes: Uint8Array,
-): PreparedRelease {
-  return Object.freeze({
-    record: Object.freeze(record),
-    snapshot,
-    bytes: cloneBytes(bytes),
-    binding: bindingOf(record),
   });
 }
 
@@ -531,33 +235,6 @@ function preparedSeed(
     bytes: cloneBytes(bytes),
     binding: bindingOf(record),
   });
-}
-
-async function sealPublished(input: {
-  readonly releaseGroupId: ReleaseGroupId;
-  readonly acquisition: "production-fetch" | "retained-production";
-  readonly acquiredAt: IsoTimestamp;
-  readonly materials: PublishedMaterials;
-}): Promise<PreparedRelease> {
-  const digest = await digestOf(input.materials.bytes);
-  const publishedAt = input.materials.snapshot.provenance.publishedAt;
-  const age = catalogAgeMs(input.acquiredAt, publishedAt);
-  if (age === undefined) {
-    throw new CatalogReleasePinError("validation", "catalog age is outside the allowed window");
-  }
-  const record = PublishedReleaseGroupRecordSchema.parse({
-    kind: "published",
-    acquisition: input.acquisition,
-    revision: input.materials.snapshot.revision,
-    digest,
-    acquiredAt: input.acquiredAt,
-    publishedAt,
-    catalogAgeMs: age,
-    publicationRecordDigest: await digestOf(input.materials.recordBytes),
-    productionReceiptDigest: await digestOf(input.materials.receiptBytes),
-    releaseGroupId: input.releaseGroupId,
-  });
-  return preparedPublished(record, input.materials.snapshot, input.materials.bytes);
 }
 
 async function sealSeed(input: {
@@ -579,38 +256,6 @@ async function sealSeed(input: {
     releaseGroupId: input.releaseGroupId,
   });
   return preparedSeed(record, input.snapshot, bytes);
-}
-
-async function hydratePublished(
-  record: PublishedReleaseGroupRecord,
-  store: ReleasePinStore,
-): Promise<PreparedRelease | undefined> {
-  const stored = await store.getBytes(record.digest);
-  if (stored !== undefined && (await digestOf(stored)) === record.digest) {
-    const snapshot = acceptedPublishedSnapshot(tryUtf8Json(stored));
-    if (
-      snapshot !== undefined &&
-      snapshot.revision === record.revision &&
-      snapshot.provenance.publishedAt === record.publishedAt &&
-      (await digestOf(jsonBytes(snapshot))) === record.digest
-    ) {
-      return preparedPublished(record, snapshot, jsonBytes(snapshot));
-    }
-  }
-  const retained = await store.getRetainedRevision(record.revision);
-  if (retained === undefined) return undefined;
-  if (
-    retained.catalogDigest !== record.digest ||
-    retained.publicationRecordDigest !== record.publicationRecordDigest ||
-    retained.productionReceiptDigest !== record.productionReceiptDigest
-  ) {
-    return undefined;
-  }
-  const materials = await publishedMaterialsFromBundle(retained);
-  if (materials === undefined) return undefined;
-  if ((await digestOf(materials.bytes)) !== record.digest) return undefined;
-  if (materials.snapshot.provenance.publishedAt !== record.publishedAt) return undefined;
-  return preparedPublished(record, materials.snapshot, materials.bytes);
 }
 
 async function hydrateSeed(
@@ -652,47 +297,9 @@ async function resolveGroup(input: {
   if (bytes === undefined) return Object.freeze({ status: "absent" });
   const record = parseReleaseGroupRecordBytes(bytes);
   if (record === undefined) return Object.freeze({ status: "broken" });
-  const prepared =
-    record.kind === "published"
-      ? await hydratePublished(record, input.store)
-      : await hydrateSeed(record, input.seed, input.store);
+  const prepared = await hydrateSeed(record, input.seed, input.store);
   if (prepared === undefined) return Object.freeze({ status: "broken" });
   return Object.freeze({ status: "ready", prepared });
-}
-
-async function assessFetchedCatalog(input: {
-  readonly store: ReleasePinStore;
-  readonly fetch: ModelCatalogProductionFetch;
-}): Promise<PublishedMaterials | undefined> {
-  const fetched = ProductionFetchResultSchema.safeParse(await input.fetch(MODEL_CATALOG_PUBLIC_URL));
-  if (!fetched.success) {
-    throw new CatalogReleasePinError("validation", "fetch client returned an invalid result");
-  }
-  if (fetched.data.kind === "unavailable") return undefined;
-  if (fetched.data.bytes.byteLength > MODEL_CATALOG_MAX_BYTES) return undefined;
-  const snapshot = acceptedPublishedSnapshot(tryUtf8Json(fetched.data.bytes));
-  if (snapshot === undefined) return undefined;
-  const retained = await input.store.getRetainedRevision(snapshot.revision);
-  if (retained === undefined) return undefined;
-  return publishedMaterialsFromParts({
-    snapshot,
-    recordBytes: retained.recordBytes,
-    receiptBytes: retained.receiptBytes,
-    etag: fetched.data.etag,
-  });
-}
-
-async function highestValidRetained(
-  store: ReleasePinStore,
-  acquiredAt: string,
-): Promise<PublishedMaterials | undefined> {
-  for (const bundle of await store.listRetainedRevisions()) {
-    const materials = await publishedMaterialsFromBundle(bundle);
-    if (materials === undefined) continue;
-    if (catalogAgeMs(acquiredAt, materials.snapshot.provenance.publishedAt) === undefined) continue;
-    return materials;
-  }
-  return undefined;
 }
 
 async function persistPrepared(input: {
@@ -704,20 +311,6 @@ async function persistPrepared(input: {
     digest: input.prepared.record.digest,
     bytes: input.prepared.bytes,
   });
-  if (input.prepared.record.kind === "published") {
-    const retained = await input.store.getRetainedRevision(input.prepared.record.revision);
-    if (retained === undefined) {
-      throw new CatalogReleasePinError("integrity", "published pin is missing its retained bundle");
-    }
-    await input.store.putBytes({
-      digest: input.prepared.record.publicationRecordDigest,
-      bytes: retained.recordBytes,
-    });
-    await input.store.putBytes({
-      digest: input.prepared.record.productionReceiptDigest,
-      bytes: retained.receiptBytes,
-    });
-  }
   const sealed = jsonBytes(input.prepared.record);
   const created = await input.store.createGroup({
     releaseGroupId: input.prepared.record.releaseGroupId,
@@ -728,10 +321,7 @@ async function persistPrepared(input: {
   if (winner === undefined) {
     throw new CatalogReleasePinError("unrecoverable", "existing release group is unrecoverable");
   }
-  const hydrated =
-    winner.kind === "published"
-      ? await hydratePublished(winner, input.store)
-      : await hydrateSeed(winner, input.seed, input.store);
+  const hydrated = await hydrateSeed(winner, input.seed, input.store);
   if (hydrated === undefined) {
     throw new CatalogReleasePinError("unrecoverable", "existing release group is unrecoverable");
   }
@@ -771,35 +361,11 @@ export async function prepareReleaseGroup(
     throw new CatalogReleasePinError("unrecoverable", "existing release group is unrecoverable");
   }
   const acquiredAt = requireAcquisitionTime(input.acquisitionTime);
-  const fetched = await assessFetchedCatalog({ store: input.store, fetch: input.fetch });
-  let prepared: PreparedRelease;
-  if (
-    fetched !== undefined &&
-    catalogAgeMs(acquiredAt, fetched.snapshot.provenance.publishedAt) !== undefined
-  ) {
-    prepared = await sealPublished({
-      releaseGroupId,
-      acquisition: "production-fetch",
-      acquiredAt,
-      materials: fetched,
-    });
-  } else {
-    const retained = await highestValidRetained(input.store, acquiredAt);
-    if (retained !== undefined) {
-      prepared = await sealPublished({
-        releaseGroupId,
-        acquisition: "retained-production",
-        acquiredAt,
-        materials: retained,
-      });
-    } else {
-      const seed = acceptedSeedSnapshot(input.seed);
-      if (seed === undefined) {
-        throw new CatalogReleasePinError("validation", "committed seed catalog is not usable");
-      }
-      prepared = await sealSeed({ releaseGroupId, acquiredAt, snapshot: seed });
-    }
+  const seed = acceptedSeedSnapshot(input.seed);
+  if (seed === undefined) {
+    throw new CatalogReleasePinError("validation", "committed seed catalog is not usable");
   }
+  const prepared = await sealSeed({ releaseGroupId, acquiredAt, snapshot: seed });
   return persistPrepared({ store: input.store, prepared, seed: input.seed });
 }
 
@@ -819,58 +385,6 @@ export async function readReleaseGroup(input: ReadReleaseGroupInput): Promise<Pr
   return resolved.prepared;
 }
 
-export async function retainProductionCatalog(input: RetainProductionCatalogInput): Promise<void> {
-  const recordParsed = ModelCatalogPublicationRecordSchema.safeParse(input.record);
-  const receiptParsed = ModelCatalogDeploymentReceiptSchema.safeParse(input.receipt);
-  if (!recordParsed.success || !receiptParsed.success) {
-    throw new CatalogReleasePinError("validation", "retained production artifacts are invalid");
-  }
-  const record = recordParsed.data;
-  const receipt = receiptParsed.data;
-  if (record.catalog.provenance.kind !== "published") {
-    throw new CatalogReleasePinError("validation", "retained catalog must be published");
-  }
-  const snapshot = acceptedPublishedSnapshot(record.catalog);
-  if (snapshot === undefined) {
-    throw new CatalogReleasePinError("validation", "retained catalog is not admissible");
-  }
-  const catalogBytes = jsonBytes(snapshot);
-  if (catalogBytes.byteLength > MODEL_CATALOG_MAX_BYTES) {
-    throw new CatalogReleasePinError("validation", "retained catalog exceeds the size limit");
-  }
-  const catalogDigest = await digestOf(catalogBytes);
-  if (catalogDigest !== record.catalogDigest) {
-    throw new CatalogReleasePinError("integrity", "publication record digest does not match catalog");
-  }
-  if (!publicationRecordMatches(record, snapshot, catalogDigest)) {
-    throw new CatalogReleasePinError("validation", "publication record does not match catalog");
-  }
-  if (!productionReceiptMatches(receipt, snapshot, catalogDigest)) {
-    throw new CatalogReleasePinError("validation", "production receipt does not match catalog");
-  }
-  const recordBytes = jsonBytes(record);
-  const receiptBytes = jsonBytes(receipt);
-  const bundle: RetainedProductionBundle = {
-    revision: snapshot.revision,
-    catalogDigest,
-    publicationRecordDigest: await digestOf(recordBytes),
-    productionReceiptDigest: await digestOf(receiptBytes),
-    catalogBytes,
-    recordBytes,
-    receiptBytes,
-  };
-  await input.store.putBytes({ digest: bundle.catalogDigest, bytes: bundle.catalogBytes });
-  await input.store.putBytes({
-    digest: bundle.publicationRecordDigest,
-    bytes: bundle.recordBytes,
-  });
-  await input.store.putBytes({
-    digest: bundle.productionReceiptDigest,
-    bytes: bundle.receiptBytes,
-  });
-  await input.store.putRetainedRevision(bundle);
-}
-
 function isNotFoundError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
@@ -885,7 +399,9 @@ function parseGeneratedSeedSource(contents: string) {
   }
   try {
     return ModelCatalogSnapshotSchema.parse(
-      JSON.parse(contents.slice(GENERATED_SEED_PREFIX.length, contents.length - GENERATED_SEED_SUFFIX.length)),
+      JSON.parse(
+        contents.slice(GENERATED_SEED_PREFIX.length, contents.length - GENERATED_SEED_SUFFIX.length),
+      ),
     );
   } catch {
     return undefined;
@@ -899,7 +415,10 @@ async function verifyMaterializedSeed(
   const contents = await readFile(path, "utf8");
   const snapshot = parseGeneratedSeedSource(contents);
   if (snapshot === undefined) {
-    throw new CatalogReleasePinError("integrity", "materialized seed did not parse as a catalog snapshot");
+    throw new CatalogReleasePinError(
+      "integrity",
+      "materialized seed did not parse as a catalog snapshot",
+    );
   }
   const digest = await digestOf(jsonBytes(snapshot));
   if (digest !== prepared.record.digest || snapshot.revision !== prepared.record.revision) {
@@ -938,7 +457,10 @@ export async function materializeReleaseCatalog(
     const parsed = parseGeneratedSeedSource(existing);
     if (parsed !== undefined) {
       const digest = await digestOf(jsonBytes(parsed));
-      if (digest === input.prepared.record.digest && parsed.revision === input.prepared.record.revision) {
+      if (
+        digest === input.prepared.record.digest &&
+        parsed.revision === input.prepared.record.revision
+      ) {
         return verifyMaterializedSeed(path, input.prepared);
       }
     }

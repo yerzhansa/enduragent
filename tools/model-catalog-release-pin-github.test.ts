@@ -2,30 +2,13 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { jsonBytes, sha256 } from "./model-catalog-bytes.js";
-import {
-  modelCatalogDeploymentMessage,
-  modelCatalogDeploymentTag,
-} from "./model-catalog-cloudflare.js";
-import {
-  MODEL_CATALOG_PUBLICATION_FORMAT_VERSION,
-  MODEL_CATALOG_PUBLIC_URL,
-} from "./model-catalog-constants.js";
-import {
-  ModelCatalogDeploymentReceiptSchema,
-  buildModelCatalogPublicationRecord,
-  type ModelCatalogPublicationFile,
-} from "./model-catalog-publication.js";
+import type { ModelCatalogPublicationFile } from "./model-catalog-publication.js";
 import {
   CatalogDigestSchema,
   CatalogReleasePinError,
-  PublishedSnapshotSchema,
   prepareReleaseGroup,
   readReleaseGroup,
-  retainProductionCatalog,
-  type ModelCatalogProductionFetch,
-  type ModelCatalogProductionFetchResult,
   type PrepareReleaseGroupInput,
-  type PreparedRelease,
   type ReleasePinStore,
 } from "./model-catalog-release-pin.js";
 import {
@@ -38,15 +21,8 @@ const TOKEN = "fixture-github-token";
 const SOURCE_COMMIT = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ACQUIRED_AT = "1998-09-14T10:00:00.000Z";
 const LATER_ACQUIRED_AT = "1998-09-14T12:00:00.000Z";
-
-function stringList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const items: unknown[] = value;
-  return items.filter((item): item is string => typeof item === "string");
-}
 const SEED_ESTABLISHED_AT = "1998-01-01T00:00:00.000Z";
 const VERIFIED_AT = "1998-09-14T08:00:00.000Z";
-const PUBLISHED_AT_MS = Date.parse("1998-09-14T09:00:00.000Z");
 const COMMITTER = Object.freeze({
   name: "Enduragent Release",
   email: "release@enduragent.example",
@@ -88,8 +64,14 @@ type FakeGitData = {
   trees: Map<string, FakeTreeEntry[]>;
   blobs: Map<string, FakeBlob>;
   requests: FakeRequest[];
-  seedBytesTag(digest: string, bytes: Uint8Array): void;
+  seedBytesTag: (digest: string, bytes: Uint8Array) => void;
 };
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const items: unknown[] = value;
+  return items.filter((item): item is string => typeof item === "string");
+}
 
 function publicationFile(modelId: string): ModelCatalogPublicationFile {
   return {
@@ -153,52 +135,8 @@ async function digestHex(bytes: Uint8Array): Promise<string> {
   return (await sha256(bytes)).hex;
 }
 
-async function publishedFixture(revision: number, modelId: string) {
-  const record = await buildModelCatalogPublicationRecord({
-    publicationFile: publicationFile(modelId),
-    revision,
-    previousRevision: revision - 1,
-    now: PUBLISHED_AT_MS + revision * 1_000,
-  });
-  const bytes = jsonBytes(record.catalog);
-  const etag = `"etag-production-${revision}"`;
-  const receipt = ModelCatalogDeploymentReceiptSchema.parse({
-    formatVersion: MODEL_CATALOG_PUBLICATION_FORMAT_VERSION,
-    target: "production",
-    revision: record.revision,
-    catalogDigest: record.catalogDigest,
-    workerName: "enduragent-model-catalog",
-    versionId: `version-${revision}`,
-    deploymentId: `deployment-${revision}`,
-    liveEtag: etag,
-    verifiedAt: "1998-09-14T08:30:00.000Z",
-    tag: modelCatalogDeploymentTag(record.revision, record.catalogDigest),
-    message: modelCatalogDeploymentMessage(record.revision, record.catalogDigest),
-    uncertaintyRecovery: "none",
-  });
-  return { record, receipt, snapshot: record.catalog, bytes, etag, digest: record.catalogDigest };
-}
-
-function trackingFetch(
-  result:
-    | ModelCatalogProductionFetchResult
-    | (() => ModelCatalogProductionFetchResult | Promise<ModelCatalogProductionFetchResult>),
-) {
-  const urls: string[] = [];
-  const fetch: ModelCatalogProductionFetch = async (url) => {
-    urls.push(url);
-    return typeof result === "function" ? await result() : result;
-  };
-  return { fetch, urls };
-}
-
-function unavailableFetch() {
-  return trackingFetch({ kind: "unavailable" });
-}
-
 function prepareInput(input: {
   readonly store: ReleasePinStore;
-  readonly fetch: ModelCatalogProductionFetch;
   readonly sourceCommit?: string;
   readonly acquisitionTime?: string;
   readonly seed?: unknown;
@@ -206,22 +144,8 @@ function prepareInput(input: {
   return {
     sourceCommit: input.sourceCommit ?? SOURCE_COMMIT,
     store: input.store,
-    fetch: input.fetch,
     acquisitionTime: input.acquisitionTime ?? ACQUIRED_AT,
     seed: input.seed ?? seedSnapshot(),
-  };
-}
-
-function requirePublished(prepared: PreparedRelease) {
-  expect(prepared.record.kind).toBe("published");
-  if (prepared.record.kind !== "published") {
-    throw new Error("expected published pin");
-  }
-  return {
-    record: prepared.record,
-    snapshot: PublishedSnapshotSchema.parse(prepared.snapshot),
-    bytes: prepared.bytes,
-    binding: prepared.binding,
   };
 }
 
@@ -322,18 +246,6 @@ function createFakeGitData(token = TOKEN): FakeGitData {
         url: `${API_PREFIX}git/ref/tags/${name}`,
         object: { type: "tag", sha, url: `${API_PREFIX}git/tags/${sha}` },
       });
-    }
-
-    if (method === "GET" && path === "git/matching-refs/tags/catalog-pin/retained/") {
-      const matches = [...refs.entries()]
-        .filter(([ref]) => ref.startsWith("refs/tags/catalog-pin/retained/"))
-        .map(([ref, sha]) => ({
-          ref,
-          node_id: "ref-node",
-          object: { type: "tag", sha, url: `${API_PREFIX}git/tags/${sha}` },
-        }));
-      record(method, path, 200, body);
-      return jsonResponse(200, matches);
     }
 
     if (method === "GET" && path.startsWith("git/tags/")) {
@@ -584,76 +496,74 @@ function createStore(fake: FakeGitData): ReleasePinStore {
 }
 
 describe("GitHub model catalog release pin store", () => {
-  it("retain then prepare fetches once and readReleaseGroup returns the same digest", async () => {
+  it("prepare then read returns the same seed digest and writes group plus bytes tags", async () => {
     const fake = createFakeGitData();
     const store = createStore(fake);
-    const fixture = await publishedFixture(2, "synthetic-text-tool-image");
-    await retainProductionCatalog({ store, record: fixture.record, receipt: fixture.receipt });
-    const { fetch, urls } = trackingFetch({
-      kind: "response",
-      etag: fixture.etag,
-      bytes: fixture.bytes,
-    });
-    const prepared = requirePublished(await prepareReleaseGroup(prepareInput({ store, fetch })));
+    const seed = seedSnapshot();
+    const prepared = await prepareReleaseGroup(prepareInput({ store, seed }));
     const read = await readReleaseGroup({
       sourceCommit: SOURCE_COMMIT,
       store,
-      seed: seedSnapshot(),
+      seed,
     });
 
-    expect(urls).toEqual([MODEL_CATALOG_PUBLIC_URL]);
-    expect(prepared.record.digest).toBe(fixture.digest);
-    expect(read.record.digest).toBe(prepared.record.digest);
+    expect(prepared.record.kind).toBe("bundled-seed");
+    expect(prepared.record.digest).toBe(await digestHex(jsonBytes(seed)));
     expect(read.record).toEqual(prepared.record);
     expect(fake.refs.has(`refs/tags/catalog-pin/group/${SOURCE_COMMIT}`)).toBe(true);
-    expect(fake.refs.has("refs/tags/catalog-pin/retained/2")).toBe(true);
     expect(
       [...fake.refs.keys()].some((ref) => ref.startsWith("refs/tags/catalog-pin/bytes/")),
     ).toBe(true);
+    expect([...fake.refs.keys()].some((ref) => ref.startsWith("refs/tags/catalog-pin/retained/"))).toBe(
+      false,
+    );
     expect([...fake.tags.values()].every((tag) => tag.object.type === "commit")).toBe(true);
   });
 
-  it("second prepare on the same SHA does not fetch", async () => {
+  it("second prepare on the same SHA returns the first record", async () => {
     const fake = createFakeGitData();
     const store = createStore(fake);
-    const fixture = await publishedFixture(2, "synthetic-text-tool-image");
-    await retainProductionCatalog({ store, record: fixture.record, receipt: fixture.receipt });
-    const { fetch, urls } = trackingFetch({
-      kind: "response",
-      etag: fixture.etag,
-      bytes: fixture.bytes,
-    });
-    const first = await prepareReleaseGroup(prepareInput({ store, fetch }));
+    const first = await prepareReleaseGroup(prepareInput({ store }));
     const second = await prepareReleaseGroup(
-      prepareInput({ store, fetch, acquisitionTime: LATER_ACQUIRED_AT }),
+      prepareInput({ store, acquisitionTime: LATER_ACQUIRED_AT }),
     );
 
-    expect(urls).toHaveLength(1);
     expect(second.record).toEqual(first.record);
     expect(second.record.acquiredAt).toBe(ACQUIRED_AT);
   });
 
   it("two createGroup races: first POST refs wins, second 422 exists and prepare adopts the winner", async () => {
     const fake = createFakeGitData();
-    const store = createStore(fake);
-    const fixture = await publishedFixture(2, "synthetic-text-tool-image");
-    await retainProductionCatalog({ store, record: fixture.record, receipt: fixture.receipt });
-    const urls: string[] = [];
     let started = 0;
     let releaseBoth: () => void = () => undefined;
     const bothStarted = new Promise<void>((resolve) => {
       releaseBoth = resolve;
     });
-    const fetch: ModelCatalogProductionFetch = async (url) => {
-      urls.push(url);
-      started += 1;
-      if (started === 2) releaseBoth();
-      await bothStarted;
-      return { kind: "response", etag: fixture.etag, bytes: fixture.bytes };
+    const inner = fake.fetch;
+    const delayed: typeof fetch = async (url, init) => {
+      const href = hrefOf(url);
+      const method = init?.method ?? "GET";
+      if (
+        method === "POST" &&
+        href === `${API_PREFIX}git/refs` &&
+        typeof init?.body === "string" &&
+        init.body.includes(`catalog-pin/group/${SOURCE_COMMIT}`)
+      ) {
+        started += 1;
+        if (started === 2) releaseBoth();
+        await bothStarted;
+      }
+      return inner(url, init);
     };
+    const store = createGitHubReleasePinStore({
+      repository: REPOSITORY,
+      token: TOKEN,
+      fetch: delayed,
+      committer: COMMITTER,
+    });
     const [left, right] = await Promise.all([
-      prepareReleaseGroup(prepareInput({ store, fetch, acquisitionTime: ACQUIRED_AT })),
-      prepareReleaseGroup(prepareInput({ store, fetch, acquisitionTime: LATER_ACQUIRED_AT })),
+      prepareReleaseGroup(prepareInput({ store, acquisitionTime: ACQUIRED_AT })),
+      prepareReleaseGroup(prepareInput({ store, acquisitionTime: LATER_ACQUIRED_AT })),
     ]);
 
     const groupRefPosts = fake.requests.filter(
@@ -666,13 +576,11 @@ describe("GitHub model catalog release pin store", () => {
         request.body.ref === `refs/tags/catalog-pin/group/${SOURCE_COMMIT}`,
     );
     expect(groupRefPosts.map((request) => request.status).sort()).toEqual([201, 422]);
-    expect(left.record.digest).toBe(fixture.digest);
     expect(right.record.digest).toBe(left.record.digest);
     expect(left.record).toEqual(right.record);
     expect(left.record.acquiredAt === ACQUIRED_AT || left.record.acquiredAt === LATER_ACQUIRED_AT).toBe(
       true,
     );
-    expect(urls).toHaveLength(2);
 
     const other = jsonBytes({ kind: "other-group" });
     const joined = await store.createGroup({ releaseGroupId: SOURCE_COMMIT, bytes: other });
@@ -707,52 +615,6 @@ describe("GitHub model catalog release pin store", () => {
     });
   });
 
-  it("putRetainedRevision conflict on a different bundle; equal bytes are idempotent", async () => {
-    const fake = createFakeGitData();
-    const store = createStore(fake);
-    const first = await publishedFixture(2, "synthetic-text-tool-image");
-    await retainProductionCatalog({ store, record: first.record, receipt: first.receipt });
-    await retainProductionCatalog({ store, record: first.record, receipt: first.receipt });
-    const retained = await store.getRetainedRevision(2);
-    expect(retained?.catalogDigest).toBe(first.digest);
-
-    const second = await publishedFixture(2, "synthetic-conflict");
-    await expect(
-      retainProductionCatalog({ store, record: second.record, receipt: second.receipt }),
-    ).rejects.toMatchObject({ name: "CatalogReleasePinError", code: "conflict" });
-    expect((await store.getRetainedRevision(2))?.catalogDigest).toBe(first.digest);
-    expect(fake.refs.has("refs/tags/catalog-pin/retained/2")).toBe(true);
-  });
-
-  it("outage fetch uses the highest retained production revision stored in git tags", async () => {
-    const fake = createFakeGitData();
-    const store = createStore(fake);
-    const older = await publishedFixture(2, "synthetic-text-tool-image");
-    const newest = await publishedFixture(4, "synthetic-text-tool-image-v4");
-    await retainProductionCatalog({ store, record: older.record, receipt: older.receipt });
-    await retainProductionCatalog({ store, record: newest.record, receipt: newest.receipt });
-    const { fetch, urls } = unavailableFetch();
-    const prepared = requirePublished(
-      await prepareReleaseGroup(
-        prepareInput({ store, fetch, acquisitionTime: LATER_ACQUIRED_AT }),
-      ),
-    );
-
-    expect(urls).toEqual([MODEL_CATALOG_PUBLIC_URL]);
-    expect(prepared.record.acquisition).toBe("retained-production");
-    expect(prepared.record.revision).toBe(4);
-    expect(prepared.record.digest).toBe(newest.digest);
-    expect(prepared.record.digest).not.toBe(older.digest);
-    expect(
-      fake.requests.some(
-        (request) =>
-          request.method === "GET" && request.path === "git/matching-refs/tags/catalog-pin/retained/",
-      ),
-    ).toBe(true);
-    expect(fake.refs.has("refs/tags/catalog-pin/retained/2")).toBe(true);
-    expect(fake.refs.has("refs/tags/catalog-pin/retained/4")).toBe(true);
-  });
-
   it("missing group read throws not-found", async () => {
     const fake = createFakeGitData();
     const store = createStore(fake);
@@ -761,26 +623,20 @@ describe("GitHub model catalog release pin store", () => {
     ).rejects.toMatchObject({ name: "CatalogReleasePinError", code: "not-found" });
   });
 
-  it("corrupt group tag message is unrecoverable for read and prepare, with no fetch replacement", async () => {
+  it("corrupt group tag message is unrecoverable for read and prepare", async () => {
     const fake = createFakeGitData();
     const store = createStore(fake);
     await store.createGroup({
       releaseGroupId: SOURCE_COMMIT,
       bytes: new TextEncoder().encode("{not-json"),
     });
-    const { fetch, urls } = trackingFetch({
-      kind: "response",
-      etag: `"etag-production-2"`,
-      bytes: jsonBytes({ not: "used" }),
-    });
     await expect(
       readReleaseGroup({ sourceCommit: SOURCE_COMMIT, store, seed: seedSnapshot() }),
     ).rejects.toMatchObject({ name: "CatalogReleasePinError", code: "unrecoverable" });
-    await expect(prepareReleaseGroup(prepareInput({ store, fetch }))).rejects.toMatchObject({
+    await expect(prepareReleaseGroup(prepareInput({ store }))).rejects.toMatchObject({
       name: "CatalogReleasePinError",
       code: "unrecoverable",
     });
-    expect(urls).toHaveLength(0);
   });
 
   it("adapter source has no wall-clock helpers and created commits use the injected committer date", async () => {
@@ -788,11 +644,12 @@ describe("GitHub model catalog release pin store", () => {
     expect(ADAPTER_SOURCE).not.toMatch(/\bnew Date\(/);
     expect(ADAPTER_SOURCE).not.toMatch(/\bMath\.random\b/);
     expect(ADAPTER_SOURCE).not.toMatch(/npm-release/);
+    expect(ADAPTER_SOURCE).not.toMatch(/putRetainedRevision/);
+    expect(ADAPTER_SOURCE).not.toMatch(/catalog-pin\/retained/);
 
     const fake = createFakeGitData();
     const store = createStore(fake);
-    const fixture = await publishedFixture(2, "synthetic-text-tool-image");
-    await retainProductionCatalog({ store, record: fixture.record, receipt: fixture.receipt });
+    await prepareReleaseGroup(prepareInput({ store }));
     expect(fake.commits.size).toBeGreaterThan(0);
     for (const commit of fake.commits.values()) {
       expect(commit.committer.date).toBe(COMMITTER.date);
@@ -813,13 +670,7 @@ describe("GitHub model catalog release pin store", () => {
 
   it("public ReleasePinStore and createGitHubReleasePinStore types do not contain git ref strings", () => {
     expectTypeOf<keyof ReleasePinStore>().toEqualTypeOf<
-      | "createGroup"
-      | "readGroup"
-      | "putBytes"
-      | "getBytes"
-      | "putRetainedRevision"
-      | "getRetainedRevision"
-      | "listRetainedRevisions"
+      "createGroup" | "readGroup" | "putBytes" | "getBytes"
     >();
     expectTypeOf<keyof GitHubReleasePinStoreInput>().toEqualTypeOf<
       "repository" | "token" | "fetch" | "committer"

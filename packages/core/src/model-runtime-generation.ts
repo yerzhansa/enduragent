@@ -171,6 +171,13 @@ function uniqueProfiles(
   return [...unique.values()];
 }
 
+export function persistResolvedModelProfiles(
+  storageDirectory: string,
+  generation: Pick<ModelRuntimeGeneration, "chat" | "compact" | "flush">,
+): void {
+  persistProfiles(storageDirectory, [generation.chat, generation.compact, generation.flush]);
+}
+
 function persistProfiles(
   storageDirectory: string,
   profiles: readonly ResolvedModelProfile[],
@@ -219,7 +226,6 @@ export function resolveModelRuntimeGeneration(
     model: input.flushModel,
     persisted,
   });
-  persistProfiles(input.profileStorageDirectory, [chatBase, compactBase, flushBase]);
   const chatOverride = input.chatContextWindowTokensOverride;
   const generation = {
     catalogRevision: input.catalog.snapshot.revision,
