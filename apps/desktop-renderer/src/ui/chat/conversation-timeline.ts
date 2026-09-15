@@ -19,7 +19,7 @@ export interface PendingNavigation {
 export interface ConversationRow<Value> {
   readonly key: string;
   readonly value: Value;
-  readonly occurredAtMs?: number;
+  readonly occurredAtMs: number | null;
 }
 
 export interface ConversationProjectionRow<Value> {
@@ -61,10 +61,13 @@ export function orderConversationRows<Durable, Projection>(input: {
   const fresh = input.projections
     .map((entry) => ({ ...entry, key: conversationProjectionKey(entry.projection) }))
     .filter((entry) => !present.has(entry.key));
-  const timed = fresh
-    .filter((entry) => entry.occurredAtMs !== null)
-    .sort((left, right) => left.occurredAtMs! - right.occurredAtMs!);
-  const live = fresh.filter((entry) => entry.occurredAtMs === null);
+  const timed: { readonly entry: (typeof fresh)[number]; readonly occurredAtMs: number }[] = [];
+  const live: (typeof fresh)[number][] = [];
+  for (const entry of fresh) {
+    if (entry.occurredAtMs === null) live.push(entry);
+    else timed.push({ entry, occurredAtMs: entry.occurredAtMs });
+  }
+  timed.sort((left, right) => left.occurredAtMs - right.occurredAtMs);
   const rows: OrderedConversationRow<Durable, Projection>[] = [];
   const pushProjection = (entry: (typeof fresh)[number]): void => {
     rows.push({
@@ -77,14 +80,18 @@ export function orderConversationRows<Durable, Projection>(input: {
   let next = 0;
   let reached = Number.NEGATIVE_INFINITY;
   for (const row of input.durable) {
-    reached = Math.max(reached, row.occurredAtMs ?? reached);
-    while (next < timed.length && timed[next]!.occurredAtMs! < reached) {
-      pushProjection(timed[next]!);
+    if (row.occurredAtMs !== null) reached = Math.max(reached, row.occurredAtMs);
+    let pending = timed[next];
+    while (pending !== undefined && pending.occurredAtMs < reached) {
+      pushProjection(pending.entry);
       next += 1;
+      pending = timed[next];
     }
     rows.push({ kind: "durable", key: row.key, value: row.value });
   }
-  for (const entry of [...timed.slice(next), ...live]) pushProjection(entry);
+  for (const entry of [...timed.slice(next).map((item) => item.entry), ...live]) {
+    pushProjection(entry);
+  }
   return rows;
 }
 

@@ -39,6 +39,7 @@ const change: PlanChangeModel = {
 
 const todayChoice: PlanTodayChoice = {
   date: "1998-09-07",
+  dayStartMs: 905_126_400_000,
   eligible: [
     { workoutId: "workout-first", name: "Easy spin", minutes: 30, kind: "easy" },
     { workoutId: "workout-second", name: "Endurance ride", minutes: 60, kind: "endurance" },

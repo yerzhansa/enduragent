@@ -194,7 +194,7 @@ export type LegacyPlanSummary = z.infer<typeof LegacyPlanSummarySchema>;
 export const PlanTodayChoiceSchema = z
   .object({
     date: z.iso.date(),
-    dayStartMs: z.number().int().optional(),
+    dayStartMs: z.number().int(),
     eligible: z.array(
       z
         .object({

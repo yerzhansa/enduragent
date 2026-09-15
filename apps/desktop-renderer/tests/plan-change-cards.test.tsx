@@ -325,6 +325,7 @@ describe("Plan Change cards", () => {
   it("shows host-eligible Workouts and previews the selected row", async () => {
     setTodayChoice({
       date: "1998-09-07",
+      dayStartMs: 905_126_400_000,
       eligible: [
         { workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" },
         { workoutId: "steady", name: "Steady ride", minutes: 45, kind: "endurance" },
@@ -360,6 +361,7 @@ describe("Plan Change cards", () => {
   it("shows the Plan-level blocker when no Workout is eligible", () => {
     setTodayChoice({
       date: "1998-09-07",
+      dayStartMs: 905_126_400_000,
       eligible: [],
       blocked: [],
       reason: "Today already belongs to a dated Workout.",
@@ -378,6 +380,7 @@ describe("Plan Change cards", () => {
   it.each(["busy", "paused", "disconnected"])("disables daily review while %s", (state) => {
     setTodayChoice({
       date: "1998-09-07",
+      dayStartMs: 905_126_400_000,
       eligible: [{ workoutId: "easy", name: "Easy ride", minutes: 30, kind: "endurance" }],
       blocked: [],
       reason: null,

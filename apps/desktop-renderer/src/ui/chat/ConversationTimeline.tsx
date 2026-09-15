@@ -38,20 +38,18 @@ function planCreationDockVisible(input: {
   );
 }
 
-function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | undefined {
+function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | null {
   switch (item.kind) {
     case "message":
-      return item.message.occurredAtMs;
+      return item.message.occurredAtMs ?? null;
     case "choice":
-      return item.choice.occurredAtMs;
+      return item.choice.occurredAtMs ?? null;
     case "planning-request":
       return item.delivery.createdAtMs;
     case "plan-creation":
-      return item.model === null
-        ? undefined
-        : (conversationUlidTime(item.model.creationId) ?? undefined);
+      return item.model === null ? null : conversationUlidTime(item.model.creationId);
     case "plan-creation-discard":
-      return undefined;
+      return null;
     default: {
       const exhaustive: never = item;
       return exhaustive;
@@ -62,23 +60,21 @@ function transcriptItemOccurredAtMs(item: ChatTranscriptItemView): number | unde
 function restoredCardProjection(
   item: ChatTranscriptItemView,
 ): ConversationProjectionRow<ReactElement> | null {
-  const occurredAtMs = transcriptItemOccurredAtMs(item);
-  if (occurredAtMs === undefined) return null;
   if (item.kind === "planning-request") {
     return {
       projection: { kind: "planning-request", id: item.delivery.requestId },
       value: <TranscriptItem item={item} bufferedStreaming />,
-      occurredAtMs,
+      occurredAtMs: item.delivery.createdAtMs,
     };
   }
-  if (item.kind === "plan-creation" && item.model !== null) {
-    return {
-      projection: { kind: "plan-creation", id: item.model.creationId },
-      value: <TranscriptItem item={item} bufferedStreaming />,
-      occurredAtMs,
-    };
-  }
-  return null;
+  if (item.kind !== "plan-creation" || item.model === null) return null;
+  const occurredAtMs = conversationUlidTime(item.model.creationId);
+  if (occurredAtMs === null) return null;
+  return {
+    projection: { kind: "plan-creation", id: item.model.creationId },
+    value: <TranscriptItem item={item} bufferedStreaming />,
+    occurredAtMs,
+  };
 }
 
 export function ConversationTimeline(props: {
@@ -130,7 +126,8 @@ export function ConversationTimeline(props: {
       projections.push({
         projection: { kind: "plan-change-current", id: library.active.planId },
         value: <CurrentPlanChangeCards />,
-        occurredAtMs: library.active.todayChoice?.dayStartMs ?? null,
+        occurredAtMs:
+          library.active.todayChoice === null ? null : library.active.todayChoice.dayStartMs,
       });
     }
     for (const change of library.changes) {

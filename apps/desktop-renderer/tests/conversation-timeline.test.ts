@@ -22,7 +22,11 @@ function ordered(input: {
   }[];
 }): readonly string[] {
   return orderConversationRows({
-    durable: input.durable.map(([key, occurredAtMs]) => ({ key, value: key, occurredAtMs })),
+    durable: input.durable.map(([key, occurredAtMs]) => ({
+      key,
+      value: key,
+      occurredAtMs: occurredAtMs ?? null,
+    })),
     projections: input.projections,
   }).map((row) => row.value);
 }

@@ -249,6 +249,19 @@ export function bootRenderer(): Disposer {
   const disposeSetupReadiness = store.subscribe((state, previousState) => {
     if (!setupReady(previousState) && setupReady(state)) void chatController.resume();
   });
+  function openPlanChangeInChat(): void {
+    chatController.requestPlanLibraryFocus("change");
+    chatController.pausePlanCreation();
+    const state = store.getState();
+    const planId = state.planLibrary.value?.active?.planId ?? null;
+    state.setPlanChange({
+      ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
+      open: true,
+      textRouting: true,
+      planId,
+    });
+    store.getState().setActiveView("chat");
+  }
   store.getState().bindPlanLibraryActions({
     closePlan: (input) => closePlan(clients, input),
     readPlanHistory: (planId) => readPlanHistory(clients, planId),
@@ -284,19 +297,6 @@ export function bootRenderer(): Disposer {
       chatController.openPlanChangeEditor();
     },
   });
-  function openPlanChangeInChat(): void {
-    chatController.requestPlanLibraryFocus("change");
-    chatController.pausePlanCreation();
-    const state = store.getState();
-    const planId = state.planLibrary.value?.active?.planId ?? null;
-    state.setPlanChange({
-      ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
-      open: true,
-      textRouting: true,
-      planId,
-    });
-    store.getState().setActiveView("chat");
-  }
   const disposePlanLibraryRefresh = subscribePlanLibraryRefresh(planController);
   let pendingChangePauseRequested = false;
   const disposePendingChangeRestore = store.subscribe((state, previousState) => {
