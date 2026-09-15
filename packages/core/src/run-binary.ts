@@ -499,7 +499,6 @@ async function runBinaryWithLanguage(
     catalog: modelCatalog.current(),
   });
 
-  // Init order: Memory (above) → startup hook → Reference bootstrap → Telegram.
   // Reference's internal init sequence is pinned inside `bootstrapReference`
   // per ADR-0011 (two-phase scheduler — no timer until first runSync resolves).
   await runStartupHook(engine.getMemory(), hooks.onStartup);
