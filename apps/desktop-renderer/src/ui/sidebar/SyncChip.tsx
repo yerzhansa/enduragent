@@ -19,6 +19,7 @@ import { InfoTip } from "../onboarding/InfoTip";
 import {
   focusTrainingRestrictionIfPresent,
   requestTrainingRestrictionFocus,
+  STRAVA_HELP_HREF,
   STRAVA_RESTRICTION_CARD_ID,
 } from "../settings/restriction-focus";
 
@@ -174,11 +175,26 @@ export function SyncChip(): ReactElement {
                 </span>
               </>
             }
-            body={say("sidebar.sync.restriction.tooltipBody", {
-              source: "Strava",
-              provider: "intervals.icu",
-              product: "Enduragent",
-            })}
+            body={
+              <div className="grid gap-1.5">
+                <p className="m-0">
+                  {say("sidebar.sync.restriction.tooltipBody", {
+                    source: "Strava",
+                  })}
+                </p>
+                <a
+                  className="font-medium text-brand underline-offset-2 hover:underline"
+                  href={STRAVA_HELP_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  {say("settings.athlete.restriction.helpAction")}
+                </a>
+              </div>
+            }
           />
         )}
         {action === null ? null : (

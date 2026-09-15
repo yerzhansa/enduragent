@@ -80,8 +80,9 @@
       "refreshing": "正在重新連線並檢查目前的訓練帳號…",
       "reload": "重新連線並重新載入",
       "restriction": {
-        "cause": "由於 {{strava}} API 的限制，{{intervalsLower}} 無法與 {{product}} 分享來自 {{strava}} 的活動。API 金鑰沒有問題。",
+        "cause": "{{strava}} 不允許第三方 AI 工具使用其 API 資料。你的 API 金鑰沒有問題。",
         "future": "將記錄來源直接連結至 {{intervalsLower}}，並保留 {{strava}} 連線。此方式免費，適用於日後的騎乘。",
+        "helpAction": "如何找回這些騎乘",
         "past": "在 {{intervalsLower}} 設定中使用「匯入所有 {{strava}} 資料」。此方式適用於過往的騎乘，需要訂閱 {{intervalsLower}} 支持者方案。",
         "title_other": "{{total}} 筆活動中有 {{restricted}} 筆被 {{strava}} 隱藏"
       },
@@ -820,12 +821,12 @@
         "external": "{{message}}",
         "indeterminate": "連線已中斷。同步可能仍在完成中。{{product}} 不會自動重試。",
         "noChange": "本機訓練資料處理完成。",
-        "noChangeRestricted_other": "本機訓練資料處理完成。由於 {{source}} API 的限制，{{provider}} 無法分享 {{formattedCount}} 筆活動，因此未納入這些活動。",
+        "noChangeRestricted_other": "本機訓練資料處理已完成。{{source}} 不允許第三方 AI 工具使用其 API 資料，因此 {{formattedCount}} 筆活動未納入。",
         "operationFailure": "無法完成訓練資料檢查。既有資料仍可使用。",
         "partial": "訓練資料處理已部分完成。請重試以完成處理。",
         "protocol": "{{product}} 無法驗證同步結果。請結束並重新開啟 {{product}}。",
         "published": "訓練資料檢查完成。",
-        "publishedRestricted_other": "訓練資料檢查完成。由於 {{source}} API 的限制，{{provider}} 無法分享 {{formattedCount}} 筆活動，因此未納入這些活動。",
+        "publishedRestricted_other": "訓練資料檢查完成。{{source}} 不允許第三方 AI 工具使用其 API 資料，因此 {{formattedCount}} 筆活動未納入。",
         "queued": "同步已排入佇列。",
         "running": "正在同步訓練資料…"
       },
@@ -833,7 +834,7 @@
         "fixAction": "· 解決方式",
         "fixLabel": "{{restrictionLabel}}。解決方式",
         "label_other": "{{formattedCount}} 筆被 {{source}} 隱藏",
-        "tooltipBody": "由於 {{source}} API 的限制，{{provider}} 無法與 {{product}} 分享這些活動。",
+        "tooltipBody": "{{source}} 不允許第三方 AI 工具使用其 API 資料。",
         "tooltipLabel": "為什麼活動被隱藏？",
         "tooltipLead_other": "{{formattedCount}} 筆活動被 {{source}} 隱藏"
       },
@@ -2753,7 +2754,7 @@
       "lastSync": "上次同步：{{timestamp}}",
       "minutesAgo": "{{minutes}} 分鐘前",
       "refreshed": "已重新整理：{{sections}}",
-      "restricted_other": "共 {{total}} 項活動，其中 {{number}} 項被 {{source}} 隱藏，因此未納入。由於 {{source}} 的 API 限制，{{service}} 無法分享來自 {{source}} 的活動。對於後續騎乘，請將記錄活動的資料來源直接連線至 {{service}}，同時保持 {{source}} 連線。對於過往騎乘，請在 {{service}} 設定中使用 {{importAction}}；此操作需要訂閱 {{service}} 支持者方案。",
+      "restricted_other": "{{total}} 筆活動中有 {{number}} 筆被 {{source}} 隱藏，因此未納入。{{source}} 不允許第三方 AI 工具使用其 API 資料。往後的騎乘，請把記錄來源直接連到 {{service}}，並保持 {{source}} 已連線。過去的騎乘，請在 {{service}} 設定中使用 {{importAction}}；這需要 {{service}} 支持者訂閱。",
       "running": "同步已在進行中，約 {{minutes}} 分鐘內完成，屆時資料將更新。",
       "secondsAgo": "{{seconds}} 秒前",
       "unchanged": "已是最新，自上次同步以來沒有變更。",

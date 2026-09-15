@@ -80,8 +80,9 @@
       "refreshing": "다시 연결하여 현재 훈련 계정 확인 중…",
       "reload": "다시 연결 및 새로고침",
       "restriction": {
-        "cause": "{{strava}} API 제한으로 인해 {{intervalsLower}}에서 {{strava}}의 활동을 {{product}}에 공유할 수 없습니다. API 키에는 문제가 없습니다.",
+        "cause": "{{strava}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않습니다. API 키는 정상입니다.",
         "future": "기록 기기를 {{intervalsLower}}에 직접 연결하고 {{strava}} 연결도 유지하세요. 무료이며 향후 라이딩에 적용됩니다.",
+        "helpAction": "해당 라이드를 가져오는 방법",
         "past": "{{intervalsLower}} 설정에서 모든 {{strava}} 데이터 가져오기를 사용하세요. 지난 라이딩에 적용되며 {{intervalsLower}} 후원자 구독이 필요합니다.",
         "title_other": "전체 활동 {{total}}개 중 {{restricted}}개가 {{strava}}에 의해 숨겨져 있습니다"
       },
@@ -820,12 +821,12 @@
         "external": "{{message}}",
         "indeterminate": "연결이 중단되었습니다. 동기화가 아직 마무리 중일 수 있습니다. {{product}}에서 자동으로 다시 시도하지 않습니다.",
         "noChange": "로컬 훈련 데이터 처리가 완료되었습니다.",
-        "noChangeRestricted_other": "로컬 훈련 데이터 처리가 완료되었습니다. {{source}} API 제한으로 인해 {{provider}}에서 활동 {{formattedCount}}개를 공유할 수 없어 해당 활동은 포함되지 않았습니다.",
+        "noChangeRestricted_other": "이 컴퓨터에서 훈련 데이터 처리가 완료되었습니다. {{source}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않아 활동 {{formattedCount}}개는 포함되지 않았습니다.",
         "operationFailure": "훈련 데이터 확인을 완료하지 못했습니다. 기존 데이터는 계속 사용할 수 있습니다.",
         "partial": "훈련 데이터 처리가 일부 완료되었습니다. 다시 시도하여 완료하세요.",
         "protocol": "{{product}}에서 동기화 결과를 확인하지 못했습니다. {{product}}을(를) 종료하고 다시 여세요.",
         "published": "훈련 데이터 확인이 완료되었습니다.",
-        "publishedRestricted_other": "훈련 데이터 확인이 완료되었습니다. {{source}} API 제한으로 인해 {{provider}}에서 활동 {{formattedCount}}개를 공유할 수 없어 해당 활동은 포함되지 않았습니다.",
+        "publishedRestricted_other": "훈련 데이터 확인이 완료되었습니다. {{source}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않아 활동 {{formattedCount}}개는 포함되지 않았습니다.",
         "queued": "동기화가 대기열에 추가되었습니다.",
         "running": "훈련 데이터 동기화 중…"
       },
@@ -833,7 +834,7 @@
         "fixAction": "· 해결 방법",
         "fixLabel": "{{restrictionLabel}}. 해결 방법",
         "label_other": "{{source}}에 의해 {{formattedCount}}개 숨겨짐",
-        "tooltipBody": "{{source}} API 제한으로 인해 {{provider}}에서 이 활동들을 {{product}}에 공유할 수 없습니다.",
+        "tooltipBody": "{{source}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않습니다.",
         "tooltipLabel": "활동이 숨겨진 이유는 무엇인가요?",
         "tooltipLead_other": "{{source}}에 의해 활동 {{formattedCount}}개 숨겨짐"
       },
@@ -2753,7 +2754,7 @@
       "lastSync": "마지막 동기화: {{timestamp}}",
       "minutesAgo": "{{minutes}}분 전",
       "refreshed": "새로고침됨: {{sections}}",
-      "restricted_other": "전체 활동 {{total}}개 중 {{number}}개가 {{source}}에 의해 숨겨져 있어 포함되지 않았습니다. {{source}} API 제한으로 인해 {{service}}에서 {{source}}의 활동을 공유할 수 없습니다. 향후 라이딩을 위해 기록 기기를 {{service}}에 직접 연결하고 {{source}} 연결도 유지하세요. 지난 라이딩은 {{service}} 설정에서 {{importAction}} 기능을 사용하세요. {{service}} 후원자 구독이 필요합니다.",
+      "restricted_other": "전체 {{total}}개 활동 중 {{number}}개는 {{source}}에 의해 숨겨져 포함되지 않습니다. {{source}}는 제3자 AI 도구가 API 데이터를 쓰는 것을 허용하지 않습니다. 앞으로의 라이드는 기록 원본을 {{service}}에 직접 연결하고 {{source}} 연결도 유지하세요. 지난 라이드는 {{service}} 설정의 {{importAction}}을 사용하세요. {{service}} 서포터 구독이 필요합니다.",
       "running": "이미 동기화 중입니다. 약 {{minutes}}분 이내에 완료되면 데이터가 최신 상태로 바뀝니다.",
       "secondsAgo": "{{seconds}}초 전",
       "unchanged": "이미 최신 상태입니다. 마지막 동기화 이후 변경 사항이 없습니다.",

@@ -80,8 +80,9 @@
       "refreshing": "正在重新连接并检查当前训练账号…",
       "reload": "重新连接并加载",
       "restriction": {
-        "cause": "由于 {{strava}} 的 API 限制，{{intervalsLower}} 无法向 {{product}} 分享来自 {{strava}} 的活动。API 密钥没有问题。",
+        "cause": "{{strava}} 不允许第三方 AI 工具使用其 API 数据。你的 API 密钥没有问题。",
         "future": "将记录活动的数据源直接连接至 {{intervalsLower}}，同时保持 {{strava}} 连接。此方法免费，适用于后续骑行。",
+        "helpAction": "如何找回这些骑行",
         "past": "在 {{intervalsLower}} 设置中使用“导入所有 {{strava}} 数据”。此方法适用于以往骑行，需要订阅 {{intervalsLower}} 支持者方案。",
         "title_other": "共 {{total}} 项活动，其中 {{restricted}} 项被 {{strava}} 隐藏"
       },
@@ -820,12 +821,12 @@
         "external": "{{message}}",
         "indeterminate": "连接中断。同步可能仍在完成中。{{product}} 不会自动重试。",
         "noChange": "本地训练数据处理已完成。",
-        "noChangeRestricted_other": "本地训练数据处理已完成。由于 {{source}} 的 API 限制，{{provider}} 无法分享 {{formattedCount}} 项活动，因此这些活动未包含在内。",
+        "noChangeRestricted_other": "本地训练数据处理已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "operationFailure": "无法完成训练数据检查。现有数据仍可使用。",
         "partial": "训练数据已完成部分处理。请重试以完成。",
         "protocol": "{{product}} 无法验证同步结果。请退出并重新打开 {{product}}。",
         "published": "训练数据检查已完成。",
-        "publishedRestricted_other": "训练数据检查已完成。由于 {{source}} 的 API 限制，{{provider}} 无法分享 {{formattedCount}} 项活动，因此这些活动未包含在内。",
+        "publishedRestricted_other": "训练数据检查已完成。{{source}} 不允许第三方 AI 工具使用其 API 数据，因此 {{formattedCount}} 项活动未包含在内。",
         "queued": "同步已加入队列。",
         "running": "正在同步训练数据…"
       },
@@ -833,7 +834,7 @@
         "fixAction": "· 如何解决",
         "fixLabel": "{{restrictionLabel}}。如何解决",
         "label_other": "{{formattedCount}} 项被 {{source}} 隐藏",
-        "tooltipBody": "由于 {{source}} 的 API 限制，{{provider}} 无法向 {{product}} 分享这些活动。",
+        "tooltipBody": "{{source}} 不允许第三方 AI 工具使用其 API 数据。",
         "tooltipLabel": "为什么活动被隐藏？",
         "tooltipLead_other": "{{formattedCount}} 项活动被 {{source}} 隐藏"
       },
@@ -2753,7 +2754,7 @@
       "lastSync": "上次同步：{{timestamp}}",
       "minutesAgo": "{{minutes}} 分钟前",
       "refreshed": "已刷新：{{sections}}",
-      "restricted_other": "共 {{total}} 项活动，其中 {{number}} 项被 {{source}} 隐藏，因此未纳入。由于 {{source}} 的 API 限制，{{service}} 无法分享来自 {{source}} 的活动。对于后续骑行，请将记录活动的数据源直接连接至 {{service}}，同时保持 {{source}} 连接。对于以往骑行，请在 {{service}} 设置中使用 {{importAction}}；此操作需要订阅 {{service}} 支持者方案。",
+      "restricted_other": "{{total}} 项活动中有 {{number}} 项被 {{source}} 隐藏，因此未包含在内。{{source}} 不允许第三方 AI 工具使用其 API 数据。以后的骑行，请把记录来源直接连接到 {{service}}，并保持 {{source}} 已连接。以往的骑行，请在 {{service}} 设置中使用 {{importAction}}；这需要 {{service}} 支持者订阅。",
       "running": "同步已在进行中，约 {{minutes}} 分钟内完成，届时数据将更新。",
       "secondsAgo": "{{seconds}} 秒前",
       "unchanged": "已是最新，自上次同步以来没有变化。",

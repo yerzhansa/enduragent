@@ -20,21 +20,20 @@ export const SYNC_PROTOCOL_COPY =
 export const STRAVA_RESTRICTION_DESKTOP_COPY = Object.freeze({
   syncMessage(count: number): string {
     return count === 1
-      ? "A Strava API restriction prevents intervals.icu from sharing one activity, so it isn’t included."
-      : `A Strava API restriction prevents intervals.icu from sharing ${count} activities, so they aren’t included.`;
+      ? "Strava does not allow third-party AI tools to use data from its API, so one activity isn’t included."
+      : `Strava does not allow third-party AI tools to use data from its API, so ${count} activities aren’t included.`;
   },
   tooltipLead(count: number): string {
     return count === 1 ? "1 activity hidden by Strava" : `${count} activities hidden by Strava`;
   },
-  tooltipBody:
-    "A Strava API restriction prevents intervals.icu from sharing these activities with Enduragent.",
+  tooltipBody: "Strava does not allow third-party AI tools to use data from its API.",
   cardTitle(count: number, total: number): string {
     return count === 1 && total === 1
       ? "1 of 1 activity is hidden by Strava"
       : `${count} of ${total} activities are hidden by Strava`;
   },
   cause:
-    "A Strava API restriction prevents intervals.icu from sharing activities that came from Strava with Enduragent. Your API key is fine.",
+    "Strava does not allow third-party AI tools to use data from its API. Your API key is fine.",
   future:
     "Connect your recording source directly to intervals.icu and keep Strava connected. This is free and covers future rides.",
   past: "Use Import All Strava Data in intervals.icu settings. This covers past rides and requires an intervals.icu supporter subscription.",
