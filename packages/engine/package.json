@@ -35,7 +35,7 @@
     "@enduragent/i18n": "workspace:*",
     "@enduragent/kernel": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
-    "@openrouter/ai-sdk-provider": "^2.9.1",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "ai": "^6.0.158",
     "intervals-icu-api": "^0.4.0",
     "zod": "^4.5.4"
