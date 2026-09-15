@@ -26,7 +26,7 @@
     "@enduragent/kernel": "workspace:*",
     "intervals-icu-api": "^0.4.0",
     "ai": "^6.0.158",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
