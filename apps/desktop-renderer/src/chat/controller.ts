@@ -40,6 +40,7 @@ import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
 import {
   EMPTY_PLAN_CHANGE_SURFACE,
   PLAN_CHANGES_PAUSED_NOTICE,
+  planChangePendingCheck,
   type PlanChangeSurfaceState,
 } from "../state/chat-slice";
 import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
@@ -1813,9 +1814,7 @@ export function createChatController(input: {
     );
   };
   const pendingChangeCheck = () =>
-    readChange().pendingCheck === undefined
-      ? input.readPlanLibrary?.()?.pendingChangeCheck
-      : readChange().pendingCheck;
+    planChangePendingCheck(readChange(), input.readPlanLibrary?.() ?? null);
   const changesPaused = () => input.readPlanLibrary?.()?.changesPaused != null;
   const changeFocus = (target: "editor" | "preview" | "change" | "check") => ({
     target,
@@ -2365,11 +2364,7 @@ export function createChatController(input: {
         return Promise.resolve(false);
       }
       const changeSurface = readChange();
-      const pendingChangeCheck =
-        changeSurface.pendingCheck === undefined
-          ? input.readPlanLibrary?.()?.pendingChangeCheck
-          : changeSurface.pendingCheck;
-      if (pendingChangeCheck != null) return false;
+      if (pendingChangeCheck() !== null) return false;
       if (routesTextToPlanChange() && attachmentIds.length === 0) {
         if (changeSurface.busy) return false;
         if (changesPaused()) {

@@ -28,7 +28,7 @@ import { createTelegramSettingsAdapter } from "./state/adapters/telegram";
 import { createManualSyncViewAdapter } from "./state/adapters/sync";
 import { createTrainingViewAdapter } from "./state/adapters/training";
 import { createUpdateSettingsAdapter } from "./state/adapters/update";
-import { EMPTY_PLAN_CHANGE_SURFACE } from "./state/chat-slice";
+import { EMPTY_PLAN_CHANGE_SURFACE, planChangePendingCheck } from "./state/chat-slice";
 import { credentialDrafts } from "./state/credential-drafts";
 import { restoreManualSyncFocus } from "./state/manual-sync-focus";
 import { useEnduragentStore, type EnduragentState } from "./state/store";
@@ -266,46 +266,37 @@ export function bootRenderer(): Disposer {
       void chatController.continueCreationFromLibrary(creation.creationId);
     },
     changeInChat: () => {
-      chatController.requestPlanLibraryFocus("change");
-      chatController.pausePlanCreation();
-      const state = store.getState();
-      const planId = state.planLibrary.value?.active?.planId ?? null;
-      state.setPlanChange({
-        ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
-        open: true,
-        textRouting: true,
-        planId,
-      });
-      store.getState().setActiveView("chat");
+      openPlanChangeInChat();
       requestAnimationFrame(focusComposer);
     },
     changeOneThingInChat: () => {
       const state = store.getState();
       const library = state.planLibrary.value;
-      const planId = library?.active?.planId ?? null;
-      const pendingCheck =
-        state.planChange.pendingCheck === undefined
-          ? library?.pendingChangeCheck
-          : state.planChange.pendingCheck;
       if (
-        planId === null ||
+        library?.active == null ||
         state.planChange.busy ||
-        library?.changesPaused != null ||
-        pendingCheck != null
-      )
+        library.changesPaused != null ||
+        planChangePendingCheck(state.planChange, library) !== null
+      ) {
         return;
-      chatController.requestPlanLibraryFocus("change");
-      chatController.pausePlanCreation();
-      state.setPlanChange({
-        ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
-        open: true,
-        textRouting: true,
-        planId,
-      });
-      store.getState().setActiveView("chat");
+      }
+      openPlanChangeInChat();
       chatController.openPlanChangeEditor();
     },
   });
+  function openPlanChangeInChat(): void {
+    chatController.requestPlanLibraryFocus("change");
+    chatController.pausePlanCreation();
+    const state = store.getState();
+    const planId = state.planLibrary.value?.active?.planId ?? null;
+    state.setPlanChange({
+      ...(state.planChange.planId === planId ? state.planChange : EMPTY_PLAN_CHANGE_SURFACE),
+      open: true,
+      textRouting: true,
+      planId,
+    });
+    store.getState().setActiveView("chat");
+  }
   const disposePlanLibraryRefresh = subscribePlanLibraryRefresh(planController);
   let pendingChangePauseRequested = false;
   const disposePendingChangeRestore = store.subscribe((state, previousState) => {

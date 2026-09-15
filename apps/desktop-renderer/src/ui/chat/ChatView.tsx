@@ -11,6 +11,11 @@ import {
   type ReactElement,
 } from "react";
 import { CHAT_AUTO_LOAD_EARLIER_THRESHOLD, chatScrollAnchor } from "../../state/chat-stream";
+import {
+  planChangeOpenForActivePlan,
+  planChangePendingCheck,
+  planChangePendingInLibrary,
+} from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 import { Button } from "@enduragent/ui";
 import {
@@ -109,23 +114,17 @@ export function ChatView(): ReactElement {
   const planChangeFocusRequest = useEnduragentStore((state) => state.planChange.focusRequest);
   const planChangeBusy = useEnduragentStore((state) => state.planChange.busy);
   const planChangeSurfaceEditorOpen = useEnduragentStore((state) => state.planChange.editorOpen);
-  const planChangePendingCheck = useEnduragentStore(
-    (state) =>
-      state.planChange.pendingCheck === undefined
-        ? (state.planLibrary.value?.pendingChangeCheck ?? null)
-        : state.planChange.pendingCheck,
+  const planChangeCheckPending = useEnduragentStore(
+    (state) => planChangePendingCheck(state.planChange, state.planLibrary.value) !== null,
   );
   const spendWarning = useEnduragentStore((state) => state.settings.spend.warning);
   const setActiveView = useEnduragentStore((state) => state.setActiveView);
-  const changeSurfaceVisible = useEnduragentStore((state) => {
-    const library = state.planLibrary.value;
-    return (
-      library?.active !== null &&
-      library?.active !== undefined &&
-      ((state.planChange.open && state.planChange.planId === library.active.planId) ||
-        library.changes.some((change) => change.status === "pending"))
-    );
-  });
+  const changeSurfaceVisible = useEnduragentStore(
+    (state) =>
+      state.planLibrary.value?.active != null &&
+      (planChangeOpenForActivePlan(state.planChange, state.planLibrary.value) ||
+        planChangePendingInLibrary(state.planLibrary.value)),
+  );
   const mountedView = useRef(activeView);
   const previousConversationTop = useRef<number | null>(null);
   const pending = useMemo(
@@ -143,9 +142,7 @@ export function ChatView(): ReactElement {
   const visiblePending = pending.filter(
     (item) => visiblePendingKeys.includes(item.key) && item.key !== navigatingKey,
   );
-  const hasPendingPlanChange = planLibrary?.changes.some(
-    (change) => change.status === "pending",
-  );
+  const hasPendingPlanChange = planChangePendingInLibrary(planLibrary);
   const planChangesPaused = planLibrary?.changesPaused != null;
   const persistentNoticeVisible =
     spendWarning !== null ||
@@ -276,7 +273,7 @@ export function ChatView(): ReactElement {
       planChangeBusy ||
       hasPendingPlanChange ||
       planChangeSurfaceEditorOpen ||
-      planChangePendingCheck !== null
+      planChangeCheckPending
     ) {
       return;
     }
@@ -290,7 +287,7 @@ export function ChatView(): ReactElement {
     planChangeBusy,
     planChangeFocusRequest?.revision,
     planChangeFocusRequest?.target,
-    planChangePendingCheck,
+    planChangeCheckPending,
     planChangeSurfaceEditorOpen,
     planChangesPaused,
   ]);

@@ -17,6 +17,7 @@ import {
 import { Paperclip } from "lucide-react";
 import { filterSlashCommands } from "../../chat/commands";
 import { Button } from "@enduragent/ui";
+import { planChangePendingCheck, planChangePendingInLibrary } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 import { setupReady } from "../../state/onboarding-slice";
 import { SlashPopup } from "./SlashPopup";
@@ -55,15 +56,10 @@ export function Composer(props: {
   const listboxId = useId();
   const chatSendDisabled = useEnduragentStore((state) => state.chat.sendDisabled);
   const changeCheckDocked = useEnduragentStore(
-    (state) =>
-      (state.planChange.pendingCheck === undefined
-        ? state.planLibrary.value?.pendingChangeCheck
-        : state.planChange.pendingCheck) != null,
+    (state) => planChangePendingCheck(state.planChange, state.planLibrary.value) !== null,
   );
   const typedPlanChange = useEnduragentStore(
-    (state) =>
-      state.planChange.textRouting ||
-      state.planLibrary.value?.changes.some((change) => change.status === "pending"),
+    (state) => state.planChange.textRouting || planChangePendingInLibrary(state.planLibrary.value),
   );
   const chatInputDisabled = useEnduragentStore((state) => state.chat.inputDisabled);
   const chatPlaceholder = useEnduragentStore((state) => state.chat.composerPlaceholder);

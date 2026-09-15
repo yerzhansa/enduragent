@@ -9,6 +9,7 @@ import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
   PlanHandoffSuggestion,
+  ListPlansResult,
   PlanChangeIntent,
   PlanChangeRequest,
   PlanChangePendingCheck,
@@ -251,6 +252,48 @@ export const EMPTY_PLAN_CHANGE_SURFACE: PlanChangeSurfaceState = Object.freeze({
   notice: null,
   focusRequest: null,
 });
+
+export function planChangePendingCheck(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): PlanChangePendingCheck | null {
+  return surface.pendingCheck === undefined
+    ? (library?.pendingChangeCheck ?? null)
+    : surface.pendingCheck;
+}
+
+export function planChangeOpenForActivePlan(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return library?.active != null && surface.open && surface.planId === library.active.planId;
+}
+
+export function planChangePendingInLibrary(library: ListPlansResult | null): boolean {
+  return library?.changes.some((change) => change.status === "pending") ?? false;
+}
+
+export function planChangeCardsAllowed(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return (
+    library?.active != null &&
+    (library.creation === null ||
+      planChangePendingInLibrary(library) ||
+      planChangeOpenForActivePlan(surface, library))
+  );
+}
+
+export function currentPlanChangeCardsVisible(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return (
+    library?.active != null &&
+    (surface.editorOpen || surface.error !== null || library.active.todayChoice != null)
+  );
+}
 
 export interface ChatSlice {
   readonly planChange: PlanChangeSurfaceState;
