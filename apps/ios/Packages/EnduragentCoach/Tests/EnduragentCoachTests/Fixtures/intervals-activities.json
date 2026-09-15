@@ -1,0 +1,18 @@
+[
+  {
+    "id": "i1234567",
+    "name": "Sunday long ride",
+    "start_date_local": "1998-06-07T08:00:00",
+    "moving_time": 7200,
+    "icu_training_load": 120,
+    "type": "Ride"
+  },
+  {
+    "id": "i1234568",
+    "name": "Tuesday tempo",
+    "start_date_local": "1998-06-09T07:30:00",
+    "moving_time": 3600,
+    "icu_training_load": 80,
+    "type": "Ride"
+  }
+]

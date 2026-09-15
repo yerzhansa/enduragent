@@ -1,0 +1,5 @@
+data: {"id":"gen-1998-ada-length","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"Ada's June 1998 block "},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-length","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"content":"was cut short."},"finish_reason":"length"}],"usage":{"prompt_tokens":40,"completion_tokens":20,"total_tokens":60,"cost":0.5}}
+
+data: [DONE]

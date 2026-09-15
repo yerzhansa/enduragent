@@ -1,0 +1,1732 @@
+[
+  {
+    "id": "z2-endurance",
+    "input": {
+      "name": "Z2 Endurance 90min",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 50,
+            "high": 65
+          },
+          "cadence": {
+            "low": 85,
+            "high": 95
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 70,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 56,
+            "high": 75
+          },
+          "cadence": {
+            "low": 85,
+            "high": 95
+          }
+        },
+        {
+          "type": "cooldown",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 50
+          },
+          "cadence": {
+            "low": 85,
+            "high": 95
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 10m 50-65% 85-95rpm\n\nMain set\n- 70m 56-75% 85-95rpm\n\nCooldown\n- 10m 50% 85-95rpm",
+    "movingTime": 5400
+  },
+  {
+    "id": "sweet-spot-set",
+    "input": {
+      "name": "Sweet Spot 3x15",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 15,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 50,
+            "high": 65
+          }
+        },
+        {
+          "type": "set",
+          "repeat": 3,
+          "interval": {
+            "type": "interval",
+            "duration": {
+              "value": 15,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "low": 88,
+              "high": 94
+            },
+            "cadence": {
+              "low": 85,
+              "high": 95
+            },
+            "label": "Sweet spot"
+          },
+          "recovery": {
+            "type": "recovery",
+            "duration": {
+              "value": 4,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 50
+            }
+          }
+        },
+        {
+          "type": "cooldown",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 50
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 15m 50-65%\n\nMain set\n3x\n- 15m 88-94% 85-95rpm Sweet spot\n- 4m 50%\n\nCooldown\n- 10m 50%",
+    "movingTime": 4920
+  },
+  {
+    "id": "ramp-percent",
+    "input": {
+      "name": "Ramp warmup",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 50,
+            "high": 80
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 10m ramp 50-80%",
+    "movingTime": 600
+  },
+  {
+    "id": "zone-singleton",
+    "input": {
+      "name": "Zone targeted",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 60,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 2
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 60m Z2",
+    "movingTime": 3600
+  },
+  {
+    "id": "watts-range",
+    "input": {
+      "name": "Watts target",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "watts",
+            "low": 150,
+            "high": 180
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 30m 150-180w",
+    "movingTime": 1800
+  },
+  {
+    "id": "sub-minute",
+    "input": {
+      "name": "Short sprints",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 30,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 150
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 30s 150%",
+    "movingTime": 30
+  },
+  {
+    "id": "one-m-thirty",
+    "input": {
+      "name": "90s effort",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 90,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 120
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 1m30 120%",
+    "movingTime": 90
+  },
+  {
+    "id": "freeride-label",
+    "input": {
+      "name": "Outdoor easy",
+      "steps": [
+        {
+          "type": "freeride",
+          "duration": {
+            "value": 60,
+            "unit": "minutes"
+          },
+          "label": "Keep it easy"
+        }
+      ]
+    },
+    "description": "Main set\n- 60m Keep it easy",
+    "movingTime": 3600
+  },
+  {
+    "id": "consecutive-warmup",
+    "input": {
+      "name": "Two warmup steps",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 50
+          }
+        },
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 60
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 5m 50%\n- 5m 60%",
+    "movingTime": 600
+  },
+  {
+    "id": "moving-simple",
+    "input": {
+      "name": "Test",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 55
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "cooldown",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 50
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 10m 55%\n\nMain set\n- 30m 65%\n\nCooldown\n- 5m 50%",
+    "movingTime": 2700
+  },
+  {
+    "id": "moving-set-repeat",
+    "input": {
+      "name": "Test",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 55
+          }
+        },
+        {
+          "type": "set",
+          "repeat": 3,
+          "interval": {
+            "type": "interval",
+            "duration": {
+              "value": 15,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 90
+            }
+          },
+          "recovery": {
+            "type": "recovery",
+            "duration": {
+              "value": 4,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 50
+            }
+          }
+        },
+        {
+          "type": "cooldown",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 50
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 10m 55%\n\nMain set\n3x\n- 15m 90%\n- 4m 50%\n\nCooldown\n- 10m 50%",
+    "movingTime": 4620
+  },
+  {
+    "id": "moving-mixed-units",
+    "input": {
+      "name": "Test",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 90,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 70
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 2,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 70
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 1m30 70%\n- 2m 70%",
+    "movingTime": 210
+  },
+  {
+    "id": "zone-ramp-golden",
+    "input": {
+      "name": "Zone ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 1,
+            "high": 2
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 10m ramp 45-65%",
+    "movingTime": 600
+  },
+  {
+    "id": "z6-z7-ramp",
+    "input": {
+      "name": "High zone ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 6,
+            "high": 7
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 1m ramp 136-160%",
+    "movingTime": 60
+  },
+  {
+    "id": "equal-zone-ramp",
+    "input": {
+      "name": "Equal zone ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 2,
+            "high": 2
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 5m ramp 65-65%",
+    "movingTime": 300
+  },
+  {
+    "id": "zone-range-non-ramp",
+    "input": {
+      "name": "Zone range",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 2,
+            "high": 3
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 30m Z2-Z3",
+    "movingTime": 1800
+  },
+  {
+    "id": "zone-ramp-missing-bounds",
+    "input": {
+      "name": "Missing bounds",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 2
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "zone-ramp-out-of-range",
+    "input": {
+      "name": "Invalid zone ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 1,
+            "high": 8
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "inverted-zone-ramp",
+    "input": {
+      "name": "Inverted zone ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 5,
+            "high": 1
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "empty-steps",
+    "input": {
+      "name": "Empty",
+      "steps": []
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "ramp-value-only",
+    "input": {
+      "name": "Bad ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 70
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "ramp-no-power",
+    "input": {
+      "name": "Bad ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "zone-8",
+    "input": {
+      "name": "Bad zone",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 8
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "percent-250",
+    "input": {
+      "name": "Absurd percent",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 30,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 250
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "watts-2000",
+    "input": {
+      "name": "Absurd watts",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 5,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "watts",
+            "value": 2000
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "empty-power",
+    "input": {
+      "name": "Empty power",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp"
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "inverted-power",
+    "input": {
+      "name": "Inverted range",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 90,
+            "high": 70
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "inverted-cadence",
+    "input": {
+      "name": "Inverted cadence",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 30,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          },
+          "cadence": {
+            "low": 100,
+            "high": 80
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "repeat-21",
+    "input": {
+      "name": "Too many repeats",
+      "steps": [
+        {
+          "type": "set",
+          "repeat": 21,
+          "interval": {
+            "type": "interval",
+            "duration": {
+              "value": 1,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 110
+            }
+          },
+          "recovery": {
+            "type": "recovery",
+            "duration": {
+              "value": 1,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 50
+            }
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "steps-41",
+    "input": {
+      "name": "Too many steps",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "distance-duration",
+    "input": {
+      "name": "Distance",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 10,
+            "unit": "distance_km"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 70
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "missing-name",
+    "input": {
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 70
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "gen-rest-watts-singleton",
+    "input": {
+      "name": "Rest watts",
+      "steps": [
+        {
+          "type": "rest",
+          "duration": {
+            "value": 45,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "watts",
+            "value": 120
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 45s 120w",
+    "movingTime": 45
+  },
+  {
+    "id": "gen-interval-percent-singleton",
+    "input": {
+      "name": "Interval percent",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 3,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 110
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 3m 110%",
+    "movingTime": 180
+  },
+  {
+    "id": "gen-recovery-zone",
+    "input": {
+      "name": "Recovery zone",
+      "steps": [
+        {
+          "type": "recovery",
+          "duration": {
+            "value": 2,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 1
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 2m Z1",
+    "movingTime": 120
+  },
+  {
+    "id": "gen-freeride-cadence-target",
+    "input": {
+      "name": "Spin",
+      "steps": [
+        {
+          "type": "freeride",
+          "duration": {
+            "value": 20,
+            "unit": "minutes"
+          },
+          "cadence": {
+            "target": 90
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 20m 90rpm",
+    "movingTime": 1200
+  },
+  {
+    "id": "gen-warmup-cadence-range",
+    "input": {
+      "name": "Wu cadence",
+      "steps": [
+        {
+          "type": "warmup",
+          "duration": {
+            "value": 8,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 50,
+            "high": 60
+          },
+          "cadence": {
+            "low": 80,
+            "high": 90
+          }
+        }
+      ]
+    },
+    "description": "Warmup\n- 8m 50-60% 80-90rpm",
+    "movingTime": 480
+  },
+  {
+    "id": "gen-watts-ramp",
+    "input": {
+      "name": "Watt ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 12,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "watts",
+            "low": 150,
+            "high": 280
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 12m ramp 150-280w",
+    "movingTime": 720
+  },
+  {
+    "id": "gen-percent-ramp",
+    "input": {
+      "name": "Percent ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 6,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "low": 55,
+            "high": 75
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 6m ramp 55-75%",
+    "movingTime": 360
+  },
+  {
+    "id": "gen-zone-ramp-z3-z5",
+    "input": {
+      "name": "Z3-Z5 ramp",
+      "steps": [
+        {
+          "type": "ramp",
+          "duration": {
+            "value": 4,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "low": 3,
+            "high": 5
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 4m ramp 83-113%",
+    "movingTime": 240
+  },
+  {
+    "id": "gen-cooldown-watts-range",
+    "input": {
+      "name": "Cd watts",
+      "steps": [
+        {
+          "type": "cooldown",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "watts",
+            "low": 100,
+            "high": 140
+          }
+        }
+      ]
+    },
+    "description": "Cooldown\n- 10m 100-140w",
+    "movingTime": 600
+  },
+  {
+    "id": "gen-set-repeat-1",
+    "input": {
+      "name": "Single repeat",
+      "steps": [
+        {
+          "type": "set",
+          "repeat": 1,
+          "interval": {
+            "type": "interval",
+            "duration": {
+              "value": 1,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 100
+            }
+          },
+          "recovery": {
+            "type": "rest",
+            "duration": {
+              "value": 1,
+              "unit": "minutes"
+            },
+            "power": {
+              "kind": "percent_ftp",
+              "value": 50
+            }
+          }
+        }
+      ]
+    },
+    "description": "Main set\n1x\n- 1m 100%\n- 1m 50%",
+    "movingTime": 120
+  },
+  {
+    "id": "gen-set-repeat-20",
+    "input": {
+      "name": "Max repeat",
+      "steps": [
+        {
+          "type": "set",
+          "repeat": 20,
+          "interval": {
+            "type": "interval",
+            "duration": {
+              "value": 30,
+              "unit": "seconds"
+            },
+            "power": {
+              "kind": "watts",
+              "value": 400
+            }
+          },
+          "recovery": {
+            "type": "recovery",
+            "duration": {
+              "value": 30,
+              "unit": "seconds"
+            },
+            "power": {
+              "kind": "watts",
+              "value": 120
+            }
+          }
+        }
+      ]
+    },
+    "description": "Main set\n20x\n- 30s 400w\n- 30s 120w",
+    "movingTime": 1200
+  },
+  {
+    "id": "gen-incomplete-cadence",
+    "input": {
+      "name": "Cadence low only",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          },
+          "cadence": {
+            "low": 90
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "gen-cadence-high-only",
+    "input": {
+      "name": "Cadence high only",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          },
+          "cadence": {
+            "high": 95
+          }
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "gen-empty-cadence",
+    "input": {
+      "name": "Empty cadence",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 10,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 65
+          },
+          "cadence": {}
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "gen-max-watts-bound",
+    "input": {
+      "name": "Max watts",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 5,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "watts",
+            "value": 1500
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 5s 1500w",
+    "movingTime": 5
+  },
+  {
+    "id": "gen-max-percent-bound",
+    "input": {
+      "name": "Max percent",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 5,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 200
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 5s 200%",
+    "movingTime": 5
+  },
+  {
+    "id": "gen-zone-1-and-7",
+    "input": {
+      "name": "Zone edges",
+      "steps": [
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 1
+          }
+        },
+        {
+          "type": "steady",
+          "duration": {
+            "value": 1,
+            "unit": "minutes"
+          },
+          "power": {
+            "kind": "zone",
+            "value": 7
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 1m Z1\n- 1m Z7",
+    "movingTime": 120
+  },
+  {
+    "id": "gen-label-120",
+    "input": {
+      "name": "Label cap",
+      "steps": [
+        {
+          "type": "freeride",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ]
+    },
+    "description": "Main set\n- 5m xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "movingTime": 300
+  },
+  {
+    "id": "gen-label-121",
+    "input": {
+      "name": "Label over",
+      "steps": [
+        {
+          "type": "freeride",
+          "duration": {
+            "value": 5,
+            "unit": "minutes"
+          },
+          "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ]
+    },
+    "error": "InvalidWorkoutError"
+  },
+  {
+    "id": "gen-mixed-1m1",
+    "input": {
+      "name": "61s",
+      "steps": [
+        {
+          "type": "interval",
+          "duration": {
+            "value": 61,
+            "unit": "seconds"
+          },
+          "power": {
+            "kind": "percent_ftp",
+            "value": 90
+          }
+        }
+      ]
+    },
+    "description": "Main set\n- 1m1 90%",
+    "movingTime": 61
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "id": 42,
+    "start_date_local": "1998-06-14T00:00:00",
+    "name": "Endurance",
+    "category": "WORKOUT",
+    "external_id": "cycling-coach:1998-06-14:endurance",
+    "uid": null,
+    "tags": ["cycling-coach"]
+  },
+  {
+    "id": 43,
+    "start_date_local": "1998-06-20T00:00:00",
+    "name": "Local race",
+    "category": "RACE_A",
+    "tags": []
+  }
+]

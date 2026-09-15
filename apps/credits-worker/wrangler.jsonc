@@ -1,0 +1,121 @@
+{
+  "name": "credits-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "alias": {
+    "node-fetch": "./src/native-fetch.ts",
+  },
+  "vars": {
+    "BUNDLE_ID": "icu.enduragent.app",
+    "APPLE_ENVIRONMENT": "sandbox",
+    "PURCHASES_ENABLED": "false",
+    "STARTER_CAP_USD": "2",
+    "CREDITS_PER_USD": "100",
+    "APPLE_COMMISSION": "0.15",
+    "OPENROUTER_FEE": "0.055",
+    "RATIO": "1.0",
+    "GUARDRAIL_MODE": "after_create",
+    "CONSUMPTION_REPORTING": "unverified",
+    "REPEAT_REFUND_BAN_THRESHOLD": "2",
+    "INTERVALS_OAUTH_ENABLED": "false",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "credits",
+      "database_id": "00000000-1998-4000-8000-000000000001",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ATHLETE_SESSION",
+        "class_name": "AthleteSession",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["AthleteSession"],
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMIT_IP",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 30,
+        "period": 60,
+      },
+    },
+    {
+      "name": "RATE_LIMIT_TOKEN",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 10,
+        "period": 60,
+      },
+    },
+  ],
+  "env": {
+    "testflight": {
+      "account_id": "7938d1c111e4a7f02ef5f525fef2efdb",
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["AthleteSession"],
+        },
+      ],
+      "vars": {
+        "BUNDLE_ID": "icu.enduragent.app",
+        "APPLE_ENVIRONMENT": "sandbox",
+        "PURCHASES_ENABLED": "false",
+        "STARTER_CAP_USD": "2",
+        "CREDITS_PER_USD": "100",
+        "APPLE_COMMISSION": "0.15",
+        "OPENROUTER_FEE": "0.055",
+        "RATIO": "1.0",
+        "GUARDRAIL_MODE": "after_create",
+        "CONSUMPTION_REPORTING": "unverified",
+        "REPEAT_REFUND_BAN_THRESHOLD": "2",
+        "INTERVALS_OAUTH_ENABLED": "false",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "credits",
+          "database_id": "b21dc5aa-96ca-4c03-b794-1d936e7cbf3d",
+        },
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ATHLETE_SESSION",
+            "class_name": "AthleteSession",
+          },
+        ],
+      },
+      "ratelimits": [
+        {
+          "name": "RATE_LIMIT_IP",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 30,
+            "period": 60,
+          },
+        },
+        {
+          "name": "RATE_LIMIT_TOKEN",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 10,
+            "period": 60,
+          },
+        },
+      ],
+      "name": "enduragent-credits-testflight",
+    },
+  },
+}

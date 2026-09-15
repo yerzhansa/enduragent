@@ -1,0 +1,9 @@
+data: {"id":"gen-1998-ada-parallel","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_ada_athlete","type":"function","function":{"name":"intervals_fetch_athlete","arguments":"{"}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-parallel","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"id":"call_ada_wellness","type":"function","function":{"name":"intervals_fetch_wellness","arguments":"{"}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-parallel","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":null}]}
+
+data: {"id":"gen-1998-ada-parallel","object":"chat.completion.chunk","created":883612800,"model":"deepseek/deepseek-v4-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"\"oldest\":\"1998-06-01\",\"newest\":\"1998-06-13\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":22,"completion_tokens":16,"total_tokens":38,"cost":0.25}}
+
+data: [DONE]

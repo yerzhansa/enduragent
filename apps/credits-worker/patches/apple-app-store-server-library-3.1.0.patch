@@ -1,0 +1,28 @@
+--- a/dist/jws_verification.js
++++ b/dist/jws_verification.js
+@@ -309,7 +309,7 @@
+             // Network errors
+             throw new VerificationException(VerificationStatus.RETRYABLE_VERIFICATION_FAILURE, error instanceof Error ? error : undefined);
+         }
+-        const responseBuffer = await response.buffer();
++        const responseBuffer = Buffer.from(await response.arrayBuffer());
+         const parsedResponse = new jsrsasign_1.KJUR.asn1.ocsp.OCSPParser().getOCSPResponse(responseBuffer.toString('hex'));
+         // The issuer could also be the signer
+         const jsrassignX509Issuer = new jsrsasign_1.X509();
+@@ -393,7 +393,15 @@
+         }
+     }
+     parseX509Date(date) {
+-        return new Date(date.replace(/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/, '$4:$5:$6 $2/$3/$1'));
++        if (typeof date !== "string" || date.length !== 15 || !/^\d{14}Z$/.test(date)) {
++            throw new VerificationException(VerificationStatus.FAILURE);
++        }
++        const iso = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T${date.slice(8, 10)}:${date.slice(10, 12)}:${date.slice(12, 14)}.000Z`;
++        const parsed = new Date(iso);
++        if (!Number.isFinite(parsed.getTime()) || parsed.toISOString() !== iso) {
++            throw new VerificationException(VerificationStatus.FAILURE);
++        }
++        return parsed;
+     }
+     extractSignedDate(decodedJWT) {
+         return decodedJWT.signedDate === undefined ? new Date() : new Date(decodedJWT.signedDate);
