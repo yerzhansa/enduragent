@@ -95,5 +95,13 @@ describe("Chat status catalog rendering", () => {
       vars: { title: "Synthetic Plan" },
     });
     expect(chatFeedbackMessage("I want to discuss my training.")).toBeNull();
+    expect(
+      chatFeedbackMessage("Couldn’t reach the coach, so your message is still in the box."),
+    ).toEqual({
+      key: "chat.notice.draftSaveFailure",
+    });
+    expect(chatFeedbackMessage("Chat is still connecting, so Send isn’t ready yet.")).toEqual({
+      key: "chat.composer.sendConnecting",
+    });
   });
 });

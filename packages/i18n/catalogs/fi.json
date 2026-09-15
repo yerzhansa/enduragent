@@ -946,6 +946,7 @@
       "messagePlaceholder": "Lähetä viesti valmentajallesi",
       "responding": "Valmentaja vastaa…",
       "send": "Lähetä viesti",
+      "sendConnecting": "Chat on yhä yhdistymässä, joten Lähetä ei ole vielä valmis.",
       "stop": "Pysäytä vastaus"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Valinnastasi ei voitu jatkaa. Yritä uudelleen.",
       "decisionLoadFailure": "Valmentajan tallennettua kysymystä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "decisionSkipFailure": "Tätä kysymystä ei voitu ohittaa. Yritä uudelleen.",
-      "draftSaveFailure": "Viestiluonnostasi ei voitu tallentaa. Se on yhä käytettävissä tässä ikkunassa.",
+      "draftSaveFailure": "Valmentajaan ei saatu yhteyttä, joten viestisi on yhä kentässä.",
       "emptyResponse": "Valmentaja palautti tyhjän vastauksen. Yritä uudelleen.",
       "newConversationMemoryWarning": "Uusi keskustelu aloitettu. Joitakin viimeaikaisia tietoja ei ehkä tallennettu valmentajan muistiin.",
       "newConversationSuccess": "Uusi keskustelu aloitettu.",

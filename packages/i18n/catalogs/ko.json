@@ -938,6 +938,7 @@
       "messagePlaceholder": "코치에게 메시지 보내기",
       "responding": "코치가 답변 중…",
       "send": "메시지 전송",
+      "sendConnecting": "Chat이 아직 연결 중이라 보내기를 아직 사용할 수 없습니다.",
       "stop": "답변 중지"
     },
     "date": {
@@ -995,7 +996,7 @@
       "decisionFailure": "선택한 내용으로 계속 진행하지 못했습니다. 다시 시도하세요.",
       "decisionLoadFailure": "저장된 코치 질문을 확인하지 못했습니다. 다시 연결하고 시도하세요.",
       "decisionSkipFailure": "이 질문을 건너뛰지 못했습니다. 다시 시도하세요.",
-      "draftSaveFailure": "메시지 초안을 저장하지 못했습니다. 이 창에는 계속 남아 있습니다.",
+      "draftSaveFailure": "코치에게 연결하지 못해 메시지가 입력란에 그대로 있습니다.",
       "emptyResponse": "코치가 빈 답변을 반환했습니다. 다시 시도하세요.",
       "newConversationMemoryWarning": "새 대화를 시작했습니다. 최근 내용 중 일부가 코치 기억에 저장되지 않았을 수 있습니다.",
       "newConversationSuccess": "새 대화를 시작했습니다.",

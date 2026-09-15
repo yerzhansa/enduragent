@@ -1,5 +1,10 @@
 import type { CoachDecisionReadModel, TranscriptPageEntry } from "@enduragent/coach-contract";
-import type { ChatView, ChatViewControls, PlanCreationDiscardEvent } from "../../chat/controller";
+import {
+  CHAT_SEND_CONNECTING_COPY,
+  type ChatView,
+  type ChatViewControls,
+  type PlanCreationDiscardEvent,
+} from "../../chat/controller";
 import type { ChatState, WireMessage } from "../../chat/message-state";
 import {
   EMPTY_CHAT_SURFACE,
@@ -603,6 +608,16 @@ export function createChatViewAdapter(input: {
         : planCreationBlocksWork
           ? "Finish the Plan question above"
           : "Message your coach",
+      composerStatus:
+        decisionLoading &&
+        decisionLoadError === null &&
+        !workBlocked &&
+        !decisionBlocksWork &&
+        !attachmentUnavailable &&
+        !planCreationBlocksWork &&
+        !pendingCheckDocked
+          ? CHAT_SEND_CONNECTING_COPY
+          : null,
       newConversationUnavailable: newConversationUnavailable || decisionUnavailable,
       resetPhase: state.session.resetPhase,
       resetCount: state.session.resetCount,

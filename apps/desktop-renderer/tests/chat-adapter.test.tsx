@@ -4,7 +4,11 @@ import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlanCreationPendingCheckSchema } from "@enduragent/coach-contract";
 import type { PlanCreationCardModel } from "@enduragent/coach-contract";
-import type { ChatView, ChatViewControls } from "../src/chat/controller";
+import {
+  CHAT_SEND_CONNECTING_COPY,
+  type ChatView,
+  type ChatViewControls,
+} from "../src/chat/controller";
 import { mergeHydratedMessages } from "../src/chat/hydration";
 import { createChatViewAdapter } from "../src/state/adapters/chat";
 import { EMPTY_CHAT_SURFACE, type ChatSurfaceState } from "../src/state/chat-slice";
@@ -145,6 +149,7 @@ describe("chat view adapter", () => {
       sendDisabled: true,
       inputDisabled: true,
       composerPlaceholder: "Message your coach",
+      composerStatus: null,
       newConversationUnavailable: false,
       resetPhase: "idle",
       resetCount: 0,
@@ -190,7 +195,11 @@ describe("chat view adapter", () => {
         decision: { value: decision, phase: "idle", answerLabel: null, error: null },
       }),
     );
-    expect(published.at(-1)).toMatchObject({ sendDisabled: true, inputDisabled: false });
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: false,
+      composerStatus: null,
+    });
 
     adapter.view.render(
       EMPTY_CHAT_STATE,
@@ -236,6 +245,26 @@ describe("chat view adapter", () => {
       sendDisabled: true,
       inputDisabled: false,
       newConversationUnavailable: true,
+      composerStatus: CHAT_SEND_CONNECTING_COPY,
+    });
+  });
+
+  it("does not explain Send as connecting when the saved Coach question failed to load", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+
+    adapter.view.render(
+      EMPTY_CHAT_STATE,
+      controls({
+        decisionLoading: true,
+        decisionLoadError: "We couldn’t check for a saved Coach question. Reconnect and try again.",
+      }),
+    );
+
+    expect(published.at(-1)).toMatchObject({
+      sendDisabled: true,
+      inputDisabled: false,
+      composerStatus: null,
     });
   });
 

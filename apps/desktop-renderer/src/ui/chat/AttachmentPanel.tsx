@@ -340,9 +340,11 @@ export function AttachmentPanel(): ReactElement | null {
   const { say } = usePhrasebook();
   const surface = useEnduragentStore((state) => state.chat);
   const actions = useEnduragentStore((state) => state.chatActions);
+  const hideDraftError = surface.composerStatus !== null;
   const attachmentError =
     surface.attachmentError === null ? null : chatFeedbackMessage(surface.attachmentError);
-  const draftError = surface.draftError === null ? null : chatFeedbackMessage(surface.draftError);
+  const draftError =
+    hideDraftError || surface.draftError === null ? null : chatFeedbackMessage(surface.draftError);
   const planningRequestError =
     surface.planningRequestError === null
       ? null
@@ -352,7 +354,7 @@ export function AttachmentPanel(): ReactElement | null {
     attachments.length === 0 &&
     surface.attachmentAdmissions.length === 0 &&
     !surface.attachmentBusy &&
-    surface.draftError === null &&
+    (hideDraftError || surface.draftError === null) &&
     surface.attachmentError === null &&
     surface.planningRequestError === null
   ) {
@@ -377,7 +379,7 @@ export function AttachmentPanel(): ReactElement | null {
           {attachmentError === null ? surface.attachmentError : say(attachmentError)}
         </div>
       )}
-      {surface.draftError === null ? null : (
+      {hideDraftError || surface.draftError === null ? null : (
         <div
           className="rounded-card border border-danger/40 bg-surface p-4 text-sm text-danger"
           role="alert"

@@ -946,6 +946,7 @@
       "messagePlaceholder": "Stuur je coach een bericht",
       "responding": "De coach antwoordt…",
       "send": "Bericht verzenden",
+      "sendConnecting": "Chat is nog aan het verbinden, dus Verzenden is nog niet klaar.",
       "stop": "Antwoord stoppen"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Er kon niet worden doorgegaan met je keuze. Probeer het opnieuw.",
       "decisionLoadFailure": "Er kon niet worden gecontroleerd op een opgeslagen vraag van de coach. Maak opnieuw verbinding en probeer het opnieuw.",
       "decisionSkipFailure": "Deze vraag kon niet worden overgeslagen. Probeer het opnieuw.",
-      "draftSaveFailure": "We konden je berichtconcept niet opslaan. Het is nog steeds beschikbaar in dit venster.",
+      "draftSaveFailure": "De coach was niet bereikbaar, dus je bericht blijft in het vak.",
       "emptyResponse": "De coach gaf een leeg antwoord. Probeer het opnieuw.",
       "newConversationMemoryWarning": "Nieuw gesprek gestart. Sommige recente details zijn mogelijk niet opgeslagen in het coachgeheugen.",
       "newConversationSuccess": "Nieuw gesprek gestart.",

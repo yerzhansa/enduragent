@@ -101,6 +101,7 @@ export type CatalogKey =
   | "chat.composer.messagePlaceholder"
   | "chat.composer.responding"
   | "chat.composer.send"
+  | "chat.composer.sendConnecting"
   | "chat.composer.stop"
   | "chat.date.civil"
   | "chat.date.month.april"

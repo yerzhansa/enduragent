@@ -962,6 +962,7 @@
       "messagePlaceholder": "Napisz do trenera",
       "responding": "Trener odpowiada…",
       "send": "Wyślij wiadomość",
+      "sendConnecting": "Czat wciąż się łączy, więc Wyślij nie jest jeszcze gotowe.",
       "stop": "Zatrzymaj odpowiedź"
     },
     "date": {
@@ -1019,7 +1020,7 @@
       "decisionFailure": "Nie udało się kontynuować po twoim wyborze. Spróbuj ponownie.",
       "decisionLoadFailure": "Nie udało się sprawdzić zapisanego pytania trenera. Połącz ponownie i spróbuj jeszcze raz.",
       "decisionSkipFailure": "Nie udało się pominąć tego pytania. Spróbuj ponownie.",
-      "draftSaveFailure": "Nie udało się zapisać wersji roboczej wiadomości. Nadal jest dostępna w tym oknie.",
+      "draftSaveFailure": "Nie udało się połączyć z coachem, więc wiadomość zostaje w polu.",
       "emptyResponse": "Trener zwrócił pustą odpowiedź. Spróbuj ponownie.",
       "newConversationMemoryWarning": "Rozpoczęto nową rozmowę. Niektóre ostatnie szczegóły mogły nie zostać zapisane w pamięci trenera.",
       "newConversationSuccess": "Rozpoczęto nową rozmowę.",

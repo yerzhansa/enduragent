@@ -938,6 +938,7 @@
       "messagePlaceholder": "傳送訊息給教練",
       "responding": "教練正在回覆…",
       "send": "傳送訊息",
+      "sendConnecting": "Chat 仍在連線，因此還不能傳送。",
       "stop": "停止回覆"
     },
     "date": {
@@ -995,7 +996,7 @@
       "decisionFailure": "無法依所選答案繼續。請重試。",
       "decisionLoadFailure": "無法檢查已儲存的教練問題。請重新連線後重試。",
       "decisionSkipFailure": "無法略過此問題。請重試。",
-      "draftSaveFailure": "無法儲存你的訊息草稿。它仍保留在此視窗中。",
+      "draftSaveFailure": "暫時聯繫不上教練，所以你的訊息仍在輸入框中。",
       "emptyResponse": "教練回傳了空白回覆。請重試。",
       "newConversationMemoryWarning": "已開始新對話。部分近期細節可能未儲存至教練記憶。",
       "newConversationSuccess": "已開始新對話。",

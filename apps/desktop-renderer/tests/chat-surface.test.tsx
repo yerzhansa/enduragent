@@ -1922,16 +1922,41 @@ describe("chat surface", () => {
     it("shows a truthful draft-save failure with no attachments", () => {
       setChat({
         attachments: { schemaVersion: 1, capabilities: ATTACHMENT_CAPABILITIES, draft: null },
-        draftError: "We couldn’t save your message draft. It’s still available in this window.",
+        draftError: "Couldn’t reach the coach, so your message is still in the box.",
       });
       render(<Harness />);
 
       expect(
-        screen.getByText(
-          "We couldn’t save your message draft. It’s still available in this window.",
-        ),
+        screen.getByText("Couldn’t reach the coach, so your message is still in the box."),
       ).toBeVisible();
       expect(screen.queryByText(/update that attachment/u)).toBeNull();
+    });
+
+    it("explains why Send is off while Chat is still connecting", () => {
+      setChat({
+        sendDisabled: true,
+        inputDisabled: false,
+        composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
+      });
+      render(<Harness />);
+
+      expect(screen.getByText("Chat is still connecting, so Send isn’t ready yet.")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+    });
+
+    it("hides a draft-save failure while Send is waiting to connect", () => {
+      setChat({
+        sendDisabled: true,
+        inputDisabled: false,
+        composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
+        draftError: "Couldn’t reach the coach, so your message is still in the box.",
+      });
+      render(<Harness />);
+
+      expect(screen.getByText("Chat is still connecting, so Send isn’t ready yet.")).toBeVisible();
+      expect(
+        screen.queryByText("Couldn’t reach the coach, so your message is still in the box."),
+      ).toBeNull();
     });
 
     it("opens the native picker from the centered Composer attachment control", async () => {
