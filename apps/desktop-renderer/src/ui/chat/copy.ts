@@ -34,6 +34,8 @@ export function chatFeedbackMessage(value: string): Message | null {
       return msg("chat.notice.queueRemoveFailure");
     case "We couldn’t update that attachment. Your message draft is preserved.":
       return msg("chat.notice.attachmentFailure");
+    case "We couldn’t save your message draft. It’s still available in this window.":
+      return msg("chat.notice.draftSaveFailure");
     case "We couldn’t check saved Plan requests. Reconnect and try again.":
       return msg("chat.notice.planningRequestLoadFailure");
     case "Plan couldn’t receive this request. Your request is preserved and nothing changed in Plan.":

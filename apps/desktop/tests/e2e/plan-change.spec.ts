@@ -193,7 +193,7 @@ interface ChangeCase {
 }
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function changeCard(scenario: Scenario, title: string, status: string) {
@@ -210,15 +210,13 @@ async function navigate(scenario: Scenario, destination: "Chat" | "Plan") {
 }
 
 async function enterChanges(scenario: Scenario) {
-  await expect(changes(scenario)).toBeVisible();
-  await expect(changes(scenario).getByRole("button")).toHaveText(["Change one thing", "Open Plan"]);
-  await navigate(scenario, "Plan");
-  await scenario.page
-    .getByRole("region", { name: "Plan library", exact: true })
-    .getByRole("button", { name: "Change in Chat", exact: true })
-    .click();
-  await expect(changes(scenario)).toBeVisible();
-  await expect(changes(scenario).getByRole("button")).toHaveText(["Change one thing", "Open Plan"]);
+  await expect(changes(scenario)).toHaveCount(0);
+  await scenario.page.getByRole("button", { name: "Open Active Plan", exact: true }).click();
+  const library = scenario.page.getByRole("region", { name: "Plan library", exact: true });
+  await expect(
+    library.getByRole("button", { name: "Change one thing", exact: true }),
+  ).toBeEnabled();
+  await expect(library.getByRole("button", { name: "Change in Chat", exact: true })).toBeEnabled();
   const stored = await scenario.backend.inspectActivation();
   expect(stored.planningPlans).toHaveLength(1);
   expect(stored.planningPlans[0]).toMatchObject({
@@ -320,7 +318,11 @@ function workoutText(workout: PlanChangeWorkout | null): string {
 }
 
 async function preview(scenario: Scenario, change: ChangeCase) {
-  await changes(scenario).getByRole("button", { name: "Change one thing", exact: true }).click();
+  await navigate(scenario, "Plan");
+  await scenario.page
+    .getByRole("region", { name: "Plan library", exact: true })
+    .getByRole("button", { name: "Change one thing", exact: true })
+    .click();
   const editor = changes(scenario).getByRole("region", {
     name: "What needs to change?",
     exact: true,
@@ -444,7 +446,7 @@ function training(stored: Stored) {
 }
 
 async function assertApplied(scenario: Scenario, pending: PlanChangeModel, before: Stored) {
-  await expect(changes(scenario).getByRole("status")).toHaveText(
+  await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
     "Change applied locally. Training now matches the confirmed preview.",
   );
   await expect(changeCard(scenario, pending.title, "Applied")).toBeVisible();
@@ -609,13 +611,13 @@ for (const change of otherChanges) {
         await changeCard(scenario, pending.title, "Pending")
           .getByRole("button", { name: "Cancel", exact: true })
           .click();
-        await expect(changes(scenario).getByRole("status")).toHaveText(
+        await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
           "Change cancelled. Training is unchanged; the preview remains in history.",
         );
         await expect(changeCard(scenario, pending.title, "Cancelled")).toBeVisible();
         await expect(changeCard(scenario, pending.title, "Pending")).toHaveCount(0);
         await expect(
-          changes(scenario).getByRole("button", { name: "Change one thing", exact: true }),
+          scenario.page.getByRole("combobox", { name: "Message your coach" }),
         ).toBeFocused();
         const after = await scenario.backend.inspectActivation();
         expect(training(after)).toEqual(training(before));
@@ -668,7 +670,7 @@ test("supersedes a pending Change with a second request", async ({ playwright })
     const secondCase = otherChanges.find((change) => change.intent.kind === "longest-workout");
     if (!secondCase) throw new TypeError("Second Change is unavailable");
     const second = await preview(scenario, secondCase);
-    await expect(changes(scenario).getByRole("status")).toHaveText(
+    await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
       `This preview supersedes “${first.title}”. Training is unchanged until confirmation.`,
     );
     await expect(changeCard(scenario, first.title, "Superseded")).toBeVisible();
@@ -728,7 +730,7 @@ test("rejects a stale preview after an out-of-band Plan revision", async ({ play
     await changeCard(scenario, pending.title, "Pending")
       .getByRole("button", { name: "Apply to Plan", exact: true })
       .click();
-    await expect(changes(scenario).getByRole("status")).toHaveText(
+    await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
       "This preview is stale because the Plan or its sources changed. Request a fresh preview; no training changed.",
     );
     expect(scenario.backend.changeApplyResponses).toHaveLength(1);

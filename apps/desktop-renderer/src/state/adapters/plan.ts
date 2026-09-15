@@ -217,9 +217,11 @@ export function createPlanViewAdapter(input: {
   readonly publishSettingPending: (next: PlanSurfaceState["settingPending"]) => void;
   readonly createCommandId?: () => string;
   readonly createMessageId?: () => string;
+  readonly now?: () => number;
 }): PlanViewAdapter {
   const createCommandId = input.createCommandId ?? (() => globalThis.crypto.randomUUID());
   const createMessageId = input.createMessageId ?? (() => globalThis.crypto.randomUUID());
+  const now = input.now ?? Date.now;
   let disposed = false;
   let started = false;
   let disposeProgress: (() => void) | null = null;
@@ -522,6 +524,7 @@ export function createPlanViewAdapter(input: {
     reduceCoach({
       type: "submit",
       requestKey: coachRequestKey,
+      occurredAtMs: now(),
       userMessage: message,
       userMessageId: createMessageId(),
       assistantMessageId: createMessageId(),

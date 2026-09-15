@@ -1,10 +1,6 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export const SESSION_SETTING_FIELDS = ["timezone"] as const;
 
@@ -168,26 +164,25 @@ export function createSessionSettingsController(input: {
   let saveOperation: Promise<void> | undefined;
   let queuedTimezone: string | undefined;
   let reconnectRequired = false;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
 
   const render = (state: Exclude<SessionSettingsState, { readonly status: "closed" }>): void => {
     currentState = state;
     if (visible && !disposed) input.view.render(state);
   };
 
-  const clientForOperation = async (): Promise<CoachClient> => {
+  const clientForOperation = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
-    const current = await input.clients.getClient();
     const client =
-      failedClient !== undefined && current === failedClient
-        ? await input.clients.reconnect()
-        : current;
+      failedClient === undefined
+        ? await input.clients.getClient()
+        : await input.clients.reconnect(failedClient);
     reconnectRequired = false;
     failedClient = undefined;
     return client;
   };
 
-  const noteFailure = (error: unknown, client: CoachClient | undefined): void => {
+  const noteFailure = (error: unknown, client: DesktopCoachClient | undefined): void => {
     if (error instanceof CoachClientDisconnectedError) {
       reconnectRequired = true;
       failedClient = client;
@@ -202,7 +197,7 @@ export function createSessionSettingsController(input: {
     const operationGeneration = ++generation;
     if (previous === null) render({ status: "loading" });
     else render({ ...previous, status: "refreshing" });
-    let activeClient: CoachClient | undefined;
+    let activeClient: DesktopCoachClient | undefined;
     const pending = Promise.resolve()
       .then(async () => {
         activeClient = await clientForOperation();
@@ -237,7 +232,7 @@ export function createSessionSettingsController(input: {
   };
 
   const attemptSave = async (timezone: string): Promise<SaveAttempt> => {
-    let activeClient: CoachClient | undefined;
+    let activeClient: DesktopCoachClient | undefined;
     try {
       activeClient = await clientForOperation();
       const result = await activeClient.call("configureRuntime", {

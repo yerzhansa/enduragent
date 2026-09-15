@@ -34,6 +34,7 @@ function submitted(message = "How is my form?"): ChatState {
   return reduceChatState(EMPTY_CHAT_STATE, {
     type: "submit",
     requestKey: 1,
+    occurredAtMs: 0,
     userMessage: message,
     userMessageId: "m1",
     assistantMessageId: "m2",
@@ -84,6 +85,7 @@ describe("chat view adapter", () => {
       messages: [
         {
           id: "m1",
+          occurredAtMs: 0,
           role: "athlete",
           delivery: "complete",
           historical: false,
@@ -101,6 +103,7 @@ describe("chat view adapter", () => {
       attachments: null,
       attachmentAdmissions: [],
       attachmentBusy: false,
+      draftError: null,
       attachmentError: null,
       planningRequests: [],
       planningRequestsLoaded: false,
@@ -123,6 +126,7 @@ describe("chat view adapter", () => {
           kind: "message",
           message: {
             id: "m1",
+            occurredAtMs: 0,
             role: "athlete",
             delivery: "complete",
             historical: false,
@@ -132,6 +136,7 @@ describe("chat view adapter", () => {
       ],
       status: "streaming",
       notice: null,
+      noticeMessage: undefined,
       coachProgress: CHAT_WORKING_COPY,
       interrupted: false,
       workBlocked: true,
@@ -892,6 +897,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:athlete:turn-retry",
+          occurredAtMs: Date.parse("1998-08-24T08:05:00.000Z"),
           turnId: "turn-retry",
           role: "athlete",
           text: "",
@@ -904,6 +910,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-retry",
+          occurredAtMs: Date.parse("1998-08-24T08:05:00.000Z"),
           turnId: "turn-retry",
           role: "coach",
           text: "Interrupted response.",
@@ -915,6 +922,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-retry:attempt:2",
+          occurredAtMs: Date.parse("1998-08-24T08:06:00.000Z"),
           turnId: "turn-retry",
           role: "coach",
           text: "Recovered response.",
@@ -994,6 +1002,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:decision-athlete:decision-stopped",
+          occurredAtMs: Date.parse("1998-08-24T08:00:00.000Z"),
           role: "athlete",
           delivery: "complete",
           historical: true,
@@ -1004,6 +1013,7 @@ describe("chat view adapter", () => {
         kind: "message",
         message: {
           id: "history:coach:turn-stopped",
+          occurredAtMs: Date.parse("1998-08-24T08:02:00.000Z"),
           turnId: "turn-stopped",
           role: "coach",
           delivery: "interrupted",
@@ -1097,6 +1107,7 @@ describe("chat view adapter", () => {
     let stopped = reduceChatState(EMPTY_CHAT_STATE, {
       type: "submit",
       requestKey: 1,
+      occurredAtMs: 0,
       userMessage: "",
       userMessageId: "unused-athlete",
       assistantMessageId: "decision-continuation",

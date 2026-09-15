@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} punkter kræver opmærksomhed",
     "sync": {
       "action": {
-        "again": "Synkroniser igen",
+        "again": "Synkroniser",
         "now": "Synkroniser nu",
         "retry": "Prøv igen",
         "unavailable": "Synkronisering er utilgængelig"
@@ -1003,6 +1003,7 @@
       "decisionFailure": "Vi kunne ikke fortsætte ud fra dit valg. Prøv igen.",
       "decisionLoadFailure": "Vi kunne ikke kontrollere, om der er et gemt spørgsmål fra træneren. Opret forbindelse igen, og prøv igen.",
       "decisionSkipFailure": "Vi kunne ikke springe dette spørgsmål over. Prøv igen.",
+      "draftSaveFailure": "Vi kunne ikke gemme din beskedkladde. Den er stadig tilgængelig i dette vindue.",
       "emptyResponse": "Træneren gav et tomt svar. Prøv igen.",
       "newConversationMemoryWarning": "En ny samtale er startet. Nogle af de seneste detaljer er muligvis ikke gemt i trænerens hukommelse.",
       "newConversationSuccess": "En ny samtale er startet.",
@@ -1107,7 +1108,7 @@
       "noChanges": "Ingen ændringer af træninger.",
       "none": "Ingen",
       "notInPlan": "Ikke i træningsplanen",
-      "openPlan": "Åbn Plan",
+      "openPlan": "Åbn aktiv Plan",
       "option": {
         "ftp": "Ret FTP",
         "hardWeekday": "Ingen hård træning på en bestemt ugedag",
@@ -1450,6 +1451,10 @@
       "conversation": "Trænersamtale",
       "disclaimer": "Ikke lægefaglig rådgivning og ikke en erstatning for en læge eller en certificeret træner.",
       "hideContext": "Skjul træningskontekst",
+      "pendingDraft": "Din træningsplan er klar til gennemgang.",
+      "reviewChange": "Gennemgå ændring",
+      "reviewChoices": "Gennemgå valg",
+      "reviewDraft": "Gennemgå udkast",
       "showContext": "Vis træningskontekst",
       "title": "Chat"
     }

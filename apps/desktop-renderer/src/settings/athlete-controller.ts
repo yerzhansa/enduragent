@@ -1,13 +1,9 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import type {
   ConfigureRuntimeRpcRefusalReason,
   RuntimeConfigSnapshot,
 } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export type AthleteSettingsValidationError =
   | "athlete-required"
@@ -130,26 +126,25 @@ export function createAthleteSettingsController(input: {
   let disposed = false;
   let operation: Promise<void> | undefined;
   let reconnectRequired = false;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
 
   const render = (state: Exclude<AthleteSettingsState, { readonly status: "closed" }>): void => {
     currentState = state;
     input.view.render(state);
   };
 
-  const clientForOperation = async (): Promise<CoachClient> => {
+  const clientForOperation = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
-    const current = await input.clients.getClient();
     const client =
-      failedClient !== undefined && current === failedClient
-        ? await input.clients.reconnect()
-        : current;
+      failedClient === undefined
+        ? await input.clients.getClient()
+        : await input.clients.reconnect(failedClient);
     reconnectRequired = false;
     failedClient = undefined;
     return client;
   };
 
-  const noteFailure = (error: unknown, client: CoachClient | undefined): void => {
+  const noteFailure = (error: unknown, client: DesktopCoachClient | undefined): void => {
     if (error instanceof CoachClientDisconnectedError) {
       reconnectRequired = true;
       failedClient = client;
@@ -162,7 +157,7 @@ export function createAthleteSettingsController(input: {
     const operationGeneration = ++generation;
     if (previous === null) render({ status: "loading" });
     else render({ ...previous, status: "refreshing" });
-    let activeClient: CoachClient | undefined;
+    let activeClient: DesktopCoachClient | undefined;
     const pending = Promise.resolve()
       .then(async () => {
         activeClient = await clientForOperation();
@@ -226,7 +221,7 @@ export function createAthleteSettingsController(input: {
     if (releaseMutation === null) return Promise.resolve();
     const operationGeneration = ++generation;
     render({ ...editable, status: "saving" });
-    let activeClient: CoachClient | undefined;
+    let activeClient: DesktopCoachClient | undefined;
     let applied = false;
     const pending = Promise.resolve()
       .then(async () => {

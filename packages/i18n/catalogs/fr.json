@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} éléments à vérifier",
     "sync": {
       "action": {
-        "again": "Synchroniser à nouveau",
+        "again": "Synchroniser",
         "now": "Synchroniser maintenant",
         "retry": "Réessayer",
         "unavailable": "Synchronisation indisponible"
@@ -1003,6 +1003,7 @@
       "decisionFailure": "Impossible de poursuivre à partir de ton choix. Réessaie.",
       "decisionLoadFailure": "Impossible de vérifier si une question du coach a été enregistrée. Reconnecte et réessaie.",
       "decisionSkipFailure": "Impossible de passer cette question. Réessaie.",
+      "draftSaveFailure": "Nous n’avons pas pu enregistrer ton brouillon de message. Il reste disponible dans cette fenêtre.",
       "emptyResponse": "Le coach a renvoyé une réponse vide. Réessaie.",
       "newConversationMemoryWarning": "Nouvelle conversation commencée. Certains détails récents n’ont peut-être pas été enregistrés dans la mémoire du coach.",
       "newConversationSuccess": "Nouvelle conversation commencée.",
@@ -1107,7 +1108,7 @@
       "noChanges": "Aucune modification d’entraînement.",
       "none": "Aucun",
       "notInPlan": "Absent du plan",
-      "openPlan": "Ouvrir le plan",
+      "openPlan": "Ouvrir le plan actif",
       "option": {
         "ftp": "Corriger la FTP",
         "hardWeekday": "Pas d’entraînement intense un jour de la semaine",
@@ -1450,6 +1451,10 @@
       "conversation": "Conversation avec le coach",
       "disclaimer": "Ces informations ne sont pas un avis médical et ne remplacent pas un médecin ou un coach certifié.",
       "hideContext": "Masquer le contexte d’entraînement",
+      "pendingDraft": "Votre Plan d’entraînement est prêt à être examiné.",
+      "reviewChange": "Examiner la modification",
+      "reviewChoices": "Examiner les choix",
+      "reviewDraft": "Examiner le brouillon",
       "showContext": "Afficher le contexte d’entraînement",
       "title": "Conversation"
     }

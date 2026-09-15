@@ -55,6 +55,41 @@ export function todayInTZ(tz: string, now: Date = new Date()): string {
   }).format(now);
 }
 
+function zoneOffsetMs(instant: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(instant));
+  const read = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const local = Date.UTC(
+    read("year"),
+    read("month") - 1,
+    read("day"),
+    read("hour"),
+    read("minute"),
+    read("second"),
+  );
+  return local - Math.floor(instant / 1000) * 1000;
+}
+
+export function dayStartInTZ(date: string, tz: string): number {
+  const [year, month, day] = date.split("-").map(Number);
+  const utcMidnight = Date.UTC(year!, month! - 1, day!);
+  const firstGuess = utcMidnight - zoneOffsetMs(utcMidnight, tz);
+  const secondGuess = utcMidnight - zoneOffsetMs(firstGuess, tz);
+  const onDate = [firstGuess, secondGuess].filter(
+    (candidate) => todayInTZ(tz, new Date(candidate)) === date,
+  );
+  return Math.min(...(onDate.length === 0 ? [firstGuess] : onDate));
+}
+
 function ordinalSuffix(day: number): string {
   if (day >= 11 && day <= 13) return "th";
   switch (day % 10) {

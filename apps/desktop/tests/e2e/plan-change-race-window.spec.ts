@@ -173,10 +173,9 @@ for (const appearance of appearances) {
         .click();
       await scenario.page
         .getByRole("region", { name: "Plan library", exact: true })
-        .getByRole("button", { name: "Change in Chat", exact: true })
+        .getByRole("button", { name: "Change one thing", exact: true })
         .click();
-      const changes = scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
-      await changes.getByRole("button", { name: "Change one thing", exact: true }).click();
+      const changes = scenario.page.locator('[data-conversation-projection^="plan-change"]');
       const editor = changes.getByRole("region", { name: "What needs to change?", exact: true });
       await expect(editor.getByRole("combobox", { name: "Change", exact: true })).toContainText(
         "Weekday duration cap",
@@ -206,7 +205,7 @@ for (const appearance of appearances) {
       expect(beforeApply.revisions).toEqual(initial.revisions);
       await capture(scenario, "reducing-preview");
       await changeCard.getByRole("button", { name: "Apply to Plan", exact: true }).click();
-      await expect(changes.getByRole("status")).toHaveText(
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(
         "Change applied locally. Training now matches the confirmed preview.",
       );
       await expect(changeCard.getByText("Applied", { exact: true })).toBeVisible();
@@ -228,7 +227,7 @@ for (const appearance of appearances) {
       const requestsBefore = scenario.backend.creationRequests.length;
       const libraryReadsBefore = scenario.backend.planListRequests.length;
       await changeCard.getByRole("button", { name: "Undo", exact: true }).click();
-      await expect(changes.getByRole("status")).toHaveText(refusalNotice);
+      await expect(scenario.page.locator("#plan-changes-notice")).toHaveText(refusalNotice);
       await expect(scenario.page.getByRole("alert")).toHaveCount(0);
       await expect(changes.getByText("Pending", { exact: true })).toHaveCount(0);
       await expect(changeCard.getByText("Applied", { exact: true })).toBeVisible();

@@ -13,6 +13,7 @@ export function PlanCard(props: {
   readonly statusClassName?: string;
   readonly contentClassName?: string;
   readonly parityAttributes?: boolean;
+  readonly pendingNavigationKey?: string;
   readonly headerChildren?: ReactNode;
   readonly children?: ReactNode;
 }): ReactElement {
@@ -23,6 +24,7 @@ export function PlanCard(props: {
       className="block min-w-0 gap-[normal] py-0"
       role="region"
       aria-label={props["aria-label"]}
+      data-pending-navigation-card={props.pendingNavigationKey}
     >
       <CardHeader className="block rounded-none p-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -39,6 +41,7 @@ export function PlanCard(props: {
               data-plan-card-title={parity}
               ref={props.headingRef}
               tabIndex={props.headingTabIndex}
+              data-pending-navigation-heading={props.pendingNavigationKey}
               className="m-0 text-base leading-6 font-semibold break-words"
             >
               {props.title}

@@ -2493,7 +2493,7 @@
       "translatedBy": "model"
     },
     "sidebar.sync.action.again": {
-      "sourceHash": "e353f7f080ca4c390ec3a7186e34bb2c55bb14516afcc11c7b84ed8192e30a69",
+      "sourceHash": "8d261a372fde1461cc4a5f53e938b337cfe335e2bd6d4e58d866ab97c5556052",
       "translatedBy": "model"
     },
     "sidebar.sync.action.now": {
@@ -3212,6 +3212,10 @@
       "sourceHash": "f4b566a95c60c2e91b74c70cf6aa3b1e7fcedb102b31d6db419f45921e40bfc0",
       "translatedBy": "model"
     },
+    "chat.notice.draftSaveFailure": {
+      "sourceHash": "b10a054df565809e15f32e0c8a3d06ffaa327ca717ff4f8ff82f1dfbf835770e",
+      "translatedBy": "model"
+    },
     "chat.notice.emptyResponse": {
       "sourceHash": "2f9e432fa9341aac70504ef47ada9797288d71b018e6456f3fbb53d27ebed4b2",
       "translatedBy": "model"
@@ -3573,7 +3577,7 @@
       "translatedBy": "model"
     },
     "chat.planChange.openPlan": {
-      "sourceHash": "eb6fc9da5268bc60bc45296d50f50bde0d3fa9c416af8ae66d3e773374332996",
+      "sourceHash": "2a35684add6a6e969da0c6e7b4a6602419706bc53758b7cfd7adfb73d07709d1",
       "translatedBy": "model"
     },
     "chat.planChange.option.ftp": {
@@ -4790,6 +4794,22 @@
     },
     "chat.view.hideContext": {
       "sourceHash": "46c08560d230ac6afcbd49d4152c94670794184d2efa1b2682c6934fd0bf910a",
+      "translatedBy": "model"
+    },
+    "chat.view.pendingDraft": {
+      "sourceHash": "5ccdaf6d70537f4b3052e9f7901a3c3b46675a29d1bb656d75dfa19bc8c08f93",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewChange": {
+      "sourceHash": "7b7ee5db5b1844a1219f8d72b2881cfd5a14b8862aae77bc2536ff79a995fa92",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewChoices": {
+      "sourceHash": "bcbd521c77689a77cb73038c2a6a4efb125cb979bed677b457db449b127d9aa8",
+      "translatedBy": "model"
+    },
+    "chat.view.reviewDraft": {
+      "sourceHash": "50494e32ed6a8853e9e55c793591b766d8a061c3a8ad1f2fffa832049864334f",
       "translatedBy": "model"
     },
     "chat.view.showContext": {

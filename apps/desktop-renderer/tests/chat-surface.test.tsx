@@ -10,6 +10,7 @@ import type {
   ChatAttachmentComposerReadModel,
   CoachDecisionReadModel,
   ListPlansResult,
+  PlanChangePendingCheck,
   PlanCreationCardModel,
   PlanCreationOpenQuestion,
   PlanningRequestDelivery,
@@ -714,6 +715,9 @@ describe("chat surface", () => {
       expect(screen.queryByRole("button", { name: /Prioritize recovery/u })).toBeNull();
       expect(normalComposer).not.toBeVisible();
       const custom = screen.getByLabelText("What would work better?");
+      expect(
+        document.querySelector('[data-pending-navigation-source="coach-decision:decision-1"]'),
+      ).toContainElement(custom);
       await user.type(custom, "Move tempo to Thursday");
       const back = screen.getByRole("button", { name: "Back" });
       const continueButton = screen.getByRole("button", { name: "Continue" });
@@ -1224,11 +1228,7 @@ describe("chat surface", () => {
       expect(disclaimer.parentElement).toHaveClass("max-h-full");
       expect(disclaimer.parentElement).not.toHaveClass("overflow-hidden");
       expect(disclaimer).toHaveClass("mt-inset", "text-xs");
-      expect(document.querySelector(".composer-projections")).toHaveClass(
-        "min-h-0",
-        "overflow-y-auto",
-        "overscroll-contain",
-      );
+      expect(document.querySelector(".conversation")).toHaveClass("overflow-auto");
     });
 
     it("keeps decision cards outside the shared attachment and composer shell", () => {
@@ -1241,7 +1241,8 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      const projections = document.querySelector(".composer-projections");
+      const conversation = document.querySelector(".conversation");
+      const transcript = screen.getByRole("log", { name: "Coach conversation" });
       const shell = document.querySelector(".composer-shell");
       const adjacent = document.querySelector(".composer-adjacent");
       const decision = screen
@@ -1252,7 +1253,7 @@ describe("chat surface", () => {
       const form = composer().closest("form");
 
       if (
-        !(projections instanceof HTMLElement) ||
+        !(conversation instanceof HTMLElement) ||
         !(shell instanceof HTMLElement) ||
         !(adjacent instanceof HTMLElement) ||
         !(decision instanceof HTMLElement) ||
@@ -1261,13 +1262,14 @@ describe("chat surface", () => {
       ) {
         throw new TypeError("Composer projections are incomplete.");
       }
-      expect(decision.parentElement).toBe(projections);
+      expect(transcript).toContainElement(decision);
+      expect(conversation).toContainElement(decision);
+      expect(shell).not.toContainElement(decision);
       expect(attachment.parentElement).toBe(adjacent);
       expect(queue.parentElement).toBe(adjacent);
       expect(
         attachment.compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
-      expect(projections.nextElementSibling).toBe(shell);
       expect(adjacent.nextElementSibling).toBe(form);
     });
 
@@ -1276,6 +1278,79 @@ describe("chat surface", () => {
 
       expect(composer()).toBeEnabled();
       expect(composer()).toHaveFocus();
+    });
+
+    it("returns focus after an explicit check clear even when the library snapshot is stale", async () => {
+      const pendingChangeCheck: PlanChangePendingCheck = {
+        schemaVersion: 1,
+        checkId: "check-stale",
+        commandId: "command-stale",
+        sourceVersion: 1,
+        attempt: 1,
+        submission: { field: "change", text: "Keep my week to six hours" },
+        state: "ready",
+        result: {
+          outcome: "understood",
+          title: "Six hours each week?",
+          body: "Confirm before reviewing the exact change.",
+          value: { kind: "weekly-duration", hours: 6 },
+        },
+      };
+      useEnduragentStore.setState({
+        planLibrary: {
+          status: "ready",
+          value: {
+            calendarConnected: false,
+            legacy: null,
+            creation: null,
+            active: {
+              supportingEventCandidates: [],
+              planId: "plan-focus",
+              version: 1,
+              name: "Build steady power",
+              start: "1998-09-07",
+              end: "1998-10-04",
+              weeks: 4,
+              status: "active",
+              closeReason: null,
+              closedAt: null,
+              activatedAt: "1998-09-07",
+              todayChoice: null,
+              calendar: {
+                status: "not-connected",
+                window: null,
+                currentThrough: null,
+                error: null,
+              },
+              creationId: null,
+            },
+            closed: [],
+            pendingChangeCheck,
+            changesPaused: null,
+            changes: [],
+          },
+        },
+        planChange: {
+          ...useEnduragentStore.getState().planChange,
+          open: true,
+          planId: "plan-focus",
+          pendingCheck: null,
+        },
+      });
+      render(<Harness />);
+      composer().blur();
+
+      act(() => {
+        useEnduragentStore.setState({
+          planChange: {
+            ...useEnduragentStore.getState().planChange,
+            focusRequest: { target: "change", revision: 1 },
+          },
+        });
+      });
+
+      await waitFor(() => expect(composer()).toHaveFocus());
+      expect(screen.queryByText("Six hours each week?")).toBeNull();
     });
 
     it("removes the file drop target while chat work is blocked", () => {
@@ -1844,6 +1919,21 @@ describe("chat surface", () => {
       expect(actions.submit).not.toHaveBeenCalled();
     });
 
+    it("shows a truthful draft-save failure with no attachments", () => {
+      setChat({
+        attachments: { schemaVersion: 1, capabilities: ATTACHMENT_CAPABILITIES, draft: null },
+        draftError: "We couldn’t save your message draft. It’s still available in this window.",
+      });
+      render(<Harness />);
+
+      expect(
+        screen.getByText(
+          "We couldn’t save your message draft. It’s still available in this window.",
+        ),
+      ).toBeVisible();
+      expect(screen.queryByText(/update that attachment/u)).toBeNull();
+    });
+
     it("opens the native picker from the centered Composer attachment control", async () => {
       const user = userEvent.setup();
       setChat({
@@ -2095,10 +2185,13 @@ describe("chat surface", () => {
       render(<Harness />);
 
       const host = document.querySelector(".chat-notice-host");
+      const pinned = document.querySelector(".chat-pinned-row");
       const queue = screen.getByRole("region", { name: "Queued messages, 2 queued messages" });
-      if (!(host instanceof HTMLElement)) throw new TypeError("notice host missing");
+      if (!(host instanceof HTMLElement) || !(pinned instanceof HTMLElement)) {
+        throw new TypeError("notice host missing");
+      }
 
-      expect(host).toContainElement(notice());
+      expect(pinned).toContainElement(notice());
       expect(host).toContainElement(retry());
       expect(queue).not.toContainElement(retry());
       expect(retry()).toHaveClass("mt-row", "mb-row");
@@ -2422,46 +2515,29 @@ describe("chat surface", () => {
     );
   });
 
-  describe("first sync card", () => {
-    it("shows nothing until the first sync is under way", () => {
+  describe("first sync status", () => {
+    it("does not add synchronization status to the conversation", () => {
       render(<Harness />);
       expect(document.querySelector(".first-sync")).toBeNull();
 
       act(() => {
         useEnduragentStore.setState({ firstSync: { status: "syncing" } });
       });
-      const progress = screen.getByRole("progressbar", { name: "Syncing training history" });
-      expect(progress).toBeVisible();
-      expect(progress).not.toHaveAttribute("value");
-      expect(progress.closest(".first-sync__track")).not.toBeNull();
-
-      act(() => {
-        useEnduragentStore.setState({ firstSync: { status: "ready" } });
-      });
       expect(document.querySelector(".first-sync")).toBeNull();
-    });
 
-    it("retries a recoverable sync failure and refuses one that needs a relaunch", async () => {
-      const user = userEvent.setup();
-      render(<Harness />);
       act(() => {
         useEnduragentStore.setState({
           firstSync: { status: "failed", kind: "operation", retryable: true },
         });
       });
-
-      const retry = screen.getByRole("button", { name: "Retry sync" });
-      await user.click(retry);
-      expect(actions.retryFirstSync).toHaveBeenCalledTimes(1);
-      expect(retry).toBeDisabled();
+      expect(document.querySelector(".first-sync")).toBeNull();
 
       act(() => {
         useEnduragentStore.setState({
           firstSync: { status: "failed", kind: "protocol", retryable: false },
         });
       });
-      expect(screen.queryByRole("button", { name: "Retry sync" })).toBeNull();
-      expect(screen.getByText("Quit and reopen Enduragent.")).toBeInTheDocument();
+      expect(document.querySelector(".first-sync")).toBeNull();
     });
   });
 
@@ -3312,6 +3388,140 @@ describe("chat surface", () => {
       await userEvent.click(discard);
       expect(actions.openPlanCreationDiscard).toHaveBeenCalledOnce();
       expect(composer()).toBeEnabled();
+    });
+
+    it("offers Draft review only after its actions leave the viewport and returns to the Card", async () => {
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+      render(<Harness />);
+
+      const key = `plan-creation:${model.creationId}`;
+      const conversation = screen.getByRole("main", { name: "Coaching conversation" });
+      const card = document.querySelector<HTMLElement>(`[data-pending-navigation-card="${key}"]`);
+      const heading = document.querySelector<HTMLElement>(
+        `[data-pending-navigation-heading="${key}"]`,
+      );
+      const source = document.querySelector<HTMLElement>(
+        `[data-pending-navigation-source="${key}"]`,
+      );
+      expect(card).not.toBeNull();
+      expect(heading).not.toBeNull();
+      expect(source).not.toBeNull();
+
+      let sourceBottom = 500;
+      vi.spyOn(conversation, "getBoundingClientRect").mockReturnValue({
+        top: 100,
+      } as DOMRect);
+      vi.spyOn(card!, "getBoundingClientRect").mockReturnValue({ top: 340 } as DOMRect);
+      vi.spyOn(source!, "getBoundingClientRect").mockImplementation(
+        () => ({ top: sourceBottom - 40, bottom: sourceBottom }) as DOMRect,
+      );
+      conversation.scrollTop = 240;
+
+      fireEvent.scroll(conversation);
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+
+      sourceBottom = 99;
+      fireEvent.scroll(conversation);
+      const reviewDraft = await screen.findByRole("button", { name: "Review Draft" });
+
+      const expectedScrollTop = conversation.scrollTop + 340 - 100 - 8;
+      sourceBottom = 500;
+      await userEvent.click(reviewDraft);
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(conversation.scrollTop).toBe(expectedScrollTop);
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+      expect(actions.openPlanCreationActivate).not.toHaveBeenCalled();
+      expect(actions.openPlanCreationDiscard).not.toHaveBeenCalled();
+      expect(actions.editPlanCreation).not.toHaveBeenCalled();
+
+      sourceBottom = 99;
+      fireEvent.scroll(conversation);
+      expect(await screen.findByRole("button", { name: "Review Draft" })).toBeVisible();
+
+      setChat({ planCreation: null, timeline: [] });
+      expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+    });
+
+    it("offers Draft review when a pinned-row resize moves its actions above the viewport", async () => {
+      const observations: Array<{
+        readonly callback: ResizeObserverCallback;
+        readonly observer: ResizeObserver;
+        readonly target: Element;
+      }> = [];
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(private readonly callback: ResizeObserverCallback) {}
+
+          observe(target: Element): void {
+            observations.push({
+              callback: this.callback,
+              observer: this as unknown as ResizeObserver,
+              target,
+            });
+          }
+
+          disconnect(): void {}
+
+          unobserve(): void {}
+        },
+      );
+      const model: PlanCreationCardModel = {
+        ...planCreationModel(null),
+        status: "review",
+        draft: planCreationDraft(),
+      };
+      setChat({
+        planCreationLoaded: true,
+        planCreation: model,
+        timeline: [{ kind: "plan-creation", model }],
+      });
+
+      try {
+        render(<Harness />);
+        const key = `plan-creation:${model.creationId}`;
+        const conversation = screen.getByRole("main", { name: "Coaching conversation" });
+        const source = document.querySelector<HTMLElement>(
+          `[data-pending-navigation-source="${key}"]`,
+        );
+        const pinned = document.querySelector(".chat-pinned-row");
+        const observation = observations.find((entry) => entry.target === pinned);
+        expect(source).not.toBeNull();
+        expect(observation).toBeDefined();
+        if (observation === undefined) throw new TypeError("Pinned row observation missing");
+
+        let conversationTop = 100;
+        vi.spyOn(conversation, "getBoundingClientRect").mockImplementation(
+          () => ({ top: conversationTop }) as DOMRect,
+        );
+        vi.spyOn(source!, "getBoundingClientRect").mockReturnValue({
+          top: 70,
+          bottom: 110,
+        } as DOMRect);
+        fireEvent.scroll(conversation);
+        expect(screen.queryByRole("button", { name: "Review Draft" })).toBeNull();
+
+        conversationTop = 120;
+        act(() => {
+          observation.callback(
+            [{ target: pinned } as ResizeObserverEntry],
+            observation.observer,
+          );
+        });
+
+        expect(await screen.findByRole("button", { name: "Review Draft" })).toBeVisible();
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it("keeps the Draft visible when an edited answer starts a check without changing version", async () => {
@@ -4197,6 +4407,7 @@ describe("chat surface", () => {
           readPlanHistory: vi.fn(),
           startCreation: vi.fn(),
           continueCreation: vi.fn(),
+          changeOneThingInChat: vi.fn(),
           changeInChat: vi.fn(),
         },
       });

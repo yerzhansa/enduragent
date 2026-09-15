@@ -42,6 +42,7 @@ export interface ActiveTurn {
 
 export interface ChatTranscriptMessage {
   readonly id: string;
+  readonly occurredAtMs?: number;
   readonly turnId?: string;
   readonly decisionId?: string;
   readonly role: "athlete" | "coach";
@@ -99,10 +100,16 @@ export const EMPTY_CHAT_STATE: ChatState = {
 };
 
 export type ChatAction =
-  | { readonly type: "append-athlete-message"; readonly id: string; readonly text: string }
+  | {
+      readonly type: "append-athlete-message";
+      readonly id: string;
+      readonly text: string;
+      readonly occurredAtMs: number;
+    }
   | {
       readonly type: "submit";
       readonly requestKey: number;
+      readonly occurredAtMs: number;
       readonly userMessage: string;
       readonly userMessageId: string;
       readonly assistantMessageId: string;
@@ -196,13 +203,20 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
         ...state,
         messages: [
           ...state.messages,
-          { id: action.id, role: "athlete", text: action.text, delivery: "complete" },
+          {
+            id: action.id,
+            occurredAtMs: action.occurredAtMs,
+            role: "athlete",
+            text: action.text,
+            delivery: "complete",
+          },
         ],
       };
     case "submit": {
       if (state.status === "streaming") return state;
       const assistant: ChatTranscriptMessage = {
         id: action.assistantMessageId,
+        occurredAtMs: action.occurredAtMs,
         role: "coach",
         text: "",
         delivery: "streaming",
@@ -212,6 +226,7 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             ...state.messages,
             {
               id: action.userMessageId,
+              occurredAtMs: action.occurredAtMs,
               role: "athlete" as const,
               text: action.userMessage,
               delivery: "complete" as const,

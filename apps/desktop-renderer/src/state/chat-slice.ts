@@ -9,6 +9,7 @@ import type {
   PlanCreationAnswerSummary,
   PlanCreationCardModel,
   PlanHandoffSuggestion,
+  ListPlansResult,
   PlanChangeIntent,
   PlanChangeRequest,
   PlanChangePendingCheck,
@@ -23,6 +24,7 @@ import type { EnduragentState } from "./store";
 
 export interface ChatMessageView {
   readonly id: string;
+  readonly occurredAtMs?: number;
   readonly turnId?: string;
   readonly decisionId?: string;
   readonly role: ChatTranscriptMessage["role"];
@@ -44,6 +46,7 @@ export interface ChatQueuedView {
 
 export interface ChatChoiceView {
   readonly id: string;
+  readonly occurredAtMs?: number;
   readonly label: string;
   readonly consequence: string | null;
   readonly skipped: boolean;
@@ -72,6 +75,7 @@ export interface ChatSurfaceState {
   readonly attachments: ChatAttachmentComposerReadModel | null;
   readonly attachmentAdmissions: readonly AttachmentAdmissionReadModel[];
   readonly attachmentBusy: boolean;
+  readonly draftError: string | null;
   readonly attachmentError: string | null;
   readonly planningRequests: readonly PlanningRequestDelivery[];
   readonly planningRequestsLoaded: boolean;
@@ -177,6 +181,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   attachments: null,
   attachmentAdmissions: Object.freeze([]),
   attachmentBusy: false,
+  draftError: null,
   attachmentError: null,
   planningRequests: Object.freeze([]),
   planningRequestsLoaded: false,
@@ -248,6 +253,48 @@ export const EMPTY_PLAN_CHANGE_SURFACE: PlanChangeSurfaceState = Object.freeze({
   focusRequest: null,
 });
 
+export function planChangePendingCheck(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): PlanChangePendingCheck | null {
+  return surface.pendingCheck === undefined
+    ? (library?.pendingChangeCheck ?? null)
+    : surface.pendingCheck;
+}
+
+export function planChangeOpenForActivePlan(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return library?.active != null && surface.open && surface.planId === library.active.planId;
+}
+
+export function planChangePendingInLibrary(library: ListPlansResult | null): boolean {
+  return library?.changes.some((change) => change.status === "pending") ?? false;
+}
+
+export function planChangeCardsAllowed(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return (
+    library?.active != null &&
+    (library.creation === null ||
+      planChangePendingInLibrary(library) ||
+      planChangeOpenForActivePlan(surface, library))
+  );
+}
+
+export function currentPlanChangeCardsVisible(
+  surface: PlanChangeSurfaceState,
+  library: ListPlansResult | null,
+): boolean {
+  return (
+    library?.active != null &&
+    (surface.editorOpen || surface.error !== null || library.active.todayChoice != null)
+  );
+}
+
 export interface ChatSlice {
   readonly planChange: PlanChangeSurfaceState;
   setPlanChange: (next: PlanChangeSurfaceState) => void;
@@ -270,6 +317,7 @@ export function sameChatMessages(
     return (
       other !== undefined &&
       message.id === other.id &&
+      message.occurredAtMs === other.occurredAtMs &&
       message.turnId === other.turnId &&
       message.decisionId === other.decisionId &&
       message.role === other.role &&
@@ -335,6 +383,7 @@ export function sameChatTimeline(
     if (item.kind === "choice" && other.kind === "choice") {
       return (
         item.choice.id === other.choice.id &&
+        item.choice.occurredAtMs === other.choice.occurredAtMs &&
         item.choice.label === other.choice.label &&
         item.choice.consequence === other.choice.consequence &&
         item.choice.skipped === other.choice.skipped &&
@@ -371,6 +420,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.attachments === right.attachments &&
     left.attachmentAdmissions === right.attachmentAdmissions &&
     left.attachmentBusy === right.attachmentBusy &&
+    left.draftError === right.draftError &&
     left.attachmentError === right.attachmentError &&
     left.planningRequestsLoaded === right.planningRequestsLoaded &&
     left.planningRequestBusyId === right.planningRequestBusyId &&

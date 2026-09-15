@@ -157,6 +157,7 @@ describe("closed Plan history refresh", () => {
         closePlan: vi.fn(),
         startCreation: vi.fn(),
         continueCreation: vi.fn(),
+        changeOneThingInChat: vi.fn(),
         changeInChat: vi.fn(),
       },
     });

@@ -83,6 +83,7 @@ function historicalTimeline(
           kind: "message",
           message: {
             id: `history:athlete:${entry.turnId}`,
+            occurredAtMs: Date.parse(entry.completedAt),
             turnId: entry.turnId,
             role: "athlete",
             delivery: "complete",
@@ -99,6 +100,7 @@ function historicalTimeline(
             attempt === 1
               ? `history:coach:${entry.turnId}`
               : `history:coach:${entry.turnId}:attempt:${attempt}`,
+          occurredAtMs: Date.parse(entry.completedAt),
           turnId: entry.turnId,
           role: "coach",
           delivery: entry.delivery ?? "complete",
@@ -120,6 +122,7 @@ function historicalTimeline(
           kind: "message",
           message: {
             id: `history:decision-athlete:${entry.decision.decisionId}`,
+            occurredAtMs: Date.parse(entry.recordedAt),
             role: "athlete",
             delivery: "complete",
             historical: true,
@@ -138,6 +141,7 @@ function historicalTimeline(
         kind: "choice",
         choice: {
           id: entry.decisionId,
+          occurredAtMs: Date.parse(entry.recordedAt),
           label: "Question skipped",
           consequence: "No coaching choice was applied.",
           skipped: true,
@@ -160,6 +164,7 @@ function historicalTimeline(
           kind: "choice",
           choice: {
             id: entry.decisionId,
+            occurredAtMs: Date.parse(savedAnswer.recordedAt),
             label,
             consequence: answer.kind === "custom" ? null : savedAnswer.consequence,
             skipped: false,
@@ -172,6 +177,7 @@ function historicalTimeline(
         kind: "message",
         message: {
           id: `history:decision-coach:${entry.continuationId}`,
+          occurredAtMs: Date.parse(entry.completedAt),
           turnId: entry.turnId,
           role: "coach",
           delivery: "complete",
@@ -232,6 +238,7 @@ export function createChatViewAdapter(input: {
     );
     const messages: readonly ChatMessageView[] = visible.map((message) => ({
       id: message.id,
+      ...(message.occurredAtMs === undefined ? {} : { occurredAtMs: message.occurredAtMs }),
       ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
       ...(message.decisionId === undefined ? {} : { decisionId: message.decisionId }),
       role: message.role,
@@ -369,6 +376,7 @@ export function createChatViewAdapter(input: {
       attachments: attachments?.value ?? null,
       attachmentAdmissions: attachments?.admissions ?? EMPTY_CHAT_SURFACE.attachmentAdmissions,
       attachmentBusy: attachments?.busy ?? false,
+      draftError: attachments?.draftError ?? null,
       attachmentError: attachments?.error ?? null,
       planningRequests,
       planningRequestsLoaded: controls?.planningRequests?.loaded ?? false,

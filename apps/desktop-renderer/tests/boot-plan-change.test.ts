@@ -1,4 +1,8 @@
-import type { ListPlansResult, PlanCreationCardModel } from "@enduragent/coach-contract";
+import type {
+  ListPlansResult,
+  PlanChangePendingCheck,
+  PlanCreationCardModel,
+} from "@enduragent/coach-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootRenderer } from "../src/boot";
 import { createChatController } from "../src/chat/controller";
@@ -153,6 +157,21 @@ const creation: PlanCreationCardModel = {
     dateLabel: "Earliest start date",
   },
 };
+const pendingChangeCheck: PlanChangePendingCheck = {
+  schemaVersion: 1,
+  checkId: "check-boot",
+  commandId: "command-boot",
+  sourceVersion: 2,
+  attempt: 1,
+  submission: { field: "change", text: "Keep my week to six hours" },
+  state: "ready",
+  result: {
+    outcome: "understood",
+    title: "Six hours each week?",
+    body: "Confirm before reviewing the exact change.",
+    value: { kind: "weekly-duration", hours: 6 },
+  },
+};
 
 function library(planId: string, pending = false): ListPlansResult {
   return {
@@ -286,6 +305,50 @@ describe("Plan Change boot wiring", () => {
     store.getState().planLibraryActions?.changeInChat();
     expect(store.getState().planChange).toEqual({ ...previous, open: true, textRouting: true });
   });
+
+  it("opens the structured Change editor from the Plan library", () => {
+    store.getState().setPlanLibrary({ status: "ready", value: library("plan-active") });
+    store.getState().planLibraryActions?.changeOneThingInChat();
+    expect(store.getState().activeView).toBe("chat");
+    expect(store.getState().planChange).toEqual({
+      ...EMPTY_PLAN_CHANGE_SURFACE,
+      open: true,
+      textRouting: true,
+      planId: "plan-active",
+      editorOpen: true,
+      focusRequest: { target: "editor", revision: 1 },
+    });
+  });
+
+  it.each(["busy", "paused", "pending-check"] as const)(
+    "leaves the current surface unchanged when structured Change is %s",
+    (condition) => {
+      const value = library("plan-active");
+      store.getState().setPlanLibrary({
+        status: "ready",
+        value: {
+          ...value,
+          changesPaused:
+            condition === "paused"
+              ? { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 }
+              : null,
+          pendingChangeCheck: condition === "pending-check" ? pendingChangeCheck : null,
+        },
+      });
+      const before = {
+        ...EMPTY_PLAN_CHANGE_SURFACE,
+        planId: "plan-active",
+        busy: condition === "busy",
+      };
+      store.getState().setPlanChange(before);
+      store.getState().setActiveView("plan");
+
+      store.getState().planLibraryActions?.changeOneThingInChat();
+
+      expect(store.getState().activeView).toBe("plan");
+      expect(store.getState().planChange).toEqual(before);
+    },
+  );
 
   it("resumes creation after Continue from the library with a pending Change", async () => {
     controller().resumeCreation(creation);

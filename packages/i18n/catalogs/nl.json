@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} onderdelen hebben aandacht nodig",
     "sync": {
       "action": {
-        "again": "Opnieuw synchroniseren",
+        "again": "Synchroniseren",
         "now": "Nu synchroniseren",
         "retry": "Opnieuw proberen",
         "unavailable": "Synchronisatie niet beschikbaar"
@@ -1003,6 +1003,7 @@
       "decisionFailure": "Er kon niet worden doorgegaan met je keuze. Probeer het opnieuw.",
       "decisionLoadFailure": "Er kon niet worden gecontroleerd op een opgeslagen vraag van de coach. Maak opnieuw verbinding en probeer het opnieuw.",
       "decisionSkipFailure": "Deze vraag kon niet worden overgeslagen. Probeer het opnieuw.",
+      "draftSaveFailure": "We konden je berichtconcept niet opslaan. Het is nog steeds beschikbaar in dit venster.",
       "emptyResponse": "De coach gaf een leeg antwoord. Probeer het opnieuw.",
       "newConversationMemoryWarning": "Nieuw gesprek gestart. Sommige recente details zijn mogelijk niet opgeslagen in het coachgeheugen.",
       "newConversationSuccess": "Nieuw gesprek gestart.",
@@ -1107,7 +1108,7 @@
       "noChanges": "Geen wijzigingen aan trainingen.",
       "none": "Geen",
       "notInPlan": "Niet in het trainingsschema",
-      "openPlan": "Plan openen",
+      "openPlan": "Actief Plan openen",
       "option": {
         "ftp": "FTP corrigeren",
         "hardWeekday": "Geen zware training op een bepaalde dag van de week",
@@ -1450,6 +1451,10 @@
       "conversation": "Coachingsgesprek",
       "disclaimer": "Geen medisch advies en geen vervanging voor een arts of een gecertificeerde coach.",
       "hideContext": "Trainingscontext verbergen",
+      "pendingDraft": "Je trainingsplan is klaar om te beoordelen.",
+      "reviewChange": "Wijziging bekijken",
+      "reviewChoices": "Keuzes bekijken",
+      "reviewDraft": "Concept bekijken",
       "showContext": "Trainingscontext tonen",
       "title": "Chat"
     }

@@ -805,7 +805,7 @@
     "planAttention_other": "Plan, {{formattedCount}} elementos requieren atención",
     "sync": {
       "action": {
-        "again": "Sincronizar de nuevo",
+        "again": "Sincronizar",
         "now": "Sincronizar ahora",
         "retry": "Intentar de nuevo",
         "unavailable": "Sincronización no disponible"
@@ -1003,6 +1003,7 @@
       "decisionFailure": "No se pudo continuar con tu elección. Inténtalo de nuevo.",
       "decisionLoadFailure": "No se pudo comprobar si había una pregunta del entrenador guardada. Vuelve a conectar e inténtalo de nuevo.",
       "decisionSkipFailure": "No se pudo omitir esta pregunta. Inténtalo de nuevo.",
+      "draftSaveFailure": "No pudimos guardar el borrador de tu mensaje. Sigue disponible en esta ventana.",
       "emptyResponse": "El entrenador devolvió una respuesta vacía. Inténtalo de nuevo.",
       "newConversationMemoryWarning": "Se ha iniciado una nueva conversación. Puede que algunos detalles recientes no se hayan guardado en la memoria del entrenador.",
       "newConversationSuccess": "Se ha iniciado una nueva conversación.",
@@ -1107,7 +1108,7 @@
       "noChanges": "No hay cambios en los entrenamientos.",
       "none": "Ninguno",
       "notInPlan": "No está en el plan",
-      "openPlan": "Abrir Plan",
+      "openPlan": "Abrir Plan activo",
       "option": {
         "ftp": "Corregir FTP",
         "hardWeekday": "Sin entrenamiento intenso en un día de la semana",
@@ -1450,6 +1451,10 @@
       "conversation": "Conversación con el entrenador",
       "disclaimer": "No es asesoramiento médico ni sustituye a un médico o a un entrenador certificado.",
       "hideContext": "Ocultar contexto de entrenamiento",
+      "pendingDraft": "Tu Plan de entrenamiento está listo para revisar.",
+      "reviewChange": "Revisar cambio",
+      "reviewChoices": "Revisar opciones",
+      "reviewDraft": "Revisar borrador",
       "showContext": "Mostrar contexto de entrenamiento",
       "title": "Chat"
     }

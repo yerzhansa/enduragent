@@ -1,12 +1,12 @@
 import {
   CoachClientCallAbortedError,
+  CoachClientCallNotAdmittedError,
   CoachClientCallTimeoutError,
   CoachClientDisconnectedError,
   CoachClientHandshakeError,
   CoachClientProtocolError,
   CoachClientTransportUnavailableError,
   CoachRpcRemoteError,
-  type CoachClient,
   type CoachClientTerminalEnvelope,
 } from "@enduragent/coach-client";
 import type {
@@ -14,7 +14,7 @@ import type {
   CoachOperationProgressNotificationEnvelope,
   SyncRpcResult,
 } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "./coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "./coach-client";
 
 interface TrainingSyncRestrictionWindow {
   readonly total: number;
@@ -123,7 +123,7 @@ export function createTrainingSyncCoordinator(input: {
   let inFlight: Promise<void> | undefined;
   let disposed = false;
   let needsReconnect = false;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
   const listeners = new Set<TrainingSyncStateListener>();
 
   const current = (selectedEpoch: number): boolean => !disposed && selectedEpoch === epoch;
@@ -147,18 +147,17 @@ export function createTrainingSyncCoordinator(input: {
     });
   };
 
-  const clientAfterFailure = async (previous: CoachClient | undefined): Promise<CoachClient> => {
-    if (previous === undefined) return input.clients.getClient();
-    const client = await input.clients.getClient();
-    return client === previous ? input.clients.reconnect() : client;
-  };
+  const clientAfterFailure = (
+    previous: DesktopCoachClient | undefined,
+  ): Promise<DesktopCoachClient> =>
+    previous === undefined ? input.clients.getClient() : input.clients.reconnect(previous);
 
   const begin = (): Promise<void> => {
     const selectedEpoch = ++epoch;
     const selectedOperation = ++operation;
     publish({ status: "queued", operation: selectedOperation });
 
-    let selectedClient: CoachClient | undefined;
+    let selectedClient: DesktopCoachClient | undefined;
     let admitted = false;
     let progress = 0;
     let requestId: string | number | undefined;
@@ -258,6 +257,17 @@ export function createTrainingSyncCoordinator(input: {
 
       if (protocolFault || failure instanceof CoachClientProtocolError) {
         publishProtocol(selectedEpoch, selectedOperation);
+        return;
+      }
+      if (failure instanceof CoachClientCallNotAdmittedError) {
+        needsReconnect = false;
+        failedClient = undefined;
+        publish({
+          status: "failed",
+          operation: selectedOperation,
+          kind: "operation",
+          retryable: true,
+        });
         return;
       }
       if (terminal === undefined) {

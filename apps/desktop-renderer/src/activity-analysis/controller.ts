@@ -1,15 +1,11 @@
-import {
-  CoachClientDisconnectedError,
-  CoachClientProtocolError,
-  type CoachClient,
-} from "@enduragent/coach-client";
+import { CoachClientDisconnectedError, CoachClientProtocolError } from "@enduragent/coach-client";
 import {
   ActivityAnalysisResultSchema,
   CanonicalActivityIdSchema,
   type ActivityAnalysisResult,
   type ActivityAnalysisSection,
 } from "@enduragent/coach-contract";
-import type { DesktopCoachClientProvider } from "../coach-client";
+import type { DesktopCoachClient, DesktopCoachClientProvider } from "../coach-client";
 
 export type RideAnalysisStatus =
   | "idle"
@@ -64,7 +60,7 @@ export function createRideAnalysisController(input: {
   let disposed = false;
   let generation = 0;
   let operation: AbortController | undefined;
-  let failedClient: CoachClient | undefined;
+  let failedClient: DesktopCoachClient | undefined;
   let reconnectRequired = false;
   let state: RideAnalysisViewState = EMPTY_RIDE_ANALYSIS;
   const cache = new Map<string, RideAnalysisViewState>();
@@ -73,13 +69,9 @@ export function createRideAnalysisController(input: {
     state = next;
     if (!disposed) input.view.render(state);
   };
-  const clientAfterFailure = async (): Promise<CoachClient> => {
+  const clientAfterFailure = async (): Promise<DesktopCoachClient> => {
     if (!reconnectRequired) return input.clients.getClient();
-    const current = await input.clients.getClient();
-    const client =
-      failedClient === undefined || current === failedClient
-        ? await input.clients.reconnect()
-        : current;
+    const client = await input.clients.reconnect(failedClient);
     reconnectRequired = false;
     failedClient = undefined;
     return client;
@@ -103,7 +95,7 @@ export function createRideAnalysisController(input: {
       loadingSections: requested,
       failedSections: state.failedSections.filter((section) => !requested.includes(section)),
     });
-    let client: CoachClient | undefined;
+    let client: DesktopCoachClient | undefined;
     try {
       client = await clientAfterFailure();
       controller.signal.throwIfAborted();

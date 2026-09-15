@@ -163,7 +163,7 @@ const durationTitle = "Limit weekday duration";
 const ftpTitle = "Correct FTP";
 
 function changes(scenario: Scenario) {
-  return scenario.page.getByRole("region", { name: "Plan Changes", exact: true });
+  return scenario.page.locator('[data-conversation-projection^="plan-change"]');
 }
 
 function pendingCard(scenario: Scenario, title: string) {
@@ -224,9 +224,6 @@ for (const appearance of appearances) {
         .click();
       await scenario.page
         .getByRole("region", { name: "Plan library", exact: true })
-        .getByRole("button", { name: "Change in Chat", exact: true })
-        .click();
-      await changes(scenario)
         .getByRole("button", { name: "Change one thing", exact: true })
         .click();
       const editor = changes(scenario).getByRole("region", {

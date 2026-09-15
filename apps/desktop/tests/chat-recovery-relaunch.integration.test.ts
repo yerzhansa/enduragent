@@ -544,7 +544,11 @@ async function readRecoverySurface(fixture: RunningDesktopFixture) {
     readonly draft: string;
     readonly sendDisabled: boolean;
     readonly inputDisabled: boolean;
-    readonly projectionOrder: readonly string[];
+    readonly surfacePlacement: {
+      readonly decisionInConversation: boolean;
+      readonly attachmentInComposer: boolean;
+      readonly queueInComposer: boolean;
+    };
     readonly recoveryTranscript: readonly {
       readonly role: "athlete" | "coach";
       readonly text: string;
@@ -576,7 +580,7 @@ async function readRecoverySurface(fixture: RunningDesktopFixture) {
     let plan;
     let composer;
     while (Date.now() < deadline) {
-      decision = [...document.querySelectorAll(".composer-projections section")].find(
+      decision = [...document.querySelectorAll('[data-conversation-projection^="coach-decision:"]')].find(
         (element) => element.textContent?.includes(question),
       );
       attachment = document.querySelector('section[aria-label="recovery-tempo.zwo attachment"]');
@@ -605,16 +609,10 @@ async function readRecoverySurface(fixture: RunningDesktopFixture) {
     if (!(composer instanceof HTMLTextAreaElement)) throw new Error("Recovered composer missing");
     const send = document.querySelector('button[aria-label="Send message"]');
     if (!(send instanceof HTMLButtonElement)) throw new Error("Send action missing");
-    const projections = document.querySelector(".composer-projections");
-    if (!(projections instanceof HTMLElement)) throw new Error("Composer projections missing");
-    const projectionOrder = [...projections.querySelectorAll("section")]
-      .filter(
-        (element) =>
-          element === decision || element === attachment || element === queue,
-      )
-      .map((element) =>
-        element === decision ? "decision" : element === attachment ? "attachment" : "queue",
-      );
+    const conversation = document.querySelector(".conversation");
+    const adjacent = document.querySelector(".composer-adjacent");
+    if (!(conversation instanceof HTMLElement)) throw new Error("Conversation missing");
+    if (!(adjacent instanceof HTMLElement)) throw new Error("Composer-adjacent surface missing");
     const recoveryTranscript = [...document.querySelectorAll("article.chat-message")]
       .flatMap((element) => {
         const text = element.querySelector(".chat-message__text")?.textContent?.trim() ?? "";
@@ -626,7 +624,7 @@ async function readRecoverySurface(fixture: RunningDesktopFixture) {
         }];
       });
     return {
-      questionCount: [...document.querySelectorAll(".composer-projections section")].filter(
+      questionCount: [...document.querySelectorAll('[data-conversation-projection^="coach-decision:"]')].filter(
         (element) => element.textContent?.includes(question),
       ).length,
       attachmentCount: document.querySelectorAll(
@@ -643,7 +641,11 @@ async function readRecoverySurface(fixture: RunningDesktopFixture) {
       draft: composer.value,
       sendDisabled: send.disabled,
       inputDisabled: composer.disabled,
-      projectionOrder,
+      surfacePlacement: {
+        decisionInConversation: conversation.contains(decision),
+        attachmentInComposer: adjacent.contains(attachment),
+        queueInComposer: adjacent.contains(queue),
+      },
       recoveryTranscript,
     };
   `);
@@ -733,7 +735,9 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
             await new Promise((resolve) => setTimeout(resolve, 20));
           }
           return {
-            projections: document.querySelectorAll(".composer-projections section").length,
+            projections: document.querySelectorAll(
+              "[data-conversation-projection], .composer-adjacent > section",
+            ).length,
             planningRequests: document.querySelectorAll("[data-planning-request-id]").length,
             draft: document.querySelector("#message")?.value ?? null,
           };
@@ -781,7 +785,11 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)(
         draft: attachmentDraftText,
         sendDisabled: true,
         inputDisabled: false,
-        projectionOrder: ["decision", "attachment", "queue"],
+        surfacePlacement: {
+          decisionInConversation: true,
+          attachmentInComposer: true,
+          queueInComposer: true,
+        },
         recoveryTranscript: [
           { role: "athlete", text: recoveredAthleteText, delivery: "complete" },
           { role: "coach", text: recoveredPartialText, delivery: "interrupted" },

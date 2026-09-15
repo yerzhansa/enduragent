@@ -801,7 +801,7 @@
     "planAttention_other": "计划，{{formattedCount}} 项需要处理",
     "sync": {
       "action": {
-        "again": "再次同步",
+        "again": "同步",
         "now": "立即同步",
         "retry": "重试",
         "unavailable": "同步不可用"
@@ -995,6 +995,7 @@
       "decisionFailure": "无法根据所选答案继续。请重试。",
       "decisionLoadFailure": "无法检查已保存的教练问题。请重新连接后重试。",
       "decisionSkipFailure": "无法跳过此问题。请重试。",
+      "draftSaveFailure": "无法保存你的消息草稿。它仍保留在此窗口中。",
       "emptyResponse": "教练返回了空回复。请重试。",
       "newConversationMemoryWarning": "已开始新对话。部分近期细节可能未保存到教练记忆。",
       "newConversationSuccess": "已开始新对话。",
@@ -1099,7 +1100,7 @@
       "noChanges": "训练课程未更改。",
       "none": "无",
       "notInPlan": "不在计划中",
-      "openPlan": "打开计划",
+      "openPlan": "打开当前计划",
       "option": {
         "ftp": "修正 FTP",
         "hardWeekday": "每周某天不安排高强度训练",
@@ -1437,6 +1438,10 @@
       "conversation": "教练对话",
       "disclaimer": "此内容不是医疗建议，也不能替代医生或认证教练的指导。",
       "hideContext": "隐藏训练背景",
+      "pendingDraft": "你的训练计划已可供审核。",
+      "reviewChange": "审核更改",
+      "reviewChoices": "审核选项",
+      "reviewDraft": "审核草稿",
       "showContext": "显示训练背景",
       "title": "聊天"
     }

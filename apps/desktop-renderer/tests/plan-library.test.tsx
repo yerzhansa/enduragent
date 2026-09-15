@@ -5,6 +5,7 @@ import type {
   PlanCreationCardModel,
   PlanHistoryResult,
   PlanCloseResult,
+  PlanChangePendingCheck,
 } from "@enduragent/coach-contract";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,7 +13,11 @@ import { lazy, Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPlanController } from "../src/plan/controller";
 import { requestPlanCalendarRetry, subscribePlanLibraryRefresh } from "../src/plan/library-refresh";
-import { EMPTY_CHAT_SURFACE, type ChatActions } from "../src/state/chat-slice";
+import {
+  EMPTY_CHAT_SURFACE,
+  EMPTY_PLAN_CHANGE_SURFACE,
+  type ChatActions,
+} from "../src/state/chat-slice";
 import { EMPTY_PLAN_SURFACE, type PlanActions } from "../src/state/plan-slice";
 import { useEnduragentStore } from "../src/state/store";
 import { PlanLibrary } from "../src/ui/plan/PlanLibrary";
@@ -190,6 +195,21 @@ const active: NonNullable<ListPlansResult["active"]> = {
   calendar: { status: "pending", window: null, currentThrough: null, error: null },
   creationId: null,
 };
+const pendingChangeCheck: PlanChangePendingCheck = {
+  schemaVersion: 1,
+  checkId: "check-library",
+  commandId: "command-library",
+  sourceVersion: 1,
+  attempt: 1,
+  submission: { field: "change", text: "Keep my week to six hours" },
+  state: "ready",
+  result: {
+    outcome: "understood",
+    title: "Six hours each week?",
+    body: "Confirm before reviewing the exact change.",
+    value: { kind: "weekly-duration", hours: 6 },
+  },
+};
 const closed: ListPlansResult["closed"] = [
   {
     ...active,
@@ -219,6 +239,7 @@ beforeEach(() => {
   useEnduragentStore.setState({
     chat: { ...EMPTY_CHAT_SURFACE, planCreation: creation },
     chatActions: stubActions(),
+    planChange: EMPTY_PLAN_CHANGE_SURFACE,
     plan: EMPTY_PLAN_SURFACE,
     planActions: null,
     planLibrary: { status: "loading", value: null },
@@ -233,6 +254,7 @@ beforeEach(() => {
       refresh: vi.fn(async () => {}),
       startCreation: vi.fn(),
       continueCreation: vi.fn(),
+      changeOneThingInChat: vi.fn(),
       changeInChat: vi.fn(),
     },
     planningReadActions: null,
@@ -518,7 +540,7 @@ describe("Plan library", () => {
           within(card)
             .getAllByRole("button")
             .map((button) => button.textContent),
-        ).toEqual(["Stop Plan", "Read Plan details", "Change in Chat"]);
+        ).toEqual(["Stop Plan", "Read Plan details", "Change one thing", "Change in Chat"]);
       } else {
         expect(within(section).getByText("Create a Plan when you are ready.")).toBeVisible();
       }
@@ -567,8 +589,72 @@ describe("Plan library", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Change in Chat" }));
     expect(useEnduragentStore.getState().planLibraryActions?.changeInChat).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Change one thing" }));
+    expect(
+      useEnduragentStore.getState().planLibraryActions?.changeOneThingInChat,
+    ).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "Read Plan details" }));
     expect(readDetails).toHaveBeenCalledOnce();
+  });
+
+  it.each(["paused", "busy", "pending-check"] as const)(
+    "disables structured Change while the lifecycle is %s",
+    (condition) => {
+      useEnduragentStore.setState({
+        planChange: {
+          ...EMPTY_PLAN_CHANGE_SURFACE,
+          busy: condition === "busy",
+          ...(condition === "pending-check" ? { pendingCheck: pendingChangeCheck } : {}),
+        },
+      });
+      render(
+        <PlanLibrary
+          readFinalDetails={vi.fn()}
+          library={{
+            calendarConnected: false,
+            legacy: null,
+            creation: null,
+            active,
+            closed: [],
+            changes: [],
+            pendingChangeCheck: null,
+            changesPaused:
+              condition === "paused"
+                ? { reason: "sync-stale", lastSuccessfulSyncAtMs: 900000000000 }
+                : null,
+          }}
+          readDetails={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "Change one thing" })).toBeDisabled();
+    },
+  );
+
+  it("enables structured Change after the renderer explicitly clears a stale library check", () => {
+    const library = {
+      calendarConnected: false,
+      legacy: null,
+      creation: null,
+      active,
+      closed: [],
+      changes: [],
+      pendingChangeCheck,
+      changesPaused: null,
+    } satisfies ListPlansResult;
+    useEnduragentStore.setState({
+      planChange: { ...EMPTY_PLAN_CHANGE_SURFACE, pendingCheck: null },
+      planLibrary: { status: "ready", value: library },
+    });
+
+    render(
+      <PlanLibrary
+        readFinalDetails={vi.fn()}
+        library={library}
+        readDetails={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Change one thing" })).toBeEnabled();
   });
 
   it.each([
@@ -1479,7 +1565,7 @@ describe("Stop Plan", () => {
       within(screen.getByRole("region", { name: "Active Plan" }))
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Stop Plan", "Read Plan details", "Change in Chat"]);
+    ).toEqual(["Stop Plan", "Read Plan details", "Change one thing", "Change in Chat"]);
     fireEvent.click(screen.getAllByRole("button", { name: "Read final details" })[0]!);
     expect(readFinalDetails).toHaveBeenCalledWith("closed-recent");
   });

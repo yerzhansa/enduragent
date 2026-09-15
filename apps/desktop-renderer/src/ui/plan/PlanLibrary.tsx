@@ -19,6 +19,7 @@ import {
 } from "@enduragent/ui";
 import { creationTitle } from "../../plan/creation-title";
 import { requestPlanCalendarRetry } from "../../plan/library-refresh";
+import { planChangePendingCheck } from "../../state/chat-slice";
 import { useEnduragentStore } from "../../state/store";
 
 function LibraryCard(props: {
@@ -178,6 +179,10 @@ export function PlanLibrary(props: {
   const error = useEnduragentStore((state) => state.chat.planCreationError);
   const paused = useEnduragentStore((state) => state.chat.planCreationPaused);
   const busy = useEnduragentStore((state) => state.chat.planCreationBusy);
+  const planChangeBusy = useEnduragentStore((state) => state.planChange.busy);
+  const planChangeCheckPending = useEnduragentStore(
+    (state) => planChangePendingCheck(state.planChange, state.planLibrary.value) !== null,
+  );
   const focusRequest = useEnduragentStore((state) => state.chat.planCreationFocusRequest);
   const discard = useRef<HTMLButtonElement>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
@@ -419,6 +424,19 @@ export function PlanLibrary(props: {
               onClick={props.readDetails}
             >
               {say("plan.library.readDetails")}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-line bg-surface"
+              disabled={
+                actions === null ||
+                props.library.changesPaused !== null ||
+                planChangeBusy ||
+                planChangeCheckPending
+              }
+              onClick={() => actions?.changeOneThingInChat()}
+            >
+              {say("chat.planChange.changeOne")}
             </Button>
             <Button
               ref={changeButton}

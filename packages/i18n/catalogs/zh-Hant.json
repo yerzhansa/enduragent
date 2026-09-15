@@ -801,7 +801,7 @@
     "planAttention_other": "計畫，{{formattedCount}} 個項目需要處理",
     "sync": {
       "action": {
-        "again": "再次同步",
+        "again": "同步",
         "now": "立即同步",
         "retry": "重試",
         "unavailable": "無法同步"
@@ -995,6 +995,7 @@
       "decisionFailure": "無法依所選答案繼續。請重試。",
       "decisionLoadFailure": "無法檢查已儲存的教練問題。請重新連線後重試。",
       "decisionSkipFailure": "無法略過此問題。請重試。",
+      "draftSaveFailure": "無法儲存你的訊息草稿。它仍保留在此視窗中。",
       "emptyResponse": "教練回傳了空白回覆。請重試。",
       "newConversationMemoryWarning": "已開始新對話。部分近期細節可能未儲存至教練記憶。",
       "newConversationSuccess": "已開始新對話。",
@@ -1099,7 +1100,7 @@
       "noChanges": "訓練課表未變更。",
       "none": "無",
       "notInPlan": "不在計畫中",
-      "openPlan": "開啟計畫",
+      "openPlan": "開啟目前計畫",
       "option": {
         "ftp": "修正 FTP",
         "hardWeekday": "每週某天不安排高強度訓練",
@@ -1437,6 +1438,10 @@
       "conversation": "教練對話",
       "disclaimer": "此內容不是醫療建議，也不能取代醫師或認證教練的指導。",
       "hideContext": "隱藏訓練背景",
+      "pendingDraft": "你的訓練計畫已可供審核。",
+      "reviewChange": "審核變更",
+      "reviewChoices": "審核選項",
+      "reviewDraft": "審核草稿",
       "showContext": "顯示訓練背景",
       "title": "聊天"
     }

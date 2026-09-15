@@ -376,23 +376,30 @@ async function readDecisionPrompt(fixture: RunningDesktopFixture) {
     const choice = ${JSON.stringify(choiceLabel)};
     const deadline = Date.now() + 10000;
     let panel;
+    let send;
+    let input;
     while (Date.now() < deadline) {
-      panel = [...document.querySelectorAll(".composer-projections section")].find(
+      panel = [...document.querySelectorAll('[data-conversation-projection^="coach-decision:"]')].find(
         (element) => element.textContent?.includes(question),
       );
-      if (panel instanceof HTMLElement) break;
+      send = document.querySelector('button[aria-label="Send message"]');
+      input = document.querySelector("textarea#message");
+      if (
+        panel instanceof HTMLElement &&
+        send instanceof HTMLButtonElement &&
+        input instanceof HTMLTextAreaElement &&
+        !input.disabled
+      ) break;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     if (!(panel instanceof HTMLElement)) throw new Error("decision prompt missing");
-    const send = document.querySelector('button[aria-label="Send message"]');
-    const input = document.querySelector("textarea#message");
     if (!(send instanceof HTMLButtonElement)) throw new Error("send action missing");
     if (!(input instanceof HTMLTextAreaElement)) throw new Error("chat input missing");
     const recommended = [...panel.querySelectorAll("button")].filter(
       (button) => button.textContent?.includes(choice) && button.textContent?.includes("Recommended"),
     );
     return {
-      questionCount: [...document.querySelectorAll(".composer-projections section")].filter(
+      questionCount: [...document.querySelectorAll('[data-conversation-projection^="coach-decision:"]')].filter(
         (element) => element.textContent?.includes(question),
       ).length,
       recommendedCount: recommended.length,
@@ -411,7 +418,7 @@ async function chooseAndReadPartial(fixture: RunningDesktopFixture) {
   }>(`
     const choice = ${JSON.stringify(choiceLabel)};
     const partial = ${JSON.stringify(partialText)};
-    const option = [...document.querySelectorAll(".composer-projections button")].find(
+    const option = [...document.querySelectorAll(".conversation button")].find(
       (button) => button.textContent?.includes(choice),
     );
     if (!(option instanceof HTMLButtonElement)) throw new Error("recommended option missing");
@@ -483,7 +490,7 @@ async function stopAndReadInterrupted(fixture: RunningDesktopFixture) {
     );
     const athleteRows = [...document.querySelectorAll(".chat-message--athlete")];
     const buttons = [...document.querySelectorAll("button")];
-    const recoverySections = [...document.querySelectorAll(".composer-projections section")].filter(
+    const recoverySections = [...document.querySelectorAll(".conversation section")].filter(
       (section) => section.textContent?.includes(${JSON.stringify(choiceLabel)}),
     );
     return {
@@ -537,7 +544,7 @@ async function readLoadFailure(fixture: RunningDesktopFixture) {
     let reconnect;
     let partialRow;
     while (Date.now() < deadline) {
-      reconnect = [...document.querySelectorAll(".composer-projections button")].find(
+      reconnect = [...document.querySelectorAll(".conversation button")].find(
         (button) => button.textContent?.trim() === "Reconnect",
       );
       partialRow = [...document.querySelectorAll(".chat-message--coach")].find(
@@ -558,7 +565,7 @@ async function readLoadFailure(fixture: RunningDesktopFixture) {
     if (!(newChat instanceof HTMLButtonElement)) throw new Error("New chat action missing");
     const athleteRows = [...document.querySelectorAll(".chat-message--athlete")];
     return {
-      reconnectCount: [...document.querySelectorAll(".composer-projections button")].filter(
+      reconnectCount: [...document.querySelectorAll(".conversation button")].filter(
         (button) => button.textContent?.trim() === "Reconnect",
       ).length,
       loadFailureCount: [...document.querySelectorAll('[role="alert"]')].filter(
@@ -602,7 +609,7 @@ async function reconnectAndReadCompleted(fixture: RunningDesktopFixture) {
     const completed = ${JSON.stringify(completedText)};
     const consequence = ${JSON.stringify(choiceConsequence)};
     const attachmentError = ${JSON.stringify(attachmentErrorCopy)};
-    const reconnect = [...document.querySelectorAll(".composer-projections button")].find(
+    const reconnect = [...document.querySelectorAll(".conversation button")].find(
       (button) => button.textContent?.trim() === "Reconnect",
     );
     if (!(reconnect instanceof HTMLButtonElement)) throw new Error("Reconnect action missing");
@@ -656,7 +663,7 @@ async function reconnectAndReadCompleted(fixture: RunningDesktopFixture) {
         (row) => row.textContent?.includes(consequence),
       ).length,
       sendDisabled: send.disabled,
-      reconnectCount: [...document.querySelectorAll(".composer-projections button")].filter(
+      reconnectCount: [...document.querySelectorAll(".conversation button")].filter(
         (button) => button.textContent?.trim() === "Reconnect",
       ).length,
       timelineOrder,
@@ -731,7 +738,7 @@ async function readCompleted(fixture: RunningDesktopFixture) {
         (row) => row.textContent?.includes(consequence),
       ).length,
       sendDisabled: send.disabled,
-      reconnectCount: [...document.querySelectorAll(".composer-projections button")].filter(
+      reconnectCount: [...document.querySelectorAll(".conversation button")].filter(
         (button) => button.textContent?.trim() === "Reconnect",
       ).length,
       timelineOrder,

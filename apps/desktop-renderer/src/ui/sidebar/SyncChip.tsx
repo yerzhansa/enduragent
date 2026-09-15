@@ -35,6 +35,7 @@ function syncChipStatus(
   if (training.status === "loading") return "loading";
   if (training.status === "refresh-unavailable") return "attention";
   if (training.status === "unavailable") return "unavailable";
+  if (sync.tone === "success") return "synced";
   if (training.metadata !== null && training.metadata.lastSynced !== null) return "synced";
   return "never";
 }
@@ -61,7 +62,13 @@ export function SyncChip(): ReactElement {
   const formattedCount = format.number(restriction?.count ?? 0, { useGrouping: false });
   const message = manualSyncStatusMessage(sync, formattedCount);
   const detail = message === null || sync.message === SYNC_RUNNING_COPY ? null : say(message);
-  const action = sync.busy ? null : say(manualSyncActionMessage(sync.label));
+  const action = sync.busy
+    ? null
+    : say(
+        status === "synced"
+          ? msg("sidebar.sync.action.again")
+          : manualSyncActionMessage(sync.label),
+      );
   const headline = say(HEADLINE[status]);
   const statusAnnouncement = detail ?? (sync.busy ? headline : null);
   const restrictionVars = { count: restriction?.count ?? 0, formattedCount, source: "Strava" };
@@ -115,11 +122,19 @@ export function SyncChip(): ReactElement {
         aria-hidden="true"
       />
       <span className="pointer-events-none relative z-[1] min-w-0">
-        <span className="block whitespace-normal" data-sync-headline="" aria-hidden="true">
+        <span
+          className={status === "synced" ? "sr-only" : "block whitespace-normal"}
+          data-sync-headline=""
+          aria-hidden="true"
+        >
           {headline}
         </span>
         <span
-          className={cn(detail === null ? "sr-only" : "mt-px block whitespace-normal text-ink-3")}
+          className={cn(
+            detail === null || status === "synced"
+              ? "sr-only"
+              : "mt-px block whitespace-normal text-ink-3",
+          )}
           data-sync-detail=""
           role="status"
           aria-live="polite"
