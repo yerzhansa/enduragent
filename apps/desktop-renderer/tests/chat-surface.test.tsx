@@ -2219,6 +2219,30 @@ describe("chat surface", () => {
       expect(notice().querySelector("svg")).toBeNull();
     });
 
+    it("keeps Retry reachable inside the Plan creation notice when a turn is interrupted", () => {
+      setChat({
+        planCreation: planCreationModel(goalQuestion("What are you preparing for?")),
+        planCreationLoaded: true,
+        planCreationPaused: true,
+        timeline: [
+          {
+            kind: "plan-creation",
+            model: planCreationModel(goalQuestion("What are you preparing for?")),
+          },
+        ],
+        notice: "Rate limited — please try again shortly.",
+        noticeTone: "danger",
+        interrupted: true,
+      });
+      render(<Harness />);
+
+      expect(document.querySelector(".chat-pinned-row .chat-notice")).toBeNull();
+      expect(notice().closest(".conversation")).not.toBeNull();
+      expect(notice()).toHaveAttribute("data-tone", "danger");
+      expect(notice()).toContainElement(retry());
+      expect(retry().hidden).toBe(false);
+    });
+
     it("keeps the pinned row inside the reading column beside the Training context", () => {
       setChat({ notice: "Rate limited — please try again shortly.", noticeTone: "danger" });
       render(<Harness />);

@@ -20,17 +20,6 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
   );
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
-  if (props.inPlanCreation) {
-    return (
-      <div
-        className="chat-notice rounded-ctl bg-surface-2 p-row text-sm leading-5 text-ink"
-        role="status"
-        hidden={notice === null}
-      >
-        <p className="m-0 text-xs leading-4 text-ink-2">{text}</p>
-      </div>
-    );
-  }
   const retryOffered = interrupted && retryRequired === null;
   const danger = tone === "danger";
   return (
