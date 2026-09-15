@@ -451,15 +451,15 @@ export function ChatView(): ReactElement {
                 >
                   {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
                 </p>
-                <p
-                  className="composer-send-hold m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {composerStatusMessage === null
-                    ? (composerStatus ?? "")
-                    : say(composerStatusMessage)}
-                </p>
+                {composerStatus === null ? null : (
+                  <p
+                    className="composer-send-hold m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {composerStatusMessage === null ? composerStatus : say(composerStatusMessage)}
+                  </p>
+                )}
               </div>
             </div>
             <div className="composer-shell grid max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] rounded-card border border-line-2 bg-surface shadow-elev-2 transition-[border-color,box-shadow] duration-120 motion-reduce:transition-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
