@@ -107,7 +107,11 @@ export function Composer(props: {
 
   useEffect(
     () => () => {
-      if (props.surface === undefined && textarea.current !== null) {
+      if (
+        props.surface === undefined &&
+        textarea.current !== null &&
+        useEnduragentStore.getState().chat.composerStatus === null
+      ) {
         actions?.saveAttachmentDraftText(textarea.current.value);
       }
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
@@ -334,7 +338,12 @@ export function Composer(props: {
             if (saveTimer.current !== null) clearTimeout(saveTimer.current);
             saveTimer.current = setTimeout(() => {
               saveTimer.current = null;
-              if (props.surface === undefined) actions?.saveAttachmentDraftText(value);
+              if (
+                props.surface === undefined &&
+                useEnduragentStore.getState().chat.composerStatus === null
+              ) {
+                actions?.saveAttachmentDraftText(value);
+              }
             }, 300);
           }}
           onKeyDown={onKeyDown}
