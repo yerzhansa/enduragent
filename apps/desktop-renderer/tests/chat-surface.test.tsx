@@ -2071,14 +2071,21 @@ describe("chat surface", () => {
       });
 
       expect(screen.queryByRole("region", { name: /Queued messages/u })).toBeNull();
-      expect(screen.getByRole("button", { name: "Retry message" })).toBeEnabled();
+      const retry = screen.getByRole("button", { name: "Retry message" });
+      expect(retry).toBeEnabled();
+      expect(retry.textContent?.trim()).toBe("");
       expect(screen.getByRole("alert")).toHaveTextContent(
         "Rate limited — please try again shortly.",
       );
+      const athlete = retry.closest(".chat-message--athlete");
+      expect(athlete).toBeInstanceOf(HTMLElement);
+      expect(athlete).toContainElement(retry);
+      expect(athlete).toContainElement(screen.getByRole("alert"));
+      expect(athlete).toHaveTextContent("How is my form?");
       const pinned = document.querySelector(".chat-notice");
       expect(pinned).toBeInstanceOf(HTMLElement);
       expect((pinned as HTMLElement).hidden).toBe(true);
-      await user.click(screen.getByRole("button", { name: "Retry message" }));
+      await user.click(retry);
       expect(actions.retry).toHaveBeenCalledTimes(1);
     });
 

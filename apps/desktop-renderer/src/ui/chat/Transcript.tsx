@@ -9,11 +9,11 @@ import {
   FileText,
   Image as ImageIcon,
   LoaderCircle,
+  RefreshCw,
   X,
 } from "lucide-react";
 import type { ReactElement } from "react";
 import type { PlanHandoffSuggestion, PlanningRequestDelivery } from "@enduragent/coach-contract";
-import type { WireMessage } from "../../chat/message-state";
 import type {
   ChatChoiceView,
   ChatMessageView,
@@ -72,33 +72,38 @@ function PlanHandoffCard(props: {
   );
 }
 
-function MessageRetry(props: {
-  readonly error?: string;
-  readonly errorMessage?: WireMessage;
-}): ReactElement {
+function FailedAthleteLine(props: { readonly message: ChatMessageView }): ReactElement {
   const { say } = usePhrasebook();
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
   const actions = useEnduragentStore((state) => state.chatActions);
-  const text = useWireMessageText(props.error ?? "", props.errorMessage);
+  const error = props.message.error;
+  const text = useWireMessageText(error ?? "", props.message.errorMessage);
   return (
-    <div
-      className="flex items-center justify-end gap-inset text-sm leading-5 text-danger"
-      role={props.error == null ? undefined : "alert"}
-    >
-      <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-      {props.error == null ? null : <span className="min-w-0">{text}</span>}
+    <div className="flex min-w-0 items-center gap-inset">
+      <CircleAlert className="size-3.5 shrink-0 text-danger" aria-hidden="true" />
+      {error == null ? null : (
+        <span className="sr-only" role="alert">
+          {text}
+        </span>
+      )}
+      {props.message.text.length === 0 ? null : (
+        <div className="min-w-0 flex-1">
+          <AthleteMessage text={props.message.text} />
+        </div>
+      )}
       <Button
         type="button"
         className="chat-message-retry shrink-0"
-        variant="outline"
-        size="xs"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={say("chat.notice.retryMessage")}
         disabled={workBlocked || actions === null}
         onClick={() => {
           if (workBlocked) return;
           actions?.retry();
         }}
       >
-        {say("chat.notice.retryMessage")}
+        <RefreshCw aria-hidden="true" />
       </Button>
     </div>
   );
@@ -128,6 +133,11 @@ function MessageRow(props: {
         message.role === "athlete"
           ? say("chat.transcript.athleteLabel")
           : say("chat.transcript.coachLabel")
+      }
+      className={
+        message.role === "athlete" && message.retry === true
+          ? "py-inset ps-ctl-px pe-inset"
+          : undefined
       }
       data-message-id={message.id}
       data-delivery={message.delivery}
@@ -165,10 +175,11 @@ function MessageRow(props: {
               </div>
             );
           })}
-          {message.text.length === 0 ? null : <AthleteMessage text={message.text} />}
           {message.retry === true ? (
-            <MessageRetry error={message.error} errorMessage={message.errorMessage} />
-          ) : null}
+            <FailedAthleteLine message={message} />
+          ) : message.text.length === 0 ? null : (
+            <AthleteMessage text={message.text} />
+          )}
         </div>
       ) : streaming && props.bufferedStreaming && message.message === undefined ? (
         <StreamingMessage messageId={message.id} />
