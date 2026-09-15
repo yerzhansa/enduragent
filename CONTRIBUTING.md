@@ -172,17 +172,11 @@ Today only `cycling-coach` is `private: false`, so only `cycling-coach@<v>` is t
 
 ## Desktop update feed (operator)
 
-Packaged macOS and Windows update checks use the generic YAML feed at `https://updates.enduragent.icu/`. GitHub Releases remains the canonical copy of `latest-mac.yml`, `latest.yml`, and the artifacts. The Cloudflare Worker in `tools/desktop-update-feed.ts` follows GitHub's download redirects on the server and returns the bytes with no `Location` header.
+Packaged macOS and Windows update checks use the generic YAML feed at `https://updates.enduragent.icu/`. GitHub Releases remains the canonical copy of `latest-mac.yml`, `latest.yml`, and the artifacts.
 
-Do this before the first desktop release that bakes that feed URL:
+The update-feed backend is operated outside this repository. This repository owns the feed URL contract in `tools/desktop-update-contract.ts`, its release assertions, and the preflight and post-promotion checks in `.github/workflows/desktop-release.yml`.
 
-1. Put `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in this repository's Actions secrets (the same Cloudflare account that already serves `enduragent.icu` and `ping.enduragent.icu`).
-2. Set Actions variable `ENABLE_DESKTOP_UPDATE_FEED` to `true`.
-3. Merge to `main` so `.github/workflows/desktop-update-feed.yml` deploys `tools/desktop-update-feed.wrangler.toml`, or run that workflow with `workflow_dispatch`.
-4. Confirm `updates.enduragent.icu` is attached on that zone if deploy did not create the custom domain.
-5. Confirm `curl -fsS https://updates.enduragent.icu/latest-mac.yml` prints YAML starting with `version:` and that a headers-only GET shows no `Location`.
-
-`desktop-release.yml` refuses to notarize unless that public YAML is already reachable without a redirect. After promote it dual-checks GitHub `/releases/latest/download/latest-mac.yml` and the public feed, and fails if the public YAML still redirects or the versions differ. Installed 0.3.0 builds still point at GitHub and cannot self-update; those athletes install from https://enduragent.icu/download/mac.
+`desktop-release.yml` refuses to notarize unless the public `latest-mac.yml` is reachable without a redirect. After promotion, it checks GitHub `/releases/latest/download/latest-mac.yml` and the public feed. The workflow fails if the public YAML redirects, the public DMG redirects, or the versions differ. Installed 0.3.0 builds still point at GitHub and cannot self-update; those athletes install from https://enduragent.icu/download/mac.
 
 Keep publishing the macOS updater assets and the Windows envelope to the GitHub Release. The website `/download/mac` link may keep redirecting to GitHub; browsers can follow that chain.
 

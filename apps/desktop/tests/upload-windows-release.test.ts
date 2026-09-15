@@ -12,7 +12,7 @@ import {
   windowsReleaseArtifactNames,
   windowsUpdaterMetadataDigest,
 } from "../scripts/windows-release-plan.mjs";
-import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-feed.js";
+import { DESKTOP_FEED_URL } from "../../../tools/desktop-update-contract.js";
 
 const version = "0.1.5";
 const commit = "a".repeat(40);
