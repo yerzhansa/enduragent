@@ -29,7 +29,7 @@ import { Composer, type ComposerHandle } from "./Composer";
 import { AttachmentPanel } from "./AttachmentPanel";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { NewConversationDialog } from "./NewConversationDialog";
-import { Notice, RetryBar } from "./Notice";
+import { Notice } from "./Notice";
 import { QueuedMessages } from "./QueuedMessages";
 import { SpendNotice } from "./SpendNotice";
 import { TrainingContextPanel } from "./TrainingContextPanel";
@@ -100,6 +100,9 @@ export function ChatView(): ReactElement {
   const actions = useEnduragentStore((state) => state.chatActions);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   const chatNotice = useEnduragentStore((state) => state.chat.notice);
+  const retryOffered = useEnduragentStore(
+    (state) => state.chat.interrupted && state.chat.retryRequired === null,
+  );
   const decision = useEnduragentStore((state) => state.chat.decision);
   const planLibrary = useEnduragentStore((state) => state.planLibrary.value);
   const planChangeNotice = useEnduragentStore((state) => state.planChange.notice);
@@ -138,7 +141,7 @@ export function ChatView(): ReactElement {
   const planChangesPaused = planLibrary?.changesPaused != null;
   const persistentNoticeVisible =
     spendWarning !== null ||
-    (chatNotice !== null && planCreation === null) ||
+    ((chatNotice !== null || retryOffered) && planCreation === null) ||
     (planLibrary?.active != null && (planChangesPaused || planChangeNotice !== null));
   const pinnedVisible = persistentNoticeVisible || visiblePending.length > 0;
 
@@ -321,7 +324,7 @@ export function ChatView(): ReactElement {
   return (
     <section
       ref={surface}
-      className="chat-surface grid min-h-0 min-w-0 flex-1 grid-rows-[52px_auto_minmax(0,1fr)] bg-bg"
+      className="chat-surface grid min-h-0 min-w-0 flex-1 grid-rows-[52px_minmax(0,1fr)] bg-bg"
     >
       <header className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-[calc(var(--inset)*3)] max-md:px-[calc(var(--inset)*2)]">
         <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
@@ -376,12 +379,14 @@ export function ChatView(): ReactElement {
         </div>
       </header>
       <div
-        ref={pinnedRow}
-        className={`chat-pinned-row grid min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}
-        hidden={!pinnedVisible}
+        className={`chat-layout grid min-h-0 min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}
       >
-        <div className="min-w-0 px-6 max-md:px-4">
-          <div className="mx-auto grid w-full max-w-[720px] gap-inset py-inset">
+        <div className="chat-reading-column grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] px-6 max-md:px-4">
+          <div
+            ref={pinnedRow}
+            className="chat-pinned-row mx-auto grid w-full max-w-[720px] gap-inset py-inset"
+            hidden={!pinnedVisible}
+          >
             {spendWarning === null ? null : <SpendNotice />}
             {planCreation === null ? <Notice /> : null}
             {planLibrary?.active != null && (planChangesPaused || planChangeNotice !== null) ? (
@@ -419,14 +424,8 @@ export function ChatView(): ReactElement {
               );
             })}
           </div>
-        </div>
-      </div>
-      <div
-        className={`chat-layout row-start-3 grid min-h-0 min-w-0 ${contextOpen && !compact ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-[minmax(0,1fr)]"}`}
-      >
-        <div className="chat-reading-column grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] px-6 max-md:px-4">
           <main
-            className="conversation overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
+            className="conversation row-start-2 overflow-auto [scrollbar-width:none] pt-[calc(var(--inset)*4)] pb-row [overflow-anchor:none] max-md:pt-5.5"
             aria-label={say("chat.view.conversation")}
             data-chat-status={status}
             ref={conversation}
@@ -439,7 +438,7 @@ export function ChatView(): ReactElement {
               />
             </div>
           </main>
-          <div className="composer-wrap z-2 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
+          <div className="composer-wrap z-2 row-start-3 mx-auto grid max-h-full min-h-0 w-full max-w-[720px] grid-rows-[auto_auto_auto] bg-bg pb-3.5">
             <div className="composer-feedback empty:hidden">
               <div className="chat-notice-host empty:hidden">
                 <p
@@ -449,7 +448,6 @@ export function ChatView(): ReactElement {
                 >
                   {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
                 </p>
-                <RetryBar />
               </div>
             </div>
             <div className="composer-shell grid max-h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] rounded-card border border-line-2 bg-surface shadow-elev-2 transition-[border-color,box-shadow] duration-120 motion-reduce:transition-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">

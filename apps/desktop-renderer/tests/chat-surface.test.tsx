@@ -2121,7 +2121,7 @@ describe("chat surface", () => {
     it("hides the notice until the coach reports progress or an error", () => {
       render(<Harness />);
       expect(notice().hidden).toBe(true);
-      expect(notice().textContent).toBe("");
+      expect(notice().querySelector("span")?.textContent).toBe("");
 
       setChat({ notice: "Coach is working…" });
       expect(notice().hidden).toBe(false);
@@ -2184,20 +2184,96 @@ describe("chat surface", () => {
       });
       render(<Harness />);
 
-      const host = document.querySelector(".chat-notice-host");
       const pinned = document.querySelector(".chat-pinned-row");
       const queue = screen.getByRole("region", { name: "Queued messages, 2 queued messages" });
-      if (!(host instanceof HTMLElement) || !(pinned instanceof HTMLElement)) {
-        throw new TypeError("notice host missing");
-      }
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("pinned row missing");
 
       expect(pinned).toContainElement(notice());
-      expect(host).toContainElement(retry());
+      expect(notice()).toContainElement(retry());
       expect(queue).not.toContainElement(retry());
-      expect(retry()).toHaveClass("mt-row", "mb-row");
       expect(
         retry().compareDocumentPosition(queue) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
+    });
+
+    it("pins a turn error in the danger tone with the retry action beside it", () => {
+      setChat({
+        notice: "Rate limited — please try again shortly.",
+        noticeTone: "danger",
+        interrupted: true,
+      });
+      render(<Harness />);
+
+      expect(notice()).toHaveAttribute("role", "alert");
+      expect(notice()).toHaveAttribute("data-tone", "danger");
+      expect(notice()).toHaveClass("text-danger", "border-danger/40");
+      expect(notice().querySelector("svg")).not.toBeNull();
+      expect(notice()).toContainElement(retry());
+      expect(retry().hidden).toBe(false);
+      expect(document.querySelector(".chat-pinned-row")).toContainElement(notice());
+      expect(document.querySelector(".composer-feedback")).not.toContainElement(retry());
+
+      setChat({ notice: "Coach is working…", noticeTone: "neutral", interrupted: false });
+      expect(notice()).toHaveAttribute("role", "status");
+      expect(notice()).not.toHaveClass("text-danger");
+      expect(notice().querySelector("svg")).toBeNull();
+    });
+
+    it("keeps Retry reachable inside the Plan creation notice when a turn is interrupted", () => {
+      setChat({
+        planCreation: planCreationModel(goalQuestion("What are you preparing for?")),
+        planCreationLoaded: true,
+        planCreationPaused: true,
+        timeline: [
+          {
+            kind: "plan-creation",
+            model: planCreationModel(goalQuestion("What are you preparing for?")),
+          },
+        ],
+        notice: "Rate limited — please try again shortly.",
+        noticeTone: "danger",
+        interrupted: true,
+      });
+      render(<Harness />);
+
+      expect(document.querySelector(".chat-pinned-row .chat-notice")).toBeNull();
+      expect(notice().closest(".conversation")).not.toBeNull();
+      expect(notice()).toHaveAttribute("data-tone", "danger");
+      expect(notice()).toContainElement(retry());
+      expect(retry().hidden).toBe(false);
+    });
+
+    it("keeps the pinned row inside the reading column beside the Training context", () => {
+      setChat({ notice: "Rate limited — please try again shortly.", noticeTone: "danger" });
+      render(<Harness />);
+
+      const pinned = document.querySelector(".chat-pinned-row");
+      const column = document.querySelector(".chat-reading-column");
+      const surface = document.querySelector(".chat-surface");
+      const context = screen.getByRole("complementary", { name: "Training context" });
+      if (!(pinned instanceof HTMLElement) || !(column instanceof HTMLElement)) {
+        throw new TypeError("reading column missing");
+      }
+
+      expect(column).toContainElement(pinned);
+      expect(column.firstElementChild).toBe(pinned);
+      expect(column).not.toContainElement(context);
+      expect(column.parentElement).toBe(context.parentElement);
+      expect(surface).toHaveClass("grid-rows-[52px_minmax(0,1fr)]");
+      expect(pinned.className).not.toMatch(/grid-cols/);
+    });
+
+    it("keeps the conversation and composer in their rows while the pinned row is hidden", () => {
+      render(<Harness />);
+
+      const pinned = document.querySelector(".chat-pinned-row");
+      const conversation = document.querySelector(".conversation");
+      const composer = document.querySelector(".composer-wrap");
+      if (!(pinned instanceof HTMLElement)) throw new TypeError("pinned row missing");
+
+      expect(pinned.hidden).toBe(true);
+      expect(conversation).toHaveClass("row-start-2");
+      expect(composer).toHaveClass("row-start-3");
     });
 
     it("keeps the retry bar inert until the chat actions are bound", () => {
@@ -3512,10 +3588,7 @@ describe("chat surface", () => {
 
         conversationTop = 120;
         act(() => {
-          observation.callback(
-            [{ target: pinned } as ResizeObserverEntry],
-            observation.observer,
-          );
+          observation.callback([{ target: pinned } as ResizeObserverEntry], observation.observer);
         });
 
         expect(await screen.findByRole("button", { name: "Review Draft" })).toBeVisible();
