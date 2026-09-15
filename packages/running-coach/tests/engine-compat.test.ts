@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createCoachEngine, type Config } from "@enduragent/core";
+import { bundledAcceptedCatalog, createCoachEngine, type Config } from "@enduragent/core";
 import type { ModelTransportDecorator } from "@enduragent/engine";
 import { runningSport } from "@enduragent/sport-running";
 
@@ -83,6 +83,7 @@ describe("running canonical engine compatibility", () => {
     });
     let toolNames: readonly string[] = [];
     const engine = createCoachEngine(runningSport, config(dataDir), {
+      catalog: bundledAcceptedCatalog(),
       modelTransportDecorator: decorator,
       onToolsAssembled: (names) => {
         toolNames = names;

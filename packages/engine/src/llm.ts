@@ -7,12 +7,11 @@ import { createAlibaba } from "@ai-sdk/alibaba";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel, ModelMessage } from "ai";
-import { isKeylessProvider } from "@enduragent/coach-contract";
+import { isKeylessProvider, type ResolvedModelProfile } from "@enduragent/coach-contract";
 import { dirname } from "node:path";
 
 import { splitSystemPromptAtBoundary } from "./agent/system-prompt.js";
-import { isPriced } from "./agent/codex/cost.js";
-import { priceInclusiveUsage } from "./usage-cost.js";
+import { priceResolvedModelUsage, resolvedModelCacheReadSavingsUsd } from "./usage-cost.js";
 
 import type {
   EngineConfig,
@@ -95,13 +94,10 @@ export function cacheBreakpointKey(
 
 export class LLM {
   private config: EngineConfig;
+  private profile: ResolvedModelProfile;
   private ports: LLMHostPorts;
   private transport: ModelTransport;
   private aiSdkModel: LanguageModel | null;
-  // Provider + model are fixed for the instance, so resolve once whether this
-  // configuration is in the vendored price catalog. A miss yields undefined cost
-  // on the ledger (best-effort), never a fabricated figure.
-  private priced: boolean;
   // Instance-constant for the same reason: the cache-breakpoint decision depends
   // only on provider + model, so resolve it once rather than per dispatch().
   private breakpointKey: "anthropic" | "openrouter" | undefined;
@@ -109,12 +105,18 @@ export class LLM {
   private claudeCliPool: ClaudeCliSessionPool | null = null;
   private claudeWorkingArea: ClaudeWorkingAreaPort | null;
 
-  constructor(config: EngineConfig, ports: LLMHostPorts) {
+  constructor(
+    config: EngineConfig,
+    ports: LLMHostPorts,
+    profile: ResolvedModelProfile = config.models.chat,
+  ) {
     this.config = config;
+    this.profile = profile;
     this.ports = ports;
-    this.aiSdkModel = usesKeylessTransport(config.llm.provider) ? null : buildAiSdkModel(config);
-    this.priced = isPriced(config.llm.provider, config.llm.model);
-    this.breakpointKey = cacheBreakpointKey(config.llm.provider, config.llm.model);
+    this.aiSdkModel = usesKeylessTransport(profile.provider)
+      ? null
+      : buildAiSdkModel(config, profile);
+    this.breakpointKey = cacheBreakpointKey(profile.provider, profile.model);
     this.chatStreamTimeouts = validateChatStreamTimeouts(
       ports.chatStreamTimeouts ?? DEFAULT_CHAT_STREAM_TIMEOUTS,
     );
@@ -136,7 +138,7 @@ export class LLM {
     );
     const { signal: deadlineSignal, deadline } = withLLMDeadline(opts.signal, deadlineMs);
     const watchdog =
-      opts.caller === "chat" && !usesKeylessTransport(this.config.llm.provider)
+      opts.caller === "chat" && !usesKeylessTransport(this.profile.provider)
         ? createChatStreamWatchdog(this.chatStreamTimeouts)
         : undefined;
     const signal =
@@ -155,9 +157,9 @@ export class LLM {
     };
     let result: GenerateResult;
     try {
-      result = await this.transport.generate({
-        provider: this.config.llm.provider,
-        model: this.config.llm.model,
+      const generated = await this.transport.generate({
+        provider: this.profile.provider,
+        model: this.profile.model,
         options: {
           ...opts,
           signal,
@@ -165,6 +167,7 @@ export class LLM {
           onStreamActivity: handleStreamActivity,
         },
       });
+      result = applyResolvedModelMetadata(generated, this.profile);
     } catch (err) {
       if (watchdog?.error !== undefined && isAbortError(err, watchdog.signal)) {
         throw watchdog.error;
@@ -184,11 +187,11 @@ export class LLM {
   }
 
   private async dispatch(opts: GenerateOpts): Promise<GenerateResult> {
-    if (this.config.llm.provider === "openai-codex") {
+    if (this.profile.provider === "openai-codex") {
       return codexGenerateText(
         {
           ...opts,
-          modelId: this.config.llm.model,
+          modelId: this.profile.model,
           profileName: this.config.llm.authProfile ?? "openai-codex",
           stepLimit: opts.maxSteps,
           onTextDelta: opts.caller === "chat" ? opts.onTextDelta : undefined,
@@ -200,7 +203,7 @@ export class LLM {
       );
     }
 
-    if (this.config.llm.provider === "claude-cli") {
+    if (this.profile.provider === "claude-cli") {
       const claudeCli = this.config.llm.claudeCli;
       if (claudeCli === undefined) {
         throw new Error("claude-cli provider requires llm.claudeCli configuration");
@@ -219,14 +222,14 @@ export class LLM {
       const readiness = await ensureClaudeCliReady({
         workingArea: this.claudeWorkingArea,
         billing: claudeCli.billing,
-        model: this.config.llm.model,
+        model: this.profile.model,
         ...(claudeCli.binaryPath === undefined ? {} : { binaryPath: claudeCli.binaryPath }),
         ...(claudeCli.configDir === undefined ? {} : { configDir: claudeCli.configDir }),
       });
       return claudeCliGenerateText(
         {
           ...opts,
-          modelId: this.config.llm.model,
+          modelId: this.profile.model,
           stepLimit: opts.maxSteps,
         },
         {
@@ -241,13 +244,13 @@ export class LLM {
       );
     }
 
-    if (this.config.llm.provider === "codex-agent") {
+    if (this.profile.provider === "codex-agent") {
       const codexAgent = this.config.llm.codexAgent;
       if (codexAgent === undefined) {
         throw new Error("codex-agent provider requires llm.codexAgent configuration");
       }
       return codexAgentGenerateText(
-        { ...opts, modelId: this.config.llm.model },
+        { ...opts, modelId: this.profile.model },
         {
           runtime: {
             enabled: codexAgent.enabled,
@@ -314,7 +317,7 @@ export class LLM {
       ];
     }
 
-    const astra = this.config.llm.provider === "openai" && this.config.llm.model === "gpt-6-astra";
+    const astra = this.profile.provider === "openai" && this.profile.model === "gpt-6-astra";
     const base = {
       model: this.aiSdkModel,
       ...(astra ? { providerOptions: { openai: { forceReasoning: true } } } : {}),
@@ -383,15 +386,7 @@ export class LLM {
         totalUsage,
         steps: steps.length,
         providerReportedCostUsd:
-          this.config.llm.provider === "openrouter"
-            ? providerReportedCostFromSteps(steps)
-            : undefined,
-        cost: priceAiSdkUsage(
-          this.config.llm.provider,
-          this.config.llm.model,
-          this.priced,
-          totalUsage,
-        ),
+          this.profile.provider === "openrouter" ? providerReportedCostFromSteps(steps) : undefined,
       };
     }
 
@@ -409,15 +404,9 @@ export class LLM {
       totalUsage: result.totalUsage,
       steps: result.steps.length,
       providerReportedCostUsd:
-        this.config.llm.provider === "openrouter"
+        this.profile.provider === "openrouter"
           ? providerReportedCostFromSteps(result.steps)
           : undefined,
-      cost: priceAiSdkUsage(
-        this.config.llm.provider,
-        this.config.llm.model,
-        this.priced,
-        result.totalUsage,
-      ),
     };
   }
 
@@ -426,14 +415,44 @@ export class LLM {
       ts: this.ports.now(),
       kind: "generate",
       caller: opts.caller,
-      provider: this.config.llm.provider,
-      model: this.config.llm.model,
+      provider: this.profile.provider,
+      model: this.profile.model,
       durationMs,
       steps: result.steps,
       ...usageFieldsFromResult(result),
       stopReason: result.finishReason,
     });
   }
+}
+
+function applyResolvedModelMetadata(
+  result: GenerateResult,
+  profile: ResolvedModelProfile,
+): GenerateResult {
+  const details = cacheTokenDetails(result.totalUsage);
+  const usage =
+    result.totalUsage === undefined
+      ? undefined
+      : {
+          inputTokens: result.totalUsage.inputTokens ?? 0,
+          outputTokens: result.totalUsage.outputTokens ?? 0,
+          cacheReadTokens: details?.cacheReadTokens ?? 0,
+          cacheWriteTokens: details?.cacheWriteTokens ?? 0,
+        };
+  const catalogCost =
+    usage === undefined ? undefined : priceResolvedModelUsage(profile.pricing, usage);
+  const cacheReadSavingsUsd =
+    usage === undefined
+      ? undefined
+      : resolvedModelCacheReadSavingsUsd(profile.pricing, usage.cacheReadTokens);
+  const cost = result.costBasis === "actual" ? result.cost : catalogCost;
+  const { cost: _discardedCost, cacheReadSavingsUsd: _discardedSavings, ...base } = result;
+  return {
+    ...base,
+    catalogRevision: profile.catalogRevision,
+    ...(cost === undefined ? {} : { cost }),
+    ...(cacheReadSavingsUsd === undefined ? {} : { cacheReadSavingsUsd }),
+  };
 }
 
 class ChatStreamTimeoutError extends Error {
@@ -559,26 +578,6 @@ function providerReportedCostFromSteps(steps: readonly unknown[]): number | unde
   return total;
 }
 
-// The AI SDK reports token usage but no cost, so derive it from the vendored
-// per-million price catalog (the same numbers the codex path prices against).
-// `priced` is resolved once at construction; an uncatalogued configuration
-// yields undefined rather than a fabricated figure (best-effort ledger).
-function priceAiSdkUsage(
-  provider: string,
-  modelId: string,
-  priced: boolean,
-  totalUsage: GenerateResult["totalUsage"],
-): GenerateResult["cost"] | undefined {
-  if (!priced || !totalUsage) return undefined;
-  const details = cacheTokenDetails(totalUsage);
-  return priceInclusiveUsage(provider, modelId, {
-    inputTokens: totalUsage.inputTokens ?? 0,
-    outputTokens: totalUsage.outputTokens ?? 0,
-    cacheReadTokens: details?.cacheReadTokens ?? 0,
-    cacheWriteTokens: details?.cacheWriteTokens ?? 0,
-  });
-}
-
 function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {
   return caller === "chat" ? CHAT_LLM_CALL_DEADLINE_MS : LLM_CALL_DEADLINE_MS;
 }
@@ -624,43 +623,35 @@ function toTimeoutError(err: unknown): Error {
   return out;
 }
 
-// ============================================================================
-// AI SDK MODEL FACTORY
-// ============================================================================
-
-function buildAiSdkModel(config: EngineConfig): LanguageModel {
-  switch (config.llm.provider) {
+function buildAiSdkModel(config: EngineConfig, profile: ResolvedModelProfile): LanguageModel {
+  switch (profile.provider) {
     case "anthropic": {
       const anthropic = createAnthropic({ apiKey: config.llm.apiKey });
-      return anthropic(config.llm.model);
+      return anthropic(profile.model);
     }
     case "openai": {
       const openai = createOpenAI({ apiKey: config.llm.apiKey });
-      return openai(config.llm.model);
+      return openai(profile.model);
     }
     case "google": {
       const google = createGoogleGenerativeAI({ apiKey: config.llm.apiKey });
-      return google(config.llm.model);
+      return google(profile.model);
     }
     case "deepseek": {
-      // baseUrl is undefined only on direct construction (loadConfig always
-      // resolves it); undefined lets the SDK fall back to its package default.
       const deepseek = createDeepSeek({ apiKey: config.llm.apiKey, baseURL: config.llm.baseUrl });
-      return deepseek(config.llm.model);
+      return deepseek(profile.model);
     }
     case "qwen": {
       const alibaba = createAlibaba({ apiKey: config.llm.apiKey, baseURL: config.llm.baseUrl });
-      return alibaba(config.llm.model);
+      return alibaba(profile.model);
     }
     case "minimax": {
-      // createOpenAICompatible requires a baseURL, so fall back to the shared
-      // default when one wasn't resolved (direct construction in tests).
       const minimax = createOpenAICompatible({
         name: "minimax",
         apiKey: config.llm.apiKey,
         baseURL: config.llm.baseUrl ?? PROVIDER_BASE_URLS.minimax,
       });
-      return minimax(config.llm.model);
+      return minimax(profile.model);
     }
     case "kimi": {
       const moonshot = createOpenAICompatible({
@@ -668,7 +659,7 @@ function buildAiSdkModel(config: EngineConfig): LanguageModel {
         apiKey: config.llm.apiKey,
         baseURL: config.llm.baseUrl ?? PROVIDER_BASE_URLS.kimi,
       });
-      return moonshot(config.llm.model);
+      return moonshot(profile.model);
     }
     case "zai": {
       const zai = createOpenAICompatible({
@@ -676,14 +667,14 @@ function buildAiSdkModel(config: EngineConfig): LanguageModel {
         apiKey: config.llm.apiKey,
         baseURL: config.llm.baseUrl ?? PROVIDER_BASE_URLS.zai,
       });
-      return zai(config.llm.model);
+      return zai(profile.model);
     }
     case "openrouter": {
       const openrouter = createOpenRouter({
         apiKey: config.llm.apiKey,
         baseURL: config.llm.baseUrl,
       });
-      return openrouter.chat(config.llm.model, { usage: { include: true } });
+      return openrouter.chat(profile.model, { usage: { include: true } });
     }
     case "openai-codex":
       throw new Error("openai-codex is handled via the bridge, not AI SDK");

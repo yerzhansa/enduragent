@@ -17,12 +17,42 @@ import type { Config } from "../src/config.js";
 import type { Sport } from "../src/sport.js";
 import type { UsageLedgerLine } from "../src/usage-ledger.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
+import { testModelProfiles } from "../../engine/tests/helpers/model-profiles.js";
 import { classifyFailure } from "../src/agent/token-utils.js";
 import { appendUsageLine, readUsageLedger } from "../src/usage-ledger.js";
 import { usageFieldsFromResult } from "../../engine/src/llm-types.js";
 import { priceUsage } from "../../engine/src/agent/codex/cost.js";
 
 let dir: string;
+
+function pricedProfiles(input: {
+  provider: "anthropic" | "openai-codex";
+  model: string;
+  compatibilityProfile: "anthropic-ai-sdk-v1" | "openai-codex-v1";
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}): EngineConfig["models"] {
+  const profile = {
+    kind: "catalog" as const,
+    catalogRevision: 1,
+    provider: input.provider,
+    model: input.model,
+    compatibilityProfile: input.compatibilityProfile,
+    contextWindowTokens: 272_000,
+    imageInput: "incompatible" as const,
+    pricing: {
+      kind: "token-rates" as const,
+      inputUsdPerMillion: input.input,
+      outputUsdPerMillion: input.output,
+      cacheReadUsdPerMillion: input.cacheRead,
+      cacheWriteUsdPerMillion: input.cacheWrite,
+    },
+  };
+  return { catalogRevision: 1, chat: profile, compact: profile, flush: profile };
+}
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "cc-ledger-"));
@@ -68,6 +98,11 @@ function anthropicConfig(dataDir: string): Config & EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: testModelProfiles({
+      provider: "anthropic",
+      chat: "claude-test",
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
     dataDir,
@@ -87,6 +122,15 @@ function codexConfig(dataDir: string): Config & EngineConfig {
       resetArchiveRetentionDays: 0,
       timezone: "",
     },
+    models: pricedProfiles({
+      provider: "openai-codex",
+      model: "gpt-5.4",
+      compatibilityProfile: "openai-codex-v1",
+      input: 2.5,
+      output: 15,
+      cacheRead: 0.25,
+      cacheWrite: 0,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
     dataDir,
@@ -331,7 +375,7 @@ describe("LLM.generate — AI-SDK path", () => {
     expect(parsed.steps).toBe(2);
   });
 
-  it("prices the generate line from the price table when the model is catalogued", async () => {
+  it("prices the generate line from its resolved model profile", async () => {
     const { PRICE_TABLE } = await import("../../engine/src/agent/codex/cost.js");
     const known = Object.entries(PRICE_TABLE.anthropic).find(([, c]) => c.input > 0);
     if (!known) throw new Error("expected at least one priced anthropic model in the catalog");
@@ -348,6 +392,15 @@ describe("LLM.generate — AI-SDK path", () => {
     const config: Config & EngineConfig = {
       ...anthropicConfig(dir),
       llm: { provider: "anthropic", model: knownId, apiKey: "sk-test" },
+      models: pricedProfiles({
+        provider: "anthropic",
+        model: knownId,
+        compatibilityProfile: "anthropic-ai-sdk-v1",
+        input: knownCost.input,
+        output: knownCost.output,
+        cacheRead: knownCost.cacheRead,
+        cacheWrite: knownCost.cacheWrite,
+      }),
     };
     const llm = new LLM(config, llmPorts());
 
@@ -479,7 +532,7 @@ describe("LLM.generate — codex path writes a ledger line", () => {
     expect(parsed.caller).toBe("chat");
     expect(parsed.provider).toBe("openai-codex");
     expect(parsed.totalTokens).toBe(42);
-    expect(parsed.cost?.total).toBe(0.03);
+    expect(parsed.cost?.total).toBeCloseTo(0.000255, 12);
   });
 });
 
@@ -522,33 +575,42 @@ describe("turn line — winning generation usage and cost", () => {
 
   async function setupAgent(complete: () => Promise<ReturnType<typeof mkAssistant>>) {
     const { CoachAgent } = await import("../src/agent/coach-agent.js");
-    return new CoachAgent(cyclingSport as unknown as Sport, baseAgentConfig(agentDataDir), {
-      modelTransportDecorator: () => ({
-        generate: async () => {
-          const result = await complete();
-          const usage = {
-            inputTokens: result.usage.input,
-            outputTokens: result.usage.output,
-            totalTokens: result.usage.totalTokens,
-            inputTokenDetails: {
-              noCacheTokens: result.usage.input,
-              cacheReadTokens: result.usage.cacheRead,
-              cacheWriteTokens: result.usage.cacheWrite,
-            },
-            outputTokenDetails: { textTokens: result.usage.output, reasoningTokens: 0 },
-          };
-          return {
-            text: result.text,
-            toolCalls: [],
-            finishReason: "stop",
-            usage,
-            totalUsage: usage,
-            steps: 1,
-            cost: priceUsage("openai-codex", "gpt-5.4", result.usage),
-          };
-        },
-      }),
-    });
+    const config = baseAgentConfig(agentDataDir);
+    return new CoachAgent(
+      cyclingSport as unknown as Sport,
+      {
+        ...config,
+        llm: { ...config.llm, model: "gpt-5.6-sol" },
+      },
+      {
+        catalog: bundledAcceptedCatalog(),
+        modelTransportDecorator: () => ({
+          generate: async () => {
+            const result = await complete();
+            const usage = {
+              inputTokens: result.usage.input,
+              outputTokens: result.usage.output,
+              totalTokens: result.usage.totalTokens,
+              inputTokenDetails: {
+                noCacheTokens: result.usage.input,
+                cacheReadTokens: result.usage.cacheRead,
+                cacheWriteTokens: result.usage.cacheWrite,
+              },
+              outputTokenDetails: { textTokens: result.usage.output, reasoningTokens: 0 },
+            };
+            return {
+              text: result.text,
+              toolCalls: [],
+              finishReason: "stop",
+              usage,
+              totalUsage: usage,
+              steps: 1,
+              cost: priceUsage("openai-codex", "gpt-5.4", result.usage),
+            };
+          },
+        }),
+      },
+    );
   }
 
   it("records the final successful generation's usage/cost, not a failed attempt's", async () => {
@@ -575,8 +637,7 @@ describe("turn line — winning generation usage and cost", () => {
     expect(turnLine?.inputTokens).toBe(30);
     expect(turnLine?.outputTokens).toBe(12);
     expect(turnLine?.totalTokens).toBe(42);
-    // Computed from the codex price table: (2.5*30 + 15*12)/1e6 = 0.000255.
-    expect(turnLine?.cost?.total).toBeCloseTo(0.000255, 12);
+    expect(turnLine?.cost?.total).toBeCloseTo(0.00051, 12);
     expect(turnLine?.templateHash).toMatch(/^[0-9a-f]{16}$/);
   });
 });

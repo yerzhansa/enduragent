@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 
@@ -58,10 +59,10 @@ async function setupAiSdkAgent(streamText: ReturnType<typeof vi.fn>) {
   const ports = baseAgentConfig(dataDir);
   const config = {
     ...ports,
-    config: {
+    config: withTestModelProfiles({
       ...ports.config,
       llm: { provider: "anthropic" as const, model: "claude-sonnet-4-6", apiKey: "sk-test" },
-    },
+    }),
   };
   return new CoachAgent(cyclingSport as unknown as Sport, config);
 }
@@ -196,9 +197,10 @@ describe("provider error taxonomy", () => {
 
     vi.useFakeTimers();
     const agent = await setupCodexAgent(complete);
-    const settled = agent
-      .chat("taxonomy-codex-network", "hello")
-      .then((v) => ({ ok: true as const, value: v }), (err: unknown) => ({ ok: false as const, err }));
+    const settled = agent.chat("taxonomy-codex-network", "hello").then(
+      (v) => ({ ok: true as const, value: v }),
+      (err: unknown) => ({ ok: false as const, err }),
+    );
     await vi.advanceTimersByTimeAsync(20_000);
     const outcome = await settled;
 

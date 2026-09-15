@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import type { IpcMainInvokeEvent } from "electron";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
+import { acceptModelCatalogSnapshot, type LocalModelCatalogSnapshot } from "@enduragent/core";
+import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
 import {
   DESKTOP_CHOOSE_IMPORT_FILES_CHANNEL,
   DESKTOP_CHATGPT_LOGIN_CANCEL_CHANNEL,
@@ -36,6 +38,14 @@ import type {
 } from "../src/main/credential-vault.js";
 
 const RENDERER_URL = createDesktopRendererUrl("A".repeat(43));
+const CATALOG_REVISION = BUNDLED_MODEL_CATALOG.revision;
+const ACCEPTED_CATALOG = acceptModelCatalogSnapshot(BUNDLED_MODEL_CATALOG);
+if (ACCEPTED_CATALOG === undefined) throw new TypeError("bundled catalog is invalid");
+const LOCAL_CATALOG = {
+  ...ACCEPTED_CATALOG,
+  origin: "bundled" as const,
+  revision: CATALOG_REVISION,
+};
 
 type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 type OwnershipCheck = (
@@ -139,6 +149,7 @@ function harness(
     activate: vi.fn(
       async (
         _selection: OnboardingLlmSelection,
+        _catalogSnapshot: (typeof LOCAL_CATALOG)["snapshot"],
         _signal?: AbortSignal,
       ): Promise<OnboardingLlmSelectionResult> => ({
         status: "configured",
@@ -162,8 +173,15 @@ function harness(
     activate: vi.fn(async () => ({ status: "configured" as const, runtimeReady: true as const })),
   };
   const getRuntimeConfig = vi.fn(async () => runtimeConfigSnapshot());
+  const modelCatalog = {
+    current: vi.fn<() => LocalModelCatalogSnapshot>(() => LOCAL_CATALOG),
+  };
   const applyExistingLlmSelection = vi.fn(
-    async (_selection: OnboardingLlmSelection, _signal?: AbortSignal) => false,
+    async (
+      _selection: OnboardingLlmSelection,
+      _catalogSnapshot: (typeof LOCAL_CATALOG)["snapshot"],
+      _signal?: AbortSignal,
+    ) => false,
   );
   const credentialRecoveryStatus = vi.fn(async () => ({
     state: "locked" as const,
@@ -192,6 +210,7 @@ function harness(
     chatGptAuth,
     claudeCli,
     getRuntimeConfig,
+    modelCatalog,
     applyExistingLlmSelection,
     ...(chatGptActivationTimeoutMs === undefined ? {} : { chatGptActivationTimeoutMs }),
     isTrusted: (event) => event === trustedEvent,
@@ -209,6 +228,7 @@ function harness(
     chatGptAuth,
     claudeCli,
     getRuntimeConfig,
+    modelCatalog,
     applyExistingLlmSelection,
     dialog,
     checkIntervalsCredentialOwner,
@@ -311,6 +331,7 @@ describe("desktop onboarding IPC", () => {
     });
     expect(
       runtimeConfigurationForCredential("openrouter", "synthetic", {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "athlete-model",
         endpoint: { mode: "automatic" },
@@ -324,6 +345,7 @@ describe("desktop onboarding IPC", () => {
     });
     expect(
       runtimeConfigurationForCredential("openrouter", "synthetic", {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "athlete-model",
         endpoint: { mode: "default" },
@@ -338,6 +360,7 @@ describe("desktop onboarding IPC", () => {
     });
     expect(
       runtimeConfigurationForCredential("openrouter", "synthetic", {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "athlete-model",
         endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
@@ -352,6 +375,7 @@ describe("desktop onboarding IPC", () => {
     });
     expect(() =>
       runtimeConfigurationForCredential("anthropic", "synthetic", {
+        catalogRevision: CATALOG_REVISION,
         provider: "anthropic",
         model: "athlete-model",
         endpoint: { mode: "default" },
@@ -359,6 +383,7 @@ describe("desktop onboarding IPC", () => {
     ).toThrow(TypeError);
     expect(
       runtimeConfigurationForExistingSelection({
+        catalogRevision: CATALOG_REVISION,
         provider: "openai-codex",
         model: "athlete-chat-model",
         endpoint: { mode: "automatic" },
@@ -368,6 +393,7 @@ describe("desktop onboarding IPC", () => {
     });
     expect(
       runtimeConfigurationForExistingSelection({
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "athlete-model",
         endpoint: { mode: "default" },
@@ -571,11 +597,13 @@ describe("desktop onboarding IPC", () => {
       subject.trustedEvent,
     )) as {
       readonly schemaVersion: number;
+      readonly catalogRevision: number;
       readonly providers: readonly Record<string, unknown>[];
       readonly active: Record<string, unknown>;
     };
 
     expect(result.schemaVersion).toBe(1);
+    expect(result.catalogRevision).toBe(CATALOG_REVISION);
     expect(result.providers.map((provider) => provider.provider)).toEqual([
       "anthropic",
       "openai",
@@ -661,9 +689,107 @@ describe("desktop onboarding IPC", () => {
     expect(JSON.stringify(result)).not.toContain("private daemon path and token");
   });
 
+  it("reads a newer accepted local snapshot without a renderer-triggered refresh", async () => {
+    const subject = harness();
+    const updatedSnapshot = structuredClone(BUNDLED_MODEL_CATALOG);
+    updatedSnapshot.revision = 2;
+    updatedSnapshot.providers = updatedSnapshot.providers.map((provider) => ({
+      ...provider,
+      order: updatedSnapshot.providers.length - provider.order,
+    }));
+    const openai = updatedSnapshot.providers.find((provider) => provider.providerId === "openai");
+    if (openai === undefined) throw new TypeError("OpenAI provider missing");
+    openai.models.push({
+      modelId: "new-local-model",
+      label: "New Local Model",
+      order: 40,
+      compatibilityProfile: "openai-ai-sdk-v1",
+      contextWindow: { kind: "unknown" },
+      imageInput: "unknown",
+      pricing: { kind: "unknown" },
+    });
+    const accepted = acceptModelCatalogSnapshot(updatedSnapshot);
+    if (accepted === undefined) throw new TypeError("updated catalog is invalid");
+    subject.modelCatalog.current.mockReturnValue({
+      ...accepted,
+      origin: "installation",
+      revision: 2,
+    });
+
+    const result = (await subject.invoke(
+      DESKTOP_LLM_CONFIGURATION_CHANNEL,
+      subject.trustedEvent,
+    )) as {
+      readonly catalogRevision: number;
+      readonly providers: readonly {
+        readonly provider: string;
+        readonly models: readonly { readonly value: string }[];
+      }[];
+    };
+
+    expect(result.catalogRevision).toBe(2);
+    expect(result.providers[0]?.provider).toBe("openrouter");
+    expect(
+      result.providers
+        .find((provider) => provider.provider === "openai")
+        ?.models.map((model) => model.value),
+    ).toContain("new-local-model");
+  });
+
+  it("returns a recoverable stale draft when its revision was not pinned", async () => {
+    const subject = harness();
+    const selection = {
+      catalogRevision: 999,
+      provider: "anthropic" as const,
+      model: "athlete-selected-model",
+      endpoint: { mode: "automatic" as const },
+    };
+
+    await expect(
+      subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, selection),
+    ).resolves.toEqual({
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection,
+    });
+    expect(subject.applyExistingLlmSelection).not.toHaveBeenCalled();
+    expect(subject.vault.applyLlmSelection).not.toHaveBeenCalled();
+  });
+
+  it("returns the normalized selection when a credential draft revision was not pinned", async () => {
+    const subject = harness();
+    const selection = {
+      catalogRevision: 999,
+      provider: "openrouter",
+      model: "  athlete-selected-model  ",
+      endpoint: { mode: "custom", value: "  https://models.example.invalid/v1  " },
+    };
+
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_WRITE_CHANNEL, subject.trustedEvent, {
+        slot: "openrouter",
+        value: "synthetic",
+        selection,
+      }),
+    ).resolves.toEqual({
+      slot: "openrouter",
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: {
+        catalogRevision: 999,
+        provider: "openrouter",
+        model: "athlete-selected-model",
+        endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
+      },
+    });
+    expect(subject.vault.writeCredential).not.toHaveBeenCalled();
+  });
+
   it("dispatches strict model selection to a stored key or stored ChatGPT profile", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const apiSelection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openrouter",
       model: "  athlete-model  ",
       endpoint: { mode: "custom", value: "  https://models.example.invalid/v1  " },
@@ -671,13 +797,18 @@ describe("desktop onboarding IPC", () => {
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, apiSelection),
     ).resolves.toEqual({ status: "configured", runtimeReady: true });
-    expect(subject.vault.applyLlmSelection).toHaveBeenCalledWith({
-      provider: "openrouter",
-      model: "athlete-model",
-      endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
-    });
+    expect(subject.vault.applyLlmSelection).toHaveBeenCalledWith(
+      {
+        catalogRevision: CATALOG_REVISION,
+        provider: "openrouter",
+        model: "athlete-model",
+        endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
+      },
+      LOCAL_CATALOG.snapshot,
+    );
 
     const chatGpt = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex",
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" },
@@ -685,12 +816,18 @@ describe("desktop onboarding IPC", () => {
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, chatGpt),
     ).resolves.toEqual({ status: "configured", runtimeReady: true });
-    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(chatGpt, expect.any(AbortSignal));
+    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(
+      chatGpt,
+      LOCAL_CATALOG.snapshot,
+      expect.any(AbortSignal),
+    );
   });
 
   it("preserves an active API credential without requiring a Desktop-owned credential", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "anthropic" as const,
       model: "athlete-selected-model",
       endpoint: { mode: "automatic" as const },
@@ -701,7 +838,10 @@ describe("desktop onboarding IPC", () => {
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, selection),
     ).resolves.toEqual({ status: "configured", runtimeReady: true });
 
-    expect(subject.applyExistingLlmSelection).toHaveBeenCalledWith(selection);
+    expect(subject.applyExistingLlmSelection).toHaveBeenCalledWith(
+      selection,
+      LOCAL_CATALOG.snapshot,
+    );
     expect(subject.vault.applyLlmSelection).not.toHaveBeenCalled();
     expect(subject.chatGptAuth.activate).not.toHaveBeenCalled();
   });
@@ -711,7 +851,9 @@ describe("desktop onboarding IPC", () => {
       vi.fn(async () => "unresolved" as const),
       5,
     );
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -719,10 +861,12 @@ describe("desktop onboarding IPC", () => {
     let activationSignal: AbortSignal | undefined;
     subject.getRuntimeConfig.mockResolvedValueOnce(runtimeConfigSnapshot("openai-codex"));
     subject.chatGptAuth.hasStoredProfile.mockResolvedValueOnce(false);
-    subject.applyExistingLlmSelection.mockImplementationOnce(async (_selection, signal) => {
-      activationSignal = signal;
-      return await new Promise<boolean>(() => {});
-    });
+    subject.applyExistingLlmSelection.mockImplementationOnce(
+      async (_selection, _catalogSnapshot, signal) => {
+        activationSignal = signal;
+        return await new Promise<boolean>(() => {});
+      },
+    );
 
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, selection),
@@ -734,7 +878,9 @@ describe("desktop onboarding IPC", () => {
 
   it("preserves an active custom ChatGPT profile without requiring a Desktop profile", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -749,6 +895,7 @@ describe("desktop onboarding IPC", () => {
 
     expect(subject.applyExistingLlmSelection).toHaveBeenCalledWith(
       selection,
+      LOCAL_CATALOG.snapshot,
       expect.any(AbortSignal),
     );
     expect(subject.vault.applyLlmSelection).not.toHaveBeenCalled();
@@ -757,7 +904,9 @@ describe("desktop onboarding IPC", () => {
 
   it("preserves an active custom ChatGPT profile when the Desktop default also exists", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -772,6 +921,7 @@ describe("desktop onboarding IPC", () => {
 
     expect(subject.applyExistingLlmSelection).toHaveBeenCalledWith(
       selection,
+      LOCAL_CATALOG.snapshot,
       expect.any(AbortSignal),
     );
     expect(subject.chatGptAuth.hasStoredProfile).not.toHaveBeenCalled();
@@ -780,7 +930,9 @@ describe("desktop onboarding IPC", () => {
 
   it("activates the stored default when the selected custom ChatGPT profile is unusable", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -795,12 +947,18 @@ describe("desktop onboarding IPC", () => {
 
     expect(subject.applyExistingLlmSelection).not.toHaveBeenCalled();
     expect(subject.chatGptAuth.hasStoredProfile).toHaveBeenCalledOnce();
-    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(selection, expect.any(AbortSignal));
+    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(
+      selection,
+      LOCAL_CATALOG.snapshot,
+      expect.any(AbortSignal),
+    );
   });
 
   it("does not replace a custom ChatGPT profile when its runtime preflight fails", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -818,7 +976,9 @@ describe("desktop onboarding IPC", () => {
 
   it("routes an inactive stored ChatGPT profile through bounded activation", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openai-codex" as const,
       model: "gpt-5.4-mini",
       endpoint: { mode: "automatic" as const },
@@ -835,19 +995,26 @@ describe("desktop onboarding IPC", () => {
     ).resolves.toEqual({ status: "refused", reason: "runtime-unavailable" });
 
     expect(subject.chatGptAuth.hasStoredProfile).toHaveBeenCalledOnce();
-    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(selection, expect.any(AbortSignal));
+    expect(subject.chatGptAuth.activate).toHaveBeenCalledWith(
+      selection,
+      LOCAL_CATALOG.snapshot,
+      expect.any(AbortSignal),
+    );
     expect(subject.applyExistingLlmSelection).toHaveBeenCalledWith(
       selection,
+      LOCAL_CATALOG.snapshot,
       expect.any(AbortSignal),
     );
   });
 
   it("fails an active-provider apply closed without falling back to another credential", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     subject.applyExistingLlmSelection.mockRejectedValueOnce(new Error("private runtime failure"));
 
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, {
+        catalogRevision: CATALOG_REVISION,
         provider: "anthropic",
         model: "athlete-selected-model",
         endpoint: { mode: "automatic" },
@@ -860,10 +1027,12 @@ describe("desktop onboarding IPC", () => {
 
   it("returns fixed selection refusals and rejects unsafe endpoint shapes", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     vi.mocked(subject.vault.applyLlmSelection)
       .mockResolvedValueOnce({ status: "refused", reason: "credential-required" })
       .mockRejectedValueOnce(new Error("private runtime failure"));
     const automatic = {
+      catalogRevision: CATALOG_REVISION,
       provider: "anthropic",
       model: "model",
       endpoint: { mode: "automatic" },
@@ -876,33 +1045,44 @@ describe("desktop onboarding IPC", () => {
     ).resolves.toEqual({ status: "refused", reason: "runtime-unavailable" });
 
     for (const selection of [
-      { provider: "anthropic", model: "model", endpoint: { mode: "default" } },
       {
+        catalogRevision: CATALOG_REVISION,
+        provider: "anthropic",
+        model: "model",
+        endpoint: { mode: "default" },
+      },
+      {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "model",
         endpoint: { mode: "custom", value: "http://models.example.invalid/v1" },
       },
       {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "model",
         endpoint: { mode: "custom", value: "https://user:secret@example.invalid/v1" },
       },
       {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "model",
         endpoint: { mode: "custom", value: "https://example.invalid/v1?secret=value" },
       },
       {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "model",
         endpoint: { mode: "custom", value: "https://example.invalid/v1?" },
       },
       {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "bad\u007fmodel",
         endpoint: { mode: "automatic" },
       },
       {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "\nmodel",
         endpoint: { mode: "automatic" },
@@ -914,6 +1094,7 @@ describe("desktop onboarding IPC", () => {
     }
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, {
+        catalogRevision: CATALOG_REVISION,
         provider: "openrouter",
         model: "loopback-model",
         endpoint: { mode: "custom", value: "http://127.0.0.1:11434/v1" },
@@ -923,7 +1104,9 @@ describe("desktop onboarding IPC", () => {
 
   it("passes an optional matching selection through the credential transaction", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "openrouter",
       model: "athlete-model",
       endpoint: { mode: "default" },
@@ -940,6 +1123,7 @@ describe("desktop onboarding IPC", () => {
       slot: "openrouter",
       value: "synthetic",
       selection,
+      catalogSnapshot: LOCAL_CATALOG.snapshot,
     });
     await expect(
       subject.invoke(DESKTOP_CREDENTIAL_WRITE_CHANNEL, subject.trustedEvent, {
@@ -1015,7 +1199,9 @@ describe("desktop onboarding IPC", () => {
 
   it("routes a claude-cli selection through the claude-cli controller", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     const selection = {
+      catalogRevision: CATALOG_REVISION,
       provider: "claude-cli",
       model: "  sonnet  ",
       endpoint: { mode: "automatic" },
@@ -1024,16 +1210,21 @@ describe("desktop onboarding IPC", () => {
     await expect(
       subject.invoke(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, subject.trustedEvent, selection),
     ).resolves.toEqual({ status: "configured", runtimeReady: true });
-    expect(subject.claudeCli.activate).toHaveBeenCalledWith({
-      provider: "claude-cli",
-      model: "sonnet",
-      endpoint: { mode: "automatic" },
-    });
+    expect(subject.claudeCli.activate).toHaveBeenCalledWith(
+      {
+        catalogRevision: CATALOG_REVISION,
+        provider: "claude-cli",
+        model: "sonnet",
+        endpoint: { mode: "automatic" },
+      },
+      LOCAL_CATALOG.snapshot,
+    );
     expect(subject.vault.applyLlmSelection).not.toHaveBeenCalled();
   });
 
   it("gates correlated ChatGPT login, progress, and cancellation invokes", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     subject.chatGptAuth.login.mockImplementationOnce(
       async (
         operationId: string,
@@ -1052,6 +1243,7 @@ describe("desktop onboarding IPC", () => {
       subject.invoke(DESKTOP_CHATGPT_LOGIN_CHANNEL, subject.trustedEvent, {
         operationId: "login-1",
         selection: {
+          catalogRevision: CATALOG_REVISION,
           provider: "openai-codex",
           model: "gpt-5.5",
           endpoint: { mode: "automatic" },
@@ -1087,8 +1279,32 @@ describe("desktop onboarding IPC", () => {
     expect(subject.chatGptAuth.cancelLogin).toHaveBeenCalledWith("login-1");
   });
 
+  it("does not start ChatGPT login for a selection whose revision was not pinned", async () => {
+    const subject = harness();
+    const selection = {
+      catalogRevision: 999,
+      provider: "openai-codex" as const,
+      model: "gpt-5.5",
+      endpoint: { mode: "automatic" as const },
+    };
+
+    await expect(
+      subject.invoke(DESKTOP_CHATGPT_LOGIN_CHANNEL, subject.trustedEvent, {
+        operationId: "login-stale",
+        selection,
+      }),
+    ).resolves.toEqual({
+      status: "stale-draft",
+      operationId: "login-stale",
+      reason: "catalog-unavailable",
+      selection,
+    });
+    expect(subject.chatGptAuth.login).not.toHaveBeenCalled();
+  });
+
   it("does not publish delayed ChatGPT progress after requester navigation or disposal", async () => {
     const subject = harness();
+    await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
     let publish!: (phase: "waiting-for-browser" | "completing-sign-in") => void;
     subject.chatGptAuth.login.mockImplementationOnce(
       async (operationId, _selection, onProgress) => {
@@ -1099,6 +1315,7 @@ describe("desktop onboarding IPC", () => {
     await subject.invoke(DESKTOP_CHATGPT_LOGIN_CHANNEL, subject.trustedEvent, {
       operationId: "login-navigation",
       selection: {
+        catalogRevision: CATALOG_REVISION,
         provider: "openai-codex",
         model: "gpt-5.5",
         endpoint: { mode: "automatic" },
@@ -1123,6 +1340,7 @@ describe("desktop onboarding IPC", () => {
       {
         operationId: "login-1",
         selection: {
+          catalogRevision: CATALOG_REVISION,
           provider: "openai-codex",
           model: "gpt-5.5",
           endpoint: { mode: "automatic" },

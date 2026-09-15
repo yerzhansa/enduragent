@@ -17,6 +17,7 @@ import {
 import { isAbsolute, dirname, join, normalize } from "node:path";
 import {
   bootstrapReference,
+  bundledAcceptedCatalog,
   createCoachEngine,
   isKeylessProvider,
   isSecretRef,
@@ -331,7 +332,10 @@ async function productComposition(input: SeasonReviewCompositionInput): Promise<
       runtimeDependencies: { capture: async () => manifest },
     });
     if (prepared.athleteData === undefined) throw new TypeError("Store athlete reader is unavailable.");
-    const engine = createCoachEngine(cyclingSport, config, { athleteData: prepared.athleteData });
+    const engine = createCoachEngine(cyclingSport, config, {
+      athleteData: prepared.athleteData,
+      catalog: bundledAcceptedCatalog(),
+    });
     let closed = false;
     return { engine, provider: config.llm.provider, model: config.llm.model, async close() {
       if (closed) return;

@@ -20,7 +20,7 @@
 import { homedir } from "node:os";
 import { resolve, join } from "node:path";
 
-import { loadConfig, resolveConfigSecrets, CoachAgent, USAGE_LEDGER_FILE } from "@enduragent/core";
+import { bundledAcceptedCatalog, loadConfig, resolveConfigSecrets, CoachAgent, USAGE_LEDGER_FILE } from "@enduragent/core";
 import { expandTilde } from "../packages/core/src/coach-home.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   }
   console.log(`Provider: ${config.llm.provider}  model: ${config.llm.model}`);
 
-  const agent = new CoachAgent(cyclingSport, config);
+  const agent = new CoachAgent(cyclingSport, config, { catalog: bundledAcceptedCatalog() });
   const chatId = "seed-smoke";
 
   console.log(`Seeding ${MESSAGES.length} Haiku turns into ${config.dataDir} ...`);

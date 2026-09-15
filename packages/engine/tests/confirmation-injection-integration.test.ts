@@ -13,6 +13,7 @@ import {
 } from "../src/sport.js";
 import { ConfirmationGate } from "../../core/src/agent/confirmation-gate.js";
 import { createEngineHostAdapter } from "../../core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../core/src/model-catalog.js";
 import { legacyStateReader } from "../../core/src/agent/legacy-athlete-state-reader.js";
 import { COACH_EVENT_TAG } from "../src/sport/event-provenance.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
@@ -138,6 +139,7 @@ async function makeAgent(complete: ReturnType<typeof vi.fn>) {
   const ports: EngineHostPorts = {
     ...createEngineHostAdapter({
       config,
+      catalog: bundledAcceptedCatalog(),
       stateReader: legacyStateReader,
       overrides: { confirmations },
     }).ports,

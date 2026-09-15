@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 import type { Sport } from "../src/sport.js";
 import type { CodexResponsesParams } from "../src/agent/codex/responses.js";
@@ -54,7 +55,7 @@ async function setupAgent(
   const ports = baseAgentConfig(dataDir);
   return new CoachAgent(cyclingSport as unknown as Sport, {
     ...ports,
-    config: {
+    config: withTestModelProfiles({
       ...ports.config,
       session: {
         ...ports.config.session,
@@ -64,7 +65,7 @@ async function setupAgent(
       contextWindowTokens: windows.contextWindowTokens ?? 120_000,
       compactContextWindowTokens:
         windows.compactContextWindowTokens ?? ports.config.compactContextWindowTokens,
-    },
+    }),
   });
 }
 

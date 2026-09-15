@@ -5,6 +5,7 @@ import { z } from "zod";
 import { LLM } from "../src/llm.js";
 import type { EngineConfig } from "../src/host-ports.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 import { codexGenerateText } from "../src/agent/codex-bridge.js";
 import { codexAgentGenerateText } from "../src/agent/codex-agent/bridge.js";
 import {
@@ -22,6 +23,7 @@ const config: EngineConfig = {
     resetArchiveRetentionDays: 0,
     timezone: "",
   },
+  models: testModelProfiles({ provider: "openai", chat: "gpt-6-astra" }),
   contextWindowTokens: 200_000,
   compactContextWindowTokens: 200_000,
 };

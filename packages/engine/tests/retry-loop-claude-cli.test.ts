@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { classifyFailure } from "../../core/src/agent/token-utils.js";
 import { createScriptedQuery, type ScriptedQueryState } from "./claude-cli/helpers/frame-script.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
@@ -60,7 +61,7 @@ async function setupAgent(
   const base = baseAgentConfig(dataDir);
   const ports: EngineHostPorts = {
     ...base,
-    config: {
+    config: withTestModelProfiles({
       ...base.config,
       llm: {
         provider: "claude-cli",
@@ -74,7 +75,7 @@ async function setupAgent(
           ...(configDir === undefined ? {} : { configDir }),
         },
       },
-    },
+    }),
   };
   const agent = new CoachAgent(cyclingSport as unknown as Sport, ports);
   return {

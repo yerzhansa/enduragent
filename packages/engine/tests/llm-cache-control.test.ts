@@ -3,13 +3,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { ModelMessage } from "ai";
 import type { EngineConfig } from "../src/host-ports.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 import { SYSTEM_PROMPT_CACHE_BOUNDARY } from "../src/agent/system-prompt.js";
 
 function anthropicConfig(): EngineConfig {
   return {
     dataSource: "platform",
     llm: { provider: "anthropic", model: "claude-sonnet-4-6", apiKey: "test-key" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
+    models: testModelProfiles({
+      provider: "anthropic",
+      chat: "claude-sonnet-4-6",
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
@@ -19,7 +31,18 @@ function codexConfig(): EngineConfig {
   return {
     dataSource: "platform",
     llm: { provider: "openai-codex", model: "gpt-5.4", apiKey: "", authProfile: "openai-codex" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
+    models: testModelProfiles({
+      provider: "openai-codex",
+      chat: "gpt-5.4",
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
@@ -29,7 +52,14 @@ function aiSdkConfig(provider: "openai" | "google", model: string): EngineConfig
   return {
     dataSource: "platform",
     llm: { provider, model, apiKey: "test-key" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
+    models: testModelProfiles({ provider, chat: model, chatContextWindowTokens: 272_000 }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
@@ -39,13 +69,31 @@ function openrouterConfig(model: string): EngineConfig {
   return {
     dataSource: "platform",
     llm: { provider: "openrouter", model, apiKey: "test-key" },
-    session: { historyTokenBudgetRatio: 0.3, idleMinutes: 0, dailyResetHour: 4, resetArchiveRetentionDays: 0, timezone: "" },
+    session: {
+      historyTokenBudgetRatio: 0.3,
+      idleMinutes: 0,
+      dailyResetHour: 4,
+      resetArchiveRetentionDays: 0,
+      timezone: "",
+    },
+    models: testModelProfiles({
+      provider: "openrouter",
+      chat: model,
+      chatContextWindowTokens: 272_000,
+    }),
     contextWindowTokens: 272_000,
     compactContextWindowTokens: 272_000,
   };
 }
 
-const MINIMAL_RESULT = { text: "ok", toolCalls: [], finishReason: "stop", usage: {}, totalUsage: {}, steps: [] };
+const MINIMAL_RESULT = {
+  text: "ok",
+  toolCalls: [],
+  finishReason: "stop",
+  usage: {},
+  totalUsage: {},
+  steps: [],
+};
 
 const MARKED = "STABLE PREFIX" + SYSTEM_PROMPT_CACHE_BOUNDARY + "\n\nVOLATILE TAIL";
 
@@ -143,7 +191,9 @@ describe("LLM cache control — Anthropic system breakpoint", () => {
     ];
     await llm.generate({ system: "STABLE SYSTEM PROMPT", messages: callerMessages });
 
-    expect(captured?.messages?.[1].providerOptions?.anthropic).toEqual({ cacheControl: { type: "ephemeral" } });
+    expect(captured?.messages?.[1].providerOptions?.anthropic).toEqual({
+      cacheControl: { type: "ephemeral" },
+    });
     expect(captured?.messages?.[0].providerOptions).toBeUndefined();
     // The caller's array must be left untouched — it feeds the retry loop and
     // the assembled-hash basis.
@@ -169,14 +219,19 @@ describe("LLM cache control — OpenRouter routes", () => {
     const llm = new LLM(openrouterConfig("qwen/qwen3.5-plus"), llmTestPorts());
     await llm.generate({
       system: MARKED,
-      messages: [{ role: "user", content: "a" }, { role: "user", content: "b" }],
+      messages: [
+        { role: "user", content: "a" },
+        { role: "user", content: "b" },
+      ],
     });
 
     const blocks = captured?.system as CapturedBlock[];
     expect(blocks).toHaveLength(2);
     expect(blocks[0].providerOptions?.openrouter?.cacheControl?.type).toBe("ephemeral");
     expect(blocks[1].providerOptions?.openrouter?.cacheControl?.type).toBe("ephemeral");
-    expect(captured?.messages?.[1].providerOptions?.openrouter).toEqual({ cacheControl: { type: "ephemeral" } });
+    expect(captured?.messages?.[1].providerOptions?.openrouter).toEqual({
+      cacheControl: { type: "ephemeral" },
+    });
   });
 
   it("leaves a non-qwen/ route uncached (plain string, no providerOptions)", async () => {
@@ -229,8 +284,18 @@ describe("LLM cache control — codex path", () => {
 
 describe("LLM cache control — non-Anthropic AI-SDK providers carry no Anthropic directive", () => {
   for (const { provider, model, mockPath, mockFactory } of [
-    { provider: "openai" as const, model: "gpt-4o", mockPath: "@ai-sdk/openai", mockFactory: () => ({ createOpenAI: () => () => ({ provider: "openai-stub" }) }) },
-    { provider: "google" as const, model: "gemini-2.0-flash", mockPath: "@ai-sdk/google", mockFactory: () => ({ createGoogleGenerativeAI: () => () => ({ provider: "google-stub" }) }) },
+    {
+      provider: "openai" as const,
+      model: "gpt-4o",
+      mockPath: "@ai-sdk/openai",
+      mockFactory: () => ({ createOpenAI: () => () => ({ provider: "openai-stub" }) }),
+    },
+    {
+      provider: "google" as const,
+      model: "gemini-2.0-flash",
+      mockPath: "@ai-sdk/google",
+      mockFactory: () => ({ createGoogleGenerativeAI: () => () => ({ provider: "google-stub" }) }),
+    },
   ]) {
     it(`passes the system as a plain string with no providerOptions on the ${provider} path`, async () => {
       let captured: CapturedArg | undefined;

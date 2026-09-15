@@ -13,6 +13,7 @@ export type ProviderModelValidationError =
 
 export type ProviderModelSaveError =
   | Extract<OnboardingLlmSelectionResult, { readonly status: "refused" }>["reason"]
+  | "configuration-unavailable"
   | "request-failed";
 
 export interface ProviderModelDraft {
@@ -22,6 +23,7 @@ export interface ProviderModelDraft {
 }
 
 export interface ProviderModelFormState {
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: OnboardingLlmConfiguration["active"];
   readonly draft: ProviderModelDraft | null;
@@ -70,6 +72,7 @@ export interface ProviderModelSettingsController {
 }
 
 interface EditableState {
+  readonly catalogRevision: number;
   readonly providers: readonly OnboardingLlmProviderConfiguration[];
   readonly active: OnboardingLlmConfiguration["active"];
   readonly draft: ProviderModelDraft | null;
@@ -120,6 +123,7 @@ function isDirty(
 
 function formState(editable: EditableState, codexAgentSupported: boolean): ProviderModelFormState {
   return {
+    catalogRevision: editable.catalogRevision,
     providers: editable.providers,
     active: editable.active,
     draft: editable.draft,
@@ -206,6 +210,7 @@ export function createProviderModelSettingsController(input: {
             status: "ready",
             ...formState(
               {
+                catalogRevision: configuration.catalogRevision,
                 providers: configuration.providers,
                 active: configuration.active,
                 draft,
@@ -319,6 +324,15 @@ export function createProviderModelSettingsController(input: {
         });
         return;
       }
+      if (result.status === "stale-draft") {
+        render({
+          status: "error",
+          kind: "save",
+          reason: "configuration-unavailable",
+          ...formState(latest, input.codexAgentSupported ?? true),
+        });
+        return;
+      }
       render({
         status: "saving",
         ...formState(
@@ -354,6 +368,7 @@ export function createProviderModelSettingsController(input: {
       committedCustomModels.set(form.draft.provider.provider, selectedModel(form.draft));
     }
     queuedSelection = {
+      catalogRevision: form.catalogRevision,
       provider: form.draft.provider.provider,
       model: selectedModel(form.draft),
       endpoint: { mode: "automatic" },

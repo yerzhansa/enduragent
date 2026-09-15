@@ -347,6 +347,7 @@ describe("mounted onboarding", () => {
       expect(rowState("ai")).toBe("ready");
     });
     expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "claude-sonnet-4-6",
       endpoint: { mode: "automatic" },
@@ -536,6 +537,7 @@ describe("mounted onboarding", () => {
       slot: "openrouter",
       value: openRouterKey,
       selection: {
+        catalogRevision: 7,
         provider: "openrouter",
         model: "deepseek/deepseek-v4-flash",
         endpoint: { mode: "automatic" },
@@ -567,6 +569,7 @@ describe("mounted onboarding", () => {
     });
     expect(bridge.writeCredential).not.toHaveBeenCalled();
     expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "athlete-selected-model",
       endpoint: { mode: "automatic" },
@@ -614,6 +617,7 @@ describe("mounted onboarding", () => {
     });
     expect(bridge.writeCredential).not.toHaveBeenCalled();
     expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "openrouter",
       model: "deepseek/deepseek-v4-flash",
       endpoint: { mode: "custom", value: "https://models.example.test/v1" },
@@ -655,6 +659,7 @@ describe("mounted onboarding", () => {
       expect(rowState("ai")).toBe("ready");
     });
     expect(bridge.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "openrouter",
       model: "deepseek/deepseek-v4-flash",
       endpoint: { mode: "automatic" },
@@ -737,6 +742,7 @@ describe("mounted onboarding", () => {
     const user = userEvent.setup();
     const secret = randomUUID();
     const selection = {
+      catalogRevision: 7,
       provider: "openrouter" as const,
       model: "vendor/private-model",
       endpoint: { mode: "custom" as const, value: "https://models.example.test/v1" },
@@ -836,6 +842,7 @@ describe("mounted onboarding", () => {
     expect(bridge.chatGptLogin).toHaveBeenCalledWith({
       operationId: expect.any(String),
       selection: {
+        catalogRevision: 7,
         provider: "openai-codex",
         model: "gpt-5.5",
         endpoint: { mode: "automatic" },

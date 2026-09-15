@@ -71,6 +71,41 @@ jobs:
             *) exit 1 ;;
           esac
 
+  prepare-catalog:
+    if: inputs.phase == 'prepare'
+    needs: parse-tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      catalog_release_group_id: ${{ steps.pin.outputs.catalog_release_group_id }}
+      catalog_revision: ${{ steps.pin.outputs.catalog_revision }}
+      catalog_digest: ${{ steps.pin.outputs.catalog_digest }}
+      now_iso: ${{ steps.pin.outputs.now_iso }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.parse-tag.outputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare catalog pin
+        id: pin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_COMMIT: ${{ needs.parse-tag.outputs.commit }}
+        run: |
+          set -euo pipefail
+          NOW_ISO=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at)
+          test -n "$NOW_ISO"
+          echo "now_iso=$NOW_ISO" >> "$GITHUB_OUTPUT"
+          pnpm --silent models:release-pin prepare --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO"
+
   build:
     if: inputs.phase == 'prepare'
     runs-on: ubuntu-latest
@@ -113,7 +148,7 @@ jobs:
   smoke:
     if: inputs.phase == 'prepare'
     runs-on: ubuntu-latest
-    needs: [parse-tag, build, test]
+    needs: [parse-tag, build, test, prepare-catalog]
     outputs:
       artifact_id: ${{ steps.npm-artifact.outputs.artifact-id }}
       artifact_digest: ${{ steps.npm-artifact.outputs.artifact-digest }}
@@ -141,12 +176,26 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Materialize release catalog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_COMMIT: ${{ needs.parse-tag.outputs.commit }}
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+        run: |
+          set -euo pipefail
+          test -n "$NOW_ISO"
+          pnpm --silent models:release-pin read --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO"
+          pnpm --silent models:release-pin materialize --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO" --workspace "$GITHUB_WORKSPACE"
       - run: pnpm -r build
       - name: Pack and verify ${{ needs.parse-tag.outputs.package }}
         id: pack
         env:
           RELEASE_PACKAGE: ${{ needs.parse-tag.outputs.package }}
           RELEASE_VERSION: ${{ needs.parse-tag.outputs.version }}
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
         run: |
           set -euo pipefail
           PACKAGE="$RELEASE_PACKAGE"
@@ -189,7 +238,18 @@ jobs:
               "$PACK_DIR/alias-package.json" >/dev/null
             pnpm check:published-package -- "$PACK_DIR/$ALIAS_FILENAME"
             ALIAS_SHA512=$(shasum -a 512 "$PACK_DIR/$ALIAS_FILENAME" | awk '{print $1}')
+            pnpm --silent models:release-pin extract --kind npm-tarball --path "$PACK_DIR/$ALIAS_FILENAME" \
+              --now-iso "$NOW_ISO" \
+              --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+              --expected-revision "$CATALOG_REVISION" \
+              --expected-digest "$CATALOG_DIGEST"
           fi
+          test -n "$NOW_ISO"
+          pnpm --silent models:release-pin extract --kind npm-tarball --path "$TARBALL" \
+            --now-iso "$NOW_ISO" \
+            --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+            --expected-revision "$CATALOG_REVISION" \
+            --expected-digest "$CATALOG_DIGEST"
           echo "primary_filename=$PRIMARY_FILENAME" >> "$GITHUB_OUTPUT"
           echo "primary_sha512=$PRIMARY_SHA512" >> "$GITHUB_OUTPUT"
           echo "alias_filename=$ALIAS_FILENAME" >> "$GITHUB_OUTPUT"
@@ -202,7 +262,14 @@ jobs:
           COORDINATOR_RUN_ID: ${{ inputs.coordinator_run_id }}
           COORDINATOR_RUN_ATTEMPT: ${{ inputs.coordinator_run_attempt }}
           PACK_DIR: ${{ steps.pack.outputs.pack_dir }}
-        run: node .release-control/tools/npm-release.ts seal "$PACK_DIR"
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
+        run: |
+          set -euo pipefail
+          RELEASE_CATALOG=$(jq -nc --arg releaseGroupId "$CATALOG_RELEASE_GROUP_ID" --argjson revision "$CATALOG_REVISION" --arg digest "$CATALOG_DIGEST" '{releaseGroupId:$releaseGroupId,revision:$revision,digest:$digest}')
+          export RELEASE_CATALOG
+          node .release-control/tools/npm-release.ts seal "$PACK_DIR"
       - name: Upload immutable npm release artifacts
         id: npm-artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

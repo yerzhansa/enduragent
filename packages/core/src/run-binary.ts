@@ -7,6 +7,7 @@ import { serializeError } from "./logging/serialize-error.js";
 import { parseArgs } from "node:util";
 import { createInterface as createReadlineInterface } from "node:readline";
 import { writeSync } from "node:fs";
+import { join } from "node:path";
 import type { Sport } from "./sport.js";
 import { type BinaryConfig, binaryEnvVar } from "./binary.js";
 import type { Memory } from "./memory/store.js";
@@ -23,6 +24,7 @@ import {
   ensureDataDirSecure,
 } from "./channels/allowed-senders.js";
 import { classifyAgentError } from "./agent/error-classify.js";
+import { openModelCatalog } from "./model-catalog-owner.js";
 import { warnOrphanSections } from "./memory/orphan-sections.js";
 import { getEffectiveSections } from "./sport.js";
 import { formatConfirmOutcome, type ConfirmationGate } from "./agent/confirmation-gate.js";
@@ -484,14 +486,19 @@ async function runBinaryWithLanguage(
 
   const bootStart = Date.now();
   const prepared = (await hooks.prepare?.({ config, sport })) ?? {};
+  const modelCatalog = openModelCatalog({
+    cacheDirectory: join(config.dataDir, "config", "model-catalog", "cli-runtime"),
+    installationRoot: config.dataDir,
+  });
+  await modelCatalog.start();
   const { createCoachEngine } = await import("./agent/coach-engine.js");
   const engine = createCoachEngine(sport, config, {
     language: coachLanguage,
     athleteData: prepared.athleteData,
     calendarMutations: prepared.calendarMutations,
+    catalog: modelCatalog.current(),
   });
 
-  // Init order: Memory (above) → startup hook → Reference bootstrap → Telegram.
   // Reference's internal init sequence is pinned inside `bootstrapReference`
   // per ADR-0011 (two-phase scheduler — no timer until first runSync resolves).
   await runStartupHook(engine.getMemory(), hooks.onStartup);

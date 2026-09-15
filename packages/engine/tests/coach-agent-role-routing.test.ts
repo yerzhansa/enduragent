@@ -8,6 +8,7 @@ import type { EngineHostPorts } from "../src/host-ports.js";
 import type { Sport } from "../src/sport.js";
 import type { LLM } from "../src/llm.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 
 let dataDir: string;
 
@@ -33,12 +34,21 @@ function makeConfig(overrides: {
     config: {
       ...ports.config,
       llm: {
-      provider: "anthropic",
-      model: overrides.model ?? "claude-sonnet-4-6",
-      apiKey: "test-key",
-      flushModel: overrides.flushModel,
-      compactModel: overrides.compactModel,
+        provider: "anthropic",
+        model: overrides.model ?? "claude-sonnet-4-6",
+        apiKey: "test-key",
+        flushModel: overrides.flushModel,
+        compactModel: overrides.compactModel,
       },
+      models: testModelProfiles({
+        provider: "anthropic",
+        chat: overrides.model ?? "claude-sonnet-4-6",
+        compact: overrides.compactModel,
+        flush: overrides.flushModel,
+        chatContextWindowTokens: overrides.contextWindowTokens ?? 1_000_000,
+        compactContextWindowTokens:
+          overrides.compactContextWindowTokens ?? overrides.contextWindowTokens ?? 1_000_000,
+      }),
       contextWindowTokens: overrides.contextWindowTokens ?? 1_000_000,
       compactContextWindowTokens:
         overrides.compactContextWindowTokens ?? overrides.contextWindowTokens ?? 1_000_000,

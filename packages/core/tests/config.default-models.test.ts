@@ -63,12 +63,12 @@ describe("config — default model and context-window resolution", () => {
     expect(cfg.contextWindowTokens).toBe(1_048_576);
   });
 
-  it("explicit gemini-3.5-flash model resolves the 1M window regardless of provider", async () => {
+  it("treats a model from another provider as custom with the conservative window", async () => {
     process.env.LLM_PROVIDER = "anthropic";
     process.env.LLM_MODEL = "gemini-3.5-flash";
     const { loadConfig } = await import("../src/config.js");
     const cfg = loadConfig();
-    expect(cfg.contextWindowTokens).toBe(1_048_576);
+    expect(cfg.contextWindowTokens).toBe(200_000);
   });
 
   it("openai provider with no model defaults to gpt-5.6-sol with a 1.05M window", async () => {

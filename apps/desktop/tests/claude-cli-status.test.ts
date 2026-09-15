@@ -17,6 +17,7 @@ import {
   DESKTOP_CLAUDE_CLI_RECHECK_CHANNEL,
   DESKTOP_CLAUDE_CLI_STATUS_CHANNEL,
 } from "../src/main/onboarding-ipc.js";
+import { BUNDLED_MODEL_CATALOG } from "../../../packages/core/src/model-catalog-seed.js";
 
 const BINARY = "/opt/homebrew/bin/claude";
 type EnsureReady = NonNullable<ClaudeCliStatusDependencies["ensureReady"]>;
@@ -462,11 +463,15 @@ describe("desktop claude-cli status controller", () => {
     const subject = harness({ probeAccount: async () => probe });
 
     const status = subject.controller.status();
-    const activation = subject.controller.activate({
-      provider: "claude-cli",
-      model: "sonnet",
-      endpoint: { mode: "automatic" },
-    });
+    const activation = subject.controller.activate(
+      {
+        catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+        provider: "claude-cli",
+        model: "sonnet",
+        endpoint: { mode: "automatic" },
+      },
+      BUNDLED_MODEL_CATALOG,
+    );
 
     await vi.waitFor(() => expect(subject.probeAccount).toHaveBeenCalledOnce());
     settle(subscriptionProbe());
@@ -560,27 +565,36 @@ describe("desktop claude-cli status controller", () => {
     const subject = harness({});
 
     await expect(
-      subject.controller.activate({
-        provider: "claude-cli",
-        model: "sonnet",
-        endpoint: { mode: "automatic" },
-      }),
+      subject.controller.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "claude-cli",
+          model: "sonnet",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "configured", runtimeReady: true });
     expect(subject.applyRuntimeConfig).toHaveBeenCalledWith({
-      llm: { provider: "claude-cli", model: "sonnet" },
+      llm: {
+        provider: "claude-cli",
+        model: "sonnet",
+        catalog_snapshot: BUNDLED_MODEL_CATALOG,
+      },
     });
   });
 
   it("reuses the verified status when activation immediately follows selection", async () => {
     const subject = harness({});
     const selection = {
+      catalogRevision: BUNDLED_MODEL_CATALOG.revision,
       provider: "claude-cli" as const,
       model: "sonnet",
       endpoint: { mode: "automatic" as const },
     };
 
     await expect(subject.controller.status()).resolves.toMatchObject({ state: "ready" });
-    await expect(subject.controller.activate(selection)).resolves.toEqual({
+    await expect(subject.controller.activate(selection, BUNDLED_MODEL_CATALOG)).resolves.toEqual({
       status: "configured",
       runtimeReady: true,
     });
@@ -592,12 +606,18 @@ describe("desktop claude-cli status controller", () => {
   it.each([
     [
       "a foreign provider",
-      { provider: "anthropic", model: "sonnet", endpoint: { mode: "automatic" } },
+      {
+        catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+        provider: "anthropic",
+        model: "sonnet",
+        endpoint: { mode: "automatic" },
+      },
       "invalid-input",
     ],
     [
       "a custom endpoint",
       {
+        catalogRevision: BUNDLED_MODEL_CATALOG.revision,
         provider: "claude-cli",
         model: "sonnet",
         endpoint: { mode: "custom", value: "http://127.0.0.1:1234" },
@@ -607,7 +627,9 @@ describe("desktop claude-cli status controller", () => {
   ])("refuses activation for %s", async (_case, selection, reason) => {
     const subject = harness({});
 
-    await expect(subject.controller.activate(selection as never)).resolves.toEqual({
+    await expect(
+      subject.controller.activate(selection as never, BUNDLED_MODEL_CATALOG),
+    ).resolves.toEqual({
       status: "refused",
       reason,
     });
@@ -620,11 +642,15 @@ describe("desktop claude-cli status controller", () => {
     });
 
     await expect(
-      subject.controller.activate({
-        provider: "claude-cli",
-        model: "sonnet",
-        endpoint: { mode: "automatic" },
-      }),
+      subject.controller.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "claude-cli",
+          model: "sonnet",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "credential-required" });
     expect(subject.applyRuntimeConfig).not.toHaveBeenCalled();
   });
@@ -633,11 +659,15 @@ describe("desktop claude-cli status controller", () => {
     const subject = harness({ settings: settings({ enabled: false }) });
 
     await expect(
-      subject.controller.activate({
-        provider: "claude-cli",
-        model: "sonnet",
-        endpoint: { mode: "automatic" },
-      }),
+      subject.controller.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "claude-cli",
+          model: "sonnet",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "runtime-unavailable" });
   });
 
@@ -649,11 +679,15 @@ describe("desktop claude-cli status controller", () => {
     });
 
     await expect(
-      subject.controller.activate({
-        provider: "claude-cli",
-        model: "sonnet",
-        endpoint: { mode: "automatic" },
-      }),
+      subject.controller.activate(
+        {
+          catalogRevision: BUNDLED_MODEL_CATALOG.revision,
+          provider: "claude-cli",
+          model: "sonnet",
+          endpoint: { mode: "automatic" },
+        },
+        BUNDLED_MODEL_CATALOG,
+      ),
     ).resolves.toEqual({ status: "refused", reason: "runtime-unavailable" });
   });
 });

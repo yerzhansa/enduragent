@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { createCoachEngine, loadConfig, type StoredProfileSnapshot } from "@enduragent/core";
 import { createCoachEngine as createCanonicalCoachEngine } from "@enduragent/engine";
 import { createEngineHostAdapter } from "../../packages/core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../packages/core/src/model-catalog.js";
 import { legacyStateReader } from "../../packages/core/src/agent/legacy-athlete-state-reader.js";
 import { cyclingSport } from "@enduragent/sport-cycling";
 
@@ -224,11 +225,20 @@ async function main(): Promise<void> {
     scenario.execution?.kind === "answer-check"
       ? createCanonicalCoachEngine({
           sport: cyclingSport,
-          ports: createEngineHostAdapter({ config, stateReader: legacyStateReader, overrides })
-            .ports,
+          ports: createEngineHostAdapter({
+            catalog: bundledAcceptedCatalog(),
+            config,
+            stateReader: legacyStateReader,
+            overrides,
+          }).ports,
         })
       : null;
-  const agent = answerChecker ?? createCoachEngine(cyclingSport, config, overrides);
+  const agent =
+    answerChecker ??
+    createCoachEngine(cyclingSport, config, {
+      ...overrides,
+      catalog: bundledAcceptedCatalog(),
+    });
   const mustHave = new Set([
     "intervals_fetch_athlete",
     "intervals_fetch_wellness",

@@ -24,6 +24,7 @@ import {
 } from "@enduragent/engine";
 import type { GenerateResult, Sport } from "@enduragent/engine/sport";
 import { afterEach, describe, expect, it } from "vitest";
+import { testModelProfiles } from "../../../packages/engine/tests/helpers/model-profiles.js";
 import {
   launchDesktopFixture,
   visibleQaCheckpoint,
@@ -226,6 +227,11 @@ class DecisionContinuationBackend {
           resetArchiveRetentionDays: 0,
           timezone: "UTC",
         },
+        models: testModelProfiles({
+          provider: "openai-codex",
+          chat: "fixture",
+          chatContextWindowTokens: 272_000,
+        }),
         contextWindowTokens: 272_000,
         compactContextWindowTokens: 272_000,
       },

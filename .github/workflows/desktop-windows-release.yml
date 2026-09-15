@@ -34,7 +34,9 @@ jobs:
   verify-windows-envelope:
     runs-on: windows-latest
     timeout-minutes: 45
-    permissions: { contents: write }
+    permissions:
+      contents: write
+      actions: read
     defaults:
       run:
         shell: bash
@@ -135,6 +137,54 @@ jobs:
             --pattern "Enduragent-$VERSION-x64.exe.blockmap" \
             --pattern latest.yml
           test "$(ls -1 "$WORK" | LC_ALL=C sort)" = "$(printf '%s\n' "Enduragent-$VERSION-x64.exe" "Enduragent-$VERSION-x64.exe.blockmap" latest.yml | LC_ALL=C sort)"
+      - name: Prove bundled catalog from the installed package
+        id: catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ steps.release.outputs.commit }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          NOW_ISO=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at)
+          test -n "$NOW_ISO"
+          PIN=$(pnpm --silent models:release-pin read --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO")
+          CATALOG_RELEASE_GROUP_ID=$(printf '%s' "$PIN" | jq -er '.catalog.releaseGroupId')
+          CATALOG_REVISION=$(printf '%s' "$PIN" | jq -er '.catalog.revision')
+          CATALOG_DIGEST=$(printf '%s' "$PIN" | jq -er '.catalog.digest')
+          WORK="$(cygpath -u "$RUNNER_TEMP")/windows-release"
+          INSTALLER="$WORK/Enduragent-$VERSION-x64.exe"
+          test -f "$INSTALLER"
+          INSTALL_ROOT=""
+          uninstall() {
+            if [ -n "${INSTALL_ROOT:-}" ]; then
+              ROOT_UNIX=$(cygpath -u "$INSTALL_ROOT")
+              if [ -f "$ROOT_UNIX/Uninstall Enduragent.exe" ]; then
+                "$ROOT_UNIX/Uninstall Enduragent.exe" /currentuser /S || true
+              fi
+            fi
+          }
+          trap uninstall EXIT
+          "$INSTALLER" /S
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+            CANDIDATE=$(pwsh.exe -NoProfile -Command "try { [string](Get-ItemProperty -LiteralPath 'HKCU:\Software\80611707-2ddf-50e5-b3ec-95f38ab4a6fa' -ErrorAction Stop).InstallLocation } catch { '' }" | tr -d '\r')
+            if [ -n "$CANDIDATE" ]; then
+              CANDIDATE_UNIX=$(cygpath -u "$CANDIDATE")
+              if [ -f "$CANDIDATE_UNIX/resources/app.asar" ]; then
+                INSTALL_ROOT=$CANDIDATE
+                break
+              fi
+            fi
+            sleep 2
+          done
+          test -n "$INSTALL_ROOT"
+          ROOT_UNIX=$(cygpath -u "$INSTALL_ROOT")
+          pnpm --silent models:release-pin extract --kind windows-unpacked --path "$ROOT_UNIX" \
+            --now-iso "$NOW_ISO" \
+            --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+            --expected-revision "$CATALOG_REVISION" \
+            --expected-digest "$CATALOG_DIGEST"
+          RELEASE_CATALOG=$(jq -nc --arg releaseGroupId "$CATALOG_RELEASE_GROUP_ID" --argjson revision "$CATALOG_REVISION" --arg digest "$CATALOG_DIGEST" '{releaseGroupId:$releaseGroupId,revision:$revision,digest:$digest}')
+          echo "release_catalog=$RELEASE_CATALOG" >> "$GITHUB_OUTPUT"
       - name: Verify Windows release envelope
         id: verify
         env:
@@ -175,6 +225,7 @@ jobs:
           RELEASE_ASSETS: ${{ steps.release.outputs.windows_assets }}
           PUBLISHER_DN: ${{ inputs.publisher_dn }}
           VERIFIED_FILES: ${{ steps.verify.outputs.verified_files }}
+          RELEASE_CATALOG: ${{ steps.catalog.outputs.release_catalog }}
         run: |
           set -euo pipefail
           TEMP="$(cygpath -u "$RUNNER_TEMP")/windows-evidence"
@@ -197,10 +248,11 @@ jobs:
             --arg tag "$TAG" \
             --arg version "$VERSION" \
             --arg commit "$COMMIT" \
+            --argjson catalog "$RELEASE_CATALOG" \
             --arg installerSha256 "$INSTALLER_SHA256" \
             --arg publisherDnSha256 "$PUBLISHER_SHA256" \
             --argjson files "$FILES" \
-            '{schemaVersion: 2, tag: $tag, version: $version, commit: $commit, arch: "x64", authenticode: "verified", installerSha256: $installerSha256, publisherDnSha256: $publisherDnSha256, files: $files}' \
+            '{schemaVersion: 3, tag: $tag, version: $version, commit: $commit, catalog: $catalog, arch: "x64", authenticode: "verified", installerSha256: $installerSha256, publisherDnSha256: $publisherDnSha256, files: $files}' \
             > "$TEMP/$EVIDENCE"
           node apps/desktop/scripts/upload-windows-verification-evidence.mjs \
             --version "$VERSION" \

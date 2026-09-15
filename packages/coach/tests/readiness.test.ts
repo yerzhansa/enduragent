@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { engineConfigFromConfig, loadConfigFromYaml } from "@enduragent/core";
+import {
+  bundledAcceptedCatalog,
+  engineConfigFromConfig,
+  loadConfigFromYaml,
+} from "@enduragent/core";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import {
   checkHomeReadiness,
@@ -100,7 +104,8 @@ describe("home readiness", () => {
       checkHomeReadiness(home, {
         readConfigFile,
         loadConfig: loadConfigFromYaml,
-        projectConfig: engineConfigFromConfig,
+        projectConfig: (config) =>
+          engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
       }),
     ).resolves.toEqual({ status: "malformed" });
   });
@@ -113,7 +118,8 @@ describe("home readiness", () => {
       checkHomeReadiness(home, {
         readConfigFile: vi.fn().mockResolvedValue(source),
         loadConfig: loadConfigFromYaml,
-        projectConfig: engineConfigFromConfig,
+        projectConfig: (config) =>
+          engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
       }),
     ).resolves.toEqual({ status: "malformed" });
   });
@@ -127,7 +133,8 @@ describe("home readiness", () => {
     const result = await checkHomeReadiness(home, {
       readConfigFile: vi.fn().mockResolvedValue(source),
       loadConfig: loadConfigFromYaml,
-      projectConfig: engineConfigFromConfig,
+      projectConfig: (config) =>
+        engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
     });
 
     expect(result).toMatchObject({ status: "ready" });
@@ -139,7 +146,7 @@ describe("home readiness", () => {
     const loaded = loadConfigFromYaml({ data_source: "store" }, home.configDir, {
       defaultDataDir: home.root,
     });
-    const projected = engineConfigFromConfig(loaded);
+    const projected = engineConfigFromConfig(loaded, { catalog: bundledAcceptedCatalog() });
     const loadConfig = vi.fn(() => loaded);
     const projectConfig = vi.fn(() => projected);
     const dependencies: ReadinessDependencies = {

@@ -1,4 +1,6 @@
 export * from "./version.js";
+export * from "./llm-provider.js";
+export * from "./model-catalog.js";
 export * from "./exit-codes.js";
 export * from "./turn-event.js";
 export * from "./athlete-state.js";

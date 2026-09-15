@@ -421,6 +421,13 @@ export function checkI18nBuiltDependencies(root: string): BuiltDependencyViolati
   );
 }
 
+export function checkModelCatalogBuiltDependencies(root: string): BuiltDependencyViolation[] {
+  return checkBuiltDependencyGraph({
+    entry: join(root, "packages/coach-contract/dist/model-catalog.js"),
+    forbiddenPackages: ["@enduragent/core", "@enduragent/engine"],
+  }).violations;
+}
+
 interface ManifestDep {
   readonly name: string;
   readonly block: string;
@@ -814,9 +821,13 @@ export function main(argv: readonly string[]): number {
 
   const result = runRulesAgainst(root, RULES);
   const privateViolations = checkPrivatePackages(root);
-  const builtViolations = existsSync(join(root, "packages/i18n"))
+  const i18nBuiltViolations = existsSync(join(root, "packages/i18n"))
     ? checkI18nBuiltDependencies(root)
     : [];
+  const catalogBuiltViolations = existsSync(join(root, "packages/coach-contract"))
+    ? checkModelCatalogBuiltDependencies(root)
+    : [];
+  const builtViolations = [...i18nBuiltViolations, ...catalogBuiltViolations];
 
   for (const dir of result.notPresent) {
     console.log(`check-package-deps: ${dir} (not present yet)`);
@@ -835,6 +846,9 @@ export function main(argv: readonly string[]): number {
     );
     if (existsSync(join(root, "packages/i18n"))) {
       console.log("check-package-deps: i18n built index, messages, and react dependency graphs clean.");
+    }
+    if (existsSync(join(root, "packages/coach-contract"))) {
+      console.log("check-package-deps: model catalog built dependency graph clean.");
     }
     return 0;
   }

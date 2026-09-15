@@ -8,6 +8,7 @@ import type { Config } from "../../packages/core/src/config.js";
 import { COMPACT_MODEL_DEFAULTS, contextWindowForModel } from "../../packages/core/src/config.js";
 import { LLM } from "../../packages/engine/src/llm.js";
 import { createEngineHostAdapter } from "../../packages/core/src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../../packages/core/src/model-catalog.js";
 import { legacyStateReader } from "../../packages/core/src/agent/legacy-athlete-state-reader.js";
 import { USAGE_LEDGER_FILE, type UsageLedgerLine } from "../../packages/core/src/usage-ledger.js";
 import type { MemorySnapshot, SportMemoryShape } from "@enduragent/engine/sport";
@@ -171,10 +172,12 @@ async function main(): Promise<void> {
   const compactModel = COMPACT_MODEL_DEFAULTS.anthropic;
   const tempDir = mkdtempSync(join(tmpdir(), "compaction-gate-"));
   const compactHost = createEngineHostAdapter({
+    catalog: bundledAcceptedCatalog(),
     config: makeConfig(compactModel, apiKey, tempDir),
     stateReader: legacyStateReader,
   }).ports;
   const judgeHost = createEngineHostAdapter({
+    catalog: bundledAcceptedCatalog(),
     config: makeConfig(JUDGE_MODEL_ID, apiKey, tempDir),
     stateReader: legacyStateReader,
   }).ports;

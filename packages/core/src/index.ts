@@ -54,6 +54,50 @@ export {
   type UsageLedgerReadResult,
 } from "./usage-ledger.js";
 export { atomicWriteJson } from "./io/atomic-write-json.js";
+export {
+  MODEL_CATALOG_ENDPOINT,
+  MODEL_CATALOG_REFRESH_INTERVAL_MS,
+  MODEL_CATALOG_REQUEST_TIMEOUT_MS,
+  MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
+  openModelCatalog,
+  readAcceptedInstallationCatalog,
+  resolveModelCatalogPaths,
+} from "./model-catalog-owner.js";
+export {
+  acceptModelCatalogSnapshot,
+  bundledAcceptedCatalog,
+  evaluateModelCatalogCandidate,
+  modelCatalogSelectorConfiguration,
+} from "./model-catalog.js";
+export type {
+  AcceptedModelCatalogRecord,
+  EffectiveCatalogModel,
+  EffectiveCatalogProvider,
+  EffectiveModelCatalog,
+  ModelCatalogCandidateEvaluation,
+  ModelCatalogSelectorConfiguration,
+  ModelCatalogSelectorProvider,
+} from "./model-catalog.js";
+export {
+  CONSERVATIVE_MODEL_CONTEXT_WINDOW_TOKENS,
+  resolveModelRuntimeGeneration,
+  SELECTED_MODEL_PROFILES_FILE,
+} from "./model-runtime-generation.js";
+export type {
+  ModelRuntimeGeneration,
+  ResolveModelRuntimeGenerationInput,
+} from "./model-runtime-generation.js";
+export type {
+  LocalModelCatalogOrigin,
+  LocalModelCatalogSnapshot,
+  ModelCatalog,
+  ModelCatalogDiagnostics,
+  ModelCatalogLifecycleOutcome,
+  ModelCatalogOpenInput,
+  ModelCatalogPaths,
+  ModelCatalogRefreshOutcome,
+  ModelCatalogRefreshRetainedReason,
+} from "./model-catalog-owner.js";
 
 // ─── Logging substrate ────────────────────────────────────────────────
 export {
