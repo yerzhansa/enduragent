@@ -946,6 +946,7 @@
       "messagePlaceholder": "Envia uma mensagem ao teu treinador",
       "responding": "O treinador está a responder…",
       "send": "Enviar mensagem",
+      "sendConnecting": "O Chat ainda está a ligar-se, por isso Enviar ainda não está pronto.",
       "stop": "Parar resposta"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Não foi possível continuar a partir da tua escolha. Tenta novamente.",
       "decisionLoadFailure": "Não foi possível verificar se existe uma pergunta guardada do treinador. Volta a ligar e tenta novamente.",
       "decisionSkipFailure": "Não foi possível saltar esta pergunta. Tenta novamente.",
-      "draftSaveFailure": "Não foi possível guardar o rascunho da tua mensagem. Continua disponível nesta janela.",
+      "draftSaveFailure": "Não foi possível contactar o coach, por isso a tua mensagem continua na caixa.",
       "emptyResponse": "O treinador devolveu uma resposta vazia. Tenta novamente.",
       "newConversationMemoryWarning": "Nova conversa iniciada. Alguns detalhes recentes podem não ter sido guardados na memória do treinador.",
       "newConversationSuccess": "Nova conversa iniciada.",

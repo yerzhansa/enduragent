@@ -108,6 +108,7 @@ export interface ChatSurfaceState {
   readonly sendDisabled: boolean;
   readonly inputDisabled: boolean;
   readonly composerPlaceholder: string;
+  readonly composerStatus: string | null;
   readonly newConversationUnavailable: boolean;
   readonly resetPhase: SessionResetPhase;
   readonly resetCount: number;
@@ -210,6 +211,7 @@ export const EMPTY_CHAT_SURFACE: ChatSurfaceState = Object.freeze({
   sendDisabled: false,
   inputDisabled: false,
   composerPlaceholder: "Message your coach",
+  composerStatus: null,
   newConversationUnavailable: true,
   resetPhase: "idle",
   resetCount: 0,
@@ -448,6 +450,7 @@ export function sameChatSurface(left: ChatSurfaceState, right: ChatSurfaceState)
     left.sendDisabled === right.sendDisabled &&
     left.inputDisabled === right.inputDisabled &&
     left.composerPlaceholder === right.composerPlaceholder &&
+    left.composerStatus === right.composerStatus &&
     left.newConversationUnavailable === right.newConversationUnavailable &&
     left.resetPhase === right.resetPhase &&
     left.resetCount === right.resetCount &&

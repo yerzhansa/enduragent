@@ -34,8 +34,10 @@ export function chatFeedbackMessage(value: string): Message | null {
       return msg("chat.notice.queueRemoveFailure");
     case "We couldn’t update that attachment. Your message draft is preserved.":
       return msg("chat.notice.attachmentFailure");
-    case "We couldn’t save your message draft. It’s still available in this window.":
+    case "Couldn’t reach the coach, so your message is still in the box.":
       return msg("chat.notice.draftSaveFailure");
+    case "Chat is still connecting, so Send isn’t ready yet.":
+      return msg("chat.composer.sendConnecting");
     case "We couldn’t check saved Plan requests. Reconnect and try again.":
       return msg("chat.notice.planningRequestLoadFailure");
     case "Plan couldn’t receive this request. Your request is preserved and nothing changed in Plan.":

@@ -335,6 +335,7 @@ function makeScript(
   transcriptHistory: boolean,
   liveTurn?: LiveTurnControl,
   initialDraftSaveFailures = 0,
+  holdCoachDecision?: Promise<void>,
 ): DesktopFixtureScript {
   let units: "metric" | "imperial" = "metric";
   let hasSession = false;
@@ -652,7 +653,12 @@ ${"nonwrapping".repeat(36)}
         ];
       }
       if (request.method === "hasSession") return response({ hasSession });
-      if (request.method === "getCoachDecision") return response({ decision: null });
+      if (request.method === "getCoachDecision") {
+        if (holdCoachDecision !== undefined) {
+          return holdCoachDecision.then(() => response({ decision: null }));
+        }
+        return response({ decision: null });
+      }
       if (request.method === "getTranscriptPage") {
         if (!transcriptHistory) {
           return response({
@@ -840,6 +846,7 @@ async function launch(input: {
   readonly liveTurn?: LiveTurnControl;
   readonly hidden?: boolean;
   readonly draftSaveFailures?: number;
+  readonly holdCoachDecision?: Promise<void>;
 }): Promise<{ readonly fixture: RunningDesktopFixture; readonly calls: ScriptRequest[] }> {
   const calls: ScriptRequest[] = [];
   const fixture = await launchDesktopFixture({
@@ -849,6 +856,7 @@ async function launch(input: {
       input.transcriptHistory ?? false,
       input.liveTurn,
       input.draftSaveFailures,
+      input.holdCoachDecision,
     ),
     token,
     width: input.width,
@@ -989,7 +997,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       if (valueSetter === undefined) throw new Error("textarea value setter missing");
       valueSetter.call(textarea, "test");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
-      const expected = "We couldn’t save your message draft. It’s still available in this window.";
+      const expected = "Couldn’t reach the coach, so your message is still in the box.";
       const deadline = Date.now() + 5000;
       const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
         (node) => node.textContent?.trim() ?? "",
@@ -1006,7 +1014,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
     expect(failedSave.draft).toBe("test");
     expect(failedSave.attachmentCards).toBe(0);
     expect(failedSave.alerts).toContain(
-      "We couldn’t save your message draft. It’s still available in this window.",
+      "Couldn’t reach the coach, so your message is still in the box.",
     );
     expect(failedSave.alerts).not.toContain(
       "We couldn’t update that attachment. Your message draft is preserved.",
@@ -1026,7 +1034,7 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       if (valueSetter === undefined) throw new Error("textarea value setter missing");
       valueSetter.call(textarea, "test again");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
-      const expected = "We couldn’t save your message draft. It’s still available in this window.";
+      const expected = "Couldn’t reach the coach, so your message is still in the box.";
       const deadline = Date.now() + 5000;
       const alerts = () => Array.from(document.querySelectorAll('[role="alert"]')).map(
         (node) => node.textContent?.trim() ?? "",
@@ -1038,10 +1046,61 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
     `);
     expect(recovered.draft).toBe("test again");
     expect(recovered.alerts).not.toContain(
-      "We couldn’t save your message draft. It’s still available in this window.",
+      "Couldn’t reach the coach, so your message is still in the box.",
     );
     expect(calls.filter((call) => call.method === "saveChatAttachmentDraftText")).toHaveLength(2);
     expect(calls.some((call) => call.method === "enqueueChatMessage")).toBe(false);
+  }, 90_000);
+
+  it("explains why Send is off while Chat is still connecting", async () => {
+    const hold = deferred<void>();
+    const { fixture } = await launch({
+      width: 1180,
+      height: 820,
+      reducedMotion: true,
+      hidden: true,
+      holdCoachDecision: hold.promise,
+    });
+    const held = await fixture.evaluate<{
+      readonly sendDisabled: boolean;
+      readonly connecting: string;
+      readonly draftAlert: boolean;
+    }>(`
+      const send = document.querySelector('button[aria-label="Send message"]');
+      const holdLine = document.querySelector(".composer-send-hold");
+      return {
+        sendDisabled: send instanceof HTMLButtonElement ? send.disabled : true,
+        connecting: holdLine?.textContent?.trim() ?? "",
+        draftAlert: Array.from(document.querySelectorAll('[role="alert"]')).some(
+          (node) => node.textContent?.includes("Couldn’t reach the coach"),
+        ),
+      };
+    `);
+    expect(held).toEqual({
+      sendDisabled: true,
+      connecting: "Chat is still connecting, so Send isn’t ready yet.",
+      draftAlert: false,
+    });
+    hold.resolve(undefined);
+    const released = await fixture.evaluate<{
+      readonly sendDisabled: boolean;
+      readonly connecting: string;
+    }>(`
+      const deadline = Date.now() + 5000;
+      const send = () => document.querySelector('button[aria-label="Send message"]');
+      const holdLine = () => document.querySelector(".composer-send-hold");
+      while (
+        (!(send() instanceof HTMLButtonElement) || send().disabled) &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return {
+        sendDisabled: send() instanceof HTMLButtonElement ? send().disabled : true,
+        connecting: holdLine()?.textContent?.trim() ?? "",
+      };
+    `);
+    expect(released).toEqual({ sendDisabled: false, connecting: "" });
   }, 90_000);
 
   it("hydrates persisted conversation pages without replay, focus loss, or row churn", async () => {

@@ -90,6 +90,9 @@ export function ChatView(): ReactElement {
   const status = useEnduragentStore((state) => state.chat.status);
   const announcement = useEnduragentStore((state) => state.chat.announcement);
   const announcementMessage = announcement === null ? null : chatFeedbackMessage(announcement);
+  const composerStatus = useEnduragentStore((state) => state.chat.composerStatus);
+  const composerStatusMessage =
+    composerStatus === null ? null : chatFeedbackMessage(composerStatus);
   const hydrationStatus = useEnduragentStore((state) => state.chat.hydrationStatus);
   const hasEarlier = useEnduragentStore((state) => state.chat.hydrationHasEarlier);
   const workBlocked = useEnduragentStore((state) => state.chat.workBlocked);
@@ -447,6 +450,15 @@ export function ChatView(): ReactElement {
                   aria-live="polite"
                 >
                   {announcementMessage === null ? (announcement ?? "") : say(announcementMessage)}
+                </p>
+                <p
+                  className="composer-send-hold m-0 text-sm text-ink-2 not-empty:px-3.5 not-empty:pb-inset"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {composerStatusMessage === null
+                    ? (composerStatus ?? "")
+                    : say(composerStatusMessage)}
                 </p>
               </div>
             </div>

@@ -946,6 +946,7 @@
       "messagePlaceholder": "Scrivi al tuo coach",
       "responding": "Il coach sta rispondendo…",
       "send": "Invia messaggio",
+      "sendConnecting": "Chat si sta ancora collegando, quindi Invia non è ancora pronto.",
       "stop": "Interrompi risposta"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Impossibile proseguire con la tua scelta. Riprova.",
       "decisionLoadFailure": "Impossibile verificare se c’è una domanda salvata del coach. Riconnetti e riprova.",
       "decisionSkipFailure": "Impossibile saltare questa domanda. Riprova.",
-      "draftSaveFailure": "Non è stato possibile salvare la bozza del messaggio. È ancora disponibile in questa finestra.",
+      "draftSaveFailure": "Impossibile raggiungere il coach, quindi il messaggio resta nel riquadro.",
       "emptyResponse": "Il coach ha restituito una risposta vuota. Riprova.",
       "newConversationMemoryWarning": "Nuova conversazione iniziata. Alcuni dettagli recenti potrebbero non essere stati salvati nella memoria del coach.",
       "newConversationSuccess": "Nuova conversazione iniziata.",

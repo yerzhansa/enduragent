@@ -87,7 +87,8 @@ export const CHAT_QUEUE_REMOVE_FAILURE_COPY = "We couldn’t remove that saved m
 export const CHAT_ATTACHMENT_FAILURE_COPY =
   "We couldn’t update that attachment. Your message draft is preserved.";
 export const CHAT_DRAFT_SAVE_FAILURE_COPY =
-  "We couldn’t save your message draft. It’s still available in this window.";
+  "Couldn’t reach the coach, so your message is still in the box.";
+export const CHAT_SEND_CONNECTING_COPY = "Chat is still connecting, so Send isn’t ready yet.";
 export const CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY =
   "We couldn’t check saved Plan requests. Reconnect and try again.";
 export const CHAT_PLANNING_REQUEST_FAILURE_COPY =

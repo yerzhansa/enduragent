@@ -946,6 +946,7 @@
       "messagePlaceholder": "Skriv til din træner",
       "responding": "Træneren svarer…",
       "send": "Send besked",
+      "sendConnecting": "Chat opretter stadig forbindelse, så Send er ikke klar endnu.",
       "stop": "Stop svaret"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Vi kunne ikke fortsætte ud fra dit valg. Prøv igen.",
       "decisionLoadFailure": "Vi kunne ikke kontrollere, om der er et gemt spørgsmål fra træneren. Opret forbindelse igen, og prøv igen.",
       "decisionSkipFailure": "Vi kunne ikke springe dette spørgsmål over. Prøv igen.",
-      "draftSaveFailure": "Vi kunne ikke gemme din beskedkladde. Den er stadig tilgængelig i dette vindue.",
+      "draftSaveFailure": "Kunne ikke nå coachen, så din besked er stadig i feltet.",
       "emptyResponse": "Træneren gav et tomt svar. Prøv igen.",
       "newConversationMemoryWarning": "En ny samtale er startet. Nogle af de seneste detaljer er muligvis ikke gemt i trænerens hukommelse.",
       "newConversationSuccess": "En ny samtale er startet.",

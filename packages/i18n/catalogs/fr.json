@@ -946,6 +946,7 @@
       "messagePlaceholder": "Écris à ton coach",
       "responding": "Le coach répond…",
       "send": "Envoyer le message",
+      "sendConnecting": "Chat est encore en train de se connecter, donc Envoyer n’est pas encore prêt.",
       "stop": "Arrêter la réponse"
     },
     "date": {
@@ -1003,7 +1004,7 @@
       "decisionFailure": "Impossible de poursuivre à partir de ton choix. Réessaie.",
       "decisionLoadFailure": "Impossible de vérifier si une question du coach a été enregistrée. Reconnecte et réessaie.",
       "decisionSkipFailure": "Impossible de passer cette question. Réessaie.",
-      "draftSaveFailure": "Nous n’avons pas pu enregistrer ton brouillon de message. Il reste disponible dans cette fenêtre.",
+      "draftSaveFailure": "Impossible de joindre le coach, donc ton message reste dans le champ.",
       "emptyResponse": "Le coach a renvoyé une réponse vide. Réessaie.",
       "newConversationMemoryWarning": "Nouvelle conversation commencée. Certains détails récents n’ont peut-être pas été enregistrés dans la mémoire du coach.",
       "newConversationSuccess": "Nouvelle conversation commencée.",

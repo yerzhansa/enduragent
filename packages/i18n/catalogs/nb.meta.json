@@ -2976,6 +2976,10 @@
       "sourceHash": "93a26b1eaff99b3a84dd80366660991d15703a96514497afd997c12c43000ed7",
       "translatedBy": "model"
     },
+    "chat.composer.sendConnecting": {
+      "sourceHash": "6150c50619ad4788cf3e123e82bff095c71675494929832d1ea288f258339e1c",
+      "translatedBy": "model"
+    },
     "chat.composer.stop": {
       "sourceHash": "18c6fb3fee2f764dac4c5b172ca5ea5e2c8ef832ae29520b7241a9df60bbf311",
       "translatedBy": "model"
@@ -3157,7 +3161,7 @@
       "translatedBy": "model"
     },
     "chat.notice.draftSaveFailure": {
-      "sourceHash": "b10a054df565809e15f32e0c8a3d06ffaa327ca717ff4f8ff82f1dfbf835770e",
+      "sourceHash": "ad5d7eae7935ce412085de43fa3ae32929504b508902e59c0ec178ea26fe0258",
       "translatedBy": "model"
     },
     "chat.notice.emptyResponse": {
