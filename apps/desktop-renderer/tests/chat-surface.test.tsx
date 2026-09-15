@@ -1944,19 +1944,35 @@ describe("chat surface", () => {
       expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
     });
 
-    it("hides a draft-save failure while Send is waiting to connect", () => {
-      setChat({
-        sendDisabled: true,
-        inputDisabled: false,
-        composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
-        draftError: "Couldn’t reach the coach, so your message is still in the box.",
-      });
-      render(<Harness />);
-
-      expect(screen.getByText("Chat is still connecting, so Send isn’t ready yet.")).toBeVisible();
-      expect(
-        screen.queryByText("Couldn’t reach the coach, so your message is still in the box."),
-      ).toBeNull();
+    it("does not show a leftover draft-save failure after Chat finishes connecting", () => {
+      vi.useFakeTimers();
+      try {
+        actions.saveAttachmentDraftText = vi.fn(() => {
+          setChat({
+            draftError: "Couldn’t reach the coach, so your message is still in the box.",
+          });
+        });
+        setChat({
+          sendDisabled: true,
+          inputDisabled: false,
+          composerStatus: "Chat is still connecting, so Send isn’t ready yet.",
+        });
+        render(<Harness />);
+        fireEvent.change(composer(), { target: { value: "test" } });
+        act(() => {
+          vi.advanceTimersByTime(300);
+        });
+        setChat({
+          sendDisabled: false,
+          composerStatus: null,
+        });
+        expect(
+          screen.queryByText("Couldn’t reach the coach, so your message is still in the box."),
+        ).toBeNull();
+      } finally {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
     });
 
     it("opens the native picker from the centered Composer attachment control", async () => {
