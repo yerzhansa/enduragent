@@ -38,10 +38,10 @@
   "dependencies": {
     "@xmldom/xmldom": "0.9.12",
     "fflate": "0.8.3",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
-    "fast-check": "^4.9.0",
+    "fast-check": "^4.10.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
