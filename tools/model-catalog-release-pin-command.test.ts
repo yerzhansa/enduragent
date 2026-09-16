@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { jsonBytes, sha256 } from "./model-catalog-bytes.js";
+import { NPM_BUNDLED_CATALOG_ENTRY } from "./bundled-model-catalog-artifact.js";
 import {
   publicModelCatalogReleasePinError,
   runModelCatalogReleasePinCommand,
@@ -92,12 +93,13 @@ function seedSnapshot(modelId = "synthetic-seed") {
   };
 }
 
-function packTarball(directory: string, filename: string, javascript: string): string {
+function packTarball(directory: string, filename: string, snapshot: unknown): string {
   const folder = join(directory, filename.replace(/\.tgz$/u, ""));
+  const relative = NPM_BUNDLED_CATALOG_ENTRY;
   mkdirSync(join(folder, "package/dist"), { recursive: true });
-  writeFileSync(join(folder, "package/dist/index.js"), javascript);
+  writeFileSync(join(folder, relative), jsonBytes(snapshot));
   const path = join(directory, filename);
-  execFileSync("tar", ["-czf", path, "package/dist/index.js"], { cwd: folder });
+  execFileSync("tar", ["-czf", path, relative], { cwd: folder });
   return path;
 }
 
@@ -267,8 +269,7 @@ describe("model catalog release pin command", () => {
     directories.push(directory);
     const seed = seedSnapshot();
     const digest = (await sha256(jsonBytes(seed))).hex;
-    const javascript = `export const GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(seed)};\n`;
-    const path = packTarball(directory, "cycling-coach.tgz", javascript);
+    const path = packTarball(directory, "cycling-coach.tgz", seed);
     const printed = await runCaptured([
       "extract",
       "--now-iso",

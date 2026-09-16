@@ -331,6 +331,7 @@ interface BotShutdownDeps {
   stopTimer?: () => void | Promise<void>;
   closeReference?: () => void | Promise<void>;
   closePrepared?: () => Promise<void>;
+  shutdownCatalog?: () => void | Promise<void>;
 }
 
 // Builds the SIGTERM/SIGINT handler that brings the bot down cleanly: halt new
@@ -365,6 +366,7 @@ export function makeBotShutdown(deps: BotShutdownDeps): () => Promise<void> {
       await deps.stopTimer?.();
       await deps.closeReference?.();
       await deps.closePrepared?.();
+      await deps.shutdownCatalog?.();
       deps.markCleanShutdown({ dataDir: deps.dataDir });
     } catch (err) {
       console.error(
@@ -612,6 +614,7 @@ async function runBinaryWithLanguage(
       stop: () => telegram.stop(),
       captureDrain: () => telegram.captureDrain(),
       closePrepared: closeRuntime,
+      shutdownCatalog: () => modelCatalog.shutdown(),
       dataDir: config.dataDir,
       markCleanShutdown,
       exit: (code) => process.exit(code),
@@ -645,7 +648,9 @@ async function runBinaryWithLanguage(
     });
 
     rl.on("close", () => {
-      void closeRuntime().finally(() => process.exit(0));
+      void closeRuntime()
+        .finally(() => modelCatalog.shutdown())
+        .finally(() => process.exit(0));
     });
 
     rl.prompt();

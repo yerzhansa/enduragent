@@ -1,7 +1,11 @@
-import { defineConfig } from "tsup";
-import { dirname, resolve } from "node:path";
+import { writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { defineConfig } from "tsup";
 import { generateLegalArtifacts } from "./build/legal-artifacts.js";
+import { jsonBytes } from "../../tools/model-catalog-bytes.js";
+import { BUNDLED_MODEL_CATALOG_ARTIFACT } from "../../tools/bundled-model-catalog-artifact.js";
+import { GENERATED_MODEL_CATALOG_SEED } from "../core/src/model-catalog-seed.generated.js";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, "../..");
@@ -35,5 +39,11 @@ export default defineConfig({
       "const require = __createRequire(import.meta.url);",
     ].join("\n"),
   },
-  onSuccess: generateLegalArtifacts,
+  onSuccess: async () => {
+    await generateLegalArtifacts();
+    writeFileSync(
+      join(packageRoot, "dist", BUNDLED_MODEL_CATALOG_ARTIFACT),
+      jsonBytes(GENERATED_MODEL_CATALOG_SEED),
+    );
+  },
 });

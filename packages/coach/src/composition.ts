@@ -108,6 +108,7 @@ import {
   createPlanIntakeRepository,
 } from "@enduragent/kernel/planning";
 import type { CoachStoreWriterContext } from "./runtime.js";
+import { CatalogSession } from "./catalog-session.js";
 import {
   CHAT_ATTACHMENT_LIMITS,
   type ChatAttachmentReference,
@@ -1051,15 +1052,10 @@ export async function createLocalCoachComposition(
   };
   let runtime: LocalStoreRuntime | undefined;
   let reference: LocalReferenceRuntime | undefined;
-  let catalogCursor:
-    | { readonly kind: "pinned"; catalog: AcceptedModelCatalogRecord }
-    | { readonly kind: "live"; catalog: AcceptedModelCatalogRecord } = {
-    kind: "live",
-    catalog: input.catalog,
-  };
+  let catalogSession = CatalogSession.live(input.catalog);
   let currentEngineConfig: EngineConfig | undefined;
   const catalogForRebuild = (): AcceptedModelCatalogRecord =>
-    catalogCursor.kind === "pinned" ? catalogCursor.catalog : input.readCatalog();
+    CatalogSession.forRebuild(catalogSession, input.readCatalog);
   let initialRefreshPromise: Promise<void> | undefined;
   let initialPlanCompletion: Promise<unknown> | undefined;
   let initialRefreshRetryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1360,7 +1356,7 @@ export async function createLocalCoachComposition(
       config: Config,
       catalog: AcceptedModelCatalogRecord = catalogForRebuild(),
     ): Promise<RuntimeBundle> => {
-      catalogCursor = { ...catalogCursor, catalog };
+      catalogSession = { ...catalogSession, catalog };
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
         timezone === config.session.timezone
@@ -1625,7 +1621,7 @@ export async function createLocalCoachComposition(
         throw new TypeError("runtime model catalog snapshot is not compatible");
       }
       if (pinnedCatalog !== undefined) {
-        catalogCursor = { kind: "pinned", catalog: pinnedCatalog };
+        catalogSession = CatalogSession.pin(pinnedCatalog);
       }
       let verificationEvidence: IntervalsCredentialVerificationEvidence | undefined;
       if (request.intervals?.verification_approval !== undefined) {

@@ -7,6 +7,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  IMAGE_BUNDLED_CATALOG_ENTRY,
+  NPM_BUNDLED_CATALOG_ENTRY,
+  writeBundledCatalogArtifact,
+} from "./bundled-model-catalog-artifact.js";
+import {
   assertArtifactMatchesGroup,
   extractBundledCatalog,
   type DockerCommandRunner,
@@ -98,28 +103,6 @@ function generatorWrapper(snapshot: unknown): string {
   return `export const GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(snapshot, null, 2)} as const;\n`;
 }
 
-type EsbuildBuildOptions = {
-  absWorkingDir: string;
-  entryPoints: string[];
-  outfile: string;
-  bundle: true;
-  format: "esm";
-  minify: false;
-  write: true;
-  logLevel: "silent";
-};
-
-function isEsbuildModule(
-  value: unknown,
-): value is { build: (options: EsbuildBuildOptions) => Promise<unknown> } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "build" in value &&
-    typeof value.build === "function"
-  );
-}
-
 function isAsarCreateModule(
   value: unknown,
 ): value is { createPackage: (src: string, dest: string) => Promise<unknown> } {
@@ -129,16 +112,6 @@ function isAsarCreateModule(
     "createPackage" in value &&
     typeof value.createPackage === "function"
   );
-}
-
-function loadEsbuild(): {
-  build: (options: EsbuildBuildOptions) => Promise<unknown>;
-} {
-  const loaded: unknown = desktopRequire("esbuild");
-  if (!isEsbuildModule(loaded)) {
-    throw new Error("esbuild is unavailable");
-  }
-  return { build: (options) => loaded.build(options) };
 }
 
 function loadAsarCreate(): {
@@ -151,16 +124,25 @@ function loadAsarCreate(): {
   return { createPackage: (src, dest) => loaded.createPackage(src, dest) };
 }
 
-function packTarball(directory: string, filename: string, javascript: string): string {
+function packTarball(
+  directory: string,
+  filename: string,
+  files: Readonly<Record<string, string | Uint8Array>>,
+): string {
   const folder = join(directory, filename.replace(/\.tgz$/u, ""));
-  mkdirSync(join(folder, "package/dist"), { recursive: true });
-  writeFileSync(join(folder, "package/dist/index.js"), javascript);
+  const listed: string[] = [];
+  for (const [relative, contents] of Object.entries(files)) {
+    const path = join(folder, relative);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, contents);
+    listed.push(relative);
+  }
   const path = join(directory, filename);
-  execFileSync("tar", ["-czf", path, "package/dist/index.js"], { cwd: folder });
+  execFileSync("tar", ["-czf", path, ...listed], { cwd: folder });
   return path;
 }
 
-function dockerShim(javascript: string): {
+function dockerShim(bytes: Uint8Array): {
   docker: DockerCommandRunner;
   calls: string[][];
 } {
@@ -179,11 +161,11 @@ function dockerShim(javascript: string): {
         throw new Error("docker cp requires a source and destination");
       }
       const file = spec.slice(spec.indexOf(":") + 1);
-      if (file !== "/app/dist/index.js") {
-        throw new Error(`docker cp must copy ${"/app/dist/index.js"}`);
+      if (file !== IMAGE_BUNDLED_CATALOG_ENTRY) {
+        throw new Error(`docker cp must copy ${IMAGE_BUNDLED_CATALOG_ENTRY}`);
       }
       await mkdir(dirname(dest), { recursive: true });
-      await writeFile(dest, javascript);
+      await writeFile(dest, bytes);
       return "";
     }
     if (args[0] === "rm") return "";
@@ -197,7 +179,7 @@ describe("materialize and bundled catalog extract", () => {
   const workspaceRoot = mkdtempSync(join(tmpdir(), "catalog-materialize-"));
   const artifactRoot = mkdtempSync(join(tmpdir(), "catalog-artifacts-"));
   let prepared: PreparedRelease;
-  let bundledJavaScript: string;
+  let sealedBytes: Uint8Array;
   let asarPath: string;
 
   beforeAll(async () => {
@@ -212,28 +194,12 @@ describe("materialize and bundled catalog extract", () => {
       seed: seedSnapshot(),
     });
     await materializeReleaseCatalog({ prepared, workspaceRoot });
-    const sourceRoot = join(workspaceRoot, "packages/core/src");
-    writeFileSync(
-      join(sourceRoot, "bundle-entry.ts"),
-      `export { GENERATED_MODEL_CATALOG_SEED } from "./model-catalog-seed.generated.ts";\n`,
-    );
-    await loadEsbuild().build({
-      absWorkingDir: sourceRoot,
-      entryPoints: ["bundle-entry.ts"],
-      outfile: "bundled.js",
-      bundle: true,
-      format: "esm",
-      minify: false,
-      write: true,
-      logLevel: "silent",
-    });
-    bundledJavaScript = readFileSync(join(sourceRoot, "bundled.js"), "utf8");
-    if (!bundledJavaScript.includes("GENERATED_MODEL_CATALOG_SEED")) {
-      throw new Error("minify:false bundle dropped GENERATED_MODEL_CATALOG_SEED");
-    }
+    sealedBytes = jsonBytes(prepared.snapshot);
     const asarSource = join(artifactRoot, "asar-src");
-    mkdirSync(join(asarSource, "node_modules/@enduragent/core/dist"), { recursive: true });
-    writeFileSync(join(asarSource, "node_modules/@enduragent/core/dist/index.js"), bundledJavaScript);
+    writeBundledCatalogArtifact(
+      join(asarSource, "node_modules/@enduragent/core/dist"),
+      prepared.snapshot,
+    );
     asarPath = join(artifactRoot, "app.asar");
     await loadAsarCreate().createPackage(asarSource, asarPath);
   });
@@ -265,11 +231,15 @@ describe("materialize and bundled catalog extract", () => {
     );
   });
 
-  it("npm tarball package/dist/index.js extracts the same revision+digest for both package names", async () => {
-    const cycling = packTarball(artifactRoot, "cycling-coach.tgz", bundledJavaScript);
-    const alias = packTarball(artifactRoot, "enduragent.tgz", bundledJavaScript);
-    expect(readFileSync(join(artifactRoot, "enduragent/package/dist/index.js"))).toEqual(
-      readFileSync(join(artifactRoot, "cycling-coach/package/dist/index.js")),
+  it("npm tarball sealed catalog extracts the same revision+digest for both package names", async () => {
+    const files = {
+      [NPM_BUNDLED_CATALOG_ENTRY]: sealedBytes,
+      "package/dist/index.js": "export const GENERATED_MODEL_CATALOG_SEED = { revision: 99 };\n",
+    };
+    const cycling = packTarball(artifactRoot, "cycling-coach.tgz", files);
+    const alias = packTarball(artifactRoot, "enduragent.tgz", files);
+    expect(readFileSync(join(artifactRoot, "enduragent", NPM_BUNDLED_CATALOG_ENTRY))).toEqual(
+      readFileSync(join(artifactRoot, "cycling-coach", NPM_BUNDLED_CATALOG_ENTRY)),
     );
     for (const path of [cycling, alias]) {
       const extracted = await extractBundledCatalog({ kind: "npm-tarball", path });
@@ -282,7 +252,10 @@ describe("materialize and bundled catalog extract", () => {
   it("macOS zip with Enduragent.app asar extracts the same digest from core dist", async () => {
     const appRoot = join(artifactRoot, "macos");
     mkdirSync(join(appRoot, "Enduragent.app/Contents/Resources"), { recursive: true });
-    writeFileSync(join(appRoot, "Enduragent.app/Contents/Resources/app.asar"), readFileSync(asarPath));
+    writeFileSync(
+      join(appRoot, "Enduragent.app/Contents/Resources/app.asar"),
+      readFileSync(asarPath),
+    );
     const zipPath = join(artifactRoot, "Enduragent-mac.zip");
     execFileSync("zip", ["-q", "-r", zipPath, "Enduragent.app"], { cwd: appRoot });
     const extracted = await extractBundledCatalog({ kind: "macos-zip", path: zipPath });
@@ -302,7 +275,7 @@ describe("materialize and bundled catalog extract", () => {
   });
 
   it("oci-image extract via docker shim for both GHCR names and both platforms", async () => {
-    const { docker, calls } = dockerShim(bundledJavaScript);
+    const { docker, calls } = dockerShim(sealedBytes);
     for (const image of IMAGES) {
       for (const platform of PLATFORMS) {
         const reference = `ghcr.io/yerzhansa/${image}:test`;
@@ -319,7 +292,7 @@ describe("materialize and bundled catalog extract", () => {
             (call) =>
               call[0] === "cp" &&
               typeof call[1] === "string" &&
-              call[1].endsWith(":/app/dist/index.js"),
+              call[1].endsWith(`:${IMAGE_BUNDLED_CATALOG_ENTRY}`),
           ),
         ).toBe(true);
       }
@@ -329,7 +302,9 @@ describe("materialize and bundled catalog extract", () => {
   });
 
   it("assertArtifactMatchesGroup throws on revision mismatch and digest mismatch", async () => {
-    const path = packTarball(artifactRoot, "assert-match.tgz", bundledJavaScript);
+    const path = packTarball(artifactRoot, "assert-match.tgz", {
+      [NPM_BUNDLED_CATALOG_ENTRY]: sealedBytes,
+    });
     const extracted = await extractBundledCatalog({ kind: "npm-tarball", path });
     try {
       assertArtifactMatchesGroup(extracted, {
@@ -356,32 +331,45 @@ describe("materialize and bundled catalog extract", () => {
     }
   });
 
-  it("unreadable artifact (zero catalogs, two different catalogs) fails", async () => {
-    const empty = packTarball(artifactRoot, "empty-catalog.tgz", "export const unrelated = 1;\n");
-    await expect(extractBundledCatalog({ kind: "npm-tarball", path: empty })).rejects.toMatchObject({
+  it("unreadable artifact (missing, invalid JSON, non-catalog JSON) fails; JavaScript is ignored", async () => {
+    const empty = packTarball(artifactRoot, "empty-catalog.tgz", {
+      "package/dist/index.js": "export const GENERATED_MODEL_CATALOG_SEED = { revision: 1 };\n",
+    });
+    await expect(extractBundledCatalog({ kind: "npm-tarball", path: empty })).rejects.toMatchObject(
+      {
+        name: "BundledCatalogExtractError",
+        code: "unreadable",
+      },
+    );
+
+    const invalid = packTarball(artifactRoot, "invalid-catalog.tgz", {
+      [NPM_BUNDLED_CATALOG_ENTRY]: "not-json",
+    });
+    await expect(
+      extractBundledCatalog({ kind: "npm-tarball", path: invalid }),
+    ).rejects.toMatchObject({
       name: "BundledCatalogExtractError",
       code: "unreadable",
     });
 
-    const first = JSON.stringify(seedSnapshot("synthetic-a"), null, 2);
-    const second = JSON.stringify({ ...seedSnapshot("synthetic-b"), revision: 2 }, null, 2);
-    const mixed = packTarball(
-      artifactRoot,
-      "mixed-catalog.tgz",
-      `var GENERATED_MODEL_CATALOG_SEED = ${first};\nvar GENERATED_MODEL_CATALOG_SEED = ${second};\n`,
-    );
-    await expect(extractBundledCatalog({ kind: "npm-tarball", path: mixed })).rejects.toMatchObject({
-      name: "BundledCatalogExtractError",
-      code: "unreadable",
+    const other = packTarball(artifactRoot, "other-json.tgz", {
+      [NPM_BUNDLED_CATALOG_ENTRY]: `${JSON.stringify({ revision: 2 }, null, 2)}\n`,
     });
-
-    const one = JSON.stringify(prepared.snapshot, null, 2);
-    const duplicates = packTarball(
-      artifactRoot,
-      "duplicate-catalog.tgz",
-      `var GENERATED_MODEL_CATALOG_SEED = ${one};\nvar GENERATED_MODEL_CATALOG_SEED = ${one};\n`,
+    await expect(extractBundledCatalog({ kind: "npm-tarball", path: other })).rejects.toMatchObject(
+      {
+        name: "BundledCatalogExtractError",
+        code: "unreadable",
+      },
     );
-    const extracted = await extractBundledCatalog({ kind: "npm-tarball", path: duplicates });
+
+    const extracted = await extractBundledCatalog({
+      kind: "npm-tarball",
+      path: packTarball(artifactRoot, "js-mismatch.tgz", {
+        [NPM_BUNDLED_CATALOG_ENTRY]: sealedBytes,
+        "package/dist/index.js": `var GENERATED_MODEL_CATALOG_SEED = ${JSON.stringify(seedSnapshot("synthetic-b"))};\n`,
+      }),
+    });
     expect(extracted.digest).toBe(prepared.record.digest);
+    expect(extracted.revision).toBe(prepared.record.revision);
   });
 });

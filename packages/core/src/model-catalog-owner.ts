@@ -7,11 +7,7 @@ import {
   InterprocessFileLockTimeoutError,
   withInterprocessFileLock,
 } from "./io/interprocess-file-lock-sync.js";
-import {
-  acceptModelCatalogSnapshot,
-  evaluateModelCatalogCandidate,
-  type AcceptedModelCatalogRecord,
-} from "./model-catalog.js";
+import { acceptModelCatalogSnapshot, type AcceptedModelCatalogRecord } from "./model-catalog.js";
 import {
   MODEL_CATALOG_REFRESH_INTERVAL_MS,
   claimAttempt,
@@ -26,12 +22,12 @@ import {
   MODEL_CATALOG_ENDPOINT,
   MODEL_CATALOG_REQUEST_TIMEOUT_MS,
   MODEL_CATALOG_RESPONSE_LIMIT_BYTES,
-  ResponseLimitError,
   cancelResponseBody,
   nodeTlsVerificationEnabled,
   readBoundedBody,
   singleDispatchFetch,
 } from "./model-catalog-http.js";
+import { CatalogEtagSchema, createCatalogRefreshSession } from "./model-catalog-refresh.js";
 import { BUNDLED_MODEL_CATALOG } from "./model-catalog-seed.js";
 
 export {
@@ -50,20 +46,10 @@ const HIGH_RESOLUTION_CLOCK_RESOLUTION_MS = 1;
 const NANOSECONDS_PER_MILLISECOND = 1_000_000n;
 const SYSTEM_UPTIME_RESOLUTION_MS = 1_000;
 
-const EtagSchema = z
-  .string()
-  .min(1)
-  .max(1_024)
-  .refine((value) =>
-    Array.from(value).every((character) => {
-      const codePoint = character.codePointAt(0);
-      return codePoint !== undefined && codePoint >= 32 && codePoint !== 127;
-    }),
-  );
 const PersistedCatalogSchema = z
   .object({
     formatVersion: z.literal(RECORD_FORMAT_VERSION),
-    etag: EtagSchema.optional(),
+    etag: CatalogEtagSchema.optional(),
     lastSuccessfulRefreshAt: z.string().datetime({ offset: true }).optional(),
     snapshot: ModelCatalogSnapshotSchema,
   })
@@ -551,6 +537,17 @@ class InstallationModelCatalog implements ModelCatalog {
     return this.closed ? this.retained("shutdown") : undefined;
   }
 
+  private async publishRefresh(
+    snapshot: LocalModelCatalogSnapshot,
+    kind: "unchanged" | "updated",
+  ): Promise<ModelCatalogRefreshOutcome> {
+    const blocker = await this.publicationBlocker();
+    if (blocker !== undefined) return blocker;
+    if (!this.persistOwner(snapshot)) return this.retained("persistence-failed");
+    this.adopt(snapshot);
+    return Object.freeze({ kind, revision: snapshot.revision });
+  }
+
   private async runRefresh(): Promise<ModelCatalogRefreshOutcome> {
     const elapsedAt = this.elapsedNow();
     if (this.elapsedWindowRemaining(elapsedAt) !== undefined) return this.retained("not-due");
@@ -592,6 +589,10 @@ class InstallationModelCatalog implements ModelCatalog {
       this.requestController = requestController;
       const timeoutSignal = AbortSignal.timeout(this.dependencies.requestTimeoutMs);
       const signal = AbortSignal.any([requestController.signal, timeoutSignal]);
+      const session = createCatalogRefreshSession({
+        requestEtag: requestSnapshot.etag,
+        current: requestSnapshot,
+      });
       let response: Response;
       try {
         response = await this.dependencies.fetch(this.dependencies.endpoint, {
@@ -603,84 +604,50 @@ class InstallationModelCatalog implements ModelCatalog {
           signal,
         });
       } catch {
-        return this.retained(this.closed ? "shutdown" : "request-failed");
+        return this.retained(session.networkFailure(this.closed));
       }
       if (this.closed) {
         await cancelResponseBody(response, requestController);
         return this.retained("shutdown");
       }
-      const successfulAt = serializedTime(this.dependencies.now());
-      if (response.status === 304) {
+      const headerDecision = session.fromHeaders({
+        status: response.status,
+        responseEtag: response.headers.get("etag"),
+        successfulAt: serializedTime(this.dependencies.now()),
+      });
+      if (headerDecision.kind === "retain") {
         await cancelResponseBody(response, requestController);
-        if (
-          requestSnapshot.etag === undefined ||
-          response.headers.get("etag") !== requestSnapshot.etag ||
-          successfulAt === undefined
-        ) {
-          return this.retained("invalid-not-modified");
-        }
+        return this.retained(headerDecision.reason);
+      }
+      if (headerDecision.kind === "not-modified") {
+        await cancelResponseBody(response, requestController);
         const unchanged: LocalModelCatalogSnapshot = Object.freeze({
           ...requestSnapshot,
-          lastSuccessfulRefreshAt: successfulAt,
+          lastSuccessfulRefreshAt: headerDecision.successfulAt,
           origin: "installation",
         });
-        const blocker = await this.publicationBlocker();
-        if (blocker !== undefined) return blocker;
-        if (!this.persistOwner(unchanged)) return this.retained("persistence-failed");
-        this.adopt(unchanged);
-        return Object.freeze({ kind: "unchanged", revision: unchanged.revision });
-      }
-      if (!response.ok) {
-        await cancelResponseBody(response, requestController);
-        return this.retained("http-error");
-      }
-
-      const etagResult = EtagSchema.safeParse(response.headers.get("etag"));
-      if (!etagResult.success || successfulAt === undefined) {
-        await cancelResponseBody(response, requestController);
-        return this.retained("invalid-response");
+        return await this.publishRefresh(unchanged, "unchanged");
       }
       let body: string;
       try {
         body = await readBoundedBody(response);
       } catch (error) {
         await cancelResponseBody(response, requestController);
-        return this.retained(
-          this.closed
-            ? "shutdown"
-            : error instanceof ResponseLimitError
-              ? "response-too-large"
-              : "request-failed",
-        );
+        return this.retained(session.bodyFailure(this.closed, error));
       }
-      if (this.closed) return this.retained("shutdown");
-      let candidate: unknown;
-      try {
-        candidate = JSON.parse(body);
-      } catch {
-        return this.retained("invalid-response");
-      }
-      const current = this.current();
-      const evaluation = evaluateModelCatalogCandidate(candidate, etagResult.data, current);
-      if (evaluation.kind === "retained") {
-        return this.retained(
-          evaluation.reason === "invalid" ? "invalid-response" : "no-usable-choices",
-        );
-      }
-      if (evaluation.record.snapshot.revision <= current.revision) {
-        return this.retained("stale-revision");
-      }
-      const updated: LocalModelCatalogSnapshot = Object.freeze({
-        ...evaluation.record,
-        lastSuccessfulRefreshAt: successfulAt,
-        origin: "installation",
-        revision: evaluation.record.snapshot.revision,
+      const bodyDecision = session.fromBody({
+        closed: this.closed,
+        body,
+        etag: headerDecision.etag,
       });
-      const blocker = await this.publicationBlocker();
-      if (blocker !== undefined) return blocker;
-      if (!this.persistOwner(updated)) return this.retained("persistence-failed");
-      this.adopt(updated);
-      return Object.freeze({ kind: "updated", revision: updated.revision });
+      if (bodyDecision.kind === "retain") return this.retained(bodyDecision.reason);
+      const updated: LocalModelCatalogSnapshot = Object.freeze({
+        ...bodyDecision.record,
+        lastSuccessfulRefreshAt: headerDecision.successfulAt,
+        origin: "installation",
+        revision: bodyDecision.record.snapshot.revision,
+      });
+      return await this.publishRefresh(updated, "updated");
     } finally {
       const completion = completeAttempt(
         this.paths,

@@ -346,6 +346,14 @@ async function llmConfiguration(
 export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): () => void {
   let disposed = false;
   const pinnedCatalogs = new Map<number, LocalModelCatalogSnapshot>();
+  const pinCatalog = (catalog: LocalModelCatalogSnapshot): void => {
+    pinnedCatalogs.set(catalog.revision, catalog);
+    if (pinnedCatalogs.size <= 2) return;
+    const oldest = [...pinnedCatalogs.keys()].sort((left, right) => left - right);
+    for (const revision of oldest.slice(0, oldest.length - 2)) {
+      pinnedCatalogs.delete(revision);
+    }
+  };
   const requireTrusted = (event: IpcMainInvokeEvent): void => {
     if (!options.isTrusted(event)) throw new TypeError();
   };
@@ -484,7 +492,7 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
     requireTrusted(event);
     if (args.length !== 0) throw new TypeError();
     const catalog = options.modelCatalog.current();
-    pinnedCatalogs.set(catalog.revision, catalog);
+    pinCatalog(catalog);
     return llmConfiguration(options.getRuntimeConfig, catalog);
   });
   options.ipcMain.handle(DESKTOP_LLM_SELECTION_APPLY_CHANNEL, async (event, ...args) => {

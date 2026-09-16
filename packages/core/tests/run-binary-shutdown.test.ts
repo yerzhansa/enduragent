@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, it, expect, vi, type Mock } from "vitest";
 import { makeBotShutdown } from "../src/run-binary.js";
 
@@ -121,6 +122,9 @@ describe("makeBotShutdown — graceful shutdown ordering", () => {
       closePrepared: async () => {
         order.push("prepared");
       },
+      shutdownCatalog: async () => {
+        order.push("catalog");
+      },
       markCleanShutdown: () => {
         order.push("clean");
       },
@@ -131,6 +135,27 @@ describe("makeBotShutdown — graceful shutdown ordering", () => {
     });
     await shutdown();
     await shutdown();
-    expect(order).toEqual(["stop", "drain", "timer", "reference", "prepared", "clean", "exit"]);
+    expect(order).toEqual([
+      "stop",
+      "drain",
+      "timer",
+      "reference",
+      "prepared",
+      "catalog",
+      "clean",
+      "exit",
+    ]);
+  });
+
+  it("wires modelCatalog.shutdown on Telegram and CLI teardown", async () => {
+    const source = await readFile(new URL("../src/run-binary.ts", import.meta.url), "utf8");
+    const start = "await modelCatalog.start();";
+    const botShutdown = "shutdownCatalog: () => modelCatalog.shutdown(),";
+    const cliShutdown = ".finally(() => modelCatalog.shutdown())";
+    expect(source.split(start)).toHaveLength(2);
+    expect(source.split(botShutdown)).toHaveLength(2);
+    expect(source.split(cliShutdown)).toHaveLength(2);
+    expect(source.indexOf(start)).toBeLessThan(source.indexOf(botShutdown));
+    expect(source.indexOf(start)).toBeLessThan(source.indexOf(cliShutdown));
   });
 });
