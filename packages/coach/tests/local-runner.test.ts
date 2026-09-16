@@ -9,13 +9,21 @@ import type { EngineConfig } from "@enduragent/engine";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { inertWriterProtocolListener } from "@enduragent/kernel-node/lock";
 import type { CoachStoreWriterContext, CoachStoreWriterPlan } from "../src/runtime.js";
+import { testModelProfiles } from "../../engine/tests/helpers/model-profiles.js";
+import { acceptModelCatalogSnapshot } from "../../core/src/model-catalog.js";
+import { BUNDLED_MODEL_CATALOG } from "../../core/src/model-catalog-seed.js";
 
 const mocks = vi.hoisted(() => ({
   withWriter: vi.fn(),
   readiness: vi.fn(),
   composition: vi.fn(),
+  openModelCatalog: vi.fn(),
 }));
 
+vi.mock("@enduragent/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@enduragent/core")>()),
+  openModelCatalog: mocks.openModelCatalog,
+}));
 vi.mock("../src/runtime.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/runtime.js")>()),
   withCoachStoreWriter: mocks.withWriter,
@@ -168,9 +176,17 @@ const engineConfig: EngineConfig = {
   dataSource: "store",
   llm: { provider: "anthropic", model: "synthetic", apiKey: "" },
   session: config.session,
+  models: testModelProfiles({
+    provider: "anthropic",
+    chat: "synthetic",
+    chatContextWindowTokens: 1000,
+  }),
   contextWindowTokens: 1000,
   compactContextWindowTokens: 1000,
 };
+
+const acceptedCatalog = acceptModelCatalogSnapshot(BUNDLED_MODEL_CATALOG);
+if (acceptedCatalog === undefined) throw new TypeError("bundled model catalog is invalid");
 
 const roots: string[] = [];
 let selectedHome: AthleteHome;
@@ -233,6 +249,17 @@ beforeEach(async () => {
   mocks.withWriter.mockReset();
   mocks.readiness.mockReset();
   mocks.composition.mockReset();
+  mocks.openModelCatalog.mockReset();
+  mocks.openModelCatalog.mockImplementation(() => ({
+    current: () => acceptedCatalog,
+    start: async () => {
+      trace.push("catalog-start");
+    },
+    forceRefresh: async () => acceptedCatalog,
+    shutdown: async () => {
+      trace.push("catalog-close");
+    },
+  }));
   readyConfig = { ...config, dataDir: selectedHome.root };
   mocks.readiness.mockImplementation(async () => {
     trace.push("readiness");
@@ -286,6 +313,7 @@ describe("local coach runner", () => {
     ).resolves.toEqual({ status: "completed", value: "done" });
     expect(trace).toEqual([
       "resolve-supplied-home",
+      "catalog-start",
       "writer-acquired",
       "store-open",
       "schema-migrations",
@@ -295,16 +323,18 @@ describe("local coach runner", () => {
       "lifecycle-close",
       "store-close",
       "writer-release",
+      "catalog-close",
     ]);
     expect(mocks.composition).toHaveBeenCalledWith(
       expect.objectContaining({
         config: readyConfig,
-        engineConfig,
       }),
     );
     const compositionInput = mocks.composition.mock.calls[0]![0];
     expect(compositionInput.config).toBe(readyConfig);
-    expect(compositionInput.engineConfig).toBe(engineConfig);
+    expect(compositionInput.catalog).toBe(acceptedCatalog);
+    expect(typeof compositionInput.readCatalog).toBe("function");
+    expect(compositionInput.engineConfig).toBeUndefined();
   });
 
   it("publishes deferred initialization without starting it before the operation", async () => {
@@ -365,7 +395,10 @@ describe("local coach runner", () => {
       value: "done",
     });
 
-    expect(mocks.readiness).toHaveBeenCalledExactlyOnceWith(physicalHome);
+    expect(mocks.readiness).toHaveBeenCalledExactlyOnceWith(
+      physicalHome,
+      expect.objectContaining({ projectConfig: expect.any(Function) }),
+    );
     expect(mocks.composition).toHaveBeenCalledWith(
       expect.objectContaining({ home: physicalHome, context }),
     );
@@ -385,7 +418,7 @@ describe("local coach runner", () => {
     });
     expect(mocks.composition).not.toHaveBeenCalled();
     expect(operation).not.toHaveBeenCalled();
-    expect(trace.slice(-2)).toEqual(["store-close", "writer-release"]);
+    expect(trace.slice(-3)).toEqual(["store-close", "writer-release", "catalog-close"]);
   });
 
   it.each(["unreadable", "malformed"] as const)(
@@ -397,7 +430,7 @@ describe("local coach runner", () => {
       await expect(withLocalCoach(input(operation))).resolves.toEqual({ status });
       expect(mocks.composition).not.toHaveBeenCalled();
       expect(operation).not.toHaveBeenCalled();
-      expect(trace.slice(-2)).toEqual(["store-close", "writer-release"]);
+      expect(trace.slice(-3)).toEqual(["store-close", "writer-release", "catalog-close"]);
     },
   );
 
@@ -450,11 +483,12 @@ describe("local coach runner", () => {
         }),
       ),
     ).rejects.toBe(failure);
-    expect(trace.slice(-4)).toEqual([
+    expect(trace.slice(-5)).toEqual([
       "operation",
       "lifecycle-close",
       "store-close",
       "writer-release",
+      "catalog-close",
     ]);
   });
 
@@ -478,6 +512,31 @@ describe("local coach runner", () => {
     await expect(withLocalCoach(input(async () => "done"))).rejects.toBe(cleanupFailure);
   });
 
+  it("preserves the operation failure when catalog shutdown also fails", async () => {
+    const operationFailure = { kind: "operation" };
+    const shutdownFailure = { kind: "catalog-shutdown" };
+    mocks.openModelCatalog.mockImplementationOnce(() => ({
+      current: () => acceptedCatalog,
+      start: async () => {
+        trace.push("catalog-start");
+      },
+      forceRefresh: async () => acceptedCatalog,
+      shutdown: async () => {
+        trace.push("catalog-close");
+        throw shutdownFailure;
+      },
+    }));
+
+    await expect(
+      withLocalCoach(
+        input(async () => {
+          throw operationFailure;
+        }),
+      ),
+    ).rejects.toBe(operationFailure);
+    expect(trace.at(-1)).toBe("catalog-close");
+  });
+
   it("supports idempotent lifecycle close and does not resolve before writer release", async () => {
     let closerCalls = 0;
     let closed = false;
@@ -498,7 +557,7 @@ describe("local coach runner", () => {
       ),
     ).resolves.toEqual({ status: "completed", value: "done" });
     expect(closerCalls).toBe(1);
-    expect(trace.at(-1)).toBe("writer-release");
+    expect(trace.slice(-2)).toEqual(["writer-release", "catalog-close"]);
   });
 
   it("preserves actionable healthy-holder contention without engine work", async () => {

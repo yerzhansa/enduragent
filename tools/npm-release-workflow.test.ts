@@ -316,8 +316,11 @@ describe("protected-main npm workflow boundaries", () => {
       for (const checkout of checkouts) {
         const buildsPackage =
           ["build", "test", "smoke"].includes(name) && checkout.with.path !== ".release-control";
+        const pinsCatalog = name === "prepare-catalog";
         expect(checkout.with.ref, name).toBe(
-          buildsPackage ? "${{ needs.parse-tag.outputs.commit }}" : "${{ github.sha }}",
+          buildsPackage || pinsCatalog
+            ? "${{ needs.parse-tag.outputs.commit }}"
+            : "${{ github.sha }}",
         );
         if (buildsPackage) expect(source.permissions, name).toEqual({ contents: "read" });
       }
@@ -393,7 +396,11 @@ describe("protected-main npm workflow boundaries", () => {
       RELEASE_COMMIT: "${{ needs.parse-tag.outputs.commit }}",
       COORDINATOR_RUN_ID: "${{ inputs.coordinator_run_id }}",
       COORDINATOR_RUN_ATTEMPT: "${{ inputs.coordinator_run_attempt }}",
+      CATALOG_RELEASE_GROUP_ID: "${{ needs.prepare-catalog.outputs.catalog_release_group_id }}",
+      CATALOG_REVISION: "${{ needs.prepare-catalog.outputs.catalog_revision }}",
+      CATALOG_DIGEST: "${{ needs.prepare-catalog.outputs.catalog_digest }}",
     });
+    expect(smoke.steps[sealIndex]?.run).toContain("RELEASE_CATALOG");
     expect(smoke.steps[uploadIndex]?.with).toMatchObject({
       name: "npm-release-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.parse-tag.outputs.package }}",
       path: "${{ steps.pack.outputs.pack_dir }}/*.tgz\n${{ steps.pack.outputs.pack_dir }}/release-manifest.json\n",
@@ -457,5 +464,48 @@ describe("protected-main npm workflow boundaries", () => {
     expect(desktop).toContain('-f commit="$RELEASE_COMMIT"');
     expect(desktop).toContain('-f draft_id="$DRAFT_ID"');
     expect(desktop).toContain('-f draft_body_sha256="$RELEASE_BODY_SHA256"');
+  });
+});
+
+describe("release catalog pin jobs", () => {
+  it("prepares the pin after parse-tag and only during prepare", () => {
+    const source = job(release, "prepare-catalog");
+    expect(source.if).toBe("inputs.phase == 'prepare'");
+    expect(dependencies(source)).toEqual(["parse-tag"]);
+    expect(source.permissions).toEqual({ contents: "write", actions: "read" });
+    expect(script(source)).toContain("pnpm --silent models:release-pin prepare");
+    expect(script(source)).toContain("--now-iso");
+    expect(script(source)).not.toMatch(/Date\.now|new Date\(|Math\.random/);
+    expect(script(source)).toContain(
+      'gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at',
+    );
+  });
+
+  it("keeps owner tests on the bundled checkout and materializes only in smoke", () => {
+    expect(script(job(release, "build"))).not.toContain("models:release-pin");
+    expect(script(job(release, "test"))).not.toContain("models:release-pin");
+    const smoke = job(release, "smoke");
+    expect(dependencies(smoke)).toEqual(["parse-tag", "build", "test", "prepare-catalog"]);
+    expect(smoke.permissions).toEqual({ contents: "read" });
+    const installIndex = smoke.steps.findIndex((step) => step.run === "pnpm install --frozen-lockfile");
+    const materializeIndex = smoke.steps.findIndex((step) =>
+      step.run?.includes("models:release-pin materialize"),
+    );
+    const buildIndex = smoke.steps.findIndex((step) => step.run === "pnpm -r build");
+    const packIndex = smoke.steps.findIndex((step) => step.id === "pack");
+    expect(materializeIndex).toBeGreaterThan(installIndex);
+    expect(buildIndex).toBeGreaterThan(materializeIndex);
+    expect(packIndex).toBeGreaterThan(buildIndex);
+    expect(smoke.steps[materializeIndex]?.run).toContain("models:release-pin read");
+    expect(smoke.steps[packIndex]?.run).toContain("models:release-pin extract --kind npm-tarball");
+    expect(smoke.steps[packIndex]?.run).toContain("--expected-release-group-id");
+    expect(script(smoke)).not.toMatch(/Date\.now|new Date\(|Math\.random/);
+  });
+
+  it("does not prepare a catalog pin on resume or finalize", () => {
+    expect(script(job(release, "parse-tag"))).not.toContain("models:release-pin");
+    expect(script(job(release, "primary-stage"))).not.toContain("models:release-pin");
+    expect(script(job(release, "alias-stage"))).not.toContain("models:release-pin");
+    expect(script(job(release, "verify-npm-publication"))).not.toContain("models:release-pin");
   });
 });

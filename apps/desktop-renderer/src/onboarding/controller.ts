@@ -223,7 +223,7 @@ function afterNextPaint(callback: () => void): () => void {
 
 type CredentialWriteFailureReason = Extract<
   CredentialWriteResult,
-  { readonly status: "refused" | "uncertain" }
+  { readonly status: "stale-draft" | "refused" | "uncertain" }
 >["reason"];
 
 type IntakePersistenceResult = "saved" | "failed" | "stale";
@@ -258,6 +258,7 @@ const CREDENTIAL_WRITE_REFUSAL_ERRORS = {
   "unsafe-backend": "unsafe-backend",
   "storage-failed": "storage-failed",
   "runtime-unavailable": "runtime-unavailable",
+  "catalog-unavailable": "configuration-unavailable",
   "training-account-mismatch": "training-account-mismatch",
   "storage-uncertain": "storage-uncertain",
 } as const satisfies Readonly<Record<CredentialWriteFailureReason, OnboardingErrorCode>>;
@@ -629,6 +630,7 @@ export function createOnboardingController(
       failure: OnboardingErrorCode | null;
       selectedApplied: boolean;
     } = { failure: null, selectedApplied: false };
+    let staleDraft = false;
     try {
       await handoffCredential(
         input,
@@ -639,6 +641,7 @@ export function createOnboardingController(
             if (result.runtimeReady) outcome.selectedApplied = true;
           } else {
             outcome.failure = credentialWriteRefusalError(result.reason);
+            staleDraft = result.status === "stale-draft";
           }
         },
         selection,
@@ -650,6 +653,9 @@ export function createOnboardingController(
       input.value = "";
     }
     if (disposed || visit !== expectedVisit || !presenting) return null;
+    if (staleDraft) {
+      return { error: "configuration-unavailable", selectedApplied: false };
+    }
     const refreshed = await refreshStatuses(expectedVisit);
     if (disposed || visit !== expectedVisit || !presenting) return null;
     if (!refreshed) {
@@ -713,7 +719,9 @@ export function createOnboardingController(
       try {
         const applied = await options.bridge.applyLlmSelection(parsedSelection.selection);
         if (visit !== submitVisit || !presenting) return;
-        if (applied.status === "refused") {
+        if (applied.status === "stale-draft") {
+          saveError = "configuration-unavailable";
+        } else if (applied.status === "refused") {
           saveError =
             applied.reason === "credential-required"
               ? "credential-required"
@@ -906,6 +914,9 @@ export function createOnboardingController(
         recordActiveSelection(selection);
         actionStatus = "ready";
       } else {
+        if (result.status === "fulfilled" && result.value.status === "stale-draft") {
+          state = { ...state, fixedError: "configuration-unavailable" };
+        }
         actionStatus = null;
       }
       focusTitle();
@@ -1038,28 +1049,14 @@ export function createOnboardingController(
     }
     const statuses = statusesResult.value;
     const restoredChatGptStatus = chatGptResult.value;
-    llmConfiguration = configurationResult.value;
-    llmDrafts = {};
-    if (!hydrateAuthoritativeState) {
-      for (const [provider, draft] of Object.entries(currentDrafts)) {
-        const refreshedProvider = llmConfiguration.providers.find(
-          (entry) => entry.provider === provider,
-        );
-        if (refreshedProvider !== undefined) {
-          llmDrafts[provider] = { ...draft, provider: refreshedProvider };
-        }
-      }
+    if (hydrateAuthoritativeState) {
+      llmConfiguration = configurationResult.value;
+      llmDrafts = {};
+      setLlmDraft(initialLlmDraft(llmConfiguration, statuses, restoredChatGptStatus));
+    } else {
+      llmDrafts = currentDrafts;
+      setLlmDraft(currentDraft);
     }
-    const refreshedCurrentProvider = llmConfiguration.providers.find(
-      (entry) => entry.provider === currentDraft?.provider.provider,
-    );
-    setLlmDraft(
-      !hydrateAuthoritativeState &&
-        currentDraft !== undefined &&
-        refreshedCurrentProvider !== undefined
-        ? { ...currentDraft, provider: refreshedCurrentProvider }
-        : initialLlmDraft(llmConfiguration, statuses, restoredChatGptStatus),
-    );
     credentialStatuses = statuses;
     state = createOnboardingState(statuses, restoredChatGptStatus);
     if (hydrateAuthoritativeState) {
@@ -1245,14 +1242,17 @@ export function createOnboardingController(
         return;
       }
       if (llmDraft?.provider.provider !== "openai-codex") {
-        const chatGpt = llmConfiguration?.providers.find(
+        const configuration = llmConfiguration;
+        const chatGpt = configuration?.providers.find(
           (provider) => provider.provider === "openai-codex",
         );
-        if (chatGpt === undefined) {
+        if (chatGpt === undefined || configuration === undefined) {
           setFixedError("configuration-unavailable");
           return;
         }
-        setLlmDraft(llmDrafts[chatGpt.provider] ?? draftForProvider(chatGpt));
+        setLlmDraft(
+          llmDrafts[chatGpt.provider] ?? draftForProvider(chatGpt, configuration.catalogRevision),
+        );
       }
       const parsedSelection = llmSelectionFromDraft(llmDraft);
       if (parsedSelection.error !== null) {
@@ -1376,9 +1376,12 @@ export function createOnboardingController(
     },
     selectProvider(provider): void {
       if (setupStatusBlocksMutations() || state.chatGptRuntimeState === "activating") return;
-      const next = llmConfiguration?.providers.find((entry) => entry.provider === provider);
-      if (next === undefined) return;
-      setLlmDraft(llmDrafts[next.provider] ?? draftForProvider(next));
+      const configuration = llmConfiguration;
+      const next = configuration?.providers.find((entry) => entry.provider === provider);
+      if (next === undefined || configuration === undefined) return;
+      setLlmDraft(
+        llmDrafts[next.provider] ?? draftForProvider(next, configuration.catalogRevision),
+      );
       setFixedError(null);
       if (provider === "openai-codex" && chatGptSignedIn(state) && !selectedProviderIsReady()) {
         const parsedSelection = llmSelectionFromDraft(llmDraft);

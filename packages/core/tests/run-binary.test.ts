@@ -12,6 +12,7 @@ import type {
   Sport,
   ToolRegistration,
 } from "../src/index.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
 
@@ -106,6 +107,7 @@ describe("Core is sport-agnostic — CoachAgent constructs and chats with a non-
       },
     });
     const agent = new CoachAgent(stubRunningSport, baseAgentConfig(dataDir), {
+      catalog: bundledAcceptedCatalog(),
       modelTransportDecorator: decorator,
     });
     const response = await agent.chat({ chatId: "running-test", message: "hi" });

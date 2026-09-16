@@ -1,7 +1,9 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCoachEngine } from "../src/agent/coach-engine.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
 import { baseAgentConfig } from "../../engine/tests/helpers/base-agent-config.js";
 
 const sport = {
@@ -28,9 +30,16 @@ describe("runBinary data-source composition", () => {
   });
 
   it("fails store mode before engine startup when no reader was prepared", () => {
-    const config = { ...baseAgentConfig("unused"), dataSource: "store" as const };
-    expect(() => createCoachEngine(sport, config)).toThrow(
-      "Store data source requires an athlete data reader.",
-    );
+    const dataDir = mkdtempSync(join(tmpdir(), "run-binary-data-source-"));
+    try {
+      const config = { ...baseAgentConfig(dataDir), dataSource: "store" as const };
+      expect(() =>
+        createCoachEngine(sport, config, { catalog: bundledAcceptedCatalog() }),
+      ).toThrow(
+        "Store data source requires an athlete data reader.",
+      );
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 });

@@ -3,8 +3,10 @@ import type {
   EngineConfig,
   EngineHostPorts,
   ModelTransportDecorator,
+  ModelTransportRequest,
   UsageLedgerLine,
 } from "../src/host-ports.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 
 const config: EngineConfig = {
   dataSource: "platform",
@@ -16,6 +18,12 @@ const config: EngineConfig = {
     resetArchiveRetentionDays: 0,
     timezone: "UTC",
   },
+  models: testModelProfiles({
+    provider: "anthropic",
+    chat: "claude-sonnet-4-6",
+    chatContextWindowTokens: 1_000_000,
+    compactContextWindowTokens: 200_000,
+  }),
   contextWindowTokens: 1_000_000,
   compactContextWindowTokens: 200_000,
 };
@@ -94,6 +102,56 @@ afterEach(() => {
 });
 
 describe("model transport decorator", () => {
+  it("keeps chat, compact, and flush on one captured generation", async () => {
+    const requests: ModelTransportRequest[] = [];
+    const usage: UsageLedgerLine[] = [];
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const models = testModelProfiles({
+      provider: "anthropic",
+      chat: "chat-old",
+      compact: "compact-old",
+      flush: "flush-old",
+      catalogRevision: 17,
+    });
+    const decorator: ModelTransportDecorator = () => ({
+      generate: async (request) => {
+        requests.push(request);
+        await gate;
+        return result(request.model);
+      },
+    });
+    const ports = {
+      usage: { append: (line: UsageLedgerLine) => usage.push(line) },
+      now: () => 10,
+      getAccessToken: async () => "token",
+      classifyFailure: () => "unknown" as const,
+      modelTransportDecorator: decorator,
+    };
+    const { LLM } = await import("../src/llm.js");
+    const runtimeConfig = { ...config, models };
+    const pending = Promise.all([
+      new LLM(runtimeConfig, ports, models.chat).generate({ prompt: "chat", caller: "chat" }),
+      new LLM(runtimeConfig, ports, models.compact).generate({
+        prompt: "compact",
+        caller: "compact",
+      }),
+      new LLM(runtimeConfig, ports, models.flush).generate({ prompt: "flush", caller: "flush" }),
+    ]);
+    await vi.waitFor(() => expect(requests).toHaveLength(3));
+    release?.();
+    await pending;
+
+    expect(requests.map(({ model }) => model).sort()).toEqual([
+      "chat-old",
+      "compact-old",
+      "flush-old",
+    ]);
+    expect(new Set(usage.map(({ catalogRevision }) => catalogRevision))).toEqual(new Set([17]));
+  });
+
   it("record mode delegates exactly once through the canonical request", async () => {
     const sdkGenerate = vi.fn(() => streamed("recorded"));
     let delegated = 0;
@@ -119,7 +177,7 @@ describe("model transport decorator", () => {
       generate: async () => replay,
     });
     const { llm, usage } = await loadLlm(decorator, sdkGenerate);
-    await expect(llm.generate({ prompt: "hello", caller: "chat" })).resolves.toEqual(replay);
+    await expect(llm.generate({ prompt: "hello", caller: "chat" })).resolves.toMatchObject(replay);
     expect(sdkGenerate).not.toHaveBeenCalled();
     expect(usage).toHaveLength(1);
     expect(usage[0]).toMatchObject({

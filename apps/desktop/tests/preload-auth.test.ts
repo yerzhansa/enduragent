@@ -151,6 +151,7 @@ function validArchivedCursor(): string {
 }
 
 const chatGptSelection = {
+  catalogRevision: 7,
   provider: "openai-codex",
   model: "gpt-5.5",
   endpoint: { mode: "automatic" },
@@ -208,6 +209,7 @@ function pinnedPreloadOffCatalogueProviders(): string[] {
 function llmConfiguration() {
   return {
     schemaVersion: 1,
+    catalogRevision: 7,
     providers: catalogueProviderOrder.map((provider) => {
       const defaultModel = `${provider}-default`;
       return {
@@ -1789,6 +1791,22 @@ describe("desktop preload ChatGPT auth", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("enduragent:onboarding:llm-configuration");
   });
 
+  it("accepts published provider order and a custom-only provider", async () => {
+    const configuration = llmConfiguration();
+    const published = {
+      ...configuration,
+      catalogRevision: 8,
+      providers: [...configuration.providers]
+        .reverse()
+        .map((provider) =>
+          provider.provider === "openai" ? { ...provider, models: [] } : provider,
+        ),
+    };
+    mocks.invoke.mockResolvedValueOnce(published);
+
+    await expect(bridge.llmConfiguration()).resolves.toEqual(published);
+  });
+
   it("normalizes strict selections and credential writes before invoking main", async () => {
     mocks.invoke
       .mockResolvedValueOnce({ status: "configured", runtimeReady: true })
@@ -1798,6 +1816,7 @@ describe("desktop preload ChatGPT auth", () => {
         runtimeReady: true,
       });
     const selection = {
+      catalogRevision: 7,
       provider: "openrouter",
       model: "  athlete-model  ",
       endpoint: { mode: "custom", value: "  https://models.example.invalid/v1  " },
@@ -1815,6 +1834,7 @@ describe("desktop preload ChatGPT auth", () => {
       }),
     ).resolves.toMatchObject({ status: "configured" });
     const normalized = {
+      catalogRevision: 7,
       provider: "openrouter",
       model: "athlete-model",
       endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
@@ -1826,6 +1846,104 @@ describe("desktop preload ChatGPT auth", () => {
         { slot: "openrouter", value: "obviously-fake-key", selection: normalized },
       ],
     ]);
+  });
+
+  it("copies a recoverable stale-draft result with the normalized selection intact", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openrouter",
+      model: "  athlete-model  ",
+      endpoint: { mode: "automatic" },
+    };
+    const normalized = {
+      ...selection,
+      model: "athlete-model",
+    };
+    mocks.invoke.mockResolvedValueOnce({
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: normalized,
+    });
+
+    await expect(bridge.applyLlmSelection(selection)).resolves.toEqual({
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: normalized,
+    });
+  });
+
+  it("copies the exact credential stale-draft envelope and echoed selection", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openrouter",
+      model: "athlete-model",
+      endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
+    };
+    const response = {
+      slot: "openrouter",
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection,
+    };
+    mocks.invoke.mockResolvedValueOnce(response);
+
+    const result = await bridge.writeCredential({
+      slot: "openrouter",
+      value: "obviously-fake-key",
+      selection,
+    });
+
+    expect(result).toEqual(response);
+    expect(result).not.toBe(response);
+    selection.model = "mutated-after-parse";
+    expect(result).toEqual({
+      slot: "openrouter",
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: {
+        catalogRevision: 7,
+        provider: "openrouter",
+        model: "athlete-model",
+        endpoint: { mode: "custom", value: "https://models.example.invalid/v1" },
+      },
+    });
+  });
+
+  it("rejects malformed or extended credential stale-draft envelopes", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openrouter",
+      model: "athlete-model",
+      endpoint: { mode: "automatic" },
+    };
+    const request = {
+      slot: "openrouter",
+      value: "obviously-fake-key",
+      selection,
+    };
+    for (const value of [
+      {
+        slot: "openrouter",
+        status: "stale-draft",
+        reason: "catalog-unavailable",
+        selection,
+        detail: "private",
+      },
+      {
+        slot: "openrouter",
+        status: "stale-draft",
+        reason: "catalog-unavailable",
+        selection: { ...selection, provider: "unknown" },
+      },
+      {
+        slot: "openrouter",
+        status: "refused",
+        reason: "stale-draft",
+      },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(value);
+      await expect(bridge.writeCredential(request)).rejects.toBeInstanceOf(TypeError);
+    }
   });
 
   it("accepts a securely stored inactive credential result", async () => {
@@ -2000,6 +2118,43 @@ describe("desktop preload ChatGPT auth", () => {
       "enduragent:onboarding:chatgpt-status",
       "enduragent:onboarding:chatgpt-login",
     ]);
+  });
+
+  it("copies only an exact ChatGPT stale-draft envelope", async () => {
+    const selection = {
+      catalogRevision: 7,
+      provider: "openai-codex",
+      model: "gpt-5.5",
+      endpoint: { mode: "automatic" },
+    };
+    const response = {
+      status: "stale-draft",
+      operationId: "login-1",
+      reason: "catalog-unavailable",
+      selection,
+    };
+    mocks.invoke.mockResolvedValueOnce(response);
+
+    const result = await bridge.chatgptLogin(chatGptLoginInput);
+
+    expect(result).toEqual(response);
+    expect(result).not.toBe(response);
+    selection.model = "mutated-after-parse";
+    expect(result).toEqual({
+      status: "stale-draft",
+      operationId: "login-1",
+      reason: "catalog-unavailable",
+      selection: chatGptSelection,
+    });
+
+    for (const value of [
+      { ...response, extra: true },
+      { ...response, selection: { ...chatGptSelection, provider: "anthropic" } },
+      { ...response, reason: "stale-draft" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(value);
+      await expect(bridge.chatgptLogin(chatGptLoginInput)).rejects.toBeInstanceOf(TypeError);
+    }
   });
 
   it("correlates cancellation and forwards only closed progress events", async () => {

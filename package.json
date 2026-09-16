@@ -42,10 +42,18 @@
     "check:ui-states": "pnpm --filter @enduragent/desktop exec playwright test --config=playwright.ui-states.config.ts",
     "i18n:extract": "i18next",
     "i18n:check": "pnpm i18n:extract --fail-on-update",
-    "check:catalogs": "tsx tools/check-catalog-coverage.ts"
+    "check:catalogs": "tsx tools/check-catalog-coverage.ts",
+    "models:generate-seed": "pnpm --filter @enduragent/coach-contract build && tsx tools/generate-model-catalog-seed.ts",
+    "models:validate": "tsx tools/model-catalog-cli.ts validate",
+    "models:publish": "tsx tools/model-catalog-cli.ts publish-to-staging",
+    "models:promote": "tsx tools/model-catalog-cli.ts promote-existing-staged-revision-to-production",
+    "models:rollback": "tsx tools/model-catalog-cli.ts rollback-to-staging",
+    "models:release-pin": "tsx tools/model-catalog-release-pin-cli.ts",
+    "models:verify-service": "tsx tools/verify-model-catalog-service.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
+    "@enduragent/coach-contract": "workspace:*",
     "@enduragent/core": "workspace:*",
     "@enduragent/engine": "workspace:*",
     "@enduragent/kernel": "workspace:*",

@@ -128,6 +128,14 @@ function validProviderCost(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+function validUsageCost(value: unknown): value is UsageCost {
+  if (typeof value !== "object" || value === null) return false;
+  const cost = value as Record<string, unknown>;
+  return ["input", "output", "cacheRead", "cacheWrite", "total"].every((field) =>
+    validProviderCost(cost[field]),
+  );
+}
+
 function safeTokenSum(...values: number[]): number | undefined {
   let total = 0;
   for (const value of values) {
@@ -209,8 +217,19 @@ function selectedNumericFieldsValid(line: Record<string, unknown>): boolean {
   ]) {
     if (line[field] !== undefined && !validToken(line[field])) return false;
   }
+  if (
+    line.providerReportedCostUsd !== undefined &&
+    !validProviderCost(line.providerReportedCostUsd)
+  ) {
+    return false;
+  }
+  if (line.catalogRevision === undefined) return true;
   return (
-    line.providerReportedCostUsd === undefined || validProviderCost(line.providerReportedCostUsd)
+    typeof line.catalogRevision === "number" &&
+    Number.isSafeInteger(line.catalogRevision) &&
+    line.catalogRevision > 0 &&
+    (line.cost === undefined || validUsageCost(line.cost)) &&
+    (line.cacheReadSavingsUsd === undefined || validProviderCost(line.cacheReadSavingsUsd))
   );
 }
 
@@ -295,6 +314,9 @@ function aggregateLedger(
       route.unpricedGenerationCount += 1;
       continue;
     }
+    const catalogRevision = line.catalogRevision as number | undefined;
+    const storedCost = line.cost as UsageCost | undefined;
+    const storedCacheReadSavingsUsd = line.cacheReadSavingsUsd as number | undefined;
 
     const cacheReadTokens = line.cacheReadTokens ?? 0;
     const nextCacheReadTokens = route.cacheReadTokens + cacheReadTokens;
@@ -306,7 +328,10 @@ function aggregateLedger(
     }
     route.cacheReadTokens = nextCacheReadTokens;
     if (cacheReadTokens > 0) {
-      const savings = catalogCacheReadSavingsFor(line, cacheReadTokens);
+      const savings =
+        catalogRevision === undefined
+          ? catalogCacheReadSavingsFor(line, cacheReadTokens)
+          : (storedCacheReadSavingsUsd ?? null);
       if (savings === null || !Number.isFinite(route.cacheSavingsKnownUsd + savings)) {
         route.cacheSavingsAvailable = false;
       } else {
@@ -317,6 +342,7 @@ function aggregateLedger(
     const providerReported = line.providerReportedCostUsd;
     const catalogCost =
       providerReported === undefined &&
+      catalogRevision === undefined &&
       line.inputTokens !== undefined &&
       line.outputTokens !== undefined
         ? catalogCostFor(line, {
@@ -326,7 +352,8 @@ function aggregateLedger(
             cacheWriteTokens: line.cacheWriteTokens ?? 0,
           })
         : undefined;
-    const cost = providerReported ?? catalogCost?.total;
+    const cost =
+      providerReported ?? (catalogRevision === undefined ? catalogCost?.total : storedCost?.total);
     const accrues = accruesToCap(line);
     const running = accrues ? route.knownSpendUsd : route.notionalSpendUsd;
     if (cost === undefined || !Number.isFinite(running + cost)) {

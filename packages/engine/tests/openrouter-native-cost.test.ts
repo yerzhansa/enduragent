@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineConfig, UsageLedgerLine } from "../src/host-ports.js";
 import { llmTestPorts } from "./helpers/base-agent-config.js";
+import { testModelProfiles } from "./helpers/model-profiles.js";
 
 const config: EngineConfig = {
   dataSource: "platform",
@@ -16,6 +17,7 @@ const config: EngineConfig = {
     resetArchiveRetentionDays: 0,
     timezone: "UTC",
   },
+  models: testModelProfiles({ provider: "openrouter", chat: "synthetic/model" }),
   contextWindowTokens: 1_000,
   compactContextWindowTokens: 1_000,
 };

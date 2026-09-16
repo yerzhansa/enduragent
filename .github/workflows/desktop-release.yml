@@ -119,10 +119,45 @@ jobs:
           CANDIDATE_BODY_SHA256=$(printf '%s' "$CANDIDATE_RELEASE" | jq -j '.body' | shasum -a 256 | awk '{print $1}')
           test "$CANDIDATE_BODY_SHA256" = "$RELEASE_BODY_SHA256"
 
+  prepare-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: authorize-release
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      catalog_release_group_id: ${{ steps.pin.outputs.catalog_release_group_id }}
+      catalog_revision: ${{ steps.pin.outputs.catalog_revision }}
+      catalog_digest: ${{ steps.pin.outputs.catalog_digest }}
+      now_iso: ${{ steps.pin.outputs.now_iso }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare catalog pin
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          NOW_ISO=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at)
+          test -n "$NOW_ISO"
+          echo "now_iso=$NOW_ISO" >> "$GITHUB_OUTPUT"
+          pnpm --silent models:release-pin prepare --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO"
+
   sign-macos:
     runs-on: macos-15
     timeout-minutes: 120
-    needs: authorize-release
+    needs: [authorize-release, prepare-catalog]
     environment: desktop-macos-signing
     permissions:
       actions: read
@@ -165,6 +200,16 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Materialize release catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ inputs.commit }}
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+        run: |
+          set -euo pipefail
+          test -n "$NOW_ISO"
+          pnpm --silent models:release-pin read --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO"
+          pnpm --silent models:release-pin materialize --source-commit "$SOURCE_COMMIT" --now-iso "$NOW_ISO" --workspace "$GITHUB_WORKSPACE"
       - run: pnpm -r build
       - name: Require the public updater feed
         env:
@@ -270,6 +315,9 @@ jobs:
           BASELINE_ZIP_SHA256: ${{ steps.baseline.outputs.baseline_zip_sha256 }}
           BASELINE_SIGNING_IDENTITY: ${{ steps.baseline.outputs.baseline_signing_identity }}
           BASELINE_CDHASH: ${{ steps.baseline.outputs.baseline_cdhash }}
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
         run: |
           pnpm desktop-release:transaction seal \
             --directory "apps/desktop/dist/release-envelope-$DESKTOP_VERSION-mac-arm64" \
@@ -289,7 +337,10 @@ jobs:
             --baseline-commit "$BASELINE_COMMIT" \
             --baseline-zip-sha256 "$BASELINE_ZIP_SHA256" \
             --baseline-signing-identity "$BASELINE_SIGNING_IDENTITY" \
-            --baseline-cdhash "$BASELINE_CDHASH"
+            --baseline-cdhash "$BASELINE_CDHASH" \
+            --catalog-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+            --catalog-revision "$CATALOG_REVISION" \
+            --catalog-digest "$CATALOG_DIGEST"
       - name: Upload sealed macOS transaction artifact
         id: sealed-artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -369,7 +420,7 @@ jobs:
   verify-macos-envelope:
     runs-on: macos-15
     timeout-minutes: 45
-    needs: sign-macos
+    needs: [sign-macos, prepare-catalog]
     permissions:
       actions: read
       contents: read
@@ -398,6 +449,22 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.sign-macos.outputs.evidence_run_id }}
           digest-mismatch: error
+      - name: Extract bundled catalog from the signed zip
+        env:
+          DESKTOP_VERSION: ${{ inputs.desktop_version }}
+          NOW_ISO: ${{ needs.prepare-catalog.outputs.now_iso }}
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
+        run: |
+          set -euo pipefail
+          test -n "$NOW_ISO"
+          pnpm --silent models:release-pin extract --kind macos-zip \
+            --path "$RUNNER_TEMP/desktop-release/Enduragent-$DESKTOP_VERSION-arm64.zip" \
+            --now-iso "$NOW_ISO" \
+            --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+            --expected-revision "$CATALOG_REVISION" \
+            --expected-digest "$CATALOG_DIGEST"
       - name: Bind immutable Actions artifact evidence
         env:
           ARTIFACT_ID: ${{ needs.sign-macos.outputs.artifact_id }}
@@ -483,6 +550,9 @@ jobs:
           BASELINE_SIGNING_IDENTITY: ${{ needs.sign-macos.outputs.baseline_signing_identity }}
           BASELINE_CDHASH: ${{ needs.sign-macos.outputs.baseline_cdhash }}
           INDEPENDENT_BASELINE_APP: ${{ steps.independent-baseline.outputs.baseline_app }}
+          CATALOG_RELEASE_GROUP_ID: ${{ needs.prepare-catalog.outputs.catalog_release_group_id }}
+          CATALOG_REVISION: ${{ needs.prepare-catalog.outputs.catalog_revision }}
+          CATALOG_DIGEST: ${{ needs.prepare-catalog.outputs.catalog_digest }}
         run: |
           set -euo pipefail
           pnpm desktop-release:transaction verify \
@@ -503,7 +573,10 @@ jobs:
             --baseline-commit "$BASELINE_COMMIT" \
             --baseline-zip-sha256 "$BASELINE_ZIP_SHA256" \
             --baseline-signing-identity "$BASELINE_SIGNING_IDENTITY" \
-            --baseline-cdhash "$BASELINE_CDHASH"
+            --baseline-cdhash "$BASELINE_CDHASH" \
+            --catalog-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+            --catalog-revision "$CATALOG_REVISION" \
+            --catalog-digest "$CATALOG_DIGEST"
           hdiutil verify "$RUNNER_TEMP/desktop-release/Enduragent-$DESKTOP_VERSION-arm64.dmg"
           spctl --assess --type open --context context:primary-signature --verbose \
             "$RUNNER_TEMP/desktop-release/Enduragent-$DESKTOP_VERSION-arm64.dmg"

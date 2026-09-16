@@ -62,6 +62,7 @@ export type {
   EngineDataSource,
   EngineHostPorts,
   EngineLlmProvider,
+  EngineResolvedModelProfiles,
   EnvSecretRef,
   ExecSecretRef,
   FailureReason,

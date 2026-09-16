@@ -201,6 +201,7 @@ describe("desktop onboarding wizard", () => {
     const connect = vi.fn();
     const bridge = createOnboardingBridge(auth, connect);
     const selection = {
+      catalogRevision: 7,
       provider: "openai-codex" as const,
       model: "gpt-5.5",
       endpoint: { mode: "automatic" as const },

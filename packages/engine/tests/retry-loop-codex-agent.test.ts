@@ -10,6 +10,7 @@ import { CoachAgent } from "../src/agent/coach-agent.js";
 import type { EngineHostPorts } from "../src/host-ports.js";
 import type { Sport } from "../src/sport.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
+import { withTestModelProfiles } from "./helpers/model-profiles.js";
 import { createFakeCodex, type FakeCodex } from "./codex-agent/helpers/fake-codex.js";
 
 const TEST_TIMEOUT_MS = 45_000;
@@ -47,7 +48,7 @@ async function setupAgent(scripts: readonly string[]): Promise<{
   const base = baseAgentConfig(dataDir);
   const ports: EngineHostPorts = {
     ...base,
-    config: {
+    config: withTestModelProfiles({
       ...base.config,
       llm: {
         provider: "codex-agent",
@@ -55,7 +56,7 @@ async function setupAgent(scripts: readonly string[]): Promise<{
         apiKey: "",
         codexAgent: { enabled: true, binaryPath: codex.binaryPath },
       },
-    },
+    }),
   };
   const agent = new CoachAgent(cyclingSport as unknown as Sport, ports);
   return { chat: (chatId, text) => agent.chat(chatId, text), codex };
@@ -93,7 +94,7 @@ describe("retry loop on the codex-agent path", () => {
         {
           ...base,
           usage: { append: (line) => rows.push(line as unknown as Record<string, unknown>) },
-          config: {
+          config: withTestModelProfiles({
             ...base.config,
             llm: {
               provider: "codex-agent",
@@ -101,7 +102,7 @@ describe("retry loop on the codex-agent path", () => {
               apiKey: "",
               codexAgent: { enabled: true, binaryPath: codex.binaryPath },
             },
-          },
+          }),
         } as EngineHostPorts,
       );
 
@@ -274,7 +275,8 @@ describe("retry loop on the codex-agent path", () => {
         });
 
         for (let attempt = 0; attempt < 4 && !finished; attempt++) {
-          if (!(await waitForTurnStart(agent.codex, READINESS_SPAWNS + attempt, () => finished))) break;
+          if (!(await waitForTurnStart(agent.codex, READINESS_SPAWNS + attempt, () => finished)))
+            break;
           await vi.advanceTimersByTimeAsync(121_000);
         }
 

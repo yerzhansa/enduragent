@@ -113,6 +113,7 @@ function snapshot(overrides: Partial<RuntimeConfigSnapshot> = {}): RuntimeConfig
 function llmConfiguration(): OnboardingLlmConfiguration {
   return {
     schemaVersion: 1,
+    catalogRevision: 7,
     providers: [
       {
         provider: "anthropic",
@@ -523,6 +524,7 @@ beforeEach(() => {
       statuses,
       configuration,
       draft: {
+        catalogRevision: configuration.catalogRevision,
         provider,
         modelChoice: provider.defaultModel,
         customModel: "",
@@ -542,6 +544,7 @@ beforeEach(() => {
             onboarding: {
               ...state.onboarding,
               draft: {
+                catalogRevision: state.onboarding.configuration?.catalogRevision ?? 7,
                 provider: selectedProvider,
                 modelChoice: selectedProvider.defaultModel,
                 customModel: "",
@@ -2070,6 +2073,7 @@ describe("coach route", () => {
 
     await waitFor(() => {
       expect(subject.applyLlmSelection).toHaveBeenCalledWith({
+        catalogRevision: 7,
         provider: "anthropic",
         model: "vendor/experimental",
         endpoint: { mode: "automatic" },
@@ -2106,6 +2110,7 @@ describe("coach route", () => {
     await user.tab();
     expect(subject.applyLlmSelection).toHaveBeenCalledOnce();
     expect(subject.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "vendor/keyboard-model",
       endpoint: { mode: "automatic" },
@@ -2210,6 +2215,7 @@ describe("coach route", () => {
     await screen.findByText("Coach settings saved.");
 
     expect(subject.applyLlmSelection).toHaveBeenCalledWith({
+      catalogRevision: 7,
       provider: "anthropic",
       model: "synthetic-model",
       endpoint: { mode: "automatic" },

@@ -3,8 +3,10 @@ import {
   CODEX_AGENT_WINDOWS_MESSAGE,
   KEYLESS_LLM_PROVIDERS,
   isKeylessProvider,
+  type CatalogModelEntry,
   type KeylessLlmProvider,
 } from "@enduragent/coach-contract";
+import { GENERATED_MODEL_CATALOG_SEED } from "./model-catalog-seed.generated.js";
 
 export { KEYLESS_LLM_PROVIDERS, isKeylessProvider };
 export type { KeylessLlmProvider };
@@ -25,6 +27,10 @@ export const LLM_PROVIDERS = [
 ] as const;
 
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
+
+export function isModelEnabledForProvider(provider: LlmProvider, model: string): boolean {
+  return model !== "gpt-6-astra" || (provider !== "openai-codex" && provider !== "codex-agent");
+}
 
 export const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-5",
@@ -61,7 +67,6 @@ export interface LlmModelCatalogueEntry {
   readonly label: string;
   readonly hint?: string;
   readonly defaultModel: string;
-  readonly models: readonly LlmModelOption[];
   readonly defaultBaseUrl?: string;
 }
 
@@ -70,103 +75,58 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
     provider: "anthropic",
     label: "Anthropic (Claude)",
     defaultModel: DEFAULT_MODELS.anthropic,
-    models: [
-      { value: "claude-sonnet-5", label: "Claude Sonnet 5", hint: "recommended" },
-      { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", hint: "fast & cheap" },
-      { value: "claude-opus-5", label: "Claude Opus 5", hint: "most capable" },
-    ],
   },
   {
     provider: "openai",
     label: "OpenAI (GPT)",
     defaultModel: DEFAULT_MODELS.openai,
-    models: [
-      { value: "gpt-5.6-sol", label: "GPT-5.6 Sol", hint: "recommended" },
-      { value: "gpt-5.6-terra", label: "GPT-5.6 Terra", hint: "balanced" },
-      { value: "gpt-5.6-luna", label: "GPT-5.6 Luna", hint: "cheapest" },
-    ],
   },
   {
     provider: "google",
     label: "Google (Gemini)",
     defaultModel: DEFAULT_MODELS.google,
-    models: [
-      { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash", hint: "recommended" },
-      { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", hint: "most capable" },
-      { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite", hint: "cheapest" },
-    ],
   },
   {
     provider: "openai-codex",
     label: "OpenAI Codex (ChatGPT subscription)",
     hint: "experimental",
     defaultModel: DEFAULT_MODELS["openai-codex"],
-    models: [
-      { value: "gpt-5.6-sol", label: "GPT-5.6 Sol", hint: "recommended" },
-      { value: "gpt-5.6-luna", label: "GPT-5.6 Luna", hint: "faster" },
-    ],
   },
   {
     provider: "claude-cli",
     label: "Claude subscription (Claude Code CLI)",
     hint: "experimental",
     defaultModel: DEFAULT_MODELS["claude-cli"],
-    models: [
-      { value: "sonnet", label: "Claude Sonnet", hint: "recommended" },
-      { value: "opus", label: "Claude Opus", hint: "most capable" },
-      { value: "haiku", label: "Claude Haiku", hint: "fast" },
-    ],
   },
   {
     provider: "deepseek",
     label: "DeepSeek",
     defaultModel: DEFAULT_MODELS.deepseek,
     defaultBaseUrl: PROVIDER_BASE_URLS.deepseek,
-    models: [
-      { value: "deepseek-v4-flash", label: "DeepSeek V4 Flash", hint: "recommended" },
-      { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro", hint: "most capable" },
-    ],
   },
   {
     provider: "qwen",
     label: "Qwen (Alibaba Model Studio)",
     defaultModel: DEFAULT_MODELS.qwen,
     defaultBaseUrl: PROVIDER_BASE_URLS.qwen,
-    models: [
-      { value: "qwen3.7-plus", label: "Qwen3.7 Plus", hint: "recommended" },
-      { value: "qwen3.7-max", label: "Qwen3.7 Max", hint: "most capable" },
-    ],
   },
   {
     provider: "minimax",
     label: "MiniMax",
     defaultModel: DEFAULT_MODELS.minimax,
     defaultBaseUrl: PROVIDER_BASE_URLS.minimax,
-    models: [
-      { value: "MiniMax-M3", label: "MiniMax M3", hint: "recommended" },
-      { value: "MiniMax-M2.7", label: "MiniMax M2.7" },
-    ],
   },
   {
     provider: "kimi",
     label: "Kimi (Moonshot AI)",
     defaultModel: DEFAULT_MODELS.kimi,
     defaultBaseUrl: PROVIDER_BASE_URLS.kimi,
-    models: [
-      { value: "kimi-k3", label: "Kimi K3", hint: "recommended" },
-      { value: "kimi-k2.6", label: "Kimi K2.6", hint: "cheaper" },
-    ],
   },
   {
     provider: "zai",
     label: "Z.AI (GLM)",
     defaultModel: DEFAULT_MODELS.zai,
     defaultBaseUrl: PROVIDER_BASE_URLS.zai,
-    models: [
-      { value: "glm-4.7", label: "GLM-4.7", hint: "recommended" },
-      { value: "glm-5.2", label: "GLM-5.2", hint: "most capable" },
-      { value: "glm-4.7-flashx", label: "GLM-4.7 FlashX", hint: "cheapest" },
-    ],
   },
   {
     provider: "openrouter",
@@ -174,16 +134,6 @@ export const LLM_MODEL_CATALOGUE: readonly LlmModelCatalogueEntry[] = [
     hint: "one key, many models",
     defaultModel: DEFAULT_MODELS.openrouter,
     defaultBaseUrl: PROVIDER_BASE_URLS.openrouter,
-    models: [
-      {
-        value: "deepseek/deepseek-v4-flash",
-        label: "DeepSeek V4 Flash (via OpenRouter)",
-        hint: "cheap",
-      },
-      { value: "z-ai/glm-5.2", label: "GLM-5.2 (via OpenRouter)", hint: "most capable" },
-      { value: "qwen/qwen3.7-plus", label: "Qwen3.7 Plus (via OpenRouter)" },
-      { value: "moonshotai/kimi-k3", label: "Kimi K3 (via OpenRouter)" },
-    ],
   },
 ] as const;
 
@@ -192,48 +142,6 @@ export const COMPACT_MODEL_DEFAULTS = {
   "claude-cli": "haiku",
   openrouter: "deepseek/deepseek-v4-flash",
 } as const satisfies Partial<Record<LlmProvider, string>>;
-
-const CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
-  "claude-sonnet-5": 1_000_000,
-  "claude-opus-5": 1_000_000,
-  "claude-sonnet-4-6": 1_000_000,
-  "claude-opus-4-8": 1_000_000,
-  "claude-haiku-4-5-20251001": 200_000,
-  sonnet: 200_000,
-  opus: 200_000,
-  haiku: 200_000,
-  "gpt-4o": 128_000,
-  "gpt-5.6-sol": 1_050_000,
-  "gpt-5.6-terra": 1_050_000,
-  "gpt-5.6-luna": 1_050_000,
-  "gpt-5.5": 1_050_000,
-  "gpt-5.4": 1_050_000,
-  "gpt-5.4-mini": 400_000,
-  "gpt-5.4-nano": 400_000,
-  "gemini-3.6-flash": 1_048_576,
-  "gemini-3.5-flash": 1_048_576,
-  "gemini-3.5-flash-lite": 1_048_576,
-  "gemini-3.1-pro-preview": 1_048_576,
-  "gemini-3.1-flash-lite": 1_048_576,
-  "deepseek-v4-flash": 1_000_000,
-  "deepseek-v4-pro": 1_000_000,
-  "qwen3.7-plus": 1_000_000,
-  "qwen3.5-plus": 1_000_000,
-  "qwen3-max": 262_144,
-  "MiniMax-M2.7": 204_800,
-  "MiniMax-M3": 1_000_000,
-  "kimi-k3": 1_000_000,
-  "kimi-k2.6": 262_144,
-  "kimi-k2.5": 262_144,
-  "glm-5.2": 1_000_000,
-  "glm-4.7": 200_000,
-  "glm-4.7-flashx": 200_000,
-  "deepseek/deepseek-v4-flash": 1_000_000,
-  "z-ai/glm-5.2": 1_000_000,
-  "qwen/qwen3.7-plus": 1_000_000,
-  "moonshotai/kimi-k3": 1_000_000,
-  "moonshotai/kimi-k2.6": 262_000,
-};
 
 export const CLAUDE_CLI_BILLING_MODES = ["subscription", "api-key"] as const;
 
@@ -285,6 +193,7 @@ export interface EffectiveRuntimeConfig {
     timezone: string;
   };
   contextWindowTokens: number;
+  contextWindowTokensOverride?: number;
 }
 
 export interface ClaudeCliRuntimeConfigPatch {
@@ -422,25 +331,26 @@ export function resolveLlmProvider(value: unknown): LlmProvider {
   throw new TypeError("Unsupported LLM provider.");
 }
 
-const CLAUDE_MODEL_FAMILIES = ["sonnet", "opus", "haiku"] as const;
-
-function claudeModelFamily(model: string): string | undefined {
-  const normalized = model.toLowerCase();
-  return CLAUDE_MODEL_FAMILIES.find((family) => normalized.includes(family));
-}
-
 const FALLBACK_CONTEXT_WINDOW = 200_000;
 
-function familyContextWindow(model: string): number | undefined {
-  const family = claudeModelFamily(model);
-  return family === undefined ? undefined : CONTEXT_WINDOWS[family];
+export function knownContextWindowForModel(
+  model: string,
+  provider?: LlmProvider,
+): number | undefined {
+  for (const candidate of GENERATED_MODEL_CATALOG_SEED.providers) {
+    if (provider !== undefined && candidate.providerId !== provider) continue;
+    const entry = (candidate.models as readonly CatalogModelEntry[]).find(
+      (modelEntry) => modelEntry.modelId === model,
+    );
+    if (entry !== undefined) {
+      return entry.contextWindow.kind === "known" ? entry.contextWindow.tokens : undefined;
+    }
+  }
+  return undefined;
 }
 
 export function contextWindowForModel(model: string, provider?: LlmProvider): number {
-  if (provider === "claude-cli") {
-    return familyContextWindow(model) ?? CONTEXT_WINDOWS[model] ?? FALLBACK_CONTEXT_WINDOW;
-  }
-  return CONTEXT_WINDOWS[model] ?? familyContextWindow(model) ?? FALLBACK_CONTEXT_WINDOW;
+  return knownContextWindowForModel(model, provider) ?? FALLBACK_CONTEXT_WINDOW;
 }
 
 function providerBaseUrl(provider: LlmProvider): string | undefined {
@@ -466,7 +376,10 @@ function requireBoolean(value: unknown, name: string): boolean {
 }
 
 function requireClaudeCliBilling(value: unknown): ClaudeCliBilling {
-  if (typeof value === "string" && (CLAUDE_CLI_BILLING_MODES as readonly string[]).includes(value)) {
+  if (
+    typeof value === "string" &&
+    (CLAUDE_CLI_BILLING_MODES as readonly string[]).includes(value)
+  ) {
     return value as ClaudeCliBilling;
   }
   throw new TypeError('llm.claudeCli.billing must be "subscription" or "api-key".');
@@ -559,8 +472,10 @@ export function resolveRuntimeConfig(
     : current !== undefined && !providerChanged
       ? current.llm.model
       : DEFAULT_MODELS[provider];
-  if (model === "gpt-6-astra" && (provider === "openai-codex" || provider === "codex-agent")) {
-    throw new TypeError("GPT-6 Astra is not enabled for this connection; use the public OpenAI API.");
+  if (!isModelEnabledForProvider(provider, model)) {
+    throw new TypeError(
+      "GPT-6 Astra is not enabled for this connection; use the public OpenAI API.",
+    );
   }
   const selectionChanged = current === undefined || providerChanged || model !== current.llm.model;
   const keyless = isKeylessProvider(provider);
@@ -689,12 +604,15 @@ export function resolveRuntimeConfig(
       : (current?.session.timezone ?? ""),
   };
 
-  const contextWindowTokens =
+  const contextWindowTokensOverride =
     options.contextWindowTokens !== undefined
       ? requireInteger(options.contextWindowTokens, "contextWindowTokens")
-      : current !== undefined && !selectionChanged
-        ? current.contextWindowTokens
-        : contextWindowForModel(model, provider);
+      : current?.contextWindowTokensOverride;
+  const contextWindowTokens =
+    contextWindowTokensOverride ??
+    (current !== undefined && !selectionChanged
+      ? current.contextWindowTokens
+      : contextWindowForModel(model, provider));
   if (contextWindowTokens <= 0) throw new TypeError("contextWindowTokens must be positive.");
 
   const authProfile =
@@ -725,5 +643,6 @@ export function resolveRuntimeConfig(
     intervals,
     session,
     contextWindowTokens,
+    ...(contextWindowTokensOverride === undefined ? {} : { contextWindowTokensOverride }),
   };
 }

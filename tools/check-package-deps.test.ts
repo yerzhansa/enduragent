@@ -7,6 +7,7 @@ import {
   RULES,
   runRulesAgainst,
   checkPrivatePackages,
+  checkModelCatalogBuiltDependencies,
   matchesEntry,
   packageRoot,
   main,
@@ -724,6 +725,28 @@ describe("R7 private-package check", () => {
     writeJson("packages/tight/package.json", { name: "@enduragent/tight", private: true });
     expect(checkPrivatePackages(tempDir)).toHaveLength(0);
   });
+});
+
+describe("model catalog edge entry", () => {
+  it("accepts a self-contained browser-compatible graph", () => {
+    write(
+      "packages/coach-contract/dist/model-catalog.js",
+      'import { provider } from "./provider.js";\nexport const catalog = provider;\n',
+    );
+    write("packages/coach-contract/dist/provider.js", 'export const provider = "openai";\n');
+    expect(checkModelCatalogBuiltDependencies(tempDir)).toEqual([]);
+  });
+
+  it.each(["node:fs", "fs", "@enduragent/core", "@enduragent/engine/private", "missing"])(
+    "rejects the runtime dependency %s",
+    (specifier) => {
+      write(
+        "packages/coach-contract/dist/model-catalog.js",
+        `import value from "${specifier}";\nexport { value };\n`,
+      );
+      expect(checkModelCatalogBuiltDependencies(tempDir)).toHaveLength(1);
+    },
+  );
 });
 
 describe("R8 composition root", () => {

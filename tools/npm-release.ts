@@ -17,10 +17,11 @@ type PackageName = (typeof packages)[number];
 type Invocation = { runId: string; attempt: string; workflowCommit: string };
 type Archive = { name: PackageName; filename: string; size: number; sha512: string };
 type Manifest = {
-  schema: 1;
+  schema: 2;
   tag: string;
   version: string;
   sourceCommit: string;
+  catalog: { releaseGroupId: string; revision: number; digest: string };
   coordinator: Invocation;
   preparation: Invocation;
   archives: Archive[];
@@ -68,9 +69,29 @@ export function invocation(value: unknown): Invocation {
   };
 }
 
+function catalog(value: unknown, sourceCommit: string): Manifest["catalog"] {
+  const item = record(value);
+  const names = Object.keys(item).sort();
+  if (names.length !== 3 || names[0] !== "digest" || names[1] !== "releaseGroupId" || names[2] !== "revision")
+    throw new Error("Invalid catalog identity");
+  const releaseGroupId = commit(item.releaseGroupId);
+  if (releaseGroupId !== sourceCommit) throw new Error("Catalog does not bind the source commit");
+  if (
+    typeof item.revision !== "number" ||
+    !Number.isSafeInteger(item.revision) ||
+    item.revision < 1
+  )
+    throw new Error("Invalid catalog identity");
+  return {
+    releaseGroupId,
+    revision: item.revision,
+    digest: digest(item.digest),
+  };
+}
+
 export function manifest(value: unknown): Manifest {
   const item = record(value);
-  if (item.schema !== 1) throw new Error("Unsupported release manifest");
+  if (item.schema !== 2) throw new Error("Unsupported release manifest");
   const version = text(
     item.version,
     /^[1-9]\d{3}\.([1-9]|1[0-2])\.([1-9]|[12]\d|3[01])(?:-[1-9]\d*)?$/u,
@@ -98,14 +119,17 @@ export function manifest(value: unknown): Manifest {
     };
   });
   const sourceCommit = commit(item.sourceCommit);
+  if (!("catalog" in item)) throw new Error("Missing catalog");
+  const boundCatalog = catalog(item.catalog, sourceCommit);
   const coordinator = invocation(item.coordinator);
   if (coordinator.workflowCommit !== sourceCommit)
     throw new Error("Coordinator does not bind the source commit");
   return {
-    schema: 1,
+    schema: 2,
     tag: item.tag,
     version,
     sourceCommit,
+    catalog: boundCatalog,
     coordinator,
     preparation: invocation(item.preparation),
     archives,
@@ -610,11 +634,17 @@ export async function runNpmRelease(command: string, directory: string) {
   if (command === "validate-input") {
     if (!caller) throw new Error("Missing workflow identity");
     const version = environment("RELEASE_TAG").replace(/^cycling-coach@/u, "");
+    const sourceCommit = environment("RELEASE_COMMIT");
     const value = manifest({
-      schema: 1,
+      schema: 2,
       tag: environment("RELEASE_TAG"),
       version,
-      sourceCommit: environment("RELEASE_COMMIT"),
+      sourceCommit,
+      catalog: {
+        releaseGroupId: sourceCommit,
+        revision: 1,
+        digest: "0".repeat(64),
+      },
       preparation: caller,
       coordinator: {
         runId: environment("COORDINATOR_RUN_ID"),
@@ -637,11 +667,13 @@ export async function runNpmRelease(command: string, directory: string) {
   }
   if (command === "seal") {
     const version = environment("RELEASE_VERSION");
+    const sourceCommit = environment("RELEASE_COMMIT");
     const value = manifest({
-      schema: 1,
+      schema: 2,
       tag: `cycling-coach@${version}`,
       version,
-      sourceCommit: environment("RELEASE_COMMIT"),
+      sourceCommit,
+      catalog: catalog(parse(environment("RELEASE_CATALOG")), sourceCommit),
       coordinator: {
         runId: environment("COORDINATOR_RUN_ID"),
         attempt: environment("COORDINATOR_RUN_ATTEMPT"),

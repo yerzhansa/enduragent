@@ -43,6 +43,7 @@ function validFixture(): { entries: Map<string, Buffer>; repoRoot: string } {
         "package/dist/LICENSE": "project license\n",
         "package/dist/NOTICE.md": "project notice\n",
         "package/dist/THIRD_PARTY_LICENSES.txt": aggregate,
+        "package/dist/bundled-model-catalog.json": "{}\n",
         "package/README.md": "readme",
         "package/package.json": "{}",
       }).map(([path, contents]) => [path, Buffer.from(contents)]),

@@ -1,5 +1,5 @@
 import { createNpmCoachLanguage } from "../src/language-preference.js";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
@@ -8,7 +8,12 @@ import type { Sport } from "@enduragent/engine/sport";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { Config } from "../src/config.js";
-import { createEngineHostAdapter } from "../src/agent/engine-host-adapter.js";
+import {
+  createEngineHostAdapter,
+  engineConfigFromConfig,
+} from "../src/agent/engine-host-adapter.js";
+import { bundledAcceptedCatalog } from "../src/model-catalog.js";
+import { SELECTED_MODEL_PROFILES_FILE } from "../src/model-runtime-generation.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import type { RefreshFailureReason } from "../src/auth/refresh-failure.js";
 import {
@@ -22,7 +27,7 @@ function config(dataDir: string): Config {
     dataSource: "platform",
     llm: {
       provider: "anthropic",
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       compactModel: "claude-haiku-4-5-20251001",
       apiKey: "test",
     },
@@ -105,6 +110,7 @@ describe("engine host adapter", () => {
     const language = createNpmCoachLanguage(dataDir);
     const resolve = vi.spyOn(language, "resolveFor");
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
       overrides: { language },
@@ -125,6 +131,7 @@ describe("engine host adapter", () => {
     vi.stubEnv("ENDURAGENT_LANGUAGE", "fr");
     const language = createNpmCoachLanguage(dataDir);
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
       overrides: { language },
@@ -143,19 +150,54 @@ describe("engine host adapter", () => {
     });
   });
 
+  it("refuses to open a catalog as a projection side effect", () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-required-catalog-"));
+    expect(() =>
+      createEngineHostAdapter({
+        config: config(dataDir),
+        stateReader: legacyStateReader,
+      } as never),
+    ).toThrow("createEngineHostAdapter requires catalog or models");
+    expect(() => engineConfigFromConfig(config(dataDir), {} as never)).toThrow(
+      "engineConfigFromConfig requires catalog or models",
+    );
+  });
+
   it("projects immutable engine config with independent chat and compact windows", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
-    expect(ports.config).toEqual({
+    expect(ports.config).toMatchObject({
       dataSource: "platform",
       llm: {
         provider: "anthropic",
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         compactModel: "claude-haiku-4-5-20251001",
         apiKey: "test",
+      },
+      models: {
+        catalogRevision: 2,
+        chat: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-sonnet-5",
+          contextWindowTokens: 1_000_000,
+        },
+        compact: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-haiku-4-5-20251001",
+          contextWindowTokens: 200_000,
+        },
+        flush: {
+          kind: "catalog",
+          provider: "anthropic",
+          model: "claude-sonnet-5",
+          contextWindowTokens: 1_000_000,
+        },
       },
       session: {
         historyTokenBudgetRatio: 0.3,
@@ -170,11 +212,34 @@ describe("engine host adapter", () => {
     expect(Object.isFrozen(ports.config)).toBe(true);
     expect(Object.isFrozen(ports.config.llm)).toBe(true);
     expect(Object.isFrozen(ports.config.session)).toBe(true);
+    expect(Object.isFrozen(ports.config.models)).toBe(true);
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(true);
+  });
+
+  it("does not persist selected profiles when opened with already resolved models", () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-models-"));
+    const projected = engineConfigFromConfig(config(dataDir), {
+      catalog: bundledAcceptedCatalog(),
+    });
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(false);
+    createEngineHostAdapter({
+      models: projected.models,
+      config: config(dataDir),
+      stateReader: legacyStateReader,
+    });
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(false);
   });
 
   it("exposes one stable Core-owned conversation coordinator for both ports", () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-transcript-"));
     const { ports, conversationStore } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
@@ -187,6 +252,7 @@ describe("engine host adapter", () => {
   it("wires the exact rejecting legacy athlete-state reader", async () => {
     dataDir = mkdtempSync(join(tmpdir(), "engine-host-"));
     const { ports } = createEngineHostAdapter({
+      catalog: bundledAcceptedCatalog(),
       config: config(dataDir),
       stateReader: legacyStateReader,
     });
@@ -316,6 +382,7 @@ describe("engine host adapter", () => {
       const { ports } = createFreshAdapter({
         config: codexConfig(dataDir),
         stateReader: legacyStateReader,
+        catalog: bundledAcceptedCatalog(),
       });
       const engine = createCoachEngine({ sport, ports });
 

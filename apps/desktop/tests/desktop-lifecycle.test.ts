@@ -105,4 +105,22 @@ describe("desktop platform lifecycle", () => {
     relay.request();
     expect(target.showMainWindow).toHaveBeenCalledOnce();
   });
+
+  it("owns one model catalog lifecycle across startup, resume, and shutdown", async () => {
+    const source = await readFile(new URL("../src/main/index.ts", import.meta.url), "utf8");
+    const start = "await modelCatalog.start();";
+    const forwardResume = "const onModelCatalogResume = (): void => modelCatalog.notifyResumed();";
+    const bindResume = 'powerMonitor.on("resume", onModelCatalogResume);';
+    const unbindResume = 'powerMonitor.off("resume", onModelCatalogResume);';
+    const shutdown = "await modelCatalog.shutdown();";
+
+    expect(source.split(start)).toHaveLength(2);
+    expect(source.split(forwardResume)).toHaveLength(2);
+    expect(source.split(bindResume)).toHaveLength(2);
+    expect(source.split(unbindResume)).toHaveLength(2);
+    expect(source.split(shutdown)).toHaveLength(2);
+    expect(source.indexOf(start)).toBeLessThan(source.indexOf(bindResume));
+    expect(source.indexOf(forwardResume)).toBeLessThan(source.indexOf(bindResume));
+    expect(source.indexOf(unbindResume)).toBeLessThan(source.indexOf(shutdown));
+  });
 });

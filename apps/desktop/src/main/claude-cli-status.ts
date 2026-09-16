@@ -10,7 +10,7 @@ import {
   type ClaudeWorkingAreaPort,
   type EnsureClaudeCliReadyDeps,
 } from "@enduragent/core";
-import type { ConfigureRuntimeRpcParams } from "@enduragent/coach-contract";
+import type { ConfigureRuntimeRpcParams, ModelCatalogSnapshot } from "@enduragent/coach-contract";
 import { parse } from "yaml";
 import {
   isClaudeCliLaneEligible,
@@ -52,7 +52,10 @@ export interface ClaudeCliStatusController {
   status(): Promise<ClaudeCliStatus>;
   recheck(): Promise<ClaudeCliStatus>;
   invalidateProbeCache(): void;
-  activate(selection: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
+  activate(
+    selection: OnboardingLlmSelection,
+    catalogSnapshot: ModelCatalogSnapshot,
+  ): Promise<OnboardingLlmSelectionResult>;
 }
 
 export type ClaudeCliStatusDependencies = Pick<
@@ -310,7 +313,7 @@ export function createClaudeCliStatus(
       invalidate();
       latestReadyStatus = null;
     },
-    async activate(input) {
+    async activate(input, catalogSnapshot) {
       let selection: ReturnType<typeof parseClaudeCliLlmSelection>;
       try {
         selection = parseClaudeCliLlmSelection(input);
@@ -325,7 +328,9 @@ export function createClaudeCliStatus(
         return { status: "refused", reason: "credential-required" };
       }
       try {
-        await options.applyRuntimeConfig(runtimeConfigurationForSelection(selection));
+        await options.applyRuntimeConfig(
+          runtimeConfigurationForSelection(selection, undefined, catalogSnapshot),
+        );
       } catch {
         return { status: "refused", reason: "runtime-unavailable" };
       }

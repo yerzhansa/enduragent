@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { LlmProviderSchema, type LlmProvider } from "./llm-provider.js";
+import { ModelCatalogSnapshotSchema } from "./model-catalog.js";
 import { LanguageTagSchema } from "./language.js";
 import { AthleteStateSchema } from "./athlete-state.js";
 import { isActiveIanaZone } from "./time-zone.js";
@@ -901,21 +903,8 @@ export const SaveIntakeRpcResultSchema = z
   .strict();
 export type SaveIntakeRpcResult = z.infer<typeof SaveIntakeRpcResultSchema>;
 
-export const LlmProviderSchema = z.enum([
-  "anthropic",
-  "openai",
-  "google",
-  "openai-codex",
-  "claude-cli",
-  "codex-agent",
-  "deepseek",
-  "qwen",
-  "minimax",
-  "kimi",
-  "zai",
-  "openrouter",
-]);
-export type LlmProvider = z.infer<typeof LlmProviderSchema>;
+export { LlmProviderSchema };
+export type { LlmProvider };
 
 export const KEYLESS_LLM_PROVIDERS = ["openai-codex", "claude-cli", "codex-agent"] as const;
 
@@ -961,6 +950,7 @@ const RuntimeLlmSchema = z
     compact_model: RuntimeOptionalStringSchema.optional(),
     claude_cli: RuntimeClaudeCliSchema.optional(),
     codex_agent: RuntimeCodexAgentSchema.optional(),
+    catalog_snapshot: ModelCatalogSnapshotSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {

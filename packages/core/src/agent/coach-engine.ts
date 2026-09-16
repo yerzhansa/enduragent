@@ -6,7 +6,8 @@ import type { CoachEngine, SettleRequest } from "@enduragent/coach-contract";
 import type { ConfirmationGate } from "./confirmation-gate.js";
 import { CoachAgent } from "./coach-agent.js";
 import type { AthleteDataReader, PlatformCalendarMutations } from "../athlete-data.js";
-import type { ModelTransportDecorator } from "@enduragent/engine";
+import type { AcceptedModelCatalogRecord } from "../model-catalog.js";
+import type { ModelTransportDecorator, EngineResolvedModelProfiles } from "@enduragent/engine";
 
 /**
  * In-process canonical engine handle plus the one composition-root
@@ -19,18 +20,21 @@ export interface LocalCoachEngine extends CoachEngine {
   settle(request?: SettleRequest): Promise<void>;
 }
 
-export interface LegacyEngineOverrides {
+export type LegacyEngineOverrides = {
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;
   readonly modelTransportDecorator?: ModelTransportDecorator;
   readonly onToolsAssembled?: (names: readonly string[]) => void;
-}
+} & (
+  | { readonly catalog: AcceptedModelCatalogRecord }
+  | { readonly models: EngineResolvedModelProfiles }
+);
 
 export function createCoachEngine(
   sport: Sport,
   config: Config,
-  deps?: LegacyEngineOverrides,
+  deps: LegacyEngineOverrides,
 ): LocalCoachEngine {
-  return deps === undefined ? new CoachAgent(sport, config) : new CoachAgent(sport, config, deps);
+  return new CoachAgent(sport, config, deps);
 }

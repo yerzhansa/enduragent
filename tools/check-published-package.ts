@@ -12,6 +12,7 @@ const requiredFiles = [
   "package/dist/LICENSE",
   "package/dist/NOTICE.md",
   "package/dist/THIRD_PARTY_LICENSES.txt",
+  "package/dist/bundled-model-catalog.json",
   "package/README.md",
   "package/package.json",
 ];
