@@ -53,6 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
       - name: Resolve release
         id: release
         env:

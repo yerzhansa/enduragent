@@ -50,6 +50,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
       - name: Prepare catalog pin
         id: pin
         env:
@@ -82,6 +83,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
 
       - name: Materialize release catalog
         env:

@@ -131,7 +131,9 @@ describe("model catalog release pin command", () => {
         verb === "extract"
           ? [verb, "--kind", "npm-tarball", "--path", "missing.tgz"]
           : [verb, "--source-commit", SOURCE_COMMIT];
-      await expect(runModelCatalogReleasePinCommand(args, { output: () => undefined })).rejects.toMatchObject({
+      await expect(
+        runModelCatalogReleasePinCommand(args, { output: () => undefined }),
+      ).rejects.toMatchObject({
         code: "validation",
         message: "--now-iso is required",
       });
@@ -153,15 +155,7 @@ describe("model catalog release pin command", () => {
   it("rejects a duplicated --now-iso", async () => {
     await expect(
       runModelCatalogReleasePinCommand(
-        [
-          "prepare",
-          "--now-iso",
-          NOW_ISO,
-          "--now-iso",
-          NOW_ISO,
-          "--source-commit",
-          SOURCE_COMMIT,
-        ],
+        ["prepare", "--now-iso", NOW_ISO, "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT],
         { output: () => undefined },
       ),
     ).rejects.toMatchObject({
@@ -350,5 +344,11 @@ describe("model catalog release pin command", () => {
       expect(source).not.toMatch(/new Date\(/);
       expect(source).not.toMatch(/Math\.random/);
     }
+  });
+
+  it("loads the default seed from core source", () => {
+    expect(COMMAND_SOURCE).toContain(
+      'import { BUNDLED_MODEL_CATALOG } from "../packages/core/src/model-catalog-seed.js";',
+    );
   });
 });

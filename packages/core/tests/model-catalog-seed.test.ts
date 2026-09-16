@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   ModelCatalogSnapshotSchema,
@@ -20,6 +22,26 @@ function baselinePricing(pricing: CatalogPricing) {
 }
 
 describe("bundled model catalog seed", () => {
+  it("imports the snapshot schema from the built coach-contract export", () => {
+    const seed = readFileSync(
+      fileURLToPath(new URL("../src/model-catalog-seed.ts", import.meta.url)),
+      "utf8",
+    );
+    const manifest = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL("../../coach-contract/package.json", import.meta.url)),
+        "utf8",
+      ),
+    ) as {
+      exports?: { "./model-catalog"?: { types?: string; import?: string } };
+    };
+    expect(seed).toContain('from "@enduragent/coach-contract/model-catalog"');
+    expect(manifest.exports?.["./model-catalog"]).toEqual({
+      types: "./dist/model-catalog.d.ts",
+      import: "./dist/model-catalog.js",
+    });
+  });
+
   it("is valid and preserves the frozen compiled baseline", () => {
     expect(ModelCatalogSnapshotSchema.safeParse(BUNDLED_MODEL_CATALOG).success).toBe(true);
     expect(
