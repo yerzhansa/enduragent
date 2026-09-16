@@ -450,6 +450,10 @@ function identity(stats: Stats): FileIdentity {
   return { dev: stats.dev, ino: stats.ino };
 }
 
+function isStrictPrivateDirectory(stats: Stats): boolean {
+  return !stats.isSymbolicLink() && stats.isDirectory() && (stats.mode & 0o7777) === 0o700;
+}
+
 function isStrictPrivateFile(stats: Stats, allowedLinks: 1 | 2 = 1): boolean {
   return (
     !stats.isSymbolicLink() &&
@@ -1332,21 +1336,22 @@ export class TranscriptStore implements TranscriptWriterPort {
         constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
       );
       try {
-        if (created) fchmodSync(descriptor, 0o700);
-        const opened = fstatSync(descriptor);
-        if (
-          !sameIdentity(identity(beforeOpen), identity(opened)) ||
-          !opened.isDirectory() ||
-          (opened.mode & 0o7777) !== 0o700
-        ) {
-          throw new UnsafeTranscriptTargetError();
+        let hardened = true;
+        if (created || !isStrictPrivateDirectory(fstatSync(descriptor))) {
+          try {
+            fchmodSync(descriptor, 0o700);
+          } catch {
+            hardened = false;
+          }
         }
+        const opened = fstatSync(descriptor);
         const afterOpen = lstatSync(this.transcriptsDir);
         if (
-          afterOpen.isSymbolicLink() ||
-          !afterOpen.isDirectory() ||
-          (afterOpen.mode & 0o7777) !== 0o700 ||
-          !sameIdentity(identity(afterOpen), identity(opened))
+          !hardened ||
+          !isStrictPrivateDirectory(opened) ||
+          !isStrictPrivateDirectory(afterOpen) ||
+          !sameIdentity(identity(beforeOpen), identity(opened)) ||
+          !sameIdentity(identity(opened), identity(afterOpen))
         ) {
           throw new UnsafeTranscriptTargetError();
         }
