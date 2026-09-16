@@ -80,8 +80,9 @@
       "refreshing": "再接続して現在のトレーニングアカウントを確認中…",
       "reload": "再接続して再読み込み",
       "restriction": {
-        "cause": "{{strava}}のAPI制限により、{{intervalsLower}}は{{strava}}由来のアクティビティを{{product}}と共有できません。APIキーに問題はありません。",
+        "cause": "{{strava}}は、サードパーティーのAIツールがAPIのデータを使うことを認めていません。APIキーに問題はありません。",
         "future": "記録元を{{intervalsLower}}に直接接続し、{{strava}}との接続も維持してください。無料で利用でき、今後のライドに適用されます。",
+        "helpAction": "それらのライドを取り込む",
         "past": "{{intervalsLower}}の設定で「{{strava}}の全データをインポート」を使用してください。過去のライドに適用され、{{intervalsLower}}のサポーター登録が必要です。",
         "title_other": "{{total}}件中{{restricted}}件のアクティビティが{{strava}}により非表示になっています"
       },
@@ -820,12 +821,12 @@
         "external": "{{message}}",
         "indeterminate": "接続が中断されました。同期はまだ完了処理中の可能性があります。{{product}}は自動で再試行しません。",
         "noChange": "このコンピュータでのトレーニングデータの処理が完了しました。",
-        "noChangeRestricted_other": "このコンピュータでのトレーニングデータの処理が完了しました。{{source}}のAPI制限により、{{provider}}は{{formattedCount}}件のアクティビティを共有できないため、これらは含まれていません。",
+        "noChangeRestricted_other": "このコンピュータでのトレーニングデータの処理が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "operationFailure": "トレーニングデータの確認を完了できませんでした。既存のデータは引き続き利用できます。",
         "partial": "トレーニングデータの処理が一部完了しました。完了するには、もう一度お試しください。",
         "protocol": "{{product}}は同期結果を確認できませんでした。{{product}}を終了して開き直してください。",
         "published": "トレーニングデータの確認が完了しました。",
-        "publishedRestricted_other": "トレーニングデータの確認が完了しました。{{source}}のAPI制限により、{{provider}}は{{formattedCount}}件のアクティビティを共有できないため、これらは含まれていません。",
+        "publishedRestricted_other": "トレーニングデータの確認が完了しました。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていないため、{{formattedCount}}件のアクティビティは含まれていません。",
         "queued": "同期待ちです。",
         "running": "トレーニングデータを同期中…"
       },
@@ -833,7 +834,7 @@
         "fixAction": "· 対処方法",
         "fixLabel": "{{restrictionLabel}}。対処方法",
         "label_other": "{{source}}により{{formattedCount}}件が非表示",
-        "tooltipBody": "{{source}}のAPI制限により、{{provider}}はこれらのアクティビティを{{product}}と共有できません。",
+        "tooltipBody": "{{source}}は、サードパーティーのAIツールがAPIのデータを使うことを認めていません。",
         "tooltipLabel": "アクティビティが非表示になる理由",
         "tooltipLead_other": "{{source}}により{{formattedCount}}件のアクティビティが非表示"
       },
@@ -2753,7 +2754,7 @@
       "lastSync": "最終同期: {{timestamp}}",
       "minutesAgo": "{{minutes}}分前",
       "refreshed": "更新済み: {{sections}}",
-      "restricted_other": "全{{total}}件のアクティビティのうち{{number}}件は{{source}}によって非表示になっているため、含まれていません。{{source}}のAPI制限により、{{service}}は{{source}}由来のアクティビティを共有できません。今後のライドには、記録元を{{service}}に直接接続し、{{source}}との接続も維持してください。過去のライドには、{{service}}の設定にある{{importAction}}を使ってください。{{service}}のサポーター登録が必要です。",
+      "restricted_other": "全{{total}}件のアクティビティのうち{{number}}件は{{source}}によって非表示になっているため、含まれていません。{{source}}はサードパーティーのAIツールがAPIのデータを使うことを認めていません。今後のライドには、記録元を{{service}}に直接接続し、{{source}}との接続も維持してください。過去のライドには、{{service}}の設定にある{{importAction}}を使ってください。{{service}}のサポーター登録が必要です。",
       "running": "すでに同期中です。約{{minutes}}分以内に完了し、データが最新の状態になります。",
       "secondsAgo": "{{seconds}}秒前",
       "unchanged": "すでに最新の状態です。前回の同期から変更はありません。",
