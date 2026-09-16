@@ -179,7 +179,7 @@ describe("engine host adapter", () => {
         apiKey: "test",
       },
       models: {
-        catalogRevision: 1,
+        catalogRevision: 2,
         chat: {
           kind: "catalog",
           provider: "anthropic",
