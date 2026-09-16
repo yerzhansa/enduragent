@@ -52,4 +52,41 @@ describe("bundled model catalog seed", () => {
       /baseUrl|endpoint|apiKey|auth|executable|enabled|providerOptions/,
     );
   });
+
+  it("includes the revision-2 model ids without dropping legacy DeepSeek V4 Flash", () => {
+    expect(BUNDLED_MODEL_CATALOG.revision).toBe(2);
+    const ids = Object.fromEntries(
+      BUNDLED_MODEL_CATALOG.providers.map((provider) => [
+        provider.providerId,
+        provider.models.map((model) => model.modelId),
+      ]),
+    );
+    expect(ids.openai).toContain("gpt-6-astra");
+    expect(ids.anthropic).toContain("claude-fable-5-1");
+    expect(ids["claude-cli"]).toContain("fable");
+    expect(ids.google).toEqual(expect.arrayContaining(["gemini-3.8-flash", "gemini-3.7-flash"]));
+    expect(ids.deepseek).toEqual(expect.arrayContaining(["deepseek-flash", "deepseek-v4-flash"]));
+    expect(ids.qwen).toEqual(expect.arrayContaining(["qwen3.8-max", "qwen3.8-flash"]));
+    expect(ids.zai).toContain("glm-5.3-flash");
+    expect(ids.zai).not.toContain("glm-5.3");
+    expect(ids.kimi).toContain("kimi-k2.7-code");
+    expect(ids.minimax).toContain("MiniMax-M2.7-highspeed");
+    expect(ids.openrouter).toEqual(
+      expect.arrayContaining([
+        "openai/gpt-6-astra",
+        "anthropic/claude-fable-5.1",
+        "deepseek/deepseek-v4.1-flash",
+        "qwen/qwen3.8-max",
+        "z-ai/glm-5.3-flash",
+        "moonshotai/kimi-k2.7-code",
+      ]),
+    );
+    expect(ids["openai-codex"]).not.toContain("gpt-6-astra");
+    expect(ids["codex-agent"]).not.toContain("gpt-6-astra");
+    expect(
+      BUNDLED_MODEL_CATALOG.providers
+        .find((provider) => provider.providerId === "openai")
+        ?.models.find((model) => model.modelId === "gpt-6-astra")?.compatibilityProfile,
+    ).toBe("openai-astra-v1");
+  });
 });

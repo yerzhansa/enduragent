@@ -21,6 +21,8 @@ const children: ChildProcess[] = [];
 const directories: string[] = [];
 const servers: CountedHttpServer[] = [];
 const baseTime = Date.parse("1998-01-01T00:00:00.000Z");
+const BUNDLED_REVISION = BUNDLED_MODEL_CATALOG.revision;
+const FIRST_REMOTE_REVISION = BUNDLED_REVISION + 1;
 
 function tempDirectory(prefix: string): string {
   const directory = mkdtempSync(join(tmpdir(), prefix));
@@ -30,7 +32,7 @@ function tempDirectory(prefix: string): string {
 
 function candidate() {
   const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
-  snapshot.revision = 2;
+  snapshot.revision = FIRST_REMOTE_REVISION;
   snapshot.provenance = { kind: "published", publishedAt: "1998-01-01T00:00:00.000Z" };
   return snapshot;
 }
@@ -547,7 +549,7 @@ describe("model catalog interprocess request boundary", () => {
         mode: "read",
       }),
     );
-    expect(liveOwnerRevision).toBe("2");
+    expect(liveOwnerRevision).toBe(String(FIRST_REMOTE_REVISION));
     expect(server.requests).toHaveLength(1);
 
     writeFileSync(releasePath, "release\n");
@@ -563,7 +565,7 @@ describe("model catalog interprocess request boundary", () => {
       ),
     );
     expect(exitedOwnerSelection).toMatchObject({
-      revision: 2,
+      revision: FIRST_REMOTE_REVISION,
       providers: expect.arrayContaining([
         expect.objectContaining({
           provider: "anthropic",
@@ -601,7 +603,7 @@ describe("model catalog interprocess request boundary", () => {
         }),
       ),
     );
-    expect(selection).toMatchObject({ revision: 2 });
+    expect(selection).toMatchObject({ revision: FIRST_REMOTE_REVISION });
 
     await childOutput(
       runChild({
@@ -667,7 +669,7 @@ describe("model catalog HTTPS process boundary", () => {
         }),
       );
       expect(rejectedOutput).toBe(
-        '{"lifecycle":{"kind":"owner"},"outcome":{"kind":"retained","reason":"request-failed","revision":1}}',
+        `{"lifecycle":{"kind":"owner"},"outcome":{"kind":"retained","reason":"request-failed","revision":${BUNDLED_REVISION}}}`,
       );
       expect(rejectedServer.requests).toHaveLength(0);
 
@@ -688,7 +690,7 @@ describe("model catalog HTTPS process boundary", () => {
         }),
       );
       expect(replacementOutput).toBe(
-        '{"lifecycle":{"kind":"owner"},"outcome":{"kind":"retained","reason":"not-due","revision":1}}',
+        `{"lifecycle":{"kind":"owner"},"outcome":{"kind":"retained","reason":"not-due","revision":${BUNDLED_REVISION}}}`,
       );
       expect(validServer.requests).toHaveLength(0);
     },
@@ -714,7 +716,7 @@ describe("model catalog HTTPS process boundary", () => {
       }),
     );
     expect(refreshOutput).toBe(
-      '{"lifecycle":{"kind":"owner"},"outcome":{"kind":"updated","revision":2}}',
+      `{"lifecycle":{"kind":"owner"},"outcome":{"kind":"updated","revision":${FIRST_REMOTE_REVISION}}}`,
     );
     expect(server.requests).toHaveLength(1);
 
@@ -727,7 +729,7 @@ describe("model catalog HTTPS process boundary", () => {
         mode: "read",
       }),
     );
-    expect(loadedRevision).toBe("2");
+    expect(loadedRevision).toBe(String(FIRST_REMOTE_REVISION));
     expect(server.requests).toHaveLength(1);
   }, 20_000);
 });

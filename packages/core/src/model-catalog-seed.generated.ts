@@ -1,6 +1,6 @@
 export const GENERATED_MODEL_CATALOG_SEED = {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "provenance": {
     "kind": "bundled-seed",
     "establishedAt": "2026-09-13T00:00:00.000Z"
@@ -68,6 +68,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "cacheReadUsdPerMillion": 0.5,
             "cacheWriteUsdPerMillion": 6.25
           }
+        },
+        {
+          "modelId": "claude-fable-5-1",
+          "label": "Claude Fable 5.1",
+          "order": 3,
+          "compatibilityProfile": "anthropic-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "supported",
+          "pricing": {
+            "kind": "unknown"
+          }
         }
       ]
     },
@@ -133,6 +147,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "cacheReadUsdPerMillion": 0.1,
             "cacheWriteUsdPerMillion": 0
           }
+        },
+        {
+          "modelId": "gpt-6-astra",
+          "label": "GPT-6 Astra",
+          "order": 3,
+          "compatibilityProfile": "openai-astra-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1050000
+          },
+          "imageInput": "supported",
+          "pricing": {
+            "kind": "unknown"
+          }
         }
       ]
     },
@@ -197,6 +225,34 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "outputUsdPerMillion": 2.5,
             "cacheReadUsdPerMillion": 0.03,
             "cacheWriteUsdPerMillion": 0
+          }
+        },
+        {
+          "modelId": "gemini-3.8-flash",
+          "label": "Gemini 3.8 Flash",
+          "order": 3,
+          "compatibilityProfile": "google-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1048576
+          },
+          "imageInput": "supported",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "gemini-3.7-flash",
+          "label": "Gemini 3.7 Flash",
+          "order": 4,
+          "compatibilityProfile": "google-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1048576
+          },
+          "imageInput": "supported",
+          "pricing": {
+            "kind": "unknown"
           }
         }
       ]
@@ -311,6 +367,24 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "cacheReadUsdPerMillion": 0.1,
             "cacheWriteUsdPerMillion": 1.25
           }
+        },
+        {
+          "modelId": "fable",
+          "label": "Claude Fable",
+          "order": 3,
+          "compatibilityProfile": "claude-cli-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 200000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "token-rates",
+            "inputUsdPerMillion": 2,
+            "outputUsdPerMillion": 10,
+            "cacheReadUsdPerMillion": 0.2,
+            "cacheWriteUsdPerMillion": 2.5
+          }
         }
       ]
     },
@@ -340,6 +414,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
           "label": "DeepSeek V4 Pro",
           "order": 1,
           "hint": "most capable",
+          "compatibilityProfile": "deepseek-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "deepseek-flash",
+          "label": "DeepSeek V4.1 Flash",
+          "order": 2,
           "compatibilityProfile": "deepseek-ai-sdk-v1",
           "contextWindow": {
             "kind": "known",
@@ -386,6 +474,34 @@ export const GENERATED_MODEL_CATALOG_SEED = {
           "pricing": {
             "kind": "unknown"
           }
+        },
+        {
+          "modelId": "qwen3.8-max",
+          "label": "Qwen3.8 Max",
+          "order": 2,
+          "compatibilityProfile": "alibaba-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "qwen3.8-flash",
+          "label": "Qwen3.8 Flash",
+          "order": 3,
+          "compatibilityProfile": "alibaba-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
+          }
         }
       ]
     },
@@ -414,6 +530,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
           "modelId": "MiniMax-M2.7",
           "label": "MiniMax M2.7",
           "order": 1,
+          "compatibilityProfile": "openai-compatible-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 204800
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "MiniMax-M2.7-highspeed",
+          "label": "MiniMax M2.7 Highspeed",
+          "order": 2,
           "compatibilityProfile": "openai-compatible-v1",
           "contextWindow": {
             "kind": "known",
@@ -452,6 +582,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
           "label": "Kimi K2.6",
           "order": 1,
           "hint": "cheaper",
+          "compatibilityProfile": "openai-compatible-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 262144
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "kimi-k2.7-code",
+          "label": "Kimi K2.7 Code",
+          "order": 2,
           "compatibilityProfile": "openai-compatible-v1",
           "contextWindow": {
             "kind": "known",
@@ -525,6 +669,20 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "outputUsdPerMillion": 0.4,
             "cacheReadUsdPerMillion": 0.01,
             "cacheWriteUsdPerMillion": 0
+          }
+        },
+        {
+          "modelId": "glm-5.3-flash",
+          "label": "GLM-5.3 Flash",
+          "order": 3,
+          "compatibilityProfile": "openai-compatible-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 200000
+          },
+          "imageInput": "incompatible",
+          "pricing": {
+            "kind": "unknown"
           }
         }
       ]
@@ -608,6 +766,90 @@ export const GENERATED_MODEL_CATALOG_SEED = {
             "outputUsdPerMillion": 15,
             "cacheReadUsdPerMillion": 0.3,
             "cacheWriteUsdPerMillion": 0
+          }
+        },
+        {
+          "modelId": "openai/gpt-6-astra",
+          "label": "GPT-6 Astra (via OpenRouter)",
+          "order": 4,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1050000
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "anthropic/claude-fable-5.1",
+          "label": "Claude Fable 5.1 (via OpenRouter)",
+          "order": 5,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "deepseek/deepseek-v4.1-flash",
+          "label": "DeepSeek V4.1 Flash (via OpenRouter)",
+          "order": 6,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "qwen/qwen3.8-max",
+          "label": "Qwen3.8 Max (via OpenRouter)",
+          "order": 7,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 1000000
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "z-ai/glm-5.3-flash",
+          "label": "GLM-5.3 Flash (via OpenRouter)",
+          "order": 8,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 200000
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "modelId": "moonshotai/kimi-k2.7-code",
+          "label": "Kimi K2.7 Code (via OpenRouter)",
+          "order": 9,
+          "compatibilityProfile": "openrouter-ai-sdk-v1",
+          "contextWindow": {
+            "kind": "known",
+            "tokens": 262144
+          },
+          "imageInput": "provider-metadata",
+          "pricing": {
+            "kind": "unknown"
           }
         }
       ]

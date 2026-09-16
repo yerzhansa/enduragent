@@ -191,7 +191,7 @@ describe("Astra explicit public API selection", () => {
     expect(initial.llm.model).toBe("gpt-5.6-sol");
     const selected = resolveRuntimeConfig({ llm: { model: "gpt-6-astra" } }, initial);
     expect(selected.llm).toEqual({ ...initial.llm, model: "gpt-6-astra" });
-    expect(selected.contextWindowTokens).toBe(200_000);
+    expect(selected.contextWindowTokens).toBe(1_050_000);
     const restored = resolveRuntimeConfig({ llm: { model: "gpt-5.6-sol" } }, selected);
     expect(restored.llm).toEqual(initial.llm);
     expect(restored.contextWindowTokens).toBe(initial.contextWindowTokens);

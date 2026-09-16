@@ -72,7 +72,7 @@ describe("claude-cli provider registry", () => {
       BUNDLED_MODEL_CATALOG.providers
         .find((provider) => provider.providerId === "claude-cli")
         ?.models.map((model) => model.modelId),
-    ).toEqual(["sonnet", "opus", "haiku"]);
+    ).toEqual(["sonnet", "opus", "haiku", "fable"]);
   });
 
   it("defaults the chat model to sonnet and the compaction model to haiku", () => {

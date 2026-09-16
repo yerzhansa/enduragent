@@ -237,7 +237,7 @@ describe("model catalog compatibility filtering", () => {
     const result = evaluateModelCatalogCandidate(candidate, "candidate-etag", previous);
     expect(result).toEqual({ kind: "retained", reason: "no-usable-choices", record: previous });
     expect(result.record).toBe(previous);
-    expect(result.record.snapshot.revision).toBe(1);
+    expect(result.record.snapshot.revision).toBe(BUNDLED_MODEL_CATALOG.revision);
     expect(result.record.etag).toBe("seed-etag");
   });
 });
