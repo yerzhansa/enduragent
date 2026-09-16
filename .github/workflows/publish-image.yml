@@ -165,21 +165,6 @@ jobs:
           set -euo pipefail
           test -n "$NOW_ISO"
           short_sha="${GITHUB_SHA::12}"
-          retry_extract() {
-            local attempt=1
-            local delay=4
-            while true; do
-              if pnpm --silent models:release-pin extract "$@"; then
-                return 0
-              fi
-              if [ "$attempt" -ge 5 ]; then
-                return 1
-              fi
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
           for image in cycling-coach enduragent; do
             if [ "$image" = cycling-coach ]; then
               reference="${IMAGE_NAME}:main-${short_sha}"
@@ -187,13 +172,25 @@ jobs:
               reference="${ALIAS_IMAGE_NAME}:main-${short_sha}"
             fi
             for platform in linux/amd64 linux/arm64; do
-              retry_extract --kind oci-image \
-                --reference "$reference" \
-                --image "$image" \
-                --platform "$platform" \
-                --now-iso "$NOW_ISO" \
-                --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
-                --expected-revision "$CATALOG_REVISION" \
-                --expected-digest "$CATALOG_DIGEST"
+              attempt=1
+              delay=4
+              while true; do
+                if pnpm --silent models:release-pin extract --kind oci-image \
+                  --reference "$reference" \
+                  --image "$image" \
+                  --platform "$platform" \
+                  --now-iso "$NOW_ISO" \
+                  --expected-release-group-id "$CATALOG_RELEASE_GROUP_ID" \
+                  --expected-revision "$CATALOG_REVISION" \
+                  --expected-digest "$CATALOG_DIGEST"; then
+                  break
+                fi
+                if [ "$attempt" -ge 5 ]; then
+                  exit 1
+                fi
+                sleep "$delay"
+                attempt=$((attempt + 1))
+                delay=$((delay * 2))
+              done
             done
           done
