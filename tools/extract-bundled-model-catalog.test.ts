@@ -293,7 +293,7 @@ describe("materialize and bundled catalog extract", () => {
             encoding: "buffer",
             maxBuffer: previousUnzipMaxBuffer,
           }),
-        ).toThrow(/stdout maxBuffer length exceeded/);
+        ).toThrow(/stdout maxBuffer length exceeded|ENOBUFS/);
 
         const extracted = await extractBundledCatalog({ kind: "macos-zip", path: zipPath });
         expect(extracted.digest).toBe(prepared.record.digest);
