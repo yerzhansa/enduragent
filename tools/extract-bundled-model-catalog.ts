@@ -1,5 +1,5 @@
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { mkdtemp, open, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,6 +24,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const MAX_BUFFER = 32 * 1024 * 1024;
+const STDERR_MAX_BUFFER = 64 * 1024;
 const MACOS_ASAR_ENTRY = "Enduragent.app/Contents/Resources/app.asar";
 const WINDOWS_ASAR_SEGMENTS = ["resources", "app.asar"] as const;
 const GHCR_NAMESPACE = "ghcr.io/yerzhansa";
@@ -127,6 +128,63 @@ async function runBuffer(command: string, args: readonly string[]): Promise<Buff
   }
 }
 
+function collectLimitedStderr(stream: NodeJS.ReadableStream): () => Buffer {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  stream.on("data", (chunk: Buffer | string) => {
+    if (bytes >= STDERR_MAX_BUFFER) return;
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    const take = Math.min(buffer.byteLength, STDERR_MAX_BUFFER - bytes);
+    chunks.push(take === buffer.byteLength ? buffer : buffer.subarray(0, take));
+    bytes += take;
+  });
+  return () => Buffer.concat(chunks);
+}
+
+async function runStdoutToFile(
+  command: string,
+  args: readonly string[],
+  destPath: string,
+): Promise<void> {
+  const dest = await open(destPath, "w");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(command, [...args], {
+        stdio: ["ignore", dest.fd, "pipe"],
+      });
+      const stderr = child.stderr;
+      if (stderr === null) {
+        child.kill();
+        reject(new Error("stderr is not piped"));
+        return;
+      }
+      const readStderr = collectLimitedStderr(stderr);
+      let settled = false;
+      const settle = (action: () => void): void => {
+        if (settled) return;
+        settled = true;
+        action();
+      };
+      child.once("error", (error) => settle(() => reject(error)));
+      child.once("close", (code) => {
+        settle(() => {
+          if (code === 0) {
+            resolve();
+            return;
+          }
+          const detail = readStderr().toString("utf8").trim();
+          reject(new Error(detail.length > 0 ? detail : `exit ${String(code)}`));
+        });
+      });
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    throw new BundledCatalogExtractError("unreadable", `${command} failed: ${detail}`);
+  } finally {
+    await dest.close();
+  }
+}
+
 function defaultDocker(args: readonly string[]): Promise<string> {
   return runUtf8("docker", args);
 }
@@ -221,8 +279,7 @@ async function extractMacosZip(
   const directory = await mkdtemp(join(tmpdir(), "bundled-catalog-macos-"));
   const asarPath = join(directory, "app.asar");
   try {
-    const bytes = await runBuffer("unzip", ["-p", locator.path, MACOS_ASAR_ENTRY]);
-    await writeFile(asarPath, bytes);
+    await runStdoutToFile("unzip", ["-p", locator.path, MACOS_ASAR_ENTRY], asarPath);
     return await catalogFromSealedBytes(await extractAsarCatalog(asarPath), locator);
   } finally {
     await rm(directory, { force: true, recursive: true });

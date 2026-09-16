@@ -264,6 +264,47 @@ describe("materialize and bundled catalog extract", () => {
     assertArtifactMatchesGroup(extracted, prepared.binding);
   });
 
+  it(
+    "macOS zip extract streams an asar larger than execFile maxBuffer",
+    { timeout: 30_000 },
+    async () => {
+      const previousUnzipMaxBuffer = 32 * 1024 * 1024;
+      const macosAsarEntry = "Enduragent.app/Contents/Resources/app.asar";
+      const largeRoot = mkdtempSync(join(tmpdir(), "catalog-macos-large-"));
+      try {
+        const asarSource = join(largeRoot, "asar-src");
+        writeBundledCatalogArtifact(
+          join(asarSource, "node_modules/@enduragent/core/dist"),
+          prepared.snapshot,
+        );
+        writeFileSync(join(asarSource, "padding.bin"), Buffer.alloc(previousUnzipMaxBuffer + 1));
+        const largeAsar = join(largeRoot, "app.asar");
+        await loadAsarCreate().createPackage(asarSource, largeAsar);
+        expect(statSync(largeAsar).size).toBeGreaterThan(previousUnzipMaxBuffer);
+
+        const appRoot = join(largeRoot, "macos");
+        mkdirSync(join(appRoot, "Enduragent.app/Contents/Resources"), { recursive: true });
+        writeFileSync(join(appRoot, macosAsarEntry), readFileSync(largeAsar));
+        const zipPath = join(largeRoot, "Enduragent-mac-large.zip");
+        execFileSync("zip", ["-q", "-r", zipPath, "Enduragent.app"], { cwd: appRoot });
+
+        expect(() =>
+          execFileSync("unzip", ["-p", zipPath, macosAsarEntry], {
+            encoding: "buffer",
+            maxBuffer: previousUnzipMaxBuffer,
+          }),
+        ).toThrow(/stdout maxBuffer length exceeded/);
+
+        const extracted = await extractBundledCatalog({ kind: "macos-zip", path: zipPath });
+        expect(extracted.digest).toBe(prepared.record.digest);
+        expect(extracted.revision).toBe(prepared.record.revision);
+        assertArtifactMatchesGroup(extracted, prepared.binding);
+      } finally {
+        rmSync(largeRoot, { force: true, recursive: true });
+      }
+    },
+  );
+
   it("windows-unpacked resources/app.asar extracts the same digest", async () => {
     const unpacked = join(artifactRoot, "windows-unpacked");
     mkdirSync(join(unpacked, "resources"), { recursive: true });
