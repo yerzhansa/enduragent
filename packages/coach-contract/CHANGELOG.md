@@ -1,5 +1,11 @@
 # @enduragent/coach-contract
 
+## 0.1.5
+
+### Patch Changes
+
+- 922c4ad: User-facing: Setup and Settings now show the latest accepted models while keeping an open model choice stable until you finish.
+
 ## 0.1.4
 
 ### Patch Changes

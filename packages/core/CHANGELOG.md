@@ -1,5 +1,22 @@
 # @enduragent/core
 
+## 0.1.7
+
+### Patch Changes
+
+- 514f5f9: User-facing: Model limits, image support, and usage costs now remain consistent while Enduragent refreshes its model information.
+- 2ab873b: Keep catalog-to-engine projection as a read. Persist selected model profiles only when an engine is constructed.
+- e7bc80f: User-facing: Setup and Settings now list newer models, including GPT-6 Astra, Claude Fable 5.1, and Gemini 3.8 Flash.
+- 600295a: User-facing: The npm coach now starts the same 24-hour model-list refresh that desktop already runs, so Setup and Chat stay on one list.
+- 922c4ad: User-facing: Setup and Settings now show the latest accepted models while keeping an open model choice stable until you finish.
+- 45c904f: User-facing: Enduragent now starts when chat history folders were created with looser permissions, and tightens those folders so only you can read them.
+- Updated dependencies [514f5f9]
+- Updated dependencies [600295a]
+- Updated dependencies [922c4ad]
+  - @enduragent/engine@0.0.6
+  - @enduragent/coach-contract@0.1.5
+  - @enduragent/i18n@0.2.2
+
 ## 0.1.6
 
 ### Patch Changes

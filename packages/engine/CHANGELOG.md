@@ -1,5 +1,15 @@
 # @enduragent/engine
 
+## 0.0.6
+
+### Patch Changes
+
+- 514f5f9: User-facing: Model limits, image support, and usage costs now remain consistent while Enduragent refreshes its model information.
+- 600295a: User-facing: The npm coach now starts the same 24-hour model-list refresh that desktop already runs, so Setup and Chat stay on one list.
+- Updated dependencies [922c4ad]
+  - @enduragent/coach-contract@0.1.5
+  - @enduragent/i18n@0.2.2
+
 ## 0.0.5
 
 ### Patch Changes

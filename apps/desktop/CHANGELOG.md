@@ -1,5 +1,37 @@
 # @enduragent/desktop
 
+## 0.5.3
+
+### Patch Changes
+
+- 514f5f9: User-facing: Model limits, image support, and usage costs now remain consistent while Enduragent refreshes its model information.
+- e7bc80f: User-facing: Setup and Settings now list newer models, including GPT-6 Astra, Claude Fable 5.1, and Gemini 3.8 Flash.
+- 07f1aa9: User-facing: Chat keeps Plan reviews and coaching choices in conversation order after reopening, with notices that return you to anything still waiting for your review.
+  User-facing: After your training data syncs, the sidebar shows a compact Sync action without repeating completion details.
+- bc98674: User-facing: If a chat send fails, the warning and retry sit on your message as icons, not a separate Retry button under it.
+- 30d7740: User-facing: If a chat send fails, Chat keeps your message in the thread with a warning and Retry, instead of moving it into Queued messages.
+- f349e78: User-facing: When the coach cannot answer, such as a rate limit, Chat pins a red notice under the header with a Retry button beside it, and the Training context sidebar again lines up with the header.
+- 1c46a93: User-facing: Chat tells you when Send is still connecting, and if a draft couldn’t save it says your message is still in the box.
+- 161d07c: User-facing: Chat no longer shows a leftover “Couldn’t reach the coach” line after Send turns on.
+- 922c4ad: User-facing: Setup and Settings now show the latest accepted models while keeping an open model choice stable until you finish.
+- 85e9979: Pin one validated model catalog snapshot per source commit across npm, GHCR, macOS, and Windows release artifacts.
+- 07f1aa9: User-facing: If saving a message draft is interrupted, Chat now says the draft is still available in the current window instead of claiming an attachment failed.
+- 07f1aa9: User-facing: A training data sync now stays connected if another part of the app reconnects at the same time.
+- eb282e3: User-facing: When Strava hides rides, Enduragent now says Strava does not allow third-party AI tools to use that data, and links to a help page on how to get those rides.
+- 45c904f: User-facing: Enduragent now starts when chat history folders were created with looser permissions, and tightens those folders so only you can read them.
+- Updated dependencies [514f5f9]
+- Updated dependencies [2ab873b]
+- Updated dependencies [e7bc80f]
+- Updated dependencies [600295a]
+- Updated dependencies [922c4ad]
+- Updated dependencies [07f1aa9]
+- Updated dependencies [45c904f]
+  - @enduragent/coach@0.1.4
+  - @enduragent/core@0.1.7
+  - @enduragent/coach-contract@0.1.5
+  - @enduragent/coach-client@0.1.5
+  - @enduragent/i18n@0.2.2
+
 ## 0.5.2
 
 ### Patch Changes
