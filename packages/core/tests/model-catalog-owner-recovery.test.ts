@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { BUNDLED_MODEL_CATALOG } from "../src/model-catalog-seed.js";
 import { resolveModelCatalogPaths } from "../src/model-catalog-owner.js";
 import {
+  BUNDLED_REVISION,
+  FIRST_REMOTE_REVISION,
   mkdirSync,
   openCatalog,
   own,
@@ -38,14 +40,17 @@ describe("model catalog local recovery", () => {
     const writer = openCatalog({ endpoint: server.url, installationRoot });
     await own(writer);
 
-    await expect(writer.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(writer.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     const paths = resolveModelCatalogPaths({
       cacheDirectory: tempDirectory("catalog-reader-cache-"),
       installationRoot,
     });
     expect(JSON.parse(readFileSync(paths.ownerSnapshot, "utf8"))).toMatchObject({
       etag: '"revision-2"',
-      snapshot: { revision: 2 },
+      snapshot: { revision: FIRST_REMOTE_REVISION },
     });
 
     const reader = openCatalog({
@@ -53,10 +58,10 @@ describe("model catalog local recovery", () => {
       endpoint: server.url,
       installationRoot,
     });
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     expect(server.requests).toHaveLength(1);
     await writer.shutdown();
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     expect(server.requests).toHaveLength(1);
   });
 
@@ -77,10 +82,10 @@ describe("model catalog local recovery", () => {
       endpoint: server.url,
       installationRoot,
     });
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     const paths = resolveModelCatalogPaths({ cacheDirectory: readerCache, installationRoot });
     expect(JSON.parse(readFileSync(paths.privateSnapshot, "utf8"))).toMatchObject({
-      snapshot: { revision: 2 },
+      snapshot: { revision: FIRST_REMOTE_REVISION },
     });
 
     writeFileSync(paths.ownerSnapshot, "{broken", "utf8");
@@ -89,7 +94,10 @@ describe("model catalog local recovery", () => {
       endpoint: "http://127.0.0.1:1/unreachable",
       installationRoot,
     });
-    expect(restartedReader.current()).toMatchObject({ origin: "private-cache", revision: 2 });
+    expect(restartedReader.current()).toMatchObject({
+      origin: "private-cache",
+      revision: FIRST_REMOTE_REVISION,
+    });
   });
 
   it("ignores corrupt saved records and keeps the bundle offline", async () => {
@@ -106,7 +114,7 @@ describe("model catalog local recovery", () => {
       cacheDirectory,
     });
 
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
     expect(catalog.current().origin).toBe("bundled");
   });
 
@@ -120,8 +128,8 @@ describe("model catalog local recovery", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current()).toMatchObject({ origin: "bundled", revision: 1 });
+    expect(catalog.current()).toMatchObject({ origin: "bundled", revision: BUNDLED_REVISION });
   });
 });

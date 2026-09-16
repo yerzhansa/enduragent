@@ -19,6 +19,9 @@ const catalogs: ModelCatalog[] = [];
 const servers: CountedHttpServer[] = [];
 
 export const baseTime = Date.parse("1998-01-01T00:00:00.000Z");
+export const BUNDLED_REVISION = BUNDLED_MODEL_CATALOG.revision;
+export const FIRST_REMOTE_REVISION = BUNDLED_REVISION + 1;
+export const SECOND_REMOTE_REVISION = BUNDLED_REVISION + 2;
 
 export interface UnreadBodyCase {
   readonly headers: Readonly<Record<string, string>>;
@@ -57,7 +60,7 @@ export function tempDirectory(prefix: string): string {
   return directory;
 }
 
-export function remoteCatalog(revision = 2) {
+export function remoteCatalog(revision = FIRST_REMOTE_REVISION) {
   const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
   snapshot.revision = revision;
   snapshot.provenance = { kind: "published", publishedAt: "1998-01-01T00:00:00.000Z" };

@@ -5,6 +5,9 @@ import {
 } from "../src/model-catalog-owner.js";
 import {
   baseTime,
+  BUNDLED_REVISION,
+  FIRST_REMOTE_REVISION,
+  SECOND_REMOTE_REVISION,
   mkdirSync,
   openCatalog,
   own,
@@ -24,21 +27,27 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const catalog = openCatalog({ endpoint: server.url, now: () => now });
     await own(catalog);
 
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1;
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 2,
+      revision: FIRST_REMOTE_REVISION,
     });
     expect(server.requests).toHaveLength(1);
     now += 1;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -96,7 +105,10 @@ describe("model catalog refresh window", () => {
     now = baseTime - 1_000;
     await expect(catalog.refresh()).resolves.toMatchObject({ kind: "retained", reason: "not-due" });
     now = baseTime + 1_000 + MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(1);
   });
 
@@ -106,7 +118,7 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const catalog = openCatalog({
       elapsedNow: () => elapsedNow,
@@ -114,19 +126,25 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(catalog);
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow += 1_000;
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 2,
+      revision: FIRST_REMOTE_REVISION,
     });
     expect(server.requests).toHaveLength(1);
 
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1_000;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -179,7 +197,10 @@ describe("model catalog refresh window", () => {
     });
     await own(catalog);
 
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(JSON.parse(readFileSync(paths.attemptState, "utf8"))).toMatchObject({
       attemptStatus: "in-flight",
     });
@@ -226,7 +247,7 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-clock-handoff-");
     const first = openCatalog({
@@ -236,7 +257,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -255,7 +279,10 @@ describe("model catalog refresh window", () => {
     expect(server.requests).toHaveLength(1);
 
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1_000;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -265,7 +292,7 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-uptime-reset-");
     const first = openCatalog({
@@ -275,7 +302,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -295,7 +325,10 @@ describe("model catalog refresh window", () => {
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -305,7 +338,7 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-larger-uptime-session-");
     const first = openCatalog({
@@ -315,7 +348,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -327,7 +363,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(replacement);
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -342,7 +381,7 @@ describe("model catalog refresh window", () => {
     let requestCount = 0;
     const fetch = vi.fn<typeof globalThis.fetch>(async () => {
       requestCount += 1;
-      return new Response(JSON.stringify(remoteCatalog(requestCount + 1)), {
+      return new Response(JSON.stringify(remoteCatalog(requestCount + BUNDLED_REVISION)), {
         status: 200,
         headers: { ETag: `"revision-${requestCount + 1}"` },
       });
@@ -357,7 +396,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow = Math.floor(replacementActualUptimeMs / elapsedResolutionMs) * elapsedResolutionMs;
@@ -386,7 +428,10 @@ describe("model catalog refresh window", () => {
     wallNow += 900;
     elapsedNow =
       Math.floor((replacementActualUptimeMs + 900) / elapsedResolutionMs) * elapsedResolutionMs;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -396,7 +441,7 @@ describe("model catalog refresh window", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-undetected-reboot-");
     const first = openCatalog({
@@ -406,7 +451,10 @@ describe("model catalog refresh window", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -426,7 +474,10 @@ describe("model catalog refresh window", () => {
 
     wallNow += 1;
     elapsedNow += 1;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 });

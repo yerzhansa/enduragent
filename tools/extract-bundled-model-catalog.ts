@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-catalog";
+import {
+  ModelCatalogSnapshotSchema,
+  type ModelCatalogSnapshot,
+} from "@enduragent/coach-contract/model-catalog";
 import { jsonBytes, sha256 } from "./model-catalog-bytes.js";
 import {
   ASAR_BUNDLED_CATALOG_ENTRY,
@@ -13,7 +16,11 @@ import {
   IMAGE_BUNDLED_CATALOG_ENTRY,
   NPM_BUNDLED_CATALOG_ENTRY,
 } from "./bundled-model-catalog-artifact.js";
-import { CatalogDigestSchema, type ReleaseBinding } from "./model-catalog-release-pin.js";
+import {
+  CatalogDigestSchema,
+  type CatalogDigest,
+  type ReleaseBinding,
+} from "./model-catalog-release-pin.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_BUFFER = 32 * 1024 * 1024;

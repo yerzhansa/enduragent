@@ -6,6 +6,9 @@ import {
 import {
   __openModelCatalogForTesting,
   baseTime,
+  BUNDLED_REVISION,
+  FIRST_REMOTE_REVISION,
+  SECOND_REMOTE_REVISION,
   mkdirSync,
   openCatalog,
   own,
@@ -41,7 +44,10 @@ describe("model catalog owner lifecycle", () => {
     expect(server.requests).toHaveLength(0);
     expect(catalog.diagnostics().lastAttemptAt).toBe("1998-01-01T00:00:00.000Z");
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(1);
   });
 
@@ -59,7 +65,7 @@ describe("model catalog owner lifecycle", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "claim-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(server.requests).toHaveLength(0);
   });
@@ -82,9 +88,9 @@ describe("model catalog owner lifecycle", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "persistence-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
     expect(server.requests).toHaveLength(1);
   });
 
@@ -145,7 +151,10 @@ describe("model catalog owner lifecycle", () => {
     const firstSuccessfulRefresh = reader.diagnostics().lastSuccessfulRefreshAt;
 
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(owner.refresh()).resolves.toEqual({ kind: "unchanged", revision: 2 });
+    await expect(owner.refresh()).resolves.toEqual({
+      kind: "unchanged",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     expect(reader.diagnostics().lastSuccessfulRefreshAt).not.toBe(firstSuccessfulRefresh);
     expect(reader.diagnostics().lastSuccessfulRefreshAt).toBe("1998-01-02T00:00:00.000Z");
@@ -223,7 +232,7 @@ describe("model catalog owner lifecycle", () => {
     await expect(refresh).resolves.toMatchObject({ kind: "retained", reason: "shutdown" });
     await expect(shutdown).resolves.toBeUndefined();
     await expect(replacement.start()).resolves.toEqual({ kind: "owner" });
-    expect(owner.current().revision).toBe(1);
+    expect(owner.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("releases scheduler ownership and permits a replacement without bypassing the daily claim", async () => {
@@ -256,7 +265,7 @@ describe("model catalog owner lifecycle", () => {
     let requestCount = 0;
     const fetch = vi.fn<typeof globalThis.fetch>(async () => {
       requestCount += 1;
-      const revision = requestCount + 1;
+      const revision = requestCount + BUNDLED_REVISION;
       return new Response(JSON.stringify(remoteCatalog(revision)), {
         status: 200,
         headers: { ETag: `"revision-${revision}"` },
@@ -300,7 +309,7 @@ describe("model catalog owner lifecycle", () => {
     elapsedNow += 1;
     await vi.advanceTimersByTimeAsync(MODEL_CATALOG_REFRESH_INTERVAL_MS);
 
-    expect(catalog.current().revision).toBe(3);
+    expect(catalog.current().revision).toBe(SECOND_REMOTE_REVISION);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(1);
 

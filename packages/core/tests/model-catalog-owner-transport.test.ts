@@ -5,6 +5,8 @@ import {
 } from "../src/model-catalog-owner.js";
 import {
   baseTime,
+  BUNDLED_REVISION,
+  FIRST_REMOTE_REVISION,
   openCatalog,
   own,
   remoteCatalog,
@@ -39,7 +41,7 @@ describe("model catalog request transport", () => {
     await expect(first.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(fetch).not.toHaveBeenCalled();
     await first.shutdown();
@@ -56,12 +58,15 @@ describe("model catalog request transport", () => {
     await expect(replacement.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(fetch).not.toHaveBeenCalled();
 
     now += 1;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(fetch).toHaveBeenCalledOnce();
   });
 
@@ -77,7 +82,9 @@ describe("model catalog request transport", () => {
 
     const outcomes = await Promise.all(Array.from({ length: 40 }, () => catalog.refresh()));
     expect(server.requests).toHaveLength(1);
-    expect(outcomes).toEqual(Array.from({ length: 40 }, () => ({ kind: "updated", revision: 2 })));
+    expect(outcomes).toEqual(
+      Array.from({ length: 40 }, () => ({ kind: "updated", revision: FIRST_REMOTE_REVISION })),
+    );
   });
 
   it("bounds the streamed response at the transport before JSON parsing", async () => {
@@ -97,9 +104,9 @@ describe("model catalog request transport", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "response-too-large",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("times out a slow request and retains local data", async () => {
@@ -115,9 +122,9 @@ describe("model catalog request transport", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("uses a matching ETag and rejects a 304 without one", async () => {
@@ -134,10 +141,16 @@ describe("model catalog request transport", () => {
     );
     const catalog = openCatalog({ endpoint: server.url, now: () => now });
     await own(catalog);
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "unchanged", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "unchanged",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests[1]?.headers["if-none-match"]).toBe('"revision-2"');
 
     const other = openCatalog({
@@ -148,7 +161,7 @@ describe("model catalog request transport", () => {
     await expect(other.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "invalid-not-modified",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
   });
 
@@ -163,9 +176,9 @@ describe("model catalog request transport", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "invalid-response",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("rejects stale, malformed, forbidden, and unusable responses without advancing state", async () => {
@@ -211,11 +224,11 @@ describe("model catalog request transport", () => {
       await expect(catalog.refresh()).resolves.toMatchObject({
         kind: "retained",
         reason,
-        revision: 1,
+        revision: BUNDLED_REVISION,
       });
       now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     }
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it.each(unreadBodyCases)(
@@ -260,7 +273,7 @@ describe("model catalog request transport", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(server.requests).toHaveLength(1);
   });
