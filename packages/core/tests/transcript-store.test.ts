@@ -1359,17 +1359,32 @@ describe("TranscriptStore private race-checked targets", () => {
     expect(readFileSync(join(`${directory}.original`, name))).toHaveLength(0);
   });
 
-  it("refuses an existing permissive transcript directory and a symlink directory", () => {
-    const permissiveDataDir = makeDataDir();
-    mkdirSync(join(permissiveDataDir, "transcripts"), { mode: 0o755 });
-    expect(() => new TranscriptStore(permissiveDataDir)).toThrow(UnsafeTranscriptTargetError);
-    expect(lstatSync(join(permissiveDataDir, "transcripts")).mode & 0o7777).toBe(0o755);
+  it("hardens an existing permissive transcript directory to 0700 and uses it", () => {
+    const dataDir = makeDataDir();
+    const directory = join(dataDir, "transcripts");
+    mkdirSync(directory, { mode: 0o755 });
+    chmodSync(directory, 0o755);
+    expect(lstatSync(directory).mode & 0o7777).toBe(0o755);
 
-    const symlinkDataDir = makeDataDir();
-    const outside = join(symlinkDataDir, "outside");
+    const store = new TranscriptStore(dataDir);
+    store.appendCompletedTurn(turn("permissive-dir", "turn-1"));
+
+    expect(lstatSync(directory).mode & 0o7777).toBe(0o700);
+    expect(store.readCurrentConversation("permissive-dir").map((record) => record.turnId)).toEqual([
+      "turn-1",
+    ]);
+  });
+
+  it("refuses a symlink transcript directory without following or repairing it", () => {
+    const dataDir = makeDataDir();
+    const outside = join(dataDir, "outside");
     mkdirSync(outside, { mode: 0o700 });
-    symlinkSync(outside, join(symlinkDataDir, "transcripts"));
-    expect(() => new TranscriptStore(symlinkDataDir)).toThrow(UnsafeTranscriptTargetError);
+    symlinkSync(outside, join(dataDir, "transcripts"));
+
+    expect(() => new TranscriptStore(dataDir)).toThrow(UnsafeTranscriptTargetError);
+    expect(lstatSync(join(dataDir, "transcripts")).isSymbolicLink()).toBe(true);
+    expect(lstatSync(outside).mode & 0o7777).toBe(0o700);
+    expect(readdirSync(outside)).toEqual([]);
   });
 
   it("refuses a pre-existing unsafe reset-intent target without overwriting it", () => {
