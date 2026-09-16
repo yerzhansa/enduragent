@@ -1,5 +1,13 @@
 # @enduragent/coach-client
 
+## 0.1.5
+
+### Patch Changes
+
+- 07f1aa9: User-facing: A training data sync now stays connected if another part of the app reconnects at the same time.
+- Updated dependencies [922c4ad]
+  - @enduragent/coach-contract@0.1.5
+
 ## 0.1.4
 
 ### Patch Changes

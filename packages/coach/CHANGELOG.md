@@ -1,5 +1,26 @@
 # @enduragent/coach
 
+## 0.1.4
+
+### Patch Changes
+
+- 514f5f9: User-facing: Model limits, image support, and usage costs now remain consistent while Enduragent refreshes its model information.
+- 2ab873b: Keep catalog-to-engine projection as a read. Persist selected model profiles only when an engine is constructed.
+- 600295a: User-facing: The npm coach now starts the same 24-hour model-list refresh that desktop already runs, so Setup and Chat stay on one list.
+- 922c4ad: User-facing: Setup and Settings now show the latest accepted models while keeping an open model choice stable until you finish.
+- Updated dependencies [514f5f9]
+- Updated dependencies [2ab873b]
+- Updated dependencies [e7bc80f]
+- Updated dependencies [600295a]
+- Updated dependencies [922c4ad]
+- Updated dependencies [45c904f]
+  - @enduragent/core@0.1.7
+  - @enduragent/engine@0.0.6
+  - @enduragent/coach-contract@0.1.5
+  - @enduragent/sport-cycling@0.0.10
+  - @enduragent/coach-cli@0.1.5
+  - @enduragent/i18n@0.2.2
+
 ## 0.1.3
 
 ### Patch Changes

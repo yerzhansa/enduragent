@@ -1,5 +1,12 @@
 # @enduragent/i18n
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [922c4ad]
+  - @enduragent/coach-contract@0.1.5
+
 ## 0.2.1
 
 ### Patch Changes

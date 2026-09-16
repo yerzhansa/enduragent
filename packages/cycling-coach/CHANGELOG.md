@@ -1,5 +1,16 @@
 # cycling-coach
 
+## 2026.9.16
+
+### Patch Changes
+
+- 514f5f9: User-facing: Model limits, image support, and usage costs now remain consistent while Enduragent refreshes its model information.
+- e7bc80f: User-facing: Setup and Settings now list newer models, including GPT-6 Astra, Claude Fable 5.1, and Gemini 3.8 Flash.
+- 600295a: User-facing: The npm coach now starts the same 24-hour model-list refresh that desktop already runs, so Setup and Chat stay on one list.
+- 85e9979: Pin one validated model catalog snapshot per source commit across npm, GHCR, macOS, and Windows release artifacts.
+- eb282e3: User-facing: When Strava hides rides, Enduragent now says Strava does not allow third-party AI tools to use that data, and links to a help page on how to get those rides.
+- 45c904f: User-facing: Enduragent now starts when chat history folders were created with looser permissions, and tightens those folders so only you can read them.
+
 ## 2026.9.12
 
 ### Patch Changes
