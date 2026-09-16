@@ -60,9 +60,7 @@ type AsarApi = {
   uncache: (archivePath: string) => boolean;
 };
 
-function isAsarModule(
-  value: unknown,
-): value is {
+function isAsarModule(value: unknown): value is {
   extractFile: (archivePath: string, filename: string, followLinks?: boolean) => unknown;
   uncache: (archivePath: string) => unknown;
 } {
@@ -77,7 +75,9 @@ function isAsarModule(
 }
 
 function loadAsar(): AsarApi {
-  const require = createRequire(fileURLToPath(new URL("../apps/desktop/package.json", import.meta.url)));
+  const require = createRequire(
+    fileURLToPath(new URL("../apps/desktop/package.json", import.meta.url)),
+  );
   const loaded: unknown = require("@electron/asar");
   if (!isAsarModule(loaded)) {
     throw new BundledCatalogExtractError("unreadable", "@electron/asar is unavailable");
@@ -150,10 +150,7 @@ async function catalogFromSealedBytes(
   });
 }
 
-function referenceMatchesImage(
-  reference: string,
-  image: "cycling-coach" | "enduragent",
-): boolean {
+function referenceMatchesImage(reference: string, image: "cycling-coach" | "enduragent"): boolean {
   const name = `${GHCR_NAMESPACE}/${image}`;
   return reference === name || reference.startsWith(`${name}:`) || reference.startsWith(`${name}@`);
 }
@@ -179,9 +176,14 @@ async function extractOciImage(
   const dest = join(directory, BUNDLED_MODEL_CATALOG_ARTIFACT);
   let containerId: string | undefined;
   try {
-    containerId = (await docker(["create", "--platform", locator.platform, locator.reference])).trim();
+    containerId = (
+      await docker(["create", "--platform", locator.platform, locator.reference])
+    ).trim();
     if (containerId.length === 0) {
-      throw new BundledCatalogExtractError("unreadable", "docker create did not return a container id");
+      throw new BundledCatalogExtractError(
+        "unreadable",
+        "docker create did not return a container id",
+      );
     }
     await docker(["cp", `${containerId}:${IMAGE_BUNDLED_CATALOG_ENTRY}`, dest]);
     const source = await readFile(dest);
@@ -247,11 +249,20 @@ export async function extractBundledCatalog(
   }
 }
 
-export function assertArtifactMatchesGroup(extracted: ExtractedCatalog, binding: ReleaseBinding): void {
+export function assertArtifactMatchesGroup(
+  extracted: ExtractedCatalog,
+  binding: ReleaseBinding,
+): void {
   if (extracted.revision !== binding.revision) {
-    throw new BundledCatalogExtractError("mismatch", "artifact revision does not match the release group");
+    throw new BundledCatalogExtractError(
+      "mismatch",
+      "artifact revision does not match the release group",
+    );
   }
   if (extracted.digest !== binding.digest) {
-    throw new BundledCatalogExtractError("mismatch", "artifact digest does not match the release group");
+    throw new BundledCatalogExtractError(
+      "mismatch",
+      "artifact digest does not match the release group",
+    );
   }
 }

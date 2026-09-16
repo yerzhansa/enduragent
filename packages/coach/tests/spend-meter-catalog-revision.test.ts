@@ -34,10 +34,7 @@ function line(overrides: Partial<UsageLedgerLine> = {}): UsageLedgerLine {
 }
 
 async function ledger(file: string, values: readonly UsageLedgerLine[]): Promise<void> {
-  await writeFile(
-    join(root, file),
-    values.map((value) => JSON.stringify(value)).join("\n") + "\n",
-  );
+  await writeFile(join(root, file), values.map((value) => JSON.stringify(value)).join("\n") + "\n");
 }
 
 describe("spend meter catalog revision", () => {

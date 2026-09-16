@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  evaluateModelCatalogCandidate,
-  type AcceptedModelCatalogRecord,
-} from "./model-catalog.js";
+import { evaluateModelCatalogCandidate, type AcceptedModelCatalogRecord } from "./model-catalog.js";
 import { ResponseLimitError } from "./model-catalog-http.js";
 
 export const CatalogEtagSchema = z
@@ -27,7 +24,11 @@ export type CatalogRefreshRetainReason =
   | "stale-revision";
 
 export type CatalogRefreshHeaderDecision =
-  | { readonly kind: "retain"; readonly reason: CatalogRefreshRetainReason; readonly cancelBody: true }
+  | {
+      readonly kind: "retain";
+      readonly reason: CatalogRefreshRetainReason;
+      readonly cancelBody: true;
+    }
   | { readonly kind: "not-modified"; readonly successfulAt: string }
   | { readonly kind: "read-body"; readonly etag: string; readonly successfulAt: string };
 

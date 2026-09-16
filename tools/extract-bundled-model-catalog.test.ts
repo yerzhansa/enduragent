@@ -196,7 +196,10 @@ describe("materialize and bundled catalog extract", () => {
     await materializeReleaseCatalog({ prepared, workspaceRoot });
     sealedBytes = jsonBytes(prepared.snapshot);
     const asarSource = join(artifactRoot, "asar-src");
-    writeBundledCatalogArtifact(join(asarSource, "node_modules/@enduragent/core/dist"), prepared.snapshot);
+    writeBundledCatalogArtifact(
+      join(asarSource, "node_modules/@enduragent/core/dist"),
+      prepared.snapshot,
+    );
     asarPath = join(artifactRoot, "app.asar");
     await loadAsarCreate().createPackage(asarSource, asarPath);
   });
@@ -235,9 +238,9 @@ describe("materialize and bundled catalog extract", () => {
     };
     const cycling = packTarball(artifactRoot, "cycling-coach.tgz", files);
     const alias = packTarball(artifactRoot, "enduragent.tgz", files);
-    expect(
-      readFileSync(join(artifactRoot, "enduragent", NPM_BUNDLED_CATALOG_ENTRY)),
-    ).toEqual(readFileSync(join(artifactRoot, "cycling-coach", NPM_BUNDLED_CATALOG_ENTRY)));
+    expect(readFileSync(join(artifactRoot, "enduragent", NPM_BUNDLED_CATALOG_ENTRY))).toEqual(
+      readFileSync(join(artifactRoot, "cycling-coach", NPM_BUNDLED_CATALOG_ENTRY)),
+    );
     for (const path of [cycling, alias]) {
       const extracted = await extractBundledCatalog({ kind: "npm-tarball", path });
       expect(extracted.revision).toBe(prepared.record.revision);
@@ -249,7 +252,10 @@ describe("materialize and bundled catalog extract", () => {
   it("macOS zip with Enduragent.app asar extracts the same digest from core dist", async () => {
     const appRoot = join(artifactRoot, "macos");
     mkdirSync(join(appRoot, "Enduragent.app/Contents/Resources"), { recursive: true });
-    writeFileSync(join(appRoot, "Enduragent.app/Contents/Resources/app.asar"), readFileSync(asarPath));
+    writeFileSync(
+      join(appRoot, "Enduragent.app/Contents/Resources/app.asar"),
+      readFileSync(asarPath),
+    );
     const zipPath = join(artifactRoot, "Enduragent-mac.zip");
     execFileSync("zip", ["-q", "-r", zipPath, "Enduragent.app"], { cwd: appRoot });
     const extracted = await extractBundledCatalog({ kind: "macos-zip", path: zipPath });
@@ -329,15 +335,19 @@ describe("materialize and bundled catalog extract", () => {
     const empty = packTarball(artifactRoot, "empty-catalog.tgz", {
       "package/dist/index.js": "export const GENERATED_MODEL_CATALOG_SEED = { revision: 1 };\n",
     });
-    await expect(extractBundledCatalog({ kind: "npm-tarball", path: empty })).rejects.toMatchObject({
-      name: "BundledCatalogExtractError",
-      code: "unreadable",
-    });
+    await expect(extractBundledCatalog({ kind: "npm-tarball", path: empty })).rejects.toMatchObject(
+      {
+        name: "BundledCatalogExtractError",
+        code: "unreadable",
+      },
+    );
 
     const invalid = packTarball(artifactRoot, "invalid-catalog.tgz", {
       [NPM_BUNDLED_CATALOG_ENTRY]: "not-json",
     });
-    await expect(extractBundledCatalog({ kind: "npm-tarball", path: invalid })).rejects.toMatchObject({
+    await expect(
+      extractBundledCatalog({ kind: "npm-tarball", path: invalid }),
+    ).rejects.toMatchObject({
       name: "BundledCatalogExtractError",
       code: "unreadable",
     });
@@ -345,10 +355,12 @@ describe("materialize and bundled catalog extract", () => {
     const other = packTarball(artifactRoot, "other-json.tgz", {
       [NPM_BUNDLED_CATALOG_ENTRY]: `${JSON.stringify({ revision: 2 }, null, 2)}\n`,
     });
-    await expect(extractBundledCatalog({ kind: "npm-tarball", path: other })).rejects.toMatchObject({
-      name: "BundledCatalogExtractError",
-      code: "unreadable",
-    });
+    await expect(extractBundledCatalog({ kind: "npm-tarball", path: other })).rejects.toMatchObject(
+      {
+        name: "BundledCatalogExtractError",
+        code: "unreadable",
+      },
+    );
 
     const extracted = await extractBundledCatalog({
       kind: "npm-tarball",

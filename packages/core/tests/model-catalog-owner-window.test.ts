@@ -157,11 +157,12 @@ describe("model catalog refresh window", () => {
       cacheDirectory: tempDirectory("catalog-completion-clock-failure-cache-"),
       installationRoot,
     });
-    const fetch = vi.fn<typeof globalThis.fetch>(async () =>
-      new Response(JSON.stringify(remoteCatalog()), {
-        status: 200,
-        headers: { ETag: '"revision-2"' },
-      }),
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      async () =>
+        new Response(JSON.stringify(remoteCatalog()), {
+          status: 200,
+          headers: { ETag: '"revision-2"' },
+        }),
     );
     const catalog = openCatalog({
       beforePublish: () => {

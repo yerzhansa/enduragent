@@ -7,10 +7,7 @@ import {
   InterprocessFileLockTimeoutError,
   withInterprocessFileLock,
 } from "./io/interprocess-file-lock-sync.js";
-import {
-  acceptModelCatalogSnapshot,
-  type AcceptedModelCatalogRecord,
-} from "./model-catalog.js";
+import { acceptModelCatalogSnapshot, type AcceptedModelCatalogRecord } from "./model-catalog.js";
 import {
   MODEL_CATALOG_REFRESH_INTERVAL_MS,
   claimAttempt,
