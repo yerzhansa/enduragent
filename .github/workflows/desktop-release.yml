@@ -142,6 +142,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
       - name: Prepare catalog pin
         id: pin
         env:
@@ -200,6 +201,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
       - name: Materialize release catalog
         env:
           GH_TOKEN: ${{ github.token }}
@@ -441,6 +443,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @enduragent/coach-contract build
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           artifact-ids: ${{ needs.sign-macos.outputs.artifact_id }}

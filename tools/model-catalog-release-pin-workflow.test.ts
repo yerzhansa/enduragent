@@ -63,6 +63,7 @@ const pinWorkflows = [
   ["desktop-release.yml", desktop],
   ["desktop-windows-release.yml", windows],
 ] as const;
+const CONTRACT_BUILD = "pnpm --filter @enduragent/coach-contract build";
 
 describe("model catalog release pin workflow wiring", () => {
   it("gives prepare jobs contents write and actions read", () => {
@@ -83,6 +84,49 @@ describe("model catalog release pin workflow wiring", () => {
     );
   });
 
+  it("builds coach-contract after install and before any release-pin invocation", () => {
+    for (const [name, source] of pinWorkflows) {
+      for (const [jobName, value] of Object.entries(source.jobs)) {
+        const run = script(value);
+        if (!run.includes("models:release-pin")) continue;
+        expect(run, `${name} ${jobName}`).toContain("pnpm install --frozen-lockfile");
+        expect(run, `${name} ${jobName}`).toContain(CONTRACT_BUILD);
+        const installAt = run.indexOf("pnpm install --frozen-lockfile");
+        const buildAt = run.indexOf(CONTRACT_BUILD);
+        const pinAt = run.indexOf("models:release-pin");
+        expect(buildAt, `${name} ${jobName}`).toBeGreaterThan(installAt);
+        expect(pinAt, `${name} ${jobName}`).toBeGreaterThan(buildAt);
+      }
+    }
+    for (const source of [
+      job(image, "prepare-catalog"),
+      job(image, "image"),
+      job(release, "prepare-catalog"),
+      job(desktop, "prepare-catalog"),
+      job(desktop, "verify-macos-envelope"),
+      job(windows, "verify-windows-envelope"),
+    ]) {
+      expect(script(source)).not.toContain("pnpm -r build");
+    }
+  });
+
+  it("release-pin still loads the bundled seed through coach-contract dist", () => {
+    const seed = readFileSync(
+      join(repositoryRoot, "packages/core/src/model-catalog-seed.ts"),
+      "utf8",
+    );
+    const command = readFileSync(
+      join(repositoryRoot, "tools/model-catalog-release-pin-command.ts"),
+      "utf8",
+    );
+    const manifest = JSON.parse(
+      readFileSync(join(repositoryRoot, "packages/coach-contract/package.json"), "utf8"),
+    ) as { exports?: { "./model-catalog"?: { import?: string } } };
+    expect(command).toContain('from "../packages/core/src/model-catalog-seed.js"');
+    expect(seed).toContain('from "@enduragent/coach-contract/model-catalog"');
+    expect(manifest.exports?.["./model-catalog"]?.import).toBe("./dist/model-catalog.js");
+  });
+
   it("keeps pack, image, and sign jobs from gaining contents write", () => {
     const readers = [
       job(release, "smoke"),
@@ -101,7 +145,9 @@ describe("model catalog release pin workflow wiring", () => {
   it("does not invent a clock or random in any run script", () => {
     for (const [name, source] of pinWorkflows) {
       for (const [jobName, value] of Object.entries(source.jobs)) {
-        expect(script(value), `${name} ${jobName}`).not.toMatch(/Date\.now|new Date\(|Math\.random/);
+        expect(script(value), `${name} ${jobName}`).not.toMatch(
+          /Date\.now|new Date\(|Math\.random/,
+        );
       }
     }
   });
@@ -111,7 +157,9 @@ describe("model catalog release pin workflow wiring", () => {
       for (const [jobName, value] of Object.entries(source.jobs)) {
         for (const line of pinLines(script(value))) {
           expect(line, `${name} ${jobName}: ${line}`).toContain("--now-iso");
-          expect(line).toMatch(/pnpm --silent models:release-pin (prepare|read|materialize|extract)/);
+          expect(line).toMatch(
+            /pnpm --silent models:release-pin (prepare|read|materialize|extract)/,
+          );
         }
       }
     }
@@ -133,7 +181,7 @@ describe("model catalog release pin workflow wiring", () => {
     expect(catalog?.run).toContain("trap");
     expect(script(source)).not.toMatch(/7z|7-Zip/i);
     expect(evidence?.if).toContain("dry_run == false");
-    expect(evidence?.run).toContain("--argjson catalog \"$RELEASE_CATALOG\"");
+    expect(evidence?.run).toContain('--argjson catalog "$RELEASE_CATALOG"');
     expect(evidence?.env.RELEASE_CATALOG).toBe("${{ steps.catalog.outputs.release_catalog }}");
     expect(evidence?.run).not.toContain("windows-unpacked");
   });
@@ -146,10 +194,13 @@ describe("model catalog release pin workflow wiring", () => {
     expect(push).toContain("${IMAGE_NAME}:main-${short_sha}");
     expect(push).toContain("${ALIAS_IMAGE_NAME}:main-${short_sha}");
     expect(push).toContain("models:release-pin materialize");
+    expect(push.indexOf(CONTRACT_BUILD)).toBeLessThan(
+      push.indexOf("models:release-pin materialize"),
+    );
     expect(push.indexOf("models:release-pin materialize")).toBeLessThan(
       push.indexOf("models:release-pin extract --kind oci-image"),
     );
-    expect(push).toContain("--image \"$image\"");
+    expect(push).toContain('--image "$image"');
     expect(push).toContain("linux/amd64");
     expect(push).toContain("linux/arm64");
   });
@@ -157,16 +208,18 @@ describe("model catalog release pin workflow wiring", () => {
   it("seals and verifies the desktop envelope with the prepared catalog binding", () => {
     const sign = script(job(desktop, "sign-macos"));
     const verify = script(job(desktop, "verify-macos-envelope"));
-    expect(sign).toContain("--catalog-release-group-id \"$CATALOG_RELEASE_GROUP_ID\"");
-    expect(sign).toContain("--catalog-revision \"$CATALOG_REVISION\"");
-    expect(sign).toContain("--catalog-digest \"$CATALOG_DIGEST\"");
-    expect(verify).toContain("--catalog-release-group-id \"$CATALOG_RELEASE_GROUP_ID\"");
-    expect(verify).toContain("--catalog-revision \"$CATALOG_REVISION\"");
-    expect(verify).toContain("--catalog-digest \"$CATALOG_DIGEST\"");
+    expect(sign).toContain('--catalog-release-group-id "$CATALOG_RELEASE_GROUP_ID"');
+    expect(sign).toContain('--catalog-revision "$CATALOG_REVISION"');
+    expect(sign).toContain('--catalog-digest "$CATALOG_DIGEST"');
+    expect(verify).toContain('--catalog-release-group-id "$CATALOG_RELEASE_GROUP_ID"');
+    expect(verify).toContain('--catalog-revision "$CATALOG_REVISION"');
+    expect(verify).toContain('--catalog-digest "$CATALOG_DIGEST"');
     expect(verify).toContain("models:release-pin extract --kind macos-zip");
     expect(verify).toContain("Enduragent-$DESKTOP_VERSION-arm64.zip");
     expect(job(desktop, "sign-macos").permissions.contents).toBe("read");
-    expect(script(job(desktop, "authorize-release"))).not.toMatch(/(?:pnpm|npm)\s+(?:install|ci|exec)/);
+    expect(script(job(desktop, "authorize-release"))).not.toMatch(
+      /(?:pnpm|npm)\s+(?:install|ci|exec)/,
+    );
   });
 
   it("keeps version-pr coordinators install-free", () => {

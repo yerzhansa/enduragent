@@ -474,6 +474,7 @@ describe("release catalog pin jobs", () => {
     expect(dependencies(source)).toEqual(["parse-tag"]);
     expect(source.permissions).toEqual({ contents: "write", actions: "read" });
     expect(script(source)).toContain("pnpm --silent models:release-pin prepare");
+    expect(script(source)).toContain("pnpm --filter @enduragent/coach-contract build");
     expect(script(source)).toContain("--now-iso");
     expect(script(source)).not.toMatch(/Date\.now|new Date\(|Math\.random/);
     expect(script(source)).toContain(
@@ -487,13 +488,19 @@ describe("release catalog pin jobs", () => {
     const smoke = job(release, "smoke");
     expect(dependencies(smoke)).toEqual(["parse-tag", "build", "test", "prepare-catalog"]);
     expect(smoke.permissions).toEqual({ contents: "read" });
-    const installIndex = smoke.steps.findIndex((step) => step.run === "pnpm install --frozen-lockfile");
+    const installIndex = smoke.steps.findIndex(
+      (step) => step.run === "pnpm install --frozen-lockfile",
+    );
+    const contractBuildIndex = smoke.steps.findIndex(
+      (step) => step.run === "pnpm --filter @enduragent/coach-contract build",
+    );
     const materializeIndex = smoke.steps.findIndex((step) =>
       step.run?.includes("models:release-pin materialize"),
     );
     const buildIndex = smoke.steps.findIndex((step) => step.run === "pnpm -r build");
     const packIndex = smoke.steps.findIndex((step) => step.id === "pack");
-    expect(materializeIndex).toBeGreaterThan(installIndex);
+    expect(contractBuildIndex).toBeGreaterThan(installIndex);
+    expect(materializeIndex).toBeGreaterThan(contractBuildIndex);
     expect(buildIndex).toBeGreaterThan(materializeIndex);
     expect(packIndex).toBeGreaterThan(buildIndex);
     expect(smoke.steps[materializeIndex]?.run).toContain("models:release-pin read");
