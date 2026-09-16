@@ -174,14 +174,14 @@ function uniqueProfiles(
 export function persistResolvedModelProfiles(
   storageDirectory: string,
   generation: Pick<ModelRuntimeGeneration, "chat" | "compact" | "flush">,
-): void {
-  persistProfiles(storageDirectory, [generation.chat, generation.compact, generation.flush]);
+): boolean {
+  return persistProfiles(storageDirectory, [generation.chat, generation.compact, generation.flush]);
 }
 
 function persistProfiles(
   storageDirectory: string,
   profiles: readonly ResolvedModelProfile[],
-): void {
+): boolean {
   const directory = resolve(storageDirectory);
   const path = join(directory, SELECTED_MODEL_PROFILES_FILE);
   try {
@@ -195,7 +195,10 @@ function persistProfiles(
         })}\n`,
       );
     });
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function resolveModelRuntimeGeneration(

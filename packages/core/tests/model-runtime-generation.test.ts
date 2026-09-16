@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ModelCatalogSnapshot } from "@enduragent/coach-contract/model-catalog";
@@ -316,5 +316,21 @@ describe("model runtime generation", () => {
       contextWindowTokens: 1_050_000,
       pricing: { kind: "token-rates", inputUsdPerMillion: 5 },
     });
+  });
+
+  it("reports when selected-model profile persistence cannot write", () => {
+    const dataDir = temporaryDirectory();
+    const blocked = join(dataDir, "blocked");
+    writeFileSync(blocked, "not-a-directory");
+    const selected = config(dataDir);
+    expect(
+      persistResolvedModelProfiles(
+        blocked,
+        engineConfigFromConfig(selected, {
+          catalog: accepted(revision(16)),
+          profileStorageDirectory: blocked,
+        }).models,
+      ),
+    ).toBe(false);
   });
 });

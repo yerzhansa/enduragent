@@ -736,6 +736,62 @@ describe("desktop onboarding IPC", () => {
     ).toContain("new-local-model");
   });
 
+  it("keeps only the two newest pinned catalog revisions", async () => {
+    const subject = harness();
+    const pin = async (revision: number) => {
+      const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
+      snapshot.revision = revision;
+      const accepted = acceptModelCatalogSnapshot(snapshot);
+      if (accepted === undefined) throw new TypeError("catalog is invalid");
+      subject.modelCatalog.current.mockReturnValue({
+        ...accepted,
+        origin: "installation",
+        revision,
+      });
+      await subject.invoke(DESKTOP_LLM_CONFIGURATION_CHANNEL, subject.trustedEvent);
+    };
+    const first = CATALOG_REVISION;
+    const second = first + 1;
+    const third = first + 2;
+    await pin(first);
+    await pin(second);
+    await pin(third);
+    const selectionFor = (revision: number) => ({
+      catalogRevision: revision,
+      provider: "anthropic" as const,
+      model: "athlete-selected-model",
+      endpoint: { mode: "automatic" as const },
+    });
+
+    await expect(
+      subject.invoke(
+        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+        subject.trustedEvent,
+        selectionFor(first),
+      ),
+    ).resolves.toEqual({
+      status: "stale-draft",
+      reason: "catalog-unavailable",
+      selection: selectionFor(first),
+    });
+
+    subject.applyExistingLlmSelection.mockResolvedValue(true);
+    await expect(
+      subject.invoke(
+        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+        subject.trustedEvent,
+        selectionFor(second),
+      ),
+    ).resolves.toEqual({ status: "configured", runtimeReady: true });
+    await expect(
+      subject.invoke(
+        DESKTOP_LLM_SELECTION_APPLY_CHANNEL,
+        subject.trustedEvent,
+        selectionFor(third),
+      ),
+    ).resolves.toEqual({ status: "configured", runtimeReady: true });
+  });
+
   it("returns a recoverable stale draft when its revision was not pinned", async () => {
     const subject = harness();
     const selection = {
