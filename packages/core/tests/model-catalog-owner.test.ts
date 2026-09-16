@@ -22,6 +22,9 @@ const tempDirectories: string[] = [];
 const catalogs: ModelCatalog[] = [];
 const servers: CountedHttpServer[] = [];
 const baseTime = Date.parse("1998-01-01T00:00:00.000Z");
+const BUNDLED_REVISION = BUNDLED_MODEL_CATALOG.revision;
+const FIRST_REMOTE_REVISION = BUNDLED_REVISION + 1;
+const SECOND_REMOTE_REVISION = BUNDLED_REVISION + 2;
 
 interface UnreadBodyCase {
   readonly headers: Readonly<Record<string, string>>;
@@ -60,7 +63,7 @@ function tempDirectory(prefix: string): string {
   return directory;
 }
 
-function remoteCatalog(revision = 2) {
+function remoteCatalog(revision = FIRST_REMOTE_REVISION) {
   const snapshot = structuredClone(BUNDLED_MODEL_CATALOG);
   snapshot.revision = revision;
   snapshot.provenance = { kind: "published", publishedAt: "1998-01-01T00:00:00.000Z" };
@@ -185,14 +188,17 @@ describe("model catalog local recovery", () => {
     const writer = openCatalog({ endpoint: server.url, installationRoot });
     await own(writer);
 
-    await expect(writer.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(writer.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     const paths = resolveModelCatalogPaths({
       cacheDirectory: tempDirectory("catalog-reader-cache-"),
       installationRoot,
     });
     expect(JSON.parse(readFileSync(paths.ownerSnapshot, "utf8"))).toMatchObject({
       etag: '"revision-2"',
-      snapshot: { revision: 2 },
+      snapshot: { revision: FIRST_REMOTE_REVISION },
     });
 
     const reader = openCatalog({
@@ -200,10 +206,10 @@ describe("model catalog local recovery", () => {
       endpoint: server.url,
       installationRoot,
     });
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     expect(server.requests).toHaveLength(1);
     await writer.shutdown();
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     expect(server.requests).toHaveLength(1);
   });
 
@@ -224,10 +230,10 @@ describe("model catalog local recovery", () => {
       endpoint: server.url,
       installationRoot,
     });
-    expect(reader.current().revision).toBe(2);
+    expect(reader.current().revision).toBe(FIRST_REMOTE_REVISION);
     const paths = resolveModelCatalogPaths({ cacheDirectory: readerCache, installationRoot });
     expect(JSON.parse(readFileSync(paths.privateSnapshot, "utf8"))).toMatchObject({
-      snapshot: { revision: 2 },
+      snapshot: { revision: FIRST_REMOTE_REVISION },
     });
 
     writeFileSync(paths.ownerSnapshot, "{broken", "utf8");
@@ -236,7 +242,10 @@ describe("model catalog local recovery", () => {
       endpoint: "http://127.0.0.1:1/unreachable",
       installationRoot,
     });
-    expect(restartedReader.current()).toMatchObject({ origin: "private-cache", revision: 2 });
+    expect(restartedReader.current()).toMatchObject({
+      origin: "private-cache",
+      revision: FIRST_REMOTE_REVISION,
+    });
   });
 
   it("ignores corrupt saved records and keeps the bundle offline", async () => {
@@ -253,7 +262,7 @@ describe("model catalog local recovery", () => {
       cacheDirectory,
     });
 
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
     expect(catalog.current().origin).toBe("bundled");
   });
 
@@ -267,9 +276,9 @@ describe("model catalog local recovery", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current()).toMatchObject({ origin: "bundled", revision: 1 });
+    expect(catalog.current()).toMatchObject({ origin: "bundled", revision: BUNDLED_REVISION });
   });
 });
 
@@ -295,7 +304,7 @@ describe("model catalog request boundary", () => {
     await expect(first.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(fetch).not.toHaveBeenCalled();
     await first.shutdown();
@@ -312,12 +321,15 @@ describe("model catalog request boundary", () => {
     await expect(replacement.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(fetch).not.toHaveBeenCalled();
 
     now += 1;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(fetch).toHaveBeenCalledOnce();
   });
 
@@ -333,7 +345,9 @@ describe("model catalog request boundary", () => {
 
     const outcomes = await Promise.all(Array.from({ length: 40 }, () => catalog.refresh()));
     expect(server.requests).toHaveLength(1);
-    expect(outcomes).toEqual(Array.from({ length: 40 }, () => ({ kind: "updated", revision: 2 })));
+    expect(outcomes).toEqual(
+      Array.from({ length: 40 }, () => ({ kind: "updated", revision: FIRST_REMOTE_REVISION })),
+    );
   });
 
   it("suppresses at 24 hours minus one millisecond and requests at the boundary", async () => {
@@ -341,21 +355,27 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const catalog = openCatalog({ endpoint: server.url, now: () => now });
     await own(catalog);
 
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1;
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 2,
+      revision: FIRST_REMOTE_REVISION,
     });
     expect(server.requests).toHaveLength(1);
     now += 1;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -401,9 +421,9 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "response-too-large",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("times out a slow request and retains local data", async () => {
@@ -419,9 +439,9 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("uses a matching ETag and rejects a 304 without one", async () => {
@@ -438,10 +458,16 @@ describe("model catalog request boundary", () => {
     );
     const catalog = openCatalog({ endpoint: server.url, now: () => now });
     await own(catalog);
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "unchanged", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "unchanged",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests[1]?.headers["if-none-match"]).toBe('"revision-2"');
 
     const other = openCatalog({
@@ -452,7 +478,7 @@ describe("model catalog request boundary", () => {
     await expect(other.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "invalid-not-modified",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
   });
 
@@ -467,9 +493,9 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "invalid-response",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("rejects stale, malformed, forbidden, and unusable responses without advancing state", async () => {
@@ -515,11 +541,11 @@ describe("model catalog request boundary", () => {
       await expect(catalog.refresh()).resolves.toMatchObject({
         kind: "retained",
         reason,
-        revision: 1,
+        revision: BUNDLED_REVISION,
       });
       now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     }
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("treats future attempts conservatively and permits a request only after their due boundary", async () => {
@@ -551,7 +577,10 @@ describe("model catalog request boundary", () => {
     now = baseTime - 1_000;
     await expect(catalog.refresh()).resolves.toMatchObject({ kind: "retained", reason: "not-due" });
     now = baseTime + 1_000 + MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(1);
   });
 
@@ -561,7 +590,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const catalog = openCatalog({
       elapsedNow: () => elapsedNow,
@@ -569,19 +598,25 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(catalog);
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow += 1_000;
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "not-due",
-      revision: 2,
+      revision: FIRST_REMOTE_REVISION,
     });
     expect(server.requests).toHaveLength(1);
 
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1_000;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -612,11 +647,12 @@ describe("model catalog request boundary", () => {
       cacheDirectory: tempDirectory("catalog-completion-clock-failure-cache-"),
       installationRoot,
     });
-    const fetch = vi.fn<typeof globalThis.fetch>(async () =>
-      new Response(JSON.stringify(remoteCatalog()), {
-        status: 200,
-        headers: { ETag: '"revision-2"' },
-      }),
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      async () =>
+        new Response(JSON.stringify(remoteCatalog()), {
+          status: 200,
+          headers: { ETag: '"revision-2"' },
+        }),
     );
     const catalog = openCatalog({
       beforePublish: () => {
@@ -633,7 +669,10 @@ describe("model catalog request boundary", () => {
     });
     await own(catalog);
 
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(JSON.parse(readFileSync(paths.attemptState, "utf8"))).toMatchObject({
       attemptStatus: "in-flight",
     });
@@ -680,7 +719,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-clock-handoff-");
     const first = openCatalog({
@@ -690,7 +729,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -709,7 +751,10 @@ describe("model catalog request boundary", () => {
     expect(server.requests).toHaveLength(1);
 
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS - 1_000;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -719,7 +764,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-uptime-reset-");
     const first = openCatalog({
@@ -729,7 +774,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -749,7 +797,10 @@ describe("model catalog request boundary", () => {
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -759,7 +810,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-larger-uptime-session-");
     const first = openCatalog({
@@ -769,7 +820,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -781,7 +835,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(replacement);
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -796,7 +853,7 @@ describe("model catalog request boundary", () => {
     let requestCount = 0;
     const fetch = vi.fn<typeof globalThis.fetch>(async () => {
       requestCount += 1;
-      return new Response(JSON.stringify(remoteCatalog(requestCount + 1)), {
+      return new Response(JSON.stringify(remoteCatalog(requestCount + BUNDLED_REVISION)), {
         status: 200,
         headers: { ETag: `"revision-${requestCount + 1}"` },
       });
@@ -811,7 +868,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow = Math.floor(replacementActualUptimeMs / elapsedResolutionMs) * elapsedResolutionMs;
@@ -840,7 +900,10 @@ describe("model catalog request boundary", () => {
     wallNow += 900;
     elapsedNow =
       Math.floor((replacementActualUptimeMs + 900) / elapsedResolutionMs) * elapsedResolutionMs;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -850,7 +913,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-undetected-reboot-");
     const first = openCatalog({
@@ -860,7 +923,10 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(first);
-    await expect(first.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(first.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     await first.shutdown();
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
@@ -880,7 +946,10 @@ describe("model catalog request boundary", () => {
 
     wallNow += 1;
     elapsedNow += 1;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -902,7 +971,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const installationRoot = tempDirectory("catalog-suspended-claim-");
     const first = __openModelCatalogForTesting(
@@ -928,7 +997,10 @@ describe("model catalog request boundary", () => {
     wallNow += 23 * 60 * 60 * 1_000;
     elapsedNow += 23 * 60 * 60 * 1_000;
     releaseClaim();
-    await expect(firstRefresh).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(firstRefresh).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(first.diagnostics().lastAttemptAt).toBe("1998-01-01T23:00:00.000Z");
     await first.shutdown();
 
@@ -949,7 +1021,10 @@ describe("model catalog request boundary", () => {
 
     wallNow += 23 * 60 * 60 * 1_000;
     elapsedNow += 23 * 60 * 60 * 1_000;
-    await expect(replacement.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(replacement.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(2);
   });
 
@@ -961,7 +1036,7 @@ describe("model catalog request boundary", () => {
       wallNow += 23 * 60 * 60 * 1_000;
       elapsedNow += 23 * 60 * 60 * 1_000;
       requestCount += 1;
-      return new Response(JSON.stringify(remoteCatalog(requestCount + 1)), {
+      return new Response(JSON.stringify(remoteCatalog(requestCount + BUNDLED_REVISION)), {
         status: 200,
         headers: { ETag: `"revision-${requestCount + 1}"` },
       });
@@ -974,7 +1049,10 @@ describe("model catalog request boundary", () => {
     });
     await own(catalog);
 
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(catalog.diagnostics().lastAttemptAt).toBe("1998-01-01T23:00:00.000Z");
 
     wallNow += 60 * 60 * 1_000;
@@ -987,7 +1065,10 @@ describe("model catalog request boundary", () => {
 
     wallNow += 23 * 60 * 60 * 1_000;
     elapsedNow += 23 * 60 * 60 * 1_000;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 3 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: SECOND_REMOTE_REVISION,
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -1063,7 +1144,7 @@ describe("model catalog request boundary", () => {
     const server = await serverFor((_request, index) => ({
       status: 200,
       headers: { ETag: `"revision-${index + 2}"` },
-      chunks: [JSON.stringify(remoteCatalog(index + 2))],
+      chunks: [JSON.stringify(remoteCatalog(index + FIRST_REMOTE_REVISION))],
     }));
     const catalog = openCatalog({
       elapsedNow: () => elapsedNow,
@@ -1071,14 +1152,17 @@ describe("model catalog request boundary", () => {
       now: () => wallNow,
     });
     await own(catalog);
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     wallNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     elapsedNow += MODEL_CATALOG_REFRESH_INTERVAL_MS;
     catalog.notifyResumed();
-    await waitUntil(() => catalog.current().revision === 3);
+    await waitUntil(() => catalog.current().revision === SECOND_REMOTE_REVISION);
 
-    expect(catalog.current().revision).toBe(3);
+    expect(catalog.current().revision).toBe(SECOND_REMOTE_REVISION);
     expect(server.requests).toHaveLength(2);
   });
 
@@ -1097,7 +1181,7 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "request-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(server.requests).toHaveLength(1);
   });
@@ -1123,7 +1207,10 @@ describe("model catalog request boundary", () => {
     expect(server.requests).toHaveLength(0);
     expect(catalog.diagnostics().lastAttemptAt).toBe("1998-01-01T00:00:00.000Z");
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(catalog.refresh()).resolves.toEqual({ kind: "updated", revision: 2 });
+    await expect(catalog.refresh()).resolves.toEqual({
+      kind: "updated",
+      revision: FIRST_REMOTE_REVISION,
+    });
     expect(server.requests).toHaveLength(1);
   });
 
@@ -1141,7 +1228,7 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "claim-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
     expect(server.requests).toHaveLength(0);
   });
@@ -1164,9 +1251,9 @@ describe("model catalog request boundary", () => {
     await expect(catalog.refresh()).resolves.toMatchObject({
       kind: "retained",
       reason: "persistence-failed",
-      revision: 1,
+      revision: BUNDLED_REVISION,
     });
-    expect(catalog.current().revision).toBe(1);
+    expect(catalog.current().revision).toBe(BUNDLED_REVISION);
     expect(server.requests).toHaveLength(1);
   });
 
@@ -1227,7 +1314,10 @@ describe("model catalog request boundary", () => {
     const firstSuccessfulRefresh = reader.diagnostics().lastSuccessfulRefreshAt;
 
     now += MODEL_CATALOG_REFRESH_INTERVAL_MS;
-    await expect(owner.refresh()).resolves.toEqual({ kind: "unchanged", revision: 2 });
+    await expect(owner.refresh()).resolves.toEqual({
+      kind: "unchanged",
+      revision: FIRST_REMOTE_REVISION,
+    });
 
     expect(reader.diagnostics().lastSuccessfulRefreshAt).not.toBe(firstSuccessfulRefresh);
     expect(reader.diagnostics().lastSuccessfulRefreshAt).toBe("1998-01-02T00:00:00.000Z");
@@ -1306,7 +1396,7 @@ describe("model catalog request boundary", () => {
     await expect(refresh).resolves.toMatchObject({ kind: "retained", reason: "shutdown" });
     await expect(shutdown).resolves.toBeUndefined();
     await expect(replacement.start()).resolves.toEqual({ kind: "owner" });
-    expect(owner.current().revision).toBe(1);
+    expect(owner.current().revision).toBe(BUNDLED_REVISION);
   });
 
   it("releases scheduler ownership and permits a replacement without bypassing the daily claim", async () => {
@@ -1339,7 +1429,7 @@ describe("model catalog request boundary", () => {
     let requestCount = 0;
     const fetch = vi.fn<typeof globalThis.fetch>(async () => {
       requestCount += 1;
-      const revision = requestCount + 1;
+      const revision = requestCount + BUNDLED_REVISION;
       return new Response(JSON.stringify(remoteCatalog(revision)), {
         status: 200,
         headers: { ETag: `"revision-${revision}"` },
@@ -1384,7 +1474,7 @@ describe("model catalog request boundary", () => {
     elapsedNow += 1;
     await vi.advanceTimersByTimeAsync(MODEL_CATALOG_REFRESH_INTERVAL_MS);
 
-    expect(catalog.current().revision).toBe(3);
+    expect(catalog.current().revision).toBe(SECOND_REMOTE_REVISION);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(1);
 
