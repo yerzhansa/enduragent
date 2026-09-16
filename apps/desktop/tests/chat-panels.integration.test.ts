@@ -1054,23 +1054,40 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
 
   it("explains why Send is off while Chat is still connecting", async () => {
     const hold = deferred<void>();
-    const { fixture } = await launch({
+    const { fixture, calls } = await launch({
       width: 1180,
       height: 820,
       reducedMotion: true,
       hidden: true,
+      draftSaveFailures: 1,
       holdCoachDecision: hold.promise,
     });
     const held = await fixture.evaluate<{
       readonly sendDisabled: boolean;
       readonly connecting: string;
+      readonly draft: string;
       readonly draftAlert: boolean;
     }>(`
+      const deadline = Date.now() + 5000;
+      const holdLine = () => document.querySelector(".composer-send-hold");
+      while ((holdLine()?.textContent?.trim() ?? "") === "" && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const textarea = document.querySelector("textarea#message");
+      if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("composer missing");
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        "value",
+      )?.set;
+      if (valueSetter === undefined) throw new Error("textarea value setter missing");
+      valueSetter.call(textarea, "test");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       const send = document.querySelector('button[aria-label="Send message"]');
-      const holdLine = document.querySelector(".composer-send-hold");
       return {
         sendDisabled: send instanceof HTMLButtonElement ? send.disabled : true,
-        connecting: holdLine?.textContent?.trim() ?? "",
+        connecting: holdLine()?.textContent?.trim() ?? "",
+        draft: textarea.value,
         draftAlert: Array.from(document.querySelectorAll('[role="alert"]')).some(
           (node) => node.textContent?.includes("Couldn’t reach the coach"),
         ),
@@ -1079,12 +1096,15 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
     expect(held).toEqual({
       sendDisabled: true,
       connecting: "Chat is still connecting, so Send isn’t ready yet.",
+      draft: "test",
       draftAlert: false,
     });
+    expect(calls.filter((call) => call.method === "saveChatAttachmentDraftText")).toHaveLength(0);
     hold.resolve(undefined);
     const released = await fixture.evaluate<{
       readonly sendDisabled: boolean;
       readonly connecting: string;
+      readonly draftAlert: boolean;
     }>(`
       const deadline = Date.now() + 5000;
       const send = () => document.querySelector('button[aria-label="Send message"]');
@@ -1098,9 +1118,13 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("desktop chat pan
       return {
         sendDisabled: send() instanceof HTMLButtonElement ? send().disabled : true,
         connecting: holdLine()?.textContent?.trim() ?? "",
+        draftAlert: Array.from(document.querySelectorAll('[role="alert"]')).some(
+          (node) => node.textContent?.includes("Couldn’t reach the coach"),
+        ),
       };
     `);
-    expect(released).toEqual({ sendDisabled: false, connecting: "" });
+    expect(released).toEqual({ sendDisabled: false, connecting: "", draftAlert: false });
+    expect(calls.filter((call) => call.method === "saveChatAttachmentDraftText")).toHaveLength(0);
   }, 90_000);
 
   it("hydrates persisted conversation pages without replay, focus loss, or row churn", async () => {
