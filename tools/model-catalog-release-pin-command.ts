@@ -2,7 +2,6 @@ import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ModelCatalogSnapshot } from "@enduragent/coach-contract/model-catalog";
 import { BUNDLED_MODEL_CATALOG } from "../packages/core/src/model-catalog-seed.js";
-import { MODEL_CATALOG_PUBLIC_URL } from "./model-catalog-constants.js";
 import {
   assertArtifactMatchesGroup,
   BundledCatalogExtractError,
@@ -21,8 +20,6 @@ import {
   prepareReleaseGroup,
   readReleaseGroup,
   type IsoTimestamp,
-  type ModelCatalogProductionFetch,
-  type ModelCatalogProductionFetchResult,
   type PreparedRelease,
   type ReleaseBinding,
   type ReleasePinStore,
@@ -63,7 +60,6 @@ type ReleasePinCommand =
 
 export type ModelCatalogReleasePinCommandDependencies = {
   readonly store?: ReleasePinStore;
-  readonly fetchProductionCatalog?: ModelCatalogProductionFetch;
   readonly seed?: ModelCatalogSnapshot;
   readonly output?: (line: string) => void;
   readonly githubOutput?: (name: string, value: string) => void;
@@ -228,25 +224,6 @@ function parseCommand(argv: readonly string[]): ReleasePinCommand {
   };
 }
 
-async function fetchProductionFromHttp(
-  fetchImpl: typeof fetch,
-  url: typeof MODEL_CATALOG_PUBLIC_URL,
-): Promise<ModelCatalogProductionFetchResult> {
-  try {
-    const response = await fetchImpl(url, { method: "GET", signal: AbortSignal.timeout(30_000) });
-    if (!response.ok) {
-      await response.arrayBuffer();
-      return { kind: "unavailable" };
-    }
-    const etag = response.headers.get("etag") ?? "";
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (etag.length === 0) return { kind: "unavailable" };
-    return { kind: "response", etag, bytes };
-  } catch {
-    return { kind: "unavailable" };
-  }
-}
-
 function githubFileOutput(path: string): (name: string, value: string) => void {
   return (name, value) => {
     if (/[\r\n]/u.test(value)) throw validation("Invalid workflow output");
@@ -343,13 +320,9 @@ export async function runModelCatalogReleasePinCommand(
   }
   const store = resolveStore(deps, env, command.nowIso);
   if (command.verb === "prepare") {
-    const fetch =
-      deps.fetchProductionCatalog ??
-      ((url) => fetchProductionFromHttp(deps.fetch ?? globalThis.fetch, url));
     const prepared = await prepareReleaseGroup({
       sourceCommit: command.sourceCommit,
       store,
-      fetch,
       acquisitionTime: command.nowIso,
       seed,
     });

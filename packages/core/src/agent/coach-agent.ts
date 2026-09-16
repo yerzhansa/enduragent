@@ -33,41 +33,38 @@ import { ConfirmationGate } from "./confirmation-gate.js";
 import { createEngineHostAdapter } from "./engine-host-adapter.js";
 import { legacyStateReader } from "./legacy-athlete-state-reader.js";
 
-export interface LegacyAgentOverrides {
+export type LegacyAgentOverrides = {
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;
   readonly modelTransportDecorator?: ModelTransportDecorator;
   readonly onToolsAssembled?: (names: readonly string[]) => void;
-  readonly catalog?: AcceptedModelCatalogRecord;
-  readonly models?: EngineResolvedModelProfiles;
-}
+} & (
+  | { readonly catalog: AcceptedModelCatalogRecord }
+  | { readonly models: EngineResolvedModelProfiles }
+);
 
 export class CoachAgent implements CoachEngine {
   private readonly engine: CoachEngine;
   private readonly memory: Memory;
   readonly confirmations = new ConfirmationGate();
 
-  constructor(sport: Sport, config: Config, overrides: LegacyAgentOverrides = {}) {
+  constructor(sport: Sport, config: Config, overrides: LegacyAgentOverrides) {
     const adapterOverrides = { ...overrides, confirmations: this.confirmations };
-    let adapted: ReturnType<typeof createEngineHostAdapter>;
-    if (overrides.models !== undefined) {
-      adapted = createEngineHostAdapter({
-        config,
-        stateReader: legacyStateReader,
-        models: overrides.models,
-        overrides: adapterOverrides,
-      });
-    } else if (overrides.catalog !== undefined) {
-      adapted = createEngineHostAdapter({
-        config,
-        stateReader: legacyStateReader,
-        catalog: overrides.catalog,
-        overrides: adapterOverrides,
-      });
-    } else {
-      throw new TypeError("createEngineHostAdapter requires catalog or models");
-    }
+    const adapted =
+      "models" in overrides
+        ? createEngineHostAdapter({
+            config,
+            stateReader: legacyStateReader,
+            models: overrides.models,
+            overrides: adapterOverrides,
+          })
+        : createEngineHostAdapter({
+            config,
+            stateReader: legacyStateReader,
+            catalog: overrides.catalog,
+            overrides: adapterOverrides,
+          });
     this.memory = adapted.memory;
     this.engine = createCanonicalCoachEngine({ sport, ports: adapted.ports });
   }

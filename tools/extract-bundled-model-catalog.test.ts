@@ -208,7 +208,6 @@ describe("materialize and bundled catalog extract", () => {
     prepared = await prepareReleaseGroup({
       sourceCommit: SOURCE_COMMIT,
       store: createMemoryReleasePinStore(),
-      fetch: async () => ({ kind: "unavailable" }),
       acquisitionTime: ACQUIRED_AT,
       seed: seedSnapshot(),
     });

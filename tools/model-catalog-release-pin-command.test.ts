@@ -168,14 +168,13 @@ describe("model catalog release pin command", () => {
     });
   });
 
-  it("prepare with an unavailable fetch prints the committed seed catalog and joins on retry", async () => {
+  it("prepare prints the committed seed catalog and joins on retry", async () => {
     const store = createMemoryReleasePinStore();
     const seed = seedSnapshot();
     const digest = (await sha256(jsonBytes(seed))).hex;
     const extras = {
       store,
       seed,
-      fetchProductionCatalog: async () => ({ kind: "unavailable" as const }),
     };
     const first = await runCaptured(
       ["prepare", "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT],
@@ -203,7 +202,6 @@ describe("model catalog release pin command", () => {
     const extras = {
       store,
       seed,
-      fetchProductionCatalog: async () => ({ kind: "unavailable" as const }),
     };
     const prepared = await runCaptured(
       ["prepare", "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT],
@@ -213,12 +211,6 @@ describe("model catalog release pin command", () => {
       runCaptured(["read", "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT], {
         store,
         seed,
-        fetchProductionCatalog: async () => {
-          throw new Error("must not fetch on read");
-        },
-        fetch: async () => {
-          throw new Error("must not fetch on read");
-        },
       }),
     ).resolves.toEqual(prepared);
     await expect(
@@ -241,7 +233,6 @@ describe("model catalog release pin command", () => {
     const extras = {
       store,
       seed,
-      fetchProductionCatalog: async () => ({ kind: "unavailable" as const }),
     };
     const prepared = (await runCaptured(
       ["prepare", "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT],
@@ -327,7 +318,6 @@ describe("model catalog release pin command", () => {
     await runCaptured(["prepare", "--now-iso", NOW_ISO, "--source-commit", SOURCE_COMMIT], {
       store,
       seed,
-      fetchProductionCatalog: async () => ({ kind: "unavailable" as const }),
       githubOutput: (name, value) => outputs.push({ name, value }),
     });
     expect(outputs).toEqual([

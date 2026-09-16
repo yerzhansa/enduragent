@@ -39,7 +39,7 @@ import {
   isKeylessProvider,
   loadStoredProfileSnapshot,
   makeChatClient,
-  readAcceptedInstallationCatalog,
+  persistResolvedModelProfiles,
   refreshCodexToken,
   resolveRuntimeConfig,
   resolveSecretRef,
@@ -260,8 +260,7 @@ export interface LocalCoachCompositionInput {
   readonly context: CoachStoreWriterContext;
   readonly config: Config;
   readonly catalog: AcceptedModelCatalogRecord;
-  readonly readCatalog?: () => AcceptedModelCatalogRecord;
-  readonly engineConfig: EngineConfig;
+  readonly readCatalog: () => AcceptedModelCatalogRecord;
   readonly preferredLanguages?: readonly string[];
   readonly deferInitialRefresh?: boolean;
 }
@@ -898,13 +897,6 @@ export async function createLocalCoachComposition(
   if (input.config.dataDir !== input.home.root) {
     throw new TypeError("Configured data directory does not match the selected athlete home.");
   }
-  if (input.engineConfig.models.catalogRevision !== input.catalog.snapshot.revision) {
-    throw new TypeError("Ready engine configuration does not match the selected athlete home.");
-  }
-  const projected = engineConfigFromConfig(input.config, { models: input.engineConfig.models });
-  if (JSON.stringify(projected) !== JSON.stringify(input.engineConfig)) {
-    throw new TypeError("Ready engine configuration does not match the selected athlete home.");
-  }
   const now = dependencies.now ?? Date.now;
   const logger = createSubsystemLogger("agent", input.home.root);
   const planningIdentity = createAuthoredIdentity(input.home.configDir, { now });
@@ -1059,14 +1051,15 @@ export async function createLocalCoachComposition(
   };
   let runtime: LocalStoreRuntime | undefined;
   let reference: LocalReferenceRuntime | undefined;
-  let activeCatalog = input.catalog;
-  let catalogPinned = false;
-  const catalogForRebuild = (): AcceptedModelCatalogRecord => {
-    if (catalogPinned) return activeCatalog;
-    return (
-      input.readCatalog?.() ?? readAcceptedInstallationCatalog(input.home.root) ?? activeCatalog
-    );
+  let catalogCursor:
+    | { readonly kind: "pinned"; catalog: AcceptedModelCatalogRecord }
+    | { readonly kind: "live"; catalog: AcceptedModelCatalogRecord } = {
+    kind: "live",
+    catalog: input.catalog,
   };
+  let currentEngineConfig: EngineConfig | undefined;
+  const catalogForRebuild = (): AcceptedModelCatalogRecord =>
+    catalogCursor.kind === "pinned" ? catalogCursor.catalog : input.readCatalog();
   let initialRefreshPromise: Promise<void> | undefined;
   let initialPlanCompletion: Promise<unknown> | undefined;
   let initialRefreshRetryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1316,7 +1309,10 @@ export async function createLocalCoachComposition(
       input.home.configDir,
     );
     const resolveAttachmentCapabilities = () => {
-      const projected = engineConfigFromConfig(approvedConfig(), { catalog: activeCatalog });
+      const projected = currentEngineConfig;
+      if (projected === undefined) {
+        throw new Error("runtime bundle has not started");
+      }
       return createAttachmentCapabilityResolver({
         openRouterCache: openRouterModelMetadata,
         metadataMaxAgeMs: CHAT_ATTACHMENT_LIMITS.capabilityMetadataMaxAgeMs,
@@ -1364,7 +1360,7 @@ export async function createLocalCoachComposition(
       config: Config,
       catalog: AcceptedModelCatalogRecord = catalogForRebuild(),
     ): Promise<RuntimeBundle> => {
-      activeCatalog = catalog;
+      catalogCursor = { ...catalogCursor, catalog };
       const timezone = resolveUserTimezone(config.session.timezone);
       const effectiveConfig =
         timezone === config.session.timezone
@@ -1397,6 +1393,11 @@ export async function createLocalCoachComposition(
         now,
       });
       const projectedConfig = engineConfigFromConfig(effectiveConfig, { catalog });
+      persistResolvedModelProfiles(
+        join(input.home.configDir, "model-catalog"),
+        projectedConfig.models,
+      );
+      currentEngineConfig = projectedConfig;
       const attachmentCapabilityResolver = createAttachmentCapabilityResolver({
         openRouterCache: openRouterModelMetadata,
         metadataMaxAgeMs: CHAT_ATTACHMENT_LIMITS.capabilityMetadataMaxAgeMs,
@@ -1624,8 +1625,7 @@ export async function createLocalCoachComposition(
         throw new TypeError("runtime model catalog snapshot is not compatible");
       }
       if (pinnedCatalog !== undefined) {
-        activeCatalog = pinnedCatalog;
-        catalogPinned = true;
+        catalogCursor = { kind: "pinned", catalog: pinnedCatalog };
       }
       let verificationEvidence: IntervalsCredentialVerificationEvidence | undefined;
       if (request.intervals?.verification_approval !== undefined) {

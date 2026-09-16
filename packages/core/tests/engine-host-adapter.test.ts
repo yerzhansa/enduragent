@@ -1,5 +1,5 @@
 import { createNpmCoachLanguage } from "../src/language-preference.js";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
@@ -13,6 +13,7 @@ import {
   engineConfigFromConfig,
 } from "../src/agent/engine-host-adapter.js";
 import { bundledAcceptedCatalog } from "../src/model-catalog.js";
+import { SELECTED_MODEL_PROFILES_FILE } from "../src/model-runtime-generation.js";
 import { ConversationStore } from "../src/agent/conversation-store.js";
 import type { RefreshFailureReason } from "../src/auth/refresh-failure.js";
 import {
@@ -212,6 +213,27 @@ describe("engine host adapter", () => {
     expect(Object.isFrozen(ports.config.llm)).toBe(true);
     expect(Object.isFrozen(ports.config.session)).toBe(true);
     expect(Object.isFrozen(ports.config.models)).toBe(true);
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(true);
+  });
+
+  it("does not persist selected profiles when opened with already resolved models", () => {
+    dataDir = mkdtempSync(join(tmpdir(), "engine-host-models-"));
+    const projected = engineConfigFromConfig(config(dataDir), {
+      catalog: bundledAcceptedCatalog(),
+    });
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(false);
+    createEngineHostAdapter({
+      models: projected.models,
+      config: config(dataDir),
+      stateReader: legacyStateReader,
+    });
+    expect(
+      existsSync(join(dataDir, "config", "model-catalog", SELECTED_MODEL_PROFILES_FILE)),
+    ).toBe(false);
   });
 
   it("exposes one stable Core-owned conversation coordinator for both ports", () => {

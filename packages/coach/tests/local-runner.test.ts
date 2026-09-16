@@ -333,14 +333,8 @@ describe("local coach runner", () => {
     const compositionInput = mocks.composition.mock.calls[0]![0];
     expect(compositionInput.config).toBe(readyConfig);
     expect(compositionInput.catalog).toBe(acceptedCatalog);
-    expect(compositionInput.engineConfig).not.toBe(engineConfig);
-    expect(compositionInput.engineConfig).toMatchObject({
-      llm: engineConfig.llm,
-      models: {
-        catalogRevision: acceptedCatalog.snapshot.revision,
-        chat: { model: "synthetic" },
-      },
-    });
+    expect(typeof compositionInput.readCatalog).toBe("function");
+    expect(compositionInput.engineConfig).toBeUndefined();
   });
 
   it("publishes deferred initialization without starting it before the operation", async () => {

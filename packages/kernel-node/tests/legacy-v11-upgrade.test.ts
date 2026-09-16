@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { engineConfigFromConfig, bundledAcceptedCatalog, type Config } from "@enduragent/core";
+import { bundledAcceptedCatalog, type Config } from "@enduragent/core";
 import {
   createLegacyWriterFence,
   createPlanCreationRepository,
@@ -76,7 +76,7 @@ describe("legacy v11 store upgrade and startup", () => {
           context: { home, store, listener: inertWriterProtocolListener },
           config,
           catalog: bundledAcceptedCatalog(),
-          engineConfig: engineConfigFromConfig(config, { catalog: bundledAcceptedCatalog() }),
+          readCatalog: () => bundledAcceptedCatalog(),
         },
         {
           bootstrap,
