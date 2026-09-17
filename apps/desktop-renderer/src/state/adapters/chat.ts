@@ -24,6 +24,7 @@ import {
   type ChatScrollAnchor,
   type ChatStreamBuffer,
 } from "../chat-stream";
+import { CHAT_RESPONSE_STOPPED_COPY } from "../../turn-state";
 
 type StreamAction =
   | { readonly kind: "append"; readonly messageId: string; readonly delta: string }
@@ -201,7 +202,11 @@ function projectTurnRecovery(
   return {
     ...empty,
     ...errorNotice,
-    notice: turnError?.athleteMessage ?? planNotice ?? state.progress,
+    notice:
+      turnError?.athleteMessage ??
+      planNotice ??
+      state.progress ??
+      (offered ? CHAT_RESPONSE_STOPPED_COPY : null),
     noticeRetry: offered,
   };
 }
