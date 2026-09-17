@@ -240,4 +240,92 @@ describe("model catalog compatibility filtering", () => {
     expect(result.record.snapshot.revision).toBe(BUNDLED_MODEL_CATALOG.revision);
     expect(result.record.etag).toBe("seed-etag");
   });
+
+  it("retains the prior catalog when a higher revision only has a synthetic provider", () => {
+    const previous = acceptedSeed();
+    const result = evaluateModelCatalogCandidate(
+      syntheticCatalog(previous.snapshot.revision + 1),
+      "synthetic-etag",
+      previous,
+    );
+    expect(result).toEqual({ kind: "retained", reason: "no-usable-choices", record: previous });
+    expect(result.record).toBe(previous);
+  });
+
+  it("retains the prior catalog when a higher revision drops bundled suggested providers", () => {
+    const previous = acceptedSeed();
+    const candidate = collapsedCatalog(previous.snapshot.revision + 1);
+    expect(acceptModelCatalogSnapshot(candidate)).toMatchObject({
+      snapshot: { revision: candidate.revision },
+    });
+    const result = evaluateModelCatalogCandidate(candidate, "collapsed-etag", previous);
+    expect(result).toEqual({ kind: "retained", reason: "no-usable-choices", record: previous });
+    expect(result.record).toBe(previous);
+    expect(
+      result.record.effective.providers.find((provider) => provider.provider === "openai-codex"),
+    ).toMatchObject({ kind: "suggested" });
+  });
+
+  it("accepts a higher revision that keeps every bundled suggested provider", () => {
+    const previous = acceptedSeed();
+    const candidate = cloneSeed();
+    candidate.revision = previous.snapshot.revision + 1;
+    candidate.provenance = { kind: "published", publishedAt: "1998-01-01T00:00:00.000Z" };
+    const openai = candidate.providers.find((provider) => provider.providerId === "openai");
+    if (openai === undefined) throw new Error("missing OpenAI seed provider");
+    openai.models.push({
+      modelId: "new-remote-model",
+      label: "New Remote Model",
+      order: 50,
+      compatibilityProfile: "openai-ai-sdk-v1",
+      contextWindow: { kind: "unknown" },
+      imageInput: "unknown",
+      pricing: { kind: "unknown" },
+    });
+
+    const result = evaluateModelCatalogCandidate(candidate, "remote-etag", previous);
+    expect(result).toMatchObject({
+      kind: "accepted",
+      record: { snapshot: { revision: candidate.revision }, etag: "remote-etag" },
+    });
+    if (result.kind !== "accepted") throw new Error("valid remote catalog was not accepted");
+    expect(
+      result.record.effective.providers.find((provider) => provider.provider === "openai-codex"),
+    ).toMatchObject({ kind: "suggested" });
+  });
 });
+
+function syntheticCatalog(revision: number) {
+  return {
+    schemaVersion: 1 as const,
+    revision,
+    provenance: { kind: "published" as const, publishedAt: "1998-01-01T00:00:00.000Z" },
+    providers: [
+      {
+        providerId: "synthetic",
+        label: "Synthetic",
+        order: 0,
+        recommendedModelId: "synthetic-model",
+        models: [
+          {
+            modelId: "synthetic-model",
+            label: "Synthetic Model",
+            order: 0,
+            compatibilityProfile: "synthetic-v1",
+            contextWindow: { kind: "unknown" as const },
+            imageInput: "unknown" as const,
+            pricing: { kind: "unknown" as const },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function collapsedCatalog(revision: number) {
+  const snapshot = cloneSeed();
+  snapshot.revision = revision;
+  snapshot.provenance = { kind: "published", publishedAt: "1998-01-01T00:00:00.000Z" };
+  snapshot.providers = snapshot.providers.filter((provider) => provider.providerId === "openai");
+  return snapshot;
+}

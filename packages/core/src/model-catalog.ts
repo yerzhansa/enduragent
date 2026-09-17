@@ -162,6 +162,27 @@ function deriveEffectiveCatalog(snapshot: ModelCatalogSnapshot): EffectiveModelC
   });
 }
 
+function suggestedProviderIds(catalog: EffectiveModelCatalog): ReadonlySet<string> {
+  return new Set(
+    catalog.providers.flatMap((provider) =>
+      provider.kind === "suggested" ? [provider.provider] : [],
+    ),
+  );
+}
+
+const BUNDLED_SUGGESTED_PROVIDER_IDS = suggestedProviderIds(
+  deriveEffectiveCatalog(BUNDLED_MODEL_CATALOG),
+);
+
+/** Live catalogs must keep every bundled suggested provider as suggested. */
+export function catalogMeetsBundledUsableBar(catalog: EffectiveModelCatalog): boolean {
+  const suggested = suggestedProviderIds(catalog);
+  return (
+    suggested.size > 0 &&
+    [...BUNDLED_SUGGESTED_PROVIDER_IDS].every((provider) => suggested.has(provider))
+  );
+}
+
 export function bundledAcceptedCatalog(): AcceptedModelCatalogRecord {
   const accepted = acceptModelCatalogSnapshot(BUNDLED_MODEL_CATALOG);
   if (accepted === undefined) {
@@ -226,7 +247,7 @@ export function evaluateModelCatalogCandidate(
     return Object.freeze({ kind: "retained", reason: "invalid", record: previous });
   }
   const accepted = acceptModelCatalogSnapshot(parsed.data, etag);
-  return accepted === undefined
+  return accepted === undefined || !catalogMeetsBundledUsableBar(accepted.effective)
     ? Object.freeze({ kind: "retained", reason: "no-usable-choices", record: previous })
     : Object.freeze({ kind: "accepted", record: accepted });
 }
