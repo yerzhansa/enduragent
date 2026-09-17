@@ -444,6 +444,15 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             )
           : [];
       const activeClaims = new Set(activeQueueClaimIds);
+      const retryRequired = action.snapshot.retryRequired ?? null;
+      let progress = state.progress;
+      if (retryRequired != null) {
+        if (state.status !== "streaming" && progress == null) {
+          progress = CHAT_RESPONSE_STOPPED_COPY;
+        }
+      } else if (state.status === "idle" && progress === CHAT_RESPONSE_STOPPED_COPY) {
+        progress = null;
+      }
       return {
         ...state,
         queueRevision: action.snapshot.revision,
@@ -457,7 +466,8 @@ export function reduceChatState(state: ChatState, action: ChatAction): ChatState
             restored: item.restored,
             attachmentIds: item.attachmentIds,
           })),
-        retryRequired: action.snapshot.retryRequired ?? null,
+        retryRequired,
+        progress,
       };
     }
     case "queue-claimed": {

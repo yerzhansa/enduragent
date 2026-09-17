@@ -70,6 +70,161 @@ describe("desktop turn state", () => {
     });
     expect(state.queued.map(({ id }) => id)).toEqual(["head", "later"]);
     expect(state.activeQueueClaimIds).toEqual([]);
+    expect(state.progress).toBe(CHAT_RESPONSE_STOPPED_COPY);
+  });
+
+  it("restores stopped copy when relaunch hydrates retryRequired without progress", () => {
+    const state = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "queued-1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "Try this again",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: true,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      },
+    });
+    expect(state.retryRequired?.claimId).toBe("claim-1");
+    expect(state.progress).toBe(CHAT_RESPONSE_STOPPED_COPY);
+    expect(state.status).toBe("idle");
+  });
+
+  it("keeps live interrupt copy when retryRequired arrives later", () => {
+    let state = started();
+    state = reduceChatState(state, {
+      type: "interrupt",
+      requestKey: 1,
+      copy: "Connection interrupted. Your partial response is preserved.",
+    });
+    state = reduceChatState(state, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "queued-1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "How should I train?",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: false,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      },
+    });
+    expect(state.progress).toBe("Connection interrupted. Your partial response is preserved.");
+  });
+
+  it("does not restore stopped copy onto a streaming turn", () => {
+    let streaming = started();
+    streaming = reduceChatState(streaming, {
+      type: "event",
+      requestKey: 1,
+      event: { type: "text_delta", turnId: "turn-1", delta: "Partial" },
+    });
+    expect(streaming.status).toBe("streaming");
+    expect(streaming.progress).toBeNull();
+    const next = reduceChatState(streaming, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "queued-1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "How should I train?",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: false,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      },
+    });
+    expect(next.status).toBe("streaming");
+    expect(next.progress).toBeNull();
+  });
+
+  it("clears restored stopped copy when retryRequired leaves an idle chat", () => {
+    let state = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "queued-1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "Try this again",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: true,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      },
+    });
+    expect(state.progress).toBe(CHAT_RESPONSE_STOPPED_COPY);
+    state = reduceChatState(state, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 2,
+        items: [
+          {
+            queuedMessageId: "queued-2",
+            messageId: "message-2",
+            submissionId: "submission-2",
+            text: "Later",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: false,
+          },
+        ],
+      },
+    });
+    expect(state.retryRequired).toBeNull();
+    expect(state.progress).toBeNull();
   });
 
   it("ignores an equal queue revision after successful reset", () => {

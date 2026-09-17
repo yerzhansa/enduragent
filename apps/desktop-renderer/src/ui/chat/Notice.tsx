@@ -17,6 +17,7 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
     descriptor !== undefined || message === null ? (notice ?? "") : say(message),
     descriptor,
   );
+  const hasNoticeText = /\S/u.test(text);
   const planCreation = useEnduragentStore((state) => state.chat.planCreation);
   if ((planCreation !== null) !== (props.inPlanCreation === true)) return null;
   const danger = tone === "danger";
@@ -29,12 +30,14 @@ export function Notice(props: { readonly inPlanCreation?: boolean }): ReactEleme
       }`}
       role={danger ? "alert" : "status"}
       data-tone={tone}
-      hidden={notice === null && !noticeRetry}
+      hidden={!hasNoticeText && !noticeRetry}
     >
-      <span className="flex min-w-0 items-center gap-inset">
-        {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
-        <span>{text}</span>
-      </span>
+      {hasNoticeText || !noticeRetry ? (
+        <span className="flex min-w-0 items-center gap-inset">
+          {danger ? <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+          <span>{text}</span>
+        </span>
+      ) : null}
       <RetryBar />
     </div>
   );

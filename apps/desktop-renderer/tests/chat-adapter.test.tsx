@@ -16,6 +16,7 @@ import { createChatScrollAnchor, resetChatStream } from "../src/state/chat-strea
 import { READY_ONBOARDING } from "../src/state/onboarding-slice";
 import { useEnduragentStore } from "../src/state/store";
 import {
+  CHAT_RESPONSE_STOPPED_COPY,
   CHAT_WORKING_COPY,
   EMPTY_CHAT_STATE,
   reduceChatState,
@@ -1438,6 +1439,7 @@ describe("chat view adapter", () => {
     );
     const surface = published.at(-1);
     expect(surface?.noticeRetry).toBe(true);
+    expect(surface?.notice).toBe(CHAT_RESPONSE_STOPPED_COPY);
     expect(surface?.messages.some((message) => message.retry === true)).toBe(false);
     expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
   });
@@ -1528,10 +1530,66 @@ describe("chat view adapter", () => {
     );
     const surface = published.at(-1);
     expect(surface?.noticeRetry).toBe(true);
+    expect(surface?.notice).toBe(CHAT_RESPONSE_STOPPED_COPY);
     expect(
       surface?.timeline.some((item) => item.kind === "message" && item.message.retry === true),
     ).toBe(false);
     expect(surface?.queued.map((message) => message.id)).toEqual(["q2"]);
+  });
+
+  it("keeps restored stopped copy from a retry-required queue snapshot on the notice", () => {
+    const published: ChatSurfaceState[] = [];
+    const adapter = createChatViewAdapter({ publish: (next) => published.push(next) });
+    const state = reduceChatState(EMPTY_CHAT_STATE, {
+      type: "queue-snapshot",
+      snapshot: {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "q1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "Try this again",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: true,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["q1"],
+          turnId: TURN_ID,
+          status: "retry-required",
+        },
+      },
+    });
+    expect(state.progress).toBe(CHAT_RESPONSE_STOPPED_COPY);
+    adapter.view.render(
+      state,
+      controls({
+        hydration: {
+          status: "ready",
+          hasEarlier: false,
+          revision: 1,
+          change: "initial",
+          entries: [
+            {
+              kind: "turn",
+              turnId: TURN_ID,
+              completedAt: "2001-01-01T00:00:00.000Z",
+              athleteText: "Try this again",
+              coachText: "Keep Tuesday easy.",
+              delivery: "interrupted",
+            },
+          ],
+        },
+      }),
+    );
+    const surface = published.at(-1);
+    expect(surface?.noticeRetry).toBe(true);
+    expect(surface?.notice).toBe(CHAT_RESPONSE_STOPPED_COPY);
   });
 
   it("carries hydrated history through the port and flags it for the reset copy", () => {
