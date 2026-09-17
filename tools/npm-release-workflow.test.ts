@@ -252,6 +252,53 @@ describe("npm package coordinator dispatch", { timeout: 30_000 }, () => {
   });
 });
 
+describe("version PR coordinator gate", () => {
+  const coordinators = ["package-coordinator", "desktop-coordinator"] as const;
+
+  function gateExpression(): string {
+    const expression = job(coordinator, "package-coordinator").if;
+    if (!expression) throw new Error("package-coordinator is missing if");
+    return expression;
+  }
+
+  function pushMessageWouldRunCoordinators(message: string): boolean {
+    const expression = gateExpression();
+    const title = expression.match(/startsWith\(github\.event\.head_commit\.message, '([^']*)'\)/);
+    const mergedHead = expression.match(
+      /contains\(github\.event\.head_commit\.message, '([^']*)'\)/,
+    );
+    if (!title?.[1] || !mergedHead?.[1] || !expression.includes("||")) {
+      throw new Error(`coordinator if must OR title and merged-head detection: ${expression}`);
+    }
+    return message.startsWith(title[1]) || message.includes(mergedHead[1]);
+  }
+
+  it("shares a push OR-gate across both coordinators", () => {
+    const expression = gateExpression();
+    expect(expression).toBe(
+      "github.event_name == 'push' && (startsWith(github.event.head_commit.message, 'Version Packages') || contains(github.event.head_commit.message, 'changeset-release/main'))",
+    );
+    for (const name of coordinators) {
+      expect(job(coordinator, name).if, name).toBe(expression);
+    }
+  });
+
+  it("would have run coordinators for the #1082 changeset-release merge commit", () => {
+    const incident =
+      "Merge pull request #1082 from yerzhansa/changeset-release/main\n\nVersion Packages";
+    expect(pushMessageWouldRunCoordinators(incident)).toBe(true);
+    expect(pushMessageWouldRunCoordinators("Version Packages")).toBe(true);
+    expect(pushMessageWouldRunCoordinators("Version Packages\n\nBumps desktop.")).toBe(true);
+    expect(pushMessageWouldRunCoordinators("Version Packages (#1082)")).toBe(true);
+    expect(
+      pushMessageWouldRunCoordinators(
+        "Merge pull request #1081 from yerzhansa/cursor/catalog-usable-snapshot-bar-aacb",
+      ),
+    ).toBe(false);
+    expect(pushMessageWouldRunCoordinators("fix: something else")).toBe(false);
+  });
+});
+
 describe("protected-main npm workflow boundaries", () => {
   it("resolves runner paths only in the publishing step environment", () => {
     for (const source of [release, coordinator]) {

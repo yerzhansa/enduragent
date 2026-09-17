@@ -39,7 +39,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   package-coordinator:
-    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Version Packages')
+    # Squash/rebase/direct Version Packages commits keep the title path.
+    # GitHub merge commits of changeset-release/main are titled
+    # "Merge pull request #N from <owner>/changeset-release/main" instead.
+    if: github.event_name == 'push' && (startsWith(github.event.head_commit.message, 'Version Packages') || contains(github.event.head_commit.message, 'changeset-release/main'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -117,7 +120,7 @@ jobs:
           done
 
   desktop-coordinator:
-    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Version Packages')
+    if: github.event_name == 'push' && (startsWith(github.event.head_commit.message, 'Version Packages') || contains(github.event.head_commit.message, 'changeset-release/main'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
