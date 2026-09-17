@@ -90,12 +90,24 @@ export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdate
   return { status: state.status };
 }
 
+/**
+ * MacUpdater feeds the downloaded zip to native Squirrel.Mac during download
+ * only when `autoInstallOnAppQuit` is true. If false, that handoff waits until
+ * `quitAndInstall`, which runs after our drain/`before-quit` preventDefault and
+ * can hang forever on Restarting. Windows/Linux BaseUpdater would auto-install
+ * on an ordinary quit when this is true, so those platforms keep it false.
+ */
+export function desktopUpdateAutoInstallOnAppQuit(platform: NodeJS.Platform): boolean {
+  return platform === "darwin";
+}
+
 export function createDesktopUpdateController(input: {
   readonly releaseEligible: boolean;
   readonly currentVersion: string;
   readonly versionFloor: DesktopUpdateVersionFloor;
   readonly loadUpdater: () => Promise<DesktopAutoUpdater>;
   readonly requestQuit: () => void;
+  readonly platform?: NodeJS.Platform;
   readonly log?: (message: string) => void;
   readonly setInterval?: (callback: () => void, interval: number) => TimerHandle;
   readonly clearInterval?: (handle: TimerHandle) => void;
@@ -103,6 +115,7 @@ export function createDesktopUpdateController(input: {
   readonly clearTimeout?: (handle: TimerHandle) => void;
 }): DesktopUpdateController {
   const active = input.releaseEligible;
+  const platform = input.platform ?? process.platform;
   const listeners = new Set<(state: DesktopUpdateState) => void>();
   const scheduleInterval =
     input.setInterval ??
@@ -430,7 +443,7 @@ export function createDesktopUpdateController(input: {
       try {
         updater.logger = null;
         updater.autoDownload = false;
-        updater.autoInstallOnAppQuit = false;
+        updater.autoInstallOnAppQuit = desktopUpdateAutoInstallOnAppQuit(platform);
         updater.autoRunAppAfterInstall = true;
         updater.allowPrerelease = false;
         updater.allowDowngrade = false;

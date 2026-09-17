@@ -406,6 +406,7 @@ async function runDesktop(): Promise<void> {
       currentVersion: app.getVersion(),
     }),
     currentVersion: app.getVersion(),
+    platform: process.platform,
     versionFloor: updateVersionFloor,
     loadUpdater: async () => {
       const { default: electronUpdater } = await import("electron-updater");
