@@ -1,5 +1,12 @@
 # running-coach
 
+## 0.0.12
+
+### Patch Changes
+
+- Updated dependencies [6e57252]
+  - @enduragent/core@0.1.8
+
 ## 0.0.11
 
 ### Patch Changes
