@@ -7,6 +7,7 @@ import {
   apiKeyProviders,
   claudeCliNote,
   errorSection,
+  idleAiProvider,
   laneForProvider,
   offeredLanes,
   type SetupCommit,
@@ -216,5 +217,77 @@ describe("setup lanes", () => {
 
   it("falls back to the footer for a credential write with no owning panel", () => {
     expect(errorSection("credential-save-failed", null)).toBe("footer");
+  });
+
+  it("uses the active provider as the idle AI row even when draft differs", () => {
+    expect(
+      idleAiProvider({
+        activeProvider: "openai-codex",
+        activeProviderReady: true,
+        chatGptReady: true,
+      }),
+    ).toBe("openai-codex");
+    expect(
+      idleAiProvider({
+        activeProvider: "openai-codex",
+        activeProviderReady: true,
+        chatGptReady: false,
+      }),
+    ).toBe("openai-codex");
+    expect(
+      idleAiProvider({
+        activeProvider: "anthropic",
+        activeProviderReady: true,
+        chatGptReady: true,
+      }),
+    ).toBe("anthropic");
+    expect(
+      idleAiProvider({
+        activeProvider: "claude-cli",
+        activeProviderReady: true,
+        chatGptReady: false,
+      }),
+    ).toBe("claude-cli");
+  });
+
+  it("falls back to a runtime-ready ChatGPT profile when active is unset or not ready", () => {
+    expect(
+      idleAiProvider({
+        activeProvider: null,
+        activeProviderReady: false,
+        chatGptReady: true,
+      }),
+    ).toBe("openai-codex");
+    expect(
+      idleAiProvider({
+        activeProvider: undefined,
+        activeProviderReady: false,
+        chatGptReady: true,
+      }),
+    ).toBe("openai-codex");
+    expect(
+      idleAiProvider({
+        activeProvider: "openai-codex",
+        activeProviderReady: false,
+        chatGptReady: true,
+      }),
+    ).toBe("openai-codex");
+    expect(
+      idleAiProvider({
+        activeProvider: "openai-codex",
+        activeProviderReady: false,
+        chatGptReady: false,
+      }),
+    ).toBeNull();
+    expect(
+      idleAiProvider({
+        activeProvider: "codex-agent",
+        activeProviderReady: false,
+        chatGptReady: false,
+      }),
+    ).toBeNull();
+    expect(
+      idleAiProvider({ activeProvider: null, activeProviderReady: false, chatGptReady: false }),
+    ).toBeNull();
   });
 });

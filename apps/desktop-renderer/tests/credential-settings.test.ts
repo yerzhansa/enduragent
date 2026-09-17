@@ -13,6 +13,7 @@ import type {
   CredentialSlotStatus,
 } from "../src/onboarding/machine";
 import {
+  belongsInPrimaryAiRow,
   credentialChangesBlocked,
   createCredentialSettingsController,
   type CredentialSettingsState,
@@ -1065,6 +1066,45 @@ describe("credential settings controller", () => {
     const row = content(unavailable.controller.state()).providerStatuses[0];
     expect(row?.state).toBeNull();
     expect(row?.identity).toBe("Checking the Claude Code CLI sign-in on this Mac…");
+  });
+
+  it("hides Active ChatGPT from extra rows when draft and active disagree", () => {
+    expect(
+      belongsInPrimaryAiRow({ credential: "openai-codex", runtimeState: "active" }, null),
+    ).toBe(true);
+    expect(
+      belongsInPrimaryAiRow({ credential: "openai-codex", runtimeState: "active" }, "anthropic"),
+    ).toBe(true);
+  });
+
+  it("keeps a stored-inactive ChatGPT profile when another provider is primary", () => {
+    expect(
+      belongsInPrimaryAiRow(
+        { credential: "openai-codex", runtimeState: "stored-inactive" },
+        "anthropic",
+      ),
+    ).toBe(false);
+    expect(
+      belongsInPrimaryAiRow(
+        { credential: "openai-codex", runtimeState: "stored-inactive" },
+        "openai-codex",
+      ),
+    ).toBe(true);
+  });
+
+  it("hides the active API-key credential from extra rows for every primary lane", () => {
+    expect(belongsInPrimaryAiRow({ credential: "anthropic", runtimeState: "active" }, null)).toBe(
+      true,
+    );
+    expect(
+      belongsInPrimaryAiRow(
+        { credential: "openrouter", runtimeState: "stored-inactive" },
+        "anthropic",
+      ),
+    ).toBe(false);
+    expect(
+      belongsInPrimaryAiRow({ credential: "intervals-icu", runtimeState: "active" }, null),
+    ).toBe(false);
   });
 
   it("emits no status rows and never probes Claude while Codex is active", async () => {

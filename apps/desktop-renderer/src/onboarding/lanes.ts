@@ -31,6 +31,21 @@ export function laneForProvider(provider: string | null | undefined): SetupLane 
   return KEYLESS_SETUP_LANES.find((lane) => lane === provider) ?? "api-key";
 }
 
+export function idleAiProvider(input: {
+  readonly activeProvider: string | null | undefined;
+  readonly activeProviderReady: boolean;
+  readonly chatGptReady: boolean;
+}): string | null {
+  if (
+    input.activeProviderReady &&
+    input.activeProvider !== null &&
+    input.activeProvider !== undefined
+  ) {
+    return input.activeProvider;
+  }
+  return input.chatGptReady ? "openai-codex" : null;
+}
+
 export function apiKeyProviders(
   configuration: OnboardingLlmConfiguration | null,
 ): readonly OnboardingLlmProviderConfiguration[] {

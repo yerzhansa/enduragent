@@ -133,6 +133,58 @@ function llmConfiguration(): OnboardingLlmConfiguration {
   };
 }
 
+const CHATGPT_PROVIDER = {
+  provider: "openai-codex",
+  defaultModel: "gpt-5.5",
+  models: [{ value: "gpt-5.5", label: "GPT-5.5" }],
+} as const;
+
+const CLAUDE_PROVIDER = {
+  provider: "claude-cli",
+  defaultModel: "sonnet",
+  models: [{ value: "sonnet", label: "Claude Sonnet" }],
+} as const;
+
+function catalogueWith(
+  extra: readonly (typeof CHATGPT_PROVIDER | typeof CLAUDE_PROVIDER)[],
+  active: OnboardingLlmConfiguration["active"],
+): OnboardingLlmConfiguration {
+  const base = llmConfiguration();
+  return {
+    ...base,
+    providers: [...base.providers, ...extra],
+    active,
+  };
+}
+
+function seedOnboardingPrimaryAi(input: {
+  readonly draftProvider: string;
+  readonly active: OnboardingLlmConfiguration["active"];
+  readonly chatGpt?: ChatGptStatus;
+  readonly extraProviders?: readonly (typeof CHATGPT_PROVIDER | typeof CLAUDE_PROVIDER)[];
+}): void {
+  const configuration = catalogueWith(input.extraProviders ?? [CHATGPT_PROVIDER], input.active);
+  const draftProvider =
+    configuration.providers.find((entry) => entry.provider === input.draftProvider) ??
+    configuration.providers[0]!;
+  const chatGpt = input.chatGpt ?? { state: "absent", runtimeReady: false };
+  useEnduragentStore.setState((state) => ({
+    onboarding: {
+      ...state.onboarding,
+      wizard: createOnboardingState(state.onboarding.statuses, chatGpt),
+      configuration,
+      draft: {
+        catalogRevision: configuration.catalogRevision,
+        provider: draftProvider,
+        modelChoice: draftProvider.defaultModel,
+        customModel: "",
+        endpointMode: "automatic",
+        customEndpoint: "",
+      },
+    },
+  }));
+}
+
 function spendSummary(overrides: Partial<SpendSummary> = {}): SpendSummary {
   return {
     localDate: "1998-07-06",
@@ -768,6 +820,147 @@ describe("settings setup inventory", () => {
         name: "Open setup",
       }),
     ).toBeNull();
+  });
+
+  it("shows Active ChatGPT in the first Setup row when draft still points at another provider", async () => {
+    seedOnboardingPrimaryAi({
+      draftProvider: "anthropic",
+      active: { provider: "openai-codex", model: "gpt-5.5" },
+      chatGpt: { state: "configured", runtimeReady: true },
+    });
+    await renderSettings({
+      runtime: () =>
+        snapshot({
+          llm: { provider: "openai-codex", model: "gpt-5.5", credential_configured: true },
+        }),
+      chatGptStatus: { state: "configured", runtimeReady: true },
+      credentialStatuses: [
+        { slot: "openrouter", state: "configured", runtimeState: "stored-inactive" },
+        { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      ],
+      llm: () => catalogueWith([CHATGPT_PROVIDER], { provider: "openai-codex", model: "gpt-5.5" }),
+    });
+
+    const setup = document.querySelector('[data-setup-host="settings"]');
+    const aiRow = setup?.querySelector<HTMLElement>('[data-setup-row="ai"]');
+    expect(aiRow).not.toBeNull();
+    expect(aiRow).toHaveAttribute("data-state", "ready");
+    expect(aiRow?.querySelector("[data-setup-row-title]")?.textContent).toContain(
+      "ChatGPT subscription",
+    );
+    expect(aiRow?.querySelector("[data-setup-row-subtitle]")?.textContent).toBe(
+      "Connected · powers your coach",
+    );
+    expect(
+      within(aiRow as HTMLElement).getByRole("button", { name: "Change what powers your coach" }),
+    ).toBeEnabled();
+    expect(
+      within(aiRow as HTMLElement).getByRole("button", { name: "Delete the ChatGPT credential" }),
+    ).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Choose what powers your coach" })).toBeNull();
+    expect(setup?.querySelector('[data-setup-row="saved-openai-codex"]')).toBeNull();
+    expect(screen.queryByText(/ChatGPT profile/u)).toBeNull();
+    expect(setup?.querySelector('[data-setup-row="saved-openrouter"]')).not.toBeNull();
+  });
+
+  it("hides Active ChatGPT extra rows when runtime is ready even if onboarding active is unset", async () => {
+    seedOnboardingPrimaryAi({
+      draftProvider: "anthropic",
+      active: null,
+      chatGpt: { state: "configured", runtimeReady: true },
+    });
+    await renderSettings({
+      runtime: () =>
+        snapshot({
+          llm: { provider: "openai-codex", model: "gpt-5.5", credential_configured: true },
+        }),
+      chatGptStatus: { state: "configured", runtimeReady: true },
+      credentialStatuses: [{ slot: "intervals-icu", state: "configured", runtimeState: "active" }],
+    });
+
+    const aiRow = document.querySelector<HTMLElement>('[data-setup-row="ai"]');
+    expect(aiRow?.querySelector("[data-setup-row-title]")?.textContent).toContain(
+      "ChatGPT subscription",
+    );
+    expect(
+      within(aiRow as HTMLElement).getByRole("button", { name: "Change what powers your coach" }),
+    ).toBeEnabled();
+    expect(document.querySelector('[data-setup-row="saved-openai-codex"]')).toBeNull();
+  });
+
+  it("keeps a stored ChatGPT profile under additional credentials when another key is primary", async () => {
+    await renderSettings({
+      chatGptStatus: { state: "configured", runtimeReady: false },
+    });
+
+    const extra = document.querySelector<HTMLElement>('[data-setup-row="saved-openai-codex"]');
+    expect(extra).not.toBeNull();
+    expect(extra?.textContent).toContain("ChatGPT");
+    expect(extra?.textContent).toContain("ChatGPT profile");
+    expect(extra?.textContent).toContain("Saved, not active");
+    const aiRow = document.querySelector<HTMLElement>('[data-setup-row="ai"]');
+    expect(aiRow?.querySelector("[data-setup-row-title]")?.textContent).toContain("API key");
+    expect(document.querySelector('[data-setup-row="saved-anthropic"]')).toBeNull();
+  });
+
+  it("shows the API-key lane when draft leaves the active key", async () => {
+    useEnduragentStore.setState((state) => {
+      const openrouter = state.onboarding.configuration?.providers.find(
+        (entry) => entry.provider === "openrouter",
+      );
+      if (openrouter === undefined) return state;
+      return {
+        onboarding: {
+          ...state.onboarding,
+          draft: {
+            catalogRevision: state.onboarding.configuration?.catalogRevision ?? 7,
+            provider: openrouter,
+            modelChoice: openrouter.defaultModel,
+            customModel: "",
+            endpointMode: "automatic",
+            customEndpoint: "",
+          },
+        },
+      };
+    });
+    await renderSettings();
+
+    const aiRow = document.querySelector<HTMLElement>('[data-setup-row="ai"]');
+    expect(aiRow?.querySelector("[data-setup-row-title]")?.textContent).toContain("API key");
+    expect(
+      within(aiRow as HTMLElement).getByRole("button", { name: "Change what powers your coach" }),
+    ).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Choose what powers your coach" })).toBeNull();
+    expect(document.querySelector('[data-setup-row="saved-anthropic"]')).toBeNull();
+    expect(document.querySelector('[data-setup-row="saved-openrouter"]')).not.toBeNull();
+  });
+
+  it("shows Claude Code in the first Setup row when draft still points at an API key", async () => {
+    seedOnboardingPrimaryAi({
+      draftProvider: "anthropic",
+      active: { provider: "claude-cli", model: "sonnet" },
+      extraProviders: [CLAUDE_PROVIDER],
+    });
+    await renderSettings({
+      runtime: () =>
+        snapshot({
+          llm: { provider: "claude-cli", model: "sonnet", credential_configured: true },
+        }),
+      credentialStatuses: [{ slot: "intervals-icu", state: "configured", runtimeState: "active" }],
+      claudeCliStatus: async () => ({
+        state: "ready",
+        email: "athlete@example.test",
+        plan: "Max",
+      }),
+    });
+
+    const aiRow = document.querySelector<HTMLElement>('[data-setup-row="ai"]');
+    expect(aiRow?.querySelector("[data-setup-row-title]")?.textContent).toContain("Claude Code");
+    expect(
+      within(aiRow as HTMLElement).getByRole("button", { name: "Change what powers your coach" }),
+    ).toBeEnabled();
+    expect(document.querySelector('[data-provider="claude-cli"]')).toBeNull();
+    expect(screen.queryByText(/athlete@example\.test/u)).toBeNull();
   });
 
   it("opens the chooser for an inactive saved key without changing active readiness", async () => {
