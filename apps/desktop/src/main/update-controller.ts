@@ -90,12 +90,26 @@ export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdate
   return { status: state.status };
 }
 
+/**
+ * MacUpdater feeds the downloaded zip to native Squirrel.Mac during download
+ * only when `autoInstallOnAppQuit` is true. If false, `squirrelDownloadedUpdate`
+ * stays false and `quitAndInstall` defers `nativeUpdater.checkForUpdates()` until
+ * after drain. `completeInstallAfterDrain` still returns `"started"` and
+ * `completeDesktopShutdown` does not `app.exit`, so Restarting can hang with
+ * ShipIt never launched. Windows/Linux BaseUpdater would auto-install on an
+ * ordinary quit when this is true, so those platforms keep it false.
+ */
+export function desktopUpdateAutoInstallOnAppQuit(platform: NodeJS.Platform): boolean {
+  return platform === "darwin";
+}
+
 export function createDesktopUpdateController(input: {
   readonly releaseEligible: boolean;
   readonly currentVersion: string;
   readonly versionFloor: DesktopUpdateVersionFloor;
   readonly loadUpdater: () => Promise<DesktopAutoUpdater>;
   readonly requestQuit: () => void;
+  readonly platform?: NodeJS.Platform;
   readonly log?: (message: string) => void;
   readonly setInterval?: (callback: () => void, interval: number) => TimerHandle;
   readonly clearInterval?: (handle: TimerHandle) => void;
@@ -103,6 +117,7 @@ export function createDesktopUpdateController(input: {
   readonly clearTimeout?: (handle: TimerHandle) => void;
 }): DesktopUpdateController {
   const active = input.releaseEligible;
+  const platform = input.platform ?? process.platform;
   const listeners = new Set<(state: DesktopUpdateState) => void>();
   const scheduleInterval =
     input.setInterval ??
@@ -430,7 +445,7 @@ export function createDesktopUpdateController(input: {
       try {
         updater.logger = null;
         updater.autoDownload = false;
-        updater.autoInstallOnAppQuit = false;
+        updater.autoInstallOnAppQuit = desktopUpdateAutoInstallOnAppQuit(platform);
         updater.autoRunAppAfterInstall = true;
         updater.allowPrerelease = false;
         updater.allowDowngrade = false;
@@ -504,6 +519,7 @@ export function createDesktopUpdateController(input: {
       installInvoked = true;
       try {
         allowFinalQuit();
+        // MacUpdater only starts ShipIt here if Squirrel already ingested the zip.
         updater.quitAndInstall(false, true);
         return "started";
       } catch {

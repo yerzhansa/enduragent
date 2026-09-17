@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createDesktopUpdateController,
+  desktopUpdateAutoInstallOnAppQuit,
   DESKTOP_UPDATE_CHECK_TIMEOUT_MS,
   DESKTOP_UPDATE_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
   DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
@@ -136,6 +137,7 @@ function activeController(
   const controller = createDesktopUpdateController({
     releaseEligible: true,
     currentVersion: "0.1.0",
+    platform: "linux",
     versionFloor: readyVersionFloor(),
     loadUpdater: vi.fn(async () => updater),
     requestQuit: quit,
@@ -244,6 +246,23 @@ describe("desktop update controller", () => {
     expect(controller.state()).toEqual({ status: "current" });
     controller.close();
   });
+
+  it.each([
+    { platform: "darwin", autoInstallOnAppQuit: true },
+    { platform: "win32", autoInstallOnAppQuit: false },
+    { platform: "linux", autoInstallOnAppQuit: false },
+  ] as const)(
+    "configures autoInstallOnAppQuit=$autoInstallOnAppQuit for $platform",
+    async ({ platform, autoInstallOnAppQuit }) => {
+      expect(desktopUpdateAutoInstallOnAppQuit(platform)).toBe(autoInstallOnAppQuit);
+      const fake = fakeUpdater();
+      vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.0"));
+      const subject = activeController(fake.updater, { platform });
+      await subject.controller.start();
+      expect(fake.updater.autoInstallOnAppQuit).toBe(autoInstallOnAppQuit);
+      subject.controller.close();
+    },
+  );
 
   it("configures a quiet updater, performs startup and unref'd six-hour checks, and cleans up", async () => {
     const fake = fakeUpdater();
