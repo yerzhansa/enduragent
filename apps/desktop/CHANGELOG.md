@@ -1,5 +1,25 @@
 # @enduragent/desktop
 
+## 0.5.5
+
+### Patch Changes
+
+- 6e57252: User-facing: Setup and Settings keep the usual model list when a saved catalog update would have left providers empty.
+
+  A higher-revision installation snapshot with only a Synthetic provider previously beat the bundled catalog, so a selected provider such as OpenAI Codex became custom-only with no models. Live candidate evaluation and local snapshot selection now skip catalogs that drop bundled suggested providers.
+
+- fcf49e8: User-facing: After you reopen Chat with a stopped coach reply, the notice again explains that the response stopped and still offers Retry beside that copy.
+
+  `queue-snapshot` restores `progress` with `CHAT_RESPONSE_STOPPED_COPY` when it hydrates `retryRequired`. `projectTurnRecovery` uses that copy when Retry is offered and no other notice exists.
+
+- 3e71af4: User-facing: Restarting to install a downloaded Mac update now finishes instead of staying on Restarting.
+
+  On darwin, electron-updater 6.8.9 MacUpdater only feeds the zip to native Squirrel.Mac during download when `autoInstallOnAppQuit` is true. The previous `false` setting left `squirrelDownloadedUpdate` false, so `completeInstallAfterDrain` → `quitAndInstall` used the deferred native `checkForUpdates` path after drain. That returns `"started"` without `app.exit` and without launching ShipIt (live: 0.5.2 still running, zip in updater cache, ShipIt logs stale). Windows/Linux BaseUpdater still keeps `autoInstallOnAppQuit` false so an ordinary quit does not install.
+
+- Updated dependencies [6e57252]
+  - @enduragent/core@0.1.8
+  - @enduragent/coach@0.1.5
+
 ## 0.5.4
 
 ### Patch Changes
