@@ -1019,6 +1019,45 @@ describe("chat controller", () => {
     });
   });
 
+  it("restores stopped copy when relaunch hydrates a retry-required queue", () => {
+    const { states } = subject(
+      client(replies()),
+      client(replies()),
+      async () => {},
+      async () => {},
+      () => true,
+      true,
+      vi.fn(),
+      {
+        schemaVersion: 1,
+        revision: 1,
+        items: [
+          {
+            queuedMessageId: "queued-1",
+            messageId: "message-1",
+            submissionId: "submission-1",
+            text: "Try this again",
+            kind: "ordinary",
+            attachmentIds: [],
+            position: 0,
+            restored: true,
+          },
+        ],
+        retryRequired: {
+          claimId: "claim-1",
+          queuedMessageIds: ["queued-1"],
+          turnId: "turn-1",
+          status: "retry-required",
+        },
+      },
+    );
+    expect(states[0]).toMatchObject({
+      status: "idle",
+      progress: CHAT_RESPONSE_STOPPED_COPY,
+      retryRequired: { claimId: "claim-1" },
+    });
+  });
+
   it("ignores Stop after a response has completed", async () => {
     const fake = client(replies());
     const { controller, states } = subject(fake);

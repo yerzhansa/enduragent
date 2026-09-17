@@ -2245,6 +2245,16 @@ describe("chat surface", () => {
       expect(notice().hidden).toBe(true);
     });
 
+    it("does not leave a blank label beside Retry when notice text is missing", () => {
+      render(<Harness />);
+      setChat({ noticeRetry: true });
+
+      expect(notice().hidden).toBe(false);
+      expect(retry().hidden).toBe(false);
+      expect(notice().firstElementChild).toBe(retry());
+      expect(notice().textContent?.replace(/\s+/gu, " ").trim()).toBe("Retry message");
+    });
+
     it("renders Coach progress after the transcript instead of above the composer", () => {
       setChat({ status: "streaming", coachProgress: "Coach is working…" });
       render(<Harness />);
