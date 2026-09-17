@@ -107,7 +107,12 @@ export async function completeDesktopShutdown(input: {
     input.exit(1);
     return;
   }
-  if (updateInstall === "started") return;
+  if (updateInstall === "started") {
+    // quitAndInstall owns the real quit. Returning here skips app.exit, so a
+    // MacUpdater deferred Squirrel handoff that never reaches ShipIt leaves
+    // the process alive on Restarting.
+    return;
+  }
   if (updateInstall === "failed") {
     input.exit(1);
     return;
