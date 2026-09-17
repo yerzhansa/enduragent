@@ -965,6 +965,7 @@ describe("conversation settings", () => {
     await waitFor(() => {
       expect(useEnduragentStore.getState().settings.conversation.status).toBe("saved");
     });
+    expect(screen.queryByText("Conversation settings saved.")).not.toBeInTheDocument();
     expect(subject.calls.find((call) => call.method === "configureRuntime")?.params).toEqual({
       session: { timezone: "Asia/Qyzylorda" },
     });
@@ -1046,7 +1047,10 @@ describe("conversation settings", () => {
       ),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reconnect & reload" }));
-    await screen.findByText("Conversation settings saved.");
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.conversation.status).toBe("saved");
+    });
+    expect(screen.queryByText("Conversation settings saved.")).not.toBeInTheDocument();
 
     expect(configureRuntime).toHaveBeenCalledTimes(2);
     expect(configureRuntime).toHaveBeenNthCalledWith(1, {
@@ -2079,7 +2083,10 @@ describe("coach route", () => {
         endpoint: { mode: "automatic" },
       });
     });
-    expect(await screen.findByText("Coach settings saved.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.coach.status).toBe("saved");
+    });
+    expect(screen.queryByText("Coach settings saved.")).not.toBeInTheDocument();
   });
 
   it("removes the save action and automatic endpoint row", async () => {
@@ -2106,7 +2113,10 @@ describe("coach route", () => {
     await user.type(custom, "vendor/keyboard-model");
     expect(subject.applyLlmSelection).not.toHaveBeenCalled();
     await user.keyboard("{Enter}");
-    await screen.findByText("Coach settings saved.");
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.coach.status).toBe("saved");
+    });
+    expect(screen.queryByText("Coach settings saved.")).not.toBeInTheDocument();
     await user.tab();
     expect(subject.applyLlmSelection).toHaveBeenCalledOnce();
     expect(subject.applyLlmSelection).toHaveBeenCalledWith({
@@ -2138,7 +2148,10 @@ describe("coach route", () => {
     expect(coach.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
     second.resolve({ status: "configured", runtimeReady: true });
-    await screen.findByText("Coach settings saved.");
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.coach.status).toBe("saved");
+    });
+    expect(screen.queryByText("Coach settings saved.")).not.toBeInTheDocument();
     expect(coach.getByText("Active")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
   });
@@ -2153,8 +2166,14 @@ describe("coach route", () => {
     const coach = within(screen.getByRole("region", { name: "Coach" }));
     await user.click(coach.getByRole("combobox", { name: /^Model$/u }));
     await user.click(await screen.findByRole("option", { name: /Synthetic fast/u }));
+    expect(
+      await coach.findByText("Coach settings couldn’t be saved right now. Try again."),
+    ).toBeInTheDocument();
     await user.click(await coach.findByRole("button", { name: "Retry" }));
-    await screen.findByText("Coach settings saved.");
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.coach.status).toBe("saved");
+    });
+    expect(screen.queryByText("Coach settings saved.")).not.toBeInTheDocument();
     expect(subject.applyLlmSelection).toHaveBeenCalledTimes(2);
   });
 
@@ -2212,7 +2231,10 @@ describe("coach route", () => {
     await user.click(coach.getByRole("combobox", { name: /Provider/u }));
     await user.click(await screen.findByRole("option", { name: "Anthropic" }));
 
-    await screen.findByText("Coach settings saved.");
+    await waitFor(() => {
+      expect(useEnduragentStore.getState().settings.coach.status).toBe("saved");
+    });
+    expect(screen.queryByText("Coach settings saved.")).not.toBeInTheDocument();
 
     expect(subject.applyLlmSelection).toHaveBeenCalledWith({
       catalogRevision: 7,
