@@ -220,39 +220,25 @@ async function writeAcceptedModelCatalog(
   contextWindowTokens: number,
   inputUsdPerMillion: number,
 ): Promise<ModelCatalogSnapshot> {
-  const models = [
-    ["claude-sonnet-5", "Claude Sonnet 5"],
-    ["claude-haiku-4-5-20251001", "Claude Haiku 4.5"],
-    ["claude-opus-5", "Claude Opus 5"],
-  ] as const;
-  const snapshot = {
-    schemaVersion: 1,
-    revision,
-    provenance: { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" },
-    providers: [
-      {
-        providerId: "anthropic",
-        label: "Anthropic",
-        order: 0,
-        recommendedModelId: models[0][0],
-        models: models.map(([modelId, label], order) => ({
-          modelId,
-          label,
-          order,
-          compatibilityProfile: "anthropic-ai-sdk-v1",
-          contextWindow: { kind: "known", tokens: contextWindowTokens + order * 1_000 },
-          imageInput: "supported",
-          pricing: {
-            kind: "token-rates",
-            inputUsdPerMillion: inputUsdPerMillion + order,
-            outputUsdPerMillion: 10 + order,
-            cacheReadUsdPerMillion: 0.2 + order,
-            cacheWriteUsdPerMillion: 2.5 + order,
-          },
-        })),
-      },
-    ],
-  } satisfies ModelCatalogSnapshot;
+  // Live installation reads skip catalogs that drop bundled suggested providers.
+  const snapshot = structuredClone(bundledAcceptedCatalog().snapshot);
+  snapshot.revision = revision;
+  snapshot.provenance = { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" };
+  const anthropic = snapshot.providers.find((provider) => provider.providerId === "anthropic");
+  if (anthropic === undefined) throw new Error("Bundled catalog is missing Anthropic");
+  const overlay = ["claude-sonnet-5", "claude-haiku-4-5-20251001", "claude-opus-5"] as const;
+  for (const [order, modelId] of overlay.entries()) {
+    const model = anthropic.models.find((entry) => entry.modelId === modelId);
+    if (model === undefined) throw new Error(`Bundled catalog is missing ${modelId}`);
+    model.contextWindow = { kind: "known", tokens: contextWindowTokens + order * 1_000 };
+    model.pricing = {
+      kind: "token-rates",
+      inputUsdPerMillion: inputUsdPerMillion + order,
+      outputUsdPerMillion: 10 + order,
+      cacheReadUsdPerMillion: 0.2 + order,
+      cacheWriteUsdPerMillion: 2.5 + order,
+    };
+  }
   await mkdir(join(home.configDir, "model-catalog"), { recursive: true });
   await writeFile(
     join(home.configDir, "model-catalog", "accepted-snapshot.json"),
@@ -3683,6 +3669,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       catalogConfig,
     );
 
+    expect(received[0]?.ports.config.models.catalogRevision).toBe(17);
     const pending = lifecycle.engine.chat({ chatId: "catalog", message: "hold revision 17" });
     await oldEntered;
     await writeAcceptedModelCatalog(home, 18, 410_000, 18);
