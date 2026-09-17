@@ -7,7 +7,11 @@ import {
   InterprocessFileLockTimeoutError,
   withInterprocessFileLock,
 } from "./io/interprocess-file-lock-sync.js";
-import { acceptModelCatalogSnapshot, type AcceptedModelCatalogRecord } from "./model-catalog.js";
+import {
+  acceptModelCatalogSnapshot,
+  catalogMeetsBundledUsableBar,
+  type AcceptedModelCatalogRecord,
+} from "./model-catalog.js";
 import {
   MODEL_CATALOG_REFRESH_INTERVAL_MS,
   claimAttempt,
@@ -217,7 +221,8 @@ function readPersistedCatalog(path: string): PersistedCatalog | undefined {
   }
   const persisted = PersistedCatalogSchema.safeParse(parsed);
   if (!persisted.success) return undefined;
-  return acceptModelCatalogSnapshot(persisted.data.snapshot, persisted.data.etag) === undefined
+  const accepted = acceptModelCatalogSnapshot(persisted.data.snapshot, persisted.data.etag);
+  return accepted === undefined || !catalogMeetsBundledUsableBar(accepted.effective)
     ? undefined
     : persisted.data;
 }
@@ -227,7 +232,7 @@ function localSnapshot(
   origin: Exclude<LocalModelCatalogOrigin, "bundled">,
 ): LocalModelCatalogSnapshot | undefined {
   const accepted = acceptModelCatalogSnapshot(persisted.snapshot, persisted.etag);
-  if (accepted === undefined) return undefined;
+  if (accepted === undefined || !catalogMeetsBundledUsableBar(accepted.effective)) return undefined;
   return Object.freeze({
     ...accepted,
     origin,
@@ -277,6 +282,7 @@ function newerSnapshot(
   candidate: LocalModelCatalogSnapshot | undefined,
 ): LocalModelCatalogSnapshot {
   if (candidate === undefined) return current;
+  if (!catalogMeetsBundledUsableBar(candidate.effective)) return current;
   if (candidate.revision > current.revision) return candidate;
   if (candidate.revision < current.revision) return current;
   const candidateOriginRank = originRank(candidate.origin);
