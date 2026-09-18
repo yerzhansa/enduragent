@@ -12,6 +12,10 @@
     "should_trigger": true
   },
   {
+    "query": "Use $verify-enduragent to verify Plan: No active Plan, Start a Plan, and the isolated calendar seven-day window.",
+    "should_trigger": true
+  },
+  {
     "query": "Implement the new Settings connections recovery banner in the Enduragent desktop renderer and add its component tests; do not run broader UI verification.",
     "should_trigger": false
   },
