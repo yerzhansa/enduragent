@@ -77,7 +77,7 @@ docs(readme): document the /whatsnew command
 
 ## Lint
 
-`pnpm lint` runs oxlint over `packages/` and `apps/`. A committed pre-commit hook in `.githooks/` runs the same command so warnings fail before they land in git. `pnpm install` points this clone at that directory via `core.hooksPath`. That Git setting skips `.git/hooks/pre-commit`; the shared hook still invokes an executable local pre-commit there after oxlint, so an operator-specific hook is not dropped. Bypass with `git commit --no-verify` when needed.
+`pnpm lint` runs oxlint over `packages/` and `apps/`. The shared pre-commit hook is `.githooks/pre-commit`; `pnpm install` copies it to `.git/hooks/pre-commit` so it runs on the default Git hook path. An existing unmanaged pre-commit is renamed to `.git/hooks/pre-commit.local` and still runs after oxlint. The installer does not set `core.hooksPath`. Bypass with `git commit --no-verify` when needed.
 
 ## Test determinism
 

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Install the shared oxlint pre-commit hook into .git/hooks/ without taking
+# over core.hooksPath. An existing unmanaged pre-commit is kept as
+# pre-commit.local and still runs after oxlint.
+set -e
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+
+root=$(git rev-parse --show-toplevel)
+hooks=$(git rev-parse --git-common-dir)/hooks
+src=$root/.githooks/pre-commit
+dest=$hooks/pre-commit
+marker=enduragent-oxlint-hook
+
+mkdir -p "$hooks"
+
+if [ -f "$dest" ] && ! grep -q "$marker" "$dest"; then
+  if [ -e "$hooks/pre-commit.local" ]; then
+    echo "enduragent: leaving unmanaged $dest in place (pre-commit.local already exists)" >&2
+    exit 0
+  fi
+  mv "$dest" "$hooks/pre-commit.local"
+  chmod +x "$hooks/pre-commit.local"
+fi
+
+cp "$src" "$dest"
+chmod +x "$dest"
