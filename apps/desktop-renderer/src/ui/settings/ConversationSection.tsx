@@ -37,7 +37,6 @@ function feedbackCopy(state: SessionSettingsState, say: Phrasebook["say"]): stri
     return say("settings.conversation.unavailable");
   }
   if (state.status === "saving") return say("settings.conversation.saving");
-  if (state.status === "saved") return say("settings.conversation.saved");
   if (state.status === "error" && state.kind === "save") {
     return say(conversationSaveErrorCopy(state.reason));
   }
