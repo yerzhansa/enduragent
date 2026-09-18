@@ -1,4 +1,20 @@
 #!/bin/sh
 set -e
-cd "$(git rev-parse --show-toplevel)"
-exec pnpm lint
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+pnpm lint
+
+# core.hooksPath replaces .git/hooks. Keep a still-present local pre-commit
+# so operator-specific checks are not dropped when this shared hook is installed.
+legacy_hook=$(git rev-parse --git-common-dir)/hooks/pre-commit
+this_dir=$(dirname "$0")
+this_dir=$(CDPATH= cd "$this_dir" && pwd)
+this_hook=$this_dir/$(basename "$0")
+if [ -f "$legacy_hook" ] && [ -x "$legacy_hook" ]; then
+  legacy_dir=$(dirname "$legacy_hook")
+  legacy_dir=$(CDPATH= cd "$legacy_dir" && pwd)
+  legacy_abs=$legacy_dir/$(basename "$legacy_hook")
+  if [ "$legacy_abs" != "$this_hook" ]; then
+    "$legacy_hook"
+  fi
+fi
