@@ -22,7 +22,8 @@ import {
 } from "./copy";
 import { IntakeRows } from "./IntakeRows";
 import { setupStatusKnown } from "../../onboarding/controller";
-import { intakeComplete } from "../../onboarding/machine";
+import { idleAiProvider } from "../../onboarding/lanes";
+import { chatGptReady, intakeComplete } from "../../onboarding/machine";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -78,9 +79,12 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   ).length;
   const requiredSetupReady = requiredReadyCount === 3;
   const readinessState = !statusKnown ? "checking" : requiredSetupReady ? "ready" : "pending";
-  const activeCredential = desktopCredentialId(surface.configuration?.active?.provider);
-  const primaryAiCredential =
-    activeCredential === surface.draft?.provider.provider ? activeCredential : null;
+  const primaryAiProvider = idleAiProvider({
+    activeProvider: surface.configuration?.active?.provider,
+    activeProviderReady: surface.readiness.provider,
+    chatGptReady: chatGptReady(surface.wizard),
+  });
+  const primaryAiCredential = desktopCredentialId(primaryAiProvider);
   const importResult = surface.rideImport.result;
   const importMessage = rideImportStatusMessage(surface.rideImport, {
     imported: say(
@@ -181,7 +185,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
           {props.placement === "settings" ? (
             <AdditionalCredentialRows
               primaryAiCredential={primaryAiCredential}
-              primaryAiProvider={surface.configuration?.active?.provider ?? null}
+              primaryAiProvider={primaryAiProvider}
             />
           ) : null}
           <IntakeRows surface={surface} actions={actions} placement={props.placement} />

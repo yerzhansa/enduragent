@@ -477,6 +477,32 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
+  it("keeps the active ChatGPT lane in the first Setup row when draft points elsewhere", async () => {
+    const bridge = claudeReadyBridge();
+    bridge.llmConfiguration.mockResolvedValue({
+      ...TEST_LLM_CONFIGURATION,
+      active: { provider: "openai-codex", model: "gpt-5.5" },
+    });
+    bridge.chatGptStatus.mockResolvedValue({ state: "configured", runtimeReady: true });
+    const wizard = mountWizard({ bridge, placement: "settings" });
+    await wizard.open();
+    expect(rowState("ai")).toBe("ready");
+    expect(setupRow("ai").querySelector("[data-setup-row-title]")?.textContent).toContain(
+      "ChatGPT subscription",
+    );
+
+    act(() => wizard.controller.selectProvider("anthropic"));
+
+    expect(rowState("ai")).toBe("ready");
+    expect(setupRow("ai").querySelector("[data-setup-row-title]")?.textContent).toContain(
+      "ChatGPT subscription",
+    );
+    expect(rowSubtitle("ai")).toBe("Connected · powers your coach");
+    expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Choose what powers your coach" })).toBeNull();
+    wizard.controller.dispose();
+  });
+
   it("reactivates the selected stored ChatGPT profile", async () => {
     const user = userEvent.setup();
     const bridge = claudeReadyBridge();

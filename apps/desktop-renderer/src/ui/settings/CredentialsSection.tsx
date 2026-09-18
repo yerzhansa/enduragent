@@ -11,6 +11,7 @@ import type {
   CredentialSettingsState,
 } from "../../settings/credential-controller";
 import {
+  belongsInPrimaryAiRow,
   credentialChangesBlocked,
   repairRequiredCredential,
 } from "../../settings/credential-controller";
@@ -202,7 +203,8 @@ export function AdditionalCredentialRows(props: {
   );
   const entries = (content(state)?.entries ?? []).filter(
     (entry) =>
-      entry.credential !== "intervals-icu" && entry.credential !== props.primaryAiCredential,
+      entry.credential !== "intervals-icu" &&
+      !belongsInPrimaryAiRow(entry, props.primaryAiCredential),
   );
   const changesBlocked = credentialChangesBlocked(state, mutating);
   const providerStatuses = (content(state)?.providerStatuses ?? []).filter(

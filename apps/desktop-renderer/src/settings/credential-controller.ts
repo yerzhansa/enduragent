@@ -209,6 +209,14 @@ function kind(credential: DesktopCredentialId): CredentialKind {
   return "Provider API key";
 }
 
+export function belongsInPrimaryAiRow(
+  entry: Pick<CredentialSettingsEntry, "credential" | "runtimeState">,
+  primaryAiCredential: DesktopCredentialId | null,
+): boolean {
+  if (entry.credential === "intervals-icu") return false;
+  return entry.credential === primaryAiCredential || entry.runtimeState === "active";
+}
+
 function entriesFrom(
   statuses: readonly CredentialSlotStatus[],
   chatGpt: ChatGptStatus,

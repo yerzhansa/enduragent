@@ -28,6 +28,7 @@ import { chatGptReady, chatGptSignedIn, chatGptUiPhase } from "../../onboarding/
 import {
   apiKeyProviders,
   errorSection,
+  idleAiProvider,
   laneForProvider,
   offeredLanes,
   type SetupLane,
@@ -119,8 +120,12 @@ export function AiRow(props: {
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const provider = draft?.provider.provider ?? null;
   const parsedDraft = llmSelectionFromDraft(draft ?? undefined);
-  const activeCredential = desktopCredentialId(configuration?.active?.provider);
-  const primaryCredential = activeCredential === provider ? activeCredential : null;
+  const chatGptIsReady = chatGptReady(wizard);
+  const idleProvider = idleAiProvider({
+    activeProvider: configuration?.active?.provider,
+    activeProviderReady: surface.readiness.provider,
+    chatGptReady: chatGptIsReady,
+  });
   const activeLane = laneForProvider(provider);
   const [picked, setPicked] = useState<SetupLane | null>(null);
   const [restoreDraft, setRestoreDraft] = useState<LlmSelectionDraft | null>(null);
@@ -140,10 +145,14 @@ export function AiRow(props: {
     !configuration.providers.some((entry) => entry.provider === configuration.active?.provider);
   const showsActiveProviderOutsideCatalogue =
     surface.readiness.provider && activeProviderOutsideCatalogue && picked === null;
-  const ready = draftIsActive || showsActiveProviderOutsideCatalogue;
+  const idleProviderReady =
+    idleProvider !== null &&
+    ((surface.readiness.provider && configuration?.active?.provider === idleProvider) ||
+      (idleProvider === "openai-codex" && chatGptIsReady));
+  const ready =
+    draftIsActive || showsActiveProviderOutsideCatalogue || (picked === null && idleProviderReady);
   const chatGptPhase = chatGptUiPhase(wizard);
   const chatGptStored = chatGptSignedIn(wizard);
-  const chatGptIsReady = chatGptReady(wizard);
   const chatGptLoginPending =
     chatGptPhase === "waiting-for-browser" || chatGptPhase === "completing-sign-in";
   const chatGptActivating = chatGptPhase === "activating-coach";
@@ -211,7 +220,14 @@ export function AiRow(props: {
       ? null
       : draftIsActive || hasActiveSelection
         ? activeLane
-        : null);
+        : laneForProvider(idleProvider));
+  const primaryCredential = desktopCredentialId(
+    picked !== null
+      ? configuration?.active?.provider === provider
+        ? provider
+        : null
+      : idleProvider,
+  );
   const autoChatGptPanel =
     panelLane === null && provider === "openai-codex" && chatGptStored && !chatGptIsReady;
   const panel = repairRequired
