@@ -14,7 +14,9 @@ test("launches a deterministic isolated desktop shell", async ({ desktop }) => {
     .toBe(desktop.paths.userData);
 });
 
-test("traces hidden desktop startup through its first navigation", async (_fixtures, testInfo) => {
+// Playwright collects fixtures from object destructuring; `{}` is required when none are used.
+// oxlint-disable-next-line no-empty-pattern
+test("traces hidden desktop startup through its first navigation", async ({}, testInfo) => {
   const fixture = await launchDesktopFixture({
     script: { onRequest: () => [] },
     token: "s".repeat(43),
