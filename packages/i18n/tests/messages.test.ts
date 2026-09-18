@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LANGUAGE_OPTIONS } from "../src/registry.js";
 import { msg, type CatalogKey } from "../src/message.js";
 import { createPhrasebook, loadCatalog, messageFromWire } from "../src/messages.js";

@@ -14,7 +14,7 @@ test("launches a deterministic isolated desktop shell", async ({ desktop }) => {
     .toBe(desktop.paths.userData);
 });
 
-test("traces hidden desktop startup through its first navigation", async ({}, testInfo) => {
+test("traces hidden desktop startup through its first navigation", async (_fixtures, testInfo) => {
   const fixture = await launchDesktopFixture({
     script: { onRequest: () => [] },
     token: "s".repeat(43),

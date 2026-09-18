@@ -75,6 +75,10 @@ docs(readme): document the /whatsnew command
 
 **Flake remediation marker.** A commit that fixes or remediates a test flake carries a `flake:` note — either a `flake:` trailer line in the body or a `flake:` marker in the subject — so `git log --grep=flake` is a deliberate, durable measurement surface for flake-remediation history. This is a searchable marker for measurement, **not** a new Conventional-Commits type: the subject still uses one of the types above (`fix(test):`, `test:`, `chore:` as appropriate), and the release tooling does not interpret `flake:`.
 
+## Lint
+
+`pnpm lint` runs oxlint over `packages/` and `apps/`. A committed pre-commit hook in `.githooks/` runs the same command so warnings fail before they land in git. `pnpm install` points this clone at that directory via `core.hooksPath`. Bypass with `git commit --no-verify` when needed.
+
 ## Test determinism
 
 - **Restore real timers.** A test that calls `vi.useFakeTimers()` MUST restore real timers in `afterEach` via `vi.useRealTimers()`. The default `vi.restoreAllMocks()` does NOT restore fake timers, so a converted test that forgets this leaks faked time into the next test in the file.
