@@ -1,5 +1,11 @@
 # @enduragent/desktop
 
+## 0.5.6
+
+### Patch Changes
+
+- 313e2b9: User-facing: Settings Setup shows the AI that powers your coach in the first row, and no longer lists that same Active credential again underneath.
+
 ## 0.5.5
 
 ### Patch Changes
