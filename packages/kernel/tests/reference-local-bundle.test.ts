@@ -123,8 +123,12 @@ describe("kernel local bundle contracts", () => {
   });
 
   it("uses canonical UTF-8 byte ordering including non-ASCII and prefixes", () => {
-    expect(compareCanonicalUtf8("𐀀", "\uE000")).toBeGreaterThan(0);
-    expect("𐀀" < "\uE000").toBe(true);
+    const javascriptCodeUnitLeft = "𐀀";
+    const javascriptCodeUnitRight = "\uE000";
+    expect(compareCanonicalUtf8(javascriptCodeUnitLeft, javascriptCodeUnitRight)).toBeGreaterThan(
+      0,
+    );
+    expect(javascriptCodeUnitLeft < javascriptCodeUnitRight).toBe(true);
     expect(compareCanonicalUtf8("a", "aa")).toBeLessThan(0);
     expect(compareCanonicalUtf8({ a: 1 }, { a: 1 })).toBe(0);
   });

@@ -12,19 +12,11 @@ import type { z } from "zod";
 import type { SourceProvenance } from "./provenance.js";
 import type {
   AthleteDataReaderPort,
-  AthleteReadResult,
   CallerRole,
-  CalendarEventForDelete,
-  CalendarEventUpdate,
-  EnvSecretRef,
-  ExecSecretRef,
   MemorySnapshot,
   MemoryStorePort,
-  MemoryWriteSource,
   PlatformCalendarMutationsPort,
-  SecretRef,
   SecretsPort,
-  StoredDataFreshness,
   UsageCost,
   UsageCostBasis,
 } from "./host-ports.js";

@@ -26,7 +26,7 @@ function featureEntries(): Array<{ label: string; page: string }> {
     .split("\n")
     .filter(
       (line) =>
-        /^\|/.test(line) &&
+        line.startsWith("|") &&
         !/^\|\s*Feature\s*\|/.test(line) &&
         !/^\|\s*-+\s*\|/.test(line),
     )

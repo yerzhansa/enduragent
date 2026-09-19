@@ -1,0 +1,10 @@
+#!/bin/sh
+# enduragent-oxlint-hook
+set -e
+cd "$(git rev-parse --show-toplevel)"
+pnpm lint
+
+local_hook="$(git rev-parse --git-common-dir)/hooks/pre-commit.local"
+if [ -f "$local_hook" ] && [ -x "$local_hook" ]; then
+  "$local_hook"
+fi

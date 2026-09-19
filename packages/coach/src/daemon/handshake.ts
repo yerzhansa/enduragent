@@ -26,11 +26,7 @@ import {
 } from "@enduragent/kernel-node/lock";
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { HANDOFF_RESERVED_MESSAGE, acquireUpgradeFence } from "./upgrade-fence.js";
-import type {
-  MonotonicTimer,
-  ScheduledMonotonicTimer,
-  UpgradeFenceHandle,
-} from "./upgrade-fence.js";
+import type { MonotonicTimer, UpgradeFenceHandle } from "./upgrade-fence.js";
 
 export { HANDOFF_RESERVED_MESSAGE } from "./upgrade-fence.js";
 export type { MonotonicTimer, ScheduledMonotonicTimer } from "./upgrade-fence.js";
