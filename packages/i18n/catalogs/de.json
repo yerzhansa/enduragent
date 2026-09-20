@@ -2938,7 +2938,7 @@
       "changed": "{{name}} wurde in intervals.icu geändert: {{changes}}.",
       "confirmed": "bestätigt",
       "descriptionUnavailable": "Beschreibung nicht verfügbar",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTrainingsbelastung: {{load}}\nBelastungsstruktur: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTrainingsbelastung: {{load}}\n{{structure}}",
       "durationUnavailable": "Dauer nicht verfügbar",
       "edit": "{{index}}. Training bearbeiten\nAktuell: {{current}}\nVorgeschlagen: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "Dauer",
         "name": "Name",
         "structure": "Belastungsstruktur",
-        "trainingLoad": "Trainingsbelastung"
+        "trainingLoad": "Trainingsbelastung",
+        "effort": "Belastung"
       },
       "kept": "Vorhandene Trainings bleiben erhalten:",
       "minutes": "{{minutes}} Min.",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} Ergänzungen, {{edits}} Änderungen, {{deletions}} Löschungen · {{duration}} für hinzugefügte oder bearbeitete Trainings",
       "title": "Alle Trainingsänderungen prüfen",
       "totalUnavailable": "Gesamtdauer nicht verfügbar",
-      "unavailable": "nicht verfügbar"
+      "unavailable": "nicht verfügbar",
+      "structureDetails": "Trainingsabschnitte:\n{{steps}}",
+      "structureUnavailable": "Trainingsabschnitte nicht verfügbar",
+      "structureChanged": "Die Details der Trainingsabschnitte haben sich geändert",
+      "proposedRevision": "Änderungen an diesem Vorschlag:\n{{changes}}\nAlle anderen vorgeschlagenen Trainingseinheiten bleiben unverändert.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

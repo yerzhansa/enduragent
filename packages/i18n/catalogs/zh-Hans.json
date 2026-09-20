@@ -2902,7 +2902,7 @@
       "changed": "{{name}} 已在 intervals.icu 中更改：{{changes}}。",
       "confirmed": "已确认",
       "descriptionUnavailable": "描述不可用",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n训练负荷：{{load}}\n强度结构：{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n训练负荷：{{load}}\n{{structure}}",
       "durationUnavailable": "时长不可用",
       "edit": "{{index}}. 编辑训练\n当前：{{current}}\n建议：{{proposed}}",
       "field": {
@@ -2911,7 +2911,8 @@
         "duration": "时长",
         "name": "名称",
         "structure": "强度结构",
-        "trainingLoad": "训练负荷"
+        "trainingLoad": "训练负荷",
+        "effort": "强度"
       },
       "kept": "保留的现有训练：",
       "minutes": "{{minutes}} 分钟",
@@ -2920,7 +2921,12 @@
       "summary": "添加 {{adds}} 项，编辑 {{edits}} 项，删除 {{deletions}} 项 · 添加或编辑的训练时长：{{duration}}",
       "title": "检查所有训练更改",
       "totalUnavailable": "总时长不可用",
-      "unavailable": "不可用"
+      "unavailable": "不可用",
+      "structureDetails": "训练步骤：\n{{steps}}",
+      "structureUnavailable": "训练步骤不可用",
+      "structureChanged": "训练步骤的详细信息已更改",
+      "proposedRevision": "本次方案的更改：\n{{changes}}\n其他所有建议的训练保持不变。",
+      "revised": "{{name}}：{{changes}}"
     }
   }
 }

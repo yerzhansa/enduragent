@@ -574,9 +574,9 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     chatId: string,
     phrasebook: Phrasebook,
     redisplay = false,
-  ): Promise<void> {
-    if (host.workoutApprovals === undefined) return;
-    await deliverWorkoutReview({
+  ): Promise<boolean> {
+    if (host.workoutApprovals === undefined) return false;
+    return deliverWorkoutReview({
       approvals: host.workoutApprovals,
       chatId,
       language: phrasebook.tag,
@@ -1155,26 +1155,17 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     // BEFORE any greeting/dispatch so it never reaches agent.chat.
     if (text.trim().toLowerCase() === RESEND_KEYWORD) {
       const cached = readResend(chatId);
-      if (cached !== undefined) {
-        // Route through dispatch so re-emitting a long multi-chunk answer runs on
-        // the fire-and-forget task instead of blocking the sequential update loop,
-        // and a delivery failure gets the same hint runTurn uses rather than
-        // escaping to bot.catch as generic classified copy.
-        dispatch(async () => {
-          try {
-            await sendLongMessage(ctx, cached);
-            await presentWorkoutReview(ctx, chatId, phrasebook, true);
-          } catch (err) {
-            log.error("delivery_failed", err, { command: "resend", chatId });
-            await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
-          }
-        });
-      } else {
-        dispatch(async () => {
-          await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
-          await presentWorkoutReview(ctx, chatId, phrasebook, true);
-        });
-      }
+      dispatch(async () => {
+        try {
+          if (cached !== undefined) await sendLongMessage(ctx, cached);
+          const delivered = await presentWorkoutReview(ctx, chatId, phrasebook, true);
+          if (cached === undefined && !delivered)
+            await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
+        } catch (err) {
+          log.error("delivery_failed", err, { command: "resend", chatId });
+          await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
+        }
+      });
       return;
     }
 

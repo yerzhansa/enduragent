@@ -2938,7 +2938,7 @@
       "changed": "{{name}} is gewijzigd in intervals.icu: {{changes}}.",
       "confirmed": "bevestigd",
       "descriptionUnavailable": "Beschrijving niet beschikbaar",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTrainingsbelasting: {{load}}\nInspanningsstructuur: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTrainingsbelasting: {{load}}\n{{structure}}",
       "durationUnavailable": "duur niet beschikbaar",
       "edit": "{{index}}. Training wijzigen\nHuidig: {{current}}\nVoorgesteld: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "duur",
         "name": "naam",
         "structure": "inspanningsstructuur",
-        "trainingLoad": "trainingsbelasting"
+        "trainingLoad": "trainingsbelasting",
+        "effort": "inspanning"
       },
       "kept": "Bestaande trainingen blijven behouden:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} toevoegingen, {{edits}} wijzigingen, {{deletions}} verwijderingen · {{duration}} voor toegevoegde of gewijzigde trainingen",
       "title": "Controleer alle trainingswijzigingen",
       "totalUnavailable": "Totale duur niet beschikbaar",
-      "unavailable": "niet beschikbaar"
+      "unavailable": "niet beschikbaar",
+      "structureDetails": "Trainingsstappen:\n{{steps}}",
+      "structureUnavailable": "Trainingsstappen niet beschikbaar",
+      "structureChanged": "De details van de trainingsstappen zijn gewijzigd",
+      "proposedRevision": "Wijzigingen in dit voorstel:\n{{changes}}\nAlle andere voorgestelde trainingen blijven ongewijzigd.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

@@ -1,4 +1,5 @@
 import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
+import { createPendingWorkoutTool } from "./pending-workout-tool.js";
 import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
@@ -466,6 +467,8 @@ export class CoachAgent {
         (registration) => preparationTool === undefined || !replacedTools.has(registration.name),
       );
     if (preparationTool !== undefined) registrations.push(preparationTool);
+    if (workoutPreparation !== undefined)
+      registrations.push(createPendingWorkoutTool(workoutPreparation));
     const maxResultTokens = TOOL_RESULT_MAX_TOKENS;
     const prepareConfirmedRun = (
       name: string,

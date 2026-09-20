@@ -2938,7 +2938,7 @@
       "changed": "{{name}} cambió en intervals.icu: {{changes}}.",
       "confirmed": "confirmado",
       "descriptionUnavailable": "Descripción no disponible",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarga de entrenamiento: {{load}}\nEstructura del esfuerzo: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarga de entrenamiento: {{load}}\n{{structure}}",
       "durationUnavailable": "duración no disponible",
       "edit": "{{index}}. Editar entrenamiento\nActual: {{current}}\nPropuesto: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "duración",
         "name": "nombre",
         "structure": "estructura del esfuerzo",
-        "trainingLoad": "carga de entrenamiento"
+        "trainingLoad": "carga de entrenamiento",
+        "effort": "esfuerzo"
       },
       "kept": "Entrenamientos existentes que se conservan:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} adiciones, {{edits}} ediciones, {{deletions}} eliminaciones · {{duration}} para entrenamientos añadidos o editados",
       "title": "Revisa todos los cambios de entrenamientos",
       "totalUnavailable": "Duración total no disponible",
-      "unavailable": "no disponible"
+      "unavailable": "no disponible",
+      "structureDetails": "Pasos del entrenamiento:\n{{steps}}",
+      "structureUnavailable": "Pasos del entrenamiento no disponibles",
+      "structureChanged": "Los detalles de los pasos del entrenamiento cambiaron",
+      "proposedRevision": "Cambios en esta propuesta:\n{{changes}}\nTodos los demás entrenamientos propuestos permanecen sin cambios.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

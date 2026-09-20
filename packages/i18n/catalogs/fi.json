@@ -2938,7 +2938,7 @@
       "changed": "{{name}} muuttui intervals.icu-palvelussa: {{changes}}.",
       "confirmed": "vahvistettu",
       "descriptionUnavailable": "Kuvaus ei saatavilla",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nHarjoituskuormitus: {{load}}\nTehorakenne: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nHarjoituskuormitus: {{load}}\n{{structure}}",
       "durationUnavailable": "kesto ei saatavilla",
       "edit": "{{index}}. Muokkaa harjoitusta\nNykyinen: {{current}}\nEhdotettu: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "kesto",
         "name": "nimi",
         "structure": "tehorakenne",
-        "trainingLoad": "harjoituskuormitus"
+        "trainingLoad": "harjoituskuormitus",
+        "effort": "rasittavuus"
       },
       "kept": "Säilytettävät nykyiset harjoitukset:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} lisäystä, {{edits}} muokkausta, {{deletions}} poistoa · {{duration}} lisätyille tai muokatuille harjoituksille",
       "title": "Tarkista kaikki harjoitusmuutokset",
       "totalUnavailable": "Kokonaiskesto ei saatavilla",
-      "unavailable": "ei saatavilla"
+      "unavailable": "ei saatavilla",
+      "structureDetails": "Harjoituksen vaiheet:\n{{steps}}",
+      "structureUnavailable": "Harjoituksen vaiheet eivät ole saatavilla",
+      "structureChanged": "Harjoituksen vaiheiden tiedot ovat muuttuneet",
+      "proposedRevision": "Muutokset tähän ehdotukseen:\n{{changes}}\nKaikki muut ehdotetut harjoitukset pysyvät ennallaan.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

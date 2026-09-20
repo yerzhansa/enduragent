@@ -23,25 +23,32 @@ export const additionSchema = z.strictObject({
   structure: json.nullable(),
   trainingLoad: z.number().nonnegative().nullable(),
 });
+const preparedChangeSchema = z.discriminatedUnion("kind", [
+  additionSchema,
+  z.strictObject({ kind: z.literal("edit"), eventId: z.number().int(), patch: patchSchema }),
+  z.strictObject({ kind: z.literal("delete"), eventId: z.number().int() }),
+]);
+const referenceSchema = z.strictObject({
+  setId: z.string().min(1),
+  revision: z.number().int().positive(),
+});
 export const preparationSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("incomplete"), reason: z.string() }),
+  z.strictObject({ kind: z.literal("complete"), changes: z.array(preparedChangeSchema).min(1) }),
   z.strictObject({
-    kind: z.literal("complete"),
-    changes: z
-      .array(
-        z.discriminatedUnion("kind", [
-          additionSchema,
-          z.strictObject({
-            kind: z.literal("edit"),
-            eventId: z.number().int(),
-            patch: patchSchema,
-          }),
-          z.strictObject({ kind: z.literal("delete"), eventId: z.number().int() }),
-        ]),
-      )
+    kind: z.literal("replace"),
+    base: referenceSchema,
+    changes: z.array(preparedChangeSchema).min(1),
+  }),
+  z.strictObject({
+    kind: z.literal("revise"),
+    base: referenceSchema,
+    replacements: z
+      .array(z.strictObject({ id: z.string().min(1), change: preparedChangeSchema }))
       .min(1),
   }),
 ]);
+export type CheckedPreparation = z.infer<typeof preparationSchema>;
 export const snapshotSchema = z.strictObject({
   eventId: z.number().int(),
   date: dateSchema,
@@ -77,6 +84,10 @@ const receiptSchema = z.strictObject({
 export type Receipt = z.infer<typeof receiptSchema>;
 export const noticeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("none") }),
+  z.strictObject({
+    kind: z.literal("proposedRevision"),
+    differences: z.array(z.strictObject({ before: changeSchema, after: changeSchema })),
+  }),
   z.strictObject({
     kind: z.literal("changed"),
     differences: z.array(z.strictObject({ before: snapshotSchema, after: snapshotSchema })),

@@ -23,21 +23,22 @@ export async function deliverWorkoutReview(input: {
   readonly redisplay?: boolean;
   readonly deliver: (text: string) => Promise<void>;
   readonly controls: (control: ArmedControl) => Promise<void>;
-}): Promise<void> {
+}): Promise<boolean> {
   const review = await input.approvals.review({
     chatId: input.chatId,
     language: input.language,
     redisplay: input.redisplay,
   });
-  if (review === null) return;
+  if (review === null) return false;
   await input.deliver(review.text);
-  if (review.handle === null) return;
+  if (review.handle === null) return true;
   const control = await input.approvals.acknowledgeDelivery({
     chatId: input.chatId,
     delivery: review.handle,
     language: input.language,
   });
   if (control !== null) await input.controls(control);
+  return true;
 }
 
 export function createTerminalWorkoutApproval(input: {

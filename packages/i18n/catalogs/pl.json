@@ -3010,7 +3010,7 @@
       "changed": "{{name}} zmienił się w intervals.icu: {{changes}}.",
       "confirmed": "potwierdzone",
       "descriptionUnavailable": "Opis niedostępny",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nObciążenie treningowe: {{load}}\nStruktura wysiłku: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nObciążenie treningowe: {{load}}\n{{structure}}",
       "durationUnavailable": "czas trwania niedostępny",
       "edit": "{{index}}. Edytuj trening\nObecny: {{current}}\nProponowany: {{proposed}}",
       "field": {
@@ -3019,7 +3019,8 @@
         "duration": "czas trwania",
         "name": "nazwa",
         "structure": "struktura wysiłku",
-        "trainingLoad": "obciążenie treningowe"
+        "trainingLoad": "obciążenie treningowe",
+        "effort": "wysiłek"
       },
       "kept": "Zachowane istniejące treningi:",
       "minutes": "{{minutes}} min",
@@ -3028,7 +3029,12 @@
       "summary": "Dodane: {{adds}}, edytowane: {{edits}}, usunięte: {{deletions}} · {{duration}} dla dodanych lub edytowanych treningów",
       "title": "Sprawdź wszystkie zmiany treningów",
       "totalUnavailable": "Łączny czas trwania niedostępny",
-      "unavailable": "niedostępne"
+      "unavailable": "niedostępne",
+      "structureDetails": "Etapy treningu:\n{{steps}}",
+      "structureUnavailable": "Etapy treningu są niedostępne",
+      "structureChanged": "Szczegóły etapów treningu uległy zmianie",
+      "proposedRevision": "Zmiany w tej propozycji:\n{{changes}}\nWszystkie pozostałe proponowane treningi pozostają bez zmian.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

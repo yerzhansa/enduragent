@@ -48,9 +48,15 @@ const strength = {
 function setupTool() {
   const submit = vi.fn(
     async (preparation: Preparation, _options: unknown): Promise<PreparationResult> =>
-      preparation.kind === "complete"
-        ? { kind: "prepared", changeCount: preparation.changes.length }
-        : { kind: "incomplete", message: preparation.reason },
+      preparation.kind === "incomplete"
+        ? { kind: "incomplete", message: preparation.reason }
+        : {
+            kind: "prepared",
+            changeCount:
+              preparation.kind === "revise"
+                ? preparation.replacements.length
+                : preparation.changes.length,
+          },
   );
   const registration = cyclingWorkoutPreparation.createTool(submit);
   const execute = registration.tool.execute;
@@ -59,6 +65,88 @@ function setupTool() {
 }
 
 describe("whole-set cycling preparation", () => {
+  it("prepares only the selected revision through the same cycling serializer", () => {
+    const changedWorkout = {
+      name: "Thursday recovery",
+      steps: [
+        {
+          type: "interval",
+          duration: { value: 5, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 45 },
+        },
+      ],
+    };
+    const result = prepareCyclingWorkoutChanges({
+      kind: "revise",
+      base: { setId: "pending-set", revision: 2 },
+      replacements: [
+        {
+          id: "thursday",
+          change: {
+            kind: "add-cycling",
+            date: "1998-09-10",
+            workout: changedWorkout,
+            trainingLoad: 8,
+          },
+        },
+      ],
+    });
+    expect(result).toMatchObject({
+      kind: "revise",
+      base: { setId: "pending-set", revision: 2 },
+      replacements: [
+        {
+          id: "thursday",
+          change: {
+            kind: "add",
+            name: "Thursday recovery",
+            durationSeconds: 300,
+            effort: "45% FTP",
+            trainingLoad: 8,
+          },
+        },
+      ],
+    });
+    if (result.kind !== "revise") throw new Error("Missing revision");
+    expect(result.replacements).toHaveLength(1);
+    expect(result.replacements[0]?.change).toMatchObject({ description: "Main set\n- 5m 45%" });
+  });
+  it("supports explicit whole-set replacement with the current reference", () => {
+    const prepared = prepareCyclingWorkoutChanges({
+      kind: "complete",
+      changes: [cycling, strength],
+    });
+    const replacement = prepareCyclingWorkoutChanges({
+      kind: "replace",
+      base: { setId: "pending-set", revision: 3 },
+      changes: [cycling, strength],
+    });
+    if (prepared.kind !== "complete") throw new Error("Missing preparation");
+    expect(replacement).toEqual({
+      kind: "replace",
+      base: { setId: "pending-set", revision: 3 },
+      changes: prepared.changes,
+    });
+  });
+  it("rejects duplicate pending item revisions and empty replacement sets", () => {
+    expect(() =>
+      prepareCyclingWorkoutChanges({
+        kind: "revise",
+        base: { setId: "pending-set", revision: 3 },
+        replacements: [
+          { id: "same-item", change: cycling },
+          { id: "same-item", change: strength },
+        ],
+      }),
+    ).toThrow("only once");
+    expect(() =>
+      prepareCyclingWorkoutChanges({
+        kind: "revise",
+        base: { setId: "pending-set", revision: 3 },
+        replacements: [],
+      }),
+    ).toThrow();
+  });
   it("freezes the existing cycling serializer's exact native text and computed duration", () => {
     const serialized = serializeIntervalsWorkout(workout);
     expect(prepareCyclingWorkoutChanges({ kind: "complete", changes: [cycling] })).toEqual({

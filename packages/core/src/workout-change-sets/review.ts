@@ -1,6 +1,7 @@
 import type { CatalogKey } from "@enduragent/i18n";
 import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { Change, Notice, Payload, Receipt, Snapshot } from "./record.js";
+import { readableEffort } from "./effort.js";
 
 function minutes(value: number | null, book: Phrasebook): string {
   return value === null
@@ -11,20 +12,24 @@ function minutes(value: number | null, book: Phrasebook): string {
 }
 
 function details(value: Omit<Snapshot, "eventId">, book: Phrasebook): string {
-  return book.say("workouts.review.details", {
-    date: value.date,
-    name: value.name ?? book.say("coach.proposal.unnamed"),
-    duration: minutes(value.durationSeconds, book),
-    description: value.description ?? book.say("workouts.review.descriptionUnavailable"),
-    load:
-      value.trainingLoad === null
-        ? book.say("workouts.review.unavailable")
-        : book.format.number(value.trainingLoad),
-    structure:
-      value.structure === null
-        ? book.say("workouts.review.unavailable")
-        : JSON.stringify(value.structure),
-  });
+  return book
+    .say("workouts.review.details", {
+      date: value.date,
+      name: value.name ?? book.say("coach.proposal.unnamed"),
+      duration: minutes(value.durationSeconds, book),
+      description: value.description ?? book.say("workouts.review.descriptionUnavailable"),
+      load:
+        value.trainingLoad === null
+          ? book.say("workouts.review.unavailable")
+          : book.format.number(value.trainingLoad),
+      structure:
+        value.structure === null
+          ? ""
+          : book.say("workouts.review.structureDetails", {
+              steps: readableEffort(value.structure, book),
+            }),
+    })
+    .trimEnd();
 }
 
 export function changeLabel(change: Change, book: Phrasebook): string {
@@ -104,28 +109,89 @@ const fields: readonly { field: Exclude<keyof Snapshot, "eventId">; key: Catalog
 ];
 
 export function difference(before: Snapshot, after: Snapshot, book: Phrasebook): string {
+  return book.say("workouts.review.changed", {
+    name: before.name ?? book.say("coach.proposal.unnamed"),
+    changes: changedFields(before, after, book).join("; "),
+  });
+}
+
+function changedFields(
+  before: Omit<Snapshot, "eventId">,
+  after: Omit<Snapshot, "eventId">,
+  book: Phrasebook,
+): string[] {
   const changes = fields.flatMap(({ field, key }) => {
     const previous = before[field];
     const current = after[field];
     if (JSON.stringify(previous) === JSON.stringify(current)) return [];
-    const oldValue =
-      field === "durationSeconds"
-        ? minutes(before.durationSeconds, book)
-        : JSON.stringify(previous);
-    const newValue =
-      field === "durationSeconds" ? minutes(after.durationSeconds, book) : JSON.stringify(current);
+    const oldValue = fieldValue(before, field, book);
+    const newValue = fieldValue(after, field, book);
+    if (field === "structure" && oldValue === newValue)
+      return [book.say("workouts.review.structureChanged")];
     return [`${book.say(key)}: ${oldValue} → ${newValue}`];
   });
-  return book.say("workouts.review.changed", {
-    name: before.name ?? book.say("coach.proposal.unnamed"),
-    changes: changes.join("; "),
-  });
+  return changes;
+}
+
+function fieldValue(
+  value: Omit<Snapshot, "eventId">,
+  field: Exclude<keyof Snapshot, "eventId">,
+  book: Phrasebook,
+): string {
+  switch (field) {
+    case "date":
+      return value.date;
+    case "name":
+      return value.name ?? book.say("coach.proposal.unnamed");
+    case "durationSeconds":
+      return minutes(value.durationSeconds, book);
+    case "description":
+      return value.description ?? book.say("workouts.review.descriptionUnavailable");
+    case "trainingLoad":
+      return value.trainingLoad === null
+        ? book.say("workouts.review.unavailable")
+        : book.format.number(value.trainingLoad);
+    case "structure":
+      return readableEffort(value.structure, book);
+  }
 }
 
 export function renderNotice(notice: Notice, book: Phrasebook): string {
   switch (notice.kind) {
     case "none":
       return "";
+    case "proposedRevision":
+      return book.say("workouts.review.proposedRevision", {
+        changes: notice.differences
+          .map(({ before, after }) => {
+            const previous =
+              before.kind === "add"
+                ? before.prepared
+                : before.kind === "edit"
+                  ? before.desired
+                  : before.reviewed;
+            const next =
+              after.kind === "add"
+                ? after.prepared
+                : after.kind === "edit"
+                  ? after.desired
+                  : after.reviewed;
+            const changes = changedFields(previous, next, book);
+            if (
+              before.kind === "add" &&
+              after.kind === "add" &&
+              before.prepared.effort !== after.prepared.effort
+            )
+              changes.push(
+                `${book.say("workouts.review.field.effort")}: ${before.prepared.effort} → ${after.prepared.effort}`,
+              );
+            return book.say("workouts.review.revised", {
+              name: changeLabel(before, book),
+              changes: changes.join("; "),
+            });
+          })
+          .join("\n"),
+      });
     case "changed":
       return `${notice.differences.map(({ before, after }) => difference(before, after, book)).join("\n")}\n${book.say(notice.additional ? "workouts.outcome.noAdditional" : "workouts.outcome.noChanges")}`;
     case "rejected":

@@ -1,6 +1,10 @@
 import type { WorkoutPreparationCapability } from "./workout-change-sets.js";
 export type {
   PreparedChange,
+  PendingSetReference,
+  PendingWorkoutSet,
+  PendingWorkoutItem,
+  PendingWorkoutSnapshot,
   WorkoutPatch,
   Preparation,
   PreparationResult,

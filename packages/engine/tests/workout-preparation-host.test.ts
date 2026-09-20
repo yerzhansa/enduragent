@@ -6,10 +6,15 @@ import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CoachAgent } from "../src/agent/coach-agent.js";
 import { TURN_WALL_CLOCK_MS } from "../src/agent/turn-budget.js";
+import { getTurnContext } from "../src/agent/turn-context.js";
 import { buildCoachMcpToolDefinitions } from "../src/agent/codex-agent/mcp-endpoint.js";
 import type { EngineHostPorts } from "../src/host-ports.js";
 import type { GenerateOptions, GenerateResult, Sport } from "../src/sport.js";
-import type { Preparation, WorkoutPreparationPort } from "../src/workout-change-sets.js";
+import type {
+  PendingWorkoutSet,
+  Preparation,
+  WorkoutPreparationPort,
+} from "../src/workout-change-sets.js";
 import { baseAgentConfig } from "./helpers/base-agent-config.js";
 
 const roots: string[] = [];
@@ -31,6 +36,7 @@ function fixture(
     confirmations?: EngineHostPorts["toolConfirmations"];
     replacedTools?: readonly string[];
     now?: EngineHostPorts["now"];
+    pending?: PendingWorkoutSet;
   } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), "workout-host-"));
@@ -41,6 +47,9 @@ function fixture(
     changeCount: 1,
   }));
   const settleTurn = vi.fn<WorkoutPreparationPort["settleTurn"]>(async () => undefined);
+  const readPending = vi.fn<WorkoutPreparationPort["readPending"]>(
+    async () => input.pending ?? { kind: "none" },
+  );
   const mutate = vi.fn(async () => ({ created: true }));
   const sport: Sport = {
     id: "cycling",
@@ -87,7 +96,9 @@ function fixture(
   const ports: EngineHostPorts = {
     ...baseAgentConfig(root),
     ...(input.now === undefined ? {} : { now: input.now }),
-    ...(input.hostOptIn === false ? {} : { workoutPreparation: { prepare, settleTurn } }),
+    ...(input.hostOptIn === false
+      ? {}
+      : { workoutPreparation: { prepare, settleTurn, readPending } }),
     toolConfirmations: input.confirmations,
     onToolsAssembled: (value) => {
       names = value;
@@ -113,7 +124,7 @@ function fixture(
     }),
   };
   const agent = new CoachAgent(sport, ports);
-  return { agent, prepare, settleTurn, mutate, names, captured: () => captured };
+  return { agent, prepare, settleTurn, readPending, mutate, names, captured: () => captured };
 }
 
 async function call(
@@ -135,9 +146,107 @@ afterEach(() => {
 });
 
 describe("workout preparation at the Engine host boundary", () => {
+  it("reads canonical pending state with trusted chat identity without consuming preparation allowance", async () => {
+    const pending: PendingWorkoutSet = {
+      kind: "pending",
+      reference: { setId: "pending-set", revision: 4 },
+      completedCount: 0,
+      changes: [
+        {
+          id: "pending-item",
+          change: { kind: "delete", eventId: 101 },
+          reviewed: {
+            eventId: 101,
+            date: "1998-09-10",
+            name: "Thursday ride",
+            durationSeconds: 600,
+            description: "Easy",
+            trainingLoad: 8,
+            structure: null,
+          },
+        },
+      ],
+    };
+    const value = fixture({
+      pending,
+      run: async (options) => {
+        const result = await call(options, {}, "get_pending_workout_changes");
+        expect(JSON.stringify(result)).toContain("Thursday ride");
+        expect(JSON.stringify(result)).toContain("pending-item");
+        expect(
+          getTurnContext({ experimental_context: options.context })?.turnWrites.writesCommitted,
+        ).toBe(0);
+        await call(options);
+      },
+    });
+    await value.agent.chat(
+      "trusted-chat",
+      "Revise Thursday",
+      undefined,
+      undefined,
+      undefined,
+      "trusted-turn",
+    );
+    expect(value.readPending).toHaveBeenCalledExactlyOnceWith({ chatId: "trusted-chat" });
+    expect(value.prepare).toHaveBeenCalledTimes(1);
+    expect(value.settleTurn).toHaveBeenCalledWith({
+      chatId: "trusted-chat",
+      turnId: "trusted-turn",
+      outcome: "commit",
+    });
+    expect(value.mutate).not.toHaveBeenCalled();
+  });
+  it("omits oversized canonical reads entirely without changing pending work", async () => {
+    const value = fixture({
+      pending: {
+        kind: "pending",
+        reference: { setId: "pending-set", revision: 1 },
+        completedCount: 0,
+        changes: [
+          {
+            id: "oversized-item",
+            change: {
+              kind: "add",
+              sport: "cycling",
+              date: "1998-09-10",
+              name: "Thursday ride",
+              durationSeconds: 600,
+              description: "Long workout instruction. ".repeat(30_000),
+              effort: "50% FTP",
+              structure: null,
+              trainingLoad: 8,
+            },
+          },
+        ],
+      },
+      run: async (options) => {
+        const result = await call(options, {}, "get_pending_workout_changes");
+        expect(result).toMatchObject({ truncated: true });
+        expect(JSON.stringify(result)).not.toContain("oversized-item");
+      },
+    });
+    await value.agent.chat("trusted-chat", "Revise Thursday");
+    expect(value.prepare).not.toHaveBeenCalled();
+    expect(value.mutate).not.toHaveBeenCalled();
+    expect(value.captured()?.system).toContain("never reconstruct it from conversation history");
+  });
+  it("refuses canonical reads without an active trusted turn", async () => {
+    const value = fixture();
+    await value.agent.chat("trusted-chat", "Hello");
+    const options = value.captured();
+    if (!options) throw new Error("Missing options");
+    const result = await call(options, {}, "get_pending_workout_changes");
+    expect(JSON.stringify(result)).toContain("unavailable");
+    expect(value.readPending).not.toHaveBeenCalled();
+    expect(value.prepare).not.toHaveBeenCalled();
+  });
   it("uses the sport's replacement contract instead of calendar-provider tool names", () => {
     const value = fixture({ replacedTools: ["prepare_custom_calendar_entry"] });
-    expect(value.names).toEqual(["plan_save", "prepare_workout_changes"]);
+    expect(value.names).toEqual([
+      "plan_save",
+      "prepare_workout_changes",
+      "get_pending_workout_changes",
+    ]);
   });
   it.each([{ hostOptIn: false }, { sportOptIn: false }])(
     "keeps legacy tools without both opt-ins: %j",
@@ -156,7 +265,11 @@ describe("workout preparation at the Engine host boundary", () => {
         await call(options, { chatId: "attacker", turnId: "attacker" });
       },
     });
-    expect(value.names).toEqual(["plan_save", "prepare_workout_changes"]);
+    expect(value.names).toEqual([
+      "plan_save",
+      "prepare_workout_changes",
+      "get_pending_workout_changes",
+    ]);
     await value.agent.chat(
       "trusted-chat",
       "Prepare my week",
@@ -313,6 +426,29 @@ describe("workout preparation at the Engine host boundary", () => {
       expect.objectContaining({ preparation: { kind: "incomplete", reason: "Missing workouts" } }),
     );
     expect(value.settleTurn).toHaveBeenCalledWith(expect.objectContaining({ outcome: "abandon" }));
+  });
+
+  it("settles a refused incomplete revision without issuing a second preparation", async () => {
+    const value = fixture({
+      run: async (options) => {
+        const result = await call(options, { incomplete: true });
+        expect(JSON.stringify(result)).toContain("previous proposal is unchanged");
+      },
+    });
+    value.prepare.mockResolvedValueOnce({
+      kind: "refused",
+      message: "The previous proposal is unchanged.",
+    });
+    await value.agent.chat("chat-1", "Revise Thursday");
+    expect(value.prepare).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        preparation: { kind: "incomplete", reason: "Missing workouts" },
+      }),
+    );
+    expect(value.settleTurn).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ outcome: "abandon" }),
+    );
+    expect(value.mutate).not.toHaveBeenCalled();
   });
 
   it.each(["length", "tool-calls"] satisfies GenerateResult["finishReason"][])(

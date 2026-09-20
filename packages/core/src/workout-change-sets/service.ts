@@ -2,11 +2,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Phrasebook } from "@enduragent/i18n/messages";
 import { workoutPhrasebook, workoutProblemKind } from "./copy.js";
 import { WorkoutChangeError } from "./error.js";
-import type { WorkoutPreparationPort } from "@enduragent/engine";
-import { COACH_EXTERNAL_ID_PREFIX } from "@enduragent/engine/sport";
+import type { PendingWorkoutItem, WorkoutPreparationPort } from "@enduragent/engine";
 import {
   accountIdentity,
-  creationInput,
   desired,
   eligible,
   normalizeJson,
@@ -15,7 +13,6 @@ import {
   sameSnapshot,
   snapshot,
   today,
-  updateInput,
   write,
   type CalendarClient,
 } from "./calendar.js";
@@ -29,6 +26,7 @@ import {
 } from "./record.js";
 import { renderNotice, renderReview, successes } from "./review.js";
 import { digest, openStore } from "./store.js";
+import { preparePending } from "./preparation.js";
 
 export interface ReviewDelivery {
   readonly handle: string | null;
@@ -304,6 +302,55 @@ export async function openWorkoutChangeSets(input: {
   }
   const service: WorkoutChangeSets = {
     preparation: {
+      readPending: (request) =>
+        serial(async () => {
+          await verifyAccount();
+          const record = store.records.get(request.chatId);
+          const state = record?.state;
+          if (
+            record === undefined ||
+            state === undefined ||
+            state.kind === "completed" ||
+            state.kind === "canceled" ||
+            state.kind === "abandoned"
+          )
+            return { kind: "none" };
+          if (
+            state.kind !== "review-ready" &&
+            state.kind !== "retry-ready" &&
+            state.kind !== "awaiting-approval" &&
+            state.kind !== "blocked"
+          )
+            return {
+              kind: "unavailable",
+              reason: "The pending proposal cannot be revised in its current state.",
+            };
+          const changes: PendingWorkoutItem[] = state.pending.map((change) => {
+            switch (change.kind) {
+              case "add":
+                return { id: change.id, change: change.prepared };
+              case "edit":
+                return {
+                  id: change.id,
+                  change: { kind: "edit", eventId: change.reviewed.eventId, patch: change.patch },
+                  reviewed: change.reviewed,
+                  desired: change.desired,
+                };
+              case "delete":
+                return {
+                  id: change.id,
+                  change: { kind: "delete", eventId: change.reviewed.eventId },
+                  reviewed: change.reviewed,
+                };
+            }
+          });
+          return structuredClone({
+            kind: "pending",
+            reference: { setId: record.setId, revision: record.revision },
+            changes,
+            completedCount: state.finished.length,
+          });
+        }),
       prepare: (request) =>
         serial(async () => {
           const previous = store.records.get(request.chatId);
@@ -314,82 +361,91 @@ export async function openWorkoutChangeSets(input: {
               kind: "refused",
               message: "Resolve the uncertain calendar result before preparing more changes.",
             };
-          const retain =
-            previous && previous.state.kind !== "completed" && previous.state.kind !== "canceled";
-          const record: Record = {
-            version: 1,
-            account,
-            chatId: request.chatId,
-            setId: retain ? previous.setId : randomUUID(),
-            revision: (previous?.revision ?? 0) + 1,
-            settledTurns: previous?.settledTurns ?? [],
-            state: {
-              kind: "incomplete",
-              turnId: request.turnId,
-              finished: retain ? previous.state.finished : [],
-            },
-          };
-          await store.save(record);
           if (
             (previous?.state.kind === "staged" || previous?.state.kind === "incomplete") &&
             previous.state.turnId === request.turnId
-          )
+          ) {
+            await save(previous, {
+              kind: "incomplete",
+              turnId: request.turnId,
+              finished: previous.state.finished,
+            });
             return {
               kind: "incomplete",
               message:
                 "Multiple proposals were submitted in one turn. Prepare the complete set again in a new turn.",
             };
+          }
+          const active =
+            previous !== undefined &&
+            (previous.state.kind === "review-ready" ||
+              previous.state.kind === "retry-ready" ||
+              previous.state.kind === "awaiting-approval" ||
+              previous.state.kind === "blocked")
+              ? previous.state
+              : undefined;
           try {
             await verifyAccount();
             const preparation = preparationSchema.parse(request.preparation);
-            if (preparation.kind === "incomplete")
-              return { kind: "incomplete", message: preparation.reason };
-            const pending: Change[] = [];
-            const targets = new Set<number>();
-            for (const item of preparation.changes) {
-              const id = randomUUID();
-              if (item.kind === "add") {
-                future(item.date);
-                const change: Change = {
-                  kind: "add",
-                  id,
-                  prepared: item,
-                  recoveryIdentity: `${COACH_EXTERNAL_ID_PREFIX}batch:${id}`,
+            if (preparation.kind === "incomplete" && active !== undefined)
+              return {
+                kind: "refused",
+                message:
+                  "The revision could not be prepared; the previous proposal is unchanged.",
+              };
+            if (preparation.kind === "revise" || preparation.kind === "replace") {
+              if (
+                active === undefined ||
+                previous === undefined ||
+                preparation.base.setId !== previous.setId ||
+                preparation.base.revision !== previous.revision
+              )
+                return {
+                  kind: "refused",
+                  message:
+                    "The pending proposal changed. Read it again before preparing a revision.",
                 };
-                creationInput(change);
-                pending.push(change);
-              } else {
-                if (targets.has(item.eventId))
-                  throw new Error("A workout cannot have multiple actions in one review.");
-                targets.add(item.eventId);
-                const event = await readEvent(input.client, item.eventId);
-                eligible(event, today(input.timezone));
-                const reviewed = snapshot(event);
-                if (item.kind === "delete") pending.push({ kind: "delete", id, reviewed });
-                else {
-                  const change: Change = {
-                    kind: "edit",
-                    id,
-                    reviewed,
-                    desired: reviewed,
-                    patch: item.patch,
-                  };
-                  change.desired = desired(change, reviewed);
-                  future(change.desired.date);
-                  updateInput(change);
-                  pending.push(change);
-                }
-              }
+            } else if (preparation.kind === "complete" && active !== undefined) {
+              return {
+                kind: "refused",
+                message:
+                  "A proposal is already pending. Read it and use a targeted revision or explicit whole-set replacement.",
+              };
             }
+            const retain =
+              previous !== undefined &&
+              previous.state.kind !== "completed" &&
+              previous.state.kind !== "canceled";
+            const finished = retain ? previous.state.finished : [];
+            const record: Record = {
+              version: 1,
+              account,
+              chatId: request.chatId,
+              setId: retain ? previous.setId : randomUUID(),
+              revision: (previous?.revision ?? 0) + 1,
+              settledTurns: previous?.settledTurns ?? [],
+              state: { kind: "incomplete", turnId: request.turnId, finished },
+            };
+            if (preparation.kind === "incomplete") {
+              await store.save(record);
+              return { kind: "incomplete", message: preparation.reason };
+            }
+            const prepared = await preparePending({
+              preparation,
+              previous: active?.pending ?? [],
+              client: input.client,
+              today: today(input.timezone),
+            });
+            const context = await contextFor(prepared.pending);
             await save(record, {
               kind: "staged",
               turnId: request.turnId,
-              pending,
-              finished: record.state.finished,
-              context: await contextFor(pending),
-              notice: { kind: "none" },
+              pending: prepared.pending,
+              finished,
+              context,
+              notice: prepared.notice,
             });
-            return { kind: "prepared", changeCount: pending.length };
+            return { kind: "prepared", changeCount: prepared.pending.length };
           } catch (error) {
             return {
               kind: "refused",
@@ -522,13 +578,16 @@ export async function openWorkoutChangeSets(input: {
           (state.mode === "retry" && request.action.kind !== "retry-remaining")
         )
           return { kind: "invalid-action", text: book.say("workouts.outcome.wrongAction") };
-        await save(record, {
-          kind: "preflighting",
-          pending: state.pending,
-          finished: state.finished,
-          context: state.context,
-          notice: state.notice,
-        });
+        const claimed = await save(
+          { ...record, revision: record.revision + 1 },
+          {
+            kind: "preflighting",
+            pending: state.pending,
+            finished: state.finished,
+            context: state.context,
+            notice: state.notice,
+          },
+        );
         let checked: Awaited<ReturnType<typeof preflight>>;
         try {
           checked = await preflight({
@@ -539,7 +598,7 @@ export async function openWorkoutChangeSets(input: {
           });
         } catch (error) {
           const notice: Notice = { kind: "blocked", reason: workoutProblemKind(error) };
-          await save(record, {
+          await save(claimed, {
             kind: "blocked",
             pending: state.pending,
             finished: state.finished,
@@ -553,7 +612,7 @@ export async function openWorkoutChangeSets(input: {
         }
         if (checked.changed) {
           await save(
-            { ...record, revision: record.revision + 1 },
+            { ...claimed, revision: claimed.revision + 1 },
             { kind: "review-ready", ...checked.payload, delivery: randomUUID() },
           );
           return {
@@ -561,7 +620,7 @@ export async function openWorkoutChangeSets(input: {
             text: `${successes(state.finished, book)}${renderNotice(checked.payload.notice, book)} ${book.say("workouts.outcome.refresh")}`,
           };
         }
-        return execute(record, checked.payload, book);
+        return execute(claimed, checked.payload, book);
       }),
     recover: () => serial(recoverRecords),
     async close() {

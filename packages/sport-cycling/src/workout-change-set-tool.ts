@@ -52,8 +52,23 @@ const changeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("delete"), eventId: z.number().int() }),
 ]);
 
+const referenceSchema = z.strictObject({
+  setId: z.string().min(1),
+  revision: z.number().int().positive(),
+});
+
 export const workoutChangeSetInputSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("complete"), changes: z.array(changeSchema).min(1) }),
+  z.strictObject({
+    kind: z.literal("replace"),
+    base: referenceSchema,
+    changes: z.array(changeSchema).min(1),
+  }),
+  z.strictObject({
+    kind: z.literal("revise"),
+    base: referenceSchema,
+    replacements: z.array(z.strictObject({ id: z.string().min(1), change: changeSchema })).min(1),
+  }),
   z.strictObject({ kind: z.literal("incomplete"), reason: z.string().trim().min(1) }),
 ]);
 
@@ -146,6 +161,21 @@ function prepareChange(change: z.infer<typeof changeSchema>): PreparedChange {
 export function prepareCyclingWorkoutChanges(input: unknown): Preparation {
   const checked = workoutChangeSetInputSchema.parse(input);
   if (checked.kind === "incomplete") return checked;
+  if (checked.kind === "revise") {
+    const ids = new Set<string>();
+    for (const replacement of checked.replacements) {
+      if (ids.has(replacement.id))
+        throw new Error("Each pending workout may be revised only once.");
+      ids.add(replacement.id);
+    }
+    return {
+      ...checked,
+      replacements: checked.replacements.map(({ id, change }) => ({
+        id,
+        change: prepareChange(change),
+      })),
+    };
+  }
   const targets = new Set<number>();
   for (const change of checked.changes) {
     if (change.kind === "edit" || change.kind === "delete") {
@@ -154,7 +184,7 @@ export function prepareCyclingWorkoutChanges(input: unknown): Preparation {
       targets.add(change.eventId);
     }
   }
-  return { kind: "complete", changes: checked.changes.map(prepareChange) };
+  return { ...checked, changes: checked.changes.map(prepareChange) };
 }
 
 export const cyclingWorkoutPreparation: WorkoutPreparationCapability = {
@@ -170,6 +200,9 @@ export const cyclingWorkoutPreparation: WorkoutPreparationCapability = {
       "Prepare the entire requested set of calendar additions, edits, and deletions for one athlete review. " +
       "Submit exactly once per turn, including single workouts. This does not write to the calendar. " +
       "Use incomplete with a reason when any requested change cannot be prepared; never submit a partial set. " +
+      "For pending proposal changes, first read get_pending_workout_changes. Use revise with its base reference and selected item replacements; all other pending items are preserved exactly. " +
+      "Preserve unspecified fields in selected items. Keep each item's action kind and existing calendar event ID; use replace for an explicitly requested whole-set replacement. " +
+      "Use complete only without a pending set. Pending item IDs differ from calendar event IDs. " +
       "Cycling additions use structured steps converted to native workout text. Strength additions require explicit durationMinutes and effort. " +
       "Edit patches accept date, name, durationSeconds, description, trainingLoad, and structure (the platform workout document). " +
       "Today and future dates only; edits and deletions require coach-created workouts. Existing same-date workouts are preserved.";

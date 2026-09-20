@@ -9605,7 +9605,7 @@
       "translatedBy": "model"
     },
     "workouts.review.details": {
-      "sourceHash": "79637351ff7f6ed2a81905ddb93e6d0ff301697fd7c08a64fdcd4fb035dcb673",
+      "sourceHash": "de1109e66b29d55b140058f4c1e3c884a64ab9ac8f0bf40a321c6cd7a94208a1",
       "translatedBy": "model"
     },
     "workouts.review.minutes": {
@@ -9766,6 +9766,30 @@
     },
     "workouts.outcome.recoveredDeleteAbsent": {
       "sourceHash": "0c29217ef9189051a35b3c5ae3df4e86eb94463ad19fb9b49b7b80b9b6c3de7c",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureDetails": {
+      "sourceHash": "ba5b21f7c3dfe21dc7757a5cb913e7e9d0140e3e0986bad17fd9c9953a9f862e",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureUnavailable": {
+      "sourceHash": "58e9c30b16191582110b79b0c0546c3b4169528866d14722bd72e6176ae20a86",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureChanged": {
+      "sourceHash": "85ba7df3c554c9748fe61317682c8e9bd98573920b1a083822b5633df101a287",
+      "translatedBy": "model"
+    },
+    "workouts.review.proposedRevision": {
+      "sourceHash": "168ca5315dd8ec666651a0ba72f2941390a5e98b1ab534dc8a3b6cff99875cdb",
+      "translatedBy": "model"
+    },
+    "workouts.review.revised": {
+      "sourceHash": "337d56ec1f894ac96688cffe6a7d1f36362c42b8b4841e0478b2c36ab5e0f9d2",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.effort": {
+      "sourceHash": "a4f12c3895258d0b6e32d9a4d692057c8cfcd5f8efc97dbdf7cefe1c46382b89",
       "translatedBy": "model"
     }
   }

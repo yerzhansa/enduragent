@@ -459,14 +459,17 @@ describe("confirmation callbacks", () => {
     const ctx = makeCtx();
     const approvals: WorkoutApprovalChannel = {
       review: vi.fn(async () => ({ handle: "review-1", text: reviewText })),
-      acknowledgeDelivery: vi.fn(async () => {
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => {
         const delivered = ctx.reply.mock.calls.map((call) => call[0]).join("\n");
         expect(delivered).toContain("Workout 1:");
         expect(delivered).toContain("Workout 130:");
         expect(delivered).not.toContain(token);
         return { token, kind: "approval", prompt: "Approve all 130 changes?" };
       }),
-      resolve: vi.fn(async () => ({ kind: "completed", text: "All workouts saved." })),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "All workouts saved.",
+      })),
     };
     const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
     agent.chat.mockResolvedValue({ text: "Review your workouts below." });
@@ -494,8 +497,12 @@ describe("confirmation callbacks", () => {
     const token = "synthetic_approval_123456";
     const approvals: WorkoutApprovalChannel = {
       review: vi.fn(async () => ({ handle: "review-1", text })),
-      acknowledgeDelivery: vi.fn(async () => ({ token, kind: "approval", prompt: "Approve?" })),
-      resolve: vi.fn(async () => ({ kind: "completed", text })),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => ({
+        token,
+        kind: "approval",
+        prompt: "Approve?",
+      })),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({ kind: "completed", text })),
     };
     const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
     agent.chat.mockResolvedValue({ text: "Review below." });
@@ -512,8 +519,11 @@ describe("confirmation callbacks", () => {
   it("keeps workout approval inactive when a review chunk cannot be delivered", async () => {
     const approvals: WorkoutApprovalChannel = {
       review: vi.fn(async () => ({ handle: "review-1", text: "Workout review" })),
-      acknowledgeDelivery: vi.fn(async () => null),
-      resolve: vi.fn(async () => ({ kind: "completed", text: "Done" })),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "Done",
+      })),
     };
     const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
     agent.chat.mockResolvedValue({ text: "Here is the proposal." });
@@ -533,8 +543,8 @@ describe("confirmation callbacks", () => {
     const ctx = callbackCtx(`wc:approve:${token}`);
     const approvals: WorkoutApprovalChannel = {
       review: vi.fn(async () => null),
-      acknowledgeDelivery: vi.fn(async () => null),
-      resolve: vi.fn(async () => {
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => {
         expect(ctx.answerCallbackQuery).toHaveBeenCalledOnce();
         return { kind: "completed", text: "All changes saved." };
       }),
@@ -824,11 +834,102 @@ describe("retry transformer / classified errors / delivery split", () => {
   });
 
   it("'resend' with no cached answer → guidance reply and NO agent.chat", async () => {
-    const { bot, agent } = await buildBot();
+    const { bot, agent, drainPending } = await buildBot();
     agent.hasSession.mockResolvedValue({ hasSession: true });
     const ctx = makeCtx({ message: { text: "resend" } });
     await getMessageText(bot)(ctx);
+    await drainPending();
     expect(someReply(ctx, "I don't have a recent answer to resend.")).toBe(true);
+    expect(agent.chat).not.toHaveBeenCalled();
+  });
+
+  it.each(["review-1", null])(
+    "resends durable workout content without a cached answer for handle %s",
+    async (handle) => {
+      const token = "synthetic_approval_123456";
+      const approvals: WorkoutApprovalChannel = {
+        review: vi.fn(async () => ({ handle, text: "Saved workout content" })),
+        acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => ({
+          token,
+          kind: "approval",
+          prompt: "Approve?",
+        })),
+        resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+          kind: "completed",
+          text: "Done",
+        })),
+      };
+      const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+      const ctx = makeCtx({ message: { text: "resend" } });
+      await getMessageText(bot)(ctx);
+      await drainPending();
+      expect(someReply(ctx, "Saved workout content")).toBe(true);
+      expect(someReply(ctx, "I don't have a recent answer to resend.")).toBe(false);
+      expect(approvals.review).toHaveBeenCalledExactlyOnceWith({
+        chatId: "telegram:777",
+        language: "en",
+        redisplay: true,
+      });
+      expect(agent.chat).not.toHaveBeenCalled();
+      expect(approvals.resolve).not.toHaveBeenCalled();
+      if (handle === null) {
+        expect(approvals.acknowledgeDelivery).not.toHaveBeenCalled();
+        expect(ctx.reply).toHaveBeenCalledOnce();
+      } else {
+        expect(ctx.reply).toHaveBeenLastCalledWith("Approve?", {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "Confirm", callback_data: `wc:approve:${token}` },
+                { text: "Cancel", callback_data: `wc:cancel:${token}` },
+              ],
+            ],
+          },
+        });
+      }
+    },
+  );
+
+  it("reports missing resend content when neither an answer nor a workout review exists", async () => {
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => null),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "Done",
+      })),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    const ctx = makeCtx({ message: { text: "resend" } });
+    await getMessageText(bot)(ctx);
+    await drainPending();
+    expect(someReply(ctx, "I don't have a recent answer to resend.")).toBe(true);
+    expect(ctx.reply).toHaveBeenCalledOnce();
+    expect(approvals.acknowledgeDelivery).not.toHaveBeenCalled();
+    expect(agent.chat).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed durable review resend without missing guidance or approval controls", async () => {
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => ({ handle: "review-1", text: "Saved workout content" })),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "Done",
+      })),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    const ctx = makeCtx({ message: { text: "resend" } });
+    ctx.reply.mockImplementation(async (_text, options) => {
+      if (options?.parse_mode === "HTML") throw new Error("Delivery failed");
+      return undefined;
+    });
+    await getMessageText(bot)(ctx);
+    await drainPending();
+    expect(someReply(ctx, "I don't have a recent answer to resend.")).toBe(false);
+    expect(someReply(ctx, "Telegram had trouble delivering it.")).toBe(true);
+    expect(approvals.acknowledgeDelivery).not.toHaveBeenCalled();
+    expect(approvals.resolve).not.toHaveBeenCalled();
     expect(agent.chat).not.toHaveBeenCalled();
   });
 

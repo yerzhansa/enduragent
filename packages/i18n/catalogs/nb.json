@@ -2938,7 +2938,7 @@
       "changed": "{{name}} ble endret i intervals.icu: {{changes}}.",
       "confirmed": "bekreftet",
       "descriptionUnavailable": "Beskrivelse utilgjengelig",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTreningsbelastning: {{load}}\nBelastningsstruktur: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTreningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "varighet utilgjengelig",
       "edit": "{{index}}. Endre treningsøkt\nNåværende: {{current}}\nForeslått: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "varighet",
         "name": "navn",
         "structure": "belastningsstruktur",
-        "trainingLoad": "treningsbelastning"
+        "trainingLoad": "treningsbelastning",
+        "effort": "innsats"
       },
       "kept": "Eksisterende treningsøkter beholdes:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} tillegg, {{edits}} endringer, {{deletions}} slettinger · {{duration}} for nye eller endrede treningsøkter",
       "title": "Se gjennom alle treningsendringer",
       "totalUnavailable": "Samlet varighet utilgjengelig",
-      "unavailable": "utilgjengelig"
+      "unavailable": "utilgjengelig",
+      "structureDetails": "Treningstrinn:\n{{steps}}",
+      "structureUnavailable": "Treningstrinn er ikke tilgjengelige",
+      "structureChanged": "Detaljene for treningstrinnene er endret",
+      "proposedRevision": "Endringer i dette forslaget:\n{{changes}}\nAlle andre foreslåtte treningsøkter forblir uendret.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

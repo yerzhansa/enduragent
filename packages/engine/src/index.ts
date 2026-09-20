@@ -1,5 +1,9 @@
 export type {
   PreparedChange,
+  PendingSetReference,
+  PendingWorkoutSet,
+  PendingWorkoutItem,
+  PendingWorkoutSnapshot,
   WorkoutPatch,
   Preparation,
   PreparationResult,

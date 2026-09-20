@@ -2938,7 +2938,7 @@
       "changed": "{{name}} ändrades i intervals.icu: {{changes}}.",
       "confirmed": "bekräftat",
       "descriptionUnavailable": "Beskrivning saknas",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTräningsbelastning: {{load}}\nAnsträngningsstruktur: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTräningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "längd saknas",
       "edit": "{{index}}. Ändra träningspass\nNuvarande: {{current}}\nFöreslaget: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "längd",
         "name": "namn",
         "structure": "ansträngningsstruktur",
-        "trainingLoad": "träningsbelastning"
+        "trainingLoad": "träningsbelastning",
+        "effort": "ansträngning"
       },
       "kept": "Befintliga träningspass behålls:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} tillägg, {{edits}} ändringar, {{deletions}} borttagningar · {{duration}} för tillagda eller ändrade träningspass",
       "title": "Granska alla träningsändringar",
       "totalUnavailable": "Total längd saknas",
-      "unavailable": "saknas"
+      "unavailable": "saknas",
+      "structureDetails": "Träningssteg:\n{{steps}}",
+      "structureUnavailable": "Träningssteg är inte tillgängliga",
+      "structureChanged": "Detaljerna för träningsstegen har ändrats",
+      "proposedRevision": "Ändringar i det här förslaget:\n{{changes}}\nAlla andra föreslagna träningspass förblir oförändrade.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

@@ -3,6 +3,7 @@ import type { GenerateResult } from "../sport.js";
 import type { TurnBudget } from "./turn-budget.js";
 import type {
   Preparation,
+  PendingWorkoutSet,
   PreparationResult,
   WorkoutPreparationPort,
 } from "../workout-change-sets.js";
@@ -28,6 +29,14 @@ export class WorkoutPreparationTurns {
   private readonly turns = new WeakMap<TurnContext, PreparationTurn>();
 
   constructor(private readonly port: WorkoutPreparationPort) {}
+
+  async read(options: unknown): Promise<PendingWorkoutSet> {
+    const context = getTurnContext(options);
+    const turn = context === undefined ? undefined : this.turns.get(context);
+    if (context === undefined || turn === undefined || turn.closed || turn.settled)
+      return { kind: "unavailable", reason: "Workout preparation is unavailable for this turn." };
+    return this.port.readPending({ chatId: context.chatId });
+  }
 
   begin(context: TurnContext, signal: AbortSignal): WorkoutPreparationSession {
     const turn: PreparationTurn = {

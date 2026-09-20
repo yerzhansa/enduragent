@@ -2938,7 +2938,7 @@
       "changed": "{{name}} blev ændret i intervals.icu: {{changes}}.",
       "confirmed": "bekræftet",
       "descriptionUnavailable": "Beskrivelse ikke tilgængelig",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTræningsbelastning: {{load}}\nBelastningsstruktur: {{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTræningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "varighed ikke tilgængelig",
       "edit": "{{index}}. Rediger træning\nNuværende: {{current}}\nForeslået: {{proposed}}",
       "field": {
@@ -2947,7 +2947,8 @@
         "duration": "varighed",
         "name": "navn",
         "structure": "belastningsstruktur",
-        "trainingLoad": "træningsbelastning"
+        "trainingLoad": "træningsbelastning",
+        "effort": "indsats"
       },
       "kept": "Eksisterende træninger beholdes:",
       "minutes": "{{minutes}} min",
@@ -2956,7 +2957,12 @@
       "summary": "{{adds}} tilføjelser, {{edits}} ændringer, {{deletions}} sletninger · {{duration}} for tilføjede eller ændrede træninger",
       "title": "Gennemgå alle træningsændringer",
       "totalUnavailable": "Samlet varighed ikke tilgængelig",
-      "unavailable": "ikke tilgængelig"
+      "unavailable": "ikke tilgængelig",
+      "structureDetails": "Træningstrin:\n{{steps}}",
+      "structureUnavailable": "Træningstrin er ikke tilgængelige",
+      "structureChanged": "Detaljerne for træningstrinnene er ændret",
+      "proposedRevision": "Ændringer i dette forslag:\n{{changes}}\nAlle andre foreslåede træningspas forbliver uændrede.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

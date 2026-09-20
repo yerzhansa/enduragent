@@ -117,11 +117,15 @@ async function prepare(
   changes: readonly PreparedChange[],
   turnId = "turn-one",
 ) {
+  const pending = await service.preparation.readPending({ chatId: "chat" });
   expect(
     await service.preparation.prepare({
       chatId: "chat",
       turnId,
-      preparation: { kind: "complete", changes },
+      preparation:
+        pending.kind === "pending"
+          ? { kind: "replace", base: pending.reference, changes }
+          : { kind: "complete", changes },
     }),
   ).toEqual({ kind: "prepared", changeCount: changes.length });
   await service.preparation.settleTurn({ chatId: "chat", turnId, outcome: "commit" });
@@ -137,6 +141,11 @@ async function approve(
   kind: "approve" | "retry-remaining" = "approve",
 ) {
   return service.resolve({ chatId: "chat", language: "en", action: { kind, token } });
+}
+async function pendingSet(service: WorkoutChangeSets) {
+  const pending = await service.preparation.readPending({ chatId: "chat" });
+  if (pending.kind !== "pending") throw new Error("Missing pending set");
+  return pending;
 }
 async function acknowledgeAbandoned(service: WorkoutChangeSets) {
   const review = await service.review({ chatId: "chat", language: "en" });
@@ -157,6 +166,539 @@ afterEach(async () => {
 });
 
 describe("durable workout change sets", () => {
+  it("revises Thursday while preserving the other seven complete pending workouts", async () => {
+    const { service, fake } = await setup();
+    const changes = Array.from({ length: 8 }, (_, index) => ({
+      ...add,
+      date: `1998-09-${String(index + 7).padStart(2, "0")}`,
+      name: `Recovery ${index + 1}`,
+      durationSeconds: 600,
+      description: "Main set\n- 10m 50%",
+      effort: "50% FTP",
+      trainingLoad: 8,
+    }));
+    const original = await prepare(service, changes);
+    const before = await service.preparation.readPending({ chatId: "chat" });
+    if (before.kind !== "pending") throw new Error("Missing pending set");
+    const thursday = before.changes[3];
+    if (!thursday || thursday.change.kind !== "add") throw new Error("Missing Thursday");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "revise-thursday",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            {
+              id: thursday.id,
+              change: {
+                ...thursday.change,
+                durationSeconds: 300,
+                description: "Main set\n- 5m 45%",
+                effort: "45% FTP",
+              },
+            },
+          ],
+        },
+      }),
+    ).toEqual({ kind: "prepared", changeCount: 8 });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "revise-thursday",
+      outcome: "commit",
+    });
+    const after = await service.preparation.readPending({ chatId: "chat" });
+    if (after.kind !== "pending") throw new Error("Missing revised set");
+    expect(after.changes.filter((_, index) => index !== 3)).toEqual(
+      before.changes.filter((_, index) => index !== 3),
+    );
+    expect(after.changes[3]).toMatchObject({
+      id: thursday.id,
+      change: { durationSeconds: 300, trainingLoad: 8 },
+    });
+    expect((await approve(service, original.control.token)).kind).toBe("invalid-action");
+    const review = await service.review({ chatId: "chat", language: "en" });
+    if (!review?.handle) throw new Error("Missing revision review");
+    expect(review.text).toContain("Changes to this proposal:");
+    expect(review.text).toContain("duration: 10 min → 5 min");
+    expect(review.text).toContain("effort: 50% FTP → 45% FTP");
+    expect(review.text).toContain("All other proposed workouts stay unchanged.");
+    const control = await service.acknowledgeDelivery({ chatId: "chat", delivery: review.handle });
+    if (!control) throw new Error("Missing revision approval");
+    expect(fake.writes).toEqual([]);
+    expect((await approve(service, control.token)).kind).toBe("completed");
+    expect(fake.writes).toHaveLength(8);
+    expect(fake.writes.map((write) => write.input?.icuTrainingLoad)).toEqual(Array(8).fill(8));
+    expect(fake.writes.map((write) => write.input?.movingTime)).toEqual([
+      600, 600, 600, 300, 600, 600, 600, 600,
+    ]);
+    expect(fake.writes.map((write) => write.input?.externalId)).toEqual(
+      before.changes.map((change) => `cycling-coach:batch:${change.id}`),
+    );
+  });
+  it("refuses implicit whole-set replacement without invalidating the pending approval", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [add]);
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "implicit-replacement",
+        preparation: { kind: "complete", changes: [{ ...add, trainingLoad: 4 }] },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "implicit-replacement",
+      outcome: "abandon",
+    });
+    expect((await approve(service, control.token)).kind).toBe("completed");
+    expect(fake.writes[0]?.input?.icuTrainingLoad).toBeUndefined();
+  });
+  it.each(["awaiting approval", "partial retry"] as const)(
+    "preserves %s and its original control across an incomplete revision and restart",
+    async (mode) => {
+      const { service, fake, dataDir } = await setup();
+      const initial = await prepare(service, [add, { ...add, name: "Second ride" }]);
+      let control = initial.control;
+      if (mode === "partial retry") {
+        fake.fail("reject", 2);
+        expect((await approve(service, control.token)).kind).toBe("partial");
+        const review = await service.review({ chatId: "chat", language: "en" });
+        if (!review?.handle) throw new Error("Missing retry review");
+        const retry = await service.acknowledgeDelivery({
+          chatId: "chat",
+          delivery: review.handle,
+        });
+        if (!retry) throw new Error("Missing retry control");
+        control = retry;
+      }
+      const before = await pendingSet(service);
+      const writesBefore = [...fake.writes];
+      expect(
+        await service.preparation.prepare({
+          chatId: "chat",
+          turnId: "incomplete-revision",
+          preparation: { kind: "incomplete", reason: "The requested revision cannot be prepared." },
+        }),
+      ).toMatchObject({
+        kind: "refused",
+        message: expect.stringContaining("previous proposal is unchanged"),
+      });
+      await service.preparation.settleTurn({
+        chatId: "chat",
+        turnId: "incomplete-revision",
+        outcome: "abandon",
+      });
+      expect(await pendingSet(service)).toEqual(before);
+      expect(fake.writes).toEqual(writesBefore);
+      await service.close();
+      const restarted = await openWorkoutChangeSets({
+        dataDir,
+        client: fake.client,
+        timezone: "UTC",
+      });
+      services.push(restarted);
+      expect(await pendingSet(restarted)).toEqual(before);
+      expect(fake.writes).toEqual(writesBefore);
+      expect(
+        (
+          await approve(
+            restarted,
+            control.token,
+            mode === "partial retry" ? "retry-remaining" : "approve",
+          )
+        ).kind,
+      ).toBe("completed");
+      expect(fake.writes.map((write) => write.input?.name)).toEqual(
+        mode === "partial retry"
+          ? ["Easy ride", "Second ride", "Second ride"]
+          : ["Easy ride", "Second ride"],
+      );
+    },
+  );
+  it("invalidates a read reference after refreshed calendar contents and preserves that newer review", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { name: "New name" } },
+    ]);
+    const before = await pendingSet(service);
+    fake.events.set(101, { ...base, movingTime: 5400 });
+    expect((await approve(service, control.token)).kind).toBe("refresh-required");
+    const refreshed = await pendingSet(service);
+    expect(refreshed.reference.revision).toBeGreaterThan(before.reference.revision);
+    expect(refreshed.changes[0]).toMatchObject({ desired: { durationSeconds: 5400 } });
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "stale-replacement",
+        preparation: {
+          kind: "replace",
+          base: before.reference,
+          changes: [add],
+        },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "stale-replacement",
+      outcome: "abandon",
+    });
+    expect(await pendingSet(service)).toEqual(refreshed);
+    expect(fake.writes).toEqual([]);
+  });
+  it("keeps completed receipts when the athlete explicitly replaces all remaining work", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [add, { ...add, name: "Second ride" }]);
+    fake.fail("reject", 2);
+    expect((await approve(service, control.token)).kind).toBe("partial");
+    const next = await prepare(
+      service,
+      [{ kind: "edit", eventId: 101, patch: { name: "Replacement" } }],
+      "replace-remaining",
+    );
+    const pending = await pendingSet(service);
+    expect(pending.completedCount).toBe(1);
+    expect(pending.changes).toHaveLength(1);
+    expect(next.review.text).toContain("Already completed");
+    expect((await approve(service, next.control.token)).kind).toBe("completed");
+    expect(fake.writes.map((write) => write.kind)).toEqual(["add", "add", "edit"]);
+  });
+  it("refuses a selected edit that changes patch representation but leaves the proposed workout unchanged", async () => {
+    const { service } = await setup();
+    const { control } = await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { name: "New name" } },
+    ]);
+    const before = await pendingSet(service);
+    const selected = before.changes[0];
+    if (!selected) throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "equivalent-patch",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: {
+                kind: "edit",
+                eventId: 101,
+                patch: { name: "New name", durationSeconds: 3600 },
+              },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    expect(await pendingSet(service)).toEqual(before);
+    expect((await approve(service, control.token)).kind).toBe("completed");
+  });
+  it.each([
+    { patch: { name: "Revised name" }, load: 75 },
+    { patch: { name: "Revised name", trainingLoad: 0 }, load: 0 },
+    { patch: { name: "Revised name", trainingLoad: undefined }, load: 75 },
+  ])("merges selected edit fields with the pending patch: %j", async ({ patch, load }) => {
+    const { service, fake } = await setup();
+    const initial = await prepare(service, [
+      add,
+      {
+        kind: "edit",
+        eventId: 101,
+        patch: { name: "Planned name", trainingLoad: 75, durationSeconds: 4500 },
+      },
+    ]);
+    const before = await pendingSet(service);
+    const selected = before.changes[1];
+    if (!selected) throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "revise-name",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [{ id: selected.id, change: { kind: "edit", eventId: 101, patch } }],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared", changeCount: 2 });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "revise-name",
+      outcome: "commit",
+    });
+    const after = await pendingSet(service);
+    expect(after.changes[0]).toEqual(before.changes[0]);
+    expect(after.changes[1]).toMatchObject({
+      id: selected.id,
+      change: {
+        kind: "edit",
+        eventId: 101,
+        patch: { name: "Revised name", trainingLoad: load, durationSeconds: 4500 },
+      },
+      desired: { name: "Revised name", trainingLoad: load, durationSeconds: 4500 },
+    });
+    expect((await approve(service, initial.control.token)).kind).toBe("invalid-action");
+    const review = await service.review({ chatId: "chat", language: "en" });
+    if (!review?.handle) throw new Error("Missing revision review");
+    if (load === 75) expect(review.text).not.toContain("training load: 75 →");
+    else expect(review.text).toContain("training load: 75 → 0");
+    const control = await service.acknowledgeDelivery({ chatId: "chat", delivery: review.handle });
+    if (!control) throw new Error("Missing revision approval");
+    expect(fake.writes).toEqual([]);
+    expect((await approve(service, control.token)).kind).toBe("completed");
+    expect(fake.writes[1]).toEqual({
+      kind: "edit",
+      id: 101,
+      input: { name: "Revised name", movingTime: 4500, icuTrainingLoad: load },
+    });
+  });
+  it("rejects omission-only edit revisions as no-ops without losing previous pending fields", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { name: "Planned name", trainingLoad: 75 } },
+    ]);
+    const before = await pendingSet(service);
+    const selected = before.changes[0];
+    if (!selected) throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "omit-load",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: { kind: "edit", eventId: 101, patch: { name: "Planned name" } },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "refused", message: expect.stringContaining("actual change") });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "omit-load",
+      outcome: "abandon",
+    });
+    expect(await pendingSet(service)).toEqual(before);
+    expect(fake.writes).toEqual([]);
+    expect((await approve(service, control.token)).kind).toBe("completed");
+    expect(fake.writes[0]?.input?.icuTrainingLoad).toBe(75);
+  });
+  it("restores canonical revision values and IDs after restart without conversation history", async () => {
+    const { service, fake, dataDir } = await setup();
+    await prepare(service, [
+      add,
+      { kind: "edit", eventId: 101, patch: { name: "Thursday recovery" } },
+      { kind: "delete", eventId: 102 },
+    ]);
+    const before = await pendingSet(service);
+    expect(before.changes[1]).toMatchObject({
+      reviewed: { date: "1998-09-09", name: "Intervals" },
+      desired: { name: "Thursday recovery" },
+    });
+    expect(before.changes[2]).toMatchObject({ reviewed: { name: "Recovery", date: "1998-09-09" } });
+    expect(JSON.stringify(before)).not.toMatch(/token|recoveryIdentity|fictional-account/);
+    await service.close();
+    const restarted = await openWorkoutChangeSets({
+      dataDir,
+      client: fake.client,
+      timezone: "UTC",
+    });
+    services.push(restarted);
+    expect(await pendingSet(restarted)).toEqual(before);
+    const selected = before.changes[0];
+    if (!selected || selected.change.kind !== "add") throw new Error("Missing addition");
+    expect(
+      await restarted.preparation.prepare({
+        chatId: "chat",
+        turnId: "after-restart",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            { id: selected.id, change: { ...selected.change, name: "Short recovery" } },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared", changeCount: 3 });
+    await restarted.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "after-restart",
+      outcome: "commit",
+    });
+    expect((await pendingSet(restarted)).changes.slice(1)).toEqual(before.changes.slice(1));
+  });
+  it.each([
+    "stale",
+    "wrong-set",
+    "unknown",
+    "duplicate",
+    "action",
+    "sport",
+    "unchanged",
+    "invalid",
+  ] as const)("preserves current approval when a targeted revision is %s", async (scenario) => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [add]);
+    const before = await pendingSet(service);
+    const selected = before.changes[0];
+    if (!selected || selected.change.kind !== "add") throw new Error("Missing addition");
+    const replacement = {
+      id: scenario === "unknown" ? "unknown-item" : selected.id,
+      change: {
+        ...selected.change,
+        name: scenario === "unchanged" ? selected.change.name : "New name",
+      },
+    };
+    const replacements =
+      scenario === "duplicate"
+        ? [replacement, replacement]
+        : scenario === "action"
+          ? [{ id: selected.id, change: { kind: "delete" as const, eventId: 101 } }]
+          : scenario === "sport"
+            ? [{ ...replacement, change: { ...replacement.change, sport: "strength" as const } }]
+            : scenario === "invalid"
+              ? [{ ...replacement, change: { ...replacement.change, durationSeconds: -1 } }]
+              : [replacement];
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "rejected-revision",
+        preparation: {
+          kind: "revise",
+          base: {
+            setId: scenario === "wrong-set" ? "wrong-set" : before.reference.setId,
+            revision:
+              scenario === "stale" ? before.reference.revision + 1 : before.reference.revision,
+          },
+          replacements,
+        },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "rejected-revision",
+      outcome: "abandon",
+    });
+    expect(await pendingSet(service)).toEqual(before);
+    expect((await approve(service, control.token)).kind).toBe("completed");
+    expect(fake.writes[0]?.input?.name).toBe(add.name);
+  });
+  it("requires explicit replacement to change a pending calendar target and checks duplicates across retained entries", async () => {
+    const { service } = await setup();
+    await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { name: "New name" } },
+      { kind: "delete", eventId: 102 },
+    ]);
+    const before = await pendingSet(service);
+    const selected = before.changes[0];
+    if (!selected) throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "change-target",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: { kind: "edit", eventId: 102, patch: { name: "Another target" } },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    expect(await pendingSet(service)).toEqual(before);
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "duplicate-target",
+        preparation: {
+          kind: "replace",
+          base: before.reference,
+          changes: [
+            { kind: "edit", eventId: 102, patch: { name: "Another target" } },
+            { kind: "delete", eventId: 102 },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "refused" });
+    expect(await pendingSet(service)).toEqual(before);
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "explicit-new-target",
+        preparation: {
+          kind: "replace",
+          base: before.reference,
+          changes: [{ kind: "edit", eventId: 102, patch: { name: "Another target" } }],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared", changeCount: 1 });
+  });
+  it("revises only remaining work after partial approval and rejects the completed ID and old reference", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [add, { ...add, name: "Second ride" }]);
+    const before = await pendingSet(service);
+    fake.fail("reject", 2);
+    expect((await approve(service, control.token)).kind).toBe("partial");
+    const remaining = await pendingSet(service);
+    expect(remaining.completedCount).toBe(1);
+    expect(remaining.reference.revision).toBeGreaterThan(before.reference.revision);
+    expect(remaining.changes).toEqual(before.changes.slice(1));
+    const completed = before.changes[0];
+    const selected = remaining.changes[0];
+    if (!completed || !selected || selected.change.kind !== "add")
+      throw new Error("Missing additions");
+    const change = { ...selected.change, name: "Revised remaining ride" };
+    for (const [turnId, base, id] of [
+      ["old-reference", before.reference, selected.id],
+      ["completed-target", remaining.reference, completed.id],
+    ] as const) {
+      expect(
+        await service.preparation.prepare({
+          chatId: "chat",
+          turnId,
+          preparation: { kind: "revise", base, replacements: [{ id, change }] },
+        }),
+      ).toMatchObject({ kind: "refused" });
+      await service.preparation.settleTurn({ chatId: "chat", turnId, outcome: "abandon" });
+    }
+    expect(await pendingSet(service)).toEqual(remaining);
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "revise-remaining",
+        preparation: {
+          kind: "revise",
+          base: remaining.reference,
+          replacements: [{ id: selected.id, change }],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared", changeCount: 1 });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "revise-remaining",
+      outcome: "commit",
+    });
+    const review = await service.review({ chatId: "chat", language: "en" });
+    if (!review?.handle) throw new Error("Missing review");
+    expect(review.text).toContain("Already completed");
+    const next = await service.acknowledgeDelivery({ chatId: "chat", delivery: review.handle });
+    if (!next) throw new Error("Missing control");
+    expect((await approve(service, next.token)).kind).toBe("completed");
+    expect(fake.writes.map((write) => write.input?.name)).toEqual([
+      "Easy ride",
+      "Second ride",
+      "Revised remaining ride",
+    ]);
+    expect(fake.writes[2]?.input?.externalId).toBe(fake.writes[1]?.input?.externalId);
+  });
   it("reviews the complete mixed set and applies exact commands once", async () => {
     const { service, fake } = await setup();
     const changes: PreparedChange[] = [

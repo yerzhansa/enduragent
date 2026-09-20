@@ -2902,7 +2902,7 @@
       "changed": "{{name}} 已在 intervals.icu 中變更：{{changes}}。",
       "confirmed": "已確認",
       "descriptionUnavailable": "描述無法取得",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n訓練負荷：{{load}}\n強度結構：{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n訓練負荷：{{load}}\n{{structure}}",
       "durationUnavailable": "時長無法取得",
       "edit": "{{index}}. 編輯訓練\n目前：{{current}}\n建議：{{proposed}}",
       "field": {
@@ -2911,7 +2911,8 @@
         "duration": "時長",
         "name": "名稱",
         "structure": "強度結構",
-        "trainingLoad": "訓練負荷"
+        "trainingLoad": "訓練負荷",
+        "effort": "強度"
       },
       "kept": "保留的現有訓練：",
       "minutes": "{{minutes}} 分鐘",
@@ -2920,7 +2921,12 @@
       "summary": "新增 {{adds}} 項，編輯 {{edits}} 項，刪除 {{deletions}} 項 · 新增或編輯的訓練時長：{{duration}}",
       "title": "檢查所有訓練變更",
       "totalUnavailable": "總時長無法取得",
-      "unavailable": "無法取得"
+      "unavailable": "無法取得",
+      "structureDetails": "訓練步驟：\n{{steps}}",
+      "structureUnavailable": "訓練步驟無法使用",
+      "structureChanged": "訓練步驟的詳細資訊已變更",
+      "proposedRevision": "本次方案的變更：\n{{changes}}\n其他所有建議的訓練保持不變。",
+      "revised": "{{name}}：{{changes}}"
     }
   }
 }
