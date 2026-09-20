@@ -79,12 +79,93 @@ describe("serializeIntervalsWorkout — description output", () => {
 
     expect(description).toMatch(/^Warmup$/m);
     expect(description).toContain("- 15m 50-65%");
-    expect(description).toContain("Main set");
-    expect(description).toMatch(/^3x$/m);
+    expect(description).toMatch(/^Main set 3x$/m);
     expect(description).toContain("- 15m 88-94% 85-95rpm Sweet spot");
     expect(description).toContain("- 4m 50%");
     expect(description).toContain("Cooldown");
     expect(description).toContain("- 10m 50%");
+  });
+
+  it("isolates a repeat block from the following main-set step", () => {
+    const result = serializeIntervalsWorkout({
+      name: "Repeat then steady",
+      steps: [
+        {
+          type: "warmup",
+          duration: { value: 5, unit: "minutes" },
+          power: { kind: "percent_ftp", low: 45, high: 65 },
+        },
+        {
+          type: "set",
+          repeat: 2,
+          interval: {
+            type: "interval",
+            duration: { value: 2, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 75 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 50 },
+          },
+        },
+        {
+          type: "steady",
+          duration: { value: 4, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 45 },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      description: "Warmup\n- 5m 45-65%\n\nMain set 2x\n- 2m 75%\n- 1m 50%\n\n- 4m 45%",
+      movingTime: 15 * 60,
+    });
+  });
+
+  it("separates a plain step and consecutive repeat blocks", () => {
+    const { description } = serializeIntervalsWorkout({
+      name: "Repeat boundaries",
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 5, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 65 },
+        },
+        {
+          type: "set",
+          repeat: 2,
+          interval: {
+            type: "interval",
+            duration: { value: 2, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 75 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 50 },
+          },
+        },
+        {
+          type: "set",
+          repeat: 3,
+          interval: {
+            type: "interval",
+            duration: { value: 1, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 80 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            power: { kind: "percent_ftp", value: 50 },
+          },
+        },
+      ],
+    });
+
+    expect(description).toBe(
+      "Main set\n- 5m 65%\n\n2x\n- 2m 75%\n- 1m 50%\n\n3x\n- 1m 80%\n- 1m 50%",
+    );
   });
 
   it("emits a ramp step with the 'ramp' keyword and bounds", () => {

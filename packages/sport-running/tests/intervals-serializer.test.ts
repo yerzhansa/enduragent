@@ -75,11 +75,92 @@ describe("serializeRunningWorkout — description output", () => {
     const { description } = serializeRunningWorkout(input, 4.0);
 
     expect(description).toMatch(/^Warmup$/m);
-    expect(description).toContain("Main set");
-    expect(description).toMatch(/^3x$/m);
+    expect(description).toMatch(/^Main set 3x$/m);
     expect(description).toContain("- 1km 100% Pace Threshold");
     expect(description).toContain("- 1m30 65% Pace");
     expect(description).toContain("Cooldown");
+  });
+
+  it("isolates a repeat block from the following main-set step", () => {
+    const result = serializeRunningWorkout({
+      name: "Repeat then recovery",
+      steps: [
+        {
+          type: "warmup",
+          duration: { value: 5, unit: "minutes" },
+          pace: { kind: "cs_fraction", low: 0.6, high: 0.7 },
+        },
+        {
+          type: "set",
+          repeat: 2,
+          interval: {
+            type: "interval",
+            duration: { value: 2, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 1 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 0.65 },
+          },
+        },
+        {
+          type: "recovery",
+          duration: { value: 4, unit: "minutes" },
+          pace: { kind: "cs_fraction", value: 0.6 },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      description: "Warmup\n- 5m 60-70% Pace\n\nMain set 2x\n- 2m 100% Pace\n- 1m 65% Pace\n\n- 4m 60% Pace",
+      movingTime: 15 * 60,
+    });
+  });
+
+  it("separates a plain step and consecutive repeat blocks", () => {
+    const { description } = serializeRunningWorkout({
+      name: "Repeat boundaries",
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 5, unit: "minutes" },
+          pace: { kind: "cs_fraction", value: 0.75 },
+        },
+        {
+          type: "set",
+          repeat: 2,
+          interval: {
+            type: "interval",
+            duration: { value: 2, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 1 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 0.65 },
+          },
+        },
+        {
+          type: "set",
+          repeat: 3,
+          interval: {
+            type: "interval",
+            duration: { value: 1, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 1.05 },
+          },
+          recovery: {
+            type: "recovery",
+            duration: { value: 1, unit: "minutes" },
+            pace: { kind: "cs_fraction", value: 0.65 },
+          },
+        },
+      ],
+    });
+
+    expect(description).toBe(
+      "Main set\n- 5m 75% Pace\n\n2x\n- 2m 100% Pace\n- 1m 65% Pace\n\n3x\n- 1m 105% Pace\n- 1m 65% Pace",
+    );
   });
 
   it("emits a single zone target", () => {
