@@ -218,14 +218,19 @@ export function serializeIntervalsWorkout(
 
   checked.steps.forEach((step, i) => {
     const label = sectionLabelFor(step.type);
-    if (label !== currentLabel) {
-      if (lines.length > 0) lines.push("");
-      lines.push(label);
+    const startsSection = label !== currentLabel;
+    const followsSet = checked.steps[i - 1]?.type === "set";
+    if ((startsSection || step.type === "set" || followsSet) && lines.length > 0) {
+      lines.push("");
+    }
+    if (startsSection) {
+      lines.push(step.type === "set" ? `${label} ${step.repeat}x` : label);
       currentLabel = label;
+    } else if (step.type === "set") {
+      lines.push(`${step.repeat}x`);
     }
     const path = `steps[${i}]`;
     if (step.type === "set") {
-      lines.push(`${step.repeat}x`);
       lines.push(formatStepLine(step.interval, `${path}.interval`));
       lines.push(formatStepLine(step.recovery, `${path}.recovery`));
     } else {

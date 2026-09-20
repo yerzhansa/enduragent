@@ -113,7 +113,8 @@ describe("serializeRunningWorkout — description output", () => {
     });
 
     expect(result).toEqual({
-      description: "Warmup\n- 5m 60-70% Pace\n\nMain set 2x\n- 2m 100% Pace\n- 1m 65% Pace\n\n- 4m 60% Pace",
+      description:
+        "Warmup\n- 5m 60-70% Pace\n\nMain set 2x\n- 2m 100% Pace\n- 1m 65% Pace\n\n- 4m 60% Pace",
       movingTime: 15 * 60,
     });
   });
