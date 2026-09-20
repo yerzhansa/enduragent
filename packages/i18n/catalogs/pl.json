@@ -2975,5 +2975,60 @@
         "transferRequired": "Wymagane przeniesienie bota"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Zastosować wszystkie sprawdzone zmiany?",
+      "retryPrompt": "Ponowić pozostałe zmiany?",
+      "retryRemaining": "Ponów pozostałe",
+      "terminalPrompt": "Wpisz {{action}}, aby zastosować zmiany, {{cancel}}, aby anulować, lub wiadomość, aby zmodyfikować propozycję."
+    },
+    "outcome": {
+      "accountChanged": "Konto kalendarza zmieniło się; nie można użyć tego zatwierdzenia.",
+      "canceled": "Pozostałe zmiany zostały anulowane.",
+      "cannotVerify": "Nie udało się zweryfikować kalendarza.",
+      "coachOnly": "Można zmieniać tylko treningi utworzone przez trenera.",
+      "complete": "Wszystkie sprawdzone zmiany zostały wykonane.",
+      "incomplete": "Nie udało się przygotować całej propozycji. Zatwierdzenie nie jest dostępne. Poproś trenera o ponowne przygotowanie całego zestawu.",
+      "invalidAction": "To zatwierdzenie nie jest już aktywne. Sprawdź obecną propozycję.",
+      "noAdditional": "Nie zastosowano żadnych dodatkowych zmian.",
+      "noChanges": "Nie zastosowano żadnych zmian.",
+      "pastProtected": "Minione treningi są chronione.",
+      "recoveredDeleteAbsent": "Treningu {{label}} nie ma w intervals.icu, ale odpowiedź na usunięcie nie została zapisana. To nie jest potwierdzone usunięcie przez trenera. Ponawianie pozostaje wyłączone.",
+      "recoveredObserved": "Żądany trening jest obecny, ale pierwotna odpowiedź nie została zapisana. Sprawdź pozostałą pracę przed ponowieniem.",
+      "recoveredStopped": "Wykonywanie zatrzymało się przed kolejną zapisaną próbą. Sprawdź pozostałe zmiany.",
+      "recoveredUncertain": "Odpowiedź kalendarza nie została zapisana. Ponawianie jest wyłączone, dopóki wynik pozostaje niepewny. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
+      "refresh": "Sprawdź zaktualizowaną propozycję przed ponownym zatwierdzeniem.",
+      "rejected": "Kalendarz odrzucił {{label}}. Pozostała praca została zatrzymana; sprawdź ją przed ponowieniem.",
+      "uncertain": "Wynik dla {{label}} jest niepewny. Nie próbowano dalszych zmian. Ponawianie jest wyłączone do czasu zweryfikowania wyniku. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
+      "workoutOnly": "Można zmieniać tylko zaplanowane treningi.",
+      "wrongAction": "Użyj działania dostępnego przy tym przeglądzie."
+    },
+    "review": {
+      "add": "{{index}}. Dodaj: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Już wykonane:",
+      "changed": "{{name}} zmienił się w intervals.icu: {{changes}}.",
+      "confirmed": "potwierdzone",
+      "descriptionUnavailable": "Opis niedostępny",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nObciążenie treningowe: {{load}}\nStruktura wysiłku: {{structure}}",
+      "durationUnavailable": "czas trwania niedostępny",
+      "edit": "{{index}}. Edytuj trening\nObecny: {{current}}\nProponowany: {{proposed}}",
+      "field": {
+        "date": "data",
+        "description": "opis",
+        "duration": "czas trwania",
+        "name": "nazwa",
+        "structure": "struktura wysiłku",
+        "trainingLoad": "obciążenie treningowe"
+      },
+      "kept": "Zachowane istniejące treningi:",
+      "minutes": "{{minutes}} min",
+      "observed": "zaobserwowano żądany stan; nie otrzymano odpowiedzi",
+      "remove": "{{index}}. Usuń ten trening:\n{{details}}",
+      "summary": "Dodane: {{adds}}, edytowane: {{edits}}, usunięte: {{deletions}} · {{duration}} dla dodanych lub edytowanych treningów",
+      "title": "Sprawdź wszystkie zmiany treningów",
+      "totalUnavailable": "Łączny czas trwania niedostępny",
+      "unavailable": "niedostępne"
+    }
   }
 }

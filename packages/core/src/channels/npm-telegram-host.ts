@@ -22,8 +22,10 @@ import {
 import { loadAllowedSenders, loadAllowedSendersWithSource } from "./allowed-senders.js";
 import { createAuthMiddleware } from "./telegram-access.js";
 import type { TelegramHostCapabilities } from "./telegram-host.js";
+import type { WorkoutApprovalChannel } from "./workout-approval.js";
 
 export interface CreateNpmTelegramHostInput {
+  readonly workoutApprovals?: WorkoutApprovalChannel;
   readonly language: CoachLanguage;
   readonly binary: BinaryConfig;
   readonly confirmations: Pick<ConfirmationGate, "peek" | "confirm" | "cancel">;
@@ -97,6 +99,7 @@ export function createNpmTelegramHost(input: CreateNpmTelegramHostInput): Telegr
   const reference = input.reference;
 
   return {
+    workoutApprovals: input.workoutApprovals,
     language: input.language,
     access: {
       middleware: createAuthMiddleware({

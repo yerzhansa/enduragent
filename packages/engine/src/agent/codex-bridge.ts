@@ -13,7 +13,7 @@ import type {
 } from "./codex/responses.js";
 import { PRICE_TABLE, priceUsage } from "./codex/cost.js";
 import { COACH_DECISION_TOOL_NAME } from "./coach-decision-tool.js";
-import { getTurnContext } from "./turn-context.js";
+import { getTurnContext, markTurnToolFailure } from "./turn-context.js";
 
 const DEFAULT_STEP_LIMIT = 10;
 const MAX_AUTH_REFRESH_ATTEMPTS = 1;
@@ -372,6 +372,9 @@ export async function codexGenerateText(
       : calls.map((call) =>
           errorResult(call, "request_user_decision must be the only tool call in its batch"),
         );
+    for (const result of results) {
+      if (result.output.type === "error-text") markTurnToolFailure(context, result.toolName);
+    }
     convo.push({ role: "tool", content: results } as ModelMessage);
     if (calls.length === 1 && calls[0]?.name === COACH_DECISION_TOOL_NAME) {
       const turn = getTurnContext({ experimental_context: context });

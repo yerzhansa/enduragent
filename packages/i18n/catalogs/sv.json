@@ -2903,5 +2903,60 @@
         "transferRequired": "Boten behöver överföras"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Tillämpa alla granskade ändringar?",
+      "retryPrompt": "Försöka återstående ändringar igen?",
+      "retryRemaining": "Försök återstående igen",
+      "terminalPrompt": "Skriv {{action}} för att tillämpa dessa ändringar, {{cancel}} för att avbryta eller ett meddelande för att ändra förslaget."
+    },
+    "outcome": {
+      "accountChanged": "Kalenderkontot har ändrats; detta godkännande kan inte användas.",
+      "canceled": "De återstående ändringarna avbröts.",
+      "cannotVerify": "Kalendern kunde inte verifieras.",
+      "coachOnly": "Endast träningspass skapade av coachen kan ändras.",
+      "complete": "Alla granskade ändringar är klara.",
+      "incomplete": "Det fullständiga förslaget kunde inte förberedas. Inget godkännande är tillgängligt. Be coachen att förbereda hela uppsättningen igen.",
+      "invalidAction": "Detta godkännande är inte längre aktivt. Granska det aktuella förslaget.",
+      "noAdditional": "Inga ytterligare ändringar tillämpades.",
+      "noChanges": "Inga ändringar tillämpades.",
+      "pastProtected": "Tidigare träningspass är skyddade.",
+      "recoveredDeleteAbsent": "Träningspasset {{label}} saknas i intervals.icu, men svaret på borttagningen sparades inte. Detta är inte en bekräftad borttagning av coachen. Nya försök är fortfarande inaktiverade.",
+      "recoveredObserved": "Det önskade träningspasset finns, men det ursprungliga svaret sparades inte. Granska återstående arbete innan du försöker igen.",
+      "recoveredStopped": "Körningen stoppades före nästa sparade försök. Granska de återstående ändringarna.",
+      "recoveredUncertain": "Ett kalendersvar sparades inte. Nya försök är inaktiverade så länge resultatet är osäkert. Det sparade resultatet kontrolleras vid omstart.",
+      "refresh": "Granska det uppdaterade förslaget innan du godkänner igen.",
+      "rejected": "Kalendern avvisade {{label}}. Det återstående arbetet stoppades; granska det innan du försöker igen.",
+      "uncertain": "Resultatet för {{label}} är osäkert. Inga fler ändringar försöktes. Nya försök är inaktiverade tills resultatet kan verifieras. Det sparade resultatet kontrolleras vid omstart.",
+      "workoutOnly": "Endast planerade träningspass kan ändras.",
+      "wrongAction": "Använd åtgärden som erbjuds med denna granskning."
+    },
+    "review": {
+      "add": "{{index}}. Lägg till: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Redan genomfört:",
+      "changed": "{{name}} ändrades i intervals.icu: {{changes}}.",
+      "confirmed": "bekräftat",
+      "descriptionUnavailable": "Beskrivning saknas",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTräningsbelastning: {{load}}\nAnsträngningsstruktur: {{structure}}",
+      "durationUnavailable": "längd saknas",
+      "edit": "{{index}}. Ändra träningspass\nNuvarande: {{current}}\nFöreslaget: {{proposed}}",
+      "field": {
+        "date": "datum",
+        "description": "beskrivning",
+        "duration": "längd",
+        "name": "namn",
+        "structure": "ansträngningsstruktur",
+        "trainingLoad": "träningsbelastning"
+      },
+      "kept": "Befintliga träningspass behålls:",
+      "minutes": "{{minutes}} min",
+      "observed": "önskat tillstånd observerat; svar inte mottaget",
+      "remove": "{{index}}. Ta bort detta träningspass:\n{{details}}",
+      "summary": "{{adds}} tillägg, {{edits}} ändringar, {{deletions}} borttagningar · {{duration}} för tillagda eller ändrade träningspass",
+      "title": "Granska alla träningsändringar",
+      "totalUnavailable": "Total längd saknas",
+      "unavailable": "saknas"
+    }
   }
 }

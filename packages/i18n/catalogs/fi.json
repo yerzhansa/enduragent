@@ -2903,5 +2903,60 @@
         "transferRequired": "Botti on siirrettävä"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Otetaanko kaikki tarkistetut muutokset käyttöön?",
+      "retryPrompt": "Yritetäänkö jäljellä olevia muutoksia uudelleen?",
+      "retryRemaining": "Yritä jäljellä olevia uudelleen",
+      "terminalPrompt": "Kirjoita {{action}} ottaaksesi muutokset käyttöön, {{cancel}} peruuttaaksesi tai viesti muokataksesi ehdotusta."
+    },
+    "outcome": {
+      "accountChanged": "Kalenteritili on muuttunut; tätä hyväksyntää ei voi käyttää.",
+      "canceled": "Jäljellä olevat muutokset peruutettiin.",
+      "cannotVerify": "Kalenteria ei voitu varmistaa.",
+      "coachOnly": "Vain valmentajan luomia harjoituksia voi muuttaa.",
+      "complete": "Kaikki tarkistetut muutokset on tehty.",
+      "incomplete": "Koko ehdotusta ei voitu valmistella. Hyväksyntä ei ole käytettävissä. Pyydä valmentajaa valmistelemaan koko kokonaisuus uudelleen.",
+      "invalidAction": "Tämä hyväksyntä ei ole enää voimassa. Tarkista nykyinen ehdotus.",
+      "noAdditional": "Lisämuutoksia ei tehty.",
+      "noChanges": "Muutoksia ei tehty.",
+      "pastProtected": "Menneet harjoitukset on suojattu.",
+      "recoveredDeleteAbsent": "Harjoitus {{label}} puuttuu intervals.icu-palvelusta, mutta poistamisen vastausta ei tallennettu. Tämä ei ole vahvistettu valmentajan tekemä poisto. Uusi yritys on edelleen estetty.",
+      "recoveredObserved": "Haluttu harjoitus on olemassa, mutta alkuperäistä vastausta ei tallennettu. Tarkista jäljellä oleva työ ennen uutta yritystä.",
+      "recoveredStopped": "Suoritus pysähtyi ennen seuraavaa tallennettua yritystä. Tarkista jäljellä olevat muutokset.",
+      "recoveredUncertain": "Kalenterin vastausta ei tallennettu. Uusi yritys on estetty, kun tulos on epävarma. Tallennettu tulos tarkistetaan uudelleenkäynnistyksen yhteydessä.",
+      "refresh": "Tarkista päivitetty ehdotus ennen uutta hyväksyntää.",
+      "rejected": "Kalenteri hylkäsi kohteen {{label}}. Jäljellä oleva työ keskeytettiin; tarkista se ennen uutta yritystä.",
+      "uncertain": "Kohteen {{label}} tulos on epävarma. Muita muutoksia ei yritetty. Uusi yritys on estetty, kunnes tulos voidaan varmistaa. Tallennettu tulos tarkistetaan uudelleenkäynnistyksen yhteydessä.",
+      "workoutOnly": "Vain suunniteltuja harjoituksia voi muuttaa.",
+      "wrongAction": "Käytä tämän tarkistuksen yhteydessä tarjottua toimintoa."
+    },
+    "review": {
+      "add": "{{index}}. Lisää: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Jo tehty:",
+      "changed": "{{name}} muuttui intervals.icu-palvelussa: {{changes}}.",
+      "confirmed": "vahvistettu",
+      "descriptionUnavailable": "Kuvaus ei saatavilla",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nHarjoituskuormitus: {{load}}\nTehorakenne: {{structure}}",
+      "durationUnavailable": "kesto ei saatavilla",
+      "edit": "{{index}}. Muokkaa harjoitusta\nNykyinen: {{current}}\nEhdotettu: {{proposed}}",
+      "field": {
+        "date": "päivämäärä",
+        "description": "kuvaus",
+        "duration": "kesto",
+        "name": "nimi",
+        "structure": "tehorakenne",
+        "trainingLoad": "harjoituskuormitus"
+      },
+      "kept": "Säilytettävät nykyiset harjoitukset:",
+      "minutes": "{{minutes}} min",
+      "observed": "haluttu tila havaittu; vastausta ei saatu",
+      "remove": "{{index}}. Poista tämä harjoitus:\n{{details}}",
+      "summary": "{{adds}} lisäystä, {{edits}} muokkausta, {{deletions}} poistoa · {{duration}} lisätyille tai muokatuille harjoituksille",
+      "title": "Tarkista kaikki harjoitusmuutokset",
+      "totalUnavailable": "Kokonaiskesto ei saatavilla",
+      "unavailable": "ei saatavilla"
+    }
   }
 }

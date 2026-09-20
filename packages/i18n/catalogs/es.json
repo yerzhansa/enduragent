@@ -2903,5 +2903,60 @@
         "transferRequired": "Es necesario transferir el bot"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "¿Aplicar todos los cambios revisados?",
+      "retryPrompt": "¿Reintentar los cambios pendientes?",
+      "retryRemaining": "Reintentar pendientes",
+      "terminalPrompt": "Escribe {{action}} para aplicar estos cambios, {{cancel}} para cancelar o un mensaje para modificar la propuesta."
+    },
+    "outcome": {
+      "accountChanged": "La cuenta del calendario cambió; esta aprobación no se puede usar.",
+      "canceled": "Se cancelaron los cambios pendientes.",
+      "cannotVerify": "No se pudo verificar el calendario.",
+      "coachOnly": "Solo se pueden cambiar los entrenamientos creados por el entrenador.",
+      "complete": "Todos los cambios revisados están completos.",
+      "incomplete": "No se pudo preparar la propuesta completa. No hay ninguna aprobación disponible. Pide al entrenador que prepare de nuevo el conjunto completo.",
+      "invalidAction": "Esta aprobación ya no está activa. Revisa la propuesta actual.",
+      "noAdditional": "No se aplicó ningún cambio adicional.",
+      "noChanges": "No se aplicó ningún cambio.",
+      "pastProtected": "Los entrenamientos pasados están protegidos.",
+      "recoveredDeleteAbsent": "El entrenamiento {{label}} no está en intervals.icu, pero no se registró la respuesta a la eliminación. No es una eliminación confirmada del entrenador. El reintento sigue desactivado.",
+      "recoveredObserved": "El entrenamiento deseado está presente, pero no se registró la respuesta original. Revisa el trabajo pendiente antes de reintentar.",
+      "recoveredStopped": "La ejecución se detuvo antes del siguiente intento guardado. Revisa los cambios pendientes.",
+      "recoveredUncertain": "No se registró una respuesta del calendario. El reintento está desactivado mientras el resultado sea incierto. El resultado guardado se comprobará al reiniciar.",
+      "refresh": "Revisa la propuesta actualizada antes de volver a aprobarla.",
+      "rejected": "El calendario rechazó {{label}}. Se detuvo el trabajo pendiente; revísalo antes de elegir Reintentar pendientes.",
+      "uncertain": "El resultado de {{label}} es incierto. No se intentaron más cambios. El reintento está desactivado hasta poder verificar el resultado. El resultado guardado se comprobará al reiniciar.",
+      "workoutOnly": "Solo se pueden cambiar los entrenamientos programados.",
+      "wrongAction": "Usa la acción que se ofrece con esta revisión."
+    },
+    "review": {
+      "add": "{{index}}. Añadir: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Ya completado:",
+      "changed": "{{name}} cambió en intervals.icu: {{changes}}.",
+      "confirmed": "confirmado",
+      "descriptionUnavailable": "Descripción no disponible",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarga de entrenamiento: {{load}}\nEstructura del esfuerzo: {{structure}}",
+      "durationUnavailable": "duración no disponible",
+      "edit": "{{index}}. Editar entrenamiento\nActual: {{current}}\nPropuesto: {{proposed}}",
+      "field": {
+        "date": "fecha",
+        "description": "descripción",
+        "duration": "duración",
+        "name": "nombre",
+        "structure": "estructura del esfuerzo",
+        "trainingLoad": "carga de entrenamiento"
+      },
+      "kept": "Entrenamientos existentes que se conservan:",
+      "minutes": "{{minutes}} min",
+      "observed": "se observó el estado deseado; no se recibió respuesta",
+      "remove": "{{index}}. Eliminar este entrenamiento:\n{{details}}",
+      "summary": "{{adds}} adiciones, {{edits}} ediciones, {{deletions}} eliminaciones · {{duration}} para entrenamientos añadidos o editados",
+      "title": "Revisa todos los cambios de entrenamientos",
+      "totalUnavailable": "Duración total no disponible",
+      "unavailable": "no disponible"
+    }
   }
 }

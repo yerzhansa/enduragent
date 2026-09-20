@@ -1,3 +1,4 @@
+import type { WorkoutPreparationPort } from "./workout-change-sets.js";
 import type {
   AttachmentCapabilitiesReadModel,
   AthleteState,
@@ -503,6 +504,7 @@ export interface LanguageResolverPort {
 }
 
 export interface EngineHostPorts {
+  readonly workoutPreparation?: WorkoutPreparationPort;
   readonly config: EngineConfig;
   readonly language: LanguageResolverPort;
   readonly memory: MemoryStorePort;

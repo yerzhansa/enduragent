@@ -2903,5 +2903,60 @@
         "transferRequired": "Boten må overføres"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Bruke alle gjennomgåtte endringer?",
+      "retryPrompt": "Prøve gjenstående endringer på nytt?",
+      "retryRemaining": "Prøv gjenstående på nytt",
+      "terminalPrompt": "Skriv {{action}} for å bruke disse endringene, {{cancel}} for å avbryte eller en melding for å endre forslaget."
+    },
+    "outcome": {
+      "accountChanged": "Kalenderkontoen er endret; denne godkjenningen kan ikke brukes.",
+      "canceled": "De gjenstående endringene ble avbrutt.",
+      "cannotVerify": "Kalenderen kunne ikke bekreftes.",
+      "coachOnly": "Bare treningsøkter opprettet av coachen kan endres.",
+      "complete": "Alle gjennomgåtte endringer er fullført.",
+      "incomplete": "Det fullstendige forslaget kunne ikke klargjøres. Ingen godkjenning er tilgjengelig. Be coachen om å klargjøre hele settet på nytt.",
+      "invalidAction": "Denne godkjenningen er ikke lenger aktiv. Se gjennom det gjeldende forslaget.",
+      "noAdditional": "Ingen ytterligere endringer ble utført.",
+      "noChanges": "Ingen endringer ble utført.",
+      "pastProtected": "Tidligere treningsøkter er beskyttet.",
+      "recoveredDeleteAbsent": "Treningsøkten {{label}} mangler i intervals.icu, men svaret på slettingen ble ikke lagret. Dette er ikke en bekreftet sletting fra coachen. Nye forsøk er fortsatt deaktivert.",
+      "recoveredObserved": "Den ønskede treningsøkten finnes, men det opprinnelige svaret ble ikke lagret. Se gjennom gjenstående arbeid før du prøver på nytt.",
+      "recoveredStopped": "Utførelsen stoppet før neste lagrede forsøk. Se gjennom de gjenstående endringene.",
+      "recoveredUncertain": "Et kalendersvar ble ikke lagret. Nye forsøk er deaktivert så lenge resultatet er usikkert. Det lagrede resultatet blir kontrollert ved omstart.",
+      "refresh": "Se gjennom det oppdaterte forslaget før du godkjenner igjen.",
+      "rejected": "Kalenderen avviste {{label}}. Det gjenstående arbeidet ble stoppet; se gjennom det før du prøver på nytt.",
+      "uncertain": "Resultatet for {{label}} er usikkert. Ingen flere endringer ble forsøkt. Nye forsøk er deaktivert til resultatet kan bekreftes. Det lagrede resultatet blir kontrollert ved omstart.",
+      "workoutOnly": "Bare planlagte treningsøkter kan endres.",
+      "wrongAction": "Bruk handlingen som tilbys med denne gjennomgangen."
+    },
+    "review": {
+      "add": "{{index}}. Legg til: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Allerede fullført:",
+      "changed": "{{name}} ble endret i intervals.icu: {{changes}}.",
+      "confirmed": "bekreftet",
+      "descriptionUnavailable": "Beskrivelse utilgjengelig",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTreningsbelastning: {{load}}\nBelastningsstruktur: {{structure}}",
+      "durationUnavailable": "varighet utilgjengelig",
+      "edit": "{{index}}. Endre treningsøkt\nNåværende: {{current}}\nForeslått: {{proposed}}",
+      "field": {
+        "date": "dato",
+        "description": "beskrivelse",
+        "duration": "varighet",
+        "name": "navn",
+        "structure": "belastningsstruktur",
+        "trainingLoad": "treningsbelastning"
+      },
+      "kept": "Eksisterende treningsøkter beholdes:",
+      "minutes": "{{minutes}} min",
+      "observed": "ønsket tilstand observert; svar ikke mottatt",
+      "remove": "{{index}}. Fjern denne treningsøkten:\n{{details}}",
+      "summary": "{{adds}} tillegg, {{edits}} endringer, {{deletions}} slettinger · {{duration}} for nye eller endrede treningsøkter",
+      "title": "Se gjennom alle treningsendringer",
+      "totalUnavailable": "Samlet varighet utilgjengelig",
+      "unavailable": "utilgjengelig"
+    }
   }
 }

@@ -18,6 +18,7 @@ import { gateMutatingTool } from "../../engine/src/agent/coach-agent.js";
 import { createTurnContext } from "../../engine/src/agent/turn-context.js";
 import { COACH_EVENT_TAG } from "../src/agent/event-provenance.js";
 import type { IntervalsClient } from "intervals-icu-api";
+import type { WorkoutApprovalChannel } from "../src/channels/workout-approval.js";
 
 const grammyFake = vi.hoisted(() => ({
   bot: undefined as ((token: string) => unknown) | undefined,
@@ -96,6 +97,7 @@ interface BuildBotResult {
 }
 
 async function buildBot(opts?: {
+  workoutApprovals?: WorkoutApprovalChannel;
   reference?: StubReference;
   stop?: () => Promise<void>;
   setMyCommands?: () => Promise<unknown>;
@@ -132,6 +134,7 @@ async function buildBot(opts?: {
   const { createTelegramBot } = await import("../src/channels/telegram.js");
   const { createNpmTelegramHost } = await import("../src/channels/npm-telegram-host.js");
   const host = createNpmTelegramHost({
+    workoutApprovals: opts?.workoutApprovals,
     language: createNpmCoachLanguage(dataDir),
     binary: cyclingBinary,
     confirmations: agent.confirmations as never,
@@ -445,6 +448,108 @@ describe("confirmation callbacks", () => {
         ],
       },
     });
+  });
+
+  it("delivers every workout review chunk before enabling one approval", async () => {
+    const token = "synthetic_approval_123456";
+    const reviewText = Array.from(
+      { length: 130 },
+      (_, index) => `Workout ${index + 1}: Easy ride for 60 minutes at comfortable effort.`,
+    ).join("\n");
+    const ctx = makeCtx();
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => ({ handle: "review-1", text: reviewText })),
+      acknowledgeDelivery: vi.fn(async () => {
+        const delivered = ctx.reply.mock.calls.map((call) => call[0]).join("\n");
+        expect(delivered).toContain("Workout 1:");
+        expect(delivered).toContain("Workout 130:");
+        expect(delivered).not.toContain(token);
+        return { token, kind: "approval", prompt: "Approve all 130 changes?" };
+      }),
+      resolve: vi.fn(async () => ({ kind: "completed", text: "All workouts saved." })),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    agent.chat.mockResolvedValue({ text: "Review your workouts below." });
+    await getCommand(bot, "plan")(ctx);
+    await drainPending();
+    expect(approvals.acknowledgeDelivery).toHaveBeenCalledOnce();
+    expect(ctx.reply).toHaveBeenLastCalledWith(
+      "Approve all 130 changes?",
+      expect.objectContaining({
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "Confirm", callback_data: `wc:approve:${token}` },
+              { text: "Cancel", callback_data: `wc:cancel:${token}` },
+            ],
+          ],
+        },
+      }),
+    );
+  });
+
+  it("displays workout review and outcome markup as literal text", async () => {
+    const text = "<b>ride</b> **easy** [target](https://example.com)";
+    const escaped = "&lt;b&gt;ride&lt;/b&gt; **easy** [target](https://example.com)";
+    const token = "synthetic_approval_123456";
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => ({ handle: "review-1", text })),
+      acknowledgeDelivery: vi.fn(async () => ({ token, kind: "approval", prompt: "Approve?" })),
+      resolve: vi.fn(async () => ({ kind: "completed", text })),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    agent.chat.mockResolvedValue({ text: "Review below." });
+    const ctx = makeCtx();
+    await getCommand(bot, "plan")(ctx);
+    await drainPending();
+    expect(ctx.reply).toHaveBeenCalledWith(escaped, { parse_mode: "HTML" });
+    const callback = callbackCtx(`wc:approve:${token}`);
+    await getCallbackQueryData(bot)(callback);
+    await drainPending();
+    expect(callback.reply).toHaveBeenCalledWith(escaped, { parse_mode: "HTML" });
+  });
+
+  it("keeps workout approval inactive when a review chunk cannot be delivered", async () => {
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => ({ handle: "review-1", text: "Workout review" })),
+      acknowledgeDelivery: vi.fn(async () => null),
+      resolve: vi.fn(async () => ({ kind: "completed", text: "Done" })),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    agent.chat.mockResolvedValue({ text: "Here is the proposal." });
+    const ctx = makeCtx();
+    ctx.reply
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("Delivery failed"))
+      .mockResolvedValue(undefined);
+    await getCommand(bot, "plan")(ctx);
+    await drainPending();
+    expect(approvals.acknowledgeDelivery).not.toHaveBeenCalled();
+    expect(approvals.resolve).not.toHaveBeenCalled();
+  });
+
+  it("routes workout callbacks separately from Plan confirmation and acknowledges before execution", async () => {
+    const token = "synthetic_approval_123456";
+    const ctx = callbackCtx(`wc:approve:${token}`);
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => null),
+      acknowledgeDelivery: vi.fn(async () => null),
+      resolve: vi.fn(async () => {
+        expect(ctx.answerCallbackQuery).toHaveBeenCalledOnce();
+        return { kind: "completed", text: "All changes saved." };
+      }),
+    };
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    await getCallbackQueryData(bot)(ctx);
+    await drainPending();
+    expect(approvals.resolve).toHaveBeenCalledWith({
+      chatId: "telegram:777",
+      language: "en",
+      action: { kind: "approve", token },
+    });
+    expect(agent.confirmations.confirm).not.toHaveBeenCalled();
+    expect(agent.chat).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith("All changes saved.", { parse_mode: "HTML" });
   });
 
   it.each<"intervals_delete_workout" | "intervals_update_workout">([

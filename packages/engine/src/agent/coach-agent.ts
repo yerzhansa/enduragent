@@ -1,3 +1,4 @@
+import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
 import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
@@ -390,6 +391,7 @@ export class CoachAgent {
   private lastFlushMessageCount = new Map<string, number>();
   private pendingFlushMessages = new Map<string, ModelMessage[]>();
   private readonly confirmationGate: boolean;
+  private readonly workoutPreparation: WorkoutPreparationTurns | undefined;
   private readonly activeChatTurns = new Map<
     string,
     { readonly turnId: string; readonly controller: AbortController }
@@ -446,7 +448,24 @@ export class CoachAgent {
     const sections = getEffectiveSections(sport);
     this.excludedSectionNames = sections.filter((s) => s.inject === false).map((s) => s.name);
 
-    const registrations = sport.tools(runtimePorts);
+    this.workoutPreparation =
+      ports.workoutPreparation !== undefined && sport.workoutPreparation?.version === "aggregate-v1"
+        ? new WorkoutPreparationTurns(ports.workoutPreparation)
+        : undefined;
+    const workoutPreparation = this.workoutPreparation;
+    const preparationTool =
+      workoutPreparation === undefined
+        ? undefined
+        : sport.workoutPreparation?.createTool((preparation, options) =>
+            workoutPreparation.submit(preparation, options),
+          );
+    const replacedTools = new Set(sport.workoutPreparation?.replacesTools);
+    const registrations = sport
+      .tools(runtimePorts)
+      .filter(
+        (registration) => preparationTool === undefined || !replacedTools.has(registration.name),
+      );
+    if (preparationTool !== undefined) registrations.push(preparationTool);
     const maxResultTokens = TOOL_RESULT_MAX_TOKENS;
     const prepareConfirmedRun = (
       name: string,
@@ -457,6 +476,18 @@ export class CoachAgent {
       const provenance = ctx?.provenance.value ?? UNKNOWN_PROVENANCE;
       return () => this.runWithWriteProvenance(provenance, run);
     };
+    const prepareTool = (registration: (typeof registrations)[number]): Tool => {
+      const gated = gateMutatingTool(
+        registration.name,
+        registration.tool,
+        confirmations,
+        prepareConfirmedRun,
+      );
+      return (
+        this.workoutPreparation?.wrap(gated, registration === preparationTool, registration.name) ??
+        gated
+      );
+    };
     const sportTools = Object.fromEntries(
       registrations.map((r) => [
         r.name,
@@ -464,15 +495,9 @@ export class CoachAgent {
           r.name,
           memoizeReadTool(
             r.name,
-            capToolResult(
-              markUntrustedResult(
-                this.wrapWriteTool(
-                  r.name,
-                  gateMutatingTool(r.name, r.tool, confirmations, prepareConfirmedRun),
-                ),
-              ),
-              { maxResultTokens },
-            ),
+            capToolResult(markUntrustedResult(this.wrapWriteTool(r.name, prepareTool(r))), {
+              maxResultTokens,
+            }),
             (options: unknown) => getTurnContext(options)?.readToolCache,
           ),
         ),
@@ -585,6 +610,7 @@ export class CoachAgent {
         outputLanguage: language,
         excludeSections: this.excludedSectionNames,
         confirmationGate: this.confirmationGate,
+        workoutPreparation: this.workoutPreparation !== undefined,
         athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
         planNone,
       },
@@ -600,6 +626,7 @@ export class CoachAgent {
         ? planCoachRuleBlocks()
         : staticRuleBlocks(this.sport.sessionClusterGapMinutes, {
             confirmationGate: this.confirmationGate,
+            workoutPreparation: this.workoutPreparation !== undefined,
           }),
       toolSchemas: tools,
       model: this.config.models.chat.model,
@@ -962,6 +989,7 @@ export class CoachAgent {
       const abortController = new AbortController();
       const activeTurn = { turnId, controller: abortController };
       this.activeChatTurns.set(chatId, activeTurn);
+      let workoutSession: WorkoutPreparationSession | undefined;
       try {
         const athleteText = turn?.athleteText ?? userMessage;
         const ctx = createTurnContext({
@@ -977,6 +1005,7 @@ export class CoachAgent {
           athleteText,
           turnId,
         });
+        workoutSession = this.workoutPreparation?.begin(ctx, abortController.signal);
         const existingDecision = this.ports.coachDecisions?.getDecision(chatId);
         if (existingDecision?.status === "unanswered") {
           throw new Error(
@@ -1489,8 +1518,10 @@ export class CoachAgent {
                 text: responseText,
                 ...(responseMessage === undefined ? {} : { message: responseMessage }),
               });
+              workoutSession?.complete({ finishReason, budget: turnBudget });
               return responseText;
             } catch (err) {
+              workoutSession?.fail();
               // The classified budget error is terminal: re-throw it before any
               // retry branch so a future reordering can never mistake it for one of
               // the retryable classes and swallow it.
@@ -1754,8 +1785,12 @@ export class CoachAgent {
           throw terminalErr;
         }
       } finally {
-        if (this.activeChatTurns.get(chatId) === activeTurn) {
-          this.activeChatTurns.delete(chatId);
+        try {
+          await workoutSession?.close();
+        } finally {
+          if (this.activeChatTurns.get(chatId) === activeTurn) {
+            this.activeChatTurns.delete(chatId);
+          }
         }
       }
     });
@@ -2058,6 +2093,7 @@ export class CoachAgent {
           skills: this.sport.skills,
           ruleBlocks: staticRuleBlocks(this.sport.sessionClusterGapMinutes, {
             confirmationGate: this.confirmationGate,
+            workoutPreparation: this.workoutPreparation !== undefined,
           }),
           toolSchemas:
             this.decisionTool === undefined

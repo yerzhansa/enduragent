@@ -1,3 +1,13 @@
+import type { WorkoutPreparationCapability } from "./workout-change-sets.js";
+export type {
+  PreparedChange,
+  WorkoutPatch,
+  Preparation,
+  PreparationResult,
+  WorkoutPreparationPort,
+  WorkoutPreparationCapability,
+  JsonValue,
+} from "./workout-change-sets.js";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
 import type {
   FinishReason,
@@ -169,6 +179,7 @@ export interface ReferenceSportAdapter {
 }
 
 export interface Sport {
+  readonly workoutPreparation?: WorkoutPreparationCapability;
   readonly id: SportId;
   readonly soul: string;
   readonly skills: Readonly<Record<string, string>>;

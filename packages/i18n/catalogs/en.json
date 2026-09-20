@@ -2903,5 +2903,60 @@
       "weeklySummary": "Weekly summary",
       "weekRange": "{{start}}–{{end}}"
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Apply all reviewed changes?",
+      "retryPrompt": "Retry remaining changes?",
+      "retryRemaining": "Retry remaining",
+      "terminalPrompt": "Type {{action}} to apply these changes, {{cancel}} to cancel, or a message to revise the proposal."
+    },
+    "outcome": {
+      "accountChanged": "The calendar account changed; this approval cannot be used.",
+      "canceled": "The remaining changes were canceled.",
+      "cannotVerify": "The calendar could not be verified.",
+      "coachOnly": "Only coach-created workouts can be changed.",
+      "complete": "All reviewed changes are complete.",
+      "incomplete": "The complete proposal could not be prepared. No approval is available. Ask the coach to prepare the entire set again.",
+      "invalidAction": "This approval is no longer active. Review the current proposal.",
+      "noAdditional": "No additional changes were applied.",
+      "noChanges": "No changes were applied.",
+      "pastProtected": "Past workouts are protected.",
+      "recoveredDeleteAbsent": "The workout {{label}} is absent from intervals.icu, but the delete response was not recorded. This is not a confirmed coach deletion. Retry remains disabled.",
+      "recoveredObserved": "The desired workout is present, but the original response was not recorded. Review remaining work before retrying.",
+      "recoveredStopped": "Execution stopped before the next saved attempt. Review the remaining changes.",
+      "recoveredUncertain": "A calendar response was not recorded. Retry is disabled while the result is uncertain. The saved result will be checked on restart.",
+      "refresh": "Review the updated proposal before approving again.",
+      "rejected": "The calendar rejected {{label}}. Remaining work was stopped; review it before choosing Retry remaining.",
+      "uncertain": "The result for {{label}} is uncertain. No further changes were attempted. Retry is disabled until its result can be verified. The saved result will be checked on restart.",
+      "workoutOnly": "Only scheduled workouts can be changed.",
+      "wrongAction": "Use the action offered with this review."
+    },
+    "review": {
+      "add": "{{index}}. Add: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Already completed:",
+      "changed": "{{name}} changed in intervals.icu: {{changes}}.",
+      "confirmed": "confirmed",
+      "descriptionUnavailable": "Description unavailable",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTraining load: {{load}}\nEffort structure: {{structure}}",
+      "durationUnavailable": "duration unavailable",
+      "edit": "{{index}}. Edit workout\nCurrent: {{current}}\nProposed: {{proposed}}",
+      "field": {
+        "date": "date",
+        "description": "description",
+        "duration": "duration",
+        "name": "name",
+        "structure": "effort structure",
+        "trainingLoad": "training load"
+      },
+      "kept": "Existing workouts kept:",
+      "minutes": "{{minutes}} min",
+      "observed": "desired state observed; response not received",
+      "remove": "{{index}}. Remove this workout:\n{{details}}",
+      "summary": "{{adds}} additions, {{edits}} edits, {{deletions}} deletions · {{duration}} for added or edited workouts",
+      "title": "Review all workout changes",
+      "totalUnavailable": "Total duration unavailable",
+      "unavailable": "unavailable"
+    }
   }
 }

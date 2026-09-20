@@ -1,3 +1,4 @@
+import { markTurnToolFailure } from "./agent/turn-context.js";
 import { generateText, streamText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -351,9 +352,15 @@ export class LLM {
               toolCallId: part.toolCallId,
             });
             break;
-          case "tool-result":
           case "tool-error":
           case "tool-output-denied":
+            markTurnToolFailure(opts.context, part.toolName);
+            notifyStreamActivity(opts.onStreamActivity, {
+              type: "tool_end",
+              toolCallId: part.toolCallId,
+            });
+            break;
+          case "tool-result":
             notifyStreamActivity(opts.onStreamActivity, {
               type: "tool_end",
               toolCallId: part.toolCallId,

@@ -1,3 +1,12 @@
+export type {
+  PreparedChange,
+  WorkoutPatch,
+  Preparation,
+  PreparationResult,
+  WorkoutPreparationPort,
+  WorkoutPreparationCapability,
+  JsonValue,
+} from "./workout-change-sets.js";
 import type {
   ChatQueueRunResult,
   ChatQueueSnapshot,

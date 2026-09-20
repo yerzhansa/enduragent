@@ -7,7 +7,11 @@ import type { ConfirmationGate } from "./confirmation-gate.js";
 import { CoachAgent } from "./coach-agent.js";
 import type { AthleteDataReader, PlatformCalendarMutations } from "../athlete-data.js";
 import type { AcceptedModelCatalogRecord } from "../model-catalog.js";
-import type { ModelTransportDecorator, EngineResolvedModelProfiles } from "@enduragent/engine";
+import type {
+  ModelTransportDecorator,
+  EngineResolvedModelProfiles,
+  WorkoutPreparationPort,
+} from "@enduragent/engine";
 
 /**
  * In-process canonical engine handle plus the one composition-root
@@ -21,6 +25,7 @@ export interface LocalCoachEngine extends CoachEngine {
 }
 
 export type LegacyEngineOverrides = {
+  readonly workoutPreparation?: WorkoutPreparationPort;
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;

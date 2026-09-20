@@ -27,6 +27,7 @@ import {
   type TelegramWorkScope,
 } from "./telegram-work-ledger.js";
 import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./telegram-host.js";
+import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
 
 // Debounce window for coalescing rapid free-form message fragments from one
 // chat into a single turn. Each new fragment resets the window; the buffered
@@ -541,6 +542,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       writeResend(opts.chatId, response);
       try {
         await sendLongMessage(opts.ctx, response, opts.replyToMessageId);
+        await presentWorkoutReview(opts.ctx, opts.chatId, phrasebook);
         const proposal = await host.confirmations.peek({ chatId: opts.chatId, phrasebook });
         if (proposal !== undefined) {
           await opts.ctx.reply(proposal.summary, {
@@ -564,6 +566,43 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         log.error("delivery_failed", err, { command: opts.command, chatId: opts.chatId });
         await opts.ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
       }
+    });
+  }
+
+  async function presentWorkoutReview(
+    ctx: { reply: (text: string, options?: Record<string, unknown>) => Promise<unknown> },
+    chatId: string,
+    phrasebook: Phrasebook,
+    redisplay = false,
+  ): Promise<void> {
+    if (host.workoutApprovals === undefined) return;
+    await deliverWorkoutReview({
+      approvals: host.workoutApprovals,
+      chatId,
+      language: phrasebook.tag,
+      redisplay,
+      deliver: (text) => sendLongMessage(ctx, text, undefined, "plain"),
+      controls: async (control) => {
+        await ctx.reply(control.prompt, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    control.kind === "retry"
+                      ? phrasebook.say(msg("workouts.approval.retryRemaining"))
+                      : phrasebook.say(msg("telegram.confirmation.confirm")),
+                  callback_data: `wc:${control.kind === "retry" ? "retry" : "approve"}:${control.token}`,
+                },
+                {
+                  text: phrasebook.say(msg("telegram.confirmation.cancel")),
+                  callback_data: `wc:cancel:${control.token}`,
+                },
+              ],
+            ],
+          },
+        });
+      },
     });
   }
 
@@ -1042,6 +1081,37 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     }
   });
 
+  bot.on("callback_query:data", async (ctx, next) => {
+    if (!ctx.callbackQuery.data.startsWith("wc:")) {
+      await next();
+      return;
+    }
+    const approvals = host.workoutApprovals;
+    const action = parseWorkoutCallback(ctx.callbackQuery.data);
+    if (approvals === undefined || action === null || ctx.chat === undefined) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    const chatId = `telegram:${ctx.chat.id}`;
+    const phrasebook = await phrasebookForContext(ctx);
+    const reservation = reserveInvocation(chatId);
+    await acknowledgeBeforeInvocation(reservation, () => ctx.answerCallbackQuery());
+    dispatch(async () => {
+      const outcome = await reservation.run(() =>
+        approvals.resolve({
+          chatId,
+          action,
+          language: phrasebook.tag,
+        }),
+      );
+      try {
+        await ctx.editMessageReplyMarkup();
+      } catch {}
+      await sendLongMessage(ctx, outcome.text, undefined, "plain");
+      await presentWorkoutReview(ctx, chatId, phrasebook);
+    });
+  });
+
   bot.on("callback_query:data", async (ctx) => {
     const phrasebook = await phrasebookForContext(ctx);
     const match = /^cg:(y|n):(.+)$/.exec(ctx.callbackQuery.data);
@@ -1093,12 +1163,18 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         dispatch(async () => {
           try {
             await sendLongMessage(ctx, cached);
+            await presentWorkoutReview(ctx, chatId, phrasebook, true);
           } catch (err) {
             log.error("delivery_failed", err, { command: "resend", chatId });
             await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
           }
         });
-      } else await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
+      } else {
+        dispatch(async () => {
+          await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
+          await presentWorkoutReview(ctx, chatId, phrasebook, true);
+        });
+      }
       return;
     }
 
@@ -1478,8 +1554,9 @@ export async function sendLongMessage(
   ctx: { reply: (text: string, options?: Record<string, unknown>) => Promise<unknown> },
   text: string,
   replyToMessageId?: number,
+  format: "markdown" | "plain" = "markdown",
 ): Promise<void> {
-  const html = markdownToTelegramHtml(text);
+  const html = format === "plain" ? escapeHtmlText(text) : markdownToTelegramHtml(text);
   // Thread the FIRST delivered chunk to the inbound message; later chunks stay
   // unthreaded. allow_sending_without_reply keeps the send working even if the
   // inbound message was deleted (otherwise reply-to-deleted is a new failure).

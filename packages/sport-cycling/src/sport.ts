@@ -17,6 +17,7 @@ import { skills as skillEntries } from "./skills.generated.js";
 import { createCyclingTools } from "./tools.js";
 import { cyclingReferenceAdapter } from "./reference/index.js";
 import { athleteProfileSchema } from "./schemas.js";
+import { cyclingWorkoutPreparation } from "./workout-change-set-tool.js";
 
 function loadSkills(): Record<string, string> {
   return Object.fromEntries(skillEntries.map(({ name, content }) => [`cycling-${name}`, content]));
@@ -65,6 +66,7 @@ export const cyclingSport = {
   soul,
   skills: cyclingSkills,
   prescriptionCapability: CYCLING_PRESCRIPTION_CAPABILITY,
+  workoutPreparation: cyclingWorkoutPreparation,
   sessionClusterGapMinutes: 30,
   memorySections,
   mustPreserveTokens: (memory: MemorySnapshot) => {

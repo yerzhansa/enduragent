@@ -2903,5 +2903,60 @@
         "transferRequired": "È necessario trasferire il bot"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Applicare tutte le modifiche controllate?",
+      "retryPrompt": "Riprovare le modifiche rimanenti?",
+      "retryRemaining": "Riprova i rimanenti",
+      "terminalPrompt": "Digita {{action}} per applicare queste modifiche, {{cancel}} per annullare o un messaggio per modificare la proposta."
+    },
+    "outcome": {
+      "accountChanged": "L’account del calendario è cambiato; questa approvazione non può essere usata.",
+      "canceled": "Le modifiche rimanenti sono state annullate.",
+      "cannotVerify": "Non è stato possibile verificare il calendario.",
+      "coachOnly": "Si possono modificare solo gli allenamenti creati dal coach.",
+      "complete": "Tutte le modifiche controllate sono complete.",
+      "incomplete": "Non è stato possibile preparare la proposta completa. Non è disponibile alcuna approvazione. Chiedi al coach di preparare di nuovo l’intero insieme.",
+      "invalidAction": "Questa approvazione non è più attiva. Controlla la proposta attuale.",
+      "noAdditional": "Non è stata applicata alcuna modifica aggiuntiva.",
+      "noChanges": "Non è stata applicata alcuna modifica.",
+      "pastProtected": "Gli allenamenti passati sono protetti.",
+      "recoveredDeleteAbsent": "L’allenamento {{label}} è assente da intervals.icu, ma la risposta alla cancellazione non è stata registrata. Non è una cancellazione confermata del coach. Un nuovo tentativo resta disabilitato.",
+      "recoveredObserved": "L’allenamento desiderato è presente, ma la risposta originale non è stata registrata. Controlla il lavoro rimanente prima di riprovare.",
+      "recoveredStopped": "L’esecuzione si è fermata prima del prossimo tentativo salvato. Controlla le modifiche rimanenti.",
+      "recoveredUncertain": "Una risposta del calendario non è stata registrata. Un nuovo tentativo è disabilitato finché il risultato è incerto. Il risultato salvato verrà controllato al riavvio.",
+      "refresh": "Controlla la proposta aggiornata prima di approvarla di nuovo.",
+      "rejected": "Il calendario ha rifiutato {{label}}. Il lavoro rimanente è stato interrotto; controllalo prima di scegliere Riprova i rimanenti.",
+      "uncertain": "Il risultato per {{label}} è incerto. Non sono state tentate altre modifiche. Un nuovo tentativo è disabilitato finché il risultato non può essere verificato. Il risultato salvato verrà controllato al riavvio.",
+      "workoutOnly": "Si possono modificare solo gli allenamenti programmati.",
+      "wrongAction": "Usa l’azione offerta con questa revisione."
+    },
+    "review": {
+      "add": "{{index}}. Aggiungi: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Già completato:",
+      "changed": "{{name}} è cambiato su intervals.icu: {{changes}}.",
+      "confirmed": "confermato",
+      "descriptionUnavailable": "Descrizione non disponibile",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarico di allenamento: {{load}}\nStruttura dello sforzo: {{structure}}",
+      "durationUnavailable": "durata non disponibile",
+      "edit": "{{index}}. Modifica allenamento\nAttuale: {{current}}\nProposto: {{proposed}}",
+      "field": {
+        "date": "data",
+        "description": "descrizione",
+        "duration": "durata",
+        "name": "nome",
+        "structure": "struttura dello sforzo",
+        "trainingLoad": "carico di allenamento"
+      },
+      "kept": "Allenamenti esistenti mantenuti:",
+      "minutes": "{{minutes}} min",
+      "observed": "stato desiderato osservato; risposta non ricevuta",
+      "remove": "{{index}}. Rimuovi questo allenamento:\n{{details}}",
+      "summary": "{{adds}} aggiunte, {{edits}} modifiche, {{deletions}} eliminazioni · {{duration}} per gli allenamenti aggiunti o modificati",
+      "title": "Controlla tutte le modifiche agli allenamenti",
+      "totalUnavailable": "Durata totale non disponibile",
+      "unavailable": "non disponibile"
+    }
   }
 }

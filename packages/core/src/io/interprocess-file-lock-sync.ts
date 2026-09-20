@@ -602,3 +602,10 @@ export async function withInterprocessFileLock<T>(
     owned.release();
   }
 }
+
+export async function acquireInterprocessFileLock(
+  lockPath: string,
+  options: InterprocessFileLockOptions = {},
+): Promise<{ release(): void }> {
+  return acquireAsync(lockPath, resolveOptions(options));
+}

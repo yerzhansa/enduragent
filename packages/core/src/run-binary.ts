@@ -28,6 +28,10 @@ import { openModelCatalog } from "./model-catalog-owner.js";
 import { warnOrphanSections } from "./memory/orphan-sections.js";
 import { getEffectiveSections } from "./sport.js";
 import { formatConfirmOutcome, type ConfirmationGate } from "./agent/confirmation-gate.js";
+import { makeChatClient } from "./reference/sync/intervals-client-factory.js";
+import { openWorkoutChangeSets } from "./workout-change-sets/service.js";
+import { createTerminalWorkoutApproval } from "./channels/workout-approval.js";
+import { resolveUserTimezone } from "@enduragent/engine/sport";
 
 // Shared error classifier output as the CLI's athlete-facing reply, so the CLI
 // and the Telegram channel speak the same error vocabulary and never dump a raw
@@ -44,6 +48,7 @@ export interface PreparedCoachComposition {
 }
 
 export interface RunBinaryHooks {
+  readonly workoutChangeSets?: "aggregate-v1";
   prepare?: (input: { config: Config; sport: Sport }) => Promise<PreparedCoachComposition>;
   /** Called once per process at startup, after Memory exists, before any chat handler is reachable. */
   onStartup?: (memory: Memory) => void | Promise<void>;
@@ -494,7 +499,22 @@ async function runBinaryWithLanguage(
   });
   await modelCatalog.start();
   const { createCoachEngine } = await import("./agent/coach-engine.js");
+  if (
+    hooks.workoutChangeSets !== undefined &&
+    sport.workoutPreparation?.version !== hooks.workoutChangeSets
+  ) {
+    throw new TypeError("Workout preparation capability is unavailable for this sport.");
+  }
+  const workoutApprovals =
+    hooks.workoutChangeSets === "aggregate-v1" && config.intervals.apiKey
+      ? await openWorkoutChangeSets({
+          dataDir: config.dataDir,
+          client: makeChatClient(config.intervals),
+          timezone: resolveUserTimezone(config.session.timezone),
+        })
+      : undefined;
   const engine = createCoachEngine(sport, config, {
+    workoutPreparation: workoutApprovals?.preparation,
     language: coachLanguage,
     athleteData: prepared.athleteData,
     calendarMutations: prepared.calendarMutations,
@@ -535,6 +555,7 @@ async function runBinaryWithLanguage(
     } catch (err) {
       console.error(say("cli.startup.memoryFlushDidNotFinishBefore"), err);
     }
+    await workoutApprovals?.close();
     await prepared.close?.();
   });
 
@@ -573,6 +594,7 @@ async function runBinaryWithLanguage(
         language: coachLanguage,
         binary,
         confirmations: engine.confirmations,
+        workoutApprovals,
         dataDir: config.dataDir,
         reference: reference.services,
       }),
@@ -646,6 +668,16 @@ async function runBinaryWithLanguage(
       output: process.stdout,
       prompt: "> ",
     });
+    const terminalWorkoutApproval =
+      workoutApprovals === undefined
+        ? undefined
+        : createTerminalWorkoutApproval({
+            approvals: workoutApprovals,
+            language: () => cliPhrasebook().tag,
+            output: async (text) => {
+              console.log(`\n${text}\n`);
+            },
+          });
 
     rl.on("close", () => {
       void closeRuntime()
@@ -653,6 +685,7 @@ async function runBinaryWithLanguage(
         .finally(() => process.exit(0));
     });
 
+    await terminalWorkoutApproval?.present(true);
     rl.prompt();
     rl.on(
       "line",
@@ -668,6 +701,10 @@ async function runBinaryWithLanguage(
         }
 
         try {
+          if (await terminalWorkoutApproval?.handle(input)) {
+            rl.prompt();
+            return;
+          }
           const { language, source: languageSource } = await coachLanguage.resolveFor({
             athleteText: input,
           });
@@ -688,6 +725,7 @@ async function runBinaryWithLanguage(
           const message = await fixedMessage;
           console.log("\n" + (message === undefined ? response.text : say(message)) + "\n");
           await _promptProposalConfirm(rl, engine);
+          await terminalWorkoutApproval?.present();
         } catch (err) {
           // Full detail (stack, provider payload) → stderr; a friendly classified
           // reply → stdout in the reply position. The raw err never lands as the

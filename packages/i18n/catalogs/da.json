@@ -2903,5 +2903,60 @@
         "transferRequired": "Overførsel af bot påkrævet"
       }
     }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Anvend alle gennemgåede ændringer?",
+      "retryPrompt": "Prøv de resterende ændringer igen?",
+      "retryRemaining": "Prøv de resterende igen",
+      "terminalPrompt": "Skriv {{action}} for at anvende disse ændringer, {{cancel}} for at annullere eller en besked for at ændre forslaget."
+    },
+    "outcome": {
+      "accountChanged": "Kalenderkontoen er ændret; denne godkendelse kan ikke bruges.",
+      "canceled": "De resterende ændringer blev annulleret.",
+      "cannotVerify": "Kalenderen kunne ikke bekræftes.",
+      "coachOnly": "Kun træninger oprettet af coachen kan ændres.",
+      "complete": "Alle gennemgåede ændringer er gennemført.",
+      "incomplete": "Det komplette forslag kunne ikke forberedes. Ingen godkendelse er tilgængelig. Bed coachen om at forberede hele sættet igen.",
+      "invalidAction": "Denne godkendelse er ikke længere aktiv. Gennemgå det aktuelle forslag.",
+      "noAdditional": "Ingen yderligere ændringer blev anvendt.",
+      "noChanges": "Ingen ændringer blev anvendt.",
+      "pastProtected": "Tidligere træninger er beskyttet.",
+      "recoveredDeleteAbsent": "Træningen {{label}} mangler i intervals.icu, men svaret på sletningen blev ikke gemt. Dette er ikke en bekræftet sletning fra coachen. Nye forsøg er stadig deaktiveret.",
+      "recoveredObserved": "Den ønskede træning findes, men det oprindelige svar blev ikke gemt. Gennemgå det resterende arbejde, før du prøver igen.",
+      "recoveredStopped": "Udførelsen stoppede før det næste gemte forsøg. Gennemgå de resterende ændringer.",
+      "recoveredUncertain": "Et svar fra kalenderen blev ikke gemt. Nye forsøg er deaktiveret, mens resultatet er usikkert. Det gemte resultat bliver kontrolleret ved genstart.",
+      "refresh": "Gennemgå det opdaterede forslag, før du godkender igen.",
+      "rejected": "Kalenderen afviste {{label}}. Det resterende arbejde blev stoppet; gennemgå det, før du prøver igen.",
+      "uncertain": "Resultatet for {{label}} er usikkert. Ingen yderligere ændringer blev forsøgt. Nye forsøg er deaktiveret, indtil resultatet kan bekræftes. Det gemte resultat bliver kontrolleret ved genstart.",
+      "workoutOnly": "Kun planlagte træninger kan ændres.",
+      "wrongAction": "Brug handlingen, der tilbydes med denne gennemgang."
+    },
+    "review": {
+      "add": "{{index}}. Tilføj: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Allerede gennemført:",
+      "changed": "{{name}} blev ændret i intervals.icu: {{changes}}.",
+      "confirmed": "bekræftet",
+      "descriptionUnavailable": "Beskrivelse ikke tilgængelig",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTræningsbelastning: {{load}}\nBelastningsstruktur: {{structure}}",
+      "durationUnavailable": "varighed ikke tilgængelig",
+      "edit": "{{index}}. Rediger træning\nNuværende: {{current}}\nForeslået: {{proposed}}",
+      "field": {
+        "date": "dato",
+        "description": "beskrivelse",
+        "duration": "varighed",
+        "name": "navn",
+        "structure": "belastningsstruktur",
+        "trainingLoad": "træningsbelastning"
+      },
+      "kept": "Eksisterende træninger beholdes:",
+      "minutes": "{{minutes}} min",
+      "observed": "ønsket tilstand observeret; svar ikke modtaget",
+      "remove": "{{index}}. Fjern denne træning:\n{{details}}",
+      "summary": "{{adds}} tilføjelser, {{edits}} ændringer, {{deletions}} sletninger · {{duration}} for tilføjede eller ændrede træninger",
+      "title": "Gennemgå alle træningsændringer",
+      "totalUnavailable": "Samlet varighed ikke tilgængelig",
+      "unavailable": "ikke tilgængelig"
+    }
   }
 }
