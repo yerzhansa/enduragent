@@ -10141,7 +10141,7 @@
       "translatedBy": "model"
     },
     "workouts.outcome.invalidAction": {
-      "sourceHash": "83985987d35797bd658519bd5ac99beafcc94542d5170c0d064d56f259f673bc",
+      "sourceHash": "122c403d4486072b70abafc622b758a554cc325181e6554f916b9d8384e16e7e",
       "translatedBy": "model"
     },
     "workouts.outcome.wrongAction": {
@@ -10222,6 +10222,10 @@
     },
     "workouts.review.field.effort": {
       "sourceHash": "a4f12c3895258d0b6e32d9a4d692057c8cfcd5f8efc97dbdf7cefe1c46382b89",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.supersededApproval": {
+      "sourceHash": "419e5218cf6835d348c4df9f0f42bb0b81f207d79bf834122734d46666adfd7c",
       "translatedBy": "model"
     }
   }

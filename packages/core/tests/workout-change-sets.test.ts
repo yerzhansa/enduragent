@@ -825,7 +825,10 @@ describe("durable workout change sets", () => {
     const { service, fake } = await setup();
     const first = await prepare(service, [add]);
     const second = await prepare(service, [{ ...add, name: "Easier" }], "revision");
-    expect((await approve(service, first.control.token)).kind).toBe("invalid-action");
+    expect(await approve(service, first.control.token)).toEqual({
+      kind: "invalid-action",
+      text: "The previous approval is no longer active. Review the current proposal.",
+    });
     expect(
       (
         await service.resolve({
@@ -837,6 +840,48 @@ describe("durable workout change sets", () => {
     ).toBe("canceled");
     expect((await approve(service, second.control.token)).kind).toBe("invalid-action");
     expect(fake.writes).toEqual([]);
+  });
+  it.each(["missing", "canceled", "completed"] as const)(
+    "does not direct an invalid approval to a current proposal when it is %s",
+    async (state) => {
+      const { service, fake } = await setup();
+      let token = "unmatched-approval";
+      if (state !== "missing") {
+        const { control } = await prepare(service, [add]);
+        token = control.token;
+        if (state === "completed") expect((await approve(service, token)).kind).toBe("completed");
+        else
+          await service.resolve({
+            chatId: "chat",
+            language: "en",
+            action: { kind: "cancel", token },
+          });
+      }
+      const writes = [...fake.writes];
+      expect(await approve(service, token)).toEqual({
+        kind: "invalid-action",
+        text: "This approval is no longer active.",
+      });
+      expect(fake.writes).toEqual(writes);
+    },
+  );
+  it("localizes an obsolete approval while a retry review is available without writing", async () => {
+    const { service, fake } = await setup();
+    const { control } = await prepare(service, [add]);
+    fake.fail("reject");
+    expect((await approve(service, control.token)).kind).toBe("partial");
+    const writes = [...fake.writes];
+    expect(
+      await service.resolve({
+        chatId: "chat",
+        language: "es",
+        action: { kind: "approve", token: control.token },
+      }),
+    ).toEqual({
+      kind: "invalid-action",
+      text: "La aprobación anterior ya no está activa. Revisa la propuesta actual.",
+    });
+    expect(fake.writes).toEqual(writes);
   });
   it.each([
     { movingTime: 5400 },
@@ -857,7 +902,10 @@ describe("durable workout change sets", () => {
     expect(result.text).toContain("changed in intervals.icu");
     expect(result.text).toContain("No changes were applied");
     expect(fake.writes).toEqual([]);
-    expect((await approve(service, control.token)).kind).toBe("invalid-action");
+    expect(await approve(service, control.token)).toEqual({
+      kind: "invalid-action",
+      text: "The previous approval is no longer active. Review the current proposal.",
+    });
     const review = await service.review({ chatId: "chat", language: "en" });
     if (!review || review.handle === null) throw new Error("Missing refreshed review");
     const refreshed = await service.acknowledgeDelivery({

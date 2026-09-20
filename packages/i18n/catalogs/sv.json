@@ -2918,7 +2918,7 @@
       "coachOnly": "Endast träningspass skapade av coachen kan ändras.",
       "complete": "Alla granskade ändringar är klara.",
       "incomplete": "Det fullständiga förslaget kunde inte förberedas. Inget godkännande är tillgängligt. Be coachen att förbereda hela uppsättningen igen.",
-      "invalidAction": "Detta godkännande är inte längre aktivt. Granska det aktuella förslaget.",
+      "invalidAction": "Detta godkännande är inte längre aktivt.",
       "noAdditional": "Inga ytterligare ändringar tillämpades.",
       "noChanges": "Inga ändringar tillämpades.",
       "pastProtected": "Tidigare träningspass är skyddade.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "Ett kalendersvar sparades inte. Nya försök är inaktiverade så länge resultatet är osäkert. Det sparade resultatet kontrolleras vid omstart.",
       "refresh": "Granska det uppdaterade förslaget innan du godkänner igen.",
       "rejected": "Kalendern avvisade {{label}}. Det återstående arbetet stoppades; granska det innan du försöker igen.",
+      "supersededApproval": "Det föregående godkännandet är inte längre aktivt. Granska det aktuella förslaget.",
       "uncertain": "Resultatet för {{label}} är osäkert. Inga fler ändringar försöktes. Nya försök är inaktiverade tills resultatet kan verifieras. Det sparade resultatet kontrolleras vid omstart.",
       "workoutOnly": "Endast planerade träningspass kan ändras.",
       "wrongAction": "Använd åtgärden som erbjuds med denna granskning."

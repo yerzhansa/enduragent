@@ -2882,7 +2882,7 @@
       "coachOnly": "只能更改由教练创建的训练。",
       "complete": "所有已检查的更改均已完成。",
       "incomplete": "无法准备完整提议。目前无法批准。请让教练重新准备整个方案。",
-      "invalidAction": "此批准已失效。请检查当前提议。",
+      "invalidAction": "此批准已失效。",
       "noAdditional": "未应用任何额外更改。",
       "noChanges": "未应用任何更改。",
       "pastProtected": "过去的训练受到保护。",
@@ -2892,6 +2892,7 @@
       "recoveredUncertain": "未记录日历响应。结果不确定时，重试已禁用。 重启时将检查已保存的结果。",
       "refresh": "再次批准之前，请检查更新后的提议。",
       "rejected": "日历拒绝了 {{label}}。剩余工作已停止；选择重试剩余更改之前请先检查。",
+      "supersededApproval": "之前的批准已失效。请检查当前提议。",
       "uncertain": "{{label}} 的结果不确定。未尝试后续更改。在结果得到验证之前，重试已禁用。 重启时将检查已保存的结果。",
       "workoutOnly": "只能更改已安排的训练。",
       "wrongAction": "请使用此次检查提供的操作。"

@@ -2918,7 +2918,7 @@
       "coachOnly": "Kun træninger oprettet af coachen kan ændres.",
       "complete": "Alle gennemgåede ændringer er gennemført.",
       "incomplete": "Det komplette forslag kunne ikke forberedes. Ingen godkendelse er tilgængelig. Bed coachen om at forberede hele sættet igen.",
-      "invalidAction": "Denne godkendelse er ikke længere aktiv. Gennemgå det aktuelle forslag.",
+      "invalidAction": "Denne godkendelse er ikke længere aktiv.",
       "noAdditional": "Ingen yderligere ændringer blev anvendt.",
       "noChanges": "Ingen ændringer blev anvendt.",
       "pastProtected": "Tidligere træninger er beskyttet.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "Et svar fra kalenderen blev ikke gemt. Nye forsøg er deaktiveret, mens resultatet er usikkert. Det gemte resultat bliver kontrolleret ved genstart.",
       "refresh": "Gennemgå det opdaterede forslag, før du godkender igen.",
       "rejected": "Kalenderen afviste {{label}}. Det resterende arbejde blev stoppet; gennemgå det, før du prøver igen.",
+      "supersededApproval": "Den tidligere godkendelse er ikke længere aktiv. Gennemgå det aktuelle forslag.",
       "uncertain": "Resultatet for {{label}} er usikkert. Ingen yderligere ændringer blev forsøgt. Nye forsøg er deaktiveret, indtil resultatet kan bekræftes. Det gemte resultat bliver kontrolleret ved genstart.",
       "workoutOnly": "Kun planlagte træninger kan ændres.",
       "wrongAction": "Brug handlingen, der tilbydes med denne gennemgang."

@@ -2990,7 +2990,7 @@
       "coachOnly": "Można zmieniać tylko treningi utworzone przez trenera.",
       "complete": "Wszystkie sprawdzone zmiany zostały wykonane.",
       "incomplete": "Nie udało się przygotować całej propozycji. Zatwierdzenie nie jest dostępne. Poproś trenera o ponowne przygotowanie całego zestawu.",
-      "invalidAction": "To zatwierdzenie nie jest już aktywne. Sprawdź obecną propozycję.",
+      "invalidAction": "To zatwierdzenie nie jest już aktywne.",
       "noAdditional": "Nie zastosowano żadnych dodatkowych zmian.",
       "noChanges": "Nie zastosowano żadnych zmian.",
       "pastProtected": "Minione treningi są chronione.",
@@ -3000,6 +3000,7 @@
       "recoveredUncertain": "Odpowiedź kalendarza nie została zapisana. Ponawianie jest wyłączone, dopóki wynik pozostaje niepewny. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
       "refresh": "Sprawdź zaktualizowaną propozycję przed ponownym zatwierdzeniem.",
       "rejected": "Kalendarz odrzucił {{label}}. Pozostała praca została zatrzymana; sprawdź ją przed ponowieniem.",
+      "supersededApproval": "Poprzednie zatwierdzenie nie jest już aktywne. Sprawdź obecną propozycję.",
       "uncertain": "Wynik dla {{label}} jest niepewny. Nie próbowano dalszych zmian. Ponawianie jest wyłączone do czasu zweryfikowania wyniku. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
       "workoutOnly": "Można zmieniać tylko zaplanowane treningi.",
       "wrongAction": "Użyj działania dostępnego przy tym przeglądzie."

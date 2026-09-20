@@ -2918,7 +2918,7 @@
       "coachOnly": "Alleen trainingen die door de coach zijn gemaakt, kunnen worden gewijzigd.",
       "complete": "Alle gecontroleerde wijzigingen zijn voltooid.",
       "incomplete": "Het volledige voorstel kon niet worden voorbereid. Er is geen goedkeuring beschikbaar. Vraag de coach de hele reeks opnieuw voor te bereiden.",
-      "invalidAction": "Deze goedkeuring is niet meer actief. Controleer het huidige voorstel.",
+      "invalidAction": "Deze goedkeuring is niet meer actief.",
       "noAdditional": "Er zijn geen extra wijzigingen toegepast.",
       "noChanges": "Er zijn geen wijzigingen toegepast.",
       "pastProtected": "Trainingen uit het verleden zijn beschermd.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "Een antwoord van de kalender is niet opgeslagen. Opnieuw proberen is uitgeschakeld zolang het resultaat onzeker is. Het opgeslagen resultaat wordt bij het herstarten gecontroleerd.",
       "refresh": "Controleer het bijgewerkte voorstel voordat je opnieuw goedkeurt.",
       "rejected": "De kalender heeft {{label}} geweigerd. Het resterende werk is gestopt; controleer het voordat je opnieuw probeert.",
+      "supersededApproval": "De vorige goedkeuring is niet meer actief. Controleer het huidige voorstel.",
       "uncertain": "Het resultaat voor {{label}} is onzeker. Er zijn geen verdere wijzigingen geprobeerd. Opnieuw proberen is uitgeschakeld totdat het resultaat kan worden gecontroleerd. Het opgeslagen resultaat wordt bij het herstarten gecontroleerd.",
       "workoutOnly": "Alleen geplande trainingen kunnen worden gewijzigd.",
       "wrongAction": "Gebruik de actie die bij deze controle wordt aangeboden."

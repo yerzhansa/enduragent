@@ -2918,7 +2918,7 @@
       "coachOnly": "Nur vom Coach erstellte Trainings können geändert werden.",
       "complete": "Alle geprüften Änderungen sind abgeschlossen.",
       "incomplete": "Der vollständige Vorschlag konnte nicht vorbereitet werden. Eine Freigabe ist nicht möglich. Bitte den Coach, alle Änderungen erneut vorzubereiten.",
-      "invalidAction": "Diese Freigabe ist nicht mehr aktiv. Prüfe den aktuellen Vorschlag.",
+      "invalidAction": "Diese Freigabe ist nicht mehr aktiv.",
       "noAdditional": "Es wurden keine weiteren Änderungen angewendet.",
       "noChanges": "Es wurden keine Änderungen angewendet.",
       "pastProtected": "Vergangene Trainings sind geschützt.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "Eine Kalenderantwort wurde nicht gespeichert. Ein erneuter Versuch ist gesperrt, solange das Ergebnis unklar ist. Das gespeicherte Ergebnis wird beim Neustart geprüft.",
       "refresh": "Prüfe den aktualisierten Vorschlag, bevor du ihn erneut freigibst.",
       "rejected": "Der Kalender hat {{label}} abgelehnt. Die verbleibende Arbeit wurde gestoppt; prüfe sie vor einem erneuten Versuch.",
+      "supersededApproval": "Die vorherige Freigabe ist nicht mehr aktiv. Prüfe den aktuellen Vorschlag.",
       "uncertain": "Das Ergebnis für {{label}} ist unklar. Es wurden keine weiteren Änderungen versucht. Ein erneuter Versuch ist gesperrt, bis das Ergebnis überprüft werden kann. Das gespeicherte Ergebnis wird beim Neustart geprüft.",
       "workoutOnly": "Nur geplante Trainings können geändert werden.",
       "wrongAction": "Verwende die bei dieser Prüfung angebotene Aktion."

@@ -390,8 +390,7 @@ export async function openWorkoutChangeSets(input: {
             if (preparation.kind === "incomplete" && active !== undefined)
               return {
                 kind: "refused",
-                message:
-                  "The revision could not be prepared; the previous proposal is unchanged.",
+                message: "The revision could not be prepared; the previous proposal is unchanged.",
               };
             if (preparation.kind === "revise" || preparation.kind === "replace") {
               if (
@@ -563,8 +562,20 @@ export async function openWorkoutChangeSets(input: {
           !record ||
           record.state.kind !== "awaiting-approval" ||
           record.state.tokenDigest !== digest(request.action.token)
-        )
-          return { kind: "invalid-action", text: book.say("workouts.outcome.invalidAction") };
+        ) {
+          const currentProposal =
+            record?.state.kind === "review-ready" ||
+            record?.state.kind === "retry-ready" ||
+            record?.state.kind === "awaiting-approval";
+          return {
+            kind: "invalid-action",
+            text: book.say(
+              currentProposal
+                ? "workouts.outcome.supersededApproval"
+                : "workouts.outcome.invalidAction",
+            ),
+          };
+        }
         const state = record.state;
         if (request.action.kind === "cancel") {
           await save(record, { kind: "canceled", finished: state.finished });

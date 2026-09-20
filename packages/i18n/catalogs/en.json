@@ -2918,7 +2918,7 @@
       "coachOnly": "Only coach-created workouts can be changed.",
       "complete": "All reviewed changes are complete.",
       "incomplete": "The complete proposal could not be prepared. No approval is available. Ask the coach to prepare the entire set again.",
-      "invalidAction": "This approval is no longer active. Review the current proposal.",
+      "invalidAction": "This approval is no longer active.",
       "noAdditional": "No additional changes were applied.",
       "noChanges": "No changes were applied.",
       "pastProtected": "Past workouts are protected.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "A calendar response was not recorded. Retry is disabled while the result is uncertain. The saved result will be checked on restart.",
       "refresh": "Review the updated proposal before approving again.",
       "rejected": "The calendar rejected {{label}}. Remaining work was stopped; review it before choosing Retry remaining.",
+      "supersededApproval": "The previous approval is no longer active. Review the current proposal.",
       "uncertain": "The result for {{label}} is uncertain. No further changes were attempted. Retry is disabled until its result can be verified. The saved result will be checked on restart.",
       "workoutOnly": "Only scheduled workouts can be changed.",
       "wrongAction": "Use the action offered with this review."

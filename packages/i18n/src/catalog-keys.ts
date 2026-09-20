@@ -2488,6 +2488,7 @@ export type CatalogKey =
   | "workouts.outcome.recoveredUncertain"
   | "workouts.outcome.refresh"
   | "workouts.outcome.rejected"
+  | "workouts.outcome.supersededApproval"
   | "workouts.outcome.uncertain"
   | "workouts.outcome.workoutOnly"
   | "workouts.outcome.wrongAction"

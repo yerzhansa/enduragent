@@ -2918,7 +2918,7 @@
       "coachOnly": "Solo se pueden cambiar los entrenamientos creados por el entrenador.",
       "complete": "Todos los cambios revisados están completos.",
       "incomplete": "No se pudo preparar la propuesta completa. No hay ninguna aprobación disponible. Pide al entrenador que prepare de nuevo el conjunto completo.",
-      "invalidAction": "Esta aprobación ya no está activa. Revisa la propuesta actual.",
+      "invalidAction": "Esta aprobación ya no está activa.",
       "noAdditional": "No se aplicó ningún cambio adicional.",
       "noChanges": "No se aplicó ningún cambio.",
       "pastProtected": "Los entrenamientos pasados están protegidos.",
@@ -2928,6 +2928,7 @@
       "recoveredUncertain": "No se registró una respuesta del calendario. El reintento está desactivado mientras el resultado sea incierto. El resultado guardado se comprobará al reiniciar.",
       "refresh": "Revisa la propuesta actualizada antes de volver a aprobarla.",
       "rejected": "El calendario rechazó {{label}}. Se detuvo el trabajo pendiente; revísalo antes de elegir Reintentar pendientes.",
+      "supersededApproval": "La aprobación anterior ya no está activa. Revisa la propuesta actual.",
       "uncertain": "El resultado de {{label}} es incierto. No se intentaron más cambios. El reintento está desactivado hasta poder verificar el resultado. El resultado guardado se comprobará al reiniciar.",
       "workoutOnly": "Solo se pueden cambiar los entrenamientos programados.",
       "wrongAction": "Usa la acción que se ofrece con esta revisión."
