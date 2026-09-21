@@ -91,14 +91,20 @@ export async function readDay(client: CalendarClient, date: string): Promise<Cal
 }
 export function desired(change: Extract<Change, { kind: "edit" }>, current: Snapshot): Snapshot {
   const patch = change.patch;
+  const description =
+    patch.description === undefined
+      ? current.description
+      : patch.description.replace(/\r\n/g, "\n");
   return {
     ...current,
     ...patch,
-    structure: patch.structure === undefined ? current.structure : normalizeJson(patch.structure),
-    description:
-      patch.description === undefined
-        ? current.description
-        : patch.description.replace(/\r\n/g, "\n"),
+    structure:
+      patch.structure === undefined
+        ? description === current.description
+          ? current.structure
+          : null
+        : normalizeJson(patch.structure),
+    description,
   };
 }
 function structureInput(value: Snapshot["structure"]): {
