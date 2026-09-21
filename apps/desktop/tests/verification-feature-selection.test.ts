@@ -127,7 +127,7 @@ describe("verification feature catalog", () => {
   });
 
   it("names only supported executors", () => {
-    const supported = new Set(["cdp", "playwright", "vitest", "s8a", "manual"]);
+    const supported = new Set(["cdp", "playwright", "vitest", "manual"]);
 
     for (const { page } of featureEntries()) {
       const source = readFileSync(resolve(featureDirectory, page), "utf8");
@@ -149,7 +149,7 @@ describe("verification feature catalog", () => {
 
       expect(named.length, page).toBeGreaterThan(0);
       expect(
-        explicit.filter((name) => name !== "vm-only" && !supported.has(name)),
+        [...named, ...explicit].filter((name) => name !== "vm-only" && !supported.has(name)),
         page,
       ).toEqual([]);
     }

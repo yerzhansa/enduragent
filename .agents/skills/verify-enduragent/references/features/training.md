@@ -30,4 +30,4 @@ Require the renderer run to show **Weekly summary** and **Recent rides** in orde
 - Setup must be complete before Main navigation is available; use the Setup feature page for the `training-setup` surface.
 - Renderer tests use isolated state and mocked actions. They do not exercise real credentials, provider data, native file dialogs, or an installed application.
 - `training.windows.ride-import-copy`, `training.windows.ride-import-native`, and `training.windows.export-native` require an installed Windows VM and have no deterministic citations.
-- No Training-owned Playwright, CDP, S8A, or other live-driver flow is proved by the mapped Training tests or fixture.
+- No Training-owned Playwright, CDP, or other live-driver flow is proved by the mapped Training tests or fixture.

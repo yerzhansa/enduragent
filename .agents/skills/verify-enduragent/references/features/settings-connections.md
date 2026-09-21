@@ -33,4 +33,4 @@ The catalog command validates the frozen manifests and that deterministic rows c
 - Renderer tests use isolated state and mocked bridges. They do not exercise real provider or Intervals.icu credentials, local file selection/import, BotFather or Telegram networking, the OS clipboard, secure credential storage, or the Telegram daemon.
 - Real Intervals.icu and Telegram connections require valid copied credentials and available OS secure storage; coach lanes may instead require browser sign-in, Claude CLI state, or a provider API key. Connection deletion is local; provider accounts, Telegram bots/chats, synced rides, and past chats follow the user-visible retention copy.
 - `settings.windows.credential-wording`, `telegram.windows.setup-copy-storage`, `telegram.windows.packaged-connectivity`, and `telegram.windows.packaged-lifecycle` are `vm-only` and require an installed Windows VM plus manual credential, clipboard, network, and lifecycle checks.
-- No S8A or native Windows automated flow is proved by these tests or manifests.
+- No native Windows automated flow is proved by these tests or manifests.

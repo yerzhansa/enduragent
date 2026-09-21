@@ -21,7 +21,6 @@ export function canonicalScalar(v: SqlValue): [string, string | null] {
   return ["b", toHex(v)];
 }
 
-/** Recursive alphabetical key-sort (re-implements tools/s8a/lib/canonical.ts stableSerialize). */
 export function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (value !== null && typeof value === "object") {
