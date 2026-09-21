@@ -2798,7 +2798,7 @@
       "working": "Sincronizando dados de treinamento de {{service}}..."
     },
     "update": {
-      "available": "Atualização disponível: {{current}} → {{latest}}\n{{updateInstruction}}\n\nAplicativo para computador disponível para {{platform}}: {{desktopUrl}}\n\nQuer o bot funcionando {{availability}} sem manter seu computador ligado? Implante o modelo de {{provider}}: {{railwayUrl}}",
+      "available": "Atualização disponível: {{current}} → {{latest}}\n{{updateInstruction}}\n\nAplicativo para computador disponível para {{platform}}: {{desktopUrl}}",
       "checkFailed": "Não foi possível verificar atualizações. Tente mais tarde.",
       "checking": "Verificando atualizações...",
       "failed": "A atualização falhou. Execute `{{command}}` manualmente.",

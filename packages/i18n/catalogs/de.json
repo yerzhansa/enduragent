@@ -2798,7 +2798,7 @@
       "working": "Trainingsdaten von {{service}} werden synchronisiert..."
     },
     "update": {
-      "available": "Update verfügbar: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktop-App für {{platform}} verfügbar: {{desktopUrl}}\n\nSoll der Bot {{availability}} laufen, ohne dass dein Computer eingeschaltet bleibt? Stelle die {{provider}}-Vorlage bereit: {{railwayUrl}}",
+      "available": "Update verfügbar: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktop-App für {{platform}} verfügbar: {{desktopUrl}}",
       "checkFailed": "Updates konnten nicht geprüft werden. Versuche es später erneut.",
       "checking": "Updates werden gesucht...",
       "failed": "Update fehlgeschlagen. Führe `{{command}}` bitte manuell aus.",

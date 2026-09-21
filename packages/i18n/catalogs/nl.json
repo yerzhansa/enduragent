@@ -2584,7 +2584,7 @@
       "working": "Trainingsgegevens uit {{service}} synchroniseren..."
     },
     "update": {
-      "available": "Update beschikbaar: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDe desktopapp voor {{platform}} is beschikbaar: {{desktopUrl}}\n\nWil je dat de bot {{availability}} draait zonder je computer aan te laten? Implementeer de {{provider}}-template: {{railwayUrl}}",
+      "available": "Update beschikbaar: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDe desktopapp voor {{platform}} is beschikbaar: {{desktopUrl}}",
       "checkFailed": "Controleren op updates mislukt. Probeer het later opnieuw.",
       "checking": "Controleren op updates...",
       "failed": "Update mislukt. Voer `{{command}}` handmatig uit.",

@@ -515,16 +515,12 @@ describe("notifyUpdate — broadcast filtering (L3)", () => {
     expect(message).toContain("GHCR image");
     expect(message).toContain("Railway");
     expect(message).not.toContain("/update to install");
-    expect(message).toContain(
-      "Want the bot running 24/7 without keeping your computer on? Deploy the Railway template: https://railway.com/deploy/cycling-coach",
-    );
+    expect(message).not.toContain("Want the bot running");
+    expect(message).not.toContain("railway.com/deploy");
     expect(message).toContain("Desktop app for macOS is available: https://enduragent.icu");
     expect(message).not.toContain("https://tally.so/r/b5Dv4g");
     expect(message).not.toContain("Help shape what Cycling Coach builds next");
     expect(message).not.toContain("x.com/yerzhansa");
-    expect(message.indexOf("https://enduragent.icu")).toBeLessThan(
-      message.indexOf("railway.com/deploy/cycling-coach"),
-    );
   });
 });
 
