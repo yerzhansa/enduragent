@@ -938,6 +938,75 @@ describe("durable workout change sets", () => {
     });
     expect((await approve(service, control.token)).kind).toBe("completed");
   });
+  it("does not preview obsolete workout steps after a description-only edit", async () => {
+    const { service, fake } = await setup();
+    const reviewedStructure = {
+      steps: [{ duration: 600, power: { units: "%ftp", value: 51 } }],
+    };
+    const description = "Warmup\n- 5m 45%\n\nMain set\n- 3x 2m 100% 2m 50%";
+    fake.events.set(101, {
+      ...base,
+      description: "Old instructions",
+      workoutDoc: reviewedStructure,
+    });
+    const { review } = await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { description } },
+    ]);
+    const pending = await pendingSet(service);
+    expect(pending.changes[0]).toMatchObject({
+      reviewed: { description: "Old instructions", structure: reviewedStructure },
+      desired: { description, structure: null },
+    });
+    expect(review.text).toContain(description);
+    expect(review.text.match(/10 min · 51% FTP/g)).toHaveLength(1);
+    expect(fake.events.get(101)?.workoutDoc).toEqual(reviewedStructure);
+  });
+  it("retains reviewed workout steps for a line-ending-only description patch", async () => {
+    const { service, fake } = await setup();
+    const reviewedStructure = {
+      steps: [{ duration: 600, power: { units: "%ftp", value: 51 } }],
+    };
+    fake.events.set(101, {
+      ...base,
+      description: "Same\r\ninstructions",
+      workoutDoc: reviewedStructure,
+    });
+    await prepare(service, [
+      { kind: "edit", eventId: 101, patch: { description: "Same\ninstructions" } },
+    ]);
+    const pending = await pendingSet(service);
+    expect(pending.changes[0]).toMatchObject({
+      reviewed: { description: "Same\ninstructions", structure: reviewedStructure },
+      desired: { description: "Same\ninstructions", structure: reviewedStructure },
+    });
+  });
+  it("uses explicit workout steps when an edit changes both description and structure", async () => {
+    const { service, fake } = await setup();
+    const reviewedStructure = {
+      steps: [{ duration: 600, power: { units: "%ftp", value: 51 } }],
+    };
+    const desiredStructure = {
+      steps: [{ duration: 300, power: { units: "%ftp", value: 45 } }],
+    };
+    fake.events.set(101, {
+      ...base,
+      description: "Old instructions",
+      workoutDoc: reviewedStructure,
+    });
+    await prepare(service, [
+      {
+        kind: "edit",
+        eventId: 101,
+        patch: { description: "New instructions", structure: desiredStructure },
+      },
+    ]);
+    const pending = await pendingSet(service);
+    expect(pending.changes[0]).toMatchObject({
+      reviewed: { description: "Old instructions", structure: reviewedStructure },
+      desired: { description: "New instructions", structure: desiredStructure },
+    });
+    expect(fake.events.get(101)?.workoutDoc).toEqual(reviewedStructure);
+  });
   it("allows no TTL and has no fixed workout count cap", async () => {
     const { service, fake } = await setup();
     const { control } = await prepare(
