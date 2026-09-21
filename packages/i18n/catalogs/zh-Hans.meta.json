@@ -9795,6 +9795,30 @@
     "workouts.outcome.supersededApproval": {
       "sourceHash": "419e5218cf6835d348c4df9f0f42bb0b81f207d79bf834122734d46666adfd7c",
       "translatedBy": "model"
+    },
+    "workouts.review.action.add": {
+      "sourceHash": "9fd728c66c9a256b121472dabf32a34317aed01d8427d70ec830289cf23a7cc8",
+      "translatedBy": "model"
+    },
+    "workouts.review.action.delete": {
+      "sourceHash": "e2d0a54968ead24efc0dffa6ac78fc606dceec34a0f586177a74a54cc2272cf8",
+      "translatedBy": "model"
+    },
+    "workouts.review.action.edit": {
+      "sourceHash": "464c4ffd019e1e9691dcf0537c797353ef2b1c1d4833d3d463e5b74ae4547344",
+      "translatedBy": "model"
+    },
+    "workouts.review.estimatedLoad": {
+      "sourceHash": "c8023a12c7ac0e5793164a757f58d9d4ba710cea9c51f16d6271bf052d9fed84",
+      "translatedBy": "model"
+    },
+    "workouts.review.fieldChanged": {
+      "sourceHash": "122d084ebb6abfdebc85d7065b7d22246a57d48942d0010e72499ec65d163986",
+      "translatedBy": "model"
+    },
+    "workouts.review.position": {
+      "sourceHash": "487fcaf37ab97ea081523c4981d6f70da23d8e0fbe3d2dfce5a5b3c6927810cb",
+      "translatedBy": "model"
     }
   }
 }

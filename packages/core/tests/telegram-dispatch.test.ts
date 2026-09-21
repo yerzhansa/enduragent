@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
-import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram.js";
+import {
+  splitWorkoutCardContent,
+  startTypingHeartbeat,
+  TYPING_HEARTBEAT_MS,
+} from "../src/channels/telegram.js";
 
 import {
   ConfirmationGate,
@@ -19,6 +23,7 @@ import { createTurnContext } from "../../engine/src/agent/turn-context.js";
 import { COACH_EVENT_TAG } from "../src/agent/event-provenance.js";
 import type { IntervalsClient } from "intervals-icu-api";
 import type { WorkoutApprovalChannel } from "../src/channels/workout-approval.js";
+import type { WorkoutReviewDocument } from "../src/workout-change-sets/presentation.js";
 
 const grammyFake = vi.hoisted(() => ({
   bot: undefined as ((token: string) => unknown) | undefined,
@@ -193,6 +198,7 @@ interface FakeCtx {
   message: { text: string; message_id?: number };
   reply: ReturnType<typeof vi.fn>;
   replyWithDocument: ReturnType<typeof vi.fn>;
+  replyWithPhoto: ReturnType<typeof vi.fn>;
   replyWithChatAction: ReturnType<typeof vi.fn>;
 }
 
@@ -220,8 +226,61 @@ function makeCtx(overrides?: Partial<FakeCtx>): FakeCtx {
     message: { text: "hi" },
     reply: vi.fn(async () => undefined),
     replyWithDocument: vi.fn(async () => undefined),
+    replyWithPhoto: vi.fn(async () => undefined),
     replyWithChatAction: vi.fn(async () => true),
     ...overrides,
+  };
+}
+
+function chartDocument(title = "Synthetic intervals"): WorkoutReviewDocument {
+  return {
+    introduction: "Review the complete proposal.",
+    context: "Existing workouts kept: 1998-09-26 · Synthetic endurance",
+    cards: [
+      {
+        kind: "plot",
+        chart: {
+          title,
+          subtitle: "1998-09-24 · 15 min",
+          axisLabel: "Effort · % FTP",
+          startLabel: "0",
+          endLabel: "15 min",
+          unit: "percent_ftp",
+          durationSeconds: 900,
+          segments: [{ kind: "steady", durationSeconds: 900, target: 50 }],
+        },
+        caption: {
+          blocks: [
+            { kind: "heading", text: `${title} <easy> & steady` },
+            { kind: "text", text: `${"Keep the recoveries easy. ".repeat(65)}FINAL INSTRUCTION` },
+          ],
+        },
+      },
+      {
+        kind: "text",
+        content: { blocks: [{ kind: "text", text: "Delete 1998-09-25 · Synthetic recovery" }] },
+      },
+    ],
+    summary: "Add 1 · Edit 0 · Delete 1",
+  };
+}
+
+function chartApprovals(document: WorkoutReviewDocument): WorkoutApprovalChannel {
+  return {
+    review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+      handle: "review-1",
+      text: "Terminal fallback",
+      presentation: { kind: "cards", document },
+    })),
+    acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => ({
+      kind: "approval",
+      token: "synthetic_approval_123456",
+      prompt: `${document.summary}\nApprove the complete set?`,
+    })),
+    resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+      kind: "completed",
+      text: "Saved.",
+    })),
   };
 }
 
@@ -458,7 +517,11 @@ describe("confirmation callbacks", () => {
     ).join("\n");
     const ctx = makeCtx();
     const approvals: WorkoutApprovalChannel = {
-      review: vi.fn(async () => ({ handle: "review-1", text: reviewText })),
+      review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+        handle: "review-1",
+        text: reviewText,
+        presentation: { kind: "text" },
+      })),
       acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => {
         const delivered = ctx.reply.mock.calls.map((call) => call[0]).join("\n");
         expect(delivered).toContain("Workout 1:");
@@ -491,12 +554,140 @@ describe("confirmation callbacks", () => {
     );
   });
 
+  it("delivers a real chart, every overflow instruction, and deletions before one batch approval", async () => {
+    const document = chartDocument();
+    const approvals = chartApprovals(document);
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    agent.chat.mockResolvedValue({ text: "Review below." });
+    const ctx = makeCtx();
+    await getCommand(bot, "plan")(ctx);
+    await drainPending();
+
+    expect(ctx.replyWithPhoto).toHaveBeenCalledOnce();
+    const [file, options] = ctx.replyWithPhoto.mock.calls[0] ?? [];
+    expect(file).toBeInstanceOf(grammyFake.InputFile);
+    expect([...file.data.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(options.parse_mode).toBe("HTML");
+    expect(options.caption).toContain("<b>Synthetic intervals &lt;easy&gt; &amp; steady</b>");
+    expect(ctx.reply.mock.calls.map(([text]) => text).join("\n")).toContain("FINAL INSTRUCTION");
+    const overflowIndex = ctx.reply.mock.calls.findIndex(([text]) =>
+      text.includes("FINAL INSTRUCTION"),
+    );
+    const deleteIndex = ctx.reply.mock.calls.findIndex(([text]) =>
+      text.includes("Delete 1998-09-25"),
+    );
+    const contextIndex = ctx.reply.mock.calls.findIndex(([text]) =>
+      text.includes("Existing workouts kept:"),
+    );
+    expect(contextIndex).toBeGreaterThanOrEqual(0);
+    const ackOrder = vi.mocked(approvals.acknowledgeDelivery).mock.invocationCallOrder[0];
+    expect(ctx.replyWithPhoto.mock.invocationCallOrder[0]).toBeLessThan(ackOrder ?? 0);
+    expect(ctx.reply.mock.invocationCallOrder[overflowIndex]).toBeLessThan(ackOrder ?? 0);
+    expect(ctx.reply.mock.invocationCallOrder[deleteIndex]).toBeLessThan(ackOrder ?? 0);
+    expect(ctx.reply.mock.invocationCallOrder[contextIndex]).toBeLessThan(ackOrder ?? 0);
+    const controls = ctx.reply.mock.calls.filter(([, opts]) => opts?.reply_markup !== undefined);
+    expect(controls).toHaveLength(1);
+    expect(controls[0]?.[0]).toContain("Add 1 · Edit 0 · Delete 1");
+    expect(
+      ctx.reply.mock.calls.filter(([text]) => text.includes("Add 1 · Edit 0 · Delete 1")),
+    ).toHaveLength(1);
+    expect(ctx.reply.mock.invocationCallOrder.at(-1)).toBeGreaterThan(ackOrder ?? 0);
+    expect(approvals.resolve).not.toHaveBeenCalled();
+  });
+
+  it.each(["photo", "overflow", "removal", "context"])(
+    "does not arm or show approval if the %s part fails",
+    async (failure) => {
+      const approvals = chartApprovals(chartDocument());
+      const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+      agent.chat.mockResolvedValue({ text: "Review below." });
+      const ctx = makeCtx();
+      if (failure === "photo")
+        ctx.replyWithPhoto.mockRejectedValueOnce(new Error("Photo delivery failed"));
+      else
+        ctx.reply.mockImplementation(async (text) => {
+          if (
+            (failure === "overflow" && text.includes("FINAL INSTRUCTION")) ||
+            (failure === "removal" && text.includes("Delete 1998-09-25")) ||
+            (failure === "context" && text.includes("Existing workouts kept:"))
+          )
+            throw new Error("Message delivery failed");
+        });
+      await getCommand(bot, "plan")(ctx);
+      await drainPending();
+      expect(ctx.replyWithPhoto).toHaveBeenCalledOnce();
+      if (failure !== "photo") {
+        const marker =
+          failure === "overflow"
+            ? "FINAL INSTRUCTION"
+            : failure === "context"
+              ? "Existing workouts kept:"
+              : "Delete 1998-09-25";
+        expect(ctx.reply.mock.calls.some(([text]) => text.includes(marker))).toBe(true);
+      }
+      expect(approvals.acknowledgeDelivery).not.toHaveBeenCalled();
+      expect(approvals.resolve).not.toHaveBeenCalled();
+      expect(ctx.reply.mock.calls.some(([, opts]) => opts?.reply_markup !== undefined)).toBe(false);
+    },
+  );
+
+  it("delivers complete text when a chart title cannot be rendered by the bundled font", async () => {
+    const approvals = chartApprovals(chartDocument("جولة سهلة"));
+    const { bot, agent, drainPending } = await buildBot({ workoutApprovals: approvals });
+    agent.chat.mockResolvedValue({ text: "Review below." });
+    const ctx = makeCtx();
+    await getCommand(bot, "plan")(ctx);
+    await drainPending();
+    expect(ctx.replyWithPhoto).not.toHaveBeenCalled();
+    const delivered = ctx.reply.mock.calls.map(([text]) => text).join("\n");
+    expect(delivered).toContain("جولة سهلة");
+    expect(delivered).toContain("FINAL INSTRUCTION");
+    expect(approvals.acknowledgeDelivery).toHaveBeenCalledOnce();
+  });
+
+  it("splits escaped workout captions without losing text or splitting surrogate pairs", () => {
+    const text = `${"🚴".repeat(800)}<b>& final`;
+    const parts = splitWorkoutCardContent({ blocks: [{ kind: "heading", text }] }, 1024);
+    const decoded = parts.map((part) =>
+      part
+        .replace(/^<b>|<\/b>$/g, "")
+        .replaceAll("&lt;", "<")
+        .replaceAll("&gt;", ">")
+        .replaceAll("&amp;", "&"),
+    );
+    expect(decoded.join("")).toBe(text);
+    expect(
+      decoded.every(
+        (part) =>
+          part.length <= 1024 &&
+          ![...part].some(
+            (character) => character.length === 1 && /[\uD800-\uDFFF]/u.test(character),
+          ),
+      ),
+    ).toBe(true);
+    expect(parts.every((part) => part.startsWith("<b>") && part.endsWith("</b>"))).toBe(true);
+    const boundary = splitWorkoutCardContent(
+      {
+        blocks: [
+          { kind: "text", text: "a".repeat(1021) },
+          { kind: "text", text: "🚴" },
+        ],
+      },
+      1024,
+    );
+    expect(boundary).toEqual(["a".repeat(1021), "🚴"]);
+  });
+
   it("displays workout review and outcome markup as literal text", async () => {
     const text = "<b>ride</b> **easy** [target](https://example.com)";
     const escaped = "&lt;b&gt;ride&lt;/b&gt; **easy** [target](https://example.com)";
     const token = "synthetic_approval_123456";
     const approvals: WorkoutApprovalChannel = {
-      review: vi.fn(async () => ({ handle: "review-1", text })),
+      review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+        handle: "review-1",
+        text,
+        presentation: { kind: "text" },
+      })),
       acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => ({
         token,
         kind: "approval",
@@ -518,7 +709,11 @@ describe("confirmation callbacks", () => {
 
   it("keeps workout approval inactive when a review chunk cannot be delivered", async () => {
     const approvals: WorkoutApprovalChannel = {
-      review: vi.fn(async () => ({ handle: "review-1", text: "Workout review" })),
+      review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+        handle: "review-1",
+        text: "Workout review",
+        presentation: { kind: "text" },
+      })),
       acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
       resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
         kind: "completed",
@@ -848,7 +1043,11 @@ describe("retry transformer / classified errors / delivery split", () => {
     async (handle) => {
       const token = "synthetic_approval_123456";
       const approvals: WorkoutApprovalChannel = {
-        review: vi.fn(async () => ({ handle, text: "Saved workout content" })),
+        review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+          handle,
+          text: "Saved workout content",
+          presentation: { kind: "text" },
+        })),
         acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => ({
           token,
           kind: "approval",
@@ -911,7 +1110,11 @@ describe("retry transformer / classified errors / delivery split", () => {
 
   it("reports a failed durable review resend without missing guidance or approval controls", async () => {
     const approvals: WorkoutApprovalChannel = {
-      review: vi.fn(async () => ({ handle: "review-1", text: "Saved workout content" })),
+      review: vi.fn<WorkoutApprovalChannel["review"]>(async () => ({
+        handle: "review-1",
+        text: "Saved workout content",
+        presentation: { kind: "text" },
+      })),
       acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
       resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
         kind: "completed",

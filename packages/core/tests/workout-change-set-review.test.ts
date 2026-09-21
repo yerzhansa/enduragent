@@ -6,6 +6,7 @@ import {
   difference,
   renderNotice,
   renderReview,
+  renderReviewDocument,
   successes,
 } from "../src/workout-change-sets/review.js";
 import type { Change, Notice, Payload, Snapshot } from "../src/workout-change-sets/record.js";
@@ -33,6 +34,16 @@ const ride: Change = {
     description: "Main set\n- 50m 65%",
     effort: "65% FTP",
     structure: null,
+    reviewStructure: {
+      name: "Synthetic new ride",
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 50, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 65 },
+        },
+      ],
+    },
     trainingLoad: 30,
   },
 };
@@ -84,6 +95,154 @@ describe("workout change review localization", () => {
     expect(text).toContain("Proposed: 1998-09-07 · Synthetic ride · 75 min");
     expect(text).toContain("Remove this workout:");
     expect(text).toContain("Existing workouts kept:\n1998-09-07 · Synthetic retained · 45 min");
+  });
+
+  it("builds a chart card from the authored addition without duplicating serialized steps", async () => {
+    const document = renderReviewDocument(
+      { ...payload, pending: [ride] },
+      await workoutPhrasebook("en"),
+    );
+    const card = document.cards[0];
+    expect(card?.kind).toBe("plot");
+    if (card?.kind !== "plot") throw new Error("Expected plot card");
+    expect(card.chart).toMatchObject({
+      title: "Synthetic new ride",
+      subtitle: "1998-09-08 · 50 min",
+      durationSeconds: 3000,
+      segments: [{ kind: "steady", durationSeconds: 3000, target: 65 }],
+    });
+    const caption = card.caption.blocks.map((block) => block.text).join("\n");
+    expect(caption).toContain("Add · 1 of 1 · 1998-09-08");
+    expect(caption).toContain("50 min · 65% FTP");
+    expect(caption).not.toContain("Main set");
+    expect(caption.match(/Estimated training load/g)).toHaveLength(1);
+    expect(document.summary).toContain("1 additions, 0 edits, 0 deletions");
+    expect(document.summary).not.toContain("Existing workouts kept");
+    expect(document.context).toContain("Existing workouts kept:\n1998-09-07 · Synthetic retained");
+  });
+
+  it("uses compact truthful text for rename-only edits and deletions", async () => {
+    const rename: Change = {
+      ...edit,
+      desired: { ...original, name: "Synthetic renamed ride" },
+      patch: { name: "Synthetic renamed ride" },
+    };
+    const document = renderReviewDocument(
+      { ...payload, pending: [rename, deletion], context: [] },
+      await workoutPhrasebook("en"),
+    );
+    expect(document.cards.map((card) => card.kind)).toEqual(["text", "text"]);
+    const renameText =
+      document.cards[0]?.kind === "text"
+        ? document.cards[0].content.blocks.map((block) => block.text).join("\n")
+        : "";
+    const deleteText =
+      document.cards[1]?.kind === "text"
+        ? document.cards[1].content.blocks.map((block) => block.text).join("\n")
+        : "";
+    expect(renameText).toContain("name: Synthetic ride → Synthetic renamed ride");
+    expect(renameText.match(/Estimated training load/g)).toHaveLength(1);
+    expect(renameText).not.toContain("Main set");
+    expect(renameText).toContain("↻ Edit · 1 of 2 · 1998-09-07");
+    expect(deleteText).toBe("Synthetic recovery\n− Delete · 2 of 2 · 1998-09-07");
+  });
+
+  it("shows a changed estimate once and plots only the authoritative desired structure", async () => {
+    const desired = {
+      ...original,
+      durationSeconds: 600,
+      trainingLoad: 18,
+      description: "Stay relaxed.",
+      structure: { steps: [{ duration: 600, power: { units: "%ftp", value: 55 } }] },
+    };
+    const changed: Change = {
+      ...edit,
+      desired,
+      patch: {
+        durationSeconds: 600,
+        trainingLoad: 18,
+        description: "Stay relaxed.",
+        structure: desired.structure,
+      },
+    };
+    const document = renderReviewDocument(
+      { ...payload, pending: [changed], context: [] },
+      await workoutPhrasebook("en"),
+    );
+    const card = document.cards[0];
+    expect(card?.kind).toBe("plot");
+    if (card?.kind !== "plot") throw new Error("Expected plot card");
+    const text = card.caption.blocks.map((block) => block.text).join("\n");
+    expect(text.match(/Estimated training load/g)).toHaveLength(1);
+    expect(text).toContain("40 → 18");
+    expect(text.match(/Stay relaxed\./g)).toHaveLength(1);
+    expect(text).toContain("10 min · 55% FTP");
+    expect(card.chart.segments).toEqual([{ kind: "steady", durationSeconds: 600, target: 55 }]);
+  });
+
+  it("plots a steps-only authored edit without repeating its old or serialized description", async () => {
+    const reviewStructure = {
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 15, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 50 },
+        },
+      ],
+    };
+    const changed: Change = {
+      ...edit,
+      desired: {
+        ...original,
+        durationSeconds: 900,
+        description: "Main set\n- 15m 50%",
+        structure: null,
+      },
+      patch: { durationSeconds: 900, description: "Main set\n- 15m 50%" },
+      reviewStructure,
+    };
+    const document = renderReviewDocument(
+      { ...payload, pending: [changed], context: [] },
+      await workoutPhrasebook("en"),
+    );
+    const card = document.cards[0];
+    expect(card?.kind).toBe("plot");
+    if (card?.kind !== "plot") throw new Error("Expected plot card");
+    expect(card.chart).toMatchObject({
+      durationSeconds: 900,
+      segments: [{ kind: "steady", durationSeconds: 900, target: 50 }],
+    });
+    const text = card.caption.blocks.map((block) => block.text).join("\n");
+    expect(text).toContain("15 min · 50% FTP");
+    expect(text).not.toContain("Main set");
+    expect(text).not.toContain(original.description);
+  });
+
+  it("keeps unsupported and inconsistent structures as complete text cards", async () => {
+    const inconsistent: Change = {
+      ...edit,
+      desired: {
+        ...original,
+        durationSeconds: 900,
+        description: "Keep the final minutes light.",
+        structure: { steps: [{ duration: 600, power: { units: "%ftp", value: 50 } }] },
+      },
+      patch: {
+        durationSeconds: 900,
+        description: "Keep the final minutes light.",
+        structure: { steps: [{ duration: 600, power: { units: "%ftp", value: 50 } }] },
+      },
+    };
+    const document = renderReviewDocument(
+      { ...payload, pending: [inconsistent], context: [] },
+      await workoutPhrasebook("en"),
+    );
+    const card = document.cards[0];
+    expect(card?.kind).toBe("text");
+    if (card?.kind !== "text") throw new Error("Expected text card");
+    const text = card.content.blocks.map((block) => block.text).join("\n");
+    expect(text).toContain("10 min · 50% FTP");
+    expect(text).toContain("Keep the final minutes light.");
   });
 
   it("renders provider workout targets without serializing their document or metadata", async () => {

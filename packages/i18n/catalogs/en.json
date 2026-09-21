@@ -2934,6 +2934,11 @@
       "wrongAction": "Use the action offered with this review."
     },
     "review": {
+      "action": {
+        "add": "Add",
+        "delete": "Delete",
+        "edit": "Edit"
+      },
       "add": "{{index}}. Add: {{details}}\n{{effort}}",
       "alreadyCompleted": "Already completed:",
       "changed": "{{name}} changed in intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nEstimated training load: {{load}}\n{{structure}}",
       "durationUnavailable": "duration unavailable",
       "edit": "{{index}}. Edit workout\nCurrent: {{current}}\nProposed: {{proposed}}",
+      "estimatedLoad": "Estimated training load: {{load}}.",
       "field": {
         "date": "date",
         "description": "description",
@@ -2951,9 +2957,11 @@
         "structure": "effort structure",
         "trainingLoad": "training load"
       },
+      "fieldChanged": "{{field}} changed",
       "kept": "Existing workouts kept:",
       "minutes": "{{minutes}} min",
       "observed": "desired state observed; response not received",
+      "position": "{{current}} of {{total}}",
       "proposedRevision": "Changes to this proposal:\n{{changes}}\nAll other proposed workouts stay unchanged.",
       "remove": "{{index}}. Remove this workout:\n{{details}}",
       "revised": "{{name}}: {{changes}}",

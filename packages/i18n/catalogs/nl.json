@@ -2934,6 +2934,11 @@
       "wrongAction": "Gebruik de actie die bij deze controle wordt aangeboden."
     },
     "review": {
+      "action": {
+        "add": "Toevoegen",
+        "delete": "Verwijderen",
+        "edit": "Bewerken"
+      },
       "add": "{{index}}. Toevoegen: {{details}}\n{{effort}}",
       "alreadyCompleted": "Al voltooid:",
       "changed": "{{name}} is gewijzigd in intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nGeschatte trainingsbelasting: {{load}}\n{{structure}}",
       "durationUnavailable": "duur niet beschikbaar",
       "edit": "{{index}}. Training wijzigen\nHuidig: {{current}}\nVoorgesteld: {{proposed}}",
+      "estimatedLoad": "Geschatte trainingsbelasting: {{load}}.",
       "field": {
         "date": "datum",
         "description": "beschrijving",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "trainingsbelasting",
         "effort": "inspanning"
       },
+      "fieldChanged": "{{field}} gewijzigd",
       "kept": "Bestaande trainingen blijven behouden:",
       "minutes": "{{minutes}} min",
       "observed": "gewenste toestand waargenomen; geen antwoord ontvangen",
+      "position": "{{current}} van {{total}}",
       "remove": "{{index}}. Deze training verwijderen:\n{{details}}",
       "summary": "{{adds}} toevoegingen, {{edits}} wijzigingen, {{deletions}} verwijderingen · {{duration}} voor toegevoegde of gewijzigde trainingen",
       "title": "Controleer alle trainingswijzigingen",

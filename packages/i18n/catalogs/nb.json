@@ -2934,6 +2934,11 @@
       "wrongAction": "Bruk handlingen som tilbys med denne gjennomgangen."
     },
     "review": {
+      "action": {
+        "add": "Legg til",
+        "delete": "Slett",
+        "edit": "Rediger"
+      },
       "add": "{{index}}. Legg til: {{details}}\n{{effort}}",
       "alreadyCompleted": "Allerede fullført:",
       "changed": "{{name}} ble endret i intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nEstimert treningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "varighet utilgjengelig",
       "edit": "{{index}}. Endre treningsøkt\nNåværende: {{current}}\nForeslått: {{proposed}}",
+      "estimatedLoad": "Estimert treningsbelastning: {{load}}.",
       "field": {
         "date": "dato",
         "description": "beskrivelse",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "treningsbelastning",
         "effort": "innsats"
       },
+      "fieldChanged": "{{field}} endret",
       "kept": "Eksisterende treningsøkter beholdes:",
       "minutes": "{{minutes}} min",
       "observed": "ønsket tilstand observert; svar ikke mottatt",
+      "position": "{{current}} av {{total}}",
       "remove": "{{index}}. Fjern denne treningsøkten:\n{{details}}",
       "summary": "{{adds}} tillegg, {{edits}} endringer, {{deletions}} slettinger · {{duration}} for nye eller endrede treningsøkter",
       "title": "Se gjennom alle treningsendringer",

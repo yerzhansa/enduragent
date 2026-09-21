@@ -38,12 +38,19 @@ const setStepSchema = z.object({
   recovery: simpleStepSchema,
 });
 
-export const intervalsWorkoutInputSchema = z.object({
+export const intervalsWorkoutStepsSchema = z.object({
+  steps: z
+    .array(z.union([simpleStepSchema, setStepSchema]))
+    .min(1)
+    .max(40),
+});
+
+export const intervalsWorkoutInputSchema = intervalsWorkoutStepsSchema.extend({
   name: z.string().min(1).max(120),
-  steps: z.array(z.union([simpleStepSchema, setStepSchema])).min(1).max(40),
 });
 
 export type IntervalsWorkoutInput = z.infer<typeof intervalsWorkoutInputSchema>;
+export type IntervalsWorkoutSteps = z.infer<typeof intervalsWorkoutStepsSchema>;
 
 type SimpleStep = z.infer<typeof simpleStepSchema>;
 type SetStep = z.infer<typeof setStepSchema>;
@@ -71,7 +78,9 @@ function formatDuration(d: DurationInput): string {
 
 function assertZone(n: number, path: string): void {
   if (!Number.isInteger(n) || n < MIN_ZONE || n > MAX_ZONE) {
-    throw new InvalidWorkoutError(`${path}: zone must be an integer ${MIN_ZONE}-${MAX_ZONE}, got ${n}`);
+    throw new InvalidWorkoutError(
+      `${path}: zone must be an integer ${MIN_ZONE}-${MAX_ZONE}, got ${n}`,
+    );
   }
 }
 
@@ -79,10 +88,14 @@ function validatePowerBounds(p: PowerTarget, path: string): void {
   const check = (v: number | undefined, name: string): void => {
     if (v === undefined) return;
     if (p.kind === "watts" && v > MAX_WATTS) {
-      throw new InvalidWorkoutError(`${path}.power.${name}: ${v}w exceeds sanity bound ${MAX_WATTS}w`);
+      throw new InvalidWorkoutError(
+        `${path}.power.${name}: ${v}w exceeds sanity bound ${MAX_WATTS}w`,
+      );
     }
     if (p.kind === "percent_ftp" && v > MAX_PERCENT_FTP) {
-      throw new InvalidWorkoutError(`${path}.power.${name}: ${v}% exceeds sanity bound ${MAX_PERCENT_FTP}%`);
+      throw new InvalidWorkoutError(
+        `${path}.power.${name}: ${v}% exceeds sanity bound ${MAX_PERCENT_FTP}%`,
+      );
     }
   };
   check(p.value, "value");
@@ -200,15 +213,18 @@ function totalSeconds(steps: AnyStep[]): number {
   return Math.round(total);
 }
 
-export function serializeIntervalsWorkout(
-  input: IntervalsWorkoutInput,
-): { description: string; movingTime: number } {
+export function serializeIntervalsWorkout(input: IntervalsWorkoutInput): {
+  description: string;
+  movingTime: number;
+} {
   // Defense in depth: tool callers already pass a parsed object via zodSchema(),
   // but direct callers (tests, future library use) may not. Wrap ZodError so
   // both paths surface as InvalidWorkoutError to consumers.
   const parsed = intervalsWorkoutInputSchema.safeParse(input);
   if (!parsed.success) {
-    throw new InvalidWorkoutError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
+    throw new InvalidWorkoutError(
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+    );
   }
   const checked = parsed.data;
   checked.steps.forEach((s, i) => preValidate(s, `steps[${i}]`));
@@ -242,4 +258,12 @@ export function serializeIntervalsWorkout(
     description: lines.join("\n"),
     movingTime: totalSeconds(checked.steps),
   };
+}
+
+export function serializeIntervalsWorkoutSteps(input: IntervalsWorkoutSteps): {
+  description: string;
+  movingTime: number;
+} {
+  const checked = intervalsWorkoutStepsSchema.parse(input);
+  return serializeIntervalsWorkout({ name: "Structured workout", steps: checked.steps });
 }

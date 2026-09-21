@@ -2898,6 +2898,11 @@
       "wrongAction": "請使用此次檢查提供的操作。"
     },
     "review": {
+      "action": {
+        "add": "新增",
+        "delete": "刪除",
+        "edit": "編輯"
+      },
       "add": "{{index}}. 新增：{{details}}\n{{effort}}",
       "alreadyCompleted": "已完成：",
       "changed": "{{name}} 已在 intervals.icu 中變更：{{changes}}。",
@@ -2906,6 +2911,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n預估訓練負荷：{{load}}\n{{structure}}",
       "durationUnavailable": "時長無法取得",
       "edit": "{{index}}. 編輯訓練\n目前：{{current}}\n建議：{{proposed}}",
+      "estimatedLoad": "預估訓練負荷：{{load}}。",
       "field": {
         "date": "日期",
         "description": "描述",
@@ -2915,9 +2921,11 @@
         "trainingLoad": "訓練負荷",
         "effort": "強度"
       },
+      "fieldChanged": "{{field}}已變更",
       "kept": "保留的現有訓練：",
       "minutes": "{{minutes}} 分鐘",
       "observed": "已觀察到目標狀態；未收到回應",
+      "position": "第 {{current}} 項，共 {{total}} 項",
       "remove": "{{index}}. 刪除此訓練：\n{{details}}",
       "summary": "新增 {{adds}} 項，編輯 {{edits}} 項，刪除 {{deletions}} 項 · 新增或編輯的訓練時長：{{duration}}",
       "title": "檢查所有訓練變更",

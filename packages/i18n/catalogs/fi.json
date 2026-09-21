@@ -2934,6 +2934,11 @@
       "wrongAction": "Käytä tämän tarkistuksen yhteydessä tarjottua toimintoa."
     },
     "review": {
+      "action": {
+        "add": "Lisää",
+        "delete": "Poista",
+        "edit": "Muokkaa"
+      },
       "add": "{{index}}. Lisää: {{details}}\n{{effort}}",
       "alreadyCompleted": "Jo tehty:",
       "changed": "{{name}} muuttui intervals.icu-palvelussa: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nArvioitu harjoituskuormitus: {{load}}\n{{structure}}",
       "durationUnavailable": "kesto ei saatavilla",
       "edit": "{{index}}. Muokkaa harjoitusta\nNykyinen: {{current}}\nEhdotettu: {{proposed}}",
+      "estimatedLoad": "Arvioitu harjoituskuormitus: {{load}}.",
       "field": {
         "date": "päivämäärä",
         "description": "kuvaus",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "harjoituskuormitus",
         "effort": "rasittavuus"
       },
+      "fieldChanged": "{{field}} muuttui",
       "kept": "Säilytettävät nykyiset harjoitukset:",
       "minutes": "{{minutes}} min",
       "observed": "haluttu tila havaittu; vastausta ei saatu",
+      "position": "{{current}} / {{total}}",
       "remove": "{{index}}. Poista tämä harjoitus:\n{{details}}",
       "summary": "{{adds}} lisäystä, {{edits}} muokkausta, {{deletions}} poistoa · {{duration}} lisätyille tai muokatuille harjoituksille",
       "title": "Tarkista kaikki harjoitusmuutokset",

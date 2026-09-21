@@ -2898,6 +2898,11 @@
       "wrongAction": "この確認画面で提示された操作を使用してください。"
     },
     "review": {
+      "action": {
+        "add": "追加",
+        "delete": "削除",
+        "edit": "編集"
+      },
       "add": "{{index}}. 追加: {{details}}\n{{effort}}",
       "alreadyCompleted": "すでに完了:",
       "changed": "intervals.icuで{{name}}が変更されました: {{changes}}。",
@@ -2906,6 +2911,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n推定トレーニング負荷: {{load}}\n{{structure}}",
       "durationUnavailable": "所要時間を取得できません",
       "edit": "{{index}}. ワークアウトを編集\n現在: {{current}}\n提案: {{proposed}}",
+      "estimatedLoad": "推定トレーニング負荷: {{load}}。",
       "field": {
         "date": "日付",
         "description": "説明",
@@ -2915,9 +2921,11 @@
         "trainingLoad": "トレーニング負荷",
         "effort": "運動強度"
       },
+      "fieldChanged": "{{field}}を変更",
       "kept": "維持される既存のワークアウト:",
       "minutes": "{{minutes}}分",
       "observed": "目的の状態を確認済み、応答は未受信",
+      "position": "{{total}}件中{{current}}件目",
       "remove": "{{index}}. このワークアウトを削除:\n{{details}}",
       "summary": "追加 {{adds}}件、編集 {{edits}}件、削除 {{deletions}}件 · 追加または編集するワークアウトの時間: {{duration}}",
       "title": "すべてのワークアウト変更を確認",

@@ -2898,6 +2898,11 @@
       "wrongAction": "请使用此次检查提供的操作。"
     },
     "review": {
+      "action": {
+        "add": "添加",
+        "delete": "删除",
+        "edit": "编辑"
+      },
       "add": "{{index}}. 添加：{{details}}\n{{effort}}",
       "alreadyCompleted": "已完成：",
       "changed": "{{name}} 已在 intervals.icu 中更改：{{changes}}。",
@@ -2906,6 +2911,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n预计训练负荷：{{load}}\n{{structure}}",
       "durationUnavailable": "时长不可用",
       "edit": "{{index}}. 编辑训练\n当前：{{current}}\n建议：{{proposed}}",
+      "estimatedLoad": "预计训练负荷：{{load}}。",
       "field": {
         "date": "日期",
         "description": "描述",
@@ -2915,9 +2921,11 @@
         "trainingLoad": "训练负荷",
         "effort": "强度"
       },
+      "fieldChanged": "{{field}}已更改",
       "kept": "保留的现有训练：",
       "minutes": "{{minutes}} 分钟",
       "observed": "已观察到目标状态；未收到响应",
+      "position": "第 {{current}} 项，共 {{total}} 项",
       "remove": "{{index}}. 删除此训练：\n{{details}}",
       "summary": "添加 {{adds}} 项，编辑 {{edits}} 项，删除 {{deletions}} 项 · 添加或编辑的训练时长：{{duration}}",
       "title": "检查所有训练更改",

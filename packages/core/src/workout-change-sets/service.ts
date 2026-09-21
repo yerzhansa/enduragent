@@ -24,13 +24,21 @@ import {
   type Record,
   type Snapshot,
 } from "./record.js";
-import { renderNotice, renderReview, successes } from "./review.js";
+import {
+  renderNotice,
+  renderReview,
+  renderReviewDocument,
+  reviewCounts,
+  successes,
+} from "./review.js";
+import type { WorkoutReviewPresentation } from "./presentation.js";
 import { digest, openStore } from "./store.js";
 import { preparePending } from "./preparation.js";
 
 export interface ReviewDelivery {
   readonly handle: string | null;
   readonly text: string;
+  readonly presentation: WorkoutReviewPresentation;
 }
 export interface ArmedControl {
   readonly token: string;
@@ -332,7 +340,14 @@ export async function openWorkoutChangeSets(input: {
               case "edit":
                 return {
                   id: change.id,
-                  change: { kind: "edit", eventId: change.reviewed.eventId, patch: change.patch },
+                  change: {
+                    kind: "edit",
+                    eventId: change.reviewed.eventId,
+                    patch: change.patch,
+                    ...(change.reviewStructure === undefined
+                      ? {}
+                      : { reviewStructure: change.reviewStructure }),
+                  },
                   reviewed: change.reviewed,
                   desired: change.desired,
                 };
@@ -491,17 +506,20 @@ export async function openWorkoutChangeSets(input: {
           return {
             handle: null,
             text: `${successes(state.finished, book)}${book.say(state.kind === "completed" ? "workouts.outcome.complete" : "workouts.outcome.canceled")}`,
+            presentation: { kind: "text" },
           };
         if (state.kind === "uncertain" || state.kind === "blocked")
           return {
             handle: null,
             text: `${successes(state.finished, book)}${renderNotice(state.notice, book)}`,
+            presentation: { kind: "text" },
           };
         if (state.kind === "abandoned") {
           if (state.delivery === null && !request.redisplay) return null;
           return {
             handle: state.delivery,
             text: `${successes(state.finished, book)}${book.say("workouts.outcome.incomplete")}`,
+            presentation: { kind: "text" },
           };
         }
         if (state.kind === "awaiting-approval" && request.redisplay) {
@@ -514,10 +532,18 @@ export async function openWorkoutChangeSets(input: {
             notice: state.notice,
             delivery,
           });
-          return { handle: delivery, text: renderReview(state, book) };
+          return {
+            handle: delivery,
+            text: renderReview(state, book),
+            presentation: { kind: "cards", document: renderReviewDocument(state, book) },
+          };
         }
         if (state.kind !== "review-ready" && state.kind !== "retry-ready") return null;
-        return { handle: state.delivery, text: renderReview(state, book) };
+        return {
+          handle: state.delivery,
+          text: renderReview(state, book),
+          presentation: { kind: "cards", document: renderReviewDocument(state, book) },
+        };
       }),
     acknowledgeDelivery: (request) =>
       serial(async () => {
@@ -549,9 +575,9 @@ export async function openWorkoutChangeSets(input: {
         return {
           token,
           kind,
-          prompt: book.say(
+          prompt: `${reviewCounts(state, book)}\n${book.say(
             kind === "retry" ? "workouts.approval.retryPrompt" : "workouts.approval.applyPrompt",
-          ),
+          )}`,
         };
       }),
     resolve: (request) =>

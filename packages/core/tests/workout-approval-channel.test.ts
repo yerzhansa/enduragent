@@ -8,7 +8,11 @@ import {
 
 function fixture(kind: "approval" | "retry" = "approval") {
   const approvals: WorkoutApprovalChannel = {
-    review: vi.fn(async () => ({ handle: "review", text: "Add Easy ride and edit Strength." })),
+    review: vi.fn(async () => ({
+      handle: "review",
+      text: "Add Easy ride and edit Strength.",
+      presentation: { kind: "text" as const },
+    })),
     acknowledgeDelivery: vi.fn(async () => ({
       kind,
       token: "synthetic_token_123456",
@@ -20,6 +24,46 @@ function fixture(kind: "approval" | "retry" = "approval") {
 }
 
 describe("workout approval channel", () => {
+  it("delivers a complete card document before acknowledging it", async () => {
+    const approvals = fixture();
+    approvals.review = vi.fn(async () => ({
+      handle: "review",
+      text: "Terminal review",
+      presentation: {
+        kind: "cards" as const,
+        document: {
+          introduction: "Review all workout changes",
+          cards: [],
+          context: "",
+          summary: "1 addition",
+        },
+      },
+    }));
+    const order: string[] = [];
+    approvals.acknowledgeDelivery = vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => {
+      order.push("acknowledge");
+      return { kind: "approval", token: "synthetic_token_123456", prompt: "Review complete." };
+    });
+    const delivered = vi.fn(async () => {});
+    const deliveredDocument = vi.fn(async () => {
+      order.push("document");
+    });
+    const controls = vi.fn(async () => {});
+    await deliverWorkoutReview({
+      approvals,
+      chatId: "telegram:fictional",
+      language: "en",
+      deliver: delivered,
+      deliverDocument: deliveredDocument,
+      controls,
+    });
+    expect(delivered).not.toHaveBeenCalled();
+    expect(deliveredDocument).toHaveBeenCalledOnce();
+    expect(approvals.acknowledgeDelivery).toHaveBeenCalledOnce();
+    expect(order).toEqual(["document", "acknowledge"]);
+    expect(controls).toHaveBeenCalledOnce();
+  });
+
   it("does not acknowledge or show a control after incomplete delivery", async () => {
     const approvals = fixture();
     const controls = vi.fn();

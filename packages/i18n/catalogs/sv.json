@@ -2934,6 +2934,11 @@
       "wrongAction": "Använd åtgärden som erbjuds med denna granskning."
     },
     "review": {
+      "action": {
+        "add": "Lägg till",
+        "delete": "Ta bort",
+        "edit": "Redigera"
+      },
       "add": "{{index}}. Lägg till: {{details}}\n{{effort}}",
       "alreadyCompleted": "Redan genomfört:",
       "changed": "{{name}} ändrades i intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nUppskattad träningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "längd saknas",
       "edit": "{{index}}. Ändra träningspass\nNuvarande: {{current}}\nFöreslaget: {{proposed}}",
+      "estimatedLoad": "Uppskattad träningsbelastning: {{load}}.",
       "field": {
         "date": "datum",
         "description": "beskrivning",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "träningsbelastning",
         "effort": "ansträngning"
       },
+      "fieldChanged": "{{field}} ändrades",
       "kept": "Befintliga träningspass behålls:",
       "minutes": "{{minutes}} min",
       "observed": "önskat tillstånd observerat; svar inte mottaget",
+      "position": "{{current}} av {{total}}",
       "remove": "{{index}}. Ta bort detta träningspass:\n{{details}}",
       "summary": "{{adds}} tillägg, {{edits}} ändringar, {{deletions}} borttagningar · {{duration}} för tillagda eller ändrade träningspass",
       "title": "Granska alla träningsändringar",

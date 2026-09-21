@@ -9,7 +9,9 @@ import {
 } from "@enduragent/engine/sport";
 import {
   intervalsWorkoutInputSchema,
+  intervalsWorkoutStepsSchema,
   serializeIntervalsWorkout,
+  serializeIntervalsWorkoutSteps,
   type IntervalsWorkoutInput,
 } from "./intervals-serializer.js";
 
@@ -74,6 +76,23 @@ export const workoutChangeSetInputSchema = z.discriminatedUnion("kind", [
 
 const toolInputSchema = z.strictObject({ preparation: workoutChangeSetInputSchema });
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function looksLikeAuthoredStep(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  if ("type" in value || "repeat" in value || "interval" in value || "recovery" in value)
+    return true;
+  if (isObject(value.duration) && ("value" in value.duration || "unit" in value.duration))
+    return true;
+  return isObject(value.power) && "kind" in value.power;
+}
+
+function looksLikeAuthoredStructure(value: unknown): boolean {
+  return isObject(value) && Array.isArray(value.steps) && value.steps.some(looksLikeAuthoredStep);
+}
+
 function cyclingEffort(workout: IntervalsWorkoutInput): string {
   const efforts = new Set<string>();
   const visit = (step: IntervalsWorkoutInput["steps"][number]): void => {
@@ -127,6 +146,7 @@ function prepareChange(change: z.infer<typeof changeSchema>): PreparedChange {
         description: serialized.description,
         effort: cyclingEffort(change.workout),
         structure: null,
+        reviewStructure: change.workout,
         trainingLoad: change.trainingLoad ?? null,
       };
     }
@@ -147,8 +167,27 @@ function prepareChange(change: z.infer<typeof changeSchema>): PreparedChange {
         trainingLoad: change.trainingLoad ?? null,
       };
     }
-    case "edit":
-      return { kind: "edit", eventId: change.eventId, patch: change.patch };
+    case "edit": {
+      const structure = change.patch.structure;
+      if (structure === undefined || !looksLikeAuthoredStructure(structure))
+        return { kind: "edit", eventId: change.eventId, patch: change.patch };
+      const reviewStructure = intervalsWorkoutStepsSchema.parse(structure);
+      const serialized = serializeIntervalsWorkoutSteps(reviewStructure);
+      if (!Number.isSafeInteger(serialized.movingTime) || serialized.movingTime <= 0) {
+        throw new Error("Workout duration must be a finite number of seconds greater than zero.");
+      }
+      const { structure: _structure, ...patch } = change.patch;
+      return {
+        kind: "edit",
+        eventId: change.eventId,
+        patch: {
+          ...patch,
+          durationSeconds: serialized.movingTime,
+          description: serialized.description,
+        },
+        reviewStructure,
+      };
+    }
     case "delete":
       return change;
     default: {
@@ -204,7 +243,7 @@ export const cyclingWorkoutPreparation: WorkoutPreparationCapability = {
       "Preserve unspecified fields in selected items. Keep each item's action kind and existing calendar event ID; use replace for an explicitly requested whole-set replacement. " +
       "Use complete only without a pending set. Pending item IDs differ from calendar event IDs. " +
       "Cycling additions use structured steps converted to native workout text. Strength additions require explicit durationMinutes and effort. " +
-      "Edit patches accept date, name, durationSeconds, description, trainingLoad, and structure (the platform workout document). " +
+      "Edit patches accept date, name, durationSeconds, description, trainingLoad, and structure. Structure may be a platform workout document or authored cycling steps; authored steps become the saved native description and duration. " +
       "Today and future dates only; edits and deletions require coach-created workouts. Existing same-date workouts are preserved.";
     return {
       name: "prepare_workout_changes",

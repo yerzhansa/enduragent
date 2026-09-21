@@ -3006,6 +3006,11 @@
       "wrongAction": "Użyj działania dostępnego przy tym przeglądzie."
     },
     "review": {
+      "action": {
+        "add": "Dodaj",
+        "delete": "Usuń",
+        "edit": "Edytuj"
+      },
       "add": "{{index}}. Dodaj: {{details}}\n{{effort}}",
       "alreadyCompleted": "Już wykonane:",
       "changed": "{{name}} zmienił się w intervals.icu: {{changes}}.",
@@ -3014,6 +3019,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nSzacowane obciążenie treningowe: {{load}}\n{{structure}}",
       "durationUnavailable": "czas trwania niedostępny",
       "edit": "{{index}}. Edytuj trening\nObecny: {{current}}\nProponowany: {{proposed}}",
+      "estimatedLoad": "Szacowane obciążenie treningowe: {{load}}.",
       "field": {
         "date": "data",
         "description": "opis",
@@ -3023,9 +3029,11 @@
         "trainingLoad": "obciążenie treningowe",
         "effort": "wysiłek"
       },
+      "fieldChanged": "Zmieniono: {{field}}",
       "kept": "Zachowane istniejące treningi:",
       "minutes": "{{minutes}} min",
       "observed": "zaobserwowano żądany stan; nie otrzymano odpowiedzi",
+      "position": "{{current}} z {{total}}",
       "remove": "{{index}}. Usuń ten trening:\n{{details}}",
       "summary": "Dodane: {{adds}}, edytowane: {{edits}}, usunięte: {{deletions}} · {{duration}} dla dodanych lub edytowanych treningów",
       "title": "Sprawdź wszystkie zmiany treningów",

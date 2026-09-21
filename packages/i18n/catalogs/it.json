@@ -2934,6 +2934,11 @@
       "wrongAction": "Usa l’azione offerta con questa revisione."
     },
     "review": {
+      "action": {
+        "add": "Aggiungi",
+        "delete": "Elimina",
+        "edit": "Modifica"
+      },
       "add": "{{index}}. Aggiungi: {{details}}\n{{effort}}",
       "alreadyCompleted": "Già completato:",
       "changed": "{{name}} è cambiato su intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarico di allenamento stimato: {{load}}\n{{structure}}",
       "durationUnavailable": "durata non disponibile",
       "edit": "{{index}}. Modifica allenamento\nAttuale: {{current}}\nProposto: {{proposed}}",
+      "estimatedLoad": "Carico di allenamento stimato: {{load}}.",
       "field": {
         "date": "data",
         "description": "descrizione",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "carico di allenamento",
         "effort": "sforzo"
       },
+      "fieldChanged": "{{field}} modificato",
       "kept": "Allenamenti esistenti mantenuti:",
       "minutes": "{{minutes}} min",
       "observed": "stato desiderato osservato; risposta non ricevuta",
+      "position": "{{current}} di {{total}}",
       "remove": "{{index}}. Rimuovi questo allenamento:\n{{details}}",
       "summary": "{{adds}} aggiunte, {{edits}} modifiche, {{deletions}} eliminazioni · {{duration}} per gli allenamenti aggiunti o modificati",
       "title": "Controlla tutte le modifiche agli allenamenti",

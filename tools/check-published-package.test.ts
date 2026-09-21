@@ -44,6 +44,8 @@ function validFixture(): { entries: Map<string, Buffer>; repoRoot: string } {
         "package/dist/NOTICE.md": "project notice\n",
         "package/dist/THIRD_PARTY_LICENSES.txt": aggregate,
         "package/dist/bundled-model-catalog.json": "{}\n",
+        "package/dist/workout-chart-font.otf": "synthetic font",
+        "package/dist/workout-chart-font.LICENSE.txt": "synthetic font license",
         "package/README.md": "readme",
         "package/package.json": "{}",
       }).map(([path, contents]) => [path, Buffer.from(contents)]),
@@ -52,6 +54,16 @@ function validFixture(): { entries: Map<string, Buffer>; repoRoot: string } {
 }
 
 describe("published package verifier", () => {
+  it.each(["workout-chart-font.otf", "workout-chart-font.LICENSE.txt"])(
+    "rejects a package missing the chart asset %s",
+    (filename) => {
+      const target = validFixture();
+      target.entries.delete(`package/dist/${filename}`);
+      expect(() => verifyTarEntries(target.entries, target.repoRoot)).toThrow(
+        `missing package/dist/${filename}`,
+      );
+    },
+  );
   it("accepts complete, byte-identical, ordered legal artifacts", () => {
     const target = validFixture();
     expect(() => verifyTarEntries(target.entries, target.repoRoot)).not.toThrow();

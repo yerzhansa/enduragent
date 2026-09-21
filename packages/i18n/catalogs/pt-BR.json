@@ -2934,6 +2934,11 @@
       "wrongAction": "Use a ação oferecida com esta revisão."
     },
     "review": {
+      "action": {
+        "add": "Adicionar",
+        "delete": "Excluir",
+        "edit": "Editar"
+      },
       "add": "{{index}}. Adicionar: {{details}}\n{{effort}}",
       "alreadyCompleted": "Já concluído:",
       "changed": "{{name}} mudou no intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarga de treino estimada: {{load}}\n{{structure}}",
       "durationUnavailable": "duração indisponível",
       "edit": "{{index}}. Editar treino\nAtual: {{current}}\nProposto: {{proposed}}",
+      "estimatedLoad": "Carga de treino estimada: {{load}}.",
       "field": {
         "date": "data",
         "description": "descrição",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "carga de treino",
         "effort": "esforço"
       },
+      "fieldChanged": "{{field}} alterado",
       "kept": "Treinos existentes mantidos:",
       "minutes": "{{minutes}} min",
       "observed": "estado desejado observado; resposta não recebida",
+      "position": "{{current}} de {{total}}",
       "remove": "{{index}}. Remover este treino:\n{{details}}",
       "summary": "{{adds}} adições, {{edits}} edições, {{deletions}} exclusões · {{duration}} para treinos adicionados ou editados",
       "title": "Revise todas as alterações nos treinos",

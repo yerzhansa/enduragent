@@ -1,7 +1,14 @@
 import type { CatalogKey } from "@enduragent/i18n";
 import type { Phrasebook } from "@enduragent/i18n/messages";
 import type { Change, Notice, Payload, Receipt, Snapshot } from "./record.js";
-import { readableEffort } from "./effort.js";
+import { readableEffort, workoutEffortPlot } from "./effort.js";
+import type {
+  WorkoutCardBlock,
+  WorkoutChartModel,
+  WorkoutChartSegment,
+  WorkoutChartUnit,
+  WorkoutReviewDocument,
+} from "./presentation.js";
 
 function minutes(value: number | null, book: Phrasebook): string {
   return value === null
@@ -30,6 +37,83 @@ function details(value: Omit<Snapshot, "eventId">, book: Phrasebook): string {
             }),
     })
     .trimEnd();
+}
+
+function estimate(value: number | null, book: Phrasebook): string {
+  const displayed =
+    value === null ? book.say("workouts.review.unavailable") : book.format.number(value);
+  return book.say("workouts.review.estimatedLoad", { load: displayed });
+}
+
+function plotUnit(unit: WorkoutChartUnit, book: Phrasebook): string {
+  if (unit === "percent_ftp") return "% FTP";
+  if (unit === "watts") return "W";
+  return book.say("training.ride.zone");
+}
+
+function chart(input: {
+  readonly name: string;
+  readonly date: string;
+  readonly durationSeconds: number;
+  readonly unit: WorkoutChartUnit;
+  readonly segments: readonly WorkoutChartSegment[];
+  readonly book: Phrasebook;
+}): WorkoutChartModel {
+  const duration = minutes(input.durationSeconds, input.book);
+  const unit = plotUnit(input.unit, input.book);
+  return {
+    title: input.name,
+    subtitle: `${input.date} · ${duration}`,
+    axisLabel: `${input.book.say("workouts.review.field.effort")} · ${unit}`,
+    startLabel: input.book.format.number(0),
+    endLabel: duration,
+    unit: input.unit,
+    durationSeconds: input.durationSeconds,
+    segments: input.segments,
+  };
+}
+
+function descriptionBlocks(description: string | null, book: Phrasebook): WorkoutCardBlock[] {
+  if (description === null) return [];
+  return [
+    { kind: "heading", text: book.say("workouts.review.field.description") },
+    { kind: "text", text: description },
+  ];
+}
+
+export function reviewCounts(payload: Payload, book: Phrasebook): string {
+  const adds = payload.pending.filter((change) => change.kind === "add").length;
+  const edits = payload.pending.filter((change) => change.kind === "edit").length;
+  const deletions = payload.pending.filter((change) => change.kind === "delete").length;
+  const durations = payload.pending.flatMap((change) =>
+    change.kind === "add"
+      ? [change.prepared.durationSeconds]
+      : change.kind === "edit"
+        ? [change.desired.durationSeconds]
+        : [],
+  );
+  const duration = durations.some((value) => value === null)
+    ? book.say("workouts.review.totalUnavailable")
+    : minutes(
+        durations.reduce<number>((sum, value) => sum + (value ?? 0), 0),
+        book,
+      );
+  return book.say("workouts.review.summary", {
+    adds: book.format.number(adds),
+    edits: book.format.number(edits),
+    deletions: book.format.number(deletions),
+    duration,
+  });
+}
+
+function reviewContext(payload: Payload, book: Phrasebook): string {
+  if (payload.context.length === 0) return "";
+  return `${book.say("workouts.review.kept")}\n${payload.context.map((value) => `${value.date} · ${value.name ?? book.say("coach.proposal.unnamed")} · ${minutes(value.durationSeconds, book)}`).join("\n")}`;
+}
+
+export function reviewSummary(payload: Payload, book: Phrasebook): string {
+  const context = reviewContext(payload, book);
+  return `${reviewCounts(payload, book)}${context === "" ? "" : `\n\n${context}`}`;
 }
 
 export function changeLabel(change: Change, book: Phrasebook): string {
@@ -69,34 +153,175 @@ export function renderReview(payload: Payload, book: Phrasebook): string {
       proposed: details(change.desired, book),
     });
   });
-  const adds = payload.pending.filter((change) => change.kind === "add").length;
-  const edits = payload.pending.filter((change) => change.kind === "edit").length;
-  const deletions = payload.pending.filter((change) => change.kind === "delete").length;
-  const durations = payload.pending.flatMap((change) =>
-    change.kind === "add"
-      ? [change.prepared.durationSeconds]
-      : change.kind === "edit"
-        ? [change.desired.durationSeconds]
-        : [],
-  );
-  const duration = durations.some((value) => value === null)
-    ? book.say("workouts.review.totalUnavailable")
-    : minutes(
-        durations.reduce<number>((sum, value) => sum + (value ?? 0), 0),
-        book,
-      );
-  const context =
-    payload.context.length === 0
-      ? ""
-      : `\n\n${book.say("workouts.review.kept")}\n${payload.context.map((value) => `${value.date} · ${value.name ?? book.say("coach.proposal.unnamed")} · ${minutes(value.durationSeconds, book)}`).join("\n")}`;
-  const summary = book.say("workouts.review.summary", {
-    adds: book.format.number(adds),
-    edits: book.format.number(edits),
-    deletions: book.format.number(deletions),
-    duration,
-  });
+  const summary = reviewSummary(payload, book);
   const notice = renderNotice(payload.notice, book);
-  return `${notice ? `${notice}\n\n` : ""}${successes(payload.finished, book)}${book.say("workouts.review.title")}\n\n${lines.join("\n\n")}\n\n${summary}${context}`;
+  return `${notice ? `${notice}\n\n` : ""}${successes(payload.finished, book)}${book.say("workouts.review.title")}\n\n${lines.join("\n\n")}\n\n${summary}`;
+}
+
+function cardChangedFields(
+  before: Omit<Snapshot, "eventId">,
+  after: Omit<Snapshot, "eventId">,
+  book: Phrasebook,
+): string[] {
+  const changed = fields.flatMap(({ field, key }) => {
+    const previous = before[field];
+    const current = after[field];
+    if (JSON.stringify(previous) === JSON.stringify(current)) return [];
+    if (field === "trainingLoad") {
+      const oldValue =
+        before.trainingLoad === null
+          ? book.say("workouts.review.unavailable")
+          : book.format.number(before.trainingLoad);
+      const newValue =
+        after.trainingLoad === null
+          ? book.say("workouts.review.unavailable")
+          : book.format.number(after.trainingLoad);
+      return [book.say("workouts.review.estimatedLoad", { load: `${oldValue} → ${newValue}` })];
+    }
+    if (field === "structure") return [book.say("workouts.review.structureChanged")];
+    if (field === "description")
+      return [book.say("workouts.review.fieldChanged", { field: book.say(key) })];
+    const oldValue = fieldValue(before, field, book);
+    const newValue = fieldValue(after, field, book);
+    return [`${book.say(key)}: ${oldValue} → ${newValue}`];
+  });
+  return changed;
+}
+
+function isCompactEdit(change: Extract<Change, { kind: "edit" }>): boolean {
+  return Object.entries(change.patch)
+    .filter(([, value]) => value !== undefined)
+    .every(([field]) => field === "name" || field === "date");
+}
+
+function contentForChange(
+  change: Change,
+  index: number,
+  total: number,
+  book: Phrasebook,
+): WorkoutReviewDocument["cards"][number] {
+  const position = book.say("workouts.review.position", {
+    current: book.format.number(index + 1),
+    total: book.format.number(total),
+  });
+  if (change.kind === "delete")
+    return {
+      kind: "text",
+      content: {
+        blocks: [
+          { kind: "heading", text: change.reviewed.name ?? book.say("coach.proposal.unnamed") },
+          {
+            kind: "text",
+            text: `− ${book.say("workouts.review.action.delete")} · ${position} · ${change.reviewed.date}`,
+          },
+        ],
+      },
+    };
+
+  if (change.kind === "add") {
+    const value = change.prepared;
+    const plot =
+      value.sport === "cycling"
+        ? workoutEffortPlot({
+            structure: value.reviewStructure ?? value.structure,
+            durationSeconds: value.durationSeconds,
+          })
+        : null;
+    const blocks: WorkoutCardBlock[] = [
+      { kind: "heading", text: value.name },
+      {
+        kind: "text",
+        text: `+ ${book.say("workouts.review.action.add")} · ${position} · ${value.date} · ${minutes(value.durationSeconds, book)}`,
+      },
+    ];
+    if (plot === null) {
+      blocks.push({ kind: "heading", text: book.say("workouts.review.field.effort") });
+      blocks.push({ kind: "text", text: value.effort });
+      blocks.push({ kind: "heading", text: book.say("workouts.review.field.description") });
+      blocks.push({ kind: "text", text: value.description });
+    } else {
+      blocks.push({ kind: "heading", text: book.say("workouts.review.field.effort") });
+      blocks.push({
+        kind: "text",
+        text: readableEffort(value.reviewStructure ?? value.structure, book),
+      });
+      if (value.reviewStructure === undefined) {
+        blocks.push({ kind: "heading", text: book.say("workouts.review.field.description") });
+        blocks.push({ kind: "text", text: value.description });
+      }
+    }
+    blocks.push({ kind: "heading", text: estimate(value.trainingLoad, book) });
+    if (plot === null) return { kind: "text", content: { blocks } };
+    return {
+      kind: "plot",
+      chart: chart({
+        name: value.name,
+        date: value.date,
+        durationSeconds: value.durationSeconds,
+        unit: plot.unit,
+        segments: plot.segments,
+        book,
+      }),
+      caption: { blocks },
+    };
+  }
+
+  const name = change.desired.name ?? book.say("coach.proposal.unnamed");
+  const changes = cardChangedFields(change.reviewed, change.desired, book);
+  const blocks: WorkoutCardBlock[] = [
+    { kind: "heading", text: name },
+    {
+      kind: "text",
+      text: `↻ ${book.say("workouts.review.action.edit")} · ${position} · ${change.desired.date} · ${minutes(change.desired.durationSeconds, book)}`,
+    },
+    { kind: "text", text: changes.join("\n") },
+  ];
+  if (change.reviewed.trainingLoad === change.desired.trainingLoad)
+    blocks.push({ kind: "heading", text: estimate(change.desired.trainingLoad, book) });
+  if (isCompactEdit(change)) return { kind: "text", content: { blocks } };
+
+  const reviewStructure = change.reviewStructure ?? change.desired.structure;
+  const plot = workoutEffortPlot({
+    structure: reviewStructure,
+    durationSeconds: change.desired.durationSeconds,
+  });
+  const durationSeconds = change.desired.durationSeconds;
+  if (plot === null || durationSeconds === null) {
+    if (reviewStructure !== null) {
+      blocks.push({ kind: "heading", text: book.say("workouts.review.field.effort") });
+      blocks.push({ kind: "text", text: readableEffort(reviewStructure, book) });
+    }
+    blocks.push(...descriptionBlocks(change.desired.description, book));
+    return { kind: "text", content: { blocks } };
+  }
+  blocks.push({ kind: "heading", text: book.say("workouts.review.field.effort") });
+  blocks.push({ kind: "text", text: readableEffort(reviewStructure, book) });
+  if (change.reviewStructure === undefined)
+    blocks.push(...descriptionBlocks(change.desired.description, book));
+  return {
+    kind: "plot",
+    chart: chart({
+      name,
+      date: change.desired.date,
+      durationSeconds,
+      unit: plot.unit,
+      segments: plot.segments,
+      book,
+    }),
+    caption: { blocks },
+  };
+}
+
+export function renderReviewDocument(payload: Payload, book: Phrasebook): WorkoutReviewDocument {
+  const notice = renderNotice(payload.notice, book);
+  return {
+    introduction: `${notice ? `${notice}\n\n` : ""}${successes(payload.finished, book)}${book.say("workouts.review.title")}`,
+    cards: payload.pending.map((change, index) =>
+      contentForChange(change, index, payload.pending.length, book),
+    ),
+    context: reviewContext(payload, book),
+    summary: reviewCounts(payload, book),
+  };
 }
 
 const fields: readonly { field: Exclude<keyof Snapshot, "eventId">; key: CatalogKey }[] = [

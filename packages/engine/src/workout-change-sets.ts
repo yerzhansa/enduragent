@@ -18,9 +18,15 @@ export type PreparedChange =
       readonly description: string;
       readonly effort: string;
       readonly structure: JsonValue | null;
+      readonly reviewStructure?: JsonValue;
       readonly trainingLoad: number | null;
     }
-  | { readonly kind: "edit"; readonly eventId: number; readonly patch: WorkoutPatch }
+  | {
+      readonly kind: "edit";
+      readonly eventId: number;
+      readonly patch: WorkoutPatch;
+      readonly reviewStructure?: JsonValue;
+    }
   | { readonly kind: "delete"; readonly eventId: number };
 
 export interface WorkoutPatch {

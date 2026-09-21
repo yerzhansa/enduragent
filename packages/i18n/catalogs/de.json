@@ -2934,6 +2934,11 @@
       "wrongAction": "Verwende die bei dieser Prüfung angebotene Aktion."
     },
     "review": {
+      "action": {
+        "add": "Hinzufügen",
+        "delete": "Löschen",
+        "edit": "Bearbeiten"
+      },
       "add": "{{index}}. Hinzufügen: {{details}}\n{{effort}}",
       "alreadyCompleted": "Bereits abgeschlossen:",
       "changed": "{{name}} wurde in intervals.icu geändert: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nGeschätzte Trainingsbelastung: {{load}}\n{{structure}}",
       "durationUnavailable": "Dauer nicht verfügbar",
       "edit": "{{index}}. Training bearbeiten\nAktuell: {{current}}\nVorgeschlagen: {{proposed}}",
+      "estimatedLoad": "Geschätzte Trainingsbelastung: {{load}}.",
       "field": {
         "date": "Datum",
         "description": "Beschreibung",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "Trainingsbelastung",
         "effort": "Belastung"
       },
+      "fieldChanged": "{{field}} geändert",
       "kept": "Vorhandene Trainings bleiben erhalten:",
       "minutes": "{{minutes}} Min.",
       "observed": "gewünschter Zustand festgestellt; Antwort nicht erhalten",
+      "position": "{{current}} von {{total}}",
       "remove": "{{index}}. Dieses Training entfernen:\n{{details}}",
       "summary": "{{adds}} Ergänzungen, {{edits}} Änderungen, {{deletions}} Löschungen · {{duration}} für hinzugefügte oder bearbeitete Trainings",
       "title": "Alle Trainingsänderungen prüfen",

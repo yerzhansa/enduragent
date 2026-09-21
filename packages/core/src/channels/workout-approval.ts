@@ -1,5 +1,6 @@
 import type { WorkoutChangeSets, ArmedControl, Action } from "../workout-change-sets/service.js";
 import { workoutPhrasebook } from "../workout-change-sets/copy.js";
+import type { WorkoutReviewDocument } from "../workout-change-sets/presentation.js";
 
 export type WorkoutApprovalChannel = Pick<
   WorkoutChangeSets,
@@ -22,6 +23,7 @@ export async function deliverWorkoutReview(input: {
   readonly language: string;
   readonly redisplay?: boolean;
   readonly deliver: (text: string) => Promise<void>;
+  readonly deliverDocument?: (document: WorkoutReviewDocument) => Promise<void>;
   readonly controls: (control: ArmedControl) => Promise<void>;
 }): Promise<boolean> {
   const review = await input.approvals.review({
@@ -30,7 +32,9 @@ export async function deliverWorkoutReview(input: {
     redisplay: input.redisplay,
   });
   if (review === null) return false;
-  await input.deliver(review.text);
+  if (review.presentation.kind === "cards" && input.deliverDocument !== undefined)
+    await input.deliverDocument(review.presentation.document);
+  else await input.deliver(review.text);
   if (review.handle === null) return true;
   const control = await input.approvals.acknowledgeDelivery({
     chatId: input.chatId,

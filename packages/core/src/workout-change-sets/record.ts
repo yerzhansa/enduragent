@@ -21,11 +21,17 @@ export const additionSchema = z.strictObject({
   description: z.string(),
   effort: z.string(),
   structure: json.nullable(),
+  reviewStructure: json.optional(),
   trainingLoad: z.number().nonnegative().nullable(),
 });
 const preparedChangeSchema = z.discriminatedUnion("kind", [
   additionSchema,
-  z.strictObject({ kind: z.literal("edit"), eventId: z.number().int(), patch: patchSchema }),
+  z.strictObject({
+    kind: z.literal("edit"),
+    eventId: z.number().int(),
+    patch: patchSchema,
+    reviewStructure: json.optional(),
+  }),
   z.strictObject({ kind: z.literal("delete"), eventId: z.number().int() }),
 ]);
 const referenceSchema = z.strictObject({
@@ -72,6 +78,7 @@ export const changeSchema = z.discriminatedUnion("kind", [
     reviewed: snapshotSchema,
     desired: snapshotSchema,
     patch: patchSchema,
+    reviewStructure: json.optional(),
   }),
   z.strictObject({ kind: z.literal("delete"), id: z.string(), reviewed: snapshotSchema }),
 ]);

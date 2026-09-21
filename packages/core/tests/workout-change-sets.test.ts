@@ -532,6 +532,345 @@ describe("durable workout change sets", () => {
     });
     expect((await pendingSet(restarted)).changes.slice(1)).toEqual(before.changes.slice(1));
   });
+  it("preserves review-only structure through restart and revision without writing it to the calendar", async () => {
+    const { service, fake, dataDir } = await setup();
+    const reviewStructure = {
+      name: "Easy ride",
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 50, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 55 },
+        },
+      ],
+    } as const;
+    const chartAdd: PreparedChange = { ...add, reviewStructure };
+    const initial = await prepare(service, [chartAdd, { ...add, name: "Second ride" }]);
+    expect(initial.review.presentation.kind).toBe("cards");
+    if (initial.review.presentation.kind !== "cards") throw new Error("Missing card review");
+    expect(initial.review.presentation.document.cards[0]).toMatchObject({
+      kind: "plot",
+      chart: { durationSeconds: 3000 },
+    });
+    await service.close();
+    const restarted = await openWorkoutChangeSets({
+      dataDir,
+      client: fake.client,
+      timezone: "UTC",
+    });
+    services.push(restarted);
+    const before = await pendingSet(restarted);
+    expect(before.changes[0]).toMatchObject({ change: { reviewStructure } });
+    const second = before.changes[1];
+    if (!second || second.change.kind !== "add") throw new Error("Missing second addition");
+    expect(
+      await restarted.preparation.prepare({
+        chatId: "chat",
+        turnId: "revise-second",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            { id: second.id, change: { ...second.change, name: "Revised second ride" } },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared", changeCount: 2 });
+    await restarted.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "revise-second",
+      outcome: "commit",
+    });
+    expect((await pendingSet(restarted)).changes[0]).toEqual(before.changes[0]);
+    const review = await restarted.review({ chatId: "chat", language: "en" });
+    if (!review?.handle) throw new Error("Missing revised review");
+    const control = await restarted.acknowledgeDelivery({
+      chatId: "chat",
+      delivery: review.handle,
+    });
+    if (!control) throw new Error("Missing revised control");
+    expect((await approve(restarted, control.token)).kind).toBe("completed");
+    expect(fake.writes).toHaveLength(2);
+    expect(fake.writes.every((write) => write.input?.workoutDoc === undefined)).toBe(true);
+  });
+
+  it("replaces a stale authored patch with trusted edit metadata and persists the native write", async () => {
+    const { service, fake, dataDir } = await setup();
+    const reviewStructure = {
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 15, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 50 },
+        },
+      ],
+    } as const;
+    await prepare(service, [{ kind: "edit", eventId: 101, patch: { structure: reviewStructure } }]);
+    const stale = await pendingSet(service);
+    const selected = stale.changes[0];
+    if (!selected || selected.change.kind !== "edit") throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "normalize-authored-edit",
+        preparation: {
+          kind: "revise",
+          base: stale.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: {
+                kind: "edit",
+                eventId: 101,
+                patch: {
+                  durationSeconds: 900,
+                  description: "Main set\n- 15m 50%",
+                },
+                reviewStructure,
+              },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "normalize-authored-edit",
+      outcome: "commit",
+    });
+    const normalized = await pendingSet(service);
+    const normalizedEdit = normalized.changes[0];
+    expect(normalizedEdit).toMatchObject({
+      id: selected.id,
+      change: {
+        kind: "edit",
+        patch: { durationSeconds: 900, description: "Main set\n- 15m 50%" },
+        reviewStructure,
+      },
+      desired: {
+        durationSeconds: 900,
+        description: "Main set\n- 15m 50%",
+        structure: null,
+      },
+    });
+    if (!normalizedEdit || normalizedEdit.change.kind !== "edit")
+      throw new Error("Missing normalized edit");
+    expect(normalizedEdit.change.patch).not.toHaveProperty("structure");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "rename-authored-edit",
+        preparation: {
+          kind: "revise",
+          base: normalized.reference,
+          replacements: [
+            {
+              id: normalizedEdit.id,
+              change: { kind: "edit", eventId: 101, patch: { name: "Synthetic recovery" } },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "rename-authored-edit",
+      outcome: "commit",
+    });
+    const beforeRestart = await pendingSet(service);
+    expect(beforeRestart.changes[0]).toMatchObject({
+      change: {
+        patch: {
+          name: "Synthetic recovery",
+          durationSeconds: 900,
+          description: "Main set\n- 15m 50%",
+        },
+        reviewStructure,
+      },
+    });
+    await service.close();
+    const restarted = await openWorkoutChangeSets({
+      dataDir,
+      client: fake.client,
+      timezone: "UTC",
+    });
+    services.push(restarted);
+    expect(await pendingSet(restarted)).toEqual(beforeRestart);
+    const review = await restarted.review({ chatId: "chat", language: "en" });
+    if (!review?.handle || review.presentation.kind !== "cards")
+      throw new Error("Missing authored edit review");
+    expect(review.presentation.document.cards[0]).toMatchObject({
+      kind: "plot",
+      chart: {
+        durationSeconds: 900,
+        segments: [{ kind: "steady", durationSeconds: 900, target: 50 }],
+      },
+    });
+    const control = await restarted.acknowledgeDelivery({
+      chatId: "chat",
+      delivery: review.handle,
+    });
+    if (!control) throw new Error("Missing authored edit approval");
+    expect((await approve(restarted, control.token)).kind).toBe("completed");
+    expect(fake.writes).toEqual([
+      {
+        kind: "edit",
+        id: 101,
+        input: {
+          name: "Synthetic recovery",
+          movingTime: 900,
+          description: "Main set\n- 15m 50%",
+        },
+      },
+    ]);
+  });
+
+  it("preserves authored review metadata when a rename repeats unchanged workout content", async () => {
+    const { service } = await setup();
+    const description = "Main set\n- 15m 50%";
+    const reviewStructure = {
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 15, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 50 },
+        },
+      ],
+    };
+    await prepare(service, [
+      {
+        kind: "edit",
+        eventId: 101,
+        patch: { durationSeconds: 900, description },
+        reviewStructure,
+      },
+    ]);
+    const before = await pendingSet(service);
+    const selected = before.changes[0];
+    if (!selected || selected.change.kind !== "edit") throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "rename-with-repeated-content",
+        preparation: {
+          kind: "revise",
+          base: before.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: {
+                kind: "edit",
+                eventId: 101,
+                patch: {
+                  name: "Synthetic renamed ride",
+                  durationSeconds: 900,
+                  description,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "rename-with-repeated-content",
+      outcome: "commit",
+    });
+    const after = await pendingSet(service);
+    expect(after.changes[0]).toMatchObject({
+      change: { patch: { name: "Synthetic renamed ride" }, reviewStructure },
+      desired: { name: "Synthetic renamed ride", durationSeconds: 900, description },
+    });
+    const review = await service.review({ chatId: "chat", language: "en" });
+    expect(review?.presentation).toMatchObject({
+      kind: "cards",
+      document: { cards: [{ kind: "plot" }] },
+    });
+  });
+
+  it.each([
+    ["description", { description: "Manual instructions" }],
+    ["duration", { durationSeconds: 1200 }],
+    [
+      "platform structure",
+      { structure: { steps: [{ duration: 900, power: { units: "%ftp", value: 45 } }] } },
+    ],
+  ] as const)("clears authored review metadata after a %s revision", async (_label, patch) => {
+    const { service } = await setup();
+    const reviewStructure = {
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 15, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 50 },
+        },
+      ],
+    } as const;
+    await prepare(service, [
+      {
+        kind: "edit",
+        eventId: 101,
+        patch: { durationSeconds: 900, description: "Main set\n- 15m 50%" },
+        reviewStructure,
+      },
+    ]);
+    const beforeMetadata = await pendingSet(service);
+    const selected = beforeMetadata.changes[0];
+    if (!selected || selected.change.kind !== "edit") throw new Error("Missing edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "metadata-only-edit",
+        preparation: {
+          kind: "revise",
+          base: beforeMetadata.reference,
+          replacements: [
+            {
+              id: selected.id,
+              change: {
+                kind: "edit",
+                eventId: 101,
+                patch: { name: "Synthetic metadata", date: "1998-09-10", trainingLoad: 45 },
+              },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "metadata-only-edit",
+      outcome: "commit",
+    });
+    const afterMetadata = await pendingSet(service);
+    expect(afterMetadata.changes[0]).toMatchObject({ change: { reviewStructure } });
+    const revised = afterMetadata.changes[0];
+    if (!revised || revised.change.kind !== "edit") throw new Error("Missing revised edit");
+    expect(
+      await service.preparation.prepare({
+        chatId: "chat",
+        turnId: "content-edit",
+        preparation: {
+          kind: "revise",
+          base: afterMetadata.reference,
+          replacements: [
+            {
+              id: revised.id,
+              change: { kind: "edit", eventId: 101, patch },
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ kind: "prepared" });
+    await service.preparation.settleTurn({
+      chatId: "chat",
+      turnId: "content-edit",
+      outcome: "commit",
+    });
+    const afterContent = await pendingSet(service);
+    expect(afterContent.changes[0]?.change).not.toHaveProperty("reviewStructure");
+  });
   it.each([
     "stale",
     "wrong-set",
@@ -1314,6 +1653,7 @@ describe("durable workout change sets", () => {
     expect(await restored.review({ chatId: "chat", language: "en", redisplay: true })).toEqual({
       handle: null,
       text: delivered.text,
+      presentation: { kind: "text" },
     });
     expect(await restored.review({ chatId: "chat", language: "en" })).toBeNull();
     expect(fake.writes).toEqual([]);

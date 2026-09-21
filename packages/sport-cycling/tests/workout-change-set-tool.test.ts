@@ -161,6 +161,7 @@ describe("whole-set cycling preparation", () => {
           description: serialized.description,
           effort: "50-65% FTP, 100% FTP, Zone 1",
           structure: null,
+          reviewStructure: workout,
           trainingLoad: null,
         },
       ],
@@ -202,6 +203,95 @@ describe("whole-set cycling preparation", () => {
     });
     expect(result.changes[2]).toEqual({ kind: "edit", eventId: 101, patch });
     expect(result.changes[3]).toEqual({ kind: "delete", eventId: 102 });
+  });
+
+  it("normalizes an authored steps-only edit through the cycling serializer", () => {
+    const structure = {
+      steps: [
+        {
+          type: "steady",
+          duration: { value: 15, unit: "minutes" },
+          power: { kind: "percent_ftp", value: 50 },
+        },
+      ],
+    };
+    expect(
+      prepareCyclingWorkoutChanges({
+        kind: "complete",
+        changes: [
+          {
+            kind: "edit",
+            eventId: 101,
+            patch: {
+              name: "Synthetic recovery",
+              durationSeconds: 1,
+              description: "Stale instructions",
+              structure,
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      kind: "complete",
+      changes: [
+        {
+          kind: "edit",
+          eventId: 101,
+          patch: {
+            name: "Synthetic recovery",
+            durationSeconds: 900,
+            description: "Main set\n- 15m 50%",
+          },
+          reviewStructure: structure,
+        },
+      ],
+    });
+  });
+
+  it("rejects malformed authored-looking edit structures", () => {
+    expect(() =>
+      prepareCyclingWorkoutChanges({
+        kind: "complete",
+        changes: [
+          {
+            kind: "edit",
+            eventId: 101,
+            patch: {
+              structure: {
+                steps: [
+                  {
+                    type: "steady",
+                    duration: { value: 15, unit: "hours" },
+                    power: { kind: "percent_ftp", value: 50 },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("preserves provider-shaped workout documents exactly", () => {
+    const structure = {
+      steps: [{ duration: 900, power: { units: "%ftp", value: 50 } }],
+      averageWatts: 125,
+    };
+    const patch = {
+      durationSeconds: 900,
+      description: "Provider-authored instructions",
+      structure,
+    };
+    expect(
+      prepareCyclingWorkoutChanges({
+        kind: "complete",
+        changes: [{ kind: "edit", eventId: 101, patch }],
+      }),
+    ).toEqual({
+      kind: "complete",
+      changes: [{ kind: "edit", eventId: 101, patch }],
+    });
   });
 
   it("preserves the reviewed strength effort in the native calendar description", () => {

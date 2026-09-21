@@ -2934,6 +2934,11 @@
       "wrongAction": "Utilisez l’action proposée avec cette vérification."
     },
     "review": {
+      "action": {
+        "add": "Ajouter",
+        "delete": "Supprimer",
+        "edit": "Modifier"
+      },
       "add": "{{index}}. Ajouter : {{details}}\n{{effort}}",
       "alreadyCompleted": "Déjà effectué :",
       "changed": "{{name}} a changé dans intervals.icu : {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCharge d’entraînement estimée : {{load}}\n{{structure}}",
       "durationUnavailable": "durée indisponible",
       "edit": "{{index}}. Modifier l’entraînement\nActuel : {{current}}\nProposé : {{proposed}}",
+      "estimatedLoad": "Charge d’entraînement estimée : {{load}}.",
       "field": {
         "date": "date",
         "description": "description",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "charge d’entraînement",
         "effort": "effort"
       },
+      "fieldChanged": "{{field}} modifié",
       "kept": "Entraînements existants conservés :",
       "minutes": "{{minutes}} min",
       "observed": "état souhaité constaté ; réponse non reçue",
+      "position": "{{current}} sur {{total}}",
       "remove": "{{index}}. Supprimer cet entraînement :\n{{details}}",
       "summary": "{{adds}} ajouts, {{edits}} modifications, {{deletions}} suppressions · {{duration}} pour les entraînements ajoutés ou modifiés",
       "title": "Vérifiez toutes les modifications des entraînements",

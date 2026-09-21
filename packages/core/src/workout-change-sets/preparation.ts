@@ -19,7 +19,14 @@ function preparedChange(change: Change): PreparedChange {
     case "add":
       return change.prepared;
     case "edit":
-      return { kind: "edit", eventId: change.reviewed.eventId, patch: change.patch };
+      return {
+        kind: "edit",
+        eventId: change.reviewed.eventId,
+        patch: change.patch,
+        ...(change.reviewStructure === undefined
+          ? {}
+          : { reviewStructure: change.reviewStructure }),
+      };
     case "delete":
       return { kind: "delete", eventId: change.reviewed.eventId };
   }
@@ -58,7 +65,14 @@ export async function preparePending(input: {
     eligible(event, input.today);
     const reviewed = snapshot(event);
     if (item.kind === "delete") return { kind: "delete", id, reviewed };
-    const change: Change = { kind: "edit", id, reviewed, desired: reviewed, patch: item.patch };
+    const change: Change = {
+      kind: "edit",
+      id,
+      reviewed,
+      desired: reviewed,
+      patch: item.patch,
+      ...(item.reviewStructure === undefined ? {} : { reviewStructure: item.reviewStructure }),
+    };
     change.desired = desired(change, reviewed);
     future(change.desired.date);
     updateInput(change);
@@ -86,25 +100,48 @@ export async function preparePending(input: {
         throw new Error(
           "A targeted revision must keep its action and calendar workout. Use explicit whole-set replacement to change them.",
         );
-      const effective =
-        before.kind === "edit" && next.kind === "edit"
-          ? {
-              ...next,
-              patch: {
-                ...before.patch,
-                ...Object.fromEntries(
-                  Object.entries(next.patch).filter(([, value]) => value !== undefined),
-                ),
-              },
-            }
-          : next;
+      let effective = next;
+      if (before.kind === "edit" && next.kind === "edit") {
+        const patch = {
+          ...before.patch,
+          ...Object.fromEntries(
+            Object.entries(next.patch).filter(([, value]) => value !== undefined),
+          ),
+        };
+        if (next.reviewStructure !== undefined) delete patch.structure;
+        const candidate = desired({ ...before, patch }, before.reviewed);
+        const replacesContent = !isDeepStrictEqual(
+          {
+            durationSeconds: candidate.durationSeconds,
+            description: candidate.description,
+            structure: candidate.structure,
+          },
+          {
+            durationSeconds: before.desired.durationSeconds,
+            description: before.desired.description,
+            structure: before.desired.structure,
+          },
+        );
+        const reviewStructure =
+          next.reviewStructure !== undefined
+            ? next.reviewStructure
+            : replacesContent
+              ? undefined
+              : before.reviewStructure;
+        effective = {
+          ...next,
+          patch,
+          ...(reviewStructure === undefined ? {} : { reviewStructure }),
+        };
+      }
       if (isDeepStrictEqual(preparedChange(before), effective))
         throw new Error("Each selected workout must contain an actual change.");
       const after = await build(effective, before);
       if (
         before.kind === "edit" &&
         after.kind === "edit" &&
-        isDeepStrictEqual(before.desired, after.desired)
+        isDeepStrictEqual(before.desired, after.desired) &&
+        isDeepStrictEqual(before.reviewStructure, after.reviewStructure)
       )
         throw new Error("Each selected workout must contain an actual change.");
       replacements.set(before.id, after);

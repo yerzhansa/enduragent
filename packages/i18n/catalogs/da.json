@@ -2934,6 +2934,11 @@
       "wrongAction": "Brug handlingen, der tilbydes med denne gennemgang."
     },
     "review": {
+      "action": {
+        "add": "Tilføj",
+        "delete": "Slet",
+        "edit": "Rediger"
+      },
       "add": "{{index}}. Tilføj: {{details}}\n{{effort}}",
       "alreadyCompleted": "Allerede gennemført:",
       "changed": "{{name}} blev ændret i intervals.icu: {{changes}}.",
@@ -2942,6 +2947,7 @@
       "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nEstimeret træningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "varighed ikke tilgængelig",
       "edit": "{{index}}. Rediger træning\nNuværende: {{current}}\nForeslået: {{proposed}}",
+      "estimatedLoad": "Estimeret træningsbelastning: {{load}}.",
       "field": {
         "date": "dato",
         "description": "beskrivelse",
@@ -2951,9 +2957,11 @@
         "trainingLoad": "træningsbelastning",
         "effort": "indsats"
       },
+      "fieldChanged": "{{field}} ændret",
       "kept": "Eksisterende træninger beholdes:",
       "minutes": "{{minutes}} min",
       "observed": "ønsket tilstand observeret; svar ikke modtaget",
+      "position": "{{current}} af {{total}}",
       "remove": "{{index}}. Fjern denne træning:\n{{details}}",
       "summary": "{{adds}} tilføjelser, {{edits}} ændringer, {{deletions}} sletninger · {{duration}} for tilføjede eller ændrede træninger",
       "title": "Gennemgå alle træningsændringer",
