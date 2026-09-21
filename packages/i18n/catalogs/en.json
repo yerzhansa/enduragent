@@ -184,7 +184,6 @@
       "planningRequestFailure": "Plan couldn’t receive this request. Your request is preserved and nothing changed in Plan.",
       "planningRequestLoadFailure": "We couldn’t check saved Plan requests. Reconnect and try again.",
       "protocolFailure": "The coaching response could not be verified. Please try again.",
-      "savedUnverified": "I saved your information, but couldn't verify my response. Please try again.",
       "questionSkipped": "Question skipped",
       "queueLoadFailure": "We couldn’t check your saved messages. Reconnect and try again.",
       "queueRemoveFailure": "We couldn’t remove that saved message. Try again.",
@@ -192,6 +191,7 @@
       "responseStopped": "Response stopped. Your partial response is preserved.",
       "retryMessage": "Retry message",
       "savedChoice": "Saved choice",
+      "savedUnverified": "I saved your information, but couldn't verify my response. Please try again.",
       "working": "Coach is working…"
     },
     "planChange": {
