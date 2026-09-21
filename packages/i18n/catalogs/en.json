@@ -184,6 +184,7 @@
       "planningRequestFailure": "Plan couldn’t receive this request. Your request is preserved and nothing changed in Plan.",
       "planningRequestLoadFailure": "We couldn’t check saved Plan requests. Reconnect and try again.",
       "protocolFailure": "The coaching response could not be verified. Please try again.",
+      "savedUnverified": "I saved your information, but couldn't verify my response. Please try again.",
       "questionSkipped": "Question skipped",
       "queueLoadFailure": "We couldn’t check your saved messages. Reconnect and try again.",
       "queueRemoveFailure": "We couldn’t remove that saved message. Try again.",
@@ -840,6 +841,11 @@
       "trainingLoad": "training load to {{load}}",
       "unnamed": "Unnamed workout",
       "update": "Update workout \"{{name}}\" on {{date}} — {{detail}}"
+    },
+    "workoutPreparation": {
+      "failed": "I couldn't prepare this workout review. No changes were applied.",
+      "prepared": "Your workout review is ready for approval.",
+      "savedInformationFailed": "I saved your information, but I couldn't prepare the workout review."
     }
   },
   "common": {

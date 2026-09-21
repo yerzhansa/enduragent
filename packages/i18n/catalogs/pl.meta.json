@@ -3248,6 +3248,10 @@
       "sourceHash": "6295a576ab5cffc26f1c3950757f75f65d3f835438a56a2e31acd10a9a049a90",
       "translatedBy": "model"
     },
+    "chat.notice.savedUnverified": {
+      "sourceHash": "49ea2802baec520d3df825dc698d83e553bbe229c3928afb314dccee1cb7a485",
+      "translatedBy": "model"
+    },
     "chat.notice.questionSkipped": {
       "sourceHash": "4a4b83357c9f1073c1b55fb583d9f18598b4d26efe7d6a7d00860e3c3118eb94",
       "translatedBy": "model"
@@ -9078,6 +9082,18 @@
     },
     "coach.history.reset": {
       "sourceHash": "cc68656028b610be5c37608cf54b2ca1a9db1e631590b8f146db5615504c2148",
+      "translatedBy": "model"
+    },
+    "coach.workoutPreparation.failed": {
+      "sourceHash": "5f6b3ec07127b0dde58272f6ce67a0b2ce3d1fe444269ba59d5c1cccd5e85598",
+      "translatedBy": "model"
+    },
+    "coach.workoutPreparation.prepared": {
+      "sourceHash": "cd1bd1ffdca2ad06a4b45352d5605289af6854aba2d2994f90ed500d24fa70b9",
+      "translatedBy": "model"
+    },
+    "coach.workoutPreparation.savedInformationFailed": {
+      "sourceHash": "da86445bdd6574cfb8df9715d6eedd39dc714eae9dccfdef796cb1db3758c6a4",
       "translatedBy": "model"
     },
     "coach.proposal.create": {

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan no pudo recibir esta solicitud. Se conserva tu solicitud y no ha cambiado nada en Plan.",
       "planningRequestLoadFailure": "No se pudieron comprobar las solicitudes de plan guardadas. Vuelve a conectar e inténtalo de nuevo.",
       "protocolFailure": "No se pudo verificar la respuesta del entrenador. Inténtalo de nuevo.",
+      "savedUnverified": "Guardé tu información, pero no pude verificar mi respuesta. Inténtalo de nuevo.",
       "questionSkipped": "Pregunta omitida",
       "queueLoadFailure": "No se pudieron comprobar tus mensajes guardados. Vuelve a conectar e inténtalo de nuevo.",
       "queueRemoveFailure": "No se pudo quitar ese mensaje guardado. Inténtalo de nuevo.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "He iniciado una nueva sesión. La conversación anterior está archivada y conservo tus datos clave en la memoria.\n\nHe alcanzado el límite de pasos al recopilar datos. Pídeme que continúe y retomaré donde lo dejé.\n\n(Aviso: el disco está lleno y no he podido guardar esto en nuestro historial, pero tu mensaje sí ha llegado. Libera algo de espacio cuando puedas.)",
       "unsavedReply": "{{reply}}\n\n(Aviso: el disco está lleno y no he podido guardar esto en nuestro historial, pero tu mensaje sí ha llegado. Libera algo de espacio cuando puedas.)",
       "unsavedStepLimit": "He alcanzado el límite de pasos al recopilar datos. Pídeme que continúe y retomaré donde lo dejé.\n\n(Aviso: el disco está lleno y no he podido guardar esto en nuestro historial, pero tu mensaje sí ha llegado. Libera algo de espacio cuando puedas.)"
+    },
+    "workoutPreparation": {
+      "failed": "No pude preparar esta revisión de entrenamientos. No se aplicó ningún cambio.",
+      "prepared": "Tu revisión de entrenamientos está lista para aprobarse.",
+      "savedInformationFailed": "Guardé tu información, pero no pude preparar la revisión de entrenamientos."
     },
     "proposal": {
       "create": "Crear el entrenamiento \"{{name}}\" el {{date}}",

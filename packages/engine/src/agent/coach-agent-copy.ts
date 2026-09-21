@@ -2,7 +2,14 @@ import { msg, type Message } from "@enduragent/i18n";
 
 export const TAINTED_BY_WRITES_MESSAGE = msg("coach.fallback.writesSaved");
 export const STEP_LIMIT_TRUNCATION_MESSAGE = msg("coach.fallback.stepLimit");
+export const PROTOCOL_FAILURE_MESSAGE = msg("chat.notice.protocolFailure");
+export const SAVED_INFORMATION_UNVERIFIED_MESSAGE = msg("chat.notice.savedUnverified");
 export const DISK_FULL_NOTE = msg("coach.history.diskFull");
+export const WORKOUT_PREPARATION_FAILED_MESSAGE = msg("coach.workoutPreparation.failed");
+export const WORKOUT_PREPARATION_PREPARED_MESSAGE = msg("coach.workoutPreparation.prepared");
+export const WORKOUT_PREPARATION_SAVED_INFORMATION_FAILED_MESSAGE = msg(
+  "coach.workoutPreparation.savedInformationFailed",
+);
 
 export function coachReplyMessage(input: {
   readonly reply: string;

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Suunnitelma ei voinut vastaanottaa tätä pyyntöä. Pyyntösi säilyy, eikä suunnitelmassa muuttunut mikään.",
       "planningRequestLoadFailure": "Tallennettuja suunnitelmapyyntöjä ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "protocolFailure": "Valmentajan vastausta ei voitu varmistaa. Yritä uudelleen.",
+      "savedUnverified": "Tallensin tietosi, mutta en pystynyt varmistamaan vastaustani. Yritä uudelleen.",
       "questionSkipped": "Kysymys ohitettu",
       "queueLoadFailure": "Tallennettuja viestejäsi ei voitu tarkistaa. Yhdistä uudelleen ja yritä uudelleen.",
       "queueRemoveFailure": "Tallennettua viestiä ei voitu poistaa. Yritä uudelleen.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Aloitin uuden keskustelun. Aiempi keskustelu on arkistoitu, ja muistan edelleen tärkeimmät tietosi.\n\nTietojen keräämiseen varatut vaiheet loppuivat. Pyydä minua jatkamaan, niin jatkan siitä, mihin jäin.\n\nHuomaa: levytilani on täynnä, joten en voinut tallentaa tätä keskusteluhistoriaamme. Viestisi tuli silti perille. Vapauta tilaa, kun voit.",
       "unsavedReply": "{{reply}}\n\nHuomaa: levytilani on täynnä, joten en voinut tallentaa tätä keskusteluhistoriaamme. Viestisi tuli silti perille. Vapauta tilaa, kun voit.",
       "unsavedStepLimit": "Tietojen keräämiseen varatut vaiheet loppuivat. Pyydä minua jatkamaan, niin jatkan siitä, mihin jäin.\n\nHuomaa: levytilani on täynnä, joten en voinut tallentaa tätä keskusteluhistoriaamme. Viestisi tuli silti perille. Vapauta tilaa, kun voit."
+    },
+    "workoutPreparation": {
+      "failed": "En pystynyt valmistelemaan tätä harjoitusten tarkistusta. Muutoksia ei tehty.",
+      "prepared": "Harjoitusten tarkistus on valmis hyväksyttäväksi.",
+      "savedInformationFailed": "Tallensin tietosi, mutta en pystynyt valmistelemaan harjoitusten tarkistusta."
     },
     "proposal": {
       "create": "Luo harjoitus \"{{name}}\" päivälle {{date}}",

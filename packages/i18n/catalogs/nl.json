@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kon dit verzoek niet ontvangen. Je verzoek blijft bewaard en er is niets gewijzigd in Plan.",
       "planningRequestLoadFailure": "Opgeslagen verzoeken voor Plan konden niet worden gecontroleerd. Maak opnieuw verbinding en probeer het opnieuw.",
       "protocolFailure": "Het antwoord van de coach kon niet worden geverifieerd. Probeer het opnieuw.",
+      "savedUnverified": "Ik heb je informatie opgeslagen, maar kon mijn antwoord niet verifiëren. Probeer het opnieuw.",
       "questionSkipped": "Vraag overgeslagen",
       "queueLoadFailure": "Je opgeslagen berichten konden niet worden gecontroleerd. Maak opnieuw verbinding en probeer het opnieuw.",
       "queueRemoveFailure": "Dat opgeslagen bericht kon niet worden verwijderd. Probeer het opnieuw.",
@@ -2798,6 +2799,11 @@
       "resetUnsavedStepLimit": "Een nieuwe sessie gestart. Ons eerdere gesprek is gearchiveerd en ik heb je belangrijkste gegevens nog in mijn geheugen.\n\nIk heb het maximale aantal stappen bereikt bij het verzamelen van gegevens. Vraag me om door te gaan, dan pak ik het op waar ik gebleven was.\n\n(Let op: mijn schijf is vol, dus ik kon dit niet opslaan in onze geschiedenis. Je bericht is wel aangekomen. Maak ruimte vrij zodra je kunt.)",
       "unsavedReply": "{{reply}}\n\n(Let op: mijn schijf is vol, dus ik kon dit niet opslaan in onze geschiedenis. Je bericht is wel aangekomen. Maak ruimte vrij zodra je kunt.)",
       "unsavedStepLimit": "Ik heb het maximale aantal stappen bereikt bij het verzamelen van gegevens. Vraag me om door te gaan, dan pak ik het op waar ik gebleven was.\n\n(Let op: mijn schijf is vol, dus ik kon dit niet opslaan in onze geschiedenis. Je bericht is wel aangekomen. Maak ruimte vrij zodra je kunt.)"
+    },
+    "workoutPreparation": {
+      "failed": "Ik kon deze trainingsevaluatie niet voorbereiden. Er zijn geen wijzigingen toegepast.",
+      "prepared": "Je trainingsevaluatie staat klaar voor goedkeuring.",
+      "savedInformationFailed": "Ik heb je informatie opgeslagen, maar kon de trainingsevaluatie niet voorbereiden."
     },
     "proposal": {
       "create": "Training \"{{name}}\" aanmaken op {{date}}",

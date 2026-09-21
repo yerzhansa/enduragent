@@ -10,12 +10,19 @@ import type {
 import { getTurnContext, type TurnContext } from "./turn-context.js";
 
 export interface WorkoutPreparationSession {
+  inspect(): Promise<WorkoutPreparationAttempt>;
   complete(input: { finishReason: GenerateResult["finishReason"]; budget: TurnBudget }): void;
   fail(): void;
   close(): Promise<void>;
 }
 
+export type WorkoutPreparationAttempt =
+  | { readonly kind: "untouched" }
+  | { readonly kind: "prepared" }
+  | { readonly kind: "failed" };
+
 type PreparationTurn = {
+  attempt: WorkoutPreparationAttempt;
   completion: { kind: "pending" | "failed" } | { kind: "completed"; budget: TurnBudget };
   closed: boolean;
   settled: boolean;
@@ -40,6 +47,7 @@ export class WorkoutPreparationTurns {
 
   begin(context: TurnContext, signal: AbortSignal): WorkoutPreparationSession {
     const turn: PreparationTurn = {
+      attempt: { kind: "untouched" },
       completion: { kind: "pending" },
       closed: false,
       settled: false,
@@ -49,6 +57,7 @@ export class WorkoutPreparationTurns {
     };
     this.turns.set(context, turn);
     return {
+      inspect: () => this.inspect(context),
       complete: ({ finishReason, budget }) => {
         budget.checkDeadline();
         if (turn.completion.kind !== "failed") {
@@ -59,6 +68,7 @@ export class WorkoutPreparationTurns {
         }
       },
       fail: () => {
+        turn.attempt = { kind: "failed" };
         turn.completion = { kind: "failed" };
       },
       close: () => this.settle(context, signal),
@@ -76,14 +86,22 @@ export class WorkoutPreparationTurns {
     ) {
       return { kind: "refused", message: "Workout preparation is unavailable for this turn." };
     }
-    if (preparation.kind === "incomplete") turn.completion = { kind: "failed" };
+    if (preparation.kind === "incomplete") {
+      turn.attempt = { kind: "failed" };
+      turn.completion = { kind: "failed" };
+    }
     turn.submittedToHost = true;
     const result = await this.port.prepare({
       chatId: context.chatId,
       turnId: context.turnId,
       preparation,
     });
-    if (result.kind !== "prepared") turn.completion = { kind: "failed" };
+    if (result.kind === "prepared" && turn.attempt.kind !== "failed") {
+      turn.attempt = { kind: "prepared" };
+    } else if (result.kind !== "prepared") {
+      turn.attempt = { kind: "failed" };
+      turn.completion = { kind: "failed" };
+    }
     return result;
   }
 
@@ -100,6 +118,7 @@ export class WorkoutPreparationTurns {
           return Promise.resolve({ error: "workout_turn_unavailable" });
         }
         if (isPreparation && ++turn.submissions > 1) {
+          turn.attempt = { kind: "failed" };
           turn.completion = { kind: "failed" };
           return Promise.resolve({
             kind: "refused",
@@ -110,11 +129,18 @@ export class WorkoutPreparationTurns {
           .then(() => execute(input, options))
           .then(
             (result) => {
-              if (result !== null && typeof result === "object" && "error" in result)
+              if (result !== null && typeof result === "object" && "error" in result) {
+                if (isPreparation || turn.attempt.kind !== "untouched") {
+                  turn.attempt = { kind: "failed" };
+                }
                 turn.completion = { kind: "failed" };
+              }
               return result;
             },
             (error: unknown) => {
+              if (isPreparation || turn.attempt.kind !== "untouched") {
+                turn.attempt = { kind: "failed" };
+              }
               turn.completion = { kind: "failed" };
               throw error;
             },
@@ -125,11 +151,29 @@ export class WorkoutPreparationTurns {
     };
   }
 
+  private async inspect(context: TurnContext): Promise<WorkoutPreparationAttempt> {
+    const turn = this.turns.get(context);
+    if (turn === undefined) return { kind: "failed" };
+    await Promise.allSettled(turn.calls);
+    const attemptedPreparation =
+      turn.submissions > 0 ||
+      (this.preparationToolName !== undefined &&
+        context.toolExecution.failedTools.has(this.preparationToolName));
+    if (
+      (context.toolExecution.failed && turn.attempt.kind !== "untouched") ||
+      (attemptedPreparation && turn.attempt.kind === "untouched")
+    ) {
+      turn.attempt = { kind: "failed" };
+      turn.completion = { kind: "failed" };
+    }
+    return turn.attempt;
+  }
+
   private async settle(context: TurnContext, signal: AbortSignal): Promise<void> {
     const turn = this.turns.get(context);
     if (turn === undefined || turn.closed) return;
     turn.closed = true;
-    await Promise.allSettled(turn.calls);
+    await this.inspect(context);
     turn.settled = true;
     const attemptedPreparation =
       turn.submissions > 0 ||

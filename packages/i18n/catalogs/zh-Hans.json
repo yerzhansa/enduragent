@@ -1005,6 +1005,7 @@
       "planningRequestFailure": "计划无法接收此请求。请求已保留，计划未发生变化。",
       "planningRequestLoadFailure": "无法检查已保存的计划请求。请重新连接后重试。",
       "protocolFailure": "无法验证教练回复。请重试。",
+      "savedUnverified": "我保存了你的信息，但无法验证我的回复。请重试。",
       "questionSkipped": "已跳过问题",
       "queueLoadFailure": "无法检查已保存的消息。请重新连接后重试。",
       "queueRemoveFailure": "无法移除此已保存的消息。请重试。",
@@ -2599,6 +2600,11 @@
     "fallback": {
       "stepLimit": "收集数据时已达到步骤上限。告诉我继续，我就会接着处理。",
       "writesSaved": "我已更改日历，但在完成回复时遇到了问题。更改已保存，请打开日历确认是否正确，需要调整的话告诉我。"
+    },
+    "workoutPreparation": {
+      "failed": "我无法准备此次训练审核。未应用任何更改。",
+      "prepared": "你的训练审核已准备好，可以批准。",
+      "savedInformationFailed": "我保存了你的信息，但无法准备训练审核。"
     },
     "proposal": {
       "create": "在 {{date}} 创建训练课程“{{name}}”",

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan konnte diese Anfrage nicht empfangen. Deine Anfrage bleibt erhalten und im Plan wurde nichts geändert.",
       "planningRequestLoadFailure": "Gespeicherte Plananfragen konnten nicht geprüft werden. Verbinde dich erneut und versuche es noch einmal.",
       "protocolFailure": "Die Antwort des Coaches konnte nicht überprüft werden. Bitte versuche es erneut.",
+      "savedUnverified": "Ich habe deine Informationen gespeichert, konnte meine Antwort aber nicht überprüfen. Bitte versuche es erneut.",
       "questionSkipped": "Frage übersprungen",
       "queueLoadFailure": "Deine gespeicherten Nachrichten konnten nicht geprüft werden. Verbinde dich erneut und versuche es noch einmal.",
       "queueRemoveFailure": "Diese gespeicherte Nachricht konnte nicht entfernt werden. Versuche es erneut.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Ich habe ein neues Gespräch gestartet. Das bisherige Gespräch ist archiviert, und deine wichtigsten Angaben habe ich weiterhin im Gedächtnis.\n\nBeim Sammeln der Daten habe ich mein Schrittlimit erreicht. Bitte mich weiterzumachen, dann mache ich dort weiter, wo ich aufgehört habe.\n\n(Hinweis: Meine Festplatte ist voll, deshalb konnte ich das nicht in unserem Verlauf speichern. Deine Nachricht ist aber angekommen. Gib bitte etwas Speicherplatz frei, wenn du kannst.)",
       "unsavedReply": "{{reply}}\n\n(Hinweis: Meine Festplatte ist voll, deshalb konnte ich das nicht in unserem Verlauf speichern. Deine Nachricht ist aber angekommen. Gib bitte etwas Speicherplatz frei, wenn du kannst.)",
       "unsavedStepLimit": "Beim Sammeln der Daten habe ich mein Schrittlimit erreicht. Bitte mich weiterzumachen, dann mache ich dort weiter, wo ich aufgehört habe.\n\n(Hinweis: Meine Festplatte ist voll, deshalb konnte ich das nicht in unserem Verlauf speichern. Deine Nachricht ist aber angekommen. Gib bitte etwas Speicherplatz frei, wenn du kannst.)"
+    },
+    "workoutPreparation": {
+      "failed": "Ich konnte diese Trainingsübersicht nicht vorbereiten. Es wurden keine Änderungen angewendet.",
+      "prepared": "Deine Trainingsübersicht ist zur Freigabe bereit.",
+      "savedInformationFailed": "Ich habe deine Informationen gespeichert, konnte aber die Trainingsübersicht nicht vorbereiten."
     },
     "proposal": {
       "create": "Training \"{{name}}\" am {{date}} erstellen",

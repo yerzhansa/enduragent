@@ -1005,6 +1005,7 @@
       "planningRequestFailure": "計畫無法接收此請求。請求已保留，計畫未發生變更。",
       "planningRequestLoadFailure": "無法檢查已儲存的計畫請求。請重新連線後重試。",
       "protocolFailure": "無法驗證教練回覆。請重試。",
+      "savedUnverified": "我已儲存你的資訊，但無法驗證我的回覆。請重試。",
       "questionSkipped": "已略過問題",
       "queueLoadFailure": "無法檢查已儲存的訊息。請重新連線後重試。",
       "queueRemoveFailure": "無法移除此已儲存的訊息。請重試。",
@@ -2599,6 +2600,11 @@
     "fallback": {
       "stepLimit": "收集資料時已達到步驟上限。告訴我繼續，我就會接著處理。",
       "writesSaved": "我已變更行事曆，但在完成回覆時遇到了問題。變更已儲存，請開啟行事曆確認是否正確，需要調整的話告訴我。"
+    },
+    "workoutPreparation": {
+      "failed": "我無法準備這次訓練審核。未套用任何變更。",
+      "prepared": "你的訓練審核已準備好，可以核准。",
+      "savedInformationFailed": "我已儲存你的資訊，但無法準備訓練審核。"
     },
     "proposal": {
       "create": "在 {{date}} 建立訓練課表「{{name}}」",

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Il piano non ha potuto ricevere questa richiesta. La richiesta è conservata e il piano non è cambiato.",
       "planningRequestLoadFailure": "Impossibile controllare le richieste salvate per il piano. Riconnetti e riprova.",
       "protocolFailure": "Impossibile verificare la risposta del coach. Riprova.",
+      "savedUnverified": "Ho salvato le tue informazioni, ma non sono riuscito a verificare la mia risposta. Riprova.",
       "questionSkipped": "Domanda saltata",
       "queueLoadFailure": "Impossibile controllare i messaggi salvati. Riconnetti e riprova.",
       "queueRemoveFailure": "Impossibile rimuovere il messaggio salvato. Riprova.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Ho iniziato una nuova sessione. La conversazione precedente è archiviata e ricordo ancora le tue informazioni principali.\n\nHo raggiunto il limite di passaggi durante la raccolta dei dati. Chiedimi di continuare e riprenderò da dove mi sono fermato.\n\n(Attenzione: il disco è pieno, quindi non ho potuto salvare questo scambio nella cronologia. Il tuo messaggio è comunque arrivato. Libera un po’ di spazio quando puoi.)",
       "unsavedReply": "{{reply}}\n\n(Attenzione: il disco è pieno, quindi non ho potuto salvare questo scambio nella cronologia. Il tuo messaggio è comunque arrivato. Libera un po’ di spazio quando puoi.)",
       "unsavedStepLimit": "Ho raggiunto il limite di passaggi durante la raccolta dei dati. Chiedimi di continuare e riprenderò da dove mi sono fermato.\n\n(Attenzione: il disco è pieno, quindi non ho potuto salvare questo scambio nella cronologia. Il tuo messaggio è comunque arrivato. Libera un po’ di spazio quando puoi.)"
+    },
+    "workoutPreparation": {
+      "failed": "Non sono riuscito a preparare questa revisione degli allenamenti. Non è stata applicata alcuna modifica.",
+      "prepared": "La revisione dei tuoi allenamenti è pronta per l'approvazione.",
+      "savedInformationFailed": "Ho salvato le tue informazioni, ma non sono riuscito a preparare la revisione degli allenamenti."
     },
     "proposal": {
       "create": "Crea l’allenamento \"{{name}}\" il {{date}}",

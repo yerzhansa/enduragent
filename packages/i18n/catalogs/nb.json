@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kunne ikke motta denne forespørselen. Forespørselen er bevart, og ingenting ble endret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke sjekke lagrede planforespørsler. Koble til på nytt og prøv igjen.",
       "protocolFailure": "Trenerens svar kunne ikke bekreftes. Prøv igjen.",
+      "savedUnverified": "Jeg lagret informasjonen din, men kunne ikke bekrefte svaret mitt. Prøv igjen.",
       "questionSkipped": "Spørsmålet er hoppet over",
       "queueLoadFailure": "Vi kunne ikke sjekke de lagrede meldingene dine. Koble til på nytt og prøv igjen.",
       "queueRemoveFailure": "Vi kunne ikke fjerne den lagrede meldingen. Prøv igjen.",
@@ -2640,6 +2641,11 @@
       "resetUnsavedStepLimit": "Jeg har startet en ny samtale — den forrige er arkivert, og jeg husker fortsatt de viktigste opplysningene om deg.\n\nJeg nådde grensen for antall steg mens jeg samlet data — be meg fortsette, så tar jeg opp tråden der jeg slapp.\n\n(Merk: Disken min er full, så jeg kunne ikke lagre dette i historikken vår — men meldingen din kom frem. Frigjør litt plass når du kan.)",
       "unsavedReply": "{{reply}}\n\n(Merk: Disken min er full, så jeg kunne ikke lagre dette i historikken vår — men meldingen din kom frem. Frigjør litt plass når du kan.)",
       "unsavedStepLimit": "Jeg nådde grensen for antall steg mens jeg samlet data — be meg fortsette, så tar jeg opp tråden der jeg slapp.\n\n(Merk: Disken min er full, så jeg kunne ikke lagre dette i historikken vår — men meldingen din kom frem. Frigjør litt plass når du kan.)"
+    },
+    "workoutPreparation": {
+      "failed": "Jeg kunne ikke klargjøre denne treningsgjennomgangen. Ingen endringer ble utført.",
+      "prepared": "Treningsgjennomgangen er klar for godkjenning.",
+      "savedInformationFailed": "Jeg lagret informasjonen din, men kunne ikke klargjøre treningsgjennomgangen."
     },
     "proposal": {
       "create": "Opprett treningsøkten «{{name}}» den {{date}}",

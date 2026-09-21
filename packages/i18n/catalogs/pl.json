@@ -1029,6 +1029,7 @@
       "planningRequestFailure": "Plan nie mógł odebrać tej prośby. Twoja prośba została zachowana, a plan pozostał bez zmian.",
       "planningRequestLoadFailure": "Nie udało się sprawdzić zapisanych próśb dotyczących planu. Połącz ponownie i spróbuj jeszcze raz.",
       "protocolFailure": "Nie udało się zweryfikować odpowiedzi trenera. Spróbuj ponownie.",
+      "savedUnverified": "Zapisałem twoje informacje, ale nie udało mi się zweryfikować mojej odpowiedzi. Spróbuj ponownie.",
       "questionSkipped": "Pytanie pominięte",
       "queueLoadFailure": "Nie udało się sprawdzić zapisanych wiadomości. Połącz ponownie i spróbuj jeszcze raz.",
       "queueRemoveFailure": "Nie udało się usunąć tej zapisanej wiadomości. Spróbuj ponownie.",
@@ -2705,6 +2706,11 @@
       "resetUnsavedStepLimit": "Rozpocząłem nową sesję — wcześniejsza rozmowa jest w archiwum, a najważniejsze informacje o tobie nadal mam w pamięci.\n\nPodczas zbierania danych zabrakło mi kroków — poproś mnie o kontynuację, a wrócę do miejsca, w którym przerwałem.\n\n(Uwaga: mój dysk jest pełny, więc nie udało mi się zapisać tego w historii naszej rozmowy — ale twoja wiadomość dotarła. Zwolnij trochę miejsca, gdy będziesz mieć chwilę.)",
       "unsavedReply": "{{reply}}\n\n(Uwaga: mój dysk jest pełny, więc nie udało mi się zapisać tego w historii naszej rozmowy — ale twoja wiadomość dotarła. Zwolnij trochę miejsca, gdy będziesz mieć chwilę.)",
       "unsavedStepLimit": "Podczas zbierania danych zabrakło mi kroków — poproś mnie o kontynuację, a wrócę do miejsca, w którym przerwałem.\n\n(Uwaga: mój dysk jest pełny, więc nie udało mi się zapisać tego w historii naszej rozmowy — ale twoja wiadomość dotarła. Zwolnij trochę miejsca, gdy będziesz mieć chwilę.)"
+    },
+    "workoutPreparation": {
+      "failed": "Nie udało mi się przygotować tego przeglądu treningów. Nie zastosowano żadnych zmian.",
+      "prepared": "Przegląd treningów jest gotowy do zatwierdzenia.",
+      "savedInformationFailed": "Zapisałem twoje informacje, ale nie udało mi się przygotować przeglądu treningów."
     },
     "proposal": {
       "create": "Utwórz trening „{{name}}” na {{date}}",

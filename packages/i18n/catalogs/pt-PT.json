@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "O Plano não conseguiu receber este pedido. O teu pedido mantém-se e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar os pedidos guardados do Plano. Volta a ligar e tenta novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tenta novamente.",
+      "savedUnverified": "Guardei as tuas informações, mas não consegui verificar a minha resposta. Tenta novamente.",
       "questionSkipped": "Pergunta saltada",
       "queueLoadFailure": "Não foi possível verificar as tuas mensagens guardadas. Volta a ligar e tenta novamente.",
       "queueRemoveFailure": "Não foi possível remover essa mensagem guardada. Tenta novamente.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Iniciei uma nova conversa. A anterior está arquivada e continuo a ter os teus dados principais na memória.\n\nAtingi o limite de passos ao reunir os dados. Pede-me para continuar e retomo de onde fiquei.\n\n(Atenção: o meu disco está cheio, por isso não consegui guardar isto no nosso histórico, mas recebi a tua mensagem. Liberta algum espaço quando puderes.)",
       "unsavedReply": "{{reply}}\n\n(Atenção: o meu disco está cheio, por isso não consegui guardar isto no nosso histórico, mas recebi a tua mensagem. Liberta algum espaço quando puderes.)",
       "unsavedStepLimit": "Atingi o limite de passos ao reunir os dados. Pede-me para continuar e retomo de onde fiquei.\n\n(Atenção: o meu disco está cheio, por isso não consegui guardar isto no nosso histórico, mas recebi a tua mensagem. Liberta algum espaço quando puderes.)"
+    },
+    "workoutPreparation": {
+      "failed": "Não consegui preparar esta revisão de treinos. Não foi aplicada nenhuma alteração.",
+      "prepared": "A tua revisão de treinos está pronta para aprovação.",
+      "savedInformationFailed": "Guardei as tuas informações, mas não consegui preparar a revisão de treinos."
     },
     "proposal": {
       "create": "Criar o treino \"{{name}}\" em {{date}}",

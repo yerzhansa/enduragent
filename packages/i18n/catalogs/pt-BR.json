@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "O Plano não conseguiu receber esta solicitação. Sua solicitação foi preservada e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar as solicitações salvas do Plano. Reconecte e tente novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tente novamente.",
+      "savedUnverified": "Salvei suas informações, mas não consegui verificar minha resposta. Tente novamente.",
       "questionSkipped": "Pergunta pulada",
       "queueLoadFailure": "Não foi possível verificar suas mensagens salvas. Reconecte e tente novamente.",
       "queueRemoveFailure": "Não foi possível remover essa mensagem salva. Tente novamente.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Iniciei uma nova conversa. A anterior está arquivada e continuo com seus dados principais na memória.\n\nAtingi o limite de etapas ao reunir os dados. Peça para eu continuar e retomo de onde parei.\n\n(Atenção: meu disco está cheio, então não consegui salvar isto no nosso histórico, mas recebi sua mensagem. Libere algum espaço quando puder.)",
       "unsavedReply": "{{reply}}\n\n(Atenção: meu disco está cheio, então não consegui salvar isto no nosso histórico, mas recebi sua mensagem. Libere algum espaço quando puder.)",
       "unsavedStepLimit": "Atingi o limite de etapas ao reunir os dados. Peça para eu continuar e retomo de onde parei.\n\n(Atenção: meu disco está cheio, então não consegui salvar isto no nosso histórico, mas recebi sua mensagem. Libere algum espaço quando puder.)"
+    },
+    "workoutPreparation": {
+      "failed": "Não consegui preparar esta revisão de treinos. Nenhuma alteração foi aplicada.",
+      "prepared": "Sua revisão de treinos está pronta para aprovação.",
+      "savedInformationFailed": "Salvei suas informações, mas não consegui preparar a revisão de treinos."
     },
     "proposal": {
       "create": "Criar o treino \"{{name}}\" em {{date}}",

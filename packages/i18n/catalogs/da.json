@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kunne ikke modtage denne anmodning. Din anmodning bliver bevaret, og intet er ændret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke kontrollere gemte anmodninger til Plan. Opret forbindelse igen, og prøv igen.",
       "protocolFailure": "Trænerens svar kunne ikke bekræftes. Prøv igen.",
+      "savedUnverified": "Jeg gemte dine oplysninger, men kunne ikke bekræfte mit svar. Prøv igen.",
       "questionSkipped": "Spørgsmålet blev sprunget over",
       "queueLoadFailure": "Vi kunne ikke kontrollere dine gemte beskeder. Opret forbindelse igen, og prøv igen.",
       "queueRemoveFailure": "Vi kunne ikke fjerne den gemte besked. Prøv igen.",
@@ -2798,6 +2799,11 @@
       "resetUnsavedStepLimit": "Jeg har startet en ny samtale — den tidligere samtale er arkiveret, og jeg har stadig dine vigtigste oplysninger i hukommelsen.\n\nJeg nåede grænsen for antal trin, mens jeg hentede data — bed mig om at fortsætte, så tager jeg fat, hvor jeg slap.\n\n(Bemærk: Min disk er fuld, så jeg kunne ikke gemme dette i vores historik — men din besked kom igennem. Frigør lidt plads, når du kan.)",
       "unsavedReply": "{{reply}}\n\n(Bemærk: Min disk er fuld, så jeg kunne ikke gemme dette i vores historik — men din besked kom igennem. Frigør lidt plads, når du kan.)",
       "unsavedStepLimit": "Jeg nåede grænsen for antal trin, mens jeg hentede data — bed mig om at fortsætte, så tager jeg fat, hvor jeg slap.\n\n(Bemærk: Min disk er fuld, så jeg kunne ikke gemme dette i vores historik — men din besked kom igennem. Frigør lidt plads, når du kan.)"
+    },
+    "workoutPreparation": {
+      "failed": "Jeg kunne ikke klargøre denne træningsgennemgang. Ingen ændringer blev anvendt.",
+      "prepared": "Din træningsgennemgang er klar til godkendelse.",
+      "savedInformationFailed": "Jeg gemte dine oplysninger, men kunne ikke klargøre træningsgennemgangen."
     },
     "proposal": {
       "create": "Opret træningen \"{{name}}\" den {{date}}",

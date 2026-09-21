@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan n’a pas pu recevoir cette demande. Ta demande est conservée et rien n’a changé dans Plan.",
       "planningRequestLoadFailure": "Impossible de vérifier les demandes de plan enregistrées. Reconnecte et réessaie.",
       "protocolFailure": "La réponse du coach n’a pas pu être vérifiée. Réessaie.",
+      "savedUnverified": "J’ai enregistré tes informations, mais je n’ai pas pu vérifier ma réponse. Réessaie.",
       "questionSkipped": "Question passée",
       "queueLoadFailure": "Impossible de vérifier tes messages enregistrés. Reconnecte et réessaie.",
       "queueRemoveFailure": "Impossible de supprimer ce message enregistré. Réessaie.",
@@ -2798,6 +2799,11 @@
       "resetUnsavedStepLimit": "J’ai commencé une nouvelle conversation — la précédente est archivée, et je garde tes informations essentielles en mémoire.\n\nJ’ai atteint ma limite d’étapes en recueillant les données — demande-moi de continuer et je reprendrai là où je me suis arrêté.\n\n(À noter : mon disque est plein, je n’ai donc pas pu enregistrer cet échange dans notre historique — mais ton message est bien passé. Libère de l’espace quand tu peux.)",
       "unsavedReply": "{{reply}}\n\n(À noter : mon disque est plein, je n’ai donc pas pu enregistrer cet échange dans notre historique — mais ton message est bien passé. Libère de l’espace quand tu peux.)",
       "unsavedStepLimit": "J’ai atteint ma limite d’étapes en recueillant les données — demande-moi de continuer et je reprendrai là où je me suis arrêté.\n\n(À noter : mon disque est plein, je n’ai donc pas pu enregistrer cet échange dans notre historique — mais ton message est bien passé. Libère de l’espace quand tu peux.)"
+    },
+    "workoutPreparation": {
+      "failed": "Je n’ai pas pu préparer cette revue des entraînements. Aucune modification n’a été appliquée.",
+      "prepared": "La revue de tes entraînements est prête à être approuvée.",
+      "savedInformationFailed": "J’ai enregistré tes informations, mais je n’ai pas pu préparer la revue des entraînements."
     },
     "proposal": {
       "create": "Créer l’entraînement « {{name}} » le {{date}}",

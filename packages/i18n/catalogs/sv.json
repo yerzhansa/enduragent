@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kunde inte ta emot förfrågan. Din förfrågan finns kvar och inget ändrades i Plan.",
       "planningRequestLoadFailure": "Det gick inte att kontrollera sparade planförfrågningar. Anslut på nytt och försök igen.",
       "protocolFailure": "Tränarens svar kunde inte verifieras. Försök igen.",
+      "savedUnverified": "Jag sparade din information, men kunde inte verifiera mitt svar. Försök igen.",
       "questionSkipped": "Frågan hoppades över",
       "queueLoadFailure": "Det gick inte att kontrollera dina sparade meddelanden. Anslut på nytt och försök igen.",
       "queueRemoveFailure": "Det sparade meddelandet kunde inte tas bort. Försök igen.",
@@ -2641,6 +2642,11 @@
       "resetUnsavedStepLimit": "Jag har startat en ny session. Det tidigare samtalet har arkiverats och jag har kvar dina viktigaste uppgifter i minnet.\n\nJag nådde gränsen för antal steg när jag samlade in data. Be mig fortsätta så tar jag vid där jag slutade.\n\nMin disk är full, så jag kunde inte spara det här i vår historik. Ditt meddelande kom fram. Frigör lite utrymme när du kan.",
       "unsavedReply": "{{reply}}\n\nMin disk är full, så jag kunde inte spara det här i vår historik. Ditt meddelande kom fram. Frigör lite utrymme när du kan.",
       "unsavedStepLimit": "Jag nådde gränsen för antal steg när jag samlade in data. Be mig fortsätta så tar jag vid där jag slutade.\n\nMin disk är full, så jag kunde inte spara det här i vår historik. Ditt meddelande kom fram. Frigör lite utrymme när du kan."
+    },
+    "workoutPreparation": {
+      "failed": "Jag kunde inte förbereda den här träningsgranskningen. Inga ändringar genomfördes.",
+      "prepared": "Din träningsgranskning är klar för godkännande.",
+      "savedInformationFailed": "Jag sparade din information, men kunde inte förbereda träningsgranskningen."
     },
     "proposal": {
       "create": "Skapa träningspasset \"{{name}}\" den {{date}}",
