@@ -2903,7 +2903,7 @@
       "changed": "{{name}} 已在 intervals.icu 中變更：{{changes}}。",
       "confirmed": "已確認",
       "descriptionUnavailable": "描述無法取得",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n訓練負荷：{{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n預估訓練負荷：{{load}}\n{{structure}}",
       "durationUnavailable": "時長無法取得",
       "edit": "{{index}}. 編輯訓練\n目前：{{current}}\n建議：{{proposed}}",
       "field": {

@@ -2939,7 +2939,7 @@
       "changed": "{{name}} is gewijzigd in intervals.icu: {{changes}}.",
       "confirmed": "bevestigd",
       "descriptionUnavailable": "Beschrijving niet beschikbaar",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTrainingsbelasting: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nGeschatte trainingsbelasting: {{load}}\n{{structure}}",
       "durationUnavailable": "duur niet beschikbaar",
       "edit": "{{index}}. Training wijzigen\nHuidig: {{current}}\nVoorgesteld: {{proposed}}",
       "field": {

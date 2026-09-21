@@ -77,7 +77,7 @@ describe("workout change review localization", () => {
     const text = renderReview(payload, await workoutPhrasebook("en"));
     expect(text).toContain("2 additions, 1 edits, 1 deletions · 155 min");
     expect(text).toContain("1. Add: 1998-09-08 · Synthetic new ride · 50 min");
-    expect(text).toContain("Training load: 30");
+    expect(text).toContain("Estimated training load: 30");
     expect(text).toContain("60 min");
     expect(text).not.toContain('"steps"');
     expect(text).toContain("Current: 1998-09-07 · Synthetic ride · 60 min");

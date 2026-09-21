@@ -2939,7 +2939,7 @@
       "changed": "{{name}} blev ændret i intervals.icu: {{changes}}.",
       "confirmed": "bekræftet",
       "descriptionUnavailable": "Beskrivelse ikke tilgængelig",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTræningsbelastning: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nEstimeret træningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "varighed ikke tilgængelig",
       "edit": "{{index}}. Rediger træning\nNuværende: {{current}}\nForeslået: {{proposed}}",
       "field": {

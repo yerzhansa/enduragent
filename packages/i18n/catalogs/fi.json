@@ -2939,7 +2939,7 @@
       "changed": "{{name}} muuttui intervals.icu-palvelussa: {{changes}}.",
       "confirmed": "vahvistettu",
       "descriptionUnavailable": "Kuvaus ei saatavilla",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nHarjoituskuormitus: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nArvioitu harjoituskuormitus: {{load}}\n{{structure}}",
       "durationUnavailable": "kesto ei saatavilla",
       "edit": "{{index}}. Muokkaa harjoitusta\nNykyinen: {{current}}\nEhdotettu: {{proposed}}",
       "field": {

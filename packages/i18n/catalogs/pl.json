@@ -3011,7 +3011,7 @@
       "changed": "{{name}} zmienił się w intervals.icu: {{changes}}.",
       "confirmed": "potwierdzone",
       "descriptionUnavailable": "Opis niedostępny",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nObciążenie treningowe: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nSzacowane obciążenie treningowe: {{load}}\n{{structure}}",
       "durationUnavailable": "czas trwania niedostępny",
       "edit": "{{index}}. Edytuj trening\nObecny: {{current}}\nProponowany: {{proposed}}",
       "field": {

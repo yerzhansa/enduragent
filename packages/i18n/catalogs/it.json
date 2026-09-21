@@ -2939,7 +2939,7 @@
       "changed": "{{name}} è cambiato su intervals.icu: {{changes}}.",
       "confirmed": "confermato",
       "descriptionUnavailable": "Descrizione non disponibile",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarico di allenamento: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarico di allenamento stimato: {{load}}\n{{structure}}",
       "durationUnavailable": "durata non disponibile",
       "edit": "{{index}}. Modifica allenamento\nAttuale: {{current}}\nProposto: {{proposed}}",
       "field": {

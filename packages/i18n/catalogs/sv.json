@@ -2939,7 +2939,7 @@
       "changed": "{{name}} ändrades i intervals.icu: {{changes}}.",
       "confirmed": "bekräftat",
       "descriptionUnavailable": "Beskrivning saknas",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nTräningsbelastning: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nUppskattad träningsbelastning: {{load}}\n{{structure}}",
       "durationUnavailable": "längd saknas",
       "edit": "{{index}}. Ändra träningspass\nNuvarande: {{current}}\nFöreslaget: {{proposed}}",
       "field": {

@@ -2903,7 +2903,7 @@
       "changed": "intervals.icuで{{name}}が変更されました: {{changes}}。",
       "confirmed": "確認済み",
       "descriptionUnavailable": "説明を取得できません",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nトレーニング負荷: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n推定トレーニング負荷: {{load}}\n{{structure}}",
       "durationUnavailable": "所要時間を取得できません",
       "edit": "{{index}}. ワークアウトを編集\n現在: {{current}}\n提案: {{proposed}}",
       "field": {

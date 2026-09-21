@@ -2903,7 +2903,7 @@
       "changed": "intervals.icu에서 {{name}}이(가) 변경되었습니다: {{changes}}.",
       "confirmed": "확인됨",
       "descriptionUnavailable": "설명 없음",
-      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n훈련 부하: {{load}}\n{{structure}}",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n예상 훈련 부하: {{load}}\n{{structure}}",
       "durationUnavailable": "시간 정보 없음",
       "edit": "{{index}}. 운동 수정\n현재: {{current}}\n제안: {{proposed}}",
       "field": {
