@@ -814,7 +814,9 @@ describe("shell", () => {
     act(() => {
       useEnduragentStore.getState().setOnboardingStartupSettled(true);
     });
-    expect(document.querySelector('[data-onboarding="settled"]')).not.toBeNull();
+    await waitFor(() => {
+      expect(document.querySelector('[data-onboarding="settled"]')).not.toBeNull();
+    });
   });
 
   it("disables the new chat button until the chat controller is bound", async () => {
