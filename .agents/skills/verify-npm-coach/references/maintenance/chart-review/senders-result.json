@@ -1,0 +1,71 @@
+{
+  "mode": "senders",
+  "status": "PASS",
+  "observations": [
+    {
+      "command": "add-sender 12345",
+      "exitCode": 0,
+      "text": "Added sender 12345.\n",
+      "senders": {
+        "version": 1,
+        "dmPolicy": "allowlist",
+        "allowFrom": [
+          "12345"
+        ],
+        "primaryOperator": "12345",
+        "capturedAt": null,
+        "addedAt": {
+          "12345": "<runtime-timestamp>"
+        }
+      }
+    },
+    {
+      "command": "list-senders",
+      "exitCode": 0,
+      "text": "Policy: allowlist\nPrimary operator: 12345\nAllowed senders (1):\n  12345  added <runtime-timestamp>\nSession candidates (0):\n",
+      "senders": {
+        "version": 1,
+        "dmPolicy": "allowlist",
+        "allowFrom": [
+          "12345"
+        ],
+        "primaryOperator": "12345",
+        "capturedAt": null,
+        "addedAt": {
+          "12345": "<runtime-timestamp>"
+        }
+      }
+    },
+    {
+      "command": "remove-sender 12345",
+      "exitCode": 0,
+      "text": "Removed sender 12345.\n",
+      "senders": {
+        "version": 1,
+        "dmPolicy": "pairing",
+        "allowFrom": [],
+        "primaryOperator": null,
+        "capturedAt": null,
+        "addedAt": {}
+      }
+    },
+    {
+      "command": "list-senders",
+      "exitCode": 0,
+      "text": "Policy: pairing\nPrimary operator: —\nAllowed senders (0):\nSession candidates (0):\n",
+      "senders": {
+        "version": 1,
+        "dmPolicy": "pairing",
+        "allowFrom": [],
+        "primaryOperator": null,
+        "capturedAt": null,
+        "addedAt": {}
+      }
+    }
+  ],
+  "cleanup": {
+    "scratchRemoved": true,
+    "livePids": [],
+    "listenersOpened": 0
+  }
+}

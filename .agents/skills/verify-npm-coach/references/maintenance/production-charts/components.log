@@ -1,0 +1,45 @@
+
+ RUN  v4.1.11 <checkout>
+
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+
+Shutting down — finishing in-flight messages...
+ ❯ |workspace| packages/core/tests/workout-change-sets.test.ts (77 tests | 1 failed) 28306ms
+     × allows no TTL and has no fixed workout count cap 6326ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |workspace| packages/core/tests/workout-change-sets.test.ts > durable workout change sets > allows no TTL and has no fixed workout count cap
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ packages/core/tests/workout-change-sets.test.ts:1349:3
+    1347|     expect(fake.events.get(101)?.workoutDoc).toEqual(reviewedStructure…
+    1348|   });
+    1349|   it("allows no TTL and has no fixed workout count cap", async () => {
+       |   ^
+    1350|     const { service, fake } = await setup();
+    1351|     const { control } = await prepare(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 121 passed (122)
+      Tests  1 failed | 2806 passed | 1 skipped (2808)
+   Start at  12:56:46
+   Duration  35.60s (transform 19.55s, setup 0ms, import 46.61s, tests 182.65s, environment 12ms)
+

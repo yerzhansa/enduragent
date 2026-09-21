@@ -1,0 +1,713 @@
+[agent] boot
+{"event":"section_rename","from":"profile","to":"cycling-profile","outcome":"noop"}
+{"event":"section_rename","from":"equipment","to":"cycling-equipment","outcome":"noop"}
+{"event":"section_rename","from":"health","to":"cycling-history","outcome":"noop"}
+syncing training data from intervals.icu…
+Cycling Coach (CLI mode). Type your message:
+> 
+USER: Prepare all 85 strength sessions.
+[agent] turn_outcome
+
+Review the workout changes below. Nothing has been changed yet.
+
+
+Review all workout changes
+
+1. Add: 1998-09-08 · Strength 1 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+2. Add: 1998-09-08 · Strength 2 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+3. Add: 1998-09-08 · Strength 3 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+4. Add: 1998-09-08 · Strength 4 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+5. Add: 1998-09-08 · Strength 5 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+6. Add: 1998-09-08 · Strength 6 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+7. Add: 1998-09-08 · Strength 7 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+8. Add: 1998-09-08 · Strength 8 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+9. Add: 1998-09-08 · Strength 9 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+10. Add: 1998-09-08 · Strength 10 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+11. Add: 1998-09-08 · Strength 11 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+12. Add: 1998-09-08 · Strength 12 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+13. Add: 1998-09-08 · Strength 13 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+14. Add: 1998-09-08 · Strength 14 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+15. Add: 1998-09-08 · Strength 15 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+16. Add: 1998-09-08 · Strength 16 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+17. Add: 1998-09-08 · Strength 17 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+18. Add: 1998-09-08 · Strength 18 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+19. Add: 1998-09-08 · Strength 19 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+20. Add: 1998-09-08 · Strength 20 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+21. Add: 1998-09-08 · Strength 21 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+22. Add: 1998-09-08 · Strength 22 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+23. Add: 1998-09-08 · Strength 23 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+24. Add: 1998-09-08 · Strength 24 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+25. Add: 1998-09-08 · Strength 25 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+26. Add: 1998-09-08 · Strength 26 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+27. Add: 1998-09-08 · Strength 27 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+28. Add: 1998-09-08 · Strength 28 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+29. Add: 1998-09-08 · Strength 29 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+30. Add: 1998-09-08 · Strength 30 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+31. Add: 1998-09-08 · Strength 31 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+32. Add: 1998-09-08 · Strength 32 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+33. Add: 1998-09-08 · Strength 33 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+34. Add: 1998-09-08 · Strength 34 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+35. Add: 1998-09-08 · Strength 35 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+36. Add: 1998-09-08 · Strength 36 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+37. Add: 1998-09-08 · Strength 37 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+38. Add: 1998-09-08 · Strength 38 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+39. Add: 1998-09-08 · Strength 39 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+40. Add: 1998-09-08 · Strength 40 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+41. Add: 1998-09-08 · Strength 41 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+42. Add: 1998-09-08 · Strength 42 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+43. Add: 1998-09-08 · Strength 43 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+44. Add: 1998-09-08 · Strength 44 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+45. Add: 1998-09-08 · Strength 45 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+46. Add: 1998-09-08 · Strength 46 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+47. Add: 1998-09-08 · Strength 47 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+48. Add: 1998-09-08 · Strength 48 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+49. Add: 1998-09-08 · Strength 49 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+50. Add: 1998-09-08 · Strength 50 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+51. Add: 1998-09-08 · Strength 51 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+52. Add: 1998-09-08 · Strength 52 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+53. Add: 1998-09-08 · Strength 53 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+54. Add: 1998-09-08 · Strength 54 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+55. Add: 1998-09-08 · Strength 55 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+56. Add: 1998-09-08 · Strength 56 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+57. Add: 1998-09-08 · Strength 57 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+58. Add: 1998-09-08 · Strength 58 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+59. Add: 1998-09-08 · Strength 59 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+60. Add: 1998-09-08 · Strength 60 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+61. Add: 1998-09-08 · Strength 61 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+62. Add: 1998-09-08 · Strength 62 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+63. Add: 1998-09-08 · Strength 63 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+64. Add: 1998-09-08 · Strength 64 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+65. Add: 1998-09-08 · Strength 65 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+66. Add: 1998-09-08 · Strength 66 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+67. Add: 1998-09-08 · Strength 67 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+68. Add: 1998-09-08 · Strength 68 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+69. Add: 1998-09-08 · Strength 69 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+70. Add: 1998-09-08 · Strength 70 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+71. Add: 1998-09-08 · Strength 71 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+72. Add: 1998-09-08 · Strength 72 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+73. Add: 1998-09-08 · Strength 73 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+74. Add: 1998-09-08 · Strength 74 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+75. Add: 1998-09-08 · Strength 75 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+76. Add: 1998-09-08 · Strength 76 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+77. Add: 1998-09-08 · Strength 77 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+78. Add: 1998-09-08 · Strength 78 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+79. Add: 1998-09-08 · Strength 79 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+80. Add: 1998-09-08 · Strength 80 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+81. Add: 1998-09-08 · Strength 81 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+82. Add: 1998-09-08 · Strength 82 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+83. Add: 1998-09-08 · Strength 83 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+84. Add: 1998-09-08 · Strength 84 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+85. Add: 1998-09-08 · Strength 85 · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+85 additions, 0 edits, 0 deletions · 2,550 min for added or edited workouts
+
+Existing workouts kept:
+1998-09-08 · Existing ride · 45 min
+
+
+Apply all reviewed changes?
+Type approve to apply these changes, cancel to cancel, or a message to revise the proposal.
+
+> 
+USER: approve
+
+Already completed:
+1998-09-08 · Strength 1 (confirmed)
+1998-09-08 · Strength 2 (confirmed)
+1998-09-08 · Strength 3 (confirmed)
+1998-09-08 · Strength 4 (confirmed)
+1998-09-08 · Strength 5 (confirmed)
+1998-09-08 · Strength 6 (confirmed)
+1998-09-08 · Strength 7 (confirmed)
+1998-09-08 · Strength 8 (confirmed)
+1998-09-08 · Strength 9 (confirmed)
+1998-09-08 · Strength 10 (confirmed)
+1998-09-08 · Strength 11 (confirmed)
+1998-09-08 · Strength 12 (confirmed)
+1998-09-08 · Strength 13 (confirmed)
+1998-09-08 · Strength 14 (confirmed)
+1998-09-08 · Strength 15 (confirmed)
+1998-09-08 · Strength 16 (confirmed)
+1998-09-08 · Strength 17 (confirmed)
+1998-09-08 · Strength 18 (confirmed)
+1998-09-08 · Strength 19 (confirmed)
+1998-09-08 · Strength 20 (confirmed)
+1998-09-08 · Strength 21 (confirmed)
+1998-09-08 · Strength 22 (confirmed)
+1998-09-08 · Strength 23 (confirmed)
+1998-09-08 · Strength 24 (confirmed)
+1998-09-08 · Strength 25 (confirmed)
+1998-09-08 · Strength 26 (confirmed)
+1998-09-08 · Strength 27 (confirmed)
+1998-09-08 · Strength 28 (confirmed)
+1998-09-08 · Strength 29 (confirmed)
+1998-09-08 · Strength 30 (confirmed)
+1998-09-08 · Strength 31 (confirmed)
+1998-09-08 · Strength 32 (confirmed)
+1998-09-08 · Strength 33 (confirmed)
+1998-09-08 · Strength 34 (confirmed)
+1998-09-08 · Strength 35 (confirmed)
+1998-09-08 · Strength 36 (confirmed)
+1998-09-08 · Strength 37 (confirmed)
+1998-09-08 · Strength 38 (confirmed)
+1998-09-08 · Strength 39 (confirmed)
+1998-09-08 · Strength 40 (confirmed)
+1998-09-08 · Strength 41 (confirmed)
+1998-09-08 · Strength 42 (confirmed)
+1998-09-08 · Strength 43 (confirmed)
+1998-09-08 · Strength 44 (confirmed)
+1998-09-08 · Strength 45 (confirmed)
+1998-09-08 · Strength 46 (confirmed)
+1998-09-08 · Strength 47 (confirmed)
+1998-09-08 · Strength 48 (confirmed)
+1998-09-08 · Strength 49 (confirmed)
+1998-09-08 · Strength 50 (confirmed)
+1998-09-08 · Strength 51 (confirmed)
+1998-09-08 · Strength 52 (confirmed)
+1998-09-08 · Strength 53 (confirmed)
+1998-09-08 · Strength 54 (confirmed)
+1998-09-08 · Strength 55 (confirmed)
+1998-09-08 · Strength 56 (confirmed)
+1998-09-08 · Strength 57 (confirmed)
+1998-09-08 · Strength 58 (confirmed)
+1998-09-08 · Strength 59 (confirmed)
+1998-09-08 · Strength 60 (confirmed)
+1998-09-08 · Strength 61 (confirmed)
+1998-09-08 · Strength 62 (confirmed)
+1998-09-08 · Strength 63 (confirmed)
+1998-09-08 · Strength 64 (confirmed)
+1998-09-08 · Strength 65 (confirmed)
+1998-09-08 · Strength 66 (confirmed)
+1998-09-08 · Strength 67 (confirmed)
+1998-09-08 · Strength 68 (confirmed)
+1998-09-08 · Strength 69 (confirmed)
+1998-09-08 · Strength 70 (confirmed)
+1998-09-08 · Strength 71 (confirmed)
+1998-09-08 · Strength 72 (confirmed)
+1998-09-08 · Strength 73 (confirmed)
+1998-09-08 · Strength 74 (confirmed)
+1998-09-08 · Strength 75 (confirmed)
+1998-09-08 · Strength 76 (confirmed)
+1998-09-08 · Strength 77 (confirmed)
+1998-09-08 · Strength 78 (confirmed)
+1998-09-08 · Strength 79 (confirmed)
+1998-09-08 · Strength 80 (confirmed)
+1998-09-08 · Strength 81 (confirmed)
+1998-09-08 · Strength 82 (confirmed)
+1998-09-08 · Strength 83 (confirmed)
+1998-09-08 · Strength 84 (confirmed)
+1998-09-08 · Strength 85 (confirmed)
+
+All reviewed changes are complete.
+
+> 
+USER: /quit

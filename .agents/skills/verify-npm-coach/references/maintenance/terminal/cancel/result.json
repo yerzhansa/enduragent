@@ -1,0 +1,16 @@
+{
+  "scenario": "cancel",
+  "restart": false,
+  "status": "PASS",
+  "revision": "24e46acaccb13d60b4b6f434452470c6b8e49f1b",
+  "binarySha256": "20f7267d4fe1395d12380541a2f723fb0179d287201330d2c4608b0f04d7d4bc",
+  "runtime": "v24.11.1",
+  "platform": "darwin",
+  "executor": "built-npm-terminal",
+  "boundaries": "fictional provider and calendar; all other fetch destinations refused",
+  "cleanup": {
+    "livePids": [],
+    "scratchRemoved": true,
+    "listenersOpened": 0
+  }
+}

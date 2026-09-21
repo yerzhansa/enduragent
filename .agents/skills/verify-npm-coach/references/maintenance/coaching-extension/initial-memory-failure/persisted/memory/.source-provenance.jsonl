@@ -1,0 +1,5 @@
+{"version":1,"op":"put","key":"memory:preferences","digest":"50b9919e8ce87b0e842dce42a9c272decfbf98c319b1e759414afd68960151c4","provenance":{"garmin":false,"nonGarmin":false,"unknown":true}}
+{"version":1,"op":"put","key":"memory:preferences","digest":"70b8bd050cd7e29f3e60bf53bc9b04e15233e19b38f4cf4c81b5f8787131ddea","provenance":{"garmin":false,"nonGarmin":false,"unknown":true}}
+{"version":1,"op":"put","key":"daily:1998-09-07","digest":"971e6225df5bcff2f2b01af8a94c54b5324221e0bbefd55ce830a837002b7055","provenance":{"garmin":false,"nonGarmin":false,"unknown":true}}
+{"version":1,"op":"put","key":"daily-line:1998-09-07:0","digest":"971e6225df5bcff2f2b01af8a94c54b5324221e0bbefd55ce830a837002b7055","provenance":{"garmin":false,"nonGarmin":false,"unknown":true}}
+{"version":1,"op":"put","key":"ledger:451d16a050795c0597bf0e550aed2b2479ce75a67471c1810e639a4c2bf67228","digest":"451d16a050795c0597bf0e550aed2b2479ce75a67471c1810e639a4c2bf67228","provenance":{"garmin":false,"nonGarmin":false,"unknown":true}}

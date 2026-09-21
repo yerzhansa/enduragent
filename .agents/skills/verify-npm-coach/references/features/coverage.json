@@ -1,0 +1,758 @@
+{
+  "schema_version": 1,
+  "source_inventory": "/Users/yerzhansagyt/projects/cycling-coach/docs/initiatives/npm-telegram-feature-inventory/inventory.json",
+  "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+  "expected_inventory_counts": {
+    "features": 124,
+    "knowledge_topics": 8,
+    "diagnostic_metrics": 43
+  },
+  "features": [
+    {
+      "slug": "install-and-hosting",
+      "title": "Installation, hosting, and local data",
+      "inventory_ids": [
+        "N01",
+        "N20",
+        "N25",
+        "N26"
+      ],
+      "page": "install-and-hosting.md",
+      "source_paths": [
+        "packages/core/src/run-binary.ts",
+        "packages/core/src/coach-home.ts",
+        "packages/core/src/process-guard.ts",
+        "packages/cycling-coach/Dockerfile",
+        "packages/cycling-coach/docker-entrypoint.sh"
+      ],
+      "test_files": [
+        "packages/core/tests/run-binary.test.ts",
+        "packages/core/tests/coach-home.test.ts",
+        "packages/core/tests/config.data-dir.test.ts",
+        "packages/core/tests/run-binary-shutdown.test.ts",
+        "packages/core/tests/process-guard.test.ts",
+        "packages/core/tests/run-binary-allowlist.test.ts",
+        "packages/core/tests/npm-telegram-polling.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "cancel",
+        "coverage": "partial",
+        "limitations": "Global npm installation, Node 22 compatibility, container startup, Railway persistence, legacy-home migration, and crash recovery are not proved by the cancel recipe. Use their tests and record missing platform proofs separately. The fixture doctor requires Node 24 even though the package minimum is Node 22."
+      }
+    },
+    {
+      "slug": "setup-and-providers",
+      "title": "Setup, providers, and models",
+      "inventory_ids": [
+        "N02",
+        "N03",
+        "N04",
+        "N05",
+        "N06",
+        "N07",
+        "N08",
+        "N09",
+        "N10",
+        "N11"
+      ],
+      "page": "setup-and-providers.md",
+      "source_paths": [
+        "packages/core/src/setup.ts",
+        "packages/core/src/config.ts",
+        "packages/core/src/runtime-config.ts",
+        "packages/core/src/claude-cli-setup.ts",
+        "packages/core/src/codex-agent-startup.ts",
+        "packages/core/src/auth/openai-codex-login.ts",
+        "packages/core/src/auth/profiles.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/setup-providers.test.ts",
+        "packages/core/tests/setup-merge.test.ts",
+        "packages/core/tests/codex-setup-flow.test.ts",
+        "packages/core/tests/claude-cli-setup.test.ts",
+        "packages/core/tests/claude-cli-config.test.ts",
+        "packages/core/tests/codex-agent-config.test.ts",
+        "packages/core/tests/codex-agent-startup.test.ts",
+        "packages/core/tests/runtime-config.test.ts",
+        "packages/core/tests/config.default-models.test.ts",
+        "packages/core/tests/model-catalog.test.ts",
+        "packages/core/tests/model-catalog-refresh.test.ts",
+        "packages/core/tests/model-catalog-owner-selection.test.ts",
+        "packages/core/tests/auth-profiles.test.ts",
+        "packages/core/tests/profile-store.test.ts",
+        "packages/core/tests/codex/oauth.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "partial",
+        "limitations": "Current maintenance passed the bounded PTY cancellation recipe without saved authentication. This PTY recipe is not an automated runner mode. Never run Claude models for verification from Codex. Real OAuth, subscription identity, provider inference, catalog refresh, and token refresh need dedicated accounts or a controlled external fixture. Component tests are not live-authentication proof."
+      }
+    },
+    {
+      "slug": "secrets-and-connections",
+      "title": "Credentials, connections, and sender administration",
+      "inventory_ids": [
+        "N12",
+        "N13",
+        "N14",
+        "N15",
+        "N16"
+      ],
+      "page": "secrets-and-connections.md",
+      "source_paths": [
+        "packages/core/src/setup.ts",
+        "packages/core/src/config.ts",
+        "packages/core/src/secrets/resolve.ts",
+        "packages/core/src/channels/allowed-senders.ts",
+        "packages/core/src/run-binary.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/setup.secret-ref.test.ts",
+        "packages/core/tests/config.secret-ref.test.ts",
+        "packages/core/tests/secrets/types.test.ts",
+        "packages/core/tests/secrets/resolve.test.ts",
+        "packages/core/tests/secrets/backends/detect.test.ts",
+        "packages/core/tests/secrets/backends/keychain.test.ts",
+        "packages/core/tests/secrets/backends/op.test.ts",
+        "packages/core/tests/secrets/backends/spawn-timeout.test.ts",
+        "packages/core/tests/setup-allowlist.test.ts",
+        "packages/core/tests/run-binary-allowlist.test.ts",
+        "packages/core/tests/allowed-senders.test.ts",
+        "packages/core/tests/operator-capture.test.ts",
+        "packages/core/tests/telegram-setup.test.ts",
+        "packages/core/tests/telegram-access.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "partial",
+        "limitations": "Current maintenance passed fictional sender add/list/remove/list in an owned scratch home. The managed Telegram launcher preauthorizes its operator, so it cannot prove first pairing. No live vault or real intervals.icu connection is proved by mocked credential tests. Do not use operator Keychain items or normal accounts. A config-only open Telegram policy does not create independent athlete profiles."
+      }
+    },
+    {
+      "slug": "language",
+      "title": "Language and locale",
+      "inventory_ids": [
+        "N17",
+        "T14",
+        "T15",
+        "T16"
+      ],
+      "page": "language.md",
+      "source_paths": [
+        "packages/core/src/language-preference.ts",
+        "packages/core/src/channels/telegram-language-menu.ts",
+        "packages/core/src/channels/telegram-command-menu.ts",
+        "packages/i18n/src/registry.ts",
+        "packages/i18n/src/coach-language.ts",
+        "packages/i18n/src/node.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/setup-language.test.ts",
+        "packages/core/tests/run-binary-language.test.ts",
+        "packages/core/tests/telegram-language.test.ts",
+        "packages/core/tests/telegram-language-menu.test.ts",
+        "packages/core/tests/telegram-command-menu.test.ts",
+        "packages/i18n/tests/coach-language.test.ts",
+        "packages/i18n/tests/node.test.ts",
+        "packages/i18n/tests/registry-resolve.test.ts",
+        "packages/i18n/tests/detect-message-language.test.ts",
+        "packages/i18n/tests/messages-fallback.test.ts",
+        "packages/i18n/tests/catalog-coverage.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "partial",
+        "limitations": "Historical telegram-extension evidence proves Spanish preference persistence and Automatic removal. Current maintenance proved override disclosure without changing preferences. Both current runners force `ENDURAGENT_LANGUAGE=en`. This recipe proves override disclosure and persistence only. Effective fixed-language switching and Automatic detection need a runner option without that override. Missing dedicated bot or isolated browser authentication blocks UI proof."
+      }
+    },
+    {
+      "slug": "terminal-and-session",
+      "title": "Conversation and session continuity",
+      "inventory_ids": [
+        "N18",
+        "N19",
+        "C06",
+        "T04",
+        "T29",
+        "T30"
+      ],
+      "page": "terminal-and-session.md",
+      "source_paths": [
+        "packages/core/src/run-binary.ts",
+        "packages/core/src/config.ts",
+        "packages/engine/src/agent/coach-agent.ts",
+        "packages/core/src/channels/telegram.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/run-binary.test.ts",
+        "packages/core/tests/run-binary-shutdown.test.ts",
+        "packages/core/tests/run-binary-language.test.ts",
+        "packages/core/tests/config.session-defaults.test.ts",
+        "packages/core/tests/config.session-retention.test.ts",
+        "packages/core/tests/conversation-store.test.ts",
+        "packages/core/tests/telegram-start-reset-failure.test.ts",
+        "packages/core/tests/telegram-update-offsets.test.ts",
+        "packages/core/tests/telegram-work-ledger.test.ts",
+        "packages/core/tests/telegram-generation-lifecycle.test.ts",
+        "packages/core/tests/telegram-coalescing.test.ts",
+        "packages/engine/tests/memory-flush-outcome.test.ts",
+        "packages/engine/tests/reset-session-lock.test.ts",
+        "packages/engine/tests/reset-flush-guard.test.ts",
+        "packages/engine/tests/session-freshness.test.ts",
+        "packages/engine/tests/session-corrupt-recovery.test.ts",
+        "packages/engine/tests/session-ordering.test.ts",
+        "packages/engine/tests/compaction.test.ts",
+        "packages/engine/tests/compaction-substrate.test.ts",
+        "packages/engine/tests/trim-compaction-guard.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "incomplete",
+        "coverage": "partial",
+        "limitations": "This fixture cannot interpret arbitrary saved facts or prove semantic memory flush. Terminal `--restart` proves a saved workout review, not conversation persistence. The Telegram launcher creates a fresh home and deletes it on stop; it has no restart-preserving mode and refuses pending updates during doctor."
+      }
+    },
+    {
+      "slug": "memory-and-recall",
+      "title": "Athlete memory, recall, and saved plans",
+      "inventory_ids": [
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C21"
+      ],
+      "page": "memory-and-recall.md",
+      "source_paths": [
+        "packages/engine/src/sport/memory-tools.ts",
+        "packages/engine/src/sport/shared-sections.ts",
+        "packages/sport-cycling/src/sport.ts",
+        "packages/core/src/agent/confirmation-gate.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/memory-tools-schema.test.ts",
+        "packages/core/tests/memory-query.test.ts",
+        "packages/core/tests/memory-event-ledger.test.ts",
+        "packages/core/tests/memory-journal.test.ts",
+        "packages/core/tests/memory-daily-note-dedup.test.ts",
+        "packages/core/tests/memory-plan-load.test.ts",
+        "packages/core/tests/memory-plan-read-gate.test.ts",
+        "packages/core/tests/memory-plan-write-gate.test.ts",
+        "packages/core/tests/confirmation-gate.test.ts",
+        "packages/engine/tests/athlete-snapshot-wiring.test.ts",
+        "packages/engine/tests/workout-preparation-host.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal-coaching",
+        "scenario": "memory",
+        "coverage": "partial",
+        "limitations": "The memory fixture proves preference replacement, daily/general notes, event append, inclusive date recall, injected context and restart persistence. The planning fixture proves save decline, save approval and reload. Not every memory section, recall boundary or concurrent write path has live coverage."
+      }
+    },
+    {
+      "slug": "athlete-data-and-review",
+      "title": "Athlete data and recorded-session review",
+      "inventory_ids": [
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15"
+      ],
+      "page": "athlete-data-and-review.md",
+      "source_paths": [
+        "packages/engine/src/sport/platform-tools.ts",
+        "packages/engine/src/sport/list-projection.ts",
+        "packages/engine/src/agent/athlete-snapshot.ts",
+        "packages/engine/src/agent/system-prompt.ts",
+        "packages/sport-cycling/skills/review.md"
+      ],
+      "test_files": [
+        "packages/core/tests/athlete-data-tools.test.ts",
+        "packages/engine/tests/athlete-snapshot.test.ts",
+        "packages/engine/tests/athlete-snapshot-wiring.test.ts",
+        "packages/engine/tests/intervals-tools-fetch-activity.test.ts",
+        "packages/engine/tests/intervals-tools-fetch-streams.test.ts",
+        "packages/engine/tests/intervals-tools-list-projection.test.ts",
+        "packages/engine/tests/intervals-tools-range-cap.test.ts",
+        "packages/engine/tests/system-prompt-review-rules.test.ts",
+        "packages/sport-cycling/tests/review-canonical-guidance.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal-coaching",
+        "scenario": "data",
+        "coverage": "partial",
+        "limitations": "The data fixture proves actual profile/wellness/activity/lap/stream tools and numeric repeat reads with fictional external data. Grouping, free-form review reasoning, Telegram slash commands, missing-data variants and numeric table presentation remain unverified live."
+      }
+    },
+    {
+      "slug": "planning-and-coaching",
+      "title": "Coaching, zones, feasibility, and plan drafts",
+      "inventory_ids": [
+        "C01",
+        "C16",
+        "C17",
+        "C18",
+        "C19",
+        "C20",
+        "C22",
+        "C30",
+        "K01",
+        "K02",
+        "K03",
+        "K04",
+        "K05",
+        "K06",
+        "K07",
+        "K08"
+      ],
+      "page": "planning-and-coaching.md",
+      "source_paths": [
+        "packages/sport-cycling/src/tools.ts",
+        "packages/sport-cycling/src/plan-builder.ts",
+        "packages/sport-cycling/src/sport.ts",
+        "packages/engine/src/agent/coach-decision-tool.ts",
+        "packages/sport-cycling/skills/prescription-posture.md"
+      ],
+      "test_files": [
+        "packages/sport-cycling/tests/zones.test.ts",
+        "packages/sport-cycling/tests/feasibility.test.ts",
+        "packages/sport-cycling/tests/periodization.test.ts",
+        "packages/sport-cycling/tests/plan-builder.test.ts",
+        "packages/sport-cycling/tests/templates.test.ts",
+        "packages/sport-cycling/tests/tools.test.ts",
+        "packages/sport-cycling/tests/prescription-posture.test.ts",
+        "packages/sport-cycling/tests/skill-keyspace.test.ts",
+        "packages/sport-cycling/tests/skill-constant-dedup.test.ts",
+        "packages/engine/tests/coach-decision-channel-scope.test.ts",
+        "packages/engine/tests/system-prompt-review-rules.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal-coaching",
+        "scenario": "planning",
+        "coverage": "partial",
+        "limitations": "The planning fixture proves actual zones, feasibility, sample week, draft generation and explicit save/restart. It does not prove model judgment, all input combinations, numbered coaching decisions or application of the eight knowledge topics."
+      }
+    },
+    {
+      "slug": "calendar-workouts",
+      "title": "Calendar workouts and external delivery",
+      "inventory_ids": [
+        "C23",
+        "C24",
+        "C25",
+        "C26",
+        "C27",
+        "C28",
+        "C29",
+        "T17"
+      ],
+      "page": "calendar-workouts.md",
+      "source_paths": [
+        "packages/sport-cycling/src/workout-change-set-tool.ts",
+        "packages/engine/src/agent/coach-agent.ts",
+        "packages/core/src/run-binary.ts",
+        "packages/core/src/workout-change-sets/review.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/workout-change-sets.test.ts",
+        "packages/core/tests/workout-change-set-protection.test.ts",
+        "packages/core/tests/workout-change-set-review.test.ts",
+        "packages/engine/tests/workout-preparation-host.test.ts",
+        "packages/engine/tests/intervals-tools-events.test.ts",
+        "packages/sport-cycling/tests/tools.test.ts",
+        "packages/sport-cycling/tests/intervals-serializer.test.ts",
+        "packages/sport-cycling/tests/workout-change-set-tool.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "mixed",
+        "coverage": "partial",
+        "limitations": "Current branch replaces four direct calendar mutation tools with prepare_workout_changes and get_pending_workout_changes. C28's baseline ten-minute calendar proposal no longer applies to the batch workflow, which has no elapsed-time expiry. plan_save remains separate. Garmin/Wahoo delivery is an intervals.icu integration prerequisite and is not proved by a synthetic calendar."
+      }
+    },
+    {
+      "slug": "telegram-access-and-chat",
+      "title": "Telegram access and conversation",
+      "inventory_ids": [
+        "T01",
+        "T02",
+        "T03",
+        "T05",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T26",
+        "T27"
+      ],
+      "page": "telegram-access-and-chat.md",
+      "source_paths": [
+        "packages/core/src/channels/telegram-access.ts",
+        "packages/core/src/channels/telegram.ts",
+        "packages/core/src/run-binary.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/telegram-access.test.ts",
+        "packages/core/tests/setup-allowlist.test.ts",
+        "packages/core/tests/telegram-dispatch.test.ts",
+        "packages/core/tests/telegram-coalescing.test.ts",
+        "packages/core/tests/telegram-nonblocking.test.ts",
+        "packages/core/tests/telegram-md.test.ts",
+        "packages/core/tests/telegram-start-reset-failure.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "not_run",
+        "limitations": "The launcher preauthorizes the operator and uses noninteractive stdin, so it cannot prove unauthorized pairing or interactive operator capture. Fast scripted output cannot prove timing of a long typing heartbeat. The model fixture ignores most request semantics, so `/status` does not establish status reasoning. Text input only; no inbound media or group coaching."
+      }
+    },
+    {
+      "slug": "sync-and-snapshot",
+      "title": "Training synchronization and diagnostic snapshots",
+      "inventory_ids": [
+        "N21",
+        "C31",
+        "T12",
+        "T22",
+        "T23",
+        "T24",
+        "T25",
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09",
+        "M10",
+        "M11",
+        "M12",
+        "M13",
+        "M14",
+        "M15",
+        "M16",
+        "M17",
+        "M18",
+        "M19",
+        "M20",
+        "M21",
+        "M22",
+        "M23",
+        "M24",
+        "M25",
+        "M26",
+        "M27",
+        "M28",
+        "M29",
+        "M30",
+        "M31",
+        "M32",
+        "M33",
+        "M34",
+        "M35",
+        "M36",
+        "M37",
+        "M38",
+        "M39",
+        "M40",
+        "M41",
+        "M42",
+        "M43"
+      ],
+      "page": "sync-and-snapshot.md",
+      "source_paths": [
+        "packages/core/src/reference/runtime.ts",
+        "packages/core/src/reference/sync/run-sync.ts",
+        "packages/core/src/reference/sync/format-sync-reply.ts",
+        "packages/core/src/reference/sync/snapshot-debug.ts",
+        "packages/kernel/src/reference/metrics/registry.ts",
+        "packages/core/src/reference/sync/fetch-reference-data.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/reference-runtime.test.ts",
+        "packages/core/tests/reference-scheduler.test.ts",
+        "packages/core/tests/reference-run-sync.test.ts",
+        "packages/core/tests/reference-sync-gate.test.ts",
+        "packages/core/tests/reference-format-sync-reply.test.ts",
+        "packages/core/tests/reference-snapshot-debug.test.ts",
+        "packages/core/tests/reference-send-snapshot.test.ts",
+        "packages/core/tests/reference-compute-derived-metrics.test.ts",
+        "packages/core/tests/reference-parity.test.ts",
+        "packages/core/tests/reference-fetch-live-bundle.test.ts",
+        "packages/core/tests/npm-telegram-host.test.ts",
+        "packages/engine/tests/coach-agent-block-coaching.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "not_run",
+        "limitations": "The fixture proves commands and metadata, not populated metric values or rich document fallback. Metrics M34/M35/M36 lack live curve inputs. Forty-three registry keys do not mean 43 working analyses or prompt injection. Twenty oracle-only fields are not live outputs. current_status and separate history/intervals/routes/FTP-history caches are empty in this producer. The seven named sections exclude derived_metrics_meta and source_provenance, which appear only in the full dump. /sync does not publish workouts."
+      }
+    },
+    {
+      "slug": "release-and-feedback",
+      "title": "Version, releases, updates, and feedback",
+      "inventory_ids": [
+        "N22",
+        "N23",
+        "N24",
+        "T13",
+        "T18",
+        "T19",
+        "T20",
+        "T21"
+      ],
+      "page": "release-and-feedback.md",
+      "source_paths": [
+        "packages/core/src/updater.ts",
+        "packages/core/src/channels/npm-telegram-host.ts",
+        "packages/core/src/channels/telegram.ts",
+        "packages/coach-contract/src/athlete-feedback.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/updater.test.ts",
+        "packages/core/tests/release-notes.test.ts",
+        "packages/core/tests/npm-telegram-host.test.ts",
+        "packages/core/tests/telegram-dispatch.test.ts",
+        "packages/core/tests/telegram-bot.test.ts",
+        "packages/core/tests/telegram-update-offsets.test.ts",
+        "packages/core/tests/run-binary-allowlist.test.ts",
+        "packages/coach-contract/tests/athlete-feedback.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "not_run",
+        "limitations": "The preload returns 503 outside intervals.icu and the scripted provider. It cannot prove successful feedback, registry lookup, installation, or telemetry. Automatic update checks are disabled. Never run self-update against the operator's global installation or send feedback to others as a verification side effect."
+      }
+    },
+    {
+      "slug": "errors-and-diagnostics",
+      "title": "Error recovery and local diagnostics",
+      "inventory_ids": [
+        "N27",
+        "N28",
+        "T28"
+      ],
+      "page": "errors-and-diagnostics.md",
+      "source_paths": [
+        "packages/core/src/agent/error-classify.ts",
+        "packages/core/src/run-binary.ts",
+        "packages/core/src/channels/telegram.ts",
+        "packages/core/src/logging/logger.ts",
+        "packages/core/src/usage-ledger.ts",
+        "packages/engine/src/agent/coach-agent.ts",
+        "packages/engine/src/agent/coach-agent-copy.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/error-classify.test.ts",
+        "packages/core/tests/run-binary.test.ts",
+        "packages/core/tests/telegram-dispatch.test.ts",
+        "packages/core/tests/logging.test.ts",
+        "packages/core/tests/usage-ledger.test.ts",
+        "packages/engine/tests/workout-preparation-host.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "manual-or-existing-tests",
+        "scenario": null,
+        "coverage": "not_run",
+        "limitations": "There is no provider-outage or Telegram-delivery-failure scenario in the current runner. Do not invent --scenario=outage or treat incomplete preparation as provider failure. Live fault coverage remains BLOCKED until controlled injection exists. Logger/ledger sizes and retention must not be inferred from one successful entry."
+      }
+    },
+    {
+      "slug": "review-and-approval",
+      "title": "Review and approval",
+      "inventory_ids": [
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "W13",
+        "W14",
+        "W15",
+        "W16",
+        "W35"
+      ],
+      "page": "review-and-approval.md",
+      "source_paths": [
+        "packages/core/src/workout-change-sets/service.ts",
+        "packages/core/src/workout-change-sets/preparation.ts",
+        "packages/core/src/workout-change-sets/review.ts",
+        "packages/core/src/workout-change-sets/effort.ts",
+        "packages/core/src/channels/workout-approval.ts",
+        "packages/core/src/channels/workout-chart.ts",
+        "packages/core/src/workout-change-sets/presentation.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/workout-change-sets.test.ts",
+        "packages/core/tests/workout-change-set-review.test.ts",
+        "packages/core/tests/workout-approval-channel.test.ts",
+        "packages/core/tests/telegram-dispatch.test.ts",
+        "packages/engine/tests/workout-preparation-host.test.ts",
+        "packages/sport-cycling/tests/workout-change-set-tool.test.ts",
+        "packages/sport-cycling/tests/intervals-serializer.test.ts",
+        "packages/sport-running/tests/intervals-serializer.test.ts",
+        "packages/core/tests/workout-effort-plot.test.ts",
+        "packages/core/tests/workout-chart.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "revision",
+        "coverage": "partial",
+        "limitations": "Terminal fixtures do not prove Telegram chart rendering. Use the real guarded Telegram route for add/edit/delete cards, N of NN positions, pending rename preservation, complete delivery and independent calendar readback. Retained cycle-14 evidence covers the rename and numbering correction; all locales and every delivery failure remain separate checks."
+      }
+    },
+    {
+      "slug": "restrictions",
+      "title": "Restrictions and approval validity",
+      "inventory_ids": [
+        "W17",
+        "W18",
+        "W19",
+        "W20",
+        "W21",
+        "W22",
+        "W23"
+      ],
+      "page": "restrictions.md",
+      "source_paths": [
+        "packages/core/src/workout-change-sets/calendar.ts",
+        "packages/core/src/workout-change-sets/service.ts",
+        "packages/core/src/workout-change-sets/store.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/workout-change-sets.test.ts",
+        "packages/core/tests/workout-change-set-protection.test.ts",
+        "packages/core/tests/workout-approval-channel.test.ts",
+        "packages/sport-cycling/tests/workout-change-set-tool.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "mixed",
+        "coverage": "partial",
+        "limitations": "The mixed terminal scenario proves valid mutations and preservation only. Current live fixtures do not expose invalid-provenance, date, or concurrency controls. Those live variants remain blocked; do not mutate real athlete workouts to reach them."
+      }
+    },
+    {
+      "slug": "changed-workouts",
+      "title": "Changed workouts and refreshed review",
+      "inventory_ids": [
+        "W24",
+        "W25",
+        "W26"
+      ],
+      "page": "changed-workouts.md",
+      "source_paths": [
+        "packages/core/src/workout-change-sets/calendar.ts",
+        "packages/core/src/workout-change-sets/service.ts",
+        "packages/core/src/workout-change-sets/review.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/workout-change-sets.test.ts",
+        "packages/core/tests/workout-change-set-protection.test.ts",
+        "packages/core/tests/workout-change-set-review.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "stale",
+        "coverage": "partial",
+        "limitations": "Telegram --scenario=stale does not itself mutate the target. Only the terminal runner performs that fixture setup. Any manual Telegram stale setup must edit only the printed, owned fictional calendar and retain evidence. No --inject-stale option exists."
+      }
+    },
+    {
+      "slug": "recovery",
+      "title": "Failure, retry, and restart",
+      "inventory_ids": [
+        "W27",
+        "W28",
+        "W29",
+        "W30",
+        "W31",
+        "W32",
+        "W33",
+        "W34"
+      ],
+      "page": "recovery.md",
+      "source_paths": [
+        "packages/core/src/workout-change-sets/service.ts",
+        "packages/core/src/workout-change-sets/review.ts",
+        "packages/core/src/workout-change-sets/store.ts",
+        "packages/core/src/channels/telegram.ts"
+      ],
+      "test_files": [
+        "packages/core/tests/workout-change-sets.test.ts",
+        "packages/core/tests/workout-change-set-protection.test.ts",
+        "packages/core/tests/workout-change-set-review.test.ts",
+        "packages/core/tests/workout-approval-channel.test.ts",
+        "packages/core/tests/telegram-dispatch.test.ts"
+      ],
+      "source_review": "inspected",
+      "source_revision": "3d6ecf7833a57248a90002039b9f799ff6cfc018",
+      "runtime_recipe": {
+        "executor": "built-npm-terminal",
+        "scenario": "retry",
+        "coverage": "partial",
+        "limitations": "The fixture Telegram launcher deletes scratch on exit and cannot prove persistent restart. The separately owned real guarded runtime supports authorized --resume with retained state and has bounded pending-review evidence. Keep terminal mixed --restart and service crash-window tests as separate executors; broader live fault coverage remains incomplete."
+      }
+    }
+  ],
+  "known_inventory_corrections": {
+    "C16": "Six display ranges, confirmed by zones.test.ts.",
+    "C28": "Calendar approval uses the aggregate workflow on this branch; Plan approval remains separate.",
+    "repeat_duration": "Fixed in current source 24e46aca; preserve historical evidence without labeling it a current failure."
+  }
+}

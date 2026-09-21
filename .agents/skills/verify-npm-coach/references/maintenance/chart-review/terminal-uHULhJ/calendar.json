@@ -1,0 +1,153 @@
+{
+  "events": [
+    {
+      "id": 101,
+      "start_date_local": "1998-09-09T00:00:00",
+      "name": "Planned tempo",
+      "category": "WORKOUT",
+      "type": "Ride",
+      "moving_time": 2700,
+      "description": "Comfortable tempo",
+      "workout_doc": {
+        "duration": 3600,
+        "steps": [
+          {
+            "duration": 300,
+            "warmup": true,
+            "ramp": true,
+            "power": {
+              "start": 45,
+              "end": 65,
+              "units": "%ftp"
+            },
+            "heartrate": {
+              "value": 130,
+              "units": "bpm"
+            }
+          },
+          {
+            "reps": 3,
+            "text": "3x",
+            "duration": 2700,
+            "steps": [
+              {
+                "duration": 600,
+                "power": {
+                  "value": 75,
+                  "units": "%ftp"
+                },
+                "cadence": {
+                  "start": 85,
+                  "end": 95,
+                  "units": "rpm"
+                }
+              },
+              {
+                "duration": 300,
+                "power": {
+                  "value": 50,
+                  "units": "%ftp"
+                }
+              }
+            ]
+          },
+          {
+            "duration": 600,
+            "cooldown": true,
+            "ramp": true,
+            "power": {
+              "start": 60,
+              "end": 45,
+              "units": "%ftp"
+            }
+          }
+        ]
+      },
+      "tags": [
+        "cycling-coach"
+      ],
+      "icu_training_load": 35
+    },
+    {
+      "id": 103,
+      "start_date_local": "1998-09-08T00:00:00",
+      "name": "Existing ride",
+      "category": "WORKOUT",
+      "type": "Ride",
+      "moving_time": 2700,
+      "description": "Keep this ride",
+      "tags": []
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Easy ride",
+      "type": "Ride",
+      "moving_time": 3000,
+      "description": "Main set\n- 50m 60%",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:771048cc-8ef0-402b-ac8c-27c972268bd5",
+      "id": 201
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:77d6b584-f8bf-4898-a511-a8167122bb6a",
+      "id": 202
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Easy ride",
+        "type": "Ride",
+        "moving_time": 3000,
+        "description": "Main set\n- 50m 60%",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:771048cc-8ef0-402b-ac8c-27c972268bd5"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:77d6b584-f8bf-4898-a511-a8167122bb6a"
+      }
+    },
+    {
+      "method": "PUT",
+      "id": 101,
+      "body": {
+        "name": "Planned tempo",
+        "moving_time": 2700,
+        "icu_training_load": 35
+      }
+    },
+    {
+      "method": "DELETE",
+      "id": 102
+    }
+  ]
+}

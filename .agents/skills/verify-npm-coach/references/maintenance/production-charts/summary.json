@@ -1,0 +1,144 @@
+{
+  "status": "blocked",
+  "selectedSkill": "verify-npm-coach",
+  "sourceRevision": "0e9f8aff0a0869d95a557b458104178a86050d19",
+  "featurePagesInvestigated": 17,
+  "inventoryEntries": 175,
+  "componentTests": {
+    "passed": 2820,
+    "skipped": 1,
+    "mappedFiles": 124,
+    "initialTimeouts": 1,
+    "isolatedRerun": "PASS unchanged"
+  },
+  "terminalRuns": [
+    {
+      "scenario": "cancel",
+      "result": "cancel/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "data",
+      "result": "data/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "incomplete",
+      "result": "incomplete/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "long",
+      "result": "long/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "memory",
+      "result": "memory/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "mixed-restart",
+      "result": "mixed-restart/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "mixed",
+      "result": "mixed/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "planning",
+      "result": "planning/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "retry",
+      "result": "retry/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "revision",
+      "result": "revision/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "single",
+      "result": "single/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "stale",
+      "result": "stale/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    }
+  ],
+  "manualSetup": "PASS cancellation; cleanup approval pending",
+  "telegram": "bounded read-only checks; version mismatch recorded",
+  "blockers": [
+    "Full live coverage still missing for external hosting/auth/vault/device prerequisites and controlled fault routes.",
+    "First pairing and effective locale switching remain outside the existing real runtime state and fixture controls.",
+    "Current-version product mismatch reproduced; product fixes are outside maintenance.",
+    "Host destructive-command guard requires explicit permission for setup scratch cleanup; question pending."
+  ],
+  "productCodeChanged": false,
+  "productTestsChanged": false,
+  "runnerCodeChanged": false,
+  "evidenceUploaded": false,
+  "prCreated": false,
+  "finalChecks": {
+    "featureMap": "PASS 17 pages, 175 entries, 240 paths, 51 criteria",
+    "doctor": "PASS",
+    "repositoryPrivacy": "PASS 4086 source files and 21 golden fixtures",
+    "retainedEvidencePrivacy": "PASS",
+    "productWorktree": "clean"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "status": "blocked",
+  "revision": "5cd3a43f1165f9dafd81f9052f922c185e071610",
+  "runtime": [
+    {
+      "scenario": "memory",
+      "status": "PASS",
+      "interpretation": "passed",
+      "result": "memory/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "data",
+      "status": "PASS",
+      "interpretation": "passed",
+      "result": "data/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "planning",
+      "status": "PASS",
+      "interpretation": "passed",
+      "result": "planning/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "negative-data",
+      "status": "FAIL",
+      "interpretation": "expected rejection of corrupted power data",
+      "result": "negative-data/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "existing-mixed",
+      "status": "PASS",
+      "interpretation": "passed",
+      "result": "existing-mixed/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "initial-memory-failure",
+      "status": "FAIL",
+      "interpretation": "corrected fixture precondition; memory_read requires an unshown section",
+      "result": "initial-memory-failure/result.json",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    }
+  ],
+  "sourceDeltaTest": {
+    "file": "packages/core/tests/workout-change-sets.test.ts",
+    "passed": 71,
+    "failed": 0
+  },
+  "privacy": {
+    "sourceFiles": 4079,
+    "goldenFixtures": 21,
+    "status": "clean"
+  },
+  "senderCheck": {
+    "status": "BLOCKED",
+    "permission": "user explicitly approved temporary-fixture cleanup",
+    "reason": "PreToolUse hook again rejected shutil.rmtree before execution; no child or sender scratch created"
+  },
+  "telegram": {
+    "status": "BLOCKED",
+    "reason": "NPM_VERIFY_TELEGRAM_CONFIG is unset; dedicated bot and authenticated test browser details have not been supplied",
+    "startedChild": false,
+    "createdBrowser": false
+  }
+}
