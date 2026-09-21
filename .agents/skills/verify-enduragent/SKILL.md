@@ -9,7 +9,7 @@ Verify only mapped, affected desktop behavior. Read repository instructions and 
 
 ## Rules
 
-- Preserve executor ownership; Playwright, Vitest, CDP, S8a, and manual checks are siblings.
+- Preserve executor ownership; Playwright, Vitest, CDP, and manual checks are siblings.
 - Never drive the operator's profile, athlete home, credentials, or production data.
 - Rebuild dependencies, renderer, and desktop before Electron integration tests.
 - Run deterministic citations before live flows.
@@ -38,7 +38,7 @@ Require `DOCTOR: ready to drive` and exit code `0` before the first Electron dri
 
 Follow the exact commands and proof requirements on the selected feature page. For Playwright, retain its failure screenshot, trace, and log under `apps/desktop/test-results/e2e/`; a passing run is supported by its visible-state assertions and command result.
 
-Treat proofs from the `fresh` and `ready` profiles as renderer-only: both run against a scripted engine RPC backend and do not prove engine side effects. Cover engine side effects with a future `real` profile that boots the actual coach engine over a seeded athlete home, uses fakes only at the LLM-provider and intervals.icu boundaries, and reuses the `tools/s8a` provider machinery.
+Treat proofs from the `fresh` and `ready` profiles as renderer-only: both run against a scripted engine RPC backend and do not prove engine side effects. Cover engine side effects with a future `real` profile that boots the actual coach engine over a seeded athlete home, uses fakes only at the LLM-provider and intervals.icu boundaries.
 
 Run frozen scenario-catalog checks from the repository root with `pnpm --filter @enduragent/desktop check:verification-catalog`. `pnpm --filter @enduragent/desktop exec vitest run tests/windows-parity-scenarios.test.ts` fails because those citations are repository-relative.
 

@@ -19,7 +19,7 @@ Read repository instructions and locate the verification skill named by the invo
 
 Edit only the selected skill and files explicitly owned by its verification runner. Do not change product source or product tests. Correct map drift and runner gaps; report product regressions without repairing or hiding them.
 
-Preserve every existing executor and its ownership. Playwright, CDP, Vitest, S8a, and manual checks may be siblings; do not replace one with another for convenience.
+Preserve every existing executor and its ownership. Playwright, CDP, Vitest, and manual checks may be siblings; do not replace one with another for convenience.
 
 ## Maintenance pass
 

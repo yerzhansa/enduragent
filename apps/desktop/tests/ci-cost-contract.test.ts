@@ -28,12 +28,11 @@ describe("CI cost contract", () => {
     expect(check).toContain("run: pnpm check");
     expect(check).toContain("pnpm exec vitest run --shard=1/2");
     expect(check).toContain("pnpm exec vitest run --shard=2/2");
-    expect(check).toContain("run: pnpm s8a");
+    expect(ci).not.toMatch(/s8a/iu);
     expect(check).toContain("Pack and smoke cycling-coach");
     expect(check).not.toContain("Test Desktop E2E on Linux");
     expect(check).not.toContain("xvfb-run");
     expect(ci).not.toContain("test_shards:");
-    expect(ci).not.toMatch(/^  s8a:/mu);
   });
 
   it("runs one scoped macOS package and native UI job and preserves required status names", () => {

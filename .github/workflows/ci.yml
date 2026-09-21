@@ -54,8 +54,6 @@ jobs:
         run: |
           pnpm exec vitest run --shard=1/2
           pnpm exec vitest run --shard=2/2
-      - run: pnpm s8a
-      - run: pnpm s8a --self-test
       - id: package_smoke
         name: Pack and smoke cycling-coach
         run: |

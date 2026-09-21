@@ -31,7 +31,7 @@ Run these on `desktop` before starting:
 2. Role-based model routing has landed: after a day of soaking,
    `pnpm usage:baseline --kind generate --caller compact` shows a
    background-class (Haiku-class) model, not the chat model.
-3. `pnpm check` and `pnpm s8a` are green on `desktop`.
+3. `pnpm check` is green on `desktop`.
 
 ## 3. Bot-token decision (RECORD THE CHOICE — it goes in the report)
 
