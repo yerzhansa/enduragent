@@ -33,6 +33,10 @@ function tempCwd(prefix: string): string {
 }
 
 describe("root prepare script", () => {
+  it("starts with sh so Windows cmd.exe does not parse POSIX tests", () => {
+    expect(rootPrepare()).toMatch(/^sh\s/);
+  });
+
   it("succeeds when .githooks/install is absent", () => {
     expect(() =>
       execFileSync("sh", ["-c", rootPrepare()], { cwd: tempCwd("prepare-absent-"), encoding: "utf8" }),
