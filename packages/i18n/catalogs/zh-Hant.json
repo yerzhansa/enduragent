@@ -2762,7 +2762,7 @@
       "working": "正在從 {{service}} 同步訓練資料…"
     },
     "update": {
-      "available": "有可用更新：{{current}} → {{latest}}\n{{updateInstruction}}\n\n{{platform}} 桌面應用程式已可下載：{{desktopUrl}}\n\n希望機器人 {{availability}} 執行，又不想讓電腦一直開著？可部署 {{provider}} 範本：{{railwayUrl}}",
+      "available": "有可用更新：{{current}} → {{latest}}\n{{updateInstruction}}\n\n{{platform}} 桌面應用程式已可下載：{{desktopUrl}}",
       "checkFailed": "無法檢查更新，請稍後重試。",
       "checking": "正在檢查更新…",
       "failed": "更新失敗。請手動執行 `{{command}}`。",

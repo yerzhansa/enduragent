@@ -2762,7 +2762,7 @@
       "working": "{{service}}からトレーニングデータを同期しています..."
     },
     "update": {
-      "available": "更新があります: {{current}} → {{latest}}\n{{updateInstruction}}\n\n{{platform}}用のデスクトップアプリ: {{desktopUrl}}\n\nコンピュータをつけたままにせず、ボットを{{availability}}稼働させるには、{{provider}}のテンプレートをデプロイしてください: {{railwayUrl}}",
+      "available": "更新があります: {{current}} → {{latest}}\n{{updateInstruction}}\n\n{{platform}}用のデスクトップアプリ: {{desktopUrl}}",
       "checkFailed": "更新を確認できませんでした。後でもう一度お試しください。",
       "checking": "更新を確認しています...",
       "failed": "更新に失敗しました。`{{command}}` を手動で実行してください。",

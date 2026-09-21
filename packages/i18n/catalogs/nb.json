@@ -2584,7 +2584,7 @@
       "working": "Synkroniserer treningsdata fra {{service}}…"
     },
     "update": {
-      "available": "Oppdatering tilgjengelig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nSkrivebordsappen for {{platform}} er tilgjengelig: {{desktopUrl}}\n\nVil du at boten skal kjøre {{availability}} uten at datamaskinen din må være på? Ta i bruk {{provider}}-malen: {{railwayUrl}}",
+      "available": "Oppdatering tilgjengelig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nSkrivebordsappen for {{platform}} er tilgjengelig: {{desktopUrl}}",
       "checkFailed": "Kunne ikke se etter oppdateringer. Prøv igjen senere.",
       "checking": "Ser etter oppdateringer…",
       "failed": "Oppdateringen mislyktes. Kjør `{{command}}` manuelt.",

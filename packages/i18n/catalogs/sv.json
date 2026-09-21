@@ -2798,7 +2798,7 @@
       "working": "Synkroniserar träningsdata från {{service}}..."
     },
     "update": {
-      "available": "Uppdatering tillgänglig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nSkrivbordsappen för {{platform}} finns här: {{desktopUrl}}\n\nVill du köra boten {{availability}} utan att ha datorn på? Distribuera {{provider}}-mallen: {{railwayUrl}}",
+      "available": "Uppdatering tillgänglig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nSkrivbordsappen för {{platform}} finns här: {{desktopUrl}}",
       "checkFailed": "Kunde inte söka efter uppdateringar. Försök igen senare.",
       "checking": "Söker efter uppdateringar...",
       "failed": "Uppdateringen misslyckades. Kör `{{command}}` manuellt.",

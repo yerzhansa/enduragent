@@ -2798,7 +2798,7 @@
       "working": "Sincronizando datos de entrenamiento de {{service}}..."
     },
     "update": {
-      "available": "Actualización disponible: {{current}} → {{latest}}\n{{updateInstruction}}\n\nAplicación de escritorio disponible para {{platform}}: {{desktopUrl}}\n\n¿Quieres que el bot funcione {{availability}} sin tener que dejar el ordenador encendido? Despliega la plantilla de {{provider}}: {{railwayUrl}}",
+      "available": "Actualización disponible: {{current}} → {{latest}}\n{{updateInstruction}}\n\nAplicación de escritorio disponible para {{platform}}: {{desktopUrl}}",
       "checkFailed": "No se han podido buscar actualizaciones. Inténtalo más tarde.",
       "checking": "Buscando actualizaciones...",
       "failed": "La actualización ha fallado. Ejecuta `{{command}}` manualmente.",

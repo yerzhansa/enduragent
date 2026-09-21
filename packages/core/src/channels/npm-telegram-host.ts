@@ -196,11 +196,8 @@ export async function notifyNpmTelegramUpdate(
             current: info.current,
             latest: info.latest,
             updateInstruction,
-            availability: `${book.format.number(24)}/${book.format.number(7)}`,
             desktopUrl: "https://enduragent.icu",
-            railwayUrl: "https://railway.com/deploy/cycling-coach",
             platform: "macOS",
-            provider: "Railway",
           }),
         );
         await sender.sendMessage(chatId, message);

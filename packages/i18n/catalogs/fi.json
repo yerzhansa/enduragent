@@ -2798,7 +2798,7 @@
       "working": "Synkronoidaan harjoitustietoja palvelusta {{service}}…"
     },
     "update": {
-      "available": "Päivitys saatavilla: {{current}} → {{latest}}\n{{updateInstruction}}\n\nTyöpöytäsovellus käyttöjärjestelmälle {{platform}} on saatavilla: {{desktopUrl}}\n\nHaluatko botin toimivan {{availability}} pitämättä tietokonettasi päällä? Ota {{provider}}-mallipohja käyttöön: {{railwayUrl}}",
+      "available": "Päivitys saatavilla: {{current}} → {{latest}}\n{{updateInstruction}}\n\nTyöpöytäsovellus käyttöjärjestelmälle {{platform}} on saatavilla: {{desktopUrl}}",
       "checkFailed": "Päivityksiä ei voitu tarkistaa. Yritä myöhemmin uudelleen.",
       "checking": "Tarkistetaan päivityksiä…",
       "failed": "Päivitys epäonnistui. Suorita `{{command}}` käsin.",

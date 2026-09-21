@@ -2870,7 +2870,7 @@
       "restricted_other": "{{source}} ukrywa {{number}} z {{total}} aktywności, więc nie są one uwzględnione. {{source}} nie zezwala narzędziom AI innych firm na korzystanie z danych z jego API. Aby uwzględniać przyszłe przejazdy, połącz źródło rejestrowania aktywności bezpośrednio z {{service}} i zachowaj połączenie z {{source}}. Dla wcześniejszych przejazdów użyj {{importAction}} w ustawieniach {{service}}; wymaga to subskrypcji wspierającej {{service}}."
     },
     "update": {
-      "available": "Dostępna aktualizacja: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDostępna aplikacja komputerowa dla {{platform}}: {{desktopUrl}}\n\nChcesz, aby bot działał {{availability}} bez pozostawiania włączonego komputera? Wdróż szablon {{provider}}: {{railwayUrl}}",
+      "available": "Dostępna aktualizacja: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDostępna aplikacja komputerowa dla {{platform}}: {{desktopUrl}}",
       "checkFailed": "Nie udało się sprawdzić aktualizacji. Spróbuj później.",
       "checking": "Sprawdzanie aktualizacji…",
       "failed": "Aktualizacja nie powiodła się. Uruchom ręcznie `{{command}}`.",

@@ -2584,7 +2584,7 @@
       "working": "Synkroniserer træningsdata fra {{service}}..."
     },
     "update": {
-      "available": "Opdatering tilgængelig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktopappen til {{platform}} er tilgængelig: {{desktopUrl}}\n\nVil du have botten til at køre {{availability}} uden at holde din computer tændt? Udrul {{provider}}-skabelonen: {{railwayUrl}}",
+      "available": "Opdatering tilgængelig: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktopappen til {{platform}} er tilgængelig: {{desktopUrl}}",
       "checkFailed": "Kunne ikke søge efter opdateringer. Prøv igen senere.",
       "checking": "Søger efter opdateringer...",
       "failed": "Opdateringen mislykkedes. Kør `{{command}}` manuelt.",

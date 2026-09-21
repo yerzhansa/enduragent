@@ -2798,7 +2798,7 @@
       "working": "Sincronizzazione dei dati di allenamento da {{service}}..."
     },
     "update": {
-      "available": "Aggiornamento disponibile: {{current}} → {{latest}}\n{{updateInstruction}}\n\nApp desktop per {{platform}} disponibile: {{desktopUrl}}\n\nVuoi che il bot sia attivo {{availability}} senza tenere acceso il computer? Distribuisci il modello {{provider}}: {{railwayUrl}}",
+      "available": "Aggiornamento disponibile: {{current}} → {{latest}}\n{{updateInstruction}}\n\nApp desktop per {{platform}} disponibile: {{desktopUrl}}",
       "checkFailed": "Impossibile cercare aggiornamenti. Riprova più tardi.",
       "checking": "Ricerca di aggiornamenti...",
       "failed": "Aggiornamento non riuscito. Esegui `{{command}}` manualmente.",

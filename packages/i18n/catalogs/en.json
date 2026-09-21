@@ -2522,7 +2522,7 @@
       "working": "Syncing training data from {{service}}..."
     },
     "update": {
-      "available": "Update available: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktop app for {{platform}} is available: {{desktopUrl}}\n\nWant the bot running {{availability}} without keeping your computer on? Deploy the {{provider}} template: {{railwayUrl}}",
+      "available": "Update available: {{current}} → {{latest}}\n{{updateInstruction}}\n\nDesktop app for {{platform}} is available: {{desktopUrl}}",
       "checkFailed": "Could not check for updates. Try again later.",
       "checking": "Checking for updates...",
       "failed": "Update failed. Please run `{{command}}` manually.",

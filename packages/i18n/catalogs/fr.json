@@ -2584,7 +2584,7 @@
       "working": "Synchronisation des données d’entraînement depuis {{service}}…"
     },
     "update": {
-      "available": "Mise à jour disponible : {{current}} → {{latest}}\n{{updateInstruction}}\n\nL’application de bureau pour {{platform}} est disponible : {{desktopUrl}}\n\nTu veux que le bot fonctionne {{availability}} sans laisser ton ordinateur allumé ? Déploie le modèle {{provider}} : {{railwayUrl}}",
+      "available": "Mise à jour disponible : {{current}} → {{latest}}\n{{updateInstruction}}\n\nL’application de bureau pour {{platform}} est disponible : {{desktopUrl}}",
       "checkFailed": "Impossible de rechercher des mises à jour. Réessaie plus tard.",
       "checking": "Recherche de mises à jour…",
       "failed": "La mise à jour a échoué. Exécute `{{command}}` manuellement.",
