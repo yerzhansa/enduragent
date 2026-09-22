@@ -1,5 +1,11 @@
 # running-coach
 
+## 0.0.13
+
+### Patch Changes
+
+- 21518b7: User-facing: Repeated intervals now stay separate from the workout steps before and after them, so intervals.icu preserves the planned duration.
+
 ## 0.0.12
 
 ### Patch Changes

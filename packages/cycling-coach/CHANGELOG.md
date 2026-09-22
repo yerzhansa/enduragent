@@ -1,5 +1,18 @@
 # cycling-coach
 
+## 2026.9.22
+
+### Patch Changes
+
+- 21518b7: User-facing: Review several workout additions, edits, and deletions together with readable workout details, then approve them once in Telegram or terminal chat; revising selected workouts keeps the others unchanged. If a workout changes before approval, the coach asks you to review it again, and saved reviews remain available after a restart.
+- 21518b7: User-facing: Telegram workout reviews now show readable effort charts for supported cycling workouts, including structured edits, with complete text details when a chart is not suitable. Charts stay visible when you rename a proposed workout without changing its steps, and each card shows its position clearly, such as “1 of 2”.
+- 21518b7: User-facing: Repeated intervals now stay separate from the workout steps before and after them, so intervals.icu preserves the planned duration.
+- 83d243f: User-facing: Version reports the copy of the coach you are running, even when an older copy is also installed on the computer.
+- 21518b7: User-facing: The coach checks that your workout review was prepared and tries once more if it was missed. If it already saved information and then cannot finish or verify the reply, it still tells you what was saved. Ordinary coaching answers keep their normal recovery.
+- 21518b7: User-facing: Description-only workout edits now show the new instructions without obsolete workout steps from the previous version.
+- e365381: User-facing: When a new version is available, Telegram no longer asks you to deploy the Railway template.
+- 21518b7: User-facing: Workout reviews now label training load as an estimate before approval.
+
 ## 2026.9.17
 
 ### Patch Changes
