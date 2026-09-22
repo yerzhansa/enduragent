@@ -1,9 +1,5 @@
 import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
-import {
-  resolveTurnReply,
-  type RecoveredText,
-  type StepExhaustedRecovery,
-} from "./workout-reply.js";
+import { resolveTurnReply, type StepExhaustedRecovery } from "./workout-reply.js";
 import { createPendingWorkoutTool } from "./pending-workout-tool.js";
 import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
@@ -40,7 +36,7 @@ import type {
   TranscriptCompletedTurnInput,
   TranscriptInterruptedTurnInput,
 } from "../host-ports.js";
-import type { GenerateResult, Sport, SportRuntimePorts } from "../sport.js";
+import type { Sport, SportRuntimePorts } from "../sport.js";
 import { messageText } from "../sport/model-message.js";
 import { getEffectiveSections } from "../sport/effective-sections.js";
 import {
