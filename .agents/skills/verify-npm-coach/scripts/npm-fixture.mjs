@@ -1,6 +1,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { Readable, Writable } from 'node:stream';
 const require = createRequire(join(process.env.WORKOUT_VERIFY_REPO, 'package.json'));
 const FakeTimers = require('@sinonjs/fake-timers');
 FakeTimers.install({ now: Date.parse('1998-09-07T12:00:00Z'), toFake: ['Date'], shouldAdvanceTime: true });
@@ -48,6 +51,82 @@ if (scenario === 'single') proposal.preparation.changes = proposal.preparation.c
 if (scenario === 'long') proposal.preparation.changes = Array.from({length:85}, (_, index) => ({kind:'add-strength',date:'1998-09-08',name:`Strength ${index + 1}`,durationMinutes:30,effort:'Easy strength',description:'Controlled movements'}));
 if (scenario === 'incomplete') proposal.preparation = {kind:'incomplete',reason:'Fictional preparation stopped before completing the requested set.'};
 let modelCalls = 0;
+const telegramLog = process.env.WORKOUT_FIXTURE_TELEGRAM_LOG;
+let deliveryUpdateSent = false;
+let deliveryAnswerRejected = false;
+const recordTelegram = (entry) => {
+ if (!telegramLog) return;
+ writeFileSync(telegramLog, `${JSON.stringify(entry)}\n`, {flag:'a'});
+};
+async function telegramResult(methodName, body) {
+ if (methodName === 'getUpdates') {
+  if (deliveryUpdateSent) {
+   await new Promise(resolve => setTimeout(resolve, 250));
+   return {ok:true,result:[]};
+  }
+  deliveryUpdateSent = true;
+  recordTelegram({method:methodName,ok:true,update:true});
+ } else if (methodName !== 'sendMessage') recordTelegram({method:methodName,ok:true});
+ if (methodName === 'getWebhookInfo') return {ok:true,result:{url:'',has_custom_certificate:false,pending_update_count:0}};
+ if (methodName === 'getUpdates') {
+  const operatorId = Number(process.env.CYCLING_COACH_OPERATOR_ID);
+  return {ok:true,result:[{update_id:1,message:{message_id:1,date:905169600,chat:{id:operatorId,type:'private'},from:{id:operatorId,is_bot:false,first_name:'Fixture'},text:'How is my form?'}}]};
+ }
+ if (methodName === 'sendMessage') {
+  const text = typeof body?.text === 'string' ? body.text : '';
+  const hint = text.includes('had trouble delivering');
+  const welcome = text.startsWith('Welcome');
+  const fail = !deliveryAnswerRejected && !hint && !welcome;
+  if (fail) deliveryAnswerRejected = true;
+  recordTelegram({method:methodName,text,ok:!fail,reply_markup:body?.reply_markup ?? null});
+  if (fail) return {ok:false,error_code:500,description:'fictional delivery failure'};
+  return {ok:true,result:{message_id:2,date:905169600,chat:{id:body?.chat_id,type:'private'},text}};
+ }
+ if (methodName === 'getMe') return {ok:true,result:{id:1,is_bot:true,first_name:'Fixture',username:'fixture_bot'}};
+ return {ok:true,result:true};
+}
+function installTelegramTransport() {
+ for (const mod of [https, http]) {
+  const original = mod.request;
+  mod.request = function (input, options, callback) {
+   const urlLike = typeof input === 'string' || input instanceof URL;
+   const opts = urlLike ? (typeof options === 'function' ? {} : (options ?? {})) : input;
+   const host = String(opts?.hostname || opts?.host || (input instanceof URL ? input.hostname : typeof input === 'string' ? input : ''));
+   const path = String(opts?.path || opts?.pathname || (input instanceof URL ? `${input.pathname}${input.search}` : ''));
+   if (!host.includes('api.telegram.org') && !String(input).includes('api.telegram.org')) return original.apply(this, arguments);
+   const methodName = path.split('?')[0].split('/').filter(Boolean).at(-1);
+   const chunks = [];
+   const req = new Writable({
+    write(chunk, _encoding, done) {
+     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+     done();
+    },
+   });
+   req.on('finish', () => {
+    const raw = Buffer.concat(chunks).toString('utf8');
+    let parsed;
+    try { parsed = raw ? JSON.parse(raw) : undefined; } catch { parsed = undefined; }
+    void telegramResult(methodName, parsed).then(payload => {
+    const res = Readable.from([Buffer.from(JSON.stringify(payload))]);
+    res.statusCode = 200;
+    res.statusMessage = 'OK';
+    res.headers = {'content-type':'application/json'};
+    req.emit('response', res);
+    if (typeof callback === 'function') callback(res);
+    else if (typeof options === 'function') options(res);
+    });
+   });
+   req.abort = () => req.destroy();
+   req.setTimeout = () => req;
+   req.setHeader = () => {};
+   req.getHeader = () => undefined;
+   req.removeHeader = () => {};
+   req.flushHeaders = () => {};
+   return req;
+  };
+ }
+}
+if (scenario === 'delivery') installTelegramTransport();
 globalThis.fetch = async (resource, options = {}) => {
  const url = new URL(typeof resource === 'string' || resource instanceof URL ? resource : resource.url);
  const method = options.method ?? (resource instanceof Request ? resource.method : 'GET');
@@ -72,6 +151,9 @@ globalThis.fetch = async (resource, options = {}) => {
   }
   if (/\/athlete\/[^/]+$/.test(url.pathname)) return json({id:'0',name:'Fixture Athlete',timezone:'UTC',sport_settings:[]});
   return json([]);
+ }
+ if (url.hostname === 'api.deepseek.com' && scenario === 'provider-down') {
+  return json({error:{message:'fictional provider outage',type:'server_error'}},500);
  }
  if (url.hostname === 'api.deepseek.com') {
   modelCalls++;
@@ -105,6 +187,10 @@ globalThis.fetch = async (resource, options = {}) => {
   const chunk={id:`fixture_${modelCalls}`,object:'chat.completion.chunk',created:905169600,model:'deepseek-v4-flash',choices:[{index:0,delta,finish_reason:null}]};
   const final={...chunk,choices:[{index:0,delta:{},finish_reason:finishing?'stop':'tool_calls'}],usage:{prompt_tokens:200,completion_tokens:100,total_tokens:300}};
   return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify(final)}\n\ndata: [DONE]\n\n`,{headers:{'content-type':'text/event-stream'}});
+ }
+ if (scenario === 'delivery' && url.hostname === 'api.telegram.org') {
+  const methodName = url.pathname.split('/').filter(Boolean).at(-1);
+  return json(await telegramResult(methodName, body));
  }
  return json({message:'Network disabled in isolated npm fixture'},503);
 };

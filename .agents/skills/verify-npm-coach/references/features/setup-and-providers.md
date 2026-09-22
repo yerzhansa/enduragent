@@ -50,6 +50,6 @@ Select DeepSeek, choose Other, enter `fictional-model`, reach the endpoint promp
 
 ## Gotchas
 
-This PTY recipe is not an automated runner mode. Never run Claude models for verification from Codex. Real OAuth, subscription identity, provider inference, catalog refresh, and token refresh need dedicated accounts or a controlled external fixture. Component tests are not live-authentication proof.
+`node .agents/skills/verify-npm-coach/scripts/setup-cancel.ts --repo=<checkout>` runs that cancel on a 40 by 120 terminal. A zero-size terminal wraps one character per line, so a wait for the contiguous Other label stops on the model list. Never run Claude models for verification from Codex. Real OAuth, subscription identity, provider inference, catalog refresh, and token refresh need dedicated accounts or a controlled external fixture. Component tests are not live-authentication proof.
 
 Retain source revision, executor, action, observed result, and read-only persistence proof separately. After a runner-owned launch, require an empty `cleanup.livePids`, `cleanup.scratchRemoved: true`, no owned listener, and retained evidence. For a manually created fixture, record its exact owned path and processes before launch, stop only those processes, retain sanitized evidence, and remove only that scratch state. Use isolated athlete storage and the parent skill's authorization and ownership rules for any bot or browser.
