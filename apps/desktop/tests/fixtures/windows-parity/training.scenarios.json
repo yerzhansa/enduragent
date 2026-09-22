@@ -8,7 +8,7 @@
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu from copied metadata without rendering a secret field",
-        "apps/desktop/tests/intervals-ipc.test.ts > reads and clears synchronously before verification or vault work",
+        "apps/desktop/tests/intervals-ipc.test.ts > clears the clipboard before verification or vault work",
         "apps/desktop/tests/intervals-ipc.test.ts > verifies a valid key before accepting a matching or ownerless store",
         "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > uses a copied Intervals API key, closes the panel, and focuses Delete"
       ]

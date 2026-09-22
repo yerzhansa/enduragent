@@ -19,8 +19,10 @@ import { AthleteHomeIdentitySchema, type ModelCatalogSnapshot } from "@enduragen
 import { openModelCatalog } from "@enduragent/core";
 import {
   app,
+  autoUpdater,
   BrowserWindow,
   clipboard,
+  nativeImage,
   crashReporter,
   dialog,
   ipcMain,
@@ -56,6 +58,7 @@ import { installDesktopExternalLinkIpc } from "./external-link-ipc.js";
 import {
   createConnectionChatAttachmentClient,
   installDesktopChatAttachmentIpc,
+  readDesktopClipboardPng,
   type DesktopChatAttachmentClient,
 } from "./chat-attachment-ipc.js";
 import { DESKTOP_LIFECYCLE_CHANNEL, DESKTOP_RENDERER_URL, DESKTOP_SCHEME } from "./constants.js";
@@ -412,6 +415,7 @@ async function runDesktop(): Promise<void> {
       const { default: electronUpdater } = await import("electron-updater");
       return electronUpdater.autoUpdater;
     },
+    nativeUpdater: autoUpdater,
     requestQuit: () => app.quit(),
   });
   const desktopUsagePingChannel = desktopUsagePingChannelForPlatform(process.platform);
@@ -1391,7 +1395,7 @@ async function runDesktop(): Promise<void> {
       ipcMain,
       currentWindow: () => mainWindow.current() ?? undefined,
       dialog,
-      clipboard,
+      readPng: () => readDesktopClipboardPng(clipboard, nativeImage),
       client: () => {
         const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();

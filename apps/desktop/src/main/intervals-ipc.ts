@@ -266,16 +266,17 @@ function mutationFromWrite(value: unknown): DesktopIntervalsMutationCore {
   throw new TypeError();
 }
 
-function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">):
+async function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">): Promise<
   | { readonly status: "captured"; readonly apiKey: string }
   | {
       readonly status: "refused";
       readonly reason: "clipboard-unavailable" | "clipboard-clear-failed" | "invalid-key-format";
-    } {
+    }
+> {
   let value: unknown;
   let cleared = false;
   try {
-    value = clipboard.readText();
+    value = await clipboard.readText();
   } catch {
   } finally {
     try {
@@ -438,9 +439,10 @@ export function installDesktopIntervalsIpc(input: {
       DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL,
       (event: IpcMainInvokeEvent, ...args: unknown[]) => {
         trustedZeroArgument(event, args);
-        const captured = captureClipboard(input.clipboard);
-        if (captured.status === "refused") return localRefusal(captured.reason);
-        return runCapturedCredential(captured.apiKey);
+        return captureClipboard(input.clipboard).then((captured) => {
+          if (captured.status === "refused") return localRefusal(captured.reason);
+          return runCapturedCredential(captured.apiKey);
+        });
       },
     ],
   ] as const;

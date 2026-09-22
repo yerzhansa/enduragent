@@ -11,6 +11,7 @@ vi.mock("electron", () => ({
 
 import {
   installDesktopChatAttachmentIpc,
+  readDesktopClipboardPng,
   type DesktopChatAttachmentClient,
 } from "../src/main/chat-attachment-ipc.js";
 import {
@@ -106,17 +107,12 @@ function setup(
       attachmentId: "attachment-paste",
     })),
   };
-  const clipboard = {
-    readImage: vi.fn(() => ({
-      isEmpty: () => false,
-      toPNG: () => Buffer.from([137, 80, 78, 71]),
-    })),
-  };
+  const readPng = vi.fn(async () => Buffer.from([137, 80, 78, 71]));
   const dispose = installDesktopChatAttachmentIpc({
     ipcMain: ipcMain as never,
     currentWindow: () => window as never,
     dialog,
-    clipboard: clipboard as never,
+    readPng,
     client: () => client,
   });
   return {
@@ -125,7 +121,7 @@ function setup(
     dialog,
     client,
     admitPath,
-    clipboard,
+    readPng,
     dispose,
     trusted: { sender: webContents, senderFrame: mainFrame },
   };
@@ -210,6 +206,44 @@ describe("desktop Chat attachment IPC", () => {
       ),
     ).rejects.toThrow();
     expect(value.client.admitPath).not.toHaveBeenCalled();
+  });
+
+  it("turns the first clipboard image into png bytes", async () => {
+    const source = Buffer.from([1, 2, 3, 4]);
+    const png = Buffer.from([137, 80, 78, 71]);
+    let received: Buffer | undefined;
+    const result = await readDesktopClipboardPng(
+      {
+        read: async () => [
+          { types: ["text/plain"], getType: async () => new Blob(["hello"]) },
+          { types: ["image/png"], getType: async () => new Blob([source]) },
+        ],
+      },
+      {
+        createFromBuffer(buffer) {
+          received = buffer;
+          return { isEmpty: () => false, toPNG: () => png };
+        },
+      },
+    );
+
+    expect(received).toEqual(source);
+    expect(result).toEqual(png);
+  });
+
+  it("returns no png when the clipboard has no image", async () => {
+    await expect(
+      readDesktopClipboardPng(
+        {
+          read: async () => [{ types: ["text/plain"], getType: async () => new Blob(["hello"]) }],
+        },
+        {
+          createFromBuffer() {
+            throw new Error("image decoder should not run");
+          },
+        },
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it("removes exactly the three registered handlers", () => {

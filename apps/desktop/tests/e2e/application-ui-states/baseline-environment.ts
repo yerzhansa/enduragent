@@ -20,7 +20,7 @@ export function applicationBaselineForEnvironment(
       return "application-ui-extraction-darwin-25-5-v1";
     }
     if (version?.[1] === "25" && version[2] === "6") {
-      return "application-ui-extraction-darwin-25-6-v11";
+      return "application-ui-extraction-darwin-25-6-v12";
     }
   }
   throw new Error(

@@ -43,6 +43,13 @@ export type DesktopAutoUpdater = Pick<
   | "quitAndInstall"
 >;
 
+export interface DesktopNativeUpdateSource {
+  on(event: "update-downloaded", listener: () => void): unknown;
+  on(event: "error", listener: (error: unknown) => void): unknown;
+  off(event: "update-downloaded", listener: () => void): unknown;
+  off(event: "error", listener: (error: unknown) => void): unknown;
+}
+
 export interface DesktopUpdateController {
   readonly state: () => DesktopUpdateState;
   readonly start: () => Promise<void>;
@@ -69,12 +76,17 @@ interface UpdateOperation {
   targetVersion?: string;
   cancellationToken?: CancellationToken;
   lastTransferred: number;
+  zipReady: boolean;
+  nativeReady: boolean;
   checkTimer?: TimerHandle;
   downloadStallTimer?: TimerHandle;
   downloadAbsoluteTimer?: TimerHandle;
+  preparationTimer?: TimerHandle;
   errorListener?: () => void;
   progressListener?: (info: ProgressInfo) => void;
   downloadedListener?: (event: UpdateDownloadedEvent) => void;
+  nativeDownloadedListener?: () => void;
+  nativeErrorListener?: (error: unknown) => void;
 }
 
 export const DESKTOP_UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1_000;
@@ -90,15 +102,6 @@ export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdate
   return { status: state.status };
 }
 
-/**
- * MacUpdater feeds the downloaded zip to native Squirrel.Mac during download
- * only when `autoInstallOnAppQuit` is true. If false, `squirrelDownloadedUpdate`
- * stays false and `quitAndInstall` defers `nativeUpdater.checkForUpdates()` until
- * after drain. `completeInstallAfterDrain` still returns `"started"` and
- * `completeDesktopShutdown` does not `app.exit`, so Restarting can hang with
- * ShipIt never launched. Windows/Linux BaseUpdater would auto-install on an
- * ordinary quit when this is true, so those platforms keep it false.
- */
 export function desktopUpdateAutoInstallOnAppQuit(platform: NodeJS.Platform): boolean {
   return platform === "darwin";
 }
@@ -108,6 +111,7 @@ export function createDesktopUpdateController(input: {
   readonly currentVersion: string;
   readonly versionFloor: DesktopUpdateVersionFloor;
   readonly loadUpdater: () => Promise<DesktopAutoUpdater>;
+  readonly nativeUpdater?: DesktopNativeUpdateSource;
   readonly requestQuit: () => void;
   readonly platform?: NodeJS.Platform;
   readonly log?: (message: string) => void;
@@ -118,6 +122,8 @@ export function createDesktopUpdateController(input: {
 }): DesktopUpdateController {
   const active = input.releaseEligible;
   const platform = input.platform ?? process.platform;
+  const nativeUpdater = input.nativeUpdater;
+  const requiresNativePreparation = platform === "darwin";
   const listeners = new Set<(state: DesktopUpdateState) => void>();
   const scheduleInterval =
     input.setInterval ??
@@ -140,6 +146,8 @@ export function createDesktopUpdateController(input: {
   let activeOperation: UpdateOperation | undefined;
   let installRequested = false;
   let installInvoked = false;
+  let readinessInvalidated = false;
+  let readinessErrorListener: ((error: unknown) => void) | undefined;
   let floorVersion: string | undefined;
   let updaterInitialization: Promise<boolean> | undefined;
   const log = createSafeLog(input.log);
@@ -163,7 +171,7 @@ export function createDesktopUpdateController(input: {
   const currentState = (): DesktopUpdateState => copyDesktopUpdateState(state);
   const clearOperationTimer = (
     operation: UpdateOperation,
-    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer",
+    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer" | "preparationTimer",
   ): void => {
     const handle = operation[key];
     if (handle === undefined) return;
@@ -174,7 +182,7 @@ export function createDesktopUpdateController(input: {
   };
   const scheduleOperationTimer = (
     operation: UpdateOperation,
-    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer",
+    key: "checkTimer" | "downloadStallTimer" | "downloadAbsoluteTimer" | "preparationTimer",
     callback: () => void,
     timeout: number,
   ): void => {
@@ -203,6 +211,38 @@ export function createDesktopUpdateController(input: {
       } catch {}
       operation.downloadedListener = undefined;
     }
+    if (nativeUpdater !== undefined && operation.nativeDownloadedListener !== undefined) {
+      try {
+        nativeUpdater.off("update-downloaded", operation.nativeDownloadedListener);
+      } catch {}
+      operation.nativeDownloadedListener = undefined;
+    }
+    if (nativeUpdater !== undefined && operation.nativeErrorListener !== undefined) {
+      try {
+        nativeUpdater.off("error", operation.nativeErrorListener);
+      } catch {}
+      operation.nativeErrorListener = undefined;
+    }
+  };
+  const detachReadinessWatch = (): void => {
+    if (nativeUpdater === undefined || readinessErrorListener === undefined) return;
+    try {
+      nativeUpdater.off("error", readinessErrorListener);
+    } catch {}
+    readinessErrorListener = undefined;
+  };
+  const armReadinessWatch = (): void => {
+    if (!requiresNativePreparation || nativeUpdater === undefined) return;
+    detachReadinessWatch();
+    readinessErrorListener = (): void => {
+      readinessInvalidated = true;
+      log("desktop-update-readiness-invalidated");
+      if (!closed && !installRequested && state.status === "downloaded") {
+        publish({ status: "failed", stage: "download" });
+      }
+      detachReadinessWatch();
+    };
+    nativeUpdater.on("error", readinessErrorListener);
   };
   const releaseOperationIfIdle = (operation: UpdateOperation): void => {
     if (
@@ -226,6 +266,7 @@ export function createDesktopUpdateController(input: {
     clearOperationTimer(operation, "checkTimer");
     clearOperationTimer(operation, "downloadStallTimer");
     clearOperationTimer(operation, "downloadAbsoluteTimer");
+    clearOperationTimer(operation, "preparationTimer");
     removeOperationListeners(operation);
     if (cancel) {
       try {
@@ -254,10 +295,32 @@ export function createDesktopUpdateController(input: {
     operation.pendingCalls -= 1;
     releaseOperationIfIdle(operation);
   };
-  const completeDownload = (operation: UpdateOperation): void => {
-    if (!isCurrent(operation) || operation.targetVersion === undefined) return;
+  const publishIfReady = (operation: UpdateOperation): boolean => {
+    if (!isCurrent(operation) || operation.targetVersion === undefined || !operation.zipReady) {
+      return false;
+    }
+    if (requiresNativePreparation && !operation.nativeReady) return false;
+    clearOperationTimer(operation, "preparationTimer");
+    readinessInvalidated = false;
     publish({ status: "downloaded", version: operation.targetVersion });
     finishOperation(operation, false);
+    armReadinessWatch();
+    return true;
+  };
+  const noteZipReady = (operation: UpdateOperation): void => {
+    if (!isCurrent(operation)) return;
+    operation.zipReady = true;
+    clearOperationTimer(operation, "downloadStallTimer");
+    if (publishIfReady(operation) || !requiresNativePreparation || operation.nativeReady) return;
+    scheduleOperationTimer(
+      operation,
+      "preparationTimer",
+      () => {
+        log("desktop-update-preparation-timeout");
+        expireOperation(operation, "download");
+      },
+      DESKTOP_UPDATE_DOWNLOAD_STALL_TIMEOUT_MS,
+    );
   };
   const resetDownloadStallTimer = (operation: UpdateOperation): void => {
     scheduleOperationTimer(
@@ -285,6 +348,7 @@ export function createDesktopUpdateController(input: {
       if (
         !isCurrent(operation) ||
         operation.stage !== "download" ||
+        operation.zipReady ||
         !Number.isFinite(info.transferred) ||
         info.transferred <= operation.lastTransferred
       ) {
@@ -299,8 +363,28 @@ export function createDesktopUpdateController(input: {
         failOperation(operation, "download");
         return;
       }
-      completeDownload(operation);
+      noteZipReady(operation);
     };
+    if (requiresNativePreparation) {
+      if (nativeUpdater === undefined) {
+        log("desktop-update-native-readiness-unavailable");
+        failOperation(operation, "download");
+        return;
+      }
+      operation.nativeDownloadedListener = (): void => {
+        if (!isCurrent(operation) || operation.stage !== "download") return;
+        operation.nativeReady = true;
+        clearOperationTimer(operation, "preparationTimer");
+        publishIfReady(operation);
+      };
+      operation.nativeErrorListener = (): void => {
+        if (!isCurrent(operation)) return;
+        log("desktop-update-native-rejected");
+        failOperation(operation, "download");
+      };
+      nativeUpdater.on("update-downloaded", operation.nativeDownloadedListener);
+      nativeUpdater.on("error", operation.nativeErrorListener);
+    }
     updater!.on("download-progress", operation.progressListener);
     updater!.on("update-downloaded", operation.downloadedListener);
     resetDownloadStallTimer(operation);
@@ -344,6 +428,8 @@ export function createDesktopUpdateController(input: {
       settled: false,
       pendingCalls: 1,
       lastTransferred: 0,
+      zipReady: false,
+      nativeReady: !requiresNativePreparation,
     };
     activeOperation = operation;
     publish({ status: "checking" });
@@ -515,11 +601,11 @@ export function createDesktopUpdateController(input: {
     },
     completeInstallAfterDrain(allowFinalQuit) {
       if (!installRequested || updater === undefined) return "not-requested";
+      if (readinessInvalidated) return "failed";
       if (installInvoked) return "started";
       installInvoked = true;
       try {
         allowFinalQuit();
-        // MacUpdater only starts ShipIt here if Squirrel already ingested the zip.
         updater.quitAndInstall(false, true);
         return "started";
       } catch {
@@ -535,12 +621,16 @@ export function createDesktopUpdateController(input: {
         } catch {}
         intervalTimer = undefined;
       }
+      listeners.clear();
+      if (installRequested) return;
+      detachReadinessWatch();
       const operation = activeOperation;
       if (operation !== undefined) {
         generation += 1;
         clearOperationTimer(operation, "checkTimer");
         clearOperationTimer(operation, "downloadStallTimer");
         clearOperationTimer(operation, "downloadAbsoluteTimer");
+        clearOperationTimer(operation, "preparationTimer");
         removeOperationListeners(operation);
         try {
           operation.cancellationToken?.cancel();
@@ -548,7 +638,6 @@ export function createDesktopUpdateController(input: {
         settleOperation(operation);
         activeOperation = undefined;
       }
-      listeners.clear();
     },
   };
 }

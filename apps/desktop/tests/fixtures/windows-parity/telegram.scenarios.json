@@ -8,7 +8,7 @@
       "automation": "deterministic",
       "tests": [
         "apps/desktop-renderer/tests/telegram-settings-surface.test.tsx > explains the dedicated-bot boundary and accepts a token only from the clipboard",
-        "apps/desktop/tests/telegram-ipc.test.ts > reads and clears the clipboard synchronously before any credential await"
+        "apps/desktop/tests/telegram-ipc.test.ts > clears the clipboard before any credential await"
       ]
     },
     {

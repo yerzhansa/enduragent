@@ -300,7 +300,7 @@ async function main() {
       expectedExit: 0,
     });
     checked(success.ok, "packaged self-test did not succeed");
-    checked(success.runtime.electron === "43.1.1", "packaged Electron version was unexpected");
+    checked(success.runtime.electron === "44.4.3", "packaged Electron version was unexpected");
     checked(
       Number(success.runtime.node.split(".")[0]) >= 24,
       "packaged Node version was unexpected",

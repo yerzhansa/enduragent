@@ -148,7 +148,7 @@ function setup(
   const clipboard = {
     readText: vi.fn(() => {
       trace.push("read");
-      return `  ${TOKEN}  `;
+      return Promise.resolve(`  ${TOKEN}  `);
     }),
     clear: vi.fn(() => {
       trace.push("clear");
@@ -279,10 +279,11 @@ describe("Desktop Telegram IPC", () => {
     });
   });
 
-  it("reads and clears the clipboard synchronously before any credential await", async () => {
+  it("clears the clipboard before any credential await", async () => {
     const runtime = setup();
 
     const pending = runtime.invoke(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL);
+    await Promise.resolve();
     expect(runtime.trace).toEqual(["read", "clear"]);
     expect(runtime.vault.profileStatus).not.toHaveBeenCalled();
 
@@ -497,7 +498,7 @@ describe("Desktop Telegram IPC", () => {
       `123456789:${"A".repeat(36)}`,
       "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg+i",
     ]) {
-      runtime.clipboard.readText.mockReturnValueOnce(candidate);
+      runtime.clipboard.readText.mockResolvedValueOnce(candidate);
       await expect(runtime.invoke(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL)).resolves.toEqual({
         outcome: "refused",
         reason: "invalid-token-format",
@@ -563,7 +564,7 @@ describe("Desktop Telegram IPC", () => {
     expect(readFailure.clipboard.clear).toHaveBeenCalledOnce();
 
     const invalid = setup({ configured: true });
-    invalid.clipboard.readText.mockReturnValueOnce("invalid token with spaces");
+    invalid.clipboard.readText.mockResolvedValueOnce("invalid token with spaces");
     await expect(invalid.invoke(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL)).resolves.toEqual({
       outcome: "refused",
       reason: "invalid-token-format",

@@ -9,9 +9,8 @@ const desktopRoot = resolve(import.meta.dirname, "..");
 
 function updaterLoaderBody(source: string): string {
   const prefix = "    loadUpdater: async () => {";
-  const suffix = "\n    },\n    requestQuit:";
   const start = source.indexOf(prefix);
-  const end = source.indexOf(suffix, start + prefix.length);
+  const end = start < 0 ? -1 : source.indexOf("\n    },", start + prefix.length);
   if (start < 0 || end < 0) throw new Error("desktop updater loader was not found");
   return source.slice(start + prefix.length, end);
 }

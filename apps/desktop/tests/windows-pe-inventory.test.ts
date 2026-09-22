@@ -92,8 +92,6 @@ describe("Windows PE inventory", () => {
       { path: "dxcompiler.dll", kind: "runtime-library" },
       { path: "dxil.dll", kind: "runtime-library" },
       { path: "ffmpeg.dll", kind: "runtime-library" },
-      { path: "libEGL.dll", kind: "runtime-library" },
-      { path: "libGLESv2.dll", kind: "runtime-library" },
       { path: "vk_swiftshader.dll", kind: "runtime-library" },
       { path: "vulkan-1.dll", kind: "runtime-library" },
       {
