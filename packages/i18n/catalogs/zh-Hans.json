@@ -1005,6 +1005,7 @@
       "planningRequestFailure": "计划无法接收此请求。请求已保留，计划未发生变化。",
       "planningRequestLoadFailure": "无法检查已保存的计划请求。请重新连接后重试。",
       "protocolFailure": "无法验证教练回复。请重试。",
+      "savedUnverified": "我保存了你的信息，但无法验证我的回复。请重试。",
       "questionSkipped": "已跳过问题",
       "queueLoadFailure": "无法检查已保存的消息。请重新连接后重试。",
       "queueRemoveFailure": "无法移除此已保存的消息。请重试。",
@@ -2600,6 +2601,11 @@
       "stepLimit": "收集数据时已达到步骤上限。告诉我继续，我就会接着处理。",
       "writesSaved": "我已更改日历，但在完成回复时遇到了问题。更改已保存，请打开日历确认是否正确，需要调整的话告诉我。"
     },
+    "workoutPreparation": {
+      "failed": "我无法准备此次训练审核。未应用任何更改。",
+      "prepared": "你的训练审核已准备好，可以批准。",
+      "savedInformationFailed": "我保存了你的信息，但无法准备训练审核。"
+    },
     "proposal": {
       "create": "在 {{date}} 创建训练课程“{{name}}”",
       "createFallback": "创建训练课程",
@@ -2866,6 +2872,76 @@
         "tokenRejected": "Telegram 令牌被拒绝",
         "transferRequired": "需要转移机器人"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "应用所有已检查的更改吗？",
+      "retryPrompt": "重试剩余更改吗？",
+      "retryRemaining": "重试剩余更改",
+      "terminalPrompt": "输入 {{action}} 应用这些更改，输入 {{cancel}} 取消，或发送消息修改提议。"
+    },
+    "outcome": {
+      "accountChanged": "日历账户已更改；无法使用此批准。",
+      "canceled": "剩余更改已取消。",
+      "cannotVerify": "无法验证日历。",
+      "coachOnly": "只能更改由教练创建的训练。",
+      "complete": "所有已检查的更改均已完成。",
+      "incomplete": "无法准备完整提议。目前无法批准。请让教练重新准备整个方案。",
+      "invalidAction": "此批准已失效。",
+      "noAdditional": "未应用任何额外更改。",
+      "noChanges": "未应用任何更改。",
+      "pastProtected": "过去的训练受到保护。",
+      "recoveredDeleteAbsent": "intervals.icu 中没有训练 {{label}}，但未记录删除响应。这不是已确认的教练删除操作。重试仍然禁用。",
+      "recoveredObserved": "目标训练已存在，但未记录原始响应。重试之前请检查剩余工作。",
+      "recoveredStopped": "执行在下一个已保存的尝试之前停止。请检查剩余更改。",
+      "recoveredUncertain": "未记录日历响应。结果不确定时，重试已禁用。 重启时将检查已保存的结果。",
+      "refresh": "再次批准之前，请检查更新后的提议。",
+      "rejected": "日历拒绝了 {{label}}。剩余工作已停止；选择重试剩余更改之前请先检查。",
+      "supersededApproval": "之前的批准已失效。请检查当前提议。",
+      "uncertain": "{{label}} 的结果不确定。未尝试后续更改。在结果得到验证之前，重试已禁用。 重启时将检查已保存的结果。",
+      "workoutOnly": "只能更改已安排的训练。",
+      "wrongAction": "请使用此次检查提供的操作。"
+    },
+    "review": {
+      "action": {
+        "add": "添加",
+        "delete": "删除",
+        "edit": "编辑"
+      },
+      "add": "{{index}}. 添加：{{details}}\n{{effort}}",
+      "alreadyCompleted": "已完成：",
+      "changed": "{{name}} 已在 intervals.icu 中更改：{{changes}}。",
+      "confirmed": "已确认",
+      "descriptionUnavailable": "描述不可用",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n预计训练负荷：{{load}}\n{{structure}}",
+      "durationUnavailable": "时长不可用",
+      "edit": "{{index}}. 编辑训练\n当前：{{current}}\n建议：{{proposed}}",
+      "estimatedLoad": "预计训练负荷：{{load}}。",
+      "field": {
+        "date": "日期",
+        "description": "描述",
+        "duration": "时长",
+        "name": "名称",
+        "structure": "强度结构",
+        "trainingLoad": "训练负荷",
+        "effort": "强度"
+      },
+      "fieldChanged": "{{field}}已更改",
+      "kept": "保留的现有训练：",
+      "minutes": "{{minutes}} 分钟",
+      "observed": "已观察到目标状态；未收到响应",
+      "position": "第 {{current}} 项，共 {{total}} 项",
+      "remove": "{{index}}. 删除此训练：\n{{details}}",
+      "summary": "添加 {{adds}} 项，编辑 {{edits}} 项，删除 {{deletions}} 项 · 添加或编辑的训练时长：{{duration}}",
+      "title": "检查所有训练更改",
+      "totalUnavailable": "总时长不可用",
+      "unavailable": "不可用",
+      "structureDetails": "训练步骤：\n{{steps}}",
+      "structureUnavailable": "训练步骤不可用",
+      "structureChanged": "训练步骤的详细信息已更改",
+      "proposedRevision": "本次方案的更改：\n{{changes}}\n其他所有建议的训练保持不变。",
+      "revised": "{{name}}：{{changes}}"
     }
   }
 }

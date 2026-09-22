@@ -1005,6 +1005,7 @@
       "planningRequestFailure": "計畫無法接收此請求。請求已保留，計畫未發生變更。",
       "planningRequestLoadFailure": "無法檢查已儲存的計畫請求。請重新連線後重試。",
       "protocolFailure": "無法驗證教練回覆。請重試。",
+      "savedUnverified": "我已儲存你的資訊，但無法驗證我的回覆。請重試。",
       "questionSkipped": "已略過問題",
       "queueLoadFailure": "無法檢查已儲存的訊息。請重新連線後重試。",
       "queueRemoveFailure": "無法移除此已儲存的訊息。請重試。",
@@ -2600,6 +2601,11 @@
       "stepLimit": "收集資料時已達到步驟上限。告訴我繼續，我就會接著處理。",
       "writesSaved": "我已變更行事曆，但在完成回覆時遇到了問題。變更已儲存，請開啟行事曆確認是否正確，需要調整的話告訴我。"
     },
+    "workoutPreparation": {
+      "failed": "我無法準備這次訓練審核。未套用任何變更。",
+      "prepared": "你的訓練審核已準備好，可以核准。",
+      "savedInformationFailed": "我已儲存你的資訊，但無法準備訓練審核。"
+    },
     "proposal": {
       "create": "在 {{date}} 建立訓練課表「{{name}}」",
       "createFallback": "建立訓練課表",
@@ -2866,6 +2872,76 @@
         "tokenRejected": "Telegram 權杖遭拒",
         "transferRequired": "需要移轉機器人"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "套用所有已檢查的變更嗎？",
+      "retryPrompt": "重試剩餘變更嗎？",
+      "retryRemaining": "重試剩餘變更",
+      "terminalPrompt": "輸入 {{action}} 套用這些變更，輸入 {{cancel}} 取消，或傳送訊息修改提案。"
+    },
+    "outcome": {
+      "accountChanged": "日曆帳號已變更；無法使用此核准。",
+      "canceled": "剩餘變更已取消。",
+      "cannotVerify": "無法驗證日曆。",
+      "coachOnly": "只能變更由教練建立的訓練。",
+      "complete": "所有已檢查的變更均已完成。",
+      "incomplete": "無法準備完整提案。目前無法核准。請讓教練重新準備整個方案。",
+      "invalidAction": "此核准已失效。",
+      "noAdditional": "未套用任何額外變更。",
+      "noChanges": "未套用任何變更。",
+      "pastProtected": "過去的訓練受到保護。",
+      "recoveredDeleteAbsent": "intervals.icu 中沒有訓練 {{label}}，但未記錄刪除回應。這不是已確認的教練刪除操作。重試仍然停用。",
+      "recoveredObserved": "目標訓練已存在，但未記錄原始回應。重試之前請檢查剩餘工作。",
+      "recoveredStopped": "執行在下一個已儲存的嘗試之前停止。請檢查剩餘變更。",
+      "recoveredUncertain": "未記錄日曆回應。結果不確定時，重試已停用。 重新啟動時將檢查已儲存的結果。",
+      "refresh": "再次核准之前，請檢查更新後的提案。",
+      "rejected": "日曆拒絕了 {{label}}。剩餘工作已停止；選擇重試剩餘變更之前請先檢查。",
+      "supersededApproval": "先前的核准已失效。請檢查目前的提案。",
+      "uncertain": "{{label}} 的結果不確定。未嘗試後續變更。在結果得到驗證之前，重試已停用。 重新啟動時將檢查已儲存的結果。",
+      "workoutOnly": "只能變更已安排的訓練。",
+      "wrongAction": "請使用此次檢查提供的操作。"
+    },
+    "review": {
+      "action": {
+        "add": "新增",
+        "delete": "刪除",
+        "edit": "編輯"
+      },
+      "add": "{{index}}. 新增：{{details}}\n{{effort}}",
+      "alreadyCompleted": "已完成：",
+      "changed": "{{name}} 已在 intervals.icu 中變更：{{changes}}。",
+      "confirmed": "已確認",
+      "descriptionUnavailable": "描述無法取得",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n預估訓練負荷：{{load}}\n{{structure}}",
+      "durationUnavailable": "時長無法取得",
+      "edit": "{{index}}. 編輯訓練\n目前：{{current}}\n建議：{{proposed}}",
+      "estimatedLoad": "預估訓練負荷：{{load}}。",
+      "field": {
+        "date": "日期",
+        "description": "描述",
+        "duration": "時長",
+        "name": "名稱",
+        "structure": "強度結構",
+        "trainingLoad": "訓練負荷",
+        "effort": "強度"
+      },
+      "fieldChanged": "{{field}}已變更",
+      "kept": "保留的現有訓練：",
+      "minutes": "{{minutes}} 分鐘",
+      "observed": "已觀察到目標狀態；未收到回應",
+      "position": "第 {{current}} 項，共 {{total}} 項",
+      "remove": "{{index}}. 刪除此訓練：\n{{details}}",
+      "summary": "新增 {{adds}} 項，編輯 {{edits}} 項，刪除 {{deletions}} 項 · 新增或編輯的訓練時長：{{duration}}",
+      "title": "檢查所有訓練變更",
+      "totalUnavailable": "總時長無法取得",
+      "unavailable": "無法取得",
+      "structureDetails": "訓練步驟：\n{{steps}}",
+      "structureUnavailable": "訓練步驟無法使用",
+      "structureChanged": "訓練步驟的詳細資訊已變更",
+      "proposedRevision": "本次方案的變更：\n{{changes}}\n其他所有建議的訓練保持不變。",
+      "revised": "{{name}}：{{changes}}"
     }
   }
 }

@@ -94,6 +94,15 @@ describe("confirmation-gate prompt block is host-conditional", () => {
     ).toContain("# Mutation Confirmations");
   });
 
+  it("keeps workout preparation exclusive of per-workout confirmation", () => {
+    const blocks = staticRuleBlocks(30, { confirmationGate: true, workoutPreparation: true });
+    const text = blocks.join("\n");
+    expect(text).toContain("# Workout Set Review");
+    expect(text).toContain("plan_save");
+    expect(text).not.toContain(CONFIRMATION_GATE_RULES);
+    expect(text).not.toContain("scheduling a whole week");
+  });
+
   it("keeps the block out of an auto-approving host's assembled prompt", async () => {
     expect(await capturedSystemPrompt(undefined)).not.toContain("# Mutation Confirmations");
     expect(await capturedSystemPrompt(emptyGatePort)).not.toContain("# Mutation Confirmations");

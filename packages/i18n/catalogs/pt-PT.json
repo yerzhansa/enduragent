@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "O Plano não conseguiu receber este pedido. O teu pedido mantém-se e nada mudou no Plano.",
       "planningRequestLoadFailure": "Não foi possível verificar os pedidos guardados do Plano. Volta a ligar e tenta novamente.",
       "protocolFailure": "Não foi possível verificar a resposta do treinador. Tenta novamente.",
+      "savedUnverified": "Guardei as tuas informações, mas não consegui verificar a minha resposta. Tenta novamente.",
       "questionSkipped": "Pergunta saltada",
       "queueLoadFailure": "Não foi possível verificar as tuas mensagens guardadas. Volta a ligar e tenta novamente.",
       "queueRemoveFailure": "Não foi possível remover essa mensagem guardada. Tenta novamente.",
@@ -2642,6 +2643,11 @@
       "unsavedReply": "{{reply}}\n\n(Atenção: o meu disco está cheio, por isso não consegui guardar isto no nosso histórico, mas recebi a tua mensagem. Liberta algum espaço quando puderes.)",
       "unsavedStepLimit": "Atingi o limite de passos ao reunir os dados. Pede-me para continuar e retomo de onde fiquei.\n\n(Atenção: o meu disco está cheio, por isso não consegui guardar isto no nosso histórico, mas recebi a tua mensagem. Liberta algum espaço quando puderes.)"
     },
+    "workoutPreparation": {
+      "failed": "Não consegui preparar esta revisão de treinos. Não foi aplicada nenhuma alteração.",
+      "prepared": "A tua revisão de treinos está pronta para aprovação.",
+      "savedInformationFailed": "Guardei as tuas informações, mas não consegui preparar a revisão de treinos."
+    },
     "proposal": {
       "create": "Criar o treino \"{{name}}\" em {{date}}",
       "createFallback": "Criar um treino",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Token do Telegram rejeitado",
         "transferRequired": "É necessário transferir o bot"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Aplicar todas as alterações revistas?",
+      "retryPrompt": "Tentar novamente as alterações restantes?",
+      "retryRemaining": "Tentar os restantes novamente",
+      "terminalPrompt": "Escreva {{action}} para aplicar estas alterações, {{cancel}} para cancelar ou uma mensagem para modificar a proposta."
+    },
+    "outcome": {
+      "accountChanged": "A conta do calendário mudou; esta aprovação não pode ser usada.",
+      "canceled": "As alterações restantes foram canceladas.",
+      "cannotVerify": "Não foi possível verificar o calendário.",
+      "coachOnly": "Só podem ser alterados os treinos criados pelo treinador.",
+      "complete": "Todas as alterações revistas estão concluídas.",
+      "incomplete": "Não foi possível preparar a proposta completa. Não há aprovação disponível. Peça ao treinador para preparar novamente o conjunto completo.",
+      "invalidAction": "Esta aprovação já não está ativa.",
+      "noAdditional": "Não foram aplicadas alterações adicionais.",
+      "noChanges": "Não foram aplicadas alterações.",
+      "pastProtected": "Os treinos passados estão protegidos.",
+      "recoveredDeleteAbsent": "O treino {{label}} está ausente do intervals.icu, mas a resposta à eliminação não foi registada. Não é uma eliminação confirmada pelo treinador. Uma nova tentativa continua desativada.",
+      "recoveredObserved": "O treino pretendido está presente, mas a resposta original não foi registada. Reveja o trabalho restante antes de tentar novamente.",
+      "recoveredStopped": "A execução parou antes da próxima tentativa guardada. Reveja as alterações restantes.",
+      "recoveredUncertain": "Uma resposta do calendário não foi registada. Uma nova tentativa está desativada enquanto o resultado for incerto. O resultado guardado será verificado ao reiniciar.",
+      "refresh": "Reveja a proposta atualizada antes de aprovar novamente.",
+      "rejected": "O calendário rejeitou {{label}}. O trabalho restante foi interrompido; reveja-o antes de tentar novamente.",
+      "supersededApproval": "A aprovação anterior já não está ativa. Reveja a proposta atual.",
+      "uncertain": "O resultado de {{label}} é incerto. Não foram tentadas mais alterações. Uma nova tentativa está desativada até ser possível verificar o resultado. O resultado guardado será verificado ao reiniciar.",
+      "workoutOnly": "Só podem ser alterados os treinos programados.",
+      "wrongAction": "Use a ação apresentada com esta revisão."
+    },
+    "review": {
+      "action": {
+        "add": "Adicionar",
+        "delete": "Remover",
+        "edit": "Editar"
+      },
+      "add": "{{index}}. Adicionar: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Já concluído:",
+      "changed": "{{name}} mudou no intervals.icu: {{changes}}.",
+      "confirmed": "confirmado",
+      "descriptionUnavailable": "Descrição indisponível",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCarga de treino estimada: {{load}}\n{{structure}}",
+      "durationUnavailable": "duração indisponível",
+      "edit": "{{index}}. Editar treino\nAtual: {{current}}\nProposto: {{proposed}}",
+      "estimatedLoad": "Carga de treino estimada: {{load}}.",
+      "field": {
+        "date": "data",
+        "description": "descrição",
+        "duration": "duração",
+        "name": "nome",
+        "structure": "estrutura do esforço",
+        "trainingLoad": "carga de treino",
+        "effort": "esforço"
+      },
+      "fieldChanged": "{{field}} alterado",
+      "kept": "Treinos existentes mantidos:",
+      "minutes": "{{minutes}} min",
+      "observed": "estado pretendido observado; resposta não recebida",
+      "position": "{{current}} de {{total}}",
+      "remove": "{{index}}. Remover este treino:\n{{details}}",
+      "summary": "{{adds}} adições, {{edits}} edições, {{deletions}} eliminações · {{duration}} para treinos adicionados ou editados",
+      "title": "Reveja todas as alterações aos treinos",
+      "totalUnavailable": "Duração total indisponível",
+      "unavailable": "indisponível",
+      "structureDetails": "Etapas do treino:\n{{steps}}",
+      "structureUnavailable": "Etapas do treino indisponíveis",
+      "structureChanged": "Os detalhes das etapas do treino foram alterados",
+      "proposedRevision": "Alterações a esta proposta:\n{{changes}}\nTodos os outros treinos propostos permanecem inalterados.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

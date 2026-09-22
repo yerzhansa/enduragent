@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kunde inte ta emot förfrågan. Din förfrågan finns kvar och inget ändrades i Plan.",
       "planningRequestLoadFailure": "Det gick inte att kontrollera sparade planförfrågningar. Anslut på nytt och försök igen.",
       "protocolFailure": "Tränarens svar kunde inte verifieras. Försök igen.",
+      "savedUnverified": "Jag sparade din information, men kunde inte verifiera mitt svar. Försök igen.",
       "questionSkipped": "Frågan hoppades över",
       "queueLoadFailure": "Det gick inte att kontrollera dina sparade meddelanden. Anslut på nytt och försök igen.",
       "queueRemoveFailure": "Det sparade meddelandet kunde inte tas bort. Försök igen.",
@@ -2642,6 +2643,11 @@
       "unsavedReply": "{{reply}}\n\nMin disk är full, så jag kunde inte spara det här i vår historik. Ditt meddelande kom fram. Frigör lite utrymme när du kan.",
       "unsavedStepLimit": "Jag nådde gränsen för antal steg när jag samlade in data. Be mig fortsätta så tar jag vid där jag slutade.\n\nMin disk är full, så jag kunde inte spara det här i vår historik. Ditt meddelande kom fram. Frigör lite utrymme när du kan."
     },
+    "workoutPreparation": {
+      "failed": "Jag kunde inte förbereda den här träningsgranskningen. Inga ändringar genomfördes.",
+      "prepared": "Din träningsgranskning är klar för godkännande.",
+      "savedInformationFailed": "Jag sparade din information, men kunde inte förbereda träningsgranskningen."
+    },
     "proposal": {
       "create": "Skapa träningspasset \"{{name}}\" den {{date}}",
       "createFallback": "Skapa ett träningspass",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Telegram-token avvisad",
         "transferRequired": "Boten behöver överföras"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Tillämpa alla granskade ändringar?",
+      "retryPrompt": "Försöka återstående ändringar igen?",
+      "retryRemaining": "Försök återstående igen",
+      "terminalPrompt": "Skriv {{action}} för att tillämpa dessa ändringar, {{cancel}} för att avbryta eller ett meddelande för att ändra förslaget."
+    },
+    "outcome": {
+      "accountChanged": "Kalenderkontot har ändrats; detta godkännande kan inte användas.",
+      "canceled": "De återstående ändringarna avbröts.",
+      "cannotVerify": "Kalendern kunde inte verifieras.",
+      "coachOnly": "Endast träningspass skapade av coachen kan ändras.",
+      "complete": "Alla granskade ändringar är klara.",
+      "incomplete": "Det fullständiga förslaget kunde inte förberedas. Inget godkännande är tillgängligt. Be coachen att förbereda hela uppsättningen igen.",
+      "invalidAction": "Detta godkännande är inte längre aktivt.",
+      "noAdditional": "Inga ytterligare ändringar tillämpades.",
+      "noChanges": "Inga ändringar tillämpades.",
+      "pastProtected": "Tidigare träningspass är skyddade.",
+      "recoveredDeleteAbsent": "Träningspasset {{label}} saknas i intervals.icu, men svaret på borttagningen sparades inte. Detta är inte en bekräftad borttagning av coachen. Nya försök är fortfarande inaktiverade.",
+      "recoveredObserved": "Det önskade träningspasset finns, men det ursprungliga svaret sparades inte. Granska återstående arbete innan du försöker igen.",
+      "recoveredStopped": "Körningen stoppades före nästa sparade försök. Granska de återstående ändringarna.",
+      "recoveredUncertain": "Ett kalendersvar sparades inte. Nya försök är inaktiverade så länge resultatet är osäkert. Det sparade resultatet kontrolleras vid omstart.",
+      "refresh": "Granska det uppdaterade förslaget innan du godkänner igen.",
+      "rejected": "Kalendern avvisade {{label}}. Det återstående arbetet stoppades; granska det innan du försöker igen.",
+      "supersededApproval": "Det föregående godkännandet är inte längre aktivt. Granska det aktuella förslaget.",
+      "uncertain": "Resultatet för {{label}} är osäkert. Inga fler ändringar försöktes. Nya försök är inaktiverade tills resultatet kan verifieras. Det sparade resultatet kontrolleras vid omstart.",
+      "workoutOnly": "Endast planerade träningspass kan ändras.",
+      "wrongAction": "Använd åtgärden som erbjuds med denna granskning."
+    },
+    "review": {
+      "action": {
+        "add": "Lägg till",
+        "delete": "Ta bort",
+        "edit": "Redigera"
+      },
+      "add": "{{index}}. Lägg till: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Redan genomfört:",
+      "changed": "{{name}} ändrades i intervals.icu: {{changes}}.",
+      "confirmed": "bekräftat",
+      "descriptionUnavailable": "Beskrivning saknas",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nUppskattad träningsbelastning: {{load}}\n{{structure}}",
+      "durationUnavailable": "längd saknas",
+      "edit": "{{index}}. Ändra träningspass\nNuvarande: {{current}}\nFöreslaget: {{proposed}}",
+      "estimatedLoad": "Uppskattad träningsbelastning: {{load}}.",
+      "field": {
+        "date": "datum",
+        "description": "beskrivning",
+        "duration": "längd",
+        "name": "namn",
+        "structure": "ansträngningsstruktur",
+        "trainingLoad": "träningsbelastning",
+        "effort": "ansträngning"
+      },
+      "fieldChanged": "{{field}} ändrades",
+      "kept": "Befintliga träningspass behålls:",
+      "minutes": "{{minutes}} min",
+      "observed": "önskat tillstånd observerat; svar inte mottaget",
+      "position": "{{current}} av {{total}}",
+      "remove": "{{index}}. Ta bort detta träningspass:\n{{details}}",
+      "summary": "{{adds}} tillägg, {{edits}} ändringar, {{deletions}} borttagningar · {{duration}} för tillagda eller ändrade träningspass",
+      "title": "Granska alla träningsändringar",
+      "totalUnavailable": "Total längd saknas",
+      "unavailable": "saknas",
+      "structureDetails": "Träningssteg:\n{{steps}}",
+      "structureUnavailable": "Träningssteg är inte tillgängliga",
+      "structureChanged": "Detaljerna för träningsstegen har ändrats",
+      "proposedRevision": "Ändringar i det här förslaget:\n{{changes}}\nAlla andra föreslagna träningspass förblir oförändrade.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

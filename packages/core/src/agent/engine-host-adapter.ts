@@ -11,6 +11,7 @@ import type {
   ModelTransportDecorator,
   PlatformCalendarMutationsPort,
   ReferenceStateSnapshot,
+  WorkoutPreparationPort,
 } from "@enduragent/engine";
 import { resolveUserTimezone } from "@enduragent/engine/sport";
 import { ErrorStateSchema, LatestJsonSchema } from "@enduragent/kernel/reference/schemas";
@@ -41,6 +42,7 @@ import {
 import { classifyFailure, extractRetryAfterMs } from "./token-utils.js";
 
 export interface EngineHostAdapterOverrides {
+  readonly workoutPreparation?: WorkoutPreparationPort;
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReaderPort;
   readonly calendarMutations?: PlatformCalendarMutationsPort;
@@ -199,6 +201,7 @@ export function createEngineHostAdapter(
       modelTransportDecorator: overrides.modelTransportDecorator,
       onToolsAssembled: overrides.onToolsAssembled,
       toolConfirmations,
+      workoutPreparation: overrides.workoutPreparation,
     },
   };
 }

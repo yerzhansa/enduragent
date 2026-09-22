@@ -267,6 +267,12 @@ Typeface, vendored via `@fontsource-variable/dm-sans`. Copyright (c) Colophon Fo
 Jonny Pinhorn and Indian Type Foundry. The full OFL text ships inside the package at
 `node_modules/@fontsource-variable/dm-sans/LICENSE`.
 
+### Noto Sans CJK SC (SIL Open Font License 1.1)
+
+Typeface used for deterministic workout chart images. Copyright 2014-2021 Adobe.
+Noto is a trademark of Google Inc. The full OFL text ships beside the font at
+`dist/workout-chart-font.LICENSE.txt`.
+
 ---
 
 ## Cursor pstack verification skills (MIT)

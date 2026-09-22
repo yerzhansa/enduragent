@@ -1,8 +1,11 @@
+import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
+import { resolveTurnReply, type StepExhaustedRecovery } from "./workout-reply.js";
+import { createPendingWorkoutTool } from "./pending-workout-tool.js";
 import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
-import { msg, type Message, type LanguageResolution } from "@enduragent/i18n";
+import { msg, type LanguageResolution } from "@enduragent/i18n";
 import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import type {
   AnswerCoachDecisionRpcParams,
@@ -179,7 +182,8 @@ function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean
   return text.trim() === "" && (finishReason === "tool-calls" || finishReason === "length");
 }
 
-const RECOVERY_PROMPT = "summarize what you did and what's left";
+const RECOVERY_PROMPT =
+  "Answer the athlete's latest request directly. Do not recap earlier conversation, infer pending approvals, or claim that you took any action. No tools are available for this response.";
 const SECTION_UPDATED_STAMP = "_updated: ";
 
 function archiveMarker(archivedAt: string): string {
@@ -236,12 +240,6 @@ interface TurnOutcome {
   rateLimitAttempts: number;
   duration_ms: number;
   compactions: number;
-}
-
-interface RecoveredText {
-  text: string;
-  message?: Message;
-  attributionBasis: "attempt" | "prompt" | "none";
 }
 
 type ClassifiedTurnFailure = ReturnType<EngineHostPorts["classifyFailure"]> | "budget";
@@ -390,6 +388,7 @@ export class CoachAgent {
   private lastFlushMessageCount = new Map<string, number>();
   private pendingFlushMessages = new Map<string, ModelMessage[]>();
   private readonly confirmationGate: boolean;
+  private readonly workoutPreparation: WorkoutPreparationTurns | undefined;
   private readonly activeChatTurns = new Map<
     string,
     { readonly turnId: string; readonly controller: AbortController }
@@ -446,7 +445,26 @@ export class CoachAgent {
     const sections = getEffectiveSections(sport);
     this.excludedSectionNames = sections.filter((s) => s.inject === false).map((s) => s.name);
 
-    const registrations = sport.tools(runtimePorts);
+    this.workoutPreparation =
+      ports.workoutPreparation !== undefined && sport.workoutPreparation?.version === "aggregate-v1"
+        ? new WorkoutPreparationTurns(ports.workoutPreparation)
+        : undefined;
+    const workoutPreparation = this.workoutPreparation;
+    const preparationTool =
+      workoutPreparation === undefined
+        ? undefined
+        : sport.workoutPreparation?.createTool((preparation, options) =>
+            workoutPreparation.submit(preparation, options),
+          );
+    const replacedTools = new Set(sport.workoutPreparation?.replacesTools);
+    const registrations = sport
+      .tools(runtimePorts)
+      .filter(
+        (registration) => preparationTool === undefined || !replacedTools.has(registration.name),
+      );
+    if (preparationTool !== undefined) registrations.push(preparationTool);
+    if (workoutPreparation !== undefined)
+      registrations.push(createPendingWorkoutTool(workoutPreparation));
     const maxResultTokens = TOOL_RESULT_MAX_TOKENS;
     const prepareConfirmedRun = (
       name: string,
@@ -457,6 +475,18 @@ export class CoachAgent {
       const provenance = ctx?.provenance.value ?? UNKNOWN_PROVENANCE;
       return () => this.runWithWriteProvenance(provenance, run);
     };
+    const prepareTool = (registration: (typeof registrations)[number]): Tool => {
+      const gated = gateMutatingTool(
+        registration.name,
+        registration.tool,
+        confirmations,
+        prepareConfirmedRun,
+      );
+      return (
+        this.workoutPreparation?.wrap(gated, registration === preparationTool, registration.name) ??
+        gated
+      );
+    };
     const sportTools = Object.fromEntries(
       registrations.map((r) => [
         r.name,
@@ -464,15 +494,9 @@ export class CoachAgent {
           r.name,
           memoizeReadTool(
             r.name,
-            capToolResult(
-              markUntrustedResult(
-                this.wrapWriteTool(
-                  r.name,
-                  gateMutatingTool(r.name, r.tool, confirmations, prepareConfirmedRun),
-                ),
-              ),
-              { maxResultTokens },
-            ),
+            capToolResult(markUntrustedResult(this.wrapWriteTool(r.name, prepareTool(r))), {
+              maxResultTokens,
+            }),
             (options: unknown) => getTurnContext(options)?.readToolCache,
           ),
         ),
@@ -585,6 +609,7 @@ export class CoachAgent {
         outputLanguage: language,
         excludeSections: this.excludedSectionNames,
         confirmationGate: this.confirmationGate,
+        workoutPreparation: this.workoutPreparation !== undefined,
         athleteSnapshot: athleteSnapshot ?? ATHLETE_SNAPSHOT_FALLBACK,
         planNone,
       },
@@ -600,6 +625,7 @@ export class CoachAgent {
         ? planCoachRuleBlocks()
         : staticRuleBlocks(this.sport.sessionClusterGapMinutes, {
             confirmationGate: this.confirmationGate,
+            workoutPreparation: this.workoutPreparation !== undefined,
           }),
       toolSchemas: tools,
       model: this.config.models.chat.model,
@@ -838,9 +864,12 @@ export class CoachAgent {
     turnBudget: TurnBudget,
     onTextDelta: (delta: string) => void,
     signal: AbortSignal,
-  ): Promise<RecoveredText> {
+  ): Promise<StepExhaustedRecovery> {
     if (!isStepExhaustedEmpty(text, finishReason)) {
-      return { text, attributionBasis: "attempt" };
+      return {
+        kind: "unchanged",
+        reply: { text, attributionBasis: "attempt" },
+      };
     }
     // Charge OUTSIDE the recovery try/catch: a TurnBudgetExceededError is
     // terminal everywhere else in the turn loop, so it must propagate to the
@@ -858,19 +887,29 @@ export class CoachAgent {
         signal,
       });
       return recovery.text.trim() !== ""
-        ? { text: recovery.text, attributionBasis: "prompt" }
+        ? {
+            kind: "generated",
+            result: recovery,
+            reply: { text: recovery.text, attributionBasis: "prompt" },
+          }
         : {
-            text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
-            message: STEP_LIMIT_TRUNCATION_MESSAGE,
-            attributionBasis: "none",
+            kind: "fixed",
+            reply: {
+              text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
+              message: STEP_LIMIT_TRUNCATION_MESSAGE,
+              attributionBasis: "none",
+            },
           };
     } catch (recoveryErr) {
       if (signal.aborted) throw recoveryErr;
       console.warn("Step-limit recovery completion failed; using truncation floor", recoveryErr);
       return {
-        text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
-        message: STEP_LIMIT_TRUNCATION_MESSAGE,
-        attributionBasis: "none",
+        kind: "fixed",
+        reply: {
+          text: (await this.english).say(STEP_LIMIT_TRUNCATION_MESSAGE),
+          message: STEP_LIMIT_TRUNCATION_MESSAGE,
+          attributionBasis: "none",
+        },
       };
     }
   }
@@ -962,6 +1001,7 @@ export class CoachAgent {
       const abortController = new AbortController();
       const activeTurn = { turnId, controller: abortController };
       this.activeChatTurns.set(chatId, activeTurn);
+      let workoutSession: WorkoutPreparationSession | undefined;
       try {
         const athleteText = turn?.athleteText ?? userMessage;
         const ctx = createTurnContext({
@@ -977,6 +1017,9 @@ export class CoachAgent {
           athleteText,
           turnId,
         });
+        workoutSession = chatId.startsWith("plan:")
+          ? undefined
+          : this.workoutPreparation?.begin(ctx, abortController.signal);
         const existingDecision = this.ports.coachDecisions?.getDecision(chatId);
         if (existingDecision?.status === "unanswered") {
           throw new Error(
@@ -1266,6 +1309,7 @@ export class CoachAgent {
             classifiedTerminalFailure = undefined;
             const onAttemptTextDelta = (delta: string): void => {
               attemptObservedText = true;
+              if (workoutSession !== undefined) return;
               streamedText += delta;
               if (!chatId.startsWith("plan:")) emitEvent({ type: "text_delta", turnId, delta });
             };
@@ -1276,12 +1320,13 @@ export class CoachAgent {
                 contextProvenance,
                 provenanceOfMessages(messages),
               );
-              const providerMessages = attachNativeMediaToCurrentUserMessage(
+              let providerMessages = attachNativeMediaToCurrentUserMessage(
                 messages,
                 providerUserMessage,
                 turn?.nativeMedia ?? [],
               );
-              const result = await this.llm.generate({
+              let generationTools = turnTools;
+              let result = await this.llm.generate({
                 system: systemPrompt,
                 messages: providerMessages,
                 tools: turnTools,
@@ -1351,16 +1396,39 @@ export class CoachAgent {
               }
 
               // Recovery runs only on this success path (before the catch below).
-              const recovered = await this.recoverStepExhaustedText(
-                systemPrompt,
+              const resolved = await resolveTurnReply({
+                session: workoutSession,
+                result,
                 text,
                 finishReason,
-                providerMessages,
+                messages: providerMessages,
+                tools: turnTools,
+                system: systemPrompt,
+                context: ctx,
+                budget: turnBudget,
                 cacheKey,
-                turnBudget,
-                onAttemptTextDelta,
-                abortController.signal,
-              );
+                signal: abortController.signal,
+                llm: this.llm,
+                phrasebook: book,
+                log: this.log,
+                replayUnsafeToolNames: REPLAY_UNSAFE_TOOL_NAMES,
+                recoverStepExhausted: (recoveryText, recoveryFinish, recoveryMessages) =>
+                  this.recoverStepExhaustedText(
+                    systemPrompt,
+                    recoveryText,
+                    recoveryFinish,
+                    recoveryMessages,
+                    cacheKey,
+                    turnBudget,
+                    onAttemptTextDelta,
+                    abortController.signal,
+                  ),
+              });
+              result = resolved.result;
+              providerMessages = resolved.messages;
+              generationTools = resolved.tools;
+              finishReason = resolved.finishReason;
+              const recovered = resolved.recovered;
               if (recovered.attributionBasis === "prompt") {
                 ctx.provenance.value = unionProvenance(
                   contextProvenance,
@@ -1377,8 +1445,10 @@ export class CoachAgent {
                 ctx.provenance.value = EMPTY_PROVENANCE;
               }
               if (chatId.startsWith("plan:")) assertPlanCoachReplyAuthority(effectiveText);
+              workoutSession?.complete({ finishReason, budget: turnBudget });
+              await workoutSession?.close();
 
-              const templateHash = this.templateHashForChat(chatId, turnTools);
+              const templateHash = this.templateHashForChat(chatId, generationTools);
               const assembledHash = computeAssembledHash(systemPrompt, providerMessages);
 
               const lineage: ChatLineage = {
@@ -1483,6 +1553,10 @@ export class CoachAgent {
                   suggestion: ctx.planHandoff.suggestion,
                 });
               }
+              if (workoutSession !== undefined) {
+                streamedText = responseText;
+                emitEvent({ type: "text_delta", turnId, delta: responseText });
+              }
               emitEvent({
                 type: "final-text",
                 turnId,
@@ -1491,6 +1565,7 @@ export class CoachAgent {
               });
               return responseText;
             } catch (err) {
+              workoutSession?.fail();
               // The classified budget error is terminal: re-throw it before any
               // retry branch so a future reordering can never mistake it for one of
               // the retryable classes and swallow it.
@@ -1754,8 +1829,12 @@ export class CoachAgent {
           throw terminalErr;
         }
       } finally {
-        if (this.activeChatTurns.get(chatId) === activeTurn) {
-          this.activeChatTurns.delete(chatId);
+        try {
+          await workoutSession?.close();
+        } finally {
+          if (this.activeChatTurns.get(chatId) === activeTurn) {
+            this.activeChatTurns.delete(chatId);
+          }
         }
       }
     });
@@ -2058,6 +2137,7 @@ export class CoachAgent {
           skills: this.sport.skills,
           ruleBlocks: staticRuleBlocks(this.sport.sessionClusterGapMinutes, {
             confirmationGate: this.confirmationGate,
+            workoutPreparation: this.workoutPreparation !== undefined,
           }),
           toolSchemas:
             this.decisionTool === undefined

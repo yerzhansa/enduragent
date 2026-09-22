@@ -27,6 +27,8 @@ import {
   type TelegramWorkScope,
 } from "./telegram-work-ledger.js";
 import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./telegram-host.js";
+import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
+import { deliverTelegramWorkoutReview } from "./telegram-workout-review.js";
 
 // Debounce window for coalescing rapid free-form message fragments from one
 // chat into a single turn. Each new fragment resets the window; the buffered
@@ -388,6 +390,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     scope: TelegramWorkScope;
     reservation: TelegramInvocationReservation;
     reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+    replyWithPhoto: (photo: InputFile, options?: Record<string, unknown>) => Promise<unknown>;
     replyWithChatAction: (action: "typing") => Promise<unknown>;
     replyToMessageId?: number;
     phrasebook: Phrasebook;
@@ -470,6 +473,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     ctx: {
       from?: { language_code?: string };
       reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+      replyWithPhoto: (photo: InputFile, options?: Record<string, unknown>) => Promise<unknown>;
       replyWithChatAction: (action: "typing") => Promise<unknown>;
     };
     command: string;
@@ -541,6 +545,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       writeResend(opts.chatId, response);
       try {
         await sendLongMessage(opts.ctx, response, opts.replyToMessageId);
+        await presentWorkoutReview(opts.ctx, opts.chatId, phrasebook);
         const proposal = await host.confirmations.peek({ chatId: opts.chatId, phrasebook });
         if (proposal !== undefined) {
           await opts.ctx.reply(proposal.summary, {
@@ -567,6 +572,50 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   }
 
+  async function presentWorkoutReview(
+    ctx: {
+      reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+      replyWithPhoto: (photo: InputFile, options?: Record<string, unknown>) => Promise<unknown>;
+    },
+    chatId: string,
+    phrasebook: Phrasebook,
+    redisplay = false,
+  ): Promise<boolean> {
+    if (host.workoutApprovals === undefined) return false;
+    return deliverWorkoutReview({
+      approvals: host.workoutApprovals,
+      chatId,
+      language: phrasebook.tag,
+      redisplay,
+      deliver: (text) => sendLongMessage(ctx, text, undefined, "plain"),
+      deliverDocument: (document) =>
+        deliverTelegramWorkoutReview(ctx, document, (text) =>
+          sendLongMessage(ctx, text, undefined, "plain"),
+        ),
+      controls: async (control) => {
+        await ctx.reply(control.prompt, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    control.kind === "retry"
+                      ? phrasebook.say(msg("workouts.approval.retryRemaining"))
+                      : phrasebook.say(msg("telegram.confirmation.confirm")),
+                  callback_data: `wc:${control.kind === "retry" ? "retry" : "approve"}:${control.token}`,
+                },
+                {
+                  text: phrasebook.say(msg("telegram.confirmation.cancel")),
+                  callback_data: `wc:cancel:${control.token}`,
+                },
+              ],
+            ],
+          },
+        });
+      },
+    });
+  }
+
   // Idempotent read-and-delete: no await between lookup and delete, so a
   // concurrent flush (command middleware vs. drain vs. timer) can never
   // double-dispatch the same buffered turn. Deps are resolved here, at flush
@@ -577,7 +626,12 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     chatBuffers.delete(chatId);
     clearTimeout(buf.timer);
     runTurn({
-      ctx: { reply: buf.reply, replyWithChatAction: buf.replyWithChatAction, from: buf.from },
+      ctx: {
+        reply: buf.reply,
+        replyWithPhoto: buf.replyWithPhoto,
+        replyWithChatAction: buf.replyWithChatAction,
+        from: buf.from,
+      },
       phrasebook: buf.phrasebook,
       command: "chat",
       chatId: `telegram:${chatId}`,
@@ -621,6 +675,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       from?: { language_code?: string };
       message: { text: string; message_id?: number };
       reply: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
+      replyWithPhoto: (photo: InputFile, options?: Record<string, unknown>) => Promise<unknown>;
       replyWithChatAction: (action: "typing") => Promise<unknown>;
     },
     reservation: TelegramInvocationReservation,
@@ -659,6 +714,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       scope: existing?.scope ?? ledger.currentScope(),
       reservation: existing?.reservation ?? reservation,
       reply: (t, o) => ctx.reply(t, o),
+      replyWithPhoto: (photo, options) => ctx.replyWithPhoto(photo, options),
       replyWithChatAction: (a) => ctx.replyWithChatAction(a),
       replyToMessageId: ctx.message.message_id,
       timer,
@@ -1042,6 +1098,37 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     }
   });
 
+  bot.on("callback_query:data", async (ctx, next) => {
+    if (!ctx.callbackQuery.data.startsWith("wc:")) {
+      await next();
+      return;
+    }
+    const approvals = host.workoutApprovals;
+    const action = parseWorkoutCallback(ctx.callbackQuery.data);
+    if (approvals === undefined || action === null || ctx.chat === undefined) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+    const chatId = `telegram:${ctx.chat.id}`;
+    const phrasebook = await phrasebookForContext(ctx);
+    const reservation = reserveInvocation(chatId);
+    await acknowledgeBeforeInvocation(reservation, () => ctx.answerCallbackQuery());
+    dispatch(async () => {
+      const outcome = await reservation.run(() =>
+        approvals.resolve({
+          chatId,
+          action,
+          language: phrasebook.tag,
+        }),
+      );
+      try {
+        await ctx.editMessageReplyMarkup();
+      } catch {}
+      await sendLongMessage(ctx, outcome.text, undefined, "plain");
+      await presentWorkoutReview(ctx, chatId, phrasebook);
+    });
+  });
+
   bot.on("callback_query:data", async (ctx) => {
     const phrasebook = await phrasebookForContext(ctx);
     const match = /^cg:(y|n):(.+)$/.exec(ctx.callbackQuery.data);
@@ -1085,20 +1172,17 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     // BEFORE any greeting/dispatch so it never reaches agent.chat.
     if (text.trim().toLowerCase() === RESEND_KEYWORD) {
       const cached = readResend(chatId);
-      if (cached !== undefined) {
-        // Route through dispatch so re-emitting a long multi-chunk answer runs on
-        // the fire-and-forget task instead of blocking the sequential update loop,
-        // and a delivery failure gets the same hint runTurn uses rather than
-        // escaping to bot.catch as generic classified copy.
-        dispatch(async () => {
-          try {
-            await sendLongMessage(ctx, cached);
-          } catch (err) {
-            log.error("delivery_failed", err, { command: "resend", chatId });
-            await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
-          }
-        });
-      } else await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
+      dispatch(async () => {
+        try {
+          if (cached !== undefined) await sendLongMessage(ctx, cached);
+          const delivered = await presentWorkoutReview(ctx, chatId, phrasebook, true);
+          if (cached === undefined && !delivered)
+            await ctx.reply(phrasebook.say(msg("telegram.resend.missing")));
+        } catch (err) {
+          log.error("delivery_failed", err, { command: "resend", chatId });
+          await ctx.reply(phrasebook.say(DELIVERY_FAILURE_HINT));
+        }
+      });
       return;
     }
 
@@ -1478,8 +1562,9 @@ export async function sendLongMessage(
   ctx: { reply: (text: string, options?: Record<string, unknown>) => Promise<unknown> },
   text: string,
   replyToMessageId?: number,
+  format: "markdown" | "plain" = "markdown",
 ): Promise<void> {
-  const html = markdownToTelegramHtml(text);
+  const html = format === "plain" ? escapeHtmlText(text) : markdownToTelegramHtml(text);
   // Thread the FIRST delivered chunk to the inbound message; later chunks stay
   // unthreaded. allow_sending_without_reply keeps the send working even if the
   // inbound message was deleted (otherwise reply-to-deleted is a new failure).

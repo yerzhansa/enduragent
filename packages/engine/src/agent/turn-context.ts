@@ -55,6 +55,7 @@ export interface TurnContext {
   readonly readToolCache: Map<string, unknown>;
   /** Committed-write record; a committed write makes the turn non-replayable. */
   readonly turnWrites: TurnWriteRecord;
+  readonly toolExecution: { failed: boolean; readonly failedTools: Set<string> };
   /** Running union of the source labels this turn's reply may rest on. */
   readonly provenance: TurnProvenanceRecord;
   /** Source labels of the reference snapshot the channel resolved this turn's anchor from. */
@@ -95,6 +96,7 @@ export function createTurnContext({
     athleteText,
     readToolCache: new Map<string, unknown>(),
     turnWrites: { writesCommitted: 0 },
+    toolExecution: { failed: false, failedTools: new Set() },
     provenance: { value: EMPTY_PROVENANCE },
     referenceProvenance,
     decision: { requested: null, fallbackText: null },
@@ -116,4 +118,12 @@ export function getTurnContext(options: unknown): TurnContext | undefined {
   return (candidate as Partial<BrandedTurnContext>)[TURN_CONTEXT_BRAND] === true
     ? (candidate as TurnContext)
     : undefined;
+}
+
+export function markTurnToolFailure(context: unknown, toolName: string): void {
+  const turn = getTurnContext({ experimental_context: context });
+  if (turn !== undefined) {
+    turn.toolExecution.failed = true;
+    turn.toolExecution.failedTools.add(toolName);
+  }
 }

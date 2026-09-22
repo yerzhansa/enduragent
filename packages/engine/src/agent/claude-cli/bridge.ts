@@ -1,3 +1,4 @@
+import { markTurnToolFailure } from "../turn-context.js";
 import { asSchema, safeValidateTypes } from "@ai-sdk/provider-utils";
 import { createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import type {
@@ -118,6 +119,7 @@ export function buildCoachToolDefinitions(
       callCounter += 1;
       const toolCallId = `claude-cli-${callCounter}`;
       if (typeof tool.execute !== "function") {
+        markTurnToolFailure(ctx.context, name);
         return textResult(`Tool "${name}" is not executable`, true);
       }
       const validation = await safeValidateTypes({
@@ -125,6 +127,7 @@ export function buildCoachToolDefinitions(
         schema: asSchema(tool.inputSchema),
       });
       if (!validation.success) {
+        markTurnToolFailure(ctx.context, name);
         return textResult(
           `Invalid arguments for tool "${name}": ${validation.error.message}`,
           true,
@@ -139,6 +142,7 @@ export function buildCoachToolDefinitions(
         });
         return textResult(typeof result === "string" ? result : JSON.stringify(result));
       } catch (err) {
+        markTurnToolFailure(ctx.context, name);
         return textResult(err instanceof Error ? err.message : String(err), true);
       }
     },

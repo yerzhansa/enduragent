@@ -1,3 +1,4 @@
+import { markTurnToolFailure } from "../turn-context.js";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -75,6 +76,7 @@ export function buildCoachMcpToolDefinitions(
       callCounter += 1;
       const toolCallId = `codex-agent-${callCounter}`;
       if (typeof tool.execute !== "function") {
+        markTurnToolFailure(options.ctx, name);
         return textResult(`Tool "${name}" is not executable`, true);
       }
       const validation = await safeValidateTypes({
@@ -82,7 +84,11 @@ export function buildCoachMcpToolDefinitions(
         schema: asSchema(tool.inputSchema),
       });
       if (!validation.success) {
-        return textResult(`Invalid arguments for tool "${name}": ${validation.error.message}`, true);
+        markTurnToolFailure(options.ctx, name);
+        return textResult(
+          `Invalid arguments for tool "${name}": ${validation.error.message}`,
+          true,
+        );
       }
       try {
         const result = await tool.execute(validation.value, {
@@ -93,6 +99,7 @@ export function buildCoachMcpToolDefinitions(
         });
         return textResult(typeof result === "string" ? result : JSON.stringify(result));
       } catch (err) {
+        markTurnToolFailure(options.ctx, name);
         return textResult(err instanceof Error ? err.message : String(err), true);
       }
     },

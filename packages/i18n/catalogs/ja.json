@@ -1005,6 +1005,7 @@
       "planningRequestFailure": "プランがこのリクエストを受け取れませんでした。リクエストは残っており、プランは変更されていません。",
       "planningRequestLoadFailure": "保存済みのプランへのリクエストを確認できませんでした。再接続して、もう一度お試しください。",
       "protocolFailure": "コーチの回答を検証できませんでした。もう一度お試しください。",
+      "savedUnverified": "情報は保存しましたが、自分の回答を検証できませんでした。もう一度お試しください。",
       "questionSkipped": "質問をスキップしました",
       "queueLoadFailure": "保存済みのメッセージを確認できませんでした。再接続して、もう一度お試しください。",
       "queueRemoveFailure": "保存済みのメッセージを削除できませんでした。もう一度お試しください。",
@@ -2610,6 +2611,11 @@
       "unsavedReply": "{{reply}}\n\n（ディスクがいっぱいのため、今回の内容を会話履歴に保存できませんでした。メッセージは処理できています。時間のあるときに空き容量を確保してください。）",
       "unsavedStepLimit": "データを集めている途中で処理ステップの上限に達しました。続けてほしいと伝えてもらえれば、中断したところから再開します。\n\n（ディスクがいっぱいのため、今回の内容を会話履歴に保存できませんでした。メッセージは処理できています。時間のあるときに空き容量を確保してください。）"
     },
+    "workoutPreparation": {
+      "failed": "このワークアウトレビューを準備できませんでした。変更は適用されていません。",
+      "prepared": "ワークアウトレビューを承認できます。",
+      "savedInformationFailed": "情報は保存しましたが、ワークアウトレビューを準備できませんでした。"
+    },
     "proposal": {
       "create": "{{date}}にワークアウト「{{name}}」を作成",
       "createFallback": "ワークアウトを作成",
@@ -2866,6 +2872,76 @@
         "tokenRejected": "Telegramのトークンが拒否されました",
         "transferRequired": "ボットの移行が必要です"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "確認したすべての変更を適用しますか？",
+      "retryPrompt": "残りの変更を再試行しますか？",
+      "retryRemaining": "残りを再試行",
+      "terminalPrompt": "変更を適用するには{{action}}、キャンセルするには{{cancel}}を入力してください。提案を修正するにはメッセージを送ってください。"
+    },
+    "outcome": {
+      "accountChanged": "カレンダーのアカウントが変更されたため、この承認は使用できません。",
+      "canceled": "残りの変更はキャンセルされました。",
+      "cannotVerify": "カレンダーを確認できませんでした。",
+      "coachOnly": "コーチが作成したワークアウトのみ変更できます。",
+      "complete": "確認したすべての変更が完了しました。",
+      "incomplete": "提案全体を準備できませんでした。承認はできません。コーチに全体を再び準備するよう依頼してください。",
+      "invalidAction": "この承認は無効です。",
+      "noAdditional": "追加の変更は適用されませんでした。",
+      "noChanges": "変更は適用されませんでした。",
+      "pastProtected": "過去のワークアウトは保護されています。",
+      "recoveredDeleteAbsent": "intervals.icuにワークアウト{{label}}はありませんが、削除の応答は記録されていません。コーチによる削除が確認されたわけではありません。再試行は無効のままです。",
+      "recoveredObserved": "目的のワークアウトは存在しますが、元の応答は記録されていません。再試行する前に残りの作業を確認してください。",
+      "recoveredStopped": "次の保存済み試行の前に実行が停止しました。残りの変更を確認してください。",
+      "recoveredUncertain": "カレンダーからの応答が記録されていません。結果が不明な間は再試行できません。 保存された結果は再起動時に確認されます。",
+      "refresh": "再び承認する前に、更新された提案を確認してください。",
+      "rejected": "カレンダーが{{label}}を拒否しました。残りの作業を停止しました。再試行する前に確認してください。",
+      "supersededApproval": "以前の承認は無効です。現在の提案を確認してください。",
+      "uncertain": "{{label}}の結果は不明です。それ以降の変更は試行していません。結果を確認できるまで再試行は無効です。 保存された結果は再起動時に確認されます。",
+      "workoutOnly": "予定されたワークアウトのみ変更できます。",
+      "wrongAction": "この確認画面で提示された操作を使用してください。"
+    },
+    "review": {
+      "action": {
+        "add": "追加",
+        "delete": "削除",
+        "edit": "編集"
+      },
+      "add": "{{index}}. 追加: {{details}}\n{{effort}}",
+      "alreadyCompleted": "すでに完了:",
+      "changed": "intervals.icuで{{name}}が変更されました: {{changes}}。",
+      "confirmed": "確認済み",
+      "descriptionUnavailable": "説明を取得できません",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\n推定トレーニング負荷: {{load}}\n{{structure}}",
+      "durationUnavailable": "所要時間を取得できません",
+      "edit": "{{index}}. ワークアウトを編集\n現在: {{current}}\n提案: {{proposed}}",
+      "estimatedLoad": "推定トレーニング負荷: {{load}}。",
+      "field": {
+        "date": "日付",
+        "description": "説明",
+        "duration": "所要時間",
+        "name": "名前",
+        "structure": "強度の構成",
+        "trainingLoad": "トレーニング負荷",
+        "effort": "運動強度"
+      },
+      "fieldChanged": "{{field}}を変更",
+      "kept": "維持される既存のワークアウト:",
+      "minutes": "{{minutes}}分",
+      "observed": "目的の状態を確認済み、応答は未受信",
+      "position": "{{total}}件中{{current}}件目",
+      "remove": "{{index}}. このワークアウトを削除:\n{{details}}",
+      "summary": "追加 {{adds}}件、編集 {{edits}}件、削除 {{deletions}}件 · 追加または編集するワークアウトの時間: {{duration}}",
+      "title": "すべてのワークアウト変更を確認",
+      "totalUnavailable": "合計時間を取得できません",
+      "unavailable": "取得できません",
+      "structureDetails": "ワークアウトのステップ:\n{{steps}}",
+      "structureUnavailable": "ワークアウトのステップは利用できません",
+      "structureChanged": "ワークアウトのステップの詳細が変更されました",
+      "proposedRevision": "この提案の変更点:\n{{changes}}\n他の提案されたワークアウトはすべて変更されません。",
+      "revised": "{{name}}：{{changes}}"
     }
   }
 }

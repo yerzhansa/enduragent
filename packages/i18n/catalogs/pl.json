@@ -1029,6 +1029,7 @@
       "planningRequestFailure": "Plan nie mógł odebrać tej prośby. Twoja prośba została zachowana, a plan pozostał bez zmian.",
       "planningRequestLoadFailure": "Nie udało się sprawdzić zapisanych próśb dotyczących planu. Połącz ponownie i spróbuj jeszcze raz.",
       "protocolFailure": "Nie udało się zweryfikować odpowiedzi trenera. Spróbuj ponownie.",
+      "savedUnverified": "Zapisałem twoje informacje, ale nie udało mi się zweryfikować mojej odpowiedzi. Spróbuj ponownie.",
       "questionSkipped": "Pytanie pominięte",
       "queueLoadFailure": "Nie udało się sprawdzić zapisanych wiadomości. Połącz ponownie i spróbuj jeszcze raz.",
       "queueRemoveFailure": "Nie udało się usunąć tej zapisanej wiadomości. Spróbuj ponownie.",
@@ -2706,6 +2707,11 @@
       "unsavedReply": "{{reply}}\n\n(Uwaga: mój dysk jest pełny, więc nie udało mi się zapisać tego w historii naszej rozmowy — ale twoja wiadomość dotarła. Zwolnij trochę miejsca, gdy będziesz mieć chwilę.)",
       "unsavedStepLimit": "Podczas zbierania danych zabrakło mi kroków — poproś mnie o kontynuację, a wrócę do miejsca, w którym przerwałem.\n\n(Uwaga: mój dysk jest pełny, więc nie udało mi się zapisać tego w historii naszej rozmowy — ale twoja wiadomość dotarła. Zwolnij trochę miejsca, gdy będziesz mieć chwilę.)"
     },
+    "workoutPreparation": {
+      "failed": "Nie udało mi się przygotować tego przeglądu treningów. Nie zastosowano żadnych zmian.",
+      "prepared": "Przegląd treningów jest gotowy do zatwierdzenia.",
+      "savedInformationFailed": "Zapisałem twoje informacje, ale nie udało mi się przygotować przeglądu treningów."
+    },
     "proposal": {
       "create": "Utwórz trening „{{name}}” na {{date}}",
       "createFallback": "Utwórz trening",
@@ -2974,6 +2980,76 @@
         "tokenRejected": "Token usługi Telegram został odrzucony",
         "transferRequired": "Wymagane przeniesienie bota"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Zastosować wszystkie sprawdzone zmiany?",
+      "retryPrompt": "Ponowić pozostałe zmiany?",
+      "retryRemaining": "Ponów pozostałe",
+      "terminalPrompt": "Wpisz {{action}}, aby zastosować zmiany, {{cancel}}, aby anulować, lub wiadomość, aby zmodyfikować propozycję."
+    },
+    "outcome": {
+      "accountChanged": "Konto kalendarza zmieniło się; nie można użyć tego zatwierdzenia.",
+      "canceled": "Pozostałe zmiany zostały anulowane.",
+      "cannotVerify": "Nie udało się zweryfikować kalendarza.",
+      "coachOnly": "Można zmieniać tylko treningi utworzone przez trenera.",
+      "complete": "Wszystkie sprawdzone zmiany zostały wykonane.",
+      "incomplete": "Nie udało się przygotować całej propozycji. Zatwierdzenie nie jest dostępne. Poproś trenera o ponowne przygotowanie całego zestawu.",
+      "invalidAction": "To zatwierdzenie nie jest już aktywne.",
+      "noAdditional": "Nie zastosowano żadnych dodatkowych zmian.",
+      "noChanges": "Nie zastosowano żadnych zmian.",
+      "pastProtected": "Minione treningi są chronione.",
+      "recoveredDeleteAbsent": "Treningu {{label}} nie ma w intervals.icu, ale odpowiedź na usunięcie nie została zapisana. To nie jest potwierdzone usunięcie przez trenera. Ponawianie pozostaje wyłączone.",
+      "recoveredObserved": "Żądany trening jest obecny, ale pierwotna odpowiedź nie została zapisana. Sprawdź pozostałą pracę przed ponowieniem.",
+      "recoveredStopped": "Wykonywanie zatrzymało się przed kolejną zapisaną próbą. Sprawdź pozostałe zmiany.",
+      "recoveredUncertain": "Odpowiedź kalendarza nie została zapisana. Ponawianie jest wyłączone, dopóki wynik pozostaje niepewny. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
+      "refresh": "Sprawdź zaktualizowaną propozycję przed ponownym zatwierdzeniem.",
+      "rejected": "Kalendarz odrzucił {{label}}. Pozostała praca została zatrzymana; sprawdź ją przed ponowieniem.",
+      "supersededApproval": "Poprzednie zatwierdzenie nie jest już aktywne. Sprawdź obecną propozycję.",
+      "uncertain": "Wynik dla {{label}} jest niepewny. Nie próbowano dalszych zmian. Ponawianie jest wyłączone do czasu zweryfikowania wyniku. Zapisany wynik zostanie sprawdzony po ponownym uruchomieniu.",
+      "workoutOnly": "Można zmieniać tylko zaplanowane treningi.",
+      "wrongAction": "Użyj działania dostępnego przy tym przeglądzie."
+    },
+    "review": {
+      "action": {
+        "add": "Dodaj",
+        "delete": "Usuń",
+        "edit": "Edytuj"
+      },
+      "add": "{{index}}. Dodaj: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Już wykonane:",
+      "changed": "{{name}} zmienił się w intervals.icu: {{changes}}.",
+      "confirmed": "potwierdzone",
+      "descriptionUnavailable": "Opis niedostępny",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nSzacowane obciążenie treningowe: {{load}}\n{{structure}}",
+      "durationUnavailable": "czas trwania niedostępny",
+      "edit": "{{index}}. Edytuj trening\nObecny: {{current}}\nProponowany: {{proposed}}",
+      "estimatedLoad": "Szacowane obciążenie treningowe: {{load}}.",
+      "field": {
+        "date": "data",
+        "description": "opis",
+        "duration": "czas trwania",
+        "name": "nazwa",
+        "structure": "struktura wysiłku",
+        "trainingLoad": "obciążenie treningowe",
+        "effort": "wysiłek"
+      },
+      "fieldChanged": "Zmieniono: {{field}}",
+      "kept": "Zachowane istniejące treningi:",
+      "minutes": "{{minutes}} min",
+      "observed": "zaobserwowano żądany stan; nie otrzymano odpowiedzi",
+      "position": "{{current}} z {{total}}",
+      "remove": "{{index}}. Usuń ten trening:\n{{details}}",
+      "summary": "Dodane: {{adds}}, edytowane: {{edits}}, usunięte: {{deletions}} · {{duration}} dla dodanych lub edytowanych treningów",
+      "title": "Sprawdź wszystkie zmiany treningów",
+      "totalUnavailable": "Łączny czas trwania niedostępny",
+      "unavailable": "niedostępne",
+      "structureDetails": "Etapy treningu:\n{{steps}}",
+      "structureUnavailable": "Etapy treningu są niedostępne",
+      "structureChanged": "Szczegóły etapów treningu uległy zmianie",
+      "proposedRevision": "Zmiany w tej propozycji:\n{{changes}}\nWszystkie pozostałe proponowane treningi pozostają bez zmian.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

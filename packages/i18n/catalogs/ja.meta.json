@@ -3160,6 +3160,10 @@
       "sourceHash": "6295a576ab5cffc26f1c3950757f75f65d3f835438a56a2e31acd10a9a049a90",
       "translatedBy": "model"
     },
+    "chat.notice.savedUnverified": {
+      "sourceHash": "49ea2802baec520d3df825dc698d83e553bbe229c3928afb314dccee1cb7a485",
+      "translatedBy": "model"
+    },
     "chat.notice.questionSkipped": {
       "sourceHash": "4a4b83357c9f1073c1b55fb583d9f18598b4d26efe7d6a7d00860e3c3118eb94",
       "translatedBy": "model"
@@ -8720,6 +8724,18 @@
       "sourceHash": "d52103e284d4a5c69a45b17c8b72c5bed3e6816ee3577149d258c1d203ee211a",
       "translatedBy": "model"
     },
+    "coach.workoutPreparation.failed": {
+      "sourceHash": "5f6b3ec07127b0dde58272f6ce67a0b2ce3d1fe444269ba59d5c1cccd5e85598",
+      "translatedBy": "model"
+    },
+    "coach.workoutPreparation.prepared": {
+      "sourceHash": "cd1bd1ffdca2ad06a4b45352d5605289af6854aba2d2994f90ed500d24fa70b9",
+      "translatedBy": "model"
+    },
+    "coach.workoutPreparation.savedInformationFailed": {
+      "sourceHash": "da86445bdd6574cfb8df9715d6eedd39dc714eae9dccfdef796cb1db3758c6a4",
+      "translatedBy": "model"
+    },
     "coach.proposal.create": {
       "sourceHash": "abfe325a00e584f3a78c9fb51fd1ac60e60e05f43b813571891a9f76e63c6d9c",
       "translatedBy": "model"
@@ -9586,6 +9602,238 @@
     },
     "settings.athlete.restriction.helpAction": {
       "sourceHash": "7617896316637b16068a38542b6be8c4b4f2adb86e9d9075421f20e02594f734",
+      "translatedBy": "model"
+    },
+    "workouts.review.title": {
+      "sourceHash": "4afcfe2b991982edf6918595da4e1cb1c0e87f3312d3c00bb9071b1b58663743",
+      "translatedBy": "model"
+    },
+    "workouts.review.add": {
+      "sourceHash": "09677b233b8a063c2e77ae59369ff242749b6703f0c8e0f8da6d415c9d1be583",
+      "translatedBy": "model"
+    },
+    "workouts.review.remove": {
+      "sourceHash": "7f97b99bcea5b6ac96a663151f73c6a85f58d1768fe1c05b649551809b052d58",
+      "translatedBy": "model"
+    },
+    "workouts.review.edit": {
+      "sourceHash": "728801f2cb775a822822fbaf88ee4ae16127e3961f220dd3f9168f6fd81ea782",
+      "translatedBy": "model"
+    },
+    "workouts.review.details": {
+      "sourceHash": "0822176de82224dde8f5fb3a1e690d81e4d570907a2a2a32c03d4436751a037c",
+      "translatedBy": "model"
+    },
+    "workouts.review.minutes": {
+      "sourceHash": "9eb5ba9710ffea0dca32d871b917a69b779b927d8d55bb50b89b1e858d94b009",
+      "translatedBy": "model"
+    },
+    "workouts.review.durationUnavailable": {
+      "sourceHash": "1bedd9d3665c31f797143c4f68ce8362ecd4727e053a706379bf7ad5ad03c685",
+      "translatedBy": "model"
+    },
+    "workouts.review.descriptionUnavailable": {
+      "sourceHash": "3dd97049f67413964940f04d0ac994a10d7aa077666e816d266e8b3568f76e27",
+      "translatedBy": "model"
+    },
+    "workouts.review.unavailable": {
+      "sourceHash": "ba691ba042bcedd9a61a36f5969026bc95859dccdc7e47f24e6bce35673baf2f",
+      "translatedBy": "model"
+    },
+    "workouts.review.totalUnavailable": {
+      "sourceHash": "5b22f59978edb4792ccbf1c43d16ca9c7a8fa7fcec6c62f123de0bf82e87a9ad",
+      "translatedBy": "model"
+    },
+    "workouts.review.kept": {
+      "sourceHash": "ae8e8d5ecc70d8ef955e6a3dfc12d4562beb6abf88af9bbace167e8aae410480",
+      "translatedBy": "model"
+    },
+    "workouts.review.summary": {
+      "sourceHash": "c4a8408bb8d5de76e37afe94c0e4cab37c5b7a59dea1f7d1a2d73acd5168e46a",
+      "translatedBy": "model"
+    },
+    "workouts.review.alreadyCompleted": {
+      "sourceHash": "df22e507f62246206c0161675faa6531bb0227b7ebcc786f44d6f9077b0bf13d",
+      "translatedBy": "model"
+    },
+    "workouts.review.confirmed": {
+      "sourceHash": "9599915bd8cd62b6b42e6c37b5b681a76991a7c5be1fde9971278ce65b99d550",
+      "translatedBy": "model"
+    },
+    "workouts.review.observed": {
+      "sourceHash": "9c472ea9840b39ceca052ecfc70a31720145f00eb136e6097d0010abe12313ab",
+      "translatedBy": "model"
+    },
+    "workouts.review.changed": {
+      "sourceHash": "2c34eb620a1531af90c258404fd77ff2f072a1144d6e4efc9d410baa2cd3cdcc",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.date": {
+      "sourceHash": "0e87632cd46bd4907c516317eb6d81fe0f921a23c7643018f21292894b470681",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.name": {
+      "sourceHash": "82a3537ff0dbce7eec35d69edc3a189ee6f17d82f353a553f9aa96cb0be3ce89",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.duration": {
+      "sourceHash": "caa79af4db67695cce51988cda2f98423bb7420fbaee8968cd4aca151f55d3a2",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.description": {
+      "sourceHash": "c9046f7a37ad0ea7cee73355984fa5428982f8b37c8f7bcec91f7ac71a7cd104",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.trainingLoad": {
+      "sourceHash": "d681cf45d73127af7228adbb8d0f01afa26a81a42f9ce98b294e4efd368c0d07",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.structure": {
+      "sourceHash": "0595de1f42d700425c6584a503dc79e6d998d3c05460b4d85f6620ab20b800ba",
+      "translatedBy": "model"
+    },
+    "workouts.approval.retryRemaining": {
+      "sourceHash": "a5443411b7b017e000e746c3736a3b252e9d439156fb850ffe7ccecb385d9b99",
+      "translatedBy": "model"
+    },
+    "workouts.approval.applyPrompt": {
+      "sourceHash": "5e1ee9cd8862f8f84f7885c4eecfd71ef720b5575d6bccb96e1476fb663ea294",
+      "translatedBy": "model"
+    },
+    "workouts.approval.retryPrompt": {
+      "sourceHash": "c8b485dbdfc6f055d746497653a94e573c28b74342e9bfc0edc19f84ca199326",
+      "translatedBy": "model"
+    },
+    "workouts.approval.terminalPrompt": {
+      "sourceHash": "487fa8534a25b41d4640424a9281a230003e14185f398ad354fde6f48e3de8ca",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.noChanges": {
+      "sourceHash": "0f096a83b093e07f733cfd42a8934286cbc680387266a52993c28043a7b04498",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.noAdditional": {
+      "sourceHash": "ce59601881fce2bba0c45944c789ee8bd592a582e173ddd4d181d4e185482ebd",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.canceled": {
+      "sourceHash": "c1ab1bb8b8354452afae91c35b217c8954b78f48817dd25f315aee5ac6f11956",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.complete": {
+      "sourceHash": "66a5ec2762ae43f2742370f09bd3e82e261d8e2f1534c8855348a31b971235e7",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.invalidAction": {
+      "sourceHash": "122c403d4486072b70abafc622b758a554cc325181e6554f916b9d8384e16e7e",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.wrongAction": {
+      "sourceHash": "bcdd0b50a47f46ec32fd04167d7ee3e8952cdaede068f5815f158bd0ef2031e1",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.uncertain": {
+      "sourceHash": "a40be50f730ac2cedbc03cc83ba65ee053b2e5f4c1b74a771863382218d054b2",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.rejected": {
+      "sourceHash": "0ef1578bffd67ee53599661c339c7ed35964c95d4e68be8dd43c89deae212ec7",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.recoveredStopped": {
+      "sourceHash": "c2df8bc8f0373bead8aa0d9c6fd0e5033cd758001dfb482461800d96efbfdef2",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.recoveredUncertain": {
+      "sourceHash": "55d791e5f165b0b5d0bca1b332c65176b98d598536a4c76cac5a56b8566a1ea5",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.recoveredObserved": {
+      "sourceHash": "e50d44e7d6ae624597cfdf4f70844d6ccdedb49d78974f206db036a212f8a98f",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.refresh": {
+      "sourceHash": "2b5c6fca2fd761b220379893430ff63af36373410a40bcb78ab610d8da866601",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.cannotVerify": {
+      "sourceHash": "8e178a0ccb6214016360fdda9a654bf29cb2f3a99d56f91fc290abaf77fb57a8",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.accountChanged": {
+      "sourceHash": "79a5878154de4bd75434d6e09f67588fb8449478272a7d2db64e4d3cb4db003c",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.pastProtected": {
+      "sourceHash": "a94c88225c34aeac742bd0314c69a03f326b108a3a015eb1ccb30e1f6d0244ea",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.coachOnly": {
+      "sourceHash": "99d8c5cba384654ddd5353b07309b557fda40281f1e3dfd2e4cf56a620b839f2",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.workoutOnly": {
+      "sourceHash": "5ac6be7f4e7ad784ffaceaa260e1d4d7c91a777b346a52ebb2d76f821e371eef",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.incomplete": {
+      "sourceHash": "4909367d0a970ed7794746b6646ac04d1eb63e667e03a265564d3ece5e5c1e4d",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.recoveredDeleteAbsent": {
+      "sourceHash": "0c29217ef9189051a35b3c5ae3df4e86eb94463ad19fb9b49b7b80b9b6c3de7c",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureDetails": {
+      "sourceHash": "ba5b21f7c3dfe21dc7757a5cb913e7e9d0140e3e0986bad17fd9c9953a9f862e",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureUnavailable": {
+      "sourceHash": "58e9c30b16191582110b79b0c0546c3b4169528866d14722bd72e6176ae20a86",
+      "translatedBy": "model"
+    },
+    "workouts.review.structureChanged": {
+      "sourceHash": "85ba7df3c554c9748fe61317682c8e9bd98573920b1a083822b5633df101a287",
+      "translatedBy": "model"
+    },
+    "workouts.review.proposedRevision": {
+      "sourceHash": "168ca5315dd8ec666651a0ba72f2941390a5e98b1ab534dc8a3b6cff99875cdb",
+      "translatedBy": "model"
+    },
+    "workouts.review.revised": {
+      "sourceHash": "337d56ec1f894ac96688cffe6a7d1f36362c42b8b4841e0478b2c36ab5e0f9d2",
+      "translatedBy": "model"
+    },
+    "workouts.review.field.effort": {
+      "sourceHash": "a4f12c3895258d0b6e32d9a4d692057c8cfcd5f8efc97dbdf7cefe1c46382b89",
+      "translatedBy": "model"
+    },
+    "workouts.outcome.supersededApproval": {
+      "sourceHash": "419e5218cf6835d348c4df9f0f42bb0b81f207d79bf834122734d46666adfd7c",
+      "translatedBy": "model"
+    },
+    "workouts.review.action.add": {
+      "sourceHash": "9fd728c66c9a256b121472dabf32a34317aed01d8427d70ec830289cf23a7cc8",
+      "translatedBy": "model"
+    },
+    "workouts.review.action.delete": {
+      "sourceHash": "e2d0a54968ead24efc0dffa6ac78fc606dceec34a0f586177a74a54cc2272cf8",
+      "translatedBy": "model"
+    },
+    "workouts.review.action.edit": {
+      "sourceHash": "464c4ffd019e1e9691dcf0537c797353ef2b1c1d4833d3d463e5b74ae4547344",
+      "translatedBy": "model"
+    },
+    "workouts.review.estimatedLoad": {
+      "sourceHash": "c8023a12c7ac0e5793164a757f58d9d4ba710cea9c51f16d6271bf052d9fed84",
+      "translatedBy": "model"
+    },
+    "workouts.review.fieldChanged": {
+      "sourceHash": "122d084ebb6abfdebc85d7065b7d22246a57d48942d0010e72499ec65d163986",
+      "translatedBy": "model"
+    },
+    "workouts.review.position": {
+      "sourceHash": "487fcaf37ab97ea081523c4981d6f70da23d8e0fbe3d2dfce5a5b3c6927810cb",
       "translatedBy": "model"
     }
   }

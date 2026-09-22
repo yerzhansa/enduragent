@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kon dit verzoek niet ontvangen. Je verzoek blijft bewaard en er is niets gewijzigd in Plan.",
       "planningRequestLoadFailure": "Opgeslagen verzoeken voor Plan konden niet worden gecontroleerd. Maak opnieuw verbinding en probeer het opnieuw.",
       "protocolFailure": "Het antwoord van de coach kon niet worden geverifieerd. Probeer het opnieuw.",
+      "savedUnverified": "Ik heb je informatie opgeslagen, maar kon mijn antwoord niet verifiëren. Probeer het opnieuw.",
       "questionSkipped": "Vraag overgeslagen",
       "queueLoadFailure": "Je opgeslagen berichten konden niet worden gecontroleerd. Maak opnieuw verbinding en probeer het opnieuw.",
       "queueRemoveFailure": "Dat opgeslagen bericht kon niet worden verwijderd. Probeer het opnieuw.",
@@ -2799,6 +2800,11 @@
       "unsavedReply": "{{reply}}\n\n(Let op: mijn schijf is vol, dus ik kon dit niet opslaan in onze geschiedenis. Je bericht is wel aangekomen. Maak ruimte vrij zodra je kunt.)",
       "unsavedStepLimit": "Ik heb het maximale aantal stappen bereikt bij het verzamelen van gegevens. Vraag me om door te gaan, dan pak ik het op waar ik gebleven was.\n\n(Let op: mijn schijf is vol, dus ik kon dit niet opslaan in onze geschiedenis. Je bericht is wel aangekomen. Maak ruimte vrij zodra je kunt.)"
     },
+    "workoutPreparation": {
+      "failed": "Ik kon deze trainingsevaluatie niet voorbereiden. Er zijn geen wijzigingen toegepast.",
+      "prepared": "Je trainingsevaluatie staat klaar voor goedkeuring.",
+      "savedInformationFailed": "Ik heb je informatie opgeslagen, maar kon de trainingsevaluatie niet voorbereiden."
+    },
     "proposal": {
       "create": "Training \"{{name}}\" aanmaken op {{date}}",
       "createFallback": "Een training aanmaken",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Telegram-token geweigerd",
         "transferRequired": "Botoverdracht vereist"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Alle gecontroleerde wijzigingen toepassen?",
+      "retryPrompt": "Resterende wijzigingen opnieuw proberen?",
+      "retryRemaining": "Resterende opnieuw proberen",
+      "terminalPrompt": "Typ {{action}} om deze wijzigingen toe te passen, {{cancel}} om te annuleren of een bericht om het voorstel aan te passen."
+    },
+    "outcome": {
+      "accountChanged": "Het kalenderaccount is gewijzigd; deze goedkeuring kan niet worden gebruikt.",
+      "canceled": "De resterende wijzigingen zijn geannuleerd.",
+      "cannotVerify": "De kalender kon niet worden gecontroleerd.",
+      "coachOnly": "Alleen trainingen die door de coach zijn gemaakt, kunnen worden gewijzigd.",
+      "complete": "Alle gecontroleerde wijzigingen zijn voltooid.",
+      "incomplete": "Het volledige voorstel kon niet worden voorbereid. Er is geen goedkeuring beschikbaar. Vraag de coach de hele reeks opnieuw voor te bereiden.",
+      "invalidAction": "Deze goedkeuring is niet meer actief.",
+      "noAdditional": "Er zijn geen extra wijzigingen toegepast.",
+      "noChanges": "Er zijn geen wijzigingen toegepast.",
+      "pastProtected": "Trainingen uit het verleden zijn beschermd.",
+      "recoveredDeleteAbsent": "De training {{label}} ontbreekt in intervals.icu, maar het antwoord op de verwijdering is niet opgeslagen. Dit is geen bevestigde verwijdering door de coach. Opnieuw proberen blijft uitgeschakeld.",
+      "recoveredObserved": "De gewenste training is aanwezig, maar het oorspronkelijke antwoord is niet opgeslagen. Controleer het resterende werk voordat je opnieuw probeert.",
+      "recoveredStopped": "De uitvoering stopte vóór de volgende opgeslagen poging. Controleer de resterende wijzigingen.",
+      "recoveredUncertain": "Een antwoord van de kalender is niet opgeslagen. Opnieuw proberen is uitgeschakeld zolang het resultaat onzeker is. Het opgeslagen resultaat wordt bij het herstarten gecontroleerd.",
+      "refresh": "Controleer het bijgewerkte voorstel voordat je opnieuw goedkeurt.",
+      "rejected": "De kalender heeft {{label}} geweigerd. Het resterende werk is gestopt; controleer het voordat je opnieuw probeert.",
+      "supersededApproval": "De vorige goedkeuring is niet meer actief. Controleer het huidige voorstel.",
+      "uncertain": "Het resultaat voor {{label}} is onzeker. Er zijn geen verdere wijzigingen geprobeerd. Opnieuw proberen is uitgeschakeld totdat het resultaat kan worden gecontroleerd. Het opgeslagen resultaat wordt bij het herstarten gecontroleerd.",
+      "workoutOnly": "Alleen geplande trainingen kunnen worden gewijzigd.",
+      "wrongAction": "Gebruik de actie die bij deze controle wordt aangeboden."
+    },
+    "review": {
+      "action": {
+        "add": "Toevoegen",
+        "delete": "Verwijderen",
+        "edit": "Bewerken"
+      },
+      "add": "{{index}}. Toevoegen: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Al voltooid:",
+      "changed": "{{name}} is gewijzigd in intervals.icu: {{changes}}.",
+      "confirmed": "bevestigd",
+      "descriptionUnavailable": "Beschrijving niet beschikbaar",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nGeschatte trainingsbelasting: {{load}}\n{{structure}}",
+      "durationUnavailable": "duur niet beschikbaar",
+      "edit": "{{index}}. Training wijzigen\nHuidig: {{current}}\nVoorgesteld: {{proposed}}",
+      "estimatedLoad": "Geschatte trainingsbelasting: {{load}}.",
+      "field": {
+        "date": "datum",
+        "description": "beschrijving",
+        "duration": "duur",
+        "name": "naam",
+        "structure": "inspanningsstructuur",
+        "trainingLoad": "trainingsbelasting",
+        "effort": "inspanning"
+      },
+      "fieldChanged": "{{field}} gewijzigd",
+      "kept": "Bestaande trainingen blijven behouden:",
+      "minutes": "{{minutes}} min",
+      "observed": "gewenste toestand waargenomen; geen antwoord ontvangen",
+      "position": "{{current}} van {{total}}",
+      "remove": "{{index}}. Deze training verwijderen:\n{{details}}",
+      "summary": "{{adds}} toevoegingen, {{edits}} wijzigingen, {{deletions}} verwijderingen · {{duration}} voor toegevoegde of gewijzigde trainingen",
+      "title": "Controleer alle trainingswijzigingen",
+      "totalUnavailable": "Totale duur niet beschikbaar",
+      "unavailable": "niet beschikbaar",
+      "structureDetails": "Trainingsstappen:\n{{steps}}",
+      "structureUnavailable": "Trainingsstappen niet beschikbaar",
+      "structureChanged": "De details van de trainingsstappen zijn gewijzigd",
+      "proposedRevision": "Wijzigingen in dit voorstel:\n{{changes}}\nAlle andere voorgestelde trainingen blijven ongewijzigd.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

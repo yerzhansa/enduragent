@@ -13,6 +13,8 @@ const requiredFiles = [
   "package/dist/NOTICE.md",
   "package/dist/THIRD_PARTY_LICENSES.txt",
   "package/dist/bundled-model-catalog.json",
+  "package/dist/workout-chart-font.otf",
+  "package/dist/workout-chart-font.LICENSE.txt",
   "package/README.md",
   "package/package.json",
 ];

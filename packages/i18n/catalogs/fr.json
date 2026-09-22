@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan n’a pas pu recevoir cette demande. Ta demande est conservée et rien n’a changé dans Plan.",
       "planningRequestLoadFailure": "Impossible de vérifier les demandes de plan enregistrées. Reconnecte et réessaie.",
       "protocolFailure": "La réponse du coach n’a pas pu être vérifiée. Réessaie.",
+      "savedUnverified": "J’ai enregistré tes informations, mais je n’ai pas pu vérifier ma réponse. Réessaie.",
       "questionSkipped": "Question passée",
       "queueLoadFailure": "Impossible de vérifier tes messages enregistrés. Reconnecte et réessaie.",
       "queueRemoveFailure": "Impossible de supprimer ce message enregistré. Réessaie.",
@@ -2799,6 +2800,11 @@
       "unsavedReply": "{{reply}}\n\n(À noter : mon disque est plein, je n’ai donc pas pu enregistrer cet échange dans notre historique — mais ton message est bien passé. Libère de l’espace quand tu peux.)",
       "unsavedStepLimit": "J’ai atteint ma limite d’étapes en recueillant les données — demande-moi de continuer et je reprendrai là où je me suis arrêté.\n\n(À noter : mon disque est plein, je n’ai donc pas pu enregistrer cet échange dans notre historique — mais ton message est bien passé. Libère de l’espace quand tu peux.)"
     },
+    "workoutPreparation": {
+      "failed": "Je n’ai pas pu préparer cette revue des entraînements. Aucune modification n’a été appliquée.",
+      "prepared": "La revue de tes entraînements est prête à être approuvée.",
+      "savedInformationFailed": "J’ai enregistré tes informations, mais je n’ai pas pu préparer la revue des entraînements."
+    },
     "proposal": {
       "create": "Créer l’entraînement « {{name}} » le {{date}}",
       "createFallback": "Créer un entraînement",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Jeton Telegram refusé",
         "transferRequired": "Transfert du bot nécessaire"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Appliquer toutes les modifications vérifiées ?",
+      "retryPrompt": "Réessayer les modifications restantes ?",
+      "retryRemaining": "Réessayer les changements restants",
+      "terminalPrompt": "Saisissez {{action}} pour appliquer ces modifications, {{cancel}} pour annuler ou un message pour modifier la proposition."
+    },
+    "outcome": {
+      "accountChanged": "Le compte du calendrier a changé ; cette approbation ne peut pas être utilisée.",
+      "canceled": "Les modifications restantes ont été annulées.",
+      "cannotVerify": "Le calendrier n’a pas pu être vérifié.",
+      "coachOnly": "Seuls les entraînements créés par le coach peuvent être modifiés.",
+      "complete": "Toutes les modifications vérifiées sont terminées.",
+      "incomplete": "La proposition complète n’a pas pu être préparée. Aucune approbation n’est disponible. Demandez au coach de préparer à nouveau l’ensemble.",
+      "invalidAction": "Cette approbation n’est plus active.",
+      "noAdditional": "Aucune modification supplémentaire n’a été appliquée.",
+      "noChanges": "Aucune modification n’a été appliquée.",
+      "pastProtected": "Les entraînements passés sont protégés.",
+      "recoveredDeleteAbsent": "L’entraînement {{label}} est absent d’intervals.icu, mais la réponse à la suppression n’a pas été enregistrée. Ce n’est pas une suppression confirmée du coach. Une nouvelle tentative reste désactivée.",
+      "recoveredObserved": "L’entraînement souhaité est présent, mais la réponse initiale n’a pas été enregistrée. Vérifiez le travail restant avant de réessayer.",
+      "recoveredStopped": "L’exécution s’est arrêtée avant la prochaine tentative enregistrée. Vérifiez les modifications restantes.",
+      "recoveredUncertain": "Une réponse du calendrier n’a pas été enregistrée. Une nouvelle tentative est désactivée tant que le résultat reste incertain. Le résultat enregistré sera vérifié au redémarrage.",
+      "refresh": "Vérifiez la proposition mise à jour avant de l’approuver à nouveau.",
+      "rejected": "Le calendrier a refusé {{label}}. Le travail restant a été arrêté ; vérifiez-le avant de réessayer les changements restants.",
+      "supersededApproval": "L’approbation précédente n’est plus active. Vérifiez la proposition actuelle.",
+      "uncertain": "Le résultat pour {{label}} est incertain. Aucune autre modification n’a été tentée. Une nouvelle tentative est désactivée jusqu’à la vérification du résultat. Le résultat enregistré sera vérifié au redémarrage.",
+      "workoutOnly": "Seuls les entraînements programmés peuvent être modifiés.",
+      "wrongAction": "Utilisez l’action proposée avec cette vérification."
+    },
+    "review": {
+      "action": {
+        "add": "Ajouter",
+        "delete": "Supprimer",
+        "edit": "Modifier"
+      },
+      "add": "{{index}}. Ajouter : {{details}}\n{{effort}}",
+      "alreadyCompleted": "Déjà effectué :",
+      "changed": "{{name}} a changé dans intervals.icu : {{changes}}.",
+      "confirmed": "confirmé",
+      "descriptionUnavailable": "Description indisponible",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nCharge d’entraînement estimée : {{load}}\n{{structure}}",
+      "durationUnavailable": "durée indisponible",
+      "edit": "{{index}}. Modifier l’entraînement\nActuel : {{current}}\nProposé : {{proposed}}",
+      "estimatedLoad": "Charge d’entraînement estimée : {{load}}.",
+      "field": {
+        "date": "date",
+        "description": "description",
+        "duration": "durée",
+        "name": "nom",
+        "structure": "structure de l’effort",
+        "trainingLoad": "charge d’entraînement",
+        "effort": "effort"
+      },
+      "fieldChanged": "{{field}} modifié",
+      "kept": "Entraînements existants conservés :",
+      "minutes": "{{minutes}} min",
+      "observed": "état souhaité constaté ; réponse non reçue",
+      "position": "{{current}} sur {{total}}",
+      "remove": "{{index}}. Supprimer cet entraînement :\n{{details}}",
+      "summary": "{{adds}} ajouts, {{edits}} modifications, {{deletions}} suppressions · {{duration}} pour les entraînements ajoutés ou modifiés",
+      "title": "Vérifiez toutes les modifications des entraînements",
+      "totalUnavailable": "Durée totale indisponible",
+      "unavailable": "indisponible",
+      "structureDetails": "Étapes de l’entraînement :\n{{steps}}",
+      "structureUnavailable": "Étapes de l’entraînement indisponibles",
+      "structureChanged": "Les détails des étapes de l’entraînement ont changé",
+      "proposedRevision": "Modifications de cette proposition :\n{{changes}}\nTous les autres entraînements proposés restent inchangés.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

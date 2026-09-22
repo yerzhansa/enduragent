@@ -3,6 +3,7 @@ import {
   createCoachEngine as createCanonicalCoachEngine,
   type EngineResolvedModelProfiles,
   type ModelTransportDecorator,
+  type WorkoutPreparationPort,
 } from "@enduragent/engine";
 import type {
   AnswerCoachDecisionRpcParams,
@@ -34,6 +35,7 @@ import { createEngineHostAdapter } from "./engine-host-adapter.js";
 import { legacyStateReader } from "./legacy-athlete-state-reader.js";
 
 export type LegacyAgentOverrides = {
+  readonly workoutPreparation?: WorkoutPreparationPort;
   readonly language?: CoachLanguage;
   readonly athleteData?: AthleteDataReader;
   readonly calendarMutations?: PlatformCalendarMutations;

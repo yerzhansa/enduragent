@@ -59,6 +59,10 @@ One user's chat state with one Binary, persisted to disk and locked in-process p
 **Channel**:
 A delivery surface (currently only Telegram); sport-agnostic.
 
+**Workout Change Set**:
+One or more proposed workout additions, edits, or deletions presented together for one athlete approval. It covers the exact changes shown, independently of a training Plan or a seven-day period.
+_Avoid_: Weekly Plan, batch Plan
+
 **Language**:
 The athlete's chosen interface and coach-reply language: one of the supported catalogs, or Automatic when none is saved. One value per install, shared by every Channel and the desktop. Avoid: Locale, region, country.
 

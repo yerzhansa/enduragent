@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { copyFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
@@ -9,6 +10,9 @@ import { GENERATED_MODEL_CATALOG_SEED } from "../core/src/model-catalog-seed.gen
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, "../..");
+const workoutChartFontPath = createRequire(import.meta.url).resolve(
+  "@fontpkg/noto-sans-cjk-sc/NotoSansCJKsc-Regular.otf",
+);
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -41,6 +45,11 @@ export default defineConfig({
   },
   onSuccess: async () => {
     await generateLegalArtifacts();
+    copyFileSync(workoutChartFontPath, resolve(packageRoot, "dist/workout-chart-font.otf"));
+    copyFileSync(
+      resolve(repoRoot, "packages/core/src/channels/workout-chart-font.LICENSE.txt"),
+      resolve(packageRoot, "dist/workout-chart-font.LICENSE.txt"),
+    );
     writeFileSync(
       join(packageRoot, "dist", BUNDLED_MODEL_CATALOG_ARTIFACT),
       jsonBytes(GENERATED_MODEL_CATALOG_SEED),

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan kunne ikke modtage denne anmodning. Din anmodning bliver bevaret, og intet er ændret i Plan.",
       "planningRequestLoadFailure": "Vi kunne ikke kontrollere gemte anmodninger til Plan. Opret forbindelse igen, og prøv igen.",
       "protocolFailure": "Trænerens svar kunne ikke bekræftes. Prøv igen.",
+      "savedUnverified": "Jeg gemte dine oplysninger, men kunne ikke bekræfte mit svar. Prøv igen.",
       "questionSkipped": "Spørgsmålet blev sprunget over",
       "queueLoadFailure": "Vi kunne ikke kontrollere dine gemte beskeder. Opret forbindelse igen, og prøv igen.",
       "queueRemoveFailure": "Vi kunne ikke fjerne den gemte besked. Prøv igen.",
@@ -2799,6 +2800,11 @@
       "unsavedReply": "{{reply}}\n\n(Bemærk: Min disk er fuld, så jeg kunne ikke gemme dette i vores historik — men din besked kom igennem. Frigør lidt plads, når du kan.)",
       "unsavedStepLimit": "Jeg nåede grænsen for antal trin, mens jeg hentede data — bed mig om at fortsætte, så tager jeg fat, hvor jeg slap.\n\n(Bemærk: Min disk er fuld, så jeg kunne ikke gemme dette i vores historik — men din besked kom igennem. Frigør lidt plads, når du kan.)"
     },
+    "workoutPreparation": {
+      "failed": "Jeg kunne ikke klargøre denne træningsgennemgang. Ingen ændringer blev anvendt.",
+      "prepared": "Din træningsgennemgang er klar til godkendelse.",
+      "savedInformationFailed": "Jeg gemte dine oplysninger, men kunne ikke klargøre træningsgennemgangen."
+    },
     "proposal": {
       "create": "Opret træningen \"{{name}}\" den {{date}}",
       "createFallback": "Opret en træning",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Telegram-token afvist",
         "transferRequired": "Overførsel af bot påkrævet"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Anvend alle gennemgåede ændringer?",
+      "retryPrompt": "Prøv de resterende ændringer igen?",
+      "retryRemaining": "Prøv de resterende igen",
+      "terminalPrompt": "Skriv {{action}} for at anvende disse ændringer, {{cancel}} for at annullere eller en besked for at ændre forslaget."
+    },
+    "outcome": {
+      "accountChanged": "Kalenderkontoen er ændret; denne godkendelse kan ikke bruges.",
+      "canceled": "De resterende ændringer blev annulleret.",
+      "cannotVerify": "Kalenderen kunne ikke bekræftes.",
+      "coachOnly": "Kun træninger oprettet af coachen kan ændres.",
+      "complete": "Alle gennemgåede ændringer er gennemført.",
+      "incomplete": "Det komplette forslag kunne ikke forberedes. Ingen godkendelse er tilgængelig. Bed coachen om at forberede hele sættet igen.",
+      "invalidAction": "Denne godkendelse er ikke længere aktiv.",
+      "noAdditional": "Ingen yderligere ændringer blev anvendt.",
+      "noChanges": "Ingen ændringer blev anvendt.",
+      "pastProtected": "Tidligere træninger er beskyttet.",
+      "recoveredDeleteAbsent": "Træningen {{label}} mangler i intervals.icu, men svaret på sletningen blev ikke gemt. Dette er ikke en bekræftet sletning fra coachen. Nye forsøg er stadig deaktiveret.",
+      "recoveredObserved": "Den ønskede træning findes, men det oprindelige svar blev ikke gemt. Gennemgå det resterende arbejde, før du prøver igen.",
+      "recoveredStopped": "Udførelsen stoppede før det næste gemte forsøg. Gennemgå de resterende ændringer.",
+      "recoveredUncertain": "Et svar fra kalenderen blev ikke gemt. Nye forsøg er deaktiveret, mens resultatet er usikkert. Det gemte resultat bliver kontrolleret ved genstart.",
+      "refresh": "Gennemgå det opdaterede forslag, før du godkender igen.",
+      "rejected": "Kalenderen afviste {{label}}. Det resterende arbejde blev stoppet; gennemgå det, før du prøver igen.",
+      "supersededApproval": "Den tidligere godkendelse er ikke længere aktiv. Gennemgå det aktuelle forslag.",
+      "uncertain": "Resultatet for {{label}} er usikkert. Ingen yderligere ændringer blev forsøgt. Nye forsøg er deaktiveret, indtil resultatet kan bekræftes. Det gemte resultat bliver kontrolleret ved genstart.",
+      "workoutOnly": "Kun planlagte træninger kan ændres.",
+      "wrongAction": "Brug handlingen, der tilbydes med denne gennemgang."
+    },
+    "review": {
+      "action": {
+        "add": "Tilføj",
+        "delete": "Slet",
+        "edit": "Rediger"
+      },
+      "add": "{{index}}. Tilføj: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Allerede gennemført:",
+      "changed": "{{name}} blev ændret i intervals.icu: {{changes}}.",
+      "confirmed": "bekræftet",
+      "descriptionUnavailable": "Beskrivelse ikke tilgængelig",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nEstimeret træningsbelastning: {{load}}\n{{structure}}",
+      "durationUnavailable": "varighed ikke tilgængelig",
+      "edit": "{{index}}. Rediger træning\nNuværende: {{current}}\nForeslået: {{proposed}}",
+      "estimatedLoad": "Estimeret træningsbelastning: {{load}}.",
+      "field": {
+        "date": "dato",
+        "description": "beskrivelse",
+        "duration": "varighed",
+        "name": "navn",
+        "structure": "belastningsstruktur",
+        "trainingLoad": "træningsbelastning",
+        "effort": "indsats"
+      },
+      "fieldChanged": "{{field}} ændret",
+      "kept": "Eksisterende træninger beholdes:",
+      "minutes": "{{minutes}} min",
+      "observed": "ønsket tilstand observeret; svar ikke modtaget",
+      "position": "{{current}} af {{total}}",
+      "remove": "{{index}}. Fjern denne træning:\n{{details}}",
+      "summary": "{{adds}} tilføjelser, {{edits}} ændringer, {{deletions}} sletninger · {{duration}} for tilføjede eller ændrede træninger",
+      "title": "Gennemgå alle træningsændringer",
+      "totalUnavailable": "Samlet varighed ikke tilgængelig",
+      "unavailable": "ikke tilgængelig",
+      "structureDetails": "Træningstrin:\n{{steps}}",
+      "structureUnavailable": "Træningstrin er ikke tilgængelige",
+      "structureChanged": "Detaljerne for træningstrinnene er ændret",
+      "proposedRevision": "Ændringer i dette forslag:\n{{changes}}\nAlle andre foreslåede træningspas forbliver uændrede.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

@@ -1013,6 +1013,7 @@
       "planningRequestFailure": "Plan konnte diese Anfrage nicht empfangen. Deine Anfrage bleibt erhalten und im Plan wurde nichts geändert.",
       "planningRequestLoadFailure": "Gespeicherte Plananfragen konnten nicht geprüft werden. Verbinde dich erneut und versuche es noch einmal.",
       "protocolFailure": "Die Antwort des Coaches konnte nicht überprüft werden. Bitte versuche es erneut.",
+      "savedUnverified": "Ich habe deine Informationen gespeichert, konnte meine Antwort aber nicht überprüfen. Bitte versuche es erneut.",
       "questionSkipped": "Frage übersprungen",
       "queueLoadFailure": "Deine gespeicherten Nachrichten konnten nicht geprüft werden. Verbinde dich erneut und versuche es noch einmal.",
       "queueRemoveFailure": "Diese gespeicherte Nachricht konnte nicht entfernt werden. Versuche es erneut.",
@@ -2642,6 +2643,11 @@
       "unsavedReply": "{{reply}}\n\n(Hinweis: Meine Festplatte ist voll, deshalb konnte ich das nicht in unserem Verlauf speichern. Deine Nachricht ist aber angekommen. Gib bitte etwas Speicherplatz frei, wenn du kannst.)",
       "unsavedStepLimit": "Beim Sammeln der Daten habe ich mein Schrittlimit erreicht. Bitte mich weiterzumachen, dann mache ich dort weiter, wo ich aufgehört habe.\n\n(Hinweis: Meine Festplatte ist voll, deshalb konnte ich das nicht in unserem Verlauf speichern. Deine Nachricht ist aber angekommen. Gib bitte etwas Speicherplatz frei, wenn du kannst.)"
     },
+    "workoutPreparation": {
+      "failed": "Ich konnte diese Trainingsübersicht nicht vorbereiten. Es wurden keine Änderungen angewendet.",
+      "prepared": "Deine Trainingsübersicht ist zur Freigabe bereit.",
+      "savedInformationFailed": "Ich habe deine Informationen gespeichert, konnte aber die Trainingsübersicht nicht vorbereiten."
+    },
     "proposal": {
       "create": "Training \"{{name}}\" am {{date}} erstellen",
       "createFallback": "Ein Training erstellen",
@@ -2902,6 +2908,76 @@
         "tokenRejected": "Telegram-Token abgelehnt",
         "transferRequired": "Bot-Übertragung erforderlich"
       }
+    }
+  },
+  "workouts": {
+    "approval": {
+      "applyPrompt": "Alle geprüften Änderungen anwenden?",
+      "retryPrompt": "Verbleibende Änderungen erneut versuchen?",
+      "retryRemaining": "Verbleibende erneut versuchen",
+      "terminalPrompt": "Gib {{action}} ein, um diese Änderungen anzuwenden, {{cancel}} zum Abbrechen oder eine Nachricht, um den Vorschlag zu ändern."
+    },
+    "outcome": {
+      "accountChanged": "Das Kalenderkonto hat sich geändert; diese Freigabe kann nicht verwendet werden.",
+      "canceled": "Die verbleibenden Änderungen wurden abgebrochen.",
+      "cannotVerify": "Der Kalender konnte nicht überprüft werden.",
+      "coachOnly": "Nur vom Coach erstellte Trainings können geändert werden.",
+      "complete": "Alle geprüften Änderungen sind abgeschlossen.",
+      "incomplete": "Der vollständige Vorschlag konnte nicht vorbereitet werden. Eine Freigabe ist nicht möglich. Bitte den Coach, alle Änderungen erneut vorzubereiten.",
+      "invalidAction": "Diese Freigabe ist nicht mehr aktiv.",
+      "noAdditional": "Es wurden keine weiteren Änderungen angewendet.",
+      "noChanges": "Es wurden keine Änderungen angewendet.",
+      "pastProtected": "Vergangene Trainings sind geschützt.",
+      "recoveredDeleteAbsent": "Das Training {{label}} fehlt in intervals.icu, aber die Antwort auf die Löschung wurde nicht gespeichert. Dies ist keine bestätigte Löschung durch den Coach. Ein erneuter Versuch bleibt gesperrt.",
+      "recoveredObserved": "Das gewünschte Training ist vorhanden, aber die ursprüngliche Antwort wurde nicht gespeichert. Prüfe die verbleibende Arbeit vor einem erneuten Versuch.",
+      "recoveredStopped": "Die Ausführung wurde vor dem nächsten gespeicherten Versuch gestoppt. Prüfe die verbleibenden Änderungen.",
+      "recoveredUncertain": "Eine Kalenderantwort wurde nicht gespeichert. Ein erneuter Versuch ist gesperrt, solange das Ergebnis unklar ist. Das gespeicherte Ergebnis wird beim Neustart geprüft.",
+      "refresh": "Prüfe den aktualisierten Vorschlag, bevor du ihn erneut freigibst.",
+      "rejected": "Der Kalender hat {{label}} abgelehnt. Die verbleibende Arbeit wurde gestoppt; prüfe sie vor einem erneuten Versuch.",
+      "supersededApproval": "Die vorherige Freigabe ist nicht mehr aktiv. Prüfe den aktuellen Vorschlag.",
+      "uncertain": "Das Ergebnis für {{label}} ist unklar. Es wurden keine weiteren Änderungen versucht. Ein erneuter Versuch ist gesperrt, bis das Ergebnis überprüft werden kann. Das gespeicherte Ergebnis wird beim Neustart geprüft.",
+      "workoutOnly": "Nur geplante Trainings können geändert werden.",
+      "wrongAction": "Verwende die bei dieser Prüfung angebotene Aktion."
+    },
+    "review": {
+      "action": {
+        "add": "Hinzufügen",
+        "delete": "Löschen",
+        "edit": "Bearbeiten"
+      },
+      "add": "{{index}}. Hinzufügen: {{details}}\n{{effort}}",
+      "alreadyCompleted": "Bereits abgeschlossen:",
+      "changed": "{{name}} wurde in intervals.icu geändert: {{changes}}.",
+      "confirmed": "bestätigt",
+      "descriptionUnavailable": "Beschreibung nicht verfügbar",
+      "details": "{{date}} · {{name}} · {{duration}}\n{{description}}\nGeschätzte Trainingsbelastung: {{load}}\n{{structure}}",
+      "durationUnavailable": "Dauer nicht verfügbar",
+      "edit": "{{index}}. Training bearbeiten\nAktuell: {{current}}\nVorgeschlagen: {{proposed}}",
+      "estimatedLoad": "Geschätzte Trainingsbelastung: {{load}}.",
+      "field": {
+        "date": "Datum",
+        "description": "Beschreibung",
+        "duration": "Dauer",
+        "name": "Name",
+        "structure": "Belastungsstruktur",
+        "trainingLoad": "Trainingsbelastung",
+        "effort": "Belastung"
+      },
+      "fieldChanged": "{{field}} geändert",
+      "kept": "Vorhandene Trainings bleiben erhalten:",
+      "minutes": "{{minutes}} Min.",
+      "observed": "gewünschter Zustand festgestellt; Antwort nicht erhalten",
+      "position": "{{current}} von {{total}}",
+      "remove": "{{index}}. Dieses Training entfernen:\n{{details}}",
+      "summary": "{{adds}} Ergänzungen, {{edits}} Änderungen, {{deletions}} Löschungen · {{duration}} für hinzugefügte oder bearbeitete Trainings",
+      "title": "Alle Trainingsänderungen prüfen",
+      "totalUnavailable": "Gesamtdauer nicht verfügbar",
+      "unavailable": "nicht verfügbar",
+      "structureDetails": "Trainingsabschnitte:\n{{steps}}",
+      "structureUnavailable": "Trainingsabschnitte nicht verfügbar",
+      "structureChanged": "Die Details der Trainingsabschnitte haben sich geändert",
+      "proposedRevision": "Änderungen an diesem Vorschlag:\n{{changes}}\nAlle anderen vorgeschlagenen Trainingseinheiten bleiben unverändert.",
+      "revised": "{{name}}: {{changes}}"
     }
   }
 }

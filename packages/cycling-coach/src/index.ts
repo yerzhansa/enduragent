@@ -5,6 +5,7 @@ import { cyclingBinary } from "./binary.js";
 
 try {
   await runBinary(cyclingSport, cyclingBinary, {
+    workoutChangeSets: "aggregate-v1",
     onStartup: (memory) => migrateCyclingLegacySections(memory),
   });
 } catch (err) {
