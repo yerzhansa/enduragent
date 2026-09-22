@@ -13,7 +13,7 @@ const binary = doctor(worktree);
 process.umask(0o077);
 const restart = process.argv.includes('--restart');
 const scenario = process.argv.find(arg => arg.startsWith('--scenario='))?.split('=')[1] ?? 'mixed';
-assert.ok(['single','mixed','revision','cancel','long','stale','retry','incomplete'].includes(scenario), 'Unknown scenario');
+assert.ok(['single','mixed','revision','cancel','long','stale','retry','incomplete','provider-down'].includes(scenario), 'Unknown scenario');
 const evidenceRoot = join(tmpdir(), 'enduragent-verify-npm');
 mkdirSync(evidenceRoot, { recursive: true, mode: 0o700 });
 const evidence = mkdtempSync(join(evidenceRoot, 'terminal-'));
@@ -67,6 +67,15 @@ async function until(handle,text,offset=0) {
 try {
  child=launch();
  await until(child,'> ');
+ if (scenario === 'provider-down') {
+  send(child,'How is my form?');
+  await until(child,'The model provider is having trouble — try again in a few minutes.');
+  assert.doesNotMatch(child.read(),/Type approve/);
+  assert.equal(JSON.parse(readFileSync(calendar)).writes.length,0);
+  send(child,'/quit');
+  await waitForExit(child.process);
+  console.log('terminal-provider-down: built npm process, provider failure PASS');
+ } else {
  const request = scenario === 'single' ? 'Prepare one easy ride.' : scenario === 'long' ? 'Prepare all 85 strength sessions.' : 'Prepare my mixed set of four workout changes.';
  send(child,request);
  if (scenario === 'incomplete') {
@@ -143,6 +152,7 @@ try {
  send(child,'/quit');
  await waitForExit(child.process);
  console.log(`${label}: built npm process, reviewed effects and retained workout PASS`);
+ }
 } catch (error) {
  failure = error;
  process.exitCode = 1;

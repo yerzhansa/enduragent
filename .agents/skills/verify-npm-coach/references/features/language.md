@@ -39,7 +39,7 @@ With the dedicated Telegram prerequisites and successful doctor, run:
 node /Users/yerzhansagyt/projects/cycling-coach/.agents/skills/verify-npm-coach/scripts/telegram.mjs --repo=/Users/yerzhansagyt/projects/cycling-coach/.worktrees/npm-workout-batch-approval --scenario=mixed
 ```
 
-Require `/version`, then send `/language`. Select Español, read the owned `language.json` beside the printed calendar path, and verify saved `es`. Effective output remains English because this launcher overrides it. Select Automatic and verify the saved language property is removed. Capture UI and sanitized persistence evidence before Ctrl+C cleanup.
+Require `/version`, then send `/language`. Select Español, read the owned `language.json` beside the printed calendar path, and verify saved `es`. Effective output remains English because this launcher overrides it. Select Automatic and verify the saved language property is removed. The English checkmark does not prove the file changed. The component test `clears the saved language file when Automatic is chosen during an environment override` reads `language.json` after `lang:auto` while `ENDURAGENT_LANGUAGE=en` and requires `{"version":1}`. Capture UI and sanitized persistence evidence before Ctrl+C cleanup.
 
 ## Gotchas
 

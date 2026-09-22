@@ -37,6 +37,6 @@ With the dedicated Telegram `single` launcher, send one fixture-backed coaching 
 
 ## Gotchas
 
-There is no provider-outage or Telegram-delivery-failure scenario in the current runner. Do not invent --scenario=outage or treat incomplete preparation as provider failure. Live fault coverage remains BLOCKED until controlled injection exists. Logger/ledger sizes and retention must not be inferred from one successful entry.
+Terminal `--scenario=provider-down` makes the fictional model server return HTTP 500 and requires the provider-down sentence, with no approval prompt and no calendar writes. Telegram `--scenario=delivery` fails the first generated send and requires the delivery sentence, with no delivered approval controls. Do not invent `--scenario=outage`. `incomplete` is unfinished preparation, not a dead provider. Logger and ledger sizes must not be inferred from one successful entry.
 
 Retain source revision, executor, action, observed result, and read-only persistence proof separately. After a runner-owned launch, require an empty `cleanup.livePids`, `cleanup.scratchRemoved: true`, no owned listener, and retained evidence. For a manually created fixture, record its exact owned path and processes before launch, stop only those processes, retain sanitized evidence, and remove only that scratch state. Use isolated athlete storage and the parent skill's authorization and ownership rules for any bot or browser.
