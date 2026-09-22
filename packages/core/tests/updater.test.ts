@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   __resetVersionCheckStateForTesting,
   buildCheckUrl,
@@ -11,6 +12,7 @@ import {
   checkForUpdateWithDailyTelemetry,
   getCurrentVersion,
   getInstanceId,
+  readBinaryPackageJson,
   isManagedDeploy,
   isStableCalVer,
   isUpdateAvailable,
@@ -603,5 +605,32 @@ describe("checkForUpdateWithDailyTelemetry", () => {
     await checkForUpdateWithDailyTelemetry("cycling-coach", dataDir);
     expect(urls).toEqual(["https://registry.npmjs.org/cycling-coach/latest"]);
     expect(existsSync(join(dataDir, "last-version-ping-at"))).toBe(false);
+  });
+});
+
+describe("readBinaryPackageJson", () => {
+  it("reads the package beside the running bundle ahead of a parent install", () => {
+    const root = mkdtempSync(join(tmpdir(), "enduragent-version-lookup-"));
+    try {
+      const staleDir = join(root, "node_modules", "fixture-coach");
+      const bundleDir = join(root, "app", "dist");
+      mkdirSync(staleDir, { recursive: true });
+      mkdirSync(bundleDir, { recursive: true });
+      writeFileSync(
+        join(staleDir, "package.json"),
+        JSON.stringify({ name: "fixture-coach", version: "1998.1.1" }),
+      );
+      writeFileSync(
+        join(root, "app", "package.json"),
+        JSON.stringify({ name: "fixture-coach", version: "1998.1.2" }),
+      );
+      const bundle = join(bundleDir, "index.js");
+      writeFileSync(bundle, "");
+      expect(readBinaryPackageJson("fixture-coach", pathToFileURL(bundle).href)?.version).toBe(
+        "1998.1.2",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

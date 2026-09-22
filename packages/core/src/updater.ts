@@ -84,8 +84,12 @@ export function isUpdateAvailable(latest: string, current: string): boolean {
  * version, so the cache is naturally invalidated by restart.
  */
 const pkgCache = new Map<string, Record<string, unknown> | null>();
-export function readBinaryPackageJson(binaryName: string): Record<string, unknown> | null {
-  if (pkgCache.has(binaryName)) return pkgCache.get(binaryName) ?? null;
+export function readBinaryPackageJson(
+  binaryName: string,
+  moduleUrl: string = import.meta.url,
+): Record<string, unknown> | null {
+  const cacheKey = `${binaryName}\0${moduleUrl}`;
+  if (pkgCache.has(cacheKey)) return pkgCache.get(cacheKey) ?? null;
 
   const tryRead = (path: string): Record<string, unknown> | null => {
     try {
@@ -97,14 +101,14 @@ export function readBinaryPackageJson(binaryName: string): Record<string, unknow
 
   let pkg: Record<string, unknown> | null = null;
   try {
-    const requireFn = createRequire(import.meta.url);
+    const requireFn = createRequire(moduleUrl);
     pkg = tryRead(requireFn.resolve(`${binaryName}/package.json`));
   } catch {
     // resolve() threw (binary not installed via npm) — fall through
   }
   if (!pkg) pkg = tryRead(join(process.cwd(), "package.json"));
 
-  pkgCache.set(binaryName, pkg);
+  pkgCache.set(cacheKey, pkg);
   return pkg;
 }
 
