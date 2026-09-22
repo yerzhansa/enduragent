@@ -10,13 +10,8 @@ import {
   type ChatAttachmentComposerReadModel,
 } from "@enduragent/coach-contract";
 import { z } from "zod";
-import type {
-  BrowserWindow,
-  Clipboard,
-  IpcMain,
-  IpcMainInvokeEvent,
-  OpenDialogOptions,
-} from "electron";
+import { Buffer } from "node:buffer";
+import type { BrowserWindow, IpcMain, IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 import {
   DESKTOP_CHAT_ATTACHMENT_DROP_CHANNEL,
   DESKTOP_CHAT_ATTACHMENT_PASTE_CHANNEL,
@@ -121,11 +116,51 @@ async function admitPaths(
   return results;
 }
 
+interface ClipboardPngDecoder {
+  createFromBuffer(buffer: Buffer): { isEmpty(): boolean; toPNG(): Buffer };
+}
+
+interface ClipboardImageSource {
+  read(): Promise<
+    readonly {
+      readonly types: readonly string[];
+      getType(type: string): Promise<unknown>;
+    }[]
+  >;
+}
+
+export async function readDesktopClipboardPng(
+  clipboard: ClipboardImageSource,
+  images: ClipboardPngDecoder,
+): Promise<Buffer | undefined> {
+  let items: Awaited<ReturnType<ClipboardImageSource["read"]>>;
+  try {
+    items = await clipboard.read();
+  } catch {
+    return undefined;
+  }
+  for (const item of items) {
+    const type = item.types.find((entry) => entry.startsWith("image/"));
+    if (type === undefined) continue;
+    let payload: unknown;
+    try {
+      payload = await item.getType(type);
+    } catch {
+      continue;
+    }
+    if (!(payload instanceof Blob)) continue;
+    const decoded = images.createFromBuffer(Buffer.from(await payload.arrayBuffer()));
+    if (decoded.isEmpty()) continue;
+    return decoded.toPNG();
+  }
+  return undefined;
+}
+
 export function installDesktopChatAttachmentIpc(input: {
   readonly ipcMain: Pick<IpcMain, "handle" | "removeHandler">;
   readonly currentWindow: () => BrowserWindow | undefined;
   readonly dialog: ChatAttachmentDialogPort;
-  readonly clipboard: Pick<Clipboard, "readImage">;
+  readonly readPng: () => Promise<Buffer | undefined>;
   readonly client: () => DesktopChatAttachmentClient | undefined;
 }): () => void {
   const trustedWindow = (event: IpcMainInvokeEvent): BrowserWindow => {
@@ -167,9 +202,8 @@ export function installDesktopChatAttachmentIpc(input: {
     if (args.length !== 0) throw new TypeError("invalid attachment paste request");
     const client = input.client();
     if (client === undefined) return [];
-    const image = input.clipboard.readImage();
-    if (image.isEmpty()) return [];
-    const bytes = image.toPNG();
+    const bytes = await input.readPng();
+    if (bytes === undefined || bytes.length === 0) return [];
     await refreshDesktopLanguage();
     const result = await client.admitPasted({
       selectionId: randomUUID(),

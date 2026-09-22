@@ -219,16 +219,17 @@ function parseGapWarning(value: unknown): TelegramGapWarning | undefined {
   return undefined;
 }
 
-function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">):
+async function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">): Promise<
   | { readonly status: "captured"; readonly token: string }
   | {
       readonly status: "refused";
       readonly reason: "clipboard-unavailable" | "clipboard-clear-failed" | "invalid-token-format";
-    } {
+    }
+> {
   let value: unknown;
   let cleared = false;
   try {
-    value = clipboard.readText();
+    value = await clipboard.readText();
   } catch {
   } finally {
     try {
@@ -365,32 +366,33 @@ export function installDesktopTelegramIpc(input: {
       DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL,
       (event: IpcMainInvokeEvent, ...args: unknown[]) => {
         trustedZeroArgument(event, args);
-        const captured = captureClipboard(input.clipboard);
-        if (captured.status === "refused") return localRefusal(captured.reason);
-        return runMutation(async () => {
-          let profile: Awaited<ReturnType<typeof input.vault.profileStatus>>;
-          try {
-            profile = await input.vault.profileStatus();
-          } catch {
-            return {
-              outcome: "uncertain",
-              reason: "storage-uncertain",
-              current: closedSnapshot(),
-            } as const;
-          }
-          if (profile.state === "configured") {
-            return input.coordinator.replace(captured.token);
-          }
-          const result = await input.coordinator.configure(captured.token);
-          if (
-            result.outcome === "applied" ||
-            (result.outcome === "refused" &&
-              result.reason === "webhook-removal-required" &&
-              result.current.credentialConfigured)
-          ) {
-            await input.power.resetForCreate();
-          }
-          return result;
+        return captureClipboard(input.clipboard).then((captured) => {
+          if (captured.status === "refused") return localRefusal(captured.reason);
+          return runMutation(async () => {
+            let profile: Awaited<ReturnType<typeof input.vault.profileStatus>>;
+            try {
+              profile = await input.vault.profileStatus();
+            } catch {
+              return {
+                outcome: "uncertain",
+                reason: "storage-uncertain",
+                current: closedSnapshot(),
+              } as const;
+            }
+            if (profile.state === "configured") {
+              return input.coordinator.replace(captured.token);
+            }
+            const result = await input.coordinator.configure(captured.token);
+            if (
+              result.outcome === "applied" ||
+              (result.outcome === "refused" &&
+                result.reason === "webhook-removal-required" &&
+                result.current.credentialConfigured)
+            ) {
+              await input.power.resetForCreate();
+            }
+            return result;
+          });
         });
       },
     ],

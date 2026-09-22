@@ -335,10 +335,11 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     }
   });
 
-  it("reads and clears synchronously before verification or vault work", async () => {
+  it("clears the clipboard before verification or vault work", async () => {
     const runtime = setup();
 
     const pending = runtime.invoke();
+    await Promise.resolve();
     expect(runtime.trace).toEqual(["read", "clear"]);
     expect(runtime.verifyCredential).not.toHaveBeenCalled();
     expect(runtime.defaultVault.runExclusiveMutation).not.toHaveBeenCalled();

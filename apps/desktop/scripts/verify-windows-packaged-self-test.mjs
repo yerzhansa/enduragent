@@ -543,7 +543,7 @@ export function requireRunningPrimaryBeforeSecondLaunch(child) {
 export function validateSelfTestTerminal(value) {
   checked(value !== null && typeof value === "object", "self-test terminal was invalid");
   checked(value.type === "self-test-terminal" && value.ok === true, "packaged self-test failed");
-  checked(value.runtime?.electron === "43.1.1", "packaged Electron version was unexpected");
+  checked(value.runtime?.electron === "44.4.3", "packaged Electron version was unexpected");
   checked(
     typeof value.runtime?.node === "string" && Number(value.runtime.node.split(".")[0]) >= 24,
     "packaged Node version was unexpected",

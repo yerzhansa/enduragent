@@ -279,10 +279,11 @@ describe("Desktop Telegram IPC", () => {
     });
   });
 
-  it("reads and clears the clipboard synchronously before any credential await", async () => {
+  it("clears the clipboard before any credential await", async () => {
     const runtime = setup();
 
     const pending = runtime.invoke(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL);
+    await Promise.resolve();
     expect(runtime.trace).toEqual(["read", "clear"]);
     expect(runtime.vault.profileStatus).not.toHaveBeenCalled();
 

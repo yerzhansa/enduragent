@@ -125,8 +125,8 @@ async function runtime() {
     );
     const summary = summaryLine(result.stdout, "DESKTOP_RUNTIME_SMOKE");
     if (
-      summary.electron !== "43.1.1" ||
-      summary.node !== "24.18.0" ||
+      summary.electron !== "44.4.3" ||
+      summary.node !== "24.21.0" ||
       summary.result !== "tempo threshold" ||
       existsSync(summary.directory)
     ) {

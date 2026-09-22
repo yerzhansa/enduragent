@@ -997,7 +997,7 @@ describe("packaged self-test terminal", () => {
   const valid = {
     type: "self-test-terminal",
     ok: true,
-    runtime: { node: "24.18.0", electron: "43.1.1" },
+    runtime: { node: "24.18.0", electron: "44.4.3" },
     suites: {
       parity: { cases: 2, passed: 2 },
       differential: { cases: 3, passed: 3 },

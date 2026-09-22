@@ -158,7 +158,7 @@ try {
     [
       "appId: icu.enduragent.safe-storage-fixture",
       "productName: Safe Storage Fixture",
-      "electronVersion: 43.1.1",
+      "electronVersion: 44.4.3",
       "asar: true",
       "directories:",
       "  output: dist",

@@ -35,6 +35,7 @@ interface DesktopShutdownTimerHandle {
 type DesktopDrainOutcome = "drained" | "failed" | "timed-out" | "cancelled";
 
 export const DESKTOP_SHUTDOWN_DEADLINE_MS = 30_000;
+export const DESKTOP_UPDATE_HANDOFF_DEADLINE_MS = 30_000;
 
 function waitForDesktopDrain(input: {
   readonly drain: () => Promise<void>;
@@ -81,6 +82,9 @@ export async function completeDesktopShutdown(input: {
   readonly exit: (code: number) => void;
   readonly deadlineMs?: number;
   readonly signal?: AbortSignal;
+  readonly updaterQuitAccepted?: () => boolean;
+  readonly retainHandoffTimer?: (handle: DesktopShutdownTimerHandle) => void;
+  readonly handoffDeadlineMs?: number;
   readonly setTimeout?: (callback: () => void, delayMs: number) => DesktopShutdownTimerHandle;
   readonly clearTimeout?: (handle: DesktopShutdownTimerHandle) => void;
 }): Promise<void> {
@@ -108,9 +112,17 @@ export async function completeDesktopShutdown(input: {
     return;
   }
   if (updateInstall === "started") {
-    // quitAndInstall owns the real quit. Returning here skips app.exit, so a
-    // MacUpdater deferred Squirrel handoff that never reaches ShipIt leaves
-    // the process alive on Restarting.
+    if (input.updaterQuitAccepted?.() === true) return;
+    const scheduleTimeout =
+      input.setTimeout ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
+    const handle = scheduleTimeout(() => {
+      try {
+        process.stderr.write("desktop-update-handoff-timeout\n");
+      } catch {}
+      input.exit(1);
+    }, input.handoffDeadlineMs ?? DESKTOP_UPDATE_HANDOFF_DEADLINE_MS);
+    handle.unref();
+    input.retainHandoffTimer?.(handle);
     return;
   }
   if (updateInstall === "failed") {
@@ -126,6 +138,7 @@ export function createDesktopQuitCoordinator(input: {
   readonly updateController: Pick<DesktopUpdateController, "completeInstallAfterDrain">;
   readonly exit: (code: number) => void;
   readonly deadlineMs?: number;
+  readonly handoffDeadlineMs?: number;
   readonly setTimeout?: (callback: () => void, delayMs: number) => DesktopShutdownTimerHandle;
   readonly clearTimeout?: (handle: DesktopShutdownTimerHandle) => void;
 }): {
@@ -134,22 +147,45 @@ export function createDesktopQuitCoordinator(input: {
 } {
   let drainPromise: Promise<void> | undefined;
   let finalQuitAllowed = false;
+  let updaterQuitAccepted = false;
   let terminated = false;
+  let handoffTimer: DesktopShutdownTimerHandle | undefined;
   const cancellation = new AbortController();
+  const cancelTimeout =
+    input.clearTimeout ??
+    ((handle: DesktopShutdownTimerHandle) =>
+      globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>));
+  const clearHandoffTimer = (): void => {
+    if (handoffTimer === undefined) return;
+    const handle = handoffTimer;
+    handoffTimer = undefined;
+    try {
+      cancelTimeout(handle);
+    } catch {}
+  };
   const exitOnce = (code: number): void => {
     if (terminated) return;
     terminated = true;
+    clearHandoffTimer();
     cancellation.abort();
     input.exit(code);
   };
   return {
     beforeQuit(event) {
-      if (finalQuitAllowed || terminated) return "allowed";
+      if (finalQuitAllowed || terminated) {
+        updaterQuitAccepted = true;
+        clearHandoffTimer();
+        return "allowed";
+      }
       event.preventDefault();
       drainPromise ??= completeDesktopShutdown({
         ...input,
         signal: cancellation.signal,
         exit: exitOnce,
+        updaterQuitAccepted: () => updaterQuitAccepted,
+        retainHandoffTimer: (handle) => {
+          handoffTimer = handle;
+        },
         allowFinalQuit: () => {
           finalQuitAllowed = true;
         },

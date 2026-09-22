@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import {
   DESKTOP_SHUTDOWN_DEADLINE_MS,
+  DESKTOP_UPDATE_HANDOFF_DEADLINE_MS,
   completeDesktopShutdown,
   createDesktopQuitCoordinator,
   installDesktopTerminationSignalHandler,
@@ -213,5 +214,70 @@ describe("desktop quit coordinator", () => {
     expect(exit).toHaveBeenCalledOnce();
     expect(exit).toHaveBeenCalledWith(1);
     expect(deadline.clearTimeout).toHaveBeenCalledWith(deadline.handle);
+  });
+
+  it("exits unsuccessful when install handoff returns without quitting", async () => {
+    const gate = deferred<void>();
+    const deadline = deadlineHarness();
+    const install = vi.fn(() => "started" as const);
+    const exit = vi.fn();
+    const coordinator = createDesktopQuitCoordinator({
+      drain: () => gate.promise,
+      updateController: { completeInstallAfterDrain: install },
+      exit,
+      ...deadline,
+    });
+
+    expect(coordinator.beforeQuit({ preventDefault: vi.fn() })).toBe("draining");
+    gate.resolve();
+    await vi.waitFor(() => expect(install).toHaveBeenCalledOnce());
+    expect(exit).not.toHaveBeenCalled();
+    expect(deadline.setTimeout).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      DESKTOP_UPDATE_HANDOFF_DEADLINE_MS,
+    );
+
+    deadline.fire();
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("cancels the handoff deadline when the updater quit arrives after install returns", async () => {
+    const timers = new Map<object, () => void>();
+    const setTimeout = vi.fn((callback: () => void) => {
+      const handle = { unref: vi.fn() };
+      timers.set(handle, callback);
+      return handle;
+    });
+    const clearTimeout = vi.fn((handle: object) => {
+      timers.delete(handle);
+    });
+    const gate = deferred<void>();
+    const exit = vi.fn();
+    let coordinator!: ReturnType<typeof createDesktopQuitCoordinator>;
+    const install = vi.fn((allowFinalQuit: () => void) => {
+      allowFinalQuit();
+      return "started" as const;
+    });
+    coordinator = createDesktopQuitCoordinator({
+      drain: () => gate.promise,
+      updateController: { completeInstallAfterDrain: install },
+      exit,
+      setTimeout,
+      clearTimeout,
+    });
+
+    coordinator.beforeQuit({ preventDefault: vi.fn() });
+    gate.resolve();
+    await vi.waitFor(() => expect(install).toHaveBeenCalledOnce());
+    expect(timers.size).toBe(1);
+    const quitEvent = { preventDefault: vi.fn() };
+    expect(coordinator.beforeQuit(quitEvent)).toBe("allowed");
+
+    expect(timers.size).toBe(0);
+    expect(exit).not.toHaveBeenCalled();
+    expect(quitEvent.preventDefault).not.toHaveBeenCalled();
+    for (const callback of timers.values()) callback();
+    expect(exit).not.toHaveBeenCalled();
   });
 });
