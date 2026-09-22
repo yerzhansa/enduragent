@@ -1,5 +1,5 @@
 import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CoachEngine } from "@enduragent/coach-contract";
@@ -345,6 +345,24 @@ describe("Telegram language preference", () => {
           variable: "ENDURAGENT_LANGUAGE",
         }),
       }),
+    });
+  });
+
+  it("clears the saved language file when Automatic is chosen during an environment override", async () => {
+    const { bot, language } = await buildBot({ ENDURAGENT_LANGUAGE: "en" });
+    await bot.handleUpdate(callback("lang:es"));
+    expect(JSON.parse(readFileSync(join(dataDir, "language.json"), "utf8"))).toEqual({
+      version: 1,
+      language: "es",
+    });
+    await bot.handleUpdate(callback("lang:auto", 77, 2));
+    expect(JSON.parse(readFileSync(join(dataDir, "language.json"), "utf8"))).toEqual({
+      version: 1,
+    });
+    expect(await language.current()).toMatchObject({
+      value: "en",
+      origin: "environment",
+      variable: "ENDURAGENT_LANGUAGE",
     });
   });
 
