@@ -9,12 +9,12 @@ Training data and coaching insights may include data from Garmin devices.
 Requires [Node.js](https://nodejs.org/) 22+.
 
 ```bash
-npm install -g cycling-coach
-cycling-coach setup
-cycling-coach
+npm install -g enduragent
+enduragent setup
+enduragent
 ```
 
-The setup wizard asks for your LLM provider — an API key for Anthropic / OpenAI / Google / DeepSeek / Qwen / MiniMax / Kimi / Z.AI / OpenRouter, **or OAuth sign-in with your ChatGPT subscription** (no API key needed). Then optionally connects [intervals.icu](https://intervals.icu) and Telegram. After setup, `cycling-coach` starts in CLI mode — or Telegram mode if you provided a bot token.
+The setup wizard asks for your LLM provider — an API key for Anthropic / OpenAI / Google / DeepSeek / Qwen / MiniMax / Kimi / Z.AI / OpenRouter, **or OAuth sign-in with your ChatGPT subscription** (no API key needed). Then optionally connects [intervals.icu](https://intervals.icu) and Telegram. After setup, `enduragent` starts in CLI mode — or Telegram mode if you provided a bot token.
 
 ```
 Cycling Coach (CLI mode). Type your message:
@@ -102,11 +102,11 @@ The agent reads memory at the start of each conversation and writes to it when s
 
 ## Troubleshooting
 
-**`cycling-coach: command not found`** — if you installed without the `-g` flag, the binary isn't on your `$PATH`. Either re-install globally (`npm install -g cycling-coach`), or run it via `npx`:
+**`enduragent: command not found`** — if you installed without the `-g` flag, the binary isn't on your `$PATH`. Either re-install globally (`npm install -g enduragent`), or run it via `npx`:
 
 ```bash
-npx cycling-coach setup
-npx cycling-coach
+npx enduragent setup
+npx enduragent
 ```
 
 `npx` ships with Node.js, so no extra install step is needed.

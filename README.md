@@ -108,9 +108,9 @@ version; release notes say which platforms shipped.
 ### Terminal
 
 ```bash
-npm install -g cycling-coach
-cycling-coach setup
-cycling-coach
+npm install -g enduragent
+enduragent setup
+enduragent
 ```
 
 Node 22+, macOS or Linux. The wizard walks you through model provider, intervals.icu, and
@@ -128,9 +128,6 @@ Telegram works two ways, and both are your own bot:
 
 Either way the commands are the same, and anyone who finds your bot's username but isn't on the
 allowlist is dropped before the coach sees them.
-
-> The npm package and CLI binary are still named `cycling-coach`. The project and the Mac app are
-> Enduragent.
 
 ## Bring your own model
 
