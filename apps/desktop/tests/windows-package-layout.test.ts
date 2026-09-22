@@ -59,8 +59,6 @@ const runtimeBinaries = [
   "dxcompiler.dll",
   "dxil.dll",
   "ffmpeg.dll",
-  "libEGL.dll",
-  "libGLESv2.dll",
   "vk_swiftshader.dll",
   "vulkan-1.dll",
 ];

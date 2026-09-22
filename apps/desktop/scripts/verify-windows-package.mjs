@@ -52,8 +52,6 @@ const expectedWindowsRuntime = new Set([
   "dxil.dll",
   "ffmpeg.dll",
   "icudtl.dat",
-  "libEGL.dll",
-  "libGLESv2.dll",
   "locales",
   "resources",
   "resources.pak",

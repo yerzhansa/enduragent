@@ -641,7 +641,7 @@ describe("desktop update controller", () => {
     async (order) => {
       const fake = fakeUpdater();
       const native = fakeNativeUpdater();
-      const download = deferred<readonly string[]>();
+      const download = deferred<string[]>();
       vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1"));
       vi.mocked(fake.updater.downloadUpdate).mockImplementation(() => {
         if (order === "native-first") native.emit("update-downloaded");
@@ -720,7 +720,7 @@ describe("desktop update controller", () => {
   it("blocks a macOS retry after preparation timeout and ignores a late native event", async () => {
     const fake = fakeUpdater();
     const native = fakeNativeUpdater();
-    const download = deferred<readonly string[]>();
+    const download = deferred<string[]>();
     const token = fakeCancellationToken();
     vi.mocked(fake.updater.checkForUpdates).mockResolvedValue(updateResult("0.1.1", true, token));
     vi.mocked(fake.updater.downloadUpdate).mockReturnValue(download.promise);

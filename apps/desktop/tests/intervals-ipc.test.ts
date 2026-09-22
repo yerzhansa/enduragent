@@ -134,7 +134,7 @@ function setup(
   const clipboard = {
     readText: vi.fn(() => {
       trace.push("read");
-      return options.clipboardValue ?? `  ${API_KEY}  `;
+      return Promise.resolve(options.clipboardValue ?? `  ${API_KEY}  `);
     }),
     clear: vi.fn(() => {
       trace.push("clear");
