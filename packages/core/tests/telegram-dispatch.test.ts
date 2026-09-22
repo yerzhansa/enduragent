@@ -5,11 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
-import {
-  splitWorkoutCardContent,
-  startTypingHeartbeat,
-  TYPING_HEARTBEAT_MS,
-} from "../src/channels/telegram.js";
+import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram.js";
+import { splitWorkoutCardContent } from "../src/channels/telegram-workout-review.js";
 
 import {
   ConfirmationGate,

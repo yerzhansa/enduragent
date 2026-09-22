@@ -1,14 +1,15 @@
 import { WorkoutPreparationTurns, type WorkoutPreparationSession } from "./workout-preparation.js";
 import {
-  assessWorkoutPreparation,
-  workoutPreparationCorrectionMessages,
-} from "./workout-preparation-recovery.js";
+  resolveTurnReply,
+  type RecoveredText,
+  type StepExhaustedRecovery,
+} from "./workout-reply.js";
 import { createPendingWorkoutTool } from "./pending-workout-tool.js";
 import { stepCountIs } from "ai";
 import type { FinishReason, ModelMessage, Tool, ToolSet } from "ai";
 import { retryWithBackoff } from "@enduragent/kernel/concurrency";
 import type { ResolvedCs } from "@enduragent/kernel/reference/cs-resolution";
-import { msg, type Message, type LanguageResolution } from "@enduragent/i18n";
+import { msg, type LanguageResolution } from "@enduragent/i18n";
 import { createPhrasebook, type Phrasebook } from "@enduragent/i18n/messages";
 import type {
   AnswerCoachDecisionRpcParams,
@@ -111,13 +112,8 @@ import { createTurnBudget, TurnBudgetExceededError, type TurnBudget } from "./tu
 import {
   TAINTED_BY_WRITES_MESSAGE,
   STEP_LIMIT_TRUNCATION_MESSAGE,
-  PROTOCOL_FAILURE_MESSAGE,
-  SAVED_INFORMATION_UNVERIFIED_MESSAGE,
   coachReplyMessage,
   DISK_FULL_NOTE,
-  WORKOUT_PREPARATION_FAILED_MESSAGE,
-  WORKOUT_PREPARATION_PREPARED_MESSAGE,
-  WORKOUT_PREPARATION_SAVED_INFORMATION_FAILED_MESSAGE,
 } from "./coach-agent-copy.js";
 import {
   COACH_DECISION_TOOL_NAME,
@@ -249,31 +245,6 @@ interface TurnOutcome {
   duration_ms: number;
   compactions: number;
 }
-
-interface RecoveredText {
-  text: string;
-  message?: Message;
-  attributionBasis: "attempt" | "prompt" | "none";
-}
-
-interface WorkoutReplyState {
-  result: GenerateResult;
-  messages: ModelMessage[];
-  tools: ToolSet;
-}
-
-type WorkoutReplyVerification =
-  | ({ readonly kind: "continue" } & WorkoutReplyState)
-  | ({ readonly kind: "verified"; readonly reply: RecoveredText } & WorkoutReplyState);
-
-type StepExhaustedRecovery =
-  | { readonly kind: "unchanged"; readonly reply: RecoveredText }
-  | {
-      readonly kind: "generated";
-      readonly result: GenerateResult;
-      readonly reply: RecoveredText;
-    }
-  | { readonly kind: "fixed"; readonly reply: RecoveredText };
 
 type ClassifiedTurnFailure = ReturnType<EngineHostPorts["classifyFailure"]> | "budget";
 
@@ -947,143 +918,6 @@ export class CoachAgent {
     }
   }
 
-  private async verifyWorkoutReply(input: {
-    session: WorkoutPreparationSession;
-    result: GenerateResult;
-    messages: ModelMessage[];
-    tools: ToolSet;
-    system: string;
-    context: TurnContext;
-    budget: TurnBudget;
-    cacheKey: string;
-    signal: AbortSignal;
-  }): Promise<WorkoutReplyVerification> {
-    const book = await this.english;
-    const failure = (): WorkoutReplyVerification => {
-      input.session.fail();
-      const message =
-        input.context.turnWrites.writesCommitted > 0
-          ? WORKOUT_PREPARATION_SAVED_INFORMATION_FAILED_MESSAGE
-          : WORKOUT_PREPARATION_FAILED_MESSAGE;
-      return {
-        kind: "verified",
-        result: input.result,
-        messages: input.messages,
-        tools: input.tools,
-        reply: {
-          text: book.say(message),
-          message,
-          attributionBasis: "none",
-        },
-      };
-    };
-    const protocolFailure = (): WorkoutReplyVerification => {
-      input.session.fail();
-      const message =
-        input.context.turnWrites.writesCommitted > 0
-          ? SAVED_INFORMATION_UNVERIFIED_MESSAGE
-          : PROTOCOL_FAILURE_MESSAGE;
-      return {
-        kind: "verified",
-        result: input.result,
-        messages: input.messages,
-        tools: input.tools,
-        reply: {
-          text: book.say(message),
-          message,
-          attributionBasis: "none",
-        },
-      };
-    };
-    const accepted = (
-      result: GenerateResult,
-      messages: ModelMessage[],
-      tools: ToolSet,
-    ): WorkoutReplyVerification => ({
-      kind: "verified",
-      result,
-      messages,
-      tools,
-      reply:
-        result.text.trim() === ""
-          ? {
-              text: book.say(WORKOUT_PREPARATION_PREPARED_MESSAGE),
-              message: WORKOUT_PREPARATION_PREPARED_MESSAGE,
-              attributionBasis: "none",
-            }
-          : { text: result.text, attributionBasis: "attempt" },
-    });
-    const attempt = await input.session.inspect();
-    input.budget.checkDeadline();
-    input.signal.throwIfAborted();
-    if (attempt.kind === "failed") return failure();
-    if (attempt.kind === "prepared") {
-      return input.result.finishReason === "stop"
-        ? accepted(input.result, input.messages, input.tools)
-        : failure();
-    }
-
-    const assessment = await assessWorkoutPreparation({
-      llm: this.llm,
-      messages: input.messages,
-      candidate: input.result.text,
-      budget: input.budget,
-      signal: input.signal,
-      cacheKey: input.cacheKey,
-    });
-    input.budget.checkDeadline();
-    input.signal.throwIfAborted();
-    this.log.info("workout_preparation_assessment", { outcome: assessment.kind });
-    if (assessment.kind === "assessment_failed") return protocolFailure();
-    if (assessment.kind === "no_preparation_required")
-      return {
-        kind: "continue",
-        result: input.result,
-        messages: input.messages,
-        tools: input.tools,
-      };
-    if (input.result.finishReason !== "stop") return failure();
-    if (input.context.turnWrites.writesCommitted > 0) return failure();
-
-    const messages = workoutPreparationCorrectionMessages(input.messages, input.result.text);
-    const tools = Object.fromEntries(
-      Object.entries(input.tools).filter(
-        ([name]) =>
-          !REPLAY_UNSAFE_TOOL_NAMES.has(name) &&
-          name !== COACH_DECISION_TOOL_NAME &&
-          name !== PLAN_HANDOFF_TOOL_NAME &&
-          name !== PLAN_INTAKE_TOOL_NAME,
-      ),
-    );
-    input.budget.chargeAttempt();
-    input.budget.chargeGenerateCall();
-    let result: GenerateResult;
-    try {
-      result = await this.llm.generate({
-        system: input.system,
-        messages,
-        tools,
-        stopWhen: stepCountIs(10),
-        maxSteps: 10,
-        caller: "chat",
-        context: input.context,
-        cacheKey: input.cacheKey,
-        deadlineMs: input.budget.remainingMs(),
-        signal: input.signal,
-      });
-    } catch (error) {
-      if (input.signal.aborted || error instanceof TurnBudgetExceededError) throw error;
-      this.log.info("workout_preparation_recovery", { outcome: "provider_failure" });
-      return failure();
-    }
-    input.budget.checkDeadline();
-    input.signal.throwIfAborted();
-    const recovered = await input.session.inspect();
-    this.log.info("workout_preparation_recovery", { outcome: recovered.kind });
-    if (recovered.kind !== "prepared" || result.finishReason !== "stop") return failure();
-    return accepted(result, messages, tools);
-  }
-
   private compactionParams(budget?: Pick<TurnBudget, "chargeGenerateCall">) {
     return {
       llm: this.compactLlm,
@@ -1566,64 +1400,39 @@ export class CoachAgent {
               }
 
               // Recovery runs only on this success path (before the catch below).
-              let workoutReply =
-                workoutSession === undefined
-                  ? undefined
-                  : await this.verifyWorkoutReply({
-                      session: workoutSession,
-                      result: { ...result, text, finishReason },
-                      messages: providerMessages,
-                      tools: turnTools,
-                      system: systemPrompt,
-                      context: ctx,
-                      budget: turnBudget,
-                      cacheKey,
-                      signal: abortController.signal,
-                    });
-              if (workoutReply !== undefined) {
-                result = workoutReply.result;
-                providerMessages = workoutReply.messages;
-                generationTools = workoutReply.tools;
-                finishReason = result.finishReason;
-              }
-              let recovered: RecoveredText;
-              if (workoutReply?.kind === "verified") {
-                recovered = workoutReply.reply;
-              } else {
-                const stepRecovery = await this.recoverStepExhaustedText(
-                  systemPrompt,
-                  text,
-                  finishReason,
-                  providerMessages,
-                  cacheKey,
-                  turnBudget,
-                  onAttemptTextDelta,
-                  abortController.signal,
-                );
-                recovered = stepRecovery.reply;
-                if (
-                  workoutSession !== undefined &&
-                  workoutReply?.kind === "continue" &&
-                  stepRecovery.kind === "generated"
-                ) {
-                  workoutReply = await this.verifyWorkoutReply({
-                    session: workoutSession,
-                    result: stepRecovery.result,
-                    messages: providerMessages,
-                    tools: generationTools,
-                    system: systemPrompt,
-                    context: ctx,
-                    budget: turnBudget,
+              const resolved = await resolveTurnReply({
+                session: workoutSession,
+                result,
+                text,
+                finishReason,
+                messages: providerMessages,
+                tools: turnTools,
+                system: systemPrompt,
+                context: ctx,
+                budget: turnBudget,
+                cacheKey,
+                signal: abortController.signal,
+                llm: this.llm,
+                phrasebook: book,
+                log: this.log,
+                replayUnsafeToolNames: REPLAY_UNSAFE_TOOL_NAMES,
+                recoverStepExhausted: (recoveryText, recoveryFinish, recoveryMessages) =>
+                  this.recoverStepExhaustedText(
+                    systemPrompt,
+                    recoveryText,
+                    recoveryFinish,
+                    recoveryMessages,
                     cacheKey,
-                    signal: abortController.signal,
-                  });
-                  result = workoutReply.result;
-                  providerMessages = workoutReply.messages;
-                  generationTools = workoutReply.tools;
-                  finishReason = result.finishReason;
-                  if (workoutReply.kind === "verified") recovered = workoutReply.reply;
-                }
-              }
+                    turnBudget,
+                    onAttemptTextDelta,
+                    abortController.signal,
+                  ),
+              });
+              result = resolved.result;
+              providerMessages = resolved.messages;
+              generationTools = resolved.tools;
+              finishReason = resolved.finishReason;
+              const recovered = resolved.recovered;
               if (recovered.attributionBasis === "prompt") {
                 ctx.provenance.value = unionProvenance(
                   contextProvenance,

@@ -14,6 +14,43 @@ import {
 import { WorkoutChangeError } from "./error.js";
 import type { Change, CheckedPreparation, Notice } from "./record.js";
 
+type PreparedItem = Extract<CheckedPreparation, { kind: "complete" }>["changes"][number];
+
+function withRetainedChart(
+  before: Extract<Change, { kind: "edit" }>,
+  next: Extract<PreparedItem, { kind: "edit" }>,
+): Extract<PreparedItem, { kind: "edit" }> {
+  const patch = {
+    ...before.patch,
+    ...Object.fromEntries(Object.entries(next.patch).filter(([, value]) => value !== undefined)),
+  };
+  if (next.reviewStructure !== undefined) delete patch.structure;
+  const candidate = desired({ ...before, patch }, before.reviewed);
+  const replacesContent = !isDeepStrictEqual(
+    {
+      durationSeconds: candidate.durationSeconds,
+      description: candidate.description,
+      structure: candidate.structure,
+    },
+    {
+      durationSeconds: before.desired.durationSeconds,
+      description: before.desired.description,
+      structure: before.desired.structure,
+    },
+  );
+  const reviewStructure =
+    next.reviewStructure !== undefined
+      ? next.reviewStructure
+      : replacesContent
+        ? undefined
+        : before.reviewStructure;
+  return {
+    ...next,
+    patch,
+    ...(reviewStructure === undefined ? {} : { reviewStructure }),
+  };
+}
+
 function preparedChange(change: Change): PreparedChange {
   switch (change.kind) {
     case "add":
@@ -100,40 +137,8 @@ export async function preparePending(input: {
         throw new Error(
           "A targeted revision must keep its action and calendar workout. Use explicit whole-set replacement to change them.",
         );
-      let effective = next;
-      if (before.kind === "edit" && next.kind === "edit") {
-        const patch = {
-          ...before.patch,
-          ...Object.fromEntries(
-            Object.entries(next.patch).filter(([, value]) => value !== undefined),
-          ),
-        };
-        if (next.reviewStructure !== undefined) delete patch.structure;
-        const candidate = desired({ ...before, patch }, before.reviewed);
-        const replacesContent = !isDeepStrictEqual(
-          {
-            durationSeconds: candidate.durationSeconds,
-            description: candidate.description,
-            structure: candidate.structure,
-          },
-          {
-            durationSeconds: before.desired.durationSeconds,
-            description: before.desired.description,
-            structure: before.desired.structure,
-          },
-        );
-        const reviewStructure =
-          next.reviewStructure !== undefined
-            ? next.reviewStructure
-            : replacesContent
-              ? undefined
-              : before.reviewStructure;
-        effective = {
-          ...next,
-          patch,
-          ...(reviewStructure === undefined ? {} : { reviewStructure }),
-        };
-      }
+      const effective =
+        before.kind === "edit" && next.kind === "edit" ? withRetainedChart(before, next) : next;
       if (isDeepStrictEqual(preparedChange(before), effective))
         throw new Error("Each selected workout must contain an actual change.");
       const after = await build(effective, before);

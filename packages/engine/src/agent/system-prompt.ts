@@ -283,6 +283,15 @@ first, then create the workouts a few at a time across follow-up turns. A turn
 that runs out of budget mid-write leaves the week half-scheduled, because writes
 already committed on earlier steps are real and are not rolled back.`;
 
+function mutationGuidance(opts?: {
+  confirmationGate?: boolean;
+  workoutPreparation?: boolean;
+}): string | undefined {
+  if (opts?.workoutPreparation === true) return WORKOUT_PREPARATION_RULES;
+  if (opts?.confirmationGate === true) return CONFIRMATION_GATE_RULES;
+  return undefined;
+}
+
 // The single source of the static rule-block list. The builder pushes exactly
 // these blocks, and the prompt-lineage template hash reads the same set, so the
 // Layer-3 gate flip is reflected in both in lock-step.
@@ -290,12 +299,9 @@ export function staticRuleBlocks(
   sessionClusterGapMinutes: number = 30,
   opts?: { confirmationGate?: boolean; workoutPreparation?: boolean },
 ): string[] {
+  const mutation = mutationGuidance(opts);
   const blocks = [
-    opts?.workoutPreparation === true
-      ? UNTRUSTED_DATA_RULES + "\n\n" + WORKOUT_PREPARATION_RULES
-      : opts?.confirmationGate === true
-        ? UNTRUSTED_DATA_RULES + "\n\n" + CONFIRMATION_GATE_RULES
-        : UNTRUSTED_DATA_RULES,
+    mutation === undefined ? UNTRUSTED_DATA_RULES : `${UNTRUSTED_DATA_RULES}\n\n${mutation}`,
     GARMIN_ATTRIBUTION_RULES,
     MEMORY_RECALL_RULES,
     CROSS_SPORT_VOICE_RULES,
