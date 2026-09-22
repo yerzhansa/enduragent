@@ -4,7 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { binaryEnvVar } from "./binary.js";
 import { enumerateTelegramSessions } from "./channels/telegram-sessions.js";
 import { atomicWriteFileSync } from "./io/atomic-write-file-sync.js";
@@ -77,15 +78,13 @@ export function isUpdateAvailable(latest: string, current: string): boolean {
   return false;
 }
 
-/**
- * Read the binary's package.json — installed path first (via Node's module
- * resolution), cwd fallback for dev. Memoized: package.json doesn't change
- * mid-process, and `/update` exits the process before installing a new
- * version, so the cache is naturally invalidated by restart.
- */
 const pkgCache = new Map<string, Record<string, unknown> | null>();
-export function readBinaryPackageJson(binaryName: string): Record<string, unknown> | null {
-  if (pkgCache.has(binaryName)) return pkgCache.get(binaryName) ?? null;
+export function readBinaryPackageJson(
+  binaryName: string,
+  moduleUrl: string = import.meta.url,
+): Record<string, unknown> | null {
+  const cacheKey = `${binaryName}\0${moduleUrl}`;
+  if (pkgCache.has(cacheKey)) return pkgCache.get(cacheKey) ?? null;
 
   const tryRead = (path: string): Record<string, unknown> | null => {
     try {
@@ -94,17 +93,22 @@ export function readBinaryPackageJson(binaryName: string): Record<string, unknow
       return null;
     }
   };
+  const named = (path: string): Record<string, unknown> | null => {
+    const pkg = tryRead(path);
+    return pkg?.name === binaryName ? pkg : null;
+  };
 
-  let pkg: Record<string, unknown> | null = null;
-  try {
-    const requireFn = createRequire(import.meta.url);
-    pkg = tryRead(requireFn.resolve(`${binaryName}/package.json`));
-  } catch {
-    // resolve() threw (binary not installed via npm) — fall through
+  let pkg = named(join(dirname(fileURLToPath(moduleUrl)), "..", "package.json"));
+  if (!pkg) {
+    try {
+      pkg = named(createRequire(moduleUrl).resolve(`${binaryName}/package.json`));
+    } catch {
+      pkg = null;
+    }
   }
-  if (!pkg) pkg = tryRead(join(process.cwd(), "package.json"));
+  if (!pkg) pkg = named(join(process.cwd(), "package.json"));
 
-  pkgCache.set(binaryName, pkg);
+  pkgCache.set(cacheKey, pkg);
   return pkg;
 }
 
