@@ -633,4 +633,29 @@ describe("readBinaryPackageJson", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("keeps a parent install when the neighboring package has a different name", () => {
+    const root = mkdtempSync(join(tmpdir(), "enduragent-version-lookup-"));
+    try {
+      const staleDir = join(root, "node_modules", "fixture-coach");
+      const bundleDir = join(root, "app", "dist");
+      mkdirSync(staleDir, { recursive: true });
+      mkdirSync(bundleDir, { recursive: true });
+      writeFileSync(
+        join(staleDir, "package.json"),
+        JSON.stringify({ name: "fixture-coach", version: "1998.1.1" }),
+      );
+      writeFileSync(
+        join(root, "app", "package.json"),
+        JSON.stringify({ name: "other-coach", version: "1998.1.2" }),
+      );
+      const bundle = join(bundleDir, "index.js");
+      writeFileSync(bundle, "");
+      expect(readBinaryPackageJson("fixture-coach", pathToFileURL(bundle).href)?.version).toBe(
+        "1998.1.1",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
