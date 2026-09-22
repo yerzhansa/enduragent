@@ -102,10 +102,6 @@ export function copyDesktopUpdateState(state: DesktopUpdateState): DesktopUpdate
   return { status: state.status };
 }
 
-/**
- * MacUpdater feeds the zip to Squirrel during download only when this is true.
- * Windows and Linux install on an ordinary quit when it is true, so they stay false.
- */
 export function desktopUpdateAutoInstallOnAppQuit(platform: NodeJS.Platform): boolean {
   return platform === "darwin";
 }
