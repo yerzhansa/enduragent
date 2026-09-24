@@ -302,21 +302,30 @@ export class LLM {
           ];
     }
 
-    // Message-level breakpoint on the last message so a multi-step tool turn
-    // does not re-pay the whole history every step. Stamped onto a shallow
-    // copy: the caller's array is reused across the retry/compaction loop and
-    // enters the lineage-hash basis, so it must never be mutated here.
-    let messages = opts.messages ?? [];
-    if (breakpointKey !== undefined && messages.length > 0) {
-      const last = messages[messages.length - 1];
-      messages = [
+    const withMessageBreakpoint = (messages: ModelMessage[]): ModelMessage[] => {
+      const last = messages.at(-1);
+      if (breakpointKey === undefined || last === undefined) return messages;
+      const lastPart = last.role === "tool" ? last.content.at(-1) : undefined;
+      const lastResult = lastPart?.type === "tool-result" ? lastPart : undefined;
+      const previousOptions = (lastResult ?? last).providerOptions;
+      const providerOptions = {
+        ...previousOptions,
+        [breakpointKey]: {
+          ...previousOptions?.[breakpointKey],
+          cacheControl: { type: "ephemeral" },
+        },
+      };
+      return [
         ...messages.slice(0, -1),
-        {
-          ...last,
-          providerOptions: { ...last.providerOptions, ...ephemeral(breakpointKey) },
-        } as ModelMessage,
+        last.role === "tool" && lastResult !== undefined
+          ? {
+              ...last,
+              content: [...last.content.slice(0, -1), { ...lastResult, providerOptions }],
+            }
+          : { ...last, providerOptions },
       ];
-    }
+    };
+    const messages = withMessageBreakpoint(opts.messages ?? []);
 
     const astra = this.profile.provider === "openai" && this.profile.model === "gpt-6-astra";
     const base = {
@@ -324,6 +333,12 @@ export class LLM {
       ...(astra ? { providerOptions: { openai: { forceReasoning: true } } } : {}),
       system,
       tools: opts.tools,
+      prepareStep:
+        breakpointKey === undefined || opts.cacheToolResults !== true
+          ? undefined
+          : ({ messages }: { messages: ModelMessage[] }) => ({
+              messages: withMessageBreakpoint(messages),
+            }),
       stopWhen: opts.stopWhen,
       maxOutputTokens: astra
         ? Math.min(opts.maxOutputTokens ?? 128_000, 128_000)
