@@ -104,6 +104,73 @@ describe("codexResponses request building", () => {
 });
 
 describe("codex reasoning continuity", () => {
+  it.each(["identity", "type", "index", "duplicate-done", "duplicate-added", "valid"])(
+    "matches partial additions with completed reasoning when the sequence is %s",
+    async (sequence) => {
+      const partial = { type: "reasoning", id: "rs_tracked" };
+      const reasoning = { ...partial, summary: [], encrypted_content: "opaque-tracked" };
+      const call = {
+        type: "function_call",
+        id: "fc_tracked",
+        call_id: "tracked",
+        name: "read_training",
+        arguments: "{}",
+      };
+      const itemEvent = (type: string, output_index: number, item: unknown) => ({
+        type: `response.output_item.${type}`,
+        output_index,
+        item,
+      });
+      const events: unknown[] = [
+        itemEvent("added", 0, sequence === "type" ? { ...partial, type: "message" } : partial),
+      ];
+      if (sequence === "duplicate-done")
+        events.push(itemEvent("added", 1, { ...partial, id: "rs_unfinished" }));
+      events.push(
+        itemEvent(
+          "done",
+          sequence === "index" ? 1 : 0,
+          sequence === "identity" ? { ...reasoning, id: "rs_unannounced" } : reasoning,
+        ),
+      );
+      if (sequence === "duplicate-added") events.push(itemEvent("added", 0, partial));
+      if (sequence === "duplicate-added" || sequence === "duplicate-done")
+        events.push(itemEvent("done", 0, reasoning));
+      events.push(itemEvent("added", 2, call), itemEvent("done", 2, call), {
+        type: "response.completed",
+        response: { status: "completed" },
+      });
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(okResp(events))
+        .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+
+      await codexGenerateText(
+        {
+          messages: [{ role: "user", content: "Review my training." }],
+          modelId: "gpt-5.4",
+          profileName: "openai-codex",
+          tools: {
+            read_training: {
+              inputSchema: zodSchema(z.object({})),
+              execute: async () => "training details",
+            },
+          },
+        },
+        { getAccessToken: async () => TOKEN, classifyFailure },
+      );
+
+      const body = fetchSpy.mock.calls[1]?.[1]?.body;
+      if (typeof body !== "string") throw new Error("Expected a serialized request");
+      expect(JSON.parse(body).input).toEqual([
+        { role: "user", content: [{ type: "input_text", text: "Review my training." }] },
+        ...(sequence === "valid" ? [reasoning] : []),
+        call,
+        { type: "function_call_output", call_id: "tracked", output: "training details" },
+      ]);
+    },
+  );
+
   it.each(["count", "call-id", "item-id", "name", "arguments", "invalid-arguments"])(
     "replays the executed call when completed output diverges in %s",
     async (difference) => {
@@ -131,11 +198,12 @@ describe("codex reasoning continuity", () => {
         .spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           okResp([
-            { type: "response.output_item.added", item: reasoning },
-            { type: "response.output_item.done", item: reasoning },
-            { type: "response.output_item.added", item: call },
+            { type: "response.output_item.added", output_index: 0, item: reasoning },
+            { type: "response.output_item.done", output_index: 0, item: reasoning },
+            { type: "response.output_item.added", output_index: 1, item: call },
             {
               type: "response.output_item.done",
+              output_index: 1,
               item: completedItems.get(difference) ?? reasoning,
             },
             { type: "response.completed", response: { status: "completed" } },
@@ -206,9 +274,10 @@ describe("codex reasoning continuity", () => {
       ]);
       if (kind !== "absent") {
         events.push(
-          { type: "response.output_item.added", item: reasoning },
+          { type: "response.output_item.added", output_index: 0, item: reasoning },
           {
             type: "response.output_item.done",
+            output_index: 0,
             item: contentOverrides.has(kind)
               ? { ...reasoning, encrypted_content: contentOverrides.get(kind) }
               : reasoning,
@@ -218,7 +287,7 @@ describe("codex reasoning continuity", () => {
       const hasText = kind === "unfinished" || kind === "empty-message";
       if (hasText) {
         events.push(
-          { type: "response.output_item.added", item: { type: "message" } },
+          { type: "response.output_item.added", output_index: 1, item: { type: "message", id: "msg_empty" } },
           { type: "response.content_part.added", part: { type: "output_text" } },
           { type: "response.output_text.delta", delta: "Checking." },
         );
@@ -226,6 +295,7 @@ describe("codex reasoning continuity", () => {
       if (kind === "empty-message") {
         events.push({
           type: "response.output_item.done",
+          output_index: 1,
           item: {
             type: "message",
             id: "msg_empty",
@@ -236,8 +306,8 @@ describe("codex reasoning continuity", () => {
         });
       }
       events.push(
-        { type: "response.output_item.added", item: call },
-        { type: "response.output_item.done", item: call },
+        { type: "response.output_item.added", output_index: 2, item: call },
+        { type: "response.output_item.done", output_index: 2, item: call },
         { type: "response.completed", response: { status: "completed" } },
       );
       const fetchSpy = vi

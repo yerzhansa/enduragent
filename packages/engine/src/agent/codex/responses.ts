@@ -77,6 +77,17 @@ const outputItemSchema = z.discriminatedUnion("type", [
 
 export type CodexOutputItem = z.infer<typeof outputItemSchema>;
 
+const outputItemIdentitySchema = z.object({ id: z.string(), type: z.string() });
+const outputItemAddedSchema = z.object({
+  output_index: z.number().int().nonnegative(),
+  item: outputItemIdentitySchema,
+});
+const outputItemDoneSchema = outputItemAddedSchema.extend({ item: outputItemSchema });
+
+type OutputItemState =
+  | { kind: "pending"; identity: z.infer<typeof outputItemIdentitySchema> }
+  | { kind: "completed"; item: CodexOutputItem };
+
 export interface CodexResponsesResult {
   text: string;
   toolCalls: CodexToolCall[];
@@ -462,8 +473,7 @@ async function accumulate(
     currentItemEmitted = "";
   };
   const toolScratch: ToolCallScratch[] = [];
-  const outputItems: Array<{ index: number; item: CodexOutputItem }> = [];
-  let pendingOutputItems = 0;
+  const outputItems = new Map<number, OutputItemState>();
   let outputItemsComplete = true;
   let currentItemType: "message" | "function_call" | "reasoning" | undefined;
   let currentMessageHasOutputText = false;
@@ -478,7 +488,12 @@ async function accumulate(
     if (type === "response.created") {
       responseId = (event as { response?: { id?: string } }).response?.id ?? responseId;
     } else if (type === "response.output_item.added") {
-      pendingOutputItems++;
+      const parsed = outputItemAddedSchema.safeParse(event);
+      if (parsed.success && !outputItems.has(parsed.data.output_index)) {
+        outputItems.set(parsed.data.output_index, { kind: "pending", identity: parsed.data.item });
+      } else {
+        outputItemsComplete = false;
+      }
       const item = (event as { item?: Record<string, unknown> }).item;
       const itemType = item?.type as string | undefined;
       // Commit any prior item's text before starting a new one (defensive: a
@@ -516,13 +531,15 @@ async function accumulate(
     } else if (type === "response.function_call_arguments.done") {
       if (currentTool) currentTool.partialJson = (event as { arguments?: string }).arguments ?? currentTool.partialJson;
     } else if (type === "response.output_item.done") {
-      pendingOutputItems--;
-      const parsed = outputItemSchema.safeParse(event.item);
-      if (parsed.success) {
-        outputItems.push({
-          index: typeof event.output_index === "number" ? event.output_index : outputItems.length,
-          item: parsed.data,
-        });
+      const parsed = outputItemDoneSchema.safeParse(event);
+      const pending = parsed.success ? outputItems.get(parsed.data.output_index) : undefined;
+      if (
+        parsed.success &&
+        pending?.kind === "pending" &&
+        pending.identity.id === parsed.data.item.id &&
+        pending.identity.type === parsed.data.item.type
+      ) {
+        outputItems.set(parsed.data.output_index, { kind: "completed", item: parsed.data.item });
       } else {
         outputItemsComplete = false;
       }
@@ -589,7 +606,9 @@ async function accumulate(
     name: t.name,
     arguments: safeParseJson(t.partialJson || "{}"),
   }));
-  const orderedOutput = outputItems.sort((a, b) => a.index - b.index).map(({ item }) => item);
+  const orderedOutput = [...outputItems.entries()]
+    .sort(([left], [right]) => left - right)
+    .flatMap(([, state]) => (state.kind === "completed" ? [state.item] : []));
   const outputCalls = orderedOutput.filter((item) => item.type === "function_call");
   const outputCallsMatch =
     outputCalls.length === toolCalls.length &&
@@ -620,7 +639,7 @@ async function accumulate(
     responseId,
     outputItems:
       outputItemsComplete &&
-      pendingOutputItems === 0 &&
+      outputItems.size === orderedOutput.length &&
       orderedOutput.length > 0 &&
       outputText === text &&
       outputCallsMatch
