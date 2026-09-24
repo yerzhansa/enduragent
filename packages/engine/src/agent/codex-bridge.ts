@@ -6,6 +6,7 @@ import type { GenerateOpts, GenerateResult } from "../llm-types.js";
 import { markProviderAuthFailure } from "../provider-auth-failure.js";
 import { codexResponses } from "./codex/responses.js";
 import type {
+  CodexOutputItem,
   CodexResponsesResult,
   CodexStopReason,
   CodexToolCall,
@@ -298,6 +299,7 @@ export async function codexGenerateText(
   });
 
   const convo: ModelMessage[] = [...initialMessages];
+  const responseItems = new Map<ModelMessage, readonly CodexOutputItem[]>();
   let lastResult: CodexResponsesResult | undefined;
   let accumulated: CodexUsage | null = emptyTokens();
   let stepCount = 0;
@@ -312,6 +314,7 @@ export async function codexGenerateText(
           modelId,
           system,
           messages: convo,
+          responseItems,
           tools,
           accessToken,
           sessionId: cacheKey,
@@ -351,7 +354,9 @@ export async function codexGenerateText(
     > = [];
     if (result.text) assistantContent.push({ type: "text", text: result.text });
     assistantContent.push(...result.toolCalls.map(toToolCallPart));
-    convo.push({ role: "assistant", content: assistantContent } as ModelMessage);
+    const assistantMessage: ModelMessage = { role: "assistant", content: assistantContent };
+    convo.push(assistantMessage);
+    if (result.outputItems) responseItems.set(assistantMessage, result.outputItems);
 
     const calls = result.toolCalls;
     const toolStep = calls.length > 0 && result.stopReason === "toolUse";
