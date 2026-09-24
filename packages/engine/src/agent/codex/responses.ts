@@ -77,16 +77,12 @@ const outputItemSchema = z.discriminatedUnion("type", [
 
 export type CodexOutputItem = z.infer<typeof outputItemSchema>;
 
-const outputItemIdentitySchema = z.object({ id: z.string(), type: z.string() });
-const outputItemAddedSchema = z.object({
-  output_index: z.number().int().nonnegative(),
-  item: outputItemIdentitySchema,
+const completedOutputSchema = z.object({
+  status: z.literal("completed"),
+  output: z
+    .array(outputItemSchema)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length),
 });
-const outputItemDoneSchema = outputItemAddedSchema.extend({ item: outputItemSchema });
-
-type OutputItemState =
-  | { kind: "pending"; identity: z.infer<typeof outputItemIdentitySchema> }
-  | { kind: "completed"; item: CodexOutputItem };
 
 export interface CodexResponsesResult {
   text: string;
@@ -473,8 +469,7 @@ async function accumulate(
     currentItemEmitted = "";
   };
   const toolScratch: ToolCallScratch[] = [];
-  const outputItems = new Map<number, OutputItemState>();
-  let outputItemsComplete = true;
+  let completedOutput: CodexOutputItem[] | undefined;
   let currentItemType: "message" | "function_call" | "reasoning" | undefined;
   let currentMessageHasOutputText = false;
   let currentTool: ToolCallScratch | undefined;
@@ -488,12 +483,6 @@ async function accumulate(
     if (type === "response.created") {
       responseId = (event as { response?: { id?: string } }).response?.id ?? responseId;
     } else if (type === "response.output_item.added") {
-      const parsed = outputItemAddedSchema.safeParse(event);
-      if (parsed.success && !outputItems.has(parsed.data.output_index)) {
-        outputItems.set(parsed.data.output_index, { kind: "pending", identity: parsed.data.item });
-      } else {
-        outputItemsComplete = false;
-      }
       const item = (event as { item?: Record<string, unknown> }).item;
       const itemType = item?.type as string | undefined;
       // Commit any prior item's text before starting a new one (defensive: a
@@ -531,18 +520,6 @@ async function accumulate(
     } else if (type === "response.function_call_arguments.done") {
       if (currentTool) currentTool.partialJson = (event as { arguments?: string }).arguments ?? currentTool.partialJson;
     } else if (type === "response.output_item.done") {
-      const parsed = outputItemDoneSchema.safeParse(event);
-      const pending = parsed.success ? outputItems.get(parsed.data.output_index) : undefined;
-      if (
-        parsed.success &&
-        pending?.kind === "pending" &&
-        pending.identity.id === parsed.data.item.id &&
-        pending.identity.type === parsed.data.item.type
-      ) {
-        outputItems.set(parsed.data.output_index, { kind: "completed", item: parsed.data.item });
-      } else {
-        outputItemsComplete = false;
-      }
       const item = (event as { item?: Record<string, unknown> }).item;
       const itemType = item?.type as string | undefined;
       if (itemType === "function_call" && currentTool && !currentTool.partialJson) {
@@ -569,6 +546,8 @@ async function accumulate(
       currentTool = undefined;
       currentMessageHasOutputText = false;
     } else if (type === "response.completed") {
+      const parsed = completedOutputSchema.safeParse(event.response);
+      completedOutput = parsed.success ? parsed.data.output : undefined;
       const response = (event as {
         response?: {
           id?: string;
@@ -606,9 +585,7 @@ async function accumulate(
     name: t.name,
     arguments: safeParseJson(t.partialJson || "{}"),
   }));
-  const orderedOutput = [...outputItems.entries()]
-    .sort(([left], [right]) => left - right)
-    .flatMap(([, state]) => (state.kind === "completed" ? [state.item] : []));
+  const orderedOutput = completedOutput ?? [];
   const outputCalls = orderedOutput.filter((item) => item.type === "function_call");
   const outputCallsMatch =
     outputCalls.length === toolCalls.length &&
@@ -638,13 +615,7 @@ async function accumulate(
     stopReason,
     responseId,
     outputItems:
-      outputItemsComplete &&
-      outputItems.size === orderedOutput.length &&
-      orderedOutput.length > 0 &&
-      outputText === text &&
-      outputCallsMatch
-        ? orderedOutput
-        : undefined,
+      completedOutput && outputText === text && outputCallsMatch ? orderedOutput : undefined,
   };
 }
 
