@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { zodSchema } from "ai";
+import { z } from "zod";
 import { codexResponses } from "../../src/agent/codex/responses.js";
-import { normalizeError } from "../../src/agent/codex-bridge.js";
+import { codexGenerateText, normalizeError } from "../../src/agent/codex-bridge.js";
 import { classifyFailure, isRateLimitError, isServerError, isNetworkError } from "../../../core/src/agent/token-utils.js";
 
 afterEach(() => {
@@ -98,6 +100,414 @@ describe("codexResponses request building", () => {
     expect(headers.get("OpenAI-Beta")).toBe("responses=experimental");
     expect(headers.get("accept")).toBe("text/event-stream");
     expect(headers.get("session_id")).toBe("sess-1");
+  });
+});
+
+describe("codex reasoning continuity", () => {
+  it.each([
+    "valid-terminal",
+    "missing-middle",
+    "missing-initial",
+    "missing-output",
+    "recovered-terminal",
+    "duplicate-terminal",
+    "malformed-terminal",
+  ])("uses authoritative completed output for %s", async (sequence) => {
+    const partial = { type: "reasoning", id: "rs_tracked" };
+    const reasoning = { ...partial, summary: [], encrypted_content: "opaque-tracked" };
+    const recovered = { ...reasoning, id: "rs_recovered", encrypted_content: "opaque-recovered" };
+    const call = {
+      type: "function_call",
+      id: "fc_tracked",
+      call_id: "tracked",
+      name: "read_training",
+      arguments: "{}",
+    };
+    const initialIndex = sequence === "missing-initial" ? 1 : 0;
+    const callIndex = ["missing-middle", "missing-initial", "recovered-terminal"].includes(sequence)
+      ? 2
+      : 1;
+    const outputBySequence = new Map<string, unknown>([
+      ["valid-terminal", [reasoning, call]],
+      ["recovered-terminal", [reasoning, recovered, call]],
+      ["duplicate-terminal", [reasoning, reasoning, call]],
+      ["malformed-terminal", { unexpected: true }],
+    ]);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        okResp([
+          { type: "response.output_item.added", output_index: initialIndex, item: partial },
+          { type: "response.output_item.done", output_index: initialIndex, item: reasoning },
+          { type: "response.output_item.added", output_index: callIndex, item: call },
+          { type: "response.output_item.done", output_index: callIndex, item: call },
+          {
+            type: "response.completed",
+            response: { status: "completed", output: outputBySequence.get(sequence) },
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+
+    await codexGenerateText(
+      {
+        messages: [{ role: "user", content: "Review my training." }],
+        modelId: "gpt-5.4",
+        profileName: "openai-codex",
+        tools: {
+          read_training: {
+            inputSchema: zodSchema(z.object({})),
+            execute: async () => "training details",
+          },
+        },
+      },
+      { getAccessToken: async () => TOKEN, classifyFailure },
+    );
+
+    const body = fetchSpy.mock.calls[1]?.[1]?.body;
+    if (typeof body !== "string") throw new Error("Expected a serialized request");
+    expect(JSON.parse(body).input).toEqual([
+      { role: "user", content: [{ type: "input_text", text: "Review my training." }] },
+      ...(sequence === "valid-terminal" || sequence === "recovered-terminal" ? [reasoning] : []),
+      ...(sequence === "recovered-terminal" ? [recovered] : []),
+      call,
+      { type: "function_call_output", call_id: "tracked", output: "training details" },
+    ]);
+  });
+
+  it.each(["missing", "incomplete", "unknown"])(
+    "does not expose replay without a completed terminal response: %s",
+    async (terminal) => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_unfinished",
+        summary: [],
+        encrypted_content: "opaque-unfinished",
+      };
+      const events: unknown[] = [
+        { type: "response.output_item.added", output_index: 0, item: reasoning },
+        { type: "response.output_item.done", output_index: 0, item: reasoning },
+      ];
+      if (terminal !== "missing")
+        events.push({
+          type: "response.completed",
+          response: { status: terminal, output: [reasoning] },
+        });
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(okResp(events));
+
+      const result = await codexResponses(baseParams());
+
+      expect(result.outputItems).toBeUndefined();
+    },
+  );
+
+  it.each(["count", "call-id", "item-id", "name", "arguments", "invalid-arguments"])(
+    "replays the executed call when completed output diverges in %s",
+    async (difference) => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_divergent",
+        summary: [],
+        encrypted_content: "opaque-divergent",
+      };
+      const call = {
+        type: "function_call",
+        id: "fc_executed",
+        call_id: "executed",
+        name: "read_training",
+        arguments: '{"kind":"recent"}',
+      };
+      const completedItems = new Map([
+        ["call-id", { ...call, call_id: "unexecuted" }],
+        ["item-id", { ...call, id: "fc_unexecuted" }],
+        ["name", { ...call, name: "unexecuted_tool" }],
+        ["arguments", { ...call, arguments: '{"kind":"planned"}' }],
+        ["invalid-arguments", { ...call, arguments: "invalid" }],
+      ]);
+      const completedCall = completedItems.get(difference);
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          okResp([
+            { type: "response.output_item.added", output_index: 0, item: reasoning },
+            { type: "response.output_item.done", output_index: 0, item: reasoning },
+            { type: "response.output_item.added", output_index: 1, item: call },
+            {
+              type: "response.output_item.done",
+              output_index: 1,
+              item: completedItems.get(difference) ?? reasoning,
+            },
+            {
+              type: "response.completed",
+              response: {
+                status: "completed",
+                output: [reasoning, ...(completedCall ? [completedCall] : [])],
+              },
+            },
+          ]),
+        )
+        .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+      const execute = vi.fn(async () => "training details");
+
+      await codexGenerateText(
+        {
+          messages: [{ role: "user", content: "Review my training." }],
+          modelId: "gpt-5.4",
+          profileName: "openai-codex",
+          tools: {
+            read_training: {
+              inputSchema: zodSchema(z.object({ kind: z.literal("recent") })),
+              execute,
+            },
+          },
+        },
+        { getAccessToken: async () => TOKEN, classifyFailure },
+      );
+
+      expect(execute).toHaveBeenCalledWith(
+        { kind: "recent" },
+        expect.objectContaining({ toolCallId: "executed|fc_executed" }),
+      );
+      const body = fetchSpy.mock.calls[1]?.[1]?.body;
+      if (typeof body !== "string") throw new Error("Expected a serialized request");
+      expect(JSON.parse(body).input).toEqual([
+        { role: "user", content: [{ type: "input_text", text: "Review my training." }] },
+        call,
+        { type: "function_call_output", call_id: "executed", output: "training details" },
+      ]);
+    },
+  );
+
+  it.each([
+    "absent",
+    "unfinished",
+    "malformed",
+    "empty-message",
+    "missing-content",
+    "null-content",
+    "empty-content",
+  ])("preserves tool continuation when reasoning is %s", async (kind) => {
+    const reasoning = {
+      type: "reasoning",
+      id: "rs_optional",
+      summary: [],
+      encrypted_content: "opaque-optional",
+    };
+    const call = {
+      type: "function_call",
+      id: "fc_optional",
+      call_id: "optional",
+      name: "read_training",
+      arguments: "{}",
+    };
+    const events: unknown[] = [];
+    const completedOutput: unknown[] = [];
+    const contentOverrides = new Map<string, unknown>([
+      ["malformed", 42],
+      ["missing-content", undefined],
+      ["null-content", null],
+      ["empty-content", ""],
+    ]);
+    if (kind !== "absent") {
+      const completedReasoning = contentOverrides.has(kind)
+        ? { ...reasoning, encrypted_content: contentOverrides.get(kind) }
+        : reasoning;
+      completedOutput.push(completedReasoning);
+      events.push(
+        { type: "response.output_item.added", output_index: 0, item: reasoning },
+        {
+          type: "response.output_item.done",
+          output_index: 0,
+          item: completedReasoning,
+        },
+      );
+    }
+    const hasText = kind === "unfinished" || kind === "empty-message";
+    if (hasText) {
+      events.push(
+        {
+          type: "response.output_item.added",
+          output_index: 1,
+          item: { type: "message", id: "msg_empty" },
+        },
+        { type: "response.content_part.added", part: { type: "output_text" } },
+        { type: "response.output_text.delta", delta: "Checking." },
+      );
+    }
+    if (kind === "empty-message") {
+      const emptyMessage = {
+        type: "message",
+        id: "msg_empty",
+        role: "assistant",
+        status: "completed",
+        content: [],
+      };
+      completedOutput.push(emptyMessage);
+      events.push({
+        type: "response.output_item.done",
+        output_index: 1,
+        item: emptyMessage,
+      });
+    }
+    completedOutput.push(call);
+    events.push(
+      { type: "response.output_item.added", output_index: 2, item: call },
+      { type: "response.output_item.done", output_index: 2, item: call },
+      { type: "response.completed", response: { status: "completed", output: completedOutput } },
+    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(okResp(events))
+      .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+
+    const result = await codexGenerateText(
+      {
+        messages: [{ role: "user", content: "Review my training." }],
+        modelId: "gpt-5.4",
+        profileName: "openai-codex",
+        tools: {
+          read_training: {
+            inputSchema: zodSchema(z.object({})),
+            execute: async () => "training details",
+          },
+        },
+      },
+      { getAccessToken: async () => TOKEN, classifyFailure },
+    );
+
+    const body = fetchSpy.mock.calls[1]?.[1]?.body;
+    if (typeof body !== "string") throw new Error("Expected a serialized request");
+    expect(JSON.parse(body).input).toEqual([
+      { role: "user", content: [{ type: "input_text", text: "Review my training." }] },
+      ...(hasText
+        ? [
+            {
+              type: "message",
+              role: "assistant",
+              id: "msg_1",
+              status: "completed",
+              content: [{ type: "output_text", text: "Checking.", annotations: [] }],
+            },
+          ]
+        : []),
+      call,
+      { type: "function_call_output", call_id: "optional", output: "training details" },
+    ]);
+    expect(result.text).toBe("Hello world");
+  });
+
+  it("replays opaque reasoning in output order across tool steps without sharing it outside the call", async () => {
+    const reasoning = (id: string) => ({
+      type: "reasoning",
+      id,
+      summary: [{ type: "summary_text", text: "Check the supplied training details." }],
+      encrypted_content: `opaque-${id}`,
+    });
+    const call = (id: string) => ({
+      type: "function_call",
+      id: `fc_${id}`,
+      call_id: id,
+      name: "read_training",
+      arguments: '{ "kind": "recent" }',
+      status: "completed",
+    });
+    const message = {
+      type: "message",
+      id: "msg_checking",
+      role: "assistant",
+      status: "completed",
+      content: [{ type: "output_text", text: "Checking.", annotations: [] }],
+    };
+    const firstOutput = [
+      message,
+      reasoning("rs_first"),
+      call("first"),
+      reasoning("rs_second"),
+      call("second"),
+    ];
+    const secondOutput = [reasoning("rs_third"), call("third")];
+    const response = (items: unknown[]) =>
+      okResp([
+        ...items.flatMap((item, output_index) => [
+          { type: "response.output_item.added", output_index, item },
+          { type: "response.output_item.done", output_index, item },
+        ]),
+        {
+          type: "response.completed",
+          response: {
+            status: "completed",
+            output: items,
+            usage: {
+              input_tokens: 12,
+              output_tokens: 3,
+              total_tokens: 15,
+              input_tokens_details: { cached_tokens: 2 },
+            },
+          },
+        },
+      ]);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(firstOutput))
+      .mockResolvedValueOnce(response(secondOutput))
+      .mockResolvedValueOnce(okResp(TEXT_EVENTS))
+      .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+    const execute = vi.fn(async () => "training details");
+    const deltas: string[] = [];
+    const messages = [{ role: "user" as const, content: "Review my training." }];
+    const opts = {
+      messages,
+      modelId: "gpt-5.4",
+      profileName: "openai-codex",
+      tools: {
+        read_training: { inputSchema: zodSchema(z.object({ kind: z.literal("recent") })), execute },
+      },
+      onTextDelta: (delta: string) => deltas.push(delta),
+    };
+    const ports = { getAccessToken: async () => TOKEN, classifyFailure };
+
+    const result = await codexGenerateText(opts, ports);
+    await codexGenerateText(opts, ports);
+
+    const bodies = fetchSpy.mock.calls.map(([, init]) => {
+      if (typeof init?.body !== "string") throw new Error("Expected a serialized request");
+      return JSON.parse(init.body);
+    });
+    const userInput = {
+      role: "user",
+      content: [{ type: "input_text", text: "Review my training." }],
+    };
+    const toolOutput = (call_id: string) => ({
+      type: "function_call_output",
+      call_id,
+      output: "training details",
+    });
+    expect(bodies[1].input).toEqual([
+      userInput,
+      ...firstOutput,
+      toolOutput("first"),
+      toolOutput("second"),
+    ]);
+    expect(bodies[2].input).toEqual([
+      userInput,
+      ...firstOutput,
+      toolOutput("first"),
+      toolOutput("second"),
+      ...secondOutput,
+      toolOutput("third"),
+    ]);
+    expect(bodies[3].input).toEqual([userInput]);
+    expect(bodies.every((body) => body.store === false)).toBe(true);
+    expect(messages).toEqual([{ role: "user", content: "Review my training." }]);
+    expect(JSON.stringify(execute.mock.calls)).not.toContain("opaque-");
+    expect(JSON.stringify(result)).not.toContain("opaque-");
+    expect(deltas).toEqual(["Hello", " world", "Hello", " world"]);
+    expect(result).toMatchObject({
+      text: "Hello world",
+      finishReason: "stop",
+      steps: 3,
+      totalUsage: { inputTokens: 36, outputTokens: 9, cachedInputTokens: 6, totalTokens: 45 },
+    });
   });
 });
 

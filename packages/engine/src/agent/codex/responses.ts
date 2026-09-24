@@ -1,5 +1,7 @@
 import { asSchema } from "@ai-sdk/provider-utils";
+import { canonicalJson } from "@enduragent/kernel/archive";
 import type { ModelMessage, ToolSet } from "ai";
+import { z } from "zod";
 
 import { extractAccountId } from "./jwt.js";
 
@@ -45,12 +47,50 @@ export interface CodexUsage {
   totalTokens: number;
 }
 
+const outputItemSchema = z.discriminatedUnion("type", [
+  z.looseObject({
+    type: z.literal("reasoning"),
+    id: z.string(),
+    summary: z.array(z.looseObject({ type: z.literal("summary_text"), text: z.string() })),
+    encrypted_content: z.string().min(1),
+  }),
+  z.looseObject({
+    type: z.literal("message"),
+    id: z.string(),
+    role: z.literal("assistant"),
+    status: z.string(),
+    content: z.array(
+      z.discriminatedUnion("type", [
+        z.looseObject({ type: z.literal("output_text"), text: z.string() }),
+        z.looseObject({ type: z.literal("refusal"), refusal: z.string() }),
+      ]),
+    ),
+  }),
+  z.looseObject({
+    type: z.literal("function_call"),
+    id: z.string(),
+    call_id: z.string(),
+    name: z.string(),
+    arguments: z.string(),
+  }),
+]);
+
+export type CodexOutputItem = z.infer<typeof outputItemSchema>;
+
+const completedOutputSchema = z.object({
+  status: z.literal("completed"),
+  output: z
+    .array(outputItemSchema)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length),
+});
+
 export interface CodexResponsesResult {
   text: string;
   toolCalls: CodexToolCall[];
   usage: CodexUsage;
   stopReason: CodexStopReason;
   responseId?: string;
+  outputItems?: readonly CodexOutputItem[];
   /** Present only when stopReason === "error" without a thrown rejection. */
   errorMessage?: string;
 }
@@ -59,6 +99,7 @@ export interface CodexResponsesParams {
   modelId: string;
   system?: string;
   messages: ModelMessage[];
+  responseItems?: ReadonlyMap<ModelMessage, readonly CodexOutputItem[]>;
   tools?: ToolSet;
   accessToken: string;
   sessionId?: string;
@@ -123,7 +164,10 @@ function extractText(content: unknown): string {
 // Message + tool conversion: AI-SDK → OpenAI Responses wire `input`
 // ============================================================================
 
-function convertMessagesToInput(messages: ModelMessage[]): unknown[] {
+function convertMessagesToInput(
+  messages: ModelMessage[],
+  responseItems?: CodexResponsesParams["responseItems"],
+): unknown[] {
   const input: unknown[] = [];
 
   for (const [msgIndex, m] of messages.entries()) {
@@ -141,6 +185,11 @@ function convertMessagesToInput(messages: ModelMessage[]): unknown[] {
     }
 
     if (m.role === "assistant") {
+      const outputItems = responseItems?.get(m);
+      if (outputItems) {
+        input.push(...outputItems);
+        continue;
+      }
       if (typeof m.content === "string") {
         if (m.content) {
           input.push({
@@ -234,7 +283,7 @@ async function buildRequestBody(params: CodexResponsesParams): Promise<Record<st
     store: false,
     stream: true,
     instructions: params.system,
-    input: convertMessagesToInput(params.messages),
+    input: convertMessagesToInput(params.messages, params.responseItems),
     text: { verbosity: params.textVerbosity ?? "medium" },
     include: ["reasoning.encrypted_content"],
     prompt_cache_key: params.sessionId,
@@ -420,6 +469,7 @@ async function accumulate(
     currentItemEmitted = "";
   };
   const toolScratch: ToolCallScratch[] = [];
+  let completedOutput: CodexOutputItem[] | undefined;
   let currentItemType: "message" | "function_call" | "reasoning" | undefined;
   let currentMessageHasOutputText = false;
   let currentTool: ToolCallScratch | undefined;
@@ -496,6 +546,8 @@ async function accumulate(
       currentTool = undefined;
       currentMessageHasOutputText = false;
     } else if (type === "response.completed") {
+      const parsed = completedOutputSchema.safeParse(event.response);
+      completedOutput = parsed.success ? parsed.data.output : undefined;
       const response = (event as {
         response?: {
           id?: string;
@@ -533,8 +585,38 @@ async function accumulate(
     name: t.name,
     arguments: safeParseJson(t.partialJson || "{}"),
   }));
+  const orderedOutput = completedOutput ?? [];
+  const outputCalls = orderedOutput.filter((item) => item.type === "function_call");
+  const outputCallsMatch =
+    outputCalls.length === toolCalls.length &&
+    outputCalls.every((item, index) => {
+      const call = toolCalls[index];
+      if (!call) return false;
+      const [callId, itemId] = call.id.split("|");
+      if (item.call_id !== callId || item.id !== itemId || item.name !== call.name) return false;
+      try {
+        return canonicalJson(JSON.parse(item.arguments)) === canonicalJson(call.arguments);
+      } catch {
+        return false;
+      }
+    });
+  const outputText = orderedOutput
+    .flatMap((item) =>
+      item.type === "message"
+        ? item.content.map((part) => (part.type === "output_text" ? part.text : part.refusal))
+        : [],
+    )
+    .join("");
 
-  return { text, toolCalls, usage, stopReason, responseId };
+  return {
+    text,
+    toolCalls,
+    usage,
+    stopReason,
+    responseId,
+    outputItems:
+      completedOutput && outputText === text && outputCallsMatch ? orderedOutput : undefined,
+  };
 }
 
 // ============================================================================
