@@ -112,6 +112,7 @@ export interface GenerateOptions {
   signal?: AbortSignal;
   deadlineMs?: number;
   cacheKey?: string;
+  cacheToolResults?: boolean;
   caller?: CallerRole;
   context?: unknown;
   onTextDelta?: (delta: string) => void;
