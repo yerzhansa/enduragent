@@ -423,7 +423,14 @@ export interface UsageCost {
 
 export type UsageCostBasis = "notional" | "actual";
 
-export interface UsageLedgerLine {
+export interface RequestUsage {
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+  readonly cacheReadTokens?: number;
+  readonly cacheWriteTokens?: number;
+}
+
+export interface UsageLedgerLine extends RequestUsage {
   readonly ts: number;
   readonly kind: "generate" | "turn" | "boot";
   readonly provider: string;
@@ -432,11 +439,8 @@ export interface UsageLedgerLine {
   readonly caller?: CallerRole;
   readonly templateHash?: string;
   readonly steps?: number;
-  readonly inputTokens?: number;
-  readonly outputTokens?: number;
   readonly totalTokens?: number;
-  readonly cacheReadTokens?: number;
-  readonly cacheWriteTokens?: number;
+  readonly requestUsage?: readonly RequestUsage[];
   readonly providerReportedCostUsd?: number;
   readonly catalogRevision?: number;
   readonly cacheReadSavingsUsd?: number;

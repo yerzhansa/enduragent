@@ -30,6 +30,7 @@ import type {
   MemorySnapshot,
   MemoryStorePort,
   PlatformCalendarMutationsPort,
+  RequestUsage,
   SecretsPort,
   UsageCost,
   UsageCostBasis,
@@ -135,6 +136,7 @@ export interface GenerateResult {
   usage: LanguageModelUsage;
   totalUsage?: LanguageModelUsage;
   steps?: number;
+  requestUsage?: readonly RequestUsage[];
   providerReportedCostUsd?: number;
   catalogRevision?: number;
   cacheReadSavingsUsd?: number;

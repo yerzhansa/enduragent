@@ -30,7 +30,12 @@ import {
 } from "./agent/claude-cli/session-pool.js";
 import { ensureClaudeCliReady } from "./agent/claude-cli/probe.js";
 import type { GenerateOpts, GenerateResult } from "./llm-types.js";
-import { cacheTokenDetails, usageFieldsFromResult } from "./llm-types.js";
+import {
+  cacheTokenDetails,
+  requestUsageFields,
+  requestUsageFromSteps,
+  usageFieldsFromResult,
+} from "./llm-types.js";
 import type { ModelStreamActivity } from "./sport.js";
 import {
   createClaudeWorkingArea,
@@ -392,6 +397,7 @@ export class LLM {
         usage,
         totalUsage,
         steps: steps.length,
+        requestUsage: requestUsageFromSteps(steps),
         providerReportedCostUsd:
           this.profile.provider === "openrouter" ? providerReportedCostFromSteps(steps) : undefined,
       };
@@ -410,6 +416,7 @@ export class LLM {
       usage: result.usage,
       totalUsage: result.totalUsage,
       steps: result.steps.length,
+      requestUsage: requestUsageFromSteps(result.steps),
       providerReportedCostUsd:
         this.profile.provider === "openrouter"
           ? providerReportedCostFromSteps(result.steps)
@@ -427,6 +434,9 @@ export class LLM {
       durationMs,
       steps: result.steps,
       ...usageFieldsFromResult(result),
+      ...(result.requestUsage === undefined
+        ? {}
+        : { requestUsage: result.requestUsage.map(requestUsageFields) }),
       stopReason: result.finishReason,
     });
   }
