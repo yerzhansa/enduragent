@@ -104,6 +104,75 @@ describe("codexResponses request building", () => {
 });
 
 describe("codex reasoning continuity", () => {
+  it.each(["count", "call-id", "item-id", "name", "arguments", "invalid-arguments"])(
+    "replays the executed call when completed output diverges in %s",
+    async (difference) => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_divergent",
+        summary: [],
+        encrypted_content: "opaque-divergent",
+      };
+      const call = {
+        type: "function_call",
+        id: "fc_executed",
+        call_id: "executed",
+        name: "read_training",
+        arguments: '{"kind":"recent"}',
+      };
+      const completedItems = new Map([
+        ["call-id", { ...call, call_id: "unexecuted" }],
+        ["item-id", { ...call, id: "fc_unexecuted" }],
+        ["name", { ...call, name: "unexecuted_tool" }],
+        ["arguments", { ...call, arguments: '{"kind":"planned"}' }],
+        ["invalid-arguments", { ...call, arguments: "invalid" }],
+      ]);
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          okResp([
+            { type: "response.output_item.added", item: reasoning },
+            { type: "response.output_item.done", item: reasoning },
+            { type: "response.output_item.added", item: call },
+            {
+              type: "response.output_item.done",
+              item: completedItems.get(difference) ?? reasoning,
+            },
+            { type: "response.completed", response: { status: "completed" } },
+          ]),
+        )
+        .mockResolvedValueOnce(okResp(TEXT_EVENTS));
+      const execute = vi.fn(async () => "training details");
+
+      await codexGenerateText(
+        {
+          messages: [{ role: "user", content: "Review my training." }],
+          modelId: "gpt-5.4",
+          profileName: "openai-codex",
+          tools: {
+            read_training: {
+              inputSchema: zodSchema(z.object({ kind: z.literal("recent") })),
+              execute,
+            },
+          },
+        },
+        { getAccessToken: async () => TOKEN, classifyFailure },
+      );
+
+      expect(execute).toHaveBeenCalledWith(
+        { kind: "recent" },
+        expect.objectContaining({ toolCallId: "executed|fc_executed" }),
+      );
+      const body = fetchSpy.mock.calls[1]?.[1]?.body;
+      if (typeof body !== "string") throw new Error("Expected a serialized request");
+      expect(JSON.parse(body).input).toEqual([
+        { role: "user", content: [{ type: "input_text", text: "Review my training." }] },
+        call,
+        { type: "function_call_output", call_id: "executed", output: "training details" },
+      ]);
+    },
+  );
+
   it.each([
     "absent",
     "unfinished",

@@ -1,4 +1,5 @@
 import { asSchema } from "@ai-sdk/provider-utils";
+import { canonicalJson } from "@enduragent/kernel/archive";
 import type { ModelMessage, ToolSet } from "ai";
 import { z } from "zod";
 
@@ -589,6 +590,20 @@ async function accumulate(
     arguments: safeParseJson(t.partialJson || "{}"),
   }));
   const orderedOutput = outputItems.sort((a, b) => a.index - b.index).map(({ item }) => item);
+  const outputCalls = orderedOutput.filter((item) => item.type === "function_call");
+  const outputCallsMatch =
+    outputCalls.length === toolCalls.length &&
+    outputCalls.every((item, index) => {
+      const call = toolCalls[index];
+      if (!call) return false;
+      const [callId, itemId] = call.id.split("|");
+      if (item.call_id !== callId || item.id !== itemId || item.name !== call.name) return false;
+      try {
+        return canonicalJson(JSON.parse(item.arguments)) === canonicalJson(call.arguments);
+      } catch {
+        return false;
+      }
+    });
   const outputText = orderedOutput
     .flatMap((item) =>
       item.type === "message"
@@ -604,7 +619,11 @@ async function accumulate(
     stopReason,
     responseId,
     outputItems:
-      outputItemsComplete && pendingOutputItems === 0 && orderedOutput.length > 0 && outputText === text
+      outputItemsComplete &&
+      pendingOutputItems === 0 &&
+      orderedOutput.length > 0 &&
+      outputText === text &&
+      outputCallsMatch
         ? orderedOutput
         : undefined,
   };
