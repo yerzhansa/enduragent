@@ -16,7 +16,7 @@
     "prepare": "sh -c \"if [ -f .githooks/install ]; then sh .githooks/install; fi\"",
     "fmt": "oxfmt packages/ apps/",
     "fmt:check": "oxfmt --check packages/ apps/",
-    "check": "pnpm -r build && pnpm -r check && pnpm check:types && pnpm lint && pnpm check:trademarks && pnpm check:fixture-privacy && pnpm check:registry-isolation && pnpm check:changeset-userfacing && pnpm check:contract-deps && pnpm check:package-deps && pnpm check:kernel-discipline && pnpm check:renderer-imports && pnpm check:codex-schema && pnpm check:verification-catalog && pnpm i18n:check && pnpm check:catalogs",
+    "check": "pnpm -r build && pnpm -r check && pnpm check:types && pnpm lint && pnpm check:trademarks && pnpm check:fixture-privacy && pnpm check:registry-isolation && pnpm check:changeset-userfacing && pnpm check:contract-deps && pnpm check:package-deps && pnpm check:kernel-discipline && pnpm check:renderer-imports && pnpm check:codex-schema && pnpm check:verification-catalog && pnpm i18n:check && pnpm check:catalogs && pnpm check:code-quality",
     "check:verification-catalog": "pnpm --filter @enduragent/desktop check:verification-catalog",
     "check:types": "tsc -p tsconfig.check.json",
     "check:trademarks": "tsx tools/check-trademarks.ts",
