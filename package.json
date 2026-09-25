@@ -29,6 +29,7 @@
     "check:kernel-discipline": "tsx tools/check-kernel-discipline.ts",
     "check:renderer-imports": "tsx tools/check-renderer-imports.ts",
     "check:codex-schema": "tsx tools/check-codex-schema.ts",
+    "check:code-quality": "tsx tools/check-code-quality.ts",
     "desktop-release:transaction": "tsx tools/desktop-release-transaction.ts",
     "release-version": "changeset version && tsx tools/bump-binaries-to-calver.ts",
     "snapshot:section-11": "tsx tools/snapshot-section-11.ts",
