@@ -8,7 +8,8 @@ workers/
 .DS_Store
 .idea/
 .obsidian/
-.cursor/
+.cursor/*
+!.cursor/BUGBOT.md
 .nvmrc
 /scripts/
 .claude
