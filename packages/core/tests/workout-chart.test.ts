@@ -32,7 +32,7 @@ describe("workout chart rasterization", () => {
   it("renders deterministic PNG bytes with a three-times scale", async () => {
     const first = await renderWorkoutChart(model);
     const second = await renderWorkoutChart(model);
-    expect([...first.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(Array.from(first.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
     expect(dimensions(first)).toEqual([1230, 639]);
     expect(createHash("sha256").update(first).digest("hex")).toBe(
       createHash("sha256").update(second).digest("hex"),

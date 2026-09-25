@@ -5,7 +5,6 @@ import { jsonBytes, sha256 } from "./model-catalog-bytes.js";
 import type { ModelCatalogPublicationFile } from "./model-catalog-publication.js";
 import {
   CatalogDigestSchema,
-  CatalogReleasePinError,
   prepareReleaseGroup,
   readReleaseGroup,
   type PrepareReleaseGroupInput,

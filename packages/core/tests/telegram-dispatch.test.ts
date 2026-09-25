@@ -563,7 +563,7 @@ describe("confirmation callbacks", () => {
     expect(ctx.replyWithPhoto).toHaveBeenCalledOnce();
     const [file, options] = ctx.replyWithPhoto.mock.calls[0] ?? [];
     expect(file).toBeInstanceOf(grammyFake.InputFile);
-    expect([...file.data.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(Array.from(file.data.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
     expect(options.parse_mode).toBe("HTML");
     expect(options.caption).toContain("<b>Synthetic intervals &lt;easy&gt; &amp; steady</b>");
     expect(ctx.reply.mock.calls.map(([text]) => text).join("\n")).toContain("FINAL INSTRUCTION");

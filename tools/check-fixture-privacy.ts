@@ -1336,7 +1336,7 @@ function normalizeInventoryInputs(
 ): { paths: string[]; hits: PrivacyHit[] } {
   const normalized: string[] = [];
   const hits: PrivacyHit[] = [];
-  for (const pathname of [...new Set(paths)]) {
+  for (const pathname of new Set(paths)) {
     const inspected = inspectInventoryPath(rootAbsolute, rootReal, pathname);
     if (inspected.hit !== undefined) hits.push(inspected.hit);
     else normalized.push(inspected.relative!);
