@@ -1,5 +1,11 @@
 # cycling-coach
 
+## 2026.9.26
+
+### Patch Changes
+
+- 98be728: User-facing: Install the coach in a terminal with npm install -g enduragent, then run enduragent setup.
+
 ## 2026.9.22
 
 ### Patch Changes
