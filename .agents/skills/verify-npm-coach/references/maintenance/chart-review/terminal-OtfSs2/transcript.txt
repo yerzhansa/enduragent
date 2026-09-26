@@ -1,0 +1,146 @@
+[agent] boot
+{"event":"section_rename","from":"profile","to":"cycling-profile","outcome":"noop"}
+{"event":"section_rename","from":"equipment","to":"cycling-equipment","outcome":"noop"}
+{"event":"section_rename","from":"health","to":"cycling-history","outcome":"noop"}
+syncing training data from intervals.icu…
+Cycling Coach (CLI mode). Type your message:
+> 
+USER: Prepare my mixed set of four workout changes.
+[agent] turn_outcome
+
+Review the workout changes below. Nothing has been changed yet.
+
+
+Review all workout changes
+
+1. Add: 1998-09-08 · Easy ride · 50 min
+Main set
+- 50m 60%
+Estimated training load: unavailable
+60% FTP
+
+2. Add: 1998-09-08 · Strength · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+3. Edit workout
+Current: 1998-09-09 · Tempo ride · 60 min
+Comfortable tempo
+Estimated training load: unavailable
+Workout steps:
+- 5 min · 45 → 65% FTP
+3 ×
+  - 10 min · 75% FTP · 85–95 rpm
+  - 5 min · 50% FTP
+- 10 min · 60 → 45% FTP
+Proposed: 1998-09-09 · Planned tempo · 75 min
+Comfortable tempo
+Estimated training load: 35
+Workout steps:
+- 5 min · 45 → 65% FTP
+3 ×
+  - 10 min · 75% FTP · 85–95 rpm
+  - 5 min · 50% FTP
+- 10 min · 60 → 45% FTP
+
+4. Remove this workout:
+1998-09-10 · Recovery ride · 30 min
+Easy recovery
+Estimated training load: unavailable
+Workout steps:
+- 5 min · 40 → 55% FTP
+2 ×
+  - 5 min · 55% FTP
+  - 5 min · 45% FTP
+- 5 min · 45% FTP
+
+2 additions, 1 edits, 1 deletions · 155 min for added or edited workouts
+
+Existing workouts kept:
+1998-09-08 · Existing ride · 45 min
+
+
+Apply all reviewed changes?
+Type approve to apply these changes, cancel to cancel, or a message to revise the proposal.
+
+> 
+--- FICTIONAL PROCESS RESTART ---
+[agent] boot
+[agent] previous_run_unclean
+{"event":"section_rename","from":"profile","to":"cycling-profile","outcome":"noop"}
+{"event":"section_rename","from":"equipment","to":"cycling-equipment","outcome":"noop"}
+{"event":"section_rename","from":"health","to":"cycling-history","outcome":"noop"}
+syncing training data from intervals.icu…
+Cycling Coach (CLI mode). Type your message:
+
+Review all workout changes
+
+1. Add: 1998-09-08 · Easy ride · 50 min
+Main set
+- 50m 60%
+Estimated training load: unavailable
+60% FTP
+
+2. Add: 1998-09-08 · Strength · 30 min
+Easy strength
+
+Controlled movements
+Estimated training load: unavailable
+Easy strength
+
+3. Edit workout
+Current: 1998-09-09 · Tempo ride · 60 min
+Comfortable tempo
+Estimated training load: unavailable
+Workout steps:
+- 5 min · 45 → 65% FTP
+3 ×
+  - 10 min · 75% FTP · 85–95 rpm
+  - 5 min · 50% FTP
+- 10 min · 60 → 45% FTP
+Proposed: 1998-09-09 · Planned tempo · 75 min
+Comfortable tempo
+Estimated training load: 35
+Workout steps:
+- 5 min · 45 → 65% FTP
+3 ×
+  - 10 min · 75% FTP · 85–95 rpm
+  - 5 min · 50% FTP
+- 10 min · 60 → 45% FTP
+
+4. Remove this workout:
+1998-09-10 · Recovery ride · 30 min
+Easy recovery
+Estimated training load: unavailable
+Workout steps:
+- 5 min · 40 → 55% FTP
+2 ×
+  - 5 min · 55% FTP
+  - 5 min · 45% FTP
+- 5 min · 45% FTP
+
+2 additions, 1 edits, 1 deletions · 155 min for added or edited workouts
+
+Existing workouts kept:
+1998-09-08 · Existing ride · 45 min
+
+
+Apply all reviewed changes?
+Type approve to apply these changes, cancel to cancel, or a message to revise the proposal.
+
+> 
+USER: approve
+
+Already completed:
+1998-09-08 · Easy ride (confirmed)
+1998-09-08 · Strength (confirmed)
+1998-09-09 · Tempo ride (confirmed)
+1998-09-10 · Recovery ride (confirmed)
+
+All reviewed changes are complete.
+
+> 
+USER: /quit

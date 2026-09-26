@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "check": "feature-map-consistency",
+  "featurePages": 17,
+  "mappedInventoryEntries": 175,
+  "sourceAndTestPaths": 235,
+  "telegramCommands": 12,
+  "diagnosticMetricKeys": 43,
+  "approvalCriteria": 51,
+  "sourceRevision": "24e46acaccb13d60b4b6f434452470c6b8e49f1b",
+  "inspectedRevision": "24e46acaccb13d60b4b6f434452470c6b8e49f1b",
+  "sourceReviewRequired": false,
+  "runtimeCoverage": "not_established_by_this_check"
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Verify npm coach"
+  short_description: "Verify npm and Telegram features with isolated evidence"
+  default_prompt: "Use $verify-npm-coach to select affected npm and Telegram feature pages, run their existing isolated executors, and report evidence and uncovered flows."
+policy:
+  allow_implicit_invocation: true

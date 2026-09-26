@@ -1,0 +1,2519 @@
+{
+  "events": [
+    {
+      "id": 101,
+      "start_date_local": "1998-09-09T00:00:00",
+      "name": "Tempo ride",
+      "category": "WORKOUT",
+      "type": "Ride",
+      "moving_time": 3600,
+      "description": "Comfortable tempo",
+      "workout_doc": {
+        "duration": 3600,
+        "steps": [
+          {
+            "duration": 300,
+            "warmup": true,
+            "ramp": true,
+            "power": {
+              "start": 45,
+              "end": 65,
+              "units": "%ftp"
+            },
+            "heartrate": {
+              "value": 130,
+              "units": "bpm"
+            }
+          },
+          {
+            "reps": 3,
+            "text": "3x",
+            "duration": 2700,
+            "steps": [
+              {
+                "duration": 600,
+                "power": {
+                  "value": 75,
+                  "units": "%ftp"
+                },
+                "cadence": {
+                  "start": 85,
+                  "end": 95,
+                  "units": "rpm"
+                }
+              },
+              {
+                "duration": 300,
+                "power": {
+                  "value": 50,
+                  "units": "%ftp"
+                }
+              }
+            ]
+          },
+          {
+            "duration": 600,
+            "cooldown": true,
+            "ramp": true,
+            "power": {
+              "start": 60,
+              "end": 45,
+              "units": "%ftp"
+            }
+          }
+        ]
+      },
+      "tags": [
+        "cycling-coach"
+      ]
+    },
+    {
+      "id": 102,
+      "start_date_local": "1998-09-10T00:00:00",
+      "name": "Recovery ride",
+      "category": "WORKOUT",
+      "type": "Ride",
+      "moving_time": 1800,
+      "description": "Easy recovery",
+      "workout_doc": {
+        "duration": 1800,
+        "steps": [
+          {
+            "duration": 300,
+            "warmup": true,
+            "ramp": true,
+            "power": {
+              "start": 40,
+              "end": 55,
+              "units": "%ftp"
+            }
+          },
+          {
+            "reps": 2,
+            "text": "2x",
+            "duration": 1200,
+            "steps": [
+              {
+                "duration": 300,
+                "power": {
+                  "value": 55,
+                  "units": "%ftp"
+                }
+              },
+              {
+                "duration": 300,
+                "power": {
+                  "value": 45,
+                  "units": "%ftp"
+                }
+              }
+            ]
+          },
+          {
+            "duration": 300,
+            "cooldown": true,
+            "power": {
+              "value": 45,
+              "units": "%ftp"
+            }
+          }
+        ]
+      },
+      "tags": [
+        "cycling-coach"
+      ]
+    },
+    {
+      "id": 103,
+      "start_date_local": "1998-09-08T00:00:00",
+      "name": "Existing ride",
+      "category": "WORKOUT",
+      "type": "Ride",
+      "moving_time": 2700,
+      "description": "Keep this ride",
+      "tags": []
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 1",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f7c383b3-34ad-42a0-9c01-9f9c02cd9559",
+      "id": 201
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 2",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:5e38e61c-da67-4d75-9a71-1a01c0524e7b",
+      "id": 202
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 3",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:4201437f-3352-405c-8ee5-28fe30c6c6dc",
+      "id": 203
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 4",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:31622fd6-7715-4249-9be0-e2c17de92fb7",
+      "id": 204
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 5",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:bf66055c-5804-453e-a4f7-f96ef1cbb5c5",
+      "id": 205
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 6",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:1486aac0-19cc-4d3b-a88e-12df613cfbae",
+      "id": 206
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 7",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:a13b7898-12b4-4b66-836b-0c98f50f655c",
+      "id": 207
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 8",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:e6b1e99b-b86e-48f0-b396-c099af4cc793",
+      "id": 208
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 9",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:72923a0f-edbc-4c7c-a17c-37f0506eba6a",
+      "id": 209
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 10",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:2b47919a-2d3f-47a6-b937-3b652842f47d",
+      "id": 210
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 11",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:51a9dcfc-9f2a-493d-9e87-f8e97b48388c",
+      "id": 211
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 12",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:231e613c-55d7-40e8-af4b-ff622a425efc",
+      "id": 212
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 13",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:c18bc0c9-d313-4576-8ee4-5090ba622138",
+      "id": 213
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 14",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:7268faf9-2ff7-4b0e-943e-d9c0e92ccd1b",
+      "id": 214
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 15",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:1c5906b1-18c9-4d6f-a5f3-3aa39dc5ee92",
+      "id": 215
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 16",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:038d8a69-9b6b-4428-ae1d-1f2c92a34180",
+      "id": 216
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 17",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:ca1db3c7-4518-4f88-ae28-1fb1a9734698",
+      "id": 217
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 18",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:37fea4b7-ded0-4b14-8901-a90560d80d80",
+      "id": 218
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 19",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:998c2ef8-2fc2-4f10-a0c9-d47b4ccb0c50",
+      "id": 219
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 20",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:aa0ab1dc-b97b-4930-a461-37b78d53abbe",
+      "id": 220
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 21",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:47c641cd-a062-483c-995a-ba852cc75880",
+      "id": 221
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 22",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:83b74b98-7fbe-4878-9dcc-a5d7d9396c3e",
+      "id": 222
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 23",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:1fb2d545-3718-4d98-9edf-e4fc97ada4e9",
+      "id": 223
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 24",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:0285243f-9b7f-418b-8f31-05f67311ccc1",
+      "id": 224
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 25",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:fdae3d8c-b883-4505-870c-ca9d3288da6f",
+      "id": 225
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 26",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:aac93085-b738-466d-be5e-1f3d97e102bb",
+      "id": 226
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 27",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:8be800a2-6b8d-4d5f-b240-a583f66cd457",
+      "id": 227
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 28",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:c5551da4-3438-48d7-91e6-5c81bc716d4c",
+      "id": 228
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 29",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f62842fa-032e-4678-9caa-035ab4a69358",
+      "id": 229
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 30",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:0b8e6045-468c-4d9c-9cd3-e5956f39aa40",
+      "id": 230
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 31",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:4e78f307-234b-490b-8b96-31d0d40fb206",
+      "id": 231
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 32",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:c7daef26-fe8a-4beb-b704-10c08553b875",
+      "id": 232
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 33",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:76318f95-7ede-4be3-8eeb-87c8e3230740",
+      "id": 233
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 34",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:7fdd6c82-4eff-4fc8-8864-eca2b034eb6f",
+      "id": 234
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 35",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:8d4baa2d-13b5-4213-a297-47a9ebdfb2e6",
+      "id": 235
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 36",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:98f4a86f-89df-4ea9-ab03-40161f43103a",
+      "id": 236
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 37",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:a7ece740-b01e-445a-a7f0-f1b204b0392b",
+      "id": 237
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 38",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:b2b0d602-e9b7-498e-acd8-26f681be6073",
+      "id": 238
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 39",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:e0207a2b-4dee-4c14-8a33-87fe981316d5",
+      "id": 239
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 40",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:3d17b5fc-04e8-4304-9aa6-f9084b5119e4",
+      "id": 240
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 41",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:8186c1c8-88af-4e63-a24b-49d7edf10af8",
+      "id": 241
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 42",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:30f9016d-8140-4654-9675-85b181cfc534",
+      "id": 242
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 43",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f887e309-6430-44af-b839-5cea5762d5be",
+      "id": 243
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 44",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:dd9f85d2-caaa-4019-804e-6c48e27122d9",
+      "id": 244
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 45",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:2bbaa1cd-7e9e-4454-b6d3-319de45d7d96",
+      "id": 245
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 46",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:5d88ee7c-a997-4ad2-b4d3-d3f2a560363e",
+      "id": 246
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 47",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:0d80ce5f-b8e0-40f0-ab7c-5a0eb5dd00f8",
+      "id": 247
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 48",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:41c46e3d-1dcf-4165-91d9-94ff614018c4",
+      "id": 248
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 49",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:d90327f6-6b23-41b5-a560-01fa5a14c543",
+      "id": 249
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 50",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:41212b0e-7600-4412-a55b-78b7d4c396df",
+      "id": 250
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 51",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:e8d3d375-62cd-4764-b251-ca41474610c4",
+      "id": 251
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 52",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:bad1985c-f340-4f5f-8f3c-f0dbf0d3a2a7",
+      "id": 252
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 53",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:565f6272-c656-4393-9780-c7492776bdca",
+      "id": 253
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 54",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:aa6b3c2e-d774-4489-94ea-fa413d1b14b5",
+      "id": 254
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 55",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:4095a810-c3fb-4926-bea1-afb9790d5d83",
+      "id": 255
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 56",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:b3b8f555-ada3-47c4-9061-bd0317c9a1ba",
+      "id": 256
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 57",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:2a6de879-5c56-4470-83d9-a6bda1ea551f",
+      "id": 257
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 58",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:8380fe16-884a-4025-a038-4271427cbdda",
+      "id": 258
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 59",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:08152da2-e7c4-4401-a794-42e6effd627d",
+      "id": 259
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 60",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:073d4256-70c9-4e7f-97d7-707bdfd50251",
+      "id": 260
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 61",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:63cb0acb-97b5-4fb2-a9ea-3c40bab43270",
+      "id": 261
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 62",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:12c0c3f6-4cad-4b03-9a31-a8d25e56fd89",
+      "id": 262
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 63",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:b07686b1-52d9-4a63-9002-371d8da3adf6",
+      "id": 263
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 64",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f24dc2df-4e4e-4871-b726-13e4e2c4420c",
+      "id": 264
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 65",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:cfb1872b-93ab-4249-9769-bc7993638ce0",
+      "id": 265
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 66",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:bb66f8c0-01fa-499c-a811-4c315260d0ef",
+      "id": 266
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 67",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f1df7e3d-f966-4539-b531-1c1e3f2bbdf1",
+      "id": 267
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 68",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:399bc1df-0cf9-4bd8-b67e-9831a0285ee7",
+      "id": 268
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 69",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:95d531a5-479c-46a3-972c-4a3128661e2d",
+      "id": 269
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 70",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:cd6287a1-3e27-4e55-a540-e185589374d1",
+      "id": 270
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 71",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:f1d993ef-33b6-401b-be96-192a53a3d743",
+      "id": 271
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 72",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:4f4adbdd-9d9a-464b-859b-c9a46eb6d987",
+      "id": 272
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 73",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:8b8e3856-2f6b-492e-ae2d-7c76230611a0",
+      "id": 273
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 74",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:32b5e56f-17b4-4491-a86b-b073afd5e2db",
+      "id": 274
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 75",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:b6cbcd60-7374-4727-9a6e-137749efef6b",
+      "id": 275
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 76",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:bd30b41e-c260-4924-b8d8-da86dbb0c3ce",
+      "id": 276
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 77",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:13396672-66be-42ca-8be4-75ef0e365d39",
+      "id": 277
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 78",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:dd9bc9f5-25af-46af-8e77-4a7fdbeb1c5a",
+      "id": 278
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 79",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:795f6392-3f1d-4e29-8038-60a430a5469a",
+      "id": 279
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 80",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:dee21b2a-34f6-4c26-9af9-580b2d4a3628",
+      "id": 280
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 81",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:6f20bd0c-1096-4094-9dcf-9b28380c1fe7",
+      "id": 281
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 82",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:bd1631f7-5844-44f2-b1de-e7fdcaff0853",
+      "id": 282
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 83",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:0e82d423-0e71-47ee-a12b-12240d89b7ed",
+      "id": 283
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 84",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:86125b73-3203-4df2-9207-50523acee107",
+      "id": 284
+    },
+    {
+      "start_date_local": "1998-09-08T00:00:00",
+      "category": "WORKOUT",
+      "name": "Strength 85",
+      "type": "WeightTraining",
+      "moving_time": 1800,
+      "description": "Easy strength\n\nControlled movements",
+      "tags": [
+        "cycling-coach"
+      ],
+      "external_id": "cycling-coach:batch:3e9a7a22-d24d-4f30-8ffe-e48841eb6839",
+      "id": 285
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 1",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f7c383b3-34ad-42a0-9c01-9f9c02cd9559"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 2",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:5e38e61c-da67-4d75-9a71-1a01c0524e7b"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 3",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:4201437f-3352-405c-8ee5-28fe30c6c6dc"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 4",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:31622fd6-7715-4249-9be0-e2c17de92fb7"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 5",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:bf66055c-5804-453e-a4f7-f96ef1cbb5c5"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 6",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:1486aac0-19cc-4d3b-a88e-12df613cfbae"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 7",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:a13b7898-12b4-4b66-836b-0c98f50f655c"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 8",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:e6b1e99b-b86e-48f0-b396-c099af4cc793"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 9",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:72923a0f-edbc-4c7c-a17c-37f0506eba6a"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 10",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:2b47919a-2d3f-47a6-b937-3b652842f47d"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 11",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:51a9dcfc-9f2a-493d-9e87-f8e97b48388c"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 12",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:231e613c-55d7-40e8-af4b-ff622a425efc"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 13",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:c18bc0c9-d313-4576-8ee4-5090ba622138"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 14",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:7268faf9-2ff7-4b0e-943e-d9c0e92ccd1b"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 15",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:1c5906b1-18c9-4d6f-a5f3-3aa39dc5ee92"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 16",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:038d8a69-9b6b-4428-ae1d-1f2c92a34180"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 17",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:ca1db3c7-4518-4f88-ae28-1fb1a9734698"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 18",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:37fea4b7-ded0-4b14-8901-a90560d80d80"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 19",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:998c2ef8-2fc2-4f10-a0c9-d47b4ccb0c50"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 20",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:aa0ab1dc-b97b-4930-a461-37b78d53abbe"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 21",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:47c641cd-a062-483c-995a-ba852cc75880"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 22",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:83b74b98-7fbe-4878-9dcc-a5d7d9396c3e"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 23",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:1fb2d545-3718-4d98-9edf-e4fc97ada4e9"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 24",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:0285243f-9b7f-418b-8f31-05f67311ccc1"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 25",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:fdae3d8c-b883-4505-870c-ca9d3288da6f"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 26",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:aac93085-b738-466d-be5e-1f3d97e102bb"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 27",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:8be800a2-6b8d-4d5f-b240-a583f66cd457"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 28",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:c5551da4-3438-48d7-91e6-5c81bc716d4c"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 29",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f62842fa-032e-4678-9caa-035ab4a69358"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 30",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:0b8e6045-468c-4d9c-9cd3-e5956f39aa40"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 31",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:4e78f307-234b-490b-8b96-31d0d40fb206"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 32",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:c7daef26-fe8a-4beb-b704-10c08553b875"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 33",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:76318f95-7ede-4be3-8eeb-87c8e3230740"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 34",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:7fdd6c82-4eff-4fc8-8864-eca2b034eb6f"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 35",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:8d4baa2d-13b5-4213-a297-47a9ebdfb2e6"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 36",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:98f4a86f-89df-4ea9-ab03-40161f43103a"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 37",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:a7ece740-b01e-445a-a7f0-f1b204b0392b"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 38",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:b2b0d602-e9b7-498e-acd8-26f681be6073"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 39",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:e0207a2b-4dee-4c14-8a33-87fe981316d5"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 40",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:3d17b5fc-04e8-4304-9aa6-f9084b5119e4"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 41",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:8186c1c8-88af-4e63-a24b-49d7edf10af8"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 42",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:30f9016d-8140-4654-9675-85b181cfc534"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 43",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f887e309-6430-44af-b839-5cea5762d5be"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 44",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:dd9f85d2-caaa-4019-804e-6c48e27122d9"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 45",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:2bbaa1cd-7e9e-4454-b6d3-319de45d7d96"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 46",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:5d88ee7c-a997-4ad2-b4d3-d3f2a560363e"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 47",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:0d80ce5f-b8e0-40f0-ab7c-5a0eb5dd00f8"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 48",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:41c46e3d-1dcf-4165-91d9-94ff614018c4"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 49",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:d90327f6-6b23-41b5-a560-01fa5a14c543"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 50",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:41212b0e-7600-4412-a55b-78b7d4c396df"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 51",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:e8d3d375-62cd-4764-b251-ca41474610c4"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 52",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:bad1985c-f340-4f5f-8f3c-f0dbf0d3a2a7"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 53",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:565f6272-c656-4393-9780-c7492776bdca"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 54",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:aa6b3c2e-d774-4489-94ea-fa413d1b14b5"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 55",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:4095a810-c3fb-4926-bea1-afb9790d5d83"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 56",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:b3b8f555-ada3-47c4-9061-bd0317c9a1ba"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 57",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:2a6de879-5c56-4470-83d9-a6bda1ea551f"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 58",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:8380fe16-884a-4025-a038-4271427cbdda"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 59",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:08152da2-e7c4-4401-a794-42e6effd627d"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 60",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:073d4256-70c9-4e7f-97d7-707bdfd50251"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 61",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:63cb0acb-97b5-4fb2-a9ea-3c40bab43270"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 62",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:12c0c3f6-4cad-4b03-9a31-a8d25e56fd89"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 63",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:b07686b1-52d9-4a63-9002-371d8da3adf6"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 64",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f24dc2df-4e4e-4871-b726-13e4e2c4420c"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 65",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:cfb1872b-93ab-4249-9769-bc7993638ce0"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 66",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:bb66f8c0-01fa-499c-a811-4c315260d0ef"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 67",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f1df7e3d-f966-4539-b531-1c1e3f2bbdf1"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 68",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:399bc1df-0cf9-4bd8-b67e-9831a0285ee7"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 69",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:95d531a5-479c-46a3-972c-4a3128661e2d"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 70",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:cd6287a1-3e27-4e55-a540-e185589374d1"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 71",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:f1d993ef-33b6-401b-be96-192a53a3d743"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 72",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:4f4adbdd-9d9a-464b-859b-c9a46eb6d987"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 73",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:8b8e3856-2f6b-492e-ae2d-7c76230611a0"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 74",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:32b5e56f-17b4-4491-a86b-b073afd5e2db"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 75",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:b6cbcd60-7374-4727-9a6e-137749efef6b"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 76",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:bd30b41e-c260-4924-b8d8-da86dbb0c3ce"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 77",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:13396672-66be-42ca-8be4-75ef0e365d39"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 78",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:dd9bc9f5-25af-46af-8e77-4a7fdbeb1c5a"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 79",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:795f6392-3f1d-4e29-8038-60a430a5469a"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 80",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:dee21b2a-34f6-4c26-9af9-580b2d4a3628"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 81",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:6f20bd0c-1096-4094-9dcf-9b28380c1fe7"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 82",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:bd1631f7-5844-44f2-b1de-e7fdcaff0853"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 83",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:0e82d423-0e71-47ee-a12b-12240d89b7ed"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 84",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:86125b73-3203-4df2-9207-50523acee107"
+      }
+    },
+    {
+      "method": "POST",
+      "body": {
+        "start_date_local": "1998-09-08T00:00:00",
+        "category": "WORKOUT",
+        "name": "Strength 85",
+        "type": "WeightTraining",
+        "moving_time": 1800,
+        "description": "Easy strength\n\nControlled movements",
+        "tags": [
+          "cycling-coach"
+        ],
+        "external_id": "cycling-coach:batch:3e9a7a22-d24d-4f30-8ffe-e48841eb6839"
+      }
+    }
+  ]
+}

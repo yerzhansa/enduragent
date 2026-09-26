@@ -1,0 +1,22 @@
+{
+  "actions": [
+    "setup",
+    "DeepSeek",
+    "Other",
+    "fictional-model",
+    "cancel at Base URL"
+  ],
+  "result": "PASS",
+  "configSaved": false,
+  "authSaved": false,
+  "filesBeforeCleanup": [
+    "calendar.json",
+    "config/model-catalog/last-attempt.json",
+    "config/model-catalog/.owner.lock/owner-eb23aae5ec7635f6dcb39a0987d88f1bb0c43c609a9d7975cc20d43db78a893e.json"
+  ],
+  "cleanup": {
+    "scratchRemoved": false,
+    "livePids": [],
+    "blocker": "Host command guard rejected removal of this owned temporary directory."
+  }
+}

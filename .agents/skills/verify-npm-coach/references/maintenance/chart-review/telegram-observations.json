@@ -1,0 +1,44 @@
+{
+  "executor": "cua_repl, existing authorized Chrome Web A tab and real bot",
+  "runtimeOwnership": "pre-existing source-task real runtime; not started or stopped by this maintenance",
+  "sourceRevision": "not independently established for the existing running process",
+  "actions": [
+    {
+      "sent": "/version",
+      "observed": "Cycling Coach v2026.5.9",
+      "status": "PASS"
+    },
+    {
+      "sent": "/language",
+      "observed": "English environment override disclosed; saved choices inactive until override removed. No preferences changed.",
+      "status": "PASS"
+    },
+    {
+      "sent": "/snapshot",
+      "observed": "Usage lists raw [section] and help; only raw wired. No athlete data requested.",
+      "status": "PASS"
+    },
+    {
+      "sent": "/feedback",
+      "observed": "Usage example returned; no feedback content submitted.",
+      "status": "PASS"
+    },
+    {
+      "sent": "/whatsnew",
+      "observed": "Fetching release notes, then unable-to-fetch fallback for 2026.9.12. Fallback link names yerzhansa/cycling-coach and offers /update.",
+      "status": "PARTIAL"
+    }
+  ],
+  "notExecuted": [
+    "/update",
+    "calendar mutations",
+    "language preference changes",
+    "fault injection"
+  ],
+  "cleanup": {
+    "ownedProcessesStarted": 0,
+    "ownedListenersOpened": 0,
+    "ownedProfilesCreated": 0,
+    "existingBotPreserved": true
+  }
+}

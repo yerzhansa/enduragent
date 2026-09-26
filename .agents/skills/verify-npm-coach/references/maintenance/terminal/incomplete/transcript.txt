@@ -1,0 +1,23 @@
+[agent] boot
+{"event":"section_rename","from":"profile","to":"cycling-profile","outcome":"noop"}
+{"event":"section_rename","from":"equipment","to":"cycling-equipment","outcome":"noop"}
+{"event":"section_rename","from":"health","to":"cycling-history","outcome":"noop"}
+syncing training data from intervals.icu…
+Cycling Coach (CLI mode). Type your message:
+> 
+USER: Prepare my mixed set of four workout changes.
+[agent] turn_outcome
+
+Review all four workout changes below. Nothing has been changed yet.
+
+
+The complete proposal could not be prepared. No approval is available. Ask the coach to prepare the entire set again.
+
+> 
+USER: How did I sleep?
+[agent] turn_outcome
+
+Your sleep question is unrelated to the workout proposal.
+
+> 
+USER: /quit

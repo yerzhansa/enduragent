@@ -1,0 +1,3 @@
+{"ts":"1998-09-07T12:00:00.340Z","op":"write-section","section":"preferences","oldBody":null,"newBody":"_updated: 1998-09-07\nI prefer morning training.","source":"chat-tool"}
+{"ts":"1998-09-07T12:00:00.380Z","op":"write-section","section":"preferences","oldBody":"_updated: 1998-09-07\nI prefer morning training.","newBody":"_updated: 1998-09-07\nI prefer evening training.","source":"chat-tool"}
+{"ts":"1998-09-07T12:00:00.540Z","op":"write-section","section":"notes","oldBody":null,"newBody":"_updated: 1998-09-07\nMy fictional bicycle is blue.","source":"chat-tool"}

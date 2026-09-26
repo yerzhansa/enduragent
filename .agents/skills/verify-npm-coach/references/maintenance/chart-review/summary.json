@@ -1,0 +1,124 @@
+{
+  "status": "blocked",
+  "sourceRevision": "4c0a13e6cdb9137aa8a5b1fc9c0e529b604037fa",
+  "sourceFeatureGroups": 17,
+  "inventoryEntries": 175,
+  "component": {
+    "testFiles": 122,
+    "initial": {
+      "numTotalTests": 2786,
+      "numPassedTests": 2775,
+      "numFailedTests": 10,
+      "numPendingTests": 1
+    },
+    "oauthRerun": {
+      "numTotalTests": 47,
+      "numPassedTests": 47,
+      "numFailedTests": 0
+    },
+    "combinedPassed": 2785,
+    "combinedPending": 1,
+    "remainingFailures": 0
+  },
+  "terminalRuns": [
+    {
+      "runner": "terminal.mjs",
+      "scenario": "single",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-bCTryU/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "mixed",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-GDC8x2/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "revision",
+      "restart": false,
+      "exitCode": 1,
+      "evidence": "terminal-VjvxRx/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "cancel",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-zgeloA/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "long",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-SeJWy5/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "stale",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-DTTKxq/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "retry",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-i6NB1E/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "incomplete",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-vrrN9z/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "mixed",
+      "restart": true,
+      "exitCode": 0,
+      "evidence": "terminal-OtfSs2/result.json"
+    },
+    {
+      "runner": "coaching-terminal.mjs",
+      "scenario": "memory",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "coaching-memory-zguaFR/result.json"
+    },
+    {
+      "runner": "coaching-terminal.mjs",
+      "scenario": "data",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "coaching-data-oi4UOt/result.json"
+    },
+    {
+      "runner": "coaching-terminal.mjs",
+      "scenario": "planning",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "coaching-planning-VZGRpS/result.json"
+    },
+    {
+      "runner": "terminal.mjs",
+      "scenario": "revision",
+      "restart": false,
+      "exitCode": 0,
+      "evidence": "terminal-uHULhJ/result.json",
+      "purpose": "corrected estimate-label assertion"
+    }
+  ],
+  "manual": [
+    "setup-result.json",
+    "senders-result.json"
+  ],
+  "productFilesChanged": false,
+  "ownedLiveProcesses": [],
+  "existingRealBotPreserved": true
+}

@@ -1,0 +1,15 @@
+{
+  "scenario": "planning",
+  "status": "PASS",
+  "executor": "built-npm-terminal-coaching",
+  "revision": "0e9f8aff0a0869d95a557b458104178a86050d19",
+  "binarySha256": "51a8e1b2df02d1596a10a5ad7999e7c0146cf327b22c83ed517bfce09af39c51",
+  "runtime": "v24.21.0",
+  "platform": "darwin",
+  "boundaries": "Scripted model selects production tools and displays actual tool results; fictional athlete/calendar; no real model judgment or Telegram proof",
+  "cleanup": {
+    "livePids": [],
+    "scratchRemoved": true,
+    "listenersOpened": 0
+  }
+}

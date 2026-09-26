@@ -1,0 +1,13 @@
+{
+  "scenario": "mixed",
+  "channel": "Telegram",
+  "status": "NOT RUN",
+  "reason": "Record browser action and result separately; startup is not feature proof",
+  "revision": "4c0a13e6cdb9137aa8a5b1fc9c0e529b604037fa",
+  "binarySha256": "c959492c2c7dfdd505fe95197ac11f63f417e98ba98363cec55f785bf03cbb41",
+  "cleanup": {
+    "livePids": [],
+    "scratchRemoved": true,
+    "listenersOpened": 0
+  }
+}

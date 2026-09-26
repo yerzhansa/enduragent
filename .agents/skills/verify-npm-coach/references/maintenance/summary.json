@@ -1,0 +1,260 @@
+{
+  "status": "blocked",
+  "sourceRevision": "24e46acaccb13d60b4b6f434452470c6b8e49f1b",
+  "inventoryEntries": 175,
+  "featurePages": 17,
+  "componentTests": {
+    "files": 122,
+    "initial": {
+      "numTotalTests": 2783,
+      "numPassedTests": 2772,
+      "numFailedTests": 10,
+      "numPendingTests": 1
+    },
+    "failureCause": "Sandbox denied localhost listener for codex/oauth.test.ts",
+    "oauthRerun": {
+      "passed": 47,
+      "failed": 0,
+      "localListenerPermission": true
+    },
+    "combinedAfterRerun": {
+      "passed": 2782,
+      "pending": 1,
+      "failed": 0
+    },
+    "skippedFile": "packages/core/tests/secrets/backends/keychain.test.ts"
+  },
+  "terminalRuns": [
+    {
+      "scenario": "mixed",
+      "result": "terminal/mixed/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "single",
+      "result": "terminal/single/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "revision",
+      "result": "terminal/revision/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "cancel",
+      "result": "terminal/cancel/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "long",
+      "result": "terminal/long/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "stale",
+      "result": "terminal/stale/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "retry",
+      "result": "terminal/retry/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "incomplete",
+      "result": "terminal/incomplete/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    },
+    {
+      "scenario": "mixed-restart",
+      "result": "terminal/mixed-restart/result.json",
+      "status": "PASS",
+      "cleanup": {
+        "livePids": [],
+        "scratchRemoved": true,
+        "listenersOpened": 0
+      }
+    }
+  ],
+  "telegram": {
+    "status": "BLOCKED",
+    "attempt": "telegram.mjs --doctor-only",
+    "reason": "NPM_VERIFY_TELEGRAM_CONFIG unset; no child or browser launched"
+  },
+  "privacy": {
+    "sourceFiles": 4078,
+    "goldenFixtures": 21,
+    "result": "clean",
+    "command": "node --import tsx tools/check-fixture-privacy.ts"
+  },
+  "pages": [
+    {
+      "slug": "install-and-hosting",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "Global npm installation, Node 22 compatibility, container startup, Railway persistence, legacy-home migration, and crash recovery are not proved by the cancel recipe. Use their tests and record missing platform proofs separately. The fixture doctor requires Node 24 even though the package minimum is Node 22."
+    },
+    {
+      "slug": "setup-and-providers",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "This PTY recipe is not an automated runner mode. Never run Claude models for verification from Codex. Real OAuth, subscription identity, provider inference, catalog refresh, and token refresh need dedicated accounts or a controlled external fixture. Component tests are not live-authentication proof."
+    },
+    {
+      "slug": "secrets-and-connections",
+      "source": "inspected",
+      "componentTests": "passed; one Keychain integration case skipped",
+      "live": "BLOCKED",
+      "limitation": "The managed Telegram launcher preauthorizes its operator, so it cannot prove first pairing. No live vault or real intervals.icu connection is proved by mocked credential tests. Do not use operator Keychain items or normal accounts. A config-only open Telegram policy does not create independent athlete profiles."
+    },
+    {
+      "slug": "language",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "Both current runners force `ENDURAGENT_LANGUAGE=en`. This recipe proves override disclosure and persistence only. Effective fixed-language switching and Automatic detection need a runner option without that override. Missing dedicated bot or isolated browser authentication blocks UI proof."
+    },
+    {
+      "slug": "terminal-and-session",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "This fixture cannot interpret arbitrary saved facts or prove semantic memory flush. Terminal `--restart` proves a saved workout review, not conversation persistence. The Telegram launcher creates a fresh home and deletes it on stop; it has no restart-preserving mode and refuses pending updates during doctor."
+    },
+    {
+      "slug": "memory-and-recall",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "The current provider fixture emits workout preparation for arbitrary chat. Never send memory prompts to it and count a workout response as proof. Recall is capped at 366 days. The six shared and three cycling sections are one athlete memory, not separate sender profiles."
+    },
+    {
+      "slug": "athlete-data-and-review",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "Stream tools return count/minimum/maximum/mean, not the raw time series. Tests cover bounded projections, absent/ambiguous data, timeout and factual fallback. Those tests do not prove the full chat path or live intervals.icu data availability."
+    },
+    {
+      "slug": "planning-and-coaching",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "Corrected inventory detail: calculate_zones returns six display rows, not seven. The knowledge contains seven-zone numbering and Sweet Spot, but that is not the tool result shape. No individual chat proves all eight knowledge topics or clinical/scientific correctness. No autonomous workout prescription follows merely from a status or profile request."
+    },
+    {
+      "slug": "calendar-workouts",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "Current branch replaces four direct calendar mutation tools with prepare_workout_changes and get_pending_workout_changes. C28's baseline ten-minute calendar proposal no longer applies to the batch workflow, which has no elapsed-time expiry. plan_save remains separate. Garmin/Wahoo delivery is an intervals.icu integration prerequisite and is not proved by a synthetic calendar."
+    },
+    {
+      "slug": "telegram-access-and-chat",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "The launcher preauthorizes the operator and uses noninteractive stdin, so it cannot prove unauthorized pairing or interactive operator capture. Fast scripted output cannot prove timing of a long typing heartbeat. The model fixture ignores most request semantics, so `/status` does not establish status reasoning. Text input only; no inbound media or group coaching."
+    },
+    {
+      "slug": "sync-and-snapshot",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "The fixture proves commands and metadata, not populated metric values or rich document fallback. Metrics M34/M35/M36 lack live curve inputs. Forty-three registry keys do not mean 43 working analyses or prompt injection. Twenty oracle-only fields are not live outputs. current_status and separate history/intervals/routes/FTP-history caches are empty in this producer. The seven named sections exclude derived_metrics_meta and source_provenance, which appear only in the full dump. /sync does not publish workouts."
+    },
+    {
+      "slug": "release-and-feedback",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "The preload returns 503 outside intervals.icu and the scripted provider. It cannot prove successful feedback, registry lookup, installation, or telemetry. Automatic update checks are disabled. Never run self-update against the operator's global installation or send feedback to others as a verification side effect."
+    },
+    {
+      "slug": "errors-and-diagnostics",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "BLOCKED",
+      "limitation": "There is no provider-outage or Telegram-delivery-failure scenario in the current runner. Do not invent --scenario=outage or treat incomplete preparation as provider failure. Live fault coverage remains BLOCKED until controlled injection exists. Logger/ledger sizes and retention must not be inferred from one successful entry."
+    },
+    {
+      "slug": "review-and-approval",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "The historical 15-to-19-minute repeat bug was corrected in 24e46aca. Cycling and running serializer regressions cover the boundary; later live report evidence records 900 seconds. A separate description-only edit preview discrepancy remains an external observation, not repaired by this maintenance. Do not claim all locales passed from the English runner."
+    },
+    {
+      "slug": "restrictions",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "The mixed terminal scenario proves valid mutations and preservation only. Current live fixtures do not expose invalid-provenance, date, or concurrency controls. Those live variants remain blocked; do not mutate real athlete workouts to reach them."
+    },
+    {
+      "slug": "changed-workouts",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "Telegram --scenario=stale does not itself mutate the target. Only the terminal runner performs that fixture setup. Any manual Telegram stale setup must edit only the printed, owned fictional calendar and retain evidence. No --inject-stale option exists."
+    },
+    {
+      "slug": "recovery",
+      "source": "inspected",
+      "componentTests": "passed",
+      "live": "PARTIAL",
+      "limitation": "The Telegram launcher has no restart-preserving mode and deletes scratch on exit. Ctrl+C followed by a new launcher is not restart recovery proof. Keep terminal mixed --restart and service crash-window tests as separate evidence; Telegram restart is blocked until supported."
+    }
+  ],
+  "skillValidation": {
+    "frontmatter": "passed",
+    "localLinks": "passed",
+    "retainedEvidenceIdentifierScan": "passed",
+    "negativeMapChecks": [
+      "missing ID rejected",
+      "duplicate ID rejected"
+    ]
+  }
+}

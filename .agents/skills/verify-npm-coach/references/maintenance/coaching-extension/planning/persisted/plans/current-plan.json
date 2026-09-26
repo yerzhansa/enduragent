@@ -1,0 +1,167 @@
+{
+  "name": "Fictional fitness plan",
+  "primaryGoal": "General fitness",
+  "totalWeeks": 12,
+  "status": "draft",
+  "id": "f09b4896-40d5-4c99-af85-dacd1921d761",
+  "cycleLength": 7,
+  "cycleStructureDescription": "7-day cycles with 3:1 build/recovery",
+  "phases": [
+    {
+      "number": 1,
+      "name": "Phase 1",
+      "durationWeeks": 4,
+      "durationCycles": 4,
+      "focus": "base_building",
+      "volumeTargets": {
+        "cycling": {
+          "sessionsPerCycle": 3,
+          "hoursPerCycle": 5
+        }
+      },
+      "keyAdditions": []
+    },
+    {
+      "number": 2,
+      "name": "Phase 2",
+      "durationWeeks": 4,
+      "durationCycles": 4,
+      "focus": "aerobic_development",
+      "volumeTargets": {
+        "cycling": {
+          "sessionsPerCycle": 3,
+          "hoursPerCycle": 5.5
+        }
+      },
+      "keyAdditions": []
+    },
+    {
+      "number": 3,
+      "name": "Phase 3",
+      "durationWeeks": 2,
+      "durationCycles": 2,
+      "focus": "threshold",
+      "volumeTargets": {
+        "cycling": {
+          "sessionsPerCycle": 3,
+          "hoursPerCycle": 5.8
+        }
+      },
+      "keyAdditions": []
+    },
+    {
+      "number": 4,
+      "name": "Phase 4",
+      "durationWeeks": 2,
+      "durationCycles": 2,
+      "focus": "race_prep",
+      "volumeTargets": {
+        "cycling": {
+          "sessionsPerCycle": 3,
+          "hoursPerCycle": 5.8
+        }
+      },
+      "keyAdditions": []
+    }
+  ],
+  "zoneTables": [
+    {
+      "sport": "cycling",
+      "zones": [
+        {
+          "name": "Z1 Active Recovery",
+          "range": "< 154W",
+          "description": "Very light spinning for recovery"
+        },
+        {
+          "name": "Z2 Endurance",
+          "range": "157-210W",
+          "description": "Aerobic base building, conversational pace"
+        },
+        {
+          "name": "Z3 Tempo",
+          "range": "213-252W",
+          "description": "Moderate effort, sustainable for 1-2 hours"
+        },
+        {
+          "name": "Sweet Spot (88-94%)",
+          "range": "246-263W",
+          "description": "High aerobic stress, efficient training sub-range"
+        },
+        {
+          "name": "Z4 Threshold",
+          "range": "255-294W",
+          "description": "Lactate threshold, ~1 hour effort"
+        },
+        {
+          "name": "Z5 VO2max",
+          "range": "297-336W",
+          "description": "High intensity intervals, 3-8 minute efforts"
+        }
+      ]
+    }
+  ],
+  "progressions": [],
+  "testingProtocols": [
+    {
+      "frequency": "Every 4 weeks",
+      "method": "20-minute FTP test",
+      "checkpoints": [
+        {
+          "cycle": 4,
+          "expectedValue": "TBD"
+        },
+        {
+          "cycle": 8,
+          "expectedValue": "TBD"
+        },
+        {
+          "cycle": 12,
+          "expectedValue": "TBD"
+        }
+      ]
+    }
+  ],
+  "volumeSummary": {
+    "byPhase": [
+      {
+        "phaseName": "Phase 1",
+        "phaseNumber": 1,
+        "totalHours": 20,
+        "hours": 20
+      },
+      {
+        "phaseName": "Phase 2",
+        "phaseNumber": 2,
+        "totalHours": 22,
+        "hours": 22
+      },
+      {
+        "phaseName": "Phase 3",
+        "phaseNumber": 3,
+        "totalHours": 11.6,
+        "hours": 11.6
+      },
+      {
+        "phaseName": "Phase 4",
+        "phaseNumber": 4,
+        "totalHours": 11.6,
+        "hours": 11.6
+      }
+    ],
+    "totalPlanHours": 65.2,
+    "intensityDistribution": "85% easy / 10% tempo / 5% threshold"
+  },
+  "schedulePreferences": {
+    "scheduleType": "fixed",
+    "availableDays": [
+      "tue",
+      "thu",
+      "sat"
+    ],
+    "keySessionDay": "sat",
+    "sessionsPerWeek": 3
+  },
+  "createdAt": "1998-09-07T12:00:00.440Z",
+  "updatedAt": "1998-09-07T12:00:00.440Z"
+}

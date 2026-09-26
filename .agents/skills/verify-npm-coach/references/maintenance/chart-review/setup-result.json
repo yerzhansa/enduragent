@@ -1,0 +1,23 @@
+{
+  "mode": "setup",
+  "status": "PASS",
+  "observations": [
+    {
+      "exitCode": 0,
+      "signal": null
+    },
+    {
+      "files": [
+        "calendar.json",
+        "config"
+      ],
+      "configSaved": false,
+      "authSaved": false
+    }
+  ],
+  "cleanup": {
+    "scratchRemoved": true,
+    "livePids": [],
+    "listenersOpened": 0
+  }
+}

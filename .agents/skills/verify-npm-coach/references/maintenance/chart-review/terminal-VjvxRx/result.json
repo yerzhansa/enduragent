@@ -1,0 +1,17 @@
+{
+  "scenario": "revision",
+  "restart": false,
+  "status": "FAIL",
+  "revision": "4c0a13e6cdb9137aa8a5b1fc9c0e529b604037fa",
+  "binarySha256": "c959492c2c7dfdd505fe95197ac11f63f417e98ba98363cec55f785bf03cbb41",
+  "runtime": "v24.21.0",
+  "platform": "darwin",
+  "executor": "built-npm-terminal",
+  "boundaries": "fictional provider and calendar; all other fetch destinations refused",
+  "cleanup": {
+    "livePids": [],
+    "scratchRemoved": true,
+    "listenersOpened": 0
+  },
+  "error": "The input did not match the regular expression /Training load: 35/. Input:\n\n'[agent] turn_outcome\\n' +\n  '\\n' +\n  'Review the workout changes below. Nothing has been changed yet.\\n' +\n  '\\n' +\n  '\\n' +\n  'Changes to this proposal:\\n' +\n  '1998-09-09 · Tempo ride: duration: 75 min → 45 min\\n' +\n  'All other proposed workouts stay unchanged.\\n' +\n  '\\n' +\n  'Review all workout changes\\n' +\n  '\\n' +\n  '1. Add: 1998-09-08 · Easy ride · 50 min\\n' +\n  'Main set\\n' +\n  '- 50m 60%\\n' +\n  'Estimated training load: unavailable\\n' +\n  '60% FTP\\n' +\n  '\\n' +\n  '2. Add: 1998-09-08 · Strength · 30 min\\n' +\n  'Easy strength\\n' +\n  '\\n' +\n  'Controlled movements\\n' +\n  'Estimated training load: unavailable\\n' +\n  'Easy strength\\n' +\n  '\\n' +\n  '3. Edit workout\\n' +\n  'Current: 1998-09-09 · Tempo ride · 60 min\\n' +\n  'Comfortable tempo\\n' +\n  'Estimated training load: unavailable\\n' +\n  'Workout steps:\\n' +\n  '- 5 min · 45 → 65% FTP\\n' +\n  '3 ×\\n' +\n  '  - 10 min · 75% FTP · 85–95 rpm\\n' +\n  '  - 5 min · 50% FTP\\n' +\n  '- 10 min · 60 → 45% FTP\\n' +\n  'Proposed: 1998-09-09 · Planned tempo · 45 min\\n' +\n  'Comfortable tempo\\n' +\n  'Estimated training load: 35\\n' +\n  'Workout steps:\\n' +\n  '- 5 min · 45 → 65% FTP\\n' +\n  '3 ×\\n' +\n  '  - 10 min · 75% FTP · 85–95 rpm\\n' +\n  '  - 5 min · 50% FTP\\n' +\n  '- 10 min · 60 → 45% FTP\\n' +\n  '\\n' +\n  '4. Remove this workout:\\n' +\n  '1998-09-10 · Recovery ride · 30 min\\n' +\n  'Easy recovery\\n' +\n  'Estimated training load: unavailable\\n' +\n  'Workout steps:\\n' +\n  '- 5 min · 40 → 55% FTP\\n' +\n  '2 ×\\n' +\n  '  - 5 min · 55% FTP\\n' +\n  '  - 5 min · 45% FTP\\n' +\n  '- 5 min · 45% FTP\\n' +\n  '\\n' +\n  '2 additions, 1 edits, 1 deletions · 125 min for added or edited workouts\\n' +\n  '\\n' +\n  'Existing workouts kept:\\n' +\n  '1998-09-08 · Existing ride · 45 min\\n' +\n  '\\n' +\n  '\\n' +\n  'Apply all reviewed changes?\\n' +\n  'Type approve to apply these changes, cancel to cancel, or a message to revise the proposal.\\n' +\n  '\\n' +\n  '> '\n"
+}
