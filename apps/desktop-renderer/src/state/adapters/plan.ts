@@ -50,7 +50,6 @@ export async function closePlan(
     ...input,
   });
 }
-
 export async function previewPlanChange(
   clients: DesktopCoachClientProvider,
   input: PlanChangePreviewRpcParams,
@@ -63,7 +62,6 @@ export async function previewPlanChange(
   }
   return client.call("plan_change.preview", request, options);
 }
-
 export async function applyPlanChange(
   clients: DesktopCoachClientProvider,
   input: PlanChangeApplyRpcParams,
@@ -72,7 +70,6 @@ export async function applyPlanChange(
     ...input,
   });
 }
-
 export interface PlanBridge {
   getPlanState(): Promise<GetPlanStateRpcResult>;
   choosePlanRaceCourseFile(): Promise<string | null>;
@@ -81,7 +78,6 @@ export interface PlanBridge {
   ): Promise<ExecutePlanTransitionRpcResult>;
   onPlanProgress(listener: (progress: PlanProgressEvent) => void): () => void;
 }
-
 export interface PlanViewAdapter {
   start(): void;
   open(): void;
@@ -165,22 +161,18 @@ export interface PlanViewAdapter {
   retry(): void;
   dispose(): void;
 }
-
 const UNAVAILABLE_ERROR: PlanError = Object.freeze({
   code: "unavailable",
   message: "Plan could not connect. Try again.",
   retryable: true,
 });
-
 function hydrationFromResult(result: GetPlanStateRpcResult): PlanHydrationState {
   return result;
 }
-
 function hydrationFromTransition(result: ExecutePlanTransitionRpcResult): PlanHydrationState {
   if (result.status === "unsupported-capability") return result;
   return { status: "ready", state: result.state };
 }
-
 function hydratedCoachState(model: PlanReadModel): ChatState | null {
   const parsed = PlanCoachProjectionDataSchema.safeParse(model.data);
   if (!parsed.success) return null;
@@ -202,7 +194,6 @@ function hydratedCoachState(model: PlanReadModel): ChatState | null {
     { type: "queue-snapshot", snapshot: parsed.data.queue },
   );
 }
-
 export function createPlanViewAdapter(input: {
   readonly bridge: PlanBridge;
   readonly clients?: DesktopCoachClientProvider;
@@ -233,6 +224,7 @@ export function createPlanViewAdapter(input: {
   let coachDecisionPhase: ChatSurfaceState["decisionPhase"] = "idle";
   let coachDecisionAnswerLabel: string | null = null;
   let coachDecisionError: string | null = null;
+  let coachQueueMutationError: string | null = null;
   let recoveringDecisionId: string | null = null;
   let autoResumingPlanId: string | null = null;
   let autoResumingCleanupPlanId: string | null = null;
@@ -244,16 +236,15 @@ export function createPlanViewAdapter(input: {
     operationId: string | null;
     accepted: boolean;
   } | null = null;
-
   const coachView = createChatViewAdapter({
     publish: input.publishCoach,
     bufferStreaming: false,
   }).view;
-
   const renderCoach = (): void => {
     coachView.render(coachState, {
       newConversationDisabled: true,
       workBlocked: false,
+      queueMutationError: coachQueueMutationError,
       decision: {
         value: coachDecision,
         phase: coachDecisionPhase,
@@ -262,19 +253,16 @@ export function createPlanViewAdapter(input: {
       },
     });
   };
-
   const reduceCoach = (action: Parameters<typeof reduceChatState>[1]): void => {
     coachState = reduceChatState(coachState, action);
     renderCoach();
   };
-
   const decisionLabel = (decision: CoachDecisionReadModel): string | null => {
     if (decision.status !== "answered") return null;
     if (decision.answer.kind === "custom") return decision.answer.text;
     const optionId = decision.answer.optionId;
     return decision.options.find((option) => option.id === optionId)?.label ?? "Saved choice";
   };
-
   const syncCoach = (model: PlanReadModel): void => {
     const next = hydratedCoachState(model);
     if (next === null) return;
@@ -283,6 +271,7 @@ export function createPlanViewAdapter(input: {
     coachDecision = data.decision;
     coachDecisionAnswerLabel = data.decision === null ? null : decisionLabel(data.decision);
     coachDecisionError = null;
+    coachQueueMutationError = null;
     if (data.decision?.status === "answered" && data.decision.continuation.status === "pending") {
       coachDecisionPhase = "recovering";
       if (recoveringDecisionId !== data.decision.decisionId) {
@@ -301,7 +290,6 @@ export function createPlanViewAdapter(input: {
     }
     renderCoach();
   };
-
   const publishHydration = (next: PlanHydrationState): void => {
     input.publishHydration(next);
     if (next.status === "ready" || next.status === "stale") {
@@ -382,7 +370,6 @@ export function createPlanViewAdapter(input: {
       }
     }
   };
-
   const refresh = async (showLoading: boolean): Promise<void> => {
     const generation = ++hydrationGeneration;
     if (showLoading && input.read().lastReady === null) {
@@ -397,7 +384,6 @@ export function createPlanViewAdapter(input: {
       input.publishHydration({ status: "failed", error: UNAVAILABLE_ERROR });
     }
   };
-
   const execute = async (command: ExecutePlanTransitionRpcParams): Promise<void> => {
     if (active !== null) return;
     active = {
@@ -490,14 +476,12 @@ export function createPlanViewAdapter(input: {
       });
     }
   };
-
   const currentCoachData = (): ReturnType<typeof PlanCoachProjectionDataSchema.parse> | null => {
     const model = planReadModel(input.read());
     if (model === null) return null;
     const parsed = PlanCoachProjectionDataSchema.safeParse(model.data);
     return parsed.success ? parsed.data : null;
   };
-
   const attachCourse = (filePath: string, elevation: "require" | "allow-missing"): void => {
     const data = currentCoachData();
     if (data === null) return;
@@ -518,7 +502,6 @@ export function createPlanViewAdapter(input: {
       course: { action: "attach", filePath, elevation },
     });
   };
-
   const beginCoachSubmission = (message: string, includeUser: boolean): void => {
     coachRequestKey += 1;
     reduceCoach({
@@ -531,7 +514,6 @@ export function createPlanViewAdapter(input: {
       includeUser,
     });
   };
-
   const submitCommand = (
     message: string,
     decision?: Extract<ExecutePlanTransitionRpcParams, { transitionId: "PL-T05" }>["decision"],
@@ -548,7 +530,6 @@ export function createPlanViewAdapter(input: {
     });
     return true;
   };
-
   const onCoachTurnEvent = (event: NonNullable<PlanProgressEvent["turnEvent"]>): void => {
     if (event.type === "turn-start") {
       const current = coachState.activeTurn;
@@ -572,7 +553,6 @@ export function createPlanViewAdapter(input: {
     }
     reduceCoach({ type: "event", requestKey: coachRequestKey, event });
   };
-
   const onProgress = (progress: PlanProgressEvent): void => {
     if (
       disposed ||
@@ -598,7 +578,6 @@ export function createPlanViewAdapter(input: {
       void refresh(false);
     }
   };
-
   const open = (): void => {
     if (active !== null) return;
     const model = planReadModel(input.read());
@@ -612,7 +591,19 @@ export function createPlanViewAdapter(input: {
       planId: model.planId,
     });
   };
-
+  const noteCoachQueueFailure = (): void => {
+    if (disposed) return;
+    coachQueueMutationError = UNAVAILABLE_ERROR.message;
+    renderCoach();
+  };
+  const failStoppedCoach = (): void => {
+    if (disposed) return;
+    reduceCoach({
+      type: "fail",
+      requestKey: coachRequestKey,
+      copy: UNAVAILABLE_ERROR.message,
+    });
+  };
   return {
     start() {
       if (started || disposed) return;
@@ -676,18 +667,24 @@ export function createPlanViewAdapter(input: {
       void input.clients
         .getClient()
         .then((client) => client.call("stopChat", { chatId: data.chatId, turnId }))
-        .catch(() => undefined);
+        .then(() => undefined, failStoppedCoach);
     },
     removeQueuedCoachMessage(id) {
       const data = currentCoachData();
       if (data === null || input.clients === undefined) return;
-      void input.clients
-        .getClient()
-        .then((client) =>
-          client.call("removeQueuedChatMessage", { chatId: data.chatId, queuedMessageId: id }),
-        )
-        .then((snapshot) => reduceCoach({ type: "queue-snapshot", snapshot }))
-        .catch(() => undefined);
+      coachQueueMutationError = null;
+      renderCoach();
+      void input.clients.getClient().then(
+        (client) =>
+          client
+            .call("removeQueuedChatMessage", { chatId: data.chatId, queuedMessageId: id })
+            .then((snapshot) => {
+              if (disposed) return;
+              coachQueueMutationError = null;
+              reduceCoach({ type: "queue-snapshot", snapshot });
+            }, noteCoachQueueFailure),
+        noteCoachQueueFailure,
+      );
     },
     retryQueuedCoachTurn(claimId) {
       const retry = coachState.retryRequired;
@@ -806,14 +803,17 @@ export function createPlanViewAdapter(input: {
     },
     chooseCourseFile() {
       if (active !== null) return;
-      void input.bridge
-        .choosePlanRaceCourseFile()
-        .then((filePath) => {
+      void input.bridge.choosePlanRaceCourseFile().then(
+        (filePath) => {
           if (disposed || filePath === null) return;
           input.publishCoursePicker(false);
           attachCourse(filePath, "require");
-        })
-        .catch(() => undefined);
+        },
+        () => {
+          if (disposed) return;
+          input.publishHydration({ status: "failed", error: UNAVAILABLE_ERROR });
+        },
+      );
     },
     continueWithoutCourse() {
       const data = currentCoachData();

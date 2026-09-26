@@ -197,7 +197,7 @@ function webpDimensions(bytes, limits) {
 
 async function readImage(input) {
   if (input.bytes.byteLength > input.limits.imageBytes) reject("limit_exceeded");
-  const detected = await fileTypeFromBuffer(input.bytes).catch(() => undefined);
+  const detected = await fileTypeFromBuffer(input.bytes);
   const expected =
     input.extension === "jpg" || input.extension === "jpeg" ? "jpg" : input.extension;
   if (detected?.ext !== expected) reject("validation_failed");
@@ -216,10 +216,12 @@ async function readImage(input) {
 
 async function renderPdf(input) {
   if (input.bytes.byteLength > input.limits.documentBytes) reject("limit_exceeded");
-  const detected = await fileTypeFromBuffer(input.bytes).catch(() => undefined);
+  const detected = await fileTypeFromBuffer(input.bytes);
   if (detected?.ext !== "pdf") reject("validation_failed");
   let engine;
   let pdf;
+  let result;
+  let destroyFailure;
   try {
     engine = await createEngine();
     pdf = await engine.open(input.bytes);
@@ -263,7 +265,7 @@ async function renderPdf(input) {
         height: rendered.height,
       });
     }
-    return results;
+    result = results;
   } catch (error) {
     if (error instanceof ReaderFailure) throw error;
     if (error instanceof PdfPasswordError || error instanceof PdfSecurityError) {
@@ -272,8 +274,14 @@ async function renderPdf(input) {
     reject("validation_failed");
   } finally {
     pdf?.destroy();
-    await engine?.destroy().catch(() => {});
+    try {
+      await engine?.destroy();
+    } catch (error) {
+      if (destroyFailure === undefined) destroyFailure = error;
+    }
   }
+  if (destroyFailure !== undefined) throw destroyFailure;
+  return result;
 }
 
 async function main() {

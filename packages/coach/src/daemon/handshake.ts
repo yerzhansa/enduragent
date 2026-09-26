@@ -368,9 +368,7 @@ function openHandshake(
       settled = true;
       cleanup();
       if (error !== undefined) {
-        try {
-          socket.close();
-        } catch {}
+        socket.close();
         reject(error);
       } else {
         resolve({ socket, frame: frame! });
@@ -764,7 +762,7 @@ export async function resolveSecondStarter(
         handoffCapability,
       });
     } catch (error) {
-      await control.close().catch(() => {});
+      await control.close();
       await fence.release();
       if (errorCode(error) === -32_003) {
         return refusal(EXIT_DAEMON_UNAVAILABLE, HANDOFF_RESERVED_MESSAGE);
@@ -774,7 +772,7 @@ export async function resolveSecondStarter(
       }
       return refusal(EXIT_DAEMON_UNAVAILABLE, UNTRUSTED_PEER_MESSAGE);
     }
-    await control.close().catch(() => {});
+    await control.close();
 
     let releaseOutcome: WriterReleaseWaitOutcome;
     try {

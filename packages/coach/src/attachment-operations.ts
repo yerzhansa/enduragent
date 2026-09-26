@@ -163,15 +163,13 @@ export function createManagedChatAttachmentOperations(
           try {
             await input.objects.copyInspectedSource({ source, relativePath: object.relative_path });
           } catch (error) {
-            await input.repository
-              .failObject(
-                object.id,
-                error instanceof ManagedAttachmentSourceError
-                  ? "source_changed"
-                  : "storage_write_failed",
-                now(),
-              )
-              .catch(() => {});
+            await input.repository.failObject(
+              object.id,
+              error instanceof ManagedAttachmentSourceError
+                ? "source_changed"
+                : "storage_write_failed",
+              now(),
+            );
             if (error instanceof ManagedAttachmentSourceError) {
               return rejected(request, source.displayName, error.reason);
             }
@@ -210,10 +208,8 @@ export function createManagedChatAttachmentOperations(
           });
         } catch {
           if (reservation.kind === "reserved") {
-            await input.repository
-              .failObject(object.id, "metadata_commit_failed", now())
-              .catch(() => {});
-            await input.objects.removeObject(object.relative_path).catch(() => {});
+            await input.repository.failObject(object.id, "metadata_commit_failed", now());
+            await input.objects.removeObject(object.relative_path);
           }
           return AttachmentAdmissionReadModelSchema.parse({
             selectionId: request.selectionId,
@@ -225,7 +221,7 @@ export function createManagedChatAttachmentOperations(
         }
         const durableObject = await input.repository.readObject(object.id);
         if (durableObject !== undefined) {
-          await input.onAdmitted?.({ attachment, object: durableObject }).catch(() => {});
+          await input.onAdmitted?.({ attachment, object: durableObject });
         }
         return AttachmentAdmissionReadModelSchema.parse({
           selectionId: request.selectionId,
@@ -267,7 +263,7 @@ export function createManagedChatAttachmentOperations(
         };
         return await operations.admit(request);
       } finally {
-        await input.objects.removeStagedSource(staged.sourcePath).catch(() => {});
+        await input.objects.removeStagedSource(staged.sourcePath);
       }
     },
 

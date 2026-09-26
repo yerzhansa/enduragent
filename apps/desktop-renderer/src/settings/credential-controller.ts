@@ -382,7 +382,10 @@ export function createCredentialSettingsController(input: {
       const claudeCli =
         loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
           ? null
-          : await loadClaudeCli().catch(() => null);
+          : await loadClaudeCli().then(
+              (status) => status,
+              () => null,
+            );
       return {
         entries: entriesFrom(statuses, chatGpt, runtime),
         providerStatuses: providerStatusesFrom(runtime, claudeCli),
@@ -862,7 +865,6 @@ export function createCredentialSettingsController(input: {
     if (content === null || content.focus?.target !== "setup-open") return;
     render({ ...content, focus: null });
   };
-
   const close = (): void => {
     if (disposed) return;
     ++generation;
@@ -875,7 +877,6 @@ export function createCredentialSettingsController(input: {
       ...(resetUncertain ? { resetUncertain: true } : {}),
     };
   };
-
   input.view.bind({
     onRetry: () => {
       const recovery = contentState()?.recovery;
@@ -892,7 +893,6 @@ export function createCredentialSettingsController(input: {
     onSetupOpened: setupOpened,
     onOpenSetup: openSetup,
   });
-
   return {
     async activate() {
       if (disposed) return;

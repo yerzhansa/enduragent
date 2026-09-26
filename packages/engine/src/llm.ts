@@ -146,15 +146,11 @@ export class LLM {
       watchdog === undefined ? deadlineSignal : AbortSignal.any([deadlineSignal, watchdog.signal]);
     const handleTextDelta = (delta: string): void => {
       watchdog?.textDelta(delta);
-      try {
-        opts.onTextDelta?.(delta);
-      } catch {}
+      opts.onTextDelta?.(delta);
     };
     const handleStreamActivity = (activity: ModelStreamActivity): void => {
       watchdog?.activity(activity);
-      try {
-        opts.onStreamActivity?.(activity);
-      } catch {}
+      opts.onStreamActivity?.(activity);
     };
     let result: GenerateResult;
     try {
@@ -544,18 +540,14 @@ function validateChatStreamTimeouts(timeouts: ChatStreamTimeouts): ChatStreamTim
 }
 
 function notifyTextDelta(observer: GenerateOpts["onTextDelta"], delta: string): void {
-  try {
-    observer?.(delta);
-  } catch {}
+  observer?.(delta);
 }
 
 function notifyStreamActivity(
   observer: GenerateOpts["onStreamActivity"],
   activity: ModelStreamActivity,
 ): void {
-  try {
-    observer?.(activity);
-  } catch {}
+  observer?.(activity);
 }
 
 function providerReportedCostFromSteps(steps: readonly unknown[]): number | undefined {

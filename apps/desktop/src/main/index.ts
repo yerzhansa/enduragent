@@ -209,7 +209,9 @@ traceDesktopStartupStage("main-start");
 let preferredLanguages: readonly string[] = [];
 try {
   preferredLanguages = app.getPreferredSystemLanguages();
-} catch {}
+} catch (error) {
+  if (!(error instanceof Error)) throw error;
+}
 await initializeDesktopLanguage(preferredLanguages);
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
@@ -279,7 +281,6 @@ async function runKeychainBindingProbe(): Promise<void> {
   process.stdout.write(`ENDURAGENT_KEYCHAIN_BINDING_PROBE ${JSON.stringify(result)}\n`);
   app.exit(0);
 }
-
 async function runDesktop(): Promise<void> {
   const securitySmokeMode = process.argv.includes("--desktop-security-smoke");
   const rendererConsoleCapture = createDesktopRendererConsoleCapture(securitySmokeMode);
@@ -288,9 +289,9 @@ async function runDesktop(): Promise<void> {
   app.on("second-instance", () => {
     if (process.platform === "win32") {
       if (securitySmokeMode && desktopAcceptanceHidden) {
-        void writeSecuritySmokePrimarySecondInstance(process.stdout).catch(() => {
-          void writeSecuritySmokePrimarySecondInstanceFailure(process.stderr).catch(() => {});
-        });
+        void writeSecuritySmokePrimarySecondInstance(process.stdout).then(undefined, () =>
+          writeSecuritySmokePrimarySecondInstanceFailure(process.stderr),
+        );
       }
       activation.request();
     } else void residency?.showMainWindow();
@@ -802,7 +803,9 @@ async function runDesktop(): Promise<void> {
                   current.generation,
                 );
                 startRendererNavigation(visibleWindow, navigationUrl);
-              } catch {}
+              } catch (error) {
+                if (!(error instanceof Error)) throw error;
+              }
             }
           }
           return;
@@ -1493,7 +1496,6 @@ async function runDesktop(): Promise<void> {
     const initialWindow = desktopStartedInBackground ? undefined : await mainWindow.show();
     void updateController.start();
     void desktopUsagePingController?.start();
-
     if (securitySmokeMode) {
       if (initialWindow === undefined) throw new TypeError("security smoke requires a window");
       const daemonPort = daemonLifecycle.currentPort();
@@ -1611,7 +1613,6 @@ async function runDesktop(): Promise<void> {
     securitySmokeControlPipe?.destroy();
   }
 }
-
 async function exitSecondaryDesktop(): Promise<void> {
   const evidenceRequired =
     process.argv.includes("--desktop-security-smoke") && desktopAcceptanceHidden;
@@ -1626,7 +1627,6 @@ async function exitSecondaryDesktop(): Promise<void> {
     app.exit(1);
   }
 }
-
 if (process.argv.includes("--desktop-keychain-binding-probe")) {
   void runKeychainBindingProbe().catch(() => app.exit(1));
 } else {

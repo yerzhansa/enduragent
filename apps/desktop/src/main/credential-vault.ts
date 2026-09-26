@@ -264,7 +264,6 @@ function encryptionRefusal(
     return "encryption-unavailable";
   }
 }
-
 function transientCredentialSlot(entry: string): DesktopCredentialSlot | undefined {
   for (const slot of DESKTOP_CREDENTIAL_SLOTS) {
     for (const prefix of [`.${slot}.`, `.${slot}.bin.`]) {
@@ -278,9 +277,7 @@ function transientCredentialSlot(entry: string): DesktopCredentialSlot | undefin
   }
   return undefined;
 }
-
 const credentialRootQueues = new Map<string, Promise<void>>();
-
 function serializeCredentialRoot<T>(root: string, operation: () => Promise<T>): Promise<T> {
   const key = resolve(root);
   const previous = credentialRootQueues.get(key) ?? Promise.resolve();
@@ -295,7 +292,6 @@ function serializeCredentialRoot<T>(root: string, operation: () => Promise<T>): 
   });
   return result;
 }
-
 async function secureDirectory(
   root: string,
   platform: NodeJS.Platform,
@@ -317,7 +313,6 @@ async function secureDirectory(
     return false;
   }
 }
-
 async function validTarget(
   path: string,
   platform: NodeJS.Platform,
@@ -345,7 +340,13 @@ async function validTarget(
     return (error as NodeJS.ErrnoException).code === "ENOENT";
   }
 }
-
+async function closeDirectoryAfterSync(directory: { close(): Promise<void> }): Promise<void> {
+  try {
+    await directory.close();
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+  }
+}
 export function createCredentialVault(options: CredentialVaultOptions): CredentialVault {
   if (
     options.serializeEnvelopeMutation === undefined &&
@@ -378,10 +379,10 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       try {
         await directory.sync();
       } catch (error) {
-        await directory.close().catch(() => undefined);
+        await closeDirectoryAfterSync(directory);
         throw error;
       }
-      await directory.close().catch(() => undefined);
+      await closeDirectoryAfterSync(directory);
     });
   const rawSyncCredentialParentDirectory =
     options.syncCredentialParentDirectory ??
@@ -390,10 +391,10 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       try {
         await directory.sync();
       } catch (error) {
-        await directory.close().catch(() => undefined);
+        await closeDirectoryAfterSync(directory);
         throw error;
       }
-      await directory.close().catch(() => undefined);
+      await closeDirectoryAfterSync(directory);
     });
   const syncCredentialDirectory = async (root: string): Promise<void> => {
     if (
@@ -422,7 +423,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
   let durabilityReconciliation: Promise<CredentialVaultDurabilityState> | undefined;
   let parentDirectoryVerified = false;
   let windowsDirectory: WindowsPrivateDirectoryBinding | undefined;
-
   const bindCredentialDirectory = (): WindowsPrivateDirectoryBinding => {
     if (windowsDirectory === undefined) {
       windowsDirectory = bindWindowsPrivateDirectory(dirname(options.root), options.root);
@@ -431,7 +431,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     }
     return windowsDirectory;
   };
-
   const exclusive = <T>(operation: () => Promise<T>): Promise<T> =>
     serializeCredentialRoot(options.root, operation);
   const envelopeExclusive = <T>(
@@ -440,7 +439,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     options.serializeEnvelopeMutation === undefined
       ? exclusive(() => operation(undefined))
       : options.serializeEnvelopeMutation((proof) => exclusive(() => operation(proof)));
-
   const reconcileDurability = (): Promise<CredentialVaultDurabilityState> => {
     if (durabilityState !== "pending") return Promise.resolve(durabilityState);
     if (durabilityReconciliation !== undefined) return durabilityReconciliation;
@@ -470,7 +468,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             : "uncertain";
         return durabilityState;
       }
-
       try {
         const entries = await readdir(options.root);
         for (const entry of entries) {
@@ -486,7 +483,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     })();
     return durabilityReconciliation;
   };
-
   const removeStoredCredential = async (
     slot: DesktopCredentialSlot,
     authorizeRename?: () => Promise<boolean>,
@@ -591,7 +587,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       encrypted?.fill(0);
     }
   };
-
   const readAll = async (): Promise<readonly ReadCredential[]> => {
     if ((await reconcileDurability()) !== "verified") {
       return DESKTOP_CREDENTIAL_SLOTS.map((slot) => ({
@@ -604,7 +599,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     for (const slot of DESKTOP_CREDENTIAL_SLOTS) entries.push(await readSlot(slot));
     return entries;
   };
-
   const reapplyConfigured = async (): Promise<void> => {
     const entries = (await readAll())
       .filter(
@@ -627,7 +621,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       }
     }
   };
-
   const retryFailed = async (): Promise<void> => {
     const configured = (await readAll())
       .filter(
@@ -651,7 +644,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       }
     }
   };
-
   const writeCredential = async (
     input: CredentialWriteInput,
     behavior?: CredentialWriteBehavior,
@@ -695,7 +687,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
     ) {
       try {
         await options.prepareEnvelopeWrite(proof);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       initialEncryptionFailure = encryptionRefusal(options.encryption, platform);
     }
     if (initialEncryptionFailure !== undefined) {
@@ -830,7 +824,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
               });
               storageRestored = restored.state === "applied";
             }
-          } catch {}
+          } catch (error) {
+            if (!(error instanceof Error)) throw error;
+          }
           if (!storageRestored) {
             uncertainSlots.add(input.slot);
             setRuntimeState(input.slot, "failed");
@@ -862,7 +858,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
       plaintext?.fill(0);
     }
   };
-
   const credentialStatuses = async (): Promise<readonly CredentialSlotStatus[]> => {
     const entries = await readAll();
     return entries.map((entry) => ({
@@ -872,7 +867,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
         entry.state === "configured" ? (runtimeState.get(entry.slot) ?? "stored-inactive") : null,
     }));
   };
-
   return {
     writeCredential(input, behavior): Promise<CredentialWriteResult> {
       return serializeCredentialMutation(() =>
@@ -881,7 +875,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
         }),
       );
     },
-
     runExclusiveMutation<T>(
       operation: (current: CredentialVaultMutation) => Promise<T>,
     ): Promise<T> {
@@ -909,7 +902,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
         }),
       );
     },
-
     applyLlmSelection(input, catalogSnapshot): Promise<OnboardingLlmSelectionResult> {
       return serializeCredentialMutation(() =>
         exclusive(async () => {
@@ -941,11 +933,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
         }),
       );
     },
-
     credentialStatuses(): Promise<readonly CredentialSlotStatus[]> {
       return exclusive(credentialStatuses);
     },
-
     deleteCredential(slot): Promise<CredentialDeleteResult> {
       return serializeCredentialMutation(() =>
         envelopeExclusive(async (proof) => {
@@ -1005,7 +995,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             let removalReady = false;
             try {
               removalReady = await options.revalidateEnvelopeRemoval(proof);
-            } catch {}
+            } catch (error) {
+              if (!(error instanceof Error)) throw error;
+            }
             if (!removalReady) {
               return { slot, status: "refused", reason: "encryption-unavailable" };
             }
@@ -1065,7 +1057,9 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
             if (proof !== undefined) {
               try {
                 await options.observeEnvelopeRemoved?.(proof);
-              } catch {}
+              } catch (error) {
+                if (!(error instanceof Error)) throw error;
+              }
             }
             return {
               slot,
@@ -1105,7 +1099,6 @@ export function createCredentialVault(options: CredentialVaultOptions): Credenti
         }),
       );
     },
-
     reapplyConfigured: () => serializeCredentialMutation(() => exclusive(reapplyConfigured)),
     retryFailed: () => serializeCredentialMutation(() => exclusive(retryFailed)),
   };

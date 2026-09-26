@@ -95,7 +95,10 @@ export async function openWorkoutChangeSets(input: {
       if (closed) throw new Error("Workout approval service is closed.");
       return action();
     });
-    queue = next.catch(() => undefined);
+    queue = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
   }
   async function verifyAccount(): Promise<void> {

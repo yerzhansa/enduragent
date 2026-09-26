@@ -498,14 +498,19 @@ export async function runWindowsReleaseUpload(input, dependencies = {}) {
           `${JSON.stringify(failureRecord, null, 2)}\n`,
           { flag: "w", mode: 0o600 },
         );
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
     throw error;
   } finally {
     if (staging !== undefined) {
       try {
         await fileDependencies.rm(staging.directory, { recursive: true, force: true });
-      } catch {}
+      } catch (error) {
+        const code = error?.code;
+        if (code !== "ENOENT" && code !== "ENOTDIR") staging = undefined;
+      }
     }
   }
 }

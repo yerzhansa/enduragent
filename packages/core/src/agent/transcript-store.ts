@@ -1965,7 +1965,9 @@ export class TranscriptStore implements TranscriptWriterPort {
         if (!renamed) {
           try {
             this.unlinkPrivateFileIfPresent(directoryDescriptor, tempPath, 1);
-          } catch {}
+          } catch (error) {
+            if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+          }
         }
         throw this.platform === "win32"
           ? classifyWindowsPrivatePathFailure("content-write", error)
@@ -2037,7 +2039,9 @@ export class TranscriptStore implements TranscriptWriterPort {
           if (tempDescriptor !== null) {
             try {
               closeSync(tempDescriptor);
-            } catch {}
+            } catch (closeError) {
+              if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+            }
           }
           throw classifyWindowsPrivatePathFailure("content-write", error);
         }
@@ -2045,7 +2049,9 @@ export class TranscriptStore implements TranscriptWriterPort {
         try {
           if (linked) this.unlinkMatchingTemp(directoryDescriptor, tempPath, targetPath);
           else this.unlinkPrivateFileIfPresent(directoryDescriptor, tempPath, 1);
-        } catch {}
+        } catch (error) {
+          if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+        }
         throw error;
       }
     }, "content-write");
@@ -2909,26 +2915,20 @@ export class TranscriptStore implements TranscriptWriterPort {
       throw this.platform === "win32" ? classifyWindowsPrivatePathFailure("rename", error) : error;
     }
   }
-
   private transcriptPath(chatId: string): string {
     return join(this.transcriptsDir, `${this.chatDigest(chatId)}.jsonl`);
   }
-
   private deletionTempPath(chatId: string, resetId: string): string {
     return join(this.transcriptsDir, `${this.chatDigest(chatId)}.${resetId}.delete.tmp`);
   }
-
   private intentPath(chatId: string): string {
     return join(this.transcriptsDir, `${this.chatDigest(chatId)}.reset-intent.json`);
   }
-
   private intentTempPath(chatId: string, resetId: string): string {
     return join(this.transcriptsDir, `${this.chatDigest(chatId)}.${resetId}.reset-intent.tmp`);
   }
-
   private chatDigest(chatId: string): string {
     return createHash("sha256").update(chatId, "utf8").digest("hex");
   }
 }
-
 TranscriptStore.prototype satisfies TranscriptWriterPort;

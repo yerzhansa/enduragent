@@ -649,7 +649,7 @@ async function runBinaryWithLanguage(
     process.once("SIGINT", onSignal);
 
     if (!process.env[binaryEnvVar(binary.binaryName, "NO_UPDATE_CHECK")]) {
-      notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage).catch(() => {});
+      void notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage);
       // A long-running deployment would otherwise never learn about a new
       // release until it restarts; notifyUpdate dedupes per version so the
       // re-check broadcasts at most once per release. unref() so the timer

@@ -363,16 +363,12 @@ function collectFrame(frame: SDKMessage, collector: FrameCollector, hooks: Frame
   const sessionId = (frame as { session_id?: unknown }).session_id;
   if (typeof sessionId === "string" && sessionId !== "" && collector.sessionId !== sessionId) {
     collector.sessionId = sessionId;
-    try {
-      hooks.onSessionId?.(sessionId);
-    } catch {}
+    hooks.onSessionId?.(sessionId);
   }
 
   if (frame.type === "system" && (frame as { subtype?: unknown }).subtype === "compact_boundary") {
     collector.compactBoundary = true;
-    try {
-      hooks.onCompactBoundary?.();
-    } catch {}
+    hooks.onCompactBoundary?.();
     return;
   }
 
@@ -434,18 +430,14 @@ function collectFrame(frame: SDKMessage, collector: FrameCollector, hooks: Frame
 }
 
 function notify(observer: ((delta: string) => void) | undefined, delta: string): void {
-  try {
-    observer?.(delta);
-  } catch {}
+  observer?.(delta);
 }
 
 function notifyActivity(
   observer: ((activity: ModelStreamActivity) => void) | undefined,
   activity: ModelStreamActivity,
 ): void {
-  try {
-    observer?.(activity);
-  } catch {}
+  observer?.(activity);
 }
 
 function stalledError(stallMs: number): Error {
