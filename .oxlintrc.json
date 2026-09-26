@@ -1,0 +1,83 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-empty": "warn",
+    "no-empty-function": "warn",
+    "no-warning-comments": ["warn", { "terms": ["todo", "fixme", "hack", "xxx"] }],
+    "typescript/ban-ts-comment": "warn",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.test.*",
+        "**/*.spec.*",
+        "**/tests/**",
+        "**/test/**",
+        "**/e2e/**",
+        "**/fixtures/**"
+      ],
+      "rules": {
+        "no-empty-function": "off",
+        "typescript/no-non-null-assertion": "off"
+      }
+    },
+    {
+      "files": ["apps/desktop-renderer/src/ui/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "warn",
+          {
+            "name": "fetch",
+            "message": "Read state through a controller or store; UI components do not call the network."
+          },
+          {
+            "name": "setTimeout",
+            "message": "Read state through a controller or store; UI components do not own timers."
+          },
+          {
+            "name": "setInterval",
+            "message": "Read state through a controller or store; UI components do not own timers."
+          }
+        ],
+        "no-restricted-properties": [
+          "warn",
+          {
+            "object": "window",
+            "property": "enduragentAuth",
+            "message": "Read state through a controller or store; UI components do not call the bridge."
+          },
+          {
+            "object": "window",
+            "property": "enduragentTray",
+            "message": "Read state through a controller or store; UI components do not call the bridge."
+          },
+          {
+            "object": "window",
+            "property": "fetch",
+            "message": "Read state through a controller or store; UI components do not call the network."
+          },
+          {
+            "object": "window",
+            "property": "setTimeout",
+            "message": "Read state through a controller or store; UI components do not own timers."
+          },
+          {
+            "object": "window",
+            "property": "setInterval",
+            "message": "Read state through a controller or store; UI components do not own timers."
+          },
+          {
+            "object": "globalThis",
+            "property": "fetch",
+            "message": "Read state through a controller or store; UI components do not call the network."
+          }
+        ]
+      }
+    }
+  ]
+}

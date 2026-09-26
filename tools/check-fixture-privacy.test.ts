@@ -737,7 +737,7 @@ describe("XML privacy", () => {
     );
     const hits = validateXmlFixtureBytes(Buffer.from(xml), "ordered.gpx");
     expect(new Set(hits.map((hit) => hit.code))).toEqual(new Set(["xml.invalid_coordinate"]));
-    expect(hits.map((hit) => hit.path)).toEqual([...hits.map((hit) => hit.path)].sort());
+    expect(hits.map((hit) => hit.path)).toEqual(hits.map((hit) => hit.path).sort());
   });
 });
 
@@ -925,7 +925,6 @@ function buildStage(): StageFixture {
     canonical({ name: LOCAL_ENCODER_PACKAGE, version: LOCAL_ENCODER_VERSION }),
   );
   const fragmentFiles = committedEntries(root, false).filter((entry) => entry.kind === "fit");
-  const byQa = new Map(fragmentFiles.map((entry) => [entry.qa_cell, entry]));
   const recipe = sha256("FABRICATED-CANONICAL-RECIPE");
   const files = fragmentFiles.map((entry) => {
     const bytes = Buffer.from(`FABRICATED-STAGED-${entry.qa_cell}`);

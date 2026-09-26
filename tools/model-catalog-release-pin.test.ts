@@ -173,8 +173,10 @@ describe("model catalog release pin", () => {
     async function join(firstTrigger: string, secondTrigger: string) {
       const store = createMemoryReleasePinStore();
       const base = prepareInput({ store });
-      const first = await prepareReleaseGroup({ ...base, ...{ trigger: firstTrigger } });
-      const second = await prepareReleaseGroup({ ...base, ...{ trigger: secondTrigger } });
+      const firstInput = { ...base, trigger: firstTrigger };
+      const secondInput = { ...base, trigger: secondTrigger };
+      const first = await prepareReleaseGroup(firstInput);
+      const second = await prepareReleaseGroup(secondInput);
       expect(second.record.releaseGroupId).toBe(first.record.releaseGroupId);
       expect(second.record.digest).toBe(first.record.digest);
       expect(second.record).toEqual(first.record);
@@ -357,8 +359,10 @@ describe("model catalog release pin", () => {
   it("group key ignores run/attempt provenance; two prepares with different fake run ids and same SHA join", async () => {
     const store = createMemoryReleasePinStore();
     const base = prepareInput({ store });
-    const first = await prepareReleaseGroup({ ...base, ...{ runId: "run-111", attempt: "1" } });
-    const second = await prepareReleaseGroup({ ...base, ...{ runId: "run-999", attempt: "8" } });
+    const firstInput = { ...base, runId: "run-111", attempt: "1" };
+    const secondInput = { ...base, runId: "run-999", attempt: "8" };
+    const first = await prepareReleaseGroup(firstInput);
+    const second = await prepareReleaseGroup(secondInput);
     expect(first.record.releaseGroupId).toBe(SOURCE_COMMIT);
     expect(second.record.releaseGroupId).toBe(SOURCE_COMMIT);
     expect(second.record).toEqual(first.record);
