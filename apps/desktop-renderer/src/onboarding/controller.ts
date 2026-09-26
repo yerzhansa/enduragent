@@ -158,9 +158,6 @@ export interface OnboardingControllerOptions {
 }
 
 export const CHATGPT_PROGRESS_DETAIL_DELAY_MS = 3_000;
-// The Desktop main process owns the 10-second runtime activation deadline. This
-// wider renderer deadline only catches a broken IPC response path after main has
-// had time to report its authoritative result.
 export const CHATGPT_ACTIVATION_TRANSPORT_TIMEOUT_MS = 12_000;
 export const ONBOARDING_STATUS_REFRESH_TIMEOUT_MS = 3_000;
 export const ONBOARDING_STATUS_COLD_START_TIMEOUT_MS = 8_000;
@@ -905,8 +902,6 @@ export function createOnboardingController(
       ) {
         return;
       }
-      // An activation result is terminal for this auth generation. Status
-      // refreshes that started while activation was pending must not overwrite it.
       authGeneration += 1;
       const ready = result.status === "fulfilled" && result.value.status === "configured";
       state = withChatGptActivationResult(state, ready);

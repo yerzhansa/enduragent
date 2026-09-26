@@ -145,7 +145,6 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       if (compensation.status === "stored") {
         convergenceTarget = compensation.enabled;
       } else if (compensation.status === "refused") {
-        // The reversible write proved that its prior, the new preference, remains durable.
         convergenceTarget = openAtLogin;
       }
       if (convergenceTarget !== undefined) {
