@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Review and Quality"
+  short_description: "Review a change across five axes"
+  default_prompt: "Use $code-review-and-quality to review the current change for correctness, readability, architecture, security, and performance."
+
+policy:
+  allow_implicit_invocation: false

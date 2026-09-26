@@ -314,3 +314,47 @@ The Cursor paths and slash-command vocabulary were replaced with Codex project-s
 `$skill-name` invocation, and `agents/openai.yaml` policy. The workflows also preserve existing
 executor ownership, enforce isolated Enduragent data and process cleanup, retain privacy-scanned
 evidence, and follow this repository's verification and delivery boundaries.
+
+---
+
+## code-review-and-quality (MIT)
+
+The project-local `.agents/skills/code-review-and-quality` skill is
+[`code-review-and-quality`](https://github.com/addyosmani/agent-skills/tree/main/skills/code-review-and-quality)
+from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) by Addy Osmani,
+distributed under the MIT License. The security and performance checklists copied beside it
+come from that repository's `references/` directory. The local copy adds `disable-model-invocation: true`
+and points its checklist links at the copied `references/` files.
+
+### Original license (verbatim)
+
+```
+MIT License
+
+Copyright (c) 2025 Addy Osmani
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Modifications introduced
+
+The checklist links point at `references/` inside this skill, because a single-skill
+install does not include the upstream `references/` directory. Invocation is explicit:
+Cursor `disable-model-invocation` and Codex `agents/openai.yaml` with
+`allow_implicit_invocation: false`.
