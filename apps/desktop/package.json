@@ -47,7 +47,7 @@
     "@enduragent/core": "workspace:*",
     "@enduragent/i18n": "workspace:*",
     "electron-updater": "6.8.9",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
@@ -56,15 +56,15 @@
     "@enduragent/desktop-renderer": "workspace:*",
     "@enduragent/kernel": "workspace:*",
     "@enduragent/kernel-node": "workspace:*",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-react": "5.2.0",
-    "electron": "44.4.3",
+    "electron": "44.4.4",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
     "esbuild": "0.28.2",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vite": "7.3.6",
     "vitest": "^4.1.11"
