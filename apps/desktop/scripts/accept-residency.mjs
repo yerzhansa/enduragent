@@ -233,7 +233,9 @@ async function terminatePids(pids) {
   for (const pid of pids) {
     try {
       process.kill(pid, "SIGTERM");
-    } catch {}
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
   }
   try {
     await waitPidsDead(pids);
@@ -242,7 +244,9 @@ async function terminatePids(pids) {
       if (!alive(pid)) continue;
       try {
         process.kill(pid, "SIGKILL");
-      } catch {}
+      } catch (error) {
+        if (error?.code !== "ESRCH") throw error;
+      }
     }
     await waitPidsDead(pids);
   }
@@ -291,6 +295,7 @@ async function executeScenario() {
   const stage = join(temporaryRoot, "stage");
   const output = join(temporaryRoot, "output");
   const resources = join(stage, "resources");
+  let teardownFailure;
   try {
     await mkdir(resources, { recursive: true });
     await Promise.all([
@@ -393,34 +398,50 @@ async function executeScenario() {
     assert(sessions.size === 0);
     assert(collectFixtureProcesses().size === 0);
   } finally {
+    const noteTeardownFailure = (error) => {
+      if (!(error instanceof Error) && teardownFailure === undefined) teardownFailure = error;
+    };
     for (const session of sessions) {
       try {
         await terminateSession(session);
-      } catch {}
+      } catch (error) {
+        noteTeardownFailure(error);
+      }
     }
     try {
       await terminatePids(collectFixtureProcesses());
-    } catch {}
+    } catch (error) {
+      noteTeardownFailure(error);
+    }
     if (!cleanObserved && fixtureExecutable !== undefined) {
       try {
         await cleanupRegistration();
-      } catch {}
+      } catch (error) {
+        noteTeardownFailure(error);
+      }
     }
     for (const session of sessions) {
       try {
         await terminateSession(session);
-      } catch {}
+      } catch (error) {
+        noteTeardownFailure(error);
+      }
     }
     try {
       await terminatePids(collectFixtureProcesses());
-    } catch {}
+    } catch (error) {
+      noteTeardownFailure(error);
+    }
     try {
       await terminatePids(new Set([...knownPids].filter((pid) => alive(pid))));
-    } catch {}
+    } catch (error) {
+      noteTeardownFailure(error);
+    }
     fixtureExecutable = undefined;
     fixtureRootPath = undefined;
     await rm(temporaryRoot, { recursive: true, force: true });
   }
+  if (teardownFailure !== undefined) throw teardownFailure;
   assert(!interrupted && cleanObserved);
 }
 
@@ -430,7 +451,9 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     for (const session of sessions) {
       try {
         session.child.kill("SIGTERM");
-      } catch {}
+      } catch (error) {
+        if (error?.code !== "ESRCH") throw error;
+      }
     }
   });
 }
@@ -439,6 +462,8 @@ let ok = false;
 try {
   await executeScenario();
   ok = true;
-} catch {}
+} catch (error) {
+  if (!(error instanceof Error)) throw error;
+}
 process.stdout.write(`RESIDENCY_ACCEPTANCE ${JSON.stringify(result(ok && cleanObserved))}\n`);
 process.exitCode = ok && cleanObserved ? 0 : 1;

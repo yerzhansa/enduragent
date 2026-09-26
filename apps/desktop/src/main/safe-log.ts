@@ -9,6 +9,8 @@ export function createSafeLog(
   return (message: string): void => {
     try {
       outputLog(message);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
   };
 }

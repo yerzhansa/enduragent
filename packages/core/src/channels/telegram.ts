@@ -88,9 +88,7 @@ export function startTypingHeartbeat(
     const task = Promise.resolve()
       .then(pulse)
       .catch((error) => {
-        try {
-          onError(error);
-        } catch {}
+        onError(error);
       })
       .then(() => undefined)
       .finally(() => {
@@ -1123,7 +1121,9 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       );
       try {
         await ctx.editMessageReplyMarkup();
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       await sendLongMessage(ctx, outcome.text, undefined, "plain");
       await presentWorkoutReview(ctx, chatId, phrasebook);
     });

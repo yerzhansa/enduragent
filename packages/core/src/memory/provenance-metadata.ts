@@ -152,15 +152,13 @@ export class ProvenanceMetadata {
   ): void {
     const records: JournalRecord[] = [
       ...deletedKeys.map((key): DeleteRecord => ({ version: 1, op: "delete", key })),
-      ...entries.map(
-        ({ key, content, provenance }): PutRecord => ({
-          version: 1,
-          op: "put",
-          key,
-          digest: contentDigest(content),
-          provenance,
-        }),
-      ),
+      ...entries.map(({ key, content, provenance }): PutRecord => ({
+        version: 1,
+        op: "put",
+        key,
+        digest: contentDigest(content),
+        provenance,
+      })),
     ];
     if (records.length === 0) return;
 
@@ -203,6 +201,7 @@ export class ProvenanceMetadata {
 
   private appendWindows(serialized: string): void {
     let fd: number | undefined;
+    let closeFailure: unknown;
     let stage: WindowsPrivatePathPolicyStage = "content-write";
     try {
       const opened = this.openWindowsFile(fsConstants.O_RDWR | fsConstants.O_APPEND);
@@ -210,10 +209,7 @@ export class ProvenanceMetadata {
         assertWindowsPrivateDirectoryStable(this.windowsDirectory!);
         fd = openSync(
           this.path,
-          fsConstants.O_RDWR |
-            fsConstants.O_APPEND |
-            fsConstants.O_CREAT |
-            fsConstants.O_EXCL,
+          fsConstants.O_RDWR | fsConstants.O_APPEND | fsConstants.O_CREAT | fsConstants.O_EXCL,
           0o600,
         );
         const created = fstatSync(fd);
@@ -231,13 +227,7 @@ export class ProvenanceMetadata {
         const contents = this.readWindowsDescriptor(fd, opened.identity);
         this.assertWindowsRecords(contents);
         stage = "content-write";
-        this.appendWindowsDescriptor(
-          fd,
-          opened.identity,
-          fstatSync(fd).size,
-          contents,
-          serialized,
-        );
+        this.appendWindowsDescriptor(fd, opened.identity, fstatSync(fd).size, contents, serialized);
       }
       stage = "file-flush";
       this.syncFile(fd);
@@ -265,9 +255,20 @@ export class ProvenanceMetadata {
       if (fd !== undefined) {
         try {
           closeSync(fd);
-        } catch {}
+        } catch (closeError) {
+          if (
+            !(
+              typeof closeError === "object" &&
+              closeError !== null &&
+              "code" in closeError &&
+              (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED")
+            )
+          )
+            closeFailure = closeError;
+        }
       }
     }
+    if (closeFailure !== undefined) throw closeFailure;
   }
 
   private openWindowsFile(
@@ -310,10 +311,7 @@ export class ProvenanceMetadata {
         Number.isSafeInteger(before.size) &&
         before.size >= 0 &&
         before.size <= MAX_PROVENANCE_METADATA_BYTES,
-      identityStable: sameWindowsPrivatePathIdentity(
-        identity,
-        windowsPrivatePathIdentity(before),
-      ),
+      identityStable: sameWindowsPrivatePathIdentity(identity, windowsPrivatePathIdentity(before)),
       contentValid: true,
       authenticatedHomeBinding: true,
     });
@@ -328,11 +326,7 @@ export class ProvenanceMetadata {
       const extraBytes = readSync(fd, buffer, before.size, 1, before.size);
       const after = fstatSync(fd);
       assertWindowsPrivateFileMetadata(after);
-      const current = assertWindowsPrivateFileBinding(
-        this.windowsDirectory!,
-        this.path,
-        identity,
-      );
+      const current = assertWindowsPrivateFileBinding(this.windowsDirectory!, this.path, identity);
       let contents = "";
       let contentValid = true;
       try {
@@ -371,8 +365,7 @@ export class ProvenanceMetadata {
     const payload = boundary + serialized;
     const expectedSize = size + Buffer.byteLength(payload, "utf8");
     assertWindowsPrivatePathRead({
-      bounded:
-        Number.isSafeInteger(expectedSize) && expectedSize <= MAX_PROVENANCE_METADATA_BYTES,
+      bounded: Number.isSafeInteger(expectedSize) && expectedSize <= MAX_PROVENANCE_METADATA_BYTES,
       identityStable: true,
       contentValid: true,
       authenticatedHomeBinding: true,
@@ -414,9 +407,7 @@ export class ProvenanceMetadata {
       const opened = this.openWindowsFile(fsConstants.O_RDONLY);
       if (opened === undefined) return new Map();
       fd = opened.fd;
-      const entries = this.assertWindowsRecords(
-        this.readWindowsDescriptor(fd, opened.identity),
-      );
+      const entries = this.assertWindowsRecords(this.readWindowsDescriptor(fd, opened.identity));
       closeSync(fd);
       fd = undefined;
       return entries;
@@ -426,7 +417,17 @@ export class ProvenanceMetadata {
       if (fd !== undefined) {
         try {
           closeSync(fd);
-        } catch {}
+        } catch (closeError) {
+          if (
+            !(
+              typeof closeError === "object" &&
+              closeError !== null &&
+              "code" in closeError &&
+              (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED")
+            )
+          )
+            fd = undefined;
+        }
       }
     }
   }

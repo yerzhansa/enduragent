@@ -222,7 +222,9 @@ describe("coach engine adapter", () => {
         chat: async (_request, onEvent) => {
           try {
             onEvent?.(invalidEvent);
-          } catch {}
+          } catch (error) {
+            if (!(error instanceof Error)) throw error;
+          }
           return { text: "ok" };
         },
       }),

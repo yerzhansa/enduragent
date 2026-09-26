@@ -1,25 +1,6 @@
 import { cliPhrasebook, say } from "../cli-copy.js";
 import { randomUUID } from "node:crypto";
-import {
-  chmodSync,
-  closeSync,
-  createReadStream,
-  existsSync,
-  fstatSync,
-  ftruncateSync,
-  fsyncSync,
-  linkSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  readSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-  type Stats,
-} from "node:fs";
+import { chmodSync, closeSync, createReadStream, existsSync, fstatSync, ftruncateSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, unlinkSync, writeFileSync, type Stats, rmSync } from "node:fs";
 import { constants as fsConstants } from "node:fs";
 import { dirname, join } from "node:path";
 import { TextDecoder } from "node:util";
@@ -258,7 +239,9 @@ function readWindowsAllowedSendersFile(dataDir: string, path: string): string | 
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
-      } catch {}
+      } catch (closeError) {
+        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) descriptor = undefined;
+      }
     }
   }
 }
@@ -626,11 +609,11 @@ function prepareLockfileClaim(
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
-      } catch {}
+      } catch (closeError) {
+        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+      }
     }
-    try {
-      unlinkSync(tempPath);
-    } catch {}
+    rmSync(tempPath, { force: true });
     throw context.platform === "win32" ? classifyWindowsPrivatePathFailure(stage, error) : error;
   }
 }
@@ -866,7 +849,9 @@ function writeWindowsFileDurably(
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
-      } catch {}
+      } catch (closeError) {
+        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) descriptor = undefined;
+      }
     }
   }
 }
@@ -933,7 +918,9 @@ function removeAccessFenceLocked(dataDir: string, context: AllowedSendersStorage
         try {
           writeFileDurably(markerPath, "reset\n", context);
           syncDirectory(dataDir, context);
-        } catch {}
+        } catch (error) {
+          if (!(error instanceof Error)) throw error;
+        }
       }
     }
     throw context.platform === "win32" ? classifyWindowsPrivatePathFailure("rename", error) : error;
@@ -967,9 +954,7 @@ function replaceAllowedSendersLocked(
     }
     syncDirectory(dataDir, context);
   } catch (error) {
-    try {
-      unlinkSync(tmp);
-    } catch {}
+    rmSync(tmp, { force: true });
     if (context.platform === "win32") {
       throw classifyWindowsPrivatePathFailure(renamed ? "binding-check" : "rename", error);
     }

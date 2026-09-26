@@ -104,7 +104,7 @@ async function readBoundedText(
 
   const reader = response.body.getReader();
   const abort = (): void => {
-    void reader.cancel().catch(() => undefined);
+    void reader.cancel();
   };
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;

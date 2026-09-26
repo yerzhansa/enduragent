@@ -276,7 +276,9 @@ function requestSocketClose(socket: WebSocket, code?: number, reason?: string): 
   if (socket.readyState === 2 || socket.readyState === 3) return;
   try {
     socket.close(code, reason);
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+  }
 }
 
 function openCoachSocket(options: ValidatedOptions): Promise<WebSocket> {
@@ -601,12 +603,8 @@ class CoachClientRuntime {
 
     const onNotificationEnvelope = pending.onNotificationEnvelope;
     const onEvent = pending.onEvent;
-    try {
-      onNotificationEnvelope?.(envelope);
-    } catch {}
-    try {
-      onEvent?.(event);
-    } catch {}
+    onNotificationEnvelope?.(envelope);
+    onEvent?.(event);
   }
 
   private handleTerminal(
@@ -638,9 +636,7 @@ class CoachClientRuntime {
       }
       this.claimPending(envelope.id, pending);
       const observer = pending.onTerminalEnvelope;
-      try {
-        observer?.(envelope);
-      } catch {}
+      observer?.(envelope);
       pending.resolve(result);
       this.scheduleIdleClose();
       return;
@@ -653,9 +649,7 @@ class CoachClientRuntime {
     );
     this.claimPending(envelope.id, pending);
     const observer = pending.onTerminalEnvelope;
-    try {
-      observer?.(envelope);
-    } catch {}
+    observer?.(envelope);
     pending.reject(remoteError);
     this.scheduleIdleClose();
   }
@@ -706,9 +700,7 @@ class CoachClientRuntime {
     requestSocketClose(this.socket, closeCode, closeReason);
     const client = this.publicClient;
     if (client !== undefined) {
-      try {
-        this.options.onTerminal?.(client, error);
-      } catch {}
+      this.options.onTerminal?.(client, error);
     }
     this.scheduleIdleClose();
   }

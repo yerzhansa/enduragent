@@ -413,8 +413,11 @@ async function executeRun(options: RunOptions, dependencies: SeasonReviewCommand
   } catch {
     const started = existsSync(options.marker);
     if (storePath !== undefined && before !== undefined) {
-      try { inventory(storePath); }
-      catch {}
+      try {
+        inventory(storePath);
+      } catch (error) {
+        void error;
+      }
     }
     if (!started && createdAgentData && existsSync(options.agentData)) rmSync(options.agentData, { recursive: true });
     return { exitCode: started ? 1 : 2, stdout: JSON.stringify({ status: started ? "run_failed" : "environment" }) };

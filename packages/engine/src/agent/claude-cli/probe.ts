@@ -264,7 +264,9 @@ async function probeOnce(
     if (active !== null) {
       try {
         await active.return(undefined);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) active = null;
+      }
     }
   }
 }

@@ -120,7 +120,9 @@ export async function cancelResponseBody(
   controller.abort();
   try {
     await response.body?.cancel();
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+  }
 }
 
 export async function readBoundedBody(response: Response): Promise<string> {

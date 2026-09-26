@@ -1,20 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import {
-  chmodSync,
-  closeSync,
-  constants as fsConstants,
-  fchmodSync,
-  fsyncSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  rmdirSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, closeSync, constants as fsConstants, fchmodSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -281,11 +266,11 @@ function writeCompleteClaimTemp(lockPath: string, claim: LockClaim): string {
     if (descriptor !== null) {
       try {
         closeSync(descriptor);
-      } catch {}
+      } catch (closeError) {
+        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+      }
     }
-    try {
-      unlinkSync(tempPath);
-    } catch {}
+    rmSync(tempPath, { force: true });
     throw new InterprocessFileLockError("Unable to prepare the profile writer lock claim.", {
       cause: error,
     });
@@ -345,9 +330,7 @@ function publishMarker(
       cause: error,
     });
   } finally {
-    try {
-      unlinkSync(tempPath);
-    } catch {}
+    rmSync(tempPath, { force: true });
   }
 }
 

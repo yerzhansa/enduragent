@@ -1,6 +1,6 @@
 import { randomBytes as nodeRandomBytes } from "node:crypto";
 import { dirname } from "node:path";
-import { chmod, mkdir, open, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, readdir, rename, stat, unlink, rm } from "node:fs/promises";
 import type { FileSystemPort } from "@enduragent/kernel/ports";
 import { ensureWindowsPrivateDirectory } from "../home/windows-home-policy.js";
 import { createFitDecoder } from "../ingest/fit-decoder.js";
@@ -29,11 +29,11 @@ export function nodeFileSystem(): FileSystemPort {
         if (handle !== null) {
           try {
             await handle.close();
-          } catch {}
+          } catch (closeError) {
+            if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+          }
         }
-        try {
-          await unlink(temporary);
-        } catch {}
+        await rm(temporary, { force: true });
         throw error;
       }
     },

@@ -472,7 +472,9 @@ async function atomicPublish(targetPath: string, bytes: string, mode: number): P
       if (openHandle !== null) {
         try {
           await openHandle.close();
-        } catch {}
+        } catch (closeError) {
+          if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+        }
       }
       try {
         await unlink(candidate);
@@ -533,9 +535,7 @@ async function publishHandoff(
 }
 
 async function cleanFailedHandoff(paths: LaunchdServicePaths): Promise<void> {
-  try {
-    await removeOwnedFile(paths.handoffPath);
-  } catch {}
+  await removeOwnedFile(paths.handoffPath);
 }
 
 function requireRegistered(

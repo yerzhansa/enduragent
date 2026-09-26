@@ -257,7 +257,10 @@ async function censusOnce(
   }
 
   if (raced === TIMED_OUT) {
-    void work.catch(() => undefined);
+    void work.then(
+      () => undefined,
+      () => undefined,
+    );
     await held.session?.close();
     return { kind: "timeout" };
   }

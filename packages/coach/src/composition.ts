@@ -12,7 +12,7 @@ import {
   existsSync,
   readFileSync,
   renameSync,
-  unlinkSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -446,9 +446,7 @@ function replacePrivateFile(path: string, content: string | Uint8Array): void {
     chmodSync(temporaryPath, 0o600);
     renameSync(temporaryPath, path);
   } catch (error) {
-    try {
-      unlinkSync(temporaryPath);
-    } catch {}
+    rmSync(temporaryPath, { force: true });
     throw error;
   }
 }
@@ -468,11 +466,7 @@ function restoreRuntimeConfigFile(configDir: string, snapshot: RuntimeConfigFile
     replacePrivateFile(path, snapshot.content);
     return;
   }
-  try {
-    unlinkSync(path);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
+  rmSync(path, { force: true });
 }
 
 function persistRuntimeConfig(
@@ -878,7 +872,6 @@ function createAccessTokenReader(configDir: string): EngineHostPorts["getAccessT
     }
   };
 }
-
 function sameHome(left: AthleteHome, right: AthleteHome): boolean {
   return (
     left.root === right.root &&
@@ -887,7 +880,6 @@ function sameHome(left: AthleteHome, right: AthleteHome): boolean {
     left.configDir === right.configDir
   );
 }
-
 export async function createLocalCoachComposition(
   input: LocalCoachCompositionInput,
   dependencies: LocalCoachCompositionDependencies = {},
@@ -1627,9 +1619,7 @@ export async function createLocalCoachComposition(
       if (request.intervals?.verification_approval !== undefined) {
         const preliminaryCandidate = mergedRuntimeConfig(unapprovedConfig, request);
         let ownerState: Awaited<ReturnType<typeof readIntervalsStoreOwnerState>> | undefined;
-        try {
-          ownerState = await readIntervalsStoreOwnerState(input.context.store);
-        } catch {}
+        ownerState = await readIntervalsStoreOwnerState(input.context.store);
         if (ownerState !== undefined) {
           const approval = intervalsCredentialApprovals.consume({
             approval: request.intervals.verification_approval,
@@ -1812,7 +1802,12 @@ export async function createLocalCoachComposition(
       );
       const timer = setTimeout(() => {
         if (initialRefreshRetryTimer === timer) initialRefreshRetryTimer = undefined;
-        if (!closing) void startInitialRefresh().catch(() => {});
+        if (!closing) {
+          void startInitialRefresh().then(
+            () => undefined,
+            () => undefined,
+          );
+        }
       }, delay);
       timer.unref?.();
       initialRefreshRetryTimer = timer;
@@ -2465,7 +2460,12 @@ export async function createLocalCoachComposition(
           await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
           await attempt(() => runtime!.close());
-          await initialRefreshPromise?.catch(() => {});
+          if (initialRefreshPromise !== undefined) {
+            await initialRefreshPromise.then(
+              () => undefined,
+              () => undefined,
+            );
+          }
           if (failure !== undefined) throw failure.error;
         })();
         return closePromise;

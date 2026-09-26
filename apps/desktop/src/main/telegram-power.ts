@@ -105,11 +105,9 @@ function canonicalTimestamp(value: unknown): string | undefined {
   const canonical = new Date(parsed).toISOString();
   return canonical === value ? canonical : undefined;
 }
-
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-
 function pollingHealth(value: unknown): TelegramPollingHealthObservation | undefined {
   if (!record(value) || !record(value.channel)) return undefined;
   const channel = value.channel;
@@ -129,7 +127,6 @@ function pollingHealth(value: unknown): TelegramPollingHealthObservation | undef
     lastSuccessfulPollAt,
   };
 }
-
 function parseState(
   contents: string,
   athleteHome: AthleteHomeIdentity,
@@ -197,7 +194,6 @@ function parseState(
     warningDetectedAt,
   };
 }
-
 function assertOwner(metadata: Stats, mode: number): void {
   if (
     metadata.isSymbolicLink() ||
@@ -207,7 +203,6 @@ function assertOwner(metadata: Stats, mode: number): void {
     throw new TypeError("unsafe Telegram power state path");
   }
 }
-
 async function assertDirectory(
   root: string,
   create: boolean,
@@ -223,7 +218,6 @@ async function assertDirectory(
   if (!metadata.isDirectory()) throw new TypeError("Telegram power state root is not a directory");
   assertOwner(metadata, TELEGRAM_POWER_STATE_DIRECTORY_MODE);
 }
-
 function emptyState(athleteHome: AthleteHomeIdentity): TelegramPowerStateRecord {
   return {
     schemaVersion: 2,
@@ -234,7 +228,6 @@ function emptyState(athleteHome: AthleteHomeIdentity): TelegramPowerStateRecord 
     warningDetectedAt: null,
   };
 }
-
 function createStateStore(input: {
   readonly root: string;
   readonly athleteHome: AthleteHomeIdentity;
@@ -254,10 +247,20 @@ function createStateStore(input: {
     try {
       await directory.sync();
     } catch (error) {
-      await directory.close().catch(() => undefined);
+      try {
+        await directory.close();
+      } catch (closeError) {
+        const code = (closeError as NodeJS.ErrnoException).code;
+        if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw closeError;
+      }
       throw error;
     }
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw error;
+    }
   };
   const rawSynchronizeDirectory = input.syncDirectory ?? defaultSynchronizeDirectory;
   const rawSynchronizeParentDirectory = input.syncParentDirectory ?? defaultSynchronizeDirectory;
@@ -311,12 +314,11 @@ function createStateStore(input: {
       }
       await synchronizeDirectory(input.root);
       namespaceState = "verified";
-    } catch (error) {
-      namespaceState = "uncertain";
-      throw error;
-    }
+      } catch (error) {
+        namespaceState = "uncertain";
+        throw error;
+      }
   };
-
   const read = async (): Promise<TelegramPowerStateRecord> => {
     await reconcileNamespace();
     let rootMetadata;
@@ -351,7 +353,6 @@ function createStateStore(input: {
     }
     if (!rootMetadata.isDirectory()) throw new TypeError("invalid Telegram power state root");
     assertOwner(rootMetadata, TELEGRAM_POWER_STATE_DIRECTORY_MODE);
-
     let before;
     try {
       before = await lstat(target);
@@ -384,7 +385,6 @@ function createStateStore(input: {
       await handle.close();
     }
   };
-
   const write = async (state: TelegramPowerStateRecord): Promise<DurableReplaceOutcome> => {
     await reconcileNamespace();
     await assertDirectory(input.root, true, input.platform, bindStateDirectory);
@@ -430,16 +430,13 @@ function createStateStore(input: {
       candidate.fill(0);
     }
   };
-
   return { read, write };
 }
-
 function warningFor(state: TelegramPowerStateRecord): TelegramGapWarning {
   return state.warningDetectedAt === null
     ? CLEAR_WARNING
     : { state: "possible-message-loss", detectedAt: state.warningDetectedAt };
 }
-
 function timestamp(now: () => number): string {
   const value = now();
   if (!Number.isFinite(value) || value < 0 || value > 8_640_000_000_000_000) {
@@ -447,7 +444,6 @@ function timestamp(now: () => number): string {
   }
   return new Date(value).toISOString();
 }
-
 export function createDesktopTelegramPowerLifecycle(
   input: CreateDesktopTelegramPowerLifecycleInput,
 ): DesktopTelegramPowerLifecycle {
@@ -471,17 +467,20 @@ export function createDesktopTelegramPowerLifecycle(
   let closePromise: Promise<void> | undefined;
   let scopeMismatch = false;
   let transientStopOutstanding = false;
-
   const report = (failure: TelegramPowerFailure): void => {
     try {
       input.reportFailure?.(failure);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
   };
   const publish = (warning: TelegramGapWarning): TelegramGapWarning => {
     cached = warning;
     try {
       input.observeWarning?.(warning);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     return warning;
   };
   const uncertain = (): TelegramGapWarning => {
@@ -489,7 +488,9 @@ export function createDesktopTelegramPowerLifecycle(
     let detectedAt = "1970-01-01T00:00:00.000Z";
     try {
       detectedAt = timestamp(now);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     return publish({ state: "possible-message-loss", detectedAt });
   };
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -738,7 +739,6 @@ export function createDesktopTelegramPowerLifecycle(
       }
     });
   };
-
   return {
     start() {
       if (closed) return Promise.reject(new TypeError("Telegram power lifecycle is closed"));

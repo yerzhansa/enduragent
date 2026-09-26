@@ -418,6 +418,24 @@ export async function enforceIntervalsStoreOwner(
   return "adopted";
 }
 
+async function closeReadonlyStore(
+  store: { close(): Promise<void> } | undefined,
+): Promise<void> {
+  if (store === undefined) return;
+  try {
+    await store.close();
+  } catch (error) {
+    if (
+      typeof error !== "object" ||
+      error === null ||
+      !("code" in error) ||
+      (error.code !== "ERR_DIR_CLOSED" && error.code !== "EBADF")
+    ) {
+      throw error;
+    }
+  }
+}
+
 export async function checkIntervalsStoreOwnerAtPath(
   storePath: string,
   options: StoreOwnerCheckOptions,
@@ -434,18 +452,18 @@ export async function checkIntervalsStoreOwnerAtPath(
       return "unowned";
     }
   } catch {
-    await store?.close().catch(() => undefined);
+    await closeReadonlyStore(store);
     return "store-unavailable";
   }
   let fingerprint: string | null;
   try {
     fingerprint = await resolveIntervalsStoreOwnerFingerprint(options);
   } catch {
-    await store.close().catch(() => undefined);
+    await closeReadonlyStore(store);
     return "unresolved";
   }
   if (fingerprint === null) {
-    await store.close().catch(() => undefined);
+    await closeReadonlyStore(store);
     return "unresolved";
   }
   try {
@@ -453,7 +471,7 @@ export async function checkIntervalsStoreOwnerAtPath(
     await store.close();
     return ownership;
   } catch {
-    await store?.close().catch(() => undefined);
+    await closeReadonlyStore(store);
     return "store-unavailable";
   }
 }
@@ -470,7 +488,7 @@ async function compareIntervalsStoreOwnerFingerprintAtPath(
     if (timeout?.timeout !== STORE_OWNER_CHECK_BUSY_TIMEOUT_MS) throw new TypeError();
     comparison = await compareStoreOwner(store, fingerprint);
   } catch {
-    await store?.close().catch(() => undefined);
+    await closeReadonlyStore(store);
     return "store-unavailable";
   }
   try {

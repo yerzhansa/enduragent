@@ -61,6 +61,7 @@ export interface CredentialEnvelopeRoots {
 export async function readCredentialEnvelopeDirectory(root: string): Promise<string[]> {
   const directory = await opendir(root);
   const entries: string[] = [];
+  let closeError: unknown;
   try {
     for await (const entry of directory) {
       if (entries.length >= CREDENTIAL_ENVELOPE_DIRECTORY_ENTRY_LIMIT) {
@@ -69,8 +70,14 @@ export async function readCredentialEnvelopeDirectory(root: string): Promise<str
       entries.push(entry.name);
     }
   } finally {
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") closeError = error;
+    }
   }
+  if (closeError !== undefined) throw closeError;
   return entries.sort();
 }
 

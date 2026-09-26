@@ -278,7 +278,11 @@ async function writeWindowsCaptureFile(
     return identity;
   } finally {
     if (handle !== undefined) {
-      await handle.close().catch(() => undefined);
+      try {
+        await handle.close();
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) handle = undefined;
+      }
     }
   }
 }
@@ -339,7 +343,11 @@ async function readWindowsCaptureFile(
   } finally {
     buffer?.fill(0);
     if (handle !== undefined) {
-      await handle.close().catch(() => undefined);
+      try {
+        await handle.close();
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) handle = undefined;
+      }
     }
   }
 }
@@ -722,7 +730,7 @@ export async function writeReferenceCaptureSidecars(input: {
       if (pendingName !== `.pending-${manifest.capture_id}` || !pendingDirectory.startsWith(`${captures}/`)) {
         throw new Error("capture pending cleanup target is invalid", { cause: error });
       }
-      try { await rm(pendingDirectory, { recursive: true }); } catch {}
+      await rm(pendingDirectory, { recursive: true, force: true });
     }
     throw error;
   }

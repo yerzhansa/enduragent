@@ -342,7 +342,10 @@ export function createProviderModelSettingsController(input: {
       });
       await Promise.resolve()
         .then(() => input.onSaved?.(selection))
-        .catch(() => undefined);
+        .then(
+          () => undefined,
+          () => undefined,
+        );
     }
     if (disposed) return;
     const latest = editableState(currentState);

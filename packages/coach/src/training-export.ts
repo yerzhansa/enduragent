@@ -167,11 +167,24 @@ export function createBoundedTrainingExportFetch(input: {
 
 async function syncDirectory(path: string): Promise<void> {
   const directory = await open(path, "r");
+  let closeError: unknown;
   try {
     await directory.sync();
   } finally {
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        (error.code !== "ERR_DIR_CLOSED" && error.code !== "EBADF")
+      ) {
+        closeError = error;
+      }
+    }
   }
+  if (closeError !== undefined) throw closeError;
 }
 
 export function createDurableTrainingExportWriter(input?: {
@@ -220,6 +233,7 @@ export function createDurableTrainingExportWriter(input?: {
       const temporary = pathApi.join(root, `.enduragent-export-${id}.tmp`);
       let handle: Awaited<ReturnType<typeof open>> | undefined;
       let renamed = false;
+      let outcome: "committed" | "uncertain" | "failed";
       try {
         request.signal?.throwIfAborted();
         handle = await openFile(temporary, "wx", 0o600);
@@ -238,13 +252,29 @@ export function createDurableTrainingExportWriter(input?: {
         await renameFile(temporary, destination);
         renamed = true;
         if (platform !== "win32") await sync(root);
-        return "committed";
+        outcome = "committed";
       } catch {
-        return renamed ? "uncertain" : "failed";
+        outcome = renamed ? "uncertain" : "failed";
       } finally {
-        await handle?.close().catch(() => undefined);
-        await removeFile(temporary, { force: true }).catch(() => undefined);
+        if (handle !== undefined) {
+          try {
+            await handle.close();
+          } catch (error) {
+            const benign =
+              typeof error === "object" &&
+              error !== null &&
+              "code" in error &&
+              (error.code === "ERR_DIR_CLOSED" || error.code === "EBADF");
+            if (!benign && outcome === "committed") outcome = "uncertain";
+          }
+        }
+        try {
+          await removeFile(temporary, { force: true });
+        } catch {
+          if (outcome === "committed") outcome = "uncertain";
+        }
       }
+      return outcome;
     },
   });
 }
@@ -416,7 +446,12 @@ export function createTrainingExportService(input: {
             signal: operationSignal,
           });
           writerOwnsBytes = true;
-          void write.finally(() => bytes.fill(0)).catch(() => {});
+          void write
+            .finally(() => bytes.fill(0))
+            .then(
+              () => undefined,
+              () => undefined,
+            );
           outcome = await awaitWithSignal(write, operationSignal);
         } catch {
           if (operationSignal.aborted) return refused("commit-uncertain");
