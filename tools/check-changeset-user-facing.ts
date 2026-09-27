@@ -268,7 +268,7 @@ export function main(argv: readonly string[]): number {
       "or the independently released @enduragent/desktop app. " +
       `Currently: ${[...releaseTargets].sort().join(", ") || "none"}. ` +
       "Add it to the changeset frontmatter, or drop the User-facing line if the change " +
-      "is pure infra. See .changeset/README.md / CLAUDE.local.md (Changesets).",
+      "is pure infra. See .changeset/README.md.",
   );
   return 1;
 }
