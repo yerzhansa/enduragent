@@ -42,6 +42,7 @@ import {
   CHAT_DRAFT_SAVE_FAILURE_COPY,
   CHAT_EMPTY_RESPONSE_COPY,
   CHAT_PLAN_CREATION_FAILURE_COPY,
+  CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
   CHAT_PROTOCOL_FAILURE_COPY,
   CHAT_RESPONSE_STOPPED_COPY,
   NEW_CONVERSATION_MEMORY_WARNING_COPY,
@@ -1016,6 +1017,34 @@ describe("chat controller", () => {
     expect(states.at(-1)?.messages.at(-1)).toMatchObject({
       text: "Recovered",
       delivery: "complete",
+    });
+  });
+
+  it("shows a protocol failure when stopping the active response fails", async () => {
+    const fake = client(
+      async (_request, options) => {
+        deliver(options, { type: "turn-start", turnId: "turn-1", chatId: "desktop" });
+        deliver(options, { type: "text_delta", turnId: "turn-1", delta: "Partial response" });
+        return rejectWhenAborted(options);
+      },
+      {
+        stopChat: async () => Promise.reject(new Error("stop failed")),
+      },
+    );
+    const { controller, states } = subject(fake);
+
+    const submission = controller.submit("Stop this");
+    await vi.waitFor(() => expect(states.at(-1)?.messages.at(-1)?.text).toBe("Partial response"));
+    controller.stop();
+    await submission;
+
+    expect(states.at(-1)).toMatchObject({
+      status: "interrupted",
+      progress: CHAT_PROTOCOL_FAILURE_COPY,
+    });
+    expect(states.at(-1)?.messages.at(-1)).toMatchObject({
+      text: "Partial response",
+      delivery: "interrupted",
     });
   });
 
@@ -2303,6 +2332,44 @@ describe("chat controller", () => {
     await controller.confirmPlanCreationActivate();
     expect(activatePlanCreation).toHaveBeenCalledOnce();
     controller.dispose();
+  });
+
+  it("shows a Plan request load failure when commitments stay pending and the request list cannot reload", async () => {
+    const stale: PlanCreationCardModel = {
+      creationId: "01J00000000000000000000000",
+      version: 3,
+      status: "review",
+      readiness: "ready",
+      answeredSummaries: [],
+      openQuestion: null,
+      draft: planCreationDraft(),
+      calendarWindow: null,
+      draftStale: false,
+      pendingCheck: null,
+      pendingCommitment: null,
+    };
+    const message = "Correct your written commitments before activating this Plan.";
+    const activatePlanCreation = vi
+      .fn<(request: PlanCreationActivateRpcParams) => Promise<PlanCreationActivateRpcResult>>()
+      .mockRejectedValue(new CoachRpcRemoteError(-32000, message, { code: "commitments-pending" }));
+    const listPlanningRequests = vi
+      .fn()
+      .mockResolvedValueOnce({ deliveries: [], planCreation: stale })
+      .mockRejectedValueOnce(new Error("request list unavailable"));
+    const { controller, controls } = subject(
+      client(replies(), { listPlanningRequests, activatePlanCreation }),
+    );
+    await controller.start();
+    await controller.openPlanCreationActivate();
+    await controller.confirmPlanCreationActivate();
+    expect(controls.at(-1)?.planCreation).toMatchObject({
+      error: message,
+      activateConfirmationOpen: false,
+    });
+    expect(controls.at(-1)?.planningRequests).toMatchObject({
+      loaded: false,
+      error: CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY,
+    });
   });
 
   it("cancels activation without changing the Draft and does not restore a dialog after relaunch", async () => {

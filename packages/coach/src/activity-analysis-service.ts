@@ -435,7 +435,10 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
       void shared.promise.finally(() => {
         selected.settled = true;
         if (this.inFlight.get(key) === selected) this.inFlight.delete(key);
-      }).catch(() => {});
+      }).then(
+        () => undefined,
+        () => undefined,
+      );
     }
     shared.consumers += 1;
     return new Promise((resolve, reject) => {

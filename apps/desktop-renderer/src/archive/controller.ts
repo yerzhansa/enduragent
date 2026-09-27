@@ -104,9 +104,7 @@ export function createArchiveController(input: {
 
   const publish = (next: ArchiveViewState): void => {
     state = next;
-    try {
-      input.view.render(state);
-    } catch {}
+    input.view.render(state);
   };
   const publishReading = (reading: ArchiveReadingState): void => {
     publish({ ...state, reading });

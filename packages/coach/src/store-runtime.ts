@@ -145,7 +145,9 @@ export class StoreRuntime {
     };
     try {
       this.canonicalActivityReader();
-    } catch {}
+    } catch (error) {
+      if (this.readonlyStore !== undefined) throw error;
+    }
     this.scheduler = createWallClockScheduler({
       cadenceMs: STORE_REFRESH_INTERVAL_MS,
       run: async () => {
@@ -377,7 +379,10 @@ LIMIT 1`,
       .finally(() => {
         if (this.activeWindow === task) this.activeWindow = undefined;
       })
-      .catch(() => {});
+      .then(
+        () => undefined,
+        () => undefined,
+      );
   }
 
   private async runWindowInternal(admissionSignal: AbortSignal): Promise<StoreWindowResult> {

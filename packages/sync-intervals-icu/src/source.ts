@@ -91,7 +91,9 @@ class DropTally {
       try {
         this.dates.add(parseCivilDate(local.slice(0, 10)));
         return;
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
     this.undated += 1;
   }
@@ -485,7 +487,9 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         const landing = await mapSettingsLanding(copy);
         settings.push({ endpoint_ordinal: 0, payload_index: index,
           external_id: landing.sourceRecordExternalId, payload: row });
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
 
     const activities: DerivedCaptureMember[] = [];
@@ -519,7 +523,9 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         const landing = await mapWellnessLanding(normalized);
         if (landing.date_key !== Number(identity.id.replaceAll("-", ""))) throw new TypeError("wellness identity changed");
         wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: identity.id, payload: row });
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
 
     const streams: DerivedCaptureMember[] = [];

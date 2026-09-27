@@ -1,18 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import {
-  closeSync,
-  constants,
-  fchmodSync,
-  fsyncSync,
-  fstatSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { closeSync, constants, fchmodSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   CHAT_ATTACHMENT_LIMITS,
@@ -477,9 +464,7 @@ export class ChatQueueStore {
       return this.snapshot(parsed);
     } catch (error) {
       if (descriptor !== undefined) closeSync(descriptor);
-      try {
-        unlinkSync(temporary);
-      } catch {}
+      rmSync(temporary, { force: true });
       throw error;
     }
   }

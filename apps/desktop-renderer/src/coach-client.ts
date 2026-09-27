@@ -61,8 +61,14 @@ export function createDesktopCoachClientProvider(
       requested = Promise.reject(error);
     }
     const retirement = requested
-      .catch(() => owner.connection.close())
-      .catch(() => undefined)
+      .then(
+        () => undefined,
+        () => owner.connection.close(),
+      )
+      .then(
+        () => undefined,
+        () => undefined,
+      )
       .finally(() => {
         retirements.delete(owner.connection);
         owned.delete(owner.connection);
@@ -165,7 +171,10 @@ export function createDesktopCoachClientProvider(
       let previous = selected;
       const previousConnection = connection;
       if (previous === undefined && previousConnection !== undefined) {
-        previous = await previousConnection.catch(() => undefined);
+        previous = await previousConnection.then(
+          (owner) => owner,
+          () => undefined,
+        );
       }
       if (previous !== undefined && alreadyReplaced(previous, failedClient)) return previous;
       if (selected === previous) selected = undefined;

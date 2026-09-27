@@ -82,7 +82,10 @@ export function createPersistentOpenRouterModelMetadataCache(
         models.clear();
         for (const [modelId, value] of retained) models.set(modelId, value);
       });
-      writes = work.catch(() => undefined);
+      writes = work.then(
+        () => undefined,
+        () => undefined,
+      );
       await work;
     },
   });

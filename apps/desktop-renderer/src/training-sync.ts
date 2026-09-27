@@ -134,7 +134,9 @@ export function createTrainingSyncCoordinator(input: {
     for (const listener of listeners) {
       try {
         listener(state);
-      } catch {}
+      } catch {
+        continue;
+      }
     }
   };
   const publishProtocol = (selectedEpoch: number, selectedOperation: number): void => {
@@ -312,9 +314,10 @@ export function createTrainingSyncCoordinator(input: {
         return;
       }
 
-      try {
-        await input.refreshTrainingContext();
-      } catch {}
+      await input.refreshTrainingContext().then(
+        () => undefined,
+        () => undefined,
+      );
       if (!current(selectedEpoch)) return;
       if (protocolFault) {
         publishProtocol(selectedEpoch, selectedOperation);
@@ -370,11 +373,9 @@ export function createTrainingSyncCoordinator(input: {
     })();
 
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    void task.finally(() => {
+      if (inFlight === task) inFlight = undefined;
+    });
     return task;
   };
 
@@ -385,7 +386,9 @@ export function createTrainingSyncCoordinator(input: {
       listeners.add(listener);
       try {
         listener(state);
-      } catch {}
+      } catch {
+        void state.status;
+      }
       return () => listeners.delete(listener);
     },
     request() {

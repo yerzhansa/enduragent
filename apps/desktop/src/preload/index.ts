@@ -1464,7 +1464,6 @@ ipcRenderer.on(DESKTOP_LIFECYCLE_CHANNEL, (_event, value: unknown) => {
     }),
   );
 });
-
 ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
   let state: PreloadUpdateState;
   try {
@@ -1472,13 +1471,16 @@ ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
   } catch {
     return;
   }
+  let updateListenerFailure: unknown;
   for (const listener of updateListeners) {
     try {
       listener(parseUpdateState(state));
-    } catch {}
+    } catch (error) {
+      updateListenerFailure ??= error;
+    }
   }
+  if (updateListenerFailure !== undefined) throw updateListenerFailure;
 });
-
 ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   let progress: PreloadChatGptLoginProgress;
   try {
@@ -1486,27 +1488,32 @@ ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) 
   } catch {
     return;
   }
+  let progressListenerFailure: unknown;
   for (const listener of chatGptLoginProgressListeners) {
     try {
       listener(parseChatGptLoginProgress(progress));
-    } catch {}
+    } catch (error) {
+      progressListenerFailure ??= error;
+    }
   }
+  if (progressListenerFailure !== undefined) throw progressListenerFailure;
 });
-
 ipcRenderer.on(DESKTOP_OPEN_SETTINGS_CHANNEL, () => {
   for (const listener of openSettingsListeners) listener();
 });
-
 ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   const parsed = PlanProgressEventSchema.safeParse(value);
   if (!parsed.success) return;
+  let planProgressListenerFailure: unknown;
   for (const listener of planProgressListeners) {
     try {
       listener(PlanProgressEventSchema.parse(parsed.data));
-    } catch {}
+    } catch (error) {
+      planProgressListenerFailure ??= error;
+    }
   }
+  if (planProgressListenerFailure !== undefined) throw planProgressListenerFailure;
 });
-
 if (
   ipcRenderer.sendSync(DESKTOP_DOCUMENT_REGISTRATION_CHANNEL, {
     navigationToken: desktopDocumentNavigationToken,
@@ -1514,7 +1521,6 @@ if (
 ) {
   throw new TypeError();
 }
-
 contextBridge.exposeInMainWorld(
   "enduragentAuth",
   Object.freeze({
@@ -1845,25 +1851,19 @@ contextBridge.exposeInMainWorld(
           .slice(0, CHAT_ATTACHMENT_LIMITS.attachmentsPerMessage);
         if (paths.length === 0) return;
         const operationId = `drop-${++chatAttachmentDropSequence}`;
-        let accepted = false;
-        try {
-          accepted = listener({ phase: "started", operationId }) === true;
-        } catch {}
-        if (!accepted) return;
+        if (listener({ phase: "started", operationId }) !== true) return;
         void ipcRenderer.invoke(DESKTOP_CHAT_ATTACHMENT_DROP_CHANNEL, paths).then(
           (value) => {
             let results: readonly AttachmentAdmissionReadModel[] | null = null;
             try {
               results = parseAttachmentAdmissions(value);
-            } catch {}
-            try {
-              listener({ phase: "settled", operationId, results });
-            } catch {}
+            } catch (error) {
+              if (!(error instanceof Error)) throw error;
+            }
+            listener({ phase: "settled", operationId, results });
           },
           () => {
-            try {
-              listener({ phase: "settled", operationId, results: null });
-            } catch {}
+            listener({ phase: "settled", operationId, results: null });
           },
         );
       };

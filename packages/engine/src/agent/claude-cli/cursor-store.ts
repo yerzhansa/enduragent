@@ -1,16 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  closeSync,
-  constants as fsConstants,
-  fchmodSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { closeSync, constants as fsConstants, fchmodSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 export const CURSOR_FILE_MODE = 0o600;
@@ -86,13 +75,13 @@ function writeQuarantine(path: string, bytes: Buffer): string {
       if (descriptor !== null) {
         try {
           closeSync(descriptor);
-        } catch {}
+        } catch (closeError) {
+          if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+        }
       }
       if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
       if (created) {
-        try {
-          unlinkSync(candidate);
-        } catch {}
+        rmSync(candidate, { force: true });
       }
       throw error;
     }
@@ -144,11 +133,11 @@ export function writeCursorStore(path: string, cursors: CursorStoreDocument): vo
     if (descriptor !== null) {
       try {
         closeSync(descriptor);
-      } catch {}
+      } catch (closeError) {
+        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+      }
     }
-    try {
-      unlinkSync(temp);
-    } catch {}
+    rmSync(temp, { force: true });
     throw error;
   }
 }

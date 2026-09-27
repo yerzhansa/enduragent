@@ -258,7 +258,9 @@ function attachCleanupFailure(
         value: cleanupFailure,
       });
       return primary;
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
   }
   return cleanupFailure;
 }
@@ -793,18 +795,17 @@ export function startGeneration(
   let closed = false;
   let result: SDKResultMessage | null = null;
   let caught: unknown = null;
-
   const close = async (): Promise<void> => {
     if (closed) return;
     closed = true;
     try {
       await active.return(undefined);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
     } finally {
       windowsMcpConfigState?.cleanup?.();
     }
   };
-
   const frames = async function* (): AsyncGenerator<SDKMessage, void> {
     if (started) {
       throw new Error("Claude CLI generation frames() may only be consumed once.");
@@ -835,7 +836,6 @@ export function startGeneration(
     }
     if (cleanupOnlyFailure !== null) throw cleanupOnlyFailure;
   };
-
   return {
     frames,
     interrupt: async (): Promise<void> => {

@@ -132,9 +132,15 @@ export function createCoachEngine(
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const tail = previous.catch(() => {}).then(() => gate);
+    const tail = previous.then(
+      () => gate,
+      () => gate,
+    );
     queueAuthorities.set(chatId, tail);
-    await previous.catch(() => {});
+    await previous.then(
+      () => undefined,
+      () => undefined,
+    );
     try {
       return await work();
     } finally {
@@ -179,9 +185,7 @@ export function createCoachEngine(
     if (onEvent === undefined) return;
     if (run.subscribers.has(onEvent)) return;
     for (const event of run.events) {
-      try {
-        onEvent(event);
-      } catch {}
+      onEvent(event);
     }
     run.subscribers.add(onEvent);
   };
@@ -189,9 +193,7 @@ export function createCoachEngine(
     run.events.push(event);
     const subscribers = Array.from(run.subscribers);
     for (const subscriber of subscribers) {
-      try {
-        subscriber(event);
-      } catch {}
+      subscriber(event);
     }
   };
   const runQueue = (
@@ -219,7 +221,10 @@ export function createCoachEngine(
         const recovery = before.retryRequired;
         if (recovery === undefined || recovery.claimId !== exactId) return { snapshot: before };
         agent.stopChat(chatId, recovery.turnId);
-        await active.catch(() => undefined);
+        await active.then(
+          () => undefined,
+          () => undefined,
+        );
         if (queueRuns.get(chatId) === active) queueRuns.delete(chatId);
         if (queueRetryRuns.get(chatId) === retryRun) queueRetryRuns.delete(chatId);
         return runQueue(chatId, "retry", exactId, undefined, retryRun);

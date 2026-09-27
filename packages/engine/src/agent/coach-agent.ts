@@ -2088,21 +2088,17 @@ export class CoachAgent {
       if (!("turnId" in decision.continuation) || !("coachText" in decision.continuation)) {
         throw new Error("Completed decision continuation is incomplete.");
       }
-      try {
-        onEvent?.({
+      onEvent?.({
           type: "turn-start",
           turnId: decision.continuation.turnId,
           chatId: decision.chatId,
         });
-      } catch {}
       this.repairCoachDecisionSession(decision);
-      try {
-        onEvent?.({
+      onEvent?.({
           type: "final-text",
           turnId: decision.continuation.turnId,
           text: decision.continuation.coachText,
         });
-      } catch {}
       return decision;
     }
     const store = this.requireCoachDecisionStore();
@@ -2111,9 +2107,7 @@ export class CoachAgent {
       throw new Error("Another Coach decision is active.");
     }
     const turnId = this.ports.randomId();
-    try {
-      onEvent?.({ type: "turn-start", turnId, chatId: decision.chatId });
-    } catch {}
+    onEvent?.({ type: "turn-start", turnId, chatId: decision.chatId });
     const athleteText = store.getDecisionAthleteText(decision.chatId, decision.decisionId);
     if (athleteText === null) throw new Error("Decision athlete context was not found.");
     const latestAthleteText =
@@ -2220,9 +2214,7 @@ export class CoachAgent {
         onTextDelta: (delta) => {
           streamedText += delta;
           if (!isPlan) {
-            try {
-              onEvent?.({ type: "text_delta", turnId, delta });
-            } catch {}
+            onEvent?.({ type: "text_delta", turnId, delta });
           }
         },
       });
@@ -2262,9 +2254,7 @@ export class CoachAgent {
         athleteText: "",
         coachText: streamedText,
       });
-      try {
-        onEvent?.({ type: "interrupted", turnId, chatId: decision.chatId, text: streamedText });
-      } catch {}
+      onEvent?.({ type: "interrupted", turnId, chatId: decision.chatId, text: streamedText });
       return this.requireCoachDecisionStore().getDecision(decision.chatId, decision.decisionId)!;
     } finally {
       if (this.activeChatTurns.get(decision.chatId) === activeTurn) {
@@ -2326,9 +2316,7 @@ export class CoachAgent {
     } catch (error) {
       this.log.warn("decision_session_continuation_write_failed", error);
     }
-    try {
-      onEvent?.({ type: "final-text", turnId, text: coachText });
-    } catch {}
+    onEvent?.({ type: "final-text", turnId, text: coachText });
     return completed;
   }
 

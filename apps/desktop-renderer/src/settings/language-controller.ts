@@ -25,7 +25,7 @@ export function createLanguageSettingsController(input: {
     const task = tail.then(async () => {
       if (!disposed) await operation();
     });
-    tail = task.catch(() => {});
+    tail = task;
     return task;
   };
 

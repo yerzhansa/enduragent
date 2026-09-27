@@ -68,7 +68,9 @@ export async function waitForPage(port: number, options: WaitForPageOptions = {}
         );
         if (page !== undefined) return page.webSocketDebuggerUrl as string;
       }
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     const remaining = deadline - Date.now();
     if (remaining > 0) {
       await new Promise((resolveDelay) => setTimeout(resolveDelay, Math.min(25, remaining)));

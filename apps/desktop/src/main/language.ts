@@ -43,7 +43,9 @@ export async function createDesktopLanguage(input: {
       try {
         const saved = await readPreference?.();
         if (saved !== undefined && saved !== null) next = await loadOrEnglish(saved);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       if (request === revision) current = next;
     },
   };

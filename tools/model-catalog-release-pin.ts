@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-catalog";
 import { acceptModelCatalogSnapshot } from "../packages/core/src/model-catalog.js";
@@ -33,8 +33,7 @@ const RevisionField = z.number().int().positive().safe();
 export const BundledSeedProvenanceSchema = z
   .object({
     kind: z.literal("bundled-seed"),
-    establishedAt: IsoTimestampField,
-  })
+    establishedAt: IsoTimestampField })
   .strict();
 
 export const BundledSeedSnapshotSchema = ModelCatalogSnapshotSchema.extend({
@@ -472,7 +471,7 @@ export async function materializeReleaseCatalog(
     await writeFile(temporaryPath, contents, "utf8");
     await rename(temporaryPath, path);
   } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
+    await rm(temporaryPath, { force: true });
     throw error;
   }
   return verifyMaterializedSeed(path, input.prepared);

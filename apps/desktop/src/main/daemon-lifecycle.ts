@@ -230,7 +230,11 @@ export class DesktopDaemonLifecycle {
     ) {
       return;
     }
-    void this.recover(generation).catch(() => {});
+    void this.recover(generation).then(undefined, () => {
+      if (this.state.status === "recovering" || this.state.status === "ready") {
+        this.enterTerminal("unavailable");
+      }
+    });
   }
 
   private async recoverCurrent(
@@ -259,7 +263,7 @@ export class DesktopDaemonLifecycle {
       this.transition({ status: "recovering", generation: failedGeneration });
       const observed = await this.resolver.reobserveAttached(budget);
       if (this.state.status === "closing") {
-        if (observed.status === "connected") void observed.close().catch(() => {});
+        if (observed.status === "connected") await observed.close();
         throw new Error("desktop daemon recovery cancelled");
       }
       if (
@@ -303,7 +307,9 @@ export class DesktopDaemonLifecycle {
       await this.delay(
         RESTART_BACKOFF_MS[Math.min(attemptIndex, 2)]!,
         this.controller.signal,
-      ).catch(() => {});
+      ).then(undefined, (error: unknown) => {
+        if (!this.controller.signal.aborted) throw error;
+      });
       if (this.state.status !== "recovering" || this.controller.signal.aborted) {
         throw new Error("desktop daemon recovery cancelled");
       }
@@ -314,7 +320,7 @@ export class DesktopDaemonLifecycle {
         continue;
       }
       if (this.state.status !== "recovering" || this.controller.signal.aborted) {
-        if (resolution.status === "connected") void resolution.close().catch(() => {});
+        if (resolution.status === "connected") await resolution.close();
         throw new Error("desktop daemon recovery cancelled");
       }
       if (resolution.status === "connected") {
@@ -337,7 +343,12 @@ export class DesktopDaemonLifecycle {
     try {
       requireDesktopDaemonHome(previousResolution.athleteHome, successor.athleteHome);
     } catch (error) {
-      void successor.close().catch(() => {});
+      try {
+        await successor.close();
+      } catch (closeError) {
+        this.enterTerminal("unavailable");
+        throw closeError;
+      }
       this.enterTerminal("unavailable");
       throw error;
     }
@@ -365,11 +376,16 @@ export class DesktopDaemonLifecycle {
       if (this.controller.signal.aborted) onAbort();
     });
     if (this.state.status !== "recovering" || this.controller.signal.aborted) {
-      void successor.close().catch(() => {});
+      await successor.close();
       throw new Error("desktop daemon recovery cancelled");
     }
     if (!prepared) {
-      void successor.close().catch(() => {});
+      try {
+        await successor.close();
+      } catch (closeError) {
+        this.enterTerminal("unavailable");
+        throw closeError;
+      }
       this.enterTerminal("unavailable");
       throw new Error("desktop daemon readiness failed");
     }

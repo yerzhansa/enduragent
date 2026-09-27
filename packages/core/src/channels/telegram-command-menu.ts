@@ -59,7 +59,13 @@ export async function registerTelegramCommandMenus(input: {
       const commands = commandMenuFor(book, input.syncEnabled, input.updateDescription);
       const hash = createHash("sha256").update(JSON.stringify(commands)).digest("hex");
       const path = join(directory, `${code || "default"}.sha256`);
-      const previous = await readFile(path, "utf8").catch(() => undefined);
+      let previous: string | undefined;
+      try {
+        previous = await readFile(path, "utf8");
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+        previous = undefined;
+      }
       if (previous === hash) return;
       await input.api.setMyCommands(commands, code === "" ? undefined : { language_code: code });
       await writeFile(path, hash, { mode: 0o600 });
@@ -84,7 +90,13 @@ export async function registerTelegramChatCommandMenu(input: {
   const directory = join(input.dataDir, "telegram-command-menus", tokenHash);
   await mkdir(directory, { recursive: true });
   const path = join(directory, `chat-${input.chatId}.sha256`);
-  const previous = await readFile(path, "utf8").catch(() => undefined);
+  let previous: string | undefined;
+  try {
+    previous = await readFile(path, "utf8");
+  } catch (error) {
+    if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+    previous = undefined;
+  }
   const scope = { type: "chat" as const, chat_id: input.chatId };
   if (input.automatic) {
     if (previous === undefined || previous === "automatic") return;

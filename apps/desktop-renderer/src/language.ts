@@ -13,7 +13,9 @@ export function rendererLocale(tag: LanguageTag): string {
   try {
     const locale = Intl.getCanonicalLocales(navigator.language.trim().replaceAll("_", "-"))[0];
     if (locale !== undefined) return locale;
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+  }
   return describeLanguage(tag).defaultLocale;
 }
 

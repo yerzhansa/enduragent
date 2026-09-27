@@ -112,7 +112,13 @@ export async function resolveOpenRouterModelMetadata(
   if (!MODEL_ID.test(input.modelId)) return undefined;
   positiveInteger(input.maxAgeMs, "maxAgeMs");
   const now = (input.now ?? Date.now)();
-  const cached = await input.cache.read(input.modelId).catch(() => undefined);
+  let cached: OpenRouterModelMetadataSnapshot | undefined;
+  try {
+    cached = await input.cache.read(input.modelId);
+  } catch (error) {
+    if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+    cached = undefined;
+  }
   if (cached !== undefined) {
     const parsed = SnapshotSchema.safeParse(cached);
     if (parsed.success && fresh(parsed.data, now, input.maxAgeMs)) return parsed.data;
@@ -124,7 +130,7 @@ export async function resolveOpenRouterModelMetadata(
     refreshed = undefined;
   }
   if (refreshed !== undefined) {
-    await input.cache.write(refreshed).catch(() => {});
+    await input.cache.write(refreshed);
     return refreshed;
   }
   const parsed = SnapshotSchema.safeParse(cached);

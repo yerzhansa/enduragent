@@ -270,7 +270,9 @@ export class ModelCatalogArchive {
     } catch (error) {
       try {
         database?.close();
-      } catch {}
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) throw error;
+      }
       if (sqliteIsLocked(error)) {
         throw new CatalogPublicationError("conflict", "the model catalog archive is locked");
       }

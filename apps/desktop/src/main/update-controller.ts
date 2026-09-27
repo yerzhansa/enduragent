@@ -158,7 +158,9 @@ export function createDesktopUpdateController(input: {
     for (const listener of listeners) {
       try {
         listener(copyDesktopUpdateState(state));
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
   };
 
@@ -177,7 +179,9 @@ export function createDesktopUpdateController(input: {
     if (handle === undefined) return;
     try {
       unscheduleTimeout(handle);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     operation[key] = undefined;
   };
   const scheduleOperationTimer = (
@@ -196,31 +200,41 @@ export function createDesktopUpdateController(input: {
     if (operation.errorListener !== undefined) {
       try {
         updater.off("error", operation.errorListener);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       operation.errorListener = undefined;
     }
     if (operation.progressListener !== undefined) {
       try {
         updater.off("download-progress", operation.progressListener);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       operation.progressListener = undefined;
     }
     if (operation.downloadedListener !== undefined) {
       try {
         updater.off("update-downloaded", operation.downloadedListener);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       operation.downloadedListener = undefined;
     }
     if (nativeUpdater !== undefined && operation.nativeDownloadedListener !== undefined) {
       try {
         nativeUpdater.off("update-downloaded", operation.nativeDownloadedListener);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       operation.nativeDownloadedListener = undefined;
     }
     if (nativeUpdater !== undefined && operation.nativeErrorListener !== undefined) {
       try {
         nativeUpdater.off("error", operation.nativeErrorListener);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       operation.nativeErrorListener = undefined;
     }
   };
@@ -228,7 +242,9 @@ export function createDesktopUpdateController(input: {
     if (nativeUpdater === undefined || readinessErrorListener === undefined) return;
     try {
       nativeUpdater.off("error", readinessErrorListener);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     readinessErrorListener = undefined;
   };
   const armReadinessWatch = (): void => {
@@ -271,7 +287,9 @@ export function createDesktopUpdateController(input: {
     if (cancel) {
       try {
         operation.cancellationToken?.cancel();
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     }
     settleOperation(operation);
     if (isCurrent(operation)) generation += 1;
@@ -334,7 +352,9 @@ export function createDesktopUpdateController(input: {
     if (!isCurrent(operation)) {
       try {
         result.cancellationToken?.cancel();
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       return;
     }
     const version = result.updateInfo.version;
@@ -456,7 +476,9 @@ export function createDesktopUpdateController(input: {
           if (!isCurrent(operation)) {
             try {
               result?.cancellationToken?.cancel();
-            } catch {}
+            } catch (error) {
+              if (!(error instanceof Error)) throw error;
+            }
             return;
           }
           const version = result?.updateInfo.version;
@@ -544,7 +566,9 @@ export function createDesktopUpdateController(input: {
         if (intervalTimer !== undefined) {
           try {
             unscheduleInterval(intervalTimer);
-          } catch {}
+          } catch (error) {
+            if (!(error instanceof Error)) throw error;
+          }
           intervalTimer = undefined;
         }
         if (!closed) publish({ status: "failed", stage: "check" });
@@ -596,7 +620,9 @@ export function createDesktopUpdateController(input: {
       if (active) listeners.add(listener);
       try {
         listener(currentState());
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       return active ? () => listeners.delete(listener) : () => {};
     },
     completeInstallAfterDrain(allowFinalQuit) {
@@ -618,7 +644,9 @@ export function createDesktopUpdateController(input: {
       if (intervalTimer !== undefined) {
         try {
           unscheduleInterval(intervalTimer);
-        } catch {}
+        } catch (error) {
+          if (!(error instanceof Error)) throw error;
+        }
         intervalTimer = undefined;
       }
       listeners.clear();
@@ -634,7 +662,9 @@ export function createDesktopUpdateController(input: {
         removeOperationListeners(operation);
         try {
           operation.cancellationToken?.cancel();
-        } catch {}
+        } catch (error) {
+          if (!(error instanceof Error)) throw error;
+        }
         settleOperation(operation);
         activeOperation = undefined;
       }

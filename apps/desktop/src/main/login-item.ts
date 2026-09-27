@@ -170,10 +170,20 @@ export function createBackgroundAtLoginPreferenceStore(
     try {
       await directory.sync();
     } catch (error) {
-      await directory.close().catch(() => undefined);
+      try {
+        await directory.close();
+      } catch (closeError) {
+        const code = (closeError as NodeJS.ErrnoException).code;
+        if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw closeError;
+      }
       throw error;
     }
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw error;
+    }
   };
   const rawSynchronizeDirectory = input.syncDirectory ?? defaultSynchronizeDirectory;
   const rawSynchronizeParentDirectory = input.syncParentDirectory ?? defaultSynchronizeDirectory;

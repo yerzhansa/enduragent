@@ -209,7 +209,9 @@ export function createCoachOperations(
     const parsed = OperationProgressEventSchema.parse(event);
     try {
       onEvent?.(parsed);
-    } catch {}
+    } catch (error) {
+      void error;
+    }
   };
 
   return {

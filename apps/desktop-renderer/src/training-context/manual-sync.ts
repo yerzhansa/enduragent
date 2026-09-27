@@ -189,8 +189,7 @@ export function createManualSyncController(input: {
         })
         .finally(() => {
           if (activationTask === task) activationTask = undefined;
-        })
-        .catch(() => {});
+        });
       return task;
     },
     dispose() {

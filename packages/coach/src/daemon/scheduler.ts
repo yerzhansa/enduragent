@@ -44,9 +44,7 @@ export function createWallClockScheduler(input: CreateWallClockSchedulerInput): 
       activeRun = task;
       void task
         .catch((error) => {
-          try {
-            onError(error);
-          } catch {}
+          onError(error);
         })
         .finally(() => {
           if (activeRun === task) activeRun = undefined;
@@ -69,9 +67,12 @@ export function createWallClockScheduler(input: CreateWallClockSchedulerInput): 
           dependencies.clearTimeout(timer);
           timer = undefined;
         }
-        try {
-          await activeRun;
-        } catch {}
+        if (activeRun !== undefined) {
+          await activeRun.then(
+            () => undefined,
+            () => undefined,
+          );
+        }
       })();
       return closePromise;
     },

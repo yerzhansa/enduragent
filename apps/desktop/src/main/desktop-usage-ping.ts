@@ -61,9 +61,7 @@ export function createDesktopUsagePingController(input: {
 
   const clearScheduled = (): void => {
     if (scheduled === undefined) return;
-    try {
-      unscheduleTimeout(scheduled);
-    } catch {}
+    unscheduleTimeout(scheduled);
     scheduled = undefined;
   };
 
@@ -74,14 +72,12 @@ export function createDesktopUsagePingController(input: {
       Number.isSafeInteger(delay) && delay > 0 && delay <= DESKTOP_USAGE_PING_INTERVAL_MS
         ? delay
         : DESKTOP_USAGE_PING_INTERVAL_MS;
-    try {
-      const handle = scheduleTimeout(() => {
-        if (scheduled === handle) scheduled = undefined;
-        void run();
-      }, boundedDelay);
-      scheduled = handle;
-      handle.unref();
-    } catch {}
+    const handle = scheduleTimeout(() => {
+      if (scheduled === handle) scheduled = undefined;
+      void run();
+    }, boundedDelay);
+    scheduled = handle;
+    handle.unref();
   };
 
   const send = async (instanceId: string): Promise<void> => {
@@ -106,13 +102,11 @@ export function createDesktopUsagePingController(input: {
         cache: "no-store",
         signal: controller.signal,
       });
-    } catch {
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (!(error instanceof Error)) throw error;
     } finally {
-      if (deadline !== undefined) {
-        try {
-          unscheduleTimeout(deadline);
-        } catch {}
-      }
+      if (deadline !== undefined) unscheduleTimeout(deadline);
       if (requestController === controller) requestController = undefined;
     }
   };
@@ -142,7 +136,9 @@ export function createDesktopUsagePingController(input: {
     if (inFlight !== undefined) return inFlight;
     let operation: Promise<void>;
     operation = perform()
-      .catch(() => undefined)
+      .catch(() => {
+        schedule(DESKTOP_USAGE_PING_INTERVAL_MS);
+      })
       .finally(() => {
         if (inFlight === operation) inFlight = undefined;
       });

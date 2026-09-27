@@ -119,7 +119,10 @@ export class TelegramUpdateOffsetStore {
     } else if (v.version === 1) {
       try {
         lastAcceptedAtMs = statSync(this.path).mtimeMs;
-      } catch {}
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
+        lastAcceptedAtMs = null;
+      }
     }
     if (
       v.version === STORE_VERSION &&

@@ -315,7 +315,11 @@ export async function acquireWriteLock(
           await writePortFile(portFilePath, created.port);
           ownedPortFile = await fileIdentity(portFilePath);
         } catch (error) {
-          await owned.forceClose().catch(() => {});
+          try {
+            await owned.forceClose();
+          } catch (error) {
+            if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) throw error;
+          }
           throw error;
         }
         if (released) {
@@ -351,7 +355,9 @@ export async function acquireWriteLock(
           let protocolClose = protocol?.forceClose();
           try {
             await bindingPromise;
-          } catch {}
+          } catch (error) {
+            if (!(error instanceof Error)) throw error;
+          }
           try {
             protocolClose ??= protocol?.forceClose();
             await protocolClose;

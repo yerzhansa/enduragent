@@ -325,6 +325,7 @@ export async function verifyWindowsReleaseAssets(artifactDirectory, options, ove
     authenticode = WINDOWS_AUTHENTICODE_PENDING;
   } else {
     let staging;
+    let closeFailure;
     try {
       staging = await dependencies.mkdtemp(join(tmpdir(), "enduragent-windows-verify-"));
       await dependencies.chmod(staging, 0o700);
@@ -342,9 +343,13 @@ export async function verifyWindowsReleaseAssets(artifactDirectory, options, ove
       if (staging !== undefined) {
         try {
           await dependencies.rm(staging, { recursive: true, force: true });
-        } catch {}
+        } catch (error) {
+          const code = error?.code;
+          if (code !== "ENOENT" && code !== "ENOTDIR") closeFailure = error;
+        }
       }
     }
+    if (closeFailure !== undefined) throw closeFailure;
     authenticode = "verified";
   }
   return Object.freeze({

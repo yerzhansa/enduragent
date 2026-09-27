@@ -53,10 +53,20 @@ export async function syncDirectory(
   try {
     await directory.sync();
   } catch (error) {
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (closeError) {
+      const code = (closeError as NodeJS.ErrnoException).code;
+      if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw closeError;
+    }
     throw error;
   }
-  await directory.close().catch(() => undefined);
+  try {
+    await directory.close();
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw error;
+  }
 }
 
 export async function durableAtomicReplace(
@@ -163,10 +173,15 @@ export async function durableAtomicReplace(
     return { state: renamed ? "commit-uncertain" : "not-committed" };
   } finally {
     contents.fill(0);
-    try {
-      await handle?.close();
-    } catch {}
-    await removeFile(temporary, { force: true }).catch(() => undefined);
+    if (handle !== undefined) {
+      try {
+        await handle.close();
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "EBADF") handle = undefined;
+      }
+    }
+    await removeFile(temporary, { force: true });
   }
 }
 
@@ -238,12 +253,16 @@ async function durableAtomicRemove(
       return { state: "commit-uncertain" };
     }
   }
-  await removeFile(tombstone, { force: true }).catch(() => undefined);
+  await removeFile(tombstone, { force: true });
   if (
     platform !== "win32" ||
     classifyWindowsPrivatePathDurability("directory-sync").kind !== "unavailable"
   ) {
-    await sync(input.root).catch(() => undefined);
+    try {
+      await sync(input.root);
+    } catch {
+      return { state: "commit-uncertain" };
+    }
   }
   return { state: "durably-committed" };
 }

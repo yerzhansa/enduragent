@@ -48,7 +48,9 @@ export function performCoachClientHandshake(
       if (input.socket.readyState !== 1) return;
       try {
         input.socket.close(code);
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
     };
 
     const fail = (error: Error, closeCode = 1002): void => {

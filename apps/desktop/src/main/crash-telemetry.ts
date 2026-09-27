@@ -82,7 +82,9 @@ export function installDesktopCrashTelemetry(input: {
     try {
       url = webContents.getURL();
       title = webContents.getTitle();
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
     log(
       describeRenderProcessGone({
         url,

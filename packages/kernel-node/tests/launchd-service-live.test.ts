@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -48,7 +48,9 @@ async function waitForStarts(path: string): Promise<number[]> {
     let bytes = "";
     try {
       bytes = await readFile(path, "utf8");
-    } catch {}
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     const starts = bytes
       .trim()
       .split("\n")
@@ -144,9 +146,7 @@ liveDescribe("launchd standard-location probe", () => {
       await runLaunchctl(["bootout", target]);
       if (paths !== undefined) {
         for (const path of [paths.plistPath, paths.envPath, paths.wrapperPath, paths.handoffPath]) {
-          try {
-            await unlink(path);
-          } catch {}
+          await rm(path, { force: true });
         }
       }
       await rm(root, { recursive: true, force: true });

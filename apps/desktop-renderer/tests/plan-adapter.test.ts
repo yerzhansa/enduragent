@@ -678,6 +678,117 @@ describe("Plan view adapter", () => {
     });
   });
 
+  it("surfaces a failed Plan coach stop on the coach error progress", async () => {
+    const initial = planReadModel({
+      lifecycle: "intake",
+      scenarioId: "PL-S017",
+      projection: "coach",
+      data: planCoachData(),
+    });
+    const transition = deferred<ExecutePlanTransitionRpcResult>();
+    const call = vi.fn(async (method: string) => {
+      if (method === "stopChat") throw new Error("stop unavailable");
+      return {};
+    });
+    const clients = {
+      getClient: async () => ({ call }),
+      reconnect: async () => ({ call }),
+      close: async () => undefined,
+    } as unknown as DesktopCoachClientProvider;
+    const subject = harness({
+      clients,
+      ids: ["coach-command"],
+      messageIds: ["message-1", "message-2"],
+      getPlanState: async () => ({ status: "ready", state: initial }),
+      executePlanTransition: () => transition.promise,
+    });
+    subject.adapter.start();
+    await settle();
+    await subject.adapter.submitCoach("Gran Fondo Almaty.");
+    subject.progress({
+      commandId: "coach-command",
+      transitionId: "PL-T05",
+      operationId: "operation-1",
+      phase: "running",
+      completed: 0,
+      total: 1,
+      turnEvent: {
+        type: "turn-start",
+        turnId: "turn-1",
+        chatId: "plan:00000000000000000000000001",
+      },
+    });
+
+    subject.adapter.stopCoach();
+    await vi.waitFor(() =>
+      expect(subject.surface.coach.notice).toBe("Plan could not connect. Try again."),
+    );
+  });
+
+  it("surfaces a failed queued Plan coach removal on the coach queue mutation error", async () => {
+    const initial = planReadModel({
+      lifecycle: "intake",
+      scenarioId: "PL-S017",
+      projection: "coach",
+      data: planCoachData(),
+    });
+    const getClient = vi.fn(async () => {
+      throw new Error("client unavailable");
+    });
+    const clients = {
+      getClient,
+      reconnect: async () => {
+        throw new Error("client unavailable");
+      },
+      close: async () => undefined,
+    } as unknown as DesktopCoachClientProvider;
+    const subject = harness({
+      clients,
+      getPlanState: async () => ({ status: "ready", state: initial }),
+    });
+    subject.adapter.start();
+    await settle();
+    expect(subject.surface.hydration.status).toBe("ready");
+
+    subject.adapter.removeQueuedCoachMessage("queued-1");
+    await vi.waitFor(() => expect(getClient).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(subject.surface.coach.queueMutationError).toBe("Plan could not connect. Try again."),
+    );
+  });
+
+  it("surfaces a failed Course file picker on Plan hydration", async () => {
+    const initial = planReadModel({
+      lifecycle: "intake",
+      scenarioId: "PL-S017",
+      projection: "coach",
+      data: planCoachData(),
+    });
+    const subject = harness({
+      getPlanState: async () => ({ status: "ready", state: initial }),
+      choosePlanRaceCourseFile: async () => {
+        throw new Error("picker unavailable");
+      },
+    });
+    subject.adapter.start();
+    await settle();
+    expect(subject.surface.hydration.status).toBe("ready");
+
+    subject.adapter.openCoursePicker();
+    subject.adapter.chooseCourseFile();
+    await vi.waitFor(() =>
+      expect(subject.surface.hydration).toEqual({
+        status: "failed",
+        error: {
+          code: "unavailable",
+          message: "Plan could not connect. Try again.",
+          retryable: true,
+        },
+      }),
+    );
+    expect(subject.surface.coursePicker).toBe(true);
+  });
+
   it("answers a host-owned Coach decision through the persisted Plan transition", async () => {
     const decision = {
       decisionId: "decision-1",

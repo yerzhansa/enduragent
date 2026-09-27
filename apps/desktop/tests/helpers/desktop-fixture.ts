@@ -803,7 +803,10 @@ export async function launchDesktopFixture(input: {
             const target = entries.find((entry) => typeof entry.webSocketDebuggerUrl === "string");
             if (target !== undefined) mainDebuggerUrl = target.webSocketDebuggerUrl as string;
           }
-        } catch {}
+        } catch (error) {
+          const aborted = error instanceof DOMException && error.name === "AbortError";
+          if (!(error instanceof TypeError) && !aborted) throw error;
+        }
         if (mainDebuggerUrl === undefined) {
           await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
         }

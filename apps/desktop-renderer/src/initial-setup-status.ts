@@ -42,14 +42,12 @@ export function settleInitialSetupStatus(input: {
     input.reportFailure();
     generation = Promise.resolve(undefined);
   }
-  void input
-    .open()
-    .finally(() => {
-      input.markSettled();
-      void generation.then((value) => {
-        if (value === undefined) return;
-        void report(value);
-      });
-    })
-    .catch(() => {});
+  const finish = (): void => {
+    input.markSettled();
+    void generation.then((value) => {
+      if (value === undefined) return;
+      void report(value);
+    });
+  };
+  void input.open().then(finish, finish);
 }

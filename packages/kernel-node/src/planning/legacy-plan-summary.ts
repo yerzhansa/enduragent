@@ -46,9 +46,7 @@ function summarize(source: z.infer<typeof LegacyPlanSourceSchema>) {
 type LegacyPlanSummary = ReturnType<typeof summarize>;
 
 function warn(logger: LegacyPlanImportLogger, message: string): void {
-  try {
-    logger.warn(message);
-  } catch {}
+  logger.warn(message);
 }
 
 export async function readLegacyCurrentPlanSummary(input: {

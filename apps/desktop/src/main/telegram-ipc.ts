@@ -214,7 +214,9 @@ function parseGapWarning(value: unknown): TelegramGapWarning | undefined {
       if (new Date(value.detectedAt).toISOString() === value.detectedAt) {
         return { state: "possible-message-loss", detectedAt: value.detectedAt };
       }
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
   }
   return undefined;
 }
@@ -230,12 +232,15 @@ async function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">
   let cleared = false;
   try {
     value = await clipboard.readText();
-  } catch {
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
   } finally {
     try {
       clipboard.clear();
       cleared = true;
-    } catch {}
+    } catch {
+      cleared = false;
+    }
   }
   if (!cleared) return { status: "refused", reason: "clipboard-clear-failed" };
   if (typeof value !== "string") {
@@ -318,7 +323,9 @@ export function installDesktopTelegramIpc(input: {
         let current = closedSnapshot();
         try {
           current = parseSnapshot(await input.coordinator.status()) ?? current;
-        } catch {}
+        } catch (error) {
+          if (!(error instanceof Error)) throw error;
+        }
         return {
           outcome: "uncertain",
           reason: "control-uncertain",
@@ -333,7 +340,9 @@ export function installDesktopTelegramIpc(input: {
       let snapshot = closedSnapshot();
       try {
         snapshot = parseSnapshot(await input.coordinator.status()) ?? snapshot;
-      } catch {}
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+      }
       return { outcome: "refused", reason, current: await withGapWarning(snapshot) };
     });
   const readSenders = (operation: () => Promise<unknown>): Promise<TelegramAllowedSendersResult> =>
@@ -474,12 +483,16 @@ export function installDesktopTelegramIpc(input: {
           let warning: TelegramGapWarning | undefined;
           try {
             warning = parseGapWarning(await input.power.acknowledgeWarning());
-          } catch {}
+          } catch (error) {
+            if (!(error instanceof Error)) throw error;
+          }
           if (warning === undefined) {
             let current = closedSnapshot();
             try {
               current = parseSnapshot(await input.coordinator.status()) ?? current;
-            } catch {}
+            } catch (error) {
+              if (!(error instanceof Error)) throw error;
+            }
             return {
               outcome: "uncertain",
               reason: "storage-uncertain",

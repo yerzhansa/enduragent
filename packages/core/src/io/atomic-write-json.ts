@@ -1,4 +1,4 @@
-import { open, rename, unlink } from "node:fs/promises";
+import { open, rename, rm } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import {
   classifyWindowsPrivatePathFailure,
@@ -66,22 +66,18 @@ export async function atomicWriteJson(
       return true;
     });
     if (!committed) {
-      await unlink(tempPath).catch(() => undefined);
+      await rm(tempPath, { force: true });
       return;
     }
   } catch (err) {
     if (fh !== null) {
       try {
         await fh.close();
-      } catch {
-        // Ignore — we're already in the error path.
+      } catch (error) {
+        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) throw error;
       }
     }
-    try {
-      await unlink(tempPath);
-    } catch {
-      // Temp file may not exist (open failed) or rename succeeded already.
-    }
+    await rm(tempPath, { force: true });
     throw (opts?.platform ?? process.platform) === "win32"
       ? classifyWindowsPrivatePathFailure(stage, err)
       : err;

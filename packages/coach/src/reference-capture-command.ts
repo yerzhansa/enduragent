@@ -352,8 +352,21 @@ export async function persistReferenceCaptureConclusion(
     const final = validateReferenceCaptureConclusion(JSON.parse(finalBytes));
     if (finalBytes !== bytes || `${canonicalJson(final)}\n` !== bytes) throw new TypeError("conclusion reload differs");
   } catch (error) {
-    if (handle !== undefined) try { await handle.close(); } catch {}
-    try { await unlink(temporary); } catch {}
+    if (handle !== undefined) {
+      try {
+        await handle.close();
+      } catch (closeError) {
+        if (
+          typeof closeError !== "object" ||
+          closeError === null ||
+          !("code" in closeError) ||
+          (closeError.code !== "ERR_DIR_CLOSED" && closeError.code !== "EBADF")
+        ) {
+          throw closeError;
+        }
+      }
+    }
+    await rm(temporary, { force: true });
     throw error;
   }
 }
@@ -668,7 +681,6 @@ async function defaultSelectionMismatch(store: SqlReadStore, manifest: Reference
     return false;
   } catch { return true; }
 }
-
 async function executingHead(git: NonNullable<ReferenceCaptureCommandDependencies["git"]>): Promise<string> {
   let root: string, head: string;
   try {
@@ -678,7 +690,6 @@ async function executingHead(git: NonNullable<ReferenceCaptureCommandDependencie
   if (!isAbsolute(root) || !HEX_40.test(head)) fail("INTERNAL");
   return head;
 }
-
 function environmentConclusion(
   head: string,
   manifestHash: string | null,
@@ -692,7 +703,6 @@ function environmentConclusion(
     direct_metric_exception_keys: [], projected_metric_exception_keys: [], fixture_mismatch_families: [],
     metric_mismatch_keys: [], direct_family_counts: {}, projected_family_counts: {}, environment_code: code });
 }
-
 function completedConclusion(
   head: string,
   manifestHash: string,
@@ -726,7 +736,6 @@ function completedConclusion(
     direct_family_counts: comparison.directFamilyCounts, projected_family_counts: comparison.projectedFamilyCounts,
     environment_code: null });
 }
-
 function outputFor(record: ReferenceCaptureConclusionV1): ReferenceCaptureCommandResult {
   if (record.verdict === "PASS") return { exitCode: 0, stream: "stdout", conclusion: record,
     line: `REFERENCE_CAPTURE PASS fixture_equal=true metric_maps_complete=true metrics_equal=true registry_keys=${record.registry_key_count} metric_exceptions=0 fixture_mismatches=0 metric_mismatches=0` };
@@ -735,11 +744,9 @@ function outputFor(record: ReferenceCaptureConclusionV1): ReferenceCaptureComman
   return { exitCode: 2, stream: "stderr", conclusion: record,
     line: `REFERENCE_CAPTURE ENVIRONMENT code=${record.environment_code}` };
 }
-
 function bareEnvironment(code: ReferenceCaptureEnvironmentCode): ReferenceCaptureCommandResult {
   return { exitCode: 2, stream: "stderr", conclusion: null, line: `REFERENCE_CAPTURE ENVIRONMENT code=${code}` };
 }
-
 async function finalize(
   path: string,
   record: ReferenceCaptureConclusionV1,
@@ -749,7 +756,6 @@ async function finalize(
   catch { return bareEnvironment("CONCLUSION_WRITE"); }
   return outputFor(record);
 }
-
 export async function runReferenceCaptureCommand(
   args: readonly string[],
   dependencies: ReferenceCaptureCommandDependencies = {},
@@ -766,7 +772,6 @@ export async function runReferenceCaptureCommand(
   } catch (error) {
     return bareEnvironment(error instanceof EnvironmentFailure ? error.code : "INPUT_PATH");
   }
-
   const git = dependencies.git ?? (async (gitArgs, cwd) => (await execFile("git", gitArgs, { cwd, encoding: "utf8" })).stdout);
   let head: string;
   try { head = await executingHead(git); } catch { return bareEnvironment("INTERNAL"); }
@@ -776,7 +781,6 @@ export async function runReferenceCaptureCommand(
     if (code === "CONCLUSION_PATH" || code === "CONCLUSION_WRITE") return bareEnvironment(code);
     return finalize(options.conclusion, environmentConclusion(head, manifestHash, captureIdHash, code), persist);
   };
-
   let manifest: ReferenceCaptureManifest;
   try {
     const manifestBytes = new Uint8Array(await readFile(input.manifest_path));
@@ -787,7 +791,6 @@ export async function runReferenceCaptureCommand(
   } catch (error) {
     return environment(error instanceof EnvironmentFailure ? error.code : "ARCHIVE_MEMBER");
   }
-
   const payloadSet = new CapturedReferencePayloadSet(manifest);
   const inputFs = dependencies.inputFileSystem ?? nodeFileSystem();
   const reader = createVerifiedSnapshotReader({ archiveRoot: input.archive_root, crypto: createNodeCrypto(), fs: inputFs });
@@ -795,7 +798,6 @@ export async function runReferenceCaptureCommand(
   let direct: ReturnType<typeof buildFixtureShape>;
   try { direct = buildFixtureShape(bundleProjection(await payloadSet.directBundle(reader))); }
   catch (error) { return environment(error instanceof EnvironmentFailure ? error.code : "PROJECTION_FAILED"); }
-
   let scratch: string | undefined;
   try {
     scratch = await mkdtemp(join(dirname(options.conclusion), ".reference-capture-"));
@@ -847,13 +849,11 @@ export async function runReferenceCaptureCommand(
   if (environmentCode !== null || comparison === undefined) return environment(environmentCode ?? "INTERNAL");
   return finalize(options.conclusion, completedConclusion(head, manifestHash!, captureIdHash!, comparison, selectionMismatch), persist);
 }
-
 async function main(): Promise<void> {
   const result = await runReferenceCaptureCommand(process.argv.slice(2));
   (result.stream === "stdout" ? console.log : console.error)(result.line);
   process.exitCode = result.exitCode;
 }
-
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(() => {
     console.error("REFERENCE_CAPTURE ENVIRONMENT code=INTERNAL");

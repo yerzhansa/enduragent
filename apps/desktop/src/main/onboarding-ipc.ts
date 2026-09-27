@@ -334,7 +334,9 @@ async function llmConfiguration(
     if (snapshot.llm.credential_configured) {
       active = { provider: snapshot.llm.provider, model: snapshot.llm.model };
     }
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+  }
   return {
     schemaVersion: 1,
     catalogRevision: catalog.revision,

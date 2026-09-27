@@ -60,14 +60,11 @@ import { createTrainingExportController } from "./training-export/controller";
 import { settleInitialSetupStatus } from "./initial-setup-status";
 import { createPlanController } from "./plan/controller";
 import { subscribePlanLibraryRefresh } from "./plan/library-refresh";
-
 export type Disposer = () => void;
-
 function focusComposer(): void {
   const composer = document.querySelector("#message");
   if (composer instanceof HTMLTextAreaElement) composer.focus();
 }
-
 export function onboardingCredentialMutationsBlocked(
   state: Pick<EnduragentState, "settings">,
 ): boolean {
@@ -76,21 +73,25 @@ export function onboardingCredentialMutationsBlocked(
     nonTelegramSettingsMutationActive(state.settings),
   );
 }
-
 export function bootRenderer(): Disposer {
   const store = useEnduragentStore;
   const planReturnStorageKey = "enduragent.plan.return-on-launch";
+  let restorePlanView = false;
   try {
-    if (window.localStorage.getItem(planReturnStorageKey) === "true") {
-      store.getState().setActiveView("plan");
-    }
-  } catch {}
+    restorePlanView = window.localStorage.getItem(planReturnStorageKey) === "true";
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+    restorePlanView = false;
+  }
+  if (restorePlanView) store.getState().setActiveView("plan");
   const disposePlanReturn = store.subscribe((state, previousState) => {
     if (state.activeView === previousState.activeView) return;
     try {
       if (state.activeView === "plan") window.localStorage.setItem(planReturnStorageKey, "true");
       else window.localStorage.removeItem(planReturnStorageKey);
-    } catch {}
+    } catch (error) {
+      if (!(error instanceof DOMException)) throw error;
+    }
   });
   const platform = rendererPlatformProjection(window.enduragentAuth.platform);
   store.getState().setOnboardingStartupSettled(false);
@@ -763,7 +764,6 @@ export function bootRenderer(): Disposer {
       document.documentElement.dataset.rpc = "failed";
     },
   );
-
   let disposed = false;
   const dispose = (): void => {
     if (disposed) return;
