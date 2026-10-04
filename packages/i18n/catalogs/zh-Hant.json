@@ -2661,7 +2661,7 @@
       "plan": "產生訓練計畫",
       "review": "回顧上次訓練",
       "start": "開始新對話",
-      "status": "查看目前體能（CTL）、疲勞（ATL）和狀態（TSB）",
+      "status": "查看目前體能、疲勞和狀態",
       "sync": "強制從 {{service}} 重新整理訓練資料",
       "update": "檢查並安裝更新",
       "version": "顯示目前版本",
@@ -2745,7 +2745,7 @@
       "unknownSection": "未知部分：`{{section}}`。\n\n有效部分：{{sections}}。"
     },
     "status": {
-      "working": "正在取得體能（CTL）資料…"
+      "working": "正在取得體能資料…"
     },
     "sync": {
       "complete": "同步完成 ✅",
@@ -2778,9 +2778,9 @@
       "managedInstruction": "傳送 {{whatsnew}} 查看變更。{{notice}}",
       "prepareFailed": "暫時無法安全地準備更新。請稍後再次嘗試 {{command}}。"
     },
-    "welcome": "歡迎使用 {{product}}！\n\n我是 AI 自行車教練，可以使用 {{service}} 資料制定訓練計畫、推薦訓練課表並追蹤體能（CTL）。\n\n指令：\n{{plan}} — 產生訓練計畫\n{{workout}} — 取得今日訓練課表\n{{status}} — 查看目前體能（CTL）、疲勞（ATL）和狀態（TSB）\n{{review}} — 回顧上次訓練\n{{feedback}} — 向 Enduragent 作者傳送備註\n{{sync}} — 強制從 {{service}} 重新整理訓練資料\n{{version}} — 顯示目前版本\n{{whatsnew}} — 查看最新版本的變更\n{{update}} — {{updateDescription}}\n\n也可以直接和我聊聊訓練！",
+    "welcome": "歡迎使用 {{product}}！\n\n我是 AI 自行車教練，可以使用 {{service}} 資料制定訓練計畫、推薦訓練課表並追蹤體能。\n\n指令：\n{{plan}} — 產生訓練計畫\n{{workout}} — 取得今日訓練課表\n{{status}} — 查看目前體能、疲勞和狀態\n{{review}} — 回顧上次訓練\n{{feedback}} — 向 Enduragent 作者傳送備註\n{{sync}} — 強制從 {{service}} 重新整理訓練資料\n{{version}} — 顯示目前版本\n{{whatsnew}} — 查看最新版本的變更\n{{update}} — {{updateDescription}}\n\n也可以直接和我聊聊訓練！",
     "workout": {
-      "working": "正在查看狀態（TSB）和訓練計畫…"
+      "working": "正在查看狀態和訓練計畫…"
     },
     "feedback": {
       "failed": "未能傳送該備註。請稍後再試。",
