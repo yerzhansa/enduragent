@@ -2780,7 +2780,7 @@
       "unknownSection": "Okänt avsnitt: `{{section}}`.\n\nGiltiga avsnitt: {{sections}}."
     },
     "status": {
-      "working": "Hämtar dina data om fysisk form..."
+      "working": "Hämtar dina konditionsdata..."
     },
     "sync": {
       "complete": "Synkronisering ✅",

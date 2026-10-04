@@ -9,7 +9,7 @@
   "VO2max": "VO2 maks",
   "anaerobic": "anaerob",
   "training load": "treningsbelastning",
-  "fitness (CTL)": "fitness",
+  "fitness (CTL)": "kondisjon",
   "fatigue (ATL)": "tretthet",
   "form (TSB)": "form",
   "ramp rate": "ramp rate",
@@ -26,7 +26,7 @@
   "warm-up": "oppvarming",
   "cool-down": "nedtrapping",
   "cadence": "kadens",
-  "normalized power": "vektet gjennomsnittseffekt",
+  "normalized power": "vektet gjennomsnittlig watt",
   "TSS": "treningsbelastning",
   "HRV": "HRV",
   "RPE": "RPE"
