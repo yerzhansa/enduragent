@@ -1,5 +1,11 @@
 # @enduragent/sport-running
 
+## 0.1.8
+
+### Patch Changes
+
+- @enduragent/engine@0.0.7
+
 ## 0.1.7
 
 ### Patch Changes

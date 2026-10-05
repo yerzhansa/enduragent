@@ -1,5 +1,12 @@
 # cycling-coach
 
+## 2026.10.5
+
+### Patch Changes
+
+- 1cb7f32: User-facing: Norwegian, Swedish, and Chinese training messages now use plain words for fitness, fatigue, and form.
+- 98be728: User-facing: Install the coach in a terminal with npm install -g enduragent, then run enduragent setup.
+
 ## 2026.9.22
 
 ### Patch Changes

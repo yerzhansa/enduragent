@@ -1,5 +1,11 @@
 # @enduragent/i18n
 
+## 0.2.3
+
+### Patch Changes
+
+- 1cb7f32: User-facing: Norwegian, Swedish, and Chinese training messages now use plain words for fitness, fatigue, and form.
+
 ## 0.2.2
 
 ### Patch Changes
