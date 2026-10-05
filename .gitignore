@@ -29,6 +29,8 @@ AGENTS.override.md
 !.agents/skills/verify-enduragent/**
 !.agents/skills/code-review-and-quality/
 !.agents/skills/code-review-and-quality/**
+!.agents/skills/test-audit/
+!.agents/skills/test-audit/**
 .worktrees/
 .specify/
 specs/
