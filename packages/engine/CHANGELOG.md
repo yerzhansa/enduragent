@@ -1,5 +1,12 @@
 # @enduragent/engine
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [1cb7f32]
+  - @enduragent/i18n@0.2.3
+
 ## 0.0.6
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # running-coach
 
+## 0.0.14
+
+### Patch Changes
+
+- @enduragent/core@0.1.9
+- @enduragent/sport-running@0.1.8
+
 ## 0.0.13
 
 ### Patch Changes
