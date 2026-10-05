@@ -932,7 +932,7 @@
       "plan": "Start en plan i chatten",
       "review": "Se gjennom den siste samtalen din",
       "start": "Start en ny samtale",
-      "status": "Sjekk nåværende form (CTL), tretthet (ATL) og form",
+      "status": "Sjekk nåværende kondisjon, tretthet og form",
       "sync": "Tving oppdatering av treningsdata fra {{intervals}}",
       "update": "Se etter og installer oppdateringer",
       "version": "Vis nåværende versjon",
@@ -2475,7 +2475,7 @@
       "plan": "Lag en treningsplan",
       "review": "Se gjennom den siste treningsøkten din",
       "start": "Start en ny samtale",
-      "status": "Sjekk form (CTL), tretthet (ATL) og form (TSB)",
+      "status": "Sjekk kondisjon, tretthet og form",
       "sync": "Hent oppdaterte treningsdata fra {{service}}",
       "update": "Se etter og installer oppdateringer",
       "version": "Vis nåværende versjon",
@@ -2561,7 +2561,7 @@
       "unknownSection": "Ukjent del: `{{section}}`.\n\nGyldige deler: {{sections}}."
     },
     "status": {
-      "working": "Henter data om formen din…"
+      "working": "Henter data om kondisjonen din…"
     },
     "sync": {
       "complete": "Synkronisert ✅",
@@ -2595,7 +2595,7 @@
       "managedInstruction": "Send {{whatsnew}} for å se hva som er nytt. {{notice}}",
       "prepareFailed": "Kunne ikke klargjøre oppdateringen trygt akkurat nå. Prøv {{command}} igjen om litt."
     },
-    "welcome": "Velkommen til {{product}}!\n\nJeg er KI-sykkeltreneren din. Jeg kan lage treningsplaner, foreslå treningsøkter og følge med på formen din med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lag en treningsplan\n{{workout}} — Hent dagens treningsøkt\n{{status}} — Sjekk form (CTL), tretthet (ATL) og form (TSB)\n{{review}} — Se gjennom den siste treningsøkten din\n{{feedback}} — Send et notat til forfatterne av Enduragent\n{{sync}} — Hent oppdaterte treningsdata fra {{service}}\n{{version}} — Vis nåværende versjon\n{{whatsnew}} — Se hva som er nytt i den nyeste versjonen\n{{update}} — {{updateDescription}}\n\nDu kan også bare prate med meg om treningen din!",
+    "welcome": "Velkommen til {{product}}!\n\nJeg er KI-sykkeltreneren din. Jeg kan lage treningsplaner, foreslå treningsøkter og følge med på kondisjonen din med data fra {{service}}.\n\nKommandoer:\n{{plan}} — Lag en treningsplan\n{{workout}} — Hent dagens treningsøkt\n{{status}} — Sjekk kondisjon, tretthet og form\n{{review}} — Se gjennom den siste treningsøkten din\n{{feedback}} — Send et notat til forfatterne av Enduragent\n{{sync}} — Hent oppdaterte treningsdata fra {{service}}\n{{version}} — Vis nåværende versjon\n{{whatsnew}} — Se hva som er nytt i den nyeste versjonen\n{{update}} — {{updateDescription}}\n\nDu kan også bare prate med meg om treningen din!",
     "workout": {
       "working": "Sjekker formen og planen din…"
     },

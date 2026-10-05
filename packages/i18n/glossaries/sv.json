@@ -9,9 +9,9 @@
   "VO2max": "VO2max",
   "anaerobic": "anaerob",
   "training load": "träningsbelastning",
-  "fitness (CTL)": "CTL",
+  "fitness (CTL)": "kondition",
   "fatigue (ATL)": "trötthet",
-  "form (TSB)": "TSB",
+  "form (TSB)": "form",
   "ramp rate": "ramp rate",
   "intensity": "intensitet",
   "power zone": "effektzon (pl. effektzoner)",
@@ -26,8 +26,8 @@
   "warm-up": "uppvärmning",
   "cool-down": "nedvarvning",
   "cadence": "kadens",
-  "normalized power": "NP (Normalized Power)",
-  "TSS": "TSS",
+  "normalized power": "viktad medeleffekt",
+  "TSS": "träningsbelastning",
   "HRV": "HRV",
   "RPE": "RPE"
 }
