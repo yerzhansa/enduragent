@@ -578,7 +578,6 @@ class ActivityAnalysisServiceImplementation implements ActivityAnalysisService {
       this.remember(cacheKey(identity), computed);
     } catch {
       signal.throwIfAborted();
-      // A cache failure must not hide a freshly validated computation.
     }
   }
 

@@ -2,18 +2,6 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-// Durable Telegram update-offset / dedupe store. Normal polling no longer drops
-// pending updates on startup (so a message sent while the bot was down is still
-// delivered on restart); this store is the safety that keeps a restart from
-// re-processing an update the previous run already handled, and keeps a
-// self-update `/update` from re-triggering itself after the restart.
-//
-// The store is owner-only JSON under dataDir, keyed by a short SHA-256 of the
-// bot token so two bots sharing a dataDir never share a dedupe log. The raw
-// token is NEVER written — only its fingerprint appears (in the filename).
-
-// Bounded ring of recently dispatched update ids. Guards exact-replay dedupe
-// (a crash mid-turn re-delivers an update whose id was already recorded).
 export const MAX_DISPATCHED_IDS = 200;
 export const UPDATE_ID_EPOCH_INACTIVITY_MS = 7 * 24 * 60 * 60 * 1_000;
 
@@ -38,9 +26,6 @@ export interface UpdateOffsetState {
   selfUpdate?: SelfUpdateMarker;
 }
 
-// Short, non-reversible fingerprint of the bot token. Only the first 16 hex
-// chars are used — enough to disambiguate co-located bots, not enough to be a
-// credential.
 export function tokenFingerprint(token: string): string {
   return createHash("sha256").update(token).digest("hex").slice(0, 16);
 }
@@ -162,7 +147,6 @@ export class TelegramUpdateOffsetStore {
     renameSync(tmp, this.path);
   }
 
-  // Record an update id as dispatched, advancing the offset and the bounded ring.
   private record(state: UpdateOffsetState, updateId: number, acceptedAtMs: number): void {
     if (updateId > state.lastUpdateId) {
       state.dispatchedUpdateIds.push(updateId);
@@ -174,10 +158,6 @@ export class TelegramUpdateOffsetStore {
     state.lastAcceptedAtMs = Math.max(state.lastAcceptedAtMs ?? acceptedAtMs, acceptedAtMs);
   }
 
-  // Returns true if this update should be dispatched, recording it first —
-  // record before dispatch so a crash-mid-turn re-delivery dedupes safely.
-  // Fails OPEN: a corrupt or unwritable store must never silence the athlete, so
-  // any error means "dispatch it" rather than dropping the message.
   shouldDispatch(updateId: number): boolean {
     try {
       const state = this.load();
@@ -189,13 +169,6 @@ export class TelegramUpdateOffsetStore {
         ) {
           return false;
         }
-        // Telegram may choose a new, lower update-id sequence after a week
-        // without generated updates. We only know when an update was last
-        // accepted, which can make this reset early when newer updates were
-        // ignored, but cannot make it miss a genuine week-long epoch change.
-        // Resetting favors delivery and may permit a duplicate from the old
-        // bounded replay ring; retaining the high-water mark could drop every
-        // message in the new epoch.
         state.lastUpdateId = 0;
         state.dispatchedUpdateIds = [];
       }
@@ -208,9 +181,6 @@ export class TelegramUpdateOffsetStore {
     }
   }
 
-  // Persist a self-update marker before `/update` stops the bot. The marker id
-  // is recorded as dispatched so the re-delivered `/update` is deduped after the
-  // restart. Throws on write failure so the caller can decline to stop.
   recordSelfUpdate(marker: SelfUpdateMarker): void {
     const state = this.load();
     state.selfUpdate = marker;
