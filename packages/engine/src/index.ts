@@ -185,7 +185,9 @@ export function createCoachEngine(
     if (onEvent === undefined) return;
     if (run.subscribers.has(onEvent)) return;
     for (const event of run.events) {
-      onEvent(event);
+      try {
+        onEvent(event);
+      } catch {}
     }
     run.subscribers.add(onEvent);
   };
@@ -193,7 +195,9 @@ export function createCoachEngine(
     run.events.push(event);
     const subscribers = Array.from(run.subscribers);
     for (const subscriber of subscribers) {
-      subscriber(event);
+      try {
+        subscriber(event);
+      } catch {}
     }
   };
   const runQueue = (

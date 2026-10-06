@@ -509,8 +509,7 @@ const PACKAGED_TELEGRAM_HELPERS = Object.freeze({
           category = "module-resolution";
       }
     }
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
+  } catch {
   }
   return \`packaged Desktop production startup failed; category=${"${category}"}\`;
 }`,

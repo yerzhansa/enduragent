@@ -1121,9 +1121,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       );
       try {
         await ctx.editMessageReplyMarkup();
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       await sendLongMessage(ctx, outcome.text, undefined, "plain");
       await presentWorkoutReview(ctx, chatId, phrasebook);
     });

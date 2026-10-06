@@ -462,8 +462,6 @@ let ok = false;
 try {
   await executeScenario();
   ok = true;
-} catch (error) {
-  if (!(error instanceof Error)) throw error;
-}
+} catch {}
 process.stdout.write(`RESIDENCY_ACCEPTANCE ${JSON.stringify(result(ok && cleanObserved))}\n`);
 process.exitCode = ok && cleanObserved ? 0 : 1;

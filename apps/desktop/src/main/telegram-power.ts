@@ -470,17 +470,13 @@ export function createDesktopTelegramPowerLifecycle(
   const report = (failure: TelegramPowerFailure): void => {
     try {
       input.reportFailure?.(failure);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   };
   const publish = (warning: TelegramGapWarning): TelegramGapWarning => {
     cached = warning;
     try {
       input.observeWarning?.(warning);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
     return warning;
   };
   const uncertain = (): TelegramGapWarning => {
@@ -488,9 +484,7 @@ export function createDesktopTelegramPowerLifecycle(
     let detectedAt = "1970-01-01T00:00:00.000Z";
     try {
       detectedAt = timestamp(now);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
     return publish({ state: "possible-message-loss", detectedAt });
   };
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {

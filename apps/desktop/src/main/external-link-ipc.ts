@@ -40,13 +40,8 @@ export function installDesktopExternalLinkIpc(input: {
     const url = canonicalExternalUrl(args[0]);
     if (url === undefined) return;
     try {
-      const opening = input.openExternal(url);
-      void Promise.resolve(opening).then(undefined, (error: unknown) => {
-        if (!(error instanceof Error)) throw error;
-      });
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+      void input.openExternal(url).catch(() => {});
+    } catch {}
   };
   input.ipcMain.on(DESKTOP_OPEN_EXTERNAL_CHANNEL, onOpenExternal);
   let installed = true;

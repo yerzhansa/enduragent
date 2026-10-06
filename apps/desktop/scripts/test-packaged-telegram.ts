@@ -1378,11 +1378,7 @@ async function main(): Promise<void> {
     );
     page = await cdpPage(debugPort, requireDebuggerAuthority(debuggerAuthorities, debugPort));
     reportPhase("window-close");
-    try {
-      await page.evaluate("window.close(); true");
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    await page.evaluate("window.close(); true").catch(() => undefined);
     page.closeSocket();
     await waitUntil(
       "resident window closure",

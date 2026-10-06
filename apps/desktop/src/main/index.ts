@@ -209,9 +209,7 @@ traceDesktopStartupStage("main-start");
 let preferredLanguages: readonly string[] = [];
 try {
   preferredLanguages = app.getPreferredSystemLanguages();
-} catch (error) {
-  if (!(error instanceof Error)) throw error;
-}
+} catch {}
 await initializeDesktopLanguage(preferredLanguages);
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
@@ -803,9 +801,7 @@ async function runDesktop(): Promise<void> {
                   current.generation,
                 );
                 startRendererNavigation(visibleWindow, navigationUrl);
-              } catch (error) {
-                if (!(error instanceof Error)) throw error;
-              }
+              } catch {}
             }
           }
           return;

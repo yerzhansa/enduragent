@@ -22,9 +22,7 @@ export function installDesktopAppearanceIpc(input: {
     if (appearance === undefined) return;
     try {
       window.setBackgroundColor(desktopWindowBackgroundColor(input.applyThemeSource(appearance)));
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   };
   input.ipcMain.on(DESKTOP_APPEARANCE_CHANNEL, onAppearance);
   let installed = true;

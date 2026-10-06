@@ -1857,9 +1857,7 @@ contextBridge.exposeInMainWorld(
             let results: readonly AttachmentAdmissionReadModel[] | null = null;
             try {
               results = parseAttachmentAdmissions(value);
-            } catch (error) {
-              if (!(error instanceof Error)) throw error;
-            }
+            } catch {}
             listener({ phase: "settled", operationId, results });
           },
           () => {

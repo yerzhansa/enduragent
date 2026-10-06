@@ -162,9 +162,7 @@ export function createKeychainBindingTransport(
       options.loadBinding ??
       ((bindingPath: string): unknown => createRequire(import.meta.url)(bindingPath));
     binding = nativeBinding(load(options.bindingPath));
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-  }
+  } catch {}
   return {
     async send(request: KeychainBindingRequest): Promise<KeychainBindingResponse> {
       if (binding === undefined) return unknownResponse(request.op);

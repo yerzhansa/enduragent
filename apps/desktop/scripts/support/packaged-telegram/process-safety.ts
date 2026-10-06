@@ -59,9 +59,7 @@ function telegramAcceptanceStartupFailureDiagnostic(error: unknown): string {
           category = "module-resolution";
       }
     }
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-  }
+  } catch {}
   return `packaged Desktop production startup failed; category=${category}`;
 }
 
@@ -80,14 +78,10 @@ export async function runTelegramAcceptanceBootstrap(input: {
   } catch (error) {
     try {
       input.report(telegramAcceptanceStartupFailureDiagnostic(error));
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
     try {
       input.exit(1);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   }
 }
 

@@ -498,9 +498,7 @@ export async function runWindowsReleaseUpload(input, dependencies = {}) {
           `${JSON.stringify(failureRecord, null, 2)}\n`,
           { flag: "w", mode: 0o600 },
         );
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
     }
     throw error;
   } finally {

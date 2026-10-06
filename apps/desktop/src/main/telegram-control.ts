@@ -1302,9 +1302,7 @@ export function createTelegramControlCoordinator(
           isCurrent(active) &&
           configured?.outcome === "applied" &&
           isReadyForProfile(configured.current, priorProfile);
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
     }
     const desiredRestored = (await restoreDesired(priorDesired)) === "restored";
     const runtimeRestored =

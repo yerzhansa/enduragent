@@ -918,9 +918,7 @@ function removeAccessFenceLocked(dataDir: string, context: AllowedSendersStorage
         try {
           writeFileDurably(markerPath, "reset\n", context);
           syncDirectory(dataDir, context);
-        } catch (error) {
-          if (!(error instanceof Error)) throw error;
-        }
+        } catch {}
       }
     }
     throw context.platform === "win32" ? classifyWindowsPrivatePathFailure("rename", error) : error;

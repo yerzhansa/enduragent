@@ -121,9 +121,7 @@ export async function createWindowsSecurityControlPipe(pipeName, create = create
       accepted = socket;
       connectionSettled = true;
       resolveConnection(socket);
-      void stopServer().then(undefined, (error) => {
-        if (!(error instanceof Error)) throw error;
-      });
+      void stopServer().catch(() => {});
     });
     await new Promise((resolveListen, rejectListen) => {
       const fail = () => {

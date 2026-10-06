@@ -816,9 +816,7 @@ export function createTelegramCredentialVault(
       let removalReady = false;
       try {
         removalReady = await options.revalidateEnvelopeRemoval(proof);
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       if (!removalReady) {
         return { outcome: "refused", reason: "encryption-unavailable" };
       }
@@ -870,9 +868,7 @@ export function createTelegramCredentialVault(
         ) {
           try {
             await options.prepareEnvelopeWrite(proof);
-          } catch (error) {
-            if (!(error instanceof Error)) throw error;
-          }
+          } catch {}
           initialEncryptionFailure = observedEncryptionRefusal();
         }
         if (initialEncryptionFailure !== undefined) {
@@ -1016,9 +1012,7 @@ export function createTelegramCredentialVault(
           if (proof !== undefined) {
             try {
               await options.observeEnvelopeRemoved?.(proof);
-            } catch (error) {
-              if (!(error instanceof Error)) throw error;
-            }
+            } catch {}
           }
           return { outcome: "applied", cleanupPending: removed === "cleanup-pending" };
         }

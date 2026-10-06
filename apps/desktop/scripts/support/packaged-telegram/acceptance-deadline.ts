@@ -48,9 +48,7 @@ export async function withAcceptanceDeadline<T>(
     timer = setTimeout(() => {
       try {
         options.onTimeout?.();
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       reject(new Error(`${description} timed out`));
     }, timeoutMs);
   });

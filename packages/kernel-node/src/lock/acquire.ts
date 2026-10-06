@@ -355,9 +355,7 @@ export async function acquireWriteLock(
           let protocolClose = protocol?.forceClose();
           try {
             await bindingPromise;
-          } catch (error) {
-            if (!(error instanceof Error)) throw error;
-          }
+          } catch {}
           try {
             protocolClose ??= protocol?.forceClose();
             await protocolClose;

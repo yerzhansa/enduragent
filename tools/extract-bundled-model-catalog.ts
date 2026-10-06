@@ -255,11 +255,7 @@ async function extractOciImage(
     return await catalogFromSealedBytes(source, locator);
   } finally {
     if (containerId !== undefined && containerId.length > 0) {
-      try {
-        await docker(["rm", containerId]);
-      } catch (error) {
-        if (!(error instanceof Error)) containerId = "";
-      }
+      await docker(["rm", containerId]).catch(() => undefined);
     }
     await rm(directory, { force: true, recursive: true });
   }

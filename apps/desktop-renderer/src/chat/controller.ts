@@ -926,13 +926,7 @@ export function createChatController(input: {
         if (activeQueueCall !== undefined && client !== undefined) {
           try {
             applyQueueSnapshot(await client.call("getChatQueue", { chatId: DESKTOP_CHAT_ID }));
-          } catch (error) {
-            if (current()) {
-              queueLoadError = CHAT_QUEUE_LOAD_FAILURE_COPY;
-              render();
-            }
-            if (!(error instanceof Error)) throw error;
-          }
+          } catch {}
         }
         if (protocolFault || error instanceof CoachClientProtocolError) {
           retryClient = client;
@@ -1735,10 +1729,7 @@ export function createChatController(input: {
         const result = await client.call("hasSession", { chatId: DESKTOP_CHAT_ID });
         if (disposed || epoch !== probeEpoch) return;
         reduce({ type: "session-probe", hasSession: result.hasSession });
-      } catch (error) {
-        if (disposed || epoch !== probeEpoch) return;
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
     })();
     const queueLoadTask = (async () => {
       try {
@@ -1779,13 +1770,6 @@ export function createChatController(input: {
     input.readPlanChange?.() ?? EMPTY_PLAN_CHANGE_SURFACE;
   const publishChange = (patch: Partial<PlanChangeSurfaceState>): void => {
     if (!disposed) input.publishPlanChange?.({ ...readChange(), ...patch });
-  };
-  const refreshPlanLibraryAfterChange = async (): Promise<void> => {
-    try {
-      await input.refreshPlanLibrary?.();
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
   };
   const routesTextToPlanChange = (): boolean => {
     const library = input.readPlanLibrary?.();
@@ -2069,7 +2053,7 @@ export function createChatController(input: {
           }
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
           if (result.reason === "race-window") {
@@ -2077,12 +2061,12 @@ export function createChatController(input: {
               notice:
                 "Only training reductions are allowed during this race window. Training is unchanged.",
             });
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
           if (result.reason === "invalid-intent" && parsedIntent.data.kind === "inverse") {
             publishChange({ notice: "The latest Change is no longer eligible for Undo." });
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
           const rejectionCopy =
@@ -2097,7 +2081,7 @@ export function createChatController(input: {
               : { error: rejectionCopy },
           );
           if (result.reason === "stale-version") {
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
           }
           return;
         }
@@ -2112,7 +2096,7 @@ export function createChatController(input: {
             notice: null,
             focusRequest: changeFocus("check"),
           });
-          await refreshPlanLibraryAfterChange();
+          await input.refreshPlanLibrary?.().catch(() => {});
           if (result.pendingCheck === null) requestPlanCreationFocus("composer");
           render();
           return;
@@ -2129,7 +2113,7 @@ export function createChatController(input: {
             ? `This preview supersedes “${superseded.title}”. Training is unchanged until confirmation.`
             : "Review the exact changes before confirming.",
         });
-        await refreshPlanLibraryAfterChange();
+        await input.refreshPlanLibrary?.().catch(() => {});
         if (epoch !== previewEpoch) return;
         publishChange({ focusRequest: changeFocus("preview") });
       } catch (error) {
@@ -2140,7 +2124,7 @@ export function createChatController(input: {
               ? error.message
               : "The preview result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await refreshPlanLibraryAfterChange();
+        await input.refreshPlanLibrary?.().catch(() => {});
       } finally {
         if (!disposed) publishChange({ busy: false });
       }
@@ -2186,7 +2170,7 @@ export function createChatController(input: {
         if (result.status === "rejected") {
           if (result.reason === "sync-stale") {
             publishChange({ editorOpen: false, error: null, notice: PLAN_CHANGES_PAUSED_NOTICE });
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
             return;
           }
           publishChange({
@@ -2216,7 +2200,7 @@ export function createChatController(input: {
             result.reason === "day-changed" ||
             result.reason === "not-eligible"
           ) {
-            await refreshPlanLibraryAfterChange();
+            await input.refreshPlanLibrary?.().catch(() => {});
           }
           return;
         }
@@ -2229,7 +2213,7 @@ export function createChatController(input: {
               ? "Change applied locally. Training now matches the confirmed preview."
               : "Change cancelled. Training is unchanged; the preview remains in history.",
         });
-        await refreshPlanLibraryAfterChange();
+        await input.refreshPlanLibrary?.().catch(() => {});
         implicitPlanChangeRouting = true;
         publishChange({ textRouting: false, focusRequest: changeFocus("change") });
       } catch {
@@ -2237,7 +2221,7 @@ export function createChatController(input: {
           notice:
             "The Change result could not be confirmed. The Plan library will show the current state after refresh.",
         });
-        await refreshPlanLibraryAfterChange();
+        await input.refreshPlanLibrary?.().catch(() => {});
       } finally {
         publishChange({ busy: false });
       }
@@ -3011,7 +2995,7 @@ export function createChatController(input: {
           planCreationError =
             "The activation result could not be confirmed. The Plan library will show the current state after refresh.";
         }
-        await refreshPlanLibraryAfterChange();
+        await input.refreshPlanLibrary?.().catch(() => {});
         planCreationBusy = false;
         render();
         return;

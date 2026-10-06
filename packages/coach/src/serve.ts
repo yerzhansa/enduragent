@@ -184,7 +184,9 @@ export async function runCoachServe(
       throw cleanupErrors.length === 1 ? error : new AggregateError(cleanupErrors);
     }
     if (!aborted && owner !== "app-supervised") {
-      scheduleInitialRefresh();
+      try {
+        scheduleInitialRefresh();
+      } catch {}
     }
     if (!aborted) await Promise.race([abortPromise, rpc.shutdownRequested]);
     const cleanupErrors: unknown[] = [];
