@@ -16,6 +16,7 @@ const SPAWN_BUFFER = 64 * 1024 * 1024;
 
 const RULE_IDS = [
   "comment",
+  "disguised-swallow",
   "double-assertion",
   "file-length",
   "lint-suppression",
@@ -47,6 +48,7 @@ const RULES: Readonly<Record<RuleId, RuleSpec>> = {
     guidance:
       "move the rationale to the PR description or an ADR, and make the code say it through names and structure",
   },
+  "disguised-swallow": { scope: "all", guidance: HANDLE_THE_ERROR },
   "double-assertion": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
   "file-length": { scope: "non-test", guidance: "split the file before adding to it" },
   "lint-suppression": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
@@ -195,27 +197,181 @@ function isExemptComment(comment: string, inTest: boolean): boolean {
   return inTest && TEST_EXEMPT_DIRECTIVES.some((directive) => directive.test(comment));
 }
 
+type InlineFunction = ts.ArrowFunction | ts.FunctionExpression;
+type Handler = InlineFunction | ts.FunctionDeclaration;
+type ResolveHandler = (reference: ts.Identifier) => Handler | undefined;
+type Completion = "continues" | "returns" | "throws";
+
+interface Scenario {
+  readonly bound: string | undefined;
+  readonly isError: boolean;
+}
+
+const BOOLEAN_COMPARISONS: ReadonlyMap<ts.SyntaxKind, boolean> = new Map([
+  [ts.SyntaxKind.EqualsEqualsEqualsToken, true],
+  [ts.SyntaxKind.EqualsEqualsToken, true],
+  [ts.SyntaxKind.ExclamationEqualsEqualsToken, false],
+  [ts.SyntaxKind.ExclamationEqualsToken, false],
+]);
+
 function unwrapParentheses(expression: ts.Expression): ts.Expression {
   let current = expression;
   while (ts.isParenthesizedExpression(current)) current = current.expression;
   return current;
 }
 
-function isNothing(expression: ts.Expression): boolean {
+function refersTo(expression: ts.Expression, name: string | undefined): boolean {
   const value = unwrapParentheses(expression);
-  if (ts.isIdentifier(value)) return value.text === "undefined";
-  if (value.kind === ts.SyntaxKind.NullKeyword) return true;
-  if (!ts.isVoidExpression(value)) return false;
-  const operand = unwrapParentheses(value.expression);
-  return ts.isNumericLiteral(operand) && operand.text === "0";
+  return name !== undefined && ts.isIdentifier(value) && value.text === name;
 }
 
-function isSwallowedRejection(node: ts.Node): boolean {
-  if (!ts.isCallExpression(node)) return false;
-  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "catch") return false;
-  const handler = node.arguments[0] === undefined ? undefined : unwrapParentheses(node.arguments[0]);
-  if (handler === undefined || !(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) return false;
-  return ts.isBlock(handler.body) ? handler.body.statements.length === 0 : isNothing(handler.body);
+function booleanLiteral(expression: ts.Expression): boolean | undefined {
+  const value = unwrapParentheses(expression);
+  if (value.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (value.kind === ts.SyntaxKind.FalseKeyword) return false;
+  return undefined;
+}
+
+function cannotHaveEffect(expression: ts.Expression): boolean {
+  const value = unwrapParentheses(expression);
+  return (
+    ts.isIdentifier(value) ||
+    ts.isLiteralExpression(value) ||
+    value.kind === ts.SyntaxKind.NullKeyword ||
+    booleanLiteral(value) !== undefined
+  );
+}
+
+function isVoidWithoutEffect(expression: ts.Expression): boolean {
+  const value = unwrapParentheses(expression);
+  return ts.isVoidExpression(value) && cannotHaveEffect(value.expression);
+}
+
+function isNothing(expression: ts.Expression): boolean {
+  const value = unwrapParentheses(expression);
+  return value.kind === ts.SyntaxKind.NullKeyword || refersTo(value, "undefined") || isVoidWithoutEffect(value);
+}
+
+function isErrorConstructor(expression: ts.Expression): boolean {
+  const value = unwrapParentheses(expression);
+  if (!ts.isPropertyAccessExpression(value)) return refersTo(value, "Error");
+  return value.name.text === "Error" && refersTo(value.expression, "globalThis");
+}
+
+function evaluateErrorTest(condition: ts.Expression, scenario: Scenario): boolean | undefined {
+  const test = unwrapParentheses(condition);
+  if (ts.isPrefixUnaryExpression(test)) {
+    if (test.operator !== ts.SyntaxKind.ExclamationToken) return undefined;
+    const operand = evaluateErrorTest(test.operand, scenario);
+    return operand === undefined ? undefined : !operand;
+  }
+  if (!ts.isBinaryExpression(test)) return undefined;
+  if (test.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword) {
+    return refersTo(test.left, scenario.bound) && isErrorConstructor(test.right) ? scenario.isError : undefined;
+  }
+  const expectsEqual = BOOLEAN_COMPARISONS.get(test.operatorToken.kind);
+  const rightLiteral = booleanLiteral(test.right);
+  const literal = rightLiteral ?? booleanLiteral(test.left);
+  if (expectsEqual === undefined || literal === undefined) return undefined;
+  const compared = evaluateErrorTest(rightLiteral === undefined ? test.right : test.left, scenario);
+  return compared === undefined ? undefined : (compared === literal) === expectsEqual;
+}
+
+function completionOf(statement: ts.Statement, scenario: Scenario): Completion | undefined {
+  if (ts.isEmptyStatement(statement)) return "continues";
+  if (ts.isBlock(statement)) return completionOfAll(statement.statements, scenario);
+  if (ts.isExpressionStatement(statement)) {
+    return isVoidWithoutEffect(statement.expression) ? "continues" : undefined;
+  }
+  if (ts.isThrowStatement(statement)) return refersTo(statement.expression, scenario.bound) ? "throws" : undefined;
+  if (ts.isReturnStatement(statement)) {
+    return statement.expression === undefined || isNothing(statement.expression) ? "returns" : undefined;
+  }
+  if (!ts.isIfStatement(statement)) return undefined;
+  const holds = evaluateErrorTest(statement.expression, scenario);
+  if (holds === undefined) return undefined;
+  const taken = holds ? statement.thenStatement : statement.elseStatement;
+  return taken === undefined ? "continues" : completionOf(taken, scenario);
+}
+
+function completionOfAll(statements: readonly ts.Statement[], scenario: Scenario): Completion | undefined {
+  for (const statement of statements) {
+    const completion = completionOf(statement, scenario);
+    if (completion !== "continues") return completion;
+  }
+  return "continues";
+}
+
+function dropsEveryError(block: ts.Block, binding: ts.BindingName | undefined, returnFallsThrough: boolean): boolean {
+  if (block.statements.length === 0) return false;
+  const bound = binding !== undefined && ts.isIdentifier(binding) ? binding.text : undefined;
+  const forError = completionOfAll(block.statements, { bound, isError: true });
+  const forOther = completionOfAll(block.statements, { bound, isError: false });
+  if (forError === undefined || forError === "throws" || forOther === undefined) return false;
+  if (returnFallsThrough || forOther === "throws") return true;
+  return forError !== "returns" && forOther !== "returns";
+}
+
+function isInlineFunction(node: ts.Node): node is InlineFunction {
+  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+}
+
+function rejectionHandler(node: ts.Node): ts.Expression | undefined {
+  if (!ts.isCallExpression(node)) return undefined;
+  if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
+  const method = node.expression.name.text;
+  const argument = method === "catch" ? node.arguments[0] : method === "then" ? node.arguments[1] : undefined;
+  return argument === undefined ? undefined : unwrapParentheses(argument);
+}
+
+function returnsNothing(handler: Handler): boolean {
+  const body = handler.body;
+  if (body === undefined) return false;
+  return ts.isBlock(body) ? body.statements.length === 0 : isNothing(body);
+}
+
+function disguisesSwallow(handler: Handler): boolean {
+  const body = handler.body;
+  return body !== undefined && ts.isBlock(body) && dropsEveryError(body, handler.parameters[0]?.name, true);
+}
+
+function sameFileChecker(sourceFile: ts.SourceFile): ts.TypeChecker {
+  const options: ts.CompilerOptions = { noLib: true, noResolve: true, types: [] };
+  const host: ts.CompilerHost = {
+    ...ts.createCompilerHost(options),
+    getSourceFile: (name) => (name === sourceFile.fileName ? sourceFile : undefined),
+    fileExists: () => false,
+    directoryExists: () => false,
+    readFile: () => undefined,
+  };
+  return ts.createProgram([sourceFile.fileName], options, host).getTypeChecker();
+}
+
+function declaredHandler(reference: ts.Identifier, checker: ts.TypeChecker): Handler | undefined {
+  const declaration = checker.getSymbolAtLocation(reference)?.valueDeclaration;
+  if (declaration === undefined) return undefined;
+  if (ts.isFunctionDeclaration(declaration)) return declaration;
+  if (!ts.isVariableDeclaration(declaration) || declaration.initializer === undefined) return undefined;
+  if ((ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) === 0) return undefined;
+  const initializer = unwrapParentheses(declaration.initializer);
+  return isInlineFunction(initializer) ? initializer : undefined;
+}
+
+function isSwallowedRejection(node: ts.Node, resolve: ResolveHandler): boolean {
+  const handler = rejectionHandler(node);
+  if (handler === undefined) return false;
+  if (isInlineFunction(handler)) return returnsNothing(handler);
+  const declared = ts.isIdentifier(handler) ? resolve(handler) : undefined;
+  return declared !== undefined && (returnsNothing(declared) || disguisesSwallow(declared));
+}
+
+function isDisguisedSwallow(node: ts.Node, sourceFile: ts.SourceFile): boolean {
+  if (ts.isCatchClause(node)) {
+    if (node.block.statements.length > 0) return dropsEveryError(node.block, node.variableDeclaration?.name, false);
+    return sourceFile.text.slice(node.block.getStart(sourceFile) + 1, node.block.end - 1).trim() !== "";
+  }
+  const handler = rejectionHandler(node);
+  return handler !== undefined && isInlineFunction(handler) && disguisesSwallow(handler);
 }
 
 function isDoubleAssertion(node: ts.Node): boolean {
@@ -240,8 +396,13 @@ export function scanSource(file: string, text: string): Counts {
     if (LINT_SUPPRESSION.test(comment)) add(counts, "lint-suppression", file);
   }
 
+  let checker: ts.TypeChecker | undefined;
+  const resolve: ResolveHandler = (reference) =>
+    declaredHandler(reference, (checker ??= sameFileChecker(sourceFile)));
+
   function visit(node: ts.Node): void {
-    if (isSwallowedRejection(node)) add(counts, "swallowed-rejection", file);
+    if (isSwallowedRejection(node, resolve)) add(counts, "swallowed-rejection", file);
+    if (isDisguisedSwallow(node, sourceFile)) add(counts, "disguised-swallow", file);
     if (isDoubleAssertion(node)) add(counts, "double-assertion", file);
     ts.forEachChild(node, visit);
   }
