@@ -1858,7 +1858,9 @@ contextBridge.exposeInMainWorld(
             try {
               results = parseAttachmentAdmissions(value);
             } catch {}
-            listener({ phase: "settled", operationId, results });
+            try {
+              listener({ phase: "settled", operationId, results });
+            } catch {}
           },
           () => {
             listener({ phase: "settled", operationId, results: null });

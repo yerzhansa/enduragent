@@ -379,10 +379,7 @@ LIMIT 1`,
       .finally(() => {
         if (this.activeWindow === task) this.activeWindow = undefined;
       })
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      .catch(() => {});
   }
 
   private async runWindowInternal(admissionSignal: AbortSignal): Promise<StoreWindowResult> {

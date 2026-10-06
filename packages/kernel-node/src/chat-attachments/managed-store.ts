@@ -394,19 +394,7 @@ export function createManagedChatAttachmentStore(
       if (error instanceof ManagedAttachmentSourceError) throw error;
       throw new ManagedAttachmentSourceError("unsafe_source");
     } finally {
-      try {
-        await handle?.close();
-      } catch (error) {
-        if (
-          !(
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error &&
-            (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED")
-          )
-        )
-          handle = undefined;
-      }
+      await handle?.close().catch(() => {});
     }
   };
 
@@ -594,19 +582,7 @@ export function createManagedChatAttachmentStore(
         if (error instanceof ManagedAttachmentSourceError) throw error;
         throw new ManagedAttachmentSourceError("unsafe_source");
       } finally {
-        try {
-          await handle?.close();
-        } catch (error) {
-          if (
-            !(
-              typeof error === "object" &&
-              error !== null &&
-              "code" in error &&
-              (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED")
-            )
-          )
-            handle = undefined;
-        }
+        await handle?.close().catch(() => {});
       }
     },
 

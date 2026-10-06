@@ -949,8 +949,12 @@ export function createChatController(input: {
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
         if (callStarted) {
-          void input.refreshSpend();
-          await input.refreshTrainingContext();
+          try {
+            void input.refreshSpend().catch(() => {});
+          } catch {}
+          try {
+            await input.refreshTrainingContext();
+          } catch {}
         }
       }
     })();
@@ -1648,8 +1652,12 @@ export function createChatController(input: {
         }
       } finally {
         if (activeStopRequest?.requestKey === requestKey) activeStopRequest = undefined;
-        void input.refreshSpend();
-        await input.refreshTrainingContext();
+        try {
+          void input.refreshSpend().catch(() => {});
+        } catch {}
+        try {
+          await input.refreshTrainingContext();
+        } catch {}
       }
     })();
     decisionContinuationTask = task;
@@ -3281,7 +3289,9 @@ export function createChatController(input: {
           });
         } finally {
           if (!disposed && epoch === resetEpoch) {
-            void input.refreshSpend();
+            try {
+              void input.refreshSpend().catch(() => {});
+            } catch {}
           }
         }
       })();

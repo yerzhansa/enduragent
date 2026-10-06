@@ -309,10 +309,7 @@ export function createPersistedAthleteStateSource(
           ? Promise.resolve(null)
           : input.cyclingFtpAnchorResolver
               .resolve({ effectiveAtEpochS: asOfEpochS, evaluatedAtEpochS: asOfEpochS })
-              .then(
-                (value) => value,
-                () => null,
-              ),
+              .catch(() => null),
         input.powerProgressSource === undefined
           ? Promise.resolve({ kind: "unavailable", reason: "not-synced" } as const)
           : input.powerProgressSource

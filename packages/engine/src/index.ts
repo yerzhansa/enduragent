@@ -132,15 +132,9 @@ export function createCoachEngine(
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const tail = previous.then(
-      () => gate,
-      () => gate,
-    );
+    const tail = previous.catch(() => {}).then(() => gate);
     queueAuthorities.set(chatId, tail);
-    await previous.then(
-      () => undefined,
-      () => undefined,
-    );
+    await previous.catch(() => {});
     try {
       return await work();
     } finally {
@@ -225,10 +219,7 @@ export function createCoachEngine(
         const recovery = before.retryRequired;
         if (recovery === undefined || recovery.claimId !== exactId) return { snapshot: before };
         agent.stopChat(chatId, recovery.turnId);
-        await active.then(
-          () => undefined,
-          () => undefined,
-        );
+        await active.catch(() => undefined);
         if (queueRuns.get(chatId) === active) queueRuns.delete(chatId);
         if (queueRetryRuns.get(chatId) === retryRun) queueRetryRuns.delete(chatId);
         return runQueue(chatId, "retry", exactId, undefined, retryRun);

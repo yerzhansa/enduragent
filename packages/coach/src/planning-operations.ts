@@ -1423,9 +1423,7 @@ export function createPlanningOperations(
         const lineage = snapshot(turn.lineageJson) as { readonly planIntakePatch?: unknown };
         const parsed = PlanIntakePatchSchema.safeParse(lineage.planIntakePatch);
         if (parsed.success) next = applyIntakePatch(next, parsed.data);
-      } catch {
-        continue;
-      }
+      } catch {}
     }
     return next;
   };
@@ -1977,10 +1975,8 @@ export function createPlanningOperations(
         ? null
         : input.engine
             .getCoachDecision({ chatId })
-            .then(
-              (result) => result.decision,
-              () => null,
-            ),
+            .then((result) => result.decision)
+            .catch(() => null),
       dependencies.ftp?.read(),
     ]);
     const projectedPlanId = draft?.planId ?? conversation.planId;
@@ -2072,9 +2068,7 @@ export function createPlanningOperations(
     const parsed = PlanProgressEventSchema.parse(event);
     try {
       onEvent?.(parsed);
-    } catch (error) {
-      void error;
-    }
+    } catch {}
   };
 
   const appendTurn = async (

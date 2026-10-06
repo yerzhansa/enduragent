@@ -653,7 +653,9 @@ class CoachClientRuntime {
     );
     this.claimPending(envelope.id, pending);
     const observer = pending.onTerminalEnvelope;
-    observer?.(envelope);
+    try {
+      observer?.(envelope);
+    } catch {}
     pending.reject(remoteError);
     this.scheduleIdleClose();
   }

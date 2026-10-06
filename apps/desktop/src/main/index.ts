@@ -287,9 +287,9 @@ async function runDesktop(): Promise<void> {
   app.on("second-instance", () => {
     if (process.platform === "win32") {
       if (securitySmokeMode && desktopAcceptanceHidden) {
-        void writeSecuritySmokePrimarySecondInstance(process.stdout).then(undefined, () =>
-          writeSecuritySmokePrimarySecondInstanceFailure(process.stderr),
-        );
+        void writeSecuritySmokePrimarySecondInstance(process.stdout).catch(() => {
+          void writeSecuritySmokePrimarySecondInstanceFailure(process.stderr).catch(() => {});
+        });
       }
       activation.request();
     } else void residency?.showMainWindow();

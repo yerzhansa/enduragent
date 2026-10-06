@@ -88,7 +88,9 @@ export function startTypingHeartbeat(
     const task = Promise.resolve()
       .then(pulse)
       .catch((error) => {
-        onError(error);
+        try {
+          onError(error);
+        } catch {}
       })
       .then(() => undefined)
       .finally(() => {

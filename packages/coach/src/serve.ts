@@ -68,10 +68,8 @@ export async function runCoachServe(
     });
     const owner = input.owner ?? "unmanaged-foreground";
     const scheduleInitialRefresh = (): void => {
-      void input.lifecycle.startInitialRefresh().then(
-        () => undefined,
-        () => undefined,
-      );
+      const refresh = input.lifecycle.startInitialRefresh();
+      void refresh.catch(() => {});
     };
     const rpc = dependencies.createRpcServer({
       engine: input.lifecycle.engine,

@@ -1368,9 +1368,7 @@ async function connectOwnedWindowsDesktop(
       child.isAlive() &&
       observation.peer.pid === child.pid &&
       observation.authenticated.handshake.owner === "app-supervised";
-  } catch {
-    owned = false;
-  }
+  } catch {}
   if (!owned) {
     return refuseUnownedWindowsDesktop(child);
   }
@@ -2160,10 +2158,7 @@ async function runServeAsSuccessor(input: {
   ]);
   if (published.status !== "published") {
     controller.abort();
-    await servePromise.then(
-      () => undefined,
-      () => undefined,
-    );
+    await servePromise.catch(() => {});
     await input.fence.release();
     throw new Error("designated successor did not publish");
   }

@@ -239,9 +239,7 @@ function readWindowsAllowedSendersFile(dataDir: string, path: string): string | 
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
-      } catch (closeError) {
-        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) descriptor = undefined;
-      }
+      } catch {}
     }
   }
 }
@@ -849,9 +847,7 @@ function writeWindowsFileDurably(
     if (descriptor !== undefined) {
       try {
         closeSync(descriptor);
-      } catch (closeError) {
-        if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) descriptor = undefined;
-      }
+      } catch {}
     }
   }
 }

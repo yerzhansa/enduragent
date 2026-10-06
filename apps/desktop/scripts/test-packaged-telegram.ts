@@ -491,12 +491,7 @@ function launchApplication(
     quitRequest = withAcceptanceDeadline("packaged Desktop quit request", delivery, {
       timeoutMs: 2_000,
       onTimeout: () => child.stdin?.destroy(),
-    }).then(
-      () => undefined,
-      () => {
-        return;
-      },
-    );
+    }).catch(() => undefined);
     return quitRequest;
   };
   return {
@@ -622,9 +617,7 @@ async function connectCdpWithin(
     }
     return connection;
   });
-  void pending.then(undefined, () => {
-    if (!timedOut) return;
-  });
+  void pending.catch(() => undefined);
   const connection = await withAcceptanceDeadline("Desktop debugger connection", pending, {
     timeoutMs,
     onTimeout: () => {

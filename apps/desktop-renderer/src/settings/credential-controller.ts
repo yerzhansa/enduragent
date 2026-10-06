@@ -382,10 +382,7 @@ export function createCredentialSettingsController(input: {
       const claudeCli =
         loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
           ? null
-          : await loadClaudeCli().then(
-              (status) => status,
-              () => null,
-            );
+          : await loadClaudeCli().catch(() => null);
       return {
         entries: entriesFrom(statuses, chatGpt, runtime),
         providerStatuses: providerStatusesFrom(runtime, claudeCli),

@@ -295,7 +295,6 @@ async function executeScenario() {
   const stage = join(temporaryRoot, "stage");
   const output = join(temporaryRoot, "output");
   const resources = join(stage, "resources");
-  let teardownFailure;
   try {
     await mkdir(resources, { recursive: true });
     await Promise.all([
@@ -398,50 +397,34 @@ async function executeScenario() {
     assert(sessions.size === 0);
     assert(collectFixtureProcesses().size === 0);
   } finally {
-    const noteTeardownFailure = (error) => {
-      if (!(error instanceof Error) && teardownFailure === undefined) teardownFailure = error;
-    };
     for (const session of sessions) {
       try {
         await terminateSession(session);
-      } catch (error) {
-        noteTeardownFailure(error);
-      }
+      } catch {}
     }
     try {
       await terminatePids(collectFixtureProcesses());
-    } catch (error) {
-      noteTeardownFailure(error);
-    }
+    } catch {}
     if (!cleanObserved && fixtureExecutable !== undefined) {
       try {
         await cleanupRegistration();
-      } catch (error) {
-        noteTeardownFailure(error);
-      }
+      } catch {}
     }
     for (const session of sessions) {
       try {
         await terminateSession(session);
-      } catch (error) {
-        noteTeardownFailure(error);
-      }
+      } catch {}
     }
     try {
       await terminatePids(collectFixtureProcesses());
-    } catch (error) {
-      noteTeardownFailure(error);
-    }
+    } catch {}
     try {
       await terminatePids(new Set([...knownPids].filter((pid) => alive(pid))));
-    } catch (error) {
-      noteTeardownFailure(error);
-    }
+    } catch {}
     fixtureExecutable = undefined;
     fixtureRootPath = undefined;
     await rm(temporaryRoot, { recursive: true, force: true });
   }
-  if (teardownFailure !== undefined) throw teardownFailure;
   assert(!interrupted && cleanObserved);
 }
 

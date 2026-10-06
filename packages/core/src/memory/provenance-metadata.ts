@@ -417,17 +417,7 @@ export class ProvenanceMetadata {
       if (fd !== undefined) {
         try {
           closeSync(fd);
-        } catch (closeError) {
-          if (
-            !(
-              typeof closeError === "object" &&
-              closeError !== null &&
-              "code" in closeError &&
-              (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED")
-            )
-          )
-            fd = undefined;
-        }
+        } catch {}
       }
     }
   }

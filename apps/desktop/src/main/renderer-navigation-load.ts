@@ -68,9 +68,7 @@ export function createDesktopRendererNavigationTracker<Window>(
       const task = guard(attemptLoad(load));
       const navigation = { window, url, task };
       current = navigation;
-      void task.then(undefined, () => {
-        if (current !== navigation) return;
-      });
+      void task.catch(() => {});
       return navigation;
     },
     async waitForCurrent(navigation) {

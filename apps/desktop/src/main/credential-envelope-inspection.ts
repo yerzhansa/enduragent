@@ -124,14 +124,7 @@ async function inspectPosixCredentialEnvelopeTarget(
     return { status: "blocked" };
   } finally {
     prefix?.fill(0);
-    if (handle !== undefined) {
-      try {
-        await handle.close();
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== "EBADF") handle = undefined;
-      }
-    }
+    if (handle !== undefined) await handle.close().catch(() => undefined);
   }
 }
 

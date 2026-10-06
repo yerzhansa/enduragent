@@ -505,10 +505,7 @@ export async function runWindowsReleaseUpload(input, dependencies = {}) {
     if (staging !== undefined) {
       try {
         await fileDependencies.rm(staging.directory, { recursive: true, force: true });
-      } catch (error) {
-        const code = error?.code;
-        if (code !== "ENOENT" && code !== "ENOTDIR") staging = undefined;
-      }
+      } catch {}
     }
   }
 }

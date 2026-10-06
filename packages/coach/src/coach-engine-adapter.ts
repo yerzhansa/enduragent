@@ -73,9 +73,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
       }
       try {
         onEvent?.(result.data);
-      } catch (error) {
-        void error;
-      }
+      } catch {}
     });
     if (firstEventValidationError !== undefined) throw firstEventValidationError;
     return ChatQueueRunResultSchema.parse(response);
@@ -111,9 +109,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
         }
         try {
           onEvent?.(result.data);
-        } catch (error) {
-          void error;
-        }
+        } catch {}
       });
       if (firstEventValidationError !== undefined) throw firstEventValidationError;
       return ChatResponseSchema.parse(response);
@@ -187,9 +183,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
         }
         try {
           onEvent?.(result.data);
-        } catch (error) {
-          void error;
-        }
+        } catch {}
       });
       if (firstEventValidationError !== undefined) throw firstEventValidationError;
       return AnswerCoachDecisionRpcResultSchema.parse(response);
@@ -210,9 +204,7 @@ export function createCoachEngineAdapter(input: CoachEngineAdapterInput): CoachE
         }
         try {
           onEvent?.(result.data);
-        } catch (error) {
-          void error;
-        }
+        } catch {}
       });
       if (firstEventValidationError !== undefined) throw firstEventValidationError;
       return ResumeCoachDecisionRpcResultSchema.parse(response);
