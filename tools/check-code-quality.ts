@@ -214,8 +214,10 @@ function isNothing(expression: ts.Expression): boolean {
 
 function rejectionHandler(node: ts.Node): ts.ArrowFunction | ts.FunctionExpression | undefined {
   if (!ts.isCallExpression(node)) return undefined;
-  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "catch") return undefined;
-  const handler = node.arguments[0] === undefined ? undefined : unwrapParentheses(node.arguments[0]);
+  if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
+  const method = node.expression.name.text;
+  const argument = method === "catch" ? node.arguments[0] : method === "then" ? node.arguments[1] : undefined;
+  const handler = argument === undefined ? undefined : unwrapParentheses(argument);
   if (handler === undefined || !(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) return undefined;
   return handler;
 }
@@ -244,7 +246,13 @@ function rethrowsOnlyNonErrors(statement: ts.Statement, bound: string): boolean 
   );
 }
 
+function hasNoEffect(statement: ts.Statement): boolean {
+  return ts.isExpressionStatement(statement) && ts.isVoidExpression(unwrapParentheses(statement.expression));
+}
+
 function dropsEveryError(block: ts.Block, binding: ts.BindingName | undefined): boolean {
+  if (block.statements.length === 0) return false;
+  if (block.statements.every(hasNoEffect)) return true;
   if (binding === undefined || !ts.isIdentifier(binding) || block.statements.length !== 1) return false;
   const only = block.statements[0];
   return only !== undefined && rethrowsOnlyNonErrors(only, binding.text);
