@@ -446,12 +446,7 @@ export function createTrainingExportService(input: {
             signal: operationSignal,
           });
           writerOwnsBytes = true;
-          void write
-            .finally(() => bytes.fill(0))
-            .then(
-              () => undefined,
-              () => undefined,
-            );
+          void write.finally(() => bytes.fill(0)).catch(() => {});
           outcome = await awaitWithSignal(write, operationSignal);
         } catch {
           if (operationSignal.aborted) return refused("commit-uncertain");

@@ -431,10 +431,7 @@ function enqueueSerialized(state: ClientState, serialized: string): Promise<void
       }
     });
   });
-  state.sendTail = step.then(
-    () => undefined,
-    () => undefined,
-  );
+  state.sendTail = step.catch(() => {});
   return state.sendTail;
 }
 
@@ -896,10 +893,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
         resolveShutdownRequested();
       })();
       state.requestTasks.add(task);
-      void task.finally(() => state.requestTasks.delete(task)).then(
-        () => undefined,
-        () => undefined,
-      );
+      void task.finally(() => state.requestTasks.delete(task)).catch(() => {});
       return;
     }
     if (!methodExists(generic.data.method)) {
@@ -2172,10 +2166,7 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       .finally(() => {
         state.requestTasks.delete(task);
       })
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      .catch(() => {});
   };
   const acceptClient = (ws: WebSocket): void => {
     connectionSequence += 1;
@@ -2190,10 +2181,8 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       state.closed = true;
       state.resolveClosed();
       void Promise.all(state.requestTasks)
-        .then(
-          () => state.sendTail,
-          () => state.sendTail,
-        )
+        .catch(() => {})
+        .then(() => state.sendTail)
         .finally(() => clients.delete(state));
     });
     ws.on("error", () => {

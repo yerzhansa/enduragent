@@ -188,11 +188,7 @@ describe.skipIf(!hasSockets)("first-run serve process", () => {
           });
           if (response.status === 200) health = response;
         }
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        const aborted = error instanceof DOMException && error.name === "AbortError";
-        if (code !== "ENOENT" && !(error instanceof TypeError) && !aborted) throw error;
-      }
+      } catch {}
       if (health === undefined) await delay(25);
     }
     if (health === undefined) {

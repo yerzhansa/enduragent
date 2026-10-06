@@ -209,9 +209,7 @@ traceDesktopStartupStage("main-start");
 let preferredLanguages: readonly string[] = [];
 try {
   preferredLanguages = app.getPreferredSystemLanguages();
-} catch (error) {
-  if (!(error instanceof Error)) throw error;
-}
+} catch {}
 await initializeDesktopLanguage(preferredLanguages);
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
@@ -289,9 +287,9 @@ async function runDesktop(): Promise<void> {
   app.on("second-instance", () => {
     if (process.platform === "win32") {
       if (securitySmokeMode && desktopAcceptanceHidden) {
-        void writeSecuritySmokePrimarySecondInstance(process.stdout).then(undefined, () =>
-          writeSecuritySmokePrimarySecondInstanceFailure(process.stderr),
-        );
+        void writeSecuritySmokePrimarySecondInstance(process.stdout).catch(() => {
+          void writeSecuritySmokePrimarySecondInstanceFailure(process.stderr).catch(() => {});
+        });
       }
       activation.request();
     } else void residency?.showMainWindow();
@@ -803,9 +801,7 @@ async function runDesktop(): Promise<void> {
                   current.generation,
                 );
                 startRendererNavigation(visibleWindow, navigationUrl);
-              } catch (error) {
-                if (!(error instanceof Error)) throw error;
-              }
+              } catch {}
             }
           }
           return;

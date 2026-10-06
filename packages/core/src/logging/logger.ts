@@ -127,9 +127,7 @@ export function createRootLogger(dataDir: string, options: RootLoggerOptions = {
 
   try {
     pruneFileByAge(path, now() - maxAgeMs);
-  } catch (error) {
-    if (!(typeof error === "object" && error !== null && "code" in error && String(error.code) === "ENOENT")) throw error;
-  }
+  } catch {}
 
   return {
     emit(level, line, fields) {

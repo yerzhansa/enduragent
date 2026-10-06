@@ -258,9 +258,7 @@ function attachCleanupFailure(
         value: cleanupFailure,
       });
       return primary;
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   }
   return cleanupFailure;
 }
@@ -800,8 +798,7 @@ export function startGeneration(
     closed = true;
     try {
       await active.return(undefined);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
+    } catch {
     } finally {
       windowsMcpConfigState?.cleanup?.();
     }

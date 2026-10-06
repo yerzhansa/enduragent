@@ -102,9 +102,11 @@ export function createFirstSyncController(ports: FirstSyncPorts): FirstSyncContr
     if (!joining && selected.status !== "idle") composerFocusOperation = selected.operation;
     apply(selected);
     inFlight = task;
-    void task.finally(() => {
-      if (inFlight === task) inFlight = undefined;
-    });
+    void task
+      .finally(() => {
+        if (inFlight === task) inFlight = undefined;
+      })
+      .catch(() => {});
     return task;
   };
 

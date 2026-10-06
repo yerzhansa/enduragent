@@ -173,14 +173,9 @@ export async function durableAtomicReplace(
     return { state: renamed ? "commit-uncertain" : "not-committed" };
   } finally {
     contents.fill(0);
-    if (handle !== undefined) {
-      try {
-        await handle.close();
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== "EBADF") handle = undefined;
-      }
-    }
+    try {
+      await handle?.close();
+    } catch {}
     await removeFile(temporary, { force: true });
   }
 }

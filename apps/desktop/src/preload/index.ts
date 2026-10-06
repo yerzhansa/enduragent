@@ -1471,15 +1471,11 @@ ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
   } catch {
     return;
   }
-  let updateListenerFailure: unknown;
   for (const listener of updateListeners) {
     try {
       listener(parseUpdateState(state));
-    } catch (error) {
-      updateListenerFailure ??= error;
-    }
+    } catch {}
   }
-  if (updateListenerFailure !== undefined) throw updateListenerFailure;
 });
 ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   let progress: PreloadChatGptLoginProgress;
@@ -1488,15 +1484,11 @@ ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) 
   } catch {
     return;
   }
-  let progressListenerFailure: unknown;
   for (const listener of chatGptLoginProgressListeners) {
     try {
       listener(parseChatGptLoginProgress(progress));
-    } catch (error) {
-      progressListenerFailure ??= error;
-    }
+    } catch {}
   }
-  if (progressListenerFailure !== undefined) throw progressListenerFailure;
 });
 ipcRenderer.on(DESKTOP_OPEN_SETTINGS_CHANNEL, () => {
   for (const listener of openSettingsListeners) listener();
@@ -1504,15 +1496,11 @@ ipcRenderer.on(DESKTOP_OPEN_SETTINGS_CHANNEL, () => {
 ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   const parsed = PlanProgressEventSchema.safeParse(value);
   if (!parsed.success) return;
-  let planProgressListenerFailure: unknown;
   for (const listener of planProgressListeners) {
     try {
       listener(PlanProgressEventSchema.parse(parsed.data));
-    } catch (error) {
-      planProgressListenerFailure ??= error;
-    }
+    } catch {}
   }
-  if (planProgressListenerFailure !== undefined) throw planProgressListenerFailure;
 });
 if (
   ipcRenderer.sendSync(DESKTOP_DOCUMENT_REGISTRATION_CHANNEL, {
@@ -1851,19 +1839,25 @@ contextBridge.exposeInMainWorld(
           .slice(0, CHAT_ATTACHMENT_LIMITS.attachmentsPerMessage);
         if (paths.length === 0) return;
         const operationId = `drop-${++chatAttachmentDropSequence}`;
-        if (listener({ phase: "started", operationId }) !== true) return;
+        let accepted = false;
+        try {
+          accepted = listener({ phase: "started", operationId }) === true;
+        } catch {}
+        if (!accepted) return;
         void ipcRenderer.invoke(DESKTOP_CHAT_ATTACHMENT_DROP_CHANNEL, paths).then(
           (value) => {
             let results: readonly AttachmentAdmissionReadModel[] | null = null;
             try {
               results = parseAttachmentAdmissions(value);
-            } catch (error) {
-              if (!(error instanceof Error)) throw error;
-            }
-            listener({ phase: "settled", operationId, results });
+            } catch {}
+            try {
+              listener({ phase: "settled", operationId, results });
+            } catch {}
           },
           () => {
-            listener({ phase: "settled", operationId, results: null });
+            try {
+              listener({ phase: "settled", operationId, results: null });
+            } catch {}
           },
         );
       };

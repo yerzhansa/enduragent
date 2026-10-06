@@ -762,7 +762,7 @@ export async function resolveSecondStarter(
         handoffCapability,
       });
     } catch (error) {
-      await control.close();
+      await control.close().catch(() => {});
       await fence.release();
       if (errorCode(error) === -32_003) {
         return refusal(EXIT_DAEMON_UNAVAILABLE, HANDOFF_RESERVED_MESSAGE);
@@ -772,7 +772,7 @@ export async function resolveSecondStarter(
       }
       return refusal(EXIT_DAEMON_UNAVAILABLE, UNTRUSTED_PEER_MESSAGE);
     }
-    await control.close();
+    await control.close().catch(() => {});
 
     let releaseOutcome: WriterReleaseWaitOutcome;
     try {

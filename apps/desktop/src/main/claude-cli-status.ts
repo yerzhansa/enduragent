@@ -246,27 +246,31 @@ export function createClaudeCliStatus(
       }, CLAUDE_CLI_STATUS_DEADLINE_MS);
       timeout.unref?.();
       const settleLate = (): void => {
-        invalidate();
+        try {
+          invalidate();
+        } catch {}
         latestReadyStatus = null;
       };
-      void rawTask.then(
-        (status) => {
-          if (timedOut) {
-            settleLate();
-            return;
-          }
-          clearTimeout(timeout);
-          resolve(status);
-        },
-        (error: unknown) => {
-          if (timedOut) {
-            settleLate();
-            return;
-          }
-          clearTimeout(timeout);
-          resolve({ state: stateForFailure(error) });
-        },
-      );
+      void rawTask
+        .then(
+          (status) => {
+            if (timedOut) {
+              settleLate();
+              return;
+            }
+            clearTimeout(timeout);
+            resolve(status);
+          },
+          (error: unknown) => {
+            if (timedOut) {
+              settleLate();
+              return;
+            }
+            clearTimeout(timeout);
+            resolve({ state: stateForFailure(error) });
+          },
+        )
+        .catch(() => undefined);
     });
     activeRead = { generation, task };
     const clear = (): void => {

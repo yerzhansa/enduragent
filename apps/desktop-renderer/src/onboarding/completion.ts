@@ -40,9 +40,7 @@ export function createOnboardingCompletionController(options: {
       completionObserved = true;
       try {
         options.storage().setItem(COMPLETION_STORAGE_KEY, COMPLETION_STORAGE_VALUE);
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       if (firstCompletion) options.onComplete(completion);
     },
   };

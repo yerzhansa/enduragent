@@ -211,7 +211,7 @@ export function createTrainingContextController(input: {
           updateUnits({ ...previous, status: "unavailable" });
         }
       });
-      unitsTail = task;
+      unitsTail = task.catch(() => {});
       return task;
     },
     dispose() {

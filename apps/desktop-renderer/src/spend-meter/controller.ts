@@ -162,10 +162,8 @@ export function createSpendMeterController(input: {
     if (postSaveRefresh !== undefined) return postSaveRefresh;
     const activeSave = saveOperation;
     const pending = activeSave
-      .then(
-        () => executeRefresh(),
-        () => executeRefresh(),
-      )
+      .catch(() => undefined)
+      .then(() => executeRefresh())
       .finally(() => {
         if (postSaveRefresh === pending) postSaveRefresh = undefined;
       });
@@ -256,12 +254,7 @@ export function createSpendMeterController(input: {
     render({ ...currentState, capOperation: { kind: "saving" } });
     const pending = Promise.resolve()
       .then(async () => {
-        if (olderRefresh !== undefined) {
-          await olderRefresh.then(
-            () => undefined,
-            () => undefined,
-          );
-        }
+        await olderRefresh?.catch(() => undefined);
         if (!disposed) await drain();
       })
       .finally(() => {
@@ -277,12 +270,7 @@ export function createSpendMeterController(input: {
     render({ ...currentState, capOperation: { kind: "saving" } });
     const pending = Promise.resolve()
       .then(async () => {
-        if (refreshOperation !== undefined) {
-          await refreshOperation.then(
-            () => undefined,
-            () => undefined,
-          );
-        }
+        await refreshOperation?.catch(() => undefined);
         await executeRefresh();
         if (disposed) return;
         if (currentState.status === "unavailable" || currentState.stale) {

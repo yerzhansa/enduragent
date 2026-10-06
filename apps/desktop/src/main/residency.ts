@@ -128,9 +128,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
         });
         if (!loginItemResidencyMatchesRequest(state, openAtLogin, platform)) throw new TypeError();
         applied = state;
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       if (applied !== undefined) {
         input.observe?.({ type: "login-item-set", state: applied });
         return;
@@ -138,9 +136,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       let compensation: BackgroundAtLoginPreferenceWriteResult = { status: "uncertain" };
       try {
         compensation = await input.persistLoginPreference(previousEnabled);
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       let convergenceTarget: boolean | undefined;
       if (compensation.status === "stored") {
         convergenceTarget = compensation.enabled;
@@ -159,9 +155,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
           }
           input.observe?.({ type: "login-item-set", state });
           converged = true;
-        } catch (error) {
-          if (!(error instanceof Error)) throw error;
-        }
+        } catch {}
         if (!converged) readLoginState();
       } else {
         readLoginState();

@@ -118,9 +118,7 @@ export async function completeDesktopShutdown(input: {
     const handle = scheduleTimeout(() => {
       try {
         process.stderr.write("desktop-update-handoff-timeout\n");
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
       input.exit(1);
     }, input.handoffDeadlineMs ?? DESKTOP_UPDATE_HANDOFF_DEADLINE_MS);
     handle.unref();
@@ -163,9 +161,7 @@ export function createDesktopQuitCoordinator(input: {
     handoffTimer = undefined;
     try {
       cancelTimeout(handle);
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   };
   const exitOnce = (code: number): void => {
     if (terminated) return;

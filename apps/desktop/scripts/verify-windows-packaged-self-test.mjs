@@ -121,9 +121,7 @@ export async function createWindowsSecurityControlPipe(pipeName, create = create
       accepted = socket;
       connectionSettled = true;
       resolveConnection(socket);
-      void stopServer().then(undefined, (error) => {
-        if (!(error instanceof Error)) throw error;
-      });
+      void stopServer().catch(() => {});
     });
     await new Promise((resolveListen, rejectListen) => {
       const fail = () => {
@@ -142,10 +140,7 @@ export async function createWindowsSecurityControlPipe(pipeName, create = create
     accepted?.destroy();
     try {
       server?.close();
-    } catch (error) {
-      const code = error !== null && typeof error === "object" && "code" in error ? error.code : undefined;
-      if (code !== "ERR_SERVER_NOT_RUNNING") throw error;
-    }
+    } catch {}
     throw new Error("packaged Windows control pipe setup failed");
   }
   const failConnection = () => {

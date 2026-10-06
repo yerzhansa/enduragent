@@ -101,10 +101,7 @@ export function createAuthoredIdentity(
         .finally(() => {
           if (deviceIdQueues.get(deviceIdPath) === current) deviceIdQueues.delete(deviceIdPath);
         })
-        .then(
-          () => undefined,
-          () => undefined,
-        );
+        .catch(() => {});
       return current;
     },
     newUlid: nextUlid,

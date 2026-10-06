@@ -1802,12 +1802,7 @@ export async function createLocalCoachComposition(
       );
       const timer = setTimeout(() => {
         if (initialRefreshRetryTimer === timer) initialRefreshRetryTimer = undefined;
-        if (!closing) {
-          void startInitialRefresh().then(
-            () => undefined,
-            () => undefined,
-          );
-        }
+        if (!closing) void startInitialRefresh().catch(() => {});
       }, delay);
       timer.unref?.();
       initialRefreshRetryTimer = timer;
@@ -2460,12 +2455,7 @@ export async function createLocalCoachComposition(
           await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
           await attempt(() => runtime!.close());
-          if (initialRefreshPromise !== undefined) {
-            await initialRefreshPromise.then(
-              () => undefined,
-              () => undefined,
-            );
-          }
+          await initialRefreshPromise?.catch(() => {});
           if (failure !== undefined) throw failure.error;
         })();
         return closePromise;

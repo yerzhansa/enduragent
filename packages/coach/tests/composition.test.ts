@@ -5753,9 +5753,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       if (previous !== undefined) {
         try {
           await previous;
-        } catch (error) {
-          if (!(error instanceof Error)) throw error;
-        }
+        } catch {}
       }
       await work(new AbortController().signal);
       return launchWindow();
@@ -5768,9 +5766,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       async close() {
         try {
           await active;
-        } catch (error) {
-          if (!(error instanceof Error)) throw error;
-        }
+        } catch {}
         await baseRuntime.close();
       },
     };

@@ -278,11 +278,7 @@ async function writeWindowsCaptureFile(
     return identity;
   } finally {
     if (handle !== undefined) {
-      try {
-        await handle.close();
-      } catch (error) {
-        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) handle = undefined;
-      }
+      await handle.close().catch(() => undefined);
     }
   }
 }
@@ -343,11 +339,7 @@ async function readWindowsCaptureFile(
   } finally {
     buffer?.fill(0);
     if (handle !== undefined) {
-      try {
-        await handle.close();
-      } catch (error) {
-        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) handle = undefined;
-      }
+      await handle.close().catch(() => undefined);
     }
   }
 }

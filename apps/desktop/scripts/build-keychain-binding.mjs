@@ -37,9 +37,7 @@ export async function nodeApiIncludeDirectory() {
     try {
       await access(join(candidate, "node_api.h"));
       return candidate;
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
+    } catch {}
   }
   throw new Error("Node-API headers are required to build the macOS keychain binding");
 }

@@ -102,9 +102,7 @@ export function createDesktopUsagePingController(input: {
         cache: "no-store",
         signal: controller.signal,
       });
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      if (!(error instanceof Error)) throw error;
+    } catch {
     } finally {
       if (deadline !== undefined) unscheduleTimeout(deadline);
       if (requestController === controller) requestController = undefined;

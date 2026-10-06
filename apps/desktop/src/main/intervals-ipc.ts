@@ -277,15 +277,12 @@ async function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">
   let cleared = false;
   try {
     value = await clipboard.readText();
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
+  } catch {
   } finally {
     try {
       clipboard.clear();
       cleared = true;
-    } catch {
-      cleared = false;
-    }
+    } catch {}
   }
   if (!cleared) return { status: "refused", reason: "clipboard-clear-failed" };
   if (typeof value !== "string") {

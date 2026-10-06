@@ -434,9 +434,7 @@ class InstallationModelCatalog implements ModelCatalog {
     try {
       mkdirSync(this.paths.privateDirectory, { recursive: true, mode: 0o700 });
       writeJson(this.paths.privateSnapshot, persistedFrom(snapshot));
-    } catch (error) {
-      if (!(error instanceof Error)) throw error;
-    }
+    } catch {}
   }
 
   private clearScheduledTimer(): void {

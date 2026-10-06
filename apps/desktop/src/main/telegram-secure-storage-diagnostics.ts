@@ -34,14 +34,8 @@ export function emitTelegramSecureStorageFailure(
   if (observer === undefined) return;
   try {
     const result = observer(failure);
-    if (result !== undefined) {
-      void Promise.resolve(result).then(undefined, (error: unknown) => {
-        if (!(error instanceof Error)) throw error;
-      });
-    }
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-  }
+    if (result !== undefined) void Promise.resolve(result).catch(() => undefined);
+  } catch {}
 }
 
 export function createTelegramSecureStorageDiagnostics(

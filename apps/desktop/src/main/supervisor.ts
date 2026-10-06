@@ -213,9 +213,7 @@ export async function terminateOwnedUtilityProcess(input: {
   if (input.hasExited()) return;
   try {
     input.child.postMessage({ type: "shutdown" } satisfies UtilityShutdownFrame);
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-  }
+  } catch {}
   if ((await waitWithTimeout(input.exited, UTILITY_EXIT_TIMEOUT_MS)) !== undefined) return;
   input.child.kill();
   if ((await waitWithTimeout(input.exited, UTILITY_FORCE_EXIT_TIMEOUT_MS)) !== undefined) return;
@@ -414,9 +412,7 @@ export class DesktopDaemonSupervisor {
               resolution.supervision === "app-supervised" &&
               resolution.owner === "app-supervised" &&
               resolution.isAlive();
-          } catch (error) {
-            if (!(error instanceof Error)) throw error;
-          }
+          } catch {}
           if (!owned) {
             try {
               await resolution.close();

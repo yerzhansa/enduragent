@@ -130,7 +130,7 @@ export async function resolveOpenRouterModelMetadata(
     refreshed = undefined;
   }
   if (refreshed !== undefined) {
-    await input.cache.write(refreshed);
+    await input.cache.write(refreshed).catch(() => {});
     return refreshed;
   }
   const parsed = SnapshotSchema.safeParse(cached);

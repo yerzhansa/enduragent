@@ -205,12 +205,8 @@ export async function notifyNpmTelegramUpdate(
         );
         await sender.sendMessage(chatId, message);
         delivered = true;
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
+      } catch {}
     }
     if (delivered) rememberVersion(dataDir, info.latest);
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-  }
+  } catch {}
 }
