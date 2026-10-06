@@ -233,9 +233,7 @@ async function terminatePids(pids) {
   for (const pid of pids) {
     try {
       process.kill(pid, "SIGTERM");
-    } catch (error) {
-      if (error?.code !== "ESRCH") throw error;
-    }
+    } catch {}
   }
   try {
     await waitPidsDead(pids);
@@ -244,9 +242,7 @@ async function terminatePids(pids) {
       if (!alive(pid)) continue;
       try {
         process.kill(pid, "SIGKILL");
-      } catch (error) {
-        if (error?.code !== "ESRCH") throw error;
-      }
+      } catch {}
     }
     await waitPidsDead(pids);
   }
@@ -434,9 +430,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     for (const session of sessions) {
       try {
         session.child.kill("SIGTERM");
-      } catch (error) {
-        if (error?.code !== "ESRCH") throw error;
-      }
+      } catch {}
     }
   });
 }

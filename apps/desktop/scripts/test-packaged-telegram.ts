@@ -905,16 +905,12 @@ async function cleanApplicationExit(
   running: RunningApplication,
   timeoutMs: number,
 ): Promise<boolean> {
-  try {
-    const lifecycle = await withAcceptanceDeadline(
-      "packaged Desktop clean exit",
-      Promise.all([running.launch, running.terminal]),
-      { timeoutMs },
-    );
-    return telegramAcceptanceDirectExitIsClean(...lifecycle);
-  } catch {
-    return false;
-  }
+  const lifecycle = await withAcceptanceDeadline(
+    "packaged Desktop clean exit",
+    Promise.all([running.launch, running.terminal]),
+    { timeoutMs },
+  ).catch(() => undefined);
+  return lifecycle !== undefined && telegramAcceptanceDirectExitIsClean(...lifecycle);
 }
 
 async function packagedProcessTableIsClear(
@@ -992,11 +988,7 @@ async function treeContains(root: string, value: string): Promise<boolean> {
   for (const entry of await readdir(root, { recursive: true })) {
     try {
       if ((await readFile(join(root, entry))).includes(marker)) return true;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === "EISDIR" || code === "ENOENT" || code === "ENOTDIR") continue;
-      throw error;
-    }
+    } catch {}
   }
   return false;
 }
@@ -1030,6 +1022,7 @@ async function assertOutputSecretFree(
     .join("\n");
   assert(!output.includes(token), "Telegram credential reached packaged process output");
 }
+
 async function main(): Promise<void> {
   assert(process.platform === "darwin", "packaged Telegram acceptance requires macOS");
   assert(process.arch === "arm64", "packaged Telegram acceptance requires macOS arm64");
@@ -1043,6 +1036,7 @@ async function main(): Promise<void> {
     readonly version?: unknown;
   };
   assert(typeof packageManifest.version === "string", "Desktop package version is invalid");
+
   const base = await realpath(process.platform === "darwin" ? "/tmp" : tmpdir());
   const scratch = await mkdtemp(join(base, "eat-"));
   const athleteHome = join(scratch, "athlete-home");
@@ -1108,6 +1102,7 @@ async function main(): Promise<void> {
     await preparePackagedTelegramSetupFixture(athleteHome);
     const authProfilesPath = join(configDirectory, "auth-profiles.json");
     assert(!existsSync(authProfilesPath), "model auth profile unexpectedly exists");
+
     telegram = await createTelegramBotApi(token);
     reportPhase("keychain");
     keychain = await prepareDisposableKeychain({
@@ -1135,6 +1130,7 @@ async function main(): Promise<void> {
       FORCE_COLOR: undefined,
       CLICOLOR_FORCE: undefined,
     });
+
     reportPhase("initial-launch");
     primary = await launchTrackedApplication(
       environment,
@@ -1183,6 +1179,7 @@ async function main(): Promise<void> {
         `${error instanceof Error ? error.message : "Telegram settings did not load"}; renderer=${renderer}; profile=${existsSync(join(userData, TELEGRAM_VAULT_DIRECTORY, TELEGRAM_PROFILE_FILE))}; desired-state=${existsSync(join(userData, TELEGRAM_VAULT_DIRECTORY, TELEGRAM_DESIRED_STATE_FILE))}; Bot API methods=${telegram.methods().join(",") || "none"}; process=${processOutput}`,
       );
     }
+
     reportPhase("token-configure");
     await writeClipboard(token);
     await page.clickButton("Paste token from clipboard");
@@ -1207,6 +1204,7 @@ async function main(): Promise<void> {
     );
     assert(!(await page.bodyText()).includes(token), "Telegram credential reached renderer text");
     await assertOutputSecretFree(runningApplications, token);
+
     await page.clickButton("Start pairing and turn on");
     const code = await pairingCode(page);
     telegram.enqueue(code);
@@ -1223,6 +1221,7 @@ async function main(): Promise<void> {
     })()`);
     await waitForTelegramText(page, String(SENDER_ID));
     await page.screenshot(join(screenshots, "paired.png"));
+
     let messageStart = telegram.sentMessages.length;
     telegram.enqueue("/version");
     await waitForSentMessage(
@@ -1230,6 +1229,7 @@ async function main(): Promise<void> {
       `Cycling Coach Desktop v${packageManifest.version}`,
       messageStart,
     );
+
     messageStart = telegram.sentMessages.length;
     const freeTextMessageStart = messageStart;
     const chatActionStart = telegram.chatActions.length;
@@ -1254,6 +1254,7 @@ async function main(): Promise<void> {
       if (progressed) freeTextInitialSelectionSequence = selection.sequence;
       return progressed;
     });
+
     const pairedDesired = JSON.parse(
       await readFile(join(userData, TELEGRAM_VAULT_DIRECTORY, TELEGRAM_DESIRED_STATE_FILE), "utf8"),
     ) as { readonly enabled?: unknown };
@@ -1300,6 +1301,7 @@ async function main(): Promise<void> {
     );
     primary = undefined;
     page = undefined;
+
     reportPhase("background-relaunch");
     debugPort = await reservePort();
     const backgroundEnvironment = {
@@ -1348,6 +1350,7 @@ async function main(): Promise<void> {
       (await mainRendererTargets(debugPort, backgroundDebuggerAuthority)).length === 0,
       "background Telegram handling created a main renderer",
     );
+
     reportPhase("resident-lifecycle");
     const foregroundRequest = await launchTrackedApplication(
       environment,
@@ -1370,6 +1373,7 @@ async function main(): Promise<void> {
       "second launch did not open exactly one main renderer",
     );
     page = await cdpPage(debugPort, requireDebuggerAuthority(debuggerAuthorities, debugPort));
+
     reportPhase("window-close");
     await page.evaluate("window.close(); true").catch(() => undefined);
     page.closeSocket();
@@ -1396,6 +1400,7 @@ async function main(): Promise<void> {
       `Cycling Coach Desktop v${packageManifest.version}`,
       messageStart,
     );
+
     reportPhase("secondary-launch");
     const secondary = await launchTrackedApplication(
       environment,
@@ -1431,10 +1436,12 @@ async function main(): Promise<void> {
     await delay(1_000);
     assert(telegram.sentMessages.length === messageStart, "disabled Telegram replied to an update");
     assert(telegram.pollCount() === disabledPollCount, "disabled Telegram continued polling");
+
     reportPhase("disabled-quit");
     await gracefulQuit(primary, page, debugPort);
     primary = undefined;
     page = undefined;
+
     reportPhase("disabled-relaunch");
     const relaunchPort = await reservePort();
     primary = await launchTrackedApplication(
@@ -1497,6 +1504,7 @@ async function main(): Promise<void> {
         latestResumedRequest.state === "pending",
       "pending Telegram update offset did not advance exactly once",
     );
+
     reportPhase("removal");
     await page.clickButton("Delete", 'section[aria-label="Telegram"]');
     await waitUntil("Telegram delete confirmation", () =>
@@ -1611,31 +1619,32 @@ async function main(): Promise<void> {
       persistedDisable: true,
       removal: true,
     };
-    } catch (error) {
-      executionError = errorWithRunningApplicationDiagnostics(error, runningApplications, [token]);
-      } finally {
-      reportPhase("cleanup");
-      const cleanupErrors: unknown[] = [];
-      const attempt = async (cleanup: () => void | Promise<void>): Promise<void> => {
+  } catch (error) {
+    executionError = errorWithRunningApplicationDiagnostics(error, runningApplications, [token]);
+  } finally {
+    reportPhase("cleanup");
+    const cleanupErrors: unknown[] = [];
+    const attempt = async (cleanup: () => void | Promise<void>): Promise<void> => {
       try {
-      await cleanup();
+        await cleanup();
       } catch (error) {
-      cleanupErrors.push(error);
+        cleanupErrors.push(error);
       }
-      };
-      await Promise.all(runningApplications.map((running) => running.requestQuit()));
-      const directExits = await Promise.all(
+    };
+
+    await Promise.all(runningApplications.map((running) => running.requestQuit()));
+    const directExits = await Promise.all(
       runningApplications.map((running) => cleanApplicationExit(running, 10_000)),
-      );
-      const directApplicationsExitedCleanly = directExits.every(Boolean);
-      if (!directApplicationsExitedCleanly) {
+    );
+    const directApplicationsExitedCleanly = directExits.every(Boolean);
+    if (!directApplicationsExitedCleanly) {
       cleanupErrors.push(
-      new Error(
-      `a directly launched packaged Desktop process did not exit cleanly; ${runningApplicationDiagnostics(
-      runningApplications,
-      [token],
-      )}`,
-      ),
+        new Error(
+          `a directly launched packaged Desktop process did not exit cleanly; ${runningApplicationDiagnostics(
+            runningApplications,
+            [token],
+          )}`,
+        ),
       );
     }
     const terminatedApplications = await Promise.all(
@@ -1696,6 +1705,7 @@ async function main(): Promise<void> {
       );
     });
     await attempt(() => writeClipboard(originalClipboard));
+
     reportPhase("cleanup-storage");
     try {
       await releaseAcceptanceStorage({
@@ -1728,4 +1738,5 @@ async function main(): Promise<void> {
   reportPhase("complete");
   process.stdout.write(`${JSON.stringify(successResult)}\n`);
 }
+
 await main();

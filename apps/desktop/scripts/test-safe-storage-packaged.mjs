@@ -74,10 +74,7 @@ async function treeContains(root, value) {
   for (const entry of entries) {
     try {
       if ((await readFile(join(root, entry))).includes(Buffer.from(value))) return true;
-    } catch (error) {
-      const code = error?.code;
-      if (code !== "EISDIR" && code !== "ENOENT" && code !== "ENOTDIR") throw error;
-    }
+    } catch {}
   }
   return false;
 }
