@@ -233,7 +233,7 @@ export function createDurableTrainingExportWriter(input?: {
       const temporary = pathApi.join(root, `.enduragent-export-${id}.tmp`);
       let handle: Awaited<ReturnType<typeof open>> | undefined;
       let renamed = false;
-      let outcome: "committed" | "uncertain" | "failed";
+      let outcome: "committed" | "uncertain" | "failed" = "failed";
       try {
         request.signal?.throwIfAborted();
         handle = await openFile(temporary, "wx", 0o600);
