@@ -463,65 +463,67 @@ export function createChatController(input: {
     resetTask === undefined;
   const render = (appendDelta?: ChatAppendDelta): void => {
     if (disposed) return;
-    input.view.render(
-      hydration.turns.length === 0 && hydration.entries.length === 0
-        ? state
-        : {
-            ...state,
-            messages: mergeHydratedMessages(hydration.turns, state.messages, hydration.entries),
+    try {
+      input.view.render(
+        hydration.turns.length === 0 && hydration.entries.length === 0
+          ? state
+          : {
+              ...state,
+              messages: mergeHydratedMessages(hydration.turns, state.messages, hydration.entries),
+            },
+        {
+          newConversationDisabled: !canOpenNewConversation(),
+          workBlocked: resetBlocksWork() || !queueLoaded,
+          decisionLoading: !decisionLoaded,
+          decisionLoadError,
+          queueLoadError,
+          queueMutationError,
+          attachments: {
+            value: attachmentSurface,
+            admissions: attachmentAdmissions,
+            busy: attachmentBusyTokens.size > 0,
+            draftError,
+            error: attachmentError,
           },
-      {
-        newConversationDisabled: !canOpenNewConversation(),
-        workBlocked: resetBlocksWork() || !queueLoaded,
-        decisionLoading: !decisionLoaded,
-        decisionLoadError,
-        queueLoadError,
-        queueMutationError,
-        attachments: {
-          value: attachmentSurface,
-          admissions: attachmentAdmissions,
-          busy: attachmentBusyTokens.size > 0,
-          draftError,
-          error: attachmentError,
+          planningRequests: {
+            value: planningRequests,
+            loaded: planningRequestsLoaded,
+            busyId: planningRequestBusyId,
+            error: planningRequestError,
+            focusId: planningRequestFocusId,
+          },
+          planCreation: {
+            value: planCreation,
+            loaded: planCreationLoaded,
+            busy: planCreationBusy,
+            error: planCreationError,
+            paused: planCreationPaused,
+            editingKey: planCreationEditingKey,
+            focusRevision: planCreationFocusRevision,
+            discardConfirmationOpen: planCreationDiscardConfirmationOpen,
+            activateConfirmationOpen: planCreationActivateConfirmationOpen,
+            activePlanKnowledge,
+            discardEvents: planCreationDiscardEvents,
+            notice: planCreationNotice,
+            focusRequest: planCreationFocusRequest,
+          },
+          ...(appendDelta === undefined ? {} : { appendDelta }),
+          hydration: {
+            status: hydration.status,
+            hasEarlier: hydration.nextCursor !== null,
+            revision: hydration.revision,
+            change: hydration.change,
+            entries: hydration.entries,
+          },
+          decision: {
+            value: decision,
+            phase: decisionPhase,
+            answerLabel: decisionAnswerLabel,
+            error: decisionError,
+          },
         },
-        planningRequests: {
-          value: planningRequests,
-          loaded: planningRequestsLoaded,
-          busyId: planningRequestBusyId,
-          error: planningRequestError,
-          focusId: planningRequestFocusId,
-        },
-        planCreation: {
-          value: planCreation,
-          loaded: planCreationLoaded,
-          busy: planCreationBusy,
-          error: planCreationError,
-          paused: planCreationPaused,
-          editingKey: planCreationEditingKey,
-          focusRevision: planCreationFocusRevision,
-          discardConfirmationOpen: planCreationDiscardConfirmationOpen,
-          activateConfirmationOpen: planCreationActivateConfirmationOpen,
-          activePlanKnowledge,
-          discardEvents: planCreationDiscardEvents,
-          notice: planCreationNotice,
-          focusRequest: planCreationFocusRequest,
-        },
-        ...(appendDelta === undefined ? {} : { appendDelta }),
-        hydration: {
-          status: hydration.status,
-          hasEarlier: hydration.nextCursor !== null,
-          revision: hydration.revision,
-          change: hydration.change,
-          entries: hydration.entries,
-        },
-        decision: {
-          value: decision,
-          phase: decisionPhase,
-          answerLabel: decisionAnswerLabel,
-          error: decisionError,
-        },
-      },
-    );
+      );
+    } catch {}
   };
   const attachmentGenerationIsCurrent = (generation: number): boolean =>
     !disposed && generation === attachmentGeneration;
