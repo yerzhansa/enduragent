@@ -133,9 +133,12 @@ describe("scanSource code patterns", () => {
       "job.catch((error: unknown) => { console.error(error); });",
       "job.catch(() => fallback());",
       "job.then(() => {});",
+      "job.then(undefined, () => undefined);",
+      "job.then(() => fallback(), () => {});",
+      "job.then(() => fallback(), (error: unknown) => { console.error(error); });",
     ].join("\n");
     expect(scanSource("packages/a/src/job.ts", source)["swallowed-rejection"]).toEqual({
-      "packages/a/src/job.ts": 6,
+      "packages/a/src/job.ts": 8,
     });
     expect(scanSource("packages/a/src/job.test.ts", source)["swallowed-rejection"]).toBeUndefined();
   });
@@ -154,12 +157,16 @@ describe("scanSource code patterns", () => {
       "try { work(); } catch (error) { if (error instanceof Error) throw error; }",
       "try { work(); } catch (error) { if (!(error instanceof Error)) throw new Error(String(error)); }",
       "job.catch((error: unknown) => { console.error(error); });",
+      "try { work(); } catch (error) { void error; }",
+      "job.catch((error: unknown) => { void error; });",
+      "job.then(undefined, (error: unknown) => { void error; });",
+      "try { work(); } catch (error) { void error; work(); }",
     ].join("\n");
     expect(scanSource("packages/a/src/job.ts", source)["disguised-swallow"]).toEqual({
-      "packages/a/src/job.ts": 4,
+      "packages/a/src/job.ts": 7,
     });
     expect(scanSource("packages/a/src/job.test.ts", source)["disguised-swallow"]).toEqual({
-      "packages/a/src/job.test.ts": 4,
+      "packages/a/src/job.test.ts": 7,
     });
   });
 
