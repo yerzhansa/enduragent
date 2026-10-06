@@ -140,6 +140,29 @@ describe("scanSource code patterns", () => {
     expect(scanSource("packages/a/src/job.test.ts", source)["swallowed-rejection"]).toBeUndefined();
   });
 
+  it("counts catch handlers that only look like they handle the error", () => {
+    const source = [
+      "declare const job: Promise<void>;",
+      "declare function work(): void;",
+      "try { work(); } catch { /* best effort */ }",
+      "try { work(); } catch (error) { if (!(error instanceof Error)) throw error; }",
+      "try { work(); } catch (cause) { if (!(cause instanceof Error)) { throw cause; } }",
+      "job.catch((error: unknown) => { if (!(error instanceof Error)) throw error; });",
+      "try { work(); } catch {}",
+      "try { work(); } catch (error) { if (!(error instanceof Error)) throw error; console.error(error); }",
+      "try { work(); } catch (error) { if (!(error instanceof TypeError)) throw error; }",
+      "try { work(); } catch (error) { if (error instanceof Error) throw error; }",
+      "try { work(); } catch (error) { if (!(error instanceof Error)) throw new Error(String(error)); }",
+      "job.catch((error: unknown) => { console.error(error); });",
+    ].join("\n");
+    expect(scanSource("packages/a/src/job.ts", source)["disguised-swallow"]).toEqual({
+      "packages/a/src/job.ts": 4,
+    });
+    expect(scanSource("packages/a/src/job.test.ts", source)["disguised-swallow"]).toEqual({
+      "packages/a/src/job.test.ts": 4,
+    });
+  });
+
   it("counts assertions through unknown outside tests", () => {
     const source = [
       "declare const value: string;",
