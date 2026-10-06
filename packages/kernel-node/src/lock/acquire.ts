@@ -389,10 +389,6 @@ export async function acquireWriteLock(
       const other = readLockfile(lockfilePath);
       const otherPort = other?.port ?? readPortFile(portFilePath);
       if (otherPort === null) {
-        // Corruption backstop — no process ordering produces a claim without a
-        // readable port (claims are born with their body via claimLockfile).
-        // An unreadable claim is not proven stale, and no timer may prove it:
-        // never unlink, never wait.
         await closeServer(server, sockets);
         throw new WriteLockContentionError(
           `The lockfile at ${lockfilePath} is unreadable; remove it and retry.`,

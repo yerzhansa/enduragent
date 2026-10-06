@@ -220,7 +220,6 @@ async function writeAcceptedModelCatalog(
   contextWindowTokens: number,
   inputUsdPerMillion: number,
 ): Promise<ModelCatalogSnapshot> {
-  // Live installation reads skip catalogs that drop bundled suggested providers.
   const snapshot = structuredClone(bundledAcceptedCatalog().snapshot);
   snapshot.revision = revision;
   snapshot.provenance = { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" };
