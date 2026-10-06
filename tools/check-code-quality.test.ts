@@ -119,57 +119,169 @@ describe("scanSource comments", () => {
   });
 });
 
+const SOURCE_FILE = "packages/a/src/job.ts";
+const TEST_FILE = "packages/a/src/job.test.ts";
+const GATE = "if (!(error instanceof Error)) throw error;";
+
+function swallowCounts(source: string, file = SOURCE_FILE): { rejection: number; disguised: number } {
+  const counts = scanSource(file, source);
+  return {
+    rejection: counts["swallowed-rejection"]?.[file] ?? 0,
+    disguised: counts["disguised-swallow"]?.[file] ?? 0,
+  };
+}
+
+describe("scanSource swallowed rejections", () => {
+  it.each([
+    "job.catch(() => {});",
+    "job.catch(() => undefined);",
+    "job.catch(() => null);",
+    "job.catch(() => void 0);",
+    "job.catch((() => (undefined)));",
+    "job.catch(function () {});",
+    "job.catch(async () => {});",
+    "job?.catch(() => {});",
+    "job.catch(() => { /* ignored */ });",
+    "job.then(undefined, () => undefined);",
+    "job.then(null, () => undefined);",
+    "job.then(() => fallback(), () => {});",
+    "job.catch((error) => void error);",
+    "job.catch((error) => (void (error)));",
+    'job.catch(() => void "ignored");',
+    "job.then(undefined, (error) => void error);",
+    "function noop() {} job.catch(noop);",
+    "job.catch(noop); function noop() {}",
+    "const noop = () => undefined; job.catch(noop);",
+    "const noop = () => {}; job.then(undefined, noop);",
+    "const noop = function () { return; }; job.catch(noop);",
+    "const noop = (error: unknown) => { void error; }; job.catch(noop);",
+    "export const noop = async (): Promise<void> => {}; job.catch(noop);",
+    `function onlyErrors(error: unknown) { ${GATE} } job.catch(onlyErrors);`,
+    "function run() { const noop = () => {}; job.catch(noop); }",
+  ])("counts %s", (source) => {
+    expect(swallowCounts(source)).toEqual({ rejection: 1, disguised: 0 });
+  });
+
+  it.each([
+    "job.catch((error: unknown) => { console.error(error); });",
+    "job.catch(() => fallback());",
+    "job.catch(() => false);",
+    "job.catch(() => void report());",
+    "job.catch((error) => void report(error));",
+    "job.catch((error) => void error.message);",
+    "job.then(() => {});",
+    "job.then(() => fallback(), (error: unknown) => { console.error(error); });",
+    "job.finally(() => {});",
+    "job.catch(undefined);",
+    "job.then(operation, operation);",
+    'import { noop } from "./noop.js"; job.catch(noop);',
+    "const report = (error: unknown) => { console.error(error); }; job.catch(report);",
+    "let handler = () => {}; job.catch(handler);",
+    "function noop() {} function run(noop: () => void) { job.catch(noop); }",
+    "function run() { const noop = () => {}; } job.catch(noop);",
+    "declare function noop(): void; job.catch(noop);",
+    "const handlers = { noop: () => {} }; job.catch(handlers.noop);",
+    "function noop() {} job.then(noop);",
+  ])("does not count %s", (source) => {
+    expect(swallowCounts(source)).toEqual({ rejection: 0, disguised: 0 });
+  });
+
+  it.each(["job.catch(() => {});", "function noop() {} job.catch(noop);"])(
+    "does not count %s in a test file",
+    (source) => {
+      expect(swallowCounts(source, TEST_FILE)).toEqual({ rejection: 0, disguised: 0 });
+    },
+  );
+});
+
+describe("scanSource disguised swallows", () => {
+  it.each([
+    "try { work(); } catch { /* best effort */ }",
+    "try { work(); } catch {\n  // best effort\n}",
+    "try { work(); } catch (error) { void error; }",
+    "try { work(); } catch (error) { void (error); }",
+    "try { work(); } catch { void 0; }",
+    "try { work(); } catch { ; }",
+    "try { work(); } catch { /* best effort */ ; }",
+    "try { work(); } catch (error) { void error; ; }",
+    `try { work(); } catch (error) { ${GATE} }`,
+    "try { work(); } catch (cause) { if (!(cause instanceof Error)) { throw cause; } }",
+    `try { work(); } catch (error) { ${GATE} void error; }`,
+    `try { work(); } catch (error) { void error; ${GATE} }`,
+    "try { work(); } catch (error) { if (!((error) instanceof Error)) throw (error); }",
+    "try { work(); } catch (error) { if ((error instanceof Error) === false) throw error; }",
+    "try { work(); } catch (error) { if ((error instanceof Error) == false) throw error; }",
+    "try { work(); } catch (error) { if ((error instanceof Error) !== true) throw error; }",
+    "try { work(); } catch (error) { if (false === error instanceof Error) throw error; }",
+    "try { work(); } catch (error) { if (!(error instanceof globalThis.Error)) throw error; }",
+    "try { work(); } catch (error) { if (error instanceof Error) {} else throw error; }",
+    "try { work(); } catch (error) { if (error instanceof Error) { void error; } else { throw error; } }",
+    "try { work(); } catch (error) { if (!(error instanceof Error)) throw error; else void error; }",
+    "job.catch((error: unknown) => { void error; });",
+    "job.then(undefined, (error: unknown) => { void error; });",
+    "job.catch(function (error) { void error; });",
+    "job.catch(() => { ; });",
+    "job.catch(() => { return; });",
+    "job.catch(() => { return undefined; });",
+    "job.then(undefined, () => { return null; });",
+    "job.catch(() => { return void 0; });",
+    "job.catch((error: unknown) => { void error; return; });",
+    `job.catch((error: unknown) => { ${GATE} });`,
+    `job.catch((error: unknown) => { ${GATE} return; });`,
+    "job.catch((error: unknown) => { if (error instanceof Error) return; throw error; });",
+    "job.catch((error: unknown) => { if (error instanceof Error) { return undefined; } else { throw error; } });",
+    "job.then(undefined, (error: unknown) => { if ((error instanceof Error) === false) throw error; });",
+  ])("counts %s", (source) => {
+    expect(swallowCounts(source)).toEqual({ rejection: 0, disguised: 1 });
+  });
+
+  it.each([
+    "try { work(); } catch {}",
+    "try { work(); } catch (error) { console.error(error); }",
+    "try { work(); } catch (error) { void error; work(); }",
+    "try { work(); } catch { void work(); }",
+    "try { work(); } catch (error) { void report(error); }",
+    "try { work(); } catch (error) { void error.message; }",
+    "try { work(); } catch (error) { throw error; }",
+    `try { work(); } catch (error) { ${GATE} console.error(error); }`,
+    "try { work(); } catch (error) { if (!(error instanceof TypeError)) throw error; }",
+    "try { work(); } catch (error) { if (error instanceof Error) throw error; }",
+    "try { work(); } catch (error) { if ((error instanceof Error) === true) throw error; }",
+    "try { work(); } catch (error) { if (!(error instanceof Error)) throw new Error(String(error)); }",
+    "try { work(); } catch (error) { if (!(other instanceof Error)) throw error; }",
+    "try { work(); } catch (error) { if (!(error instanceof Error)) throw other; }",
+    "try { work(); } catch { if (!(saved instanceof Error)) throw saved; }",
+    "try { work(); } catch (error) { if (error instanceof Error) report(error); else throw error; }",
+    "function run() { try { work(); } catch { return; } }",
+    "function run() { try { work(); } catch { return undefined; } }",
+    "function run() { try { work(); } catch { return null; } }",
+    "function run() { try { work(); } catch { return false; } }",
+    "for (;;) { try { work(); } catch { continue; } }",
+    "function run() { try { work(); } catch (error) { if (error instanceof Error) return; throw error; } }",
+    `function run() { try { work(); } catch (error) { ${GATE} return; } }`,
+    "job.catch((error: unknown) => { console.error(error); });",
+    "job.catch(() => { void work(); });",
+    "job.catch((error) => { void report(error); });",
+    "job.catch(() => { return false; });",
+    "job.catch(() => { return fallback(); });",
+    "job.catch((error: unknown) => { throw error; });",
+    "job.catch((error: unknown) => { if (error instanceof Error) throw error; });",
+    "job.catch((error: unknown) => { if (error instanceof Error) return; report(error); });",
+    "job.then(() => { void 0; });",
+    "job.finally(() => { void 0; });",
+  ])("does not count %s", (source) => {
+    expect(swallowCounts(source)).toEqual({ rejection: 0, disguised: 0 });
+  });
+
+  it.each(["try { work(); } catch (error) { void error; }", "job.catch(() => { return; });"])(
+    "counts %s in a test file",
+    (source) => {
+      expect(swallowCounts(source, TEST_FILE)).toEqual({ rejection: 0, disguised: 1 });
+    },
+  );
+});
+
 describe("scanSource code patterns", () => {
-  it("counts rejection handlers that discard the error outside tests", () => {
-    const source = [
-      "declare const job: Promise<void>;",
-      "declare function fallback(): void;",
-      "job.catch(() => {});",
-      "job.catch(() => undefined);",
-      "job.catch(() => null);",
-      "job.catch(() => void 0);",
-      "job.catch((() => (undefined)));",
-      "job.catch(function () {});",
-      "job.catch((error: unknown) => { console.error(error); });",
-      "job.catch(() => fallback());",
-      "job.then(() => {});",
-      "job.then(undefined, () => undefined);",
-      "job.then(() => fallback(), () => {});",
-      "job.then(() => fallback(), (error: unknown) => { console.error(error); });",
-    ].join("\n");
-    expect(scanSource("packages/a/src/job.ts", source)["swallowed-rejection"]).toEqual({
-      "packages/a/src/job.ts": 8,
-    });
-    expect(scanSource("packages/a/src/job.test.ts", source)["swallowed-rejection"]).toBeUndefined();
-  });
-
-  it("counts catch handlers that only look like they handle the error", () => {
-    const source = [
-      "declare const job: Promise<void>;",
-      "declare function work(): void;",
-      "try { work(); } catch { /* best effort */ }",
-      "try { work(); } catch (error) { if (!(error instanceof Error)) throw error; }",
-      "try { work(); } catch (cause) { if (!(cause instanceof Error)) { throw cause; } }",
-      "job.catch((error: unknown) => { if (!(error instanceof Error)) throw error; });",
-      "try { work(); } catch {}",
-      "try { work(); } catch (error) { if (!(error instanceof Error)) throw error; console.error(error); }",
-      "try { work(); } catch (error) { if (!(error instanceof TypeError)) throw error; }",
-      "try { work(); } catch (error) { if (error instanceof Error) throw error; }",
-      "try { work(); } catch (error) { if (!(error instanceof Error)) throw new Error(String(error)); }",
-      "job.catch((error: unknown) => { console.error(error); });",
-      "try { work(); } catch (error) { void error; }",
-      "job.catch((error: unknown) => { void error; });",
-      "job.then(undefined, (error: unknown) => { void error; });",
-      "try { work(); } catch (error) { void error; work(); }",
-    ].join("\n");
-    expect(scanSource("packages/a/src/job.ts", source)["disguised-swallow"]).toEqual({
-      "packages/a/src/job.ts": 7,
-    });
-    expect(scanSource("packages/a/src/job.test.ts", source)["disguised-swallow"]).toEqual({
-      "packages/a/src/job.test.ts": 7,
-    });
-  });
-
   it("counts assertions through unknown outside tests", () => {
     const source = [
       "declare const value: string;",
