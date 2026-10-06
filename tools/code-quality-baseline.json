@@ -252,7 +252,6 @@
     "packages/kernel-node/src/home/anchor-seeder.ts": 3,
     "packages/kernel-node/src/home/resolve-athlete-home.ts": 4,
     "packages/kernel-node/src/index.ts": 1,
-    "packages/kernel-node/src/lock/acquire.ts": 4,
     "packages/kernel-node/src/lock/lockfile-body.ts": 5,
     "packages/kernel-node/src/lock/write-temp.ts": 2,
     "packages/kernel-node/src/sqlite/database.ts": 5,
