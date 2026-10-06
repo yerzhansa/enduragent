@@ -461,9 +461,33 @@ export function createManagedChatAttachmentStore(
         if (platform !== "win32") await chmod(finalPath, PRIVATE_FILE_MODE);
         await syncDirectory(directory, platform);
       } catch (error) {
-        await sourceHandle?.close().catch(() => {});
-        await targetHandle?.close().catch(() => {});
-        await removeIfPresent(temporaryPath).catch(() => {});
+        try {
+          await sourceHandle?.close();
+        } catch (error) {
+          if (
+            !(
+              typeof error === "object" &&
+              error !== null &&
+              "code" in error &&
+              (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED")
+            )
+          )
+            throw error;
+        }
+        try {
+          await targetHandle?.close();
+        } catch (error) {
+          if (
+            !(
+              typeof error === "object" &&
+              error !== null &&
+              "code" in error &&
+              (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED")
+            )
+          )
+            throw error;
+        }
+        await removeIfPresent(temporaryPath);
         throw error;
       }
     },

@@ -163,10 +163,23 @@ export async function runCoachServe(
         upgrade: rpc.handleUpgrade,
       });
     } catch (error) {
-      await quiesce().catch(() => {});
-      await rpc.close().catch(() => {});
-      await telegram.close().catch(() => {});
-      throw error;
+      const cleanupErrors: unknown[] = [error];
+      try {
+        await quiesce();
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+      try {
+        await rpc.close();
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+      try {
+        await telegram.close();
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+      throw cleanupErrors.length === 1 ? error : new AggregateError(cleanupErrors);
     }
     if (!aborted && owner !== "app-supervised") {
       try {

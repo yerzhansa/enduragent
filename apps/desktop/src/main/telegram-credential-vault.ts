@@ -385,10 +385,20 @@ async function syncDirectory(root: string): Promise<void> {
   try {
     await directory.sync();
   } catch (error) {
-    await directory.close().catch(() => undefined);
+    try {
+      await directory.close();
+    } catch (closeError) {
+      const code = (closeError as NodeJS.ErrnoException).code;
+      if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw closeError;
+    }
     throw error;
   }
-  await directory.close().catch(() => undefined);
+  try {
+    await directory.close();
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ERR_DIR_CLOSED" && code !== "EBADF") throw error;
+  }
 }
 
 export function createTelegramCredentialVault(
@@ -454,13 +464,11 @@ export function createTelegramCredentialVault(
   ): void => {
     emitTelegramSecureStorageFailure(options.observeSecureStorageFailure, { stage, reason });
   };
-
   const observedEncryptionRefusal = (): EncryptionRefusal | undefined => {
     const reason = encryptionRefusal(options.encryption, platform);
     if (reason !== undefined) observeFailure("encryption-availability", reason);
     return reason;
   };
-
   const exclusive = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = operationQueue.then(operation, operation);
     operationQueue = result.then(
@@ -475,7 +483,6 @@ export function createTelegramCredentialVault(
     options.serializeEnvelopeMutation === undefined
       ? exclusive(() => operation(undefined))
       : options.serializeEnvelopeMutation((proof) => exclusive(() => operation(proof)));
-
   const reconcileOwnedTransients = async (forceSync: boolean): Promise<boolean> => {
     const directory = await secureDirectoryState(options.root, platform, bindCredentialDirectory);
     if (directory !== "secure") return true;
@@ -503,7 +510,6 @@ export function createTelegramCredentialVault(
     transientArtifactsMayExist = false;
     return true;
   };
-
   const prepareNamespace = async (): Promise<boolean> => {
     if (namespaceVerification === "uncertain") return false;
     if (namespaceVerification === "pending") {
@@ -521,7 +527,6 @@ export function createTelegramCredentialVault(
     }
     return true;
   };
-
   const readProfile = async (): Promise<ReadProfile> => {
     const directory = await secureDirectoryState(options.root, platform, bindCredentialDirectory);
     if (directory === "missing") return { state: "missing" };
@@ -582,7 +587,6 @@ export function createTelegramCredentialVault(
       encrypted?.fill(0);
     }
   };
-
   const readDesiredState = async (): Promise<TelegramDesiredState> => {
     const directory = await secureDirectoryState(options.root, platform, bindCredentialDirectory);
     if (directory === "missing") return { state: "missing", enabled: false };
@@ -636,7 +640,6 @@ export function createTelegramCredentialVault(
       contents?.fill(0);
     }
   };
-
   const writeReversible = async (
     fileName: string,
     candidate: Buffer,
@@ -713,7 +716,6 @@ export function createTelegramCredentialVault(
       previous?.fill(0);
     }
   };
-
   const removeStoredProfile = async (
     authorizeRename?: () => Promise<boolean>,
   ): Promise<
@@ -762,7 +764,6 @@ export function createTelegramCredentialVault(
       return "cleanup-pending";
     }
   };
-
   const authorizeProfileRemoval = async (
     proof: CredentialEnvelopeLockProof | undefined,
     validateImmediately: boolean,
@@ -822,7 +823,6 @@ export function createTelegramCredentialVault(
     }
     return { outcome: "authorized", keychainDependent: true };
   };
-
   return {
     profileStatus(): Promise<TelegramProfileStatus> {
       return exclusive(async () => {
@@ -848,7 +848,6 @@ export function createTelegramCredentialVault(
         return { state: profile.state };
       });
     },
-
     replaceProfile(input): Promise<TelegramProfileReplaceResult> {
       return envelopeExclusive(async (proof) => {
         const authenticatedAthleteHome = parseAthleteHome(input?.authenticatedAthleteHome);
@@ -946,7 +945,6 @@ export function createTelegramCredentialVault(
         }
       });
     },
-
     applyStoredProfile(
       authenticatedAthleteHome,
       applyProfile,
@@ -989,14 +987,12 @@ export function createTelegramCredentialVault(
         }
       });
     },
-
     preauthorizeProfileRemoval(): Promise<TelegramProfileRemovalAuthorizationResult> {
       return envelopeExclusive(async (proof) => {
         const authorization = await authorizeProfileRemoval(proof, true);
         return authorization.outcome === "authorized" ? { outcome: "authorized" } : authorization;
       });
     },
-
     deleteProfile(): Promise<TelegramProfileDeleteResult> {
       return envelopeExclusive(async (proof) => {
         const authorization = await authorizeProfileRemoval(proof, false);
@@ -1033,7 +1029,6 @@ export function createTelegramCredentialVault(
           : { outcome: "refused", reason: "storage-failed" };
       });
     },
-
     desiredState(): Promise<TelegramDesiredState> {
       return exclusive(async () => {
         if (!(await prepareNamespace()) || desiredStateUncertain) {
@@ -1042,7 +1037,6 @@ export function createTelegramCredentialVault(
         return await readDesiredState();
       });
     },
-
     setDesiredState(enabled): Promise<TelegramDesiredStateWriteResult> {
       return exclusive(async () => {
         if (typeof enabled !== "boolean") {

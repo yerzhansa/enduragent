@@ -186,7 +186,7 @@ describe("durable atomic replace", () => {
   );
 
   it.each(durabilityPlatforms)(
-    "keeps the $name pre-rename outcome truthful when temporary cleanup also fails",
+    "keeps the $name pre-rename outcome from masking an unexpected temporary cleanup failure",
     async ({ platform }) => {
       const root = await temporaryRoot();
       const target = join(root, "setting.json");
@@ -209,14 +209,9 @@ describe("durable atomic replace", () => {
         removeFile: removeFile as never,
       });
 
-      if (platform === "win32") {
-        await expect(replacement).rejects.toMatchObject({
-          message: "Windows private path policy failed",
-          stage: "rename",
-        });
-      } else {
-        await expect(replacement).resolves.toEqual({ state: "not-committed" });
-      }
+      await expect(replacement).rejects.toMatchObject({
+        message: "synthetic temporary cleanup failure",
+      });
       await expect(readFile(target, "utf8")).resolves.toBe("old");
       await expect(readFile(temporary, "utf8")).resolves.toBe("candidate");
       expect(removeFile).toHaveBeenCalledWith(temporary, { force: true });
@@ -294,13 +289,13 @@ describe("durable atomic replace", () => {
   );
 
   it.each(durabilityPlatforms)(
-    "does not retroactively change a $name durable result during directory cleanup",
+    "surfaces an unexpected $name directory-close failure after a durable rename",
     async ({ platform }) => {
       const root = await temporaryRoot();
       const close = vi.fn(async () => {
         throw new TypeError("synthetic close failure");
       });
-      const result = await durableAtomicReplace({
+      const result = durableAtomicReplace({
         root,
         fileName: "setting.json",
         contents: "candidate",
@@ -310,10 +305,11 @@ describe("durable atomic replace", () => {
         openDirectory: vi.fn(async () => ({ sync: async () => {}, close })) as never,
       });
 
-      expect(result).toEqual({ state: "durably-committed" });
       if (platform === "win32") {
+        await expect(result).resolves.toEqual({ state: "durably-committed" });
         expect(close).not.toHaveBeenCalled();
       } else {
+        await expect(result).resolves.toEqual({ state: "commit-uncertain" });
         expect(close).toHaveBeenCalledOnce();
       }
     },

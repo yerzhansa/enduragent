@@ -7,7 +7,6 @@ import {
   CoachRpcRemoteError,
 } from "@enduragent/coach-client";
 import {
-  PLAN_CREATION_ANSWER_KEYS,
   PlanChangeIntentSchema,
   PlanActiveProjectionDataSchema,
   parseFeedbackCommand,
@@ -37,6 +36,11 @@ import {
   type TurnEvent,
 } from "@enduragent/coach-contract";
 import { previewPlanChange, applyPlanChange } from "../state/adapters/plan";
+import {
+  clearPlanCreationPause,
+  readPlanCreationPause,
+  writePlanCreationPause,
+} from "./plan-creation-pause";
 import {
   EMPTY_PLAN_CHANGE_SURFACE,
   PLAN_CHANGES_PAUSED_NOTICE,
@@ -110,54 +114,6 @@ export const FEEDBACK_TOO_LONG_COPY =
   "Keep your note to 4000 characters or fewer. Nothing was sent.";
 export const FEEDBACK_SENT_COPY = "Thanks — we received your note.";
 export const FEEDBACK_FAILED_COPY = "Couldn't send that note. It's still in the box — try again.";
-
-const PLAN_CREATION_PAUSE_STORAGE_KEY = "enduragent.plan-creation.pause";
-
-interface PlanCreationPauseIdentity {
-  readonly creationId: string;
-  readonly answerKey: PlanCreationAnswerSummary["answerKey"];
-}
-
-function pauseStorage(): Storage | undefined {
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return undefined;
-  }
-}
-
-function readPlanCreationPause(): PlanCreationPauseIdentity | null {
-  try {
-    const value = pauseStorage()?.getItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
-    if (value === undefined || value === null) return null;
-    const parsed = JSON.parse(value) as Record<string, unknown>;
-    if (
-      typeof parsed.creationId !== "string" ||
-      typeof parsed.answerKey !== "string" ||
-      !(PLAN_CREATION_ANSWER_KEYS as readonly string[]).includes(parsed.answerKey)
-    ) {
-      return null;
-    }
-    return {
-      creationId: parsed.creationId,
-      answerKey: parsed.answerKey as PlanCreationAnswerSummary["answerKey"],
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writePlanCreationPause(identity: PlanCreationPauseIdentity): void {
-  try {
-    pauseStorage()?.setItem(PLAN_CREATION_PAUSE_STORAGE_KEY, JSON.stringify(identity));
-  } catch {}
-}
-
-function clearPlanCreationPause(): void {
-  try {
-    pauseStorage()?.removeItem(PLAN_CREATION_PAUSE_STORAGE_KEY);
-  } catch {}
-}
 
 function planCreationQuestionKey(
   question: PlanCreationOpenQuestion,
@@ -693,10 +649,15 @@ export function createChatController(input: {
       const requestStop = (): void => {
         stopRequested = true;
         if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = client
-          .call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId })
-          .then(() => undefined)
-          .catch(() => undefined);
+        stopTask = client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId }).then(
+          () => undefined,
+          () => {
+            if (!current()) return;
+            failProtocol();
+            preserveInterruptedQueueOrigin();
+            reduce({ type: "interrupt", requestKey, copy: CHAT_PROTOCOL_FAILURE_COPY });
+          },
+        );
       };
       activeStopRequest = { requestKey, request: requestStop };
 
@@ -1136,6 +1097,14 @@ export function createChatController(input: {
     if (!decisionBlocksWork() && !planCreationBlocksWork()) void drain();
   };
 
+  const notePlanningRequestLoadFailure = (error: unknown): void => {
+    if (disposed) return;
+    if (!(error instanceof Error)) throw error;
+    planningRequestsLoaded = false;
+    planningRequestError = CHAT_PLANNING_REQUEST_LOAD_FAILURE_COPY;
+    render();
+  };
+
   const installPlanCreation = (
     next: PlanCreationCardModel | null,
     focusTarget?: "discard" | "activate" | "edit" | "start" | "continue" | "change" | "composer",
@@ -1512,10 +1481,14 @@ export function createChatController(input: {
       const requestStop = (): void => {
         stopRequested = true;
         if (client === undefined || boundTurnId === undefined || stopTask !== undefined) return;
-        stopTask = client
-          .call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId })
-          .then(() => undefined)
-          .catch(() => undefined);
+        stopTask = client.call("stopChat", { chatId: DESKTOP_CHAT_ID, turnId: boundTurnId }).then(
+          () => undefined,
+          () => {
+            if (!current()) return;
+            failProtocol();
+            reduce({ type: "interrupt", requestKey, copy: CHAT_PROTOCOL_FAILURE_COPY });
+          },
+        );
       };
       activeStopRequest = { requestKey, request: requestStop };
       const callOptions = {
@@ -2724,7 +2697,11 @@ export function createChatController(input: {
         installPlanCreation(result.planCreation);
         if (result.status === "rejected" && result.reason === "commitments-pending") {
           planCreationError = result.explanation;
-          await loadPlanningRequests().catch(() => {});
+          try {
+            await loadPlanningRequests();
+          } catch (error) {
+            notePlanningRequestLoadFailure(error);
+          }
         } else if (result.status === "rejected") {
           planCreationNotice =
             result.reason === "no-workouts"
@@ -2745,7 +2722,11 @@ export function createChatController(input: {
         ) {
           pendingPlanCreationCommand = null;
           planCreationError = error.message;
-          await loadPlanningRequests().catch(() => {});
+          try {
+            await loadPlanningRequests();
+          } catch (error) {
+            notePlanningRequestLoadFailure(error);
+          }
         } else {
           planCreationNotice = "Build failed. Your answers and last complete Draft are preserved.";
         }
@@ -3005,7 +2986,11 @@ export function createChatController(input: {
           activationAttempt = null;
           planCreationActivateConfirmationOpen = false;
           planCreationError = error.message;
-          await loadPlanningRequests().catch(() => {});
+          try {
+            await loadPlanningRequests();
+          } catch (error) {
+            notePlanningRequestLoadFailure(error);
+          }
         } else if (
           rejection === "version-conflict" ||
           rejection === "not-ready" ||

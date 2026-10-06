@@ -540,9 +540,7 @@ async function startEphemeralDaemonProcess(input: {
     });
     await writeStarterContext(child, starterContextLine(input.successor));
   } catch {
-    try {
-      child?.kill("SIGTERM");
-    } catch {}
+    child?.kill("SIGTERM");
     throw new CoachRemoteError({ kind: "unavailable" });
   }
   return {
@@ -2238,7 +2236,7 @@ async function runServeInvocation(input: {
         : renderLocalResult(result, input.runInput.terminal);
     } catch (error) {
       if (!(error instanceof CoachStoreWriterError) || error.code !== "writer-lock-held") {
-        if (successor !== undefined) await successor.fence.release().catch(() => {});
+        if (successor !== undefined) await successor.fence.release();
         throw error;
       }
       if (input.invocationOwner === "app-supervised" && input.dependencies.platform === "win32") {
@@ -2528,7 +2526,6 @@ export async function runEnduragent(
     return renderEnduragentFailure(error, input.terminal);
   }
 }
-
 export async function main(): Promise<void> {
   const controller = new AbortController();
   const onSigint = (): void => controller.abort();
@@ -2552,7 +2549,6 @@ export async function main(): Promise<void> {
     process.off("SIGTERM", onSigterm);
   }
 }
-
 async function isDirectExecution(moduleUrl: string, argv1: string | undefined): Promise<boolean> {
   if (argv1 === undefined) return false;
   try {
@@ -2565,7 +2561,6 @@ async function isDirectExecution(moduleUrl: string, argv1: string | undefined): 
     return false;
   }
 }
-
 if (await isDirectExecution(import.meta.url, process.argv[1])) {
   await main().catch(() => {
     process.stderr.write("Enduragent could not start.\n");

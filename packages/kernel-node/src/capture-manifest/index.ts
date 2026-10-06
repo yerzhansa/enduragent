@@ -722,7 +722,7 @@ export async function writeReferenceCaptureSidecars(input: {
       if (pendingName !== `.pending-${manifest.capture_id}` || !pendingDirectory.startsWith(`${captures}/`)) {
         throw new Error("capture pending cleanup target is invalid", { cause: error });
       }
-      try { await rm(pendingDirectory, { recursive: true }); } catch {}
+      await rm(pendingDirectory, { recursive: true, force: true });
     }
     throw error;
   }

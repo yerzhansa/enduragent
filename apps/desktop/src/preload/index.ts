@@ -1464,7 +1464,6 @@ ipcRenderer.on(DESKTOP_LIFECYCLE_CHANNEL, (_event, value: unknown) => {
     }),
   );
 });
-
 ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
   let state: PreloadUpdateState;
   try {
@@ -1478,7 +1477,6 @@ ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
     } catch {}
   }
 });
-
 ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   let progress: PreloadChatGptLoginProgress;
   try {
@@ -1492,11 +1490,9 @@ ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) 
     } catch {}
   }
 });
-
 ipcRenderer.on(DESKTOP_OPEN_SETTINGS_CHANNEL, () => {
   for (const listener of openSettingsListeners) listener();
 });
-
 ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   const parsed = PlanProgressEventSchema.safeParse(value);
   if (!parsed.success) return;
@@ -1506,7 +1502,6 @@ ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
     } catch {}
   }
 });
-
 if (
   ipcRenderer.sendSync(DESKTOP_DOCUMENT_REGISTRATION_CHANNEL, {
     navigationToken: desktopDocumentNavigationToken,
@@ -1514,7 +1509,6 @@ if (
 ) {
   throw new TypeError();
 }
-
 contextBridge.exposeInMainWorld(
   "enduragentAuth",
   Object.freeze({

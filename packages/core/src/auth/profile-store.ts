@@ -1,16 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  closeSync,
-  constants as fsConstants,
-  fchmodSync,
-  fsyncSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { closeSync, constants as fsConstants, fchmodSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { atomicWriteFileSync } from "../io/atomic-write-file-sync.js";
 import {
@@ -154,13 +143,13 @@ function writeQuarantine(path: string, bytes: Buffer): string {
       if (descriptor !== null) {
         try {
           closeSync(descriptor);
-        } catch {}
+        } catch (closeError) {
+          if (!(typeof closeError === "object" && closeError !== null && "code" in closeError && (String(closeError.code) === "EBADF" || String(closeError.code) === "ERR_DIR_CLOSED"))) throw closeError;
+        }
       }
       if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
       if (created) {
-        try {
-          unlinkSync(candidate);
-        } catch {}
+        rmSync(candidate, { force: true });
       }
       throw error;
     }

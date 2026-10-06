@@ -179,7 +179,12 @@ export async function readWindowsPrivateFile(
       return { contents, modifiedAt: afterRead.mtimeMs };
     } catch (error) {
       contents?.fill(0);
-      await handle.close().catch(() => undefined);
+      try {
+        await handle.close();
+      } catch (closeError) {
+        const code = (closeError as NodeJS.ErrnoException).code;
+        if (code !== "EBADF") throw closeError;
+      }
       throw error;
     }
   } catch (error) {
@@ -283,7 +288,12 @@ export async function readWindowsPrivateFilePrefix(
       return { contents };
     } catch (error) {
       contents?.fill(0);
-      await handle.close().catch(() => undefined);
+      try {
+        await handle.close();
+      } catch (closeError) {
+        const code = (closeError as NodeJS.ErrnoException).code;
+        if (code !== "EBADF") throw closeError;
+      }
       throw error;
     }
   } catch (error) {

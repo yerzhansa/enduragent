@@ -370,11 +370,9 @@ export function createTrainingSyncCoordinator(input: {
     })();
 
     inFlight = task;
-    void task
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      })
-      .catch(() => {});
+    void task.finally(() => {
+      if (inFlight === task) inFlight = undefined;
+    });
     return task;
   };
 

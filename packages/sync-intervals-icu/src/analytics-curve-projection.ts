@@ -215,8 +215,6 @@ function aggregateCurves(
   curvesByType: Readonly<Record<ActivityType, readonly NormalizedCurve[]>>,
   selectors: readonly string[],
 ): readonly NormalizedCurve[] {
-  // The headline delta is family-wide. Reconstruct the provider's cycling-family best curve
-  // from the explicitly separated outdoor/indoor evidence by taking the best value per duration.
   const aggregated: NormalizedCurve[] = [];
   for (const id of selectors) {
     const bySecond = new Map<
@@ -386,10 +384,6 @@ async function projectCurrentAnalyticsCurves(
   });
 }
 
-/**
- * Rebuild the existing metric-input curve envelopes exclusively from the last promoted,
- * archive-verified four-part generation. No provider client or request surface is accepted here.
- */
 export async function projectAnalyticsCurveEvidence(
   current: CurrentAnalyticsCurves,
   snapshots: VerifiedSnapshotReader,

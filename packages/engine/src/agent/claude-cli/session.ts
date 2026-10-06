@@ -793,7 +793,6 @@ export function startGeneration(
   let closed = false;
   let result: SDKResultMessage | null = null;
   let caught: unknown = null;
-
   const close = async (): Promise<void> => {
     if (closed) return;
     closed = true;
@@ -804,7 +803,6 @@ export function startGeneration(
       windowsMcpConfigState?.cleanup?.();
     }
   };
-
   const frames = async function* (): AsyncGenerator<SDKMessage, void> {
     if (started) {
       throw new Error("Claude CLI generation frames() may only be consumed once.");
@@ -835,7 +833,6 @@ export function startGeneration(
     }
     if (cleanupOnlyFailure !== null) throw cleanupOnlyFailure;
   };
-
   return {
     frames,
     interrupt: async (): Promise<void> => {

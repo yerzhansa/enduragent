@@ -205,15 +205,11 @@ export function mapCodexUsage(last: CodexTokenUsageBreakdown | undefined): Langu
 
 function notifyTextDelta(observer: GenerateOpts["onTextDelta"], delta: string): void {
   if (delta === "") return;
-  try {
-    observer?.(delta);
-  } catch {}
+  observer?.(delta);
 }
 
 function notifyActivity(observer: GenerateOpts["onStreamActivity"]): void {
-  try {
-    observer?.({ type: "activity" } satisfies ModelStreamActivity);
-  } catch {}
+  observer?.({ type: "activity" } satisfies ModelStreamActivity);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

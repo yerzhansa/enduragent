@@ -30,6 +30,7 @@ import { createHealthzRequestHandler } from "../../../../packages/coach/src/daem
 import { createCoachRpcServer } from "../../../../packages/coach/src/daemon/rpc-server.js";
 import type { DesktopTelegramController } from "../../../../packages/coach/src/desktop-telegram-controller.js";
 import { connectCdp, reservePort, waitForPage } from "../../scripts/support/desktop-cdp.js";
+import { DESKTOP_RENDERER_URL } from "../../src/main/constants.js";
 import { BACKGROUND_AT_LOGIN_PREFERENCE_DIRECTORY_NAME } from "../../src/main/login-item.js";
 import { SESSION_TIMEZONE_PIN_FILE_NAME } from "../../src/main/session-timezone-contract.js";
 import { desktopFixtureLaunchArgs } from "./desktop-fixture-launch-args.js";
@@ -803,7 +804,10 @@ export async function launchDesktopFixture(input: {
             const target = entries.find((entry) => typeof entry.webSocketDebuggerUrl === "string");
             if (target !== undefined) mainDebuggerUrl = target.webSocketDebuggerUrl as string;
           }
-        } catch {}
+        } catch (error) {
+          const aborted = error instanceof DOMException && error.name === "AbortError";
+          if (!(error instanceof TypeError) && !aborted) throw error;
+        }
         if (mainDebuggerUrl === undefined) {
           await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
         }
@@ -844,6 +848,20 @@ export async function launchDesktopFixture(input: {
       );
     }
     await Promise.all(setup);
+    const documentDeadline = Date.now() + DESKTOP_FIXTURE_LAUNCH_TIMEOUT_MS;
+    let documentLoaded = false;
+    while (Date.now() < documentDeadline && !documentLoaded) {
+      const response = await nextCdp.call("Runtime.evaluate", {
+        expression: `location.href.startsWith(${JSON.stringify(DESKTOP_RENDERER_URL)}) && document.readyState !== "loading"`,
+        returnByValue: true,
+      });
+      documentLoaded =
+        (response.result as { readonly value?: unknown } | undefined)?.value === true;
+      if (!documentLoaded) {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
+      }
+    }
+    if (!documentLoaded) throw new Error("timed out waiting for the desktop renderer document");
     await refreshSurfaces();
   };
   const cleanupFixture = async (): Promise<void> => {

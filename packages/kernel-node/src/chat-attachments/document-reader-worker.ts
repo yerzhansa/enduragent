@@ -296,6 +296,8 @@ async function readPdf(bytes, limits) {
   await assertDetectedType(bytes, "pdf");
   let engine;
   let pdf;
+  let result;
+  let destroyFailure;
   try {
     engine = await createEngine();
     pdf = await engine.open(bytes);
@@ -322,7 +324,7 @@ async function readPdf(bytes, limits) {
       if (included.length > 0) text += prefix + included;
       if (included.length < normalized.length || extracted.truncated.text) truncated = true;
     }
-    return { text, visualPageNumbers, truncated };
+    result = { text, visualPageNumbers, truncated };
   } catch (error) {
     if (error instanceof ReaderFailure) throw error;
     if (error instanceof PdfPasswordError || error instanceof PdfSecurityError) {
@@ -331,8 +333,14 @@ async function readPdf(bytes, limits) {
     reject("validation_failed");
   } finally {
     pdf?.destroy();
-    await engine?.destroy().catch(() => {});
+    try {
+      await engine?.destroy();
+    } catch (error) {
+      if (destroyFailure === undefined) destroyFailure = error;
+    }
   }
+  if (destroyFailure !== undefined) throw destroyFailure;
+  return result;
 }
 
 async function readDocument(input) {

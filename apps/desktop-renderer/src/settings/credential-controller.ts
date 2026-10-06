@@ -862,7 +862,6 @@ export function createCredentialSettingsController(input: {
     if (content === null || content.focus?.target !== "setup-open") return;
     render({ ...content, focus: null });
   };
-
   const close = (): void => {
     if (disposed) return;
     ++generation;
@@ -875,7 +874,6 @@ export function createCredentialSettingsController(input: {
       ...(resetUncertain ? { resetUncertain: true } : {}),
     };
   };
-
   input.view.bind({
     onRetry: () => {
       const recovery = contentState()?.recovery;
@@ -892,7 +890,6 @@ export function createCredentialSettingsController(input: {
     onSetupOpened: setupOpened,
     onOpenSetup: openSetup,
   });
-
   return {
     async activate() {
       if (disposed) return;

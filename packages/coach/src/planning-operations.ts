@@ -3158,7 +3158,7 @@ export function createPlanningOperations(
               }),
             });
           } catch {
-            await plans.replace(currentPlan, currentWorkouts).catch(() => undefined);
+            await plans.replace(currentPlan, currentWorkouts);
             deliver(onEvent, {
               commandId: command.commandId,
               transitionId: command.transitionId,
@@ -4120,9 +4120,7 @@ export function createPlanningOperations(
           } catch (error) {
             if (error instanceof PlanProposalError && error.code === "missing-capability") {
               if (linkedRequest !== undefined) {
-                await revisePlanningRequestAttention(linkedRequest, "needs_review").catch(
-                  () => undefined,
-                );
+                await revisePlanningRequestAttention(linkedRequest, "needs_review");
               }
               deliver(onEvent, {
                 commandId: command.commandId,
@@ -4212,9 +4210,7 @@ export function createPlanningOperations(
             });
             if (!validationCompleted) {
               if (linkedRequest !== undefined) {
-                await revisePlanningRequestAttention(linkedRequest, "needs_review").catch(
-                  () => undefined,
-                );
+                await revisePlanningRequestAttention(linkedRequest, "needs_review");
               }
               return reject(PROPOSAL_INVALID, {
                 activeScenario: "PL-S007",
@@ -4223,9 +4219,7 @@ export function createPlanningOperations(
               });
             }
             if (linkedRequest !== undefined) {
-              await revisePlanningRequestAttention(linkedRequest, "apply_failed").catch(
-                () => undefined,
-              );
+              await revisePlanningRequestAttention(linkedRequest, "apply_failed");
             }
             return reject(PERSISTENCE_FAILED, {
               activeScenario: "PL-S007",

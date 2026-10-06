@@ -368,9 +368,7 @@ function openHandshake(
       settled = true;
       cleanup();
       if (error !== undefined) {
-        try {
-          socket.close();
-        } catch {}
+        socket.close();
         reject(error);
       } else {
         resolve({ socket, frame: frame! });

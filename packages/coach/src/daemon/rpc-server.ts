@@ -573,12 +573,10 @@ const PLAN_CHAT_RENDERER_METHODS = new Set<CoachRpcMethodName>([
   "runQueuedCommand",
   "retryQueuedTurn",
 ]);
-
 function rendererChatIdAllowed(method: CoachRpcMethodName, chatId: string): boolean {
   if (chatId === "desktop") return true;
   return PLAN_CHAT_RENDERER_METHODS.has(method) && /^plan:[0-9A-HJKMNP-TV-Z]{26}$/u.test(chatId);
 }
-
 function generateRendererCapability(
   privilegedToken: string,
   generateBytes: (size: number) => Buffer,
@@ -594,7 +592,6 @@ function generateRendererCapability(
   }
   throw new Error("renderer capability generation failed");
 }
-
 function rendererRuntimePatchAllowed(value: unknown): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const params = value as Record<string, unknown>;
@@ -628,7 +625,6 @@ function rendererRuntimePatchAllowed(value: unknown): boolean {
   }
   return true;
 }
-
 function productionTimer(): MonotonicTimer {
   return {
     nowMs: () => performance.now(),
@@ -639,7 +635,6 @@ function productionTimer(): MonotonicTimer {
     },
   };
 }
-
 function canonicalCapability(value: unknown): Buffer | undefined {
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(value)) return undefined;
   const decoded = Buffer.from(value, "base64url");
@@ -648,7 +643,6 @@ function canonicalCapability(value: unknown): Buffer | undefined {
   }
   return decoded;
 }
-
 function controlParams(value: unknown):
   | {
       readonly targetProtocolVersion: number;
@@ -673,7 +667,6 @@ function controlParams(value: unknown):
     handoffCapability: record.handoffCapability,
   };
 }
-
 function emptyControlParams(value: unknown): value is Record<string, never> {
   return (
     value !== null &&
@@ -682,7 +675,6 @@ function emptyControlParams(value: unknown): value is Record<string, never> {
     Object.keys(value).length === 0
   );
 }
-
 function refuseUpgrade(
   socket: Parameters<WriterProtocolHandlers["upgrade"]>[1],
   response: string,
@@ -690,7 +682,6 @@ function refuseUpgrade(
   socket.once("error", () => socket.destroy());
   socket.write(response, "ascii", () => socket.destroy());
 }
-
 export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer {
   const athleteHome = AthleteHomeIdentitySchema.parse(input.athleteHome);
   const rendererCapability = generateRendererCapability(
@@ -714,21 +705,23 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
   const shutdownRequested = new Promise<void>((resolve) => {
     resolveShutdownRequested = resolve;
   });
-
   const clearReservation = (): void => {
     reservation?.handoffCapabilityBytes.fill(0);
     reservation = undefined;
   };
-
   const restoreAfterDrainRefusal = (fence: AdmissionFence): boolean => {
     if (!fence.reopen()) return false;
     input.healthState?.setHealthy(true);
     void Promise.resolve()
       .then(() => input.afterInvocationDrainRefusal?.())
-      .catch(() => {});
+      .then(
+        () => undefined,
+        () => {
+          input.healthState?.setHealthy(false);
+        },
+      );
     return true;
   };
-
   const awaitDrain = (
     drainTask: Promise<void>,
     deadlineMs: number,
@@ -764,7 +757,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       });
     });
   };
-
   const handleRequest = (state: ClientState, data: RawData, isBinary: boolean): void => {
     if (closing) {
       detach(state, 1001);
@@ -2176,7 +2168,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       })
       .catch(() => {});
   };
-
   const acceptClient = (ws: WebSocket): void => {
     connectionSequence += 1;
     const state = createClientState(ws, `connection-${connectionSequence}`);
@@ -2257,7 +2248,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
       });
     });
   };
-
   const handleUpgrade: WriterProtocolHandlers["upgrade"] = (request, socket, head) => {
     if (
       Object.prototype.hasOwnProperty.call(request.headers, "origin") &&
@@ -2291,7 +2281,6 @@ export function createCoachRpcServer(input: CoachRpcServerInput): CoachRpcServer
     }
     wss.handleUpgrade(request, socket, head, acceptClient);
   };
-
   return {
     handleUpgrade,
     shutdownRequested,

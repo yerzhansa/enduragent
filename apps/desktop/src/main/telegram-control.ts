@@ -1453,7 +1453,9 @@ export function createTelegramControlCoordinator(
       expected.handle = leaseClock.schedule(() => dispatchPairingLeaseExpiry(expected), delayMs);
     } catch {
       expected.handle = undefined;
-      void serialize(() => failPairingLeaseClosed(expected)).catch(() => undefined);
+      void serialize(() => failPairingLeaseClosed(expected)).then(undefined, () => {
+        if (pairingLeaseIsLive(expected)) schedulePairingLeaseExpiry(expected, 1_000);
+      });
     }
   };
 
@@ -2074,7 +2076,6 @@ export function createTelegramControlCoordinator(
         return applied(await project(drained, checked.active));
       });
     },
-
     listAllowedSenders() {
       return serialize(async () => {
         try {
@@ -2090,7 +2091,6 @@ export function createTelegramControlCoordinator(
         }
       });
     },
-
     addAllowedSender(sender) {
       return serialize(async () => {
         let active: TelegramDaemonBinding | undefined;
@@ -2122,7 +2122,6 @@ export function createTelegramControlCoordinator(
         }
       });
     },
-
     removeAllowedSender(sender) {
       return serialize(async () => {
         let active: TelegramDaemonBinding | undefined;
@@ -2154,7 +2153,6 @@ export function createTelegramControlCoordinator(
         }
       });
     },
-
     close() {
       if (closePromise !== undefined) return closePromise;
       accepting = false;

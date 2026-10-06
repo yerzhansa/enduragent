@@ -120,7 +120,9 @@ export function createRootLogger(dataDir: string, options: RootLoggerOptions = {
     if (!overSizeCap()) return;
     try {
       renameSync(path, `${path}.1`);
-    } catch {}
+    } catch (error) {
+      if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "ENOENT" || String(error.code) === "EEXIST"))) throw error;
+    }
   }
 
   try {

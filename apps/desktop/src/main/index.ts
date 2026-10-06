@@ -279,7 +279,6 @@ async function runKeychainBindingProbe(): Promise<void> {
   process.stdout.write(`ENDURAGENT_KEYCHAIN_BINDING_PROBE ${JSON.stringify(result)}\n`);
   app.exit(0);
 }
-
 async function runDesktop(): Promise<void> {
   const securitySmokeMode = process.argv.includes("--desktop-security-smoke");
   const rendererConsoleCapture = createDesktopRendererConsoleCapture(securitySmokeMode);
@@ -1493,7 +1492,6 @@ async function runDesktop(): Promise<void> {
     const initialWindow = desktopStartedInBackground ? undefined : await mainWindow.show();
     void updateController.start();
     void desktopUsagePingController?.start();
-
     if (securitySmokeMode) {
       if (initialWindow === undefined) throw new TypeError("security smoke requires a window");
       const daemonPort = daemonLifecycle.currentPort();
@@ -1611,7 +1609,6 @@ async function runDesktop(): Promise<void> {
     securitySmokeControlPipe?.destroy();
   }
 }
-
 async function exitSecondaryDesktop(): Promise<void> {
   const evidenceRequired =
     process.argv.includes("--desktop-security-smoke") && desktopAcceptanceHidden;
@@ -1626,7 +1623,6 @@ async function exitSecondaryDesktop(): Promise<void> {
     app.exit(1);
   }
 }
-
 if (process.argv.includes("--desktop-keychain-binding-probe")) {
   void runKeychainBindingProbe().catch(() => app.exit(1));
 } else {

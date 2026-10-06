@@ -229,8 +229,15 @@ async function seedWindowsFirstRunConfig(input: {
     }
     throw new WindowsPrivatePathPolicyError("rename", "io-failure");
   } catch (error) {
-    await handle?.close().catch(() => undefined);
-    await input.fileSystem.rm(temporary, { force: true }).catch(() => undefined);
+    if (handle !== undefined) {
+      try {
+        await handle.close();
+      } catch (closeError) {
+        const code = (closeError as NodeJS.ErrnoException).code;
+        if (code !== "EBADF") throw closeError;
+      }
+    }
+    await input.fileSystem.rm(temporary, { force: true });
     throw classifyWindowsPrivatePathFailure(stage, error);
   }
 }
@@ -290,7 +297,7 @@ export async function seedFirstRunConfig(
     await fileSystem.rm(temporary, { force: true });
     return "seeded";
   } catch (error) {
-    await fileSystem.rm(temporary, { force: true }).catch(() => undefined);
+    await fileSystem.rm(temporary, { force: true });
     throw error;
   }
 }

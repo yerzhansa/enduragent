@@ -292,9 +292,9 @@ export function createClaudeCliStatus(
       const generation = ++recheckGeneration;
       const task = (async () => {
         if (previous !== undefined) {
-          try {
-            await previous.task;
-          } catch {}
+          await previous.task.then(undefined, (error: unknown) => {
+            if (!(error instanceof DOMException) || error.name !== "TimeoutError") throw error;
+          });
         }
         invalidate();
         latestReadyStatus = null;
