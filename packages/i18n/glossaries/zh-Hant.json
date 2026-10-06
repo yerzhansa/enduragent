@@ -9,9 +9,9 @@
   "VO2max": "最大攝氧量",
   "anaerobic": "無氧",
   "training load": "訓練負荷",
-  "fitness (CTL)": "體能（CTL）",
-  "fatigue (ATL)": "疲勞（ATL）",
-  "form (TSB)": "狀態（TSB）",
+  "fitness (CTL)": "體能",
+  "fatigue (ATL)": "疲勞",
+  "form (TSB)": "狀態",
   "ramp rate": "升率",
   "intensity": "強度",
   "power zone": "功率區間",
@@ -26,8 +26,8 @@
   "warm-up": "暖身",
   "cool-down": "緩和",
   "cadence": "踏頻",
-  "normalized power": "標準化功率",
-  "TSS (training stress score)": "TSS",
+  "normalized power": "加權平均功率",
+  "TSS (training stress score)": "訓練負荷",
   "HRV": "心率變異（HRV）",
   "RPE": "自覺強度（RPE）"
 }
