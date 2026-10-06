@@ -335,14 +335,6 @@ export async function fetchReleaseBody(
   }
 }
 
-/**
- * Build the `/whatsnew` reply for the latest published version of `binaryName`.
- * Always shows the latest version's notes (per product decision) — when the
- * user is up to date that's their version's notes; when behind, it's a preview
- * of what `/update` will install. Renders only `User-facing:` lines extracted
- * from the GitHub Release body; engineering details and changeset hashes never
- * surface to athletes.
- */
 export async function buildWhatsNewMessage(
   binaryName: string,
   info: UpdateInfo,

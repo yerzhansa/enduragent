@@ -55,11 +55,6 @@ export function defaultPairingState(): AllowedSenders {
   };
 }
 
-/**
- * Telegram user-ids: positive integer with at least 2 digits, no leading zero.
- * Telegram never assigns 0 or single-digit IDs; the regex rejects malformed
- * env-var fragments and bare 0 while staying length-agnostic on the high end.
- */
 export const SENDER_ID_RE = /^[1-9]\d+$/;
 const OPERATOR_ID_ENV = "CYCLING_COACH_OPERATOR_ID";
 const DM_POLICY_ENV = "CYCLING_COACH_DM_POLICY";
@@ -88,11 +83,6 @@ function loadFromEnv(): AllowedSenders | null {
   };
 }
 
-// Zod accepts file shapes that originated from older revisions or hand-edits:
-// strings/numbers in `allowFrom` are coerced to strings, invalid items are
-// dropped (with a stderr warning per item), unknown top-level fields pass
-// through for forward-compat. `dmPolicy: "open"` is rejected here on purpose —
-// it can only be set via the CYCLING_COACH_DM_POLICY env var.
 const senderIdSchema = z
   .union([z.string(), z.number()])
   .transform((v) => String(v))
@@ -285,11 +275,6 @@ function loadFromFile(dataDir: string, platform: NodeJS.Platform): AllowedSender
   return validated;
 }
 
-// Cache parsed AllowedSenders by file identity. The auth middleware calls
-// loadAllowedSenders on every inbound message; caching avoids re-running JSON
-// parse + zod validation when the file hasn't changed. saveAllowedSenders
-// invalidates this cache after committing a write. Note: cache is keyed by
-// dataDir so a single process serving multiple homes still works.
 interface AllowedSendersFileIdentity {
   dev: bigint;
   ino: bigint;
@@ -394,10 +379,6 @@ export function loadAllowedSendersWithSource(
           : { state: defaultPairingState(), source: "default-pairing" };
       })();
 
-  // CYCLING_COACH_DM_POLICY=open is env-var-only (cannot be set via file). The
-  // override preserves base.allowFrom so notifyUpdate's filter still has the
-  // operator's friends list to broadcast to. Source flips to "env" since the
-  // override is what determined the effective policy.
   if (process.env[DM_POLICY_ENV] === "open") {
     return { state: { ...baseAndSource.state, dmPolicy: "open" }, source: "env" };
   }
@@ -456,10 +437,6 @@ export type RemoveSecondarySenderResult =
       reason: "primary-removal" | "inconsistent-state";
     };
 
-// ─── PID lockfile ────────────────────────────────────────────────────────────
-// Serialize cross-process writes to allowed-senders.json. Lockfile lives at
-// <dataDir>/.allowed-senders.lock. Locks owned by a dead PID are reclaimed.
-
 const LOCK_FILE = ".allowed-senders.lock";
 
 export class LockfileContentionError extends Error {
@@ -506,8 +483,6 @@ function isProcessAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    // Only ESRCH proves the process is gone. Permission and I/O failures must
-    // preserve the lock because they do not prove its owner is dead.
     return (err as NodeJS.ErrnoException).code !== "ESRCH";
   }
 }
@@ -746,8 +721,6 @@ function secureDataDir(
       throw classifyWindowsPrivatePathFailure("entry-check", error);
     }
   }
-  // mkdirSync with `mode` is a no-op on existing dirs, so explicit chmod is the
-  // only path that tightens upgrade installs that pre-date this enforcement.
   if (existsSync(dataDir)) {
     const mode = statSync(dataDir).mode & 0o777;
     if (mode !== 0o700) {
@@ -1314,7 +1287,6 @@ export function addSender(
     (current) => {
       const base = current ?? defaultPairingState();
       if (base.allowFrom.includes(senderId)) {
-        // Idempotent — keep dmPolicy "allowlist" if it isn't already.
         if (base.dmPolicy === "pairing") {
           return { ...base, dmPolicy: "allowlist" };
         }
@@ -1352,7 +1324,6 @@ async function countLines(path: string): Promise<number> {
   } catch {
     return 0;
   }
-  // Trailing content without a final newline still counts as one line.
   if (lastByte !== -1 && lastByte !== 0x0a) n++;
   return n;
 }

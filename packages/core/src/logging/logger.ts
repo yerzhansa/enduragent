@@ -26,10 +26,6 @@ export interface LogLine {
   [field: string]: unknown;
 }
 
-// The emit payload: the caller supplies component + event and any extra fields;
-// the logger stamps ts + level. Declared separately from LogLine (rather than
-// `Omit<LogLine, "ts" | "level">`) because an Omit over an index-signature
-// interface widens every named field to `unknown`.
 export interface LogInput {
   component: string;
   event: string;
@@ -41,7 +37,6 @@ export interface RootLogger {
 }
 
 export interface RootLoggerOptions {
-  // Test seams; production callers pass none.
   maxBytes?: number;
   maxAgeMs?: number;
   now?: () => number;
@@ -56,9 +51,6 @@ function consoleSink(level: LogLevel): (msg: string) => void {
   return console.log;
 }
 
-// Drops file lines whose `ts` is older than the age cap. Returns the surviving
-// lines, or null when nothing needed pruning (so the caller can skip the
-// rewrite). Best-effort: an unparseable line is kept rather than dropped.
 function pruneAgedLines(raw: string, cutoffMs: number): string | null {
   const lines = raw.split("\n").filter((l) => l.length > 0);
   const kept: string[] = [];
@@ -82,7 +74,6 @@ function pruneAgedLines(raw: string, cutoffMs: number): string | null {
 }
 
 export function pruneFileByAge(path: string, cutoffMs: number): void {
-  // Exported for unit-testing the age-cap prune with an injected timestamp.
   let raw: string;
   try {
     raw = readFileSync(path, "utf-8");
@@ -169,9 +160,6 @@ export function createRootLogger(dataDir: string, options: RootLoggerOptions = {
         }
       }
 
-      // The file is the durable channel and must NEVER throw — a full disk, a
-      // permission error, or an EROFS volume can never break a chat turn, a
-      // sync tick, or process startup.
       try {
         mkdirSync(dir, { recursive: true, mode: 0o700 });
         rotateIfNeeded();
