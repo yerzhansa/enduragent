@@ -418,7 +418,6 @@
     "tools/usage-cache-band.ts": 18
   },
   "disguised-swallow": {
-    "apps/desktop/src/main/index.ts": 2,
     "packages/coach/src/attachment-observability.ts": 1,
     "packages/coach/src/composition.ts": 1,
     "packages/coach/src/document-media-attachment-operations.ts": 1,
