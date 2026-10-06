@@ -205,7 +205,6 @@ type Completion = "continues" | "returns" | "throws";
 interface Scenario {
   readonly bound: string | undefined;
   readonly isError: boolean;
-  readonly returnDiscards: boolean;
 }
 
 const BOOLEAN_COMPARISONS: ReadonlyMap<ts.SyntaxKind, boolean> = new Map([
@@ -286,8 +285,7 @@ function completionOf(statement: ts.Statement, scenario: Scenario): Completion |
   }
   if (ts.isThrowStatement(statement)) return refersTo(statement.expression, scenario.bound) ? "throws" : undefined;
   if (ts.isReturnStatement(statement)) {
-    const nothing = statement.expression === undefined || isNothing(statement.expression);
-    return scenario.returnDiscards && nothing ? "returns" : undefined;
+    return statement.expression === undefined || isNothing(statement.expression) ? "returns" : undefined;
   }
   if (!ts.isIfStatement(statement)) return undefined;
   const holds = evaluateErrorTest(statement.expression, scenario);
@@ -304,12 +302,14 @@ function completionOfAll(statements: readonly ts.Statement[], scenario: Scenario
   return "continues";
 }
 
-function dropsEveryError(block: ts.Block, binding: ts.BindingName | undefined, returnDiscards: boolean): boolean {
+function dropsEveryError(block: ts.Block, binding: ts.BindingName | undefined, returnFallsThrough: boolean): boolean {
   if (block.statements.length === 0) return false;
   const bound = binding !== undefined && ts.isIdentifier(binding) ? binding.text : undefined;
-  const forError = completionOfAll(block.statements, { bound, isError: true, returnDiscards });
-  const forOther = completionOfAll(block.statements, { bound, isError: false, returnDiscards });
-  return forError !== undefined && forError !== "throws" && forOther !== undefined;
+  const forError = completionOfAll(block.statements, { bound, isError: true });
+  const forOther = completionOfAll(block.statements, { bound, isError: false });
+  if (forError === undefined || forError === "throws" || forOther === undefined) return false;
+  if (returnFallsThrough || forOther === "throws") return true;
+  return forError !== "returns" && forOther !== "returns";
 }
 
 function isInlineFunction(node: ts.Node): node is InlineFunction {
