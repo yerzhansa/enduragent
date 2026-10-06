@@ -16,6 +16,7 @@ const SPAWN_BUFFER = 64 * 1024 * 1024;
 
 const RULE_IDS = [
   "comment",
+  "disguised-swallow",
   "double-assertion",
   "file-length",
   "lint-suppression",
@@ -47,6 +48,7 @@ const RULES: Readonly<Record<RuleId, RuleSpec>> = {
     guidance:
       "move the rationale to the PR description or an ADR, and make the code say it through names and structure",
   },
+  "disguised-swallow": { scope: "all", guidance: HANDLE_THE_ERROR },
   "double-assertion": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
   "file-length": { scope: "non-test", guidance: "split the file before adding to it" },
   "lint-suppression": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
@@ -210,12 +212,52 @@ function isNothing(expression: ts.Expression): boolean {
   return ts.isNumericLiteral(operand) && operand.text === "0";
 }
 
-function isSwallowedRejection(node: ts.Node): boolean {
-  if (!ts.isCallExpression(node)) return false;
-  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "catch") return false;
+function rejectionHandler(node: ts.Node): ts.ArrowFunction | ts.FunctionExpression | undefined {
+  if (!ts.isCallExpression(node)) return undefined;
+  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "catch") return undefined;
   const handler = node.arguments[0] === undefined ? undefined : unwrapParentheses(node.arguments[0]);
-  if (handler === undefined || !(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) return false;
+  if (handler === undefined || !(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) return undefined;
+  return handler;
+}
+
+function isSwallowedRejection(node: ts.Node): boolean {
+  const handler = rejectionHandler(node);
+  if (handler === undefined) return false;
   return ts.isBlock(handler.body) ? handler.body.statements.length === 0 : isNothing(handler.body);
+}
+
+function rethrowsOnlyNonErrors(statement: ts.Statement, bound: string): boolean {
+  if (!ts.isIfStatement(statement) || statement.elseStatement !== undefined) return false;
+  const condition = unwrapParentheses(statement.expression);
+  if (!ts.isPrefixUnaryExpression(condition) || condition.operator !== ts.SyntaxKind.ExclamationToken) return false;
+  const test = unwrapParentheses(condition.operand);
+  if (!ts.isBinaryExpression(test) || test.operatorToken.kind !== ts.SyntaxKind.InstanceOfKeyword) return false;
+  if (!ts.isIdentifier(test.left) || test.left.text !== bound) return false;
+  if (!ts.isIdentifier(test.right) || test.right.text !== "Error") return false;
+  const body = statement.thenStatement;
+  const thrown = ts.isBlock(body) && body.statements.length === 1 ? body.statements[0] : body;
+  return (
+    thrown !== undefined &&
+    ts.isThrowStatement(thrown) &&
+    ts.isIdentifier(thrown.expression) &&
+    thrown.expression.text === bound
+  );
+}
+
+function dropsEveryError(block: ts.Block, binding: ts.BindingName | undefined): boolean {
+  if (binding === undefined || !ts.isIdentifier(binding) || block.statements.length !== 1) return false;
+  const only = block.statements[0];
+  return only !== undefined && rethrowsOnlyNonErrors(only, binding.text);
+}
+
+function isDisguisedSwallow(node: ts.Node, sourceFile: ts.SourceFile): boolean {
+  if (ts.isCatchClause(node)) {
+    if (node.block.statements.length > 0) return dropsEveryError(node.block, node.variableDeclaration?.name);
+    return sourceFile.text.slice(node.block.getStart(sourceFile) + 1, node.block.end - 1).trim() !== "";
+  }
+  const handler = rejectionHandler(node);
+  if (handler === undefined || !ts.isBlock(handler.body)) return false;
+  return dropsEveryError(handler.body, handler.parameters[0]?.name);
 }
 
 function isDoubleAssertion(node: ts.Node): boolean {
@@ -242,6 +284,7 @@ export function scanSource(file: string, text: string): Counts {
 
   function visit(node: ts.Node): void {
     if (isSwallowedRejection(node)) add(counts, "swallowed-rejection", file);
+    if (isDisguisedSwallow(node, sourceFile)) add(counts, "disguised-swallow", file);
     if (isDoubleAssertion(node)) add(counts, "double-assertion", file);
     ts.forEachChild(node, visit);
   }
