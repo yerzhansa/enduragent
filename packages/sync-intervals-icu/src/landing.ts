@@ -136,14 +136,14 @@ function wellnessFieldArchive(day: WellnessDay, subjectiveFatigue: SubjectiveSco
   return { source: "intervals-icu", subjectiveFatigue, load, values };
 }
 
-async function mapWellnessLanding(day: WellnessDay, dateKey: number): Promise<WellnessLandingRow> {
+async function mapWellnessLanding(day: WellnessDay, key: number): Promise<WellnessLandingRow> {
   const parsed = WellnessColumnsSchema.safeParse(day);
   if (!parsed.success) throw new RowRejection("landing", parsed.error.issues[0]?.path.join(".") ?? null);
   const columns = parsed.data;
   const subjectiveFatigue = columns.subjectiveFatigue ?? null;
   return {
-    id: await hash("wellness", dateKey, "intervals-icu"),
-    date_key: dateKey,
+    id: await hash("wellness", key, "intervals-icu"),
+    date_key: key,
     provenance: "sync",
     source: "intervals-icu",
     resting_hr: columns.restingHR ?? null,
@@ -174,7 +174,7 @@ export async function landWellnessRow(payload: unknown): Promise<WellnessLanding
     instant: { epochSeconds: civilDateEpochSeconds(date) },
     cursorKey: `${date}\u001f${date}`,
     wire: payload,
-    row: await mapWellnessLanding(decodeWellnessRow(payload), Number(date.replaceAll("-", ""))),
+    row: await mapWellnessLanding(decodeWellnessRow(payload), dateKey(date, "wellness date")),
   };
 }
 

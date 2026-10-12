@@ -283,12 +283,60 @@ describe("sanitize-fixture CLI — main()", () => {
     }
   });
 
-  it("CLI fails with a non-zero exit and an index-form path when a nested TP key survives rename", async () => {
+  it("CLI fails with an index-form path when a nested TP key survives the activity rename", async () => {
     const { inputDir, outputDir } = makeTmpDirs();
     const inputPath = join(inputDir, "raw.json");
-    // Simulates the "intervals.icu adds nested TP aggregates" failure mode
-    // the rename layer doesn't reach (it only renames top-level row fields).
-    // Defense-in-depth: assertNoTpKeysRemain catches it before sanitize.
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [
+          { id: "i9876543", type: "Ride", start_date_local: "1998-05-11T08:00:00", weeklyAggregates: { ctl: 50 } },
+        ],
+      }),
+    );
+    const errs: string[] = [];
+
+    const exit = await main([inputPath, "nested-tp-activity", "--force"], {
+      outputRoot: outputDir,
+      err: (m) => errs.push(m),
+    });
+
+    expect(exit).toBe(3);
+    const errMsg = errs.join("\n");
+    expect(errMsg).toMatch(/activities\[0\]\.weeklyAggregates\.ctl/);
+    expect(errMsg).not.toMatch(/i\d+/);
+    expect(existsSync(join(outputDir, "nested-tp-activity.json"))).toBe(false);
+  });
+
+  it("CLI warns once per field when an activity load value is not a number", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [
+          { id: 1, type: "Ride", start_date_local: "1998-05-11T08:00:00", icu_ctl: "marker-4471", icu_atl: 38 },
+          { id: 2, type: "Ride", start_date_local: "1998-05-12T08:00:00", icu_ctl: "marker-4472" },
+        ],
+      }),
+    );
+    const errs: string[] = [];
+
+    const exit = await main([inputPath, "stringy-activity", "--force"], {
+      outputRoot: outputDir,
+      err: (m) => errs.push(m),
+    });
+
+    expect(exit).toBe(0);
+    expect(errs).toEqual(["⚠ Skipped non-number TP values during rename: icu_ctl (×2 in activities)"]);
+    const written = JSON.parse(readFileSync(join(outputDir, "stringy-activity.json"), "utf-8"));
+    expect(written.activities[0]).not.toHaveProperty("fitnessAtEnd");
+    expect(written.activities[0].fatigueAtEnd).toBe(38);
+  });
+
+  it("CLI fails with the day's index when a nested TP key survives in a wellness day", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
     writeFileSync(
       inputPath,
       JSON.stringify({
@@ -306,8 +354,6 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(exit).not.toBe(0);
     const errMsg = errs.join("\n");
     expect(errMsg).toBe("wellness[0]: row rejected: decode of ctl");
-    // Walker uses [<index>] form only — activity row id "i9876543" never
-    // leaks into the error path (operator log forwarding stays safe).
     expect(errMsg).not.toMatch(/i\d+/);
   });
 

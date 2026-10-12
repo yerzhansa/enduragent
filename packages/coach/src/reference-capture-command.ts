@@ -608,7 +608,7 @@ async function ingestCapturedPayloads(
       for (let index = 0; index < manifest.records.wellness.length; index += 1) {
         const record = manifest.records.wellness[index]!, raw = object(payloads.records.wellness[index]);
         const landing = await landWellnessRow(raw);
-        await repository.recordArtifact(artifactDraft(record, "wellness", archiveEpoch(raw, "wellness")));
+        await repository.recordArtifact(artifactDraft(record, "wellness", landing.instant.epochSeconds));
         await repository.upsertWellness(landing.row);
       }
       for (let index = 0; index < manifest.records.streams.length; index += 1) {

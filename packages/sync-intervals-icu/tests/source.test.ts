@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { canonicalJson, type ArchiveManager } from "@enduragent/kernel/archive";
 import type { HttpPort, HttpResponse } from "@enduragent/kernel/ports";
+import { RowRejection } from "@enduragent/kernel/reference/local-bundle";
 import {
   createPhysicalRequestLedger,
   type PhysicalRequestLedger,
@@ -102,11 +103,17 @@ describe("intervals.icu full-history source", () => {
     expect(resumed[0]).toMatchObject({ externalId: "1998-01-06", landing: { kind: "wellness", row: { date_key: 19980106, fatigue: 3 } } });
   });
 
-  it("stops the wellness pull at a day it cannot land and names the field without its value", async () => {
+  it("stops the wellness pull at a day it cannot land, yields no day of that page, and names the field without its value", async () => {
     const value = source({ fetch: async () => json([{ id: "1998-01-05", restingHR: 48 }, { id: "1998-01-06", restingHR: -4471 }]) });
-    const pull = collect(value.pull(watermark("wellness"), budget()));
-    await expect(pull).rejects.toThrow("row rejected: landing of restingHR");
-    await expect(pull).rejects.not.toThrow(/4471/);
+    const yielded: unknown[] = [];
+    const drain = async (): Promise<null> => {
+      for await (const item of value.pull(watermark("wellness"), budget())) yielded.push(item);
+      return null;
+    };
+    const failure = await drain().catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(RowRejection);
+    expect((failure as RowRejection).message).toBe("row rejected: landing of restingHR");
+    expect(yielded).toEqual([]);
   });
 
   it("reports dropped rows once when resuming the same activity page", async () => {

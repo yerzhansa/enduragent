@@ -560,16 +560,24 @@ describe.sequential("capture-once Reference layer gate", () => {
       throw new TypeError("network forbidden");
     };
     let produced: ReferenceBundle | undefined;
+    let storedWellness: unknown;
     try {
       const result = await runReferenceCaptureCommand(args(capture), {
         inputFileSystem,
         async produceLocalBundle(destination, manifest) {
+          const store = openSqliteStorage(destination.storePath);
+          storedWellness = await store.all("SELECT date_key, resting_hr, fatigue FROM wellness");
+          await store.close();
           const result = await createLocalBundleProducer(destination).produce(manifest);
           produced = result.bundle;
           return result;
         },
       });
       expect(result.exitCode, result.line).toBe(0);
+      expect(storedWellness).toEqual([{ date_key: 19980603, resting_hr: 48, fatigue: 3 }]);
+      expect(produced!.wellness).toMatchObject([
+        { id: "1998-06-03", fitness: 31.2, fatigue: 27.787529, subjectiveFatigue: 3 },
+      ]);
       expect(typeof compareReferenceCapture).toBe("function");
       expect(result.stream).toBe("stdout");
       expect(result.line).toMatch(

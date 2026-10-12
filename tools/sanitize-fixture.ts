@@ -84,16 +84,17 @@ export async function main(argv: string[], opts?: MainOptions): Promise<number> 
   const raw = readFileSync(inputPath, "utf-8");
   const parsed = JSON.parse(raw);
   const activitiesRenameSummary: RenameSummary = { skippedNonNumeric: {} };
+  const activities = Array.isArray(parsed.activities) && {
+    activities: parsed.activities.map((row: unknown) =>
+      renameTpFieldsOnActivity(row as Record<string, unknown>, activitiesRenameSummary),
+    ),
+  };
   let renamed: Record<string, unknown>;
   // Defense-in-depth — see assertNoTpKeysRemain's JSDoc for the invariant.
   try {
     renamed = {
       ...parsed,
-      ...(Array.isArray(parsed.activities) && {
-        activities: parsed.activities.map((row: unknown) =>
-          renameTpFieldsOnActivity(row as Record<string, unknown>, activitiesRenameSummary),
-        ),
-      }),
+      ...activities,
       ...(Array.isArray(parsed.wellness) && { wellness: parsed.wellness.map(decodeWellnessDay) }),
     };
     assertNoTpKeysRemain(renamed);

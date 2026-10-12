@@ -162,7 +162,7 @@
     "packages/core/tests/run-binary.test.ts": 12,
     "packages/core/tests/run-startup-hook.test.ts": 2,
     "packages/core/tests/sanitize-cli-fixture-stability.test.ts": 11,
-    "packages/core/tests/sanitize-cli.test.ts": 26,
+    "packages/core/tests/sanitize-cli.test.ts": 21,
     "packages/core/tests/secrets/backends/detect.test.ts": 2,
     "packages/core/tests/secrets/backends/op.test.ts": 1,
     "packages/core/tests/secrets/backends/spawn-timeout.test.ts": 2,
