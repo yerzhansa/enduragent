@@ -21,10 +21,8 @@ import {
   buildFixtureShape,
   normalizeStreams,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   projectCyclingReferenceBundle,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type ReferenceBundle,
 } from "@enduragent/kernel/reference/local-bundle";
 import { H, createIntervalsSourceRepository, runMigrations } from "@enduragent/kernel/store";
@@ -34,9 +32,9 @@ import { nodeFileSystem } from "@enduragent/kernel-node/filesystem";
 import { createNodeCrypto } from "@enduragent/kernel-node/ingest";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import {
+  landWellnessRow,
   mapActivityLanding,
   mapSettingsLanding,
-  mapWellnessLanding,
   normalizeStreamLanding,
 } from "@enduragent/sync-intervals-icu";
 import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
@@ -272,14 +270,11 @@ async function createSyntheticCapture(value: SyntheticSeed): Promise<SyntheticCa
         });
       }
       for (const item of wellness) {
-        const normalized = parseRenamedWellnessRow(
-          renameTpFieldsOnWellnessRow(structuredClone(item.raw)),
-        );
-        assertNoTpKeysRemain(normalized);
+        const landing = await landWellnessRow(item.raw);
         const artifactEvidence = await repository.recordArtifact(
           artifact(item, "wellness", item.epoch),
         );
-        await repository.upsertWellness(await mapWellnessLanding(normalized));
+        await repository.upsertWellness(landing.row);
         records.wellness.push({
           ordinal: records.wellness.length,
           endpoint_ordinal: 2,

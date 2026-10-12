@@ -7,15 +7,14 @@ import {
   assertNoTpKeysRemain,
   assertProjectionEvidenceEqual,
   compareCanonicalUtf8,
+  decodeWellnessRow,
   deriveFtpHistory,
   normalizeStreams,
   parseActivityLandingEnvelope,
   parseCanonicalProjectionValue,
   parseGenericLandingEnvelope,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type ActivityProjectionFilter,
   type ReferenceBundle,
   type VerifiedSnapshotReader,
@@ -158,8 +157,7 @@ export async function decodeLocalBundleProjection(
   for (let index = 0; index < manifest.records.wellness.length; index += 1) {
     const record = manifest.records.wellness[index]!;
     selectedWellness(record, selected.wellness);
-    const day = parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(objectRow(verified.wellness[index])));
-    assertNoTpKeysRemain(day);
+    const day = decodeWellnessRow(verified.wellness[index]);
     if (String(day.id) !== record.external_id) throw new TypeError("wellness identity changed");
     wellness.push(day);
   }

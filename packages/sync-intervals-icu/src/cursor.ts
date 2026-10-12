@@ -21,16 +21,22 @@ const DATE = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
 const CURSOR_KEYS = "v,cycle,window_start,window_end,last_key,complete";
 const DAY_MS = 86_400_000;
 
-export function parseCivilDate(value: unknown): string {
-  if (typeof value !== "string") throw new TypeError("history date is invalid");
+export function isCivilDate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
   const match = DATE.exec(value);
-  if (match === null) throw new TypeError("history date is invalid");
+  if (match === null) return false;
   const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
   const instant = new Date(Date.UTC(year, month - 1, day));
-  if (instant.getUTCFullYear() !== year || instant.getUTCMonth() !== month - 1 || instant.getUTCDate() !== day) {
-    throw new TypeError("history date is invalid");
-  }
+  return instant.getUTCFullYear() === year && instant.getUTCMonth() === month - 1 && instant.getUTCDate() === day;
+}
+
+export function parseCivilDate(value: unknown): string {
+  if (!isCivilDate(value)) throw new TypeError("history date is invalid");
   return value;
+}
+
+export function civilDateEpochSeconds(date: string): number {
+  return Math.max(0, Date.parse(`${parseCivilDate(date)}T00:00:00.000Z`) / 1_000);
 }
 
 export function addUtcDays(value: string, days: number): string {

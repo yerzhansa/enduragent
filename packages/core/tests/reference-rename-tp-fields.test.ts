@@ -14,132 +14,9 @@ import {
   assertNoTpKeysRemain,
   decodeWellnessRow,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   RowRejection,
-  type RenameSummary,
 } from "../src/reference/sync/rename-tp-fields.js";
-
-describe("renameTpFieldsOnWellnessRow", () => {
-  it("renames a wellness row with all 5 TP fields populated", () => {
-    const raw = {
-      id: "2026-04-15",
-      ctl: 52.1,
-      atl: 38.4,
-      ctlLoad: 51.9,
-      atlLoad: 38.1,
-      rampRate: 4.7,
-    };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out).toEqual({
-      id: "2026-04-15",
-      fitness: 52.1,
-      fatigue: 38.4,
-      fitnessContribution: 51.9,
-      fatigueContribution: 38.1,
-      weeklyFitnessChange: 4.7,
-    });
-  });
-
-  it("renames a wellness row with only ctl set — other normalized keys absent", () => {
-    const raw = { id: "2026-04-15", ctl: 52.1 };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out).toEqual({ id: "2026-04-15", fitness: 52.1 });
-    expect(Object.keys(out)).not.toContain("fatigue");
-    expect(Object.keys(out)).not.toContain("fitnessContribution");
-    expect(Object.keys(out)).not.toContain("fatigueContribution");
-    expect(Object.keys(out)).not.toContain("weeklyFitnessChange");
-  });
-
-  it("renames a wellness row with ctl: null — emits fitness: null", () => {
-    const raw = { id: "2026-04-15", ctl: null };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out).toEqual({ id: "2026-04-15", fitness: null });
-  });
-
-  it("renames a wellness row with no TP fields — no normalized keys added", () => {
-    const raw = { id: "2026-04-15", weight: 73.42, restingHR: 51 };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out).toEqual({ id: "2026-04-15", weight: 73.42, restingHR: 51 });
-    for (const k of [
-      "fitness",
-      "fatigue",
-      "fitnessContribution",
-      "fatigueContribution",
-      "weeklyFitnessChange",
-    ]) {
-      expect(Object.keys(out)).not.toContain(k);
-    }
-  });
-
-  it("preserves non-TP wellness fields verbatim (id, weight, hrv, soreness, vendor extras)", () => {
-    const raw = {
-      id: "2026-04-15",
-      weight: 73.42,
-      restingHR: 51,
-      hrv: 84,
-      sleepSecs: 27000,
-      soreness: 2,
-      vo2max: 56.4,
-      bodyFat: 14.6,
-      mood: "good",
-      vendor_extra: { nested: "yes" },
-      ctl: 52.1,
-    };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out.id).toBe("2026-04-15");
-    expect(out.weight).toBe(73.42);
-    expect(out.restingHR).toBe(51);
-    expect(out.hrv).toBe(84);
-    expect(out.sleepSecs).toBe(27000);
-    expect(out.soreness).toBe(2);
-    expect(out.vo2max).toBe(56.4);
-    expect(out.bodyFat).toBe(14.6);
-    expect(out.mood).toBe("good");
-    expect(out.vendor_extra).toEqual({ nested: "yes" });
-  });
-
-  it("never emits a TP-named key on wellness output", () => {
-    const raw = {
-      id: "2026-04-15",
-      ctl: 52.1,
-      atl: 38.4,
-      ctlLoad: 51.9,
-      atlLoad: 38.1,
-      rampRate: 4.7,
-    };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    const banned = ["ctl", "atl", "ctlLoad", "atlLoad", "rampRate"];
-    for (const k of banned) {
-      expect(Object.keys(out)).not.toContain(k);
-    }
-  });
-
-  it("increments RenameSummary.skippedNonNumeric for string-typed ctl", () => {
-    const summary: RenameSummary = { skippedNonNumeric: {} };
-    const raw = { id: "2026-04-15", ctl: "52.1" };
-    const out = renameTpFieldsOnWellnessRow(raw, summary);
-    expect(summary.skippedNonNumeric).toEqual({ ctl: 1 });
-    expect(Object.keys(out)).not.toContain("fitness");
-    expect(Object.keys(out)).not.toContain("ctl");
-  });
-
-  it("throws on collision — input has both ctl AND a non-null fitness (rename would silently overwrite real data)", () => {
-    const raw = { id: "2026-04-15", ctl: 52.1, fitness: 99 };
-    expect(() => renameTpFieldsOnWellnessRow(raw)).toThrow(/collision.*'ctl'.*'fitness'/);
-  });
-
-  it("tolerates target=null collision — API ships fatigue:null alongside atl:<number>; rename fills in safely", () => {
-    // Real-world shape: intervals.icu wellness rows carry both `atl` (Banister
-    // ATL) and `fatigue` (subjective 1-5, currently always null). The rename
-    // overwriting null is not data loss — only non-null targets trigger the
-    // throw. See WellnessDaySchema comment for context.
-    const raw = { id: "2026-04-15", atl: 38.4, fatigue: null };
-    const out = renameTpFieldsOnWellnessRow(raw);
-    expect(out).toEqual({ id: "2026-04-15", fatigue: 38.4 });
-  });
-});
 
 describe("renameTpFieldsOnActivity", () => {
   it("renames an activity with both icu_ctl and icu_atl", () => {
@@ -239,7 +116,7 @@ describe("assertNoTpKeysRemain", () => {
   });
 });
 
-describe("parseRenamedActivity / parseRenamedWellnessRow — branded type gate", () => {
+describe("parseRenamedActivity — branded type gate", () => {
   // Type-level test: the branded input type forces sync-path authors
   // through the rename layer. The runtime body just delegates to the
   // schema parse; the load-bearing piece is the type signature, exercised
@@ -280,24 +157,6 @@ describe("parseRenamedActivity / parseRenamedWellnessRow — branded type gate",
     expect(activity.icu_intensity).toBeNull();
   });
 
-  it("parseRenamedWellnessRow accepts the output of renameTpFieldsOnWellnessRow", () => {
-    const renamed = renameTpFieldsOnWellnessRow({
-      id: "2026-04-15",
-      weight: 70,
-      restingHR: 50,
-      hrv: 80,
-      sleepSecs: 28800,
-      sleepQuality: 4,
-      ctl: 52.1,
-      atl: 38.4,
-    });
-    const day = parseRenamedWellnessRow(renamed);
-    expect(day.fitness).toBe(52.1);
-    expect(day.fatigue).toBe(38.4);
-    expect((day as Record<string, unknown>).ctl).toBeUndefined();
-    expect((day as Record<string, unknown>).atl).toBeUndefined();
-  });
-
   it("type system rejects un-renamed input — checked via @ts-expect-error", () => {
     // The directive below fails the build if the line *does* type-check.
     // That's the load-bearing assertion: a sync-path author who skips the
@@ -316,6 +175,23 @@ describe("parseRenamedActivity / parseRenamedWellnessRow — branded type gate",
 
 describe("decodeWellnessRow", () => {
   const BODY = { weight: 70.5, restingHR: 50, hrv: 80, sleepSecs: 28800, sleepQuality: 3 };
+
+  it("gives every load average its coach word and drops the platform key", () => {
+    const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, ctl: 52.1, atl: 38.4, ctlLoad: 51.9, atlLoad: 38.1,
+      rampRate: 4.7, fatigue: null });
+    expect(day).toEqual({ id: "1998-07-17", ...BODY, fitness: 52.1, fatigue: 38.4, fitnessContribution: 51.9,
+      fatigueContribution: 38.1, weeklyFitnessChange: 4.7, subjectiveFatigue: null });
+  });
+
+  it("leaves out a load average the platform did not send and keeps one it sent as null", () => {
+    const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, ctl: null });
+    expect(day).toEqual({ id: "1998-07-17", ...BODY, fitness: null, subjectiveFatigue: null });
+  });
+
+  it("carries every other field of the day through unchanged", () => {
+    const rest = { soreness: 2, vo2max: 56.4, bodyFat: 14.6, mood: "good", vendor_extra: { nested: "yes" } };
+    expect(decodeWellnessRow({ id: "1998-07-17", ...BODY, ...rest, ctl: 52.1 })).toMatchObject(rest);
+  });
 
   it("keeps a logged fatigue score apart from the short-term load average", () => {
     const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529, ctl: 31.2, fatigue: 3 });

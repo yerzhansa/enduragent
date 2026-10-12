@@ -7,7 +7,7 @@
 // runs don't pollute the committed fixture directory.
 
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -152,7 +152,17 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(secondContent).not.toBe(firstContent);
     expect(JSON.parse(secondContent)).toEqual({
       activities: [{ id: 12345, type: "Run" }],
-      wellness: [{ id: "1998-05-11", weight: 73.4 }],
+      wellness: [
+        {
+          id: "1998-05-11",
+          weight: 73.4,
+          restingHR: null,
+          hrv: null,
+          sleepSecs: null,
+          sleepQuality: null,
+          subjectiveFatigue: null,
+        },
+      ],
     });
   });
 
@@ -295,23 +305,21 @@ describe("sanitize-fixture CLI — main()", () => {
 
     expect(exit).not.toBe(0);
     const errMsg = errs.join("\n");
-    expect(errMsg).toMatch(/\[0\]\.weeklyAggregates\.ctl/);
+    expect(errMsg).toBe("wellness[0]: row rejected: decode of ctl");
     // Walker uses [<index>] form only — activity row id "i9876543" never
     // leaks into the error path (operator log forwarding stays safe).
     expect(errMsg).not.toMatch(/i\d+/);
   });
 
-  it("CLI emits aggregate-warn for non-number TP values", async () => {
+  it("CLI fails and writes nothing when a wellness load average is not a number", async () => {
     const { inputDir, outputDir } = makeTmpDirs();
     const inputPath = join(inputDir, "raw.json");
-    // ctl as a string is a real-world failure mode (intervals.icu API hiccup
-    // or upstream lib drift); the operator should see it surface aggregated.
     writeFileSync(
       inputPath,
       JSON.stringify({
         wellness: [
-          { id: "2026-05-11", ctl: "not a number", atl: 38 },
-          { id: "2026-05-10", ctl: "also bad" },
+          { id: "1998-05-11", ctl: 31.2, atl: 38 },
+          { id: "1998-05-10", ctl: "marker-4471" },
         ],
       }),
     );
@@ -322,15 +330,20 @@ describe("sanitize-fixture CLI — main()", () => {
       err: (m) => errs.push(m),
     });
 
+    expect(exit).toBe(3);
+    expect(errs.join("\n")).toBe("wellness[1]: row rejected: decode of fitness");
+    expect(existsSync(join(outputDir, "stringy-ctl.json"))).toBe(false);
+  });
+
+  it("CLI keeps a logged fatigue score apart from the load average it renames", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(inputPath, JSON.stringify({ wellness: [{ id: "1998-05-11", ctl: 31.2, atl: 27.787529, fatigue: 3 }] }));
+
+    const exit = await main([inputPath, "two-fatigues", "--force"], { outputRoot: outputDir, err: () => undefined });
+
     expect(exit).toBe(0);
-    expect(errs.join("\n")).toMatch(
-      /Skipped non-number TP values during rename: ctl \(×2 in wellness\)/,
-    );
-    const written = JSON.parse(readFileSync(join(outputDir, "stringy-ctl.json"), "utf-8"));
-    // String-typed ctl was dropped, no fitness emitted.
-    expect(written.wellness[0]).not.toHaveProperty("fitness");
-    expect(written.wellness[1]).not.toHaveProperty("fitness");
-    // Numeric atl was still renamed to fatigue.
-    expect(written.wellness[0].fatigue).toBe(38);
+    const written = JSON.parse(readFileSync(join(outputDir, "two-fatigues.json"), "utf-8"));
+    expect(written.wellness[0]).toMatchObject({ fitness: 31.2, fatigue: 27.787529, subjectiveFatigue: 3 });
   });
 });

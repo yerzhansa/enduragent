@@ -1,9 +1,16 @@
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  createPlatformAthleteDataReader,
+  createPureCoreIntervalsTools,
+  createStoreAthleteDataReader,
+  type IntervalsClient,
+} from "@enduragent/core";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { describe, expect, it } from "vitest";
 import { runReferenceCapture } from "../src/capture.js";
+import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
 
 const CAPTURE_ID = "12345678-1234-4123-8123-123456789abc";
 const NOW = new Date("1998-07-18T12:00:00.000Z");
@@ -130,6 +137,76 @@ FROM training_history_coverage_commit`,
       undated_dropped_count: 0,
     });
     await store.close();
+  });
+
+  it("returns captured wellness to the coach with the load average and the logged fatigue score apart", async () => {
+    const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
+    const days = [
+      { id: "1998-07-16", restingHR: 48, hrv: 62.5, sleepSecs: 27_000, ctl: 31.2, atl: 27.787529, rampRate: 1.5, fatigue: null },
+      { id: "1998-07-17", restingHR: 50, hrv: 60, sleepSecs: 28_800, ctl: 31.6, atl: 29.1, rampRate: 1.4, fatigue: 3 },
+    ];
+    const baseFetch: typeof globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/streams.json")) return json(streams);
+      if (url.includes("/activities?")) return json(activities);
+      if (url.includes("/wellness?")) return json(days);
+      return json(profile);
+    };
+    let monotonic = 0;
+    const manifest = await runReferenceCapture(
+      {
+        env: { ENDURAGENT_HOME: root },
+        apiKey: "synthetic-key",
+        athleteId: "synthetic-athlete",
+        calendarTimeZone: "UTC",
+        reviewedOn: "1998-07-18",
+        reason: "initial",
+        baseFetch,
+      },
+      {
+        wallClock: () => NOW,
+        uuid: () => CAPTURE_ID,
+        monotonicNow: () => (monotonic += 250),
+        sleep: async () => {},
+      },
+    );
+    expect(manifest.records.wellness.map((record) => record.external_id)).toEqual(["1998-07-16", "1998-07-17"]);
+
+    const store = openSqliteStorage(join(root, "store", "store.db"));
+    expect(await store.all("SELECT date_key, resting_hr, fatigue FROM wellness ORDER BY date_key")).toEqual([
+      { date_key: 19980716, resting_hr: 48, fatigue: null },
+      { date_key: 19980717, resting_hr: 50, fatigue: 3 },
+    ]);
+    await store.close();
+
+    const snapshot = await createLocalBundleProducer({
+      storePath: join(root, "store", "store.db"),
+      archiveRoot: join(root, "archive"),
+    }).produce(manifest);
+    const reader = createStoreAthleteDataReader({ snapshot: () => snapshot, clockNow: () => NOW.getTime() });
+    const tool = createPureCoreIntervalsTools(null, "UTC", reader).intervals_fetch_wellness;
+    if (!tool?.execute) throw new Error("Wellness tool missing");
+    const result = await tool.execute(
+      { oldest: "1998-07-16", newest: "1998-07-17" },
+      { toolCallId: "wellness-roundtrip", messages: [] },
+    );
+    expect(result).toMatchObject({
+      data: [
+        { id: "1998-07-16", fitness: 31.2, fatigue: 27.787529, weeklyFitnessChange: 1.5, restingHR: 48, hrv: 62.5 },
+        { id: "1998-07-17", fitness: 31.6, fatigue: 29.1, subjectiveFatigue: 3, restingHR: 50, sleepSecs: 28_800 },
+      ],
+    });
+    expect((result as { data: object[] }).data[0]).not.toHaveProperty("subjectiveFatigue");
+
+    const client = { wellness: { list: async () => ({ ok: true as const, value: days }) } } as unknown as IntervalsClient;
+    const liveTool = createPureCoreIntervalsTools(client, "UTC", createPlatformAthleteDataReader(client))
+      .intervals_fetch_wellness;
+    if (!liveTool?.execute) throw new Error("Wellness tool missing");
+    const live = await liveTool.execute(
+      { oldest: "1998-07-16", newest: "1998-07-17" },
+      { toolCallId: "wellness-live", messages: [] },
+    );
+    expect(live).toEqual((result as { data: object[] }).data);
   });
 
   it("rolls back an activity landing when the in-transaction coverage commit conflicts", async () => {

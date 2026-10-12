@@ -2,6 +2,7 @@ export type SqlValue = string | number | bigint | Uint8Array | null;
 export type Row = Record<string, SqlValue>;
 
 import type { RepairFixer } from "../ingest/repair/types.js";
+import type { SubjectiveScore } from "../reference/schemas/inputs.js";
 
 /**
  * Low-level async SQL-exec port. The SQLite driver in kernel-node implements it
@@ -130,7 +131,7 @@ export interface WellnessLandingRow {
   readonly sleep_score: number | null;
   readonly weight_kg: number | null;
   readonly soreness: number | null;
-  readonly fatigue: number | null;
+  readonly fatigue: SubjectiveScore | null;
   readonly fields_json: string;
   readonly device_id: null;
   readonly hlc_physical_ms: null;

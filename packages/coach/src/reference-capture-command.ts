@@ -41,13 +41,12 @@ import {
 import {
   assertNoTpKeysRemain,
   buildFixtureShape,
+  decodeWellnessRow,
   normalizeStreams,
   parseCanonicalProjectionValue,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   projectCyclingReferenceBundle,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type ReferenceBundle,
   type ProducedLocalBundle,
   type VerifiedSnapshotReader,
@@ -61,9 +60,9 @@ import type { PlatformImportArtifact } from "@enduragent/kernel/ingest";
 import {
   createIntervalsIcuSource,
   decodeLocalBundleProjection,
+  landWellnessRow,
   mapActivityLanding,
   mapSettingsLanding,
-  mapWellnessLanding,
   normalizeStreamLanding,
   type IntervalsIcuCaptureSource,
   type LocalBundleSelectedEvidence,
@@ -383,9 +382,6 @@ function replaySource(manifest: ReferenceCaptureManifest): IntervalsIcuCaptureSo
       activity(value: Record<string, unknown>) {
         return parseRenamedActivity(renameTpFieldsOnActivity(value)) as unknown as Readonly<Record<string, unknown>>;
       },
-      wellness(value: Record<string, unknown>) {
-        return parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(value)) as unknown as Readonly<Record<string, unknown>>;
-      },
       streams(value: unknown) { return object(normalizeStreams(value)); },
       assertClean: assertNoTpKeysRemain,
     }),
@@ -478,8 +474,7 @@ async function directSelectedEvidence(
   }
   const wellness: SourceArtifactRow[] = manifest.records.wellness.map((record, index) => {
     const raw = object(payloads.records.wellness[index]);
-    const normalized = parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(structuredClone(raw)));
-    assertNoTpKeysRemain(normalized);
+    decodeWellnessRow(raw);
     return { artifact_key: record.store_evidence.artifact_key, source: SOURCE, lane: "wellness",
       external_id: record.external_id, archive_address: record.snapshot.address,
       archive_rel_path: record.snapshot.rel_path, archive_epoch_s: archiveEpoch(raw, "wellness") };
@@ -612,11 +607,9 @@ async function ingestCapturedPayloads(
       }
       for (let index = 0; index < manifest.records.wellness.length; index += 1) {
         const record = manifest.records.wellness[index]!, raw = object(payloads.records.wellness[index]);
-        const normalized = parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(structuredClone(raw)));
-        assertNoTpKeysRemain(normalized);
-        const epochSeconds = archiveEpoch(raw, "wellness");
-        await repository.recordArtifact(artifactDraft(record, "wellness", epochSeconds));
-        await repository.upsertWellness(await mapWellnessLanding(normalized));
+        const landing = await landWellnessRow(raw);
+        await repository.recordArtifact(artifactDraft(record, "wellness", archiveEpoch(raw, "wellness")));
+        await repository.upsertWellness(landing.row);
       }
       for (let index = 0; index < manifest.records.streams.length; index += 1) {
         const record = manifest.records.streams[index]!, normalized = normalizeStreams(payloads.records.streams[index]);

@@ -47,7 +47,7 @@ function source(http: HttpPort, options: { oldest?: string; newest?: string; arc
     historyNewestDate: options.newest ?? "1998-12-31", minRequestIntervalMs: 250,
     httpFactory: () => http, archive: options.archive ?? archive(log), wallClock: { now: () => Date.UTC(1998, 0, 1) },
     sleep: async () => {}, acl: {
-      activity(row) { log.push("acl:activity"); return row; }, wellness(row) { log.push("acl:wellness"); return row; },
+      activity(row) { log.push("acl:activity"); return row; },
       streams(value) { log.push("acl:streams"); return Array.isArray(value)
         ? Object.fromEntries(value.map((entry) => [(entry as { type: string }).type, (entry as { data: unknown }).data])) : value as Record<string, unknown>; },
       assertClean() {},
@@ -89,6 +89,24 @@ describe("intervals.icu full-history source", () => {
     const terminal = compactCursor({ v: 1, cycle: 3, window_start: "1998-01-01", window_end: "1998-12-31", last_key: null, complete: true });
     const refreshed = await collect(value.pull(watermark("activities", terminal), budget(1)));
     expect(JSON.parse((refreshed.at(-1) as { watermark: { value: string } }).watermark.value).cycle).toBe(4);
+  });
+
+  it("pulls wellness days with decimal load averages in date order and resumes mid-page", async () => {
+    const day = (id: string, fatigue: number | null) => ({ id, restingHR: 48, ctl: 31.2, atl: 27.787529, fatigue });
+    const value = source({ fetch: async () => json([day("1998-01-06", 3), day("1998-01-05", null)]) });
+    const first = await collect(value.pull(watermark("wellness"), budget(1)));
+    expect(first[0]).toMatchObject({ kind: "snapshot", lane: "wellness", externalId: "1998-01-05",
+      payload: day("1998-01-05", null), landing: { kind: "wellness", row: { date_key: 19980105, resting_hr: 48, fatigue: null } } });
+    const cursor = (first[1] as { watermark: { value: string } }).watermark.value;
+    const resumed = await collect(value.pull(watermark("wellness", cursor), budget(1)));
+    expect(resumed[0]).toMatchObject({ externalId: "1998-01-06", landing: { kind: "wellness", row: { date_key: 19980106, fatigue: 3 } } });
+  });
+
+  it("stops the wellness pull at a day it cannot land and names the field without its value", async () => {
+    const value = source({ fetch: async () => json([{ id: "1998-01-05", restingHR: 48 }, { id: "1998-01-06", restingHR: -4471 }]) });
+    const pull = collect(value.pull(watermark("wellness"), budget()));
+    await expect(pull).rejects.toThrow("row rejected: landing of restingHR");
+    await expect(pull).rejects.not.toThrow(/4471/);
   });
 
   it("reports dropped rows once when resuming the same activity page", async () => {

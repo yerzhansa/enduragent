@@ -65,7 +65,7 @@ function source(http: HttpPort, rawArchive = archive()) {
   return createIntervalsIcuSource({ athleteId: "synthetic-athlete", historyOldestDate: "1998-01-01",
     historyNewestDate: "1998-12-31", minRequestIntervalMs: 250, httpFactory: () => http, archive: rawArchive,
     wallClock: { now: () => Date.UTC(1998, 0, 1) }, sleep: async () => {}, acl: {
-      activity: (row) => row, wellness: (row) => row, streams: (value) => value as Record<string, unknown>, assertClean() {},
+      activity: (row) => row, streams: (value) => value as Record<string, unknown>, assertClean() {},
     } });
 }
 

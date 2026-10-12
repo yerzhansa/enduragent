@@ -32,12 +32,11 @@ import {
 } from "@enduragent/kernel/reference/capture";
 import {
   assertNoTpKeysRemain,
+  decodeWellnessRow,
   deriveFtpHistory,
   normalizeStreams,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   StreamNormalizationError,
   type ReferenceBundle,
   type RenameSummary,
@@ -294,7 +293,6 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   });
 
   const actSummary: RenameSummary = { skippedNonNumeric: {} };
-  const wellSummary: RenameSummary = { skippedNonNumeric: {} };
 
   const retentionCutoffMs = now.getTime() - LATEST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   const isRecent = (row: { readonly start_date_local?: unknown }): boolean => {
@@ -348,7 +346,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   const wellness: WellnessDay[] = [];
   for (const row of rawWellness) {
     try {
-      wellness.push(parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(row, wellSummary)));
+      wellness.push(decodeWellnessRow(row));
     } catch (err) {
       log(
         `Reference: skipped malformed wellness row: ${err instanceof Error ? err.message : String(err)}`,
