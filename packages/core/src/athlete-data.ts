@@ -1,7 +1,7 @@
 import type { ApiError, EventInput, IntervalsClient } from "intervals-icu-api";
-import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
+import { decodeWellnessRow, RowRejection, type ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { CanonicalActivityReader } from "@enduragent/kernel/store";
-import { PLANNING_EVENT_CATEGORIES } from "@enduragent/kernel/reference/schemas";
+import { PLANNING_EVENT_CATEGORIES, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type {
   AthleteDataReaderPort as AthleteDataReader,
   AthleteReadResult,
@@ -54,16 +54,38 @@ async function platformValue<T>(
   return result.value;
 }
 
+const WELLNESS_UNREADABLE = Object.freeze({
+  ok: false as const,
+  error: "wellness_unreadable" as const,
+  message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+});
+
 export function createPlatformAthleteDataReader(intervals: IntervalsClient): AthleteDataReader {
   return Object.freeze({
     async getAthlete() {
       return { ok: true as const, value: await platformValue(intervals.athlete.get()) };
     },
     async listWellness(input: { start: string; end?: string }) {
-      return { ok: true as const, value: await platformValue(intervals.wellness.list({
+      const rows = await platformValue(intervals.wellness.list({
         oldest: input.start,
         newest: input.end,
-      })) as unknown[] };
+      })) as unknown[];
+      const days: WellnessDay[] = [];
+      for (const row of rows) {
+        try {
+          days.push(decodeWellnessRow(row));
+        } catch (error) {
+          if (!(error instanceof RowRejection)) throw error;
+        }
+      }
+      const rejected = rows.length - days.length;
+      if (rejected === 0) return { ok: true as const, value: days };
+      if (days.length === 0) return WELLNESS_UNREADABLE;
+      return {
+        ok: true as const,
+        value: days,
+        notice: `${rejected} of ${rows.length} wellness days could not be read and are missing here.`,
+      };
     },
     async listActivities(input: { start: string; end?: string }) {
       return { ok: true as const, value: await platformValue(intervals.activities.list({

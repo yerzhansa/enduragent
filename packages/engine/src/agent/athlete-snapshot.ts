@@ -1,3 +1,4 @@
+import type { WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type { AthleteDataReaderPort } from "../host-ports.js";
 import { MS_PER_DAY, parseDateKeyMs } from "../sport/date-keys.js";
 import { projectAthlete } from "../sport/list-projection.js";
@@ -83,53 +84,51 @@ export function renderAthleteProfileLine(
   return parts.length === 0 ? undefined : `Profile: ${parts.join(" · ")}`;
 }
 
-function wellnessParts(row: Row): string[] {
+function wellnessParts(day: WellnessDay): string[] {
   const parts: string[] = [];
-  const platformShape = "ctl" in row;
-  const fitness = platformShape ? num(row.ctl) : num(row.fitness);
-  const fatigue = platformShape ? num(row.atl) : num(row.fatigue);
+  const fitness = num(day.fitness);
+  const fatigue = num(day.fatigue);
   pick(parts, "Fitness", fitness);
   pick(parts, "Fatigue", fatigue);
   if (fitness !== undefined && fatigue !== undefined) {
     parts.push(`Form ${signed(Math.round((fitness - fatigue) * 10) / 10)}`);
   }
-  pick(parts, "resting HR", num(row.restingHR), " bpm");
-  pick(parts, "HRV", num(row.hrv));
-  const sleepSecs = num(row.sleepSecs);
+  pick(parts, "resting HR", num(day.restingHR), " bpm");
+  pick(parts, "HRV", num(day.hrv));
+  const sleepSecs = num(day.sleepSecs);
   if (sleepSecs !== undefined) parts.push(`sleep ${sleepDuration(sleepSecs)}`);
-  pick(parts, "sleep score", num(row.sleepScore));
-  pick(parts, "sleep quality", num(row.sleepQuality));
-  pick(parts, "weight", num(row.weight), " kg");
-  pick(parts, "readiness", num(row.readiness));
-  if (platformShape) pick(parts, "reported fatigue", num(row.fatigue));
-  pick(parts, "soreness", num(row.soreness));
-  pick(parts, "stress", num(row.stress));
-  pick(parts, "mood", num(row.mood));
-  pick(parts, "motivation", num(row.motivation));
-  pick(parts, "injury", num(row.injury));
+  pick(parts, "sleep score", num(day.sleepScore));
+  pick(parts, "sleep quality", num(day.sleepQuality));
+  pick(parts, "weight", num(day.weight), " kg");
+  pick(parts, "readiness", num(day.readiness));
+  pick(parts, "reported fatigue", num(day.subjectiveFatigue));
+  pick(parts, "soreness", num(day.soreness));
+  pick(parts, "stress", num(day.stress));
+  pick(parts, "mood", num(day.mood));
+  pick(parts, "motivation", num(day.motivation));
+  pick(parts, "injury", num(day.injury));
   return parts;
 }
 
-export function renderLatestWellnessLine(rows: readonly unknown[]): string | undefined {
-  const dated = rows
-    .filter(isRecord)
-    .filter((row) => typeof row.id === "string")
-    .sort((a, b) => (a.id as string).localeCompare(b.id as string));
+export function renderLatestWellnessLine(days: readonly WellnessDay[]): string | undefined {
+  const dated = [...days].sort((a, b) => a.id.localeCompare(b.id));
   for (let i = dated.length - 1; i >= 0; i--) {
     const parts = wellnessParts(dated[i]!);
-    if (parts.length > 0) return `Wellness ${dated[i]!.id as string}: ${parts.join(" · ")}`;
+    if (parts.length > 0) return `Wellness ${dated[i]!.id}: ${parts.join(" · ")}`;
   }
   return undefined;
 }
 
 export function renderAthleteSnapshotBlock(input: {
   athlete?: unknown;
-  wellness?: readonly unknown[];
+  wellness?: readonly WellnessDay[];
+  wellnessNotice?: string | undefined;
   sportTypes: readonly string[];
 }): string | undefined {
   const lines = [
     renderAthleteProfileLine(input.athlete, input.sportTypes),
     renderLatestWellnessLine(input.wellness ?? []),
+    input.wellnessNotice,
   ].filter((line): line is string => line !== undefined);
   if (lines.length === 0) return undefined;
   return `${ATHLETE_SNAPSHOT_HEADING}\n\n${lines.join("\n")}\n${ATHLETE_SNAPSHOT_GUIDANCE}`;
@@ -177,6 +176,15 @@ export async function loadAthleteSnapshotBlock(input: {
   return renderAthleteSnapshotBlock({
     athlete: athlete?.ok ? athlete.value : undefined,
     wellness: wellness?.ok ? wellness.value : [],
+    wellnessNotice: wellnessNotice(wellness),
     sportTypes: input.sportTypes,
   });
+}
+
+function wellnessNotice(
+  read: Awaited<ReturnType<AthleteDataReaderPort["listWellness"]>> | undefined,
+): string | undefined {
+  if (read === undefined) return undefined;
+  if (read.ok) return read.notice;
+  return read.error === "wellness_unreadable" ? read.message : undefined;
 }

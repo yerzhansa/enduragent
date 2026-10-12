@@ -514,3 +514,52 @@ describe("store athlete reader", () => {
     });
   });
 });
+
+describe("live wellness reads", () => {
+  const BODY = { weight: 70.5, restingHR: 50, hrv: 80, sleepSecs: 28800, sleepQuality: 3 };
+  const fetchWellness = (rows: unknown[]) => {
+    const client = {
+      wellness: { list: vi.fn(async () => ({ ok: true as const, value: rows })) },
+    } as unknown as IntervalsClient;
+    const tools = createPureCoreIntervalsTools(client, "UTC", createPlatformAthleteDataReader(client));
+    return tools.intervals_fetch_wellness!.execute!(
+      { oldest: "1998-07-16", newest: "1998-07-17" },
+      {} as never,
+    );
+  };
+
+  it("gives the coach the load averages in coach words and the logged score under its own name", async () => {
+    await expect(
+      fetchWellness([{ id: "1998-07-17", ...BODY, ctl: 31.2, atl: 27.787529, rampRate: 1.5, fatigue: 3 }]),
+    ).resolves.toEqual([
+      {
+        id: "1998-07-17",
+        ...BODY,
+        fitness: 31.2,
+        fatigue: 27.787529,
+        weeklyFitnessChange: 1.5,
+        subjectiveFatigue: 3,
+      },
+    ]);
+  });
+
+  it("skips a day it cannot decode and tells the coach a day is missing", async () => {
+    await expect(
+      fetchWellness([
+        { id: "1998-07-16", ...BODY, restingHR: "marker-4471" },
+        { id: "1998-07-17", ...BODY },
+      ]),
+    ).resolves.toEqual({
+      data: [{ id: "1998-07-17", ...BODY }],
+      notice: "1 of 2 wellness days could not be read and are missing here.",
+    });
+  });
+
+  it("reports a fault, not an empty list, when no day can be decoded", async () => {
+    await expect(fetchWellness([{ id: "1998-07-17", ...BODY, restingHR: "marker-4471" }])).resolves.toEqual({
+      error: "wellness_unreadable",
+      message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+    });
+    await expect(fetchWellness([])).resolves.toEqual([]);
+  });
+});

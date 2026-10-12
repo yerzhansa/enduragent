@@ -137,6 +137,9 @@ export const ActivitySchema = z.looseObject({
 });
 export type Activity = z.infer<typeof ActivitySchema>;
 
+export const SubjectiveScoreSchema = z.number().brand<"SubjectiveScore">();
+export type SubjectiveScore = z.infer<typeof SubjectiveScoreSchema>;
+
 /** Single intervals.icu wellness row.
  *  Excludes ctl/atl/ctlLoad/atlLoad/rampRate/icu_atl/icu_ctl from typed surface
  *  per project trademark policy (docs/knowledge/research/trademark-tp-terms.md).
@@ -163,16 +166,15 @@ export const WellnessDaySchema = z.looseObject({
   // at `reference/sync/rename-tp-fields.ts` per ADR-0012. The source API
   // names are TP-trademarked and never appear on the typed surface; the
   // rename layer is the single anti-corruption boundary. Naming note:
-  // intervals.icu's lib also declares a `fatigue` field (subjective 1-5
-  // scale) on WellnessRecord — distinct semantics from this Banister-derived
-  // emission. The lib's field stays index-signature ride-through; future
-  // consumers needing the subjective scale should promote it under a
-  // different name (e.g., `subjectiveFatigue`).
+  // intervals.icu also sends a `fatigue` key, the score the athlete logs
+  // by hand — distinct semantics from this Banister-derived emission.
+  // `decodeWellnessRow` moves that score to `subjectiveFatigue`.
   fitness: z.number().nullable().optional(),
   fatigue: z.number().nullable().optional(),
   fitnessContribution: z.number().nullable().optional(),
   fatigueContribution: z.number().nullable().optional(),
   weeklyFitnessChange: z.number().nullable().optional(),
+  subjectiveFatigue: SubjectiveScoreSchema.nullable().optional(),
 });
 export type WellnessDay = z.infer<typeof WellnessDaySchema>;
 

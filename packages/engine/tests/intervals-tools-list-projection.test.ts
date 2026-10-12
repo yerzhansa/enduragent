@@ -1,3 +1,4 @@
+import { SubjectiveScoreSchema, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 import { describe, expect, it } from "vitest";
 import type { AthleteDataReaderPort, AthleteReadResult } from "../src/host-ports.js";
 import {
@@ -5,11 +6,14 @@ import {
   createPureCoreIntervalsTools,
 } from "../src/sport/platform-tools.js";
 
-function reader(result: AthleteReadResult<unknown[]>): AthleteDataReaderPort {
+function reader(results: {
+  wellness?: AthleteReadResult<readonly WellnessDay[]>;
+  activities?: AthleteReadResult<unknown[]>;
+}): AthleteDataReaderPort {
   return {
     getAthlete: async () => ({ ok: true, value: {} }),
-    listWellness: async () => result,
-    listActivities: async () => result,
+    listWellness: async () => results.wellness ?? { ok: true, value: [] },
+    listActivities: async () => results.activities ?? { ok: true, value: [] },
     getActivity: async () => ({ ok: true, value: {} }),
     getStreams: async () => ({ ok: true, value: {} }),
     listCalendar: async () => ({ ok: true, value: [] }),
@@ -31,9 +35,9 @@ describe("intervals list projections", () => {
     async ({ sportInfo }) => {
       const expected = {
         id: "1998-09-08",
-        ctl: 40,
-        atl: 50,
-        rampRate: 0,
+        fitness: 40,
+        fatigue: 50,
+        weeklyFitnessChange: 0,
         weight: 70,
         restingHR: 48,
         hrv: 65,
@@ -41,7 +45,7 @@ describe("intervals list projections", () => {
         sleepScore: 80,
         readiness: 0,
         sleepQuality: 2,
-        fatigue: 3,
+        subjectiveFatigue: SubjectiveScoreSchema.parse(3),
         stress: 1,
         mood: 2,
         motivation: 3,
@@ -59,23 +63,29 @@ describe("intervals list projections", () => {
       });
       const sparse = Object.freeze({
         id: "1998-09-07",
-        ctl: 0,
+        fitness: 0,
         weight: null,
-        hrv: undefined,
-        rampRate: null,
+        restingHR: null,
+        hrv: null,
+        sleepSecs: null,
+        sleepQuality: null,
+        weeklyFitnessChange: null,
+        subjectiveFatigue: null,
       });
       const tool = createPureCoreIntervalsTools(
         null,
         "UTC",
         reader({
-          ok: true,
-          value: [row, sparse],
-          freshness: { capturedAt: "1998-09-08T12:00:00", ageMs: 60_000, label: "1 minutes" },
+          wellness: {
+            ok: true,
+            value: [row, sparse],
+            freshness: { capturedAt: "1998-09-08T12:00:00", ageMs: 60_000, label: "1 minutes" },
+          },
         }),
       ).intervals_fetch_wellness;
       if (!tool?.execute) throw new Error("Wellness tool missing");
       expect(await tool.execute(range, options)).toStrictEqual({
-        data: [expected, { id: "1998-09-07", ctl: 0 }],
+        data: [expected, { id: "1998-09-07", fitness: 0 }],
         freshness: "Store data last synchronized 1 minutes ago (1998-09-08T12:00:00).",
       });
       expect(row.steps).toBe(5000);
@@ -106,8 +116,10 @@ describe("intervals list projections", () => {
       null,
       ["Ride"],
       reader({
-        ok: true,
-        value: [row, { id: "124", averageWatts: null, maxHeartrate: undefined, distance: 0 }],
+        activities: {
+          ok: true,
+          value: [row, { id: "124", averageWatts: null, maxHeartrate: undefined, distance: 0 }],
+        },
       }),
     ).intervals_fetch_activities;
     if (!tool?.execute) throw new Error("Activities tool missing");
@@ -138,10 +150,7 @@ describe("intervals list projections", () => {
     const tool = createCoreToolsWithSportConfig(
       null,
       ["Ride"],
-      reader({
-        ok: true,
-        value: [row],
-      }),
+      reader({ activities: { ok: true, value: [row] } }),
     ).intervals_fetch_activities;
     if (!tool?.execute) throw new Error("Activities tool missing");
     expect(await tool.execute(range, options)).toStrictEqual([row]);
@@ -154,8 +163,8 @@ describe("intervals list projections", () => {
       message: "Store unavailable",
     } satisfies AthleteReadResult<never>;
     const tools = {
-      ...createPureCoreIntervalsTools(null, "UTC", reader(failure)),
-      ...createCoreToolsWithSportConfig(null, ["Ride"], reader(failure)),
+      ...createPureCoreIntervalsTools(null, "UTC", reader({ wellness: failure, activities: failure })),
+      ...createCoreToolsWithSportConfig(null, ["Ride"], reader({ wellness: failure, activities: failure })),
     };
     for (const tool of [tools.intervals_fetch_wellness, tools.intervals_fetch_activities]) {
       if (!tool?.execute) throw new Error("List tool missing");

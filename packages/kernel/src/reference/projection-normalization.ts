@@ -75,19 +75,65 @@ export function renameTpFieldsOnActivity(raw: Record<string, unknown>, summary?:
 export function parseRenamedActivity(row: RenamedActivityRow): Activity { return ActivitySchema.parse(row); }
 export function parseRenamedWellnessRow(row: RenamedWellnessRow): WellnessDay { return WellnessDaySchema.parse(row); }
 
+export type RowRejectionReason = "shape" | "decode";
+
+export class RowRejection extends TypeError {
+  readonly reason: RowRejectionReason;
+  readonly field: string | null;
+
+  constructor(reason: RowRejectionReason, field: string | null = null) {
+    super(field === null ? `row rejected: ${reason}` : `row rejected: ${reason} of ${field}`);
+    this.name = "RowRejection";
+    this.reason = reason;
+    this.field = field;
+  }
+}
+
+const SUBJECTIVE_FATIGUE_WIRE_KEY = "fatigue";
+const WELLNESS_SOURCE_KEYS = new Set(WELLNESS_TP_TO_PLAIN.map(([source]) => source));
+const WELLNESS_DECODED_ONLY_KEYS = [
+  ...WELLNESS_TP_TO_PLAIN.map(([, target]) => target).filter((target) => target !== SUBJECTIVE_FATIGUE_WIRE_KEY),
+  "subjectiveFatigue",
+];
+
+export function decodeWellnessRow(wire: unknown, summary?: RenameSummary): WellnessDay {
+  if (wire === null || typeof wire !== "object" || Array.isArray(wire)) throw new RowRejection("shape");
+  const row = wire as Record<string, unknown>;
+  for (const key of WELLNESS_DECODED_ONLY_KEYS) if (key in row) throw new RowRejection("decode", key);
+  const { [SUBJECTIVE_FATIGUE_WIRE_KEY]: subjectiveFatigue, ...rest } = row;
+  const parsed = WellnessDaySchema.safeParse({
+    ...applyKeyRename(rest, WELLNESS_TP_TO_PLAIN, WELLNESS_SOURCE_KEYS, summary),
+    subjectiveFatigue: subjectiveFatigue ?? null,
+  });
+  if (!parsed.success) throw new RowRejection("decode", parsed.error.issues[0]?.path.join(".") ?? null);
+  const surviving = findTpKey(parsed.data, "");
+  if (surviving !== undefined) throw new RowRejection("decode", surviving.key);
+  return parsed.data;
+}
+
 const DENYLIST = new Set<string>(TP_DENYLIST_FIELDS);
-export function assertNoTpKeysRemain(value: unknown, path = ""): void {
+function findTpKey(value: unknown, path: string): { key: string; path: string } | undefined {
   if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index += 1) assertNoTpKeysRemain(value[index], `${path}[${index}]`);
-    return;
+    for (let index = 0; index < value.length; index += 1) {
+      const found = findTpKey(value[index], `${path}[${index}]`);
+      if (found !== undefined) return found;
+    }
+    return undefined;
   }
   if (value !== null && typeof value === "object") for (const [key, child] of Object.entries(value)) {
     const childPath = path === "" ? key : `${path}.${key}`;
-    if (DENYLIST.has(key)) {
-      throw new Error(`assertNoTpKeysRemain: TP-trademarked key surviving rename at ${childPath}`
-        + " — update reference/sync/rename-tp-fields.ts");
-    }
-    assertNoTpKeysRemain(child, childPath);
+    if (DENYLIST.has(key)) return { key, path: childPath };
+    const found = findTpKey(child, childPath);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+export function assertNoTpKeysRemain(value: unknown, path = ""): void {
+  const found = findTpKey(value, path);
+  if (found !== undefined) {
+    throw new Error(`assertNoTpKeysRemain: TP-trademarked key surviving rename at ${found.path}`
+      + " — update reference/sync/rename-tp-fields.ts");
   }
 }
 

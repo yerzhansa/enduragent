@@ -304,7 +304,7 @@
     "packages/kernel/src/reference/schemas/ftp-history.ts": 1,
     "packages/kernel/src/reference/schemas/history.ts": 1,
     "packages/kernel/src/reference/schemas/index.ts": 3,
-    "packages/kernel/src/reference/schemas/inputs.ts": 102,
+    "packages/kernel/src/reference/schemas/inputs.ts": 100,
     "packages/kernel/src/reference/schemas/intervals.ts": 1,
     "packages/kernel/src/reference/schemas/latest.ts": 3,
     "packages/kernel/src/reference/schemas/routes.ts": 1,

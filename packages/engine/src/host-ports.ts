@@ -17,6 +17,7 @@ import type {
   ResolvedModelProfile,
 } from "@enduragent/coach-contract";
 import type { LanguageResolution } from "@enduragent/i18n";
+import type { WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type { ModelMessage } from "ai";
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type { GenerateOptions, GenerateResult } from "./sport.js";
@@ -332,16 +333,26 @@ export interface StoredDataFreshness {
 }
 
 export type AthleteReadResult<T> =
-  | { readonly ok: true; readonly value: T; readonly freshness?: StoredDataFreshness }
+  | {
+      readonly ok: true;
+      readonly value: T;
+      readonly freshness?: StoredDataFreshness;
+      readonly notice?: string;
+    }
   | {
       readonly ok: false;
-      readonly error: "not_found" | "store_read_unavailable" | "invalid_snapshot" | "invalid_input";
+      readonly error:
+        | "not_found"
+        | "store_read_unavailable"
+        | "invalid_snapshot"
+        | "invalid_input"
+        | "wellness_unreadable";
       readonly message: string;
     };
 
 export interface AthleteDataReaderPort {
   getAthlete(): Promise<AthleteReadResult<unknown>>;
-  listWellness(input: { start: string; end?: string }): Promise<AthleteReadResult<unknown[]>>;
+  listWellness(input: { start: string; end?: string }): Promise<AthleteReadResult<readonly WellnessDay[]>>;
   listActivities(input: { start: string; end?: string }): Promise<AthleteReadResult<unknown[]>>;
   getActivity(input: { id: string }): Promise<AthleteReadResult<unknown>>;
   getStreams(input: { id: string; keys: readonly string[] }): Promise<AthleteReadResult<unknown>>;
