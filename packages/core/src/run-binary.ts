@@ -33,9 +33,6 @@ import { openWorkoutChangeSets } from "./workout-change-sets/service.js";
 import { createTerminalWorkoutApproval } from "./channels/workout-approval.js";
 import { resolveUserTimezone } from "@enduragent/engine/sport";
 
-// Shared error classifier output as the CLI's athlete-facing reply, so the CLI
-// and the Telegram channel speak the same error vocabulary and never dump a raw
-// error object in the reply position.
 export function formatCliReply(err: unknown): string {
   return say(classifyAgentError(err, cliPhrasebook().format).athleteMessage);
 }
@@ -50,7 +47,6 @@ export interface PreparedCoachComposition {
 export interface RunBinaryHooks {
   readonly workoutChangeSets?: "aggregate-v1";
   prepare?: (input: { config: Config; sport: Sport }) => Promise<PreparedCoachComposition>;
-  /** Called once per process at startup, after Memory exists, before any chat handler is reachable. */
   onStartup?: (memory: Memory) => void | Promise<void>;
 }
 
@@ -80,26 +76,18 @@ function parseCommand(binary: BinaryConfig): { command: string | null; positiona
   return { command: positionals[0] ?? null, positionals };
 }
 
-// Readline-based confirmation for startup capture: renders a multi-line prompt
-// to make the bot username visually prominent, parses with decline-on-ambiguous
-// semantics, declines cleanly on SIGINT, and times out after
-// <BINARY>_CAPTURE_CONFIRM_TIMEOUT_MS (default 5 min).
-
 interface MakeReadlineConfirmOpts {
   timeoutMs: number;
-  /** Inject for tests. Defaults to node:readline createInterface. */
   createInterface?: (opts: { input: NodeJS.ReadableStream; output: NodeJS.WritableStream }) => {
     question(prompt: string, cb: (answer: string) => void): void;
     on(event: "SIGINT", cb: () => void): unknown;
     close(): void;
   };
-  /** Inject for tests. */
   log?: (line: string) => void;
 }
 
 export function _parseConfirmAnswer(input: string): boolean {
   const trimmed = input.trim().toLowerCase();
-  // Anything except an explicit y/yes (including bare Enter) → decline, no re-prompt.
   return trimmed === "y" || trimmed === "yes";
 }
 
@@ -319,9 +307,6 @@ async function runAllowlistCommand(
   process.exit(0);
 }
 
-// Upper bound on how long a graceful shutdown waits for in-flight turns to
-// drain before forcing exit. A hung turn (wedged LLM call, stuck network) must
-// never wedge process exit, so the drain races a timeout.
 const SHUTDOWN_DRAIN_TIMEOUT_MS = 10_000;
 
 interface BotShutdownDeps {
@@ -339,16 +324,7 @@ interface BotShutdownDeps {
   shutdownCatalog?: () => void | Promise<void>;
 }
 
-// Builds the SIGTERM/SIGINT handler that brings the bot down cleanly: halt new
-// updates, let in-flight turns finish (bounded), clear the run breadcrumb so the
-// next boot is not mislabeled unclean, then exit. The returned closure owns a
-// re-entry latch so a second signal (operator mashing Ctrl+C) cannot run the
-// teardown twice. The body is wrapped so any throw still reaches the exit call —
-// a stuck shutdown must never leave the process hanging.
 export function makeBotShutdown(deps: BotShutdownDeps): () => Promise<void> {
-  // Default to a synchronous fd-1 write, not console.log: when stdout is a pipe
-  // (Docker/systemd) console.log is async-buffered, and the immediate
-  // process.exit(0) below drops the buffered banner. writeSync cannot be lost.
   const log = deps.log ?? ((line: string) => writeSync(1, `${line}\n`));
   const drainTimeoutMs = deps.drainTimeoutMs ?? SHUTDOWN_DRAIN_TIMEOUT_MS;
   let shuttingDown = false;
@@ -424,8 +400,6 @@ async function runBinaryWithLanguage(
   if (command === "setup") {
     const { runSetup } = await import("./setup.js");
     await runSetup(binary);
-    // pi-ai's OAuth callback server may leave socket/timer handles alive;
-    // exit explicitly so the wizard returns the shell.
     process.exit(0);
   }
 
@@ -521,13 +495,8 @@ async function runBinaryWithLanguage(
     catalog: modelCatalog.current(),
   });
 
-  // Reference's internal init sequence is pinned inside `bootstrapReference`
-  // per ADR-0011 (two-phase scheduler — no timer until first runSync resolves).
   await runStartupHook(engine.getMemory(), hooks.onStartup);
 
-  // After the startup hook so the legacy-section migration has already renamed
-  // profile/equipment/health → sport-prefixed names; scanning earlier would
-  // warn on names the migration removes on the very next boot statement.
   warnOrphanSections(engine.getMemory(), getEffectiveSections(sport));
 
   const { bootstrapReference } = await import("./reference/runtime.js");
@@ -568,10 +537,6 @@ async function runBinaryWithLanguage(
   });
 
   if (config.telegram.botToken) {
-    // Interactive startup capture: when no allowlist is set up yet AND we have
-    // a TTY AND a token, run the same one-message claim flow the setup wizard
-    // uses. Non-TTY paths (Docker, systemd, fly.io) skip the prompt and fall
-    // back to pairing-mode + pairing-challenge CLI.
     const allowed = loadAllowedSenders(config.dataDir);
     const needsCapture =
       allowed.dmPolicy === "pairing" &&
@@ -607,18 +572,7 @@ async function runBinaryWithLanguage(
         interruptKey: "Ctrl+C",
       }),
     );
-    // When a signal lands in the startup / first-long-poll window, our own
-    // bot.stop() aborts the in-flight getUpdates; grammy surfaces that as a
-    // rejected start-promise (abort / 409 Conflict). That rejection is the
-    // EXPECTED consequence of a graceful shutdown, not a crash — suppress it so
-    // it cannot race reportFatal()'s markUnclean+exit(1) ahead of the shutdown
-    // handler's clean exit(0). A genuine startup failure (bad token, pre-signal
-    // crash) leaves shuttingDown false and still fatals.
     let shuttingDown = false;
-    // Normal startup does NOT drop pending updates: a message sent while the bot
-    // was down must still be delivered on restart. The durable update-offset
-    // guard inside createTelegramBot dedupes anything the previous run already
-    // handled. (Operator-capture startup keeps drop_pending_updates on purpose.)
     startNpmTelegramPolling({
       start: () => telegram.start(),
       isShutdownLatched: () => shuttingDown,
@@ -628,9 +582,6 @@ async function runBinaryWithLanguage(
       },
     });
 
-    // Register graceful-shutdown signal handlers only on the bot-run path —
-    // after bot.start — so they never fire during the operator-capture readline
-    // above, which owns its own SIGINT on a different emitter.
     const { markCleanShutdown } = await import("./process-guard.js");
     const shutdownBot = makeBotShutdown({
       stop: () => telegram.stop(),
@@ -650,10 +601,6 @@ async function runBinaryWithLanguage(
 
     if (!process.env[binaryEnvVar(binary.binaryName, "NO_UPDATE_CHECK")]) {
       void notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage);
-      // A long-running deployment would otherwise never learn about a new
-      // release until it restarts; notifyUpdate dedupes per version so the
-      // re-check broadcasts at most once per release. unref() so the timer
-      // never holds the process open.
       const DAY_MS = 24 * 60 * 60 * 1000;
       setInterval(
         () => void notifyNpmTelegramUpdate(telegram, config.dataDir, binary, coachLanguage),
@@ -727,9 +674,6 @@ async function runBinaryWithLanguage(
           await _promptProposalConfirm(rl, engine);
           await terminalWorkoutApproval?.present();
         } catch (err) {
-          // Full detail (stack, provider payload) → stderr; a friendly classified
-          // reply → stdout in the reply position. The raw err never lands as the
-          // coach reply.
           console.error(say("cli.startup.errorDetail"), err);
           console.log("\n" + formatCliReply(err) + "\n");
         }

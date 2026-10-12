@@ -66,24 +66,10 @@ type LLMHostPorts = Pick<
   | "claudeWorkingArea"
 >;
 
-// ============================================================================
-// LLM DISPATCH
-// ============================================================================
-
 export function usesKeylessTransport(provider: string): boolean {
   return isKeylessProvider(provider);
 }
 
-// Most providers cache the stable system prefix automatically server-side and
-// get the plain system string, so they are absent here: direct openai/google,
-// the OpenAI-compatible direct providers, and OpenRouter's OpenAI/DeepSeek/
-// Grok/Moonshot routes. Explicit breakpoints are needed by direct Anthropic and
-// — through OpenRouter — the Anthropic/Qwen/Gemini routes; of those we ship only
-// the Qwen route (`qwen/`-namespaced ids), so `anthropic/` and `google/` via
-// OpenRouter are intentionally out of scope and stay uncached. (Same breakpoint
-// shape as Anthropic; only the providerOptions key differs —
-// @openrouter/ai-sdk-provider reads it from message-level
-// providerOptions.openrouter.cacheControl.)
 export function cacheBreakpointKey(
   provider: string,
   model: string,
@@ -99,8 +85,6 @@ export class LLM {
   private ports: LLMHostPorts;
   private transport: ModelTransport;
   private aiSdkModel: LanguageModel | null;
-  // Instance-constant for the same reason: the cache-breakpoint decision depends
-  // only on provider + model, so resolve it once rather than per dispatch().
   private breakpointKey: "anthropic" | "openrouter" | undefined;
   private chatStreamTimeouts: ChatStreamTimeouts;
   private claudeCliPool: ClaudeCliSessionPool | null = null;
@@ -130,9 +114,6 @@ export class LLM {
 
   async generate(opts: GenerateOpts): Promise<GenerateResult> {
     const start = this.ports.now();
-    // The per-call deadline is the caller's class budget intersected with any
-    // turn-remaining bound the agent loop passes, so a retry after an early
-    // timeout inherits only the time the turn has left — never a fresh window.
     const deadlineMs = Math.min(
       deadlineMsForCaller(opts.caller),
       opts.deadlineMs ?? Number.POSITIVE_INFINITY,
@@ -169,10 +150,6 @@ export class LLM {
       if (watchdog?.error !== undefined && isAbortError(err, watchdog.signal)) {
         throw watchdog.error;
       }
-      // Relabel to TimeoutError only when OUR per-call timer fired AND the error
-      // is abort-shaped: a 5xx/429/network thrown while the timer happens to be
-      // aborted must keep its own class, and an outer caller cancellation that
-      // never tripped our timer is not our deadline.
       if (deadline.aborted && isAbortError(err, deadline)) throw toTimeoutError(err);
       throw err;
     } finally {
@@ -262,9 +239,6 @@ export class LLM {
       throw new Error("AI SDK model not initialized");
     }
 
-    // The provider renders tools before system, so breakpointing the FIRST
-    // system block caches tools + stable prefix together. Which providers need
-    // explicit breakpoints, and why the rest don't, lives on cacheBreakpointKey.
     const breakpointKey = this.breakpointKey;
     const ephemeral = (key: "anthropic" | "openrouter") => ({
       [key]: { cacheControl: { type: "ephemeral" as const } },
@@ -298,10 +272,6 @@ export class LLM {
           ];
     }
 
-    // Message-level breakpoint on the last message so a multi-step tool turn
-    // does not re-pay the whole history every step. Stamped onto a shallow
-    // copy: the caller's array is reused across the retry/compaction loop and
-    // enters the lineage-hash basis, so it must never be mutated here.
     let messages = opts.messages ?? [];
     if (breakpointKey !== undefined && messages.length > 0) {
       const last = messages[messages.length - 1];
@@ -581,9 +551,6 @@ function deadlineMsForCaller(caller: GenerateOpts["caller"]): number {
   return caller === "chat" ? CHAT_LLM_CALL_DEADLINE_MS : LLM_CALL_DEADLINE_MS;
 }
 
-// Returns BOTH the per-call timer (so the catch can ask "did our timer fire?")
-// and the signal actually handed to the provider — the timer alone when there is
-// no outer signal, else the union of the two.
 function withLLMDeadline(
   signal: AbortSignal | undefined,
   deadlineMs: number,
@@ -595,12 +562,6 @@ function withLLMDeadline(
   };
 }
 
-// True when the caught error is the shape an aborted request produces -- the
-// timer's own reason, or an AbortError/TimeoutError anywhere in its cause chain
-// (some providers wrap the abort under a non-standard name). A 5xx/429/network
-// error carries no such cause and is NOT matched, so it keeps its own retry
-// class. Only consulted when OUR timer fired (deadline.aborted), so widening to
-// the cause chain cannot mislabel an unrelated failure.
 function isAbortError(err: unknown, deadline: AbortSignal): boolean {
   let current: unknown = err;
   for (let depth = 0; depth < 5 && current != null; depth++) {

@@ -30,58 +30,28 @@ import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./
 import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
 import { deliverTelegramWorkoutReview } from "./telegram-workout-review.js";
 
-// Debounce window for coalescing rapid free-form message fragments from one
-// chat into a single turn. Each new fragment resets the window; the buffered
-// turn fires this long after the LAST fragment.
 export const CHAT_COALESCE_MS = 1_500;
 
-// Process-local resend cache bounds. The cache holds full generated answers
-// (athlete content) so it is size- and time-bounded and never logged.
 const RESEND_TTL_MS = 30 * 60_000;
 const RESEND_MAX_ENTRIES = 1000;
-// The bare word an athlete types to re-emit the last answer. Shared by the
-// matcher and the delivery-failure hint so the two can never drift apart.
 const RESEND_KEYWORD = "resend";
 
-// Shown when generation succeeded but Telegram couldn't deliver the answer.
-// Used by both the runTurn delivery catch and the resend-dispatch catch so the
-// two delivery-failure paths can never drift apart.
 const DELIVERY_FAILURE_HINT = msg("telegram.error.delivery", {
   keyword: RESEND_KEYWORD,
   service: "Telegram",
 });
 
-// Neutral apology for synchronous handler/ack failures surfaced through
-// bot.catch — those are Telegram transport errors, not LLM/tool errors, so they
-// must not be dressed in provider-specific vocabulary.
 const GENERIC_TRANSPORT_APOLOGY = msg("telegram.error.transport");
 
-// Shown when /update can't durably record the self-update marker. Without that
-// marker a restart could re-trigger /update in a loop, so we decline to stop and
-// tell the athlete to retry rather than risk the loop.
 const SELF_UPDATE_MARKER_FAILURE = msg("telegram.update.prepareFailed", { command: "/update" });
 
-// How often to re-emit Telegram's native "typing" indicator while a turn is in
-// flight. Telegram auto-clears the indicator ~5s after each sendChatAction, so we
-// refresh faster than that to keep it continuous without flicker.
 export const TYPING_HEARTBEAT_MS = 4_000;
 
-// Pulse Telegram's native "typing" indicator on an interval so a long turn never
-// leaves the athlete staring at silence (a turn can now run up to ~10 min). Fires
-// once immediately, then every intervalMs. Each pulse is best-effort: a rejected
-// (or throwing) pulse is routed to onError and can never affect the turn or its
-// reply. The interval is unref'd so a pending pulse cannot hold the process open
-// during shutdown / an /update drain. The stop result settles with the final pulse.
 export function startTypingHeartbeat(
   pulse: () => Promise<unknown>,
   intervalMs: number,
   onError: (err: unknown) => void,
 ): () => Promise<void> {
-  // Skip a beat while the previous pulse is still unsettled: under a Telegram
-  // flood a pulse can be parked inside the API retry layer, and firing a fresh
-  // one every interval regardless would pile parked pulses up and roughly double
-  // request volume against an already-throttled API. The flag is cleared in a
-  // finally so a rejected pulse cannot wedge the guard permanently.
   let inFlight: Promise<void> | undefined;
   const beat = () => {
     if (inFlight !== undefined) return;
@@ -106,10 +76,6 @@ export function startTypingHeartbeat(
     return inFlight ?? Promise.resolve();
   };
 }
-
-// ============================================================================
-// TELEGRAM BOT
-// ============================================================================
 
 const buildWelcomeMessage = (updateDescription: string): Message =>
   msg("telegram.welcome", {
@@ -137,10 +103,6 @@ const SNAPSHOT_HELP = msg("telegram.snapshot.help", {
   file: "latest.json",
 });
 
-// Module-private factory: every Bot in this module is constructed here, with the
-// root ledger wrapper first and authentication as the first functional gate.
-// Future maintainers cannot add a functional handler ahead of authentication
-// without modifying this function, where the security model is enforced.
 function createSecuredBot(opts: {
   token: string;
   access: TelegramHostCapabilities["access"];
@@ -152,18 +114,6 @@ function createSecuredBot(opts: {
   const bot = new Bot(opts.token);
   let suppressImplicitWebhookDeletion = false;
 
-  // Bounded API-level retry restricted to a Telegram 429 carrying a `retry_after`
-  // (the one failure class where the original send provably did NOT land).
-  // rethrowInternalServerErrors / rethrowHttpErrors disable this plugin's default
-  // 5xx and network retries, which would risk a duplicate send on an ambiguous
-  // failure whose original request may already have been delivered server-side.
-  // Deliberately a separate retry policy from the shared primitive in
-  // concurrency/retry.ts: this is a grammY API-transformer seam handling
-  // bot-transport 429s, not an LLM/tool retry.
-  // The only calls that can block grammY's sequential update loop are the
-  // synchronous command acks, so maxDelaySeconds is a small bound: a 429 whose
-  // retry_after exceeds it must fail fast rather than freeze every chat. The
-  // fire-and-forget delivery path and the resend cache are the backstops.
   bot.api.config.use(
     autoRetry({
       maxRetryAttempts: 1,
@@ -174,9 +124,6 @@ function createSecuredBot(opts: {
   );
 
   if (opts.webhookPolicy === "preserve") {
-    // Long-poll startup normally removes a configured webhook. Skipping only
-    // that startup call leaves ownership intact so getUpdates can surface the
-    // conflict instead of silently taking the bot away from its current host.
     bot.api.config.use((previous, method, payload, signal) => {
       if (suppressImplicitWebhookDeletion && method === "deleteWebhook") {
         suppressImplicitWebhookDeletion = false;
@@ -306,22 +253,15 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     }
   };
 
-  // Durable update-offset store. Normal polling processes pending updates (so a
-  // message sent while the bot was down still arrives); the guard below dedupes
-  // anything a previous run already dispatched or acknowledged before a crash /
-  // self-update restart.
   const offsets = new TelegramUpdateOffsetStore(dataDir, input.token);
 
-  // Process-local per-chat cache of the last generated answer, so an athlete can
-  // ask for it again after a Telegram delivery failure without re-running the LLM
-  // turn. Bounded + TTL'd; contents (athlete text) are never logged.
   const resendCache = new Map<string, { answer: string; expires: number }>();
   const writeResend = (chatId: string, answer: string): void => {
     const now = Date.now();
     for (const [key, entry] of resendCache) {
       if (entry.expires <= now) resendCache.delete(key);
     }
-    resendCache.delete(chatId); // bump to MRU position (no-op if absent)
+    resendCache.delete(chatId);
     resendCache.set(chatId, { answer, expires: now + RESEND_TTL_MS });
     while (resendCache.size > RESEND_MAX_ENTRIES) {
       const oldest = resendCache.keys().next().value;
@@ -339,13 +279,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     return entry.answer;
   };
 
-  // Fire-and-forget turn dispatch. Telegram handlers spawn the LLM turn on a
-  // tracked task and return immediately so grammY's sequential update loop is
-  // never blocked by a long turn. The task owns its user-facing error reply; the
-  // outer catch here is the last-resort net so a throw inside the reply path can
-  // never escape as an unhandled rejection. Async host preflight must finish in
-  // arrival order before each operation enters the engine's per-session lock;
-  // this sequencer advances after invocation, not after the turn completes.
   const engineStartTails = new Map<string, Promise<void>>();
   const enqueueEngineStart = <T>(
     chatId: string,
@@ -381,9 +314,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
       }
     });
   };
-  // Per-chat buffer of free-form fragments awaiting the coalesce window. Each
-  // entry rebinds the latest fragment's reply context so the flushed turn
-  // answers on a live ctx, and threads to the last fragment's message id.
   interface ChatBuffer {
     fragments: string[];
     athleteText: string;
@@ -405,8 +335,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     return reserveInvocation(`telegram:${chatId}`);
   };
 
-  // Flush buffered fragments synchronously so the captured generation owns the
-  // dispatched turn instead of waiting on the debounce timer.
   const flushSnapshotBuffers = (snapshot: TelegramWorkLedgerSnapshot): void => {
     for (const [chatId, buffer] of chatBuffers) {
       if (snapshot.includes(buffer.scope)) flushBufferedChat(chatId);
@@ -463,12 +391,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     )
     .catch((err) => log.error("set_commands_failed", err, {}));
 
-  // Shared turn skeleton: every chat-bearing handler captures its deps/message
-  // synchronously, then hands the LLM turn here to run on the fire-and-forget
-  // task. Generation and delivery are split into separate try blocks so a
-  // post-generation Telegram delivery failure is never shown generation copy and
-  // vice versa. The only per-handler differences (genericReply text, log command
-  // name, reply-to id) are passed in rather than re-templated.
   function runTurn(opts: {
     ctx: {
       from?: { language_code?: string };
@@ -616,10 +538,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   }
 
-  // Idempotent read-and-delete: no await between lookup and delete, so a
-  // concurrent flush (command middleware vs. drain vs. timer) can never
-  // double-dispatch the same buffered turn. Deps are resolved here, at flush
-  // time, so the coalesced turn sees fresh environment state.
   function flushBufferedChat(chatId: number): void {
     const buf = chatBuffers.get(chatId);
     if (buf === undefined) return;
@@ -685,8 +603,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     const chatId = ctx.chat.id;
     const invocationChatId = `telegram:${chatId}`;
     if (text.startsWith("/")) {
-      // Unregistered-command fallthrough: never buffered. The turn runs
-      // immediately so a command can never be coalesced into free-form text.
       runTurn({
         ctx,
         phrasebook,
@@ -721,10 +637,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   }
 
-  // Flush middleware: any slash update flushes this chat's buffered text ahead
-  // of the command handler, so the buffered turn enqueues on the FIFO session
-  // lock before the command runs. Registered after auth (createSecuredBot) and
-  // before every bot.command below — do not move it below a command.
   bot.use(async (ctx, next) => {
     if (ctx.chat !== undefined && ctx.message?.text?.startsWith("/") === true) {
       flushBufferedChat(ctx.chat.id);
@@ -732,16 +644,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     await next();
   });
 
-  // Update-offset dedupe guard. Runs after the flush middleware and before every
-  // handler: an update already dispatched — or acknowledged before a crash /
-  // self-update restart — is skipped so its work never re-runs.
   bot.use(async (ctx, next) => {
     const updateId = ctx.update?.update_id;
     if (typeof updateId === "number" && !offsets.shouldDispatch(updateId)) return;
     await next();
   });
-
-  // ── Commands ────────────────────────────────────────────────────────────
 
   bot.command("language", async (ctx) => {
     const phrasebook = await phrasebookForContext(ctx);
@@ -1010,10 +917,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         return;
       }
       latest = info.latest;
-      // Persist a durable self-update marker BEFORE stopping. It records the
-      // /update's own update id as dispatched so the restart doesn't re-trigger
-      // /update. If the marker can't be written we must NOT stop — a
-      // restart could otherwise loop on /update — so surface a safe retry copy.
       try {
         offsets.recordSelfUpdate({
           updateId: typeof ctx.update?.update_id === "number" ? ctx.update.update_id : null,
@@ -1037,10 +940,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
           }),
         ),
       );
-      // Stop polling first so Telegram commits the /update offset — otherwise
-      // Telegram re-sends /update on next startup and we loop forever — then let
-      // every generation-owned task finish so installer handoff cannot overlap
-      // the runtime it replaces.
       void stopPolling()
         .then(() => captureDrain().wait())
         .then(() => release.install(info.latest))
@@ -1161,15 +1060,11 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   });
 
-  // ── Free-form chat ──────────────────────────────────────────────────────
-
   bot.on("message:text", async (ctx) => {
     const phrasebook = await phrasebookForContext(ctx);
     const chatId = `telegram:${ctx.chat.id}`;
     const text = ctx.message.text;
 
-    // Resend the last cached answer without re-running the LLM turn. Short-circuit
-    // BEFORE any greeting/dispatch so it never reaches agent.chat.
     if (text.trim().toLowerCase() === RESEND_KEYWORD) {
       const cached = readResend(chatId);
       dispatch(async () => {
@@ -1188,10 +1083,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
 
     const reservation = reserveMessageInvocation(ctx.chat.id);
     if (host.invocations === undefined) await ensureGreeting(ctx, phrasebook);
-    // One best-effort typing action per fragment so the athlete sees activity
-    // during the debounce window; only the LLM turn is debounced, never the
-    // signal. Fire-and-forget: a failure can never reach the handler's failure
-    // path (the full typing heartbeat starts at flush inside runTurn).
     void Promise.resolve()
       .then(() => ctx.replyWithChatAction("typing"))
       .catch(() => log.debug("typing_action_failed", { command: "chat", chatId }));
@@ -1199,10 +1090,6 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   });
 
   bot.catch(async (botError) => {
-    // Real surface: synchronous handler/ack reply failures NOT on a dispatched
-    // turn (dispatched-turn errors are already swallowed by the dispatch wrapper).
-    // The classified-reply attempt is itself guarded so a reply throw cannot
-    // re-enter bot.catch or escape as an unhandled rejection.
     log.error("bot_catch", botError.error, {});
     const c = botError.ctx;
     try {
@@ -1226,60 +1113,29 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
   };
 }
 
-// ============================================================================
-// MARKDOWN → TELEGRAM HTML
-// ============================================================================
-
 export function markdownToTelegramHtml(md: string): string {
-  // Telegram has no table primitive. Extract tables first so the bullet-point
-  // regex below doesn't mangle their leading `|`, then restore as <pre> blocks.
   const { text: noTables, tables } = extractTables(md);
 
-  // Extract fenced code blocks from the RAW (table-stripped) markdown BEFORE
-  // escaping, exactly as extractTables does. This preserves the fence body
-  // byte-for-byte through the regex passes (no header/bold/italic/bullet
-  // transform reaches inside) and restores it as an escaped <pre> at the end,
-  // keeping the escape-first security property intact.
   const { text, fences } = extractFences(noTables);
 
-  // Escape the raw source BEFORE any markdown conversion so the only real tags
-  // in the output are the ones this converter emits. Literal HTML in the LLM
-  // output (which can echo attacker-influenced intervals.icu text) must render
-  // as text, never as markup. Table cells are escaped inside renderTableAsPre;
-  // fence bodies are escaped on restore below.
   let html = escapeHtmlText(text);
 
-  // Headers: ### Title → <b>Title</b>
   html = html.replace(/^#{1,6}\s+(.+)$/gm, "<b>$1</b>");
 
-  // Bold: **text** → <b>text</b>
   html = html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
 
-  // Italic: *text* or _text_ → <i>text</i>. A space (or another `*`) adjacent to
-  // either delimiter disqualifies the match, so interval math like
-  // `do 3 * 8 reps then 2 * 20min` keeps its literal `*` and emits no <i>.
   html = html.replace(/(?<![\w*])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?![\w*])/g, "<i>$1</i>");
   html = html.replace(/(?<!\w)_([^_]+?)_(?!\w)/g, "<i>$1</i>");
 
-  // Links: [text](http(s)://url) → <a href="url">text</a>. Runs on the
-  // post-escape html string, so the link text is already escaped; the url is
-  // captured from this same (escaped) string and only attribute-quote-escaped —
-  // re-running escapeHtmlText would double-escape an already-escaped `&` in a
-  // multi-param query string. http/https only; other schemes stay literal. The
-  // URL allows one level of balanced parens so Wikipedia-style URLs like
-  // `…/Foo_(bar)` keep their closing paren instead of truncating at it.
   html = html.replace(
     /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/g,
     (_, label: string, url: string) => `<a href="${escapeHtmlAttrPreEscaped(url)}">${label}</a>`,
   );
 
-  // Inline code: `text` → <code>text</code>
   html = html.replace(/`([^`]+?)`/g, "<code>$1</code>");
 
-  // Strikethrough: ~~text~~ → <s>text</s>
   html = html.replace(/~~(.+?)~~/g, "<s>$1</s>");
 
-  // Bullet points: - item → • item
   html = html.replace(/^[-*]\s+/gm, "• ");
 
   html = html.replace(/\[\[__TBL_(\d+)__\]\]/g, (_, idx) => tables[Number(idx)] ?? "");
@@ -1289,19 +1145,12 @@ export function markdownToTelegramHtml(md: string): string {
   );
 }
 
-// Quote/apostrophe-escape a URL that has ALREADY passed through escapeHtmlText
-// (so `&`/`<`/`>` are entities). Only `"` and `'` remain to neutralize for an
-// attribute context; escapeHtmlAttr would re-escape the entities' `&`.
 function escapeHtmlAttrPreEscaped(s: string): string {
   return s.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 const FENCE_RE = /```[^\n]*\n?([\s\S]*?)```/g;
 
-// Mirror extractTables: walk the RAW markdown, replace each fenced code block
-// with an inert placeholder (no `* _ ` # -` or leading `[-*]`, so no regex
-// between extraction and restore touches it), and collect the raw fence body
-// for escaped-<pre> restore at the end of markdownToTelegramHtml.
 function extractFences(md: string): { text: string; fences: string[] } {
   const fences: string[] = [];
   const text = md.replace(FENCE_RE, (_, body: string) => {
@@ -1371,10 +1220,6 @@ function renderTableAsPre(header: string[], rows: string[][]): string {
   return `<pre>${text}</pre>`;
 }
 
-// ============================================================================
-// SEND WITH CHUNKING
-// ============================================================================
-
 const TELEGRAM_MAX_LENGTH = 4096;
 const PRE_OPEN = "<pre>";
 const PRE_CLOSE = "</pre>";
@@ -1382,8 +1227,6 @@ const PRE_OVERHEAD = PRE_OPEN.length + PRE_CLOSE.length;
 
 type RenderUnit = { kind: "line"; text: string } | { kind: "pre"; text: string };
 
-// Group multi-line <pre> blocks so the chunker treats each as one indivisible unit
-// (Telegram rejects chunks with unmatched <pre>/</pre>).
 function tokenizeHtml(html: string): RenderUnit[] {
   const units: RenderUnit[] = [];
   const lines = html.split("\n");
@@ -1400,7 +1243,6 @@ function tokenizeHtml(html: string): RenderUnit[] {
         i = j + 1;
         continue;
       }
-      // Unclosed <pre> — fall through and treat each line individually.
     }
     units.push({ kind: "line", text: line });
     i++;
@@ -1408,8 +1250,6 @@ function tokenizeHtml(html: string): RenderUnit[] {
   return units;
 }
 
-// Split a <pre> block whose own length exceeds maxLen into multiple wrapped <pre> chunks
-// so each chunk Telegram receives has a matching open/close tag.
 function splitPreBlock(block: string, maxLen: number): string[] {
   const inner = block.replace(/^<pre>/, "").replace(/<\/pre>$/, "");
   const out: string[] = [];
@@ -1425,7 +1265,6 @@ function splitPreBlock(block: string, maxLen: number): string[] {
       current = row;
       if (current.length + PRE_OVERHEAD <= maxLen) continue;
     }
-    // Single row alone exceeds the budget — hard-split, wrap each piece.
     const sliceMax = Math.max(1, maxLen - PRE_OVERHEAD);
     let k = 0;
     while (k < row.length) {
@@ -1478,14 +1317,6 @@ export function chunkHtml(html: string, maxLen: number = TELEGRAM_MAX_LENGTH): s
   return chunks;
 }
 
-// Hard-split a single oversized line at a boundary that never bisects an HTML
-// tag (`<…>`), an entity (`&…;`), or a UTF-16 surrogate pair, and never lands
-// BETWEEN a converter tag's open and its close (which would leave a chunk with
-// an unbalanced `<b>`/`<a>`/… — Telegram rejects it and forces the plain-text
-// fallback). Scans back from the fixed offset to the last such safe cut; if none
-// exists below maxLen the line is pathological (e.g. one >maxLen tag) and we fall
-// back to the raw slice for that one piece to guarantee forward progress.
-// (`<pre>` blocks never reach here; they are split by splitPreBlock.)
 function hardSplit(text: string, maxLen: number): string[] {
   const out: string[] = [];
   let start = 0;
@@ -1493,8 +1324,6 @@ function hardSplit(text: string, maxLen: number): string[] {
     let cut = start + maxLen;
     while (cut > start && !isSafeCut(text, start, cut)) cut--;
     if (cut === start) {
-      // Pathological: no safe boundary below maxLen. Take the raw slice, but
-      // still refuse to bisect a surrogate pair.
       cut = start + maxLen;
       const prev = text.charCodeAt(cut - 1);
       if (prev >= 0xd800 && prev <= 0xdbff && cut - 1 > start) cut--;
@@ -1508,9 +1337,6 @@ function hardSplit(text: string, maxLen: number): string[] {
 
 const INLINE_TAG_RE = /<(\/?)(b|i|s|u|code|a)\b[^>]*>/g;
 
-// True when cutting at `i` would leave an inline converter tag opened within
-// [start, i) still unclosed at `i` — i.e. the cut falls between an open tag and
-// its matching close, which yields an unbalanced chunk.
 function cutSplitsOpenTag(text: string, start: number, i: number): boolean {
   const stack: string[] = [];
   for (const m of text.slice(start, i).matchAll(INLINE_TAG_RE)) {
@@ -1524,26 +1350,18 @@ function cutSplitsOpenTag(text: string, start: number, i: number): boolean {
   return stack.length > 0;
 }
 
-// A cut at index `i` (split into [start..i) and [i..]) is safe when it does not
-// land inside an open `<…>` tag, inside an unterminated `&…;` entity, between the
-// two halves of a surrogate pair, or between a converter tag's open and close.
 function isSafeCut(text: string, start: number, i: number): boolean {
   const prev = text.charCodeAt(i - 1);
-  if (prev >= 0xd800 && prev <= 0xdbff) return false; // high surrogate before cut
+  if (prev >= 0xd800 && prev <= 0xdbff) return false;
 
-  // Inside a tag if the nearest unescaped `<`/`>` scanning back is a `<`.
   const lt = text.lastIndexOf("<", i - 1);
   const gt = text.lastIndexOf(">", i - 1);
   if (lt > gt) return false;
 
-  // Inside an entity if the nearest `&` scanning back has no terminating `;`
-  // before the cut and is close enough to still be an open entity run.
   const amp = text.lastIndexOf("&", i - 1);
   if (amp >= 0) {
     const semi = text.indexOf(";", amp);
     if (semi < 0 || semi >= i) {
-      // No `;` yet; only treat as an open entity if the run so far is entity-ish
-      // (no whitespace/`<`/`&`), otherwise a bare `&` is just literal text.
       const run = text.slice(amp + 1, i);
       if (/^[a-zA-Z0-9#]*$/.test(run)) return false;
     }
@@ -1565,17 +1383,11 @@ export async function sendLongMessage(
   format: "markdown" | "plain" = "markdown",
 ): Promise<void> {
   const html = format === "plain" ? escapeHtmlText(text) : markdownToTelegramHtml(text);
-  // Thread the FIRST delivered chunk to the inbound message; later chunks stay
-  // unthreaded. allow_sending_without_reply keeps the send working even if the
-  // inbound message was deleted (otherwise reply-to-deleted is a new failure).
   let pendingThread =
     replyToMessageId !== undefined
       ? { reply_parameters: { message_id: replyToMessageId, allow_sending_without_reply: true } }
       : undefined;
   for (const chunk of chunkHtml(html)) {
-    // Telegram rejects an empty message (400: message text is empty), and an
-    // empty chunk carries nothing for the athlete anyway — skip it so ctx.reply
-    // is never called with empty/whitespace-only text.
     if (chunk.trim() === "") continue;
     const thread = pendingThread;
     try {
@@ -1583,15 +1395,10 @@ export async function sendLongMessage(
       pendingThread = undefined;
     } catch (err) {
       if (!isTelegramParseError(err)) throw err;
-      // Log the message only — a grammY error object carries the request
-      // payload, i.e. the athlete's reply text, which must stay out of logs.
       console.error(
         "Telegram rejected HTML chunk; resending as plain text:",
         err instanceof Error ? err.message : String(err),
       );
-      // Resend human-readable source, not the rejected HTML. Strip the converter
-      // tags and invert the (trivially invertible) HTML escape so the athlete
-      // sees clean text — never tag soup or double-escaped entities.
       const plain = htmlChunkToPlainText(chunk);
       if (plain.trim() === "") continue;
       await ctx.reply(plain, thread);
@@ -1600,10 +1407,6 @@ export async function sendLongMessage(
   }
 }
 
-// Turn a rejected HTML chunk back into readable plain text for the no-parse-mode
-// fallback: drop the converter tags this module emits, then invert escapeHtmlText
-// (`&lt;`→`<`, `&gt;`→`>`, and `&amp;`→`&` LAST so `&amp;lt;` round-trips to
-// `&lt;`). The output carries no tags and no double-escaped entities.
 function htmlChunkToPlainText(chunk: string): string {
   return chunk
     .replace(/<\/?(?:b|i|s|u|pre|code)>/g, "")
