@@ -172,7 +172,6 @@ function createSerializedLane(): <T>(operation: () => Promise<T>) => Promise<T> 
   };
 }
 
-// Must stay below the client call timeout so queued work cannot mutate after its caller detaches.
 export const RUNTIME_CONFIGURATION_DEADLINE_MS = 25_000;
 
 export function createCoachOperations(
