@@ -332,10 +332,22 @@ describe("decodeWellnessRow", () => {
     expect(decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529 })).toHaveProperty("subjectiveFatigue", null);
   });
 
-  it("refuses to decode a day twice, so a load average never becomes the score", () => {
+  it("refuses a day it already decoded", () => {
     const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529 });
     expect(day).not.toHaveProperty("fitness");
     expect(() => decodeWellnessRow(day)).toThrow(new RowRejection("decode", "subjectiveFatigue"));
+  });
+
+  it("refuses a logged score that is not a whole number", () => {
+    expect(() => decodeWellnessRow({ id: "1998-07-17", ...BODY, fatigue: 27.787529 })).toThrow(
+      new RowRejection("decode", "subjectiveFatigue"),
+    );
+  });
+
+  it("refuses a load average that is not a number and names it in the coach's word", () => {
+    const decode = () => decodeWellnessRow({ id: "1998-07-17", ...BODY, ctl: "marker-4471" });
+    expect(decode).toThrow(new RowRejection("decode", "fitness"));
+    expect(decode).not.toThrow(/marker-4471/);
   });
 
   it("refuses a row that already carries a coach word for a load average, even when null", () => {

@@ -551,14 +551,22 @@ describe("live wellness reads", () => {
       ]),
     ).resolves.toEqual({
       data: [{ id: "1998-07-17", ...BODY }],
-      notice: "1 of 2 wellness days could not be read and are missing here.",
+      notice:
+        "Wellness is incomplete: 1 of 2 days could not be read and are missing here. Unreadable fields: restingHR.",
     });
+  });
+
+  it("reads a day that omits every body metric, with nothing reported missing", async () => {
+    await expect(fetchWellness([{ id: "1998-07-17", ctl: 31.2, atl: 27.787529 }])).resolves.toEqual([
+      { id: "1998-07-17", fitness: 31.2, fatigue: 27.787529 },
+    ]);
   });
 
   it("reports a fault, not an empty list, when no day can be decoded", async () => {
     await expect(fetchWellness([{ id: "1998-07-17", ...BODY, restingHR: "marker-4471" }])).resolves.toEqual({
       error: "wellness_unreadable",
-      message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+      message:
+        "Wellness data could not be read. This is a fault in reading it, not missing athlete data. Unreadable fields: restingHR.",
     });
     await expect(fetchWellness([])).resolves.toEqual([]);
   });

@@ -137,7 +137,7 @@ export const ActivitySchema = z.looseObject({
 });
 export type Activity = z.infer<typeof ActivitySchema>;
 
-export const SubjectiveScoreSchema = z.number().brand<"SubjectiveScore">();
+export const SubjectiveScoreSchema = z.number().int().brand<"SubjectiveScore">();
 export type SubjectiveScore = z.infer<typeof SubjectiveScoreSchema>;
 
 /** Single intervals.icu wellness row.
@@ -165,10 +165,7 @@ export const WellnessDaySchema = z.looseObject({
   // Normalized fitness/fatigue fields — emitted by the anti-corruption layer
   // at `reference/sync/rename-tp-fields.ts` per ADR-0012. The source API
   // names are TP-trademarked and never appear on the typed surface; the
-  // rename layer is the single anti-corruption boundary. Naming note:
-  // intervals.icu also sends a `fatigue` key, the score the athlete logs
-  // by hand — distinct semantics from this Banister-derived emission.
-  // `decodeWellnessRow` moves that score to `subjectiveFatigue`.
+  // rename layer is the single anti-corruption boundary.
   fitness: z.number().nullable().optional(),
   fatigue: z.number().nullable().optional(),
   fitnessContribution: z.number().nullable().optional(),

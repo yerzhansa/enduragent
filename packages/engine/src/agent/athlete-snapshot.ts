@@ -111,10 +111,9 @@ function wellnessParts(day: WellnessDay): string[] {
 }
 
 export function renderLatestWellnessLine(days: readonly WellnessDay[]): string | undefined {
-  const dated = [...days].sort((a, b) => a.id.localeCompare(b.id));
-  for (let i = dated.length - 1; i >= 0; i--) {
-    const parts = wellnessParts(dated[i]!);
-    if (parts.length > 0) return `Wellness ${dated[i]!.id}: ${parts.join(" · ")}`;
+  for (const day of [...days].sort((a, b) => a.id.localeCompare(b.id)).reverse()) {
+    const parts = wellnessParts(day);
+    if (parts.length > 0) return `Wellness ${day.id}: ${parts.join(" · ")}`;
   }
   return undefined;
 }
@@ -125,12 +124,14 @@ export function renderAthleteSnapshotBlock(input: {
   wellnessNotice?: string | undefined;
   sportTypes: readonly string[];
 }): string | undefined {
-  const lines = [
+  const shown = [
     renderAthleteProfileLine(input.athlete, input.sportTypes),
     renderLatestWellnessLine(input.wellness ?? []),
-    input.wellnessNotice,
   ].filter((line): line is string => line !== undefined);
-  if (lines.length === 0) return undefined;
+  if (shown.length === 0) {
+    return input.wellnessNotice === undefined ? undefined : `${ATHLETE_SNAPSHOT_FALLBACK}\n${input.wellnessNotice}`;
+  }
+  const lines = input.wellnessNotice === undefined ? shown : [...shown, input.wellnessNotice];
   return `${ATHLETE_SNAPSHOT_HEADING}\n\n${lines.join("\n")}\n${ATHLETE_SNAPSHOT_GUIDANCE}`;
 }
 

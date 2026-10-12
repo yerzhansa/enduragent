@@ -90,19 +90,19 @@ export class RowRejection extends TypeError {
 }
 
 const SUBJECTIVE_FATIGUE_WIRE_KEY = "fatigue";
-const WELLNESS_SOURCE_KEYS = new Set(WELLNESS_TP_TO_PLAIN.map(([source]) => source));
+const WELLNESS_PLAIN_BY_SOURCE = new Map<string, string>(WELLNESS_TP_TO_PLAIN);
 const WELLNESS_DECODED_ONLY_KEYS = [
   ...WELLNESS_TP_TO_PLAIN.map(([, target]) => target).filter((target) => target !== SUBJECTIVE_FATIGUE_WIRE_KEY),
   "subjectiveFatigue",
 ];
 
-export function decodeWellnessRow(wire: unknown, summary?: RenameSummary): WellnessDay {
+export function decodeWellnessRow(wire: unknown): WellnessDay {
   if (wire === null || typeof wire !== "object" || Array.isArray(wire)) throw new RowRejection("shape");
   const row = wire as Record<string, unknown>;
   for (const key of WELLNESS_DECODED_ONLY_KEYS) if (key in row) throw new RowRejection("decode", key);
   const { [SUBJECTIVE_FATIGUE_WIRE_KEY]: subjectiveFatigue, ...rest } = row;
   const parsed = WellnessDaySchema.safeParse({
-    ...applyKeyRename(rest, WELLNESS_TP_TO_PLAIN, WELLNESS_SOURCE_KEYS, summary),
+    ...Object.fromEntries(Object.entries(rest).map(([key, value]) => [WELLNESS_PLAIN_BY_SOURCE.get(key) ?? key, value])),
     subjectiveFatigue: subjectiveFatigue ?? null,
   });
   if (!parsed.success) throw new RowRejection("decode", parsed.error.issues[0]?.path.join(".") ?? null);

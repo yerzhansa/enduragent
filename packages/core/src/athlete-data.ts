@@ -54,11 +54,9 @@ async function platformValue<T>(
   return result.value;
 }
 
-const WELLNESS_UNREADABLE = Object.freeze({
-  ok: false as const,
-  error: "wellness_unreadable" as const,
-  message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
-});
+function unreadableFields(fields: ReadonlySet<string>): string {
+  return fields.size === 0 ? "" : ` Unreadable fields: ${[...fields].sort().join(", ")}.`;
+}
 
 export function createPlatformAthleteDataReader(intervals: IntervalsClient): AthleteDataReader {
   return Object.freeze({
@@ -71,20 +69,28 @@ export function createPlatformAthleteDataReader(intervals: IntervalsClient): Ath
         newest: input.end,
       })) as unknown[];
       const days: WellnessDay[] = [];
+      const fields = new Set<string>();
       for (const row of rows) {
         try {
           days.push(decodeWellnessRow(row));
         } catch (error) {
           if (!(error instanceof RowRejection)) throw error;
+          if (error.field !== null) fields.add(error.field);
         }
       }
       const rejected = rows.length - days.length;
       if (rejected === 0) return { ok: true as const, value: days };
-      if (days.length === 0) return WELLNESS_UNREADABLE;
+      if (days.length === 0) {
+        return {
+          ok: false as const,
+          error: "wellness_unreadable" as const,
+          message: `Wellness data could not be read. This is a fault in reading it, not missing athlete data.${unreadableFields(fields)}`,
+        };
+      }
       return {
         ok: true as const,
         value: days,
-        notice: `${rejected} of ${rows.length} wellness days could not be read and are missing here.`,
+        notice: `Wellness is incomplete: ${rejected} of ${rows.length} days could not be read and are missing here.${unreadableFields(fields)}`,
       };
     },
     async listActivities(input: { start: string; end?: string }) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATHLETE_SNAPSHOT_FALLBACK,
   ATHLETE_SNAPSHOT_HEADING,
   ATHLETE_SNAPSHOT_TIMEOUT_MS,
   AthleteSnapshotTimeoutError,
@@ -220,7 +221,26 @@ describe("loadAthleteSnapshotBlock", () => {
     expect(block).toContain("Wellness 1998-07-05:");
   });
 
-  it("prints the reader's fault sentence when wellness could not be read", async () => {
+  it("prints the reader's fault sentence under the profile when wellness could not be read", async () => {
+    const block = await loadAthleteSnapshotBlock({
+      reader: reader({
+        getAthlete: async () => ({ ok: true, value: platformAthlete }),
+        listWellness: async () => ({
+          ok: false,
+          error: "wellness_unreadable",
+          message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+        }),
+      }),
+      today: "1998-07-06",
+      sportTypes: CYCLING_TYPES,
+    });
+    expect(block).toContain(
+      "weight 70 kg\nWellness data could not be read. This is a fault in reading it, not missing athlete data.\n",
+    );
+    expect(block).not.toContain(ATHLETE_SNAPSHOT_FALLBACK);
+  });
+
+  it("still tells the coach to fetch the profile when neither it nor wellness could be read", async () => {
     const block = await loadAthleteSnapshotBlock({
       reader: reader({
         listWellness: async () => ({
@@ -232,8 +252,8 @@ describe("loadAthleteSnapshotBlock", () => {
       today: "1998-07-06",
       sportTypes: CYCLING_TYPES,
     });
-    expect(block).toContain(
-      "\nWellness data could not be read. This is a fault in reading it, not missing athlete data.\n",
+    expect(block).toBe(
+      `${ATHLETE_SNAPSHOT_FALLBACK}\nWellness data could not be read. This is a fault in reading it, not missing athlete data.`,
     );
   });
 
@@ -243,14 +263,14 @@ describe("loadAthleteSnapshotBlock", () => {
         listWellness: async () => ({
           ok: true,
           value: wellnessDays,
-          notice: "1 of 3 wellness days could not be read and are missing here.",
+          notice: "Wellness is incomplete: 1 of 3 days could not be read and are missing here.",
         }),
       }),
       today: "1998-07-06",
       sportTypes: CYCLING_TYPES,
     });
     expect(block).toContain(
-      "sleep quality 3\n1 of 3 wellness days could not be read and are missing here.\n",
+      "sleep quality 3\nWellness is incomplete: 1 of 3 days could not be read and are missing here.\n",
     );
   });
 
