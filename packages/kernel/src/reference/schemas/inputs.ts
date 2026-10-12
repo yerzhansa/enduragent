@@ -162,10 +162,6 @@ export const WellnessDaySchema = z.looseObject({
   // VO2max
   vo2max: z.number().nullable().optional(),
 
-  // Normalized fitness/fatigue fields — emitted by the anti-corruption layer
-  // at `reference/sync/rename-tp-fields.ts` per ADR-0012. The source API
-  // names are TP-trademarked and never appear on the typed surface; the
-  // rename layer is the single anti-corruption boundary.
   fitness: z.number().nullable().optional(),
   fatigue: z.number().nullable().optional(),
   fitnessContribution: z.number().nullable().optional(),

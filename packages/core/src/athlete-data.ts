@@ -1,7 +1,7 @@
 import type { ApiError, EventInput, IntervalsClient } from "intervals-icu-api";
 import { decodeWellnessRow, RowRejection, type ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { CanonicalActivityReader } from "@enduragent/kernel/store";
-import { PLANNING_EVENT_CATEGORIES, type WellnessDay } from "@enduragent/kernel/reference/schemas";
+import { PLANNING_EVENT_CATEGORIES, WellnessDaySchema, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type {
   AthleteDataReaderPort as AthleteDataReader,
   AthleteReadResult,
@@ -75,7 +75,7 @@ export function createPlatformAthleteDataReader(intervals: IntervalsClient): Ath
           days.push(decodeWellnessRow(row));
         } catch (error) {
           if (!(error instanceof RowRejection)) throw error;
-          if (error.field !== null) fields.add(error.field);
+          if (error.field !== null && Object.hasOwn(WellnessDaySchema.shape, error.field)) fields.add(error.field);
         }
       }
       const rejected = rows.length - days.length;

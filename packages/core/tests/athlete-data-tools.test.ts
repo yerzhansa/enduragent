@@ -556,6 +556,27 @@ describe("live wellness reads", () => {
     });
   });
 
+  it("names each unreadable field once, in order, and never a platform key or a value", async () => {
+    await expect(
+      fetchWellness([
+        { id: "1998-07-12", ...BODY, sleepSecs: "marker-4471" },
+        { id: "1998-07-13", ...BODY, ctl: "marker-4472" },
+        { id: "1998-07-14", ...BODY, ctl: "marker-4473" },
+        { id: "1998-07-15", ...BODY, sportInfo: [{ type: "Ride", ctl: 31.2 }] },
+        null,
+        { id: "1998-07-17", ...BODY },
+      ]),
+    ).resolves.toEqual({
+      data: [{ id: "1998-07-17", ...BODY }],
+      notice:
+        "Wellness is incomplete: 5 of 6 days could not be read and are missing here. Unreadable fields: fitness, sleepSecs.",
+    });
+    await expect(fetchWellness([null, { id: "1998-07-17", ...BODY }])).resolves.toEqual({
+      data: [{ id: "1998-07-17", ...BODY }],
+      notice: "Wellness is incomplete: 1 of 2 days could not be read and are missing here.",
+    });
+  });
+
   it("reads a day that omits every body metric, with nothing reported missing", async () => {
     await expect(fetchWellness([{ id: "1998-07-17", ctl: 31.2, atl: 27.787529 }])).resolves.toEqual([
       { id: "1998-07-17", fitness: 31.2, fatigue: 27.787529 },
