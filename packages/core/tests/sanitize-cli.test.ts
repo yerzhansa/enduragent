@@ -308,6 +308,24 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(existsSync(join(outputDir, "nested-tp-activity.json"))).toBe(false);
   });
 
+  it("CLI lets an activity rename collision propagate and writes nothing", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [{ id: 1, type: "Ride", start_date_local: "1998-05-11T08:00:00", icu_ctl: 50, fitnessAtEnd: 51 }],
+      }),
+    );
+    const errs: string[] = [];
+
+    await expect(
+      main([inputPath, "activity-collision", "--force"], { outputRoot: outputDir, err: (m) => errs.push(m) }),
+    ).rejects.toThrow(/collision/);
+    expect(errs).toEqual([]);
+    expect(existsSync(join(outputDir, "activity-collision.json"))).toBe(false);
+  });
+
   it("CLI warns once per field when an activity load value is not a number", async () => {
     const { inputDir, outputDir } = makeTmpDirs();
     const inputPath = join(inputDir, "raw.json");

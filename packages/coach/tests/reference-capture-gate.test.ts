@@ -566,8 +566,11 @@ describe.sequential("capture-once Reference layer gate", () => {
         inputFileSystem,
         async produceLocalBundle(destination, manifest) {
           const store = openSqliteStorage(destination.storePath);
-          storedWellness = await store.all("SELECT date_key, resting_hr, fatigue FROM wellness");
-          await store.close();
+          try {
+            storedWellness = await store.all("SELECT date_key, resting_hr, fatigue FROM wellness");
+          } finally {
+            await store.close();
+          }
           const result = await createLocalBundleProducer(destination).produce(manifest);
           produced = result.bundle;
           return result;

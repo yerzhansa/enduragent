@@ -41,7 +41,6 @@ import {
 import {
   assertNoTpKeysRemain,
   buildFixtureShape,
-  decodeWellnessRow,
   normalizeStreams,
   parseCanonicalProjectionValue,
   parseRenamedActivity,
@@ -474,7 +473,6 @@ async function directSelectedEvidence(
   }
   const wellness: SourceArtifactRow[] = manifest.records.wellness.map((record, index) => {
     const raw = object(payloads.records.wellness[index]);
-    decodeWellnessRow(raw);
     return { artifact_key: record.store_evidence.artifact_key, source: SOURCE, lane: "wellness",
       external_id: record.external_id, archive_address: record.snapshot.address,
       archive_rel_path: record.snapshot.rel_path, archive_epoch_s: archiveEpoch(raw, "wellness") };
@@ -608,7 +606,7 @@ async function ingestCapturedPayloads(
       for (let index = 0; index < manifest.records.wellness.length; index += 1) {
         const record = manifest.records.wellness[index]!, raw = object(payloads.records.wellness[index]);
         const landing = await landWellnessRow(raw);
-        await repository.recordArtifact(artifactDraft(record, "wellness", landing.instant.epochSeconds));
+        await repository.recordArtifact(artifactDraft(record, "wellness", archiveEpoch(raw, "wellness")));
         await repository.upsertWellness(landing.row);
       }
       for (let index = 0; index < manifest.records.streams.length; index += 1) {
