@@ -132,10 +132,6 @@ const MAX_SERVER_ERROR_ATTEMPTS = 2;
 const SERVER_ERROR_BACKOFF_BASE_MS = 500;
 const SERVER_ERROR_BACKOFF_MAX_MS = 5_000;
 
-// The AI-SDK path exposes Retry-After via provider response headers
-// (extractRetryAfterMs). Codex-normalized ServerError/RateLimitError instead
-// carry the parsed hint as a numeric `retryAfterMs` property, so honor that too;
-// otherwise the bridge parses a header the retry loop never reads.
 function retryAfterFloorMs(
   err: unknown,
   extractRetryAfterMs: (error: unknown) => number | null,
@@ -161,23 +157,13 @@ const REPLAY_UNSAFE_TOOL_NAMES = new Set([
   "plan_save",
 ]);
 
-// The subset of write tools that mutate the state behind the memoized memory
-// read tools (memory_read / memory_query / plan_load); their execution evicts
-// those cache entries so a same-turn re-read sees the write.
 const MEMORY_MUTATING_TOOL_NAMES = new Set(["memory_write", "ledger_append", "plan_save"]);
-// Eviction runs inside wrapWriteTool, which early-returns for tools outside
-// REPLAY_UNSAFE_TOOL_NAMES — so a memory mutator outside that set would never
-// evict. Assert the subset relation at module load so the gap can't open silently.
 for (const name of MEMORY_MUTATING_TOOL_NAMES) {
   if (!REPLAY_UNSAFE_TOOL_NAMES.has(name)) {
     throw new Error(`memory-mutating tool "${name}" must be in REPLAY_UNSAFE_TOOL_NAMES`);
   }
 }
 
-// A turn that spent its whole step budget on tool calls (or hit the output-token
-// cap) and never emitted final text. Kept a single named predicate so the future
-// window-exceeded classification can extend the same switch rather than adding a
-// competing finishReason branch.
 function isStepExhaustedEmpty(text: string, finishReason: FinishReason): boolean {
   return text.trim() === "" && (finishReason === "tool-calls" || finishReason === "length");
 }
@@ -193,8 +179,6 @@ function archiveMarker(archivedAt: string): string {
 const WINDOW_EXCEEDED_FINISH_MESSAGE =
   "Provider reported the context window was exceeded on a successful finish";
 
-// The truncated text a window-exceeded finish streamed is unusable, so the
-// compaction rescue must run even though the attempt emitted deltas.
 function isWindowExceededFinishOverflow(err: unknown): boolean {
   return (
     err instanceof Error &&
@@ -203,8 +187,6 @@ function isWindowExceededFinishOverflow(err: unknown): boolean {
   );
 }
 
-// Disk-full is a host condition, not a per-chat one, so the athlete is told
-// once for the whole process rather than every turn the disk stays full.
 let persistenceNoticeShown = false;
 
 function noteForPersistenceFailure(err: unknown, book: Phrasebook): string {
@@ -227,9 +209,6 @@ type MemoryFlushTrigger =
   | "overflow-recovery"
   | "soft-threshold";
 
-// The per-turn terminal record. Field names are frozen by the operator spec:
-// error_class and duration_ms are snake_case, and the three *Attempts mirror the
-// in-scope retry counters exactly.
 interface TurnOutcome {
   turnId: string;
   chatId: string;
@@ -248,8 +227,6 @@ function classifyError(
   err: unknown,
   classifyFailure: EngineHostPorts["classifyFailure"],
 ): ClassifiedTurnFailure {
-  // TurnBudgetExceededError crosses a dynamic-import boundary in tests, so match
-  // on the structural name rather than instanceof.
   if (err instanceof Error && err.name === "TurnBudgetExceededError") return "budget";
   return classifyFailure(err);
 }
@@ -272,9 +249,6 @@ function transcriptWriteFailureReason(
   return "write-failed";
 }
 
-// Replays a pre-captured error to retryWithBackoff exactly once so it performs a
-// single capped backoff sleep: the first invocation rethrows `err`, the second
-// resolves. All scheduling (jitter, retry-after floor, onRetry) stays in opts.
 function backoffWithSentinelError(
   err: unknown,
   opts: Omit<Parameters<typeof retryWithBackoff>[1], "attempts" | "shouldRetry">,
@@ -292,8 +266,6 @@ function backoffWithSentinelError(
 }
 
 function committedWriteSummary(name: string, result: unknown): string | undefined {
-  // wrapWriteTool composes innermost (inside markUntrustedResult and the cap),
-  // so the ack inspected here is the tool's raw result.
   if (result === null || typeof result !== "object") return undefined;
   const out = result as {
     created?: unknown;
@@ -346,10 +318,6 @@ export function gateMutatingTool(
   } as Tool;
 }
 
-// ============================================================================
-// AGENT
-// ============================================================================
-
 export interface DeferredPlanTurn {
   readonly chatId: string;
   readonly turnId: string;
@@ -381,9 +349,6 @@ export class CoachAgent {
   private readonly decisionTool: Tool | undefined;
   private readonly planReferenceTool: Tool | undefined;
   private tz: string;
-  // Derived once from getEffectiveSections(sport): the spec'd sections with
-  // inject === false, dropped from the Athlete Context. Orphan sections are
-  // never in this list, so they always inject.
   private readonly excludedSectionNames: readonly string[];
   private lastFlushMessageCount = new Map<string, number>();
   private pendingFlushMessages = new Map<string, ModelMessage[]>();
@@ -404,8 +369,6 @@ export class CoachAgent {
     this.ports = ports;
     this.llm = new LLM(config, ports, config.models.chat);
     this.translateIntent = createIntentTranslator(this.llm).translateIntent;
-    // Per-role lanes share one LLM instance per distinct model, so adding a
-    // lane never needs pairwise equality checks against the existing ones.
     const profileKey = (profile: EngineConfig["models"]["chat"]): string =>
       JSON.stringify([profile.provider, profile.model]);
     const llmByModel = new Map<string, LLM>([[profileKey(config.models.chat), this.llm]]);
@@ -669,12 +632,6 @@ export class CoachAgent {
     } as Tool;
   }
 
-  // Agent-owned wrapper that records a committed tool write the moment its
-  // tool executes — at the execution boundary, not from the generate result,
-  // because result.toolCalls carries only the last agentic step and would miss
-  // a write committed on an earlier step. Non-write tools pass through untouched.
-  // Composed innermost so it inspects the raw ack (before the untrusted-data
-  // envelope and the size cap can reshape it).
   private wrapWriteTool(name: string, tool: Tool): Tool {
     if (!REPLAY_UNSAFE_TOOL_NAMES.has(name)) return tool;
     const inner = tool.execute;
@@ -693,9 +650,6 @@ export class CoachAgent {
           record.writesCommitted++;
           record.lastWriteSummary = summary;
         }
-        // Evict unconditionally (not just on a recognized summary): the write
-        // may have committed even when its result shape wasn't recognized, and
-        // a spurious eviction only costs one re-read.
         if (MEMORY_MUTATING_TOOL_NAMES.has(name)) {
           const cache = ctx?.readToolCache;
           if (cache !== undefined) evictMemoryReadEntries(cache);
@@ -705,20 +659,11 @@ export class CoachAgent {
     } as Tool;
   }
 
-  /**
-   * Read the sync error-state once at turn start and, when the last sync was
-   * rejected for a corruption-class (HARD) failure, return a degrade-and-disclose
-   * instruction block for the volatile prompt tail. The READ itself fails OPEN:
-   * a missing, unparseable, or schema-invalid error-state file must never brick
-   * a chat turn, so `safeReadJson` returning null yields no block.
-   */
   private buildDegradeBlock(): string | undefined {
     if (this.config.dataSource === "store") return undefined;
     const { errorState, latest } = this.ports.readReferenceState();
     if (errorState?.mitigation !== "block_coaching") return undefined;
 
-    // Prefer the cache's last successful-sync stamp as the "last synced" anchor;
-    // fall back to the failure timestamp when the cache is unavailable.
     const lastSynced = latest?.metadata?.last_updated ?? errorState.ts;
 
     return (
@@ -849,12 +794,6 @@ export class CoachAgent {
     });
   }
 
-  // Step-exhaustion recovery: when the model spent all 10 steps on tool calls
-  // (or hit the output cap) and never emitted final text, run one no-tools
-  // completion asking it to summarize. If that yields nothing (or throws), fall
-  // to the static floor — the athlete always gets actionable text and is never
-  // told to blindly "try again", which would re-run already-committed paid side
-  // effects. The recovery call carries NO tools, so it cannot commit a new write.
   private async recoverStepExhaustedText(
     systemPrompt: string,
     text: string,
@@ -871,9 +810,6 @@ export class CoachAgent {
         reply: { text, attributionBasis: "attempt" },
       };
     }
-    // Charge OUTSIDE the recovery try/catch: a TurnBudgetExceededError is
-    // terminal everywhere else in the turn loop, so it must propagate to the
-    // outer terminal-budget handler, not degrade to the static floor.
     turnBudget.chargeGenerateCall();
     try {
       const recovery = await this.llm.generate({
@@ -920,8 +856,6 @@ export class CoachAgent {
       caller: "compact" as const,
       mustPreserveTokens: this.sport.mustPreserveTokens,
       memory: createMemorySnapshot(this.memory),
-      // Chunk sizing off the effective (capped) window so a 1M provider window
-      // does not scale summary chunks past the estimator ceiling.
       contextWindowTokens: effectiveEstimatorWindowTokens(this.compactContextWindowTokens),
       budget,
     };
@@ -936,8 +870,6 @@ export class CoachAgent {
   }
 
   private emitTurnOutcome(outcome: TurnOutcome): void {
-    // An observability write must never break a turn: a failed outcome emit is
-    // swallowed exactly like the usage-ledger and substrate writes.
     try {
       this.log.info("turn_outcome", { ...outcome });
     } catch {
@@ -1050,10 +982,7 @@ export class CoachAgent {
         emitEvent({ type: "turn-start", turnId, chatId });
         let compactions = 0;
         const turnBudget = createTurnBudget(this.ports.now);
-        // One flush per turn: the latch flips on entry (before the await
-        // resolves) so a thrown flush still consumes the turn's single flush.
         let flushedThisTurn = false;
-        // Single file read: load history + last message time together
         let { messages: history, lastMessageTime } = this.chatStore.load(chatId);
 
         const { fresh, reason } = evaluateSessionFreshness({
@@ -1063,14 +992,8 @@ export class CoachAgent {
           tz: this.tz,
         });
 
-        // Defer a daily reset for one turn when the last exchange is still recent,
-        // so an athlete mid-conversation across the daily boundary isn't archived
-        // out from under them. Malformed timestamps (reason "daily", unparseable)
-        // and idle resets are never deferred.
         const deferDaily = !fresh && reason === "daily" && shouldDeferDailyReset(lastMessageTime);
 
-        // Set only when an automatic archive actually runs this turn — drives the
-        // one-turn model marker and the one-time post-reset athlete notice.
         let archivedAt: string | undefined;
 
         if (!fresh && !deferDaily) {
@@ -1198,10 +1121,6 @@ export class CoachAgent {
           }
         }
 
-        // Append a fresh "Current time:" line to the user message so the LLM
-        // always sees the athlete's local time on this turn — the cached system
-        // prefix carries only the TZ name, not the date. Idempotent: safe
-        // across the retry/compaction loop below.
         const userMessageWithTime = appendCurrentTimeLine(userMessage, this.tz);
         const providerUserMessage =
           turn?.untrustedAttachmentText === undefined
@@ -1212,9 +1131,6 @@ export class CoachAgent {
                 truncationNotice: ATTACHMENT_TEXT_TRUNCATION_NOTICE,
               })}`;
 
-        // One-turn model-visible archive marker: after an automatic reset, tell
-        // the model to disclose the fresh session. Not persisted (it is rebuilt
-        // per turn and only emitted on the reset turn).
         const archiveMarkerMsg: ModelMessage | undefined =
           archivedAt !== undefined
             ? { role: "system", content: archiveMarker(archivedAt) }
@@ -1224,7 +1140,6 @@ export class CoachAgent {
             ? undefined
             : { role: "system", content: turn.attachmentContext };
 
-        // Build messages array with new user message
         const userTurnMessage = setMessageProvenance(
           { role: "user", content: userMessageWithTime },
           UNKNOWN_PROVENANCE,
@@ -1272,19 +1187,14 @@ export class CoachAgent {
           this.memory.reload();
         };
 
-        // Loop-invariant: the prompt cache key derives only from the chat id.
         const cacheKey = sha256_16(chatId);
 
         try {
           while (true) {
             abortController.signal.throwIfAborted();
-            // Between-attempt budget gates: the attempt charge and the wall-clock
-            // check run at the loop top so the deadline stops the NEXT attempt and
-            // never aborts a generate/compaction already in flight.
             turnBudget.chargeAttempt();
             turnBudget.checkDeadline();
 
-            // Preemptive: compact before sending if over budget
             if (
               shouldCompact({
                 messages,
@@ -1335,8 +1245,6 @@ export class CoachAgent {
                 caller: "chat",
                 context: ctx,
                 cacheKey,
-                // Cap this call by the turn's remaining wall-clock budget so a retry
-                // after an early timeout inherits only the time the turn has left.
                 deadlineMs: turnBudget.remainingMs(),
                 onTextDelta: onAttemptTextDelta,
                 signal: abortController.signal,
@@ -1376,13 +1284,6 @@ export class CoachAgent {
                 return "";
               }
 
-              // A successful "length" finish whose prompt already filled the real
-              // provider window is a context overflow, not a long answer. Route it
-              // through the existing reactive overflow rescue (compact + retry) and
-              // never persist the truncated text — throw a normalized overflow so
-              // the catch block below handles it exactly like a thrown overflow.
-              // Plain output-length truncation (input below the window) falls
-              // through to recoverStepExhaustedText's existing empty-reply handling.
               if (
                 isWindowExceededFinish({
                   finishReason,
@@ -1395,7 +1296,6 @@ export class CoachAgent {
                 throw overflow;
               }
 
-              // Recovery runs only on this success path (before the catch below).
               const resolved = await resolveTurnReply({
                 session: workoutSession,
                 result,
@@ -1471,10 +1371,6 @@ export class CoachAgent {
                 }
               }
 
-              // A turn can run several generations (retry/compaction/overflow
-              // recovery); these usage/cost figures are the FINAL successful
-              // generation's only — not a turn-wide sum across attempts. A true
-              // accumulator over all attempts is deferred.
               this.ports.usage.append({
                 ts: this.ports.now(),
                 kind: "turn",
@@ -1497,9 +1393,6 @@ export class CoachAgent {
                 compactions,
               });
 
-              // Prefix the one-time post-reset notice onto the first reply after
-              // an automatic archive. Not persisted to history — it is a channel
-              // disclosure, not conversation content.
               responseMessage = coachReplyMessage({
                 reply: effectiveText,
                 message: responseMessage,
@@ -1566,12 +1459,7 @@ export class CoachAgent {
               return responseText;
             } catch (err) {
               workoutSession?.fail();
-              // The classified budget error is terminal: re-throw it before any
-              // retry branch so a future reordering can never mistake it for one of
-              // the retryable classes and swallow it.
               if (err instanceof TurnBudgetExceededError) throw err;
-              // A committed tool write makes this turn non-replayable: retrying
-              // would re-send the pre-turn messages and could re-run the write.
               const committedWrites = ctx.turnWrites;
               if (committedWrites.writesCommitted > 0) {
                 const failure = classifyError(err, this.ports.classifyFailure);
@@ -1624,7 +1512,6 @@ export class CoachAgent {
               }
               if (attemptObservedText && !isWindowExceededFinishOverflow(err)) throw err;
               const failure = this.ports.classifyFailure(err);
-              // Reactive: context overflow → flush + compact + retry
               if (failure === "overflow" && overflowAttempts < MAX_OVERFLOW_ATTEMPTS) {
                 overflowAttempts++;
                 try {
@@ -1659,7 +1546,6 @@ export class CoachAgent {
                 }
                 continue;
               }
-              // Timeout with high context usage → compact + retry (no flush)
               if (failure === "timeout" && timeoutAttempts < MAX_TIMEOUT_ATTEMPTS) {
                 const ratio =
                   estimatePromptTokens({ messages, systemPrompt }) /
@@ -1688,13 +1574,9 @@ export class CoachAgent {
                   continue;
                 }
               }
-              // Rate limit → backoff (respect retry-after) + retry
               if (failure === "rate_limit" && rateLimitAttempts < MAX_RATE_LIMIT_ATTEMPTS) {
                 rateLimitAttempts++;
                 const attemptNo = rateLimitAttempts;
-                // The server hint (if any) is a lower bound; absent one, fall back to a
-                // capped exponential. Either feeds the primitive as the Retry-After
-                // floor so the 120s ceiling and the clamp note are honored bit-for-bit.
                 const requestedMs =
                   retryAfterFloorMs(err, this.ports.extractRetryAfterMs) ??
                   Math.min(
@@ -1717,23 +1599,9 @@ export class CoachAgent {
                     );
                   },
                 });
-                // The backoff sleep is the one place a turn can silently burn
-                // minutes; converting a long Retry-After wait into a clean budget
-                // stop here means the deadline never wedges the session lock.
                 turnBudget.checkDeadline();
                 continue;
               }
-              // Transient server (5xx) or network failure → brief jittered retry.
-              // The residual class: only fires when overflow/timeout/rate_limit did
-              // not match, so a single 502 or connection blip no longer kills the
-              // turn on attempt 1 and discards paid multi-step tool work.
-              // A codex network throw is surfaced as a single attempt and tagged
-              // NetworkError by the bridge's normalizeError. We deliberately cap the
-              // codex network class at zero outer retries to keep it at exactly one
-              // layer; the outer network retry below is for the AI-SDK path, whose
-              // errors are plain TypeErrors (not name="NetworkError") and whose SDK
-              // does zero retries. (Unifying codex network retry with the AI-SDK
-              // path is tracked as a follow-up.)
               const alreadyRetriedNetwork =
                 failure === "network" && err instanceof Error && err.name === "NetworkError";
               if (
@@ -1752,7 +1620,6 @@ export class CoachAgent {
                 turnBudget.checkDeadline();
                 continue;
               }
-              // Rate limit retries exhausted → throw to caller (skip compaction — API is rate limited)
               classifiedTerminalFailure = failure;
               throw err;
             }
@@ -1801,8 +1668,6 @@ export class CoachAgent {
           }
           const failure =
             classifiedTerminalFailure ?? classifyError(terminalErr, this.ports.classifyFailure);
-          // Single failure-emit point: every terminal throw out of the loop is one
-          // failed turn, so the outcome line fires exactly once before the rethrow.
           this.emitTurnOutcome({
             turnId,
             chatId,
@@ -2325,15 +2190,11 @@ export class CoachAgent {
   }
 
   async resetSession(chatId: string): Promise<{ memoryFlushed: boolean }> {
-    // Run under the same per-chat lock chat() uses so a reset cannot interleave
-    // with an in-flight turn for the same chat (which would archive history the
-    // turn is mid-write on).
     return withSessionLock(chatId, async () => {
       const decision = this.ports.coachDecisions?.getDecision(chatId);
       if (decision?.status === "answered" && decision.continuation.status === "pending") {
         throw new Error("Resume the active Coach decision before starting a new conversation.");
       }
-      // Flush before reset to avoid losing un-persisted context
       let memoryFlushed = true;
       let history: ModelMessage[] = [];
       try {

@@ -246,8 +246,6 @@ export function createDurableTrainingExportWriter(input?: {
         request.signal?.throwIfAborted();
         await handle.close();
         handle = undefined;
-        // No abort may advance past this boundary. Once rename starts, an abort
-        // has an uncertain commit outcome and the service must not invite a retry.
         request.signal?.throwIfAborted();
         await renameFile(temporary, destination);
         renamed = true;
@@ -452,9 +450,6 @@ export function createTrainingExportService(input: {
           if (operationSignal.aborted) return refused("commit-uncertain");
           return refused("write-failed");
         }
-        // A successful rename is the commit point. If the caller disconnects while the
-        // file is being published, report the committed result rather than encouraging
-        // an unsafe retry that could overwrite the file.
         if (outcome !== "committed") {
           if (outcome === "failed" && operationSignal.aborted) {
             return preCommitAbort(operationSignal.reason);
@@ -467,9 +462,6 @@ export function createTrainingExportService(input: {
           ...metadata,
         });
       } finally {
-        // Once handed off, the writer may still be using the buffer after the
-        // service has conservatively reported commit uncertainty. Its settlement
-        // handler owns zeroization so the bytes cannot change underneath it.
         if (!writerOwnsBytes) bytes.fill(0);
       }
     },
