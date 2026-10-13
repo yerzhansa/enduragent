@@ -1,5 +1,6 @@
 import { chmod, mkdir, mkdtemp, open, readdir, readFile, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { execFileSync, spawnSync } from "node:child_process";
+import { closeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalJson, type ArchiveWriteResult } from "@enduragent/kernel/archive";
@@ -802,18 +803,21 @@ describe.sequential("capture-once Reference layer gate", () => {
     });
   });
 
-  it("removes the temporary conclusion and reports the write failure when the write fails", async () => {
+  it("removes the temporary conclusion and reports the close failure when the write and the close fail", async () => {
     const capture = await createSyntheticCapture(await seed());
     const record = (await runReferenceCaptureCommand(args(capture))).conclusion!;
-    const folder = join(capture.root, "write-failure");
+    const folder = join(capture.root, "close-failure");
     await mkdir(folder, { mode: 0o700 });
     const probe = await open(join(capture.root, "handle-probe"), "w");
-    const prototype = Object.getPrototypeOf(probe) as { sync(): Promise<void> };
+    const prototype = Object.getPrototypeOf(probe) as { sync(this: { fd: number }): Promise<void> };
     await probe.close();
-    const sync = vi.spyOn(prototype, "sync").mockRejectedValue(new Error("synthetic write failure"));
+    const sync = vi.spyOn(prototype, "sync").mockImplementation(async function (this: { fd: number }) {
+      closeSync(this.fd);
+      throw new Error("synthetic write failure");
+    });
     try {
       await expect(persistReferenceCaptureConclusion(join(folder, "conclusion.json"), record))
-        .rejects.toThrow("synthetic write failure");
+        .rejects.toMatchObject({ code: "EBADF" });
     } finally {
       sync.mockRestore();
     }

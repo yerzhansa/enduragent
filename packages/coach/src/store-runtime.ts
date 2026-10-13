@@ -285,6 +285,7 @@ export class StoreRuntime {
     readonly store: SqlReadStore;
   } {
     if (this.readonlyStore === undefined) {
+      if (this.closed) throw new Error("Store runtime is closed.");
       this.readonlyStore = this.openReadonlyStore(this.storePath);
     }
     return {

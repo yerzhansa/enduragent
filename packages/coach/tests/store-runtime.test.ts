@@ -157,6 +157,15 @@ describe("StoreRuntime read-only store", () => {
 
     expect(openReadonlyStore).toHaveBeenCalledTimes(1);
   });
+
+  it("does not open the read-only store for a read after close", async () => {
+    const { runtime, openReadonlyStore } = await makeRuntime();
+    await runtime.close();
+
+    await expect(runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" }))
+      .resolves.toMatchObject({ ok: false, error: "store_read_unavailable" });
+    expect(openReadonlyStore).not.toHaveBeenCalled();
+  });
 });
 
 describe("StoreRuntime capture health", () => {
