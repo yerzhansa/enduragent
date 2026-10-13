@@ -199,8 +199,14 @@ export function formatStoreFreshness(freshness: StoredDataFreshness): string {
   return `Store data last synchronized ${freshness.label} ago (${freshness.capturedAt}).`;
 }
 
+export interface LaneStanding {
+  readonly health: "ok" | "partial" | "lost";
+  readonly droppedDates: readonly string[];
+}
+
 export function createStoreAthleteDataReader(input: {
   snapshot: () => ProducedLocalBundle | undefined;
+  wellnessLane?: () => LaneStanding | undefined;
   canonicalActivities?: CanonicalActivityReader;
   clockNow?: () => number;
 }): AthleteDataReader {
@@ -252,8 +258,17 @@ export function createStoreAthleteDataReader(input: {
       if (!("snapshot" in selected)) return selected;
       const dates = range(selected.snapshot, candidate);
       if (dates === undefined) return INVALID_DATES;
-      return { ok: true as const, value: selected.snapshot.bundle.wellness.filter((row) =>
-        row.id >= dates.start && row.id <= dates.end), freshness: selected.freshness };
+      const lane = input.wellnessLane?.();
+      if (lane?.health === "lost") {
+        return { ok: false as const, error: "wellness_unreadable" as const,
+          message: "Wellness data failed to sync. This is a sync fault, not missing athlete data." };
+      }
+      const value = selected.snapshot.bundle.wellness.filter((row) => row.id >= dates.start && row.id <= dates.end);
+      const missing = (lane?.droppedDates ?? []).filter((date) => date >= dates.start && date <= dates.end).length;
+      return missing === 0
+        ? { ok: true as const, value, freshness: selected.freshness }
+        : { ok: true as const, value, freshness: selected.freshness,
+          notice: `Wellness is incomplete: ${missing} of ${value.length + missing} days failed to sync and are missing here.` };
     },
     async listActivities(candidate: { start: string; end?: string }) {
       if (invalidExplicitRange(candidate)) return INVALID_DATES;

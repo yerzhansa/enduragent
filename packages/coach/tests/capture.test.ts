@@ -9,7 +9,7 @@ import {
 } from "@enduragent/core";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import { describe, expect, it } from "vitest";
-import { runReferenceCapture } from "../src/capture.js";
+import { ReplacedCaptureNotReplayableError, runReferenceCapture } from "../src/capture.js";
 import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
 
 const CAPTURE_ID = "12345678-1234-4123-8123-123456789abc";
@@ -85,7 +85,7 @@ describe("runReferenceCapture", () => {
       return json(profile);
     };
     let monotonic = 0;
-    const manifest = await runReferenceCapture(
+    const { manifest, report } = await runReferenceCapture(
       {
         env: { ENDURAGENT_HOME: root },
         apiKey: "synthetic-key",
@@ -103,6 +103,9 @@ describe("runReferenceCapture", () => {
       },
     );
     expect(requests).toHaveLength(4);
+    expect(report.wellness).toEqual({ fetched: 1, landed: 1, drops: [], unfetched: [] });
+    expect(report.activities).toMatchObject({ fetched: 2, landed: 1,
+      drops: [{ lane: "activities", payloadIndex: 1, externalId: "43", localDate: "1998-04-24", reason: "unclassified" }] });
     expect(manifest.plan.frozenNow).toMatch(/^1998-07-18T/);
     expect(manifest.records.settings).toHaveLength(1);
     expect(manifest.records.activities).toHaveLength(1);
@@ -183,7 +186,7 @@ FROM training_history_coverage_commit`,
       return json(profile);
     };
     let monotonic = 0;
-    const manifest = await runReferenceCapture(
+    const { manifest } = await runReferenceCapture(
       {
         env: { ENDURAGENT_HOME: root },
         apiKey: "synthetic-key",
@@ -237,6 +240,96 @@ FROM training_history_coverage_commit`,
       { toolCallId: "wellness-live", messages: [] },
     );
     expect(live).toEqual((result as { data: object[] }).data);
+  });
+
+  it("records the capture and keeps the other lanes when every fetched wellness day is lost", async () => {
+    const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
+    const baseFetch: typeof globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/streams.json")) return json(streams);
+      if (url.includes("/activities?")) return json(activities);
+      if (url.includes("/wellness?")) {
+        return json(["1998-07-15", "1998-07-16", "1998-07-17"].map((id) => ({ ...wellness[0], id, restingHR: -1 })));
+      }
+      return json(profile);
+    };
+    let monotonic = 0;
+
+    const { manifest, report } = await runReferenceCapture(
+      { env: { ENDURAGENT_HOME: root }, apiKey: "synthetic-key", athleteId: "synthetic-athlete",
+        calendarTimeZone: "UTC", reviewedOn: "1998-07-18", reason: "initial", baseFetch },
+      { wallClock: () => NOW, uuid: () => CAPTURE_ID, monotonicNow: () => (monotonic += 250), sleep: async () => {} },
+    );
+
+    expect(manifest.records.wellness).toEqual([]);
+    expect(manifest.records.activities).toHaveLength(1);
+    expect(report.wellness).toMatchObject({ fetched: 3, landed: 0 });
+    expect(report.wellness.drops.map((drop) => [drop.localDate, drop.reason, drop.field])).toEqual([
+      ["1998-07-15", "landing", "restingHR"],
+      ["1998-07-16", "landing", "restingHR"],
+      ["1998-07-17", "landing", "restingHR"],
+    ]);
+    const store = openSqliteStorage(join(root, "store", "store.db"));
+    expect(await store.get("SELECT count(*) AS n FROM wellness")).toEqual({ n: 0 });
+    expect(await store.get("SELECT count(*) AS n FROM source_record WHERE source='intervals-icu' AND external_id='42'"))
+      .toEqual({ n: 1 });
+    await store.close();
+  });
+
+  it("refuses to replace a capture it cannot load and replay, before any request or store write", async () => {
+    const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
+    const requests: string[] = [];
+    const baseFetch: typeof globalThis.fetch = async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes("/streams.json")) return json(streams);
+      if (url.includes("/activities?")) return json(activities);
+      if (url.includes("/wellness?")) return json(wellness);
+      return json(profile);
+    };
+    const missingCaptureId = "87654321-4321-4321-8321-cba987654321";
+    let monotonic = 0;
+
+    const run = runReferenceCapture(
+      { env: { ENDURAGENT_HOME: root }, apiKey: "synthetic-key", athleteId: "synthetic-athlete",
+        calendarTimeZone: "UTC", reviewedOn: "1998-07-18", reason: "provider-refresh",
+        replacesCaptureId: missingCaptureId, baseFetch },
+      { wallClock: () => NOW, uuid: () => CAPTURE_ID, monotonicNow: () => (monotonic += 250), sleep: async () => {} },
+    );
+
+    await expect(run).rejects.toMatchObject({ cause: { category: "capture", cause: { replacesCaptureId: missingCaptureId } } });
+    await expect(run).rejects.toHaveProperty("cause.cause", expect.any(ReplacedCaptureNotReplayableError));
+    expect(requests).toEqual([]);
+    const store = openSqliteStorage(join(root, "store", "store.db"));
+    expect(await store.get("SELECT count(*) AS n FROM source_artifact")).toEqual({ n: 0 });
+    expect(await store.get("SELECT count(*) AS n FROM wellness")).toEqual({ n: 0 });
+    await store.close();
+  });
+
+  it("replaces a capture that still replays", async () => {
+    const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
+    const baseFetch: typeof globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/streams.json")) return json(streams);
+      if (url.includes("/activities?")) return json(activities);
+      if (url.includes("/wellness?")) return json(wellness);
+      return json(profile);
+    };
+    const secondCaptureId = "87654321-4321-4321-8321-cba987654321";
+    let monotonic = 0;
+    const options = { env: { ENDURAGENT_HOME: root }, apiKey: "synthetic-key", athleteId: "synthetic-athlete",
+      calendarTimeZone: "UTC", reviewedOn: "1998-07-18", baseFetch };
+    const dependencies = { wallClock: () => NOW, monotonicNow: () => (monotonic += 250), sleep: async () => {} };
+
+    await runReferenceCapture({ ...options, reason: "initial" }, { ...dependencies, uuid: () => CAPTURE_ID });
+    const { manifest } = await runReferenceCapture(
+      { ...options, reason: "provider-refresh", replacesCaptureId: CAPTURE_ID },
+      { ...dependencies, uuid: () => secondCaptureId },
+    );
+
+    expect(manifest.capture_id).toBe(secondCaptureId);
+    expect(JSON.parse(await readFile(join(root, "captures", secondCaptureId, "review.json"), "utf8")))
+      .toMatchObject({ replaces_capture_id: CAPTURE_ID });
   });
 
   it("rolls back an activity landing when the in-transaction coverage commit conflicts", async () => {
@@ -308,7 +401,7 @@ FROM training_history_coverage_commit`,
       return json(profile);
     };
     let monotonic = 0;
-    const manifest = await runReferenceCapture(
+    const { manifest } = await runReferenceCapture(
       {
         env: { ENDURAGENT_HOME: root },
         apiKey: "synthetic-key",
