@@ -71,7 +71,7 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(exit).toBe(0);
     const joined = lines.join("\n");
     expect(joined).toMatch(/Wrote sanitized fixture: .+summary-output\.json/);
-    // Default-deny drops athlete_id + GPS + description + notes; TP keys
+    // Default-deny drops athlete_id + GPS + notes; TP keys
     // are dropped by rename layer before sanitize so they don't show here.
     expect(joined).toMatch(/Dropped \d+ key occurrence/);
     expect(joined).toMatch(/athlete_id/);
