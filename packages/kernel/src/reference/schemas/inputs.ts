@@ -143,11 +143,11 @@ export type Activity = z.infer<typeof ActivitySchema>;
  *  Runtime shape includes them via z.looseObject(); sanitize cosmetic-drops in JSON. */
 export const WellnessDaySchema = z.looseObject({
   id: z.string(), // ISO date YYYY-MM-DD
-  weight: z.number().nullable(), // kg
-  restingHR: z.number().nullable(),
-  hrv: z.number().nullable(),
-  sleepSecs: z.number().nullable(),
-  sleepQuality: z.number().nullable(),
+  weight: z.number().nullable().default(null), // kg
+  restingHR: z.number().nullable().default(null),
+  hrv: z.number().nullable().default(null),
+  sleepSecs: z.number().nullable().default(null),
+  sleepQuality: z.number().nullable().default(null),
 
   // Body composition
   bodyFat: z.number().nullable().optional(),

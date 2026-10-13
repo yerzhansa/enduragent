@@ -239,6 +239,18 @@ describe("WellnessDaySchema (z.looseObject)", () => {
 
     expect(WellnessDaySchema.parse(realisticWellness)).toEqual(realisticWellness);
   });
+
+  it("reads body metrics the day leaves out as null", () => {
+    expect(WellnessDaySchema.parse({ id: "1998-07-17", fitness: 31.2 })).toEqual({
+      id: "1998-07-17",
+      fitness: 31.2,
+      weight: null,
+      restingHR: null,
+      hrv: null,
+      sleepSecs: null,
+      sleepQuality: null,
+    });
+  });
 });
 
 describe("WeeklyRollupSchema (z.looseObject)", () => {
