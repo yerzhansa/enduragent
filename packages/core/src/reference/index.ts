@@ -108,11 +108,8 @@ export {
 export {
   assertNoTpKeysRemain,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type RenamedActivityRow,
-  type RenamedWellnessRow,
 } from "./sync/rename-tp-fields.js";
 export {
   makeIntervalsHttpFactory,

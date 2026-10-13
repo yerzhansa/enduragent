@@ -24,8 +24,6 @@ export interface NormalizedActivityFields {
 declare const __renamedBrand: unique symbol;
 export type RenamedActivityRow = Record<string, unknown> & NormalizedActivityFields
   & { readonly [__renamedBrand]: "activity" };
-export type RenamedWellnessRow = Record<string, unknown> & NormalizedWellnessFields
-  & { readonly [__renamedBrand]: "wellness" };
 export interface RenameSummary { skippedNonNumeric: Record<string, number> }
 
 const WELLNESS_TP_TO_PLAIN: ReadonlyArray<readonly [string, keyof NormalizedWellnessFields]> = [
@@ -64,18 +62,13 @@ function applyKeyRename(
   return output;
 }
 
-export function renameTpFieldsOnWellnessRow(raw: Record<string, unknown>, summary?: RenameSummary): RenamedWellnessRow {
-  return applyKeyRename(raw, WELLNESS_TP_TO_PLAIN, new Set(WELLNESS_TP_TO_PLAIN.map(([key]) => key)), summary) as RenamedWellnessRow;
-}
-
 export function renameTpFieldsOnActivity(raw: Record<string, unknown>, summary?: RenameSummary): RenamedActivityRow {
   return applyKeyRename(raw, ACTIVITY_TP_TO_PLAIN, new Set(ACTIVITY_TP_TO_PLAIN.map(([key]) => key)), summary) as RenamedActivityRow;
 }
 
 export function parseRenamedActivity(row: RenamedActivityRow): Activity { return ActivitySchema.parse(row); }
-export function parseRenamedWellnessRow(row: RenamedWellnessRow): WellnessDay { return WellnessDaySchema.parse(row); }
 
-export type RowRejectionReason = "shape" | "decode";
+export type RowRejectionReason = "shape" | "identity" | "decode" | "landing";
 
 export class RowRejection extends TypeError {
   readonly reason: RowRejectionReason;

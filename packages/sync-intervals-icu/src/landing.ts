@@ -2,8 +2,10 @@ import { canonicalJson, type ArchiveInstant, type ArchiveWriteResult } from "@en
 import { buildPlatformPresentation, type ConcernValue, type PlatformImportArtifact } from "@enduragent/kernel/ingest";
 import type { CryptoPort } from "@enduragent/kernel/ports";
 import { SPORT_FAMILIES } from "@enduragent/kernel/reference/metrics";
+import { decodeWellnessRow, RowRejection, type NormalizedWellnessFields } from "@enduragent/kernel/reference/local-bundle";
+import { WellnessColumnsSchema, type SubjectiveScore, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 import { H, sortKeys, type AnchorHistoryRow, type WellnessLandingRow, type ZoneSetHistoryRow } from "@enduragent/kernel/store";
-import { compareBinary, parseCivilDate } from "./cursor.js";
+import { civilDateEpochSeconds, compareBinary, isCivilDate, parseCivilDate } from "./cursor.js";
 
 function record(value: unknown, name: string): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${name} is invalid`);
@@ -104,35 +106,75 @@ export async function mapActivityLanding(options: {
   return platform;
 }
 
-function nullableInteger(value: unknown, name: string): number | null {
-  return value === undefined || value === null ? null : safeInteger(value, name);
+type WellnessLoadAverages = Readonly<Required<NormalizedWellnessFields>>;
+
+interface WellnessFieldArchive {
+  readonly source: "intervals-icu";
+  readonly subjectiveFatigue: SubjectiveScore | null;
+  readonly load: WellnessLoadAverages;
+  readonly values: Readonly<Record<string, unknown>>;
 }
 
-function nullableNumber(value: unknown, name: string): number | null {
-  return value === undefined || value === null ? null : finiteNonnegative(value, name);
+export interface WellnessLanding {
+  readonly externalId: string;
+  readonly instant: ArchiveInstant;
+  readonly cursorKey: string;
+  readonly wire: Readonly<Record<string, unknown>>;
+  readonly row: WellnessLandingRow;
 }
 
-export async function mapWellnessLanding(normalized: Readonly<Record<string, unknown>>): Promise<WellnessLandingRow> {
-  const values = record(normalized, "wellness");
-  const id = parseCivilDate(values.id);
-  const key = Number(id.replaceAll("-", ""));
+function wellnessFieldArchive(day: WellnessDay, subjectiveFatigue: SubjectiveScore | null): WellnessFieldArchive {
+  const load: WellnessLoadAverages = {
+    fitness: day.fitness ?? null,
+    fatigue: day.fatigue ?? null,
+    fitnessContribution: day.fitnessContribution ?? null,
+    fatigueContribution: day.fatigueContribution ?? null,
+    weeklyFitnessChange: day.weeklyFitnessChange ?? null,
+  };
+  const values = Object.fromEntries(Object.entries(day)
+    .filter(([key]) => !Object.hasOwn(load, key) && key !== "subjectiveFatigue"));
+  return { source: "intervals-icu", subjectiveFatigue, load, values };
+}
+
+async function mapWellnessLanding(day: WellnessDay, key: number): Promise<WellnessLandingRow> {
+  const parsed = WellnessColumnsSchema.safeParse(day);
+  if (!parsed.success) throw new RowRejection("landing", parsed.error.issues[0]?.path.join(".") ?? null);
+  const columns = parsed.data;
+  const subjectiveFatigue = columns.subjectiveFatigue ?? null;
   return {
     id: await hash("wellness", key, "intervals-icu"),
     date_key: key,
     provenance: "sync",
     source: "intervals-icu",
-    resting_hr: nullableInteger(values.restingHR, "resting heart rate"),
-    hrv: nullableNumber(values.hrv, "heart rate variability"),
-    hrv_sdnn: nullableNumber(values.hrvSdnn, "heart rate variability SDNN"),
-    sleep_s: nullableInteger(values.sleepSecs, "sleep seconds"),
-    sleep_score: nullableInteger(values.sleepQuality, "sleep quality"),
-    weight_kg: nullableNumber(values.weight, "weight"),
-    soreness: nullableInteger(values.soreness, "soreness"),
-    fatigue: nullableInteger(values.fatigue, "fatigue"),
-    fields_json: canonicalJson({ source: "intervals-icu", values }),
+    resting_hr: columns.restingHR ?? null,
+    hrv: columns.hrv ?? null,
+    hrv_sdnn: columns.hrvSDNN ?? null,
+    sleep_s: columns.sleepSecs ?? null,
+    sleep_score: columns.sleepQuality ?? null,
+    weight_kg: columns.weight ?? null,
+    soreness: columns.soreness ?? null,
+    fatigue: subjectiveFatigue,
+    fields_json: canonicalJson(wellnessFieldArchive(day, subjectiveFatigue)),
     device_id: null,
     hlc_physical_ms: null,
     hlc_counter: null,
+  };
+}
+
+function isWireRow(value: unknown): value is Readonly<Record<string, unknown>> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export async function landWellnessRow(payload: unknown): Promise<WellnessLanding> {
+  if (!isWireRow(payload)) throw new RowRejection("shape");
+  const date = payload.id;
+  if (!isCivilDate(date)) throw new RowRejection("identity", "id");
+  return {
+    externalId: date,
+    instant: { epochSeconds: civilDateEpochSeconds(date) },
+    cursorKey: `${date}\u001f${date}`,
+    wire: payload,
+    row: await mapWellnessLanding(decodeWellnessRow(payload), dateKey(date, "wellness date")),
   };
 }
 

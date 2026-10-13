@@ -150,6 +150,20 @@ describe("fetchLiveBundle", () => {
     expect(well.atl).toBeUndefined();
   });
 
+  it("keeps a wellness day that carries both a logged fatigue score and a load average", async () => {
+    const { client } = fakeClient({ activities: [], wellness: [wellnessRaw({ fatigue: 3 })] });
+    const res = await fetchLiveBundle({
+      client,
+      signal: new AbortController().signal,
+      now: NOW,
+      calendarTimeZone: "UTC",
+      throttleMs: 0,
+    });
+
+    expect(res.bundle.wellness).toHaveLength(1);
+    expect(res.bundle.wellness[0]).toMatchObject({ fitness: 40, fatigue: 45, subjectiveFatigue: 3 });
+  });
+
   it("fetches streams only for cycling rides within the stream window, capped", async () => {
     const cyclingInWindow = Array.from({ length: MAX_STREAM_ACTIVITIES + 3 }, (_, i) =>
       camelActivity({ id: 100 + i, startDateLocal: daysAgo(1 + i) }),

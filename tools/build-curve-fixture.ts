@@ -31,8 +31,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertNoTpKeysRemain,
+  decodeWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type RenameSummary,
 } from "../packages/core/src/reference/sync/rename-tp-fields.js";
 import { sanitizeFixture } from "./sanitize-fixture-transform.js";
@@ -191,11 +191,10 @@ function main(argv: string[]): void {
   const w = curveWindows(args.frozenNow);
 
   // --- 1. Rename TP fields + sanitize the real rows (PII boundary unchanged) ---
-  const wellSummary: RenameSummary = { skippedNonNumeric: {} };
   const actSummary: RenameSummary = { skippedNonNumeric: {} };
   const renamed = {
     activities: bundle.activities.map((row) => renameTpFieldsOnActivity(row, actSummary)),
-    wellness: bundle.wellness.map((row) => renameTpFieldsOnWellnessRow(row, wellSummary)),
+    wellness: bundle.wellness.map((row) => decodeWellnessRow(row)),
     ftp_history: bundle.ftp_history,
   };
   assertNoTpKeysRemain(renamed);

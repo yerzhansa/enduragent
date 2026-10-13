@@ -14,8 +14,8 @@ import {
   parseCanonicalProjectionValue,
 } from "@enduragent/kernel/reference/local-bundle";
 import type { SourceLane, SourceWatermark, SyncBudget } from "@enduragent/kernel/store";
-import { activityIdentity, mapActivityLanding, mapSettingsLanding, mapWellnessLanding, normalizeStreamLanding } from "./landing.js";
-import { advanceWindow, compactCursor, compareBinary, parseCivilDate, parseCursor, type CursorRange, type RangeCursor } from "./cursor.js";
+import { activityIdentity, landWellnessRow, mapActivityLanding, mapSettingsLanding, normalizeStreamLanding, type WellnessLanding } from "./landing.js";
+import { advanceWindow, civilDateEpochSeconds, compactCursor, compareBinary, parseCivilDate, parseCursor, type CursorRange, type RangeCursor } from "./cursor.js";
 import { createRequester, IntervalsHttpError, MIN_CONFIGURED_INTERVAL_MS, SyncBudgetExceededError, type IntervalsRequester } from "./http.js";
 import { BULK_FIT_BATCH_SIZE, BULK_SAFE_ACTIVITY_ID, IncompleteBulkFitBatchError, MAX_FIT_BYTES, MAX_ZIP_BYTES, extractBulkFitZip } from "./zip.js";
 import { INTERVALS_ICU_CAPABILITIES, INTERVALS_ICU_SOURCE_ID, MAX_JSON_BYTES, ZERO_DROPPED_ACTIVITY_ROWS, type DroppedActivityRowEvidence, type IntervalsIcuArtifact, type IntervalsIcuCaptureSource, type IntervalsIcuCheckpoint, type IntervalsIcuSourceOptions, type ReferenceCaptureActivityRecord, type ReferenceCaptureBatch, type ReferenceCaptureEndpoint, type ReferenceCaptureSettingsRecord, type ReferenceCaptureStreamRecord, type ReferenceCaptureWellnessRecord } from "./types.js";
@@ -32,11 +32,6 @@ function nonempty(value: unknown, name: string): string {
 function objectRow(value: unknown, name: string): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${name} is invalid`);
   return value as Record<string, unknown>;
-}
-
-function epochForDate(date: string): number {
-  parseCivilDate(date);
-  return Math.max(0, Date.parse(`${date}T00:00:00.000Z`) / 1_000);
 }
 
 function baseContentType(response: HttpResponse): string {
@@ -145,11 +140,6 @@ function rowInstant(epochSeconds: number): ArchiveInstant {
   return { epochSeconds };
 }
 
-function wellnessIdentity(row: Record<string, unknown>): { readonly id: string; readonly key: string; readonly instant: ArchiveInstant } {
-  const id = parseCivilDate(row.id);
-  return { id, key: `${id}\u001f${id}`, instant: rowInstant(epochForDate(id)) };
-}
-
 function settingsIdentity(row: Record<string, unknown>): string {
   if (typeof row.id !== "number" || !Number.isSafeInteger(row.id)) throw new TypeError("sport setting id is invalid");
   const athleteId = nonempty(row.athlete_id, "sport setting athlete id");
@@ -235,41 +225,47 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       return;
     }
 
-    if (lane === "activities" || lane === "wellness") {
-      const transport = await fetchJson(requester, lane, { method: "GET", url: rangeUrl(athleteId, lane, cursor) });
-      await options.archive.writeSnapshot(transport, rowInstant(epochForDate(cursor.requestStart ?? cursor.window_start)));
-      if (!Array.isArray(transport)) throw new TypeError(`${lane} response is invalid`);
-      const scan = lane === "activities" ? activityIndex(transport) : null;
-      const indexed = scan !== null ? [...scan.rows] : transport.map((entry) => {
-        const row = objectRow(entry, "wellness row"), identity = wellnessIdentity(row);
-        return { externalId: identity.id, startUtc: identity.instant.epochSeconds, localDate: identity.id, key: identity.key, row };
-      }).sort((a, b) => compareBinary(a.key, b.key));
-      const droppedRows =
-        scan === null || cursor.last_key !== null ? ZERO_DROPPED_ACTIVITY_ROWS : scan.dropped;
-      const remaining = indexed.filter((entry) => cursor.last_key === null || compareBinary(entry.key, cursor.last_key) > 0);
+    if (lane === "wellness") {
+      const transport = await fetchJson(requester, "wellness", { method: "GET", url: rangeUrl(athleteId, "wellness", cursor) });
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
+      if (!Array.isArray(transport)) throw new TypeError("wellness response is invalid");
+      const landings: WellnessLanding[] = [];
+      for (const entry of transport) landings.push(await landWellnessRow(entry));
+      landings.sort((a, b) => compareBinary(a.cursorKey, b.cursorKey));
+      const remaining = landings.filter((landing) => cursor.last_key === null || compareBinary(landing.cursorKey, cursor.last_key) > 0);
+      let processedKey = cursor.last_key;
+      let processed = 0;
+      for (const landing of remaining) {
+        if (yielded >= budget.maxArtifacts) break;
+        const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
+        beforeYield();
+        yield { kind: "snapshot", source: "intervals-icu", lane: "wellness", externalId: landing.externalId,
+          archiveInstant: landing.instant, archive, payload: landing.wire, landing: { kind: "wellness", row: landing.row } };
+        processed += 1;
+        processedKey = landing.cursorKey;
+      }
+      yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey));
+      return;
+    }
+
+    if (lane === "activities") {
+      const transport = await fetchJson(requester, "activities", { method: "GET", url: rangeUrl(athleteId, "activities", cursor) });
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
+      const scan = activityIndex(transport);
+      const droppedRows = cursor.last_key !== null ? ZERO_DROPPED_ACTIVITY_ROWS : scan.dropped;
+      const remaining = scan.rows.filter((entry) => cursor.last_key === null || compareBinary(entry.key, cursor.last_key) > 0);
       let processedKey = cursor.last_key;
       let processed = 0;
       for (const entry of remaining) {
         if (yielded >= budget.maxArtifacts) break;
         const instant = rowInstant(entry.startUtc);
         const archive = await options.archive.writeSnapshot(entry.row, instant);
-        const landingCopy = structuredClone(entry.row);
-        if (lane === "activities") {
-          const normalized = options.acl.activity(landingCopy);
-          options.acl.assertClean(normalized);
-          const platform = await mapActivityLanding({ normalized, archiveInstant: instant, archive });
-          beforeYield();
-          yield { kind: "snapshot", source: "intervals-icu", lane: "activities", externalId: entry.externalId,
-            archiveInstant: instant, archive, payload: entry.row, landing: { kind: "activity", platform } };
-        } else {
-          const normalized = options.acl.wellness(landingCopy);
-          options.acl.assertClean(normalized);
-          const row = await mapWellnessLanding(normalized);
-          if (row.date_key !== Number(entry.externalId.replaceAll("-", ""))) throw new TypeError("wellness identity changed during normalization");
-          beforeYield();
-          yield { kind: "snapshot", source: "intervals-icu", lane: "wellness", externalId: entry.externalId,
-            archiveInstant: instant, archive, payload: entry.row, landing: { kind: "wellness", row } };
-        }
+        const normalized = options.acl.activity(structuredClone(entry.row));
+        options.acl.assertClean(normalized);
+        const platform = await mapActivityLanding({ normalized, archiveInstant: instant, archive });
+        beforeYield();
+        yield { kind: "snapshot", source: "intervals-icu", lane: "activities", externalId: entry.externalId,
+          archiveInstant: instant, archive, payload: entry.row, landing: { kind: "activity", platform } };
         processed += 1;
         processedKey = entry.key;
       }
@@ -280,7 +276,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (lane === "settings") {
       const transport = await fetchJson(requester, "settings", { method: "GET",
         url: endpointUrl(`/api/v1/athlete/${encodeURIComponent(athleteId)}`) });
-      await options.archive.writeSnapshot(transport, rowInstant(epochForDate(range.newest)));
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(range.newest)));
       const profile = objectRow(transport, "athlete settings");
       const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
       if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
@@ -317,7 +313,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
 
     const activityTransport = await fetchJson(requester, "activities", { method: "GET", url: rangeUrl(athleteId, "activities", cursor) });
-    await options.archive.writeSnapshot(activityTransport, rowInstant(epochForDate(cursor.requestStart ?? cursor.window_start)));
+    await options.archive.writeSnapshot(activityTransport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
     const activityScan = activityIndex(activityTransport);
     const droppedRows =
       cursor.last_key === null ? activityScan.dropped : ZERO_DROPPED_ACTIVITY_ROWS;
@@ -512,13 +508,8 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const wellnessPayload = endpointPayloads[2]!.payload as unknown[];
     for (let index = 0; index < wellnessPayload.length; index += 1) {
       try {
-        const row = objectRow(wellnessPayload[index], "wellness row");
-        const identity = wellnessIdentity(row);
-        const normalized = options.acl.wellness(structuredClone(row));
-        options.acl.assertClean(normalized);
-        const landing = await mapWellnessLanding(normalized);
-        if (landing.date_key !== Number(identity.id.replaceAll("-", ""))) throw new TypeError("wellness identity changed");
-        wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: identity.id, payload: row });
+        const landing = await landWellnessRow(wellnessPayload[index]);
+        wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: landing.externalId, payload: landing.wire });
       } catch {}
     }
 
@@ -605,7 +596,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       const identity = activityIdentity(member.payload as Record<string, unknown>);
       activityInstantById.set(member.external_id, identity.startUtc);
     }
-    const requiredInstants = [epochForDate(plan.window.newest), epochForDate(plan.window.oldest), epochForDate(plan.window.oldest)];
+    const requiredInstants = [civilDateEpochSeconds(plan.window.newest), civilDateEpochSeconds(plan.window.oldest), civilDateEpochSeconds(plan.window.oldest)];
     const endpoints: ReferenceCaptureEndpoint[] = [];
     for (const endpoint of endpointPayloads) {
       const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]!
@@ -642,12 +633,11 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
     const wellness: ReferenceCaptureWellnessRecord[] = [];
     for (const member of members.wellness) {
-      const row = member.payload as Record<string, unknown>, identity = wellnessIdentity(row);
-      const archiveInstant = identity.instant, archive = await options.archive.writeSnapshot(row, archiveInstant);
-      const normalized = options.acl.wellness(structuredClone(row)); options.acl.assertClean(normalized);
+      const landing = await landWellnessRow(member.payload);
+      const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
       wellness.push({ endpointOrdinal: member.endpoint_ordinal, payloadIndex: member.payload_index,
-        externalId: member.external_id, payload: row, archiveInstant, archive,
-        landing: { kind: "wellness", row: await mapWellnessLanding(normalized) } });
+        externalId: member.external_id, payload: landing.wire, archiveInstant: landing.instant, archive,
+        landing: { kind: "wellness", row: landing.row } });
     }
     const streams: ReferenceCaptureStreamRecord[] = [];
     for (let index = 0; index < members.streams.length; index += 1) {

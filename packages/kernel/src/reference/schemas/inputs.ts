@@ -171,6 +171,21 @@ export const WellnessDaySchema = z.looseObject({
 });
 export type WellnessDay = z.infer<typeof WellnessDaySchema>;
 
+const isStorable = (value: number): boolean => value >= 0 && !Object.is(value, -0);
+const StoredNumberSchema = z.number().refine(isStorable);
+const StoredIntegerSchema = z.number().int().refine(isStorable);
+
+export const WellnessColumnsSchema = z.object({
+  restingHR: StoredIntegerSchema.nullish(),
+  hrv: StoredNumberSchema.nullish(),
+  hrvSDNN: StoredNumberSchema.nullish(),
+  sleepSecs: StoredIntegerSchema.nullish(),
+  sleepQuality: StoredIntegerSchema.nullish(),
+  weight: StoredNumberSchema.nullish(),
+  soreness: StoredIntegerSchema.nullish(),
+  subjectiveFatigue: SubjectiveScoreSchema.refine(isStorable).nullish(),
+});
+
 /** Weekly load aggregate — input shape for weekly metrics. */
 export const WeeklyRollupSchema = z.looseObject({
   weekStartDate: z.string(), // ISO date YYYY-MM-DD (Monday)

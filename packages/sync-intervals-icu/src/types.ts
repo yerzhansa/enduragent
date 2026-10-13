@@ -57,7 +57,6 @@ export type IntervalsHttpFactory = (args: {
 
 export interface IntervalsLandingAcl {
   activity(row: Record<string, unknown>): Readonly<Record<string, unknown>>;
-  wellness(row: Record<string, unknown>): Readonly<Record<string, unknown>>;
   streams(value: unknown): Readonly<Record<string, unknown>>;
   assertClean(value: unknown): void;
 }
