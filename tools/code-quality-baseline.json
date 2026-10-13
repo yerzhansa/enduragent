@@ -606,7 +606,6 @@
     "packages/kernel-node/src/planning/legacy-plan-summary.ts": 1,
     "packages/kernel-node/src/service/launchd-plist.ts": 2,
     "packages/kernel-node/tests/launchd-service-live.test.ts": 2,
-    "packages/sync-intervals-icu/src/source.ts": 3,
     "tools/model-catalog-archive.ts": 1
   },
   "no-empty-function": {
@@ -873,7 +872,7 @@
     "packages/sync-intervals-icu/src/analytics-curves.ts": 1,
     "packages/sync-intervals-icu/src/landing.ts": 2,
     "packages/sync-intervals-icu/src/projection.ts": 7,
-    "packages/sync-intervals-icu/src/source.ts": 14,
+    "packages/sync-intervals-icu/src/source.ts": 8,
     "packages/sync-intervals-icu/src/zip.ts": 2,
     "tools/check-contract-deps.ts": 1,
     "tools/check-fixture-privacy.ts": 37,

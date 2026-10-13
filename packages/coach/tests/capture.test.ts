@@ -139,6 +139,36 @@ FROM training_history_coverage_commit`,
     await store.close();
   });
 
+  it("commits the activity rows the capture dropped as coverage gaps", async () => {
+    const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
+    const baseFetch: typeof globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/streams.json")) return json(streams);
+      if (url.includes("/activities?")) {
+        return json([
+          ...activities,
+          { id: 43, start_date_local: "1998-07-10T12:00:00", moving_time: 3_600, elapsed_time: 3_700 },
+          { id: 44, type: "Ride", moving_time: null, elapsed_time: 3_700 },
+        ]);
+      }
+      if (url.includes("/wellness?")) return json(wellness);
+      return json(profile);
+    };
+    let monotonic = 0;
+
+    await runReferenceCapture(
+      { env: { ENDURAGENT_HOME: root }, apiKey: "synthetic-key", athleteId: "synthetic-athlete", calendarTimeZone: "UTC",
+        reviewedOn: "1998-07-18", reason: "initial", baseFetch },
+      { wallClock: () => NOW, uuid: () => CAPTURE_ID, monotonicNow: () => (monotonic += 250), sleep: async () => {} },
+    );
+
+    const store = openSqliteStorage(join(root, "store", "store.db"));
+    expect(await store.get(
+      "SELECT gap_state, dropped_local_dates_json, undated_dropped_count FROM training_history_coverage_commit",
+    )).toEqual({ gap_state: "undated-dropped-rows", dropped_local_dates_json: '["1998-07-10"]', undated_dropped_count: 1 });
+    await store.close();
+  });
+
   it("returns captured wellness to the coach with the load average and the logged fatigue score apart", async () => {
     const root = await mkdtemp(join(tmpdir(), "reference-capture-home-"));
     const days = [

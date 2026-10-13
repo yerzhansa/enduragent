@@ -20,6 +20,7 @@ import type {
   SyncBudget,
   SyncSource,
 } from "@enduragent/kernel/store";
+import type { CaptureReport } from "./lane-report.js";
 
 export const INTERVALS_ICU_SOURCE_ID = "intervals-icu" as const;
 export const INTERVALS_ICU_CAPABILITIES = Object.freeze({
@@ -155,5 +156,5 @@ export interface ReferenceCaptureBatch {
   };
   readonly selected_stream_ids: readonly string[];
   readonly captured_stream_ids: readonly string[];
-  readonly dropped_activity_rows: DroppedActivityRowEvidence;
+  readonly report: CaptureReport;
 }

@@ -31,7 +31,7 @@ import {
   type ReferenceCaptureReview,
 } from "@enduragent/kernel-node/capture-manifest";
 import { createNodeCrypto, createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
-import { REQUEST_ATTEMPTS, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
+import { activityDropEvidence, REQUEST_ATTEMPTS, type DroppedActivityRowEvidence, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
 import { addCivilDays, todayInTZ } from "@enduragent/engine/sport";
 import { createIntervalsBackfillSource, DEFAULT_PER_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_INTERVAL_MS } from "./backfill.js";
 import { coverageGapsWithinWindow } from "./coverage-gaps.js";
@@ -145,26 +145,13 @@ export async function runReferenceCapture(
       ...(options.attemptLedger === undefined ? {} : { attemptLedger: options.attemptLedger }),
     }) as IntervalsIcuCaptureSource;
     let batch: ReferenceCaptureBatch;
+    let droppedActivityRows: DroppedActivityRowEvidence;
     try {
       batch = await source.captureReference(plan, budget);
       if (serializeReferenceCapturePlan(batch.plan) !== serializeReferenceCapturePlan(plan)) {
         throw new TypeError("reference capture plan changed");
       }
-      if (
-        !Number.isSafeInteger(batch.dropped_activity_rows.sourceRestricted) ||
-        batch.dropped_activity_rows.sourceRestricted < 0 ||
-        !Number.isSafeInteger(batch.dropped_activity_rows.other) ||
-        batch.dropped_activity_rows.other < 0
-      ) {
-        throw new TypeError("reference capture dropped activity counts are invalid");
-      }
-      if (
-        !Array.isArray(batch.dropped_activity_rows.datedLocalDates) ||
-        !Number.isSafeInteger(batch.dropped_activity_rows.undatedCount) ||
-        batch.dropped_activity_rows.undatedCount < 0
-      ) {
-        throw new TypeError("reference capture dropped activity evidence is invalid");
-      }
+      droppedActivityRows = activityDropEvidence(batch.report.activities);
     }
     catch (error) { throw new ReferenceCaptureRunError("capture", { cause: error }); }
 
@@ -189,7 +176,7 @@ export async function runReferenceCapture(
       coveredNewest: coverageNewest,
       committedEpochSeconds: Math.floor(plan.capture_epoch_ms / 1_000),
       gaps: coverageGapsWithinWindow({
-        evidence: batch.dropped_activity_rows,
+        evidence: droppedActivityRows,
         oldest: plan.window.oldest,
         newest: coverageNewest,
       }),
