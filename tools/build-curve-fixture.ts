@@ -239,7 +239,6 @@ function main(argv: string[]): void {
   writeFileSync(args.out, json);
   const hash = createHash("sha256").update(json).digest("hex");
   writeFileSync(`${args.out}.sha256`, `${hash}  ${basename(args.out)}\n`);
-  // eslint-disable-next-line no-console
   console.error(`Wrote ${args.out} (${json.length} bytes), checksum ${args.out}.sha256`);
 }
 
@@ -323,7 +322,6 @@ if (isCli) {
   try {
     main(process.argv.slice(2));
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error((err as Error).message);
     process.exit(1);
   }
