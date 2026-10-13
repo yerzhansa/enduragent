@@ -1,11 +1,3 @@
-// The load-bearing claim under test: schemas use `z.looseObject()` so real
-// intervals.icu data with TP-trademark fields (`icu_atl`, `icu_ctl`, etc.)
-// rides through unmodified — preserving signal metric computers may opt to
-// read, without leaking the trademark vocabulary into typed-IntelliSense.
-//
-// The trademark-wall mechanical assertion lives in the sibling file
-// `reference-input-schemas-no-tp.test.ts`.
-
 import { describe, it, expect } from "vitest";
 
 import {
@@ -57,24 +49,18 @@ describe("PlannedEventSchema", () => {
 describe("ActivitySchema (z.looseObject)", () => {
   it("round-trips a realistic intervals.icu activity preserving every field, including TP-trademark fields", () => {
     const realisticActivity = {
-      // Identity + timing
       id: 17654321,
       start_date_local: "2026-04-15T07:30:00",
       type: "Ride",
       moving_time: 5400,
       elapsed_time: 5650,
 
-      // Load + intensity (named in the schema)
       icu_training_load: 142,
       icu_intensity: 0.82,
 
-      // Power + HR (named, nullable)
       average_watts: 218,
       average_heartrate: 148,
 
-      // Zone-time breakdowns (named, optional). icu_zone_times is the API's
-      // native object-form bins; hr_zone_times exercises the still-permissive
-      // bare-number union arm.
       icu_zone_times: [
         { id: "Z1", secs: 600 },
         { id: "Z2", secs: 1800 },
@@ -85,7 +71,6 @@ describe("ActivitySchema (z.looseObject)", () => {
       pace_zone_times: undefined,
       hr_zone_times: [500, 1700, 2600, 540, 60, 0, 0],
 
-      // Capability proxies (named, optional)
       decoupling: 4.2,
       pa_hr: 3.1,
       icu_efficiency_factor: 1.46,
@@ -94,21 +79,15 @@ describe("ActivitySchema (z.looseObject)", () => {
         { type: "RECOVERY", duration: 300, average_watts: 120, average_heartrate: 110 },
       ],
 
-      // Compliance (named, optional)
       paired_event_id: 8899,
       rpe: 6,
 
-      // Energy / output (named, optional)
       kj: 1180,
 
-      // Trademark-banned fields the *typed shape* excludes by name —
-      // present on real intervals.icu payloads. z.looseObject MUST preserve them
-      // verbatim or the `derived_metrics.compliance` cross-check loses signal.
       icu_atl: 38.4,
       icu_ctl: 52.1,
       tsb: 13.7,
 
-      // Random extra fields intervals.icu may add over time (forward-compat).
       vendor_id: "intervals.icu",
       stream_url: "https://intervals.icu/api/v1/activity/17654321/streams",
     };
@@ -117,9 +96,6 @@ describe("ActivitySchema (z.looseObject)", () => {
   });
 
   it("accepts an Activity with no power meter (average_watts absent, icu_training_load absent)", () => {
-    // Real-world case: WeightTraining session, no power data, no load score.
-    // The lib's own ActivitySchema marks these nullish; we mirror that so
-    // a real intervals.icu payload rides through the looseObject promise.
     const noPowerActivity = {
       id: 17654322,
       start_date_local: "2026-04-15T18:00:00",
@@ -214,26 +190,19 @@ describe("WellnessDaySchema (z.looseObject)", () => {
       sleepSecs: 27000,
       sleepQuality: 4,
 
-      // Body composition
       bodyFat: 14.6,
       leanMass: 62.7,
 
-      // Subjective
       soreness: 2,
 
-      // VO2max
       vo2max: 56.4,
 
-      // Trademark-banned wellness fields the typed shape excludes by name —
-      // intervals.icu writes them on every wellness row. z.looseObject MUST
-      // preserve them verbatim or the recovery-index cross-check loses signal.
       ctl: 52.1,
       atl: 38.4,
       ctlLoad: 51.9,
       atlLoad: 38.1,
       rampRate: 4.7,
 
-      // Forward-compat — intervals.icu may add anything.
       mood: "good",
     };
 
@@ -256,12 +225,11 @@ describe("WellnessDaySchema (z.looseObject)", () => {
 describe("WeeklyRollupSchema (z.looseObject)", () => {
   it("round-trips a typical weekly rollup with extra forward-compat fields", () => {
     const realisticWeek = {
-      weekStartDate: "2026-04-13", // Monday
+      weekStartDate: "2026-04-13",
       weeklyLoad: 612,
       dailyLoads: [78, 142, 0, 95, 134, 88, 75],
       weeklyRecoveryHours: 14.5,
 
-      // Forward-compat / extra signal callers may carry alongside.
       weeklyTimeSeconds: 28800,
       sourceSyncedAt: "2026-04-19T22:30:00Z",
     };
@@ -273,7 +241,7 @@ describe("WeeklyRollupSchema (z.looseObject)", () => {
     const malformed = {
       weekStartDate: "2026-04-13",
       weeklyLoad: 100,
-      dailyLoads: [10, 20, 30, 40, 50, 60], // 6 entries
+      dailyLoads: [10, 20, 30, 40, 50, 60],
       weeklyRecoveryHours: 12,
     };
 
@@ -288,7 +256,6 @@ describe("FtpHistoryPointSchema (z.looseObject)", () => {
       ftp: 285,
       source: "test" as const,
 
-      // Forward-compat — caller may carry test protocol metadata.
       protocol: "20min",
       testActivityId: 17654987,
     };
@@ -324,7 +291,6 @@ describe("PlannedEventSchema (z.looseObject)", () => {
       start_date_local: "2026-04-15T07:30:00",
       name: "Sweet-spot 3x12",
 
-      // Forward-compat — calendar entries may carry pairing hints, paths, etc.
       icu_paired_activity_id: 17654321,
       external_url: "https://intervals.icu/events/8899",
     };
@@ -351,7 +317,6 @@ describe("IcuIntervalRepSchema (z.looseObject)", () => {
       average_watts: 280,
       average_heartrate: 165,
 
-      // Forward-compat — intervals.icu's per-rep field set is large.
       max_watts: 312,
       max_heartrate: 172,
       distance: 8400,
@@ -388,7 +353,6 @@ describe("ZoneTimesSchema (z.looseObject)", () => {
       z6: 0,
       z7: 0,
 
-      // Forward-compat — intervals.icu may add z8 or aggregate keys.
       z8: 0,
       total: 5400,
     };
@@ -513,8 +477,6 @@ describe("Normalized fitness/fatigue fields (anti-corruption layer per ADR-0012)
   });
 
   it("the schemas declare a rename target for every TP API field", () => {
-    // Cross-check: if a future contributor adds a TP API field to the rename
-    // layer, the rename target MUST also land on the consuming schema.
     const wellnessRenameTargets = [
       "fitness",
       "fatigue",

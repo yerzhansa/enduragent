@@ -140,11 +140,6 @@ export interface DuplicateStreamTypeIssue {
   readonly count: number;
 }
 
-/**
- * The canonical channel map cannot represent duplicate descriptors without
- * choosing one and discarding the others. Raw snapshots retain every
- * descriptor; this error makes the projection fail closed with diagnostics.
- */
 export class StreamNormalizationError extends TypeError {
   declare readonly issues: readonly DuplicateStreamTypeIssue[];
 

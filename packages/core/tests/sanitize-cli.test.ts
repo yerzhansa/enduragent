@@ -1,11 +1,3 @@
-// Tests for the operator CLI at `tools/sanitize-fixture.ts`. The CLI is
-// the operator-facing entry that pipes a real intervals.icu JSON dump
-// through `sanitizeFixtureWithSummary` and writes the result under
-// `tests/fixtures/golden/<name>.json` for committing.
-//
-// We test main() in-process with a tmpdir override for outputRoot so test
-// runs don't pollute the committed fixture directory.
-
 import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -71,14 +63,10 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(exit).toBe(0);
     const joined = lines.join("\n");
     expect(joined).toMatch(/Wrote sanitized fixture: .+summary-output\.json/);
-    // Default-deny drops athlete_id + GPS + description + notes; TP keys
-    // are dropped by rename layer before sanitize so they don't show here.
     expect(joined).toMatch(/Dropped \d+ key occurrence/);
     expect(joined).toMatch(/athlete_id/);
     expect(joined).toMatch(/start_latlng/);
     expect(joined).toMatch(/end_latlng/);
-    // Transformed: 3 ids redacted (2 activities + 1 wellness; wellness id is a
-    // YYYY-MM-DD which is preserved structurally but still counts as a transform).
     expect(joined).toMatch(/Transformed:.*id \(×3\)/);
   });
 
@@ -88,9 +76,6 @@ describe("sanitize-fixture CLI — main()", () => {
     writeFileSync(inputPath, JSON.stringify({ activities: [] }));
     const errs: string[] = [];
 
-    // Operator typo: `--force-overrride` instead of `--force`. Prior CLI
-    // silently swallowed unknown flags; now it errors out so the operator
-    // sees the typo before the file is (or isn't) written.
     const exit = await main([inputPath, "typo-output", "--force-overrride"], {
       outputRoot: outputDir,
       err: (m) => errs.push(m),
@@ -107,13 +92,11 @@ describe("sanitize-fixture CLI — main()", () => {
     const inputPath = join(inputDir, "raw.json");
     writeFileSync(inputPath, JSON.stringify({ activities: [{ id: 1, type: "Ride" }] }));
 
-    // First run with --force → succeeds, writes file.
     await main([inputPath, "guarded-output", "--force"], { outputRoot: outputDir });
     const outputPath = join(outputDir, "guarded-output.json");
     const firstBytes = readFileSync(outputPath);
     const firstMtimeNs = statSync(outputPath, { bigint: true }).mtimeNs;
 
-    // Second run WITHOUT --force, with mutated input → must refuse.
     writeFileSync(inputPath, JSON.stringify({ activities: [{ id: 2, type: "Run" }] }));
     const errs: string[] = [];
     const exit = await main([inputPath, "guarded-output"], {
@@ -123,7 +106,6 @@ describe("sanitize-fixture CLI — main()", () => {
 
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toMatch(/refusing to overwrite .+--force/);
-    // Output bytes unchanged.
     expect(readFileSync(outputPath).equals(firstBytes)).toBe(true);
     expect(statSync(outputPath, { bigint: true }).mtimeNs).toBe(firstMtimeNs);
   });
@@ -137,7 +119,6 @@ describe("sanitize-fixture CLI — main()", () => {
     const outputPath = join(outputDir, "force-output.json");
     const firstContent = readFileSync(outputPath, "utf-8");
 
-    // Second run, mutated input, --force → overwrites.
     writeFileSync(
       inputPath,
       JSON.stringify({
@@ -202,7 +183,6 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(written.wellness[0]).not.toHaveProperty("ctlLoad");
     expect(written.wellness[0]).not.toHaveProperty("atlLoad");
     expect(written.wellness[0]).not.toHaveProperty("rampRate");
-    // Non-TP field rides through; YYYY-MM-DD id shifted to the synthetic epoch.
     expect(written.wellness[0].weight).toBe(73.4);
     expect(written.wellness[0].id).toBe("1998-05-11");
   });
@@ -235,8 +215,6 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(written.activities[0].fatigueAtEnd).toBe(38.2);
     expect(written.activities[0]).not.toHaveProperty("icu_ctl");
     expect(written.activities[0]).not.toHaveProperty("icu_atl");
-    // Non-TP fields ride through; the date shifts to the synthetic epoch and
-    // the account-linking id is redacted.
     expect(written.activities[0].start_date_local).toBe("1998-05-11T08:00:00");
     expect(written.activities[0].id).toBe(12345);
   });
