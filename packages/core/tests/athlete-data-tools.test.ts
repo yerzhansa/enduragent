@@ -419,6 +419,66 @@ describe("store athlete reader", () => {
     });
   });
 
+  it("copies checked calendar fields when reading an event for delete", async () => {
+    const get = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        id: 7,
+        startDateLocal: "1998-07-18T08:00:00",
+        name: "Tempo",
+        category: "WORKOUT",
+        tags: ["cycling-coach"],
+        externalId: "cycling-coach:1998-07-18:tempo",
+      },
+    }));
+    const mutations = createPlatformCalendarMutations({ events: { get } } as unknown as IntervalsClient);
+    await expect(mutations.readEventForDelete({ eventId: 7 })).resolves.toEqual({
+      id: 7,
+      startDateLocal: "1998-07-18T08:00:00",
+      name: "Tempo",
+      category: "WORKOUT",
+      tags: ["cycling-coach"],
+      externalId: "cycling-coach:1998-07-18:tempo",
+    });
+    expect(get).toHaveBeenCalledWith(7);
+  });
+
+  it("rejects calendar event tags that are not a string list", async () => {
+    const get = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        id: 7,
+        startDateLocal: "1998-07-18T08:00:00",
+        name: null,
+        category: "WORKOUT",
+        tags: "cycling-coach",
+        externalId: null,
+      },
+    }));
+    const mutations = createPlatformCalendarMutations({ events: { get } } as unknown as IntervalsClient);
+    await expect(mutations.readEventForDelete({ eventId: 7 })).rejects.toThrow(
+      "Calendar event tags are invalid.",
+    );
+  });
+
+  it("rejects a calendar event external id that is not text", async () => {
+    const get = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        id: 7,
+        startDateLocal: "1998-07-18T08:00:00",
+        name: null,
+        category: "WORKOUT",
+        tags: null,
+        externalId: 7,
+      },
+    }));
+    const mutations = createPlatformCalendarMutations({ events: { get } } as unknown as IntervalsClient);
+    await expect(mutations.readEventForDelete({ eventId: 7 })).rejects.toThrow(
+      "Calendar event external id is invalid.",
+    );
+  });
+
   it("keeps legacy platform activity results supported without promising canonical grouping fields", async () => {
     const platformActivity = {
       id: 42,

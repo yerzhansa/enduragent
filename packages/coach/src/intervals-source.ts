@@ -34,7 +34,7 @@ export function createIntervalsBackfillSource(options: {
 }): IntervalsIcuSource {
   const acl: IntervalsLandingAcl = Object.freeze({
     activity(row: Record<string, unknown>) {
-      return parseRenamedActivity(renameTpFieldsOnActivity(row)) as unknown as Readonly<Record<string, unknown>>;
+      return parseRenamedActivity(renameTpFieldsOnActivity(row));
     },
     streams(value: unknown) {
       const normalized = normalizeStreams(value);

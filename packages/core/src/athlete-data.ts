@@ -118,18 +118,29 @@ export function createPlatformAthleteDataReader(intervals: IntervalsClient): Ath
   });
 }
 
+function calendarEventTags(value: unknown): string[] | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) return value;
+  throw new TypeError("Calendar event tags are invalid.");
+}
+
+function calendarEventExternalId(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || typeof value === "string") return value;
+  throw new TypeError("Calendar event external id is invalid.");
+}
+
 export function createPlatformCalendarMutations(intervals: IntervalsClient): PlatformCalendarMutations {
   return Object.freeze({
     createEvent: (input: EventInput) => platformValue(intervals.events.create(input)),
     async readEventForDelete(input: { eventId: number }) {
-      const value = await platformValue(intervals.events.get(input.eventId)) as unknown as CalendarEventForDelete;
+      const value = await platformValue(intervals.events.get(input.eventId));
       return {
         id: value.id,
         startDateLocal: value.startDateLocal,
         name: value.name,
         category: value.category,
-        tags: value.tags,
-        externalId: value.externalId,
+        tags: calendarEventTags(value.tags),
+        externalId: calendarEventExternalId(value.externalId),
       };
     },
     updateEvent: (input: { eventId: number; patch: CalendarEventUpdate }) =>

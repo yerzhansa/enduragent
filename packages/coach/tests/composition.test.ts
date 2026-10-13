@@ -5749,11 +5749,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     const runWindow = vi.fn<LocalStoreRuntime["runWindow"]>(() => active ?? launchWindow());
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
       const previous = active;
-      if (previous !== undefined) {
-        try {
-          await previous;
-        } catch {}
-      }
+      if (previous !== undefined) await Promise.allSettled([previous]);
       await work(new AbortController().signal);
       return launchWindow();
     });
@@ -5763,9 +5759,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       runWindow,
       runWindowAfter,
       async close() {
-        try {
-          await active;
-        } catch {}
+        await Promise.allSettled([active]);
         await baseRuntime.close();
       },
     };

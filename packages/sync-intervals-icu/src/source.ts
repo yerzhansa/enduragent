@@ -600,6 +600,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (selectedIds.length > 0 && !requester.canRequest(selectedIds.length)) throw new SyncBudgetExceededError();
 
     const successfulStreams: ReferenceCaptureEndpointPayload[] = [];
+    const capturedStreamIds: string[] = [];
     const streamTally = new LaneTally("streams");
     for (const activityId of selectedIds) {
       requester.assertActive();
@@ -619,7 +620,10 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           stream_types: [...REFERENCE_CAPTURE_STREAM_TYPES], include_defaults: false },
         payload: fetched.value,
       };
-      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) successfulStreams.push(endpoint);
+      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) {
+        successfulStreams.push(endpoint);
+        capturedStreamIds.push(activityId);
+      }
     }
     const endpointPayloads = [...required, ...successfulStreams];
     const derivation = await deriveWithReport(plan, endpointPayloads);
@@ -634,8 +638,9 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const requiredInstants = [civilDateEpochSeconds(plan.window.newest), civilDateEpochSeconds(plan.window.oldest), civilDateEpochSeconds(plan.window.oldest)];
     const endpoints: ReferenceCaptureEndpoint[] = [];
     for (const endpoint of endpointPayloads) {
+      const activityId = endpoint.request.activity_id;
       const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]
-        : activityInstantById.get(endpoint.request.activity_id!);
+        : (activityId === null ? undefined : activityInstantById.get(activityId));
       if (epochSeconds === undefined) throw new Error("stream activity instant is absent");
       const archiveInstant = rowInstant(epochSeconds);
       const archive = await options.archive.writeSnapshot(endpoint.payload, archiveInstant);
@@ -694,7 +699,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       settings: Object.freeze(settings), activities: Object.freeze(activities),
       wellness: Object.freeze(wellness), streams: Object.freeze(streams),
     }), selected_stream_ids: Object.freeze(selectedIds),
-    captured_stream_ids: Object.freeze(successfulStreams.map((endpoint) => endpoint.request.activity_id!)),
+    captured_stream_ids: Object.freeze(capturedStreamIds),
     report: Object.freeze({ ...derivation.report, streams: streamTally.report() }) });
   }
 

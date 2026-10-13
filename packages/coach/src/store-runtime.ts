@@ -404,11 +404,10 @@ LIMIT 1`,
 
   private installActiveWindow(task: Promise<StoreWindowResult>): void {
     this.activeWindow = task;
-    void task
-      .finally(() => {
-        if (this.activeWindow === task) this.activeWindow = undefined;
-      })
-      .catch(() => {});
+    const clear = (): void => {
+      if (this.activeWindow === task) this.activeWindow = undefined;
+    };
+    void task.then(clear, clear);
   }
 
   private async runWindowInternal(admissionSignal: AbortSignal): Promise<StoreWindowResult> {

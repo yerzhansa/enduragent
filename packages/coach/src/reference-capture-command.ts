@@ -283,6 +283,9 @@ function replayReader(payloads: CapturedPayloads): VerifiedSnapshotReader {
   } };
 }
 
+const replayDoesNotWait = async (): Promise<void> => undefined;
+const replaySkipsStoreEvidence = async (): Promise<void> => undefined;
+
 function dummyArchive(): ArchiveManager {
   const unavailable = async (): Promise<never> => { throw new TypeError("archive access is unavailable"); };
   return { writeArtifact: unavailable, writeSnapshot: unavailable, quarantine: unavailable,
@@ -292,7 +295,7 @@ function dummyArchive(): ArchiveManager {
 function replaySource(manifest: ReferenceCaptureManifest): IntervalsIcuCaptureSource {
   return createIntervalsIcuSource({ athleteId: "capture-once", historyNewestDate: manifest.plan.window.newest,
     minRequestIntervalMs: 250, archive: dummyArchive(), wallClock: { now: () => manifest.plan.capture_epoch_ms },
-    async sleep() {},
+    sleep: replayDoesNotWait,
     httpFactory: () => ({ async fetch() { throw new TypeError("network is unavailable"); } }),
     acl: Object.freeze({
       activity(value: Record<string, unknown>) {
@@ -426,7 +429,7 @@ class CapturedReferencePayloadSet {
       await assertReferenceCaptureReplayable(this.manifest, {
         readVerifiedSnapshot: (ref) => recordingReader.readVerifiedSnapshot(ref),
         derivePayloadMembers: (plan, endpointPayloads) => source.deriveReferenceCaptureMembers(plan, endpointPayloads),
-        async assertStoreEvidence() {},
+        assertStoreEvidence: replaySkipsStoreEvidence,
       });
     } catch (error) {
       if (error instanceof EnvironmentFailure) throw error;
