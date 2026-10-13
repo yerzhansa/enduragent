@@ -165,3 +165,43 @@ export function activityDropEvidence(report: LaneReport): DroppedActivityRowEvid
     undatedCount: report.drops.length - dated.length,
   });
 }
+
+export type LaneHealth = "ok" | "partial" | "lost";
+
+export function laneHealth(report: LaneReport): LaneHealth {
+  if (report.drops.every((drop) => drop.reason === "source-restricted")) return "ok";
+  return report.landed === 0 ? "lost" : "partial";
+}
+
+export interface LaneStanding {
+  readonly health: LaneHealth;
+  readonly fetched: number;
+  readonly landed: number;
+}
+
+export function laneStanding(report: LaneReport): LaneStanding {
+  return Object.freeze({ health: laneHealth(report), fetched: report.fetched, landed: report.landed });
+}
+
+export interface CaptureHealth {
+  readonly status: "ok" | "degraded";
+  readonly lanes: Readonly<Record<CaptureLane, LaneHealth>>;
+}
+
+export const CAPTURE_LANES: readonly CaptureLane[] = Object.freeze(["settings", "activities", "wellness", "streams"]);
+
+export function captureHealth(report: CaptureReport): CaptureHealth {
+  const lanes = { settings: laneHealth(report.settings), activities: laneHealth(report.activities),
+    wellness: laneHealth(report.wellness), streams: laneHealth(report.streams) };
+  return Object.freeze({
+    status: CAPTURE_LANES.some((lane) => lanes[lane] === "lost") ? "degraded" : "ok",
+    lanes: Object.freeze(lanes),
+  });
+}
+
+export function formatRowDrop(drop: RowDrop): string {
+  const index = drop.payloadIndex === null ? "" : `[${drop.payloadIndex}]`;
+  const field = drop.field === null ? "" : ` of ${drop.field}`;
+  const name = drop.errorName === null ? "" : ` (${drop.errorName})`;
+  return `${drop.lane}${index} ${drop.phase}: ${drop.reason}${field}${name}`;
+}

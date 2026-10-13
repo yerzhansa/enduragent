@@ -1,7 +1,17 @@
 import { RowRejection } from "@enduragent/kernel/reference/local-bundle";
 import { describe, expect, it } from "vitest";
 import { IntervalsHttpError } from "../src/http.js";
-import { activityDropEvidence, attempt, LaneTally, type RowDrop } from "../src/lane-report.js";
+import {
+  activityDropEvidence,
+  attempt,
+  captureHealth,
+  formatRowDrop,
+  laneHealth,
+  laneStanding,
+  LaneTally,
+  type LaneReport,
+  type RowDrop,
+} from "../src/lane-report.js";
 
 const MARKER = "poison-marker-7f3a";
 
@@ -161,5 +171,68 @@ describe("activityDropEvidence", () => {
       datedLocalDates: ["1998-07-03", "1998-07-17"],
       undatedCount: 1,
     });
+  });
+});
+
+function lane(landed: number, drops: readonly RowDrop[] = [], unfetched: readonly RowDrop[] = []): LaneReport {
+  return { fetched: landed + drops.length, landed, drops, unfetched };
+}
+
+describe("laneHealth", () => {
+  const rejected = drop({ lane: "wellness", reason: "landing", phase: "landing", field: "restingHR" });
+  const withheld = drop({ reason: "source-restricted" });
+  const failedRequest = drop({ lane: "streams", phase: "fetch", reason: "fetch", field: "http_404" });
+
+  it("calls a lane ok when nothing was rejected, even when nothing was fetched", () => {
+    expect(laneHealth(lane(0))).toBe("ok");
+    expect(laneHealth(lane(3))).toBe("ok");
+  });
+
+  it("calls a lane lost when rows arrived and every one was rejected", () => {
+    expect(laneHealth(lane(0, [rejected, rejected]))).toBe("lost");
+  });
+
+  it("calls a lane partial when some rows landed and some were rejected", () => {
+    expect(laneHealth(lane(84, [rejected]))).toBe("partial");
+  });
+
+  it("leaves rows the provider withheld out of the judgment", () => {
+    expect(laneHealth(lane(0, [withheld, withheld]))).toBe("ok");
+    expect(laneHealth(lane(0, [withheld, drop()]))).toBe("lost");
+  });
+
+  it("leaves failed requests out of the judgment", () => {
+    expect(laneHealth(lane(0, [], [failedRequest, failedRequest]))).toBe("ok");
+  });
+
+  it("gives a reader the health with the two counts", () => {
+    expect(laneStanding(lane(2, [rejected]))).toEqual({ health: "partial", fetched: 3, landed: 2 });
+  });
+});
+
+describe("captureHealth", () => {
+  const clean = lane(1);
+  const rejected = drop({ lane: "wellness", reason: "landing", phase: "landing", field: "restingHR" });
+
+  it("is ok when no lane is lost, even when one is partial", () => {
+    expect(captureHealth({ settings: clean, activities: clean, wellness: lane(2, [rejected]), streams: clean }))
+      .toEqual({ status: "ok", lanes: { settings: "ok", activities: "ok", wellness: "partial", streams: "ok" } });
+  });
+
+  it("is degraded when one lane is lost", () => {
+    expect(captureHealth({ settings: clean, activities: clean, wellness: lane(0, [rejected]), streams: clean }))
+      .toEqual({ status: "degraded", lanes: { settings: "ok", activities: "ok", wellness: "lost", streams: "ok" } });
+  });
+});
+
+describe("formatRowDrop", () => {
+  it("prints the lane, the row index, the step and the reason, and never the row's id or date", () => {
+    expect(formatRowDrop(drop({ lane: "wellness", payloadIndex: 1, externalId: "1998-07-16", localDate: "1998-07-16",
+      phase: "landing", reason: "landing", field: "restingHR" }))).toBe("wellness[1] landing: landing of restingHR");
+    expect(formatRowDrop(drop({ lane: "wellness", payloadIndex: 2, reason: "shape" }))).toBe("wellness[2] decode: shape");
+    expect(formatRowDrop(drop({ lane: "activities", payloadIndex: 0, externalId: "42", errorName: "TypeError" })))
+      .toBe("activities[0] decode: unclassified (TypeError)");
+    expect(formatRowDrop(drop({ lane: "streams", payloadIndex: null, externalId: "streams:42", phase: "fetch",
+      reason: "fetch", field: "http_404" }))).toBe("streams fetch: fetch of http_404");
   });
 });

@@ -329,7 +329,7 @@ async function productComposition(input: SeasonReviewCompositionInput): Promise<
         return reference;
       },
       createRuntime: (options) => (runtime = createStoreRuntime(options)),
-      runtimeDependencies: { capture: async () => manifest },
+      runtimeDependencies: { capture: async () => ({ manifest }) },
     });
     if (prepared.athleteData === undefined) throw new TypeError("Store athlete reader is unavailable.");
     const engine = createCoachEngine(cyclingSport, config, {

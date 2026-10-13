@@ -807,7 +807,7 @@ describe("local coach composition", () => {
       async (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
         if (options.writerContext === undefined) nestedWriterAcquisition();
         expect(options.writerContext).toBe(context);
-        return manifest;
+        return { manifest };
       },
     );
     const lifecycle = await compose(

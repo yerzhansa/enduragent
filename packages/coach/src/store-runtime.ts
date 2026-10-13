@@ -21,6 +21,13 @@ import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bun
 import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { openReadonlySqliteStorage } from "@enduragent/kernel-node/sqlite";
 import {
+  CAPTURE_LANES,
+  captureHealth,
+  formatRowDrop,
+  laneStanding,
+  type CaptureReport,
+} from "@enduragent/sync-intervals-icu";
+import {
   EMPTY_DROPPED_ACTIVITIES,
   type DroppedActivities,
 } from "@enduragent/coach-contract";
@@ -45,6 +52,7 @@ export const STORE_WINDOW_DEADLINE_MS = 600_000;
 const CANONICAL_KEY = /^[0-9a-f]{64}$/;
 const PUBLICATION_PAGE_SIZE = 200;
 const PUBLICATION_DEADLINE_MS = 30_000;
+const LOGGED_DROPS_PER_LANE = 5;
 
 export interface StoreWindowResult {
   readonly published: boolean;
@@ -53,13 +61,23 @@ export interface StoreWindowResult {
   readonly droppedActivities: DroppedActivities;
 }
 
+export interface WindowCapture {
+  readonly manifest: ReferenceCaptureManifest;
+  readonly report?: CaptureReport;
+}
+
+interface PublishedCapture {
+  readonly bundle: ProducedLocalBundle;
+  readonly report?: CaptureReport;
+}
+
 export interface StoreWriteResult<T> {
   readonly value: T;
   readonly activityReadAvailable: boolean;
 }
 
 export interface StoreRuntimeDependencies {
-  readonly capture?: typeof runReferenceCapture;
+  readonly capture?: (...input: Parameters<typeof runReferenceCapture>) => Promise<WindowCapture>;
   readonly refreshCurves?: typeof runAnalyticsCurveRefresh;
   readonly produce?: (manifest: ReferenceCaptureManifest) => Promise<ProducedLocalBundle>;
   readonly now?: () => Date;
@@ -99,7 +117,7 @@ export class StoreRuntime {
   >;
   private readonly logger: SubsystemLogger;
   private readonly scheduler: WallClockScheduler;
-  private snapshotValue: ProducedLocalBundle | undefined;
+  private published: PublishedCapture | undefined;
   private activeLedger: PhysicalRequestLedger | undefined;
   private activeController: AbortController | undefined;
   private activeBeforeWindowController: AbortController | undefined;
@@ -161,7 +179,11 @@ export class StoreRuntime {
       },
     });
     this.athleteData = createStoreAthleteDataReader({
-      snapshot: () => this.snapshotValue,
+      snapshot: () => this.published?.bundle,
+      wellnessLane: () => {
+        const report = this.published?.report;
+        return report === undefined ? undefined : laneStanding(report.wellness);
+      },
       canonicalActivities: this.canonicalActivities,
       clockNow: () => this.dependencies.now().getTime(),
     });
@@ -173,7 +195,7 @@ export class StoreRuntime {
   }
 
   currentSnapshot(): ProducedLocalBundle | undefined {
-    return this.snapshotValue;
+    return this.published?.bundle;
   }
 
   startScheduler(): void {
@@ -428,10 +450,10 @@ LIMIT 1`,
         athleteId: config.intervals.athleteId,
         calendarTimeZone,
         reviewedOn: now.toISOString().slice(0, 10),
-        reason: this.snapshotValue === undefined ? "initial" : "provider-refresh",
-        ...(this.snapshotValue === undefined
+        reason: this.published === undefined ? "initial" : "provider-refresh",
+        ...(this.published === undefined
           ? {}
-          : { replacesCaptureId: this.snapshotValue.captureId }),
+          : { replacesCaptureId: this.published.bundle.captureId }),
         budget,
         attemptLedger: ledger,
         ...(this.options.platform === undefined ? {} : { platform: this.options.platform }),
@@ -444,6 +466,8 @@ LIMIT 1`,
       controller.signal.throwIfAborted();
       let published = false;
       if (captureResult.status === "fulfilled" && captureResult.value !== undefined) {
+        const { manifest, report } = captureResult.value;
+        if (report !== undefined) this.logLaneLosses(report);
         try {
           await this.dependencies.refreshCurves({
             env: this.options.env,
@@ -453,7 +477,7 @@ LIMIT 1`,
             apiKey: config.intervals.apiKey,
             athleteId: config.intervals.athleteId,
             frozenAt: now,
-            frozenOn: captureResult.value.plan.frozenNow.slice(0, 10),
+            frozenOn: manifest.plan.frozenNow.slice(0, 10),
             budget,
             attemptLedger: ledger,
           });
@@ -461,8 +485,8 @@ LIMIT 1`,
           this.logger.warn("analytics_curve_refresh_failed", error);
         }
         controller.signal.throwIfAborted();
-        const produced = await this.dependencies.produce(captureResult.value);
-        this.snapshotValue = produced;
+        const bundle = await this.dependencies.produce(manifest);
+        this.published = report === undefined ? { bundle } : { bundle, report };
         published = true;
       }
       const counts = ledger.snapshot();
@@ -485,6 +509,17 @@ LIMIT 1`,
       admissionSignal.removeEventListener("abort", abortWindow);
       if (this.activeLedger === ledger) this.activeLedger = undefined;
       if (this.activeController === controller) this.activeController = undefined;
+    }
+  }
+
+  private logLaneLosses(report: CaptureReport): void {
+    const health = captureHealth(report);
+    for (const lane of CAPTURE_LANES) {
+      if (health.lanes[lane] === "ok") continue;
+      const fields = { lane, fetched: report[lane].fetched, landed: report[lane].landed,
+        drops: report[lane].drops.slice(0, LOGGED_DROPS_PER_LANE).map(formatRowDrop) };
+      if (health.lanes[lane] === "lost") this.logger.error("capture_lane_lost", undefined, fields);
+      else this.logger.warn("capture_lane_partial", undefined, fields);
     }
   }
 

@@ -187,6 +187,46 @@ describe("store athlete reader", () => {
     });
   });
 
+  describe("wellness of a capture that lost rows", () => {
+    const FRESHNESS = "Store data last synchronized 2 minutes ago (1998-07-18T12:00:00.000Z).";
+    const fetchWellness = (
+      wellness: ProducedLocalBundle["bundle"]["wellness"],
+      wellnessLane?: () => { health: "ok" | "partial" | "lost"; fetched: number; landed: number } | undefined,
+    ) => {
+      const snapshot = { ...produced(), bundle: { ...produced().bundle, wellness } };
+      const reader = createStoreAthleteDataReader({
+        snapshot: () => snapshot,
+        clockNow: () => Date.parse("1998-07-18T12:02:00.000Z"),
+        ...(wellnessLane === undefined ? {} : { wellnessLane }),
+      });
+      const tools = createPureCoreIntervalsTools({} as IntervalsClient, "UTC", reader);
+      return tools.intervals_fetch_wellness!.execute!({ oldest: "1998-07-01", newest: "1998-07-02" }, {} as never);
+    };
+    const days = produced().bundle.wellness;
+
+    it("reports a sync fault, not an empty list, when every fetched day was lost", async () => {
+      await expect(fetchWellness([], () => ({ health: "lost", fetched: 85, landed: 0 }))).resolves.toEqual({
+        error: "wellness_unreadable",
+        message: "Wellness data failed to sync. This is a sync fault, not missing athlete data.",
+      });
+    });
+
+    it("returns the days that synced and says how many are missing when some were lost", async () => {
+      await expect(fetchWellness(days, () => ({ health: "partial", fetched: 3, landed: 2 }))).resolves.toEqual({
+        data: days,
+        freshness: FRESHNESS,
+        notice: "Wellness is incomplete: 1 of 3 days failed to sync and are missing here.",
+      });
+    });
+
+    it("reads an empty list as no data when the lane is ok, or when its standing is unknown", async () => {
+      const empty = { data: [], freshness: FRESHNESS };
+      await expect(fetchWellness([], () => ({ health: "ok", fetched: 0, landed: 0 }))).resolves.toEqual(empty);
+      await expect(fetchWellness([], () => undefined)).resolves.toEqual(empty);
+      await expect(fetchWellness([])).resolves.toEqual(empty);
+    });
+  });
+
   it.each([
     ["ahead", "Europe/Amsterdam", "1998-07-18T22:30:00"],
     ["behind", "America/New_York", "1998-07-18T16:30:00"],

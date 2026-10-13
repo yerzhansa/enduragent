@@ -5,11 +5,13 @@ import type { Config, ReferenceRuntime } from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { SqlReadStore } from "@enduragent/kernel/store";
+import type { CaptureReport, LaneReport, RowDrop } from "@enduragent/sync-intervals-icu";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createStoreRuntime,
   STORE_REFRESH_INTERVAL_MS,
   type StoreRuntime,
+  type WindowCapture,
 } from "../src/store-runtime.js";
 
 const roots: string[] = [];
@@ -99,7 +101,7 @@ async function makeRuntime(
   const capture = vi.fn(
     async (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
       options.attemptLedger!.charge("store", "store:settings");
-      return manifest;
+      return { manifest };
     },
   );
   const refreshCurves = vi.fn(
@@ -143,6 +145,94 @@ async function makeRuntime(
   });
   return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore };
 }
+
+describe("StoreRuntime capture health", () => {
+  const CLEAN: LaneReport = { fetched: 1, landed: 1, drops: [], unfetched: [] };
+  const rejectedDay = (payloadIndex: number): RowDrop => ({ lane: "wellness", payloadIndex,
+    externalId: `1998-07-1${payloadIndex}`, localDate: `1998-07-1${payloadIndex}`, phase: "landing", reason: "landing",
+    field: "restingHR", errorName: null });
+  const reportWith = (wellness: LaneReport): CaptureReport =>
+    ({ settings: CLEAN, activities: CLEAN, wellness, streams: CLEAN });
+
+  async function windowFor(report: CaptureReport | undefined) {
+    const made = await makeRuntime();
+    made.capture.mockImplementation(async (options) => {
+      options.attemptLedger!.charge("store", "store:settings");
+      return report === undefined ? { manifest } : { manifest, report };
+    });
+    const window = await made.runtime.runWindow();
+    const logs = async (): Promise<Record<string, unknown>[]> => {
+      const raw = await readFile(join(made.root, "logs", "log.jsonl"), "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      });
+      return raw.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line) as Record<string, unknown>);
+    };
+    return { ...made, window, logs };
+  }
+
+  it("logs a lost wellness lane with its counts, still publishes, and tells the coach the sync failed", async () => {
+    const { runtime, window, logs } = await windowFor(
+      reportWith({ fetched: 3, landed: 0, drops: [rejectedDay(5), rejectedDay(6), rejectedDay(7)], unfetched: [] }),
+    );
+
+    expect(window.published).toBe(true);
+    expect(runtime.currentSnapshot()).toBe(produced);
+    expect(await logs()).toEqual([
+      expect.objectContaining({
+        level: "error",
+        component: "sync",
+        event: "capture_lane_lost",
+        lane: "wellness",
+        fetched: 3,
+        landed: 0,
+        drops: [
+          "wellness[5] landing: landing of restingHR",
+          "wellness[6] landing: landing of restingHR",
+          "wellness[7] landing: landing of restingHR",
+        ],
+      }),
+    ]);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toEqual({
+      ok: false,
+      error: "wellness_unreadable",
+      message: "Wellness data failed to sync. This is a sync fault, not missing athlete data.",
+    });
+  });
+
+  it("warns about a lane that kept some rows, logs at most five drops, and tells the coach days are missing", async () => {
+    const { runtime, window, logs } = await windowFor(
+      reportWith({ fetched: 9, landed: 2, drops: [0, 1, 2, 3, 4, 5, 6].map(rejectedDay), unfetched: [] }),
+    );
+
+    expect(window.published).toBe(true);
+    const records = await logs();
+    expect(records).toEqual([expect.objectContaining({ level: "warn", event: "capture_lane_partial", lane: "wellness", fetched: 9, landed: 2 })]);
+    expect(records[0]?.drops).toHaveLength(5);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({
+      ok: true,
+      value: [],
+      notice: "Wellness is incomplete: 7 of 9 days failed to sync and are missing here.",
+    });
+  });
+
+  it("logs nothing and reads wellness as before when every lane is ok", async () => {
+    const { runtime, logs } = await windowFor(reportWith(CLEAN));
+
+    expect(await logs()).toEqual([]);
+    const read = await runtime.athleteData.listWellness({ start: "1998-07-01" });
+    expect(read).toMatchObject({ ok: true, value: [] });
+    expect(read).not.toHaveProperty("notice");
+  });
+
+  it("reads an empty wellness list as no data when a capture comes without a report", async () => {
+    const { runtime, window, logs } = await windowFor(undefined);
+
+    expect(window.published).toBe(true);
+    expect(await logs()).toEqual([]);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+  });
+});
 
 describe("StoreRuntime", () => {
   it("threads the resolved calendar timezone into Reference capture", async () => {
@@ -385,8 +475,8 @@ describe("StoreRuntime", () => {
       })),
     } as unknown as ReferenceRuntime;
     const capture = vi
-      .fn<() => Promise<ReferenceCaptureManifest>>()
-      .mockResolvedValueOnce(manifest)
+      .fn<() => Promise<WindowCapture>>()
+      .mockResolvedValueOnce({ manifest })
       .mockRejectedValueOnce(
         Object.assign(new Error("capture failed"), {
           payload: { apiKey: "SECRET-API-KEY" },
@@ -482,8 +572,8 @@ describe("StoreRuntime", () => {
       dependencies: {
         capture: vi.fn(
           () =>
-            new Promise<ReferenceCaptureManifest>((resolve) => {
-              release = () => resolve(manifest);
+            new Promise<WindowCapture>((resolve) => {
+              release = () => resolve({ manifest });
             }),
         ),
         refreshCurves: skipCurveRefresh,
@@ -526,7 +616,7 @@ describe("StoreRuntime", () => {
           releaseWindow = resolve;
         });
       }
-      return manifest;
+      return { manifest };
     });
     const active = runtime.runWindow();
     while (releaseWindow === undefined) await Promise.resolve();
@@ -591,7 +681,7 @@ describe("StoreRuntime", () => {
         releaseWindow = resolve;
       });
       trace.push("window:end");
-      return manifest;
+      return { manifest };
     });
     const window = runtime.runWindow();
     const writeAfterWindow = runtime.runActivityWrite(
@@ -727,7 +817,7 @@ describe("StoreRuntime", () => {
         capture: vi.fn(
           (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
             signal = options.budget!.signal;
-            return new Promise<ReferenceCaptureManifest>((_, reject) => {
+            return new Promise<WindowCapture>((_, reject) => {
               signal.addEventListener("abort", () => reject(signal.reason), { once: true });
             });
           },
