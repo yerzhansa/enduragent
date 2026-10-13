@@ -64,14 +64,6 @@ const ACTIVITY_ID_DESCRIPTION =
   "optionally i-prefixed for intervals-native activities, or a lowercase 64-hex " +
   "canonical ID. Pass exactly as listed.";
 
-/**
- * Pure-Core intervals tools per ADR-0004 — no sport-specific config needed.
- * Wired by the binary entry point alongside the sport's own tools().
- *
- * `tz` is the athlete's IANA timezone — used so "today" in the past-workout
- * guard agrees with `event.startDateLocal` (which is in athlete-local frame),
- * not with UTC.
- */
 export function createPureCoreIntervalsTools(
   intervals: IntervalsClient | null,
   tz: string = "UTC",
@@ -193,8 +185,6 @@ export function createPureCoreIntervalsTools(
               }),
             ),
             execute: async (input: { activityId: number | string; types?: string[] }) => {
-              // Treat empty array the same as omitted — defensively handle the LLM
-              // calling with `types: []` "to play it safe" instead of dropping the field.
               const types = input.types?.length
                 ? input.types
                 : ["watts", "heartrate", "cadence", "time", "altitude"];
@@ -364,10 +354,6 @@ export function createPureCoreIntervalsTools(
   };
 }
 
-/**
- * Core-with-sport-config intervals tools per ADR-0004 — Core implementation,
- * sport-supplied activity-type filter at construction time.
- */
 export function createCoreToolsWithSportConfig(
   intervals: IntervalsClient | null,
   activityTypes: readonly IntervalsActivityType[],
@@ -376,10 +362,6 @@ export function createCoreToolsWithSportConfig(
   void intervals;
   const selectedReader = athleteData;
   if (!selectedReader) return {};
-  // The activityTypes array is reserved for future filtering of the API responses
-  // (e.g., when intervals.icu adds a server-side filter); today we keep the same
-  // list/fetch shape and let the LLM disambiguate via descriptions. Embedding
-  // the param in the closure keeps the contract stable across sports.
   void activityTypes;
   return {
     intervals_fetch_activities: tool({

@@ -1,13 +1,3 @@
-// trademark-lint:skip-file — anti-corruption layer tests legitimately name
-// the TP-trademarked source fields the rename layer reads.
-//
-// Behavioral tests for the anti-corruption layer per ADR-0012. The rename
-// layer reads intervals.icu's TP-trademarked API field names (ctl, atl,
-// ctlLoad, atlLoad, rampRate, icu_ctl, icu_atl) at runtime via Record-key
-// access and emits plain-English equivalents that metric computers consume
-// by name. The TP keys are stripped from the output; the rest of the row
-// rides through verbatim.
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -117,12 +107,6 @@ describe("assertNoTpKeysRemain", () => {
 });
 
 describe("parseRenamedActivity — branded type gate", () => {
-  // Type-level test: the branded input type forces sync-path authors
-  // through the rename layer. The runtime body just delegates to the
-  // schema parse; the load-bearing piece is the type signature, exercised
-  // here by composing rename → parse and asserting the resulting Activity
-  // has the post-rename fields.
-
   it("parseRenamedActivity accepts the output of renameTpFieldsOnActivity and returns a typed Activity", () => {
     const renamed = renameTpFieldsOnActivity({
       id: 17654321,
@@ -136,8 +120,6 @@ describe("parseRenamedActivity — branded type gate", () => {
     const activity = parseRenamedActivity(renamed);
     expect(activity.fitnessAtEnd).toBe(52.1);
     expect(activity.fatigueAtEnd).toBe(38.4);
-    // TP source keys never appear on the typed surface — the rename layer
-    // strips them and the schema's named fields don't include them.
     expect((activity as Record<string, unknown>).icu_ctl).toBeUndefined();
     expect((activity as Record<string, unknown>).icu_atl).toBeUndefined();
   });
@@ -158,9 +140,6 @@ describe("parseRenamedActivity — branded type gate", () => {
   });
 
   it("type system rejects un-renamed input — checked via @ts-expect-error", () => {
-    // The directive below fails the build if the line *does* type-check.
-    // That's the load-bearing assertion: a sync-path author who skips the
-    // rename call gets a type error, not a silent runtime bypass.
     const unrenamedRaw: Record<string, unknown> = {
       id: 17654321,
       start_date_local: "2026-04-15T07:00:00",
