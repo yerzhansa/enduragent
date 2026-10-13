@@ -12,10 +12,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertNoTpKeysRemain,
+  decodeWellnessRow,
   parseRenamedActivity,
   parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
   renameTpFieldsOnWellnessRow,
+  RowRejection,
   type RenameSummary,
 } from "../src/reference/sync/rename-tp-fields.js";
 
@@ -309,5 +311,69 @@ describe("parseRenamedActivity / parseRenamedWellnessRow — branded type gate",
     };
     // @ts-expect-error — RenamedActivityRow brand cannot be conjured from a plain Record
     parseRenamedActivity(unrenamedRaw);
+  });
+});
+
+describe("decodeWellnessRow", () => {
+  const BODY = { weight: 70.5, restingHR: 50, hrv: 80, sleepSecs: 28800, sleepQuality: 3 };
+
+  it("keeps a logged fatigue score apart from the short-term load average", () => {
+    const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529, ctl: 31.2, fatigue: 3 });
+    expect(day).toEqual({ id: "1998-07-17", ...BODY, fitness: 31.2, fatigue: 27.787529, subjectiveFatigue: 3 });
+  });
+
+  it("gives a day with a logged score and no load average no load fatigue", () => {
+    const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, fatigue: 3 });
+    expect(day).toEqual({ id: "1998-07-17", ...BODY, subjectiveFatigue: 3 });
+    expect(day).not.toHaveProperty("fatigue");
+  });
+
+  it("writes a null score on a day the athlete logged none", () => {
+    expect(decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529 })).toHaveProperty("subjectiveFatigue", null);
+  });
+
+  it("refuses a day it already decoded", () => {
+    const day = decodeWellnessRow({ id: "1998-07-17", ...BODY, atl: 27.787529 });
+    expect(day).not.toHaveProperty("fitness");
+    expect(() => decodeWellnessRow(day)).toThrow(new RowRejection("decode", "subjectiveFatigue"));
+  });
+
+  it("refuses a logged score that is not a whole number", () => {
+    expect(() => decodeWellnessRow({ id: "1998-07-17", ...BODY, fatigue: 27.787529 })).toThrow(
+      new RowRejection("decode", "subjectiveFatigue"),
+    );
+  });
+
+  it("refuses a load average that is not a number and names it in the coach's word", () => {
+    const decode = () => decodeWellnessRow({ id: "1998-07-17", ...BODY, ctl: "marker-4471" });
+    expect(decode).toThrow(new RowRejection("decode", "fitness"));
+    expect(decode).not.toThrow(/marker-4471/);
+  });
+
+  it("refuses a row that already carries a coach word for a load average, even when null", () => {
+    expect(() => decodeWellnessRow({ id: "1998-07-17", ...BODY, fitness: null })).toThrow(
+      new RowRejection("decode", "fitness"),
+    );
+  });
+
+  it("rejects a row that is not an object", () => {
+    for (const wire of [null, "1998-07-17", [{ id: "1998-07-17" }]]) {
+      expect(() => decodeWellnessRow(wire)).toThrow(new RowRejection("shape"));
+    }
+  });
+
+  it("names the key of a value it cannot read and never repeats the value", () => {
+    const decode = () => decodeWellnessRow({ id: "1998-07-17", ...BODY, restingHR: "marker-4471" });
+    expect(decode).toThrow(new RowRejection("decode", "restingHR"));
+    expect(decode).not.toThrow(/marker-4471/);
+  });
+
+  it("rejects a row that would keep a platform load key", () => {
+    expect(() => decodeWellnessRow({ id: "1998-07-17", ...BODY, icu_atl: 27.787529 })).toThrow(
+      new RowRejection("decode", "icu_atl"),
+    );
+    expect(() => decodeWellnessRow({ id: "1998-07-17", ...BODY, sportInfo: [{ type: "Ride", ctl: 31.2 }] })).toThrow(
+      new RowRejection("decode", "ctl"),
+    );
   });
 });

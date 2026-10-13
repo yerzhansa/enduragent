@@ -30,12 +30,14 @@ function formatStoreFreshness(freshness: StoredDataFreshness): string {
 
 function readResult<T>(
   result: AthleteReadResult<T>,
-): T | { error: string; message: string } | { data: T; freshness: string } {
+): T | { error: string; message: string } | { data: T; freshness?: string; notice?: string } {
   if (!result.ok) return { error: result.error, message: result.message };
-  if (result.freshness !== undefined) {
-    return { data: result.value, freshness: formatStoreFreshness(result.freshness) };
-  }
-  return result.value;
+  if (result.freshness === undefined && result.notice === undefined) return result.value;
+  return {
+    data: result.value,
+    ...(result.freshness === undefined ? {} : { freshness: formatStoreFreshness(result.freshness) }),
+    ...(result.notice === undefined ? {} : { notice: result.notice }),
+  };
 }
 
 function platformFailure(error: unknown): ReturnType<typeof toTypedError> {
@@ -104,7 +106,8 @@ export function createPureCoreIntervalsTools(
       ? {
           intervals_fetch_wellness: tool({
             description:
-              "Fetch wellness data from intervals.icu (fitness, fatigue, weight, HRV, resting HR, sleep). Form = fitness - fatigue.",
+              "Fetch wellness data from intervals.icu (fitness, fatigue, weight, HRV, resting HR, sleep). Form = fitness - fatigue. " +
+              "subjectiveFatigue is the athlete's self-reported fatigue score, not the load fatigue.",
             inputSchema: zodSchema(
               z.object({
                 oldest: dateKeySchema.describe("Start date (YYYY-MM-DD)"),

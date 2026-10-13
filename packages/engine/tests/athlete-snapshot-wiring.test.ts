@@ -36,7 +36,9 @@ const athlete = {
   icuWeight: 70,
   sportSettings: [],
 };
-const wellness = [{ id: "1998-07-05", ctl: 55, atl: 48, restingHR: 46, hrv: 75 }];
+const wellness = [
+  { id: "1998-07-05", fitness: 55, fatigue: 48, weight: null, restingHR: 46, hrv: 75, sleepSecs: null, sleepQuality: null },
+];
 
 function reader(available: boolean, calls: string[] = []): AthleteDataReaderPort {
   const unavailable = async () => ({
