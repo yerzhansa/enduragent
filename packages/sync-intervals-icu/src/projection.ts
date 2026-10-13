@@ -56,7 +56,7 @@ function selectedActivity(record: RecordRef, rows: readonly SelectedSourceRow[])
   const revision = currentRevision(record);
   const matches = rows.filter((row) => row.id === revision.source_record_id && row.revision_id === revision.revision_id);
   if (matches.length !== 1) throw new TypeError("activity source evidence is absent or ambiguous");
-  const selected = matches[0]!;
+  const selected = matches[0];
   if (selected.artifact_key === null || selected.archive_address === null || selected.archive_rel_path === null
     || selected.archive_epoch_s === null || selected.artifact_key !== record.store_evidence.artifact_key
     || selected.archive_address !== record.snapshot.address || selected.archive_rel_path !== record.snapshot.rel_path
@@ -71,7 +71,7 @@ function selectedGeneric(record: RecordRef, rows: readonly SelectedGenericRow[],
   const matches = rows.filter((row) => row.source_record_id === revision.source_record_id
     && row.revision_id === revision.revision_id);
   if (matches.length !== 1) throw new TypeError(`${label} source evidence is absent or ambiguous`);
-  const selected = matches[0]!;
+  const selected = matches[0];
   if (selected.artifact_key !== record.store_evidence.artifact_key
     || selected.archive_address !== record.snapshot.address || selected.archive_rel_path !== record.snapshot.rel_path
     || selected.external_id !== record.external_id) throw new TypeError(`${label} source evidence drifted`);
@@ -82,7 +82,7 @@ function selectedWellness(record: RecordRef, rows: readonly SourceArtifactRow[])
   if (record.store_evidence.current_revision !== null) throw new TypeError("wellness revision evidence is invalid");
   const matches = rows.filter((row) => row.artifact_key === record.store_evidence.artifact_key);
   if (matches.length !== 1) throw new TypeError("wellness source evidence is absent or ambiguous");
-  const selected = matches[0]!;
+  const selected = matches[0];
   if (selected.archive_address !== record.snapshot.address || selected.archive_rel_path !== record.snapshot.rel_path
     || selected.external_id !== record.external_id) throw new TypeError("wellness source evidence drifted");
   return selected;
@@ -155,7 +155,7 @@ export async function decodeLocalBundleProjection(
 
   const wellness: WellnessDay[] = [];
   for (let index = 0; index < manifest.records.wellness.length; index += 1) {
-    const record = manifest.records.wellness[index]!;
+    const record = manifest.records.wellness[index];
     selectedWellness(record, selected.wellness);
     const day = decodeWellnessRow(verified.wellness[index]);
     if (String(day.id) !== record.external_id) throw new TypeError("wellness identity changed");
@@ -170,21 +170,21 @@ export async function decodeLocalBundleProjection(
   }
   const streams: Record<string, ActivityStreams> = {};
   for (let index = 0; index < manifest.records.streams.length; index += 1) {
-    const record = manifest.records.streams[index]!;
+    const record = manifest.records.streams[index];
     const selectedRow = selectedGeneric(record, selected.streams, "streams");
     const streamEnvelope = parseGenericLandingEnvelope(selectedRow.payload_json, "streams");
     const normalized = normalizeStreams(verified.streams[index]);
     const streamLanding = normalizeStreamLanding(objectRow(normalized));
     assertNoTpKeysRemain(streamLanding);
     assertProjectionEvidenceEqual(streamEnvelope.landing, streamLanding, "streams");
-    const activityId = manifest.captured_stream_ids[index]!;
+    const activityId = manifest.captured_stream_ids[index];
     if (record.external_id !== `streams:${activityId}`) throw new TypeError("stream identity changed");
     streams[activityId] = streamLanding as ActivityStreams;
   }
 
   const decodedSettings: Readonly<Record<string, unknown>>[] = [];
   for (let index = 0; index < manifest.records.settings.length; index += 1) {
-    const record = manifest.records.settings[index]!;
+    const record = manifest.records.settings[index];
     const selectedRow = selectedGeneric(record, selected.settings, "settings");
     const settingEnvelope = parseGenericLandingEnvelope(selectedRow.payload_json, "settings");
     const decodedSetting = objectRow(verified.settings[index]);

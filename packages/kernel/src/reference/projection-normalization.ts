@@ -217,7 +217,7 @@ export function compareCanonicalUtf8(left: unknown, right: unknown): number {
   const a = new TextEncoder().encode(canonicalJson(left));
   const b = new TextEncoder().encode(canonicalJson(right));
   for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
-    if (a[i] !== b[i]) return a[i]! < b[i]! ? -1 : 1;
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
   }
   return a.length < b.length ? -1 : a.length > b.length ? 1 : 0;
 }

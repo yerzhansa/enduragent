@@ -48,11 +48,11 @@ function parseArgs(args: readonly string[]): CommandOptions {
   const allowed = new Set(["--reviewed-on", "--reason", "--replaces"]);
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index += 1) {
-    const flag = args[index]!;
-    if (!allowed.has(flag) || values.has(flag) || index + 1 >= args.length || args[index + 1]!.startsWith("--")) {
+    const flag = args[index];
+    if (!allowed.has(flag) || values.has(flag) || index + 1 >= args.length || args[index + 1].startsWith("--")) {
       throw new TypeError("invalid capture arguments");
     }
-    values.set(flag, args[++index]!);
+    values.set(flag, args[++index]);
   }
   const reviewedOn = values.get("--reviewed-on"), reason = values.get("--reason");
   if (reviewedOn === undefined || reason === undefined

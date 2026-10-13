@@ -178,8 +178,8 @@ const PUBLIC_STREAM_KEYS = new Set([
 export function isRealCivilDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [y, m, d] = value.split("-").map((part) => Number.parseInt(part, 10));
-  const parsed = new Date(Date.UTC(y!, m! - 1, d!));
-  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m! - 1 && parsed.getUTCDate() === d;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
 }
 
 function freshnessFor(snapshot: ProducedLocalBundle, clockNow: number): StoredDataFreshness | undefined {

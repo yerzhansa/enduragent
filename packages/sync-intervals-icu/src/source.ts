@@ -37,7 +37,7 @@ function objectRow(value: unknown, name: string): Record<string, unknown> {
 }
 
 function baseContentType(response: HttpResponse): string {
-  return (response.headers["content-type"] ?? "").split(";", 1)[0]!.trim().toLowerCase();
+  return (response.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
 }
 
 function parseJsonResponse(response: HttpResponse): unknown {
@@ -347,7 +347,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
 
     let offset = 0;
     bulkLoop: while (offset < remaining.length) {
-      const first = remaining[offset]!;
+      const first = remaining[offset];
       const safe = BULK_SAFE_ACTIVITY_ID.test(first.externalId);
       const group = safe
         ? remaining.slice(offset, offset + BULK_FIT_BATCH_SIZE).filter((entry, index, values) => index === 0
@@ -415,7 +415,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           container };
       }
       processed += group.length;
-      processedKey = group[group.length - 1]!.key;
+      processedKey = group[group.length - 1].key;
       offset += group.length;
     }
     yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey), droppedRows);
@@ -634,7 +634,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const requiredInstants = [civilDateEpochSeconds(plan.window.newest), civilDateEpochSeconds(plan.window.oldest), civilDateEpochSeconds(plan.window.oldest)];
     const endpoints: ReferenceCaptureEndpoint[] = [];
     for (const endpoint of endpointPayloads) {
-      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]!
+      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]
         : activityInstantById.get(endpoint.request.activity_id!);
       if (epochSeconds === undefined) throw new Error("stream activity instant is absent");
       const archiveInstant = rowInstant(epochSeconds);
@@ -677,7 +677,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
     const streams: ReferenceCaptureStreamRecord[] = [];
     for (let index = 0; index < members.streams.length; index += 1) {
-      const member = members.streams[index]!, endpoint = endpoints[3 + index]!;
+      const member = members.streams[index], endpoint = endpoints[3 + index];
       const normalized = options.acl.streams(structuredClone(member.payload)); options.acl.assertClean(normalized);
       const streamLanding = normalizeStreamLanding(normalized);
       const normalizedPayloadJson = canonicalJson(streamLanding);

@@ -75,7 +75,7 @@ export async function mapActivityLanding(options: {
   const duration = safeInteger(activity.elapsed_time, "activity elapsed time");
   const distance = activity.distance === undefined || activity.distance === null
     ? null : finiteNonnegative(activity.distance, "activity distance");
-  const sport = Object.hasOwn(SPORT_FAMILIES, type) ? SPORT_FAMILIES[type]! : "other";
+  const sport = Object.hasOwn(SPORT_FAMILIES, type) ? SPORT_FAMILIES[type] : "other";
   const normalizedActivityJson = canonicalJson(activity);
   const summaryJson = compactCanonical(activity);
   const concerns: Record<string, ConcernValue> = {
@@ -230,7 +230,7 @@ export async function mapSettingsLanding(normalized: Readonly<Record<string, unk
   const updatedMs = Date.parse(updated);
   const validFrom = Number.isFinite(updatedMs) && updatedMs >= 0 && updatedMs % 1_000 === 0
     && Number.isSafeInteger(updatedMs / 1_000) ? updatedMs / 1_000 : null;
-  const families = [...new Set(types.filter((type) => Object.hasOwn(SPORT_FAMILIES, type)).map((type) => SPORT_FAMILIES[type]!))]
+  const families = [...new Set(types.filter((type) => Object.hasOwn(SPORT_FAMILIES, type)).map((type) => SPORT_FAMILIES[type]))]
     .sort();
   const anchors: AnchorHistoryRow[] = [];
   const zoneRows: ZoneSetHistoryRow[] = [];

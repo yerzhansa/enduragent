@@ -220,9 +220,9 @@ function parseRun(args: readonly string[]): RunOptions {
   if (!HEAD.test(values.head ?? "") || !(SEASON_REVIEW_MODEL_SAMPLES as readonly string[]).includes(values.sample ?? "")) {
     throw new TypeError("Run identity is invalid.");
   }
-  return { head: values.head!, executionHead: values["execution-head"]!, sample: values.sample as SeasonReviewModelSample,
-    athleteHome: values["athlete-home"]!, agentData: values["agent-data"]!, report: values.report!,
-    runRecord: values["run-record"]!, marker: values["chat-start-marker"]! };
+  return { head: values.head, executionHead: values["execution-head"], sample: values.sample as SeasonReviewModelSample,
+    athleteHome: values["athlete-home"], agentData: values["agent-data"], report: values.report,
+    runRecord: values["run-record"], marker: values["chat-start-marker"] };
 }
 
 function validateExecutionHead(path: string, root: string, expected: string, actual: string): void {
@@ -277,7 +277,7 @@ async function selectedCaptureManifest(root: string): Promise<ReferenceCaptureMa
     }
   }
   const seen = new Set<string>();
-  let selected = roots[0]!.manifest.capture_id;
+  let selected = roots[0].manifest.capture_id;
   while (true) {
     if (seen.has(selected)) throw new TypeError("Capture replacement chain contains a cycle.");
     seen.add(selected);
@@ -488,7 +488,7 @@ function validateCalibrationFiles(
       const sourceLabel = readFileSync(item.source_label_path, "utf8").trim();
       if (sourceLabel !== RUBRIC_LABELS[index]) throw new TypeError("Rubric source label is invalid.");
       blindKeys.push(seasonReviewBlindKey(readFileSync(item.report_path), sourceLabel));
-      const actual = scoreVerdicts(score), expected = RUBRIC_EXPECTED[index]!;
+      const actual = scoreVerdicts(score), expected = RUBRIC_EXPECTED[index];
       if (actual.grounding !== expected[0] || actual.specificity !== expected[1] || actual.question_quality !== expected[2]) {
         throw new TypeError("Rubric calibration map is invalid.");
       }
@@ -523,8 +523,8 @@ function validateStages(indexPath: string, stage: "rubric" | "model"): {
   }
   const model = validateCalibrationFiles(index.model_calibration, root, "model");
   const records = model.map((item) => item.runRecord!);
-  if (records.some((record) => record.head_sha !== records[0]!.head_sha || record.provider !== records[0]!.provider
-    || record.model !== records[0]!.model || record.store_before_sha256 !== records[0]!.store_before_sha256)) {
+  if (records.some((record) => record.head_sha !== records[0].head_sha || record.provider !== records[0].provider
+    || record.model !== records[0].model || record.store_before_sha256 !== records[0].store_before_sha256)) {
     throw new TypeError("Model calibration identity is inconsistent.");
   }
   return { root, index, rubric, model };
@@ -563,7 +563,7 @@ function seal(indexPath: string, conclusionPath: string, expectedHead: string): 
   directPath(index.call_graph_path, root, "file", [0o600]);
   validateCallGraph(readJson(index.call_graph_path, [0o600]), index.base_sha);
   const model = validated.model!;
-  const provider = model[0]!.runRecord!.provider, modelName = model[0]!.runRecord!.model;
+  const provider = model[0].runRecord!.provider, modelName = model[0].runRecord!.model;
   const realReportSha256 = fileSha256(index.real.report_path);
   const realRecord = validateSeasonReviewRunRecord(readJson(index.real.run_record_path, [0o600]), {
     head_sha: expectedHead, sample: "real", provider, model: modelName, report_sha256: realReportSha256,
@@ -606,26 +606,26 @@ export async function executeSeasonReviewCommand(
   const [command, ...rest] = args;
   if (command === "run") return executeRun(parseRun(rest), dependencies);
   if (command === "validate-score") {
-    const values = optionMap(rest, ["report", "score"]), root = evidenceRootFor(values.report!);
-    directPath(values.report!, root, "file", [0o600]); directPath(values.score!, root, "file", [0o600]);
-    validateSeasonReviewScore(readJson(values.score!, [0o600]), fileSha256(values.report!));
+    const values = optionMap(rest, ["report", "score"]), root = evidenceRootFor(values.report);
+    directPath(values.report, root, "file", [0o600]); directPath(values.score, root, "file", [0o600]);
+    validateSeasonReviewScore(readJson(values.score, [0o600]), fileSha256(values.report));
     return { exitCode: 0, stdout: "" };
   }
   if (command === "validate-stage") {
     const values = optionMap(rest, ["stage", "index"]);
     if (values.stage !== "rubric" && values.stage !== "model") throw new TypeError("Validation stage is invalid.");
-    validateStages(values.index!, values.stage);
+    validateStages(values.index, values.stage);
     return { exitCode: 0, stdout: "" };
   }
   if (command === "seal") {
     const values = optionMap(rest, ["index", "conclusion"]), headSha = (dependencies.currentHead ?? currentHead)();
-    seal(values.index!, values.conclusion!, headSha);
+    seal(values.index, values.conclusion, headSha);
     return { exitCode: 0, stdout: "" };
   }
   if (command === "validate-conclusion") {
-    const values = optionMap(rest, ["conclusion"]), root = evidenceRootFor(values.conclusion!);
-    directPath(values.conclusion!, root, "file", [0o444]);
-    validateSeasonReviewConclusion(readJson(values.conclusion!, [0o444]));
+    const values = optionMap(rest, ["conclusion"]), root = evidenceRootFor(values.conclusion);
+    directPath(values.conclusion, root, "file", [0o444]);
+    validateSeasonReviewConclusion(readJson(values.conclusion, [0o444]));
     return { exitCode: 0, stdout: "" };
   }
   throw new TypeError("Invalid season review command.");
