@@ -41,9 +41,11 @@ import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
 import {
   persistReferenceCaptureConclusion,
   runReferenceCaptureCommand,
+} from "../src/reference-capture-command.js";
+import {
   validateReferenceCaptureConclusion,
   type ReferenceCaptureConclusionV1,
-} from "../src/reference-capture-command.js";
+} from "../src/reference-capture-conclusion.js";
 import { afterEach, describe, expect, it } from "vitest";
 
 interface SyntheticSeed {

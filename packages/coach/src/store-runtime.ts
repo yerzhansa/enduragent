@@ -158,13 +158,15 @@ export class StoreRuntime {
     this.openReadonlyStore = dependencies.openReadonlyStore ?? openReadonlySqliteStorage;
     this.storePath = join(options.home.storeDir, "store.db");
     this.canonicalActivities = {
-      listActivities: (input) => this.canonicalActivityReader().listActivities(input),
-      getActivity: (input) => this.canonicalActivityReader().getActivity(input),
-      getStreams: (input) => this.canonicalActivityReader().getStreams(input),
+      listActivities: (input) => this.canonicalActivityAccess().reader.listActivities(input),
+      getActivity: (input) => this.canonicalActivityAccess().reader.getActivity(input),
+      getStreams: (input) => this.canonicalActivityAccess().reader.getStreams(input),
     };
     try {
-      this.canonicalActivityReader();
-    } catch {}
+      this.canonicalActivityAccess();
+    } catch (error) {
+      if (this.readonlyStore !== undefined) throw error;
+    }
     this.scheduler = createWallClockScheduler({
       cadenceMs: STORE_REFRESH_INTERVAL_MS,
       run: async () => {
@@ -283,11 +285,17 @@ export class StoreRuntime {
     return new Promise((resolve) => this.admissionDrainWaiters.add(resolve));
   }
 
-  private canonicalActivityReader(): CanonicalActivityReader {
+  private canonicalActivityAccess(): {
+    readonly reader: CanonicalActivityReader;
+    readonly store: SqlReadStore;
+  } {
     if (this.readonlyStore === undefined) {
       this.readonlyStore = this.openReadonlyStore(this.storePath);
     }
-    return createCanonicalActivityReader(this.readonlyStore);
+    return {
+      reader: createCanonicalActivityReader(this.readonlyStore),
+      store: this.readonlyStore,
+    };
   }
 
   private async attestCanonicalActivities(
@@ -299,7 +307,7 @@ export class StoreRuntime {
     }
     const uniqueWorkoutKeys = [...new Set(workoutKeys)];
     if (uniqueWorkoutKeys.length !== workoutKeys.length) return false;
-    const reader = this.canonicalActivityReader();
+    const { reader, store } = this.canonicalActivityAccess();
     const deadline = this.dependencies.monotonicNow() + PUBLICATION_DEADLINE_MS;
     const withinBudget = (): boolean => {
       signal.throwIfAborted();
@@ -308,7 +316,7 @@ export class StoreRuntime {
     let streamReadbackComplete = false;
     for (const workoutKey of uniqueWorkoutKeys) {
       if (!withinBudget()) return false;
-      const rows = await this.readonlyStore!.all(
+      const rows = await store.all(
         `SELECT
   s.session_key,
   count(st.channel) AS stream_count,
@@ -322,7 +330,7 @@ LIMIT 1`,
         [workoutKey],
       );
       if (!withinBudget() || rows.length !== 1) return false;
-      const row = rows[0]!;
+      const row = rows[0];
       if (typeof row.session_key !== "string" || !CANONICAL_KEY.test(row.session_key)) {
         return false;
       }
