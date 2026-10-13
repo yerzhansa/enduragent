@@ -120,6 +120,10 @@ const TRANSFORMS: ReadonlyMap<string, Transform> = new Map<string, Transform>([
     (v) => (v === null || v === undefined ? v : "sanitized"),
   ],
   [
+    "description",
+    (v) => (v === null || v === undefined ? v : "sanitized"),
+  ],
+  [
     "source",
     (v) => {
       if (v === null || v === undefined) return v;

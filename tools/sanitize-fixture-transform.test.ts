@@ -120,6 +120,24 @@ describe("sanitizeFixture (allowlist)", () => {
     });
   });
 
+  it("sanitizes an activity `description` to the 'sanitized' sentinel and keeps null as null", () => {
+    expect(
+      sanitizeFixture({
+        activities: [
+          {
+            id: 1,
+            type: "Ride",
+            start_date_local: "1998-03-14T08:00:00",
+            description: "marker-1998 easy spin past the old school",
+          },
+          { id: 2, type: "Ride", start_date_local: "1998-03-15T08:00:00", description: null },
+        ],
+      }),
+    ).toMatchObject({
+      activities: [{ description: "sanitized" }, { description: null }],
+    });
+  });
+
   it("drops the hardware/source/route surfaces the prior denylist missed", () => {
     // Regression guard for the four leaks the QA review surfaced —
     // power_meter_serial (Favero hardware serial), power_meter (model),
