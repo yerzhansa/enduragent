@@ -301,6 +301,22 @@ describe("intervals.icu full-history source", () => {
       droppedActivityRows: { sourceRestricted: 1, other: 1 } });
   });
 
+  it("lists each dropped date once in order and counts a dropped row without a civil date", async () => {
+    const page = [
+      { id: "typeless-03", start_date_local: "1998-08-21T09:00:00" },
+      { id: "typeless-01", start_date_local: "1998-08-20T14:08:41" },
+      { id: "typeless-02", start_date_local: "1998-08-20T18:00:00" },
+      { id: "typeless-04", start_date_local: "1998-02-30T09:00:00" },
+      { id: "typeless-05" },
+      activity("visible-0"),
+    ];
+
+    const result = await collect(source({ fetch: async () => json(page) }).pull(watermark("activities"), budget()));
+
+    expect(result.at(-1)).toMatchObject({ kind: "checkpoint", droppedActivityRows: { sourceRestricted: 0, other: 5,
+      datedLocalDates: ["1998-08-20", "1998-08-21"], undatedCount: 2 } });
+  });
+
   it("reports zero drops when the page carries no unusable rows", async () => {
     const page = Array.from({ length: 67 }, (_, index) => activity(
       `full-${String(index).padStart(2, "0")}`,

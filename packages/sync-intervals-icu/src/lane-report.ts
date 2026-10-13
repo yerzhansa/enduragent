@@ -11,7 +11,7 @@ export type RowPhase = "fetch" | "decode" | "landing";
 
 export type RowDropReason = RowRejectionReason | "source-restricted" | "fetch" | "unclassified";
 
-export const DROP_ERROR_NAMES = ["Error", "TypeError", "RangeError", "SyntaxError"] as const;
+export const DROP_ERROR_NAMES = ["Error", "TypeError", "RangeError", "SyntaxError", "ZodError"] as const;
 export type DropErrorName = (typeof DROP_ERROR_NAMES)[number];
 
 export interface RowDrop {
@@ -32,7 +32,7 @@ export type RowOutcome<T> =
 export interface RowSite {
   readonly lane: CaptureLane;
   readonly payloadIndex: number | null;
-  readonly externalId?: string;
+  readonly activityId?: string;
 }
 
 export interface LaneReport {
@@ -73,7 +73,10 @@ function safeActivityId(id: unknown): string | null {
 
 function rowIdentity(site: RowSite, payload: unknown): Pick<RowDrop, "externalId" | "localDate"> {
   const row = fields(payload);
-  if (site.lane === "streams") return { externalId: site.externalId ?? null, localDate: null };
+  if (site.lane === "streams") {
+    const activityId = safeActivityId(site.activityId);
+    return { externalId: activityId === null ? null : `streams:${activityId}`, localDate: null };
+  }
   if (site.lane === "settings") {
     return { externalId: typeof row.id === "number" && Number.isSafeInteger(row.id) ? String(row.id) : null, localDate: null };
   }

@@ -3,6 +3,7 @@ import { canonicalJson } from "@enduragent/kernel/archive";
 import { createReferenceCapturePlan } from "@enduragent/kernel/reference/capture";
 import type { SyncBudget } from "@enduragent/kernel/store";
 import { describe, expect, it } from "vitest";
+import { SyncBudgetExceededError } from "../src/http.js";
 import { activityDropEvidence } from "../src/lane-report.js";
 import { createIntervalsIcuSource } from "../src/source.js";
 
@@ -17,19 +18,21 @@ function response(value: unknown, status = 200, contentType = "application/json"
   return { status, headers: { "content-type": contentType }, body: new TextEncoder().encode(JSON.stringify(value)) };
 }
 
-function budget(maxArtifacts = 20): SyncBudget {
+function budget(maxArtifacts = 20, overrides: Partial<SyncBudget> = {}): SyncBudget {
   return { signal: new AbortController().signal, clock: { monotonicNow: () => 1 }, deadlineMonotonicMs: 1_000,
-    perRequestTimeoutMs: 1_000, maxRequests: 20, maxArtifacts };
+    perRequestTimeoutMs: 1_000, maxRequests: 20, maxArtifacts, ...overrides };
 }
 
 function fixture(stream: unknown = { time: [0, 1], watts: [200, 210] }, activities: readonly unknown[] = [ACTIVITY],
-  wellness: readonly unknown[] = [WELLNESS], overrides: { readonly profile?: unknown; readonly streamStatus?: number } = {}) {
+  wellness: readonly unknown[] = [WELLNESS], overrides: { readonly profile?: unknown; readonly streamStatus?: number;
+    readonly streamRequest?: () => ReturnType<typeof response> } = {}) {
   const requests: string[] = [], writes: { payload: unknown; epoch: number }[] = [];
   const queue = [response(overrides.profile ?? PROFILE), response(activities), response(wellness),
     response(stream, overrides.streamStatus ?? 200)];
   const source = createIntervalsIcuSource({ athleteId: "synthetic-athlete", historyNewestDate: "1998-07-18",
     minRequestIntervalMs: 250, wallClock: { now: () => NOW.getTime() }, sleep: async () => {},
-    httpFactory: () => ({ fetch: async (request) => { requests.push(request.url); return queue.shift()!; } }),
+    httpFactory: () => ({ fetch: async (request) => { requests.push(request.url);
+      return requests.length > 3 && overrides.streamRequest !== undefined ? overrides.streamRequest() : queue.shift()!; } }),
     archive: {
       async writeSnapshot(payload, instant) { writes.push({ payload, epoch: instant.epochSeconds });
         const address = createHash("sha256").update(canonicalJson(payload)).update(String(instant.epochSeconds)).digest("hex");
@@ -196,6 +199,42 @@ describe("capture report", () => {
       unfetched: [{ lane: "streams", payloadIndex: null, externalId: "streams:42", localDate: null, phase: "fetch",
         reason: "fetch", field: "http_404", errorName: null }],
     });
+  });
+
+  it("keeps no id for a recording whose activity id is free text", async () => {
+    const batch = await fixture({}, [{ ...ACTIVITY, id: `free text / ${MARKER}` }], undefined, { streamStatus: 404 })
+      .source.captureReference(PLAN, budget());
+
+    expect(batch.report.streams.unfetched).toEqual([{ lane: "streams", payloadIndex: null, externalId: null, localDate: null,
+      phase: "fetch", reason: "fetch", field: "http_404", errorName: null }]);
+    expect(JSON.stringify(batch.report)).not.toContain(MARKER);
+  });
+
+  it("ends the capture when the request budget runs out while a recording download is retried", async () => {
+    const capture = fixture(undefined, undefined, undefined, { streamRequest: () => response({}, 503) })
+      .source.captureReference(PLAN, budget(20, { maxRequests: 5 }));
+
+    await expect(capture).rejects.toBeInstanceOf(SyncBudgetExceededError);
+  });
+
+  it("ends the capture with the transport's error when the capture is aborted during a recording download", async () => {
+    const controller = new AbortController();
+    const capture = fixture(undefined, undefined, undefined, { streamRequest: () => {
+      controller.abort();
+      throw new Error("synthetic socket closed");
+    } }).source.captureReference(PLAN, budget(20, { signal: controller.signal }));
+
+    await expect(capture).rejects.toThrow("synthetic socket closed");
+  });
+
+  it("ends the capture when the deadline passes during a recording download that failed", async () => {
+    let now = 1;
+    const capture = fixture(undefined, undefined, undefined, { streamRequest: () => {
+      now = 5_000;
+      return response({}, 404);
+    } }).source.captureReference(PLAN, budget(20, { clock: { monotonicNow: () => now } }));
+
+    await expect(capture).rejects.toBeInstanceOf(SyncBudgetExceededError);
   });
 
   it("counts a downloaded recording that cannot be landed as a dropped row", async () => {

@@ -53,6 +53,9 @@ describe("attempt", () => {
       phase: "landing", reason: "unclassified", field: null, errorName: null });
     expect(listed.errorName).toBe("RangeError");
     expect(thrownValue.errorName).toBeNull();
+    expect((await dropped(attempt("decode", site, { id: 7 }, () => {
+      throw Object.assign(new Error(MARKER), { name: "ZodError" });
+    }))).errorName).toBe("ZodError");
     expect(JSON.stringify([unlisted, listed, thrownValue])).not.toContain(MARKER);
   });
 
@@ -64,7 +67,7 @@ describe("attempt", () => {
   });
 
   it("reports a failed request as a fetch of its status", async () => {
-    const site = { lane: "streams", payloadIndex: null, externalId: "streams:42" } as const;
+    const site = { lane: "streams", payloadIndex: null, activityId: "42" } as const;
 
     expect(await dropped(attempt("fetch", site, undefined, () => { throw new IntervalsHttpError("streams", 503, null); })))
       .toEqual({ lane: "streams", payloadIndex: null, externalId: "streams:42", localDate: null,
@@ -85,6 +88,17 @@ describe("attempt", () => {
     expect(await identity({ id: "a".repeat(65) })).toEqual([null, null]);
     expect(await identity({ id: 1.5 })).toEqual([null, null]);
     expect(await identity(MARKER)).toEqual([null, null]);
+  });
+
+  it("keeps the activity id of a recording only in a safe shape", async () => {
+    const fail = (): never => { throw new TypeError("bad"); };
+    const identity = async (activityId: string | undefined) => (await dropped(attempt("fetch",
+      { lane: "streams", payloadIndex: null, ...(activityId === undefined ? {} : { activityId }) }, undefined, fail))).externalId;
+
+    expect(await identity("ride-1.2")).toBe("streams:ride-1.2");
+    expect(await identity(`free text ${MARKER}`)).toBeNull();
+    expect(await identity("a".repeat(65))).toBeNull();
+    expect(await identity(undefined)).toBeNull();
   });
 
   it("marks a withheld activity as source-restricted whatever the error was", async () => {

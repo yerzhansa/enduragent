@@ -470,8 +470,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
 
   async function landStreamEndpoint(endpoint: ReferenceCaptureEndpointPayload): Promise<RowOutcome<DerivedCaptureMember>> {
     const activityId = endpoint.request.activity_id;
-    const site: RowSite = { lane: "streams", payloadIndex: null,
-      ...(typeof activityId === "string" ? { externalId: `streams:${activityId}` } : {}) };
+    const site: RowSite = { lane: "streams", payloadIndex: null, ...(typeof activityId === "string" ? { activityId } : {}) };
     const decoded = await attempt("decode", site, endpoint.payload, () => {
       if (endpoint.lane !== "streams" || endpoint.endpoint !== "activity-streams" || activityId === null) {
         throw new TypeError("stream endpoint is invalid");
@@ -490,7 +489,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
 
   interface CaptureDerivation {
     readonly members: DerivedCaptureMembers;
-    readonly report: CaptureReport;
+    readonly report: Omit<CaptureReport, "streams">;
     readonly wellnessLandings: readonly WellnessLanding[];
   }
 
@@ -516,7 +515,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (!Array.isArray(wellnessPayload)) throw new TypeError("wellness response is invalid");
 
     const tally = { settings: new LaneTally("settings"), activities: new LaneTally("activities"),
-      wellness: new LaneTally("wellness"), streams: new LaneTally("streams") };
+      wellness: new LaneTally("wellness") };
     const settings: DerivedCaptureMember[] = [];
     for (const [index, entry] of sourceSettings.entries()) {
       const member = tally.settings.take(await landSettingRow(entry, index));
@@ -537,8 +536,8 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
     const streams: DerivedCaptureMember[] = [];
     for (const endpoint of streamEndpoints) {
-      const member = tally.streams.take(await landStreamEndpoint(endpoint));
-      if (member !== undefined) streams.push(member);
+      const landed = await landStreamEndpoint(endpoint);
+      if (landed.ok) streams.push(landed.value);
     }
     for (const [lane, members] of Object.entries({ settings, activities, wellness, streams })) {
       const ids = members.map((member) => member.external_id);
@@ -551,7 +550,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         selected_stream_ids: Object.freeze(selectReferenceCaptureStreamIds(activities.map((member) => member.payload), plan)),
       }),
       report: Object.freeze({ settings: tally.settings.report(), activities: tally.activities.report(),
-        wellness: tally.wellness.report(), streams: tally.streams.report() }),
+        wellness: tally.wellness.report() }),
       wellnessLandings: Object.freeze(wellnessLandings),
     };
   }
@@ -604,7 +603,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const streamTally = new LaneTally("streams");
     for (const activityId of selectedIds) {
       requester.assertActive();
-      const fetched = await attempt("fetch", { lane: "streams", payloadIndex: null, externalId: `streams:${activityId}` },
+      const fetched = await attempt("fetch", { lane: "streams", payloadIndex: null, activityId },
         undefined, () => fetchJson(requester, "streams", { method: "GET", url: streamUrl(activityId) }),
         (error) => error instanceof SyncBudgetExceededError || budget.signal.aborted);
       if (!fetched.ok) {
@@ -670,7 +669,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const wellness: ReferenceCaptureWellnessRecord[] = [];
     for (const [index, member] of members.wellness.entries()) {
       const landing = derivation.wellnessLandings[index];
-      if (landing === undefined || landing.externalId !== member.external_id) throw new Error("captured wellness attribution is invalid");
+      if (landing === undefined) throw new Error("captured wellness attribution is invalid");
       const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
       wellness.push({ endpointOrdinal: member.endpoint_ordinal, payloadIndex: member.payload_index,
         externalId: member.external_id, payload: landing.wire, archiveInstant: landing.instant, archive,
