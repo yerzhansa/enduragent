@@ -254,21 +254,8 @@ export async function persistReferenceCaptureConclusion(
     const final = validateReferenceCaptureConclusion(JSON.parse(finalBytes));
     if (finalBytes !== bytes || `${canonicalJson(final)}\n` !== bytes) throw new TypeError("conclusion reload differs");
   } catch (error) {
-    if (handle !== undefined) {
-      try {
-        await handle.close();
-      } catch (closeError) {
-        if (
-          typeof closeError !== "object" ||
-          closeError === null ||
-          !("code" in closeError) ||
-          (closeError.code !== "ERR_DIR_CLOSED" && closeError.code !== "EBADF")
-        ) {
-          throw closeError;
-        }
-      }
-    }
-    await rm(temporary, { force: true });
+    try { await handle?.close(); }
+    finally { await rm(temporary, { force: true }); }
     throw error;
   }
 }
@@ -283,7 +270,6 @@ function replayReader(payloads: CapturedPayloads): VerifiedSnapshotReader {
   } };
 }
 
-const replayDoesNotWait = async (): Promise<void> => undefined;
 const replaySkipsStoreEvidence = async (): Promise<void> => undefined;
 
 function dummyArchive(): ArchiveManager {
@@ -295,7 +281,7 @@ function dummyArchive(): ArchiveManager {
 function replaySource(manifest: ReferenceCaptureManifest): IntervalsIcuCaptureSource {
   return createIntervalsIcuSource({ athleteId: "capture-once", historyNewestDate: manifest.plan.window.newest,
     minRequestIntervalMs: 250, archive: dummyArchive(), wallClock: { now: () => manifest.plan.capture_epoch_ms },
-    sleep: replayDoesNotWait,
+    async sleep() { throw new TypeError("capture replay does not wait"); },
     httpFactory: () => ({ async fetch() { throw new TypeError("network is unavailable"); } }),
     acl: Object.freeze({
       activity(value: Record<string, unknown>) {

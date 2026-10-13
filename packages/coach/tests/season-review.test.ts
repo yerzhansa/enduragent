@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { USAGE_LEDGER_FILE } from "@enduragent/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   executeSeasonReviewCommand,
@@ -491,6 +492,56 @@ describe("season review run command", () => {
       validateSeasonReviewRunRecord(JSON.parse(await readFile(input.runRecord, "utf8"))).cost
         .usd_total,
     ).toBe(0.33);
+  });
+});
+
+describe("season review usage ledger", () => {
+  async function runWithLedger(lines: readonly unknown[]) {
+    const input = await fixture();
+    const result = await executeSeasonReviewCommand(
+      input.args,
+      dependencies(
+        () => ({
+          engine: {
+            chat: async () => {
+              await writeFile(join(input.agentData, USAGE_LEDGER_FILE),
+                lines.map((line) => `${JSON.stringify(line)}\n`).join(""), { mode: 0o600 });
+              return { text: "synthetic report" };
+            },
+          },
+          provider: "synthetic-provider",
+          model: "synthetic-model",
+          close: async () => {},
+        }),
+        input,
+        { readUsage: undefined },
+      ),
+    );
+    return { input, result };
+  }
+
+  it("reads a priced generate row and ignores other rows from the ledger file", async () => {
+    const { input, result } = await runWithLedger([
+      { ...usage({ cost: { input: 0.1, output: 0.2, cacheRead: 0.01, cacheWrite: 0.02, total: 0.33 } }), ts: 1 },
+      { kind: "turn", chatId: "synthetic" },
+      { kind: "boot" },
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ status: "generated", generate_calls: 1, priced: true });
+    expect(validateSeasonReviewRunRecord(JSON.parse(await readFile(input.runRecord, "utf8"))).cost)
+      .toMatchObject({ input_tokens: 10, output_tokens: 4, usd_total: 0.33 });
+  });
+
+  it.each([
+    ["a token count that is not a number", usage({ inputTokens: "10" as unknown as number })],
+    ["a cost with a missing part", { ...usage(), cost: { input: 0.1, output: 0.2, cacheRead: 0.01, total: 0.31 } }],
+    ["a generate row without a model", { kind: "generate", provider: "synthetic-provider" }],
+  ])("fails the run on %s", async (_name, row) => {
+    const { result } = await runWithLedger([row]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({ status: "run_failed" });
   });
 });
 

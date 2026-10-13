@@ -123,6 +123,7 @@ async function makeRuntime(
     },
   );
   const produce = vi.fn(async () => produced);
+  const openReadonlyStore = vi.fn(() => readonlyStore);
   runtime = createStoreRuntime({
     env: {},
     config: runtimeConfig,
@@ -141,11 +142,22 @@ async function makeRuntime(
       produce,
       now: () => new Date("1998-07-18T12:00:00.000Z"),
       monotonicNow: () => 1,
-      openReadonlyStore: () => readonlyStore,
+      openReadonlyStore,
     },
   });
-  return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore };
+  return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore, openReadonlyStore };
 }
+
+describe("StoreRuntime read-only store", () => {
+  it("opens the read-only store on the first activity read, not at creation", async () => {
+    const { runtime, openReadonlyStore } = await makeRuntime();
+
+    expect(openReadonlyStore).not.toHaveBeenCalled();
+    await runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" });
+
+    expect(openReadonlyStore).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("StoreRuntime capture health", () => {
   const CLEAN: LaneReport = { fetched: 1, landed: 1, drops: [], unfetched: [] };
@@ -896,6 +908,7 @@ describe("StoreRuntime", () => {
   it("shares close, aborts active work, rejects queued work, and closes the reader once", async () => {
     const readonlyStore = emptyReadonlyStore();
     const { runtime } = await makeRuntime(config, undefined, readonlyStore);
+    await runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" });
     const active = runtime.runExclusive(
       (signal) =>
         new Promise<void>((_, reject) => {

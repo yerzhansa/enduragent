@@ -426,15 +426,14 @@ function runRecordBytes(record: SeasonReviewRunRecord): Uint8Array {
 async function executeRun(options: RunOptions, dependencies: SeasonReviewCommandDependencies): Promise<SeasonReviewCommandResult> {
   const resolveHome = dependencies.resolveHome ?? resolveAthleteHome;
   let createdAgentData = false;
-  let storePath: string | undefined, before: string | undefined;
   const inventory = dependencies.storeInventory ?? storeInventory;
   try {
     const root = evidenceRootFor(options.executionHead);
     for (const path of [options.agentData, options.report, options.runRecord, options.marker]) directPath(path, root, "new");
     const actualHead = (dependencies.currentHead ?? currentHead)();
     validateExecutionHead(options.executionHead, root, options.head, actualHead);
-    storePath = validateAthleteHome(options.athleteHome, resolveHome);
-    before = inventory(storePath);
+    const storePath = validateAthleteHome(options.athleteHome, resolveHome);
+    const before = inventory(storePath);
     if (!HASH.test(before)) throw new TypeError("Store inventory hash is invalid.");
     mkdirSync(options.agentData, { mode: 0o700 });
     createdAgentData = true;

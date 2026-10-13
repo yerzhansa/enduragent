@@ -162,11 +162,6 @@ export class StoreRuntime {
       getActivity: (input) => this.canonicalActivityAccess().reader.getActivity(input),
       getStreams: (input) => this.canonicalActivityAccess().reader.getStreams(input),
     };
-    try {
-      this.canonicalActivityAccess();
-    } catch (error) {
-      if (this.readonlyStore !== undefined) throw error;
-    }
     this.scheduler = createWallClockScheduler({
       cadenceMs: STORE_REFRESH_INTERVAL_MS,
       run: async () => {
