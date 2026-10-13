@@ -363,7 +363,6 @@
     "packages/sport-running/tsup.config.ts": 3,
     "packages/sync-intervals-icu/src/analytics-curve-projection.ts": 3,
     "tools/build-capability-fixture.ts": 59,
-    "tools/build-curve-fixture.ts": 2,
     "tools/build-dfa-fixture.ts": 70,
     "tools/build-running-fixture.ts": 86,
     "tools/check-changeset-user-facing.test.ts": 18,
@@ -504,7 +503,6 @@
   },
   "lint-suppression": {
     "tools/build-capability-fixture.ts": 2,
-    "tools/build-curve-fixture.ts": 2,
     "tools/fixture-builder-util.ts": 2,
     "tools/native-check-gate.ts": 1,
     "tools/snapshot-section-11.ts": 4
