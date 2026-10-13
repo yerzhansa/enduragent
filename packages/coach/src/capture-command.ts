@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { serializeReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
-import { ReferenceCaptureRunError, runReferenceCapture } from "./capture.js";
+import { CAPTURE_LANES, captureHealth, formatRowDrop, judgedDrops, type CaptureLane, type LaneReport } from "@enduragent/sync-intervals-icu";
+import { referenceCaptureRunError, ReplacedCaptureNotReplayableError, runReferenceCapture } from "./capture.js";
 
 interface CommandOptions {
   readonly reviewedOn: string;
@@ -16,6 +17,23 @@ function realDate(value: string): boolean {
   const [year, month, day] = value.split("-").map(Number) as [number, number, number];
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day;
+}
+
+type CaptureCommandExitCode = 0 | 1 | 2 | 3;
+
+export const REPLACED_CAPTURE_REFUSAL =
+  "REFERENCE_CAPTURE refused reason=replaced_capture_not_replayable. "
+  + "The capture named by --replaces could not be loaded and replayed, so it cannot be replaced. "
+  + "Nothing was written. Check the capture id. To start a new chain instead, run again with --reason initial and without --replaces.";
+
+function formatLaneLine(lane: CaptureLane, report: LaneReport): string {
+  const dropped = judgedDrops(report);
+  const [firstDrop] = dropped;
+  const [firstUnfetched] = report.unfetched;
+  return `REFERENCE_CAPTURE lane=${lane} fetched=${report.fetched} landed=${report.landed}`
+    + ` dropped=${dropped.length} withheld=${report.drops.length - dropped.length} unfetched=${report.unfetched.length}`
+    + (firstDrop === undefined ? "" : ` first_drop="${formatRowDrop(firstDrop)}"`)
+    + (firstUnfetched === undefined ? "" : ` first_unfetched="${formatRowDrop(firstUnfetched)}"`);
 }
 
 export interface CaptureCommandDependencies {
@@ -61,7 +79,7 @@ export async function runCaptureReferenceCommand(
   args: readonly string[],
   env: Record<string, string | undefined>,
   dependencies: CaptureCommandDependencies = {},
-): Promise<number> {
+): Promise<CaptureCommandExitCode> {
   const stdout = dependencies.stdout ?? ((line: string) => process.stdout.write(`${line}\n`));
   const stderr = dependencies.stderr ?? ((line: string) => process.stderr.write(`${line}\n`));
   let options: CommandOptions, credentials: { apiKey: string; athleteId: string };
@@ -71,7 +89,7 @@ export async function runCaptureReferenceCommand(
     return 2;
   }
   try {
-    const manifest = await (dependencies.runCapture ?? runReferenceCapture)({ env, apiKey: credentials.apiKey,
+    const { manifest, report } = await (dependencies.runCapture ?? runReferenceCapture)({ env, apiKey: credentials.apiKey,
       athleteId: credentials.athleteId, calendarTimeZone: "UTC", reviewedOn: options.reviewedOn,
       reason: options.reason,
       ...(options.replacesCaptureId === undefined ? {} : { replacesCaptureId: options.replacesCaptureId }) }, {
@@ -80,10 +98,17 @@ export async function runCaptureReferenceCommand(
     });
     const hash = createHash("sha256").update(serializeReferenceCaptureManifest(manifest)).digest("hex");
     stdout(`REFERENCE_CAPTURE recorded activities=${manifest.records.activities.length} wellness=${manifest.records.wellness.length} settings=${manifest.records.settings.length} streams=${manifest.records.streams.length} evidence_sha256=${hash}`);
-    return 0;
+    for (const lane of CAPTURE_LANES) {
+      if (report[lane].drops.length > 0 || report[lane].unfetched.length > 0) stdout(formatLaneLine(lane, report[lane]));
+    }
+    const health = captureHealth(report);
+    if (health.status === "ok") return 0;
+    stderr(`REFERENCE_CAPTURE degraded lost=${CAPTURE_LANES.filter((lane) => health.lanes[lane] === "lost").join(",")}`);
+    return 3;
   } catch (error) {
-    const category = error instanceof ReferenceCaptureRunError ? error.category : "capture";
-    stderr(`REFERENCE_CAPTURE failed category=${category}`);
+    const failure = referenceCaptureRunError(error);
+    stderr(`REFERENCE_CAPTURE failed category=${failure?.category ?? "capture"}`);
+    if (failure?.cause instanceof ReplacedCaptureNotReplayableError) stderr(REPLACED_CAPTURE_REFUSAL);
     return 1;
   }
 }
