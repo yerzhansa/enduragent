@@ -12,11 +12,13 @@ import {
 import {
   assertProjectionEvidenceEqual,
   parseCanonicalProjectionValue,
+  RowRejection,
 } from "@enduragent/kernel/reference/local-bundle";
 import type { SourceLane, SourceWatermark, SyncBudget } from "@enduragent/kernel/store";
 import { activityIdentity, landWellnessRow, mapActivityLanding, mapSettingsLanding, normalizeStreamLanding, type WellnessLanding } from "./landing.js";
 import { advanceWindow, civilDateEpochSeconds, compactCursor, compareBinary, parseCivilDate, parseCursor, type CursorRange, type RangeCursor } from "./cursor.js";
 import { createRequester, IntervalsHttpError, MIN_CONFIGURED_INTERVAL_MS, SyncBudgetExceededError, type IntervalsRequester } from "./http.js";
+import { attempt, civilDatePrefix, isSourceRestrictedRow, LaneTally, type CaptureReport, type RowOutcome, type RowSite } from "./lane-report.js";
 import { BULK_FIT_BATCH_SIZE, BULK_SAFE_ACTIVITY_ID, IncompleteBulkFitBatchError, MAX_FIT_BYTES, MAX_ZIP_BYTES, extractBulkFitZip } from "./zip.js";
 import { INTERVALS_ICU_CAPABILITIES, INTERVALS_ICU_SOURCE_ID, MAX_JSON_BYTES, ZERO_DROPPED_ACTIVITY_ROWS, type DroppedActivityRowEvidence, type IntervalsIcuArtifact, type IntervalsIcuCaptureSource, type IntervalsIcuCheckpoint, type IntervalsIcuSourceOptions, type ReferenceCaptureActivityRecord, type ReferenceCaptureBatch, type ReferenceCaptureEndpoint, type ReferenceCaptureSettingsRecord, type ReferenceCaptureStreamRecord, type ReferenceCaptureWellnessRecord } from "./types.js";
 
@@ -63,13 +65,6 @@ interface ActivityIndexEntry extends ReturnType<typeof activityIdentity> {
   readonly row: Record<string, unknown>;
 }
 
-const SOURCE_RESTRICTED_PROVIDER = "STRAVA";
-
-function isSourceRestrictedRow(entry: unknown): boolean {
-  if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
-  return (entry as Record<string, unknown>).source === SOURCE_RESTRICTED_PROVIDER;
-}
-
 class DropTally {
   private restricted = 0;
   private rest = 0;
@@ -78,17 +73,12 @@ class DropTally {
   record(entry: unknown): void {
     if (isSourceRestrictedRow(entry)) this.restricted += 1;
     else this.rest += 1;
-    const local =
+    const date =
       entry !== null && typeof entry === "object" && !Array.isArray(entry)
-        ? (entry as Record<string, unknown>).start_date_local
-        : undefined;
-    if (typeof local === "string") {
-      try {
-        this.dates.add(parseCivilDate(local.slice(0, 10)));
-        return;
-      } catch {}
-    }
-    this.undated += 1;
+        ? civilDatePrefix((entry as Record<string, unknown>).start_date_local)
+        : null;
+    if (date === null) this.undated += 1;
+    else this.dates.add(date);
   }
   evidence(): DroppedActivityRowEvidence {
     return Object.freeze({
@@ -431,102 +421,146 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey), droppedRows);
   }
 
-  let capturedActivityDrops: DroppedActivityRowEvidence = ZERO_DROPPED_ACTIVITY_ROWS;
-
   const placeholderArchive: ArchiveWriteResult = Object.freeze({
     address: "0".repeat(64),
     relPath: `1970/01/${"0".repeat(64)}.json.gz`,
     deduped: false,
   });
 
-  async function deriveStreamMember(endpoint: ReferenceCaptureEndpointPayload): Promise<DerivedCaptureMember | null> {
-    try {
-      if (endpoint.lane !== "streams" || endpoint.endpoint !== "activity-streams"
-        || endpoint.request.activity_id === null) throw new TypeError("stream endpoint is invalid");
+  async function landSettingRow(payload: unknown, payloadIndex: number): Promise<RowOutcome<DerivedCaptureMember>> {
+    const site: RowSite = { lane: "settings", payloadIndex };
+    const decoded = await attempt("decode", site, payload, () => {
+      const row = objectRow(payload, "sport setting");
+      settingsIdentity(row);
+      const copy = structuredClone(row);
+      options.acl.assertClean(copy);
+      return { row, copy };
+    });
+    if (!decoded.ok) return decoded;
+    return attempt("landing", site, payload, async () => ({ endpoint_ordinal: 0, payload_index: payloadIndex,
+      external_id: (await mapSettingsLanding(decoded.value.copy)).sourceRecordExternalId, payload: decoded.value.row }));
+  }
+
+  async function landActivityRow(payload: unknown, payloadIndex: number): Promise<RowOutcome<DerivedCaptureMember>> {
+    const site: RowSite = { lane: "activities", payloadIndex };
+    const decoded = await attempt("decode", site, payload, () => {
+      const row = objectRow(payload, "activity row");
+      nonempty(row.type, "activity type");
+      for (const [field, label] of [["moving_time", "moving time"], ["elapsed_time", "elapsed time"]] as const) {
+        const item = row[field];
+        if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 0) throw new TypeError(`activity ${label} is invalid`);
+      }
+      const identity = activityIdentity(row);
+      const normalized = options.acl.activity(structuredClone(row));
+      options.acl.assertClean(normalized);
+      return { row, identity, normalized };
+    });
+    if (!decoded.ok) return decoded;
+    const { row, identity, normalized } = decoded.value;
+    return attempt("landing", site, payload, async () => {
+      await mapActivityLanding({ normalized, archiveInstant: rowInstant(identity.startUtc), archive: placeholderArchive });
+      return { endpoint_ordinal: 1, payload_index: payloadIndex, external_id: identity.externalId, payload: row };
+    });
+  }
+
+  function landWellnessMember(payload: unknown, payloadIndex: number): Promise<RowOutcome<WellnessLanding>> {
+    return attempt("decode", { lane: "wellness", payloadIndex }, payload, () => landWellnessRow(payload),
+      (error) => !(error instanceof RowRejection));
+  }
+
+  async function landStreamEndpoint(endpoint: ReferenceCaptureEndpointPayload): Promise<RowOutcome<DerivedCaptureMember>> {
+    const activityId = endpoint.request.activity_id;
+    const site: RowSite = { lane: "streams", payloadIndex: null,
+      ...(typeof activityId === "string" ? { externalId: `streams:${activityId}` } : {}) };
+    const decoded = await attempt("decode", site, endpoint.payload, () => {
+      if (endpoint.lane !== "streams" || endpoint.endpoint !== "activity-streams" || activityId === null) {
+        throw new TypeError("stream endpoint is invalid");
+      }
       const normalized = options.acl.streams(structuredClone(endpoint.payload));
       options.acl.assertClean(normalized);
-      normalizeStreamLanding(normalized);
+      return { activityId, normalized };
+    });
+    if (!decoded.ok) return decoded;
+    return attempt("landing", site, endpoint.payload, () => {
+      normalizeStreamLanding(decoded.value.normalized);
       return { endpoint_ordinal: endpoint.ordinal, payload_index: null,
-        external_id: `streams:${endpoint.request.activity_id}`, payload: endpoint.payload };
-    } catch {
-      return null;
+        external_id: `streams:${decoded.value.activityId}`, payload: endpoint.payload };
+    });
+  }
+
+  interface CaptureDerivation {
+    readonly members: DerivedCaptureMembers;
+    readonly report: CaptureReport;
+    readonly wellnessLandings: readonly WellnessLanding[];
+  }
+
+  async function deriveWithReport(
+    capturePlan: ReferenceCapturePlan,
+    endpointPayloads: readonly ReferenceCaptureEndpointPayload[],
+  ): Promise<CaptureDerivation> {
+    const plan = validateReferenceCapturePlan(capturePlan);
+    if (!Array.isArray(endpointPayloads) || endpointPayloads.length < 3) throw new TypeError("capture endpoints are invalid");
+    for (let index = 0; index < endpointPayloads.length; index += 1) {
+      const endpoint = endpointPayloads[index];
+      if (endpoint === null || typeof endpoint !== "object" || endpoint.ordinal !== index) {
+        throw new TypeError("capture endpoint order is invalid");
+      }
     }
+    const [profileEndpoint, activityEndpoint, wellnessEndpoint, ...streamEndpoints] = endpointPayloads;
+    const profile = objectRow(profileEndpoint?.payload, "athlete settings");
+    const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
+    if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
+    const activityPayload = activityEndpoint?.payload;
+    if (!Array.isArray(activityPayload)) throw new TypeError("activities response is invalid");
+    const wellnessPayload = wellnessEndpoint?.payload;
+    if (!Array.isArray(wellnessPayload)) throw new TypeError("wellness response is invalid");
+
+    const tally = { settings: new LaneTally("settings"), activities: new LaneTally("activities"),
+      wellness: new LaneTally("wellness"), streams: new LaneTally("streams") };
+    const settings: DerivedCaptureMember[] = [];
+    for (const [index, entry] of sourceSettings.entries()) {
+      const member = tally.settings.take(await landSettingRow(entry, index));
+      if (member !== undefined) settings.push(member);
+    }
+    const activities: DerivedCaptureMember[] = [];
+    for (const [index, entry] of activityPayload.entries()) {
+      const member = tally.activities.take(await landActivityRow(entry, index));
+      if (member !== undefined) activities.push(member);
+    }
+    const wellness: DerivedCaptureMember[] = [];
+    const wellnessLandings: WellnessLanding[] = [];
+    for (const [index, entry] of wellnessPayload.entries()) {
+      const landing = tally.wellness.take(await landWellnessMember(entry, index));
+      if (landing === undefined) continue;
+      wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: landing.externalId, payload: landing.wire });
+      wellnessLandings.push(landing);
+    }
+    const streams: DerivedCaptureMember[] = [];
+    for (const endpoint of streamEndpoints) {
+      const member = tally.streams.take(await landStreamEndpoint(endpoint));
+      if (member !== undefined) streams.push(member);
+    }
+    for (const [lane, members] of Object.entries({ settings, activities, wellness, streams })) {
+      const ids = members.map((member) => member.external_id);
+      if (new Set(ids).size !== ids.length) throw new TypeError(`duplicate retained ${lane} ID`);
+    }
+    return {
+      members: Object.freeze({
+        settings: Object.freeze(settings), activities: Object.freeze(activities),
+        wellness: Object.freeze(wellness), streams: Object.freeze(streams),
+        selected_stream_ids: Object.freeze(selectReferenceCaptureStreamIds(activities.map((member) => member.payload), plan)),
+      }),
+      report: Object.freeze({ settings: tally.settings.report(), activities: tally.activities.report(),
+        wellness: tally.wellness.report(), streams: tally.streams.report() }),
+      wellnessLandings: Object.freeze(wellnessLandings),
+    };
   }
 
   async function deriveReferenceCaptureMembers(
     capturePlan: ReferenceCapturePlan,
     endpointPayloads: readonly ReferenceCaptureEndpointPayload[],
   ): Promise<DerivedCaptureMembers> {
-    const plan = validateReferenceCapturePlan(capturePlan);
-    if (!Array.isArray(endpointPayloads) || endpointPayloads.length < 3) throw new TypeError("capture endpoints are invalid");
-    for (let index = 0; index < endpointPayloads.length; index += 1) {
-      const endpoint = endpointPayloads[index]!;
-      if (endpoint === null || typeof endpoint !== "object" || endpoint.ordinal !== index) {
-        throw new TypeError("capture endpoint order is invalid");
-      }
-    }
-    const profile = objectRow(endpointPayloads[0]!.payload, "athlete settings");
-    const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
-    if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
-    if (!Array.isArray(endpointPayloads[1]!.payload)) throw new TypeError("activities response is invalid");
-    if (!Array.isArray(endpointPayloads[2]!.payload)) throw new TypeError("wellness response is invalid");
-
-    const settings: DerivedCaptureMember[] = [];
-    for (let index = 0; index < sourceSettings.length; index += 1) {
-      try {
-        const row = objectRow(sourceSettings[index], "sport setting");
-        settingsIdentity(row);
-        const copy = structuredClone(row);
-        options.acl.assertClean(copy);
-        const landing = await mapSettingsLanding(copy);
-        settings.push({ endpoint_ordinal: 0, payload_index: index,
-          external_id: landing.sourceRecordExternalId, payload: row });
-      } catch {}
-    }
-
-    const activities: DerivedCaptureMember[] = [];
-    const activityPayload = endpointPayloads[1]!.payload as unknown[];
-    const activityDrops = new DropTally();
-    for (let index = 0; index < activityPayload.length; index += 1) {
-      try {
-        const row = objectRow(activityPayload[index], "activity row");
-        nonempty(row.type, "activity type");
-        for (const [field, label] of [["moving_time", "moving time"], ["elapsed_time", "elapsed time"]] as const) {
-          const item = row[field];
-          if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 0) throw new TypeError(`activity ${label} is invalid`);
-        }
-        const identity = activityIdentity(row);
-        const normalized = options.acl.activity(structuredClone(row));
-        options.acl.assertClean(normalized);
-        await mapActivityLanding({ normalized, archiveInstant: rowInstant(identity.startUtc), archive: placeholderArchive });
-        activities.push({ endpoint_ordinal: 1, payload_index: index, external_id: identity.externalId, payload: row });
-      } catch { activityDrops.record(activityPayload[index]); }
-    }
-    capturedActivityDrops = activityDrops.evidence();
-
-    const wellness: DerivedCaptureMember[] = [];
-    const wellnessPayload = endpointPayloads[2]!.payload as unknown[];
-    for (let index = 0; index < wellnessPayload.length; index += 1) {
-      try {
-        const landing = await landWellnessRow(wellnessPayload[index]);
-        wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: landing.externalId, payload: landing.wire });
-      } catch {}
-    }
-
-    const streams: DerivedCaptureMember[] = [];
-    for (const endpoint of endpointPayloads.slice(3)) {
-      const member = await deriveStreamMember(endpoint);
-      if (member !== null) streams.push(member);
-    }
-    for (const [lane, members] of Object.entries({ settings, activities, wellness, streams })) {
-      const ids = members.map((member) => member.external_id);
-      if (new Set(ids).size !== ids.length) throw new TypeError(`duplicate retained ${lane} ID`);
-    }
-    return Object.freeze({
-      settings: Object.freeze(settings), activities: Object.freeze(activities),
-      wellness: Object.freeze(wellness), streams: Object.freeze(streams),
-      selected_stream_ids: Object.freeze(selectReferenceCaptureStreamIds(activities.map((member) => member.payload), plan)),
-    });
+    return (await deriveWithReport(capturePlan, endpointPayloads)).members;
   }
 
   async function captureReference(
@@ -559,7 +593,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           url: rangeUrl(athleteId, "wellness", { v: 1, cycle: 0, window_start: plan.window.oldest,
             window_end: plan.window.newest, last_key: null, complete: false }) }) },
     ];
-    const requiredMembers = await deriveReferenceCaptureMembers(plan, required);
+    const requiredMembers = (await deriveWithReport(plan, required)).members;
     const selectedIds = [...requiredMembers.selected_stream_ids];
     const requiredUnits = 3 + requiredMembers.settings.length + requiredMembers.activities.length
       + requiredMembers.wellness.length + selectedIds.length;
@@ -567,14 +601,15 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (selectedIds.length > 0 && !requester.canRequest(selectedIds.length)) throw new SyncBudgetExceededError();
 
     const successfulStreams: ReferenceCaptureEndpointPayload[] = [];
+    const streamTally = new LaneTally("streams");
     for (const activityId of selectedIds) {
       requester.assertActive();
-      let payload: unknown;
-      try {
-        payload = await fetchJson(requester, "streams", { method: "GET", url: streamUrl(activityId) });
-      } catch (error) {
-        if (error instanceof SyncBudgetExceededError || budget.signal.aborted) throw error;
+      const fetched = await attempt("fetch", { lane: "streams", payloadIndex: null, externalId: `streams:${activityId}` },
+        undefined, () => fetchJson(requester, "streams", { method: "GET", url: streamUrl(activityId) }),
+        (error) => error instanceof SyncBudgetExceededError || budget.signal.aborted);
+      if (!fetched.ok) {
         requester.assertActive();
+        streamTally.missed(fetched.drop);
         continue;
       }
       const endpoint: ReferenceCaptureEndpointPayload = {
@@ -583,12 +618,13 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         endpoint: "activity-streams",
         request: { oldest: null, newest: null, activity_id: activityId,
           stream_types: [...REFERENCE_CAPTURE_STREAM_TYPES], include_defaults: false },
-        payload,
+        payload: fetched.value,
       };
-      if (await deriveStreamMember(endpoint) !== null) successfulStreams.push(endpoint);
+      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) successfulStreams.push(endpoint);
     }
     const endpointPayloads = [...required, ...successfulStreams];
-    const members = await deriveReferenceCaptureMembers(plan, endpointPayloads);
+    const derivation = await deriveWithReport(plan, endpointPayloads);
+    const members = derivation.members;
     if (members.streams.length !== successfulStreams.length) throw new Error("captured stream attribution is invalid");
 
     const activityInstantById = new Map<string, number>();
@@ -632,8 +668,9 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         externalId: member.external_id, payload: row, archiveInstant, archive, landing: { kind: "activity", platform } });
     }
     const wellness: ReferenceCaptureWellnessRecord[] = [];
-    for (const member of members.wellness) {
-      const landing = await landWellnessRow(member.payload);
+    for (const [index, member] of members.wellness.entries()) {
+      const landing = derivation.wellnessLandings[index];
+      if (landing === undefined || landing.externalId !== member.external_id) throw new Error("captured wellness attribution is invalid");
       const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
       wellness.push({ endpointOrdinal: member.endpoint_ordinal, payloadIndex: member.payload_index,
         externalId: member.external_id, payload: landing.wire, archiveInstant: landing.instant, archive,
@@ -659,7 +696,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       wellness: Object.freeze(wellness), streams: Object.freeze(streams),
     }), selected_stream_ids: Object.freeze(selectedIds),
     captured_stream_ids: Object.freeze(successfulStreams.map((endpoint) => endpoint.request.activity_id!)),
-    dropped_activity_rows: capturedActivityDrops });
+    report: Object.freeze({ ...derivation.report, streams: streamTally.report() }) });
   }
 
   return Object.freeze({ id: INTERVALS_ICU_SOURCE_ID, capabilities: INTERVALS_ICU_CAPABILITIES,
