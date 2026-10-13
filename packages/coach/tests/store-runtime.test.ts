@@ -7,6 +7,7 @@ import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bun
 import type { SqlReadStore } from "@enduragent/kernel/store";
 import type { CaptureReport, LaneReport, RowDrop } from "@enduragent/sync-intervals-icu";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ReferenceCaptureRunError, ReplacedCaptureNotReplayableError } from "../src/capture.js";
 import {
   createStoreRuntime,
   STORE_REFRESH_INTERVAL_MS,
@@ -154,8 +155,9 @@ describe("StoreRuntime capture health", () => {
   const reportWith = (wellness: LaneReport): CaptureReport =>
     ({ settings: CLEAN, activities: CLEAN, wellness, streams: CLEAN });
 
-  async function windowFor(report: CaptureReport | undefined) {
+  async function windowFor(report: CaptureReport | undefined, bundle: ProducedLocalBundle = produced) {
     const made = await makeRuntime();
+    made.produce.mockResolvedValue(bundle);
     made.capture.mockImplementation(async (options) => {
       options.attemptLedger!.charge("store", "store:settings");
       return report === undefined ? { manifest } : { manifest, report };
@@ -200,20 +202,66 @@ describe("StoreRuntime capture health", () => {
     });
   });
 
-  it("warns about a lane that kept some rows, logs at most five drops, and tells the coach days are missing", async () => {
+  it("warns about a lane that kept some rows, logs at most five drops, and tells the coach which days of a read are missing", async () => {
+    const kept: ProducedLocalBundle["bundle"]["wellness"] = ["1998-07-17", "1998-07-18"].map((id) => (
+      { id, weight: 70, restingHR: 50, hrv: 60, sleepSecs: 28_800, sleepQuality: 3 }));
     const { runtime, window, logs } = await windowFor(
       reportWith({ fetched: 9, landed: 2, drops: [0, 1, 2, 3, 4, 5, 6].map(rejectedDay), unfetched: [] }),
+      { ...produced, bundle: { ...produced.bundle, wellness: kept } },
     );
 
     expect(window.published).toBe(true);
     const records = await logs();
     expect(records).toEqual([expect.objectContaining({ level: "warn", event: "capture_lane_partial", lane: "wellness", fetched: 9, landed: 2 })]);
     expect(records[0]?.drops).toHaveLength(5);
-    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-15", end: "1998-07-18" })).resolves.toMatchObject({
       ok: true,
-      value: [],
-      notice: "Wellness is incomplete: 7 of 9 days failed to sync and are missing here.",
+      value: kept,
+      notice: "Wellness is incomplete: 2 of 4 days failed to sync and are missing here.",
     });
+    const complete = await runtime.athleteData.listWellness({ start: "1998-07-17", end: "1998-07-18" });
+    expect(complete).toMatchObject({ ok: true, value: kept });
+    expect(complete).not.toHaveProperty("notice");
+  });
+
+  it("logs the rows that lost a lane, not the rows the provider withheld before them", async () => {
+    const withheld = (payloadIndex: number): RowDrop => ({ lane: "activities", payloadIndex, externalId: null, localDate: null,
+      phase: "decode", reason: "source-restricted", field: null, errorName: null });
+    const broken: RowDrop = { lane: "activities", payloadIndex: 6, externalId: null, localDate: null, phase: "decode",
+      reason: "unclassified", field: null, errorName: "TypeError" };
+    const { logs } = await windowFor({ ...reportWith(CLEAN),
+      activities: { fetched: 7, landed: 0, drops: [...[0, 1, 2, 3, 4, 5].map(withheld), broken], unfetched: [] } });
+
+    expect(await logs()).toEqual([expect.objectContaining({ event: "capture_lane_lost", lane: "activities", fetched: 7, landed: 0,
+      drops: ["activities[6] decode: unclassified (TypeError)"] })]);
+  });
+
+  it("keeps the published capture and its standing when the next capture cannot be turned into a bundle", async () => {
+    const { runtime, capture, produce } = await windowFor(reportWith(CLEAN));
+    capture.mockImplementation(async (options) => {
+      options.attemptLedger!.charge("store", "store:settings");
+      return { manifest, report: reportWith({ fetched: 3, landed: 0, drops: [5, 6, 7].map(rejectedDay), unfetched: [] }) };
+    });
+    produce.mockRejectedValueOnce(new Error("synthetic produce failure"));
+
+    await expect(runtime.runWindow()).rejects.toThrow("synthetic produce failure");
+
+    expect(runtime.currentSnapshot()).toBe(produced);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+  });
+
+  it("logs a refused replacement under its own event with the capture it could not replace", async () => {
+    const { runtime, capture, logs } = await windowFor(reportWith(CLEAN));
+    capture.mockRejectedValueOnce(new ReferenceCaptureRunError("capture",
+      { cause: new ReplacedCaptureNotReplayableError(manifest.capture_id, { cause: new Error("private detail") }) }));
+
+    await expect(runtime.runWindow()).rejects.toBeInstanceOf(ReferenceCaptureRunError);
+
+    const records = await logs();
+    expect(records).toEqual([expect.objectContaining({ level: "error", component: "sync",
+      event: "capture_replacement_refused", replacesCaptureId: manifest.capture_id })]);
+    expect(JSON.stringify(records)).not.toContain("private detail");
+    expect(runtime.currentSnapshot()).toBe(produced);
   });
 
   it("logs nothing and reads wellness as before when every lane is ok", async () => {

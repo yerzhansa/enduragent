@@ -7,6 +7,7 @@ import {
   captureHealth,
   formatRowDrop,
   laneHealth,
+  judgedDrops,
   laneStanding,
   LaneTally,
   type LaneReport,
@@ -205,8 +206,16 @@ describe("laneHealth", () => {
     expect(laneHealth(lane(0, [], [failedRequest, failedRequest]))).toBe("ok");
   });
 
-  it("gives a reader the health with the two counts", () => {
-    expect(laneStanding(lane(2, [rejected]))).toEqual({ health: "partial", fetched: 3, landed: 2 });
+  it("gives a reader the health with each dropped date once, in order, and without withheld rows", () => {
+    const on = (localDate: string | null): RowDrop => ({ ...rejected, localDate });
+
+    expect(laneStanding(lane(2, [on("1998-07-17"), on("1998-07-15"), on("1998-07-17"), on(null),
+      { ...withheld, localDate: "1998-07-16" }]))).toEqual({ health: "partial", droppedDates: ["1998-07-15", "1998-07-17"] });
+    expect(laneStanding(lane(2))).toEqual({ health: "ok", droppedDates: [] });
+  });
+
+  it("lists the drops it judges, in payload order", () => {
+    expect(judgedDrops(lane(0, [withheld, rejected, withheld]))).toEqual([rejected]);
   });
 });
 

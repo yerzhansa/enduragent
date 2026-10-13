@@ -31,11 +31,12 @@ import {
   type ReferenceCaptureReview,
 } from "@enduragent/kernel-node/capture-manifest";
 import { createNodeCrypto, createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
-import { activityDropEvidence, REQUEST_ATTEMPTS, type CaptureReport, type DroppedActivityRowEvidence, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
+import { activityDropEvidence, CAPTURE_LANES, REQUEST_ATTEMPTS, type CaptureReport, type DroppedActivityRowEvidence, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
 import { addCivilDays, todayInTZ } from "@enduragent/engine/sport";
 import { createIntervalsBackfillSource, DEFAULT_PER_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_INTERVAL_MS } from "./backfill.js";
 import { coverageGapsWithinWindow } from "./coverage-gaps.js";
 import {
+  CoachStoreWriterError,
   withCoachStoreWriter,
   type CoachStoreWriterContext,
 } from "./runtime.js";
@@ -60,6 +61,11 @@ export class ReplacedCaptureNotReplayableError extends Error {
     this.name = "ReplacedCaptureNotReplayableError";
     this.replacesCaptureId = replacesCaptureId;
   }
+}
+
+export function referenceCaptureRunError(error: unknown): ReferenceCaptureRunError | undefined {
+  const failure = error instanceof CoachStoreWriterError ? error.cause : error;
+  return failure instanceof ReferenceCaptureRunError ? failure : undefined;
 }
 
 export interface ReferenceCaptureRun {
@@ -267,7 +273,7 @@ export async function runReferenceCapture(
     const records = { settings: [] as RecordRef[], activities: [] as RecordRef[],
       wellness: [] as RecordRef[], streams: [] as RecordRef[] };
     try {
-      for (const lane of ["settings", "activities", "wellness", "streams"] as const) {
+      for (const lane of CAPTURE_LANES) {
         const sourceRecords = batch.records[lane];
         for (let ordinal = 0; ordinal < sourceRecords.length; ordinal += 1) {
           const record = sourceRecords[ordinal]!;

@@ -24,6 +24,7 @@ import {
   CAPTURE_LANES,
   captureHealth,
   formatRowDrop,
+  judgedDrops,
   laneStanding,
   type CaptureReport,
 } from "@enduragent/sync-intervals-icu";
@@ -33,7 +34,7 @@ import {
 } from "@enduragent/coach-contract";
 import { join } from "node:path";
 import { runAnalyticsCurveRefresh } from "./analytics-curves.js";
-import { runReferenceCapture } from "./capture.js";
+import { referenceCaptureRunError, ReplacedCaptureNotReplayableError, runReferenceCapture } from "./capture.js";
 import { createLocalBundleProducer } from "./local-bundle-producer.js";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import {
@@ -490,7 +491,13 @@ LIMIT 1`,
         published = true;
       }
       const counts = ledger.snapshot();
-      if (captureResult.status === "rejected") throw captureResult.reason;
+      if (captureResult.status === "rejected") {
+        const refusal = referenceCaptureRunError(captureResult.reason)?.cause;
+        if (refusal instanceof ReplacedCaptureNotReplayableError) {
+          this.logger.error("capture_replacement_refused", undefined, { replacesCaptureId: refusal.replacesCaptureId });
+        }
+        throw captureResult.reason;
+      }
       const droppedActivities =
         legacyResult.status === "fulfilled" && legacyResult.value.kind === "ran"
           ? legacyResult.value.droppedActivities
@@ -517,7 +524,7 @@ LIMIT 1`,
     for (const lane of CAPTURE_LANES) {
       if (health.lanes[lane] === "ok") continue;
       const fields = { lane, fetched: report[lane].fetched, landed: report[lane].landed,
-        drops: report[lane].drops.slice(0, LOGGED_DROPS_PER_LANE).map(formatRowDrop) };
+        drops: judgedDrops(report[lane]).slice(0, LOGGED_DROPS_PER_LANE).map(formatRowDrop) };
       if (health.lanes[lane] === "lost") this.logger.error("capture_lane_lost", undefined, fields);
       else this.logger.warn("capture_lane_partial", undefined, fields);
     }

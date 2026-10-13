@@ -173,8 +173,8 @@ describe("capture-reference command", () => {
 
     expect(code).toBe(3);
     expect(output.slice(1)).toEqual([
-      'REFERENCE_CAPTURE lane=wellness fetched=3 landed=0 dropped=3 unfetched=0 first_drop="wellness[5] landing: landing of restingHR"',
-      'REFERENCE_CAPTURE lane=streams fetched=0 landed=0 dropped=0 unfetched=1 first_drop="streams fetch: fetch of http_404"',
+      'REFERENCE_CAPTURE lane=wellness fetched=3 landed=0 dropped=3 withheld=0 unfetched=0 first_drop="wellness[5] landing: landing of restingHR"',
+      'REFERENCE_CAPTURE lane=streams fetched=0 landed=0 dropped=0 withheld=0 unfetched=1 first_unfetched="streams fetch: fetch of http_404"',
     ]);
     expect(errors).toEqual(["REFERENCE_CAPTURE degraded lost=wellness"]);
     expect(output.join("\n")).not.toContain("1998");
@@ -189,9 +189,30 @@ describe("capture-reference command", () => {
 
     expect(code).toBe(0);
     expect(output.slice(1)).toEqual([
-      'REFERENCE_CAPTURE lane=wellness fetched=85 landed=84 dropped=1 unfetched=0 first_drop="wellness[3] landing: landing of restingHR"',
+      'REFERENCE_CAPTURE lane=wellness fetched=85 landed=84 dropped=1 withheld=0 unfetched=0 first_drop="wellness[3] landing: landing of restingHR"',
     ]);
     expect(errors).toEqual([]);
+  });
+
+  it("shows the row that lost the lane, not the rows the provider withheld before it", async () => {
+    const withheld = (payloadIndex: number): RowDrop => ({ lane: "activities", payloadIndex, externalId: null, localDate: null,
+      phase: "decode", reason: "source-restricted", field: null, errorName: null });
+    const broken: RowDrop = { lane: "activities", payloadIndex: 2, externalId: null, localDate: null,
+      phase: "decode", reason: "unclassified", field: null, errorName: "TypeError" };
+
+    const lost = await recorded({ ...CLEAN_REPORT,
+      activities: { fetched: 3, landed: 0, drops: [withheld(0), withheld(1), broken], unfetched: [] } });
+    const onlyWithheld = await recorded({ ...CLEAN_REPORT,
+      activities: { fetched: 2, landed: 0, drops: [withheld(0), withheld(1)], unfetched: [] } });
+
+    expect(lost.code).toBe(3);
+    expect(lost.output.slice(1)).toEqual([
+      'REFERENCE_CAPTURE lane=activities fetched=3 landed=0 dropped=1 withheld=2 unfetched=0 first_drop="activities[2] decode: unclassified (TypeError)"',
+    ]);
+    expect(onlyWithheld.code).toBe(0);
+    expect(onlyWithheld.output.slice(1)).toEqual([
+      "REFERENCE_CAPTURE lane=activities fetched=2 landed=0 dropped=0 withheld=2 unfetched=0",
+    ]);
   });
 
   it("explains a refused replacement without the capture id or the cause", async () => {

@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { serializeReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
-import { CAPTURE_LANES, captureHealth, formatRowDrop, type CaptureLane, type LaneReport } from "@enduragent/sync-intervals-icu";
-import { ReferenceCaptureRunError, ReplacedCaptureNotReplayableError, runReferenceCapture } from "./capture.js";
-import { CoachStoreWriterError } from "./runtime.js";
+import { CAPTURE_LANES, captureHealth, formatRowDrop, judgedDrops, type CaptureLane, type LaneReport } from "@enduragent/sync-intervals-icu";
+import { referenceCaptureRunError, ReplacedCaptureNotReplayableError, runReferenceCapture } from "./capture.js";
 
 interface CommandOptions {
   readonly reviewedOn: string;
@@ -20,23 +19,21 @@ function realDate(value: string): boolean {
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day;
 }
 
-export type CaptureCommandExitCode = 0 | 1 | 2 | 3;
+type CaptureCommandExitCode = 0 | 1 | 2 | 3;
 
 export const REPLACED_CAPTURE_REFUSAL =
   "REFERENCE_CAPTURE refused reason=replaced_capture_not_replayable. "
-  + "The capture named by --replaces could not be loaded and replayed by this version, so it cannot be replaced. "
-  + "Nothing was written. To start a new chain, run again with --reason initial and without --replaces.";
+  + "The capture named by --replaces could not be loaded and replayed, so it cannot be replaced. "
+  + "Nothing was written. Check the capture id. To start a new chain instead, run again with --reason initial and without --replaces.";
 
-export function formatLaneLine(lane: CaptureLane, report: LaneReport): string {
-  const first = report.drops[0] ?? report.unfetched[0];
+function formatLaneLine(lane: CaptureLane, report: LaneReport): string {
+  const dropped = judgedDrops(report);
+  const [firstDrop] = dropped;
+  const [firstUnfetched] = report.unfetched;
   return `REFERENCE_CAPTURE lane=${lane} fetched=${report.fetched} landed=${report.landed}`
-    + ` dropped=${report.drops.length} unfetched=${report.unfetched.length}`
-    + (first === undefined ? "" : ` first_drop="${formatRowDrop(first)}"`);
-}
-
-function captureRunError(error: unknown): ReferenceCaptureRunError | undefined {
-  const failure = error instanceof CoachStoreWriterError ? error.cause : error;
-  return failure instanceof ReferenceCaptureRunError ? failure : undefined;
+    + ` dropped=${dropped.length} withheld=${report.drops.length - dropped.length} unfetched=${report.unfetched.length}`
+    + (firstDrop === undefined ? "" : ` first_drop="${formatRowDrop(firstDrop)}"`)
+    + (firstUnfetched === undefined ? "" : ` first_unfetched="${formatRowDrop(firstUnfetched)}"`);
 }
 
 export interface CaptureCommandDependencies {
@@ -109,7 +106,7 @@ export async function runCaptureReferenceCommand(
     stderr(`REFERENCE_CAPTURE degraded lost=${CAPTURE_LANES.filter((lane) => health.lanes[lane] === "lost").join(",")}`);
     return 3;
   } catch (error) {
-    const failure = captureRunError(error);
+    const failure = referenceCaptureRunError(error);
     stderr(`REFERENCE_CAPTURE failed category=${failure?.category ?? "capture"}`);
     if (failure?.cause instanceof ReplacedCaptureNotReplayableError) stderr(REPLACED_CAPTURE_REFUSAL);
     return 1;

@@ -168,19 +168,23 @@ export function activityDropEvidence(report: LaneReport): DroppedActivityRowEvid
 
 export type LaneHealth = "ok" | "partial" | "lost";
 
+export function judgedDrops(report: LaneReport): readonly RowDrop[] {
+  return report.drops.filter((drop) => drop.reason !== "source-restricted");
+}
+
 export function laneHealth(report: LaneReport): LaneHealth {
-  if (report.drops.every((drop) => drop.reason === "source-restricted")) return "ok";
+  if (judgedDrops(report).length === 0) return "ok";
   return report.landed === 0 ? "lost" : "partial";
 }
 
 export interface LaneStanding {
   readonly health: LaneHealth;
-  readonly fetched: number;
-  readonly landed: number;
+  readonly droppedDates: readonly string[];
 }
 
 export function laneStanding(report: LaneReport): LaneStanding {
-  return Object.freeze({ health: laneHealth(report), fetched: report.fetched, landed: report.landed });
+  const dates = judgedDrops(report).flatMap((drop) => drop.localDate === null ? [] : [drop.localDate]);
+  return Object.freeze({ health: laneHealth(report), droppedDates: Object.freeze([...new Set(dates)].sort(compareBinary)) });
 }
 
 export interface CaptureHealth {

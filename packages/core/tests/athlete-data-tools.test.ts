@@ -191,7 +191,7 @@ describe("store athlete reader", () => {
     const FRESHNESS = "Store data last synchronized 2 minutes ago (1998-07-18T12:00:00.000Z).";
     const fetchWellness = (
       wellness: ProducedLocalBundle["bundle"]["wellness"],
-      wellnessLane?: () => { health: "ok" | "partial" | "lost"; fetched: number; landed: number } | undefined,
+      wellnessLane?: () => { health: "ok" | "partial" | "lost"; droppedDates: readonly string[] } | undefined,
     ) => {
       const snapshot = { ...produced(), bundle: { ...produced().bundle, wellness } };
       const reader = createStoreAthleteDataReader({
@@ -205,23 +205,31 @@ describe("store athlete reader", () => {
     const days = produced().bundle.wellness;
 
     it("reports a sync fault, not an empty list, when every fetched day was lost", async () => {
-      await expect(fetchWellness([], () => ({ health: "lost", fetched: 85, landed: 0 }))).resolves.toEqual({
+      await expect(fetchWellness([], () => ({ health: "lost", droppedDates: ["1998-07-01", "1998-07-02"] }))).resolves.toEqual({
         error: "wellness_unreadable",
         message: "Wellness data failed to sync. This is a sync fault, not missing athlete data.",
       });
     });
 
-    it("returns the days that synced and says how many are missing when some were lost", async () => {
-      await expect(fetchWellness(days, () => ({ health: "partial", fetched: 3, landed: 2 }))).resolves.toEqual({
-        data: days,
+    it("returns the days that synced and says how many days of the requested range are missing", async () => {
+      const lane = () => ({ health: "partial" as const, droppedDates: ["1998-06-30", "1998-07-02", "1998-07-03"] });
+
+      await expect(fetchWellness(days.slice(0, 1), lane)).resolves.toEqual({
+        data: days.slice(0, 1),
         freshness: FRESHNESS,
-        notice: "Wellness is incomplete: 1 of 3 days failed to sync and are missing here.",
+        notice: "Wellness is incomplete: 1 of 2 days failed to sync and are missing here.",
       });
+    });
+
+    it("says nothing is missing when every lost day is outside the requested range", async () => {
+      const lane = () => ({ health: "partial" as const, droppedDates: ["1998-04-25", "1998-07-03"] });
+
+      await expect(fetchWellness(days, lane)).resolves.toEqual({ data: days, freshness: FRESHNESS });
     });
 
     it("reads an empty list as no data when the lane is ok, or when its standing is unknown", async () => {
       const empty = { data: [], freshness: FRESHNESS };
-      await expect(fetchWellness([], () => ({ health: "ok", fetched: 0, landed: 0 }))).resolves.toEqual(empty);
+      await expect(fetchWellness([], () => ({ health: "ok", droppedDates: [] }))).resolves.toEqual(empty);
       await expect(fetchWellness([], () => undefined)).resolves.toEqual(empty);
       await expect(fetchWellness([])).resolves.toEqual(empty);
     });

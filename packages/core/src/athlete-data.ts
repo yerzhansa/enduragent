@@ -201,8 +201,7 @@ export function formatStoreFreshness(freshness: StoredDataFreshness): string {
 
 export interface LaneStanding {
   readonly health: "ok" | "partial" | "lost";
-  readonly fetched: number;
-  readonly landed: number;
+  readonly droppedDates: readonly string[];
 }
 
 export function createStoreAthleteDataReader(input: {
@@ -265,10 +264,11 @@ export function createStoreAthleteDataReader(input: {
           message: "Wellness data failed to sync. This is a sync fault, not missing athlete data." };
       }
       const value = selected.snapshot.bundle.wellness.filter((row) => row.id >= dates.start && row.id <= dates.end);
-      return lane?.health === "partial"
-        ? { ok: true as const, value, freshness: selected.freshness,
-          notice: `Wellness is incomplete: ${lane.fetched - lane.landed} of ${lane.fetched} days failed to sync and are missing here.` }
-        : { ok: true as const, value, freshness: selected.freshness };
+      const missing = (lane?.droppedDates ?? []).filter((date) => date >= dates.start && date <= dates.end).length;
+      return missing === 0
+        ? { ok: true as const, value, freshness: selected.freshness }
+        : { ok: true as const, value, freshness: selected.freshness,
+          notice: `Wellness is incomplete: ${missing} of ${value.length + missing} days failed to sync and are missing here.` };
     },
     async listActivities(candidate: { start: string; end?: string }) {
       if (invalidExplicitRange(candidate)) return INVALID_DATES;
