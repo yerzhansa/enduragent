@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.9",
+    "@ai-sdk/provider": "^4.0.10",
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/i18n": "workspace:*",
     "@enduragent/engine": "workspace:*",
