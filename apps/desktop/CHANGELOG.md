@@ -1,5 +1,40 @@
 # @enduragent/desktop
 
+## 0.5.8
+
+### Patch Changes
+
+- 1cb7f32: User-facing: Norwegian, Swedish, and Chinese training messages now use plain words for fitness, fatigue, and form.
+- d4be2cf: User-facing: A wellness day that leaves out weight, resting heart rate, heart-rate variability, or sleep is no longer skipped.
+
+  `WellnessDaySchema` required `weight`, `restingHR`, `hrv`, `sleepSecs` and `sleepQuality` to be present, so a day that omitted one failed to parse and was dropped. The five keys now default to `null`. First of six changes for #1130.
+
+- 0852155: User-facing: If a sync cannot keep any of the wellness days it fetched, the coach now says the sync failed instead of saying you have no data.
+  User-facing: If a sync keeps only some of the wellness days it fetched, the coach now says how many of the days you asked about are missing.
+
+  `laneHealth` reads a lane's report as `ok`, `partial` or `lost`, and `judgedDrops` lists the drops it judges: every drop except rows the provider withheld, with recordings whose download failed left out. `laneStanding` pairs that health with the civil dates of the judged drops. `runReferenceCapture` returns the report beside the manifest. The store runtime logs `capture_lane_lost` or `capture_lane_partial` with the lane, its counts and up to five judged drop lines, still publishes the capture, and hands the wellness lane's standing to the store reader. The reader answers a lost lane with `wellness_unreadable`, and a partial lane with a `notice` that counts only the dropped days inside the requested range. A dropped row without a civil date is logged and adds no notice. The capture command prints one line per lane that dropped a row, with `dropped=` for judged drops, `withheld=` for rows the provider withheld, `first_drop=` taken from the judged drops and `first_unfetched=` for a failed request. It exits 3 when a lane is lost, and reads the failure category through the store writer's wrapper. A capture named by `--replaces` is loaded and replayed before the first request and the first store write, and a capture that cannot be is refused with nothing written. The store runtime logs that refusal as `capture_replacement_refused` with the capture id. Sixth of six changes for #1130.
+
+- 1e3c8f9: User-facing: Wellness days sync again, so the coach can see your resting heart rate, heart-rate variability, and sleep.
+  User-facing: A fatigue score you log yourself is kept apart from your training-load fatigue in synced days.
+
+  Every path that turns a platform wellness day into a `WellnessDay` now goes through `decodeWellnessRow`: capture, the paged pull, the stored projection, the legacy sync, capture replay, and the two fixture tools. The raw fetch tool `tools/fetch-real-athlete.ts` still writes days as the platform sends them. `landWellnessRow` in the sync package turns one wire day into its archive identity and its typed store row. The store column `fatigue` holds only the self-reported score, and the field archive keeps the load averages under `load`. `renameTpFieldsOnWellnessRow`, `parseRenamedWellnessRow` and the injected wellness decoder are removed. A day with a value that cannot be stored is rejected whole. The paged pull names the key of a value it cannot store, and the fixture tool names the key of a day it cannot decode. Capture still skips that day without a count until the next change adds the per-lane report. Third of six changes for #1130.
+
+- aae19b5: User-facing: The coach now tells a fatigue score you log apart from your training-load fatigue when it looks up wellness straight from intervals.icu.
+  User-facing: The coach's wellness lookup now includes fitness and weekly fitness change for synced days.
+  User-facing: The coach now says when some wellness days could not be read.
+
+  `decodeWellnessRow` moves the score intervals.icu sends under `fatigue` to `subjectiveFatigue`, renames the load averages, and parses the day. It rejects a row that already carries a coach-only key, a row that still holds a platform load key after the renames, a score that is not a whole number, and a load average that is not a number. The live reader decodes each row, so `intervals_fetch_wellness` and the athlete snapshot read coach words in live mode. A row that cannot be decoded is skipped with a `notice` that names the first unreadable wellness field of each skipped day. A day skipped for a platform load key or for not being an object is counted but not named; when none can be decoded the read fails with `wellness_unreadable`. Stored days are unchanged, but the tool's key list now passes `fitness` and `weeklyFitnessChange` for them. Capture, projection and the legacy sync still use the rename and parse pair. Second of six changes for #1130.
+
+- Updated dependencies [1cb7f32]
+- Updated dependencies [1b37d2b]
+- Updated dependencies [129a0d1]
+- Updated dependencies [0852155]
+- Updated dependencies [1e3c8f9]
+- Updated dependencies [aae19b5]
+  - @enduragent/i18n@0.2.3
+  - @enduragent/coach@0.1.6
+  - @enduragent/core@0.1.9
+
 ## 0.5.7
 
 ### Patch Changes
