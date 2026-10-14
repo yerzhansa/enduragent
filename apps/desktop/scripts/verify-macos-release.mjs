@@ -82,13 +82,8 @@ function allCommandOutput(result) {
   return `${outputStream(result, "stdout")}\n${outputStream(result, "stderr")}`;
 }
 
-async function inspectSystemFile(executeFile, executable, arguments_) {
-  try {
-    return await executeFile(executable, arguments_);
-  } catch {
-    fail("macOS signed identity inspection failed");
-  }
-}
+const inspectSystemFile = (executeFile, executable, arguments_) =>
+  runSystemVerification(executeFile, executable, arguments_, "macOS signed identity inspection failed");
 
 function exactLine(text, pattern) {
   const values = Array.from(text.matchAll(pattern), (match) => match[1]);
@@ -1454,9 +1449,10 @@ export async function verifyMacosReleaseApplicationContents(
 
 async function runSystemVerification(executeFile, executable, arguments_, failureMessage) {
   try {
-    await executeFile(executable, arguments_);
-  } catch {
-    fail(failureMessage);
+    return await executeFile(executable, arguments_);
+  } catch (error) {
+    const output = allCommandOutput(error).trim().split("\n").filter(Boolean).slice(-6).join(" | ");
+    fail(output === "" ? failureMessage : `${failureMessage}: ${output}`);
   }
 }
 
