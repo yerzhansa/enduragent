@@ -1,5 +1,22 @@
 # @enduragent/engine
 
+## 0.0.7
+
+### Patch Changes
+
+- aae19b5: User-facing: The coach now tells a fatigue score you log apart from your training-load fatigue when it looks up wellness straight from intervals.icu.
+  User-facing: The coach's wellness lookup now includes fitness and weekly fitness change for synced days.
+  User-facing: The coach now says when some wellness days could not be read.
+
+  `decodeWellnessRow` moves the score intervals.icu sends under `fatigue` to `subjectiveFatigue`, renames the load averages, and parses the day. It rejects a row that already carries a coach-only key, a row that still holds a platform load key after the renames, a score that is not a whole number, and a load average that is not a number. The live reader decodes each row, so `intervals_fetch_wellness` and the athlete snapshot read coach words in live mode. A row that cannot be decoded is skipped with a `notice` that names the first unreadable wellness field of each skipped day. A day skipped for a platform load key or for not being an object is counted but not named; when none can be decoded the read fails with `wellness_unreadable`. Stored days are unchanged, but the tool's key list now passes `fitness` and `weeklyFitnessChange` for them. Capture, projection and the legacy sync still use the rename and parse pair. Second of six changes for #1130.
+
+- Updated dependencies [1cb7f32]
+- Updated dependencies [d4be2cf]
+- Updated dependencies [1e3c8f9]
+- Updated dependencies [aae19b5]
+  - @enduragent/i18n@0.2.3
+  - @enduragent/kernel@0.1.3
+
 ## 0.0.6
 
 ### Patch Changes

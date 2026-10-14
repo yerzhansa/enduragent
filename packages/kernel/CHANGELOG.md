@@ -1,5 +1,24 @@
 # @enduragent/kernel
 
+## 0.1.3
+
+### Patch Changes
+
+- d4be2cf: User-facing: A wellness day that leaves out weight, resting heart rate, heart-rate variability, or sleep is no longer skipped.
+
+  `WellnessDaySchema` required `weight`, `restingHR`, `hrv`, `sleepSecs` and `sleepQuality` to be present, so a day that omitted one failed to parse and was dropped. The five keys now default to `null`. First of six changes for #1130.
+
+- 1e3c8f9: User-facing: Wellness days sync again, so the coach can see your resting heart rate, heart-rate variability, and sleep.
+  User-facing: A fatigue score you log yourself is kept apart from your training-load fatigue in synced days.
+
+  Every path that turns a platform wellness day into a `WellnessDay` now goes through `decodeWellnessRow`: capture, the paged pull, the stored projection, the legacy sync, capture replay, and the two fixture tools. The raw fetch tool `tools/fetch-real-athlete.ts` still writes days as the platform sends them. `landWellnessRow` in the sync package turns one wire day into its archive identity and its typed store row. The store column `fatigue` holds only the self-reported score, and the field archive keeps the load averages under `load`. `renameTpFieldsOnWellnessRow`, `parseRenamedWellnessRow` and the injected wellness decoder are removed. A day with a value that cannot be stored is rejected whole. The paged pull names the key of a value it cannot store, and the fixture tool names the key of a day it cannot decode. Capture still skips that day without a count until the next change adds the per-lane report. Third of six changes for #1130.
+
+- aae19b5: User-facing: The coach now tells a fatigue score you log apart from your training-load fatigue when it looks up wellness straight from intervals.icu.
+  User-facing: The coach's wellness lookup now includes fitness and weekly fitness change for synced days.
+  User-facing: The coach now says when some wellness days could not be read.
+
+  `decodeWellnessRow` moves the score intervals.icu sends under `fatigue` to `subjectiveFatigue`, renames the load averages, and parses the day. It rejects a row that already carries a coach-only key, a row that still holds a platform load key after the renames, a score that is not a whole number, and a load average that is not a number. The live reader decodes each row, so `intervals_fetch_wellness` and the athlete snapshot read coach words in live mode. A row that cannot be decoded is skipped with a `notice` that names the first unreadable wellness field of each skipped day. A day skipped for a platform load key or for not being an object is counted but not named; when none can be decoded the read fails with `wellness_unreadable`. Stored days are unchanged, but the tool's key list now passes `fitness` and `weeklyFitnessChange` for them. Capture, projection and the legacy sync still use the rename and parse pair. Second of six changes for #1130.
+
 ## 0.1.2
 
 ### Patch Changes
