@@ -329,6 +329,7 @@ async function launch(
     reducedMotion: false,
   });
   fixtures.push(fixture);
+  expect(fixture.readCapturedSurface("dom"), "renderer document at launch").not.toBe("");
   await fixture.evaluate<void>(`
     const deadline = Date.now() + 10000;
     while (document.documentElement.dataset.rpc !== "connected" && Date.now() < deadline) {
