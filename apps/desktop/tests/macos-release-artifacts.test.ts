@@ -61,6 +61,7 @@ function dmgSigningIdentityResult(
       `Authority=Developer ID Application: Enduragent Test (${authorityTeamIdentifier})`,
       "Authority=Developer ID Certification Authority",
       "Authority=Apple Root CA",
+      "Notarization Ticket=stapled",
       `TeamIdentifier=${teamIdentifier}`,
     ].join("\n"),
   };
@@ -316,6 +317,7 @@ async function signedIdentityFixture() {
             "Authority=Developer ID Certification Authority",
             "Authority=Apple Root CA",
             ...selected.extraAuthorities.map((authority) => `Authority=${authority}`),
+            "Notarization Ticket=stapled",
             `TeamIdentifier=${selected.teamIdentifier}`,
           ].join("\n"),
         };
@@ -761,10 +763,9 @@ describe.skipIf(process.platform === "win32")("macOS signed identity continuity"
         "--verbose=2",
         application,
       ]);
-      expect(fixture.executeFile).toHaveBeenCalledWith("/usr/bin/xcrun", [
-        "stapler",
-        "validate",
-        "-v",
+      expect(fixture.executeFile).toHaveBeenCalledWith("/usr/bin/codesign", [
+        "--display",
+        "--verbose=4",
         application,
       ]);
       expect(fixture.executeFile).toHaveBeenCalledWith("/usr/sbin/spctl", [
@@ -2071,7 +2072,6 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
     expect(executeFile.mock.calls).toEqual([
       ["/usr/bin/codesign", ["--verify", "--verbose=2", dmgPath]],
       ["/usr/bin/codesign", ["--display", "--verbose=4", dmgPath]],
-      ["/usr/bin/xcrun", ["stapler", "validate", "-v", dmgPath]],
       [
         "/usr/sbin/spctl",
         [
@@ -2087,15 +2087,15 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
     ]);
   });
 
-  it("verifies the unpacked application with codesign, stapler, and Gatekeeper", async () => {
+  it("verifies the unpacked application signature, stapled ticket, and Gatekeeper offline", async () => {
     const application = "/synthetic/Enduragent.app";
-    const executeFile = vi.fn(async () => {});
+    const executeFile = vi.fn(async () => ({ stdout: "", stderr: "Notarization Ticket=stapled\n" }));
 
     await verifyMacosApplication(application, { executeFile });
 
     expect(executeFile.mock.calls).toEqual([
       ["/usr/bin/codesign", ["--verify", "--deep", "--strict", "--verbose=2", application]],
-      ["/usr/bin/xcrun", ["stapler", "validate", "-v", application]],
+      ["/usr/bin/codesign", ["--display", "--verbose=4", application]],
       ["/usr/sbin/spctl", ["--assess", "--type", "execute", "--verbose=4", application]],
     ]);
   });
@@ -2198,19 +2198,28 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
     expect(executeFile).toHaveBeenCalledOnce();
   });
 
-  it("reports the native tool output when the application staple check fails", async () => {
-    const executeFile = vi.fn(async (executable: string) => {
-      if (executable !== "/usr/bin/xcrun") return { stdout: "", stderr: "" };
+  it("rejects an application without a stapled notarization ticket", async () => {
+    const executeFile = vi.fn(async () => ({ stdout: "", stderr: "TeamIdentifier=FA494ACVTF\n" }));
+
+    await expect(
+      verifyMacosApplication("/synthetic/Enduragent.app", { executeFile }),
+    ).rejects.toThrow("macOS application staple verification failed");
+    expect(executeFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports the native tool output when the application ticket inspection fails", async () => {
+    const executeFile = vi.fn(async (_executable: string, arguments_: readonly string[]) => {
+      if (!arguments_.includes("--display")) return { stdout: "", stderr: "" };
       throw Object.assign(new Error("Command failed"), {
-        stdout: "Processing: /synthetic/Enduragent.app\n",
-        stderr: "CloudKit query for Enduragent.app failed due to \"Record not found\".\n",
+        stdout: "",
+        stderr: "/synthetic/Enduragent.app: code object is not signed at all\n",
       });
     });
 
     await expect(
       verifyMacosApplication("/synthetic/Enduragent.app", { executeFile }),
     ).rejects.toThrow(
-      'macOS application staple verification failed: Processing: /synthetic/Enduragent.app | CloudKit query for Enduragent.app failed due to "Record not found".',
+      "macOS application staple verification failed: /synthetic/Enduragent.app: code object is not signed at all",
     );
   });
 
@@ -2218,10 +2227,8 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
     const fixture = await releaseFixture();
     const executeFile = vi.fn(async (executable: string, arguments_: readonly string[]) => {
       if (executable === "/usr/bin/codesign" && arguments_.includes("--display")) {
-        return dmgSigningIdentityResult();
-      }
-      if (executable === "/usr/bin/xcrun") {
-        throw new Error("synthetic missing staple");
+        const signed = dmgSigningIdentityResult();
+        return { ...signed, stderr: signed.stderr.replace("Notarization Ticket=stapled\n", "") };
       }
       return { stdout: "", stderr: "" };
     });
@@ -2242,7 +2249,6 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
         "/usr/bin/codesign",
         ["--display", "--verbose=4", join(fixture.artifactDirectory, names.dmg)],
       ],
-      ["/usr/bin/xcrun", ["stapler", "validate", "-v", join(fixture.artifactDirectory, names.dmg)]],
     ]);
   });
 
