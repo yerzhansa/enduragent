@@ -42,4 +42,4 @@ Treat proofs from the `fresh` and `ready` profiles as renderer-only: both run ag
 
 Run frozen scenario-catalog checks from the repository root with `pnpm --filter @enduragent/desktop check:verification-catalog`. `pnpm --filter @enduragent/desktop exec vitest run tests/windows-parity-scenarios.test.ts` fails because those citations are repository-relative.
 
-Finish with `pnpm check:fixture-privacy`. Confirm the Electron fixture closed and report any retained evidence path. Do not upload evidence.
+Finish with `pnpm check:fixture-privacy`. Confirm the Electron fixture closed and report any retained evidence path. Upload only the PR before and after videos that AGENTS.md requires.
