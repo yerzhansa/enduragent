@@ -23,11 +23,11 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "@types/ws": "^8.18.1",
+    "@types/ws": "^8.18.2",
     "tsup": "^8.4.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11",
-    "ws": "^8.21.3"
+    "ws": "^8.22.0"
   },
   "engines": {
     "node": ">=24"
