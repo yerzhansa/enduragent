@@ -31,11 +31,12 @@ import {
   type ReferenceCaptureReview,
 } from "@enduragent/kernel-node/capture-manifest";
 import { createNodeCrypto, createNodeImportRuntime } from "@enduragent/kernel-node/ingest";
-import { REQUEST_ATTEMPTS, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
+import { activityDropEvidence, CAPTURE_LANES, REQUEST_ATTEMPTS, type CaptureReport, type DroppedActivityRowEvidence, type IntervalsIcuCaptureSource, type ReferenceCaptureBatch } from "@enduragent/sync-intervals-icu";
 import { addCivilDays, todayInTZ } from "@enduragent/engine/sport";
 import { createIntervalsBackfillSource, DEFAULT_PER_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_INTERVAL_MS } from "./backfill.js";
 import { coverageGapsWithinWindow } from "./coverage-gaps.js";
 import {
+  CoachStoreWriterError,
   withCoachStoreWriter,
   type CoachStoreWriterContext,
 } from "./runtime.js";
@@ -52,6 +53,25 @@ export class ReferenceCaptureRunError extends Error {
 }
 
 class ReferenceCaptureValidationError extends Error {}
+
+export class ReplacedCaptureNotReplayableError extends Error {
+  readonly replacesCaptureId: string;
+  constructor(replacesCaptureId: string, options?: ErrorOptions) {
+    super("The capture this run replaces could not be loaded and replayed. Nothing was written.", options);
+    this.name = "ReplacedCaptureNotReplayableError";
+    this.replacesCaptureId = replacesCaptureId;
+  }
+}
+
+export function referenceCaptureRunError(error: unknown): ReferenceCaptureRunError | undefined {
+  const failure = error instanceof CoachStoreWriterError ? error.cause : error;
+  return failure instanceof ReferenceCaptureRunError ? failure : undefined;
+}
+
+export interface ReferenceCaptureRun {
+  readonly manifest: ReferenceCaptureManifest;
+  readonly report: CaptureReport;
+}
 
 export interface RunReferenceCaptureOptions {
   readonly env: Record<string, string | undefined>;
@@ -101,7 +121,7 @@ function snapshot(value: { readonly archive: { readonly address: string; readonl
 export async function runReferenceCapture(
   options: RunReferenceCaptureOptions,
   dependencies: RunReferenceCaptureDependencies = {},
-): Promise<ReferenceCaptureManifest> {
+): Promise<ReferenceCaptureRun> {
   const now = (dependencies.wallClock ?? (() => new Date()))();
   const captureId = (dependencies.uuid ?? randomUUID)();
   const monotonicNow = dependencies.monotonicNow ?? (() => performance.now());
@@ -130,7 +150,7 @@ export async function runReferenceCapture(
     throw new ReferenceCaptureRunError("validation", { cause: error });
   }
 
-  const capture = async ({ home, store }: CoachStoreWriterContext): Promise<ReferenceCaptureManifest> => {
+  const capture = async ({ home, store }: CoachStoreWriterContext): Promise<ReferenceCaptureRun> => {
     const crypto = createNodeCrypto();
     const node = createNodeImportRuntime({ archiveDir: home.archiveDir, store });
     const source = createIntervalsBackfillSource({
@@ -144,34 +164,47 @@ export async function runReferenceCapture(
       ...(options.baseFetch === undefined ? {} : { baseFetch: options.baseFetch }),
       ...(options.attemptLedger === undefined ? {} : { attemptLedger: options.attemptLedger }),
     }) as IntervalsIcuCaptureSource;
+    const repository = createIntervalsSourceRepository(store, (fields) => {
+      if (fields.length === 0) throw new TypeError("empty key tuple");
+      return H(crypto, ...(fields as [string | number, ...(string | number)[]]));
+    });
+    const assertReplayable: AssertReferenceCaptureReplayable = async (candidate) => {
+      try {
+        await assertReferenceCaptureReplayable(candidate, {
+          readVerifiedSnapshot: (reference) => readVerifiedReferenceSnapshot(reference, { archive: node.archive, crypto }),
+          derivePayloadMembers: (plan, endpointPayloads) => source.deriveReferenceCaptureMembers(plan, endpointPayloads),
+          assertStoreEvidence: (record, lane) => repository.assertPinnedCaptureEvidence({ lane,
+            externalId: record.external_id, artifactKey: record.store_evidence.artifact_key,
+            archiveAddress: record.snapshot.address, archiveRelPath: record.snapshot.rel_path,
+            currentRevision: record.store_evidence.current_revision === null ? null : {
+              sourceRecordId: record.store_evidence.current_revision.source_record_id,
+              revisionId: record.store_evidence.current_revision.revision_id,
+            } }),
+        });
+      } catch (error) { throw new ReferenceCaptureValidationError("capture replay validation failed", { cause: error }); }
+    };
+
+    const platform = options.platform === undefined ? {} : { platform: options.platform };
+    if (options.replacesCaptureId !== undefined) {
+      try {
+        await loadReferenceCaptureSidecars({ root: home.root, captureId: options.replacesCaptureId, assertReplayable, ...platform });
+      } catch (error) {
+        throw new ReferenceCaptureRunError("capture",
+          { cause: new ReplacedCaptureNotReplayableError(options.replacesCaptureId, { cause: error }) });
+      }
+    }
+
     let batch: ReferenceCaptureBatch;
+    let droppedActivityRows: DroppedActivityRowEvidence;
     try {
       batch = await source.captureReference(plan, budget);
       if (serializeReferenceCapturePlan(batch.plan) !== serializeReferenceCapturePlan(plan)) {
         throw new TypeError("reference capture plan changed");
       }
-      if (
-        !Number.isSafeInteger(batch.dropped_activity_rows.sourceRestricted) ||
-        batch.dropped_activity_rows.sourceRestricted < 0 ||
-        !Number.isSafeInteger(batch.dropped_activity_rows.other) ||
-        batch.dropped_activity_rows.other < 0
-      ) {
-        throw new TypeError("reference capture dropped activity counts are invalid");
-      }
-      if (
-        !Array.isArray(batch.dropped_activity_rows.datedLocalDates) ||
-        !Number.isSafeInteger(batch.dropped_activity_rows.undatedCount) ||
-        batch.dropped_activity_rows.undatedCount < 0
-      ) {
-        throw new TypeError("reference capture dropped activity evidence is invalid");
-      }
+      droppedActivityRows = activityDropEvidence(batch.report.activities);
     }
     catch (error) { throw new ReferenceCaptureRunError("capture", { cause: error }); }
 
-    const repository = createIntervalsSourceRepository(store, (fields) => {
-      if (fields.length === 0) throw new TypeError("empty key tuple");
-      return H(crypto, ...(fields as [string | number, ...(string | number)[]]));
-    });
     const coverage = createTrainingCoverageRepository();
     const elapsedThrough = addCivilDays(
       todayInTZ(planCalendarTimeZone(plan), new Date(plan.capture_epoch_ms)),
@@ -189,7 +222,7 @@ export async function runReferenceCapture(
       coveredNewest: coverageNewest,
       committedEpochSeconds: Math.floor(plan.capture_epoch_ms / 1_000),
       gaps: coverageGapsWithinWindow({
-        evidence: batch.dropped_activity_rows,
+        evidence: droppedActivityRows,
         oldest: plan.window.oldest,
         newest: coverageNewest,
       }),
@@ -240,10 +273,10 @@ export async function runReferenceCapture(
     const records = { settings: [] as RecordRef[], activities: [] as RecordRef[],
       wellness: [] as RecordRef[], streams: [] as RecordRef[] };
     try {
-      for (const lane of ["settings", "activities", "wellness", "streams"] as const) {
+      for (const lane of CAPTURE_LANES) {
         const sourceRecords = batch.records[lane];
         for (let ordinal = 0; ordinal < sourceRecords.length; ordinal += 1) {
-          const record = sourceRecords[ordinal]!;
+          const record = sourceRecords[ordinal];
           if (lane === "wellness") {
             const artifactKey = wellnessArtifactKeys.get(record.externalId);
             if (artifactKey === undefined) throw new Error("wellness capture evidence is absent");
@@ -291,37 +324,13 @@ export async function runReferenceCapture(
       throw new ReferenceCaptureRunError("validation", { cause: error });
     }
 
-    const assertReplayable: AssertReferenceCaptureReplayable = async (candidate) => {
-      try {
-        await assertReferenceCaptureReplayable(candidate, {
-          readVerifiedSnapshot: (reference) => readVerifiedReferenceSnapshot(reference, { archive: node.archive, crypto }),
-          derivePayloadMembers: (plan, endpointPayloads) => source.deriveReferenceCaptureMembers(plan, endpointPayloads),
-          assertStoreEvidence: (record, lane) => repository.assertPinnedCaptureEvidence({ lane,
-            externalId: record.external_id, artifactKey: record.store_evidence.artifact_key,
-            archiveAddress: record.snapshot.address, archiveRelPath: record.snapshot.rel_path,
-            currentRevision: record.store_evidence.current_revision === null ? null : {
-              sourceRecordId: record.store_evidence.current_revision.source_record_id,
-              revisionId: record.store_evidence.current_revision.revision_id,
-            } }),
-        });
-      } catch (error) { throw new ReferenceCaptureValidationError("capture replay validation failed", { cause: error }); }
-    };
-
     try {
       const committed = await (dependencies.writeSidecars ?? writeReferenceCaptureSidecars)({
-        root: home.root, manifest, review, assertReplayable,
-        ...(options.platform === undefined ? {} : { platform: options.platform }),
+        root: home.root, manifest, review, assertReplayable, ...platform,
       });
-      if (dependencies.loadSidecars !== undefined) {
-        const loaded = await dependencies.loadSidecars({
-          root: home.root,
-          captureId,
-          assertReplayable,
-          ...(options.platform === undefined ? {} : { platform: options.platform }),
-        });
-        return loaded.manifest;
-      }
-      return committed.manifest;
+      const recorded = dependencies.loadSidecars === undefined ? committed
+        : await dependencies.loadSidecars({ root: home.root, captureId, assertReplayable, ...platform });
+      return { manifest: recorded.manifest, report: batch.report };
     } catch (error) {
       throw new ReferenceCaptureRunError(error instanceof ReferenceCaptureValidationError ? "validation" : "persistence", { cause: error });
     }

@@ -1,9 +1,3 @@
-// `fetchLiveBundle` is the production sync's intervals.icu fetch + ADR-0012
-// anti-corruption boundary. These tests inject a fake client (no network) and
-// pin: TP-field rename on activities + wellness, activity snake-casing, the
-// bounded/cycling-only/abort-aware stream loop, best-effort degradation, FTP
-// history derivation from sportInfo, and the 7-day recent-activities slice.
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -21,7 +15,6 @@ function daysAgo(n: number): string {
   return new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
 }
 
-/** camelCase activity row as the intervals.icu lib emits it (pre-snakeCase). */
 function camelActivity(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 1,
@@ -31,8 +24,8 @@ function camelActivity(over: Record<string, unknown> = {}): Record<string, unkno
     elapsedTime: 3700,
     icuTrainingLoad: 80,
     averageHeartrate: 140,
-    icuCtl: 50, // TP source → fitnessAtEnd after rename
-    icuAtl: 60, // TP source → fatigueAtEnd after rename
+    icuCtl: 50,
+    icuAtl: 60,
     ...over,
   };
 }
@@ -45,8 +38,8 @@ function wellnessRaw(over: Record<string, unknown> = {}): Record<string, unknown
     hrv: 60,
     sleepSecs: 28800,
     sleepQuality: 3,
-    ctl: 40, // → fitness
-    atl: 45, // → fatigue
+    ctl: 40,
+    atl: 45,
     ctlLoad: 5,
     atlLoad: 6,
     rampRate: 1,
@@ -150,14 +143,28 @@ describe("fetchLiveBundle", () => {
     expect(well.atl).toBeUndefined();
   });
 
+  it("keeps a wellness day that carries both a logged fatigue score and a load average", async () => {
+    const { client } = fakeClient({ activities: [], wellness: [wellnessRaw({ fatigue: 3 })] });
+    const res = await fetchLiveBundle({
+      client,
+      signal: new AbortController().signal,
+      now: NOW,
+      calendarTimeZone: "UTC",
+      throttleMs: 0,
+    });
+
+    expect(res.bundle.wellness).toHaveLength(1);
+    expect(res.bundle.wellness[0]).toMatchObject({ fitness: 40, fatigue: 45, subjectiveFatigue: 3 });
+  });
+
   it("fetches streams only for cycling rides within the stream window, capped", async () => {
     const cyclingInWindow = Array.from({ length: MAX_STREAM_ACTIVITIES + 3 }, (_, i) =>
       camelActivity({ id: 100 + i, startDateLocal: daysAgo(1 + i) }),
     );
     const activities = [
       ...cyclingInWindow,
-      camelActivity({ id: 900, type: "Run", startDateLocal: daysAgo(1) }), // non-cycling
-      camelActivity({ id: 901, startDateLocal: daysAgo(40) }), // outside stream window
+      camelActivity({ id: 900, type: "Run", startDateLocal: daysAgo(1) }),
+      camelActivity({ id: 901, startDateLocal: daysAgo(40) }),
     ];
     const { client, streamCalls } = fakeClient({ activities });
     const res = await fetchLiveBundle({
@@ -169,10 +176,9 @@ describe("fetchLiveBundle", () => {
     });
 
     expect(streamCalls).toHaveLength(MAX_STREAM_ACTIVITIES);
-    expect(streamCalls).not.toContain("900"); // run excluded
-    expect(streamCalls).not.toContain("901"); // out-of-window excluded
+    expect(streamCalls).not.toContain("900");
+    expect(streamCalls).not.toContain("901");
     expect(Object.keys(res.bundle.streams ?? {})).toHaveLength(MAX_STREAM_ACTIVITIES);
-    // full window still present in the metric-input activities (84-day fetch)
     expect(res.bundle.activities).toHaveLength(activities.length);
   });
 
@@ -236,8 +242,8 @@ describe("fetchLiveBundle", () => {
     const { client } = fakeClient({
       wellness: [
         wellnessRaw({ id: "2026-05-01", sportInfo: [{ type: "Ride", eftp: 240 }] }),
-        wellnessRaw({ id: "2026-05-08", sportInfo: [{ type: "Ride", eftp: 240 }] }), // no change
-        wellnessRaw({ id: "2026-05-20", sportInfo: [{ type: "Ride", eftp: 250 }] }), // change
+        wellnessRaw({ id: "2026-05-08", sportInfo: [{ type: "Ride", eftp: 240 }] }),
+        wellnessRaw({ id: "2026-05-20", sportInfo: [{ type: "Ride", eftp: 250 }] }),
       ],
     });
     const res = await fetchLiveBundle({
@@ -256,8 +262,8 @@ describe("fetchLiveBundle", () => {
   it("recentActivities is the 7-day slice; bundle keeps the full window", async () => {
     const { client } = fakeClient({
       activities: [
-        camelActivity({ id: 1, startDateLocal: daysAgo(2) }), // within 7d
-        camelActivity({ id: 2, startDateLocal: daysAgo(30) }), // outside 7d, inside 84d
+        camelActivity({ id: 1, startDateLocal: daysAgo(2) }),
+        camelActivity({ id: 2, startDateLocal: daysAgo(30) }),
       ],
     });
     const res = await fetchLiveBundle({
@@ -396,8 +402,6 @@ describe("fetchLiveBundle", () => {
 
 describe("fetchLiveBundle — real lib stream shapes + edge cases", () => {
   it("normalizes the lib's ARRAY stream shape so dfa_a1 lands", async () => {
-    // The real getStreams returns camelCased `[{type, data}, …]`, not a
-    // channel-keyed object — the bug the review caught (DFA never computed).
     const { client } = fakeClient({
       activities: [camelActivity({ id: 1, startDateLocal: daysAgo(1) })],
       streamFor: () => ({
@@ -577,7 +581,6 @@ describe("fetchLiveBundle — real lib stream shapes + edge cases", () => {
     });
     expect(res.fetchErrors).toBeDefined();
     expect(res.fetchErrors?.some((e) => e.endpoint === "athlete")).toBe(true);
-    // Bundle is still well-typed: the athlete fallback is `{}`, no crash.
     expect(res.bundle.athlete).toBeUndefined();
   });
 

@@ -17,6 +17,7 @@ import type {
   ResolvedModelProfile,
 } from "@enduragent/coach-contract";
 import type { LanguageResolution } from "@enduragent/i18n";
+import type { WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type { ModelMessage } from "ai";
 import type { EventInput, IntervalsClient } from "intervals-icu-api";
 import type { GenerateOptions, GenerateResult } from "./sport.js";
@@ -81,7 +82,6 @@ export interface MemoryStorePort {
     provenance?: SourceProvenance,
   ): void;
   readSection(section: string): string | null;
-  /** Source labels for the current contents of one durable memory section. */
   provenanceForSection?(section: string, content?: string): SourceProvenance;
   renameSection(
     from: string,
@@ -105,7 +105,6 @@ export interface MemoryStorePort {
   ): void | Promise<void>;
   refreshPlanReadGate?(): Promise<string | null>;
   loadPlan(): unknown | null;
-  /** Source labels bound to the exact visible result of a synchronous tool read. */
   provenanceForToolRead?(
     name: string,
     input: unknown,
@@ -114,12 +113,10 @@ export interface MemoryStorePort {
   ): SourceProvenance;
   reload(): void;
   getContext(opts?: { excludeSections?: readonly string[] }): string;
-  /** The rendered Athlete Context together with the source labels its contents carry. */
   getContextWithProvenance?(opts?: { excludeSections?: readonly string[]; maxChars?: number }): {
     text: string;
     provenance: SourceProvenance;
   };
-  /** Run `fn` with every memory write it performs attributed to `provenance`. */
   runWithWriteProvenance?<T>(provenance: SourceProvenance, fn: () => T): T;
 }
 
@@ -127,7 +124,6 @@ export interface MemorySnapshot {
   read(sectionName: string): string | null;
   has(sectionName: string): boolean;
   listSections(): readonly string[];
-  /** Source labels attached to the frozen section contents. */
   provenanceOf(sectionName: string): SourceProvenance;
 }
 
@@ -332,16 +328,26 @@ export interface StoredDataFreshness {
 }
 
 export type AthleteReadResult<T> =
-  | { readonly ok: true; readonly value: T; readonly freshness?: StoredDataFreshness }
+  | {
+      readonly ok: true;
+      readonly value: T;
+      readonly freshness?: StoredDataFreshness;
+      readonly notice?: string;
+    }
   | {
       readonly ok: false;
-      readonly error: "not_found" | "store_read_unavailable" | "invalid_snapshot" | "invalid_input";
+      readonly error:
+        | "not_found"
+        | "store_read_unavailable"
+        | "invalid_snapshot"
+        | "invalid_input"
+        | "wellness_unreadable";
       readonly message: string;
     };
 
 export interface AthleteDataReaderPort {
   getAthlete(): Promise<AthleteReadResult<unknown>>;
-  listWellness(input: { start: string; end?: string }): Promise<AthleteReadResult<unknown[]>>;
+  listWellness(input: { start: string; end?: string }): Promise<AthleteReadResult<readonly WellnessDay[]>>;
   listActivities(input: { start: string; end?: string }): Promise<AthleteReadResult<unknown[]>>;
   getActivity(input: { id: string }): Promise<AthleteReadResult<unknown>>;
   getStreams(input: { id: string; keys: readonly string[] }): Promise<AthleteReadResult<unknown>>;
@@ -375,13 +381,8 @@ export interface PlatformCalendarMutationsPort {
 }
 
 export interface ToolConfirmationPort {
-  /** Tools this host gates. The engine registers the confirmation prompt block iff this set is non-empty. */
   readonly gatedToolNames: ReadonlySet<string>;
   requiresConfirmation(input: { readonly chatId: string; readonly toolName: string }): boolean;
-  /**
-   * Record a proposal and return the value the model sees. MUST NOT invoke `run`;
-   * `run` executes only when the host's own confirm surface resolves the proposal.
-   */
   propose(input: {
     readonly chatId: string;
     readonly toolName: string;

@@ -5,6 +5,7 @@
       "start_date_local": "1998-05-09T07:52:37",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5207,
       "elapsed_time": 5217,
       "icu_training_load": 90,
@@ -61,6 +62,7 @@
       "start_date_local": "1998-05-08T11:25:33",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5338,
       "elapsed_time": 5338,
       "icu_training_load": 37,
@@ -82,6 +84,7 @@
       "start_date_local": "1998-05-07T07:40:34",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 3769,
       "elapsed_time": 3769,
       "icu_training_load": 60,
@@ -136,6 +139,7 @@
       "start_date_local": "1998-05-06T07:28:50",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5236,
       "elapsed_time": 5248,
       "icu_training_load": 70,
@@ -190,6 +194,7 @@
       "start_date_local": "1998-05-03T06:19:03",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 10803,
       "elapsed_time": 11067,
       "icu_training_load": 178,
@@ -246,6 +251,7 @@
       "start_date_local": "1998-05-01T07:25:58",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5232,
       "elapsed_time": 5262,
       "icu_training_load": 81,
@@ -302,6 +308,7 @@
       "start_date_local": "1998-04-30T12:10:20",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 4696,
       "elapsed_time": 4696,
       "icu_training_load": 30,
@@ -323,6 +330,7 @@
       "start_date_local": "1998-04-29T08:08:07",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5248,
       "elapsed_time": 5314,
       "icu_training_load": 78,
@@ -379,6 +387,7 @@
       "start_date_local": "1998-04-27T10:01:13",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 8157,
       "elapsed_time": 8370,
       "icu_training_load": 117,
@@ -435,6 +444,7 @@
       "start_date_local": "1998-04-24T07:26:18",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5267,
       "elapsed_time": 5267,
       "icu_training_load": 80,
@@ -489,6 +499,7 @@
       "start_date_local": "1998-04-23T10:24:06",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 3303,
       "elapsed_time": 3303,
       "icu_training_load": 18,
@@ -510,6 +521,7 @@
       "start_date_local": "1998-04-22T08:41:28",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5164,
       "elapsed_time": 5216,
       "icu_training_load": 77,
@@ -566,6 +578,7 @@
       "start_date_local": "1998-04-21T15:36:12",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2383,
       "elapsed_time": 2441,
       "icu_training_load": 26,
@@ -587,6 +600,7 @@
       "start_date_local": "1998-04-20T11:43:02",
       "type": "VirtualRide",
       "name": "sanitized",
+      "description": null,
       "moving_time": 1922,
       "elapsed_time": 1922,
       "icu_training_load": 15,
@@ -641,6 +655,7 @@
       "start_date_local": "1998-04-19T06:59:28",
       "type": "Run",
       "name": "sanitized",
+      "description": null,
       "moving_time": 3597,
       "elapsed_time": 3602,
       "icu_training_load": 52,
@@ -662,6 +677,7 @@
       "start_date_local": "1998-04-18T09:02:18",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5445,
       "elapsed_time": 5445,
       "icu_training_load": 97,
@@ -718,6 +734,7 @@
       "start_date_local": "1998-04-17T14:49:06",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2428,
       "elapsed_time": 2432,
       "icu_training_load": 28,
@@ -739,6 +756,7 @@
       "start_date_local": "1998-04-15T10:22:28",
       "type": "Run",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2380,
       "elapsed_time": 2400,
       "icu_training_load": 29,
@@ -760,6 +778,7 @@
       "start_date_local": "1998-04-14T10:59:58",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5614,
       "elapsed_time": 5689,
       "icu_training_load": 85,
@@ -816,6 +835,7 @@
       "start_date_local": "1998-04-13T12:02:43",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2735,
       "elapsed_time": 2735,
       "icu_training_load": 14,
@@ -837,6 +857,7 @@
       "start_date_local": "1998-04-12T05:59:50",
       "type": "Run",
       "name": "sanitized",
+      "description": null,
       "moving_time": 1792,
       "elapsed_time": 1802,
       "icu_training_load": 30,
@@ -858,6 +879,7 @@
       "start_date_local": "1998-04-11T07:30:53",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5961,
       "elapsed_time": 6007,
       "icu_training_load": 98,
@@ -914,6 +936,7 @@
       "start_date_local": "1998-04-09T11:30:57",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2746,
       "elapsed_time": 2746,
       "icu_training_load": 17,
@@ -935,6 +958,7 @@
       "start_date_local": "1998-04-08T09:18:15",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5709,
       "elapsed_time": 5746,
       "icu_training_load": 89,
@@ -991,6 +1015,7 @@
       "start_date_local": "1998-04-06T10:04:51",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 5637,
       "elapsed_time": 5704,
       "icu_training_load": 66,
@@ -1045,6 +1070,7 @@
       "start_date_local": "1998-04-03T11:57:27",
       "type": "Ride",
       "name": "sanitized",
+      "description": null,
       "moving_time": 4163,
       "elapsed_time": 4163,
       "icu_training_load": 60,
@@ -1101,6 +1127,7 @@
       "start_date_local": "1998-03-31T06:44:10",
       "type": "Run",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2076,
       "elapsed_time": 2101,
       "icu_training_load": 36,
@@ -1122,6 +1149,7 @@
       "start_date_local": "1998-03-23T17:18:29",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 3689,
       "elapsed_time": 3689,
       "icu_training_load": 31,
@@ -1143,6 +1171,7 @@
       "start_date_local": "1998-03-20T16:17:31",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2394,
       "elapsed_time": 2402,
       "icu_training_load": 29,
@@ -1164,6 +1193,7 @@
       "start_date_local": "1998-03-17T12:36:50",
       "type": "WeightTraining",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2707,
       "elapsed_time": 2707,
       "icu_training_load": 25,
@@ -1185,6 +1215,7 @@
       "start_date_local": "1998-03-16T09:22:31",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 1791,
       "elapsed_time": 1807,
       "icu_training_load": 26,
@@ -1206,6 +1237,7 @@
       "start_date_local": "1998-03-15T13:24:47",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2400,
       "elapsed_time": 2411,
       "icu_training_load": 30,
@@ -1227,6 +1259,7 @@
       "start_date_local": "1998-03-14T13:18:48",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2395,
       "elapsed_time": 2401,
       "icu_training_load": 33,
@@ -1248,6 +1281,7 @@
       "start_date_local": "1998-03-11T19:13:34",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2389,
       "elapsed_time": 2405,
       "icu_training_load": 41,
@@ -1269,6 +1303,7 @@
       "start_date_local": "1998-03-01T18:07:56",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2992,
       "elapsed_time": 3002,
       "icu_training_load": 43,
@@ -1290,6 +1325,7 @@
       "start_date_local": "1998-02-23T12:08:32",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2405,
       "elapsed_time": 2412,
       "icu_training_load": 33,
@@ -1311,6 +1347,7 @@
       "start_date_local": "1998-02-20T17:35:56",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2403,
       "elapsed_time": 2410,
       "icu_training_load": 30,
@@ -1332,6 +1369,7 @@
       "start_date_local": "1998-02-17T12:29:58",
       "type": "VirtualRun",
       "name": "sanitized",
+      "description": null,
       "moving_time": 2419,
       "elapsed_time": 2426,
       "icu_training_load": 31,
@@ -1617,20 +1655,21 @@
       "hrv": 45,
       "sleepSecs": 26640,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 15.1473055,
       "fatigue": 4.5177035,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -2.217063,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 178.25348
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 15.1473055,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -2.217063
+      ]
     },
     {
       "id": "1998-02-17",
@@ -1639,20 +1678,21 @@
       "hrv": 42,
       "sleepSecs": 22980,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 15.520292,
       "fatigue": 8.043082,
+      "fitnessContribution": 31,
+      "fatigueContribution": 31,
+      "weeklyFitnessChange": -1.4355221,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 178.07523
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 15.520292,
-      "fitnessContribution": 31,
-      "fatigueContribution": 31,
-      "weeklyFitnessChange": -1.4355221
+      ]
     },
     {
       "id": "1998-02-18",
@@ -1661,20 +1701,21 @@
       "hrv": 45,
       "sleepSecs": 23400,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 15.155126,
       "fatigue": 6.97237,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.4017477,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.89716
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 15.155126,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.4017477
+      ]
     },
     {
       "id": "1998-02-19",
@@ -1683,20 +1724,21 @@
       "hrv": 43,
       "sleepSecs": 22380,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.798551,
       "fatigue": 6.0441937,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.3687677,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.71925
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.798551,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.3687677
+      ]
     },
     {
       "id": "1998-02-20",
@@ -1705,20 +1747,21 @@
       "hrv": 44,
       "sleepSecs": 22800,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 15.156215,
       "fatigue": 9.233241,
+      "fitnessContribution": 30,
+      "fatigueContribution": 30,
+      "weeklyFitnessChange": -0.63071346,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.54153
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 15.156215,
-      "fitnessContribution": 30,
-      "fatigueContribution": 30,
-      "weeklyFitnessChange": -0.63071346
+      ]
     },
     {
       "id": "1998-02-21",
@@ -1727,20 +1770,21 @@
       "hrv": 43,
       "sleepSecs": 19200,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.799615,
       "fatigue": 8.004092,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.0864401,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.364
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.799615,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.0864401
+      ]
     },
     {
       "id": "1998-02-22",
@@ -1749,20 +1793,21 @@
       "hrv": 33,
       "sleepSecs": 27575,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.451405,
       "fatigue": 6.9385705,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.0608788,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.18663
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.451405,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.0608788
+      ]
     },
     {
       "id": "1998-02-23",
@@ -1771,20 +1816,21 @@
       "hrv": 46,
       "sleepSecs": 24120,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.887822,
       "fatigue": 10.407923,
+      "fitnessContribution": 33,
+      "fatigueContribution": 33,
+      "weeklyFitnessChange": -0.25948334,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 177.00945
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.887822,
-      "fitnessContribution": 33,
-      "fatigueContribution": 33,
-      "weeklyFitnessChange": -0.25948334
+      ]
     },
     {
       "id": "1998-02-24",
@@ -1793,20 +1839,21 @@
       "hrv": 41,
       "sleepSecs": 23400,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.537537,
       "fatigue": 9.022398,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.98275566,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 176.83244
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.537537,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.98275566
+      ]
     },
     {
       "id": "1998-02-25",
@@ -1815,20 +1862,21 @@
       "hrv": 58,
       "sleepSecs": 20580,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.195493,
       "fatigue": 7.821317,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.9596329,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 176.65561
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.195493,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.9596329
+      ]
     },
     {
       "id": "1998-02-26",
@@ -1837,20 +1885,21 @@
       "hrv": 44,
       "sleepSecs": 18660,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.861497,
       "fatigue": 6.780127,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.9370537,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 176.47896
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.861497,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.9370537
+      ]
     },
     {
       "id": "1998-02-27",
@@ -1859,20 +1908,21 @@
       "hrv": 37,
       "sleepSecs": 16020,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.535359,
       "fatigue": 5.8775425,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.6208553,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 176.30247
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.535359,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.6208553
+      ]
     },
     {
       "id": "1998-02-28",
@@ -1881,20 +1931,21 @@
       "hrv": 31,
       "sleepSecs": 10560,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.216895,
       "fatigue": 5.095112,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.5827198,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 176.12617
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.216895,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.5827198
+      ]
     },
     {
       "id": "1998-03-01",
@@ -1903,20 +1954,21 @@
       "hrv": 31,
       "sleepSecs": 25524,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.917642,
       "fatigue": 10.14109,
+      "fitnessContribution": 43,
+      "fatigueContribution": 43,
+      "weeklyFitnessChange": -0.53376293,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.95006
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.917642,
-      "fitnessContribution": 43,
-      "fatigueContribution": 43,
-      "weeklyFitnessChange": -0.53376293
+      ]
     },
     {
       "id": "1998-03-02",
@@ -1925,20 +1977,21 @@
       "hrv": 36,
       "sleepSecs": 20789,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.590183,
       "fatigue": 8.791087,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2976389,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.77411
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.590183,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2976389
+      ]
     },
     {
       "id": "1998-03-03",
@@ -1947,20 +2000,21 @@
       "hrv": 36,
       "sleepSecs": 19980,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.27043,
       "fatigue": 7.620799,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.267107,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.59834
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.27043,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.267107
+      ]
     },
     {
       "id": "1998-03-04",
@@ -1969,20 +2023,21 @@
       "hrv": 30,
       "sleepSecs": 19680,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.958199,
       "fatigue": 6.6063023,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2372942,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.42274
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.958199,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2372942
+      ]
     },
     {
       "id": "1998-03-05",
@@ -1991,20 +2046,21 @@
       "hrv": 33,
       "sleepSecs": 22440,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.653314,
       "fatigue": 5.7268577,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2081833,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.24733
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.653314,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2081833
+      ]
     },
     {
       "id": "1998-03-06",
@@ -2013,20 +2069,21 @@
       "hrv": 32,
       "sleepSecs": 20242,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.355602,
       "fatigue": 4.964486,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.1797571,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 175.07208
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.355602,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.1797571
+      ]
     },
     {
       "id": "1998-03-07",
@@ -2035,20 +2092,21 @@
       "hrv": 29,
       "sleepSecs": 6822,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.064896,
       "fatigue": 4.303603,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.1519995,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.89702
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.064896,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.1519995
+      ]
     },
     {
       "id": "1998-03-08",
@@ -2057,20 +2115,21 @@
       "hrv": 37,
       "sleepSecs": 30658,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.781029,
       "fatigue": 3.7306986,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -2.136613,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.72212
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.781029,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -2.136613
+      ]
     },
     {
       "id": "1998-03-09",
@@ -2079,20 +2138,21 @@
       "hrv": 32,
       "sleepSecs": 23040,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.503841,
       "fatigue": 3.23406,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -2.0863419,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.54741
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.503841,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -2.0863419
+      ]
     },
     {
       "id": "1998-03-10",
@@ -2101,20 +2161,21 @@
       "hrv": 34,
       "sleepSecs": 21780,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.233175,
       "fatigue": 2.8035352,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -2.0372543,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.37286
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.233175,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -2.0372543
+      ]
     },
     {
       "id": "1998-03-11",
@@ -2123,20 +2184,21 @@
       "hrv": 41,
       "sleepSecs": 21929,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.933538,
       "fatigue": 7.888329,
+      "fitnessContribution": 41,
+      "fatigueContribution": 41,
+      "weeklyFitnessChange": -1.0246601,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.19849
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.933538,
-      "fitnessContribution": 41,
-      "fatigueContribution": 41,
-      "weeklyFitnessChange": -1.0246601
+      ]
     },
     {
       "id": "1998-03-12",
@@ -2145,20 +2207,21 @@
       "hrv": 34,
       "sleepSecs": 16920,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.652762,
       "fatigue": 6.838218,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.0005512,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 174.02429
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.652762,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.0005512
+      ]
     },
     {
       "id": "1998-03-13",
@@ -2167,20 +2230,21 @@
       "hrv": 47,
       "sleepSecs": 27567,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.3785925,
       "fatigue": 5.9279003,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.9770098,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.85027
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.3785925,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.9770098
+      ]
     },
     {
       "id": "1998-03-14",
@@ -2189,20 +2253,21 @@
       "hrv": 34,
       "sleepSecs": 22260,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.887308,
       "fatigue": 9.5317955,
+      "fitnessContribution": 33,
+      "fatigueContribution": 33,
+      "weeklyFitnessChange": -0.17758751,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.887308,
-      "fitnessContribution": 33,
-      "fatigueContribution": 33,
-      "weeklyFitnessChange": -0.17758751
+      ]
     },
     {
       "id": "1998-03-15",
@@ -2211,20 +2276,21 @@
       "hrv": 42,
       "sleepSecs": 22920,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.313469,
       "fatigue": 12.256566,
+      "fitnessContribution": 30,
+      "fatigueContribution": 30,
+      "weeklyFitnessChange": 0.5324402,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.313469,
-      "fitnessContribution": 30,
-      "fatigueContribution": 30,
-      "weeklyFitnessChange": 0.5324402
+      ]
     },
     {
       "id": "1998-03-16",
@@ -2233,20 +2299,21 @@
       "hrv": 36,
       "sleepSecs": 30120,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.635489,
       "fatigue": 14.086121,
+      "fitnessContribution": 26,
+      "fatigueContribution": 26,
+      "weeklyFitnessChange": 1.1316481,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.635489,
-      "fitnessContribution": 26,
-      "fatigueContribution": 26,
-      "weeklyFitnessChange": 1.1316481
+      ]
     },
     {
       "id": "1998-03-17",
@@ -2255,20 +2322,21 @@
       "hrv": null,
       "sleepSecs": null,
       "sleepQuality": null,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.338198,
       "fatigue": 15.539,
+      "fitnessContribution": 0,
+      "fatigueContribution": 25,
+      "weeklyFitnessChange": 1.1050224,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.338198,
-      "fitnessContribution": 0,
-      "fatigueContribution": 25,
-      "weeklyFitnessChange": 1.1050224
+      ]
     },
     {
       "id": "1998-03-18",
@@ -2277,20 +2345,21 @@
       "hrv": 34,
       "sleepSecs": 15240,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.047901,
       "fatigue": 13.470415,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.11436272,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.047901,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.11436272
+      ]
     },
     {
       "id": "1998-03-19",
@@ -2299,20 +2368,21 @@
       "hrv": 39,
       "sleepSecs": 20340,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.764435,
       "fatigue": 11.677205,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.1116724,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.764435,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.1116724
+      ]
     },
     {
       "id": "1998-03-20",
@@ -2321,20 +2391,21 @@
       "hrv": 46,
       "sleepSecs": 16980,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.169959,
       "fatigue": 13.983252,
+      "fitnessContribution": 29,
+      "fatigueContribution": 29,
+      "weeklyFitnessChange": 0.7913666,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.67642
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.169959,
-      "fitnessContribution": 29,
-      "fatigueContribution": 29,
-      "weeklyFitnessChange": 0.7913666
+      ]
     },
     {
       "id": "1998-03-21",
@@ -2343,20 +2414,21 @@
       "hrv": 40,
       "sleepSecs": 22500,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.88362,
       "fatigue": 12.121772,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.0036878586,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.50275
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.88362,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.0036878586
+      ]
     },
     {
       "id": "1998-03-22",
@@ -2365,20 +2437,21 @@
       "hrv": 45,
       "sleepSecs": 19500,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.604019,
       "fatigue": 10.508096,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.70944977,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.32924
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.604019,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.70944977
+      ]
     },
     {
       "id": "1998-03-23",
@@ -2387,20 +2460,21 @@
       "hrv": 37,
       "sleepSecs": 21780,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.3309965,
       "fatigue": 13.236021,
+      "fitnessContribution": 0,
+      "fatigueContribution": 31,
+      "weeklyFitnessChange": -1.304493,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 173.15591
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.3309965,
-      "fitnessContribution": 0,
-      "fatigueContribution": 31,
-      "weeklyFitnessChange": -1.304493
+      ]
     },
     {
       "id": "1998-03-24",
@@ -2409,20 +2483,21 @@
       "hrv": 36,
       "sleepSecs": 20040,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.064397,
       "fatigue": 11.474014,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2738008,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.98276
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.064397,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2738008
+      ]
     },
     {
       "id": "1998-03-25",
@@ -2431,20 +2506,21 @@
       "hrv": 46,
       "sleepSecs": 22560,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.80407,
       "fatigue": 9.946569,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2438307,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.80978
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.80407,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2438307
+      ]
     },
     {
       "id": "1998-03-26",
@@ -2453,20 +2529,21 @@
       "hrv": 30,
       "sleepSecs": 13320,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.549869,
       "fatigue": 8.622461,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.2145662,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.63698
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.549869,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.2145662
+      ]
     },
     {
       "id": "1998-03-27",
@@ -2475,20 +2552,21 @@
       "hrv": 35,
       "sleepSecs": 12540,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.301648,
       "fatigue": 7.4746213,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.8683109,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.46434
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.301648,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.8683109
+      ]
     },
     {
       "id": "1998-03-28",
@@ -2497,20 +2575,21 @@
       "hrv": 44,
       "sleepSecs": 32820,
       "sleepQuality": 1,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.059268,
       "fatigue": 6.479584,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.8243523,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.29189
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.059268,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.8243523
+      ]
     },
     {
       "id": "1998-03-29",
@@ -2519,20 +2598,21 @@
       "hrv": 40,
       "sleepSecs": 27561,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 9.822591,
       "fatigue": 5.617008,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.7814283,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 172.1196
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 9.822591,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.7814283
+      ]
     },
     {
       "id": "1998-03-30",
@@ -2541,20 +2621,21 @@
       "hrv": 42,
       "sleepSecs": 22680,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 9.591482,
       "fatigue": 4.8692603,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -1.7395144,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.94748
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 9.591482,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -1.7395144
+      ]
     },
     {
       "id": "1998-03-31",
@@ -2563,20 +2644,21 @@
       "hrv": 58,
       "sleepSecs": 22980,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": 42,
+      "fitness": 10.21283,
       "fatigue": 9.01345,
+      "fitnessContribution": 36,
+      "fatigueContribution": 36,
+      "weeklyFitnessChange": -0.85156727,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.77553
         }
-      ],
-      "bodyFat": null,
-      "vo2max": 42,
-      "fitness": 10.21283,
-      "fitnessContribution": 36,
-      "fatigueContribution": 36,
-      "weeklyFitnessChange": -0.85156727
+      ]
     },
     {
       "id": "1998-04-01",
@@ -2585,20 +2667,21 @@
       "hrv": 49,
       "sleepSecs": 18780,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 9.972539,
       "fatigue": 7.8135605,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.8315315,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.60376
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 9.972539,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.8315315
+      ]
     },
     {
       "id": "1998-04-02",
@@ -2607,20 +2690,21 @@
       "hrv": 43,
       "sleepSecs": 14880,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 9.737902,
       "fatigue": 6.7734027,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": -0.8119669,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 9.737902,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": -0.8119669
+      ]
     },
     {
       "id": "1998-04-03",
@@ -2629,20 +2713,21 @@
       "hrv": 51,
       "sleepSecs": 26040,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.920485,
       "fatigue": 13.859039,
+      "fitnessContribution": 60,
+      "fatigueContribution": 60,
+      "weeklyFitnessChange": 0.6188364,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.920485,
-      "fitnessContribution": 60,
-      "fatigueContribution": 60,
-      "weeklyFitnessChange": 0.6188364
+      ]
     },
     {
       "id": "1998-04-04",
@@ -2651,20 +2736,21 @@
       "hrv": 37,
       "sleepSecs": 24060,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.663544,
       "fatigue": 12.014095,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.6042757,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.663544,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.6042757
+      ]
     },
     {
       "id": "1998-04-05",
@@ -2673,20 +2759,21 @@
       "hrv": 30,
       "sleepSecs": 13500,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 10.412648,
       "fatigue": 10.414754,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.5900574,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 10.412648,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.5900574
+      ]
     },
     {
       "id": "1998-04-06",
@@ -2695,20 +2782,21 @@
       "hrv": 42,
       "sleepSecs": 27540,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.720525,
       "fatigue": 17.814379,
+      "fitnessContribution": 66,
+      "fatigueContribution": 66,
+      "weeklyFitnessChange": 2.1290426,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.720525,
-      "fitnessContribution": 66,
-      "fatigueContribution": 66,
-      "weeklyFitnessChange": 2.1290426
+      ]
     },
     {
       "id": "1998-04-07",
@@ -2717,20 +2805,21 @@
       "hrv": 44,
       "sleepSecs": 21240,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 11.44476,
       "fatigue": 15.442891,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 1.2319307,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 11.44476,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 1.2319307
+      ]
     },
     {
       "id": "1998-04-08",
@@ -2739,20 +2828,21 @@
       "hrv": 41,
       "sleepSecs": 10920,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 13.269505,
       "fatigue": 25.234968,
+      "fitnessContribution": 89,
+      "fatigueContribution": 89,
+      "weeklyFitnessChange": 3.2969656,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 13.269505,
-      "fitnessContribution": 89,
-      "fatigueContribution": 89,
-      "weeklyFitnessChange": 3.2969656
+      ]
     },
     {
       "id": "1998-04-09",
@@ -2761,20 +2851,21 @@
       "hrv": 37,
       "sleepSecs": 25500,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.957295,
       "fatigue": 24.138712,
+      "fitnessContribution": 0,
+      "fatigueContribution": 17,
+      "weeklyFitnessChange": 3.2193937,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.957295,
-      "fitnessContribution": 0,
-      "fatigueContribution": 17,
-      "weeklyFitnessChange": 3.2193937
+      ]
     },
     {
       "id": "1998-04-10",
@@ -2783,20 +2874,21 @@
       "hrv": 47,
       "sleepSecs": 23880,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 12.652432,
       "fatigue": 20.925316,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 1.7319479,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 12.652432,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 1.7319479
+      ]
     },
     {
       "id": "1998-04-11",
@@ -2805,20 +2897,21 @@
       "hrv": 57,
       "sleepSecs": 21540,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.660517,
       "fatigue": 31.18566,
+      "fitnessContribution": 98,
+      "fatigueContribution": 98,
+      "weeklyFitnessChange": 3.996973,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.660517,
-      "fitnessContribution": 98,
-      "fatigueContribution": 98,
-      "weeklyFitnessChange": 3.996973
+      ]
     },
     {
       "id": "1998-04-12",
@@ -2827,20 +2920,21 @@
       "hrv": 33,
       "sleepSecs": 22080,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": 42,
+      "fitness": 15.021429,
       "fatigue": 31.027822,
+      "fitnessContribution": 30,
+      "fatigueContribution": 30,
+      "weeklyFitnessChange": 4.608781,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": 42,
-      "fitness": 15.021429,
-      "fitnessContribution": 30,
-      "fatigueContribution": 30,
-      "weeklyFitnessChange": 4.608781
+      ]
     },
     {
       "id": "1998-04-13",
@@ -2849,20 +2943,21 @@
       "hrv": 44,
       "sleepSecs": 21480,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 14.668,
       "fatigue": 28.761044,
+      "fitnessContribution": 0,
+      "fatigueContribution": 14,
+      "weeklyFitnessChange": 2.9474754,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 14.668,
-      "fitnessContribution": 0,
-      "fatigueContribution": 14,
-      "weeklyFitnessChange": 2.9474754
+      ]
     },
     {
       "id": "1998-04-14",
@@ -2871,20 +2966,21 @@
       "hrv": 46,
       "sleepSecs": 18416,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 16.322794,
       "fatigue": 36.247692,
+      "fitnessContribution": 85,
+      "fatigueContribution": 85,
+      "weeklyFitnessChange": 4.8780336,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 16.322794,
-      "fitnessContribution": 85,
-      "fatigueContribution": 85,
-      "weeklyFitnessChange": 4.8780336
+      ]
     },
     {
       "id": "1998-04-15",
@@ -2893,20 +2989,21 @@
       "hrv": 40,
       "sleepSecs": 24060,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 16.621067,
       "fatigue": 35.282864,
+      "fitnessContribution": 29,
+      "fatigueContribution": 29,
+      "weeklyFitnessChange": 3.3515625,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 16.621067,
-      "fitnessContribution": 29,
-      "fatigueContribution": 29,
-      "weeklyFitnessChange": 3.3515625
+      ]
     },
     {
       "id": "1998-04-16",
@@ -2915,20 +3012,21 @@
       "hrv": 52,
       "sleepSecs": 22800,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 16.230001,
       "fatigue": 30.585936,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 3.272706,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 16.230001,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 3.272706
+      ]
     },
     {
       "id": "1998-04-17",
@@ -2937,20 +3035,21 @@
       "hrv": 44,
       "sleepSecs": 17361,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 16.50693,
       "fatigue": 30.24169,
+      "fitnessContribution": 28,
+      "fatigueContribution": 28,
+      "weeklyFitnessChange": 3.854497,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 16.50693,
-      "fitnessContribution": 28,
-      "fatigueContribution": 28,
-      "weeklyFitnessChange": 3.854497
+      ]
     },
     {
       "id": "1998-04-18",
@@ -2959,20 +3058,21 @@
       "hrv": 49,
       "sleepSecs": 22140,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 18.400795,
       "fatigue": 39.128696,
+      "fitnessContribution": 97,
+      "fatigueContribution": 97,
+      "weeklyFitnessChange": 3.7402782,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 18.400795,
-      "fitnessContribution": 97,
-      "fatigueContribution": 97,
-      "weeklyFitnessChange": 3.7402782
+      ]
     },
     {
       "id": "1998-04-19",
@@ -2981,20 +3081,21 @@
       "hrv": 34,
       "sleepSecs": 22200,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": 42,
+      "fitness": 19.191328,
       "fatigue": 40.84215,
+      "fitnessContribution": 52,
+      "fatigueContribution": 52,
+      "weeklyFitnessChange": 4.169899,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": 42,
-      "fitness": 19.191328,
-      "fitnessContribution": 52,
-      "fatigueContribution": 52,
-      "weeklyFitnessChange": 4.169899
+      ]
     },
     {
       "id": "1998-04-20",
@@ -3003,20 +3104,21 @@
       "hrv": 43,
       "sleepSecs": 24180,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 19.092712,
       "fatigue": 37.40199,
+      "fitnessContribution": 15,
+      "fatigueContribution": 15,
+      "weeklyFitnessChange": 4.424712,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 19.092712,
-      "fitnessContribution": 15,
-      "fatigueContribution": 15,
-      "weeklyFitnessChange": 4.424712
+      ]
     },
     {
       "id": "1998-04-21",
@@ -3025,20 +3127,21 @@
       "hrv": 38,
       "sleepSecs": 28980,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 19.25523,
       "fatigue": 35.884132,
+      "fitnessContribution": 26,
+      "fatigueContribution": 26,
+      "weeklyFitnessChange": 2.932436,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 19.25523,
-      "fitnessContribution": 26,
-      "fatigueContribution": 26,
-      "weeklyFitnessChange": 2.932436
+      ]
     },
     {
       "id": "1998-04-22",
@@ -3047,20 +3150,21 @@
       "hrv": 40,
       "sleepSecs": 24960,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 20.613867,
       "fatigue": 41.357563,
+      "fitnessContribution": 77,
+      "fatigueContribution": 77,
+      "weeklyFitnessChange": 3.9927998,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 20.613867,
-      "fitnessContribution": 77,
-      "fatigueContribution": 77,
-      "weeklyFitnessChange": 3.9927998
+      ]
     },
     {
       "id": "1998-04-23",
@@ -3069,20 +3173,21 @@
       "hrv": 45,
       "sleepSecs": 20514,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 20.128857,
       "fatigue": 38.248154,
+      "fitnessContribution": 0,
+      "fatigueContribution": 18,
+      "weeklyFitnessChange": 3.8988552,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 20.128857,
-      "fitnessContribution": 0,
-      "fatigueContribution": 18,
-      "weeklyFitnessChange": 3.8988552
+      ]
     },
     {
       "id": "1998-04-24",
@@ -3091,20 +3196,21 @@
       "hrv": 40,
       "sleepSecs": 22260,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 21.537523,
       "fatigue": 43.806248,
+      "fitnessContribution": 80,
+      "fatigueContribution": 80,
+      "weeklyFitnessChange": 5.030594,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 21.537523,
-      "fitnessContribution": 80,
-      "fatigueContribution": 80,
-      "weeklyFitnessChange": 5.030594
+      ]
     },
     {
       "id": "1998-04-25",
@@ -3113,20 +3219,21 @@
       "hrv": 35,
       "sleepSecs": 22080,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 21.03078,
       "fatigue": 37.974667,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 2.6299858,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 21.03078,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 2.6299858
+      ]
     },
     {
       "id": "1998-04-26",
@@ -3135,20 +3242,21 @@
       "hrv": 47,
       "sleepSecs": 22740,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 20.535961,
       "fatigue": 32.9194,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 1.3446331,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 20.535961,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 1.3446331
+      ]
     },
     {
       "id": "1998-04-27",
@@ -3157,20 +3265,21 @@
       "hrv": 35,
       "sleepSecs": 21360,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 22.805597,
       "fatigue": 44.112385,
+      "fitnessContribution": 117,
+      "fatigueContribution": 117,
+      "weeklyFitnessChange": 3.712885,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 22.805597,
-      "fitnessContribution": 117,
-      "fatigueContribution": 117,
-      "weeklyFitnessChange": 3.712885
+      ]
     },
     {
       "id": "1998-04-28",
@@ -3179,20 +3288,21 @@
       "hrv": 37,
       "sleepSecs": 24120,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 22.26902,
       "fatigue": 38.24005,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 3.0137901,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 22.26902,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 3.0137901
+      ]
     },
     {
       "id": "1998-04-29",
@@ -3201,20 +3311,21 @@
       "hrv": 53,
       "sleepSecs": 19560,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 23.580276,
       "fatigue": 43.532978,
+      "fitnessContribution": 78,
+      "fatigueContribution": 78,
+      "weeklyFitnessChange": 2.9664097,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 23.580276,
-      "fitnessContribution": 78,
-      "fatigueContribution": 78,
-      "weeklyFitnessChange": 2.9664097
+      ]
     },
     {
       "id": "1998-04-30",
@@ -3223,20 +3334,21 @@
       "hrv": 43,
       "sleepSecs": 21660,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 23.025473,
       "fatigue": 41.73144,
+      "fitnessContribution": 0,
+      "fatigueContribution": 30,
+      "weeklyFitnessChange": 2.896616,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 23.025473,
-      "fitnessContribution": 0,
-      "fatigueContribution": 30,
-      "weeklyFitnessChange": 2.896616
+      ]
     },
     {
       "id": "1998-05-01",
@@ -3245,20 +3357,21 @@
       "hrv": 45,
       "sleepSecs": 23799,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 24.389515,
       "fatigue": 46.958954,
+      "fitnessContribution": 81,
+      "fatigueContribution": 81,
+      "weeklyFitnessChange": 2.8519917,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 24.389515,
-      "fitnessContribution": 81,
-      "fatigueContribution": 81,
-      "weeklyFitnessChange": 2.8519917
+      ]
     },
     {
       "id": "1998-05-02",
@@ -3267,20 +3380,21 @@
       "hrv": 38,
       "sleepSecs": 17700,
       "sleepQuality": 4,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 23.81567,
       "fatigue": 40.70768,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 2.7848892,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 23.81567,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 2.7848892
+      ]
     },
     {
       "id": "1998-05-03",
@@ -3289,20 +3403,21 @@
       "hrv": 51,
       "sleepSecs": 23782,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 27.443367,
       "fatigue": 58.98432,
+      "fitnessContribution": 178,
+      "fatigueContribution": 178,
+      "weeklyFitnessChange": 6.907406,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 27.443367,
-      "fitnessContribution": 178,
-      "fatigueContribution": 178,
-      "weeklyFitnessChange": 6.907406
+      ]
     },
     {
       "id": "1998-05-04",
@@ -3311,20 +3426,21 @@
       "hrv": 35,
       "sleepSecs": 23580,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 26.79767,
       "fatigue": 51.132206,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 3.992073,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 26.79767,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 3.992073
+      ]
     },
     {
       "id": "1998-05-05",
@@ -3333,20 +3449,21 @@
       "hrv": 45,
       "sleepSecs": 19800,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 26.167166,
       "fatigue": 44.32538,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 3.8981457,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 26.167166,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 3.8981457
+      ]
     },
     {
       "id": "1998-05-06",
@@ -3355,20 +3472,21 @@
       "hrv": 43,
       "sleepSecs": 25316,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 27.198479,
       "fatigue": 47.743237,
+      "fitnessContribution": 70,
+      "fatigueContribution": 70,
+      "weeklyFitnessChange": 3.6182022,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 27.198479,
-      "fitnessContribution": 70,
-      "fatigueContribution": 70,
-      "weeklyFitnessChange": 3.6182022
+      ]
     },
     {
       "id": "1998-05-07",
@@ -3377,20 +3495,21 @@
       "hrv": 39,
       "sleepSecs": 19726,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 27.970243,
       "fatigue": 49.37488,
+      "fitnessContribution": 60,
+      "fatigueContribution": 60,
+      "weeklyFitnessChange": 4.944771,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 27.970243,
-      "fitnessContribution": 60,
-      "fatigueContribution": 60,
-      "weeklyFitnessChange": 4.944771
+      ]
     },
     {
       "id": "1998-05-08",
@@ -3399,20 +3518,21 @@
       "hrv": 44,
       "sleepSecs": 26520,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 27.312151,
       "fatigue": 47.727512,
+      "fitnessContribution": 0,
+      "fatigueContribution": 37,
+      "weeklyFitnessChange": 2.922636,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 27.312151,
-      "fitnessContribution": 0,
-      "fatigueContribution": 37,
-      "weeklyFitnessChange": 2.922636
+      ]
     },
     {
       "id": "1998-05-09",
@@ -3421,20 +3541,21 @@
       "hrv": 39,
       "sleepSecs": 18120,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 28.78709,
       "fatigue": 53.354916,
+      "fitnessContribution": 90,
+      "fatigueContribution": 90,
+      "weeklyFitnessChange": 4.9714203,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 28.78709,
-      "fitnessContribution": 90,
-      "fatigueContribution": 90,
-      "weeklyFitnessChange": 4.9714203
+      ]
     },
     {
       "id": "1998-05-10",
@@ -3443,20 +3564,21 @@
       "hrv": 37,
       "sleepSecs": 26807,
       "sleepQuality": 3,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 28.10978,
       "fatigue": 46.252197,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.66641235,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 28.10978,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.66641235
+      ]
     },
     {
       "id": "1998-05-11",
@@ -3465,20 +3587,21 @@
       "hrv": 44,
       "sleepSecs": 26580,
       "sleepQuality": 2,
+      "bodyFat": null,
       "soreness": null,
+      "vo2max": null,
+      "fitness": 27.448404,
       "fatigue": 40.09501,
+      "fitnessContribution": 0,
+      "fatigueContribution": 0,
+      "weeklyFitnessChange": 0.65073395,
+      "subjectiveFatigue": null,
       "sportInfo": [
         {
           "type": "Ride",
           "eftp": 171.43216
         }
-      ],
-      "bodyFat": null,
-      "vo2max": null,
-      "fitness": 27.448404,
-      "fitnessContribution": 0,
-      "fatigueContribution": 0,
-      "weeklyFitnessChange": 0.65073395
+      ]
     }
   ],
   "ftp_history": [

@@ -30,12 +30,14 @@ function formatStoreFreshness(freshness: StoredDataFreshness): string {
 
 function readResult<T>(
   result: AthleteReadResult<T>,
-): T | { error: string; message: string } | { data: T; freshness: string } {
+): T | { error: string; message: string } | { data: T; freshness?: string; notice?: string } {
   if (!result.ok) return { error: result.error, message: result.message };
-  if (result.freshness !== undefined) {
-    return { data: result.value, freshness: formatStoreFreshness(result.freshness) };
-  }
-  return result.value;
+  if (result.freshness === undefined && result.notice === undefined) return result.value;
+  return {
+    data: result.value,
+    ...(result.freshness === undefined ? {} : { freshness: formatStoreFreshness(result.freshness) }),
+    ...(result.notice === undefined ? {} : { notice: result.notice }),
+  };
 }
 
 function platformFailure(error: unknown): ReturnType<typeof toTypedError> {
@@ -62,14 +64,6 @@ const ACTIVITY_ID_DESCRIPTION =
   "optionally i-prefixed for intervals-native activities, or a lowercase 64-hex " +
   "canonical ID. Pass exactly as listed.";
 
-/**
- * Pure-Core intervals tools per ADR-0004 — no sport-specific config needed.
- * Wired by the binary entry point alongside the sport's own tools().
- *
- * `tz` is the athlete's IANA timezone — used so "today" in the past-workout
- * guard agrees with `event.startDateLocal` (which is in athlete-local frame),
- * not with UTC.
- */
 export function createPureCoreIntervalsTools(
   intervals: IntervalsClient | null,
   tz: string = "UTC",
@@ -104,7 +98,8 @@ export function createPureCoreIntervalsTools(
       ? {
           intervals_fetch_wellness: tool({
             description:
-              "Fetch wellness data from intervals.icu (fitness, fatigue, weight, HRV, resting HR, sleep). Form = fitness - fatigue.",
+              "Fetch wellness data from intervals.icu (fitness, fatigue, weight, HRV, resting HR, sleep). Form = fitness - fatigue. " +
+              "subjectiveFatigue is the athlete's self-reported fatigue score, not the load fatigue.",
             inputSchema: zodSchema(
               z.object({
                 oldest: dateKeySchema.describe("Start date (YYYY-MM-DD)"),
@@ -190,8 +185,6 @@ export function createPureCoreIntervalsTools(
               }),
             ),
             execute: async (input: { activityId: number | string; types?: string[] }) => {
-              // Treat empty array the same as omitted — defensively handle the LLM
-              // calling with `types: []` "to play it safe" instead of dropping the field.
               const types = input.types?.length
                 ? input.types
                 : ["watts", "heartrate", "cadence", "time", "altitude"];
@@ -361,10 +354,6 @@ export function createPureCoreIntervalsTools(
   };
 }
 
-/**
- * Core-with-sport-config intervals tools per ADR-0004 — Core implementation,
- * sport-supplied activity-type filter at construction time.
- */
 export function createCoreToolsWithSportConfig(
   intervals: IntervalsClient | null,
   activityTypes: readonly IntervalsActivityType[],
@@ -373,10 +362,6 @@ export function createCoreToolsWithSportConfig(
   void intervals;
   const selectedReader = athleteData;
   if (!selectedReader) return {};
-  // The activityTypes array is reserved for future filtering of the API responses
-  // (e.g., when intervals.icu adds a server-side filter); today we keep the same
-  // list/fetch shape and let the LLM disambiguate via descriptions. Embedding
-  // the param in the closure keeps the contract stable across sports.
   void activityTypes;
   return {
     intervals_fetch_activities: tool({

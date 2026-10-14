@@ -26,13 +26,19 @@
       "id": "1998-03-01",
       "weight": 72,
       "restingHR": 48,
-      "hrv": 65
+      "hrv": 65,
+      "sleepSecs": null,
+      "sleepQuality": null,
+      "subjectiveFatigue": null
     },
     {
       "id": "1998-03-03",
       "weight": 71.8,
       "restingHR": 47,
-      "hrv": 68
+      "hrv": 68,
+      "sleepSecs": null,
+      "sleepQuality": null,
+      "subjectiveFatigue": null
     }
   ],
   "ftp_history": [

@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { canonicalJson } from "@enduragent/kernel/archive";
 import { createIntervalsSourceRepository, sortKeys, type Row, type SqlStore } from "@enduragent/kernel/store";
-import { mapActivityLanding, mapSettingsLanding, mapWellnessLanding, normalizeStreamLanding } from "../src/index.js";
+import { RowRejection } from "@enduragent/kernel/reference/local-bundle";
+import { landWellnessRow, mapActivityLanding, mapSettingsLanding, normalizeStreamLanding } from "../src/index.js";
 
 const hashKey = async (fields: readonly (string | number)[]) => createHash("sha256").update(fields.join("\u001f")).digest("hex");
 
@@ -26,19 +27,46 @@ describe("intervals.icu landing mappings", () => {
   });
 
   it("maps wellness columns and manual wellness wins", async () => {
-    const value = await mapWellnessLanding({ id: "1998-01-05", restingHR: 48, hrv: 71.5, hrvSdnn: 40,
-      sleepSecs: 28_800, sleepQuality: 4, weight: 70.2, soreness: 1, fatigue: 2, updated: "1998-01-05T09:00:00Z" });
-    expect(value).toMatchObject({ date_key: 19980105, resting_hr: 48, hrv: 71.5, hrv_sdnn: 40,
+    const wire = { id: "1998-01-05", restingHR: 48, hrv: 71.5, hrvSDNN: 40, sleepSecs: 28_800, sleepQuality: 4,
+      sleepScore: 83, weight: 70.2, soreness: 1, fatigue: 2, ctl: 31.2, atl: 30.5, updated: "1998-01-05T09:00:00Z" };
+    const original = structuredClone(wire);
+    const landing = await landWellnessRow(wire);
+    expect(wire).toEqual(original);
+    expect(landing).toMatchObject({ externalId: "1998-01-05", instant: { epochSeconds: Date.UTC(1998, 0, 5) / 1_000 },
+      cursorKey: "1998-01-05\u001f1998-01-05", wire });
+    expect(landing.row).toMatchObject({ date_key: 19980105, resting_hr: 48, hrv: 71.5, hrv_sdnn: 40,
       sleep_s: 28_800, sleep_score: 4, weight_kg: 70.2, soreness: 1, fatigue: 2,
       provenance: "sync", source: "intervals-icu" });
-    expect(JSON.parse(value.fields_json)).toMatchObject({ source: "intervals-icu", values: { updated: "1998-01-05T09:00:00Z" } });
+    expect(JSON.parse(landing.row.fields_json)).toEqual({ source: "intervals-icu", subjectiveFatigue: 2,
+      load: { fitness: 31.2, fatigue: 30.5, fitnessContribution: null, fatigueContribution: null, weeklyFitnessChange: null },
+      values: { id: "1998-01-05", restingHR: 48, hrv: 71.5, hrvSDNN: 40, sleepSecs: 28_800, sleepQuality: 4, sleepScore: 83,
+        weight: 70.2, soreness: 1, updated: "1998-01-05T09:00:00Z" } });
     const run = vi.fn(async () => {});
     const store: SqlStore = { exec: async () => {}, run,
       get: async (sql): Promise<Row | undefined> => sql.includes("FROM wellness")
         ? { id: "manual", date_key: 19980105, provenance: "manual", source: null } : undefined,
       all: async () => [], close: async () => {} };
-    await expect(createIntervalsSourceRepository(store, hashKey).upsertWellness(value)).resolves.toBe("manual-wins");
+    await expect(createIntervalsSourceRepository(store, hashKey).upsertWellness(landing.row)).resolves.toBe("manual-wins");
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("lands a day that carries only a date", async () => {
+    const landing = await landWellnessRow({ id: "1998-01-05" });
+    expect(landing.row).toMatchObject({ date_key: 19980105, resting_hr: null, hrv: null, hrv_sdnn: null, sleep_s: null,
+      sleep_score: null, weight_kg: null, soreness: null, fatigue: null });
+  });
+
+  it.each([
+    ["a row that is not an object", ["1998-01-05"], new RowRejection("shape")],
+    ["a row with no civil date", { id: "1998-02-30", restingHR: 48 }, new RowRejection("identity", "id")],
+    ["a row already in coach words", { id: "1998-01-05", fitness: 31.2 }, new RowRejection("decode", "fitness")],
+    ["a value of the wrong type", { id: "1998-01-05", hrv: "71.5" }, new RowRejection("decode", "hrv")],
+    ["a negative resting heart rate", { id: "1998-01-05", restingHR: -48 }, new RowRejection("landing", "restingHR")],
+    ["a fractional sleep duration", { id: "1998-01-05", sleepSecs: 28_800.5 }, new RowRejection("landing", "sleepSecs")],
+    ["a fractional logged fatigue score", { id: "1998-01-05", fatigue: 2.5 }, new RowRejection("decode", "subjectiveFatigue")],
+    ["a negative logged fatigue score", { id: "1998-01-05", fatigue: -3 }, new RowRejection("landing", "subjectiveFatigue")],
+  ])("rejects %s and names the field without its value", async (_name, wire, rejection) => {
+    await expect(landWellnessRow(wire)).rejects.toThrow(rejection);
   });
 
   it("maps sport settings to synced anchors and zones while retaining unsupported pace fields source-only", async () => {

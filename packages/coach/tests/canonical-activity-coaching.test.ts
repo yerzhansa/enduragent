@@ -483,7 +483,7 @@ ORDER BY s.session_seq ASC, s.session_key ASC`,
     const selected = await fixture({
       openReadonlyStore(path) {
         attempts += 1;
-        if (attempts <= 2) throw new Error("synthetic read handle failure");
+        if (attempts <= 1) throw new Error("synthetic read handle failure");
         return openReadonlySqliteStorage(path);
       },
     });

@@ -1,8 +1,10 @@
+import type { WellnessDay } from "@enduragent/kernel/reference/schemas";
+
 const WELLNESS_FIELDS = new Set([
   "id",
-  "ctl",
-  "atl",
-  "rampRate",
+  "fitness",
+  "fatigue",
+  "weeklyFitnessChange",
   "weight",
   "restingHR",
   "hrv",
@@ -11,7 +13,7 @@ const WELLNESS_FIELDS = new Set([
   "readiness",
   "sportInfo",
   "sleepQuality",
-  "fatigue",
+  "subjectiveFatigue",
   "stress",
   "mood",
   "motivation",
@@ -108,9 +110,8 @@ export function projectAthlete(row: unknown): Record<string, unknown> {
   return projected;
 }
 
-export function projectWellness(row: unknown): Record<string, unknown> {
-  if (!isRecord(row)) return {};
-  const projected = projectFields(row, WELLNESS_FIELDS);
+export function projectWellness(day: WellnessDay): Record<string, unknown> {
+  const projected = projectFields(day, WELLNESS_FIELDS);
   if (!Array.isArray(projected.sportInfo) || projected.sportInfo.length === 0) {
     delete projected.sportInfo;
   }

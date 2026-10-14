@@ -632,7 +632,7 @@ JOIN session AS s ON s.session_key = st.session_key WHERE s.start_utc < 10000000
         "synthetic-cycle-z": { time: [0, 60], watts: [101, 111] },
       });
       expect(Object.keys(produced.bundle.streams!)).toEqual(["synthetic-cycle-z"]);
-      expect(produced.bundle.wellness).toEqual([wellness]);
+      expect(produced.bundle.wellness).toEqual([{ ...wellness, subjectiveFatigue: null }]);
       expect(produced.bundle.ftpHistory).toEqual([
         { date: "2010-06-03", ftp: 245, source: "estimate" },
       ]);

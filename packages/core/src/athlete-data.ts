@@ -1,7 +1,7 @@
 import type { ApiError, EventInput, IntervalsClient } from "intervals-icu-api";
-import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
+import { decodeWellnessRow, RowRejection, type ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { CanonicalActivityReader } from "@enduragent/kernel/store";
-import { PLANNING_EVENT_CATEGORIES } from "@enduragent/kernel/reference/schemas";
+import { PLANNING_EVENT_CATEGORIES, WellnessDaySchema, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 import type {
   AthleteDataReaderPort as AthleteDataReader,
   AthleteReadResult,
@@ -54,16 +54,44 @@ async function platformValue<T>(
   return result.value;
 }
 
+function unreadableFields(fields: ReadonlySet<string>): string {
+  return fields.size === 0 ? "" : ` Unreadable fields: ${[...fields].sort().join(", ")}.`;
+}
+
 export function createPlatformAthleteDataReader(intervals: IntervalsClient): AthleteDataReader {
   return Object.freeze({
     async getAthlete() {
       return { ok: true as const, value: await platformValue(intervals.athlete.get()) };
     },
     async listWellness(input: { start: string; end?: string }) {
-      return { ok: true as const, value: await platformValue(intervals.wellness.list({
+      const rows = await platformValue(intervals.wellness.list({
         oldest: input.start,
         newest: input.end,
-      })) as unknown[] };
+      })) as unknown[];
+      const days: WellnessDay[] = [];
+      const fields = new Set<string>();
+      for (const row of rows) {
+        try {
+          days.push(decodeWellnessRow(row));
+        } catch (error) {
+          if (!(error instanceof RowRejection)) throw error;
+          if (error.field !== null && Object.hasOwn(WellnessDaySchema.shape, error.field)) fields.add(error.field);
+        }
+      }
+      const rejected = rows.length - days.length;
+      if (rejected === 0) return { ok: true as const, value: days };
+      if (days.length === 0) {
+        return {
+          ok: false as const,
+          error: "wellness_unreadable" as const,
+          message: `Wellness data could not be read. This is a fault in reading it, not missing athlete data.${unreadableFields(fields)}`,
+        };
+      }
+      return {
+        ok: true as const,
+        value: days,
+        notice: `Wellness is incomplete: ${rejected} of ${rows.length} days could not be read and are missing here.${unreadableFields(fields)}`,
+      };
     },
     async listActivities(input: { start: string; end?: string }) {
       return { ok: true as const, value: await platformValue(intervals.activities.list({
@@ -90,18 +118,29 @@ export function createPlatformAthleteDataReader(intervals: IntervalsClient): Ath
   });
 }
 
+function calendarEventTags(value: unknown): string[] | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) return value;
+  throw new TypeError("Calendar event tags are invalid.");
+}
+
+function calendarEventExternalId(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || typeof value === "string") return value;
+  throw new TypeError("Calendar event external id is invalid.");
+}
+
 export function createPlatformCalendarMutations(intervals: IntervalsClient): PlatformCalendarMutations {
   return Object.freeze({
     createEvent: (input: EventInput) => platformValue(intervals.events.create(input)),
     async readEventForDelete(input: { eventId: number }) {
-      const value = await platformValue(intervals.events.get(input.eventId)) as unknown as CalendarEventForDelete;
+      const value = await platformValue(intervals.events.get(input.eventId));
       return {
         id: value.id,
         startDateLocal: value.startDateLocal,
         name: value.name,
         category: value.category,
-        tags: value.tags,
-        externalId: value.externalId,
+        tags: calendarEventTags(value.tags),
+        externalId: calendarEventExternalId(value.externalId),
       };
     },
     updateEvent: (input: { eventId: number; patch: CalendarEventUpdate }) =>
@@ -150,8 +189,8 @@ const PUBLIC_STREAM_KEYS = new Set([
 export function isRealCivilDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [y, m, d] = value.split("-").map((part) => Number.parseInt(part, 10));
-  const parsed = new Date(Date.UTC(y!, m! - 1, d!));
-  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m! - 1 && parsed.getUTCDate() === d;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
 }
 
 function freshnessFor(snapshot: ProducedLocalBundle, clockNow: number): StoredDataFreshness | undefined {
@@ -171,8 +210,14 @@ export function formatStoreFreshness(freshness: StoredDataFreshness): string {
   return `Store data last synchronized ${freshness.label} ago (${freshness.capturedAt}).`;
 }
 
+export interface LaneStanding {
+  readonly health: "ok" | "partial" | "lost";
+  readonly droppedDates: readonly string[];
+}
+
 export function createStoreAthleteDataReader(input: {
   snapshot: () => ProducedLocalBundle | undefined;
+  wellnessLane?: () => LaneStanding | undefined;
   canonicalActivities?: CanonicalActivityReader;
   clockNow?: () => number;
 }): AthleteDataReader {
@@ -224,8 +269,17 @@ export function createStoreAthleteDataReader(input: {
       if (!("snapshot" in selected)) return selected;
       const dates = range(selected.snapshot, candidate);
       if (dates === undefined) return INVALID_DATES;
-      return { ok: true as const, value: selected.snapshot.bundle.wellness.filter((row) =>
-        row.id >= dates.start && row.id <= dates.end), freshness: selected.freshness };
+      const lane = input.wellnessLane?.();
+      if (lane?.health === "lost") {
+        return { ok: false as const, error: "wellness_unreadable" as const,
+          message: "Wellness data failed to sync. This is a sync fault, not missing athlete data." };
+      }
+      const value = selected.snapshot.bundle.wellness.filter((row) => row.id >= dates.start && row.id <= dates.end);
+      const missing = (lane?.droppedDates ?? []).filter((date) => date >= dates.start && date <= dates.end).length;
+      return missing === 0
+        ? { ok: true as const, value, freshness: selected.freshness }
+        : { ok: true as const, value, freshness: selected.freshness,
+          notice: `Wellness is incomplete: ${missing} of ${value.length + missing} days failed to sync and are missing here.` };
     },
     async listActivities(candidate: { start: string; end?: string }) {
       if (invalidExplicitRange(candidate)) return INVALID_DATES;

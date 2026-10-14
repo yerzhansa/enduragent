@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATHLETE_SNAPSHOT_FALLBACK,
   ATHLETE_SNAPSHOT_HEADING,
   ATHLETE_SNAPSHOT_TIMEOUT_MS,
   AthleteSnapshotTimeoutError,
@@ -11,6 +12,7 @@ import {
 import { estimateTokens } from "../src/agent/token-utils.js";
 import { projectAthlete } from "../src/sport/list-projection.js";
 import type { AthleteDataReaderPort } from "../src/host-ports.js";
+import { SubjectiveScoreSchema, type WellnessDay } from "@enduragent/kernel/reference/schemas";
 
 const CYCLING_TYPES = ["Ride", "VirtualRide"];
 
@@ -48,16 +50,26 @@ const decodedAthlete = {
   icuApiKey: "secret",
 };
 
-const platformWellness = [
-  { id: "1998-07-04", ctl: 54, atl: 50, restingHR: 47, hrv: 73, sleepSecs: 28200, weight: 75 },
-  { id: "1998-07-05", ctl: 55, atl: 48, restingHR: 46, hrv: 75, sleepSecs: 28800, sleepQuality: 3 },
+const score = (value: number) => SubjectiveScoreSchema.parse(value);
+const day = (values: Partial<WellnessDay> & { id: string }): WellnessDay => ({
+  weight: null,
+  restingHR: null,
+  hrv: null,
+  sleepSecs: null,
+  sleepQuality: null,
+  ...values,
+});
+
+const wellnessDays = [
+  day({ id: "1998-07-04", fitness: 54, fatigue: 50, restingHR: 47, hrv: 73, sleepSecs: 28200, weight: 75 }),
+  day({ id: "1998-07-05", fitness: 55, fatigue: 48, restingHR: 46, hrv: 75, sleepSecs: 28800, sleepQuality: 3 }),
 ];
 
 describe("renderAthleteSnapshotBlock", () => {
   it("renders the projected profile and the newest wellness row with its date", () => {
     const block = renderAthleteSnapshotBlock({
       athlete: platformAthlete,
-      wellness: platformWellness,
+      wellness: wellnessDays,
       sportTypes: CYCLING_TYPES,
     });
     expect(block).toBe(
@@ -95,10 +107,10 @@ describe("renderAthleteSnapshotBlock", () => {
     );
   });
 
-  it("reads the store-lane shape: snake_case sport settings and renamed fitness fields", () => {
+  it("reads the store-lane shape: snake_case sport settings and decimal load averages", () => {
     const block = renderAthleteSnapshotBlock({
       athlete: { sportSettings: [{ types: ["Ride"], ftp: 240, indoor_ftp: 230, lthr: 150 }] },
-      wellness: [{ id: "1998-07-05", fitness: 60.3, fatigue: 70.6, restingHR: null, hrv: 62 }],
+      wellness: [day({ id: "1998-07-05", fitness: 60.3, fatigue: 70.6, hrv: 62 })],
       sportTypes: CYCLING_TYPES,
     });
     expect(block).toContain("Profile: FTP 240 W · LTHR 150 bpm");
@@ -113,17 +125,22 @@ describe("renderAthleteSnapshotBlock", () => {
     expect(
       renderAthleteSnapshotBlock({
         athlete: undefined,
-        wellness: [{ id: "1998-07-05", restingHR: null }],
+        wellness: [day({ id: "1998-07-05" })],
         sportTypes: CYCLING_TYPES,
       }),
     ).toBeUndefined();
   });
 
+  it("prints a logged fatigue score as reported fatigue, never as the load Fatigue", () => {
+    const line = renderLatestWellnessLine([day({ id: "1998-07-05", subjectiveFatigue: score(3) })]);
+    expect(line).toBe("Wellness 1998-07-05: reported fatigue 3");
+  });
+
   it("skips a newest row that carries no values and falls back to the previous dated row", () => {
     const line = renderLatestWellnessLine([
-      { id: "1998-07-06", restingHR: null },
-      { id: "1998-07-05", restingHR: 46 },
-      { id: "1998-07-01", restingHR: 50 },
+      day({ id: "1998-07-06" }),
+      day({ id: "1998-07-05", restingHR: 46 }),
+      day({ id: "1998-07-01", restingHR: 50 }),
     ]);
     expect(line).toBe("Wellness 1998-07-05: resting HR 46 bpm");
   });
@@ -168,7 +185,7 @@ describe("loadAthleteSnapshotBlock", () => {
         getAthlete: async () => ({ ok: true, value: platformAthlete }),
         listWellness: async (input) => {
           requested = input;
-          return { ok: true, value: platformWellness };
+          return { ok: true, value: wellnessDays };
         },
       }),
       today: "1998-07-06",
@@ -193,7 +210,7 @@ describe("loadAthleteSnapshotBlock", () => {
         getAthlete: async () => {
           throw new Error("network down");
         },
-        listWellness: async () => ({ ok: true, value: platformWellness }),
+        listWellness: async () => ({ ok: true, value: wellnessDays }),
       }),
       today: "1998-07-06",
       sportTypes: CYCLING_TYPES,
@@ -204,13 +221,66 @@ describe("loadAthleteSnapshotBlock", () => {
     expect(block).toContain("Wellness 1998-07-05:");
   });
 
+  it("prints the reader's fault sentence under the profile when wellness could not be read", async () => {
+    const block = await loadAthleteSnapshotBlock({
+      reader: reader({
+        getAthlete: async () => ({ ok: true, value: platformAthlete }),
+        listWellness: async () => ({
+          ok: false,
+          error: "wellness_unreadable",
+          message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+        }),
+      }),
+      today: "1998-07-06",
+      sportTypes: CYCLING_TYPES,
+    });
+    expect(block).toContain(
+      "weight 70 kg\nWellness data could not be read. This is a fault in reading it, not missing athlete data.\n",
+    );
+    expect(block).not.toContain(ATHLETE_SNAPSHOT_FALLBACK);
+  });
+
+  it("still tells the coach to fetch the profile when neither it nor wellness could be read", async () => {
+    const block = await loadAthleteSnapshotBlock({
+      reader: reader({
+        listWellness: async () => ({
+          ok: false,
+          error: "wellness_unreadable",
+          message: "Wellness data could not be read. This is a fault in reading it, not missing athlete data.",
+        }),
+      }),
+      today: "1998-07-06",
+      sportTypes: CYCLING_TYPES,
+    });
+    expect(block).toBe(
+      `${ATHLETE_SNAPSHOT_FALLBACK}\nWellness data could not be read. This is a fault in reading it, not missing athlete data.`,
+    );
+  });
+
+  it("prints a reader's notice under the latest wellness line", async () => {
+    const block = await loadAthleteSnapshotBlock({
+      reader: reader({
+        listWellness: async () => ({
+          ok: true,
+          value: wellnessDays,
+          notice: "Wellness is incomplete: 1 of 3 days could not be read and are missing here.",
+        }),
+      }),
+      today: "1998-07-06",
+      sportTypes: CYCLING_TYPES,
+    });
+    expect(block).toContain(
+      "sleep quality 3\nWellness is incomplete: 1 of 3 days could not be read and are missing here.\n",
+    );
+  });
+
   it("gives up after the deadline and reports the timeout", async () => {
     expect(ATHLETE_SNAPSHOT_TIMEOUT_MS).toBe(5_000);
     const errors: unknown[] = [];
     const block = await loadAthleteSnapshotBlock({
       reader: reader({
         getAthlete: () => new Promise(() => undefined),
-        listWellness: async () => ({ ok: true, value: platformWellness }),
+        listWellness: async () => ({ ok: true, value: wellnessDays }),
       }),
       today: "1998-07-06",
       sportTypes: CYCLING_TYPES,

@@ -1,5 +1,6 @@
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, open, readdir, readFile, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { execFileSync, spawnSync } from "node:child_process";
+import { closeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalJson, type ArchiveWriteResult } from "@enduragent/kernel/archive";
@@ -21,10 +22,8 @@ import {
   buildFixtureShape,
   normalizeStreams,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   projectCyclingReferenceBundle,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   type ReferenceBundle,
 } from "@enduragent/kernel/reference/local-bundle";
 import { H, createIntervalsSourceRepository, runMigrations } from "@enduragent/kernel/store";
@@ -34,19 +33,21 @@ import { nodeFileSystem } from "@enduragent/kernel-node/filesystem";
 import { createNodeCrypto } from "@enduragent/kernel-node/ingest";
 import { openSqliteStorage } from "@enduragent/kernel-node/sqlite";
 import {
+  landWellnessRow,
   mapActivityLanding,
   mapSettingsLanding,
-  mapWellnessLanding,
   normalizeStreamLanding,
 } from "@enduragent/sync-intervals-icu";
 import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
 import {
   persistReferenceCaptureConclusion,
   runReferenceCaptureCommand,
+} from "../src/reference-capture-command.js";
+import {
   validateReferenceCaptureConclusion,
   type ReferenceCaptureConclusionV1,
-} from "../src/reference-capture-command.js";
-import { afterEach, describe, expect, it } from "vitest";
+} from "../src/reference-capture-conclusion.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 interface SyntheticSeed {
   readonly schema_version: 1;
@@ -272,14 +273,11 @@ async function createSyntheticCapture(value: SyntheticSeed): Promise<SyntheticCa
         });
       }
       for (const item of wellness) {
-        const normalized = parseRenamedWellnessRow(
-          renameTpFieldsOnWellnessRow(structuredClone(item.raw)),
-        );
-        assertNoTpKeysRemain(normalized);
+        const landing = await landWellnessRow(item.raw);
         const artifactEvidence = await repository.recordArtifact(
           artifact(item, "wellness", item.epoch),
         );
-        await repository.upsertWellness(await mapWellnessLanding(normalized));
+        await repository.upsertWellness(landing.row);
         records.wellness.push({
           ordinal: records.wellness.length,
           endpoint_ordinal: 2,
@@ -565,16 +563,27 @@ describe.sequential("capture-once Reference layer gate", () => {
       throw new TypeError("network forbidden");
     };
     let produced: ReferenceBundle | undefined;
+    let storedWellness: unknown;
     try {
       const result = await runReferenceCaptureCommand(args(capture), {
         inputFileSystem,
         async produceLocalBundle(destination, manifest) {
+          const store = openSqliteStorage(destination.storePath);
+          try {
+            storedWellness = await store.all("SELECT date_key, resting_hr, fatigue FROM wellness");
+          } finally {
+            await store.close();
+          }
           const result = await createLocalBundleProducer(destination).produce(manifest);
           produced = result.bundle;
           return result;
         },
       });
       expect(result.exitCode, result.line).toBe(0);
+      expect(storedWellness).toEqual([{ date_key: 19980603, resting_hr: 48, fatigue: 3 }]);
+      expect(produced!.wellness).toMatchObject([
+        { id: "1998-06-03", fitness: 31.2, fatigue: 27.787529, subjectiveFatigue: 3 },
+      ]);
       expect(typeof compareReferenceCapture).toBe("function");
       expect(result.stream).toBe("stdout");
       expect(result.line).toMatch(
@@ -792,6 +801,44 @@ describe.sequential("capture-once Reference layer gate", () => {
       registry_key_count: null,
       direct_family_counts: {},
     });
+  });
+
+  it("removes the temporary conclusion and reports the close failure when the write and the close fail", async () => {
+    const capture = await createSyntheticCapture(await seed());
+    const record = (await runReferenceCaptureCommand(args(capture))).conclusion!;
+    const folder = join(capture.root, "close-failure");
+    await mkdir(folder, { mode: 0o700 });
+    const probe = await open(join(capture.root, "handle-probe"), "w");
+    const prototype = Object.getPrototypeOf(probe) as { sync(this: { fd: number }): Promise<void> };
+    await probe.close();
+    const sync = vi.spyOn(prototype, "sync").mockImplementation(async function (this: { fd: number }) {
+      closeSync(this.fd);
+      throw new Error("synthetic write failure");
+    });
+    try {
+      await expect(persistReferenceCaptureConclusion(join(folder, "conclusion.json"), record))
+        .rejects.toMatchObject({ code: "EBADF" });
+    } finally {
+      sync.mockRestore();
+    }
+    expect(await readdir(folder)).toEqual([]);
+  });
+
+  it("reports a temporary conclusion it cannot remove", async () => {
+    const capture = await createSyntheticCapture(await seed());
+    const record = (await runReferenceCaptureCommand(args(capture))).conclusion!;
+    const folder = join(capture.root, "remove-failure");
+    await mkdir(folder, { mode: 0o700 });
+    await expect(
+      persistReferenceCaptureConclusion(join(folder, "conclusion.json"), record, {
+        async beforeLink() {
+          const [temporary] = await readdir(folder);
+          await unlink(join(folder, temporary!));
+          await mkdir(join(folder, temporary!));
+          throw new Error("before");
+        },
+      }),
+    ).rejects.toMatchObject({ code: "ERR_FS_EISDIR" });
   });
 
   it("seals immutable conclusions and preserves post-link candidates", async () => {

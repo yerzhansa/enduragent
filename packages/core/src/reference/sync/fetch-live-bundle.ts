@@ -1,20 +1,3 @@
-// Live intervals.icu fetch for the Reference sync. Pulls the athlete profile,
-// a trailing window of activities + wellness, derives a cycling FTP history,
-// and (best-effort, bounded) the per-activity HRV/power streams the DFA-α1 and
-// per-session capability metrics consume. Returns a `ReferenceBundle` the
-// fixture bridge turns into the metric-compute input shape.
-//
-// ADR-0012: every sync path into Reference MUST pass real rows through the
-// rename anti-corruption layer between API parse and any downstream consumer.
-// This module is that boundary for the production path — `renameTpFieldsOn*`
-// per row, then `assertNoTpKeysRemain` over the assembled rows.
-//
-// Robustness: per-row rename/parse and per-activity stream fetches are
-// best-effort (a bad row or a failed stream is skipped with a warning, never
-// fails the whole sync). The streams loop is bounded (recent cycling rides
-// only, capped) and abort-aware so a slow account cannot consume the whole
-// `SYNC_OPERATION_TIMEOUT_MS` budget.
-
 import { snakeCaseKeys, type Activity as ManagedActivity } from "intervals-icu-api";
 import {
   DroppedActivitiesSchema,
@@ -32,12 +15,11 @@ import {
 } from "@enduragent/kernel/reference/capture";
 import {
   assertNoTpKeysRemain,
+  decodeWellnessRow,
   deriveFtpHistory,
   normalizeStreams,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
   StreamNormalizationError,
   type ReferenceBundle,
   type RenameSummary,
@@ -62,26 +44,16 @@ import { familyOf } from "../sport-adapter-dispatcher.js";
 
 export { deriveFtpHistory, normalizeStreams } from "@enduragent/kernel/reference/local-bundle";
 
-/** Hard cap on per-activity stream fetches per sync, regardless of window. */
 export const MAX_STREAM_ACTIVITIES = REFERENCE_CAPTURE_STREAM_LIMIT;
 export const PAST_PLAN_WINDOW_DAYS = 7;
 export const FUTURE_PLAN_WINDOW_DAYS = 28;
 const STREAM_THROTTLE_MS = 250;
-/** Wall-clock budget for the whole stream phase. Streams are best-effort, so we
- *  stop fetching once this elapses rather than letting a slow account push the
- *  sync toward the outer SYNC_OPERATION_TIMEOUT_MS (which would abort with an
- *  empty-failure and no useful cache). */
 const STREAM_PHASE_BUDGET_MS = 60_000;
 
-/** Per-second channels requested per activity. `dfa_a1` + `artifacts` are the
- *  HRV channels the DFA-α1 block reads; `watts`/`heartrate` feed the per-session
- *  capability blocks. `time` is requested for alignment and rides through. */
 export const STREAM_TYPES: readonly string[] = REFERENCE_CAPTURE_STREAM_TYPES;
 
 type FetchResult<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
-/** Structural subset of `IntervalsClient` the bundle fetch needs — narrow so
- *  tests can inject a fake without standing up the whole client. */
 export interface BundleFetchClient {
   readonly athlete: { get(): Promise<FetchResult<unknown>> };
   readonly activities: {
@@ -100,9 +72,6 @@ export interface BundleFetchClient {
   };
 }
 
-/** One per-endpoint fetch failure: which source envelope returned an error and
- *  a human-readable reason. A present, non-empty list is "errored" — distinct
- *  from a successful fetch that legitimately returned empty data. */
 export interface FetchEndpointError {
   readonly endpoint: string;
   readonly detail: string;
@@ -111,40 +80,21 @@ export interface FetchEndpointError {
 export const SOURCE_RESTRICTED_PROVIDER = "STRAVA";
 
 export interface LiveFetchResult {
-  /** Raw athlete object — cached verbatim as `latest.athlete_profile`. */
   readonly athleteProfile: unknown;
-  /** Trailing 7-day renamed activities for the `latest.recent_activities` cache. */
   readonly recentActivities: readonly Activity[];
-  /** Renamed wellness rows for the `latest.wellness_data` cache. */
   readonly wellnessData: readonly WellnessDay[];
   readonly plannedWorkouts: readonly PlannedEvent[];
-  /** Full-window inputs for metric computation. */
   readonly bundle: ReferenceBundle;
-  /** Canonical managed activities for sport-adapter dispatch. Provider-facing
-   * camelCase values stay separate from the snake_case persistence/metric
-   * boundary in `bundle.activities`. */
   readonly adapterActivities: readonly ManagedActivity[];
-  /** Sync wall-clock as an ISO string — the metric date-window anchor. */
   readonly frozenNow: string;
   readonly droppedActivities: DroppedActivities;
-  /** Endpoints that returned an error (athlete-profile, wellness) and were
-   *  filled with empty fallbacks to keep the bundle well-typed. The gate turns
-   *  a non-empty list into a hard-fail so a swallowed failure can no longer
-   *  commit empty data behind a fresh stamp. Omitted when every endpoint was
-   *  reachable. */
   readonly fetchErrors?: readonly FetchEndpointError[];
 }
 
-// intervals.icu's streams endpoint returns an array of channel objects
-// (`[{type, data}, …]`); the lib also camelCases response keys (so `dfa_a1`
-// becomes `dfaA1` on the object form). Normalize both into the channel-keyed
-// shape the metrics + ActivityStreamsSchema consume (`{dfa_a1, watts, …}`).
 function extractAthleteSettings(profile: unknown): AthleteSettings | undefined {
   if (typeof profile !== "object" || profile === null) return undefined;
   const sportSettings = (profile as Record<string, unknown>).sportSettings;
   if (!Array.isArray(sportSettings)) return undefined;
-  // The profile rides through the lib's camelCasing (indoor_ftp -> indoorFtp);
-  // reverse it so AthleteSchema's snake_case fields resolve.
   const parsed = AthleteSchema.safeParse({ sportSettings: snakeCaseKeys(sportSettings) });
   return parsed.success ? parsed.data : undefined;
 }
@@ -155,9 +105,7 @@ interface LiveFetchDeps {
   readonly now: Date;
   readonly calendarTimeZone: string;
   readonly sportTypes?: readonly string[];
-  /** Override the inter-request throttle (tests pass 0). */
   readonly throttleMs?: number;
-  /** Sink for non-fatal warnings; defaults to console.warn. */
   readonly log?: (msg: string) => void;
 }
 
@@ -191,12 +139,6 @@ function shiftedDate(value: string, days: number): string {
   return instant.toISOString().slice(0, 10);
 }
 
-/**
- * Fetch + assemble the live Reference bundle. Throws only on a hard
- * precondition failure (activities list unreachable) or a surviving
- * TP-trademarked key (the anti-corruption contract); every other degradation
- * is best-effort and logged.
- */
 export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchResult> {
   const { client, signal, now } = deps;
   const log = deps.log ?? ((m: string) => console.warn(m));
@@ -222,10 +164,6 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   if (!actResult.ok) {
     throw new Error(`activities.list failed: ${renderEndpointError(actResult.error)}`);
   }
-  // The lib auto-camelCases activity responses; ActivitySchema requires
-  // snake_case (start_date_local, icu_training_load, …). Reverse it here only —
-  // wellness already ships in the camelCase mixed shape the schema agrees on. A
-  // non-array body (ok:true but malformed) is treated as empty, not a crash.
   let adapterActivities: ManagedActivity[] = [];
   let rawActivities: Array<Record<string, unknown>> = [];
   if (Array.isArray(actResult.value)) {
@@ -294,7 +232,6 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   });
 
   const actSummary: RenameSummary = { skippedNonNumeric: {} };
-  const wellSummary: RenameSummary = { skippedNonNumeric: {} };
 
   const retentionCutoffMs = now.getTime() - LATEST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
   const isRecent = (row: { readonly start_date_local?: unknown }): boolean => {
@@ -348,7 +285,7 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
   const wellness: WellnessDay[] = [];
   for (const row of rawWellness) {
     try {
-      wellness.push(parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(row, wellSummary)));
+      wellness.push(decodeWellnessRow(row));
     } catch (err) {
       log(
         `Reference: skipped malformed wellness row: ${err instanceof Error ? err.message : String(err)}`,
@@ -356,7 +293,6 @@ export async function fetchLiveBundle(deps: LiveFetchDeps): Promise<LiveFetchRes
     }
   }
 
-  // ADR-0012 defense-in-depth: no TP-trademarked key may survive rename.
   assertNoTpKeysRemain({ activities, wellness });
 
   const streams = await fetchStreams(client, activities, signal, plan, throttleMs, log);

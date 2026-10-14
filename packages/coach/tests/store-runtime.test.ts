@@ -5,11 +5,14 @@ import type { Config, ReferenceRuntime } from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { SqlReadStore } from "@enduragent/kernel/store";
+import type { CaptureReport, LaneReport, RowDrop } from "@enduragent/sync-intervals-icu";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ReferenceCaptureRunError, ReplacedCaptureNotReplayableError } from "../src/capture.js";
 import {
   createStoreRuntime,
   STORE_REFRESH_INTERVAL_MS,
   type StoreRuntime,
+  type WindowCapture,
 } from "../src/store-runtime.js";
 
 const roots: string[] = [];
@@ -99,7 +102,7 @@ async function makeRuntime(
   const capture = vi.fn(
     async (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
       options.attemptLedger!.charge("store", "store:settings");
-      return manifest;
+      return { manifest };
     },
   );
   const refreshCurves = vi.fn(
@@ -120,6 +123,7 @@ async function makeRuntime(
     },
   );
   const produce = vi.fn(async () => produced);
+  const openReadonlyStore = vi.fn(() => readonlyStore);
   runtime = createStoreRuntime({
     env: {},
     config: runtimeConfig,
@@ -138,11 +142,166 @@ async function makeRuntime(
       produce,
       now: () => new Date("1998-07-18T12:00:00.000Z"),
       monotonicNow: () => 1,
-      openReadonlyStore: () => readonlyStore,
+      openReadonlyStore,
     },
   });
-  return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore };
+  return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore, openReadonlyStore };
 }
+
+describe("StoreRuntime read-only store", () => {
+  it("opens the read-only store on the first activity read, not at creation", async () => {
+    const { runtime, openReadonlyStore } = await makeRuntime();
+
+    expect(openReadonlyStore).not.toHaveBeenCalled();
+    await runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" });
+
+    expect(openReadonlyStore).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not open the read-only store for a read after close", async () => {
+    const { runtime, openReadonlyStore } = await makeRuntime();
+    await runtime.close();
+
+    await expect(runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" }))
+      .resolves.toMatchObject({ ok: false, error: "store_read_unavailable" });
+    expect(openReadonlyStore).not.toHaveBeenCalled();
+  });
+});
+
+describe("StoreRuntime capture health", () => {
+  const CLEAN: LaneReport = { fetched: 1, landed: 1, drops: [], unfetched: [] };
+  const rejectedDay = (payloadIndex: number): RowDrop => ({ lane: "wellness", payloadIndex,
+    externalId: `1998-07-1${payloadIndex}`, localDate: `1998-07-1${payloadIndex}`, phase: "landing", reason: "landing",
+    field: "restingHR", errorName: null });
+  const reportWith = (wellness: LaneReport): CaptureReport =>
+    ({ settings: CLEAN, activities: CLEAN, wellness, streams: CLEAN });
+
+  async function windowFor(report: CaptureReport | undefined, bundle: ProducedLocalBundle = produced) {
+    const made = await makeRuntime();
+    made.produce.mockResolvedValue(bundle);
+    made.capture.mockImplementation(async (options) => {
+      options.attemptLedger!.charge("store", "store:settings");
+      return report === undefined ? { manifest } : { manifest, report };
+    });
+    const window = await made.runtime.runWindow();
+    const logs = async (): Promise<Record<string, unknown>[]> => {
+      const raw = await readFile(join(made.root, "logs", "log.jsonl"), "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return "";
+        throw error;
+      });
+      return raw.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line) as Record<string, unknown>);
+    };
+    return { ...made, window, logs };
+  }
+
+  it("logs a lost wellness lane with its counts, still publishes, and tells the coach the sync failed", async () => {
+    const { runtime, window, logs } = await windowFor(
+      reportWith({ fetched: 3, landed: 0, drops: [rejectedDay(5), rejectedDay(6), rejectedDay(7)], unfetched: [] }),
+    );
+
+    expect(window.published).toBe(true);
+    expect(runtime.currentSnapshot()).toBe(produced);
+    expect(await logs()).toEqual([
+      expect.objectContaining({
+        level: "error",
+        component: "sync",
+        event: "capture_lane_lost",
+        lane: "wellness",
+        fetched: 3,
+        landed: 0,
+        drops: [
+          "wellness[5] landing: landing of restingHR",
+          "wellness[6] landing: landing of restingHR",
+          "wellness[7] landing: landing of restingHR",
+        ],
+      }),
+    ]);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toEqual({
+      ok: false,
+      error: "wellness_unreadable",
+      message: "Wellness data failed to sync. This is a sync fault, not missing athlete data.",
+    });
+  });
+
+  it("warns about a lane that kept some rows, logs at most five drops, and tells the coach which days of a read are missing", async () => {
+    const kept: ProducedLocalBundle["bundle"]["wellness"] = ["1998-07-17", "1998-07-18"].map((id) => (
+      { id, weight: 70, restingHR: 50, hrv: 60, sleepSecs: 28_800, sleepQuality: 3 }));
+    const { runtime, window, logs } = await windowFor(
+      reportWith({ fetched: 9, landed: 2, drops: [0, 1, 2, 3, 4, 5, 6].map(rejectedDay), unfetched: [] }),
+      { ...produced, bundle: { ...produced.bundle, wellness: kept } },
+    );
+
+    expect(window.published).toBe(true);
+    const records = await logs();
+    expect(records).toEqual([expect.objectContaining({ level: "warn", event: "capture_lane_partial", lane: "wellness", fetched: 9, landed: 2 })]);
+    expect(records[0]?.drops).toHaveLength(5);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-15", end: "1998-07-18" })).resolves.toMatchObject({
+      ok: true,
+      value: kept,
+      notice: "Wellness is incomplete: 2 of 4 days failed to sync and are missing here.",
+    });
+    const complete = await runtime.athleteData.listWellness({ start: "1998-07-17", end: "1998-07-18" });
+    expect(complete).toMatchObject({ ok: true, value: kept });
+    expect(complete).not.toHaveProperty("notice");
+  });
+
+  it("logs the rows that lost a lane, not the rows the provider withheld before them", async () => {
+    const withheld = (payloadIndex: number): RowDrop => ({ lane: "activities", payloadIndex, externalId: null, localDate: null,
+      phase: "decode", reason: "source-restricted", field: null, errorName: null });
+    const broken: RowDrop = { lane: "activities", payloadIndex: 6, externalId: null, localDate: null, phase: "decode",
+      reason: "unclassified", field: null, errorName: "TypeError" };
+    const { logs } = await windowFor({ ...reportWith(CLEAN),
+      activities: { fetched: 7, landed: 0, drops: [...[0, 1, 2, 3, 4, 5].map(withheld), broken], unfetched: [] } });
+
+    expect(await logs()).toEqual([expect.objectContaining({ event: "capture_lane_lost", lane: "activities", fetched: 7, landed: 0,
+      drops: ["activities[6] decode: unclassified (TypeError)"] })]);
+  });
+
+  it("keeps the published capture and its standing when the next capture cannot be turned into a bundle", async () => {
+    const { runtime, capture, produce } = await windowFor(reportWith(CLEAN));
+    capture.mockImplementation(async (options) => {
+      options.attemptLedger!.charge("store", "store:settings");
+      return { manifest, report: reportWith({ fetched: 3, landed: 0, drops: [5, 6, 7].map(rejectedDay), unfetched: [] }) };
+    });
+    produce.mockRejectedValueOnce(new Error("synthetic produce failure"));
+
+    await expect(runtime.runWindow()).rejects.toThrow("synthetic produce failure");
+
+    expect(runtime.currentSnapshot()).toBe(produced);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+  });
+
+  it("logs a refused replacement under its own event with the capture it could not replace", async () => {
+    const { runtime, capture, logs } = await windowFor(reportWith(CLEAN));
+    capture.mockRejectedValueOnce(new ReferenceCaptureRunError("capture",
+      { cause: new ReplacedCaptureNotReplayableError(manifest.capture_id, { cause: new Error("private detail") }) }));
+
+    await expect(runtime.runWindow()).rejects.toBeInstanceOf(ReferenceCaptureRunError);
+
+    const records = await logs();
+    expect(records).toEqual([expect.objectContaining({ level: "error", component: "sync",
+      event: "capture_replacement_refused", replacesCaptureId: manifest.capture_id })]);
+    expect(JSON.stringify(records)).not.toContain("private detail");
+    expect(runtime.currentSnapshot()).toBe(produced);
+  });
+
+  it("logs nothing and reads wellness as before when every lane is ok", async () => {
+    const { runtime, logs } = await windowFor(reportWith(CLEAN));
+
+    expect(await logs()).toEqual([]);
+    const read = await runtime.athleteData.listWellness({ start: "1998-07-01" });
+    expect(read).toMatchObject({ ok: true, value: [] });
+    expect(read).not.toHaveProperty("notice");
+  });
+
+  it("reads an empty wellness list as no data when a capture comes without a report", async () => {
+    const { runtime, window, logs } = await windowFor(undefined);
+
+    expect(window.published).toBe(true);
+    expect(await logs()).toEqual([]);
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+  });
+});
 
 describe("StoreRuntime", () => {
   it("threads the resolved calendar timezone into Reference capture", async () => {
@@ -385,8 +544,8 @@ describe("StoreRuntime", () => {
       })),
     } as unknown as ReferenceRuntime;
     const capture = vi
-      .fn<() => Promise<ReferenceCaptureManifest>>()
-      .mockResolvedValueOnce(manifest)
+      .fn<() => Promise<WindowCapture>>()
+      .mockResolvedValueOnce({ manifest })
       .mockRejectedValueOnce(
         Object.assign(new Error("capture failed"), {
           payload: { apiKey: "SECRET-API-KEY" },
@@ -482,8 +641,8 @@ describe("StoreRuntime", () => {
       dependencies: {
         capture: vi.fn(
           () =>
-            new Promise<ReferenceCaptureManifest>((resolve) => {
-              release = () => resolve(manifest);
+            new Promise<WindowCapture>((resolve) => {
+              release = () => resolve({ manifest });
             }),
         ),
         refreshCurves: skipCurveRefresh,
@@ -526,7 +685,7 @@ describe("StoreRuntime", () => {
           releaseWindow = resolve;
         });
       }
-      return manifest;
+      return { manifest };
     });
     const active = runtime.runWindow();
     while (releaseWindow === undefined) await Promise.resolve();
@@ -591,7 +750,7 @@ describe("StoreRuntime", () => {
         releaseWindow = resolve;
       });
       trace.push("window:end");
-      return manifest;
+      return { manifest };
     });
     const window = runtime.runWindow();
     const writeAfterWindow = runtime.runActivityWrite(
@@ -727,7 +886,7 @@ describe("StoreRuntime", () => {
         capture: vi.fn(
           (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
             signal = options.budget!.signal;
-            return new Promise<ReferenceCaptureManifest>((_, reject) => {
+            return new Promise<WindowCapture>((_, reject) => {
               signal.addEventListener("abort", () => reject(signal.reason), { once: true });
             });
           },
@@ -758,6 +917,7 @@ describe("StoreRuntime", () => {
   it("shares close, aborts active work, rejects queued work, and closes the reader once", async () => {
     const readonlyStore = emptyReadonlyStore();
     const { runtime } = await makeRuntime(config, undefined, readonlyStore);
+    await runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" });
     const active = runtime.runExclusive(
       (signal) =>
         new Promise<void>((_, reject) => {
