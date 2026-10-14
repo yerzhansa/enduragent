@@ -4,11 +4,6 @@ export type Row = Record<string, SqlValue>;
 import type { RepairFixer } from "../ingest/repair/types.js";
 import type { SubjectiveScore } from "../reference/schemas/inputs.js";
 
-/**
- * Low-level async SQL-exec port. The SQLite driver in kernel-node implements it
- * (wrapping the synchronous DatabaseSync in resolved promises, per the
- * async-first port rule). No driver types cross this boundary.
- */
 export interface SqlStore {
   exec(sql: string): Promise<void>;
   run(sql: string, params?: readonly SqlValue[]): Promise<void>;
@@ -62,9 +57,7 @@ export interface SourceRecordRow {
 }
 
 export interface AnchorRepository {
-  /** Insert iff no row exists for (sport, anchor_type, valid_from). Returns true if inserted. */
   insertIfAbsent(row: AnchorHistoryRow): Promise<boolean>;
-  /** Effective-dated current row: max valid_from ≤ asOfEpochS, tie-broken by confidence precedence. */
   readCurrent(
     sport: string,
     anchorType: string,

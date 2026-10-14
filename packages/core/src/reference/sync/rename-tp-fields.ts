@@ -1,4 +1,3 @@
-// trademark-lint:skip-file — compatibility export for the anti-corruption boundary.
 export {
   assertNoTpKeysRemain,
   decodeWellnessRow,
