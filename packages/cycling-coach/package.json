@@ -36,7 +36,7 @@
     "@clack/prompts": "^1.7.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@resvg/resvg-js": "2.6.2",
-    "ai": "^6.0.158",
+    "ai": "^7.0.107",
     "grammy": "^1.46.0",
     "intervals-icu-api": "^0.4.0",
     "yaml": "^2.9.0",
