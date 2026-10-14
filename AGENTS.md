@@ -36,6 +36,8 @@ The Enduragent product repository: the Mac desktop app, the `cycling-coach` and 
 - Apply this gate only to changes submitted in a PR.
 - Review the diff with `.agents/skills/code-review-and-quality/SKILL.md` after implementation and focused tests pass.
 - Exercise every affected user-visible flow in the running application when the diff changes UI presentation or behavior.
+- For each issue a PR fixes that the desktop UI can show, add a before video from the base branch and an after video from the PR head to the PR body as GitHub attachments.
+- Record PR videos against stubbed model and intervals.icu responses with synthetic data.
 - Complete at most ten correction cycles for in-scope blockers found by review, UI QA, tests, or CI after initial review.
 - Count each correction batch and its required rechecks as one correction cycle.
 - Count correction cycles across all tasks and agents working on the same PR.
