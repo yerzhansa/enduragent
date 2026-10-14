@@ -2198,6 +2198,22 @@ describe.skipIf(process.platform === "win32")("macOS release artifact envelope",
     expect(executeFile).toHaveBeenCalledOnce();
   });
 
+  it("reports the native tool output when the application staple check fails", async () => {
+    const executeFile = vi.fn(async (executable: string) => {
+      if (executable !== "/usr/bin/xcrun") return { stdout: "", stderr: "" };
+      throw Object.assign(new Error("Command failed"), {
+        stdout: "Processing: /synthetic/Enduragent.app\n",
+        stderr: "CloudKit query for Enduragent.app failed due to \"Record not found\".\n",
+      });
+    });
+
+    await expect(
+      verifyMacosApplication("/synthetic/Enduragent.app", { executeFile }),
+    ).rejects.toThrow(
+      'macOS application staple verification failed: Processing: /synthetic/Enduragent.app | CloudKit query for Enduragent.app failed due to "Record not found".',
+    );
+  });
+
   it("fails final-envelope verification when the DMG staple is absent", async () => {
     const fixture = await releaseFixture();
     const executeFile = vi.fn(async (executable: string, arguments_: readonly string[]) => {
