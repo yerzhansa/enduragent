@@ -1,5 +1,11 @@
 # @enduragent/desktop
 
+## 0.5.9
+
+### Patch Changes
+
+- 5ca1eb3: The macOS release verifier now adds the last lines of `codesign`, `stapler` or `spctl` output to its failure message, so a failed signing or staple check says why it failed.
+
 ## 0.5.8
 
 ### Patch Changes
