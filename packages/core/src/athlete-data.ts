@@ -118,18 +118,29 @@ export function createPlatformAthleteDataReader(intervals: IntervalsClient): Ath
   });
 }
 
+function calendarEventTags(value: unknown): string[] | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) return value;
+  throw new TypeError("Calendar event tags are invalid.");
+}
+
+function calendarEventExternalId(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || typeof value === "string") return value;
+  throw new TypeError("Calendar event external id is invalid.");
+}
+
 export function createPlatformCalendarMutations(intervals: IntervalsClient): PlatformCalendarMutations {
   return Object.freeze({
     createEvent: (input: EventInput) => platformValue(intervals.events.create(input)),
     async readEventForDelete(input: { eventId: number }) {
-      const value = await platformValue(intervals.events.get(input.eventId)) as unknown as CalendarEventForDelete;
+      const value = await platformValue(intervals.events.get(input.eventId));
       return {
         id: value.id,
         startDateLocal: value.startDateLocal,
         name: value.name,
         category: value.category,
-        tags: value.tags,
-        externalId: value.externalId,
+        tags: calendarEventTags(value.tags),
+        externalId: calendarEventExternalId(value.externalId),
       };
     },
     updateEvent: (input: { eventId: number; patch: CalendarEventUpdate }) =>
@@ -178,8 +189,8 @@ const PUBLIC_STREAM_KEYS = new Set([
 export function isRealCivilDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [y, m, d] = value.split("-").map((part) => Number.parseInt(part, 10));
-  const parsed = new Date(Date.UTC(y!, m! - 1, d!));
-  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m! - 1 && parsed.getUTCDate() === d;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  return parsed.getUTCFullYear() === y && parsed.getUTCMonth() === m - 1 && parsed.getUTCDate() === d;
 }
 
 function freshnessFor(snapshot: ProducedLocalBundle, clockNow: number): StoredDataFreshness | undefined {

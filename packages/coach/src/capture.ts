@@ -276,7 +276,7 @@ export async function runReferenceCapture(
       for (const lane of CAPTURE_LANES) {
         const sourceRecords = batch.records[lane];
         for (let ordinal = 0; ordinal < sourceRecords.length; ordinal += 1) {
-          const record = sourceRecords[ordinal]!;
+          const record = sourceRecords[ordinal];
           if (lane === "wellness") {
             const artifactKey = wellnessArtifactKeys.get(record.externalId);
             if (artifactKey === undefined) throw new Error("wellness capture evidence is absent");

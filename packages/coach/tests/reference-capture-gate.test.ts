@@ -1,5 +1,6 @@
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, open, readdir, readFile, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { execFileSync, spawnSync } from "node:child_process";
+import { closeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalJson, type ArchiveWriteResult } from "@enduragent/kernel/archive";
@@ -41,10 +42,12 @@ import { createLocalBundleProducer } from "../src/local-bundle-producer.js";
 import {
   persistReferenceCaptureConclusion,
   runReferenceCaptureCommand,
+} from "../src/reference-capture-command.js";
+import {
   validateReferenceCaptureConclusion,
   type ReferenceCaptureConclusionV1,
-} from "../src/reference-capture-command.js";
-import { afterEach, describe, expect, it } from "vitest";
+} from "../src/reference-capture-conclusion.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 interface SyntheticSeed {
   readonly schema_version: 1;
@@ -798,6 +801,44 @@ describe.sequential("capture-once Reference layer gate", () => {
       registry_key_count: null,
       direct_family_counts: {},
     });
+  });
+
+  it("removes the temporary conclusion and reports the close failure when the write and the close fail", async () => {
+    const capture = await createSyntheticCapture(await seed());
+    const record = (await runReferenceCaptureCommand(args(capture))).conclusion!;
+    const folder = join(capture.root, "close-failure");
+    await mkdir(folder, { mode: 0o700 });
+    const probe = await open(join(capture.root, "handle-probe"), "w");
+    const prototype = Object.getPrototypeOf(probe) as { sync(this: { fd: number }): Promise<void> };
+    await probe.close();
+    const sync = vi.spyOn(prototype, "sync").mockImplementation(async function (this: { fd: number }) {
+      closeSync(this.fd);
+      throw new Error("synthetic write failure");
+    });
+    try {
+      await expect(persistReferenceCaptureConclusion(join(folder, "conclusion.json"), record))
+        .rejects.toMatchObject({ code: "EBADF" });
+    } finally {
+      sync.mockRestore();
+    }
+    expect(await readdir(folder)).toEqual([]);
+  });
+
+  it("reports a temporary conclusion it cannot remove", async () => {
+    const capture = await createSyntheticCapture(await seed());
+    const record = (await runReferenceCaptureCommand(args(capture))).conclusion!;
+    const folder = join(capture.root, "remove-failure");
+    await mkdir(folder, { mode: 0o700 });
+    await expect(
+      persistReferenceCaptureConclusion(join(folder, "conclusion.json"), record, {
+        async beforeLink() {
+          const [temporary] = await readdir(folder);
+          await unlink(join(folder, temporary!));
+          await mkdir(join(folder, temporary!));
+          throw new Error("before");
+        },
+      }),
+    ).rejects.toMatchObject({ code: "ERR_FS_EISDIR" });
   });
 
   it("seals immutable conclusions and preserves post-link candidates", async () => {

@@ -37,7 +37,7 @@ function objectRow(value: unknown, name: string): Record<string, unknown> {
 }
 
 function baseContentType(response: HttpResponse): string {
-  return (response.headers["content-type"] ?? "").split(";", 1)[0]!.trim().toLowerCase();
+  return (response.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
 }
 
 function parseJsonResponse(response: HttpResponse): unknown {
@@ -347,7 +347,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
 
     let offset = 0;
     bulkLoop: while (offset < remaining.length) {
-      const first = remaining[offset]!;
+      const first = remaining[offset];
       const safe = BULK_SAFE_ACTIVITY_ID.test(first.externalId);
       const group = safe
         ? remaining.slice(offset, offset + BULK_FIT_BATCH_SIZE).filter((entry, index, values) => index === 0
@@ -415,7 +415,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           container };
       }
       processed += group.length;
-      processedKey = group[group.length - 1]!.key;
+      processedKey = group[group.length - 1].key;
       offset += group.length;
     }
     yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey), droppedRows);
@@ -600,6 +600,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (selectedIds.length > 0 && !requester.canRequest(selectedIds.length)) throw new SyncBudgetExceededError();
 
     const successfulStreams: ReferenceCaptureEndpointPayload[] = [];
+    const capturedStreamIds: string[] = [];
     const streamTally = new LaneTally("streams");
     for (const activityId of selectedIds) {
       requester.assertActive();
@@ -619,7 +620,10 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           stream_types: [...REFERENCE_CAPTURE_STREAM_TYPES], include_defaults: false },
         payload: fetched.value,
       };
-      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) successfulStreams.push(endpoint);
+      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) {
+        successfulStreams.push(endpoint);
+        capturedStreamIds.push(activityId);
+      }
     }
     const endpointPayloads = [...required, ...successfulStreams];
     const derivation = await deriveWithReport(plan, endpointPayloads);
@@ -634,8 +638,9 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     const requiredInstants = [civilDateEpochSeconds(plan.window.newest), civilDateEpochSeconds(plan.window.oldest), civilDateEpochSeconds(plan.window.oldest)];
     const endpoints: ReferenceCaptureEndpoint[] = [];
     for (const endpoint of endpointPayloads) {
-      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]!
-        : activityInstantById.get(endpoint.request.activity_id!);
+      const activityId = endpoint.request.activity_id;
+      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]
+        : (activityId === null ? undefined : activityInstantById.get(activityId));
       if (epochSeconds === undefined) throw new Error("stream activity instant is absent");
       const archiveInstant = rowInstant(epochSeconds);
       const archive = await options.archive.writeSnapshot(endpoint.payload, archiveInstant);
@@ -677,7 +682,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
     const streams: ReferenceCaptureStreamRecord[] = [];
     for (let index = 0; index < members.streams.length; index += 1) {
-      const member = members.streams[index]!, endpoint = endpoints[3 + index]!;
+      const member = members.streams[index], endpoint = endpoints[3 + index];
       const normalized = options.acl.streams(structuredClone(member.payload)); options.acl.assertClean(normalized);
       const streamLanding = normalizeStreamLanding(normalized);
       const normalizedPayloadJson = canonicalJson(streamLanding);
@@ -694,7 +699,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       settings: Object.freeze(settings), activities: Object.freeze(activities),
       wellness: Object.freeze(wellness), streams: Object.freeze(streams),
     }), selected_stream_ids: Object.freeze(selectedIds),
-    captured_stream_ids: Object.freeze(successfulStreams.map((endpoint) => endpoint.request.activity_id!)),
+    captured_stream_ids: Object.freeze(capturedStreamIds),
     report: Object.freeze({ ...derivation.report, streams: streamTally.report() }) });
   }
 

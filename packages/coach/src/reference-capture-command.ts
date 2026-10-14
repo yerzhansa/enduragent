@@ -66,40 +66,17 @@ import {
   type IntervalsIcuCaptureSource,
   type LocalBundleSelectedEvidence,
 } from "@enduragent/sync-intervals-icu";
+import {
+  HEX_40,
+  binaryCompare,
+  binarySortedUnique,
+  validateReferenceCaptureConclusion,
+  type ReferenceCaptureConclusionV1,
+  type ReferenceCaptureEnvironmentCode,
+} from "./reference-capture-conclusion.js";
 
 const execFile = promisify(execFileCallback);
 const SOURCE = "intervals-icu" as const;
-const HEX_40 = /^[0-9a-f]{40}$/;
-const HEX_64 = /^[0-9a-f]{64}$/;
-
-export type ReferenceCaptureEnvironmentCode =
-  | "ARGUMENTS" | "INPUT_PATH" | "INPUT_PERMISSIONS" | "INPUT_SCHEMA"
-  | "MANIFEST_SCHEMA" | "ARCHIVE_MEMBER" | "CAPTURE_INCOMPLETE"
-  | "SCRATCH_CREATE" | "INGEST_FAILED" | "PROJECTION_FAILED"
-  | "CLEANUP_FAILED" | "CONCLUSION_PATH" | "CONCLUSION_WRITE" | "INTERNAL";
-
-export interface ReferenceCaptureConclusionV1 {
-  readonly schema_version: 1;
-  readonly gate: "reference-capture-once";
-  readonly head_sha: string;
-  readonly capture_manifest_sha256: string | null;
-  readonly capture_id_sha256: string | null;
-  readonly verdict: "PASS" | "MISMATCH" | "ENVIRONMENT";
-  readonly fixture_bytes_equal: boolean | null;
-  readonly metric_maps_complete: boolean | null;
-  readonly metric_bytes_equal: boolean | null;
-  readonly registry_key_count: number | null;
-  readonly metric_exception_count: number;
-  readonly fixture_mismatch_count: number;
-  readonly metric_mismatch_count: number;
-  readonly direct_metric_exception_keys: readonly string[];
-  readonly projected_metric_exception_keys: readonly string[];
-  readonly fixture_mismatch_families: readonly string[];
-  readonly metric_mismatch_keys: readonly string[];
-  readonly direct_family_counts: Readonly<Record<string, number>>;
-  readonly projected_family_counts: Readonly<Record<string, number>>;
-  readonly environment_code: ReferenceCaptureEnvironmentCode | null;
-}
 
 export interface ReferenceCaptureCommandResult {
   readonly exitCode: 0 | 1 | 2;
@@ -185,7 +162,7 @@ function parseInput(bytes: Uint8Array): ReferenceCaptureInputV1 {
     || value.schema_version !== 1 || typeof value.manifest_path !== "string"
     || typeof value.archive_root !== "string" || !isAbsolute(value.manifest_path)
     || !isAbsolute(value.archive_root)) fail("INPUT_SCHEMA");
-  return value as unknown as ReferenceCaptureInputV1;
+  return { schema_version: 1, manifest_path: value.manifest_path, archive_root: value.archive_root };
 }
 
 function modePrivate(mode: number): boolean {
@@ -244,79 +221,6 @@ async function validateArchiveMembers(root: string, manifest: ReferenceCaptureMa
   }
 }
 
-function binaryCompare(left: string, right: string): number {
-  return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
-}
-
-function binarySortedUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort(binaryCompare);
-}
-
-function safeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function exactKeys(value: object, keys: readonly string[]): boolean {
-  return canonicalJson(Object.keys(value).sort(binaryCompare)) === canonicalJson([...keys].sort(binaryCompare));
-}
-
-function validSortedUnique(values: unknown): values is readonly string[] {
-  return Array.isArray(values) && values.every((value) => typeof value === "string")
-    && canonicalJson(values) === canonicalJson(binarySortedUnique(values));
-}
-
-function validCountMap(value: unknown): value is Readonly<Record<string, number>> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    && Object.values(value).every(safeInteger);
-}
-
-export function validateReferenceCaptureConclusion(value: unknown): ReferenceCaptureConclusionV1 {
-  const keys = ["schema_version", "gate", "head_sha", "capture_manifest_sha256", "capture_id_sha256", "verdict",
-    "fixture_bytes_equal", "metric_maps_complete", "metric_bytes_equal", "registry_key_count", "metric_exception_count",
-    "fixture_mismatch_count", "metric_mismatch_count", "direct_metric_exception_keys",
-    "projected_metric_exception_keys", "fixture_mismatch_families", "metric_mismatch_keys", "direct_family_counts",
-    "projected_family_counts", "environment_code"] as const;
-  if (value === null || typeof value !== "object" || Array.isArray(value) || !exactKeys(value, keys)) throw new TypeError("invalid conclusion");
-  const row = value as unknown as ReferenceCaptureConclusionV1;
-  const nullableHash = (item: unknown): boolean => item === null || typeof item === "string" && HEX_64.test(item);
-  const nullableBoolean = (item: unknown): boolean => item === null || typeof item === "boolean";
-  const environmentCodes: readonly ReferenceCaptureEnvironmentCode[] = ["ARGUMENTS", "INPUT_PATH", "INPUT_PERMISSIONS",
-    "INPUT_SCHEMA", "MANIFEST_SCHEMA", "ARCHIVE_MEMBER", "CAPTURE_INCOMPLETE", "SCRATCH_CREATE", "INGEST_FAILED",
-    "PROJECTION_FAILED", "CLEANUP_FAILED", "CONCLUSION_PATH", "CONCLUSION_WRITE", "INTERNAL"];
-  if (row.schema_version !== 1 || row.gate !== "reference-capture-once" || !HEX_40.test(row.head_sha)
-    || !nullableHash(row.capture_manifest_sha256) || !nullableHash(row.capture_id_sha256)
-    || !["PASS", "MISMATCH", "ENVIRONMENT"].includes(row.verdict)
-    || !nullableBoolean(row.fixture_bytes_equal) || !nullableBoolean(row.metric_maps_complete)
-    || !nullableBoolean(row.metric_bytes_equal) || !(row.registry_key_count === null || safeInteger(row.registry_key_count))
-    || !safeInteger(row.metric_exception_count) || !safeInteger(row.fixture_mismatch_count)
-    || !safeInteger(row.metric_mismatch_count) || !validSortedUnique(row.direct_metric_exception_keys)
-    || !validSortedUnique(row.projected_metric_exception_keys) || !validSortedUnique(row.fixture_mismatch_families)
-    || !validSortedUnique(row.metric_mismatch_keys) || !validCountMap(row.direct_family_counts)
-    || !validCountMap(row.projected_family_counts)
-    || !(row.environment_code === null || environmentCodes.includes(row.environment_code))) throw new TypeError("invalid conclusion");
-  if (row.metric_exception_count !== row.direct_metric_exception_keys.length + row.projected_metric_exception_keys.length
-    || row.fixture_mismatch_count !== row.fixture_mismatch_families.length
-    || row.metric_mismatch_count !== row.metric_mismatch_keys.length) throw new TypeError("invalid conclusion counts");
-  const noDiagnostics = row.metric_exception_count === 0 && row.fixture_mismatch_count === 0 && row.metric_mismatch_count === 0;
-  const noFamilyCounts = Object.keys(row.direct_family_counts).length === 0
-    && Object.keys(row.projected_family_counts).length === 0;
-  if (row.verdict === "PASS") {
-    if (row.environment_code !== null || row.fixture_bytes_equal !== true || row.metric_maps_complete !== true
-      || row.metric_bytes_equal !== true || row.registry_key_count === null || !noDiagnostics) throw new TypeError("invalid PASS conclusion");
-  } else if (row.verdict === "MISMATCH") {
-    if (row.environment_code !== null || row.fixture_bytes_equal === null || row.metric_maps_complete === null
-      || row.metric_bytes_equal === null || row.registry_key_count === null
-      || row.fixture_bytes_equal && row.metric_maps_complete && row.metric_bytes_equal
-        && row.metric_exception_count === 0 && row.fixture_mismatch_count === 0 && row.metric_mismatch_count === 0) {
-      throw new TypeError("invalid MISMATCH conclusion");
-    }
-  } else if (row.environment_code === null || row.fixture_bytes_equal !== null || row.metric_maps_complete !== null
-    || row.metric_bytes_equal !== null || row.registry_key_count !== null || !noDiagnostics || !noFamilyCounts) {
-    throw new TypeError("invalid ENVIRONMENT conclusion");
-  }
-  return Object.freeze(row);
-}
-
 export interface ConclusionPersistenceHooks {
   readonly beforeLink?: () => Promise<void> | void;
   readonly afterLink?: () => Promise<void> | void;
@@ -350,8 +254,8 @@ export async function persistReferenceCaptureConclusion(
     const final = validateReferenceCaptureConclusion(JSON.parse(finalBytes));
     if (finalBytes !== bytes || `${canonicalJson(final)}\n` !== bytes) throw new TypeError("conclusion reload differs");
   } catch (error) {
-    if (handle !== undefined) try { await handle.close(); } catch {}
-    try { await unlink(temporary); } catch {}
+    try { await handle?.close(); }
+    finally { await rm(temporary, { force: true }); }
     throw error;
   }
 }
@@ -366,6 +270,8 @@ function replayReader(payloads: CapturedPayloads): VerifiedSnapshotReader {
   } };
 }
 
+const replaySkipsStoreEvidence = async (): Promise<void> => undefined;
+
 function dummyArchive(): ArchiveManager {
   const unavailable = async (): Promise<never> => { throw new TypeError("archive access is unavailable"); };
   return { writeArtifact: unavailable, writeSnapshot: unavailable, quarantine: unavailable,
@@ -375,11 +281,11 @@ function dummyArchive(): ArchiveManager {
 function replaySource(manifest: ReferenceCaptureManifest): IntervalsIcuCaptureSource {
   return createIntervalsIcuSource({ athleteId: "capture-once", historyNewestDate: manifest.plan.window.newest,
     minRequestIntervalMs: 250, archive: dummyArchive(), wallClock: { now: () => manifest.plan.capture_epoch_ms },
-    async sleep() {},
+    async sleep() { throw new TypeError("capture replay does not wait"); },
     httpFactory: () => ({ async fetch() { throw new TypeError("network is unavailable"); } }),
     acl: Object.freeze({
       activity(value: Record<string, unknown>) {
-        return parseRenamedActivity(renameTpFieldsOnActivity(value)) as unknown as Readonly<Record<string, unknown>>;
+        return object(parseRenamedActivity(renameTpFieldsOnActivity(value)));
       },
       streams(value: unknown) { return object(normalizeStreams(value)); },
       assertClean: assertNoTpKeysRemain,
@@ -416,7 +322,7 @@ function archiveEpoch(row: Readonly<Record<string, unknown>>, lane: "settings" |
   return milliseconds / 1_000;
 }
 
-function streamEpoch(manifest: ReferenceCaptureManifest, activityId: string, payloads: CapturedPayloads): number {
+function streamEpoch(manifest: ReferenceCaptureManifest, activityId: string | null, payloads: CapturedPayloads): number {
   const index = manifest.records.activities.findIndex((record) => record.external_id === activityId);
   if (index < 0) throw new TypeError("stream activity is absent");
   return archiveEpoch(object(payloads.records.activities[index]), "activities");
@@ -433,7 +339,7 @@ async function directSelectedEvidence(
   const crypto = createNodeCrypto();
   const activities: SelectedSourceRow[] = [];
   for (let index = 0; index < manifest.records.activities.length; index += 1) {
-    const record = manifest.records.activities[index]!, raw = object(payloads.records.activities[index]);
+    const record = manifest.records.activities[index], raw = object(payloads.records.activities[index]);
     const normalized = parseRenamedActivity(renameTpFieldsOnActivity(structuredClone(raw)));
     assertNoTpKeysRemain(normalized);
     const epochSeconds = archiveEpoch(raw, "activities");
@@ -447,7 +353,7 @@ async function directSelectedEvidence(
   }
   const settings: SelectedGenericRow[] = [];
   for (let index = 0; index < manifest.records.settings.length; index += 1) {
-    const record = manifest.records.settings[index]!, raw = object(payloads.records.settings[index]);
+    const record = manifest.records.settings[index], raw = object(payloads.records.settings[index]);
     assertNoTpKeysRemain(raw);
     const mapped = await mapSettingsLanding(raw);
     const revision = record.store_evidence.current_revision;
@@ -460,12 +366,12 @@ async function directSelectedEvidence(
   }
   const streams: SelectedGenericRow[] = [];
   for (let index = 0; index < manifest.records.streams.length; index += 1) {
-    const record = manifest.records.streams[index]!, normalized = normalizeStreams(payloads.records.streams[index]);
+    const record = manifest.records.streams[index], normalized = normalizeStreams(payloads.records.streams[index]);
     const landing = normalizeStreamLanding(object(normalized));
     assertNoTpKeysRemain(landing);
     const revision = record.store_evidence.current_revision;
     if (revision === null) throw new TypeError("stream revision is absent");
-    const activityId = manifest.captured_stream_ids[index]!;
+    const activityId = manifest.captured_stream_ids[index];
     streams.push({ source_record_id: revision.source_record_id, external_id: record.external_id,
       revision_id: revision.revision_id, payload_json: canonicalJson({ endpoint: "streams", landing, schema_version: 1 }),
       artifact_key: record.store_evidence.artifact_key, archive_address: record.snapshot.address,
@@ -509,7 +415,7 @@ class CapturedReferencePayloadSet {
       await assertReferenceCaptureReplayable(this.manifest, {
         readVerifiedSnapshot: (ref) => recordingReader.readVerifiedSnapshot(ref),
         derivePayloadMembers: (plan, endpointPayloads) => source.deriveReferenceCaptureMembers(plan, endpointPayloads),
-        async assertStoreEvidence() {},
+        assertStoreEvidence: replaySkipsStoreEvidence,
       });
     } catch (error) {
       if (error instanceof EnvironmentFailure) throw error;
@@ -558,17 +464,17 @@ async function ingestCapturedPayloads(
   const crypto = createNodeCrypto(), fs = nodeFileSystem();
   const archive = createArchiveManager({ archiveRoot: destination.archiveRoot, crypto, fs });
   for (let index = 0; index < manifest.endpoints.length; index += 1) {
-    const endpoint = manifest.endpoints[index]!;
+    const endpoint = manifest.endpoints[index];
     const epochSeconds = index === 0
       ? Date.parse(`${manifest.plan.window.newest}T00:00:00.000Z`) / 1_000
       : index < 3 ? Date.parse(`${manifest.plan.window.oldest}T00:00:00.000Z`) / 1_000
-      : streamEpoch(manifest, endpoint.request.activity_id!, payloads);
+      : streamEpoch(manifest, endpoint.request.activity_id, payloads);
     await writeSnapshotExact(archive, payloads.endpoints[index], epochSeconds, endpoint.snapshot);
   }
   for (const lane of ["settings", "activities", "wellness", "streams"] as const) {
     for (let index = 0; index < manifest.records[lane].length; index += 1) {
-      const record = manifest.records[lane][index]!;
-      const epochSeconds = lane === "streams" ? streamEpoch(manifest, manifest.captured_stream_ids[index]!, payloads)
+      const record = manifest.records[lane][index];
+      const epochSeconds = lane === "streams" ? streamEpoch(manifest, manifest.captured_stream_ids[index], payloads)
         : archiveEpoch(object(payloads.records[lane][index]), lane);
       await writeSnapshotExact(archive, payloads.records[lane][index], epochSeconds, record.snapshot);
     }
@@ -581,7 +487,7 @@ async function ingestCapturedPayloads(
     await runMigrations(store, MIGRATIONS);
     const platformRecords: PlatformImportArtifact[] = [];
     for (let index = 0; index < manifest.records.activities.length; index += 1) {
-      const record = manifest.records.activities[index]!, raw = object(payloads.records.activities[index]);
+      const record = manifest.records.activities[index], raw = object(payloads.records.activities[index]);
       const normalized = parseRenamedActivity(renameTpFieldsOnActivity(structuredClone(raw)));
       assertNoTpKeysRemain(normalized);
       const epochSeconds = archiveEpoch(raw, "activities");
@@ -594,7 +500,7 @@ async function ingestCapturedPayloads(
     const repository = createIntervalsSourceRepository(store, (fields) => H(crypto, ...(fields as [string | number, ...(string | number)[]])));
     await store.transaction(async () => {
       for (let index = 0; index < manifest.records.settings.length; index += 1) {
-        const record = manifest.records.settings[index]!, raw = object(payloads.records.settings[index]);
+        const record = manifest.records.settings[index], raw = object(payloads.records.settings[index]);
         assertNoTpKeysRemain(raw);
         const mapped = await mapSettingsLanding(raw);
         const artifact = await repository.recordArtifact(artifactDraft(record, "settings", mapped.archiveEpochSeconds));
@@ -604,16 +510,16 @@ async function ingestCapturedPayloads(
         for (const zone of mapped.zones) await repository.insertSyncedZone(zone);
       }
       for (let index = 0; index < manifest.records.wellness.length; index += 1) {
-        const record = manifest.records.wellness[index]!, raw = object(payloads.records.wellness[index]);
+        const record = manifest.records.wellness[index], raw = object(payloads.records.wellness[index]);
         const landing = await landWellnessRow(raw);
         await repository.recordArtifact(artifactDraft(record, "wellness", archiveEpoch(raw, "wellness")));
         await repository.upsertWellness(landing.row);
       }
       for (let index = 0; index < manifest.records.streams.length; index += 1) {
-        const record = manifest.records.streams[index]!, normalized = normalizeStreams(payloads.records.streams[index]);
+        const record = manifest.records.streams[index], normalized = normalizeStreams(payloads.records.streams[index]);
         const landing = normalizeStreamLanding(object(normalized));
         assertNoTpKeysRemain(landing);
-        const epochSeconds = streamEpoch(manifest, manifest.captured_stream_ids[index]!, payloads);
+        const epochSeconds = streamEpoch(manifest, manifest.captured_stream_ids[index], payloads);
         const artifact = await repository.recordArtifact(artifactDraft(record, "streams", epochSeconds));
         await repository.recordGenericLanding({ externalId: record.external_id, artifactKey: artifact.artifactKey,
           archiveAddress: record.snapshot.address, endpoint: "streams", normalizedPayloadJson: canonicalJson(landing) });
@@ -632,14 +538,18 @@ async function defaultSelectionMismatch(store: SqlReadStore, manifest: Reference
       streams: await readSelectedGenericRows(store, { source: SOURCE, lane: "streams" }),
       wellness: await readSourceArtifactRows(store, { source: SOURCE, lane: "wellness" }),
     };
-    const expectedPairs = (lane: "activities" | "settings" | "streams") => manifest.records[lane].map((record) => ({
-      source_record_id: record.store_evidence.current_revision!.source_record_id,
-      revision_id: record.store_evidence.current_revision!.revision_id,
-      artifact_key: record.store_evidence.artifact_key,
-      archive_address: record.snapshot.address,
-      archive_rel_path: record.snapshot.rel_path,
-      external_id: record.external_id,
-    })).sort((left, right) => binaryCompare(left.source_record_id, right.source_record_id));
+    const expectedPairs = (lane: "activities" | "settings" | "streams") => manifest.records[lane].map((record) => {
+      const revision = record.store_evidence.current_revision;
+      if (revision === null) throw new TypeError("record revision evidence is invalid");
+      return {
+        source_record_id: revision.source_record_id,
+        revision_id: revision.revision_id,
+        artifact_key: record.store_evidence.artifact_key,
+        archive_address: record.snapshot.address,
+        archive_rel_path: record.snapshot.rel_path,
+        external_id: record.external_id,
+      };
+    }).sort((left, right) => binaryCompare(left.source_record_id, right.source_record_id));
     const actualPairs = (lane: "activities" | "settings" | "streams") => actual[lane].map((row) => ({
       source_record_id: lane === "activities" ? (row as SelectedSourceRow).id : (row as SelectedGenericRow).source_record_id,
       revision_id: row.revision_id, artifact_key: row.artifact_key, archive_address: row.archive_address,
@@ -659,7 +569,6 @@ async function defaultSelectionMismatch(store: SqlReadStore, manifest: Reference
     return false;
   } catch { return true; }
 }
-
 async function executingHead(git: NonNullable<ReferenceCaptureCommandDependencies["git"]>): Promise<string> {
   let root: string, head: string;
   try {
@@ -669,7 +578,6 @@ async function executingHead(git: NonNullable<ReferenceCaptureCommandDependencie
   if (!isAbsolute(root) || !HEX_40.test(head)) fail("INTERNAL");
   return head;
 }
-
 function environmentConclusion(
   head: string,
   manifestHash: string | null,
@@ -683,7 +591,6 @@ function environmentConclusion(
     direct_metric_exception_keys: [], projected_metric_exception_keys: [], fixture_mismatch_families: [],
     metric_mismatch_keys: [], direct_family_counts: {}, projected_family_counts: {}, environment_code: code });
 }
-
 function completedConclusion(
   head: string,
   manifestHash: string,
@@ -717,7 +624,6 @@ function completedConclusion(
     direct_family_counts: comparison.directFamilyCounts, projected_family_counts: comparison.projectedFamilyCounts,
     environment_code: null });
 }
-
 function outputFor(record: ReferenceCaptureConclusionV1): ReferenceCaptureCommandResult {
   if (record.verdict === "PASS") return { exitCode: 0, stream: "stdout", conclusion: record,
     line: `REFERENCE_CAPTURE PASS fixture_equal=true metric_maps_complete=true metrics_equal=true registry_keys=${record.registry_key_count} metric_exceptions=0 fixture_mismatches=0 metric_mismatches=0` };
@@ -726,11 +632,9 @@ function outputFor(record: ReferenceCaptureConclusionV1): ReferenceCaptureComman
   return { exitCode: 2, stream: "stderr", conclusion: record,
     line: `REFERENCE_CAPTURE ENVIRONMENT code=${record.environment_code}` };
 }
-
 function bareEnvironment(code: ReferenceCaptureEnvironmentCode): ReferenceCaptureCommandResult {
   return { exitCode: 2, stream: "stderr", conclusion: null, line: `REFERENCE_CAPTURE ENVIRONMENT code=${code}` };
 }
-
 async function finalize(
   path: string,
   record: ReferenceCaptureConclusionV1,
@@ -740,7 +644,6 @@ async function finalize(
   catch { return bareEnvironment("CONCLUSION_WRITE"); }
   return outputFor(record);
 }
-
 export async function runReferenceCaptureCommand(
   args: readonly string[],
   dependencies: ReferenceCaptureCommandDependencies = {},
@@ -757,7 +660,6 @@ export async function runReferenceCaptureCommand(
   } catch (error) {
     return bareEnvironment(error instanceof EnvironmentFailure ? error.code : "INPUT_PATH");
   }
-
   const git = dependencies.git ?? (async (gitArgs, cwd) => (await execFile("git", gitArgs, { cwd, encoding: "utf8" })).stdout);
   let head: string;
   try { head = await executingHead(git); } catch { return bareEnvironment("INTERNAL"); }
@@ -767,7 +669,6 @@ export async function runReferenceCaptureCommand(
     if (code === "CONCLUSION_PATH" || code === "CONCLUSION_WRITE") return bareEnvironment(code);
     return finalize(options.conclusion, environmentConclusion(head, manifestHash, captureIdHash, code), persist);
   };
-
   let manifest: ReferenceCaptureManifest;
   try {
     const manifestBytes = new Uint8Array(await readFile(input.manifest_path));
@@ -778,7 +679,6 @@ export async function runReferenceCaptureCommand(
   } catch (error) {
     return environment(error instanceof EnvironmentFailure ? error.code : "ARCHIVE_MEMBER");
   }
-
   const payloadSet = new CapturedReferencePayloadSet(manifest);
   const inputFs = dependencies.inputFileSystem ?? nodeFileSystem();
   const reader = createVerifiedSnapshotReader({ archiveRoot: input.archive_root, crypto: createNodeCrypto(), fs: inputFs });
@@ -786,7 +686,6 @@ export async function runReferenceCaptureCommand(
   let direct: ReturnType<typeof buildFixtureShape>;
   try { direct = buildFixtureShape(bundleProjection(await payloadSet.directBundle(reader))); }
   catch (error) { return environment(error instanceof EnvironmentFailure ? error.code : "PROJECTION_FAILED"); }
-
   let scratch: string | undefined;
   try {
     scratch = await mkdtemp(join(dirname(options.conclusion), ".reference-capture-"));
@@ -836,15 +735,13 @@ export async function runReferenceCaptureCommand(
     catch { environmentCode = "CLEANUP_FAILED"; comparison = undefined; }
   }
   if (environmentCode !== null || comparison === undefined) return environment(environmentCode ?? "INTERNAL");
-  return finalize(options.conclusion, completedConclusion(head, manifestHash!, captureIdHash!, comparison, selectionMismatch), persist);
+  return finalize(options.conclusion, completedConclusion(head, manifestHash, captureIdHash, comparison, selectionMismatch), persist);
 }
-
 async function main(): Promise<void> {
   const result = await runReferenceCaptureCommand(process.argv.slice(2));
   (result.stream === "stdout" ? console.log : console.error)(result.line);
   process.exitCode = result.exitCode;
 }
-
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(() => {
     console.error("REFERENCE_CAPTURE ENVIRONMENT code=INTERNAL");
