@@ -34,7 +34,7 @@
     "@enduragent/coach-contract": "workspace:*",
     "@enduragent/i18n": "workspace:*",
     "@enduragent/kernel": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@openrouter/ai-sdk-provider": "^2.9.1",
     "ai": "^6.0.158",
     "intervals-icu-api": "^0.4.0",
