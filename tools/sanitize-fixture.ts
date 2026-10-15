@@ -1,10 +1,3 @@
-// Operator CLI for piping a real intervals.icu JSON dump through the
-// privacy-allowlist transform. Output lands under
-// `tests/fixtures/golden/<name>.json` for committing.
-//
-// Usage:
-//   pnpm exec tsx tools/sanitize-fixture.ts <input.json> <output-name> [--force]
-
 import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
@@ -13,8 +6,9 @@ import { fileURLToPath } from "node:url";
 import { atomicWriteJson } from "../packages/core/src/io/atomic-write-json.js";
 import {
   assertNoTpKeysRemain,
+  decodeWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
+  RowRejection,
   type RenameSummary,
 } from "../packages/core/src/reference/sync/rename-tp-fields.js";
 import {
@@ -32,19 +26,11 @@ const DEFAULT_OUTPUT_ROOT = resolve(
   "golden",
 );
 
-// Allowlisted CLI flags. Unknown --<word> arguments are rejected so an
-// operator typo like `--force-overrride` or `--dryrun` doesn't get
-// silently swallowed (which would either bypass overwrite protection,
-// or fail intent-of-dry-run, depending on the typo).
 const KNOWN_FLAGS: ReadonlySet<string> = new Set(["--force"]);
 
 export interface MainOptions {
-  /** Override the output-root directory. Tests pass tmpdir; production uses
-   *  `packages/core/tests/fixtures/golden/`. */
   outputRoot?: string;
-  /** Capture stdout. Tests pass a collector; production uses console.log. */
   out?: (msg: string) => void;
-  /** Capture stderr. */
   err?: (msg: string) => void;
 }
 
@@ -82,24 +68,19 @@ export async function main(argv: string[], opts?: MainOptions): Promise<number> 
 
   const raw = readFileSync(inputPath, "utf-8");
   const parsed = JSON.parse(raw);
-  const wellnessRenameSummary: RenameSummary = { skippedNonNumeric: {} };
   const activitiesRenameSummary: RenameSummary = { skippedNonNumeric: {} };
-  const renamed = {
-    ...parsed,
-    ...(Array.isArray(parsed.activities) && {
-      activities: parsed.activities.map((row: unknown) =>
-        renameTpFieldsOnActivity(row as Record<string, unknown>, activitiesRenameSummary),
-      ),
-    }),
-    ...(Array.isArray(parsed.wellness) && {
-      wellness: parsed.wellness.map((row: unknown) =>
-        renameTpFieldsOnWellnessRow(row as Record<string, unknown>, wellnessRenameSummary),
-      ),
-    }),
+  const activities = Array.isArray(parsed.activities) && {
+    activities: parsed.activities.map((row: unknown) =>
+      renameTpFieldsOnActivity(row as Record<string, unknown>, activitiesRenameSummary),
+    ),
   };
-
-  // Defense-in-depth — see assertNoTpKeysRemain's JSDoc for the invariant.
+  let renamed: Record<string, unknown>;
   try {
+    renamed = {
+      ...parsed,
+      ...activities,
+      ...(Array.isArray(parsed.wellness) && { wellness: parsed.wellness.map(decodeWellnessDay) }),
+    };
     assertNoTpKeysRemain(renamed);
   } catch (e) {
     err((e as Error).message);
@@ -110,12 +91,6 @@ export async function main(argv: string[], opts?: MainOptions): Promise<number> 
 
   await atomicWriteJson(outputPath, data);
 
-  // Emit the SHA-256 checksum alongside the JSON. The companion test at
-  // `realistic-athlete-fixture-checksum.test.ts` re-hashes the committed
-  // file and compares to this checksum on every CI run; if they ever
-  // diverge, either the operator forgot to commit one of the two files or
-  // the JSON was mutated in place after regen. Both are bugs we want loud.
-  // Format matches `shasum -a 256` output: `<hex>  <basename>`.
   const writtenBytes = readFileSync(outputPath);
   const hash = createHash("sha256").update(writtenBytes).digest("hex");
   const checksumPath = `${outputPath}.sha256`;
@@ -124,22 +99,27 @@ export async function main(argv: string[], opts?: MainOptions): Promise<number> 
   out(`Wrote sanitized fixture: ${outputPath}`);
   out(`Wrote checksum:          ${checksumPath}`);
   for (const line of formatSummary(summary)) out(line);
-  for (const line of formatRenameWarnings(wellnessRenameSummary, "wellness")) err(line);
-  for (const line of formatRenameWarnings(activitiesRenameSummary, "activities")) err(line);
+  for (const line of formatRenameWarnings(activitiesRenameSummary)) err(line);
 
   return 0;
 }
 
-function formatRenameWarnings(
-  summary: RenameSummary,
-  collection: "wellness" | "activities",
-): string[] {
+function decodeWellnessDay(row: unknown, index: number) {
+  try {
+    return decodeWellnessRow(row);
+  } catch (error) {
+    if (!(error instanceof RowRejection)) throw error;
+    throw new Error(`wellness[${index}]: ${error.message}`, { cause: error });
+  }
+}
+
+function formatRenameWarnings(summary: RenameSummary): string[] {
   return Object.entries(summary.skippedNonNumeric)
     .filter(([, count]) => count > 0)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(
       ([field, count]) =>
-        `⚠ Skipped non-number TP values during rename: ${field} (×${count} in ${collection})`,
+        `⚠ Skipped non-number TP values during rename: ${field} (×${count} in activities)`,
     );
 }
 

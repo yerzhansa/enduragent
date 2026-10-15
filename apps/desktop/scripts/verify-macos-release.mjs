@@ -82,13 +82,8 @@ function allCommandOutput(result) {
   return `${outputStream(result, "stdout")}\n${outputStream(result, "stderr")}`;
 }
 
-async function inspectSystemFile(executeFile, executable, arguments_) {
-  try {
-    return await executeFile(executable, arguments_);
-  } catch {
-    fail("macOS signed identity inspection failed");
-  }
-}
+const inspectSystemFile = (executeFile, executable, arguments_) =>
+  runSystemVerification(executeFile, executable, arguments_, "macOS signed identity inspection failed");
 
 function exactLine(text, pattern) {
   const values = Array.from(text.matchAll(pattern), (match) => match[1]);
@@ -1454,9 +1449,10 @@ export async function verifyMacosReleaseApplicationContents(
 
 async function runSystemVerification(executeFile, executable, arguments_, failureMessage) {
   try {
-    await executeFile(executable, arguments_);
-  } catch {
-    fail(failureMessage);
+    return await executeFile(executable, arguments_);
+  } catch (error) {
+    const output = allCommandOutput(error).trim().split("\n").filter(Boolean).slice(-6).join(" | ");
+    fail(output === "" ? failureMessage : `${failureMessage}: ${output}`);
   }
 }
 
@@ -1467,27 +1463,24 @@ async function verifyMacosDmgSignature(dmgPath, executeFile) {
     ["--verify", "--verbose=2", dmgPath],
     "macOS DMG signature verification failed",
   );
-  let signatureResult;
-  try {
-    signatureResult = await executeFile("/usr/bin/codesign", ["--display", "--verbose=4", dmgPath]);
-  } catch {
-    fail("macOS DMG signing identity inspection failed");
-  }
+  const signatureResult = await runSystemVerification(
+    executeFile,
+    "/usr/bin/codesign",
+    ["--display", "--verbose=4", dmgPath],
+    "macOS DMG signing identity inspection failed",
+  );
   const output = allCommandOutput(signatureResult);
   const teamIdentifier = exactLine(output, /^TeamIdentifier=([^\r\n]+)$/gmu);
   const authorities = Array.from(output.matchAll(/^Authority=([^\r\n]+)$/gmu), (match) => match[1]);
   if (!hasCanonicalDeveloperIdApplicationIdentity(teamIdentifier, authorities)) {
     fail("macOS DMG signing identity is invalid");
   }
+  if (!hasStapledTicket(output)) fail("macOS DMG staple verification failed");
 }
 
+const hasStapledTicket = (output) => /^Notarization Ticket=stapled$/mu.test(output);
+
 async function verifyMacosDmgNotarization(dmgPath, executeFile) {
-  await runSystemVerification(
-    executeFile,
-    "/usr/bin/xcrun",
-    ["stapler", "validate", "-v", dmgPath],
-    "macOS DMG staple verification failed",
-  );
   await runSystemVerification(
     executeFile,
     "/usr/sbin/spctl",
@@ -1583,12 +1576,15 @@ export async function verifyMacosApplication(application, overrides = {}) {
     ["--verify", "--deep", "--strict", "--verbose=2", application],
     "macOS application signature verification failed",
   );
-  await runSystemVerification(
+  const signature = await runSystemVerification(
     executeFile,
-    "/usr/bin/xcrun",
-    ["stapler", "validate", "-v", application],
+    "/usr/bin/codesign",
+    ["--display", "--verbose=4", application],
     "macOS application staple verification failed",
   );
+  if (!hasStapledTicket(allCommandOutput(signature))) {
+    fail("macOS application staple verification failed");
+  }
   await runSystemVerification(
     executeFile,
     "/usr/sbin/spctl",

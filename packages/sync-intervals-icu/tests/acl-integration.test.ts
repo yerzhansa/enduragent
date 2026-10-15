@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { canonicalJson, type ArchiveManager } from "@enduragent/kernel/archive";
 import type { HttpPort } from "@enduragent/kernel/ports";
-import { assertNoTpKeysRemain, parseRenamedActivity, parseRenamedWellnessRow,
-  renameTpFieldsOnActivity, renameTpFieldsOnWellnessRow } from "../../core/src/reference/sync/rename-tp-fields.js";
+import { assertNoTpKeysRemain, parseRenamedActivity,
+  renameTpFieldsOnActivity } from "../../core/src/reference/sync/rename-tp-fields.js";
 import { normalizeStreams } from "../../core/src/reference/sync/fetch-live-bundle.js";
 import { createIntervalsIcuSource } from "../src/index.js";
 
@@ -29,7 +29,6 @@ describe("existing landing ACL integration", () => {
       historyNewestDate: "1998-12-31", minRequestIntervalMs: 250, httpFactory: () => http, archive: archive(log),
       wallClock: { now: () => Date.UTC(1998, 0, 1) }, sleep: async () => {}, acl: {
         activity(row) { log.push("acl"); return parseRenamedActivity(renameTpFieldsOnActivity(row)); },
-        wellness(row) { return parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(row)); },
         streams(value) { const normalized = normalizeStreams(value); if (normalized === null || typeof normalized !== "object" || Array.isArray(normalized)) throw new TypeError("streams invalid"); return normalized as Record<string, unknown>; },
         assertClean: assertNoTpKeysRemain,
       } });

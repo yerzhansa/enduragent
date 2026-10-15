@@ -87,6 +87,7 @@ function canonicalDmgSigningIdentityResult() {
       "Authority=Developer ID Application: Enduragent Test (FA494ACVTF)",
       "Authority=Developer ID Certification Authority",
       "Authority=Apple Root CA",
+      "Notarization Ticket=stapled",
       "TeamIdentifier=FA494ACVTF",
     ].join("\n"),
   };
@@ -626,7 +627,6 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
     expect(executeFile.mock.calls).toEqual([
       ["/usr/bin/codesign", ["--verify", "--verbose=2", dmg]],
       ["/usr/bin/codesign", ["--display", "--verbose=4", dmg]],
-      ["/usr/bin/xcrun", ["stapler", "validate", "-v", dmg]],
       [
         "/usr/sbin/spctl",
         [
@@ -857,7 +857,7 @@ describe.skipIf(process.platform === "win32")("macOS release plan", () => {
     expect(verifyPackageLayout).toHaveBeenCalledOnce();
     expect(notarize).toHaveBeenCalledOnce();
     expect(verifyIdentityContinuity).toHaveBeenCalledOnce();
-    expect(executeFile).toHaveBeenCalledTimes(4);
+    expect(executeFile).toHaveBeenCalledTimes(3);
     expect(sealReleaseMetadata).toHaveBeenCalledOnce();
     expect(promoteReleaseEnvelope).not.toHaveBeenCalled();
   });

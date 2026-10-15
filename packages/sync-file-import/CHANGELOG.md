@@ -1,5 +1,14 @@
 # @enduragent/sync-file-import
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [d4be2cf]
+- Updated dependencies [1e3c8f9]
+- Updated dependencies [aae19b5]
+  - @enduragent/kernel@0.1.3
+
 ## 0.0.4
 
 ### Patch Changes

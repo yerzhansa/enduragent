@@ -6,9 +6,7 @@ import {
   assertNoTpKeysRemain,
   normalizeStreams,
   parseRenamedActivity,
-  parseRenamedWellnessRow,
   renameTpFieldsOnActivity,
-  renameTpFieldsOnWellnessRow,
 } from "@enduragent/kernel/reference/local-bundle";
 import type { ArchiveManager } from "@enduragent/kernel/archive";
 import type { PhysicalRequestLedger } from "@enduragent/kernel/store";
@@ -36,10 +34,7 @@ export function createIntervalsBackfillSource(options: {
 }): IntervalsIcuSource {
   const acl: IntervalsLandingAcl = Object.freeze({
     activity(row: Record<string, unknown>) {
-      return parseRenamedActivity(renameTpFieldsOnActivity(row)) as unknown as Readonly<Record<string, unknown>>;
-    },
-    wellness(row: Record<string, unknown>) {
-      return parseRenamedWellnessRow(renameTpFieldsOnWellnessRow(row)) as unknown as Readonly<Record<string, unknown>>;
+      return parseRenamedActivity(renameTpFieldsOnActivity(row));
     },
     streams(value: unknown) {
       const normalized = normalizeStreams(value);

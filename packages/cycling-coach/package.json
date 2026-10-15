@@ -1,6 +1,6 @@
 {
   "name": "cycling-coach",
-  "version": "2026.9.22",
+  "version": "2026.10.14",
   "description": "AI cycling coaching agent — BYOK + intervals.icu + Telegram",
   "type": "module",
   "main": "dist/index.js",
@@ -34,7 +34,7 @@
     "@ai-sdk/provider-utils": "^4.0.24",
     "@anthropic-ai/claude-agent-sdk": "0.3.258",
     "@clack/prompts": "^1.7.0",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@resvg/resvg-js": "2.6.2",
     "ai": "^6.0.158",
     "grammy": "^1.46.0",

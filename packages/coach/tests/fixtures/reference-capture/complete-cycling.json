@@ -51,6 +51,9 @@
       "hrv": 62,
       "sleepSecs": 27900,
       "sleepQuality": 4,
+      "ctl": 31.2,
+      "atl": 27.787529,
+      "fatigue": 3,
       "sportInfo": [
         { "type": "Ride", "eftp": 244.6 }
       ]

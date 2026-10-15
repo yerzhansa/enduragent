@@ -12,11 +12,13 @@ import {
 import {
   assertProjectionEvidenceEqual,
   parseCanonicalProjectionValue,
+  RowRejection,
 } from "@enduragent/kernel/reference/local-bundle";
 import type { SourceLane, SourceWatermark, SyncBudget } from "@enduragent/kernel/store";
-import { activityIdentity, mapActivityLanding, mapSettingsLanding, mapWellnessLanding, normalizeStreamLanding } from "./landing.js";
-import { advanceWindow, compactCursor, compareBinary, parseCivilDate, parseCursor, type CursorRange, type RangeCursor } from "./cursor.js";
+import { activityIdentity, landWellnessRow, mapActivityLanding, mapSettingsLanding, normalizeStreamLanding, type WellnessLanding } from "./landing.js";
+import { advanceWindow, civilDateEpochSeconds, compactCursor, compareBinary, parseCivilDate, parseCursor, type CursorRange, type RangeCursor } from "./cursor.js";
 import { createRequester, IntervalsHttpError, MIN_CONFIGURED_INTERVAL_MS, SyncBudgetExceededError, type IntervalsRequester } from "./http.js";
+import { attempt, civilDatePrefix, isSourceRestrictedRow, LaneTally, type CaptureReport, type RowOutcome, type RowSite } from "./lane-report.js";
 import { BULK_FIT_BATCH_SIZE, BULK_SAFE_ACTIVITY_ID, IncompleteBulkFitBatchError, MAX_FIT_BYTES, MAX_ZIP_BYTES, extractBulkFitZip } from "./zip.js";
 import { INTERVALS_ICU_CAPABILITIES, INTERVALS_ICU_SOURCE_ID, MAX_JSON_BYTES, ZERO_DROPPED_ACTIVITY_ROWS, type DroppedActivityRowEvidence, type IntervalsIcuArtifact, type IntervalsIcuCaptureSource, type IntervalsIcuCheckpoint, type IntervalsIcuSourceOptions, type ReferenceCaptureActivityRecord, type ReferenceCaptureBatch, type ReferenceCaptureEndpoint, type ReferenceCaptureSettingsRecord, type ReferenceCaptureStreamRecord, type ReferenceCaptureWellnessRecord } from "./types.js";
 
@@ -34,13 +36,8 @@ function objectRow(value: unknown, name: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function epochForDate(date: string): number {
-  parseCivilDate(date);
-  return Math.max(0, Date.parse(`${date}T00:00:00.000Z`) / 1_000);
-}
-
 function baseContentType(response: HttpResponse): string {
-  return (response.headers["content-type"] ?? "").split(";", 1)[0]!.trim().toLowerCase();
+  return (response.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
 }
 
 function parseJsonResponse(response: HttpResponse): unknown {
@@ -68,13 +65,6 @@ interface ActivityIndexEntry extends ReturnType<typeof activityIdentity> {
   readonly row: Record<string, unknown>;
 }
 
-const SOURCE_RESTRICTED_PROVIDER = "STRAVA";
-
-function isSourceRestrictedRow(entry: unknown): boolean {
-  if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
-  return (entry as Record<string, unknown>).source === SOURCE_RESTRICTED_PROVIDER;
-}
-
 class DropTally {
   private restricted = 0;
   private rest = 0;
@@ -83,17 +73,12 @@ class DropTally {
   record(entry: unknown): void {
     if (isSourceRestrictedRow(entry)) this.restricted += 1;
     else this.rest += 1;
-    const local =
+    const date =
       entry !== null && typeof entry === "object" && !Array.isArray(entry)
-        ? (entry as Record<string, unknown>).start_date_local
-        : undefined;
-    if (typeof local === "string") {
-      try {
-        this.dates.add(parseCivilDate(local.slice(0, 10)));
-        return;
-      } catch {}
-    }
-    this.undated += 1;
+        ? civilDatePrefix((entry as Record<string, unknown>).start_date_local)
+        : null;
+    if (date === null) this.undated += 1;
+    else this.dates.add(date);
   }
   evidence(): DroppedActivityRowEvidence {
     return Object.freeze({
@@ -143,11 +128,6 @@ async function fetchJson(requester: IntervalsRequester, endpoint: Parameters<Int
 
 function rowInstant(epochSeconds: number): ArchiveInstant {
   return { epochSeconds };
-}
-
-function wellnessIdentity(row: Record<string, unknown>): { readonly id: string; readonly key: string; readonly instant: ArchiveInstant } {
-  const id = parseCivilDate(row.id);
-  return { id, key: `${id}\u001f${id}`, instant: rowInstant(epochForDate(id)) };
 }
 
 function settingsIdentity(row: Record<string, unknown>): string {
@@ -235,41 +215,47 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       return;
     }
 
-    if (lane === "activities" || lane === "wellness") {
-      const transport = await fetchJson(requester, lane, { method: "GET", url: rangeUrl(athleteId, lane, cursor) });
-      await options.archive.writeSnapshot(transport, rowInstant(epochForDate(cursor.requestStart ?? cursor.window_start)));
-      if (!Array.isArray(transport)) throw new TypeError(`${lane} response is invalid`);
-      const scan = lane === "activities" ? activityIndex(transport) : null;
-      const indexed = scan !== null ? [...scan.rows] : transport.map((entry) => {
-        const row = objectRow(entry, "wellness row"), identity = wellnessIdentity(row);
-        return { externalId: identity.id, startUtc: identity.instant.epochSeconds, localDate: identity.id, key: identity.key, row };
-      }).sort((a, b) => compareBinary(a.key, b.key));
-      const droppedRows =
-        scan === null || cursor.last_key !== null ? ZERO_DROPPED_ACTIVITY_ROWS : scan.dropped;
-      const remaining = indexed.filter((entry) => cursor.last_key === null || compareBinary(entry.key, cursor.last_key) > 0);
+    if (lane === "wellness") {
+      const transport = await fetchJson(requester, "wellness", { method: "GET", url: rangeUrl(athleteId, "wellness", cursor) });
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
+      if (!Array.isArray(transport)) throw new TypeError("wellness response is invalid");
+      const landings: WellnessLanding[] = [];
+      for (const entry of transport) landings.push(await landWellnessRow(entry));
+      landings.sort((a, b) => compareBinary(a.cursorKey, b.cursorKey));
+      const remaining = landings.filter((landing) => cursor.last_key === null || compareBinary(landing.cursorKey, cursor.last_key) > 0);
+      let processedKey = cursor.last_key;
+      let processed = 0;
+      for (const landing of remaining) {
+        if (yielded >= budget.maxArtifacts) break;
+        const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
+        beforeYield();
+        yield { kind: "snapshot", source: "intervals-icu", lane: "wellness", externalId: landing.externalId,
+          archiveInstant: landing.instant, archive, payload: landing.wire, landing: { kind: "wellness", row: landing.row } };
+        processed += 1;
+        processedKey = landing.cursorKey;
+      }
+      yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey));
+      return;
+    }
+
+    if (lane === "activities") {
+      const transport = await fetchJson(requester, "activities", { method: "GET", url: rangeUrl(athleteId, "activities", cursor) });
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
+      const scan = activityIndex(transport);
+      const droppedRows = cursor.last_key !== null ? ZERO_DROPPED_ACTIVITY_ROWS : scan.dropped;
+      const remaining = scan.rows.filter((entry) => cursor.last_key === null || compareBinary(entry.key, cursor.last_key) > 0);
       let processedKey = cursor.last_key;
       let processed = 0;
       for (const entry of remaining) {
         if (yielded >= budget.maxArtifacts) break;
         const instant = rowInstant(entry.startUtc);
         const archive = await options.archive.writeSnapshot(entry.row, instant);
-        const landingCopy = structuredClone(entry.row);
-        if (lane === "activities") {
-          const normalized = options.acl.activity(landingCopy);
-          options.acl.assertClean(normalized);
-          const platform = await mapActivityLanding({ normalized, archiveInstant: instant, archive });
-          beforeYield();
-          yield { kind: "snapshot", source: "intervals-icu", lane: "activities", externalId: entry.externalId,
-            archiveInstant: instant, archive, payload: entry.row, landing: { kind: "activity", platform } };
-        } else {
-          const normalized = options.acl.wellness(landingCopy);
-          options.acl.assertClean(normalized);
-          const row = await mapWellnessLanding(normalized);
-          if (row.date_key !== Number(entry.externalId.replaceAll("-", ""))) throw new TypeError("wellness identity changed during normalization");
-          beforeYield();
-          yield { kind: "snapshot", source: "intervals-icu", lane: "wellness", externalId: entry.externalId,
-            archiveInstant: instant, archive, payload: entry.row, landing: { kind: "wellness", row } };
-        }
+        const normalized = options.acl.activity(structuredClone(entry.row));
+        options.acl.assertClean(normalized);
+        const platform = await mapActivityLanding({ normalized, archiveInstant: instant, archive });
+        beforeYield();
+        yield { kind: "snapshot", source: "intervals-icu", lane: "activities", externalId: entry.externalId,
+          archiveInstant: instant, archive, payload: entry.row, landing: { kind: "activity", platform } };
         processed += 1;
         processedKey = entry.key;
       }
@@ -280,7 +266,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (lane === "settings") {
       const transport = await fetchJson(requester, "settings", { method: "GET",
         url: endpointUrl(`/api/v1/athlete/${encodeURIComponent(athleteId)}`) });
-      await options.archive.writeSnapshot(transport, rowInstant(epochForDate(range.newest)));
+      await options.archive.writeSnapshot(transport, rowInstant(civilDateEpochSeconds(range.newest)));
       const profile = objectRow(transport, "athlete settings");
       const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
       if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
@@ -317,7 +303,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     }
 
     const activityTransport = await fetchJson(requester, "activities", { method: "GET", url: rangeUrl(athleteId, "activities", cursor) });
-    await options.archive.writeSnapshot(activityTransport, rowInstant(epochForDate(cursor.requestStart ?? cursor.window_start)));
+    await options.archive.writeSnapshot(activityTransport, rowInstant(civilDateEpochSeconds(cursor.requestStart ?? cursor.window_start)));
     const activityScan = activityIndex(activityTransport);
     const droppedRows =
       cursor.last_key === null ? activityScan.dropped : ZERO_DROPPED_ACTIVITY_ROWS;
@@ -361,7 +347,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
 
     let offset = 0;
     bulkLoop: while (offset < remaining.length) {
-      const first = remaining[offset]!;
+      const first = remaining[offset];
       const safe = BULK_SAFE_ACTIVITY_ID.test(first.externalId);
       const group = safe
         ? remaining.slice(offset, offset + BULK_FIT_BATCH_SIZE).filter((entry, index, values) => index === 0
@@ -429,13 +415,11 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           container };
       }
       processed += group.length;
-      processedKey = group[group.length - 1]!.key;
+      processedKey = group[group.length - 1].key;
       offset += group.length;
     }
     yield* yieldCheckpoint(nextCursor(cursor, range, remaining.length - processed, processedKey), droppedRows);
   }
-
-  let capturedActivityDrops: DroppedActivityRowEvidence = ZERO_DROPPED_ACTIVITY_ROWS;
 
   const placeholderArchive: ArchiveWriteResult = Object.freeze({
     address: "0".repeat(64),
@@ -443,99 +427,139 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     deduped: false,
   });
 
-  async function deriveStreamMember(endpoint: ReferenceCaptureEndpointPayload): Promise<DerivedCaptureMember | null> {
-    try {
-      if (endpoint.lane !== "streams" || endpoint.endpoint !== "activity-streams"
-        || endpoint.request.activity_id === null) throw new TypeError("stream endpoint is invalid");
+  async function landSettingRow(payload: unknown, payloadIndex: number): Promise<RowOutcome<DerivedCaptureMember>> {
+    const site: RowSite = { lane: "settings", payloadIndex };
+    const decoded = await attempt("decode", site, payload, () => {
+      const row = objectRow(payload, "sport setting");
+      settingsIdentity(row);
+      const copy = structuredClone(row);
+      options.acl.assertClean(copy);
+      return { row, copy };
+    });
+    if (!decoded.ok) return decoded;
+    return attempt("landing", site, payload, async () => ({ endpoint_ordinal: 0, payload_index: payloadIndex,
+      external_id: (await mapSettingsLanding(decoded.value.copy)).sourceRecordExternalId, payload: decoded.value.row }));
+  }
+
+  async function landActivityRow(payload: unknown, payloadIndex: number): Promise<RowOutcome<DerivedCaptureMember>> {
+    const site: RowSite = { lane: "activities", payloadIndex };
+    const decoded = await attempt("decode", site, payload, () => {
+      const row = objectRow(payload, "activity row");
+      nonempty(row.type, "activity type");
+      for (const [field, label] of [["moving_time", "moving time"], ["elapsed_time", "elapsed time"]] as const) {
+        const item = row[field];
+        if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 0) throw new TypeError(`activity ${label} is invalid`);
+      }
+      const identity = activityIdentity(row);
+      const normalized = options.acl.activity(structuredClone(row));
+      options.acl.assertClean(normalized);
+      return { row, identity, normalized };
+    });
+    if (!decoded.ok) return decoded;
+    const { row, identity, normalized } = decoded.value;
+    return attempt("landing", site, payload, async () => {
+      await mapActivityLanding({ normalized, archiveInstant: rowInstant(identity.startUtc), archive: placeholderArchive });
+      return { endpoint_ordinal: 1, payload_index: payloadIndex, external_id: identity.externalId, payload: row };
+    });
+  }
+
+  function landWellnessMember(payload: unknown, payloadIndex: number): Promise<RowOutcome<WellnessLanding>> {
+    return attempt("decode", { lane: "wellness", payloadIndex }, payload, () => landWellnessRow(payload),
+      (error) => !(error instanceof RowRejection));
+  }
+
+  async function landStreamEndpoint(endpoint: ReferenceCaptureEndpointPayload): Promise<RowOutcome<DerivedCaptureMember>> {
+    const activityId = endpoint.request.activity_id;
+    const site: RowSite = { lane: "streams", payloadIndex: null, ...(typeof activityId === "string" ? { activityId } : {}) };
+    const decoded = await attempt("decode", site, endpoint.payload, () => {
+      if (endpoint.lane !== "streams" || endpoint.endpoint !== "activity-streams" || activityId === null) {
+        throw new TypeError("stream endpoint is invalid");
+      }
       const normalized = options.acl.streams(structuredClone(endpoint.payload));
       options.acl.assertClean(normalized);
-      normalizeStreamLanding(normalized);
+      return { activityId, normalized };
+    });
+    if (!decoded.ok) return decoded;
+    return attempt("landing", site, endpoint.payload, () => {
+      normalizeStreamLanding(decoded.value.normalized);
       return { endpoint_ordinal: endpoint.ordinal, payload_index: null,
-        external_id: `streams:${endpoint.request.activity_id}`, payload: endpoint.payload };
-    } catch {
-      return null;
+        external_id: `streams:${decoded.value.activityId}`, payload: endpoint.payload };
+    });
+  }
+
+  interface CaptureDerivation {
+    readonly members: DerivedCaptureMembers;
+    readonly report: Omit<CaptureReport, "streams">;
+    readonly wellnessLandings: readonly WellnessLanding[];
+  }
+
+  async function deriveWithReport(
+    capturePlan: ReferenceCapturePlan,
+    endpointPayloads: readonly ReferenceCaptureEndpointPayload[],
+  ): Promise<CaptureDerivation> {
+    const plan = validateReferenceCapturePlan(capturePlan);
+    if (!Array.isArray(endpointPayloads) || endpointPayloads.length < 3) throw new TypeError("capture endpoints are invalid");
+    for (let index = 0; index < endpointPayloads.length; index += 1) {
+      const endpoint = endpointPayloads[index];
+      if (endpoint === null || typeof endpoint !== "object" || endpoint.ordinal !== index) {
+        throw new TypeError("capture endpoint order is invalid");
+      }
     }
+    const [profileEndpoint, activityEndpoint, wellnessEndpoint, ...streamEndpoints] = endpointPayloads;
+    const profile = objectRow(profileEndpoint?.payload, "athlete settings");
+    const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
+    if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
+    const activityPayload = activityEndpoint?.payload;
+    if (!Array.isArray(activityPayload)) throw new TypeError("activities response is invalid");
+    const wellnessPayload = wellnessEndpoint?.payload;
+    if (!Array.isArray(wellnessPayload)) throw new TypeError("wellness response is invalid");
+
+    const tally = { settings: new LaneTally("settings"), activities: new LaneTally("activities"),
+      wellness: new LaneTally("wellness") };
+    const settings: DerivedCaptureMember[] = [];
+    for (const [index, entry] of sourceSettings.entries()) {
+      const member = tally.settings.take(await landSettingRow(entry, index));
+      if (member !== undefined) settings.push(member);
+    }
+    const activities: DerivedCaptureMember[] = [];
+    for (const [index, entry] of activityPayload.entries()) {
+      const member = tally.activities.take(await landActivityRow(entry, index));
+      if (member !== undefined) activities.push(member);
+    }
+    const wellness: DerivedCaptureMember[] = [];
+    const wellnessLandings: WellnessLanding[] = [];
+    for (const [index, entry] of wellnessPayload.entries()) {
+      const landing = tally.wellness.take(await landWellnessMember(entry, index));
+      if (landing === undefined) continue;
+      wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: landing.externalId, payload: landing.wire });
+      wellnessLandings.push(landing);
+    }
+    const streams: DerivedCaptureMember[] = [];
+    for (const endpoint of streamEndpoints) {
+      const landed = await landStreamEndpoint(endpoint);
+      if (landed.ok) streams.push(landed.value);
+    }
+    for (const [lane, members] of Object.entries({ settings, activities, wellness, streams })) {
+      const ids = members.map((member) => member.external_id);
+      if (new Set(ids).size !== ids.length) throw new TypeError(`duplicate retained ${lane} ID`);
+    }
+    return {
+      members: Object.freeze({
+        settings: Object.freeze(settings), activities: Object.freeze(activities),
+        wellness: Object.freeze(wellness), streams: Object.freeze(streams),
+        selected_stream_ids: Object.freeze(selectReferenceCaptureStreamIds(activities.map((member) => member.payload), plan)),
+      }),
+      report: Object.freeze({ settings: tally.settings.report(), activities: tally.activities.report(),
+        wellness: tally.wellness.report() }),
+      wellnessLandings: Object.freeze(wellnessLandings),
+    };
   }
 
   async function deriveReferenceCaptureMembers(
     capturePlan: ReferenceCapturePlan,
     endpointPayloads: readonly ReferenceCaptureEndpointPayload[],
   ): Promise<DerivedCaptureMembers> {
-    const plan = validateReferenceCapturePlan(capturePlan);
-    if (!Array.isArray(endpointPayloads) || endpointPayloads.length < 3) throw new TypeError("capture endpoints are invalid");
-    for (let index = 0; index < endpointPayloads.length; index += 1) {
-      const endpoint = endpointPayloads[index]!;
-      if (endpoint === null || typeof endpoint !== "object" || endpoint.ordinal !== index) {
-        throw new TypeError("capture endpoint order is invalid");
-      }
-    }
-    const profile = objectRow(endpointPayloads[0]!.payload, "athlete settings");
-    const sourceSettings = profile.sportSettings === undefined ? [] : profile.sportSettings;
-    if (!Array.isArray(sourceSettings)) throw new TypeError("sport settings response is invalid");
-    if (!Array.isArray(endpointPayloads[1]!.payload)) throw new TypeError("activities response is invalid");
-    if (!Array.isArray(endpointPayloads[2]!.payload)) throw new TypeError("wellness response is invalid");
-
-    const settings: DerivedCaptureMember[] = [];
-    for (let index = 0; index < sourceSettings.length; index += 1) {
-      try {
-        const row = objectRow(sourceSettings[index], "sport setting");
-        settingsIdentity(row);
-        const copy = structuredClone(row);
-        options.acl.assertClean(copy);
-        const landing = await mapSettingsLanding(copy);
-        settings.push({ endpoint_ordinal: 0, payload_index: index,
-          external_id: landing.sourceRecordExternalId, payload: row });
-      } catch {}
-    }
-
-    const activities: DerivedCaptureMember[] = [];
-    const activityPayload = endpointPayloads[1]!.payload as unknown[];
-    const activityDrops = new DropTally();
-    for (let index = 0; index < activityPayload.length; index += 1) {
-      try {
-        const row = objectRow(activityPayload[index], "activity row");
-        nonempty(row.type, "activity type");
-        for (const [field, label] of [["moving_time", "moving time"], ["elapsed_time", "elapsed time"]] as const) {
-          const item = row[field];
-          if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 0) throw new TypeError(`activity ${label} is invalid`);
-        }
-        const identity = activityIdentity(row);
-        const normalized = options.acl.activity(structuredClone(row));
-        options.acl.assertClean(normalized);
-        await mapActivityLanding({ normalized, archiveInstant: rowInstant(identity.startUtc), archive: placeholderArchive });
-        activities.push({ endpoint_ordinal: 1, payload_index: index, external_id: identity.externalId, payload: row });
-      } catch { activityDrops.record(activityPayload[index]); }
-    }
-    capturedActivityDrops = activityDrops.evidence();
-
-    const wellness: DerivedCaptureMember[] = [];
-    const wellnessPayload = endpointPayloads[2]!.payload as unknown[];
-    for (let index = 0; index < wellnessPayload.length; index += 1) {
-      try {
-        const row = objectRow(wellnessPayload[index], "wellness row");
-        const identity = wellnessIdentity(row);
-        const normalized = options.acl.wellness(structuredClone(row));
-        options.acl.assertClean(normalized);
-        const landing = await mapWellnessLanding(normalized);
-        if (landing.date_key !== Number(identity.id.replaceAll("-", ""))) throw new TypeError("wellness identity changed");
-        wellness.push({ endpoint_ordinal: 2, payload_index: index, external_id: identity.id, payload: row });
-      } catch {}
-    }
-
-    const streams: DerivedCaptureMember[] = [];
-    for (const endpoint of endpointPayloads.slice(3)) {
-      const member = await deriveStreamMember(endpoint);
-      if (member !== null) streams.push(member);
-    }
-    for (const [lane, members] of Object.entries({ settings, activities, wellness, streams })) {
-      const ids = members.map((member) => member.external_id);
-      if (new Set(ids).size !== ids.length) throw new TypeError(`duplicate retained ${lane} ID`);
-    }
-    return Object.freeze({
-      settings: Object.freeze(settings), activities: Object.freeze(activities),
-      wellness: Object.freeze(wellness), streams: Object.freeze(streams),
-      selected_stream_ids: Object.freeze(selectReferenceCaptureStreamIds(activities.map((member) => member.payload), plan)),
-    });
+    return (await deriveWithReport(capturePlan, endpointPayloads)).members;
   }
 
   async function captureReference(
@@ -568,7 +592,7 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
           url: rangeUrl(athleteId, "wellness", { v: 1, cycle: 0, window_start: plan.window.oldest,
             window_end: plan.window.newest, last_key: null, complete: false }) }) },
     ];
-    const requiredMembers = await deriveReferenceCaptureMembers(plan, required);
+    const requiredMembers = (await deriveWithReport(plan, required)).members;
     const selectedIds = [...requiredMembers.selected_stream_ids];
     const requiredUnits = 3 + requiredMembers.settings.length + requiredMembers.activities.length
       + requiredMembers.wellness.length + selectedIds.length;
@@ -576,14 +600,16 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
     if (selectedIds.length > 0 && !requester.canRequest(selectedIds.length)) throw new SyncBudgetExceededError();
 
     const successfulStreams: ReferenceCaptureEndpointPayload[] = [];
+    const capturedStreamIds: string[] = [];
+    const streamTally = new LaneTally("streams");
     for (const activityId of selectedIds) {
       requester.assertActive();
-      let payload: unknown;
-      try {
-        payload = await fetchJson(requester, "streams", { method: "GET", url: streamUrl(activityId) });
-      } catch (error) {
-        if (error instanceof SyncBudgetExceededError || budget.signal.aborted) throw error;
+      const fetched = await attempt("fetch", { lane: "streams", payloadIndex: null, activityId },
+        undefined, () => fetchJson(requester, "streams", { method: "GET", url: streamUrl(activityId) }),
+        (error) => error instanceof SyncBudgetExceededError || budget.signal.aborted);
+      if (!fetched.ok) {
         requester.assertActive();
+        streamTally.missed(fetched.drop);
         continue;
       }
       const endpoint: ReferenceCaptureEndpointPayload = {
@@ -592,12 +618,16 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         endpoint: "activity-streams",
         request: { oldest: null, newest: null, activity_id: activityId,
           stream_types: [...REFERENCE_CAPTURE_STREAM_TYPES], include_defaults: false },
-        payload,
+        payload: fetched.value,
       };
-      if (await deriveStreamMember(endpoint) !== null) successfulStreams.push(endpoint);
+      if (streamTally.take(await landStreamEndpoint(endpoint)) !== undefined) {
+        successfulStreams.push(endpoint);
+        capturedStreamIds.push(activityId);
+      }
     }
     const endpointPayloads = [...required, ...successfulStreams];
-    const members = await deriveReferenceCaptureMembers(plan, endpointPayloads);
+    const derivation = await deriveWithReport(plan, endpointPayloads);
+    const members = derivation.members;
     if (members.streams.length !== successfulStreams.length) throw new Error("captured stream attribution is invalid");
 
     const activityInstantById = new Map<string, number>();
@@ -605,11 +635,12 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       const identity = activityIdentity(member.payload as Record<string, unknown>);
       activityInstantById.set(member.external_id, identity.startUtc);
     }
-    const requiredInstants = [epochForDate(plan.window.newest), epochForDate(plan.window.oldest), epochForDate(plan.window.oldest)];
+    const requiredInstants = [civilDateEpochSeconds(plan.window.newest), civilDateEpochSeconds(plan.window.oldest), civilDateEpochSeconds(plan.window.oldest)];
     const endpoints: ReferenceCaptureEndpoint[] = [];
     for (const endpoint of endpointPayloads) {
-      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]!
-        : activityInstantById.get(endpoint.request.activity_id!);
+      const activityId = endpoint.request.activity_id;
+      const epochSeconds = endpoint.ordinal < 3 ? requiredInstants[endpoint.ordinal]
+        : (activityId === null ? undefined : activityInstantById.get(activityId));
       if (epochSeconds === undefined) throw new Error("stream activity instant is absent");
       const archiveInstant = rowInstant(epochSeconds);
       const archive = await options.archive.writeSnapshot(endpoint.payload, archiveInstant);
@@ -641,17 +672,17 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
         externalId: member.external_id, payload: row, archiveInstant, archive, landing: { kind: "activity", platform } });
     }
     const wellness: ReferenceCaptureWellnessRecord[] = [];
-    for (const member of members.wellness) {
-      const row = member.payload as Record<string, unknown>, identity = wellnessIdentity(row);
-      const archiveInstant = identity.instant, archive = await options.archive.writeSnapshot(row, archiveInstant);
-      const normalized = options.acl.wellness(structuredClone(row)); options.acl.assertClean(normalized);
+    for (const [index, member] of members.wellness.entries()) {
+      const landing = derivation.wellnessLandings[index];
+      if (landing === undefined) throw new Error("captured wellness attribution is invalid");
+      const archive = await options.archive.writeSnapshot(landing.wire, landing.instant);
       wellness.push({ endpointOrdinal: member.endpoint_ordinal, payloadIndex: member.payload_index,
-        externalId: member.external_id, payload: row, archiveInstant, archive,
-        landing: { kind: "wellness", row: await mapWellnessLanding(normalized) } });
+        externalId: member.external_id, payload: landing.wire, archiveInstant: landing.instant, archive,
+        landing: { kind: "wellness", row: landing.row } });
     }
     const streams: ReferenceCaptureStreamRecord[] = [];
     for (let index = 0; index < members.streams.length; index += 1) {
-      const member = members.streams[index]!, endpoint = endpoints[3 + index]!;
+      const member = members.streams[index], endpoint = endpoints[3 + index];
       const normalized = options.acl.streams(structuredClone(member.payload)); options.acl.assertClean(normalized);
       const streamLanding = normalizeStreamLanding(normalized);
       const normalizedPayloadJson = canonicalJson(streamLanding);
@@ -668,8 +699,8 @@ export function createIntervalsIcuSource(options: IntervalsIcuSourceOptions): In
       settings: Object.freeze(settings), activities: Object.freeze(activities),
       wellness: Object.freeze(wellness), streams: Object.freeze(streams),
     }), selected_stream_ids: Object.freeze(selectedIds),
-    captured_stream_ids: Object.freeze(successfulStreams.map((endpoint) => endpoint.request.activity_id!)),
-    dropped_activity_rows: capturedActivityDrops });
+    captured_stream_ids: Object.freeze(capturedStreamIds),
+    report: Object.freeze({ ...derivation.report, streams: streamTally.report() }) });
   }
 
   return Object.freeze({ id: INTERVALS_ICU_SOURCE_ID, capabilities: INTERVALS_ICU_CAPABILITIES,

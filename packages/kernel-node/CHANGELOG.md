@@ -1,5 +1,14 @@
 # @enduragent/kernel-node
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [d4be2cf]
+- Updated dependencies [1e3c8f9]
+- Updated dependencies [aae19b5]
+  - @enduragent/kernel@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

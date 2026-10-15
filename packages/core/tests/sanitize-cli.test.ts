@@ -1,13 +1,5 @@
-// Tests for the operator CLI at `tools/sanitize-fixture.ts`. The CLI is
-// the operator-facing entry that pipes a real intervals.icu JSON dump
-// through `sanitizeFixtureWithSummary` and writes the result under
-// `tests/fixtures/golden/<name>.json` for committing.
-//
-// We test main() in-process with a tmpdir override for outputRoot so test
-// runs don't pollute the committed fixture directory.
-
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -71,14 +63,10 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(exit).toBe(0);
     const joined = lines.join("\n");
     expect(joined).toMatch(/Wrote sanitized fixture: .+summary-output\.json/);
-    // Default-deny drops athlete_id + GPS + description + notes; TP keys
-    // are dropped by rename layer before sanitize so they don't show here.
     expect(joined).toMatch(/Dropped \d+ key occurrence/);
     expect(joined).toMatch(/athlete_id/);
     expect(joined).toMatch(/start_latlng/);
     expect(joined).toMatch(/end_latlng/);
-    // Transformed: 3 ids redacted (2 activities + 1 wellness; wellness id is a
-    // YYYY-MM-DD which is preserved structurally but still counts as a transform).
     expect(joined).toMatch(/Transformed:.*id \(×3\)/);
   });
 
@@ -88,9 +76,6 @@ describe("sanitize-fixture CLI — main()", () => {
     writeFileSync(inputPath, JSON.stringify({ activities: [] }));
     const errs: string[] = [];
 
-    // Operator typo: `--force-overrride` instead of `--force`. Prior CLI
-    // silently swallowed unknown flags; now it errors out so the operator
-    // sees the typo before the file is (or isn't) written.
     const exit = await main([inputPath, "typo-output", "--force-overrride"], {
       outputRoot: outputDir,
       err: (m) => errs.push(m),
@@ -107,13 +92,11 @@ describe("sanitize-fixture CLI — main()", () => {
     const inputPath = join(inputDir, "raw.json");
     writeFileSync(inputPath, JSON.stringify({ activities: [{ id: 1, type: "Ride" }] }));
 
-    // First run with --force → succeeds, writes file.
     await main([inputPath, "guarded-output", "--force"], { outputRoot: outputDir });
     const outputPath = join(outputDir, "guarded-output.json");
     const firstBytes = readFileSync(outputPath);
     const firstMtimeNs = statSync(outputPath, { bigint: true }).mtimeNs;
 
-    // Second run WITHOUT --force, with mutated input → must refuse.
     writeFileSync(inputPath, JSON.stringify({ activities: [{ id: 2, type: "Run" }] }));
     const errs: string[] = [];
     const exit = await main([inputPath, "guarded-output"], {
@@ -123,7 +106,6 @@ describe("sanitize-fixture CLI — main()", () => {
 
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toMatch(/refusing to overwrite .+--force/);
-    // Output bytes unchanged.
     expect(readFileSync(outputPath).equals(firstBytes)).toBe(true);
     expect(statSync(outputPath, { bigint: true }).mtimeNs).toBe(firstMtimeNs);
   });
@@ -137,7 +119,6 @@ describe("sanitize-fixture CLI — main()", () => {
     const outputPath = join(outputDir, "force-output.json");
     const firstContent = readFileSync(outputPath, "utf-8");
 
-    // Second run, mutated input, --force → overwrites.
     writeFileSync(
       inputPath,
       JSON.stringify({
@@ -152,7 +133,17 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(secondContent).not.toBe(firstContent);
     expect(JSON.parse(secondContent)).toEqual({
       activities: [{ id: 12345, type: "Run" }],
-      wellness: [{ id: "1998-05-11", weight: 73.4 }],
+      wellness: [
+        {
+          id: "1998-05-11",
+          weight: 73.4,
+          restingHR: null,
+          hrv: null,
+          sleepSecs: null,
+          sleepQuality: null,
+          subjectiveFatigue: null,
+        },
+      ],
     });
   });
 
@@ -192,7 +183,6 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(written.wellness[0]).not.toHaveProperty("ctlLoad");
     expect(written.wellness[0]).not.toHaveProperty("atlLoad");
     expect(written.wellness[0]).not.toHaveProperty("rampRate");
-    // Non-TP field rides through; YYYY-MM-DD id shifted to the synthetic epoch.
     expect(written.wellness[0].weight).toBe(73.4);
     expect(written.wellness[0].id).toBe("1998-05-11");
   });
@@ -225,8 +215,6 @@ describe("sanitize-fixture CLI — main()", () => {
     expect(written.activities[0].fatigueAtEnd).toBe(38.2);
     expect(written.activities[0]).not.toHaveProperty("icu_ctl");
     expect(written.activities[0]).not.toHaveProperty("icu_atl");
-    // Non-TP fields ride through; the date shifts to the synthetic epoch and
-    // the account-linking id is redacted.
     expect(written.activities[0].start_date_local).toBe("1998-05-11T08:00:00");
     expect(written.activities[0].id).toBe(12345);
   });
@@ -273,12 +261,78 @@ describe("sanitize-fixture CLI — main()", () => {
     }
   });
 
-  it("CLI fails with a non-zero exit and an index-form path when a nested TP key survives rename", async () => {
+  it("CLI fails with an index-form path when a nested TP key survives the activity rename", async () => {
     const { inputDir, outputDir } = makeTmpDirs();
     const inputPath = join(inputDir, "raw.json");
-    // Simulates the "intervals.icu adds nested TP aggregates" failure mode
-    // the rename layer doesn't reach (it only renames top-level row fields).
-    // Defense-in-depth: assertNoTpKeysRemain catches it before sanitize.
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [
+          { id: "i9876543", type: "Ride", start_date_local: "1998-05-11T08:00:00", weeklyAggregates: { ctl: 50 } },
+        ],
+      }),
+    );
+    const errs: string[] = [];
+
+    const exit = await main([inputPath, "nested-tp-activity", "--force"], {
+      outputRoot: outputDir,
+      err: (m) => errs.push(m),
+    });
+
+    expect(exit).toBe(3);
+    const errMsg = errs.join("\n");
+    expect(errMsg).toMatch(/activities\[0\]\.weeklyAggregates\.ctl/);
+    expect(errMsg).not.toMatch(/i\d+/);
+    expect(existsSync(join(outputDir, "nested-tp-activity.json"))).toBe(false);
+  });
+
+  it("CLI lets an activity rename collision propagate and writes nothing", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [{ id: 1, type: "Ride", start_date_local: "1998-05-11T08:00:00", icu_ctl: 50, fitnessAtEnd: 51 }],
+      }),
+    );
+    const errs: string[] = [];
+
+    await expect(
+      main([inputPath, "activity-collision", "--force"], { outputRoot: outputDir, err: (m) => errs.push(m) }),
+    ).rejects.toThrow(/collision/);
+    expect(errs).toEqual([]);
+    expect(existsSync(join(outputDir, "activity-collision.json"))).toBe(false);
+  });
+
+  it("CLI warns once per field when an activity load value is not a number", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        activities: [
+          { id: 1, type: "Ride", start_date_local: "1998-05-11T08:00:00", icu_ctl: "marker-4471", icu_atl: 38 },
+          { id: 2, type: "Ride", start_date_local: "1998-05-12T08:00:00", icu_ctl: "marker-4472" },
+        ],
+      }),
+    );
+    const errs: string[] = [];
+
+    const exit = await main([inputPath, "stringy-activity", "--force"], {
+      outputRoot: outputDir,
+      err: (m) => errs.push(m),
+    });
+
+    expect(exit).toBe(0);
+    expect(errs).toEqual(["⚠ Skipped non-number TP values during rename: icu_ctl (×2 in activities)"]);
+    const written = JSON.parse(readFileSync(join(outputDir, "stringy-activity.json"), "utf-8"));
+    expect(written.activities[0]).not.toHaveProperty("fitnessAtEnd");
+    expect(written.activities[0].fatigueAtEnd).toBe(38);
+  });
+
+  it("CLI fails with the day's index when a nested TP key survives in a wellness day", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
     writeFileSync(
       inputPath,
       JSON.stringify({
@@ -295,23 +349,19 @@ describe("sanitize-fixture CLI — main()", () => {
 
     expect(exit).not.toBe(0);
     const errMsg = errs.join("\n");
-    expect(errMsg).toMatch(/\[0\]\.weeklyAggregates\.ctl/);
-    // Walker uses [<index>] form only — activity row id "i9876543" never
-    // leaks into the error path (operator log forwarding stays safe).
+    expect(errMsg).toBe("wellness[0]: row rejected: decode of ctl");
     expect(errMsg).not.toMatch(/i\d+/);
   });
 
-  it("CLI emits aggregate-warn for non-number TP values", async () => {
+  it("CLI fails and writes nothing when a wellness load average is not a number", async () => {
     const { inputDir, outputDir } = makeTmpDirs();
     const inputPath = join(inputDir, "raw.json");
-    // ctl as a string is a real-world failure mode (intervals.icu API hiccup
-    // or upstream lib drift); the operator should see it surface aggregated.
     writeFileSync(
       inputPath,
       JSON.stringify({
         wellness: [
-          { id: "2026-05-11", ctl: "not a number", atl: 38 },
-          { id: "2026-05-10", ctl: "also bad" },
+          { id: "1998-05-11", ctl: 31.2, atl: 38 },
+          { id: "1998-05-10", ctl: "marker-4471" },
         ],
       }),
     );
@@ -322,15 +372,20 @@ describe("sanitize-fixture CLI — main()", () => {
       err: (m) => errs.push(m),
     });
 
+    expect(exit).toBe(3);
+    expect(errs.join("\n")).toBe("wellness[1]: row rejected: decode of fitness");
+    expect(existsSync(join(outputDir, "stringy-ctl.json"))).toBe(false);
+  });
+
+  it("CLI keeps a logged fatigue score apart from the load average it renames", async () => {
+    const { inputDir, outputDir } = makeTmpDirs();
+    const inputPath = join(inputDir, "raw.json");
+    writeFileSync(inputPath, JSON.stringify({ wellness: [{ id: "1998-05-11", ctl: 31.2, atl: 27.787529, fatigue: 3 }] }));
+
+    const exit = await main([inputPath, "two-fatigues", "--force"], { outputRoot: outputDir, err: () => undefined });
+
     expect(exit).toBe(0);
-    expect(errs.join("\n")).toMatch(
-      /Skipped non-number TP values during rename: ctl \(×2 in wellness\)/,
-    );
-    const written = JSON.parse(readFileSync(join(outputDir, "stringy-ctl.json"), "utf-8"));
-    // String-typed ctl was dropped, no fitness emitted.
-    expect(written.wellness[0]).not.toHaveProperty("fitness");
-    expect(written.wellness[1]).not.toHaveProperty("fitness");
-    // Numeric atl was still renamed to fatigue.
-    expect(written.wellness[0].fatigue).toBe(38);
+    const written = JSON.parse(readFileSync(join(outputDir, "two-fatigues.json"), "utf-8"));
+    expect(written.wellness[0]).toMatchObject({ fitness: 31.2, fatigue: 27.787529, subjectiveFatigue: 3 });
   });
 });

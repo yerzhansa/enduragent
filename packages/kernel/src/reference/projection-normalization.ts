@@ -24,8 +24,6 @@ export interface NormalizedActivityFields {
 declare const __renamedBrand: unique symbol;
 export type RenamedActivityRow = Record<string, unknown> & NormalizedActivityFields
   & { readonly [__renamedBrand]: "activity" };
-export type RenamedWellnessRow = Record<string, unknown> & NormalizedWellnessFields
-  & { readonly [__renamedBrand]: "wellness" };
 export interface RenameSummary { skippedNonNumeric: Record<string, number> }
 
 const WELLNESS_TP_TO_PLAIN: ReadonlyArray<readonly [string, keyof NormalizedWellnessFields]> = [
@@ -64,30 +62,71 @@ function applyKeyRename(
   return output;
 }
 
-export function renameTpFieldsOnWellnessRow(raw: Record<string, unknown>, summary?: RenameSummary): RenamedWellnessRow {
-  return applyKeyRename(raw, WELLNESS_TP_TO_PLAIN, new Set(WELLNESS_TP_TO_PLAIN.map(([key]) => key)), summary) as RenamedWellnessRow;
-}
-
 export function renameTpFieldsOnActivity(raw: Record<string, unknown>, summary?: RenameSummary): RenamedActivityRow {
   return applyKeyRename(raw, ACTIVITY_TP_TO_PLAIN, new Set(ACTIVITY_TP_TO_PLAIN.map(([key]) => key)), summary) as RenamedActivityRow;
 }
 
 export function parseRenamedActivity(row: RenamedActivityRow): Activity { return ActivitySchema.parse(row); }
-export function parseRenamedWellnessRow(row: RenamedWellnessRow): WellnessDay { return WellnessDaySchema.parse(row); }
+
+export type RowRejectionReason = "shape" | "identity" | "decode" | "landing";
+
+export class RowRejection extends TypeError {
+  readonly reason: RowRejectionReason;
+  readonly field: string | null;
+
+  constructor(reason: RowRejectionReason, field: string | null = null) {
+    super(field === null ? `row rejected: ${reason}` : `row rejected: ${reason} of ${field}`);
+    this.name = "RowRejection";
+    this.reason = reason;
+    this.field = field;
+  }
+}
+
+const SUBJECTIVE_FATIGUE_WIRE_KEY = "fatigue";
+const WELLNESS_PLAIN_BY_SOURCE = new Map<string, string>(WELLNESS_TP_TO_PLAIN);
+const WELLNESS_DECODED_ONLY_KEYS = [
+  ...WELLNESS_TP_TO_PLAIN.map(([, target]) => target).filter((target) => target !== SUBJECTIVE_FATIGUE_WIRE_KEY),
+  "subjectiveFatigue",
+];
+
+export function decodeWellnessRow(wire: unknown): WellnessDay {
+  if (wire === null || typeof wire !== "object" || Array.isArray(wire)) throw new RowRejection("shape");
+  const row = wire as Record<string, unknown>;
+  for (const key of WELLNESS_DECODED_ONLY_KEYS) if (key in row) throw new RowRejection("decode", key);
+  const { [SUBJECTIVE_FATIGUE_WIRE_KEY]: subjectiveFatigue, ...rest } = row;
+  const parsed = WellnessDaySchema.safeParse({
+    ...Object.fromEntries(Object.entries(rest).map(([key, value]) => [WELLNESS_PLAIN_BY_SOURCE.get(key) ?? key, value])),
+    subjectiveFatigue: subjectiveFatigue ?? null,
+  });
+  if (!parsed.success) throw new RowRejection("decode", parsed.error.issues[0]?.path.join(".") ?? null);
+  const surviving = findTpKey(parsed.data, "");
+  if (surviving !== undefined) throw new RowRejection("decode", surviving.key);
+  return parsed.data;
+}
 
 const DENYLIST = new Set<string>(TP_DENYLIST_FIELDS);
-export function assertNoTpKeysRemain(value: unknown, path = ""): void {
+function findTpKey(value: unknown, path: string): { key: string; path: string } | undefined {
   if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index += 1) assertNoTpKeysRemain(value[index], `${path}[${index}]`);
-    return;
+    for (let index = 0; index < value.length; index += 1) {
+      const found = findTpKey(value[index], `${path}[${index}]`);
+      if (found !== undefined) return found;
+    }
+    return undefined;
   }
   if (value !== null && typeof value === "object") for (const [key, child] of Object.entries(value)) {
     const childPath = path === "" ? key : `${path}.${key}`;
-    if (DENYLIST.has(key)) {
-      throw new Error(`assertNoTpKeysRemain: TP-trademarked key surviving rename at ${childPath}`
-        + " — update reference/sync/rename-tp-fields.ts");
-    }
-    assertNoTpKeysRemain(child, childPath);
+    if (DENYLIST.has(key)) return { key, path: childPath };
+    const found = findTpKey(child, childPath);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+export function assertNoTpKeysRemain(value: unknown, path = ""): void {
+  const found = findTpKey(value, path);
+  if (found !== undefined) {
+    throw new Error(`assertNoTpKeysRemain: TP-trademarked key surviving rename at ${found.path}`
+      + " — update reference/sync/rename-tp-fields.ts");
   }
 }
 
@@ -101,11 +140,6 @@ export interface DuplicateStreamTypeIssue {
   readonly count: number;
 }
 
-/**
- * The canonical channel map cannot represent duplicate descriptors without
- * choosing one and discarding the others. Raw snapshots retain every
- * descriptor; this error makes the projection fail closed with diagnostics.
- */
 export class StreamNormalizationError extends TypeError {
   declare readonly issues: readonly DuplicateStreamTypeIssue[];
 
@@ -183,7 +217,7 @@ export function compareCanonicalUtf8(left: unknown, right: unknown): number {
   const a = new TextEncoder().encode(canonicalJson(left));
   const b = new TextEncoder().encode(canonicalJson(right));
   for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
-    if (a[i] !== b[i]) return a[i]! < b[i]! ? -1 : 1;
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
   }
   return a.length < b.length ? -1 : a.length > b.length ? 1 : 0;
 }

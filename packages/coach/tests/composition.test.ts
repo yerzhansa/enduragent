@@ -220,7 +220,6 @@ async function writeAcceptedModelCatalog(
   contextWindowTokens: number,
   inputUsdPerMillion: number,
 ): Promise<ModelCatalogSnapshot> {
-  // Live installation reads skip catalogs that drop bundled suggested providers.
   const snapshot = structuredClone(bundledAcceptedCatalog().snapshot);
   snapshot.revision = revision;
   snapshot.provenance = { kind: "published", publishedAt: "1998-07-18T00:00:00.000Z" };
@@ -807,7 +806,7 @@ describe("local coach composition", () => {
       async (options: Parameters<typeof import("../src/capture.js").runReferenceCapture>[0]) => {
         if (options.writerContext === undefined) nestedWriterAcquisition();
         expect(options.writerContext).toBe(context);
-        return manifest;
+        return { manifest };
       },
     );
     const lifecycle = await compose(
@@ -5750,11 +5749,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
     const runWindow = vi.fn<LocalStoreRuntime["runWindow"]>(() => active ?? launchWindow());
     const runWindowAfter = vi.fn<LocalStoreRuntime["runWindowAfter"]>(async (work) => {
       const previous = active;
-      if (previous !== undefined) {
-        try {
-          await previous;
-        } catch {}
-      }
+      if (previous !== undefined) await Promise.allSettled([previous]);
       await work(new AbortController().signal);
       return launchWindow();
     });
@@ -5764,9 +5759,7 @@ VALUES ('0000000000000000000000000E','no-hard-training','active',1,19980713,1998
       runWindow,
       runWindowAfter,
       async close() {
-        try {
-          await active;
-        } catch {}
+        await Promise.allSettled([active]);
         await baseRuntime.close();
       },
     };
