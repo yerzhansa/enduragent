@@ -13,6 +13,7 @@ const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 export const APPLICATION_ICON_SIZES = Object.freeze([16, 24, 32, 48, 64, 128, 256]);
 export const TRAY_ICON_SIZES = Object.freeze([16, 20, 24, 32, 40, 48]);
+export const PIXEL_GRID_ICON_SIZES = Object.freeze([16, 20, 24]);
 
 function readPngSize(png) {
   if (
@@ -112,15 +113,17 @@ export async function generateWindowsIcons(input = {}) {
     );
     const frames = new Map();
     for (const size of sizes) {
-      const framePath = join(temporaryDirectory, `${size}.png`);
-      frames.set(size, await resizePng(sourcePath, framePath, size, sipsPath));
+      frames.set(
+        size,
+        PIXEL_GRID_ICON_SIZES.includes(size)
+          ? await readFile(join(resourcesDirectory, `app-icon-windows-${size}.png`))
+          : await resizePng(sourcePath, join(temporaryDirectory, `${size}.png`), size, sipsPath),
+      );
     }
     const applicationIco = createPngIco(
       APPLICATION_ICON_SIZES.map((size) => ({ size, png: frames.get(size) })),
     );
-    const trayIco = createPngIco(
-      TRAY_ICON_SIZES.map((size) => ({ size, png: frames.get(size) })),
-    );
+    const trayIco = createPngIco(TRAY_ICON_SIZES.map((size) => ({ size, png: frames.get(size) })));
     await writeAtomically(applicationPath, applicationIco);
     await writeAtomically(trayPath, trayIco);
     return Object.freeze({ applicationPath, trayPath });
