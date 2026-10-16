@@ -68,6 +68,9 @@ const expectedAsarResourceFiles = new Set([
   "resources/trayTemplate@2x.png",
 ]);
 const forbiddenNativeExtensions = new Set([".dylib", ".node", ".so"]);
+const permittedAsarNativeModules = new Set([
+  "node_modules/@resvg/resvg-js-win32-x64-msvc/resvgjs.win32-x64-msvc.node",
+]);
 const x64PeMachine = 0x8664;
 const x86PeMachine = 0x014c;
 const nsisOverlaySignature = Buffer.concat([
@@ -478,6 +481,16 @@ function asarNativeEntries(asar) {
   const rejected = [];
   for (const [path, entry] of asar) {
     if (entry.type !== "file") continue;
+    if (permittedAsarNativeModules.has(path)) {
+      const label = `app.asar/${path}`;
+      if (!Buffer.isBuffer(entry.bytes) || nativeMagic(entry.bytes) !== "PE") {
+        failWindows("binary-platform", "invalid Windows executable", [label]);
+      }
+      if (peMetadata(entry.bytes, label, "binary-platform").machine !== x64PeMachine) {
+        failWindows("binary-platform", "wrong-platform binary", [label]);
+      }
+      continue;
+    }
     const extension = extname(path).toLowerCase();
     const magic = Buffer.isBuffer(entry.bytes) ? nativeMagic(entry.bytes) : undefined;
     if (

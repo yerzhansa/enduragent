@@ -624,6 +624,85 @@ describe("Windows package verification", () => {
     );
   });
 
+  describe("the resvg Windows binary", () => {
+    const resvgBinary = "node_modules/@resvg/resvg-js-win32-x64-msvc/resvgjs.win32-x64-msvc.node";
+
+    async function resvgFixture(binary: Buffer, declared = true): Promise<SyntheticWindowsPackage> {
+      const fixture = await syntheticWindowsPackage();
+      const core = telegramRuntimePackages[0];
+      await fixture.writeArchive(
+        `${core.root}/package.json`,
+        `${JSON.stringify({
+          name: core.name,
+          version: "1.0.0",
+          main: core.main,
+          dependencies: declared
+            ? { ...core.dependencies, "@resvg/resvg-js": "2.6.2" }
+            : core.dependencies,
+        })}\n`,
+      );
+      await fixture.writeArchive(
+        "node_modules/@resvg/resvg-js/package.json",
+        `${JSON.stringify({
+          name: "@resvg/resvg-js",
+          version: "2.6.2",
+          main: "index.js",
+          optionalDependencies: {
+            "@resvg/resvg-js-win32-x64-msvc": "2.6.2",
+            "@resvg/resvg-js-darwin-arm64": "2.6.2",
+          },
+        })}\n`,
+      );
+      await fixture.writeArchive("node_modules/@resvg/resvg-js/index.js");
+      await fixture.writeArchive(
+        "node_modules/@resvg/resvg-js-win32-x64-msvc/package.json",
+        `${JSON.stringify({
+          name: "@resvg/resvg-js-win32-x64-msvc",
+          version: "2.6.2",
+          main: "resvgjs.win32-x64-msvc.node",
+        })}\n`,
+      );
+      await fixture.writeArchive(resvgBinary, binary);
+      await fixture.rebuild();
+      return fixture;
+    }
+
+    it("accepts the x64 binary of the declared resvg package", async () => {
+      const fixture = await resvgFixture(windowsExecutable(0x8664));
+      await expect(
+        verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+      ).resolves.toMatchObject({ peMachine: 0x8664 });
+    });
+
+    it("rejects a resvg binary built for another Windows machine", async () => {
+      const fixture = await resvgFixture(windowsExecutable(0x014c));
+      await expect(
+        verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+      ).rejects.toThrow(
+        `windows-package/binary-platform: wrong-platform binary: "app.asar/${resvgBinary}"`,
+      );
+    });
+
+    it("rejects a resvg binary that is not a Windows executable", async () => {
+      const elf = Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00]);
+      const fixture = await resvgFixture(elf);
+      await expect(
+        verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+      ).rejects.toThrow(
+        `windows-package/binary-platform: invalid Windows executable: "app.asar/${resvgBinary}"`,
+      );
+    });
+
+    it("rejects the resvg binary when no runtime package declares resvg", async () => {
+      const fixture = await resvgFixture(windowsExecutable(0x8664), false);
+      await expect(
+        verifyWindowsPackageLayout(fixture.application, { desktopRoot: fixture.desktop }),
+      ).rejects.toThrow(
+        'windows-package/asar-inventory: undeclared runtime package: "node_modules/@resvg/resvg-js-win32-x64-msvc/package.json", "node_modules/@resvg/resvg-js/package.json"',
+      );
+    });
+  });
+
   it("rejects undeclared runtime packages and ASAR roots", async () => {
     const packageFixture = await syntheticWindowsPackage();
     await packageFixture.writeArchive(
