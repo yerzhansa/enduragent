@@ -412,9 +412,26 @@ function nativeMagic(bytes) {
   return bytes[0] === 0x4d && bytes[1] === 0x5a ? "PE" : undefined;
 }
 
+function validatePermittedNativeModule(bytes, label) {
+  if (!Buffer.isBuffer(bytes) || nativeMagic(bytes) !== "PE") {
+    failWindows("binary-platform", "invalid Windows executable", [label]);
+  }
+  if (peMetadata(bytes, label, "binary-platform").machine !== x64PeMachine) {
+    failWindows("binary-platform", "wrong-platform binary", [label]);
+  }
+}
+
 function validateApplicationBinaries(tree) {
   for (const [path, entry] of tree) {
     if (entry.type !== "file") continue;
+    const unpackedPrefix = "resources/app.asar.unpacked/";
+    if (
+      path.startsWith(unpackedPrefix) &&
+      permittedAsarNativeModules.has(path.slice(unpackedPrefix.length))
+    ) {
+      validatePermittedNativeModule(entry.bytes, path);
+      continue;
+    }
     const extension = extname(path).toLowerCase();
     const magic = nativeMagic(entry.bytes);
     if (forbiddenNativeExtensions.has(extension) || magic === "ELF" || magic === "Mach-O") {
@@ -482,13 +499,7 @@ function asarNativeEntries(asar) {
   for (const [path, entry] of asar) {
     if (entry.type !== "file") continue;
     if (permittedAsarNativeModules.has(path)) {
-      const label = `app.asar/${path}`;
-      if (!Buffer.isBuffer(entry.bytes) || nativeMagic(entry.bytes) !== "PE") {
-        failWindows("binary-platform", "invalid Windows executable", [label]);
-      }
-      if (peMetadata(entry.bytes, label, "binary-platform").machine !== x64PeMachine) {
-        failWindows("binary-platform", "wrong-platform binary", [label]);
-      }
+      validatePermittedNativeModule(entry.bytes, `app.asar/${path}`);
       continue;
     }
     const extension = extname(path).toLowerCase();

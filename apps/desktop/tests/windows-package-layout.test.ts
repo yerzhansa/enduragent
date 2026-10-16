@@ -663,7 +663,11 @@ describe("Windows package verification", () => {
         })}\n`,
       );
       await fixture.writeArchive(resvgBinary, binary);
-      await fixture.rebuild();
+      const archive = join(fixture.application, "resources/app.asar");
+      await rm(archive, { force: true });
+      await finished(
+        await createPackageWithOptions(fixture.archiveSource, archive, { unpack: "*.node" }),
+      );
       return fixture;
     }
 
