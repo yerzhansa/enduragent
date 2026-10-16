@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 200 200" role="img" aria-label="Enduragent">
-  <rect width="200" height="200" rx="46" fill="#1B3A40"/>
-  <g fill="#F4F1EA" transform="translate(100 100) scale(0.19655 -0.19655) translate(-319 -277)">
-    <path d="M603 218C607 237 608 249 608 269C608 441 487 567 322 567C159 567 30 438 30 275C30 113 161 -13 330 -13C421 -13 492 20 550 87C571 113 585 136 594 164H449C415 124 382 109 327 109C248 109 190 151 174 218ZM170 335C191 406 245 445 324 445C406 445 460 406 477 335Z"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Enduragent"><title>Enduragent</title><defs><filter id="s" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/></filter></defs><rect x="100" y="100" width="824" height="824" rx="185.4" fill="#1F2427" filter="url(#s)"/><g transform="matrix(5.75 0 0 5.75 167.07 155.57)"><rect x="17" y="79" width="42" height="10" rx="5" fill="#F1F3F3"/><rect x="39" y="57" width="42" height="10" rx="5" fill="#F1F3F3"/><rect x="61" y="35" width="42" height="10" rx="5" fill="#FF7A45"/></g></svg>

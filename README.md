@@ -1,4 +1,9 @@
-<h1 align="center">Enduragent</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/yerzhansa/enduragent/main/guides/images/enduragent-logo-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/yerzhansa/enduragent/main/guides/images/enduragent-logo-on-light.svg" alt="Enduragent" width="340">
+  </picture>
+</h1>
 
 <p align="center">
   <b>An AI cycling coach that runs on your own machine.</b><br>

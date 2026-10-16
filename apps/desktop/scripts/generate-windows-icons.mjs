@@ -96,7 +96,7 @@ async function writeAtomically(path, bytes) {
 }
 
 export async function generateWindowsIcons(input = {}) {
-  const sourcePath = input.sourcePath ?? join(resourcesDirectory, "app-icon.png");
+  const sourcePath = input.sourcePath ?? join(resourcesDirectory, "app-icon-windows.png");
   const applicationPath = input.applicationPath ?? join(resourcesDirectory, "app-icon.ico");
   const trayPath = input.trayPath ?? join(resourcesDirectory, "tray.ico");
   const sipsPath = input.sipsPath ?? "/usr/bin/sips";
