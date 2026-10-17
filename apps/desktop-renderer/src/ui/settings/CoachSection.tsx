@@ -68,7 +68,6 @@ function feedbackCopy(state: ProviderModelSettingsState, say: Phrasebook["say"])
     return say("settings.coach.unavailable");
   }
   if (state.status === "saving") return say("settings.coach.saving");
-  if (state.status === "saved") return say("settings.coach.saved");
   if (state.status === "error" && state.kind === "save")
     return say(COACH_SAVE_ERROR_COPY[state.reason]);
   return null;

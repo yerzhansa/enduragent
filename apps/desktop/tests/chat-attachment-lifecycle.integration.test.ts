@@ -1076,13 +1076,13 @@ async function switchModelAndReadBlockedDraft(fixture: RunningDesktopFixture) {
     await new Promise((resolve) => setTimeout(resolve, 50));
     custom.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     const savedDeadline = Date.now() + 10000;
-    while (
-      !document.body.textContent?.includes("Coach settings saved.") &&
-      Date.now() < savedDeadline
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    let saved = false;
+    while (!saved && Date.now() < savedDeadline) {
+      const runtime = document.querySelector('[aria-label="Coach"] [data-state="active"]');
+      saved = runtime?.textContent?.trim() === "Active";
+      if (!saved) await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    if (!document.body.textContent?.includes("Coach settings saved.")) {
+    if (!saved) {
       throw new Error("coach route did not save");
     }
     const chat = nav("Chat");
