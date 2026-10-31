@@ -757,3 +757,38 @@ describe("changed files and the baseline guard", () => {
     expect(guarded.errors).toContain(`  ${LONG}  file-length  0 -> 820  ${SHRINK_ONLY}`);
   });
 });
+
+describe("format check on changed files", () => {
+  const UNFORMATTED = "export const shape = {a:1}\n";
+  const FORMATTED = "export const shape = { a: 1 };\n";
+  const TARGET = "apps/desktop/src/shape.ts";
+
+  it("fails an unformatted changed file and names the oxfmt command", () => {
+    const base = startHistory({ [TARGET]: FORMATTED });
+    write(TARGET, UNFORMATTED);
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "check-code-quality: 1 violation(s) in changed files:",
+      `  ${TARGET}  format  run \`pnpm exec oxfmt ${TARGET}\`, because this PR changes the file`,
+    ]);
+  });
+
+  it("passes an unformatted file the change does not touch", () => {
+    const base = startHistory({ [TARGET]: UNFORMATTED, "packages/a/src/touched.ts": FORMATTED });
+    write("packages/a/src/touched.ts", "export const shape = { a: 2 };\n");
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+  });
+
+  it("passes a formatted changed file", () => {
+    const base = startHistory({ [TARGET]: UNFORMATTED });
+    write(TARGET, FORMATTED);
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+  });
+
+  it("leaves changed files under tools out of the format check", () => {
+    const base = startHistory({ "tools/shape.ts": FORMATTED });
+    write("tools/shape.ts", UNFORMATTED);
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+  });
+});
