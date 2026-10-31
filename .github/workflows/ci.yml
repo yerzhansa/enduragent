@@ -42,6 +42,8 @@ jobs:
         if: needs.desktop-scope.result != 'success'
         run: exit 1
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         # Reads the exact `packageManager` pin from root package.json.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -50,6 +52,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
       - name: Test workspace on Linux
         run: |
           pnpm exec vitest run --shard=1/2

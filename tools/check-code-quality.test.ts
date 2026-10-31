@@ -19,6 +19,7 @@ import {
 
 const REPO_OXLINTRC = fileURLToPath(new URL("../.oxlintrc.json", import.meta.url));
 const BASELINE = "tools/code-quality-baseline.json";
+const FIXTURE_AUTHOR = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
 
 let tempDir: string;
 
@@ -49,15 +50,48 @@ function readBaseline(): string {
   return readFileSync(join(tempDir, BASELINE), "utf8");
 }
 
-function runMain(argv: readonly string[]): { code: number; errors: string[] } {
+function runMain(
+  argv: readonly string[],
+  env: Readonly<Record<string, string>> = {},
+): { code: number; errors: string[]; logs: string[] } {
   const errors: string[] = [];
-  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const logs: string[] = [];
+  vi.spyOn(console, "log").mockImplementation((line: unknown) => {
+    logs.push(String(line));
+  });
   vi.spyOn(console, "error").mockImplementation((line: unknown) => {
     errors.push(String(line));
   });
-  const code = main(argv);
+  const code = main(argv, env);
   vi.restoreAllMocks();
-  return { code, errors };
+  return { code, errors, logs };
+}
+
+function git(...args: string[]): string {
+  const result = spawnSync("git", args, { cwd: tempDir, encoding: "utf8" });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout.trim();
+}
+
+function commit(message: string): string {
+  git("add", "-A");
+  git(...FIXTURE_AUTHOR, "-c", "commit.gpgsign=false", "commit", "-q", "--no-verify", "-m", message);
+  return git("rev-parse", "HEAD");
+}
+
+function recordBaseline(): void {
+  rmSync(join(tempDir, BASELINE), { force: true });
+  expect(runMain([tempDir, "--update"]).code).toBe(0);
+}
+
+function startHistory(files: Readonly<Record<string, string>>): string {
+  initRepository(files);
+  recordBaseline();
+  return commit("base");
+}
+
+function longFile(lines: number): string {
+  return Array.from({ length: lines }, (_, index) => `export const line${index} = ${index};\n`).join("");
 }
 
 describe("scanSource comments", () => {
@@ -460,7 +494,7 @@ describe("measure and main on a fixture repository", () => {
     expect(runMain([tempDir]).code).toBe(1);
     expect(runMain([tempDir, "--update"]).code).toBe(0);
     expect(JSON.parse(readBaseline())).toEqual({ comment: { "packages/a/src/core.ts": 1 } });
-    expect(runMain([tempDir])).toEqual({ code: 0, errors: [] });
+    expect(runMain([tempDir])).toMatchObject({ code: 0, errors: [] });
   });
 
   it("fails on a grown count and on a new file, naming the rule and guidance", () => {
@@ -519,5 +553,207 @@ describe("measure and main on a fixture repository", () => {
       "  packages/a/src/core.ts  double-assertion  0 -> 1  fix the type or the code instead of suppressing the checker",
     );
     expect(readBaseline()).toBe(before);
+  });
+});
+
+describe("changed files and the baseline guard", () => {
+  const COMMENT_GUIDANCE =
+    "move the rationale to the PR description or an ADR, and make the code say it through names and structure";
+  const CHANGED_FILE_ACTION = "this PR changes the file, so remove every violation of this rule in it";
+  const SHRINK_ONLY = "the baseline may only shrink; fix the code instead";
+  const NOTED = "packages/a/src/noted.ts";
+  const PLAIN = "packages/a/src/plain.ts";
+  const LONG = "packages/a/src/long.ts";
+
+  function changedFileFailure(file: string): string {
+    return `  ${file}  comment  1  ${COMMENT_GUIDANCE}; ${CHANGED_FILE_ACTION}`;
+  }
+
+  it("prefers BASE_SHA over origin/main", () => {
+    const clean = startHistory({ [NOTED]: "export const noted = 1;\n" });
+    write(NOTED, "// note\nexport const noted = 1;\n");
+    recordBaseline();
+    const noted = commit("note");
+    write(PLAIN, "export const plain = 1;\n");
+    commit("plain");
+
+    git("update-ref", "refs/remotes/origin/main", clean);
+    const passing = runMain([tempDir], { BASE_SHA: noted });
+    expect(passing).toMatchObject({ code: 0, errors: [] });
+    expect(passing.logs).toContain(`  ${PLAIN}`);
+    expect(passing.logs).not.toContain(`  ${NOTED}`);
+    expect(runMain([tempDir], { BASE_SHA: "" }).errors).toContain(changedFileFailure(NOTED));
+
+    git("update-ref", "refs/remotes/origin/main", noted);
+    const failing = runMain([tempDir], { BASE_SHA: clean });
+    expect(failing.code).toBe(1);
+    expect(failing.errors).toContain(changedFileFailure(NOTED));
+    expect(runMain([tempDir], { BASE_SHA: "" })).toMatchObject({ code: 0, errors: [] });
+  });
+
+  it("skips both checks when neither BASE_SHA nor origin/main exists", () => {
+    const clean = startHistory({ [NOTED]: "export const noted = 1;\n" });
+    write(NOTED, "// note\nexport const noted = 1;\n");
+    recordBaseline();
+    commit("note");
+
+    const skipped = runMain([tempDir], { BASE_SHA: "" });
+    expect(skipped).toMatchObject({ code: 0, errors: [] });
+    expect(skipped.logs).toContain(
+      "check-code-quality: skipping the changed-file check and the baseline guard: neither BASE_SHA nor origin/main is available.",
+    );
+
+    git("update-ref", "refs/remotes/origin/main", clean);
+    const checked = runMain([tempDir]);
+    expect(checked.code).toBe(1);
+    expect(checked.errors).toContain(changedFileFailure(NOTED));
+    expect(checked.errors).toContain(`  ${NOTED}  comment  0 -> 1  ${SHRINK_ONLY}`);
+  });
+
+  it("fails with the fetch-depth hint when the base shares no history with HEAD", () => {
+    const base = startHistory({ [PLAIN]: "export const plain = 1;\n" });
+    write(PLAIN, "export const plain = 2;\n");
+    commit("plain");
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+
+    const emptyTree = git("mktree");
+    const unrelated = git(...FIXTURE_AUTHOR, "commit-tree", emptyTree, "-m", "unrelated");
+    const { code, errors } = runMain([tempDir], { BASE_SHA: unrelated });
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      `check-code-quality: cannot find the merge-base of ${unrelated} and HEAD (the histories share no commit); fetch full history, for example \`actions/checkout\` with \`fetch-depth: 0\`.`,
+    ]);
+  });
+
+  it("skips both checks when HEAD is the merge-base and the tree is clean", () => {
+    const base = startHistory({ [NOTED]: "// note\nexport const noted = 1;\n" });
+
+    const skipped = runMain([tempDir], { BASE_SHA: base });
+    expect(skipped).toMatchObject({ code: 0, errors: [] });
+    expect(skipped.logs).toContain(
+      `check-code-quality: skipping the changed-file check and the baseline guard: HEAD is the merge-base with ${base} and the working tree is clean.`,
+    );
+
+    write(NOTED, "// note\nexport const noted = 2;\n");
+    const checked = runMain([tempDir], { BASE_SHA: base });
+    expect(checked.code).toBe(1);
+    expect(checked.errors).toContain(changedFileFailure(NOTED));
+  });
+
+  it("fails on a violation in a changed file and passes the same violation in an unchanged file", () => {
+    const base = startHistory({
+      [NOTED]: "// note\nexport const noted = 1;\n",
+      [PLAIN]: "export const plain = 1;\n",
+    });
+    write(PLAIN, "export const plain = 2;\n");
+    commit("plain");
+    const passing = runMain([tempDir], { BASE_SHA: base });
+    expect(passing).toMatchObject({ code: 0, errors: [] });
+    expect(passing.logs).toContain(
+      `check-code-quality: 1 changed source file(s) since ${base}, the merge-base with ${base}:`,
+    );
+
+    write(NOTED, "// note\nexport const noted = 2;\n");
+    commit("noted");
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "check-code-quality: 1 violation(s) in changed files:",
+      changedFileFailure(NOTED),
+    ]);
+  });
+
+  it("lets a changed file keep an unchanged file-length count", () => {
+    const base = startHistory({ [LONG]: longFile(801) });
+    write(LONG, longFile(801).replace("= 0;", "= -1;"));
+    commit("same length");
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+
+    write(LONG, longFile(802));
+    commit("longer");
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "check-code-quality: 1 count(s) differ from tools/code-quality-baseline.json:",
+      `  ${LONG}  file-length  801 -> 802  split the file before adding to it`,
+    ]);
+  });
+
+  it("counts an uncommitted change as changed", () => {
+    const base = startHistory({
+      [NOTED]: "// note\nexport const noted = 1;\n",
+      [PLAIN]: "export const plain = 1;\n",
+    });
+    write("packages/a/src/other.ts", "export const other = 1;\n");
+    commit("other");
+
+    write(PLAIN, "export const plain = 2;\n");
+    const passing = runMain([tempDir], { BASE_SHA: base });
+    expect(passing).toMatchObject({ code: 0, errors: [] });
+    expect(passing.logs).toContain(`  ${PLAIN}`);
+
+    write(NOTED, "// note\nexport const noted = 2;\n");
+    const failing = runMain([tempDir], { BASE_SHA: base });
+    expect(failing.code).toBe(1);
+    expect(failing.errors).toContain(changedFileFailure(NOTED));
+  });
+
+  it("fails the baseline guard on a raised or new entry and passes a lowered one", () => {
+    const base = startHistory({ [LONG]: longFile(900) });
+
+    write(LONG, longFile(850));
+    recordBaseline();
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+
+    write(LONG, longFile(950));
+    write("packages/a/src/added.ts", longFile(820));
+    recordBaseline();
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      `check-code-quality: 2 count(s) in tools/code-quality-baseline.json rise above ${base}:`,
+      `  packages/a/src/added.ts  file-length  0 -> 820  ${SHRINK_ONLY}`,
+      `  ${LONG}  file-length  900 -> 950  ${SHRINK_ONLY}`,
+    ]);
+  });
+
+  it("guards a merge-base baseline that still names a retired rule", () => {
+    initRepository({ [LONG]: longFile(900) });
+    recordBaseline();
+    const recorded: unknown = JSON.parse(readBaseline());
+    expect(recorded).toEqual({ "file-length": { [LONG]: 900 } });
+    writeFileSync(
+      join(tempDir, BASELINE),
+      JSON.stringify({ "file-length": { [LONG]: 900 }, "retired-rule": { [PLAIN]: 1 } }),
+      "utf8",
+    );
+    const base = commit("baseline with a retired rule");
+    recordBaseline();
+    expect(runMain([tempDir], { BASE_SHA: base })).toMatchObject({ code: 0, errors: [] });
+
+    write(LONG, longFile(950));
+    recordBaseline();
+    const { code, errors } = runMain([tempDir], { BASE_SHA: base });
+    expect(code).toBe(1);
+    expect(errors).toContain(`  ${LONG}  file-length  900 -> 950  ${SHRINK_ONLY}`);
+  });
+
+  it("skips the baseline guard when the merge-base has no baseline file", () => {
+    initRepository({});
+    const withoutBaseline = commit("no baseline");
+    writeFileSync(join(tempDir, BASELINE), serializeBaseline({}), "utf8");
+    const emptyBaseline = commit("empty baseline");
+    write(LONG, longFile(820));
+    recordBaseline();
+
+    const skipped = runMain([tempDir], { BASE_SHA: withoutBaseline });
+    expect(skipped).toMatchObject({ code: 0, errors: [] });
+    expect(skipped.logs).toContain(
+      `check-code-quality: skipping the baseline guard: ${withoutBaseline} has no tools/code-quality-baseline.json.`,
+    );
+
+    const guarded = runMain([tempDir], { BASE_SHA: emptyBaseline });
+    expect(guarded.code).toBe(1);
+    expect(guarded.errors).toContain(`  ${LONG}  file-length  0 -> 820  ${SHRINK_ONLY}`);
   });
 });
