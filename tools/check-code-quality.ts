@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,11 @@ const FILE_LENGTH_LIMIT = 800;
 const RENDERER_UI_DIR = "apps/desktop-renderer/src/ui/";
 const TEST_DIRS: ReadonlySet<string> = new Set(["tests", "test", "e2e", "fixtures"]);
 const SPAWN_BUFFER = 64 * 1024 * 1024;
+const BASE_ENV = "BASE_SHA";
+const DEFAULT_BASE = "origin/main";
+const FULL_HISTORY_HINT = "fetch full history, for example `actions/checkout` with `fetch-depth: 0`";
+const CHANGED_FILE_ACTION = "this PR changes the file, so remove every violation of this rule in it";
+const BASELINE_ONLY_SHRINKS = "the baseline may only shrink; fix the code instead";
 
 const RULE_IDS = [
   "comment",
@@ -31,6 +36,8 @@ const RULE_IDS = [
 ] as const;
 
 export type RuleId = (typeof RULE_IDS)[number];
+
+const CHANGED_FILE_RULES: readonly RuleId[] = RULE_IDS.filter((rule) => rule !== "file-length");
 
 type Scope = "all" | "non-test" | "renderer-ui";
 
@@ -117,10 +124,9 @@ export interface OxlintDiagnostic {
   readonly filename: string;
 }
 
-const BaselineSchema = z.partialRecord(
-  z.enum(RULE_IDS),
-  z.record(z.string(), z.number().int().positive()),
-);
+const FileCountsSchema = z.record(z.string(), z.number().int().positive());
+const BaselineSchema = z.partialRecord(z.enum(RULE_IDS), FileCountsSchema);
+const RecordedBaselineSchema = z.record(z.string(), FileCountsSchema);
 
 const OxlintReportSchema = z.object({
   diagnostics: z.array(z.object({ code: z.string(), filename: z.string() })),
@@ -440,15 +446,41 @@ export function runOxlint(root: string): OxlintDiagnostic[] {
   return OxlintReportSchema.parse(report).diagnostics;
 }
 
-export function listSourceFiles(root: string): string[] {
-  const result = spawnSync(
-    "git",
-    ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...LINT_ROOTS],
-    { cwd: root, encoding: "utf8", maxBuffer: SPAWN_BUFFER },
-  );
+type Env = Readonly<Record<string, string | undefined>>;
+
+interface Violation {
+  readonly rule: RuleId;
+  readonly file: string;
+  readonly count: number;
+}
+
+interface ChangedFiles {
+  readonly kind: "changed";
+  readonly base: string;
+  readonly mergeBase: string;
+  readonly files: readonly string[];
+}
+
+type ChangeScope =
+  | ChangedFiles
+  | { readonly kind: "skipped"; readonly reason: string }
+  | { readonly kind: "no-merge-base"; readonly reason: string };
+
+function git(root: string, args: readonly string[]): SpawnSyncReturns<string> {
+  const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: SPAWN_BUFFER });
   if (result.error !== undefined) throw result.error;
-  if (result.status !== 0) throw new Error(`git ls-files exited ${result.status}: ${result.stderr}`);
-  return [...new Set(result.stdout.split("\0"))]
+  return result;
+}
+
+function gitOutput(root: string, args: readonly string[]): string {
+  const result = git(root, args);
+  if (result.status !== 0) throw new Error(`git ${args[0]} exited ${result.status}: ${result.stderr}`);
+  return result.stdout;
+}
+
+export function listSourceFiles(root: string): string[] {
+  const output = gitOutput(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...LINT_ROOTS]);
+  return [...new Set(output.split("\0"))]
     .filter((file) => TS_EXTS.has(ext(file)) && existsSync(join(root, file)))
     .sort();
 }
@@ -459,6 +491,43 @@ export function measure(root: string): Measurement {
   for (const file of files) mergeInto(counts, scanSource(file, readFileSync(join(root, file), "utf8")));
   mergeInto(counts, countOxlintDiagnostics(runOxlint(root)));
   return { fileCount: files.length, counts: normalize(counts) };
+}
+
+function resolveBase(root: string, env: Env): string | undefined {
+  const fromEnv = env[BASE_ENV];
+  if (fromEnv !== undefined && fromEnv !== "") return fromEnv;
+  return git(root, ["rev-parse", "--verify", "--quiet", `${DEFAULT_BASE}^{commit}`]).status === 0
+    ? DEFAULT_BASE
+    : undefined;
+}
+
+function findChangeScope(root: string, env: Env): ChangeScope {
+  const base = resolveBase(root, env);
+  if (base === undefined) return { kind: "skipped", reason: `neither ${BASE_ENV} nor ${DEFAULT_BASE} is available` };
+  const found = git(root, ["merge-base", base, "HEAD"]);
+  if (found.status !== 0) {
+    const detail = found.stderr.trim() === "" ? "the histories share no commit" : found.stderr.trim();
+    return { kind: "no-merge-base", reason: `cannot find the merge-base of ${base} and HEAD (${detail}); ${FULL_HISTORY_HINT}` };
+  }
+  const mergeBase = found.stdout.trim();
+  const head = gitOutput(root, ["rev-parse", "HEAD"]).trim();
+  if (head === mergeBase && gitOutput(root, ["status", "--porcelain"]) === "") {
+    return { kind: "skipped", reason: `HEAD is the merge-base with ${base} and the working tree is clean` };
+  }
+  const files = gitOutput(root, ["diff", "--name-only", "--diff-filter=ACMR", "-z", mergeBase, "--", ...LINT_ROOTS])
+    .split("\0")
+    .filter((file) => TS_EXTS.has(ext(file)))
+    .sort();
+  return { kind: "changed", base, mergeBase, files };
+}
+
+function changedFileViolations(counts: Counts, files: readonly string[]): Violation[] {
+  return files.flatMap((file) =>
+    CHANGED_FILE_RULES.flatMap((rule) => {
+      const count = counts[rule]?.[file] ?? 0;
+      return count > 0 ? [{ rule, file, count }] : [];
+    }),
+  );
 }
 
 export function compareCounts(baseline: Counts, current: Counts): Drift[] {
@@ -475,8 +544,12 @@ export function compareCounts(baseline: Counts, current: Counts): Drift[] {
   return drifts;
 }
 
+function increasesFrom(before: Counts, after: Counts): Drift[] {
+  return compareCounts(before, after).filter((drift) => drift.current > drift.baseline);
+}
+
 export function updateBaseline(baseline: Counts, current: Counts): UpdateResult {
-  const increases = compareCounts(baseline, current).filter((drift) => drift.current > drift.baseline);
+  const increases = increasesFrom(baseline, current);
   if (increases.length > 0) return { kind: "refused", increases };
   return { kind: "updated", baseline: normalize(current) };
 }
@@ -489,12 +562,31 @@ export function parseBaseline(json: string): Counts {
   return BaselineSchema.parse(JSON.parse(json));
 }
 
+function parseRecordedBaseline(json: string): Counts {
+  const recorded = RecordedBaselineSchema.parse(JSON.parse(json));
+  const counts: Counts = {};
+  for (const rule of RULE_IDS) {
+    const byFile = recorded[rule];
+    if (byFile !== undefined) counts[rule] = byFile;
+  }
+  return counts;
+}
+
 export function formatDrift(drift: Drift): string {
   const action =
     drift.current > drift.baseline
       ? RULES[drift.rule].guidance
       : "run `pnpm check:code-quality --update` to lock in the lower count";
   return `  ${drift.file}  ${drift.rule}  ${drift.baseline} -> ${drift.current}  ${action}`;
+}
+
+function formatViolation(violation: Violation): string {
+  const { file, rule, count } = violation;
+  return `  ${file}  ${rule}  ${count}  ${RULES[rule].guidance}; ${CHANGED_FILE_ACTION}`;
+}
+
+function formatRaise(drift: Drift): string {
+  return `  ${drift.file}  ${drift.rule}  ${drift.baseline} -> ${drift.current}  ${BASELINE_ONLY_SHRINKS}`;
 }
 
 function entryCount(counts: Counts): number {
@@ -506,16 +598,65 @@ function writeBaseline(path: string, counts: Counts): void {
   console.log(`check-code-quality: wrote ${BASELINE_PATH} (${entryCount(counts)} file entries).`);
 }
 
-export function main(argv: readonly string[]): number {
+function checkWholeTree(baseline: Counts, { fileCount, counts }: Measurement): boolean {
+  const drifts = compareCounts(baseline, counts);
+  if (drifts.length === 0) {
+    console.log(`check-code-quality: ${fileCount} source file(s) within ${BASELINE_PATH}.`);
+    return true;
+  }
+  console.error(`check-code-quality: ${drifts.length} count(s) differ from ${BASELINE_PATH}:`);
+  for (const drift of drifts) console.error(formatDrift(drift));
+  return false;
+}
+
+function checkChangedFiles({ base, mergeBase, files }: ChangedFiles, counts: Counts): boolean {
+  console.log(`check-code-quality: ${files.length} changed source file(s) since ${mergeBase}, the merge-base with ${base}:`);
+  for (const file of files) console.log(`  ${file}`);
+  const violations = changedFileViolations(counts, files);
+  if (violations.length === 0) return true;
+  console.error(`check-code-quality: ${violations.length} violation(s) in changed files:`);
+  for (const violation of violations) console.error(formatViolation(violation));
+  return false;
+}
+
+function guardBaseline(root: string, mergeBase: string, baseline: Counts): boolean {
+  if (gitOutput(root, ["ls-tree", "--name-only", mergeBase, "--", BASELINE_PATH]).trim() === "") {
+    console.log(`check-code-quality: skipping the baseline guard: ${mergeBase} has no ${BASELINE_PATH}.`);
+    return true;
+  }
+  const recorded = gitOutput(root, ["show", `${mergeBase}:${BASELINE_PATH}`]);
+  const raises = increasesFrom(parseRecordedBaseline(recorded), baseline);
+  if (raises.length === 0) return true;
+  console.error(`check-code-quality: ${raises.length} count(s) in ${BASELINE_PATH} rise above ${mergeBase}:`);
+  for (const raise of raises) console.error(formatRaise(raise));
+  return false;
+}
+
+function checkChanges(root: string, baseline: Counts, counts: Counts, env: Env): boolean {
+  const scope = findChangeScope(root, env);
+  if (scope.kind === "skipped") {
+    console.log(`check-code-quality: skipping the changed-file check and the baseline guard: ${scope.reason}.`);
+    return true;
+  }
+  if (scope.kind === "no-merge-base") {
+    console.error(`check-code-quality: ${scope.reason}.`);
+    return false;
+  }
+  const changedFilesPass = checkChangedFiles(scope, counts);
+  const baselineHolds = guardBaseline(root, scope.mergeBase, baseline);
+  return changedFilesPass && baselineHolds;
+}
+
+export function main(argv: readonly string[], env: Env = process.env): number {
   const root = nonFlagArgs(argv)[0] ?? ".";
   const update = argv.includes("--update");
   const baselinePath = join(root, BASELINE_PATH);
   const baseline = existsSync(baselinePath) ? parseBaseline(readFileSync(baselinePath, "utf8")) : null;
-  const { fileCount, counts } = measure(root);
+  const measurement = measure(root);
 
   if (baseline === null) {
     if (update) {
-      writeBaseline(baselinePath, counts);
+      writeBaseline(baselinePath, measurement.counts);
       return 0;
     }
     console.error(`check-code-quality: missing ${BASELINE_PATH}; run \`pnpm check:code-quality --update\`.`);
@@ -523,7 +664,7 @@ export function main(argv: readonly string[]): number {
   }
 
   if (update) {
-    const result = updateBaseline(baseline, counts);
+    const result = updateBaseline(baseline, measurement.counts);
     if (result.kind === "updated") {
       writeBaseline(baselinePath, result.baseline);
       return 0;
@@ -533,14 +674,9 @@ export function main(argv: readonly string[]): number {
     return 1;
   }
 
-  const drifts = compareCounts(baseline, counts);
-  if (drifts.length === 0) {
-    console.log(`check-code-quality: ${fileCount} source file(s) within ${BASELINE_PATH}.`);
-    return 0;
-  }
-  console.error(`check-code-quality: ${drifts.length} count(s) differ from ${BASELINE_PATH}:`);
-  for (const drift of drifts) console.error(formatDrift(drift));
-  return 1;
+  const wholeTreePasses = checkWholeTree(baseline, measurement);
+  const changesPass = checkChanges(root, baseline, measurement.counts, env);
+  return wholeTreePasses && changesPass ? 0 : 1;
 }
 
 runGateCli(import.meta.url, main);
