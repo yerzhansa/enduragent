@@ -122,7 +122,7 @@ export interface PackagedSelfTestTerminal {
   readonly ok: true;
   readonly runtime: {
     readonly node: string;
-    readonly electron: "44.4.3";
+    readonly electron: "44.9.1";
   };
   readonly suites: {
     readonly parity: { readonly cases: number; readonly passed: number };
