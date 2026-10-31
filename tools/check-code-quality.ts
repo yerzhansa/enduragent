@@ -9,6 +9,8 @@ import { TS_EXTS, ext, nonFlagArgs, runGateCli } from "./lint-fs.js";
 const LINT_ROOTS = ["packages", "apps", "tools"] as const;
 const BASELINE_PATH = "tools/code-quality-baseline.json";
 const OXLINT_BIN = fileURLToPath(new URL("../node_modules/oxlint/bin/oxlint", import.meta.url));
+const OXFMT_BIN = fileURLToPath(new URL("../node_modules/oxfmt/bin/oxfmt", import.meta.url));
+const FORMATTED_ROOTS = ["packages/", "apps/"] as const;
 const FILE_LENGTH_LIMIT = 800;
 const RENDERER_UI_DIR = "apps/desktop-renderer/src/ui/";
 const TEST_DIRS: ReadonlySet<string> = new Set(["tests", "test", "e2e", "fixtures"]);
@@ -530,6 +532,21 @@ function changedFileViolations(counts: Counts, files: readonly string[]): Violat
   );
 }
 
+function listUnformatted(root: string, files: readonly string[]): string[] {
+  const targets = files.filter((file) => FORMATTED_ROOTS.some((formattedRoot) => file.startsWith(formattedRoot)));
+  if (targets.length === 0) return [];
+  const result = spawnSync(process.execPath, [OXFMT_BIN, "--list-different", ...targets], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: SPAWN_BUFFER,
+  });
+  if (result.error !== undefined) throw result.error;
+  const listed = result.stdout.split("\n").filter((line) => line !== "");
+  if (result.status === 0 && listed.length === 0) return [];
+  if (result.status === 1 && listed.length > 0) return listed.sort();
+  throw new Error(`oxfmt exited ${result.status}: ${result.stdout}${result.stderr}`);
+}
+
 export function compareCounts(baseline: Counts, current: Counts): Drift[] {
   const drifts: Drift[] = [];
   for (const rule of RULE_IDS) {
@@ -585,6 +602,10 @@ function formatViolation(violation: Violation): string {
   return `  ${file}  ${rule}  ${count}  ${RULES[rule].guidance}; ${CHANGED_FILE_ACTION}`;
 }
 
+function formatUnformatted(file: string): string {
+  return `  ${file}  format  run \`pnpm exec oxfmt ${file}\`, because this PR changes the file`;
+}
+
 function formatRaise(drift: Drift): string {
   return `  ${drift.file}  ${drift.rule}  ${drift.baseline} -> ${drift.current}  ${BASELINE_ONLY_SHRINKS}`;
 }
@@ -609,13 +630,16 @@ function checkWholeTree(baseline: Counts, { fileCount, counts }: Measurement): b
   return false;
 }
 
-function checkChangedFiles({ base, mergeBase, files }: ChangedFiles, counts: Counts): boolean {
+function checkChangedFiles(root: string, { base, mergeBase, files }: ChangedFiles, counts: Counts): boolean {
   console.log(`check-code-quality: ${files.length} changed source file(s) since ${mergeBase}, the merge-base with ${base}:`);
   for (const file of files) console.log(`  ${file}`);
-  const violations = changedFileViolations(counts, files);
-  if (violations.length === 0) return true;
-  console.error(`check-code-quality: ${violations.length} violation(s) in changed files:`);
-  for (const violation of violations) console.error(formatViolation(violation));
+  const failures = [
+    ...changedFileViolations(counts, files).map(formatViolation),
+    ...listUnformatted(root, files).map(formatUnformatted),
+  ];
+  if (failures.length === 0) return true;
+  console.error(`check-code-quality: ${failures.length} violation(s) in changed files:`);
+  for (const failure of failures) console.error(failure);
   return false;
 }
 
@@ -642,7 +666,7 @@ function checkChanges(root: string, baseline: Counts, counts: Counts, env: Env):
     console.error(`check-code-quality: ${scope.reason}.`);
     return false;
   }
-  const changedFilesPass = checkChangedFiles(scope, counts);
+  const changedFilesPass = checkChangedFiles(root, scope, counts);
   const baselineHolds = guardBaseline(root, scope.mergeBase, baseline);
   return changedFilesPass && baselineHolds;
 }
