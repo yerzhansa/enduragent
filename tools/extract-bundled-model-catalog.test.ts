@@ -224,6 +224,22 @@ describe("materialize and bundled catalog extract", () => {
     expect(statSync(path).mtimeMs).toBe(before.mtimeMs);
   });
 
+  it("materialize keeps the write error when the temporary seed cannot be removed", async () => {
+    const root = mkdtempSync(join(tmpdir(), "catalog-materialize-blocked-"));
+    try {
+      mkdirSync(`${join(root, MATERIALIZED_MODEL_CATALOG_SEED_PATH)}.tmp`, { recursive: true });
+      await expect(
+        materializeReleaseCatalog({ prepared, workspaceRoot: root }),
+      ).rejects.toMatchObject({
+        code: "EISDIR",
+        syscall: "open",
+        cause: expect.objectContaining({ code: "ERR_FS_EISDIR" }),
+      });
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+
   it("materialize does not change the git-tracked seed", () => {
     expect(readFileSync(TRACKED_SEED).equals(trackedBefore)).toBe(true);
     expect(resolve(join(workspaceRoot, MATERIALIZED_MODEL_CATALOG_SEED_PATH))).not.toBe(

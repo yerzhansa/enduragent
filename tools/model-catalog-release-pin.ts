@@ -475,7 +475,17 @@ export async function materializeReleaseCatalog(
     await writeFile(temporaryPath, contents, "utf8");
     await rename(temporaryPath, path);
   } catch (error) {
-    await rm(temporaryPath, { force: true });
+    try {
+      await rm(temporaryPath, { force: true });
+    } catch (cleanupError) {
+      if (!(error instanceof Error) || error.cause !== undefined) {
+        throw new AggregateError(
+          [error, cleanupError],
+          "the model catalog seed write failed and its temporary file was not removed",
+        );
+      }
+      error.cause = cleanupError;
+    }
     throw error;
   }
   return verifyMaterializedSeed(path, input.prepared);
