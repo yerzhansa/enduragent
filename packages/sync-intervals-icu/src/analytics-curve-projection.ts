@@ -226,8 +226,7 @@ function aggregateCurves(
       const curve = curveById(curvesByType[activityType], id);
       if (curve === undefined) continue;
       Object.assign(activities, curve.activities);
-      for (let index = 0; index < curve.secs.length; index += 1) {
-        const seconds = curve.secs[index]!;
+      for (const [index, seconds] of curve.secs.entries()) {
         const value = curve.values[index] ?? null;
         const previous = bySecond.get(seconds)?.value;
         if (previous === undefined || previous === null || (value !== null && value > previous)) {
@@ -315,10 +314,11 @@ async function projectCurrentAnalyticsCurves(
   if (evidenceByPart.size !== ANALYTICS_CURVE_PARTS.length) fail();
 
   const windows = current.generation.windows;
+  const sustainabilityId = `r.${windows.sustainability.start}.${windows.sustainability.end}`;
   const selectors = Object.freeze([
     `r.${windows.current.start}.${windows.current.end}`,
     `r.${windows.previous.start}.${windows.previous.end}`,
-    `r.${windows.sustainability.start}.${windows.sustainability.end}`,
+    sustainabilityId,
   ]);
   const selectorSet = new Set(selectors);
   const projected = new Map<string, readonly NormalizedCurve[]>();
@@ -348,7 +348,10 @@ async function projectCurrentAnalyticsCurves(
     Ride: curves("heart-rate", "Ride"),
     VirtualRide: curves("heart-rate", "VirtualRide"),
   });
-  const sustainabilityId = selectors[2]!;
+  const sustainability = (byType: readonly NormalizedCurve[]): readonly NormalizedCurve[] => {
+    const curve = curveById(byType, sustainabilityId);
+    return curve === undefined ? [] : [curve];
+  };
 
   return Object.freeze({
     powerCurves: powerEnvelope(aggregateCurves(powerByType, selectors)),
@@ -356,28 +359,12 @@ async function projectCurrentAnalyticsCurves(
     sustainabilityCurves: Object.freeze({
       cycling: Object.freeze({
         power: Object.freeze({
-          Ride: powerEnvelope(
-            curveById(powerByType.Ride, sustainabilityId)
-              ? [curveById(powerByType.Ride, sustainabilityId)!]
-              : [],
-          ),
-          VirtualRide: powerEnvelope(
-            curveById(powerByType.VirtualRide, sustainabilityId)
-              ? [curveById(powerByType.VirtualRide, sustainabilityId)!]
-              : [],
-          ),
+          Ride: powerEnvelope(sustainability(powerByType.Ride)),
+          VirtualRide: powerEnvelope(sustainability(powerByType.VirtualRide)),
         }),
         hr: Object.freeze({
-          Ride: heartRateEnvelope(
-            curveById(heartRateByType.Ride, sustainabilityId)
-              ? [curveById(heartRateByType.Ride, sustainabilityId)!]
-              : [],
-          ),
-          VirtualRide: heartRateEnvelope(
-            curveById(heartRateByType.VirtualRide, sustainabilityId)
-              ? [curveById(heartRateByType.VirtualRide, sustainabilityId)!]
-              : [],
-          ),
+          Ride: heartRateEnvelope(sustainability(heartRateByType.Ride)),
+          VirtualRide: heartRateEnvelope(sustainability(heartRateByType.VirtualRide)),
         }),
       }),
     }),
