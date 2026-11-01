@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   IMAGE_BUNDLED_CATALOG_ENTRY,
   NPM_BUNDLED_CATALOG_ENTRY,
@@ -26,6 +26,21 @@ import {
   prepareReleaseGroup,
   type PreparedRelease,
 } from "./model-catalog-release-pin.js";
+
+const nextWriteFile = vi.hoisted((): { failure: Error | undefined } => ({ failure: undefined }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    writeFile: async (...args: Parameters<typeof actual.writeFile>) => {
+      const failure = nextWriteFile.failure;
+      nextWriteFile.failure = undefined;
+      if (failure !== undefined) throw failure;
+      return actual.writeFile(...args);
+    },
+  };
+});
 
 const SOURCE_COMMIT = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ACQUIRED_AT = "1998-09-14T10:00:00.000Z";
@@ -236,6 +251,26 @@ describe("materialize and bundled catalog extract", () => {
         cause: expect.objectContaining({ code: "ERR_FS_EISDIR" }),
       });
     } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+
+  it("materialize reports both failures when the write error already has a cause", async () => {
+    const root = mkdtempSync(join(tmpdir(), "catalog-materialize-blocked-"));
+    const writeCause = new Error("synthetic write cause");
+    const writeFailure = new Error("synthetic write failure", { cause: writeCause });
+    try {
+      mkdirSync(`${join(root, MATERIALIZED_MODEL_CATALOG_SEED_PATH)}.tmp`, { recursive: true });
+      nextWriteFile.failure = writeFailure;
+      const rejection = materializeReleaseCatalog({ prepared, workspaceRoot: root });
+      await expect(rejection).rejects.toBeInstanceOf(AggregateError);
+      await expect(rejection).rejects.toHaveProperty("errors", [
+        writeFailure,
+        expect.objectContaining({ code: "ERR_FS_EISDIR" }),
+      ]);
+      expect(writeFailure.cause).toBe(writeCause);
+    } finally {
+      nextWriteFile.failure = undefined;
       rmSync(root, { force: true, recursive: true });
     }
   });
