@@ -268,15 +268,21 @@ export class ModelCatalogArchive {
       database = new DatabaseSync(join(this.root, LOCK_DATABASE_FILE));
       database.exec("PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE");
     } catch (error) {
+      const failure = sqliteIsLocked(error)
+        ? new CatalogPublicationError("conflict", "the model catalog archive is locked")
+        : error;
       try {
         database?.close();
-      } catch (error) {
-        if (!(typeof error === "object" && error !== null && "code" in error && (String(error.code) === "EBADF" || String(error.code) === "ERR_DIR_CLOSED"))) throw error;
+      } catch (closeError) {
+        if (!(failure instanceof Error)) {
+          throw new AggregateError(
+            [failure, closeError],
+            "the model catalog archive lock failed and did not close",
+          );
+        }
+        failure.cause = closeError;
       }
-      if (sqliteIsLocked(error)) {
-        throw new CatalogPublicationError("conflict", "the model catalog archive is locked");
-      }
-      throw error;
+      throw failure;
     }
     const deploymentMarkerPath = join(this.root, DEPLOYMENT_MARKER_FILE);
     const outcome = await clearInterruptedDeployment(deploymentMarkerPath)
