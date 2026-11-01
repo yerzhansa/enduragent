@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-catalog";
 import { acceptModelCatalogSnapshot } from "../packages/core/src/model-catalog.js";
@@ -400,7 +400,10 @@ function parseGeneratedSeedSource(contents: string) {
   try {
     return ModelCatalogSnapshotSchema.parse(
       JSON.parse(
-        contents.slice(GENERATED_SEED_PREFIX.length, contents.length - GENERATED_SEED_SUFFIX.length),
+        contents.slice(
+          GENERATED_SEED_PREFIX.length,
+          contents.length - GENERATED_SEED_SUFFIX.length,
+        ),
       ),
     );
   } catch {
@@ -472,7 +475,17 @@ export async function materializeReleaseCatalog(
     await writeFile(temporaryPath, contents, "utf8");
     await rename(temporaryPath, path);
   } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
+    try {
+      await rm(temporaryPath, { force: true });
+    } catch (cleanupError) {
+      if (!(error instanceof Error) || error.cause !== undefined) {
+        throw new AggregateError(
+          [error, cleanupError],
+          "the model catalog seed write failed and its temporary file was not removed",
+        );
+      }
+      error.cause = cleanupError;
+    }
     throw error;
   }
   return verifyMaterializedSeed(path, input.prepared);

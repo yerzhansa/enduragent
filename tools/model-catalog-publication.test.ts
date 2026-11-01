@@ -1,9 +1,10 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { ModelCatalogSnapshotSchema } from "@enduragent/coach-contract/model-catalog";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ModelCatalogArchive } from "./model-catalog-archive.js";
 import {
   WranglerCommandError,
@@ -304,6 +305,42 @@ describe("model catalog publication records", () => {
   });
 });
 
+async function holdArchiveLock(archive: ModelCatalogArchive): Promise<() => Promise<void>> {
+  let release = (): void => {};
+  let acquired = (): void => {};
+  const held = new Promise<void>((resolveHeld) => {
+    release = resolveHeld;
+  });
+  const ready = new Promise<void>((resolveReady) => {
+    acquired = resolveReady;
+  });
+  const holder = archive.withExclusiveLock(async () => {
+    acquired();
+    await held;
+  });
+  await ready;
+  return async () => {
+    release();
+    await holder;
+  };
+}
+
+function failNextClose(failure: Error) {
+  const realClose = DatabaseSync.prototype.close;
+  return vi
+    .spyOn(DatabaseSync.prototype, "close")
+    .mockImplementationOnce(function (this: DatabaseSync) {
+      realClose.call(this);
+      throw failure;
+    });
+}
+
+function failNextExec(failure: unknown) {
+  return vi.spyOn(DatabaseSync.prototype, "exec").mockImplementationOnce(() => {
+    throw failure;
+  });
+}
+
 describe("private model catalog archive", () => {
   it("keeps publication records and receipts immutable", async () => {
     await withTemporaryDirectory(async (directory) => {
@@ -327,24 +364,89 @@ describe("private model catalog archive", () => {
   it("rejects a second archive-wide writer while the lock is held", async () => {
     await withTemporaryDirectory(async (directory) => {
       const archive = new ModelCatalogArchive(join(directory, "private-archive"));
-      let release = (): void => {};
-      let acquired = (): void => {};
-      const held = new Promise<void>((resolveHeld) => {
-        release = resolveHeld;
-      });
-      const ready = new Promise<void>((resolveReady) => {
-        acquired = resolveReady;
-      });
-      const first = archive.withExclusiveLock(async () => {
-        acquired();
-        await held;
-      });
-      await ready;
+      const release = await holdArchiveLock(archive);
       await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
         "archive is locked",
       );
-      release();
-      await first;
+      await release();
+    });
+  });
+
+  it("keeps the lock conflict when the rejected writer's database also fails to close", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const release = await holdArchiveLock(archive);
+      const closeFailure = new Error("synthetic close failure");
+      const close = failNextClose(closeFailure);
+      try {
+        await expect(archive.withExclusiveLock(async () => undefined)).rejects.toMatchObject({
+          name: "CatalogPublicationError",
+          code: "conflict",
+          cause: closeFailure,
+        });
+        expect(close).toHaveBeenCalledOnce();
+      } finally {
+        close.mockRestore();
+        await release();
+      }
+    });
+  });
+
+  it("keeps an open failure with the close failure as its cause", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const openFailure = new Error("synthetic open failure");
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec(openFailure);
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBe(openFailure);
+        await expect(rejection).rejects.toMatchObject({ cause: closeFailure });
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
+      }
+    });
+  });
+
+  it("reports both failures when the open failure already has a cause", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const openCause = new Error("synthetic open cause");
+      const openFailure = new Error("synthetic open failure", { cause: openCause });
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec(openFailure);
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBeInstanceOf(AggregateError);
+        await expect(rejection).rejects.toHaveProperty("errors", [openFailure, closeFailure]);
+        expect(openFailure.cause).toBe(openCause);
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
+      }
+    });
+  });
+
+  it("reports both failures when the open failure is not an Error", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec("synthetic open failure");
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBeInstanceOf(AggregateError);
+        await expect(rejection).rejects.toHaveProperty("errors", [
+          "synthetic open failure",
+          closeFailure,
+        ]);
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
+      }
     });
   });
 
@@ -354,10 +456,7 @@ describe("private model catalog archive", () => {
       const markerPath = join(archivePath, ".deployment-in-progress.json");
       const archive = new ModelCatalogArchive(archivePath);
       await archive.withExclusiveLock(async (locked) => locked.markDeploymentStarted(Date.now()));
-      writeFileSync(
-        markerPath,
-        JSON.stringify({ startedAt: Date.now() }),
-      );
+      writeFileSync(markerPath, JSON.stringify({ startedAt: Date.now() }));
       await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
         "interrupted model catalog deployment may still be running",
       );

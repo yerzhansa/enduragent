@@ -103,12 +103,7 @@ const DEPLOYMENT_MARKER_FILE = ".deployment-in-progress.json";
 const DEPLOYMENT_RECOVERY_GRACE_MS = 15 * 60 * 1_000;
 
 function sqliteIsLocked(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "errcode" in error &&
-    error.errcode === 5
-  );
+  return typeof error === "object" && error !== null && "errcode" in error && error.errcode === 5;
 }
 
 async function clearInterruptedDeployment(markerPath: string): Promise<void> {
@@ -268,13 +263,21 @@ export class ModelCatalogArchive {
       database = new DatabaseSync(join(this.root, LOCK_DATABASE_FILE));
       database.exec("PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE");
     } catch (error) {
+      const failure = sqliteIsLocked(error)
+        ? new CatalogPublicationError("conflict", "the model catalog archive is locked")
+        : error;
       try {
         database?.close();
-      } catch {}
-      if (sqliteIsLocked(error)) {
-        throw new CatalogPublicationError("conflict", "the model catalog archive is locked");
+      } catch (closeError) {
+        if (!(failure instanceof Error) || failure.cause !== undefined) {
+          throw new AggregateError(
+            [failure, closeError],
+            "the model catalog archive lock failed and did not close",
+          );
+        }
+        failure.cause = closeError;
       }
-      throw error;
+      throw failure;
     }
     const deploymentMarkerPath = join(this.root, DEPLOYMENT_MARKER_FILE);
     const outcome = await clearInterruptedDeployment(deploymentMarkerPath)
