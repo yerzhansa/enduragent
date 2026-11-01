@@ -1,5 +1,14 @@
 # @enduragent/coach
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [12d83db]
+  - @enduragent/engine@0.0.8
+  - @enduragent/core@0.1.10
+  - @enduragent/sport-cycling@0.0.12
+
 ## 0.1.6
 
 ### Patch Changes

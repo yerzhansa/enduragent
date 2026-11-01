@@ -1,5 +1,12 @@
 # @enduragent/core
 
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies [12d83db]
+  - @enduragent/engine@0.0.8
+
 ## 0.1.9
 
 ### Patch Changes

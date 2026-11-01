@@ -1,5 +1,18 @@
 # @enduragent/desktop
 
+## 0.5.10
+
+### Patch Changes
+
+- 4cdb8f3: User-facing: The Mac app has a new icon, three riders in an echelon, in the Dock and the menu bar.
+
+  Replaces the teal "e" app icon with the E0 mark on Asphalt. `app-icon.png` and `app-icon.svg` now follow the macOS icon grid (an 824 px rounded square with a shadow on a 1024 px canvas), and the menu-bar templates are drawn on whole pixels at 16 and 32 px. Windows icons now come from the full-bleed `app-icon-windows.png`, so the 16 px tray frame is not shrunk by the macOS padding. The README header shows the horizontal lockup, with a light and a dark version.
+
+- 8798eb3: Bump Electron from 44.4.3 to 44.9.1 to fix a pointer-lock permission request that could be attributed to the wrong frame. Bump Vite from 7.3.6 to 7.3.7 in `apps/desktop` and `apps/desktop-renderer` to pick up the patched `launch-editor`, which fixes three Windows advisories in the dev server's open-in-editor route. Vite runs only during development and builds, so the Vite bump does not change the shipped app.
+- 0f98543: Correct the two `@resvg/resvg-js` 2.6.2 Windows integrity hashes in `pnpm-lock.yaml` so pnpm installs `@resvg/resvg-js-win32-x64-msvc` on Windows, and let the Windows package verifier accept that one native module, which electron-builder unpacks to `app.asar.unpacked`. The verifier accepts it only at `node_modules/@resvg/resvg-js-win32-x64-msvc/resvgjs.win32-x64-msvc.node`, in the ASAR index and on disk, only as an x64 PE binary, and only when a runtime package declares `@resvg/resvg-js`. Every other native module is still rejected. Without the binary, the Telegram workout review could not render its chart on Windows.
+  - @enduragent/coach@0.1.7
+  - @enduragent/core@0.1.10
+
 ## 0.5.9
 
 ### Patch Changes
