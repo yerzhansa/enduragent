@@ -180,8 +180,6 @@
     "packages/cycling-coach/tests/binary-fixture-parity.test.ts": 3,
     "packages/cycling-coach/tests/migration-integration.test.ts": 5,
     "packages/cycling-coach/tsup.config.ts": 8,
-    "packages/duathlon-coach/src/index.ts": 1,
-    "packages/duathlon-coach/tsup.config.ts": 4,
     "packages/engine/src/agent/coach-agent.ts": 133,
     "packages/engine/src/agent/codex-bridge.ts": 24,
     "packages/engine/src/agent/codex/cost.ts": 13,
@@ -322,7 +320,6 @@
     "packages/kernel/tests/reference-rounding.test.ts": 22,
     "packages/kernel/tests/reference-seasonal-context.test.ts": 4,
     "packages/kernel/tests/reference-statistics.test.ts": 14,
-    "packages/running-coach/tsup.config.ts": 6,
     "packages/sport-cycling/src/feasibility.ts": 18,
     "packages/sport-cycling/src/intervals-serializer.ts": 3,
     "packages/sport-cycling/src/migrate.ts": 1,
@@ -348,7 +345,6 @@
     "packages/sport-cycling/tests/reference/fixtures/cycling-fixtures.test.ts": 15,
     "packages/sport-cycling/tsup.config.ts": 3,
     "packages/sport-cycling/vitest.config.ts": 1,
-    "packages/sport-duathlon/src/index.ts": 1,
     "packages/sport-running/src/intervals-serializer.ts": 32,
     "packages/sport-running/src/reference/running-adapter.ts": 4,
     "packages/sport-running/src/schemas.ts": 17,
@@ -361,7 +357,6 @@
     "packages/sport-running/tests/toolset-token-ceiling.test.ts": 3,
     "packages/sport-running/tests/zones.test.ts": 5,
     "packages/sport-running/tsup.config.ts": 3,
-    "packages/sync-intervals-icu/src/analytics-curve-projection.ts": 3,
     "tools/build-capability-fixture.ts": 59,
     "tools/build-dfa-fixture.ts": 70,
     "tools/build-running-fixture.ts": 86,
@@ -610,8 +605,7 @@
     "packages/kernel-node/src/lock/acquire.ts": 1,
     "packages/kernel-node/src/planning/legacy-plan-summary.ts": 1,
     "packages/kernel-node/src/service/launchd-plist.ts": 2,
-    "packages/kernel-node/tests/launchd-service-live.test.ts": 2,
-    "tools/model-catalog-archive.ts": 1
+    "packages/kernel-node/tests/launchd-service-live.test.ts": 2
   },
   "no-empty-function": {
     "apps/desktop-renderer/src/boot.ts": 1,
@@ -738,8 +732,7 @@
     "packages/kernel-node/src/lock/acquire.ts": 1,
     "packages/kernel-node/src/store/authored-identity.ts": 1,
     "packages/kernel/src/chat-attachments/repository.ts": 1,
-    "tools/extract-bundled-model-catalog.ts": 1,
-    "tools/model-catalog-release-pin.ts": 1
+    "tools/extract-bundled-model-catalog.ts": 1
   },
   "typescript/ban-ts-comment": {
     "packages/kernel-node/src/chat-attachments/document-reader-worker.ts": 1,
@@ -879,7 +872,6 @@
     "packages/sport-cycling/src/workout-import/parser.ts": 6,
     "packages/sport-running/src/intervals-serializer.ts": 3,
     "packages/sync-file-import/src/index.ts": 2,
-    "packages/sync-intervals-icu/src/analytics-curve-projection.ts": 6,
     "packages/sync-intervals-icu/src/analytics-curves.ts": 1,
     "packages/sync-intervals-icu/src/zip.ts": 2,
     "tools/check-contract-deps.ts": 1,
