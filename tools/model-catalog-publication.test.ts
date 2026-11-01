@@ -384,10 +384,7 @@ describe("private model catalog archive", () => {
       const markerPath = join(archivePath, ".deployment-in-progress.json");
       const archive = new ModelCatalogArchive(archivePath);
       await archive.withExclusiveLock(async (locked) => locked.markDeploymentStarted(Date.now()));
-      writeFileSync(
-        markerPath,
-        JSON.stringify({ startedAt: Date.now() }),
-      );
+      writeFileSync(markerPath, JSON.stringify({ startedAt: Date.now() }));
       await expect(archive.withExclusiveLock(async () => undefined)).rejects.toThrow(
         "interrupted model catalog deployment may still be running",
       );

@@ -103,12 +103,7 @@ const DEPLOYMENT_MARKER_FILE = ".deployment-in-progress.json";
 const DEPLOYMENT_RECOVERY_GRACE_MS = 15 * 60 * 1_000;
 
 function sqliteIsLocked(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "errcode" in error &&
-    error.errcode === 5
-  );
+  return typeof error === "object" && error !== null && "errcode" in error && error.errcode === 5;
 }
 
 async function clearInterruptedDeployment(markerPath: string): Promise<void> {

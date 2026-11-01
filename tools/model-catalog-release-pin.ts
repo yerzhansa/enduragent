@@ -33,7 +33,8 @@ const RevisionField = z.number().int().positive().safe();
 export const BundledSeedProvenanceSchema = z
   .object({
     kind: z.literal("bundled-seed"),
-    establishedAt: IsoTimestampField })
+    establishedAt: IsoTimestampField,
+  })
   .strict();
 
 export const BundledSeedSnapshotSchema = ModelCatalogSnapshotSchema.extend({
@@ -399,7 +400,10 @@ function parseGeneratedSeedSource(contents: string) {
   try {
     return ModelCatalogSnapshotSchema.parse(
       JSON.parse(
-        contents.slice(GENERATED_SEED_PREFIX.length, contents.length - GENERATED_SEED_SUFFIX.length),
+        contents.slice(
+          GENERATED_SEED_PREFIX.length,
+          contents.length - GENERATED_SEED_SUFFIX.length,
+        ),
       ),
     );
   } catch {
