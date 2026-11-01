@@ -269,7 +269,7 @@ export class ModelCatalogArchive {
       try {
         database?.close();
       } catch (closeError) {
-        if (!(failure instanceof Error)) {
+        if (!(failure instanceof Error) || failure.cause !== undefined) {
           throw new AggregateError(
             [failure, closeError],
             "the model catalog archive lock failed and did not close",

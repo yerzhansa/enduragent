@@ -325,6 +325,22 @@ async function holdArchiveLock(archive: ModelCatalogArchive): Promise<() => Prom
   };
 }
 
+function failNextClose(failure: Error) {
+  const realClose = DatabaseSync.prototype.close;
+  return vi
+    .spyOn(DatabaseSync.prototype, "close")
+    .mockImplementationOnce(function (this: DatabaseSync) {
+      realClose.call(this);
+      throw failure;
+    });
+}
+
+function failNextExec(failure: unknown) {
+  return vi.spyOn(DatabaseSync.prototype, "exec").mockImplementationOnce(() => {
+    throw failure;
+  });
+}
+
 describe("private model catalog archive", () => {
   it("keeps publication records and receipts immutable", async () => {
     await withTemporaryDirectory(async (directory) => {
@@ -361,9 +377,7 @@ describe("private model catalog archive", () => {
       const archive = new ModelCatalogArchive(join(directory, "private-archive"));
       const release = await holdArchiveLock(archive);
       const closeFailure = new Error("synthetic close failure");
-      const close = vi.spyOn(DatabaseSync.prototype, "close").mockImplementationOnce(() => {
-        throw closeFailure;
-      });
+      const close = failNextClose(closeFailure);
       try {
         await expect(archive.withExclusiveLock(async () => undefined)).rejects.toMatchObject({
           name: "CatalogPublicationError",
@@ -374,6 +388,64 @@ describe("private model catalog archive", () => {
       } finally {
         close.mockRestore();
         await release();
+      }
+    });
+  });
+
+  it("keeps an open failure with the close failure as its cause", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const openFailure = new Error("synthetic open failure");
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec(openFailure);
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBe(openFailure);
+        await expect(rejection).rejects.toMatchObject({ cause: closeFailure });
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
+      }
+    });
+  });
+
+  it("reports both failures when the open failure already has a cause", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const openCause = new Error("synthetic open cause");
+      const openFailure = new Error("synthetic open failure", { cause: openCause });
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec(openFailure);
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBeInstanceOf(AggregateError);
+        await expect(rejection).rejects.toHaveProperty("errors", [openFailure, closeFailure]);
+        expect(openFailure.cause).toBe(openCause);
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
+      }
+    });
+  });
+
+  it("reports both failures when the open failure is not an Error", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const archive = new ModelCatalogArchive(join(directory, "private-archive"));
+      const closeFailure = new Error("synthetic close failure");
+      const exec = failNextExec("synthetic open failure");
+      const close = failNextClose(closeFailure);
+      try {
+        const rejection = archive.withExclusiveLock(async () => undefined);
+        await expect(rejection).rejects.toBeInstanceOf(AggregateError);
+        await expect(rejection).rejects.toHaveProperty("errors", [
+          "synthetic open failure",
+          closeFailure,
+        ]);
+      } finally {
+        exec.mockRestore();
+        close.mockRestore();
       }
     });
   });
