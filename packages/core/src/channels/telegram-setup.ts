@@ -1,4 +1,5 @@
 import { Api } from "grammy";
+import { telegramApiClientOptions } from "./telegram-proxy.js";
 
 export type TelegramCredentialInspectionResult =
   | { readonly status: "ready"; readonly bot: { readonly id: number; readonly username: string } }
@@ -20,7 +21,7 @@ export interface TelegramSetupDependencies {
 }
 
 const DEFAULT_DEPENDENCIES: TelegramSetupDependencies = {
-  createApi: (token) => new Api(token),
+  createApi: (token) => new Api(token, telegramApiClientOptions),
 };
 
 const INVALID_TOKEN = Object.freeze({ status: "invalid-token" } as const);

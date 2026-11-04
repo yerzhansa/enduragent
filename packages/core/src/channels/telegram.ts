@@ -29,6 +29,7 @@ import {
 import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./telegram-host.js";
 import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
 import { deliverTelegramWorkoutReview } from "./telegram-workout-review.js";
+import { telegramApiClientOptions } from "./telegram-proxy.js";
 
 // Debounce window for coalescing rapid free-form message fragments from one
 // chat into a single turn. Each new fragment resets the window; the buffered
@@ -149,7 +150,7 @@ function createSecuredBot(opts: {
   onPollingSuccess?: () => void;
   onPollingFailure?: () => void;
 }): { readonly bot: Bot; readonly prepareStart: () => void } {
-  const bot = new Bot(opts.token);
+  const bot = new Bot(opts.token, { client: telegramApiClientOptions });
   let suppressImplicitWebhookDeletion = false;
 
   // Bounded API-level retry restricted to a Telegram 429 carrying a `retry_after`
