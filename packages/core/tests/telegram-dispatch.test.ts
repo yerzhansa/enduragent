@@ -1,6 +1,6 @@
 import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
@@ -165,6 +165,15 @@ function getMessageText(bot: FakeBot) {
   const call = bot.on.mock.calls.find((c: unknown[]) => c[0] === "message:text");
   if (!call) throw new Error("message:text handler not registered");
   return call[1] as (ctx: unknown) => Promise<void>;
+}
+
+function loggedEvents(): Array<{ readonly level: string; readonly event: string }> {
+  const path = join(dataDir, "logs", "log.jsonl");
+  if (!existsSync(path)) return [];
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as { level: string; event: string });
 }
 
 function getCallbackQueryData(bot: FakeBot) {
@@ -836,6 +845,43 @@ describe("confirmation callbacks", () => {
     expect(ctx.reply).toHaveBeenCalledWith("Done — Delete workout.");
   });
 
+  it("logs a failed keyboard cleanup on a confirmation tap and still confirms", async () => {
+    const { bot, agent, drainPending } = await buildBot();
+    agent.confirmations.confirm.mockResolvedValue({
+      status: "executed",
+      summary: "Delete workout",
+      result: { deleted: true },
+    });
+    const ctx = callbackCtx("cg:y:server-nonce");
+    ctx.editMessageReplyMarkup.mockRejectedValueOnce(new Error("message is not modified"));
+    await getCallbackQueryData(bot)(ctx);
+    await drainPending();
+    expect(loggedEvents()).toContainEqual(
+      expect.objectContaining({ level: "warn", event: "keyboard_removal_failed" }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith("Done — Delete workout.");
+  });
+
+  it("logs a failed keyboard cleanup on a workout approval tap and still delivers the outcome", async () => {
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => null),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "All changes saved.",
+      })),
+    };
+    const { bot, drainPending } = await buildBot({ workoutApprovals: approvals });
+    const ctx = callbackCtx("wc:approve:synthetic_approval_123456");
+    ctx.editMessageReplyMarkup.mockRejectedValueOnce(new Error("message is not modified"));
+    await getCallbackQueryData(bot)(ctx);
+    await drainPending();
+    expect(loggedEvents()).toContainEqual(
+      expect.objectContaining({ level: "warn", event: "keyboard_removal_failed" }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith("All changes saved.", { parse_mode: "HTML" });
+  });
+
   it("cancels and maps unknown or expired proposals to safe copy", async () => {
     const { bot, agent, drainPending } = await buildBot();
     const handler = getCallbackQueryData(bot);
@@ -1292,6 +1338,17 @@ describe("typing-indicator heartbeat", () => {
       await new Promise((r) => setTimeout(r, 0));
       expect(onError).toHaveBeenCalledTimes(1);
       expect(() => stop()).not.toThrow();
+    });
+
+    it("surfaces a failing onError through stop instead of dropping it", async () => {
+      const stop = startTypingHeartbeat(
+        () => Promise.reject(new Error("pulse boom")),
+        10_000,
+        () => {
+          throw new Error("handler boom");
+        },
+      );
+      await expect(stop()).rejects.toThrow("handler boom");
     });
 
     it("unrefs the interval on start and clears exactly that timer on stop", () => {

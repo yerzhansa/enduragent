@@ -87,11 +87,7 @@ export function startTypingHeartbeat(
     if (inFlight !== undefined) return;
     const task = Promise.resolve()
       .then(pulse)
-      .catch((error) => {
-        try {
-          onError(error);
-        } catch {}
-      })
+      .catch(onError)
       .then(() => undefined)
       .finally(() => {
         if (inFlight === task) inFlight = undefined;
@@ -362,15 +358,22 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     } else {
       started = predecessor.then(begin);
     }
-    const tail = started.then(
-      () => undefined,
-      () => undefined,
-    );
+    const tail = Promise.allSettled([started]).then(() => undefined);
     engineStartTails.set(chatId, tail);
     void tail.then(() => {
       if (engineStartTails.get(chatId) === tail) engineStartTails.delete(chatId);
     });
     return started.then(({ result }) => result);
+  };
+  const removeKeyboard = async (
+    ctx: { readonly editMessageReplyMarkup: () => Promise<unknown> },
+    chatId: string,
+  ): Promise<void> => {
+    try {
+      await ctx.editMessageReplyMarkup();
+    } catch (err) {
+      log.warn("keyboard_removal_failed", err, { chatId });
+    }
   };
   const dispatch = (work: () => Promise<void>): void => {
     void ledger.track(async () => {
@@ -842,7 +845,8 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   });
 
-  if (host.operations !== undefined) {
+  const operations = host.operations;
+  if (operations !== undefined) {
     bot.command("sync", async (ctx) => {
       const phrasebook = await phrasebookForContext(ctx);
       const chatId = `telegram:${ctx.chat.id}`;
@@ -851,7 +855,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
         ctx.reply(phrasebook.say(msg("telegram.sync.working", { service: "intervals.icu" }))),
       );
       try {
-        const result = await reservation.run(() => host.operations!.sync({ chatId, phrasebook }));
+        const result = await reservation.run(() => operations.sync({ chatId, phrasebook }));
         await ctx.reply(result.text);
       } catch (err) {
         log.error("command_failed", err, { command: "sync", chatId });
@@ -860,7 +864,8 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     });
   }
 
-  if (host.diagnostics !== undefined) {
+  const diagnostics = host.diagnostics;
+  if (diagnostics !== undefined) {
     bot.command("snapshot", async (ctx) => {
       const phrasebook = await phrasebookForContext(ctx);
       const args = (ctx.match ?? "").trim().split(/\s+/).filter(Boolean);
@@ -881,7 +886,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
           return;
         }
         const section = args[1];
-        const output = await host.diagnostics!.rawSnapshot(
+        const output = await diagnostics.rawSnapshot(
           section === undefined ? { phrasebook } : { section, phrasebook },
         );
         try {
@@ -1121,9 +1126,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
           language: phrasebook.tag,
         }),
       );
-      try {
-        await ctx.editMessageReplyMarkup();
-      } catch {}
+      await removeKeyboard(ctx, chatId);
       await sendLongMessage(ctx, outcome.text, undefined, "plain");
       await presentWorkoutReview(ctx, chatId, phrasebook);
     });
@@ -1139,11 +1142,7 @@ export function createTelegramBot(input: CreateTelegramChannelInput): TelegramCh
     const chatId = `telegram:${ctx.chat.id}`;
     const reservation = reserveInvocation(chatId);
     await acknowledgeBeforeInvocation(reservation, () => ctx.answerCallbackQuery());
-    try {
-      await ctx.editMessageReplyMarkup();
-    } catch {
-      // Best-effort keyboard cleanup must not block resolution.
-    }
+    await removeKeyboard(ctx, chatId);
     const choice = match[1];
     const nonce = match[2] ?? "";
     dispatch(async () => {
