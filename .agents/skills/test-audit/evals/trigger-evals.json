@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Add a regression test for the weekly Load total double-counting a ride that was edited after sync.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit the packages/sync-intervals-icu tests for duplicates and test-only exports we can delete.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run a test-pruning campaign over the apps/desktop-renderer Settings tests.",
+    "should_trigger": true
+  },
+  {
+    "query": "Look at the tests in this change. Are any of them just re-asserting the implementation?",
+    "should_trigger": true
+  },
+  {
+    "query": "Verify the Settings connections flow in the running desktop app and capture screenshots.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review this diff for security issues in the desktop IPC handlers.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename the Fitness chart legend label in the Training page.",
+    "should_trigger": false
+  }
+]

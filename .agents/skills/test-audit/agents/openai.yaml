@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Audit"
+  short_description: "Gate new tests and prune low-value ones"
+  default_prompt: "Use $test-audit to check the tests in the current change against the authoring gate and junk patterns."

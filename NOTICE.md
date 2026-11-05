@@ -358,3 +358,48 @@ The checklist links point at `references/` inside this skill, because a single-s
 install does not include the upstream `references/` directory. Invocation is explicit:
 Cursor `disable-model-invocation` and Codex `agents/openai.yaml` with
 `allow_implicit_invocation: false`.
+
+---
+
+## OpenClaw test-audit skill (MIT)
+
+The project-local `.agents/skills/test-audit` skill adapts
+[`test-audit`](https://github.com/openclaw/openclaw/tree/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit)
+from [openclaw/openclaw](https://github.com/openclaw/openclaw) by the OpenClaw Foundation,
+distributed under the MIT License.
+
+### Original license (verbatim)
+
+```
+MIT License
+
+Copyright (c) 2026 OpenClaw Foundation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Third-party notices for incorporated or adapted code are recorded in
+THIRD_PARTY_NOTICES.md.
+```
+
+### Modifications introduced
+
+The local copy replaces OpenClaw test runners, gates, review and landing skills, discovery
+lanes, and contract categories with this repository's equivalents. Examples name Enduragent
+packages, and the campaign guide drops upstream subsystem anecdotes. The
+`THIRD_PARTY_NOTICES.md` named in the license text is a file in the upstream repository.
