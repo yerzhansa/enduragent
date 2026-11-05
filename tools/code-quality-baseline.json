@@ -495,7 +495,7 @@
     "packages/core/src/agent/chat-store.ts": 1516,
     "packages/core/src/agent/transcript-store.ts": 2934,
     "packages/core/src/channels/allowed-senders.ts": 1429,
-    "packages/core/src/channels/telegram.ts": 1394,
+    "packages/core/src/channels/telegram.ts": 1383,
     "packages/core/src/model-catalog-seed.generated.ts": 886,
     "packages/core/src/setup.ts": 1365,
     "packages/engine/src/agent/claude-cli/session.ts": 850,

@@ -1,7 +1,6 @@
 import { telegramReleaseMessage } from "./telegram-copy.js";
 import { languageKeyboard, parseLanguageCallback } from "./telegram-language-menu.js";
-import { Bot, GrammyError, InputFile } from "grammy";
-import { autoRetry } from "@grammyjs/auto-retry";
+import { GrammyError, InputFile, type Bot } from "grammy";
 import {
   ATHLETE_FEEDBACK_MAX_TEXT_CHARS,
   prepareFeedbackText,
@@ -30,6 +29,7 @@ import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./
 import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
 import { deliverTelegramWorkoutReview } from "./telegram-workout-review.js";
 import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "./telegram-typing.js";
+import { createRateLimitRetryingBot } from "./telegram-transport.js";
 
 export const CHAT_COALESCE_MS = 1_500;
 
@@ -43,8 +43,6 @@ const DELIVERY_FAILURE_HINT = msg("telegram.error.delivery", {
 });
 
 const GENERIC_TRANSPORT_APOLOGY = msg("telegram.error.transport");
-
-const COMMAND_ACK_MAX_RETRY_DELAY_SECONDS = 5;
 
 const SELF_UPDATE_MARKER_FAILURE = msg("telegram.update.prepareFailed", { command: "/update" });
 
@@ -82,17 +80,8 @@ function createSecuredBot(opts: {
   onPollingSuccess?: () => void;
   onPollingFailure?: () => void;
 }): { readonly bot: Bot; readonly prepareStart: () => void } {
-  const bot = new Bot(opts.token);
+  const bot = createRateLimitRetryingBot(opts.token, process.env);
   let suppressImplicitWebhookDeletion = false;
-
-  bot.api.config.use(
-    autoRetry({
-      maxRetryAttempts: 1,
-      maxDelaySeconds: COMMAND_ACK_MAX_RETRY_DELAY_SECONDS,
-      rethrowInternalServerErrors: true,
-      rethrowHttpErrors: true,
-    }),
-  );
 
   if (opts.webhookPolicy === "preserve") {
     bot.api.config.use((previous, method, payload, signal) => {
