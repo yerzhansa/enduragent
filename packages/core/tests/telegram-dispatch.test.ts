@@ -399,7 +399,6 @@ describe("agent-backed commands", () => {
       const ctx = makeCtx();
       await getCommand(bot, name)(ctx);
       await drainPending();
-      // No reference wired in this buildBot() → no per-turn anchor passed.
       expect(agent.chat).toHaveBeenCalledWith(
         expect.objectContaining({
           chatId: "telegram:777",
@@ -1042,7 +1041,6 @@ describe("retry transformer / classified errors / delivery split", () => {
       true,
     );
 
-    // The resend cache was written before delivery, so a follow-up resend re-emits it.
     const ctx2 = makeCtx({ message: { text: "resend" } });
     await getMessageText(bot)(ctx2);
     await drainPending();
@@ -1251,19 +1249,16 @@ describe("typing-indicator heartbeat", () => {
 
       await getMessageText(bot)(ctx);
 
-      // Flush the immediate pulse microtask (fires before any interval elapses).
       await vi.advanceTimersByTimeAsync(0);
       expect(ctx.replyWithChatAction).toHaveBeenCalledWith("typing");
       const afterImmediate = ctx.replyWithChatAction.mock.calls.length;
       expect(afterImmediate).toBeGreaterThanOrEqual(1);
 
-      // One interval → at least one more pulse; and a second interval → another.
       await vi.advanceTimersByTimeAsync(TYPING_HEARTBEAT_MS);
       await vi.advanceTimersByTimeAsync(TYPING_HEARTBEAT_MS);
       expect(ctx.replyWithChatAction.mock.calls.length).toBeGreaterThanOrEqual(afterImmediate + 2);
       expect(TYPING_HEARTBEAT_MS).toBeLessThanOrEqual(5_000);
 
-      // Let the turn finish so no fake interval leaks past the test.
       resolveChat({ text: "done" });
       await drainPending();
     });
@@ -1316,7 +1311,6 @@ describe("typing-indicator heartbeat", () => {
       await getMessageText(bot)(ctx);
       await drainPending();
 
-      // The reply still lands unchanged despite every pulse rejecting.
       expect(someReply(ctx, "the delivered answer")).toBe(true);
       const htmlReply = ctx.reply.mock.calls.find(
         (c: unknown[]) => (c[1] as { parse_mode?: string } | undefined)?.parse_mode === "HTML",
@@ -1333,8 +1327,6 @@ describe("typing-indicator heartbeat", () => {
         10_000,
         onError,
       );
-      // Drain all pending microtasks (a rejected thenable adoption spans several
-      // ticks) so the immediate best-effort pulse settles into .catch(onError).
       await new Promise((r) => setTimeout(r, 0));
       expect(onError).toHaveBeenCalledTimes(1);
       expect(() => stop()).not.toThrow();
@@ -1388,16 +1380,12 @@ describe("typing-indicator heartbeat", () => {
         );
         const stop = startTypingHeartbeat(pulse, 10_000, () => {});
 
-        // The immediate beat fires exactly one pulse, which stays pending.
         await vi.advanceTimersByTimeAsync(0);
         expect(pulse).toHaveBeenCalledTimes(1);
 
-        // Several intervals elapse while that pulse is parked — every tick is
-        // skipped by the in-flight guard, so still only the one pulse.
         await vi.advanceTimersByTimeAsync(10_000 * 3);
         expect(pulse).toHaveBeenCalledTimes(1);
 
-        // Settle the parked pulse; the guard releases and the next tick beats.
         settle();
         await vi.advanceTimersByTimeAsync(0);
         await vi.advanceTimersByTimeAsync(10_000);
@@ -1570,8 +1558,6 @@ describe("/update — ordering invariant", () => {
     expect(selfUpdate).not.toHaveBeenCalled();
 
     releaseStop();
-    // /update chains stop → generation drain → selfUpdate; drain the
-    // microtask queue until selfUpdate is reached.
     for (let i = 0; i < 10; i++) await Promise.resolve();
 
     expect(selfUpdate).toHaveBeenCalledWith("cycling-coach", "2026.5.10");
