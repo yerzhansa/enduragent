@@ -1,11 +1,11 @@
 import { createNpmCoachLanguage } from "../src/language-preference.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
-import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram.js";
+import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram-typing.js";
 import { splitWorkoutCardContent } from "../src/channels/telegram-workout-review.js";
 
 import {
@@ -165,6 +165,15 @@ function getMessageText(bot: FakeBot) {
   const call = bot.on.mock.calls.find((c: unknown[]) => c[0] === "message:text");
   if (!call) throw new Error("message:text handler not registered");
   return call[1] as (ctx: unknown) => Promise<void>;
+}
+
+function loggedEvents(): Array<{ readonly level: string; readonly event: string }> {
+  const path = join(dataDir, "logs", "log.jsonl");
+  if (!existsSync(path)) return [];
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as { level: string; event: string });
 }
 
 function getCallbackQueryData(bot: FakeBot) {
@@ -390,7 +399,6 @@ describe("agent-backed commands", () => {
       const ctx = makeCtx();
       await getCommand(bot, name)(ctx);
       await drainPending();
-      // No reference wired in this buildBot() → no per-turn anchor passed.
       expect(agent.chat).toHaveBeenCalledWith(
         expect.objectContaining({
           chatId: "telegram:777",
@@ -836,6 +844,43 @@ describe("confirmation callbacks", () => {
     expect(ctx.reply).toHaveBeenCalledWith("Done — Delete workout.");
   });
 
+  it("logs a failed keyboard cleanup on a confirmation tap and still confirms", async () => {
+    const { bot, agent, drainPending } = await buildBot();
+    agent.confirmations.confirm.mockResolvedValue({
+      status: "executed",
+      summary: "Delete workout",
+      result: { deleted: true },
+    });
+    const ctx = callbackCtx("cg:y:server-nonce");
+    ctx.editMessageReplyMarkup.mockRejectedValueOnce(new Error("message is not modified"));
+    await getCallbackQueryData(bot)(ctx);
+    await drainPending();
+    expect(loggedEvents()).toContainEqual(
+      expect.objectContaining({ level: "warn", event: "keyboard_removal_failed" }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith("Done — Delete workout.");
+  });
+
+  it("logs a failed keyboard cleanup on a workout approval tap and still delivers the outcome", async () => {
+    const approvals: WorkoutApprovalChannel = {
+      review: vi.fn(async () => null),
+      acknowledgeDelivery: vi.fn<WorkoutApprovalChannel["acknowledgeDelivery"]>(async () => null),
+      resolve: vi.fn<WorkoutApprovalChannel["resolve"]>(async () => ({
+        kind: "completed",
+        text: "All changes saved.",
+      })),
+    };
+    const { bot, drainPending } = await buildBot({ workoutApprovals: approvals });
+    const ctx = callbackCtx("wc:approve:synthetic_approval_123456");
+    ctx.editMessageReplyMarkup.mockRejectedValueOnce(new Error("message is not modified"));
+    await getCallbackQueryData(bot)(ctx);
+    await drainPending();
+    expect(loggedEvents()).toContainEqual(
+      expect.objectContaining({ level: "warn", event: "keyboard_removal_failed" }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith("All changes saved.", { parse_mode: "HTML" });
+  });
+
   it("cancels and maps unknown or expired proposals to safe copy", async () => {
     const { bot, agent, drainPending } = await buildBot();
     const handler = getCallbackQueryData(bot);
@@ -996,7 +1041,6 @@ describe("retry transformer / classified errors / delivery split", () => {
       true,
     );
 
-    // The resend cache was written before delivery, so a follow-up resend re-emits it.
     const ctx2 = makeCtx({ message: { text: "resend" } });
     await getMessageText(bot)(ctx2);
     await drainPending();
@@ -1205,19 +1249,16 @@ describe("typing-indicator heartbeat", () => {
 
       await getMessageText(bot)(ctx);
 
-      // Flush the immediate pulse microtask (fires before any interval elapses).
       await vi.advanceTimersByTimeAsync(0);
       expect(ctx.replyWithChatAction).toHaveBeenCalledWith("typing");
       const afterImmediate = ctx.replyWithChatAction.mock.calls.length;
       expect(afterImmediate).toBeGreaterThanOrEqual(1);
 
-      // One interval → at least one more pulse; and a second interval → another.
       await vi.advanceTimersByTimeAsync(TYPING_HEARTBEAT_MS);
       await vi.advanceTimersByTimeAsync(TYPING_HEARTBEAT_MS);
       expect(ctx.replyWithChatAction.mock.calls.length).toBeGreaterThanOrEqual(afterImmediate + 2);
       expect(TYPING_HEARTBEAT_MS).toBeLessThanOrEqual(5_000);
 
-      // Let the turn finish so no fake interval leaks past the test.
       resolveChat({ text: "done" });
       await drainPending();
     });
@@ -1270,7 +1311,6 @@ describe("typing-indicator heartbeat", () => {
       await getMessageText(bot)(ctx);
       await drainPending();
 
-      // The reply still lands unchanged despite every pulse rejecting.
       expect(someReply(ctx, "the delivered answer")).toBe(true);
       const htmlReply = ctx.reply.mock.calls.find(
         (c: unknown[]) => (c[1] as { parse_mode?: string } | undefined)?.parse_mode === "HTML",
@@ -1287,11 +1327,21 @@ describe("typing-indicator heartbeat", () => {
         10_000,
         onError,
       );
-      // Drain all pending microtasks (a rejected thenable adoption spans several
-      // ticks) so the immediate best-effort pulse settles into .catch(onError).
       await new Promise((r) => setTimeout(r, 0));
       expect(onError).toHaveBeenCalledTimes(1);
       expect(() => stop()).not.toThrow();
+    });
+
+    it("surfaces a failing onError through stop instead of dropping it", async () => {
+      const stop = startTypingHeartbeat(
+        () => Promise.reject(new Error("pulse boom")),
+        10_000,
+        () => {
+          throw new Error("handler boom");
+        },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await expect(stop()).rejects.toThrow("handler boom");
     });
 
     it("unrefs the interval on start and clears exactly that timer on stop", () => {
@@ -1331,16 +1381,12 @@ describe("typing-indicator heartbeat", () => {
         );
         const stop = startTypingHeartbeat(pulse, 10_000, () => {});
 
-        // The immediate beat fires exactly one pulse, which stays pending.
         await vi.advanceTimersByTimeAsync(0);
         expect(pulse).toHaveBeenCalledTimes(1);
 
-        // Several intervals elapse while that pulse is parked — every tick is
-        // skipped by the in-flight guard, so still only the one pulse.
         await vi.advanceTimersByTimeAsync(10_000 * 3);
         expect(pulse).toHaveBeenCalledTimes(1);
 
-        // Settle the parked pulse; the guard releases and the next tick beats.
         settle();
         await vi.advanceTimersByTimeAsync(0);
         await vi.advanceTimersByTimeAsync(10_000);
@@ -1513,8 +1559,6 @@ describe("/update — ordering invariant", () => {
     expect(selfUpdate).not.toHaveBeenCalled();
 
     releaseStop();
-    // /update chains stop → generation drain → selfUpdate; drain the
-    // microtask queue until selfUpdate is reached.
     for (let i = 0; i < 10; i++) await Promise.resolve();
 
     expect(selfUpdate).toHaveBeenCalledWith("cycling-coach", "2026.5.10");
