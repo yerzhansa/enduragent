@@ -204,4 +204,19 @@ describe("Telegram credential setup", () => {
     expect(client.getWebhookInfo).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain("secret-token");
   });
+
+  it("reports a malformed proxy setting as unavailable instead of failing to load", async () => {
+    vi.stubEnv("HTTPS_PROXY", "http://[bad");
+    vi.resetModules();
+    try {
+      const setup = await import("../src/channels/telegram-setup.js");
+      await expect(setup.inspectTelegramCredential("123:test")).resolves.toEqual({
+        status: "unavailable",
+        errorCode: "telegram-validation-failed",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
 });

@@ -118,7 +118,7 @@ enduragent setup
 enduragent
 ```
 
-Node 22+, macOS or Linux. The wizard walks you through model provider, intervals.icu, and
+Node 22.21+, macOS or Linux. The wizard walks you through model provider, intervals.icu, and
 optionally Telegram.
 
 ### Telegram, around the clock

@@ -3,7 +3,7 @@ import type { Phrasebook } from "@enduragent/i18n/messages";
 import { createNpmCoachLanguage } from "../language-preference.js";
 import { randomBytes } from "node:crypto";
 import { Bot } from "grammy";
-import { telegramApiClientOptions } from "./telegram-proxy.js";
+import { telegramApiClientOptions } from "./telegram-transport.js";
 import type { BinaryConfig } from "../binary.js";
 import {
   defaultPairingState,
@@ -55,7 +55,7 @@ export async function captureAndPersistOperator(opts: CaptureOpts): Promise<Capt
   const book = opts.phrasebook ?? (await createNpmCoachLanguage(opts.dataDir).phrasebookFor({}));
   const log = opts.log ?? ((s: string) => console.log(s));
   const timeoutMs = opts.timeoutMs ?? 60_000;
-  const bot = new Bot(opts.botToken, { client: telegramApiClientOptions });
+  const bot = new Bot(opts.botToken, { client: telegramApiClientOptions(process.env) });
 
   let me: { is_bot: boolean; username?: string };
   try {

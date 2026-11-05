@@ -3,6 +3,8 @@
 "cycling-coach": patch
 ---
 
-Telegram connections now follow HTTP_PROXY and HTTPS_PROXY settings, including NO_PROXY exclusions, during setup, pairing, and normal bot use.
+User-facing: Telegram now works through the network proxy in your `HTTPS_PROXY` setting, including during bot setup and pairing. `NO_PROXY` exclusions are respected.
 
-User-facing: Telegram works through your configured network proxy, including when you set up or pair your bot.
+User-facing: cycling-coach now needs Node.js 22.21 or newer.
+
+The Telegram client passes `proxyEnv` to Node's built-in HTTPS agent, which reads `HTTPS_PROXY` and `NO_PROXY` in upper or lower case for Telegram's HTTPS endpoint. Node added `proxyEnv` in 22.21.0 and 24.5.0, so the engine floor rises to match.
