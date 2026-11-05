@@ -21,9 +21,6 @@
  * line-level `trademark-lint:skip-line` / `skip-next-line` directive (in an
  * HTML comment) exempts a single legitimate token line — for prose that is
  * mostly checkable but carries one ban table — without skipping the whole file.
- *
- * The forbidden-token list lives in `FORBIDDEN_TOKENS` below. Keep it in sync
- * with `CLAUDE.local.md` and `CONTRIBUTING.md`'s "Trademark hygiene" section.
  */
 
 import * as ts from "typescript";
@@ -278,7 +275,7 @@ export function main(argv: readonly string[]): number {
     console.error("  " + formatHit(hit));
   }
   console.error(
-    "\nSubstitute per CLAUDE.local.md / CONTRIBUTING.md " +
+    "\nSubstitute per CONTRIBUTING.md " +
       "(Fitness, Fatigue, Form, Load, Intensity, weighted average power).",
   );
   return 1;
