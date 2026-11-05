@@ -29,6 +29,7 @@ import {
 import type { TelegramHostCapabilities, TelegramInvocationReservation } from "./telegram-host.js";
 import { deliverWorkoutReview, parseWorkoutCallback } from "./workout-approval.js";
 import { deliverTelegramWorkoutReview } from "./telegram-workout-review.js";
+import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "./telegram-typing.js";
 
 export const CHAT_COALESCE_MS = 1_500;
 
@@ -43,35 +44,9 @@ const DELIVERY_FAILURE_HINT = msg("telegram.error.delivery", {
 
 const GENERIC_TRANSPORT_APOLOGY = msg("telegram.error.transport");
 
+const COMMAND_ACK_MAX_RETRY_DELAY_SECONDS = 5;
+
 const SELF_UPDATE_MARKER_FAILURE = msg("telegram.update.prepareFailed", { command: "/update" });
-
-export const TYPING_HEARTBEAT_MS = 4_000;
-
-export function startTypingHeartbeat(
-  pulse: () => Promise<unknown>,
-  intervalMs: number,
-  onError: (err: unknown) => void,
-): () => Promise<void> {
-  let inFlight: Promise<void> | undefined;
-  const beat = () => {
-    if (inFlight !== undefined) return;
-    const task = Promise.resolve()
-      .then(pulse)
-      .catch(onError)
-      .then(() => undefined)
-      .finally(() => {
-        if (inFlight === task) inFlight = undefined;
-      });
-    inFlight = task;
-  };
-  beat();
-  const timer = setInterval(beat, intervalMs);
-  timer.unref?.();
-  return () => {
-    clearInterval(timer);
-    return inFlight ?? Promise.resolve();
-  };
-}
 
 const buildWelcomeMessage = (updateDescription: string): Message =>
   msg("telegram.welcome", {
@@ -113,7 +88,7 @@ function createSecuredBot(opts: {
   bot.api.config.use(
     autoRetry({
       maxRetryAttempts: 1,
-      maxDelaySeconds: 5,
+      maxDelaySeconds: COMMAND_ACK_MAX_RETRY_DELAY_SECONDS,
       rethrowInternalServerErrors: true,
       rethrowHttpErrors: true,
     }),

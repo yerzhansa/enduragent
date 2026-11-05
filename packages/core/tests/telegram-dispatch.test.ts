@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { APICallError } from "@ai-sdk/provider";
 import { cyclingBinary } from "./helpers/cycling-binary-fixture.js";
-import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram.js";
+import { startTypingHeartbeat, TYPING_HEARTBEAT_MS } from "../src/channels/telegram-typing.js";
 import { splitWorkoutCardContent } from "../src/channels/telegram-workout-review.js";
 
 import {
@@ -1340,6 +1340,7 @@ describe("typing-indicator heartbeat", () => {
           throw new Error("handler boom");
         },
       );
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await expect(stop()).rejects.toThrow("handler boom");
     });
 
