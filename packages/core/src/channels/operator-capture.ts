@@ -57,8 +57,6 @@ export async function captureAndPersistOperator(opts: CaptureOpts): Promise<Capt
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const bot = new Bot(opts.botToken, { client: telegramApiClientOptions });
 
-  // Validate the token via getMe BEFORE opening any capture window — typo'd
-  // tokens fail fast with a clear error instead of silently 401-looping.
   let me: { is_bot: boolean; username?: string };
   try {
     me = await bot.api.getMe();
@@ -92,7 +90,6 @@ export async function captureAndPersistOperator(opts: CaptureOpts): Promise<Capt
       username: ctx.from.username,
       first_name: ctx.from.first_name,
     };
-    // Stop polling so bot.start() resolves and the race completes.
     void bot.stop();
   });
 
@@ -139,8 +136,6 @@ export async function captureAndPersistOperator(opts: CaptureOpts): Promise<Capt
     });
     return { status: "captured", capturedId, botUsername };
   } catch (err) {
-    // Map every save error to a non-fatal CaptureResult; helper never throws,
-    // so callers can surface a warning and continue starting the bot.
     if (err instanceof LockfileContentionError) {
       return {
         status: "lockfile-contention",
