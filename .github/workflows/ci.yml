@@ -236,3 +236,39 @@ jobs:
         run: pnpm --filter @enduragent/desktop package:win
       - name: Install, test, and uninstall unsigned x64 NSIS package
         run: pnpm --filter @enduragent/desktop test:windows-installed-self-test --github-hosted --signature-policy unsigned-private
+      - name: Build unsigned x64 Microsoft Store package
+        env:
+          ENDURAGENT_STORE_IDENTITY_NAME: 00000Synthetic.EnduragentCi
+          ENDURAGENT_STORE_PUBLISHER: CN=00000000-0000-0000-0000-000000000000
+          ENDURAGENT_STORE_PUBLISHER_DISPLAY_NAME: Enduragent CI
+        run: pnpm --filter @enduragent/desktop package:win-store
+      - name: Check Microsoft Store package manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $packages = @(Get-ChildItem -LiteralPath apps/desktop/dist/windows-store -Filter *.appx)
+          if ($packages.Count -ne 1) { throw 'expected exactly one Store package' }
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
+          try {
+            if ($zip.Entries.FullName -contains 'AppxSignature.p7x') { throw 'Store package must be unsigned' }
+            $reader = [System.IO.StreamReader]::new($zip.GetEntry('AppxManifest.xml').Open())
+            try { [xml]$manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+          } finally { $zip.Dispose() }
+          $version = (Get-Content -Raw apps/desktop/package.json | ConvertFrom-Json).version
+          $identity = $manifest.DocumentElement['Identity']
+          if ($identity.GetAttribute('Name') -cne '00000Synthetic.EnduragentCi') { throw 'Store identity name mismatch' }
+          if ($identity.GetAttribute('Publisher') -cne 'CN=00000000-0000-0000-0000-000000000000') { throw 'Store publisher mismatch' }
+          if ($identity.GetAttribute('Version') -cne "$version.0") { throw 'Store package version mismatch' }
+          if ($identity.GetAttribute('ProcessorArchitecture') -cne 'x64') { throw 'Store package must be x64' }
+          if ($manifest.DocumentElement['Properties']['PublisherDisplayName'].InnerText -cne 'Enduragent CI') { throw 'Store publisher display name mismatch' }
+          $languages = @($manifest.DocumentElement['Resources'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' } | ForEach-Object { $_.GetAttribute('Language') })
+          if (($languages -join ',') -cne 'en-US') { throw 'Store package must declare only en-US' }
+          $family = $manifest.DocumentElement['Dependencies']['TargetDeviceFamily']
+          if ($family.GetAttribute('Name') -cne 'Windows.Desktop' -or $family.GetAttribute('MinVersion') -cne '10.0.22000.0' -or $family.GetAttribute('MaxVersionTested') -cne '10.0.26100.0') { throw 'Store package device family mismatch' }
+          $applications = @($manifest.DocumentElement['Applications'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' })
+          if ($applications.Count -ne 1 -or $applications[0].GetAttribute('Id') -cne 'Enduragent') { throw 'Store application id mismatch' }
+          $capabilities = @($manifest.DocumentElement['Capabilities'].ChildNodes | Where-Object { $_.NodeType -eq 'Element' } | ForEach-Object { $_.GetAttribute('Name') })
+          if (($capabilities -join ',') -cne 'runFullTrust') { throw 'Store package must declare only runFullTrust' }
+          if ($manifest.OuterXml -match 'windows\.startupTask') { throw 'Store package must not declare a startup task' }
+          Write-Output "Store package manifest checked: $($packages[0].Name)"

@@ -184,6 +184,31 @@ The update-feed backend is operated outside this repository. This repository own
 
 Keep publishing the macOS updater assets and the Windows envelope to the GitHub Release. The website `/download/mac` link may keep redirecting to GitHub; browsers can follow that chain.
 
+## Microsoft Store package (operator)
+
+- Open a free individual developer account at `storedeveloper.microsoft.com` and reserve the app name `Enduragent` in Partner Center.
+- Copy `Package/Identity/Name`, `Package/Identity/Publisher`, and `Package/Properties/PublisherDisplayName` from the product's identity page.
+- Build the submission package on the operator's Windows VM from the repository root:
+
+  ```powershell
+  $env:ENDURAGENT_STORE_IDENTITY_NAME = '<Package/Identity/Name>'
+  $env:ENDURAGENT_STORE_PUBLISHER = '<Package/Identity/Publisher>'
+  $env:ENDURAGENT_STORE_PUBLISHER_DISPLAY_NAME = '<Package/Properties/PublisherDisplayName>'
+  pnpm install --frozen-lockfile
+  pnpm --filter "@enduragent/desktop^..." build
+  pnpm --filter @enduragent/desktop package:win-store
+  ```
+
+- Upload `apps/desktop/dist/windows-store/Enduragent-<x.y.z>-x64.appx` unsigned on the submission's Packages page. The Store signs it after certification.
+- Never sign the submission package yourself, and never attach it to a GitHub release or the website.
+- CI builds the Store package only as a test artifact with a synthetic identity. Never submit a CI build.
+- Give every submission a higher desktop version than the last one. The Store owns updates for Store installs.
+- Explain `runFullTrust` when Partner Center asks: Enduragent is a desktop app packaged as MSIX.
+- Give `https://enduragent.icu/privacy.html` as the privacy policy URL. The installation heartbeat sends a random installation UUID.
+- The package declares only `en-US`. Add a language only together with a Store listing in that language.
+- To try a package before submitting, sign a copy with a self-signed certificate whose subject equals `Package/Identity/Publisher`, trust that certificate, and install the copy. Never upload the signed copy.
+- After changing `resources/app-icon-windows.png`, run `node apps/desktop/scripts/generate-windows-store-assets.mjs` and commit the tile images in `apps/desktop/build/appx/`.
+
 ## Windows release (operator)
 
 - Keep `desktop-release.yml` macOS-only and fully automatic.
