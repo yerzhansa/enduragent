@@ -26,7 +26,6 @@ import {
   DESKTOP_CHAT_ATTACHMENT_PICK_CHANNEL,
   DESKTOP_DOCUMENT_REGISTRATION_CHANNEL,
   DESKTOP_INITIAL_SETUP_STATUS_SETTLED_CHANNEL,
-  DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL,
   DESKTOP_LIFECYCLE_CHANNEL,
   DESKTOP_PLANNING_READ_CHANNEL,
   DESKTOP_OPEN_EXTERNAL_CHANNEL,
@@ -59,6 +58,8 @@ import {
   DESKTOP_UPDATE_RESTART_CHANNEL,
   DESKTOP_UPDATE_STATE_CHANNEL,
 } from "../main/constants.js";
+import { createIntervalsSignInBridge } from "./intervals-bridge.js";
+import { exactKeys, record, RUNTIME_STATES } from "./shape.js";
 
 const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status";
 const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry";
@@ -118,7 +119,6 @@ const DEFAULT_ENDPOINT_PROVIDERS = new Set([
   "openrouter",
 ]);
 const STATES = new Set(["missing", "configured", "re-prompt"]);
-const RUNTIME_STATES = new Set(["active", "stored-inactive", "failed"]);
 const REASONS = new Set([
   "invalid-input",
   "encryption-unavailable",
@@ -204,23 +204,6 @@ const TELEGRAM_MUTATION_REFUSAL_REASONS = new Set([
   "control-unavailable",
   "invalid-state",
 ]);
-const INTERVALS_CREDENTIAL_REFUSAL_REASONS = new Set([
-  "clipboard-unavailable",
-  "clipboard-clear-failed",
-  "invalid-key-format",
-  "credential-rejected",
-  "malformed-athlete-response",
-  "validation-timeout",
-  "validation-aborted",
-  "validation-unavailable",
-  "training-account-mismatch",
-  "owner-unresolved",
-  "store-unavailable",
-  "encryption-unavailable",
-  "unsafe-backend",
-  "storage-failed",
-  "runtime-unavailable",
-]);
 const TRANSCRIPT_PAGE_MAX_TURNS = 50;
 const TRANSCRIPT_PAGE_MAX_RESPONSE_BYTES = 266_240;
 const TRANSCRIPT_CURSOR_LENGTH = 152;
@@ -232,14 +215,6 @@ const BOUNDARY_REF_PATTERN = /^[a-f0-9]{64}$/;
 const BASE64URL_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const STABLE_VERSION_RE = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const textEncoder = new TextEncoder();
-
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  return JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
-}
 
 function isCivilDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -335,7 +310,9 @@ function decodedBase64Url(value: string): Uint8Array | null {
 function safeCursorOffset(bytes: Uint8Array, offset: number): number | null {
   let value = 0;
   for (let index = offset; index < offset + 8; index += 1) {
-    value = value * 256 + bytes[index]!;
+    const byte = bytes[index];
+    if (byte === undefined) return null;
+    value = value * 256 + byte;
     if (!Number.isSafeInteger(value)) return null;
   }
   return value;
@@ -1263,59 +1240,6 @@ function parseTelegramMutationResult(value: unknown): unknown {
   throw new TypeError();
 }
 
-function parseIntervalsCredentialCurrent(value: unknown): unknown {
-  if (
-    !record(value) ||
-    !exactKeys(value, ["runtimeState", "slot", "state"]) ||
-    value.slot !== "intervals-icu" ||
-    (value.state !== "missing" && value.state !== "configured" && value.state !== "re-prompt") ||
-    (value.state === "configured"
-      ? !RUNTIME_STATES.has(value.runtimeState as string)
-      : value.runtimeState !== null)
-  ) {
-    throw new TypeError();
-  }
-  return {
-    slot: "intervals-icu",
-    state: value.state,
-    runtimeState: value.runtimeState,
-  };
-}
-
-function parseIntervalsCredentialMutationResult(value: unknown): unknown {
-  if (!record(value) || typeof value.outcome !== "string") throw new TypeError();
-  if (value.outcome === "applied" && exactKeys(value, ["current", "outcome"])) {
-    return {
-      outcome: "applied",
-      current: parseIntervalsCredentialCurrent(value.current),
-    };
-  }
-  if (
-    value.outcome === "refused" &&
-    typeof value.reason === "string" &&
-    INTERVALS_CREDENTIAL_REFUSAL_REASONS.has(value.reason) &&
-    exactKeys(value, ["current", "outcome", "reason"])
-  ) {
-    return {
-      outcome: "refused",
-      reason: value.reason,
-      current: parseIntervalsCredentialCurrent(value.current),
-    };
-  }
-  if (
-    value.outcome === "uncertain" &&
-    (value.reason === "storage-uncertain" || value.reason === "runtime-uncertain") &&
-    exactKeys(value, ["current", "outcome", "reason"])
-  ) {
-    return {
-      outcome: "uncertain",
-      reason: value.reason,
-      current: parseIntervalsCredentialCurrent(value.current),
-    };
-  }
-  throw new TypeError();
-}
-
 function parseTelegramSenderInput(value: unknown): { readonly senderId: number } {
   if (
     !record(value) ||
@@ -1384,6 +1308,27 @@ function parseTelegramSenderMutation(value: unknown): unknown {
   throw new TypeError();
 }
 
+function callListener<T>(call: () => T): T | undefined {
+  try {
+    return call();
+  } catch (error) {
+    queueMicrotask(() => {
+      throw error;
+    });
+    return undefined;
+  }
+}
+
+function attachmentAdmissionsOrNull(
+  value: unknown,
+): readonly AttachmentAdmissionReadModel[] | null {
+  try {
+    return parseAttachmentAdmissions(value);
+  } catch {
+    return null;
+  }
+}
+
 function requireZeroArguments(args: readonly unknown[]): void {
   if (args.length !== 0) throw new TypeError();
 }
@@ -1391,16 +1336,6 @@ function requireZeroArguments(args: readonly unknown[]): void {
 async function invokeTelegramMutation(channel: string): Promise<unknown> {
   try {
     return parseTelegramMutationResult(await ipcRenderer.invoke(channel));
-  } catch {
-    throw new TypeError();
-  }
-}
-
-async function invokeIntervalsCredentialMutation(): Promise<unknown> {
-  try {
-    return parseIntervalsCredentialMutationResult(
-      await ipcRenderer.invoke(DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL),
-    );
   } catch {
     throw new TypeError();
   }
@@ -1472,11 +1407,7 @@ ipcRenderer.on(DESKTOP_UPDATE_STATE_CHANNEL, (_event, value: unknown) => {
   } catch {
     return;
   }
-  for (const listener of updateListeners) {
-    try {
-      listener(parseUpdateState(state));
-    } catch {}
-  }
+  for (const listener of updateListeners) callListener(() => listener(parseUpdateState(state)));
 });
 
 ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) => {
@@ -1487,9 +1418,7 @@ ipcRenderer.on(DESKTOP_CHATGPT_LOGIN_PROGRESS_CHANNEL, (_event, value: unknown) 
     return;
   }
   for (const listener of chatGptLoginProgressListeners) {
-    try {
-      listener(parseChatGptLoginProgress(progress));
-    } catch {}
+    callListener(() => listener(parseChatGptLoginProgress(progress)));
   }
 });
 
@@ -1501,9 +1430,7 @@ ipcRenderer.on(DESKTOP_PLAN_PROGRESS_CHANNEL, (_event, value: unknown) => {
   const parsed = PlanProgressEventSchema.safeParse(value);
   if (!parsed.success) return;
   for (const listener of planProgressListeners) {
-    try {
-      listener(PlanProgressEventSchema.parse(parsed.data));
-    } catch {}
+    callListener(() => listener(PlanProgressEventSchema.parse(parsed.data)));
   }
 });
 
@@ -1688,10 +1615,7 @@ contextBridge.exposeInMainWorld(
       requireZeroArguments(args);
       return invokeTelegramStatus();
     },
-    pasteIntervalsApiKeyFromClipboard: async (...args: unknown[]) => {
-      requireZeroArguments(args);
-      return invokeIntervalsCredentialMutation();
-    },
+    ...createIntervalsSignInBridge(ipcRenderer),
     pasteTelegramTokenFromClipboard: async (...args: unknown[]) => {
       requireZeroArguments(args);
       return invokeTelegramMutation(DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL);
@@ -1845,26 +1769,13 @@ contextBridge.exposeInMainWorld(
           .slice(0, CHAT_ATTACHMENT_LIMITS.attachmentsPerMessage);
         if (paths.length === 0) return;
         const operationId = `drop-${++chatAttachmentDropSequence}`;
-        let accepted = false;
-        try {
-          accepted = listener({ phase: "started", operationId }) === true;
-        } catch {}
-        if (!accepted) return;
+        if (callListener(() => listener({ phase: "started", operationId })) !== true) return;
         void ipcRenderer.invoke(DESKTOP_CHAT_ATTACHMENT_DROP_CHANNEL, paths).then(
           (value) => {
-            let results: readonly AttachmentAdmissionReadModel[] | null = null;
-            try {
-              results = parseAttachmentAdmissions(value);
-            } catch {}
-            try {
-              listener({ phase: "settled", operationId, results });
-            } catch {}
+            const results = attachmentAdmissionsOrNull(value);
+            callListener(() => listener({ phase: "settled", operationId, results }));
           },
-          () => {
-            try {
-              listener({ phase: "settled", operationId, results: null });
-            } catch {}
-          },
+          () => callListener(() => listener({ phase: "settled", operationId, results: null })),
         );
       };
       const onDragOver = (event: DragEvent): void => {

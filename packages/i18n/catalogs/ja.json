@@ -207,7 +207,7 @@
         "credential": "認証情報を削除",
         "detail": "{{computer}}からのみ削除します。有効な場合、{{product}}はその使用を停止します。プロバイダーのアカウントは変更されません。",
         "intervalsAria": "{{intervals}}との接続を削除",
-        "intervalsDetail": "保存済みのAPIキーとインポートした接続情報を削除します。同期済みのライドと過去のチャットは{{computer}}に残ります。",
+        "intervalsDetail": "保存済みのサインイン情報またはAPIキーと、インポートした接続情報を削除します。同期済みのライドと過去のチャットは{{computer}}に残ります。",
         "intervalsTitle": "{{intervals}}との接続を削除しますか？",
         "title": "{{provider}}の認証情報を削除しますか？"
       },
@@ -686,21 +686,23 @@
       "endpointInvalid": "有効なHTTPSエンドポイント、またはループバックHTTPエンドポイントを入力してください。",
       "intakeIncomplete": "続けるには、安全に関する必須の質問に回答してください。",
       "intakeSaveFailed": "回答を保存できませんでした。もう一度お試しください。",
-      "intervalsClipboardClearFailed": "{{product}}がAPIキーをクリップボードから安全に消去できなかったため、保存されませんでした。コピーし直して、もう一度お試しください。",
-      "intervalsClipboardUnavailable": "{{product}}がクリップボードからAPIキーを読み取れませんでした。{{intervals}}でコピーして、もう一度お試しください。",
-      "intervalsKeyRejected": "{{intervals}}はコピーしたAPIキーを受け付けませんでした。現在有効なAPIキーをコピーして、もう一度お試しください。",
-      "intervalsOwnerUnavailable": "{{product}}は、コピーしたAPIキーが{{computer}}のトレーニングデータと一致するか確認できませんでした。トレーニングデータを利用できるようになったら再試行してください。",
-      "intervalsRuntimeUnavailable": "コピーしたAPIキーを有効にできませんでした。{{intervals}}でコピーして、もう一度お試しください。",
-      "intervalsRuntimeUncertain": "{{product}}は、コピーしたAPIキーが有効か確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
-      "intervalsStorageUncertain": "{{product}}は、コピーしたAPIキーが保存されたか確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
-      "intervalsValidationUnavailable": "{{product}}は、コピーしたAPIキーを{{intervals}}で確認できませんでした。接続を確認して、もう一度お試しください。",
+      "intervalsOwnerUnavailable": "{{product}}は、この{{intervals}}アカウントが{{computer}}のトレーニングデータと一致するか確認できませんでした。トレーニングデータを利用できるようになったら再試行してください。",
+      "intervalsRuntimeUnavailable": "{{intervals}}のサインインを有効にできませんでした。もう一度サインインしてください。",
+      "intervalsRuntimeUncertain": "{{product}}は、サインインが有効か確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
+      "intervalsSignInDenied": "{{intervals}}でアクセスが許可されませんでした。準備ができたら、もう一度サインインしてください。",
+      "intervalsSignInFailed": "{{intervals}}でのサインインが完了しませんでした。もう一度サインインしてください。",
+      "intervalsSignInRejected": "{{intervals}}がサインインを受け付けませんでした。もう一度サインインしてください。",
+      "intervalsSignInTimedOut": "5分が経過したため、サインインがタイムアウトしました。準備ができたら、もう一度サインインしてください。",
+      "intervalsSignInUnreachable": "{{product}}は、サインインを完了するために{{intervals}}に接続できませんでした。接続を確認してから、もう一度サインインしてください。",
+      "intervalsStorageUncertain": "{{product}}は、サインインが保存されたか確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
+      "intervalsValidationUnavailable": "{{product}}は、{{intervals}}でサインインを確認できませんでした。接続を確認してから、もう一度サインインしてください。",
       "invalidInput": "キーは受け付けられませんでした。確認して再入力してください。",
       "modelRuntimeUnavailable": "プロバイダーの選択は保存されましたが、まだ有効になっていません。もう一度有効化をお試しください。",
       "modelSelectionRequired": "モデルを選択するか、カスタムモデル名を入力してください。",
       "runtimeUnavailable": "キーは保存されましたが、まだ有効になっていません。「保存済みのキーを再試行」を選んで有効にしてください。",
       "storageFailed": "アプリはキーが安全に保存されたか確認できませんでした。安全なストレージを利用できるか確認して、もう一度お試しください。",
       "storageUncertain": "アプリは、どの保存済みキーが再起動後も残るか確認できませんでした。続ける前にキーを再入力してください。",
-      "trainingAccountMismatch": "その{{intervalsLower}}キーは、保存済みのトレーニング履歴とは別のアスリートのものです。アカウントの切り替えにはまだ対応していません。",
+      "trainingAccountMismatch": "その{{intervalsLower}}アカウントは、{{computer}}に保存済みのトレーニング履歴とは別のアスリートのものです。アカウントの切り替えにはまだ対応していません。",
       "trainingDataRequired": "{{intervalsLower}}に接続するか、ライドファイルを1つ以上インポートしてください。",
       "unsafeBackend": "現在のストレージ方式では、アプリはキーを安全に保存できません。"
     },
@@ -757,23 +759,29 @@
     },
     "training": {
       "cancelLabel": "{{intervals}}のセットアップをキャンセル",
+      "cancelSignIn": "サインインをキャンセル",
+      "completing": "サインインを完了中…",
+      "completingHint": "許可されました。{{computer}}に接続情報を保存しています…",
       "connect": "接続",
-      "connecting": "接続中…",
       "connectTitle": "{{intervals}}に接続",
-      "hint": "{{intervals}}で「設定」→「開発者設定」を開き、APIキーをコピーしてここに戻ってください。{{product}}はキーを表示せずに読み取ります。",
+      "hint": "ブラウザで{{intervals}}を開きます。アクセスはそのページで許可します。{{product}}がパスワードを見ることはありません。",
       "importFiles": "代わりにライドファイルをインポート",
+      "reopen": "サインインページをもう一度開く",
+      "signIn": "{{intervals}}でサインイン",
       "subtitle": {
         "connected": "接続済み · ライドの取得元",
+        "connectedAs": "{{name}}として接続済み · ライドの取得元",
         "missing": "接続するか、ライドファイルをインポートしてください。"
       },
       "tooltip": {
-        "body": "ライドを保存できる無料のトレーニングサイトです。{{product}}はウォッチやサイクルコンピュータのメーカーに直接接続せず、このサイトからライドを読み取ります。ウォッチやサイクルコンピュータを接続した無料アカウントが必要です。そのアカウントのAPIキーをコピーしてください。",
+        "body": "ライドを保存できる無料のトレーニングサイトです。{{product}}はウォッチやサイクルコンピュータのメーカーに直接接続せず、このサイトからライドを読み取ります。ウォッチやサイクルコンピュータを接続した無料アカウントが必要です。そのうえで、ここでサインインしてください。",
         "label": "{{intervals}}について"
       },
       "trigger": {
         "disconnected": "{{intervals}}に接続"
       },
-      "useCopiedKey": "コピーしたAPIキーを使用"
+      "waiting": "ブラウザの操作を待機中…",
+      "waitingHint": "ブラウザで操作を完了してください。アクセスを許可すると、{{product}}が自動的に続行します。"
     }
   },
   "shell": {

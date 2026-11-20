@@ -92,9 +92,11 @@ export interface IntervalsCredentialStatus {
 }
 
 export type IntervalsCredentialMutationRefusalReason =
-  | "clipboard-unavailable"
-  | "clipboard-clear-failed"
-  | "invalid-key-format"
+  | "sign-in-denied"
+  | "sign-in-failed"
+  | "sign-in-timed-out"
+  | "sign-in-cancelled"
+  | "sign-in-unreachable"
   | "credential-rejected"
   | "malformed-athlete-response"
   | "validation-timeout"
@@ -108,10 +110,13 @@ export type IntervalsCredentialMutationRefusalReason =
   | "storage-failed"
   | "runtime-unavailable";
 
+export type IntervalsSignInPhase = "waiting-for-browser" | "completing-sign-in";
+
 export type IntervalsCredentialMutationResult =
   | {
       readonly outcome: "applied";
       readonly current: IntervalsCredentialStatus;
+      readonly athleteName?: string;
     }
   | {
       readonly outcome: "refused";
@@ -187,7 +192,10 @@ export interface OnboardingBridge {
   credentialStatuses(): Promise<readonly CredentialSlotStatus[]>;
   retryFailedCredentials(): Promise<readonly CredentialSlotStatus[]>;
   writeCredential(input: OnboardingCredentialWriteInput): Promise<CredentialWriteResult>;
-  pasteIntervalsApiKeyFromClipboard(): Promise<IntervalsCredentialMutationResult>;
+  signInWithIntervals(): Promise<IntervalsCredentialMutationResult>;
+  cancelIntervalsSignIn(): Promise<boolean>;
+  reopenIntervalsSignIn(): Promise<boolean>;
+  onIntervalsSignInProgress(listener: (phase: IntervalsSignInPhase) => void): () => void;
   llmConfiguration(): Promise<OnboardingLlmConfiguration>;
   applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
   chatGptStatus(): Promise<ChatGptStatus>;
@@ -214,7 +222,10 @@ export interface DesktopOnboardingAuth {
   credentialStatuses(): Promise<readonly CredentialSlotStatus[]>;
   retryFailedCredentials(): Promise<readonly CredentialSlotStatus[]>;
   writeCredential(input: OnboardingCredentialWriteInput): Promise<CredentialWriteResult>;
-  pasteIntervalsApiKeyFromClipboard(): Promise<IntervalsCredentialMutationResult>;
+  signInWithIntervals(): Promise<IntervalsCredentialMutationResult>;
+  cancelIntervalsSignIn(): Promise<boolean>;
+  reopenIntervalsSignIn(): Promise<boolean>;
+  onIntervalsSignInProgress(listener: (phase: IntervalsSignInPhase) => void): () => void;
   llmConfiguration(): Promise<OnboardingLlmConfiguration>;
   applyLlmSelection(input: OnboardingLlmSelection): Promise<OnboardingLlmSelectionResult>;
   chatgptStatus(): Promise<ChatGptStatus>;
@@ -249,9 +260,7 @@ export function validateImportPaths(paths: readonly string[]): readonly string[]
 }
 
 export function createOnboardingBridge(
-  auth: DesktopOnboardingAuth = (
-    window as unknown as Window & { readonly enduragentAuth: DesktopOnboardingAuth }
-  ).enduragentAuth,
+  auth: DesktopOnboardingAuth = window.enduragentAuth,
   connect: typeof connectCoachClient = connectCoachClient,
 ): OnboardingBridge {
   let clientPromise: Promise<CoachClient> | undefined;
@@ -275,7 +284,10 @@ export function createOnboardingBridge(
     retryFailedCredentials: () =>
       auth.retryFailedCredentials() as Promise<readonly CredentialSlotStatus[]>,
     writeCredential: (input) => auth.writeCredential(input) as Promise<CredentialWriteResult>,
-    pasteIntervalsApiKeyFromClipboard: () => auth.pasteIntervalsApiKeyFromClipboard(),
+    signInWithIntervals: () => auth.signInWithIntervals(),
+    cancelIntervalsSignIn: () => auth.cancelIntervalsSignIn(),
+    reopenIntervalsSignIn: () => auth.reopenIntervalsSignIn(),
+    onIntervalsSignInProgress: (listener) => auth.onIntervalsSignInProgress(listener),
     llmConfiguration: () => auth.llmConfiguration(),
     applyLlmSelection: (input) => auth.applyLlmSelection(input),
     chatGptStatus: () => auth.chatgptStatus(),

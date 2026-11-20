@@ -729,7 +729,7 @@ describe("desktop residency", () => {
   it("presents the initial window only after its renderer URL loads", async () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
     const creationStart = source.indexOf("windowCreation = (async () => {");
-    const prepare = source.indexOf("connectionIpc!.prepareDocumentNavigation", creationStart);
+    const prepare = source.indexOf("connectionIpc.prepareDocumentNavigation", creationStart);
     const load = source.indexOf(
       "const initialNavigation = startRendererNavigation(created, navigationUrl);",
       prepare,

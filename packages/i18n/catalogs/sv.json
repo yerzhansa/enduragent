@@ -208,7 +208,7 @@
         "credential": "Ta bort inloggningsuppgifter",
         "detail": "Det här tar bara bort dem från {{computer}}. {{product}} slutar använda dem om de är aktiva. Ditt konto hos leverantören ändras inte.",
         "intervalsAria": "Ta bort anslutningen till {{intervals}}",
-        "intervalsDetail": "Din sparade API-nyckel och importerade anslutning tas bort. Dina synkroniserade cykelturer och tidigare chattar finns kvar på {{computer}}.",
+        "intervalsDetail": "Din sparade inloggning eller API-nyckel och importerade anslutning tas bort. Dina synkroniserade cykelturer och tidigare chattar finns kvar på {{computer}}.",
         "intervalsTitle": "Ta bort anslutningen till {{intervals}}?",
         "title": "Ta bort inloggningsuppgifterna för {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Ange en giltig HTTPS-slutpunkt eller en HTTP-slutpunkt med loopback-adress.",
       "intakeIncomplete": "Svara på de obligatoriska säkerhetsfrågorna för att fortsätta.",
       "intakeSaveFailed": "Dina svar kunde inte sparas. Försök igen.",
-      "intervalsClipboardClearFailed": "API-nyckeln sparades inte eftersom {{product}} inte kunde rensa den från urklipp på ett säkert sätt. Kopiera den igen och försök på nytt.",
-      "intervalsClipboardUnavailable": "{{product}} kunde inte läsa en API-nyckel från urklipp. Kopiera den i {{intervals}} och försök igen.",
-      "intervalsKeyRejected": "{{intervals}} godkände inte den kopierade API-nyckeln. Kopiera en aktuell API-nyckel och försök igen.",
-      "intervalsOwnerUnavailable": "{{product}} kunde inte bekräfta att den kopierade API-nyckeln matchar träningsdata på {{computer}}. Försök igen när träningsdata är tillgängliga.",
-      "intervalsRuntimeUnavailable": "Den kopierade API-nyckeln kunde inte aktiveras. Kopiera den i {{intervals}} och försök igen.",
-      "intervalsRuntimeUncertain": "{{product}} kunde inte bekräfta om den kopierade API-nyckeln är aktiv. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
-      "intervalsStorageUncertain": "{{product}} kunde inte bekräfta om den kopierade API-nyckeln sparades. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
-      "intervalsValidationUnavailable": "{{product}} kunde inte verifiera den kopierade API-nyckeln hos {{intervals}}. Kontrollera anslutningen och försök igen.",
+      "intervalsOwnerUnavailable": "{{product}} kunde inte bekräfta att det här {{intervals}}-kontot matchar träningsdata på {{computer}}. Försök igen när träningsdata är tillgängliga.",
+      "intervalsRuntimeUnavailable": "Inloggningen till {{intervals}} kunde inte aktiveras. Logga in igen.",
+      "intervalsRuntimeUncertain": "{{product}} kunde inte bekräfta om inloggningen är aktiv. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
+      "intervalsSignInDenied": "Åtkomst tilläts inte på {{intervals}}. Logga in igen när du är redo.",
+      "intervalsSignInFailed": "Inloggningen med {{intervals}} slutfördes inte. Logga in igen.",
+      "intervalsSignInRejected": "{{intervals}} godkände inte inloggningen. Logga in igen.",
+      "intervalsSignInTimedOut": "Tidsgränsen för inloggningen överskreds efter 5 minuter. Logga in igen när du är redo.",
+      "intervalsSignInUnreachable": "{{product}} kunde inte nå {{intervals}} för att slutföra inloggningen. Kontrollera anslutningen och logga sedan in igen.",
+      "intervalsStorageUncertain": "{{product}} kunde inte bekräfta om inloggningen sparades. Läs in inloggningsuppgifternas status igen innan du försöker på nytt.",
+      "intervalsValidationUnavailable": "{{product}} kunde inte bekräfta inloggningen hos {{intervals}}. Kontrollera anslutningen och logga sedan in igen.",
       "invalidInput": "Nyckeln godkändes inte. Kontrollera den och ange den igen.",
       "modelRuntimeUnavailable": "Ditt val av leverantör är sparat, men är inte aktivt än. Försök aktivera det igen.",
       "modelSelectionRequired": "Välj en modell eller ange ett eget modellnamn.",
       "runtimeUnavailable": "Nyckeln sparades, men är inte aktiv än. Välj Försök med sparade nycklar igen för att aktivera den.",
       "storageFailed": "Appen kunde inte bekräfta att nyckeln sparades säkert. Kontrollera att säker lagring är tillgänglig och försök igen.",
       "storageUncertain": "Appen kunde inte säkerställa vilken sparad nyckel som kommer att finnas kvar efter en omstart. Ange nyckeln igen innan du fortsätter.",
-      "trainingAccountMismatch": "Nyckeln för {{intervalsLower}} tillhör en annan idrottare än den redan sparade träningshistoriken. Det går ännu inte att byta konto.",
+      "trainingAccountMismatch": "Det här {{intervalsLower}}-kontot tillhör en annan idrottare än träningshistoriken som redan finns på {{computer}}. Det går ännu inte att byta konto.",
       "trainingDataRequired": "Anslut {{intervalsLower}} eller importera minst en fil från en cykeltur.",
       "unsafeBackend": "Appen kan inte lagra nyckeln säkert med den nuvarande lagringslösningen."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Avbryt konfigurationen av {{intervals}}",
+      "cancelSignIn": "Avbryt inloggning",
+      "completing": "Slutför inloggning…",
+      "completingHint": "Godkänt. Sparar anslutningen på {{computer}}…",
       "connect": "Anslut",
-      "connecting": "Ansluter…",
       "connectTitle": "Anslut {{intervals}}",
-      "hint": "Öppna Settings → Developer Settings i {{intervals}}, kopiera API-nyckeln och återvänd sedan hit. {{product}} läser den utan att visa den.",
+      "hint": "Öppnar {{intervals}} i din webbläsare. Där godkänner du åtkomsten, och {{product}} ser aldrig ditt lösenord.",
       "importFiles": "Importera filer från cykelturer i stället",
+      "reopen": "Öppna inloggningssidan igen",
+      "signIn": "Logga in med {{intervals}}",
       "subtitle": {
         "connected": "Ansluten · källan till dina cykelturer",
+        "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
         "missing": "Anslut eller importera filer från cykelturer."
       },
       "tooltip": {
-        "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Kopiera sedan kontots API-nyckel.",
+        "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Logga sedan in här.",
         "label": "Om {{intervals}}"
       },
       "trigger": {
         "disconnected": "Anslut {{intervals}}"
       },
-      "useCopiedKey": "Använd kopierad API-nyckel"
+      "waiting": "Väntar på webbläsaren…",
+      "waitingHint": "Slutför i din webbläsare. {{product}} fortsätter av sig själv när du godkänner åtkomsten."
     }
   },
   "shell": {

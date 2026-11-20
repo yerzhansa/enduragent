@@ -210,7 +210,7 @@
         "credential": "Usuń dane dostępowe",
         "detail": "Spowoduje to usunięcie tylko z {{computer}}. {{product}} przestanie z nich korzystać, jeśli są aktywne. Twoje konto u dostawcy pozostanie bez zmian.",
         "intervalsAria": "Usuń połączenie z {{intervals}}",
-        "intervalsDetail": "Zapisany klucz API i zaimportowane połączenie zostaną usunięte. Zsynchronizowane przejazdy i wcześniejsze rozmowy pozostaną na {{computer}}.",
+        "intervalsDetail": "Zapisane dane logowania lub klucz API i zaimportowane połączenie zostaną usunięte. Zsynchronizowane przejazdy i wcześniejsze rozmowy pozostaną na {{computer}}.",
         "intervalsTitle": "Usunąć połączenie z {{intervals}}?",
         "title": "Usunąć dane dostępowe {{provider}}?"
       },
@@ -692,21 +692,23 @@
       "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
       "intakeIncomplete": "Odpowiedz na wymagane pytania dotyczące bezpieczeństwa, aby kontynuować.",
       "intakeSaveFailed": "Nie udało się zapisać twoich odpowiedzi. Spróbuj ponownie.",
-      "intervalsClipboardClearFailed": "Klucz API nie został zapisany, ponieważ {{product}} nie mógł bezpiecznie usunąć go ze schowka. Skopiuj go ponownie i spróbuj jeszcze raz.",
-      "intervalsClipboardUnavailable": "{{product}} nie mógł odczytać klucza API ze schowka. Skopiuj go w {{intervals}} i spróbuj ponownie.",
-      "intervalsKeyRejected": "{{intervals}} nie zaakceptował skopiowanego klucza API. Skopiuj aktualny klucz API i spróbuj ponownie.",
-      "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że skopiowany klucz API odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
-      "intervalsRuntimeUnavailable": "Nie udało się aktywować skopiowanego klucza API. Skopiuj go w {{intervals}} i spróbuj ponownie.",
-      "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy skopiowany klucz API jest aktywny. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
-      "intervalsStorageUncertain": "{{product}} nie mógł potwierdzić, czy skopiowany klucz API został zapisany. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
-      "intervalsValidationUnavailable": "{{product}} nie mógł zweryfikować skopiowanego klucza API w {{intervals}}. Sprawdź połączenie i spróbuj ponownie.",
+      "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że to konto {{intervals}} odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
+      "intervalsRuntimeUnavailable": "Nie udało się aktywować logowania do {{intervals}}. Zaloguj się ponownie.",
+      "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy logowanie jest aktywne. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsSignInDenied": "Nie przyznano dostępu w {{intervals}}. Zaloguj się ponownie, gdy zechcesz.",
+      "intervalsSignInFailed": "Logowanie przez {{intervals}} nie zostało dokończone. Zaloguj się ponownie.",
+      "intervalsSignInRejected": "{{intervals}} nie zaakceptował logowania. Zaloguj się ponownie.",
+      "intervalsSignInTimedOut": "Po 5 minutach upłynął limit czasu logowania. Zaloguj się ponownie, gdy zechcesz.",
+      "intervalsSignInUnreachable": "{{product}} nie mógł połączyć się z {{intervals}}, aby dokończyć logowanie. Sprawdź połączenie i zaloguj się ponownie.",
+      "intervalsStorageUncertain": "{{product}} nie mógł potwierdzić, czy logowanie zostało zapisane. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
+      "intervalsValidationUnavailable": "{{product}} nie mógł potwierdzić logowania w {{intervals}}. Sprawdź połączenie i zaloguj się ponownie.",
       "invalidInput": "Ten klucz nie został zaakceptowany. Sprawdź go i wpisz ponownie.",
       "modelRuntimeUnavailable": "Twój wybór dostawcy został zapisany, ale nie jest jeszcze aktywny. Spróbuj aktywować go ponownie.",
       "modelSelectionRequired": "Wybierz model lub wpisz własną nazwę modelu.",
       "runtimeUnavailable": "Klucz zapisano, ale nie jest jeszcze aktywny. Wybierz Ponów zapisane klucze, aby go aktywować.",
       "storageFailed": "Aplikacja nie mogła potwierdzić, że klucz został bezpiecznie zapisany. Sprawdź dostępność bezpiecznego magazynu i spróbuj ponownie.",
       "storageUncertain": "Aplikacja nie mogła ustalić, który zapisany klucz przetrwa ponowne uruchomienie. Wpisz klucz ponownie przed kontynuowaniem.",
-      "trainingAccountMismatch": "Ten klucz {{intervalsLower}} należy do innego sportowca niż zapisana już historia treningowa. Przełączanie kont nie jest jeszcze obsługiwane.",
+      "trainingAccountMismatch": "To konto {{intervalsLower}} należy do innego sportowca niż historia treningowa, która jest już na {{computer}}. Przełączanie kont nie jest jeszcze obsługiwane.",
       "trainingDataRequired": "Połącz {{intervalsLower}} lub zaimportuj co najmniej jeden plik przejazdu.",
       "unsafeBackend": "Aplikacja nie może bezpiecznie przechowywać tego klucza w obecnym magazynie."
     },
@@ -766,23 +768,29 @@
     },
     "training": {
       "cancelLabel": "Anuluj konfigurację {{intervals}}",
+      "cancelSignIn": "Anuluj logowanie",
+      "completing": "Kończenie logowania…",
+      "completingHint": "Zatwierdzono. Zapisywanie połączenia na {{computer}}…",
       "connect": "Połącz",
-      "connecting": "Łączenie…",
       "connectTitle": "Połącz {{intervals}}",
-      "hint": "W {{intervals}} otwórz Ustawienia → Ustawienia programisty, skopiuj klucz API i wróć tutaj. {{product}} odczytuje go bez wyświetlania.",
+      "hint": "Otwiera {{intervals}} w przeglądarce. Tam zatwierdzasz dostęp, a {{product}} nigdy nie widzi twojego hasła.",
       "importFiles": "Zamiast tego zaimportuj pliki przejazdów",
+      "reopen": "Otwórz ponownie stronę logowania",
+      "signIn": "Zaloguj się przez {{intervals}}",
       "subtitle": {
         "connected": "Połączono · źródło twoich przejazdów",
+        "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
         "missing": "Połącz lub zaimportuj pliki przejazdów."
       },
       "tooltip": {
-        "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie skopiuj klucz API tego konta.",
+        "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie zaloguj się tutaj.",
         "label": "O {{intervals}}"
       },
       "trigger": {
         "disconnected": "Połącz {{intervals}}"
       },
-      "useCopiedKey": "Użyj skopiowanego klucza API"
+      "waiting": "Oczekiwanie na przeglądarkę…",
+      "waitingHint": "Dokończ w przeglądarce. {{product}} przejdzie dalej samodzielnie, gdy zatwierdzisz dostęp."
     }
   },
   "shell": {

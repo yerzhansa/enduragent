@@ -1,5 +1,6 @@
 import "./keychain-binding-probe-deprecation.js";
 import { desktopLanguage, initializeDesktopLanguage, refreshDesktopLanguage } from "./language.js";
+import { readPreferredSystemLanguages } from "./system-languages.js";
 import { bindDevelopmentUserData } from "./development-user-data.js";
 import { bindWindowsUserData } from "./windows-user-data.js";
 import {
@@ -71,6 +72,7 @@ import {
   createDesktopIntervalsCredentialVerifier,
   installDesktopIntervalsIpc,
 } from "./intervals-ipc.js";
+import { intervalsSignInPorts } from "./intervals-sign-in-ports.js";
 import {
   applyExplicitCredentialToRuntime,
   createActiveIntervalsCredentialPreflight,
@@ -206,11 +208,7 @@ import {
 } from "./planning-read-ipc.js";
 
 traceDesktopStartupStage("main-start");
-let preferredLanguages: readonly string[] = [];
-try {
-  preferredLanguages = app.getPreferredSystemLanguages();
-} catch {}
-await initializeDesktopLanguage(preferredLanguages);
+await initializeDesktopLanguage(readPreferredSystemLanguages(app));
 bindDesktopAppUserModelId(app);
 bindDevelopmentUserData(app, { isPackaged: app.isPackaged });
 bindWindowsUserData(app);
@@ -289,7 +287,7 @@ async function runDesktop(): Promise<void> {
     if (process.platform === "win32") {
       if (securitySmokeMode && desktopAcceptanceHidden) {
         void writeSecuritySmokePrimarySecondInstance(process.stdout).catch(() => {
-          void writeSecuritySmokePrimarySecondInstanceFailure(process.stderr).catch(() => {});
+          void Promise.allSettled([writeSecuritySmokePrimarySecondInstanceFailure(process.stderr)]);
         });
       }
       activation.request();
@@ -299,7 +297,7 @@ async function runDesktop(): Promise<void> {
     if (process.platform === "win32") activation.request();
     else void residency?.showMainWindow();
   });
-  app.on("window-all-closed", () => {});
+  app.on("window-all-closed", () => undefined);
   traceDesktopStartupStage("app-ready");
   await app.whenReady();
   if (desktopAcceptanceHidden) app.dock?.hide();
@@ -381,7 +379,10 @@ async function runDesktop(): Promise<void> {
   let closeTelegramCoordinator: (() => Promise<void>) | undefined;
   let daemonLifecycle: DesktopDaemonLifecycle | undefined;
   const initialRefreshCoordinator = createDesktopInitialRefreshCoordinator({
-    currentConnection: () => daemonLifecycle!.connection(),
+    currentConnection: () => {
+      if (daemonLifecycle === undefined) throw new TypeError();
+      return daemonLifecycle.connection();
+    },
     startInitialRefresh: startDesktopDaemonInitialRefresh,
     reportFailure: () => {
       process.stderr.write("desktop-initial-refresh-release-failure\n");
@@ -673,6 +674,16 @@ async function runDesktop(): Promise<void> {
       });
       return navigation;
     };
+    const reloadRenderer = (target: BrowserWindow | null, generation: number): boolean => {
+      if (target === null || connectionIpc === undefined) return false;
+      try {
+        const navigationUrl = connectionIpc.prepareDocumentNavigation(target, generation);
+        startRendererNavigation(target, navigationUrl);
+        return true;
+      } catch {
+        return false;
+      }
+    };
     type RuntimeBinding = {
       readonly authority: RuntimeConfigurationAuthority;
       readonly credentials: CredentialRuntimeApplication;
@@ -709,10 +720,6 @@ async function runDesktop(): Promise<void> {
           readonly revisions: ReadonlyMap<DesktopCredentialSlot, number>;
         }
       | undefined;
-    let reapplyCredentials = async (
-      _connection: DesktopDaemonConnection,
-      _signal: AbortSignal,
-    ): Promise<void> => {};
     const publishLifecycle = (state: DesktopDaemonLifecycleState): void => {
       if (state.status === "ready") void refreshDesktopLanguage();
       else desktopLanguage.useSystem();
@@ -771,7 +778,7 @@ async function runDesktop(): Promise<void> {
         }
       }
     };
-    daemonLifecycle = new DesktopDaemonLifecycle(supervisor, resolution, {
+    const lifecycle = new DesktopDaemonLifecycle(supervisor, resolution, {
       prepareReady: ({ connection, signal }) => reapplyCredentials(connection, signal),
       onTransition: publishLifecycle,
       onReady({ previous, current }) {
@@ -795,15 +802,7 @@ async function runDesktop(): Promise<void> {
             const advanced =
               !portChanged &&
               (connectionIpc?.advanceCurrentDocumentGeneration(current.generation) ?? false);
-            if (!advanced) {
-              try {
-                const navigationUrl = connectionIpc!.prepareDocumentNavigation(
-                  visibleWindow,
-                  current.generation,
-                );
-                startRendererNavigation(visibleWindow, navigationUrl);
-              } catch {}
-            }
+            if (!advanced) reloadRenderer(visibleWindow, current.generation);
           }
           return;
         }
@@ -811,19 +810,12 @@ async function runDesktop(): Promise<void> {
           current,
           rendererPresent: visibleWindow !== null,
         });
-        if (recovery === "reload-required") {
-          try {
-            const navigationUrl = connectionIpc!.prepareDocumentNavigation(
-              visibleWindow!,
-              current.generation,
-            );
-            startRendererNavigation(visibleWindow!, navigationUrl);
-          } catch {
-            void initialRefreshCoordinator.releaseCurrent();
-          }
+        if (recovery === "reload-required" && !reloadRenderer(visibleWindow, current.generation)) {
+          void initialRefreshCoordinator.releaseCurrent();
         }
       },
     });
+    daemonLifecycle = lifecycle;
     const configDir = join(selectedAthleteHome, "config");
     const createRuntimeBinding = (
       connection: Pick<DesktopDaemonConnection, "url" | "token" | "athleteHome">,
@@ -957,9 +949,9 @@ async function runDesktop(): Promise<void> {
         };
       },
       async applyCredential(slot, value, selection, catalogSnapshot, verificationApproval) {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         const request = runtimeConfigurationForCredential(slot, value, selection, catalogSnapshot);
         await applyExplicitCredentialToRuntime(binding.credentials, request, verificationApproval);
         const currentLifecycleState = daemonLifecycle?.snapshot();
@@ -973,9 +965,9 @@ async function runDesktop(): Promise<void> {
         }
       },
       async reapplyCredential(slot, value, storedCredentialSlots) {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         const status = await binding.credentials.reapplyStoredCredential(
           slot,
           value,
@@ -993,9 +985,9 @@ async function runDesktop(): Promise<void> {
         return status;
       },
       async clearCredential(slot) {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         const result = await binding.credentials.clearCredential(slot);
         const currentLifecycleState = daemonLifecycle?.snapshot();
         if (
@@ -1009,7 +1001,10 @@ async function runDesktop(): Promise<void> {
         return result;
       },
     });
-    reapplyCredentials = async (connection, signal) => {
+    const reapplyCredentials = async (
+      connection: DesktopDaemonConnection,
+      signal: AbortSignal,
+    ): Promise<void> => {
       if (signal.aborted) throw signal.reason;
       const revisions = new Map(credentialRuntimeRevisions);
       const successor = createRuntimeBinding(connection);
@@ -1065,9 +1060,9 @@ async function runDesktop(): Promise<void> {
     const chatGptAuth = createChatGptAuth({
       configDir,
       async applyRuntimeConfig(request, signal) {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         await binding.credentials.applyExplicit(request, signal);
         const currentLifecycleState = daemonLifecycle?.snapshot();
         if (
@@ -1085,9 +1080,9 @@ async function runDesktop(): Promise<void> {
         );
       },
       async clearRuntimeCredential() {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         const result = await binding.credentials.clearCredential("openai-codex");
         const currentLifecycleState = daemonLifecycle?.snapshot();
         if (
@@ -1138,9 +1133,9 @@ async function runDesktop(): Promise<void> {
       environment: () => environment,
       forbiddenRoots: [selectedAthleteHome, app.getPath("userData"), process.resourcesPath],
       async applyRuntimeConfig(request) {
-        const binding = activeRuntimeBinding!;
+        const binding = activeRuntimeBinding;
         const lifecycleState = daemonLifecycle?.snapshot();
-        if (lifecycleState?.status !== "ready") throw new TypeError();
+        if (binding === undefined || lifecycleState?.status !== "ready") throw new TypeError();
         await binding.credentials.applyExplicit(request);
         const currentLifecycleState = daemonLifecycle?.snapshot();
         if (
@@ -1176,7 +1171,7 @@ async function runDesktop(): Promise<void> {
     traceDesktopStartupStage("install-protocol");
     await installDesktopProtocol({
       session: session.defaultSession,
-      currentDaemonPort: () => daemonLifecycle!.currentPort(),
+      currentDaemonPort: () => lifecycle.currentPort(),
       rendererRoot: rendererOutputRoot(),
       rendererSource,
     });
@@ -1196,7 +1191,7 @@ async function runDesktop(): Promise<void> {
         }
         let creating: BrowserWindow | undefined;
         windowCreation = (async () => {
-          const navigationGeneration = daemonLifecycle!.connection().generation;
+          const navigationGeneration = lifecycle.connection().generation;
           const windowOptions = desktopWindowOptions(
             preloadEntry,
             nativeTheme.shouldUseDarkColors ? "dark" : "light",
@@ -1252,7 +1247,8 @@ async function runDesktop(): Promise<void> {
               return applied;
             },
             checkIntervalsCredentialOwner: async (value) => {
-              const snapshot = await activeRuntimeBinding!.authority.getRuntimeConfig();
+              if (activeRuntimeBinding === undefined) throw new TypeError();
+              const snapshot = await activeRuntimeBinding.authority.getRuntimeConfig();
               return checkIntervalsStoreOwnerAtPath(intervalsStorePath, {
                 apiKey: value,
                 athleteId: intervalsAthleteIdForOwnership(snapshot),
@@ -1301,7 +1297,8 @@ async function runDesktop(): Promise<void> {
               }
             },
           );
-          const navigationUrl = connectionIpc!.prepareDocumentNavigation(
+          if (connectionIpc === undefined) throw new TypeError();
+          const navigationUrl = connectionIpc.prepareDocumentNavigation(
             created,
             navigationGeneration,
           );
@@ -1438,7 +1435,7 @@ async function runDesktop(): Promise<void> {
     });
     disposeIntervalsIpc = installDesktopIntervalsIpc({
       ipcMain,
-      clipboard,
+      ...intervalsSignInPorts({ app, hidden: desktopAcceptanceHidden, environment }),
       vault,
       signal: controller.signal,
       isTrusted: (event) => isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),

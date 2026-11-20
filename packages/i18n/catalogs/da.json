@@ -208,7 +208,7 @@
         "credential": "Slet adgangsoplysninger",
         "detail": "Dette fjerner dem kun fra {{computer}}. {{product}} holder op med at bruge dem, hvis de er aktive. Din konto hos udbyderen er uændret.",
         "intervalsAria": "Slet forbindelsen til {{intervals}}",
-        "intervalsDetail": "Din gemte API-nøgle og importerede forbindelse fjernes. Dine synkroniserede ture og tidligere chats bliver på {{computer}}.",
+        "intervalsDetail": "Dit gemte login eller din API-nøgle og den importerede forbindelse fjernes. Dine synkroniserede ture og tidligere chats bliver på {{computer}}.",
         "intervalsTitle": "Slet forbindelsen til {{intervals}}?",
         "title": "Slet adgangsoplysningerne til {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Indtast et gyldigt HTTPS-slutpunkt eller et HTTP-loopbackslutpunkt.",
       "intakeIncomplete": "Besvar de obligatoriske sikkerhedsspørgsmål for at fortsætte.",
       "intakeSaveFailed": "Dine svar kunne ikke gemmes. Prøv igen.",
-      "intervalsClipboardClearFailed": "API-nøglen blev ikke gemt, fordi {{product}} ikke kunne fjerne den sikkert fra udklipsholderen. Kopiér den igen, og prøv igen.",
-      "intervalsClipboardUnavailable": "{{product}} kunne ikke læse en API-nøgle fra udklipsholderen. Kopiér den i {{intervals}}, og prøv igen.",
-      "intervalsKeyRejected": "{{intervals}} accepterede ikke den kopierede API-nøgle. Kopiér en aktuel API-nøgle, og prøv igen.",
-      "intervalsOwnerUnavailable": "{{product}} kunne ikke bekræfte, at den kopierede API-nøgle passer til træningsdataene på {{computer}}. Prøv igen, når træningsdata er tilgængelige.",
-      "intervalsRuntimeUnavailable": "Den kopierede API-nøgle kunne ikke aktiveres. Kopiér den i {{intervals}}, og prøv igen.",
-      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekræfte, om den kopierede API-nøgle er aktiv. Genindlæs adgangsoplysningernes status, før du prøver igen.",
-      "intervalsStorageUncertain": "{{product}} kunne ikke bekræfte, om den kopierede API-nøgle blev gemt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
-      "intervalsValidationUnavailable": "{{product}} kunne ikke kontrollere den kopierede API-nøgle hos {{intervals}}. Kontrollér din forbindelse, og prøv igen.",
+      "intervalsOwnerUnavailable": "{{product}} kunne ikke bekræfte, at denne {{intervals}}-konto passer til træningsdataene på {{computer}}. Prøv igen, når træningsdata er tilgængelige.",
+      "intervalsRuntimeUnavailable": "Login til {{intervals}} kunne ikke aktiveres. Log ind igen.",
+      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekræfte, om login er aktivt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
+      "intervalsSignInDenied": "Adgang blev ikke tilladt på {{intervals}}. Log ind igen, når du er klar.",
+      "intervalsSignInFailed": "Login med {{intervals}} blev ikke fuldført. Log ind igen.",
+      "intervalsSignInRejected": "{{intervals}} accepterede ikke login. Log ind igen.",
+      "intervalsSignInTimedOut": "Tidsgrænsen for login blev overskredet efter 5 minutter. Log ind igen, når du er klar.",
+      "intervalsSignInUnreachable": "{{product}} kunne ikke få forbindelse til {{intervals}} for at fuldføre login. Kontrollér din forbindelse, og log ind igen.",
+      "intervalsStorageUncertain": "{{product}} kunne ikke bekræfte, om login blev gemt. Genindlæs adgangsoplysningernes status, før du prøver igen.",
+      "intervalsValidationUnavailable": "{{product}} kunne ikke bekræfte login hos {{intervals}}. Kontrollér din forbindelse, og log ind igen.",
       "invalidInput": "Nøglen blev ikke accepteret. Kontrollér den, og indtast den igen.",
       "modelRuntimeUnavailable": "Dit valg af udbyder er gemt, men er endnu ikke aktivt. Prøv at aktivere det igen.",
       "modelSelectionRequired": "Vælg en model, eller indtast et brugerdefineret modelnavn.",
       "runtimeUnavailable": "Nøglen blev gemt, men er endnu ikke aktiv. Vælg Prøv gemte nøgler igen for at aktivere den.",
       "storageFailed": "Appen kunne ikke bekræfte, at nøglen blev gemt sikkert. Kontrollér, at sikker lagring er tilgængelig, og prøv igen.",
       "storageUncertain": "Appen kunne ikke fastslå, hvilken gemt nøgle der bevares efter en genstart. Indtast nøglen igen, før du fortsætter.",
-      "trainingAccountMismatch": "Denne {{intervalsLower}}-nøgle tilhører en anden atlet end den allerede gemte træningshistorik. Kontoskift understøttes endnu ikke.",
+      "trainingAccountMismatch": "Denne {{intervalsLower}}-konto tilhører en anden atlet end den træningshistorik, der allerede ligger på {{computer}}. Kontoskift understøttes endnu ikke.",
       "trainingDataRequired": "Tilknyt {{intervalsLower}}, eller importér mindst én turfil.",
       "unsafeBackend": "Appen kan ikke gemme nøglen sikkert med den aktuelle lagringsløsning."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Annuller opsætning af {{intervals}}",
+      "cancelSignIn": "Annuller login",
+      "completing": "Afslutter login…",
+      "completingHint": "Adgang givet. Gemmer forbindelsen på {{computer}}…",
       "connect": "Opret forbindelse",
-      "connecting": "Opretter forbindelse…",
       "connectTitle": "Forbind {{intervals}}",
-      "hint": "Åbn Indstillinger → Udviklerindstillinger i {{intervals}}, kopiér API-nøglen, og vend tilbage hertil. {{product}} læser den uden at vise den.",
+      "hint": "Åbner {{intervals}} i din browser. Du giver adgang dér, og {{product}} ser aldrig din adgangskode.",
       "importFiles": "Importér turfiler i stedet",
+      "reopen": "Åbn loginsiden igen",
+      "signIn": "Log ind med {{intervals}}",
       "subtitle": {
         "connected": "Forbundet · hvor dine ture kommer fra",
+        "connectedAs": "Forbundet som {{name}} · hvor dine ture kommer fra",
         "missing": "Opret forbindelse, eller importér turfiler."
       },
       "tooltip": {
-        "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter kopiere kontoens API-nøgle.",
+        "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter logge ind her.",
         "label": "Om {{intervals}}"
       },
       "trigger": {
         "disconnected": "Forbind {{intervals}}"
       },
-      "useCopiedKey": "Brug kopieret API-nøgle"
+      "waiting": "Venter på browser…",
+      "waitingHint": "Gør det færdigt i din browser. {{product}} fortsætter af sig selv, når du giver adgang."
     }
   },
   "shell": {

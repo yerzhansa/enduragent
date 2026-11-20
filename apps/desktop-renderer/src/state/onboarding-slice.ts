@@ -21,6 +21,7 @@ export const CLOSED_ONBOARDING: OnboardingSurfaceState = Object.freeze({
   readiness: Object.freeze({ provider: false, trainingData: false, intake: false }),
   lastCommit: null,
   actionStatus: null,
+  intervalsSignIn: Object.freeze({ phase: "idle", athleteName: null }),
 });
 
 export const READY_ONBOARDING: OnboardingSurfaceState = Object.freeze({

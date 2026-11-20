@@ -5,7 +5,6 @@ import {
 } from "../ride-import";
 import type {
   CredentialWriteResult,
-  IntervalsCredentialMutationRefusalReason,
   IntervalsCredentialMutationResult,
   OnboardingBridge,
   OnboardingCredentialWriteInput,
@@ -15,6 +14,7 @@ import type {
 } from "./bridge";
 import { CUSTOM_MODEL_SELECTION, DESKTOP_CREDENTIAL_SLOTS } from "./constants";
 import { handoffCredential, type CredentialDraftPort } from "./credentials";
+import { intervalsMutationError, type IntervalsSignInSurface } from "./intervals-sign-in";
 import type { SetupCommit } from "./lanes";
 import {
   chatGptSignedIn,
@@ -74,6 +74,7 @@ export interface OnboardingSurfaceState {
   readonly readiness: OnboardingReadiness;
   readonly lastCommit: SetupCommit;
   readonly actionStatus: OnboardingActionStatus;
+  readonly intervalsSignIn: IntervalsSignInSurface;
 }
 
 export function onboardingCredentialMutationActive(surface: OnboardingSurfaceState): boolean {
@@ -102,6 +103,8 @@ export interface OnboardingView {
 export interface OnboardingActions {
   saveModelKey(): void;
   connectTrainingData(): void;
+  cancelIntervalsSignIn(): void;
+  reopenIntervalsSignIn(): void;
   finish(): void;
   dismiss(): void;
   retrySavedKeys(): void;
@@ -147,7 +150,7 @@ export interface OnboardingControllerOptions {
   readonly view: OnboardingView;
   readonly rideImports?: RideImportController;
   readonly onRideImportPresentationChange?: (presenting: boolean) => void;
-  readonly focusOpener: () => void;
+  readonly focusOpener?: () => void;
   readonly onComplete: (completion: OnboardingCompletion) => void;
   readonly onReady?: () => void;
   readonly ownsDroppedImportFiles?: () => boolean;
@@ -158,9 +161,6 @@ export interface OnboardingControllerOptions {
 }
 
 export const CHATGPT_PROGRESS_DETAIL_DELAY_MS = 3_000;
-// The Desktop main process owns the 10-second runtime activation deadline. This
-// wider renderer deadline only catches a broken IPC response path after main has
-// had time to report its authoritative result.
 export const CHATGPT_ACTIVATION_TRANSPORT_TIMEOUT_MS = 12_000;
 export const ONBOARDING_STATUS_REFRESH_TIMEOUT_MS = 3_000;
 export const ONBOARDING_STATUS_COLD_START_TIMEOUT_MS = 8_000;
@@ -263,26 +263,6 @@ const CREDENTIAL_WRITE_REFUSAL_ERRORS = {
   "storage-uncertain": "storage-uncertain",
 } as const satisfies Readonly<Record<CredentialWriteFailureReason, OnboardingErrorCode>>;
 
-const INTERVALS_REFUSAL_ERRORS = {
-  "clipboard-unavailable": "intervals-clipboard-unavailable",
-  "clipboard-clear-failed": "intervals-clipboard-clear-failed",
-  "invalid-key-format": "intervals-clipboard-unavailable",
-  "credential-rejected": "intervals-key-rejected",
-  "malformed-athlete-response": "intervals-validation-unavailable",
-  "validation-timeout": "intervals-validation-unavailable",
-  "validation-aborted": "intervals-validation-unavailable",
-  "validation-unavailable": "intervals-validation-unavailable",
-  "training-account-mismatch": "training-account-mismatch",
-  "owner-unresolved": "intervals-owner-unavailable",
-  "store-unavailable": "intervals-owner-unavailable",
-  "encryption-unavailable": "encryption-unavailable",
-  "unsafe-backend": "unsafe-backend",
-  "storage-failed": "storage-failed",
-  "runtime-unavailable": "intervals-runtime-unavailable",
-} as const satisfies Readonly<
-  Record<IntervalsCredentialMutationRefusalReason, OnboardingErrorCode>
->;
-
 const ENDPOINT_MODES: readonly OnboardingLlmEndpointSelection["mode"][] = [
   "automatic",
   "default",
@@ -294,20 +274,6 @@ function credentialWriteRefusalError(reason: unknown): OnboardingErrorCode {
     return CREDENTIAL_WRITE_REFUSAL_ERRORS[reason as CredentialWriteFailureReason];
   }
   return "credential-save-failed";
-}
-
-function intervalsMutationError(
-  result: IntervalsCredentialMutationResult,
-): OnboardingErrorCode | null {
-  if (result.outcome === "applied") {
-    return result.current.state === "configured" && result.current.runtimeState === "active"
-      ? null
-      : "intervals-runtime-unavailable";
-  }
-  if (result.outcome === "refused") return INTERVALS_REFUSAL_ERRORS[result.reason];
-  return result.reason === "storage-uncertain"
-    ? "intervals-storage-uncertain"
-    : "intervals-runtime-uncertain";
 }
 
 export function createOnboardingController(
@@ -337,6 +303,7 @@ export function createOnboardingController(
   let llmDrafts: Record<string, LlmSelectionDraft> = {};
   let lastCommit: SetupCommit = null;
   let actionStatus: OnboardingActionStatus = null;
+  let intervalsSignIn: IntervalsSignInSurface = { phase: "idle", athleteName: null };
   let authGeneration = 0;
   let statusRefreshGeneration = 0;
   let progressDetailTimer: ReturnType<typeof setTimeout> | undefined;
@@ -392,6 +359,7 @@ export function createOnboardingController(
       readiness,
       lastCommit,
       actionStatus,
+      intervalsSignIn,
     });
   };
 
@@ -559,8 +527,14 @@ export function createOnboardingController(
     };
   };
 
+  const cancelActiveIntervalsSignIn = (): void => {
+    if (intervalsSignIn.phase !== "waiting-for-browser") return;
+    void options.bridge.cancelIntervalsSignIn().catch(() => false);
+  };
+
   const close = (): void => {
     cancelActiveChatGptLogin();
+    cancelActiveIntervalsSignIn();
     clearProgressDetailTimer();
     clearScheduledActivation();
     authGeneration += 1;
@@ -572,7 +546,7 @@ export function createOnboardingController(
     presenting = false;
     setRideImportPresentation(false);
     publish();
-    options.focusOpener();
+    options.focusOpener?.();
   };
 
   const refreshStatuses = async (expectedVisit: number): Promise<boolean> => {
@@ -789,24 +763,32 @@ export function createOnboardingController(
     lastCommit = "training";
     actionStatus = null;
     state = withBusy(state, true);
+    intervalsSignIn = { ...intervalsSignIn, phase: "waiting-for-browser" };
     publish();
     let result: IntervalsCredentialMutationResult;
     try {
-      result = await options.bridge.pasteIntervalsApiKeyFromClipboard();
+      result = await options.bridge.signInWithIntervals();
     } catch {
-      if (visit !== submitVisit || !presenting) return;
-      state = withError(state, "intervals-validation-unavailable");
+      intervalsSignIn = { ...intervalsSignIn, phase: "idle" };
+      if (disposed) return;
+      const current = visit === submitVisit && presenting;
+      state = withBusy(state, false);
+      if (current) state = withError(state, "intervals-validation-unavailable");
       publish();
       return;
     }
-    if (visit !== submitVisit || !presenting) return;
+    intervalsSignIn = {
+      phase: "idle",
+      athleteName:
+        result.outcome === "applied" ? (result.athleteName ?? null) : intervalsSignIn.athleteName,
+    };
+    if (disposed) return;
     credentialStatuses = [
       ...credentialStatuses.filter((entry) => entry.slot !== "intervals-icu"),
       result.current,
     ];
-    state = withCredentialStatuses(state, credentialStatuses);
-    const saveError = intervalsMutationError(result);
-    state = withBusy(state, false);
+    state = withBusy(withCredentialStatuses(state, credentialStatuses), false);
+    const saveError = visit === submitVisit && presenting ? intervalsMutationError(result) : null;
     if (saveError !== null) state = withError(state, saveError);
     publish();
   };
@@ -905,8 +887,6 @@ export function createOnboardingController(
       ) {
         return;
       }
-      // An activation result is terminal for this auth generation. Status
-      // refreshes that started while activation was pending must not overwrite it.
       authGeneration += 1;
       const ready = result.status === "fulfilled" && result.value.status === "configured";
       state = withChatGptActivationResult(state, ready);
@@ -934,6 +914,12 @@ export function createOnboardingController(
       beginChatGptActivation(selection, expectedVisit);
     });
   };
+
+  const disposeIntervalsProgress = options.bridge.onIntervalsSignInProgress((phase) => {
+    if (disposed || intervalsSignIn.phase === "idle" || intervalsSignIn.phase === phase) return;
+    intervalsSignIn = { ...intervalsSignIn, phase };
+    publish();
+  });
 
   const disposeChatGptProgress = options.bridge.onChatGptLoginProgress((progress) => {
     if (
@@ -1058,7 +1044,10 @@ export function createOnboardingController(
       setLlmDraft(currentDraft);
     }
     credentialStatuses = statuses;
-    state = createOnboardingState(statuses, restoredChatGptStatus);
+    state = withBusy(
+      createOnboardingState(statuses, restoredChatGptStatus),
+      intervalsSignIn.phase !== "idle",
+    );
     if (hydrateAuthoritativeState) {
       state = withPersistedIntake(state, setupResult.value.intake);
       intakeSaved = setupResult.value.intake !== null;
@@ -1121,6 +1110,7 @@ export function createOnboardingController(
     close,
     dispose(): void {
       cancelActiveChatGptLogin();
+      cancelActiveIntervalsSignIn();
       clearProgressDetailTimer();
       clearScheduledActivation();
       disposed = true;
@@ -1134,6 +1124,7 @@ export function createOnboardingController(
       setRideImportPresentation(false);
       publish();
       disposeChatGptProgress();
+      disposeIntervalsProgress();
       disposeImportState();
     },
     state: () => state,
@@ -1160,6 +1151,13 @@ export function createOnboardingController(
     },
     connectTrainingData(): void {
       void connectTrainingData();
+    },
+    cancelIntervalsSignIn(): void {
+      if (!disposed) cancelActiveIntervalsSignIn();
+    },
+    reopenIntervalsSignIn(): void {
+      if (disposed || intervalsSignIn.phase !== "waiting-for-browser") return;
+      void options.bridge.reopenIntervalsSignIn().catch(() => false);
     },
     finish(): void {
       void finishSetup();

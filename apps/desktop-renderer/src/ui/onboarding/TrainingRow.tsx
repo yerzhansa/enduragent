@@ -23,12 +23,16 @@ import {
   RETRY_SAVED_KEYS_LABEL,
   SETUP_ROW_CHECKING_SUBTITLE,
   TRAINING_CANCEL_LABEL,
+  TRAINING_CANCEL_SIGN_IN_LABEL,
   TRAINING_CONNECT_TITLE,
+  TRAINING_REOPEN_SIGN_IN_LABEL,
   TRAINING_ROW_SUBTITLES,
   TRAINING_ROW_TITLE,
   TRAINING_ROW_TOOLTIP,
+  TRAINING_SIGN_IN_LABEL,
+  TRAINING_SIGN_IN_PHASE_COPY,
   TRAINING_TRIGGER_LABELS,
-  TRAINING_USE_COPIED_KEY_LABEL,
+  trainingConnectedAsSubtitle,
 } from "./copy";
 import { InfoTip } from "./InfoTip";
 import {
@@ -63,11 +67,15 @@ export function TrainingRow(props: {
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const importing = surface.rideImport.status === "running";
   const connected = wizard.credentialStatus["intervals-icu"] === "configured";
+  const signInPhase = surface.intervalsSignIn.phase;
+  const phaseCopy = signInPhase === "idle" ? null : TRAINING_SIGN_IN_PHASE_COPY[signInPhase];
+  const athleteName = surface.intervalsSignIn.athleteName;
   const retryable = surface.statuses.some(
     (entry) => entry.slot === "intervals-icu" && credentialPresentation(entry).retryable,
   );
   const ownsError = errorSection(wizard.fixedError, surface.lastCommit) === "training";
-  const [open, setOpen] = useState(false);
+  const [openRequested, setOpen] = useState(false);
+  const open = openRequested || signInPhase !== "idle";
   const [connectPhase, setConnectPhase] = useState<"idle" | "connecting">("idle");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
@@ -112,7 +120,11 @@ export function TrainingRow(props: {
   const subtitle = !statusKnown
     ? say(SETUP_ROW_CHECKING_SUBTITLE)
     : connected
-      ? say(TRAINING_ROW_SUBTITLES.connected)
+      ? say(
+          athleteName === null
+            ? TRAINING_ROW_SUBTITLES.connected
+            : trainingConnectedAsSubtitle(athleteName),
+        )
       : say(TRAINING_ROW_SUBTITLES.missing);
 
   const connect = (): void => {
@@ -175,22 +187,37 @@ export function TrainingRow(props: {
               >
                 {say(TRAINING_CONNECT_TITLE)}
               </h3>
-              <p className="mt-1 mb-0 text-xs text-ink-2">{say(INTERVALS_PANEL_HINT)}</p>
+              <p className="mt-1 mb-0 text-xs text-ink-2">
+                {say(phaseCopy === null ? INTERVALS_PANEL_HINT : phaseCopy.hint)}
+              </p>
             </div>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={controlsDisabled}
-                aria-label={say(TRAINING_CANCEL_LABEL)}
-                onClick={() => {
-                  setOpen(false);
-                  triggerRef.current?.focus();
-                }}
-              >
-                {say("common.cancel")}
-              </Button>
+              {signInPhase === "idle" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={controlsDisabled}
+                  aria-label={say(TRAINING_CANCEL_LABEL)}
+                  onClick={() => {
+                    setOpen(false);
+                    triggerRef.current?.focus();
+                  }}
+                >
+                  {say("common.cancel")}
+                </Button>
+              ) : null}
+              {signInPhase === "waiting-for-browser" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={actions === null}
+                  onClick={() => actions?.cancelIntervalsSignIn()}
+                >
+                  {say(TRAINING_CANCEL_SIGN_IN_LABEL)}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="default"
@@ -198,24 +225,36 @@ export function TrainingRow(props: {
                 disabled={controlsDisabled || importing}
                 onClick={connect}
               >
-                {connectPhase === "idle"
-                  ? say(TRAINING_USE_COPIED_KEY_LABEL)
-                  : say("setup.training.connecting")}
+                {say(phaseCopy === null ? TRAINING_SIGN_IN_LABEL : phaseCopy.status)}
               </Button>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="link"
-            size="sm"
-            className={SETUP_LINK_BUTTON}
-            disabled={controlsDisabled || importing}
-            onClick={() => {
-              actions?.chooseImportFiles();
-            }}
-          >
-            {say(IMPORT_FILES_LABEL)}
-          </Button>
+          {signInPhase === "idle" ? (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className={SETUP_LINK_BUTTON}
+              disabled={controlsDisabled || importing}
+              onClick={() => {
+                actions?.chooseImportFiles();
+              }}
+            >
+              {say(IMPORT_FILES_LABEL)}
+            </Button>
+          ) : null}
+          {signInPhase === "waiting-for-browser" ? (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className={SETUP_LINK_BUTTON}
+              disabled={actions === null}
+              onClick={() => actions?.reopenIntervalsSignIn()}
+            >
+              {say(TRAINING_REOPEN_SIGN_IN_LABEL)}
+            </Button>
+          ) : null}
           <SetupError surface={surface} section="training" />
         </SetupSubPanel>
       ) : null}

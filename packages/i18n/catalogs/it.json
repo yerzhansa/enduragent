@@ -208,7 +208,7 @@
         "credential": "Elimina credenziale",
         "detail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. Il tuo account del fornitore rimane invariato.",
         "intervalsAria": "Elimina la connessione a {{intervals}}",
-        "intervalsDetail": "La chiave API salvata e la connessione importata verranno rimosse. Le uscite sincronizzate e le chat passate rimangono su {{computer}}.",
+        "intervalsDetail": "L’accesso salvato o la chiave API e la connessione importata verranno rimossi. Le uscite sincronizzate e le chat passate rimangono su {{computer}}.",
         "intervalsTitle": "Eliminare la connessione a {{intervals}}?",
         "title": "Eliminare la credenziale di {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Inserisci un endpoint HTTPS valido o un endpoint HTTP di loopback.",
       "intakeIncomplete": "Rispondi alle domande obbligatorie sulla sicurezza per continuare.",
       "intakeSaveFailed": "Impossibile salvare le tue risposte. Riprova.",
-      "intervalsClipboardClearFailed": "La chiave API non è stata salvata perché {{product}} non ha potuto rimuoverla in sicurezza dagli appunti. Copiala di nuovo, poi riprova.",
-      "intervalsClipboardUnavailable": "{{product}} non ha potuto leggere una chiave API dagli appunti. Copiala in {{intervals}}, poi riprova.",
-      "intervalsKeyRejected": "{{intervals}} non ha accettato la chiave API copiata. Copia una chiave API attuale, poi riprova.",
-      "intervalsOwnerUnavailable": "{{product}} non ha potuto confermare che la chiave API copiata corrisponda ai dati di allenamento su {{computer}}. Riprova quando i dati di allenamento saranno disponibili.",
-      "intervalsRuntimeUnavailable": "Impossibile attivare la chiave API copiata. Copiala in {{intervals}}, poi riprova.",
-      "intervalsRuntimeUncertain": "{{product}} non ha potuto confermare se la chiave API copiata è attiva. Ricarica lo stato delle credenziali prima di riprovare.",
-      "intervalsStorageUncertain": "{{product}} non ha potuto confermare se la chiave API copiata è stata salvata. Ricarica lo stato delle credenziali prima di riprovare.",
-      "intervalsValidationUnavailable": "{{product}} non ha potuto verificare la chiave API copiata con {{intervals}}. Controlla la connessione, poi riprova.",
+      "intervalsOwnerUnavailable": "{{product}} non ha potuto confermare che questo account {{intervals}} corrisponda ai dati di allenamento su {{computer}}. Riprova quando i dati di allenamento saranno disponibili.",
+      "intervalsRuntimeUnavailable": "Impossibile attivare l’accesso a {{intervals}}. Accedi di nuovo.",
+      "intervalsRuntimeUncertain": "{{product}} non ha potuto confermare se l’accesso è attivo. Ricarica lo stato delle credenziali prima di riprovare.",
+      "intervalsSignInDenied": "L’accesso non è stato consentito su {{intervals}}. Accedi di nuovo quando vuoi.",
+      "intervalsSignInFailed": "L’accesso con {{intervals}} non è stato completato. Accedi di nuovo.",
+      "intervalsSignInRejected": "{{intervals}} non ha accettato l’accesso. Accedi di nuovo.",
+      "intervalsSignInTimedOut": "Tempo scaduto per l’accesso dopo 5 minuti. Accedi di nuovo quando vuoi.",
+      "intervalsSignInUnreachable": "{{product}} non ha potuto raggiungere {{intervals}} per completare l’accesso. Controlla la connessione, poi accedi di nuovo.",
+      "intervalsStorageUncertain": "{{product}} non ha potuto confermare se l’accesso è stato salvato. Ricarica lo stato delle credenziali prima di riprovare.",
+      "intervalsValidationUnavailable": "{{product}} non ha potuto confermare l’accesso con {{intervals}}. Controlla la connessione, poi accedi di nuovo.",
       "invalidInput": "La chiave non è stata accettata. Controllala e inseriscila di nuovo.",
       "modelRuntimeUnavailable": "La scelta del fornitore è salvata, ma non è ancora attiva. Prova ad attivarla di nuovo.",
       "modelSelectionRequired": "Scegli un modello o inserisci un nome di modello personalizzato.",
       "runtimeUnavailable": "La chiave è stata salvata, ma non è ancora attiva. Scegli Riprova chiavi salvate per attivarla.",
       "storageFailed": "L’app non ha potuto confermare che la chiave sia stata salvata in sicurezza. Verifica che l’archivio sicuro sia disponibile e riprova.",
       "storageUncertain": "L’app non ha potuto determinare quale chiave salvata rimarrà disponibile dopo un riavvio. Inserisci di nuovo la chiave prima di continuare.",
-      "trainingAccountMismatch": "Questa chiave {{intervalsLower}} appartiene a un atleta diverso da quello della cronologia di allenamento già memorizzata. Il cambio di account non è ancora supportato.",
+      "trainingAccountMismatch": "Questo account {{intervalsLower}} appartiene a un atleta diverso da quello della cronologia di allenamento già presente su {{computer}}. Il cambio di account non è ancora supportato.",
       "trainingDataRequired": "Collega {{intervalsLower}} o importa almeno un file di un’uscita.",
       "unsafeBackend": "L’app non può memorizzare questa chiave in sicurezza con il sistema di archiviazione attuale."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Annulla configurazione di {{intervals}}",
+      "cancelSignIn": "Annulla accesso",
+      "completing": "Completamento dell’accesso…",
+      "completingHint": "Autorizzato. Salvataggio della connessione su {{computer}}…",
       "connect": "Collega",
-      "connecting": "Connessione…",
       "connectTitle": "Collega {{intervals}}",
-      "hint": "In {{intervals}}, apri Impostazioni → Impostazioni sviluppatore, copia la chiave API, poi torna qui. {{product}} la legge senza mostrarla.",
+      "hint": "Apre {{intervals}} nel browser. Lì autorizzi l’accesso e {{product}} non vede mai la tua password.",
       "importFiles": "Importa invece i file delle uscite",
+      "reopen": "Riapri la pagina di accesso",
+      "signIn": "Accedi con {{intervals}}",
       "subtitle": {
         "connected": "Collegato · la fonte delle tue uscite",
+        "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
         "missing": "Collega o importa i file delle uscite."
       },
       "tooltip": {
-        "body": "Un sito gratuito per l’allenamento che contiene già le tue uscite. {{product}} le legge da lì anziché comunicare direttamente con il fornitore del tuo orologio o ciclocomputer. Ti serve un account gratuito a cui collegare l’orologio o il ciclocomputer, poi copia la sua chiave API.",
+        "body": "Un sito gratuito per l’allenamento che contiene già le tue uscite. {{product}} le legge da lì anziché comunicare direttamente con il fornitore del tuo orologio o ciclocomputer. Ti serve un account gratuito a cui collegare l’orologio o il ciclocomputer, poi accedi qui.",
         "label": "Informazioni su {{intervals}}"
       },
       "trigger": {
         "disconnected": "Collega {{intervals}}"
       },
-      "useCopiedKey": "Usa chiave API copiata"
+      "waiting": "In attesa del browser…",
+      "waitingHint": "Completa la procedura nel browser. {{product}} prosegue da solo appena autorizzi l’accesso."
     }
   },
   "shell": {

@@ -385,8 +385,8 @@ describe.skipIf(process.platform !== "darwin" || !hasLoopback)("onboarding live"
       await waitGone('[data-setup-panel="api-key"]');
       document.querySelector('[data-setup-trigger="training"]')?.click();
       const trainingPanel = await waitFor('[data-setup-panel="training"]');
-      if (panelButton("training", "Use copied API key") === undefined) {
-        throw new Error("missing Use copied API key action");
+      if (panelButton("training", "Sign in with Intervals.icu") === undefined) {
+        throw new Error("missing Sign in with Intervals.icu action");
       }
       if (trainingPanel.querySelector('input[data-slot="intervals-icu"]') !== null) {
         throw new Error("unexpected Intervals.icu credential input");

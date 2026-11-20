@@ -653,7 +653,7 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
-  it("connects Intervals.icu from copied metadata without rendering a secret field", async () => {
+  it("connects Intervals.icu through browser sign-in without rendering a secret field", async () => {
     const user = userEvent.setup();
     const wizard = mountWizard({ bridge: coldBridge() });
     await wizard.open();
@@ -665,17 +665,17 @@ describe("setup card", () => {
     expect(panel("training")?.querySelectorAll("input")).toHaveLength(0);
     expect(screen.getByRole("heading", { name: "Connect Intervals.icu" })).toHaveFocus();
     expect(panel("training")).toHaveTextContent(
-      "In Intervals.icu, open Settings → Developer Settings, copy the API key, then return here. Enduragent reads it without showing it.",
+      "Opens Intervals.icu in your browser. You approve access there, and Enduragent never sees your password.",
     );
     expect(buttonNames(panel("training"))).toEqual([
       "Cancel",
-      "Use copied API key",
+      "Sign in with Intervals.icu",
       "Import ride files instead",
     ]);
     wizard.controller.dispose();
   });
 
-  it("keeps saved-key recovery without exposing clipboard replacement", async () => {
+  it("keeps saved-key recovery without exposing a sign-in replacement", async () => {
     const user = userEvent.setup();
     const bridge = claudeReadyBridge();
     bridge.credentialStatuses.mockResolvedValue([
@@ -693,7 +693,7 @@ describe("setup card", () => {
       expect(rowState("training")).toBe("ready");
       expect(panel("training")).toBeNull();
     });
-    expect(screen.queryByRole("button", { name: "Use copied API key" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sign in with Intervals.icu" })).toBeNull();
     expect(bridge.retryFailedCredentials).toHaveBeenCalledOnce();
     wizard.controller.dispose();
   });
@@ -1124,7 +1124,7 @@ describe("setup card", () => {
     wizard.controller.dispose();
   });
 
-  it("puts Cancel first and closes first-time Intervals setup without reading a key", async () => {
+  it("puts Cancel first and closes first-time Intervals setup without signing in", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
     const wizard = mountWizard({ bridge });
@@ -1134,7 +1134,7 @@ describe("setup card", () => {
     expect(panel("training")?.querySelector("input")).toBeNull();
     expect(buttonNames(panel("training"))).toEqual([
       "Cancel",
-      "Use copied API key",
+      "Sign in with Intervals.icu",
       "Import ride files instead",
     ]);
 
@@ -1148,14 +1148,14 @@ describe("setup card", () => {
       expect(panel("training")).toBeNull();
     });
     expect(bridge.writeCredential).not.toHaveBeenCalled();
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).not.toHaveBeenCalled();
+    expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
     expect(rowState("training")).toBe("pending");
     expect(trigger("training").textContent).toBe("Connect");
     expect(trigger("training")).toHaveFocus();
     wizard.controller.dispose();
   });
 
-  it("uses a copied Intervals API key, closes the panel, and focuses Delete", async () => {
+  it("signs in with Intervals.icu, closes the panel, and focuses Delete", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
     bindCredentialPort();
@@ -1165,7 +1165,7 @@ describe("setup card", () => {
 
     await user.click(
       within(panel("training") as HTMLElement).getByRole("button", {
-        name: "Use copied API key",
+        name: "Sign in with Intervals.icu",
       }),
     );
 
@@ -1178,7 +1178,7 @@ describe("setup card", () => {
     const remove = screen.getByRole("button", { name: "Delete the Intervals.icu connection" });
     expect(remove).toHaveTextContent("Delete");
     expect(remove).toHaveFocus();
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).toHaveBeenCalledOnce();
+    expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     expect(bridge.writeCredential).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
@@ -1207,12 +1207,12 @@ describe("setup card", () => {
     });
     expect(panel("training")).not.toBeNull();
     expect(panel("training")?.querySelector("input")).toBeNull();
-    expect(screen.getByRole("button", { name: "Use copied API key" })).toBeInTheDocument();
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Sign in with Intervals.icu" })).toBeInTheDocument();
+    expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
     wizard.controller.dispose();
   });
 
-  it("keeps an open AI draft when copied Intervals setup finishes", async () => {
+  it("keeps an open AI draft when Intervals sign-in finishes", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
     bridge.llmConfiguration.mockResolvedValue({
@@ -1235,7 +1235,7 @@ describe("setup card", () => {
 
     await user.click(
       within(panel("training") as HTMLElement).getByRole("button", {
-        name: "Use copied API key",
+        name: "Sign in with Intervals.icu",
       }),
     );
 
@@ -1247,7 +1247,7 @@ describe("setup card", () => {
     expect(
       screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
     ).toHaveFocus();
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).toHaveBeenCalledOnce();
+    expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     wizard.controller.dispose();
   });
 
@@ -1387,12 +1387,12 @@ describe("setup card accessibility", () => {
     resetOnboardingStore();
   });
 
-  it("announces clipboard guidance when the copied Intervals API key has an invalid format", async () => {
+  it("announces sign-in guidance when Intervals.icu access is not allowed", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
-    bridge.pasteIntervalsApiKeyFromClipboard.mockResolvedValue({
+    bridge.signInWithIntervals.mockResolvedValue({
       outcome: "refused",
-      reason: "invalid-key-format",
+      reason: "sign-in-denied",
       current: { slot: "intervals-icu", state: "missing", runtimeState: null },
     });
     const wizard = mountWizard({ bridge });
@@ -1401,15 +1401,15 @@ describe("setup card accessibility", () => {
     await openTrainingPanel(user);
     await user.click(
       within(panel("training") as HTMLElement).getByRole("button", {
-        name: "Use copied API key",
+        name: "Sign in with Intervals.icu",
       }),
     );
 
     await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intervals-clipboard-unavailable");
+      expect(wizard.controller.state().fixedError).toBe("intervals-sign-in-denied");
     });
     expect(errorAnnouncer()?.textContent).toBe(
-      "Enduragent couldn’t read an API key from the clipboard. Copy it in Intervals.icu, then try again.",
+      "Access wasn’t allowed on Intervals.icu. Sign in again when you’re ready.",
     );
     wizard.controller.dispose();
   });
@@ -1417,7 +1417,7 @@ describe("setup card accessibility", () => {
   it("announces errors through a region that is mounted before the error exists", async () => {
     const user = userEvent.setup();
     const bridge = coldBridge();
-    bridge.pasteIntervalsApiKeyFromClipboard.mockResolvedValue({
+    bridge.signInWithIntervals.mockResolvedValue({
       outcome: "refused",
       reason: "credential-rejected",
       current: { slot: "intervals-icu", state: "missing", runtimeState: null },
@@ -1433,17 +1433,15 @@ describe("setup card accessibility", () => {
     await openTrainingPanel(user);
     await user.click(
       within(panel("training") as HTMLElement).getByRole("button", {
-        name: "Use copied API key",
+        name: "Sign in with Intervals.icu",
       }),
     );
 
     await waitFor(() => {
-      expect(wizard.controller.state().fixedError).toBe("intervals-key-rejected");
+      expect(wizard.controller.state().fixedError).toBe("intervals-sign-in-rejected");
     });
     expect(errorAnnouncer()).toBe(announcer);
-    expect(announcer?.textContent).toBe(
-      "Intervals.icu didn’t accept the copied API key. Copy a current API key, then try again.",
-    );
+    expect(announcer?.textContent).toBe("Intervals.icu didn’t accept the sign-in. Sign in again.");
     expect(document.querySelector("#onboarding-error")?.hasAttribute("aria-live")).toBe(false);
     wizard.controller.dispose();
   });
@@ -1564,7 +1562,7 @@ describe("setup card accessibility", () => {
       "Cancel API key setup",
       "Save API key",
       "Cancel Intervals.icu setup",
-      "Use copied API key",
+      "Sign in with Intervals.icu",
       "Import ride files instead",
     ]) {
       expect(screen.getAllByRole("button", { name })).toHaveLength(1);

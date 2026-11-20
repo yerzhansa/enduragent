@@ -207,7 +207,7 @@
         "credential": "删除凭据",
         "detail": "仅从 {{computer}} 删除此凭据。如果正在使用，{{product}} 将停止使用。服务商账号保持不变。",
         "intervalsAria": "删除 {{intervals}} 连接",
-        "intervalsDetail": "将移除已保存的 API 密钥和已导入的连接。已同步的骑行和历史聊天会保留在 {{computer}} 上。",
+        "intervalsDetail": "将移除已保存的登录信息或 API 密钥以及已导入的连接。已同步的骑行和历史聊天会保留在 {{computer}} 上。",
         "intervalsTitle": "删除 {{intervals}} 连接？",
         "title": "删除 {{provider}} 凭据？"
       },
@@ -686,21 +686,23 @@
       "endpointInvalid": "请输入有效的 HTTPS 端点，或使用回环地址的 HTTP 端点。",
       "intakeIncomplete": "请回答必填的安全问题以继续。",
       "intakeSaveFailed": "无法保存回答。请重试。",
-      "intervalsClipboardClearFailed": "{{product}} 无法安全地从剪贴板清除 API 密钥，因此未保存。请重新复制后重试。",
-      "intervalsClipboardUnavailable": "{{product}} 无法从剪贴板读取 API 密钥。请在 {{intervals}} 中复制后重试。",
-      "intervalsKeyRejected": "{{intervals}} 未接受复制的 API 密钥。请复制当前有效的 API 密钥后重试。",
-      "intervalsOwnerUnavailable": "{{product}} 无法确认复制的 API 密钥是否与 {{computer}} 上的训练数据匹配。请在训练数据可用后重试。",
-      "intervalsRuntimeUnavailable": "无法启用复制的 API 密钥。请在 {{intervals}} 中复制后重试。",
-      "intervalsRuntimeUncertain": "{{product}} 无法确认复制的 API 密钥是否已启用。请重新加载凭据状态后重试。",
-      "intervalsStorageUncertain": "{{product}} 无法确认复制的 API 密钥是否已保存。请重新加载凭据状态后重试。",
-      "intervalsValidationUnavailable": "{{product}} 无法通过 {{intervals}} 验证复制的 API 密钥。请检查连接后重试。",
+      "intervalsOwnerUnavailable": "{{product}} 无法确认此 {{intervals}} 账号是否与 {{computer}} 上的训练数据匹配。请在训练数据可用后重试。",
+      "intervalsRuntimeUnavailable": "无法启用 {{intervals}} 登录。请重新登录。",
+      "intervalsRuntimeUncertain": "{{product}} 无法确认登录是否有效。请重新加载凭据状态后重试。",
+      "intervalsSignInDenied": "未在 {{intervals}} 上允许访问。准备好后请重新登录。",
+      "intervalsSignInFailed": "使用 {{intervals}} 登录未完成。请重新登录。",
+      "intervalsSignInRejected": "{{intervals}} 未接受此次登录。请重新登录。",
+      "intervalsSignInTimedOut": "登录在 5 分钟后超时。准备好后请重新登录。",
+      "intervalsSignInUnreachable": "{{product}} 无法连接到 {{intervals}} 以完成登录。请检查连接后重新登录。",
+      "intervalsStorageUncertain": "{{product}} 无法确认登录信息是否已保存。请重新加载凭据状态后重试。",
+      "intervalsValidationUnavailable": "{{product}} 无法通过 {{intervals}} 确认登录。请检查连接后重新登录。",
       "invalidInput": "该密钥未被接受。请检查后重新输入。",
       "modelRuntimeUnavailable": "所选服务商已保存，但尚未启用。请重试启用。",
       "modelSelectionRequired": "请选择模型或输入自定义模型名称。",
       "runtimeUnavailable": "该密钥已保存，但尚未启用。请选择“重试已保存的密钥”以启用。",
       "storageFailed": "应用无法确认该密钥是否已安全保存。请检查安全存储是否可用后重试。",
       "storageUncertain": "应用无法确认哪个已保存的密钥会在重启后保留。请重新输入密钥后继续。",
-      "trainingAccountMismatch": "该 {{intervalsLower}} 密钥所属的运动员与已存储的训练历史不符。目前尚不支持切换账号。",
+      "trainingAccountMismatch": "该 {{intervalsLower}} 账号所属的运动员与 {{computer}} 上已有的训练历史不符。目前尚不支持切换账号。",
       "trainingDataRequired": "请连接 {{intervalsLower}}，或导入至少一个骑行文件。",
       "unsafeBackend": "应用无法通过当前存储后端安全地存储该密钥。"
     },
@@ -757,23 +759,29 @@
     },
     "training": {
       "cancelLabel": "取消 {{intervals}} 设置",
+      "cancelSignIn": "取消登录",
+      "completing": "正在完成登录…",
+      "completingHint": "已授权。正在将连接保存到 {{computer}}…",
       "connect": "连接",
-      "connecting": "正在连接…",
       "connectTitle": "连接 {{intervals}}",
-      "hint": "在 {{intervals}} 中打开“设置 → 开发者设置”，复制 API 密钥后返回此处。{{product}} 会读取密钥，但不会显示。",
+      "hint": "将在浏览器中打开 {{intervals}}。请在该页面授权访问，{{product}} 永远不会看到密码。",
       "importFiles": "改为导入骑行文件",
+      "reopen": "重新打开登录页面",
+      "signIn": "使用 {{intervals}} 登录",
       "subtitle": {
         "connected": "已连接 · 骑行数据来源",
+        "connectedAs": "已以 {{name}} 身份连接 · 骑行数据来源",
         "missing": "请连接或导入骑行文件。"
       },
       "tooltip": {
-        "body": "这是一个存有骑行记录的免费训练网站。{{product}} 从该网站读取记录，无需直接连接手表或码表厂商。需要一个已连接手表或码表的免费账号，然后复制其 API 密钥。",
+        "body": "这是一个存有骑行记录的免费训练网站。{{product}} 从该网站读取记录，无需直接连接手表或码表厂商。需要一个已连接手表或码表的免费账号，然后在此登录。",
         "label": "关于 {{intervals}}"
       },
       "trigger": {
         "disconnected": "连接 {{intervals}}"
       },
-      "useCopiedKey": "使用复制的 API 密钥"
+      "waiting": "正在等待浏览器…",
+      "waitingHint": "请在浏览器中完成操作。授权访问后，{{product}} 会自动继续。"
     }
   },
   "shell": {

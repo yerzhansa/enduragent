@@ -102,12 +102,13 @@ function activationBridge(
       status: "configured",
       runtimeReady: true,
     })),
-    pasteIntervalsApiKeyFromClipboard: vi.fn<OnboardingBridge["pasteIntervalsApiKeyFromClipboard"]>(
-      async () => ({
-        outcome: "applied",
-        current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
-      }),
-    ),
+    signInWithIntervals: vi.fn<OnboardingBridge["signInWithIntervals"]>(async () => ({
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+    })),
+    cancelIntervalsSignIn: vi.fn<OnboardingBridge["cancelIntervalsSignIn"]>(async () => true),
+    reopenIntervalsSignIn: vi.fn<OnboardingBridge["reopenIntervalsSignIn"]>(async () => true),
+    onIntervalsSignInProgress: vi.fn<OnboardingBridge["onIntervalsSignInProgress"]>(() => () => {}),
     llmConfiguration: vi.fn<OnboardingBridge["llmConfiguration"]>(
       async () => KEYLESS_CONFIGURATION,
     ),
@@ -745,7 +746,7 @@ describe("onboarding runtime completion gate", () => {
 
       expect(harness.controller.state()).toBe(stateBeforeMutations);
       expect(bridge.writeCredential).not.toHaveBeenCalled();
-      expect(bridge.pasteIntervalsApiKeyFromClipboard).not.toHaveBeenCalled();
+      expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
       expect(bridge.retryFailedCredentials).not.toHaveBeenCalled();
       expect(bridge.chatGptLogin).not.toHaveBeenCalled();
       expect(bridge.applyLlmSelection).not.toHaveBeenCalled();
