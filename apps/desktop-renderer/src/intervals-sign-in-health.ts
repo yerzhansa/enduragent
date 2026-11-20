@@ -23,9 +23,7 @@ export interface IntervalsSignInHealth {
 }
 
 export function intervalsSignInRejected(snapshot: RuntimeConfigSnapshot): boolean {
-  return (
-    snapshot.intervals.credential_configured && snapshot.intervals.credential_rejected === true
-  );
+  return snapshot.intervals.credential_rejected === true;
 }
 
 export function createIntervalsSignInHealth(

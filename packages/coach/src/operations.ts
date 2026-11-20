@@ -170,7 +170,10 @@ function createSerializedLane(): <T>(operation: () => Promise<T>) => Promise<T> 
   };
 }
 
-export const RUNTIME_CONFIGURATION_DEADLINE_MS = 25_000;
+const CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS = 30_000;
+const MARGIN_BEFORE_CALLER_DETACHES_MS = 5_000;
+export const RUNTIME_CONFIGURATION_DEADLINE_MS =
+  CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS - MARGIN_BEFORE_CALLER_DETACHES_MS;
 
 export function createCoachOperations(
   input: CreateCoachOperationsInput,
@@ -198,6 +201,11 @@ export function createCoachOperations(
     throw new TypeError("Runtime configuration deadline is invalid.");
   }
   const enqueueRuntimeConfiguration = createSerializedLane();
+  let offeredIntervalsCredential = "";
+  const intervalsCredentialRejected = (applied: string): boolean =>
+    [applied, offeredIntervalsCredential].some(
+      (credential) => credential.length > 0 && isIntervalsCredentialRejected(credential),
+    );
 
   const deliver = (
     onEvent: ((event: OperationProgressEvent) => void) | undefined,
@@ -392,7 +400,13 @@ export function createCoachOperations(
               ? requestSignal
               : AbortSignal.any([requestSignal, admissionSignal]);
           signal.throwIfAborted();
+          if (parsedRequest.intervals?.api_key !== undefined) {
+            offeredIntervalsCredential = parsedRequest.intervals.api_key;
+          }
           const refusal = await input.applyRuntimeConfig(parsedRequest, signal);
+          if (refusal === undefined && parsedRequest.intervals?.clear_credential === true) {
+            offeredIntervalsCredential = "";
+          }
           signal.throwIfAborted();
           if (refusal !== undefined) {
             return ConfigureRuntimeRpcResultSchema.parse({
@@ -437,9 +451,7 @@ export function createCoachOperations(
         }
         const snapshot = GetRuntimeConfigRpcResultSchema.parse(input.readRuntimeConfig());
         const { apiKey } = await input.intervalsCredentials.read();
-        if (!snapshot.intervals.credential_configured || !isIntervalsCredentialRejected(apiKey)) {
-          return snapshot;
-        }
+        if (!intervalsCredentialRejected(apiKey)) return snapshot;
         return { ...snapshot, intervals: { ...snapshot.intervals, credential_rejected: true } };
       });
     },

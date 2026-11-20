@@ -263,7 +263,6 @@ export { intervalsCredentialKind } from "./intervals-credential.js";
 export {
   isIntervalsCredentialRejected,
   recordIntervalsCredentialResponse,
-  resetIntervalsCredentialHealthForTests,
 } from "./intervals-credential-health.js";
 
 export { createTelegramBot } from "./channels/telegram.js";

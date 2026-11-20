@@ -586,6 +586,45 @@ describe("Intervals.icu sign-in panel", () => {
       wizard.controller.dispose();
     });
 
+    it.each(["gate", "settings"] as const)(
+      "shows the amber row instead of Retry when the saved sign-in failed to apply (%s)",
+      async (placement) => {
+        const user = userEvent.setup();
+        const { bridge, signIn } = signInBridge();
+        const FAILED = { ...ACTIVE, runtimeState: "failed" } as const;
+        bridge.credentialStatuses.mockResolvedValue([FAILED]);
+        const wizard = mountWizard({ bridge, placement });
+        await wizard.open();
+        expect(screen.getByRole("button", { name: "Retry saved keys" })).toBeInTheDocument();
+
+        act(() => {
+          useEnduragentStore.getState().setIntervalsSignInRejected(true);
+        });
+
+        expect(rowState("training")).toBe("attention");
+        expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+        expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
+        expect(panel("training-recovery")).toBeNull();
+
+        await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+        await waitFor(() => {
+          expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
+        });
+        expect(signInPhase()).toBe("waiting-for-browser");
+        expect(bridge.retryFailedCredentials).not.toHaveBeenCalled();
+
+        signIn.resolve({ outcome: "applied", current: ACTIVE });
+        act(() => {
+          useEnduragentStore.getState().setIntervalsSignInRejected(false);
+        });
+        await waitFor(() => {
+          expect(rowState("training")).toBe("ready");
+        });
+        expect(screen.queryByRole("button", { name: "Retry saved keys" })).toBeNull();
+        wizard.controller.dispose();
+      },
+    );
+
     it("ignores a rejected flag when nothing is connected", async () => {
       const { bridge } = signInBridge();
       const wizard = mountWizard({ bridge });

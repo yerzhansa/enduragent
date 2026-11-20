@@ -74,9 +74,10 @@ export function TrainingRow(props: {
   const signInPhase = surface.intervalsSignIn.phase;
   const phaseCopy = signInPhase === "idle" ? null : TRAINING_SIGN_IN_PHASE_COPY[signInPhase];
   const athleteName = surface.intervalsSignIn.athleteName;
-  const retryable = surface.statuses.some(
+  const retryableStatus = surface.statuses.some(
     (entry) => entry.slot === "intervals-icu" && credentialPresentation(entry).retryable,
   );
+  const retryable = retryableStatus && !rejected;
   const ownsError = errorSection(wizard.fixedError, surface.lastCommit) === "training";
   const [openRequested, setOpen] = useState(false);
   const open = openRequested || signInPhase !== "idle";

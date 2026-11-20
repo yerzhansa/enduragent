@@ -87,10 +87,14 @@ describe("intervals.icu sign-in health", () => {
 
     test.setRuntime(snapshot({ credential_configured: false, credential_rejected: true }));
     await client.call("getRuntimeConfig", {});
-    await vi.waitFor(() => expect(test.published).toEqual([true, false]));
+    await vi.waitFor(() => expect(test.published).toEqual([true, true]));
+
+    test.setRuntime(snapshot({ credential_configured: false }));
+    await client.call("getRuntimeConfig", {});
+    await vi.waitFor(() => expect(test.published).toEqual([true, true, false]));
 
     await client.call("sync", {});
-    expect(test.published).toEqual([true, false]);
+    expect(test.published).toEqual([true, true, false]);
   });
 
   it("reads runtime configuration at start, after every finished sync, and on focus", async () => {

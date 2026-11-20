@@ -49,6 +49,12 @@ function forbiddenWithProbe(probeStatus: number | "offline") {
   return { fetch: fetch as unknown as typeof globalThis.fetch, probes, probeAuthorizations };
 }
 
+function settleProbes(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 beforeEach(() => {
   resetIntervalsCredentialHealthForTests();
   resetSharedRequestBucketForTests();
@@ -117,17 +123,45 @@ describe("intervals.icu credential health", () => {
     const tracked = trackIntervalsCredentialHealth(SIGNED_IN, stub.fetch);
     const response = await tracked(OUT_OF_SCOPE_URL);
     expect(response.status).toBe(403);
+    await settleProbes();
     expect(stub.probes()).toBe(1);
     expect(stub.probeAuthorizations).toEqual(["Bearer fixture-token-a"]);
     expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(false);
   });
 
+  it("returns the 403 at once and marks the credential when the background probe gets 401", async () => {
+    let releaseProbe!: () => void;
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve;
+    });
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (requestUrl(input) !== INTERVALS_CREDENTIAL_PROBE_URL) return reply(403);
+      await probeGate;
+      return reply(401);
+    });
+    const tracked = trackIntervalsCredentialHealth(
+      SIGNED_IN,
+      fetch as unknown as typeof globalThis.fetch,
+    );
+
+    await expect(tracked(OUT_OF_SCOPE_URL)).resolves.toMatchObject({ status: 403 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(false);
+
+    releaseProbe();
+    await vi.waitFor(() => {
+      expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(true);
+    });
+  });
+
   it.each([401, 403])("marks a credential when the probe answers %i", async (probeStatus) => {
     const stub = forbiddenWithProbe(probeStatus);
     await trackIntervalsCredentialHealth(SIGNED_IN, stub.fetch)(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(stub.probes()).toBe(1);
     expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(true);
     await trackIntervalsCredentialHealth(SIGNED_IN, stub.fetch)(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(stub.probes()).toBe(1);
   });
 
@@ -135,8 +169,10 @@ describe("intervals.icu credential health", () => {
     const stub = forbiddenWithProbe(probeStatus);
     const tracked = trackIntervalsCredentialHealth(SIGNED_IN, stub.fetch);
     await expect(tracked(OUT_OF_SCOPE_URL)).resolves.toMatchObject({ status: 403 });
+    await settleProbes();
     expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(false);
     await tracked(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(stub.probes()).toBe(2);
   });
 
@@ -159,11 +195,12 @@ describe("intervals.icu credential health", () => {
       tracked(OUT_OF_SCOPE_URL),
       tracked(OUT_OF_SCOPE_URL),
     ];
-    await vi.waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(4);
-    });
-    releaseProbe();
     await Promise.all(requests);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    releaseProbe();
+    await vi.waitFor(() => {
+      expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(true);
+    });
     expect(
       fetch.mock.calls.filter(([input]) => requestUrl(input) === INTERVALS_CREDENTIAL_PROBE_URL),
     ).toHaveLength(1);
@@ -176,16 +213,20 @@ describe("intervals.icu credential health", () => {
     const stub = forbiddenWithProbe(200);
     const tracked = trackIntervalsCredentialHealth(SIGNED_IN, stub.fetch);
     await tracked(OUT_OF_SCOPE_URL);
+    await settleProbes();
     await tracked(OUT_OF_SCOPE_URL);
     vi.setSystemTime(Date.now() + INTERVALS_CREDENTIAL_PROBE_COOLDOWN_MS - 1);
     await tracked(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(stub.probes()).toBe(1);
     const otherStub = forbiddenWithProbe(200);
     await trackIntervalsCredentialHealth(OTHER_SIGNED_IN, otherStub.fetch)(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(otherStub.probes()).toBe(1);
 
     vi.setSystemTime(Date.now() + 2);
     await tracked(OUT_OF_SCOPE_URL);
+    await settleProbes();
     expect(stub.probes()).toBe(2);
     expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(false);
   });
@@ -213,6 +254,7 @@ describe("intervals.icu credential health", () => {
       perRequestTimeoutMs: 30_000,
     });
     await port.fetch({ method: "GET", url: OUT_OF_SCOPE_URL });
+    await settleProbes();
     expect(stub.probes()).toBe(1);
     expect(isIntervalsCredentialRejected(SIGNED_IN)).toBe(true);
   });

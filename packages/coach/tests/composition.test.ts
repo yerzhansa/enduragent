@@ -54,7 +54,11 @@ import {
   type LocalStoreRuntimeOptions,
 } from "../src/composition.js";
 import { RuntimeAthleteOwnerRefusal } from "../src/backfill.js";
-import { readIntervalsStoreOwnerState } from "../src/account-identity.js";
+import {
+  assertRuntimeAthleteOwner,
+  readIntervalsStoreOwnerState,
+  resolveIntervalsStoreOwnerFingerprint,
+} from "../src/account-identity.js";
 import { INTERVALS_CREDENTIAL_APPROVAL_TTL_MS } from "../src/intervals-credential-approval.js";
 import { checkHomeReadiness } from "../src/readiness.js";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
@@ -1899,6 +1903,46 @@ describe("local coach composition", () => {
     await expect(lifecycle.startInitialRefresh()).rejects.toBe(failure);
     expect(runWindow).not.toHaveBeenCalled();
     expect(trace).toEqual([]);
+    await lifecycle.close();
+  });
+
+  it("reports a stored intervals.icu sign-in that intervals.icu rejected during startup re-apply", async () => {
+    const home = await freshHome();
+    const signedIn = "intervals-oauth:fixture-revoked-at-startup";
+    const seenAuthorizations: (string | null)[] = [];
+    const rejectingFetch: typeof globalThis.fetch = async (_input, init) => {
+      seenAuthorizations.push(new Headers(init?.headers).get("authorization"));
+      return new Response("{}", { status: 401, headers: { "content-type": "application/json" } });
+    };
+    const lifecycle = await compose(home, {
+      bootstrap: async () => reference(),
+      createRuntime: () => runtime(),
+      createBackend: () => backend(),
+      createRepository: () => ({
+        insertIfAbsent: async () => false,
+        readCurrent: async () => undefined,
+      }),
+      createResolver: () => missingResolver(),
+      assertRuntimeAthleteOwner: (store, options) =>
+        assertRuntimeAthleteOwner(store, options, (lookup) =>
+          resolveIntervalsStoreOwnerFingerprint({ ...lookup, baseFetch: rejectingFetch }),
+        ),
+    });
+
+    await expect(lifecycle.operations.getRuntimeConfig({})).resolves.not.toHaveProperty(
+      "intervals.credential_rejected",
+    );
+    await expect(
+      lifecycle.operations.configureRuntime({ intervals: { api_key: signedIn } }),
+    ).resolves.toEqual({ schemaVersion: 3, status: "refused", reason: "ownership-unavailable" });
+
+    const snapshot = await lifecycle.operations.getRuntimeConfig({});
+    expect(snapshot.intervals).toMatchObject({
+      credential_configured: false,
+      credential_rejected: true,
+    });
+    expect(seenAuthorizations).toContain("Bearer fixture-revoked-at-startup");
+    expect(JSON.stringify(snapshot)).not.toContain("fixture-revoked-at-startup");
     await lifecycle.close();
   });
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { intervalsAuthorizationHeader, intervalsCredentialKind } from "./intervals-credential.js";
 
 export const INTERVALS_CREDENTIAL_PROBE_URL = "https://intervals.icu/api/v1/athlete/0";
@@ -8,24 +9,38 @@ const rejectedCredentials = new Set<string>();
 const probesInFlight = new Map<string, Promise<void>>();
 const probeCooldownUntil = new Map<string, number>();
 
+type ProbeOutcome = "rejected" | "accepted" | "inconclusive";
+
 function successful(status: number): boolean {
   return status >= 200 && status < 300;
+}
+
+function credentialKey(credential: string): string {
+  return createHash("sha256").update(credential, "utf8").digest("hex");
+}
+
+function markRejected(key: string): void {
+  rejectedCredentials.add(key);
+  probeCooldownUntil.delete(key);
+}
+
+function clearRejected(key: string): void {
+  rejectedCredentials.delete(key);
 }
 
 export function recordIntervalsCredentialResponse(credential: string, status: number): void {
   if (intervalsCredentialKind(credential) !== "oauth") return;
   if (status === 401) {
-    rejectedCredentials.add(credential);
+    markRejected(credentialKey(credential));
   } else if (successful(status)) {
-    rejectedCredentials.delete(credential);
+    clearRejected(credentialKey(credential));
   }
 }
 
 export function isIntervalsCredentialRejected(credential: string): boolean {
-  return rejectedCredentials.has(credential);
+  if (intervalsCredentialKind(credential) !== "oauth") return false;
+  return rejectedCredentials.has(credentialKey(credential));
 }
-
-type ProbeOutcome = "rejected" | "accepted" | "inconclusive";
 
 async function probe(
   credential: string,
@@ -49,27 +64,34 @@ async function probe(
   return successful(response.status) ? "accepted" : "inconclusive";
 }
 
-function applyProbe(credential: string, outcome: ProbeOutcome): void {
+function applyProbe(key: string, outcome: ProbeOutcome): void {
   if (outcome === "rejected") {
-    rejectedCredentials.add(credential);
+    markRejected(key);
   } else if (outcome === "accepted") {
-    rejectedCredentials.delete(credential);
-    probeCooldownUntil.set(credential, Date.now() + INTERVALS_CREDENTIAL_PROBE_COOLDOWN_MS);
+    clearRejected(key);
+    probeCooldownUntil.set(key, Date.now() + INTERVALS_CREDENTIAL_PROBE_COOLDOWN_MS);
   }
 }
 
-function confirmForbidden(credential: string, baseFetch: typeof globalThis.fetch): Promise<void> {
-  if (rejectedCredentials.has(credential)) return Promise.resolve();
-  const running = probesInFlight.get(credential);
-  if (running !== undefined) return running;
-  if ((probeCooldownUntil.get(credential) ?? 0) > Date.now()) return Promise.resolve();
+function dropExpiredCooldowns(now: number): void {
+  for (const [key, until] of probeCooldownUntil) {
+    if (until <= now) probeCooldownUntil.delete(key);
+  }
+}
+
+function confirmForbidden(credential: string, baseFetch: typeof globalThis.fetch): void {
+  const key = credentialKey(credential);
+  dropExpiredCooldowns(Date.now());
+  if (rejectedCredentials.has(key) || probesInFlight.has(key) || probeCooldownUntil.has(key)) {
+    return;
+  }
   const started = probe(credential, baseFetch)
-    .then((outcome) => applyProbe(credential, outcome))
+    .then((outcome) => applyProbe(key, outcome))
     .finally(() => {
-      if (probesInFlight.get(credential) === started) probesInFlight.delete(credential);
+      if (probesInFlight.get(key) === started) probesInFlight.delete(key);
     });
-  probesInFlight.set(credential, started);
-  return started;
+  probesInFlight.set(key, started);
+  void Promise.allSettled([started]);
 }
 
 export function trackIntervalsCredentialHealth(
@@ -80,7 +102,7 @@ export function trackIntervalsCredentialHealth(
   return async (input, init) => {
     const response = await baseFetch(input, init);
     if (response.status === 403) {
-      await confirmForbidden(credential, baseFetch);
+      confirmForbidden(credential, baseFetch);
     } else {
       recordIntervalsCredentialResponse(credential, response.status);
     }
