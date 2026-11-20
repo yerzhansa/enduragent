@@ -204,12 +204,8 @@
         "action": "Verwijderen",
         "aria": "Toegangsgegevens voor {{provider}} verwijderen",
         "confirmAria": "Verwijderen van de toegangsgegevens voor {{provider}} bevestigen",
-        "connection": "Verbinding verwijderen",
         "credential": "Toegangsgegevens verwijderen",
         "detail": "Dit verwijdert ze alleen van {{computer}}. {{product}} stopt met het gebruik ervan als ze actief zijn. Je account bij de aanbieder blijft ongewijzigd.",
-        "intervalsAria": "De verbinding met {{intervals}} verwijderen",
-        "intervalsDetail": "Je opgeslagen aanmelding of API-sleutel en geïmporteerde verbinding worden verwijderd. Je gesynchroniseerde ritten en eerdere chats blijven op {{computer}}.",
-        "intervalsTitle": "De verbinding met {{intervals}} verwijderen?",
         "title": "De toegangsgegevens voor {{provider}} verwijderen?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} kon niet stoppen met het gebruik van alle actieve toegangsgegevens. Probeer het opnieuw om het verwijderen af te ronden.",
           "unverified": "Het verwijderen van toegangsgegevens kon niet worden geverifieerd omdat Instellingen niet opnieuw kon worden geladen. Maak opnieuw verbinding en laad opnieuw."
         },
-        "unavailable": "Opgeslagen toegangsgegevens zijn niet beschikbaar. Maak opnieuw verbinding en laad opnieuw."
+        "unavailable": "Opgeslagen toegangsgegevens zijn niet beschikbaar. Maak opnieuw verbinding en laad opnieuw.",
+        "disconnect": {
+          "apiKeyRemoved": "Losgekoppeld. De API-sleutel is verwijderd van {{computer}}. Hij blijft werken op {{intervals}} totdat je hem daar verwijdert.",
+          "cancelled": "Loskoppelen geannuleerd.",
+          "cleanupPending": "Het opschonen van de beveiligde opslag wordt opnieuw geprobeerd.",
+          "confirm": "Bevestig het loskoppelen van {{intervals}}.",
+          "disconnecting": "{{intervals}} wordt losgekoppeld…",
+          "refreshFailed": "De huidige verbindingsstatus kon niet worden vernieuwd.",
+          "revoked": "Losgekoppeld. De toegang van {{product}} is ingetrokken op {{intervals}}.",
+          "revokeFailed": "Losgekoppeld op {{computer}}, maar {{product}} kon {{intervals}} niet bereiken om de toegang in te trekken. Je kunt {{product}} daar verwijderen via Settings → Apps.",
+          "setupRefreshFailed": "De configuratiestatus kon niet worden vernieuwd. Laad de status van de toegangsgegevens opnieuw."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-profiel",
@@ -270,7 +277,14 @@
         "storedInactive": "Opgeslagen, niet actief",
         "verifying": "Verifiëren…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Loskoppelen",
+        "aria": "{{intervals}} loskoppelen",
+        "busy": "Bezig met loskoppelen…",
+        "detail": "De toegang van {{product}} wordt ingetrokken op {{intervals}} en de aanmelding wordt verwijderd van {{computer}}. Je gesynchroniseerde ritten en eerdere chats blijven op {{computer}}.",
+        "title": "{{intervals}} loskoppelen?"
+      }
     },
     "managedByEnvironment": "Beheerd door een omgevingsvariabele. Wijzig deze buiten {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Verbonden · de bron van je ritten",
         "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
-        "missing": "Verbind of importeer ritbestanden."
+        "missing": "Verbind of importeer ritbestanden.",
+        "rejected": "{{intervals}} accepteert de aanmelding niet meer. Meld je opnieuw aan om te blijven synchroniseren."
       },
       "tooltip": {
         "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Meld je daarna hier aan.",
@@ -784,7 +799,8 @@
         "disconnected": "{{intervals}} verbinden"
       },
       "waiting": "Wachten op browser…",
-      "waitingHint": "Rond het af in je browser. {{product}} gaat vanzelf verder zodra je toegang geeft."
+      "waitingHint": "Rond het af in je browser. {{product}} gaat vanzelf verder zodra je toegang geeft.",
+      "signInAgain": "Opnieuw aanmelden"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synchroniseren",
         "now": "Nu synchroniseren",
         "retry": "Opnieuw proberen",
-        "unavailable": "Synchronisatie niet beschikbaar"
+        "unavailable": "Synchronisatie niet beschikbaar",
+        "signInAgain": "Opnieuw aanmelden"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Nog niet gesynchroniseerd",
         "synced": "Trainingsgegevens gesynchroniseerd",
         "syncing": "Synchroniseren",
-        "unavailable": "Trainingsgegevens niet beschikbaar"
+        "unavailable": "Trainingsgegevens niet beschikbaar",
+        "signInRejected": "{{intervals}} vraagt je opnieuw aan te melden"
       },
       "message": {
         "external": "{{message}}",

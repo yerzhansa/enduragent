@@ -75,6 +75,7 @@ import {
   type AuthoredIdentity,
 } from "@enduragent/kernel-node/home";
 import { importFilesWithReport } from "@enduragent/kernel-node/ingest";
+import { isIntervalsCredentialRejected } from "@enduragent/core";
 import type { ImportReport } from "@enduragent/kernel/ingest";
 import { runIntervalsBackfillInWriter } from "./backfill.js";
 import type { LocalStoreRuntime } from "./composition.js";
@@ -164,16 +165,15 @@ function createSerializedLane(): <T>(operation: () => Promise<T>) => Promise<T> 
   let tail = Promise.resolve();
   return <T>(operation: () => Promise<T>): Promise<T> => {
     const task = tail.then(operation, operation);
-    tail = task.then(
-      () => undefined,
-      () => undefined,
-    );
+    tail = Promise.allSettled([task]).then(() => undefined);
     return task;
   };
 }
 
-// Must stay below the client call timeout so queued work cannot mutate after its caller detaches.
-export const RUNTIME_CONFIGURATION_DEADLINE_MS = 25_000;
+const CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS = 30_000;
+const MARGIN_BEFORE_CALLER_DETACHES_MS = 5_000;
+export const RUNTIME_CONFIGURATION_DEADLINE_MS =
+  CLIENT_RUNTIME_CONFIGURATION_CALL_TIMEOUT_MS - MARGIN_BEFORE_CALLER_DETACHES_MS;
 
 export function createCoachOperations(
   input: CreateCoachOperationsInput,
@@ -201,15 +201,23 @@ export function createCoachOperations(
     throw new TypeError("Runtime configuration deadline is invalid.");
   }
   const enqueueRuntimeConfiguration = createSerializedLane();
+  let offeredIntervalsCredential = "";
+  const intervalsCredentialRejected = (applied: string): boolean =>
+    [applied, offeredIntervalsCredential].some(
+      (credential) => credential.length > 0 && isIntervalsCredentialRejected(credential),
+    );
 
   const deliver = (
     onEvent: ((event: OperationProgressEvent) => void) | undefined,
     event: OperationProgressEvent,
-  ): void => {
+  ): boolean => {
     const parsed = OperationProgressEventSchema.parse(event);
     try {
       onEvent?.(parsed);
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   return {
@@ -392,7 +400,13 @@ export function createCoachOperations(
               ? requestSignal
               : AbortSignal.any([requestSignal, admissionSignal]);
           signal.throwIfAborted();
+          if (parsedRequest.intervals?.api_key !== undefined) {
+            offeredIntervalsCredential = parsedRequest.intervals.api_key;
+          }
           const refusal = await input.applyRuntimeConfig(parsedRequest, signal);
+          if (refusal === undefined && parsedRequest.intervals?.clear_credential === true) {
+            offeredIntervalsCredential = "";
+          }
           signal.throwIfAborted();
           if (refusal !== undefined) {
             return ConfigureRuntimeRpcResultSchema.parse({
@@ -435,7 +449,10 @@ export function createCoachOperations(
         if (input.readRuntimeConfig === undefined) {
           throw new TypeError("Runtime configuration read is unavailable.");
         }
-        return GetRuntimeConfigRpcResultSchema.parse(input.readRuntimeConfig());
+        const snapshot = GetRuntimeConfigRpcResultSchema.parse(input.readRuntimeConfig());
+        const { apiKey } = await input.intervalsCredentials.read();
+        if (!intervalsCredentialRejected(apiKey)) return snapshot;
+        return { ...snapshot, intervals: { ...snapshot.intervals, credential_rejected: true } };
       });
     },
     getLanguagePreference(

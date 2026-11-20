@@ -204,12 +204,8 @@
         "action": "Poista",
         "aria": "Poista palveluntarjoajan {{provider}} tunnistautumistieto",
         "confirmAria": "Vahvista palveluntarjoajan {{provider}} tunnistautumistiedon poisto",
-        "connection": "Poista yhteys",
         "credential": "Poista tunnistautumistieto",
         "detail": "Tämä poistaa sen vain tietokoneelta {{computer}}. {{product}} lopettaa sen käytön, jos se on käytössä. Palveluntarjoajan tilisi säilyy ennallaan.",
-        "intervalsAria": "Poista {{intervals}}-yhteys",
-        "intervalsDetail": "Tallennettu kirjautumisesi tai API-avaimesi ja tuotu yhteys poistetaan. Synkronoidut lenkkisi ja aiemmat keskustelusi säilyvät tietokoneella {{computer}}.",
-        "intervalsTitle": "Poistetaanko {{intervals}}-yhteys?",
         "title": "Poistetaanko palveluntarjoajan {{provider}} tunnistautumistieto?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} ei voinut lopettaa kaikkien käytössä olevien tunnistautumistietojen käyttöä. Viimeistele poisto yrittämällä uudelleen.",
           "unverified": "Tunnistautumistietojen poistoa ei voitu varmistaa, koska asetuksia ei voitu ladata uudelleen. Yhdistä ja lataa uudelleen."
         },
-        "unavailable": "Tallennetut tunnistautumistiedot eivät ole käytettävissä. Yhdistä ja lataa uudelleen."
+        "unavailable": "Tallennetut tunnistautumistiedot eivät ole käytettävissä. Yhdistä ja lataa uudelleen.",
+        "disconnect": {
+          "apiKeyRemoved": "Yhteys katkaistu. API-avain poistettiin tietokoneelta {{computer}}. Se toimii edelleen palvelussa {{intervals}}, kunnes poistat sen sieltä.",
+          "cancelled": "Yhteyden katkaisu peruutettu.",
+          "cleanupPending": "Suojatun tallennustilan siivousta yritetään uudelleen.",
+          "confirm": "Vahvista {{intervals}}-yhteyden katkaisu.",
+          "disconnecting": "Katkaistaan {{intervals}}-yhteyttä…",
+          "refreshFailed": "Yhteyden nykyistä tilaa ei voitu päivittää.",
+          "revoked": "Yhteys katkaistu. {{product}}-sovelluksen käyttöoikeus peruttiin palvelussa {{intervals}}.",
+          "revokeFailed": "Yhteys katkaistu tietokoneella {{computer}}, mutta {{product}} ei saanut yhteyttä palveluun {{intervals}} käyttöoikeuden perumiseksi. Voit poistaa {{product}}-sovelluksen siellä kohdassa Settings → Apps.",
+          "setupRefreshFailed": "Käyttöönoton valmiustilaa ei voitu päivittää. Lataa tunnistautumistietojen tila uudelleen."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-profiili",
@@ -270,7 +277,14 @@
         "storedInactive": "Tallennettu, ei käytössä",
         "verifying": "Vahvistetaan…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Katkaise yhteys",
+        "aria": "Katkaise {{intervals}}-yhteys",
+        "busy": "Katkaistaan…",
+        "detail": "{{product}}-sovelluksen käyttöoikeus perutaan palvelussa {{intervals}} ja kirjautuminen poistetaan tietokoneelta {{computer}}. Synkronoidut lenkkisi ja aiemmat keskustelusi säilyvät tietokoneella {{computer}}.",
+        "title": "Katkaistaanko {{intervals}}-yhteys?"
+      }
     },
     "managedByEnvironment": "Hallitaan ympäristömuuttujalla. Muuta sitä sovelluksen {{product}} ulkopuolella.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Yhdistetty · lenkkiesi lähde",
         "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
-        "missing": "Yhdistä tai tuo lenkkitiedostoja."
+        "missing": "Yhdistä tai tuo lenkkitiedostoja.",
+        "rejected": "{{intervals}} ei enää hyväksy kirjautumista. Kirjaudu uudelleen, jotta synkronointi jatkuu."
       },
       "tooltip": {
         "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kirjaudu sitten sisään täällä.",
@@ -784,7 +799,8 @@
         "disconnected": "Yhdistä {{intervals}}"
       },
       "waiting": "Odotetaan selainta…",
-      "waitingHint": "Viimeistele selaimessasi. {{product}} jatkaa itsestään, kun hyväksyt käyttöoikeuden."
+      "waitingHint": "Viimeistele selaimessasi. {{product}} jatkaa itsestään, kun hyväksyt käyttöoikeuden.",
+      "signInAgain": "Kirjaudu uudelleen"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synkronoi",
         "now": "Synkronoi nyt",
         "retry": "Yritä uudelleen",
-        "unavailable": "Synkronointi ei ole käytettävissä"
+        "unavailable": "Synkronointi ei ole käytettävissä",
+        "signInAgain": "Kirjaudu uudelleen"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Ei vielä synkronoitu",
         "synced": "Harjoitustiedot synkronoitu",
         "syncing": "Synkronoidaan",
-        "unavailable": "Harjoitustiedot eivät ole käytettävissä"
+        "unavailable": "Harjoitustiedot eivät ole käytettävissä",
+        "signInRejected": "{{intervals}} pyytää kirjautumaan uudelleen"
       },
       "message": {
         "external": "{{message}}",

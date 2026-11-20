@@ -219,12 +219,8 @@
         "action": "Excluir",
         "aria": "Excluir a credencial de {{provider}}",
         "confirmAria": "Confirmar exclusão da credencial de {{provider}}",
-        "connection": "Excluir conexão",
         "credential": "Excluir credencial",
         "detail": "Esta ação remove a credencial apenas de {{computer}}. {{product}} deixará de usá-la se estiver ativa. Sua conta no provedor permanece inalterada.",
-        "intervalsAria": "Excluir a conexão com {{intervals}}",
-        "intervalsDetail": "Seu acesso salvo ou chave de API e a conexão importada serão removidos. Suas pedaladas sincronizadas e conversas anteriores ficam em {{computer}}.",
-        "intervalsTitle": "Excluir a conexão com {{intervals}}?",
         "title": "Excluir a credencial de {{provider}}?"
       },
       "feedback": {
@@ -261,7 +257,18 @@
           "stopFailed": "{{product}} não conseguiu interromper o uso de todas as credenciais ativas. Tente novamente para concluir a remoção.",
           "unverified": "Não foi possível verificar a remoção das credenciais porque Configurações não pôde ser recarregado. Reconecte e recarregue."
         },
-        "unavailable": "As credenciais salvas não estão disponíveis. Reconecte e recarregue."
+        "unavailable": "As credenciais salvas não estão disponíveis. Reconecte e recarregue.",
+        "disconnect": {
+          "apiKeyRemoved": "Desconectado. A chave de API foi removida de {{computer}}. Ela continua funcionando no {{intervals}} até você excluí-la lá.",
+          "cancelled": "Desconexão cancelada.",
+          "cleanupPending": "A limpeza do armazenamento seguro será tentada novamente.",
+          "confirm": "Confirme a desconexão do {{intervals}}.",
+          "disconnecting": "Desconectando o {{intervals}}…",
+          "refreshFailed": "Não foi possível atualizar o status atual da conexão.",
+          "revoked": "Desconectado. O acesso do {{product}} foi revogado no {{intervals}}.",
+          "revokeFailed": "Desconectado em {{computer}}, mas o {{product}} não conseguiu acessar o {{intervals}} para revogar o acesso. Você pode remover o {{product}} lá em Settings → Apps.",
+          "setupRefreshFailed": "Não foi possível atualizar o status de prontidão da configuração. Recarregue o status das credenciais."
+        }
       },
       "kind": {
         "chatgpt": "Perfil {{chatgpt}}",
@@ -285,7 +292,14 @@
         "storedInactive": "Salva, inativa",
         "verifying": "Verificando…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Desconectar",
+        "aria": "Desconectar {{intervals}}",
+        "busy": "Desconectando…",
+        "detail": "O acesso do {{product}} é revogado no {{intervals}} e o login é removido de {{computer}}. Suas pedaladas sincronizadas e conversas anteriores ficam em {{computer}}.",
+        "title": "Desconectar {{intervals}}?"
+      }
     },
     "language": {
       "automaticDetail": "Automático segue o idioma do {{operatingSystem}}. O treinador responde no idioma em que você escreve.",
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Conectado · de onde vêm suas pedaladas",
         "connectedAs": "Conectado como {{name}} · de onde vêm suas pedaladas",
-        "missing": "Conecte ou importe arquivos de pedalada."
+        "missing": "Conecte ou importe arquivos de pedalada.",
+        "rejected": "O {{intervals}} parou de aceitar o login. Entre novamente para continuar sincronizando."
       },
       "tooltip": {
         "body": "Um site gratuito de treinamento que já armazena suas pedaladas. {{product}} lê as pedaladas de lá em vez de se comunicar diretamente com o fabricante do seu relógio ou ciclocomputador. Você precisa de uma conta gratuita com seu relógio ou ciclocomputador conectado e, depois, entrar aqui.",
@@ -784,7 +799,8 @@
         "disconnected": "Conectar {{intervals}}"
       },
       "waiting": "Aguardando navegador…",
-      "waitingHint": "Conclua no navegador. {{product}} continua sozinho assim que você autorizar o acesso."
+      "waitingHint": "Conclua no navegador. {{product}} continua sozinho assim que você autorizar o acesso.",
+      "signInAgain": "Entrar novamente"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Sincronizar",
         "now": "Sincronizar agora",
         "retry": "Tentar novamente",
-        "unavailable": "Sincronização indisponível"
+        "unavailable": "Sincronização indisponível",
+        "signInAgain": "Entrar novamente"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Ainda não sincronizado",
         "synced": "Dados de treinamento sincronizados",
         "syncing": "Sincronizando",
-        "unavailable": "Dados de treinamento indisponíveis"
+        "unavailable": "Dados de treinamento indisponíveis",
+        "signInRejected": "O {{intervals}} precisa que você entre novamente"
       },
       "message": {
         "external": "{{message}}",

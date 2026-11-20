@@ -59,7 +59,8 @@ import {
   DESKTOP_UPDATE_STATE_CHANNEL,
 } from "../main/constants.js";
 import { createIntervalsSignInBridge } from "./intervals-bridge.js";
-import { exactKeys, record, RUNTIME_STATES } from "./shape.js";
+import { parseDeleteResult } from "./credential-delete-result.js";
+import { CREDENTIALS, exactKeys, record, RUNTIME_STATES, SLOTS } from "./shape.js";
 
 const DESKTOP_CREDENTIAL_STATUS_CHANNEL = "enduragent:onboarding:credential-status";
 const DESKTOP_CREDENTIAL_RETRY_CHANNEL = "enduragent:onboarding:credential-retry";
@@ -78,19 +79,6 @@ const DESKTOP_CLAUDE_CLI_STATUS_CHANNEL = "enduragent:onboarding:claude-cli-stat
 const DESKTOP_CLAUDE_CLI_RECHECK_CHANNEL = "enduragent:onboarding:claude-cli-recheck";
 const DESKTOP_CHOOSE_IMPORT_FILES_CHANNEL = "enduragent:onboarding:choose-import-files";
 
-const SLOTS = new Set([
-  "anthropic",
-  "openrouter",
-  "openai",
-  "google",
-  "deepseek",
-  "qwen",
-  "minimax",
-  "kimi",
-  "zai",
-  "intervals-icu",
-]);
-const CREDENTIALS = new Set([...SLOTS, "openai-codex"]);
 const LLM_PROVIDER_ORDER = [
   "anthropic",
   "openai",
@@ -126,14 +114,6 @@ const REASONS = new Set([
   "storage-failed",
   "runtime-unavailable",
   "training-account-mismatch",
-]);
-const DELETE_REASONS = new Set([
-  "not-found",
-  "managed-by-environment",
-  "encryption-unavailable",
-  "storage-failed",
-  "runtime-unavailable",
-  "runtime-state-diverged",
 ]);
 const CHATGPT_REASONS = new Set([
   "already-in-progress",
@@ -736,44 +716,6 @@ function parseWriteResult(value: unknown): unknown {
     value.reason === "storage-uncertain"
   ) {
     return { slot: value.slot, status: "uncertain", reason: "storage-uncertain" };
-  }
-  throw new TypeError();
-}
-
-function parseDeleteResult(value: unknown): unknown {
-  if (
-    record(value) &&
-    value.status === "uncertain" &&
-    exactKeys(value, ["slot", "status", "reason"]) &&
-    SLOTS.has(value.slot as string) &&
-    value.reason === "storage-uncertain"
-  ) {
-    return { slot: value.slot, status: "uncertain", reason: "storage-uncertain" };
-  }
-  if (
-    !record(value) ||
-    typeof value.credential !== "string" ||
-    !CREDENTIALS.has(value.credential)
-  ) {
-    throw new TypeError();
-  }
-  if (
-    value.status === "deleted" &&
-    exactKeys(value, ["credential", "status", "cleanupPending"]) &&
-    typeof value.cleanupPending === "boolean"
-  ) {
-    return {
-      credential: value.credential,
-      status: "deleted",
-      cleanupPending: value.cleanupPending,
-    };
-  }
-  if (
-    value.status === "refused" &&
-    exactKeys(value, ["credential", "status", "reason"]) &&
-    DELETE_REASONS.has(value.reason as string)
-  ) {
-    return { credential: value.credential, status: "refused", reason: value.reason };
   }
   throw new TypeError();
 }

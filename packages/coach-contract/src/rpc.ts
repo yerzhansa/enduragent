@@ -396,7 +396,7 @@ function decodedBase64Url(value: string): Uint8Array | null {
 function safeCursorOffset(bytes: Uint8Array, offset: number): number | null {
   let value = 0;
   for (let index = offset; index < offset + 8; index += 1) {
-    value = value * 256 + bytes[index]!;
+    value = value * 256 + (bytes[index] ?? Number.NaN);
     if (!Number.isSafeInteger(value)) return null;
   }
   return value;
@@ -784,7 +784,8 @@ export const ActivityRestrictionWindowSchema = z
       });
     }
     for (let index = 1; index < value.restrictions.length; index += 1) {
-      if (value.restrictions[index - 1]!.source >= value.restrictions[index]!.source) {
+      const [previous, current] = value.restrictions.slice(index - 1, index + 1);
+      if (previous !== undefined && current !== undefined && previous.source >= current.source) {
         context.addIssue({
           code: "custom",
           path: ["restrictions", index, "source"],
@@ -1147,11 +1148,8 @@ export const RuntimeConfigSnapshotSchema = z
         athlete_id: z.string().max(512),
         credential_configured: z.boolean(),
         credential_verification_pending: z.boolean().optional(),
-        managedByEnvironment: z
-          .object({
-            athleteId: z.boolean(),
-          })
-          .strict(),
+        credential_rejected: z.boolean().optional(),
+        managedByEnvironment: z.object({ athleteId: z.boolean() }).strict(),
       })
       .strict(),
     session: z

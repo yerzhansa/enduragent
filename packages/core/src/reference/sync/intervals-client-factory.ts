@@ -2,6 +2,7 @@ import { IntervalsClient } from "intervals-icu-api";
 import type { HttpPort } from "@enduragent/kernel/ports";
 import type { PhysicalRequestLedger } from "@enduragent/kernel/store";
 import { chainedSignal } from "../../concurrency/abort-budget.js";
+import { trackIntervalsCredentialHealth } from "../../intervals-credential-health.js";
 import { intervalsAuthorizationHeader, intervalsClientAuth } from "../../intervals-credential.js";
 
 export interface RunScopedHttpFactoryArgs {
@@ -97,7 +98,10 @@ export function makeIntervalsHttpFactory(options: {
     throw new TypeError("intervals.icu API key is required");
   }
   const authorization = intervalsAuthorizationHeader(options.apiKey);
-  const baseFetch = options.baseFetch ?? globalThis.fetch;
+  const baseFetch = trackIntervalsCredentialHealth(
+    options.apiKey,
+    options.baseFetch ?? globalThis.fetch,
+  );
   return ({ outer, perRequestTimeoutMs }) => {
     const fetch = wrapFetchWithSignal({ baseFetch, outer, perRequestMs: perRequestTimeoutMs });
     return {
@@ -143,7 +147,9 @@ export function makeAbortableClient(opts: {
     ...intervalsClientAuth(opts.apiKey),
     athleteId: opts.athleteId,
     fetch: wrapFetchWithSignal({
-      baseFetch: wrapFetchWithSharedBucket(opts.baseFetch ?? globalThis.fetch),
+      baseFetch: wrapFetchWithSharedBucket(
+        trackIntervalsCredentialHealth(opts.apiKey, opts.baseFetch ?? globalThis.fetch),
+      ),
       outer: opts.signal,
       perRequestMs: opts.perRequestMs,
       attemptLedger: opts.attemptLedger,
@@ -161,7 +167,9 @@ export function makeChatClient(opts: {
     ...intervalsClientAuth(opts.apiKey),
     athleteId: opts.athleteId,
     fetch: wrapFetchWithSignal({
-      baseFetch: wrapFetchWithSharedBucket(opts.fetch ?? globalThis.fetch),
+      baseFetch: wrapFetchWithSharedBucket(
+        trackIntervalsCredentialHealth(opts.apiKey, opts.fetch ?? globalThis.fetch),
+      ),
       perRequestMs: CHAT_PER_REQUEST_TIMEOUT_MS,
     }),
     retry: { maxAttempts: 1 },

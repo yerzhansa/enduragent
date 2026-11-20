@@ -730,7 +730,7 @@ describe("mounted onboarding", () => {
       expect(rowState("training")).toBe("ready");
     });
     await waitFor(() => {
-      expect(button("Delete the Intervals.icu connection")).toHaveFocus();
+      expect(button("Disconnect Intervals.icu")).toHaveFocus();
     });
     expect(panel("training")).toBeNull();
     wizard.controller.dispose();

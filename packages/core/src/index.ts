@@ -260,6 +260,10 @@ export type {
   IntervalsSignInPhase,
 } from "./auth/intervals-oauth.js";
 export { intervalsCredentialKind } from "./intervals-credential.js";
+export {
+  isIntervalsCredentialRejected,
+  recordIntervalsCredentialResponse,
+} from "./intervals-credential-health.js";
 
 export { createTelegramBot } from "./channels/telegram.js";
 export type {

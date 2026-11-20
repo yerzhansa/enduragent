@@ -222,6 +222,7 @@ afterEach(() => {
     settingsPorts: null,
     plan: EMPTY_PLAN_SURFACE,
     planActions: null,
+    intervalsSignInRejected: false,
   });
 });
 
@@ -819,4 +820,72 @@ it("reads navigation and accessible labels from the selected language catalog", 
   expect(screen.getByText("Caricamento allenamenti")).toBeInTheDocument();
   expect(screen.getByText("Sincronizza ora")).toBeInTheDocument();
   useEnduragentStore.setState({ settings });
+});
+
+describe("Intervals.icu sign-in renewal in the sync chip", () => {
+  const CONNECTED_ONBOARDING = {
+    ...READY_ONBOARDING,
+    wizard: {
+      ...READY_ONBOARDING.wizard,
+      credentialStatus: {
+        ...READY_ONBOARDING.wizard.credentialStatus,
+        "intervals-icu": "configured",
+      },
+    },
+  } as const;
+
+  it("shows the amber sign-in headline and a Sign in again link that starts sign-in in Settings", async () => {
+    const user = userEvent.setup();
+    const request = vi.fn();
+    const connectTrainingData = vi.fn();
+    useEnduragentStore.setState({
+      syncActions: { request },
+      onboarding: CONNECTED_ONBOARDING,
+      onboardingActions: { connectTrainingData } as never,
+      intervalsSignInRejected: true,
+      sync: toManualSyncViewState({
+        status: "failed",
+        operation: 1,
+        kind: "operation",
+        retryable: true,
+      }),
+    });
+    render(<Sidebar />);
+
+    expect(chip()).toHaveAttribute("data-status", "attention");
+    expect(chipSurface().querySelector('span[data-status="attention"]')).toHaveClass("bg-warn");
+    expect(chipSurface().querySelector("[data-sync-headline]")).toHaveTextContent(
+      "Intervals.icu needs you to sign in again",
+    );
+    expect(chipSurface().querySelector("[data-sync-detail]")).toHaveTextContent(
+      "Intervals.icu needs you to sign in again",
+    );
+    expect(chipSurface().querySelector("[data-sync-action]")).toBeNull();
+    expect(chipSurface()).not.toHaveTextContent("couldn’t complete the training-data check");
+
+    await user.click(screen.getByRole("button", { name: "Sign in again" }));
+
+    expect(useEnduragentStore.getState().activeView).toBe("settings");
+    expect(connectTrainingData).toHaveBeenCalledOnce();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("keeps the normal sync states while syncing, after reconnecting, or when not connected", () => {
+    useEnduragentStore.setState({
+      onboarding: CONNECTED_ONBOARDING,
+      intervalsSignInRejected: true,
+      sync: toManualSyncViewState({ status: "running", operation: 2 }),
+    });
+    render(<Sidebar />);
+    expect(chip()).toHaveAttribute("data-status", "syncing");
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+
+    update({ sync: IDLE_MANUAL_SYNC, intervalsSignInRejected: false });
+    expect(chip()).not.toHaveAttribute("data-status", "attention");
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+
+    update({ intervalsSignInRejected: true, onboarding: READY_ONBOARDING });
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+    expect(chipSurface()).not.toHaveTextContent("needs you to sign in again");
+  });
 });

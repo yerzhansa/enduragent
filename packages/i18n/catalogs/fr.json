@@ -204,12 +204,8 @@
         "action": "Supprimer",
         "aria": "Supprimer la donnée d’authentification {{provider}}",
         "confirmAria": "Confirmer la suppression de la donnée d’authentification {{provider}}",
-        "connection": "Supprimer la connexion",
         "credential": "Supprimer la donnée d’authentification",
         "detail": "Cette action la supprime uniquement de {{computer}}. {{product}} cessera de l’utiliser si elle est active. Ton compte chez le fournisseur reste inchangé.",
-        "intervalsAria": "Supprimer la connexion {{intervals}}",
-        "intervalsDetail": "Ta session enregistrée ou ta clé API, ainsi que la connexion importée, seront supprimées. Tes sorties synchronisées et tes conversations passées restent sur {{computer}}.",
-        "intervalsTitle": "Supprimer la connexion {{intervals}} ?",
         "title": "Supprimer la donnée d’authentification {{provider}} ?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} n’a pas pu désactiver toutes les données d’authentification actives. Réessaie pour terminer leur suppression.",
           "unverified": "La suppression des données d’authentification n’a pas pu être vérifiée, car les Paramètres n’ont pas pu être rechargés. Reconnecte et recharge."
         },
-        "unavailable": "Les données d’authentification enregistrées sont indisponibles. Reconnecte et recharge."
+        "unavailable": "Les données d’authentification enregistrées sont indisponibles. Reconnecte et recharge.",
+        "disconnect": {
+          "apiKeyRemoved": "Déconnecté. La clé API a été supprimée de {{computer}}. Elle continue de fonctionner sur {{intervals}} jusqu’à ce que tu la supprimes là-bas.",
+          "cancelled": "Déconnexion annulée.",
+          "cleanupPending": "Le nettoyage du stockage sécurisé sera réessayé.",
+          "confirm": "Confirme la déconnexion de {{intervals}}.",
+          "disconnecting": "Déconnexion de {{intervals}}…",
+          "refreshFailed": "L’état actuel de la connexion n’a pas pu être actualisé.",
+          "revoked": "Déconnecté. L’accès de {{product}} a été révoqué sur {{intervals}}.",
+          "revokeFailed": "Déconnecté sur {{computer}}, mais {{product}} n’a pas pu joindre {{intervals}} pour révoquer son accès. Tu peux retirer {{product}} là-bas dans Settings → Apps.",
+          "setupRefreshFailed": "L’état de la configuration n’a pas pu être actualisé. Recharge l’état des données d’authentification."
+        }
       },
       "kind": {
         "chatgpt": "Profil {{chatgpt}}",
@@ -270,7 +277,14 @@
         "storedInactive": "Enregistrée, inactive",
         "verifying": "Vérification…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Déconnecter",
+        "aria": "Déconnecter {{intervals}}",
+        "busy": "Déconnexion…",
+        "detail": "L’accès de {{product}} est révoqué sur {{intervals}} et la session est supprimée de {{computer}}. Tes sorties synchronisées et tes conversations passées restent sur {{computer}}.",
+        "title": "Déconnecter {{intervals}} ?"
+      }
     },
     "managedByEnvironment": "Géré par une variable d’environnement. Modifie-la en dehors de {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Connecté · source de tes sorties",
         "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
-        "missing": "Connecte un compte ou importe des fichiers de sortie."
+        "missing": "Connecte un compte ou importe des fichiers de sortie.",
+        "rejected": "{{intervals}} n’accepte plus la session. Reconnecte-toi pour continuer la synchronisation."
       },
       "tooltip": {
         "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu te connectes ici.",
@@ -784,7 +799,8 @@
         "disconnected": "Connecter {{intervals}}"
       },
       "waiting": "En attente du navigateur…",
-      "waitingHint": "Termine dans ton navigateur. {{product}} poursuit tout seul dès que tu autorises l’accès."
+      "waitingHint": "Termine dans ton navigateur. {{product}} poursuit tout seul dès que tu autorises l’accès.",
+      "signInAgain": "Se reconnecter"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synchroniser",
         "now": "Synchroniser maintenant",
         "retry": "Réessayer",
-        "unavailable": "Synchronisation indisponible"
+        "unavailable": "Synchronisation indisponible",
+        "signInAgain": "Se reconnecter"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Pas encore synchronisé",
         "synced": "Données d’entraînement synchronisées",
         "syncing": "Synchronisation",
-        "unavailable": "Données d’entraînement indisponibles"
+        "unavailable": "Données d’entraînement indisponibles",
+        "signInRejected": "{{intervals}} te demande de te reconnecter"
       },
       "message": {
         "external": "{{message}}",

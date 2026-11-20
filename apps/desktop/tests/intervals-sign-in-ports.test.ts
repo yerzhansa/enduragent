@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { IntervalsSignInError, signInWithIntervals } from "@enduragent/core";
-import { afterEach, describe, expect, it } from "vitest";
-import { intervalsSignInPorts } from "../src/main/intervals-sign-in-ports.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { intervalsRevokePort, intervalsSignInPorts } from "../src/main/intervals-sign-in-ports.js";
 
 const directories: string[] = [];
 
@@ -14,6 +14,7 @@ async function scratch(): Promise<string> {
 }
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
@@ -84,4 +85,65 @@ describe("intervals sign-in ports", () => {
     expect(failure).toBeInstanceOf(IntervalsSignInError);
     expect(failure).toMatchObject({ reason });
   });
+});
+
+describe("intervals revoke port", () => {
+  const SIGNED_IN = "intervals-oauth:fixture-revoke-token";
+
+  function stubNetwork(status = 204) {
+    const fetch = vi.fn(async () => new Response(null, { status }));
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  it.each([
+    { isPackaged: true, hidden: true, authorizeUrlLog: "/tmp/authorize.log" },
+    { isPackaged: false, hidden: false, authorizeUrlLog: "/tmp/authorize.log" },
+    { isPackaged: false, hidden: true, authorizeUrlLog: undefined },
+    { isPackaged: false, hidden: true, authorizeUrlLog: "relative/authorize.log" },
+  ])("sends the real revoke outside acceptance runs: %o", async (gate) => {
+    const network = stubNetwork();
+    const revoke = intervalsRevokePort({
+      app: { isPackaged: gate.isPackaged },
+      hidden: gate.hidden,
+      environment: {
+        ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG: gate.authorizeUrlLog,
+        ENDURAGENT_ACCEPTANCE_INTERVALS_REVOKE_RESULT: "failed",
+      },
+    });
+
+    await expect(revoke(SIGNED_IN)).resolves.toBe("revoked");
+    expect(network).toHaveBeenCalledOnce();
+    expect(network.mock.calls[0]).toEqual([
+      "https://intervals.icu/api/v1/disconnect-app",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: { authorization: "Bearer fixture-revoke-token" },
+      }),
+    ]);
+  });
+
+  it.each([
+    [undefined, "revoked"],
+    ["revoked", "revoked"],
+    ["already-invalid", "already-invalid"],
+    ["failed", "failed"],
+  ] as const)(
+    "returns the stubbed %s result in an acceptance run without the network",
+    async (result, expected) => {
+      const network = stubNetwork(500);
+      const revoke = intervalsRevokePort({
+        app: { isPackaged: false },
+        hidden: true,
+        environment: {
+          ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG: "/tmp/authorize.log",
+          ENDURAGENT_ACCEPTANCE_INTERVALS_REVOKE_RESULT: result,
+        },
+      });
+
+      await expect(revoke(SIGNED_IN)).resolves.toBe(expected);
+      await expect(revoke("fixture-api-key")).resolves.toBe("not-signed-in");
+      expect(network).not.toHaveBeenCalled();
+    },
+  );
 });

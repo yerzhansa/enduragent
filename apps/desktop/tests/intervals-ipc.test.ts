@@ -1133,6 +1133,47 @@ describe("Desktop Intervals.icu sign-in IPC", () => {
     }
   });
 
+  it("replaces a configured sign-in that intervals.icu stopped accepting", async () => {
+    const value = await temporaryVault({});
+    try {
+      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
+      value.applyCredential.mockClear();
+      const runtime = setup({ vault: value.vault });
+
+      await expect(runtime.signIn()).resolves.toEqual(applied());
+
+      expect(runtime.verifyCredential).toHaveBeenCalledWith(CREDENTIAL, expect.any(AbortSignal));
+      expect(value.applyCredential).toHaveBeenCalledExactlyOnceWith("intervals-icu", CREDENTIAL);
+      await value.vault.reapplyConfigured();
+      expect(value.applyCredential).toHaveBeenLastCalledWith("intervals-icu", CREDENTIAL);
+    } finally {
+      await rm(value.base, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the configured sign-in when the new one belongs to another athlete", async () => {
+    const value = await temporaryVault({});
+    try {
+      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
+      const before = await readFile(join(value.root, "intervals-icu.bin"));
+      value.applyCredential.mockClear();
+      const runtime = setup({
+        vault: value.vault,
+        verification: { status: "refused", reason: "training-account-mismatch" },
+      });
+
+      await expect(runtime.signIn()).resolves.toEqual({
+        outcome: "refused",
+        reason: "training-account-mismatch",
+        current: status("configured", "active"),
+      });
+      expect(await readFile(join(value.root, "intervals-icu.bin"))).toEqual(before);
+      expect(value.applyCredential).not.toHaveBeenCalled();
+    } finally {
+      await rm(value.base, { recursive: true, force: true });
+    }
+  });
+
   it("rolls back a known late training-account mismatch", async () => {
     const value = await temporaryVault({});
     try {

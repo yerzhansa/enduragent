@@ -756,7 +756,7 @@ describe("settings setup inventory", () => {
       await user.click(screen.getByRole("button", { name: "Connect Intervals.icu" }));
       await user.click(screen.getByRole("button", { name: "Sign in with Intervals.icu" }));
       const remove = await screen.findByRole("button", {
-        name: "Delete the Intervals.icu connection",
+        name: "Disconnect Intervals.icu",
       });
       await waitFor(() => expect(remove).toHaveFocus());
       expect(useEnduragentStore.getState().settings.credentials).toMatchObject({
@@ -769,7 +769,7 @@ describe("settings setup inventory", () => {
 
       await user.click(remove);
 
-      expect(await screen.findByText("Delete the Intervals.icu connection?")).toBeInTheDocument();
+      expect(await screen.findByText("Disconnect Intervals.icu?")).toBeInTheDocument();
       const cancel = screen.getByRole("button", { name: "Cancel" });
       await waitFor(() => expect(cancel).toHaveFocus());
       expect(loadCredentialStatuses).toHaveBeenCalledTimes(3);
@@ -799,7 +799,7 @@ describe("settings setup inventory", () => {
     ).toContain("border-transparent");
     expect(
       within(trainingRow as HTMLElement).getByRole("button", {
-        name: "Delete the Intervals.icu connection",
+        name: "Disconnect Intervals.icu",
       }).className,
     ).toContain("text-destructive");
     expect(
@@ -1588,9 +1588,7 @@ describe("credential deletion", () => {
 
     expect(screen.getByRole("button", { name: "Delete the Anthropic credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete the OpenRouter credential" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     const reset = screen.getByRole("button", { name: "Remove all credentials" });
     expect(reset).toBeEnabled();
 
@@ -1648,9 +1646,7 @@ describe("credential deletion", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete the OpenRouter credential" }));
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Change the OpenRouter credential" })).toBeDisabled();
 
     await user.click(
@@ -1664,9 +1660,7 @@ describe("credential deletion", () => {
     await user.click(coach.getByRole("combobox", { name: /Provider/u }));
     expect(screen.queryByRole("option", { name: "OpenRouter" })).not.toBeInTheDocument();
     expect(subject.applyLlmSelection).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
 
     act(() =>
       deletion.resolve({
@@ -1677,9 +1671,7 @@ describe("credential deletion", () => {
     );
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
       expect(
         screen.getByRole("button", { name: "Change the OpenRouter credential" }),
       ).toBeEnabled();
@@ -1700,9 +1692,7 @@ describe("credential deletion", () => {
 
     expect(screen.getByRole("button", { name: "Delete the Anthropic credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete the OpenRouter credential" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Change the OpenRouter credential" })).toBeDisabled();
 
     act(() => {
@@ -1777,7 +1767,7 @@ describe("credential deletion", () => {
     await renderSettings();
 
     const remove = screen.getByRole("button", {
-      name: "Delete the Intervals.icu connection",
+      name: "Disconnect Intervals.icu",
     });
     await user.click(remove);
     await waitFor(() => expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus());
@@ -1785,7 +1775,7 @@ describe("credential deletion", () => {
     await user.keyboard("{Escape}");
 
     await waitFor(() => expect(remove).toHaveFocus());
-    expect(screen.queryByText("Delete the Intervals.icu connection?")).toBeNull();
+    expect(screen.queryByText("Disconnect Intervals.icu?")).toBeNull();
   });
 
   it("opens and focuses first-time Intervals setup after deletion without lowering durable readiness", async () => {
@@ -1806,6 +1796,7 @@ describe("credential deletion", () => {
           credential: "intervals-icu",
           status: "deleted",
           cleanupPending: false,
+          revoke: "revoked",
         };
       },
       onDeleted: () => {
@@ -1824,12 +1815,15 @@ describe("credential deletion", () => {
       },
     });
 
-    await user.click(screen.getByRole("button", { name: "Delete the Intervals.icu connection" }));
-    await user.click(screen.getByRole("button", { name: "Delete connection" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect Intervals.icu" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
 
     await waitFor(() => {
       expect(subject.deleteCredential).toHaveBeenCalledWith({ credential: "intervals-icu" });
       expect(subject.onDeleted).toHaveBeenCalledOnce();
+      expect(
+        screen.getByText("Disconnected. Enduragent’s access was revoked on Intervals.icu."),
+      ).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Connect Intervals.icu" })).toHaveFocus();
     });
     expect(screen.getByRole("button", { name: "Connect Intervals.icu" })).toHaveAttribute(
@@ -1881,9 +1875,7 @@ describe("credential deletion", () => {
     expect(screen.getByRole("button", { name: "Delete the Anthropic credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Change the OpenRouter credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete the OpenRouter credential" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
@@ -1892,9 +1884,7 @@ describe("credential deletion", () => {
         screen.getByRole("button", { name: "Change the OpenRouter credential" }),
       ).toBeEnabled();
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toHaveFocus();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -1923,9 +1913,7 @@ describe("credential deletion", () => {
       repairCredential: "openrouter",
     });
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
@@ -1962,9 +1950,7 @@ describe("credential deletion", () => {
       repairCredential: "anthropic",
     });
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
@@ -1973,6 +1959,72 @@ describe("credential deletion", () => {
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
+  });
+
+  it("disconnects Intervals.icu with a busy confirmation and a warning when revoke fails", async () => {
+    const user = userEvent.setup();
+    let finish!: (result: CredentialDeleteResult) => void;
+    const subject = await renderSettings({
+      deleteCredential: () =>
+        new Promise<CredentialDeleteResult>((resolve) => {
+          finish = resolve;
+        }),
+    });
+
+    const disconnect = screen.getByRole("button", { name: "Disconnect Intervals.icu" });
+    expect(disconnect).toHaveTextContent("Disconnect");
+    await user.click(disconnect);
+    const confirmation = document.querySelector<HTMLElement>(
+      '[data-inline-confirmation="delete-intervals-icu"]',
+    );
+    if (confirmation === null) throw new Error("Disconnect confirmation is missing");
+    expect(within(confirmation).getByText("Disconnect Intervals.icu?")).toBeInTheDocument();
+    expect(within(confirmation).getByRole("button", { name: "Cancel" })).toBeEnabled();
+    await user.click(within(confirmation).getByRole("button", { name: "Disconnect" }));
+
+    await waitFor(() => {
+      expect(within(confirmation).getByRole("button", { name: "Disconnecting…" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+    expect(within(confirmation).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(subject.deleteCredential).toHaveBeenCalledWith({ credential: "intervals-icu" });
+
+    await act(async () => {
+      finish({
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: false,
+        revoke: "failed",
+      });
+    });
+
+    const feedback = await screen.findByText(
+      "Disconnected on this Mac, but Enduragent couldn’t reach Intervals.icu to revoke its access. You can remove Enduragent there under Settings → Apps.",
+    );
+    expect(feedback).toHaveAttribute("data-tone", "warning");
+    expect(feedback).toHaveClass("text-warn");
+  });
+
+  it("tells a legacy API-key athlete that the key keeps working on Intervals.icu", async () => {
+    const user = userEvent.setup();
+    await renderSettings({
+      deleteCredential: async () => ({
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: false,
+        revoke: "not-signed-in",
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Disconnect Intervals.icu" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+
+    const feedback = await screen.findByText(
+      "Disconnected. The API key was removed from this Mac. It keeps working on Intervals.icu until you delete it there.",
+    );
+    expect(feedback).not.toHaveAttribute("data-tone");
   });
 
   it("keeps Intervals secrets out of the DOM and preserves repair feedback after uncertainty", async () => {
@@ -1986,14 +2038,14 @@ describe("credential deletion", () => {
     });
 
     expect(screen.queryByLabelText("Intervals.icu API key")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Delete the Intervals.icu connection" }));
-    expect(screen.getByText("Delete the Intervals.icu connection?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Disconnect Intervals.icu" }));
+    expect(screen.getByText("Disconnect Intervals.icu?")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Your saved sign-in or API key and imported connection will be removed. Your synced rides and past chats stay on this Mac.",
+        "Enduragent’s access is revoked on Intervals.icu and the sign-in is removed from this Mac. Your synced rides and past chats stay on this Mac.",
       ),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Delete connection" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
 
     const feedback = await screen.findByText(
       "Credential deletion could not be confirmed because secure storage could not be verified. Restart Enduragent and reload before trying again.",
@@ -2007,9 +2059,7 @@ describe("credential deletion", () => {
     expect(screen.getByRole("button", { name: "Delete the Anthropic credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Change the OpenRouter credential" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete the OpenRouter credential" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
@@ -2018,9 +2068,7 @@ describe("credential deletion", () => {
       expect(
         screen.getByRole("button", { name: "Change the OpenRouter credential" }),
       ).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -2063,9 +2111,7 @@ describe("credential deletion", () => {
     });
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     act(() => pendingReload.reject(new Error("synthetic reload failure")));
@@ -2079,18 +2125,14 @@ describe("credential deletion", () => {
       expect(screen.getByText(message).parentElement).toHaveFocus();
     });
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
     await waitFor(() => {
       expect(loadCredentialStatuses).toHaveBeenCalledTimes(3);
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -2125,18 +2167,14 @@ describe("credential deletion", () => {
       });
     });
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(setupReady(useEnduragentStore.getState())).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Reload credential status" }));
     await waitFor(() => {
       expect(subject.onReconciled).toHaveBeenCalledTimes(2);
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
     });
     expect(setupReady(useEnduragentStore.getState())).toBe(true);
   });
@@ -2185,9 +2223,7 @@ describe("credential deletion", () => {
       repairCredential: "openrouter",
     });
     expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeDisabled();
     expect(
       screen.getByText(
         "Credential deletion could not be confirmed because secure storage could not be verified. Restart Enduragent and reload before trying again.",
@@ -2198,9 +2234,7 @@ describe("credential deletion", () => {
     act(() => reentryReload.resolve(statuses));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Change what powers your coach" })).toBeEnabled();
-      expect(
-        screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toBeEnabled();
     });
     expect(harness.onReconciled).toHaveBeenCalledOnce();
     expect(setupReady(useEnduragentStore.getState())).toBe(true);

@@ -1875,21 +1875,47 @@ describe("desktop preload ChatGPT auth", () => {
     );
   });
 
-  it("accepts a successful Intervals.icu credential deletion result", async () => {
-    const result = {
+  it.each(["revoked", "already-invalid", "not-signed-in", "failed"])(
+    "accepts an Intervals.icu disconnect result with the %s revoke outcome",
+    async (revoke) => {
+      const result = {
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: true,
+        revoke,
+      };
+      mocks.invoke.mockResolvedValueOnce(result);
+
+      const copied = await bridge.deleteCredential({ credential: "intervals-icu" });
+
+      expect(copied).toEqual(result);
+      expect(copied).not.toBe(result);
+      expect(mocks.invoke).toHaveBeenCalledWith("enduragent:settings:credential-delete", {
+        credential: "intervals-icu",
+      });
+    },
+  );
+
+  it("requires the revoke outcome only on an Intervals.icu disconnect", async () => {
+    const disconnected = {
       credential: "intervals-icu",
       status: "deleted",
       cleanupPending: false,
+      revoke: "revoked",
     };
-    mocks.invoke.mockResolvedValueOnce(result);
-
-    const copied = await bridge.deleteCredential({ credential: "intervals-icu" });
-
-    expect(copied).toEqual(result);
-    expect(copied).not.toBe(result);
-    expect(mocks.invoke).toHaveBeenCalledWith("enduragent:settings:credential-delete", {
-      credential: "intervals-icu",
-    });
+    for (const malformed of [
+      { credential: "intervals-icu", status: "deleted", cleanupPending: false },
+      { ...disconnected, revoke: "unknown" },
+      { ...disconnected, revoke: undefined },
+      { ...disconnected, extra: true },
+      { ...disconnected, credential: "anthropic" },
+      { credential: "intervals-icu", status: "refused", reason: "not-found", revoke: "failed" },
+    ]) {
+      mocks.invoke.mockResolvedValueOnce(malformed);
+      await expect(bridge.deleteCredential({ credential: "intervals-icu" })).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    }
   });
 
   it("accepts only the exact Keychain deletion refusal envelope", async () => {

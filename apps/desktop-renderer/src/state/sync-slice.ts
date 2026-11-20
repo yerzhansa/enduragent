@@ -17,17 +17,32 @@ export const IDLE_MANUAL_SYNC: ManualSyncViewState = Object.freeze({
 export interface SyncSlice {
   readonly sync: ManualSyncViewState;
   readonly syncActions: SyncActions | null;
+  readonly intervalsSignInRejected: boolean;
   setSync: (next: ManualSyncViewState) => void;
   bindSyncActions: (actions: SyncActions | null) => void;
+  setIntervalsSignInRejected: (rejected: boolean) => void;
+}
+
+export function intervalsSignInNeedsRenewal(
+  state: Pick<EnduragentState, "intervalsSignInRejected" | "onboarding">,
+): boolean {
+  return (
+    state.intervalsSignInRejected &&
+    state.onboarding.wizard.credentialStatus["intervals-icu"] === "configured"
+  );
 }
 
 export const createSyncSlice: StateCreator<EnduragentState, [], [], SyncSlice> = (set) => ({
   sync: IDLE_MANUAL_SYNC,
   syncActions: null,
+  intervalsSignInRejected: false,
   setSync(next) {
     set({ sync: next });
   },
   bindSyncActions(actions) {
     set({ syncActions: actions });
+  },
+  setIntervalsSignInRejected(rejected) {
+    set({ intervalsSignInRejected: rejected });
   },
 });

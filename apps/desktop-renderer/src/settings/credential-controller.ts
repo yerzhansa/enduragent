@@ -13,6 +13,16 @@ import {
   claudeCliPresentation,
 } from "../onboarding/credential-presentation";
 import type { ChatGptStatus, ClaudeCliStatus, CredentialSlotStatus } from "../onboarding/machine";
+import {
+  deleteCancelledCopy,
+  deleteConfirmCopy,
+  deletedCopy,
+  deletedSetupRefreshFailedCopy,
+  deletingCopy,
+  recoveryCopy,
+  refusalCopy,
+  UNCERTAIN_DELETE_ANNOUNCEMENT,
+} from "./credential-delete-copy";
 
 export type CredentialKind = "Provider API key" | "ChatGPT profile" | "Training account key";
 
@@ -185,24 +195,6 @@ const CREDENTIAL_ORDER: readonly DesktopCredentialId[] = [
   "intervals-icu",
 ];
 
-const UNCERTAIN_DELETE_ANNOUNCEMENT =
-  "Credential deletion could not be confirmed because secure storage could not be verified. Restart Enduragent and reload before trying again.";
-
-function recoveryCopy(recovery: CredentialRecoveryStatus): string {
-  if (recovery.state === "locked") {
-    return "Unlock your login Keychain outside Enduragent, then Retry.";
-  }
-  if (recovery.state === "missing") {
-    return "The credential encryption key is missing. Restore it if possible, then Retry, or remove all credentials and start again.";
-  }
-  if (recovery.state === "unavailable") {
-    return "Secure credential storage is unavailable. Retry, or remove all credentials and start again.";
-  }
-  return "unverifiedEnvelopes" in recovery && recovery.unverifiedEnvelopes > 0
-    ? "Enduragent can’t open some saved credentials safely. Enter each affected credential again."
-    : "";
-}
-
 function kind(credential: DesktopCredentialId): CredentialKind {
   if (credential === "openai-codex") return "ChatGPT profile";
   if (credential === "intervals-icu") return "Training account key";
@@ -301,27 +293,6 @@ export function providerStatusesFrom(
   ];
 }
 
-function refusalCopy(
-  reason: Extract<CredentialDeleteResult, { readonly status: "refused" }>["reason"],
-): string {
-  if (reason === "managed-by-environment") {
-    return "This credential is managed outside Settings and can’t be deleted here.";
-  }
-  if (reason === "not-found") {
-    return "That credential is no longer stored. Reload to refresh the list.";
-  }
-  if (reason === "encryption-unavailable") {
-    return "The credential was retained because secure storage could not confirm its encryption key.";
-  }
-  if (reason === "storage-failed") {
-    return "The credential remains stored. No deletion was completed. Try again.";
-  }
-  if (reason === "runtime-state-diverged") {
-    return "The saved and active credential states could not be reconciled. Reconnect and reload before trying again.";
-  }
-  return "The coach could not stop using this credential safely. It was not deleted.";
-}
-
 export function createCredentialSettingsController(input: {
   readonly clients: DesktopCoachClientProvider;
   readonly loadStatuses: () => Promise<readonly CredentialSlotStatus[]>;
@@ -381,11 +352,14 @@ export function createCredentialSettingsController(input: {
       const loadClaudeCli = input.loadClaudeCliStatus;
       const claudeCli =
         loadClaudeCli === undefined || runtime.llm.provider !== "claude-cli"
-          ? null
-          : await loadClaudeCli().catch(() => null);
+          ? "not-loaded"
+          : await loadClaudeCli().catch(() => "not-loaded" as const);
       return {
         entries: entriesFrom(statuses, chatGpt, runtime),
-        providerStatuses: providerStatusesFrom(runtime, claudeCli),
+        providerStatuses: providerStatusesFrom(
+          runtime,
+          claudeCli === "not-loaded" ? null : claudeCli,
+        ),
         recovery,
       };
     } catch (error) {
@@ -486,7 +460,7 @@ export function createCredentialSettingsController(input: {
       entries: content.entries,
       providerStatuses: content.providerStatuses,
       confirmation: credential,
-      announcement: `Confirm deletion of the ${PROVIDER_NAMES[credential]} credential.`,
+      announcement: deleteConfirmCopy(credential, PROVIDER_NAMES[credential]),
       recovery: content.recovery,
       repairCredential: content.repairCredential,
       recoveryAvailable: content.recoveryAvailable,
@@ -564,8 +538,7 @@ export function createCredentialSettingsController(input: {
       entries: content.entries,
       providerStatuses: content.providerStatuses,
       confirmation: null,
-      announcement:
-        credential === "all" ? "Credential removal cancelled." : "Credential deletion cancelled.",
+      announcement: deleteCancelledCopy(credential),
       recovery: content.recovery,
       repairCredential: content.repairCredential,
       recoveryAvailable: content.recoveryAvailable,
@@ -713,7 +686,7 @@ export function createCredentialSettingsController(input: {
       entries: content.entries,
       providerStatuses: content.providerStatuses,
       confirmation: credential,
-      announcement: `Deleting the ${target.provider} credential locally…`,
+      announcement: deletingCopy(credential, target.provider),
       recovery: content.recovery,
       repairCredential: content.repairCredential,
       recoveryAvailable: content.recoveryAvailable,
@@ -801,8 +774,7 @@ export function createCredentialSettingsController(input: {
         render({
           status: "error",
           kind: "load",
-          announcement:
-            "Credential deleted locally, but setup readiness couldn’t be refreshed. Reload credential status.",
+          announcement: deletedSetupRefreshFailedCopy(result),
           repairCredential: credential,
           recoveryAvailable: content.recoveryAvailable || target.runtimeState === "active",
           focus: { target: "feedback" },
@@ -818,11 +790,7 @@ export function createCredentialSettingsController(input: {
         entries,
         providerStatuses,
         confirmation: null,
-        announcement: result.cleanupPending
-          ? "Credential deleted locally. Secure storage cleanup will be retried."
-          : refreshFailed
-            ? "Credential deleted locally. Current credential status couldn’t be refreshed."
-            : "Credential deleted locally.",
+        announcement: deletedCopy(result, refreshFailed),
         recovery,
         repairCredential: null,
         recoveryAvailable,

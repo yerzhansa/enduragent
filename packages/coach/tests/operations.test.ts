@@ -10,6 +10,8 @@ import type { LocalStoreRuntime } from "../src/composition.js";
 import { EMPTY_DROPPED_ACTIVITIES, type DroppedActivities } from "@enduragent/coach-contract";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
 import { createCoachOperations } from "../src/operations.js";
+import { recordIntervalsCredentialResponse } from "@enduragent/core";
+import { encodeIntervalsOAuthCredential } from "../../core/src/intervals-credential.js";
 
 const home: AthleteHome = {
   root: "/synthetic/athlete",
@@ -1205,6 +1207,123 @@ describe("coach operations", () => {
       expect(JSON.stringify(result)).not.toContain("private");
     },
   );
+
+  it("reports a rejected intervals.icu sign-in only for the configured credential", async () => {
+    const signedIn = encodeIntervalsOAuthCredential("fixture-rejected-token");
+    const snapshot = (credentialConfigured: boolean) => ({
+      schemaVersion: 3 as const,
+      llm: { provider: "openai" as const, model: "model-a", credential_configured: true },
+      intervals: {
+        athlete_id: "synthetic-athlete",
+        credential_configured: credentialConfigured,
+        managedByEnvironment: { athleteId: false },
+      },
+      session: {
+        historyTokenBudgetRatio: 0.3,
+        idleMinutes: 0,
+        dailyResetHour: 4,
+        resetArchiveRetentionDays: 0,
+        timezone: "UTC",
+        managedByEnvironment: {
+          historyTokenBudgetRatio: false,
+          idleMinutes: false,
+          dailyResetHour: false,
+          resetArchiveRetentionDays: false,
+          timezone: false,
+        },
+      },
+    });
+    const read = (apiKey: string) =>
+      createCoachOperations({
+        home,
+        context: context(),
+        runtime: operationRuntime(),
+        intervalsCredentials: intervalsCredentials(apiKey),
+        historyNewestDate: () => "1998-07-18",
+        calendarTimeZone: () => "UTC",
+        applyRuntimeConfig: async () => {},
+        readRuntimeConfig: () => snapshot(true),
+      }).getRuntimeConfig({});
+    await expect(read(signedIn)).resolves.toEqual(snapshot(true));
+
+    recordIntervalsCredentialResponse(signedIn, 401);
+    const rejected = await read(signedIn);
+    expect(rejected.intervals.credential_rejected).toBe(true);
+    expect(JSON.stringify(rejected)).not.toContain("fixture-rejected-token");
+    await expect(read(encodeIntervalsOAuthCredential("fixture-new-token"))).resolves.toEqual(
+      snapshot(true),
+    );
+    await expect(read("")).resolves.toEqual(snapshot(true));
+
+    recordIntervalsCredentialResponse(signedIn, 200);
+    await expect(read(signedIn)).resolves.toEqual(snapshot(true));
+  });
+
+  it("reports a refused offered intervals.icu sign-in until it is replaced or removed", async () => {
+    const refusedOffer = encodeIntervalsOAuthCredential("fixture-refused-offer");
+    const replacement = encodeIntervalsOAuthCredential("fixture-replacement-offer");
+    const unconfigured = {
+      schemaVersion: 3 as const,
+      llm: { provider: "openai" as const, model: "model-a", credential_configured: true },
+      intervals: {
+        athlete_id: "",
+        credential_configured: false,
+        managedByEnvironment: { athleteId: false },
+      },
+      session: {
+        historyTokenBudgetRatio: 0.3,
+        idleMinutes: 0,
+        dailyResetHour: 4,
+        resetArchiveRetentionDays: 0,
+        timezone: "UTC",
+        managedByEnvironment: {
+          historyTokenBudgetRatio: false,
+          idleMinutes: false,
+          dailyResetHour: false,
+          resetArchiveRetentionDays: false,
+          timezone: false,
+        },
+      },
+    };
+    const operations = createCoachOperations({
+      home,
+      context: context(),
+      runtime: operationRuntime(),
+      intervalsCredentials: intervalsCredentials(""),
+      historyNewestDate: () => "1998-07-18",
+      calendarTimeZone: () => "UTC",
+      applyRuntimeConfig: async (request) => {
+        if (request.intervals?.api_key === undefined) return;
+        recordIntervalsCredentialResponse(request.intervals.api_key, 401);
+        return "ownership-unavailable";
+      },
+      readRuntimeConfig: () => unconfigured,
+    });
+
+    await expect(
+      operations.configureRuntime({ intervals: { api_key: refusedOffer } }),
+    ).resolves.toMatchObject({ status: "refused", reason: "ownership-unavailable" });
+    const rejected = await operations.getRuntimeConfig({});
+    expect(rejected.intervals).toMatchObject({
+      credential_configured: false,
+      credential_rejected: true,
+    });
+    expect(JSON.stringify(rejected)).not.toContain("fixture-refused-offer");
+
+    recordIntervalsCredentialResponse(replacement, 200);
+    await operations.configureRuntime({ intervals: { api_key: replacement } });
+    recordIntervalsCredentialResponse(replacement, 200);
+    await expect(operations.getRuntimeConfig({})).resolves.toEqual(unconfigured);
+
+    await operations.configureRuntime({ intervals: { api_key: refusedOffer } });
+    await expect(operations.getRuntimeConfig({})).resolves.toMatchObject({
+      intervals: { credential_rejected: true },
+    });
+    await expect(
+      operations.configureRuntime({ intervals: { clear_credential: true } }),
+    ).resolves.toMatchObject({ status: "applied" });
+    await expect(operations.getRuntimeConfig({})).resolves.toEqual(unconfigured);
+  });
 
   it("reads runtime configuration while a store sync is blocked", async () => {
     const syncStarted = promiseGate();

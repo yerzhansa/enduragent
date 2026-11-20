@@ -17,6 +17,7 @@ import {
   settingsMutationActive,
 } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
+import { intervalsSignInNeedsRenewal } from "../../state/sync-slice";
 import {
   IMPORT_FILES_LABEL,
   INTERVALS_PANEL_HINT,
@@ -29,6 +30,7 @@ import {
   TRAINING_ROW_SUBTITLES,
   TRAINING_ROW_TITLE,
   TRAINING_ROW_TOOLTIP,
+  TRAINING_SIGN_IN_AGAIN_LABEL,
   TRAINING_SIGN_IN_LABEL,
   TRAINING_SIGN_IN_PHASE_COPY,
   TRAINING_TRIGGER_LABELS,
@@ -67,12 +69,15 @@ export function TrainingRow(props: {
     credentialChangesBlocked(credentialSettings, settingsMutating);
   const importing = surface.rideImport.status === "running";
   const connected = wizard.credentialStatus["intervals-icu"] === "configured";
+  const signInRejected = useEnduragentStore(intervalsSignInNeedsRenewal);
+  const rejected = connected && signInRejected;
   const signInPhase = surface.intervalsSignIn.phase;
   const phaseCopy = signInPhase === "idle" ? null : TRAINING_SIGN_IN_PHASE_COPY[signInPhase];
   const athleteName = surface.intervalsSignIn.athleteName;
-  const retryable = surface.statuses.some(
+  const retryableStatus = surface.statuses.some(
     (entry) => entry.slot === "intervals-icu" && credentialPresentation(entry).retryable,
   );
+  const retryable = retryableStatus && !rejected;
   const ownsError = errorSection(wizard.fixedError, surface.lastCommit) === "training";
   const [openRequested, setOpen] = useState(false);
   const open = openRequested || signInPhase !== "idle";
@@ -82,16 +87,17 @@ export function TrainingRow(props: {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusHeadingAfterOpen = useRef<"delete" | "trigger" | null>(null);
   const panelId = "onboarding-training-panel";
+  const signInPanelOpen = (!connected || rejected) && open && !repairRequired;
   const credentialFocus = "focus" in credentialSettings ? credentialSettings.focus : null;
 
   useEffect(() => {
     if (connectPhase === "idle" || busy || surface.lastCommit !== "training") return;
     if (connected) {
       setOpen(false);
-      deleteRef.current?.focus();
+      (rejected ? triggerRef : deleteRef).current?.focus();
     }
     setConnectPhase("idle");
-  }, [busy, connected, connectPhase, surface.lastCommit]);
+  }, [busy, connected, connectPhase, rejected, surface.lastCommit]);
 
   useEffect(() => {
     if (!repairRequired) return;
@@ -119,13 +125,15 @@ export function TrainingRow(props: {
   const statusKnown = setupStatusKnown(surface);
   const subtitle = !statusKnown
     ? say(SETUP_ROW_CHECKING_SUBTITLE)
-    : connected
-      ? say(
-          athleteName === null
-            ? TRAINING_ROW_SUBTITLES.connected
-            : trainingConnectedAsSubtitle(athleteName),
-        )
-      : say(TRAINING_ROW_SUBTITLES.missing);
+    : rejected
+      ? say(TRAINING_ROW_SUBTITLES.rejected)
+      : connected
+        ? say(
+            athleteName === null
+              ? TRAINING_ROW_SUBTITLES.connected
+              : trainingConnectedAsSubtitle(athleteName),
+          )
+        : say(TRAINING_ROW_SUBTITLES.missing);
 
   const connect = (): void => {
     if (actions === null || controlsDisabled || importing) return;
@@ -137,7 +145,7 @@ export function TrainingRow(props: {
     <>
       <SetupRow
         id="training"
-        status={!statusKnown ? "none" : connected ? "ready" : "pending"}
+        status={!statusKnown ? "none" : rejected ? "attention" : connected ? "ready" : "pending"}
         title={TRAINING_ROW_TITLE}
         subtitle={subtitle}
         info={
@@ -148,7 +156,20 @@ export function TrainingRow(props: {
           />
         }
         trailing={
-          !statusKnown ? null : connected ? (
+          !statusKnown ? null : rejected ? (
+            <Button
+              ref={triggerRef}
+              type="button"
+              data-setup-trigger="training"
+              variant="default"
+              size="sm"
+              disabled={controlsDisabled || importing}
+              {...(open ? { "aria-controls": panelId } : {})}
+              onClick={connect}
+            >
+              {say(TRAINING_SIGN_IN_AGAIN_LABEL)}
+            </Button>
+          ) : connected ? (
             <CredentialDeleteButton credential="intervals-icu" buttonRef={deleteRef} />
           ) : (
             <Button
@@ -176,7 +197,7 @@ export function TrainingRow(props: {
         }
       />
       <CredentialDeleteConfirmation credential="intervals-icu" />
-      {!connected && open && !repairRequired ? (
+      {signInPanelOpen ? (
         <SetupSubPanel name="training" id={panelId}>
           <div className="flex min-w-0 flex-wrap items-center gap-x-7 gap-y-3">
             <div className="min-w-52 flex-1">
@@ -258,7 +279,7 @@ export function TrainingRow(props: {
           <SetupError surface={surface} section="training" />
         </SetupSubPanel>
       ) : null}
-      {connected && (retryable || ownsError) ? (
+      {connected && !signInPanelOpen && (retryable || ownsError) ? (
         <SetupSubPanel name="training-recovery">
           {retryable ? (
             <Button

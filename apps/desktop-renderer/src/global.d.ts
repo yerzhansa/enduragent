@@ -490,9 +490,15 @@ type CredentialWriteResult =
 
 type CredentialDeleteResult =
   | {
-      readonly credential: DesktopCredentialId;
+      readonly credential: Exclude<DesktopCredentialId, "intervals-icu">;
       readonly status: "deleted";
       readonly cleanupPending: boolean;
+    }
+  | {
+      readonly credential: "intervals-icu";
+      readonly status: "deleted";
+      readonly cleanupPending: boolean;
+      readonly revoke: "revoked" | "already-invalid" | "not-signed-in" | "failed";
     }
   | {
       readonly credential: DesktopCredentialId;

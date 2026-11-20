@@ -384,8 +384,8 @@ describe("setup card", () => {
 
     expect(trigger("ai").className).toContain("border-input");
     expect(document.querySelector('[data-setup-trigger="training"]')).toBeNull();
-    const remove = screen.getByRole("button", { name: "Delete the Intervals.icu connection" });
-    expect(remove).toHaveTextContent("Delete");
+    const remove = screen.getByRole("button", { name: "Disconnect Intervals.icu" });
+    expect(remove).toHaveTextContent("Disconnect");
     expect(remove.className).toBe(cn(buttonVariants({ variant: "destructive", size: "sm" })));
     expect(setupRow("training").querySelectorAll("button")).toHaveLength(2);
     wizard.controller.dispose();
@@ -1175,8 +1175,8 @@ describe("setup card", () => {
     await waitFor(() => {
       expect(panel("training")).toBeNull();
     });
-    const remove = screen.getByRole("button", { name: "Delete the Intervals.icu connection" });
-    expect(remove).toHaveTextContent("Delete");
+    const remove = screen.getByRole("button", { name: "Disconnect Intervals.icu" });
+    expect(remove).toHaveTextContent("Disconnect");
     expect(remove).toHaveFocus();
     expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     expect(bridge.writeCredential).not.toHaveBeenCalled();
@@ -1244,9 +1244,7 @@ describe("setup card", () => {
     });
     expect(panel("api-key")).not.toBeNull();
     expect(passwordInput("anthropic").value).toBe(aiSecret);
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toHaveFocus();
     expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     wizard.controller.dispose();
   });
@@ -1301,9 +1299,9 @@ describe("setup card", () => {
     expect(rowState("training")).toBe("ready");
     expect(rowSubtitle("training")).toBe("Connected · where your rides come from");
     expect(document.querySelector('[data-setup-trigger="training"]')).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Delete the Intervals.icu connection" }),
-    ).toHaveTextContent("Delete");
+    expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toHaveTextContent(
+      "Disconnect",
+    );
     connected.controller.dispose();
   });
 

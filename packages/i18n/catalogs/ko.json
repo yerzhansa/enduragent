@@ -203,12 +203,8 @@
         "action": "삭제",
         "aria": "{{provider}} 인증 정보 삭제",
         "confirmAria": "{{provider}} 인증 정보 삭제 확인",
-        "connection": "연결 삭제",
         "credential": "인증 정보 삭제",
         "detail": "{{computer}}에서만 삭제합니다. 사용 중인 경우 {{product}}에서 사용을 중단합니다. 제공업체 계정은 변경되지 않습니다.",
-        "intervalsAria": "{{intervals}} 연결 삭제",
-        "intervalsDetail": "저장된 로그인 정보 또는 API 키와 가져온 연결이 삭제됩니다. 동기화된 라이딩과 이전 채팅은 {{computer}}에 유지됩니다.",
-        "intervalsTitle": "{{intervals}} 연결을 삭제할까요?",
         "title": "{{provider}} 인증 정보를 삭제할까요?"
       },
       "feedback": {
@@ -245,7 +241,18 @@
           "stopFailed": "{{product}}에서 활성 인증 정보의 사용을 모두 중단하지 못했습니다. 다시 시도하여 인증 정보 삭제를 완료하세요.",
           "unverified": "설정을 다시 불러오지 못해 인증 정보 삭제 여부를 확인할 수 없습니다. 다시 연결하고 새로고침하세요."
         },
-        "unavailable": "저장된 인증 정보를 사용할 수 없습니다. 다시 연결하고 새로고침하세요."
+        "unavailable": "저장된 인증 정보를 사용할 수 없습니다. 다시 연결하고 새로고침하세요.",
+        "disconnect": {
+          "apiKeyRemoved": "연결이 해제되었습니다. {{computer}}에서 API 키가 삭제되었습니다. {{intervals}}에서 삭제하기 전까지는 계속 작동합니다.",
+          "cancelled": "연결 해제가 취소되었습니다.",
+          "cleanupPending": "보안 저장소 정리를 다시 시도합니다.",
+          "confirm": "{{intervals}} 연결 해제를 확인하세요.",
+          "disconnecting": "{{intervals}} 연결 해제 중…",
+          "refreshFailed": "현재 연결 상태를 갱신하지 못했습니다.",
+          "revoked": "연결이 해제되었습니다. {{intervals}}에서 {{product}}의 접근 권한이 취소되었습니다.",
+          "revokeFailed": "{{computer}}에서 연결이 해제되었지만 {{product}}이(가) {{intervals}}에 연결하지 못해 접근 권한을 취소하지 못했습니다. {{intervals}}의 Settings → Apps에서 {{product}}을(를) 삭제할 수 있습니다.",
+          "setupRefreshFailed": "설정 준비 상태를 갱신하지 못했습니다. 인증 정보 상태를 새로고침하세요."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}} 프로필",
@@ -269,7 +276,14 @@
         "storedInactive": "저장됨, 비활성",
         "verifying": "확인 중…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "연결 해제",
+        "aria": "{{intervals}} 연결 해제",
+        "busy": "연결 해제 중…",
+        "detail": "{{intervals}}에서 {{product}}의 접근 권한이 취소되고 {{computer}}에서 로그인 정보가 삭제됩니다. 동기화된 라이딩과 이전 채팅은 {{computer}}에 유지됩니다.",
+        "title": "{{intervals}} 연결을 해제할까요?"
+      }
     },
     "managedByEnvironment": "환경 변수로 관리됩니다. {{product}} 외부에서 변경하세요.",
     "palette": {
@@ -771,7 +785,8 @@
       "subtitle": {
         "connected": "연결됨 · 라이딩을 가져오는 곳",
         "connectedAs": "{{name}}(으)로 연결됨 · 라이딩을 가져오는 곳",
-        "missing": "연결하거나 라이딩 파일을 가져오세요."
+        "missing": "연결하거나 라이딩 파일을 가져오세요.",
+        "rejected": "{{intervals}}에서 로그인을 더 이상 허용하지 않습니다. 계속 동기화하려면 다시 로그인하세요."
       },
       "tooltip": {
         "body": "라이딩 기록이 이미 저장되어 있는 무료 훈련 사이트입니다. {{product}}은(는) 시계나 사이클링 컴퓨터 제조업체에 직접 연결하는 대신 이 사이트에서 기록을 읽습니다. 시계나 사이클링 컴퓨터가 연결된 무료 계정이 필요하며, 그런 다음 여기에서 로그인하면 됩니다.",
@@ -781,7 +796,8 @@
         "disconnected": "{{intervals}} 연결"
       },
       "waiting": "브라우저 대기 중…",
-      "waitingHint": "브라우저에서 완료하세요. 액세스를 승인하면 {{product}}에서 자동으로 계속 진행합니다."
+      "waitingHint": "브라우저에서 완료하세요. 액세스를 승인하면 {{product}}에서 자동으로 계속 진행합니다.",
+      "signInAgain": "다시 로그인"
     }
   },
   "shell": {
@@ -813,7 +829,8 @@
         "again": "동기화",
         "now": "지금 동기화",
         "retry": "다시 시도",
-        "unavailable": "동기화 불가"
+        "unavailable": "동기화 불가",
+        "signInAgain": "다시 로그인"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -823,7 +840,8 @@
         "never": "아직 동기화되지 않음",
         "synced": "훈련 데이터 동기화됨",
         "syncing": "동기화 중",
-        "unavailable": "훈련 데이터 사용 불가"
+        "unavailable": "훈련 데이터 사용 불가",
+        "signInRejected": "{{intervals}}에 다시 로그인해야 합니다"
       },
       "message": {
         "external": "{{message}}",

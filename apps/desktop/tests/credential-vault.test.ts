@@ -28,6 +28,7 @@ import {
   replaceCredentialRuntimeStates,
   type CredentialEncryptionPort,
   type CredentialVaultMutation,
+  type StoredCredentialRead,
 } from "../src/main/credential-vault.js";
 import {
   CREDENTIAL_ENVELOPE_MAGIC,
@@ -1169,6 +1170,149 @@ describe("desktop credential vault", () => {
       expect((await lstat(join(root, "anthropic.bin"))).isFile()).toBe(true);
     },
   );
+
+  it("hands the stored value to the scoped read before removing the vault entry", async () => {
+    const root = await temporaryRoot();
+    const signedIn = "intervals-oauth:fixture-revoke-token";
+    const clearCredential = vi.fn(async () => "cleared" as const);
+    const seen: unknown[] = [];
+    const beforeRemove = vi.fn(async (stored: StoredCredentialRead) => {
+      seen.push(stored);
+      expect(clearCredential).toHaveBeenCalledOnce();
+      expect((await lstat(join(root, "intervals-icu.bin"))).isFile()).toBe(true);
+    });
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      clearCredential,
+    });
+    await vault.writeCredential({ slot: "intervals-icu", value: signedIn });
+
+    await expect(vault.deleteCredential("intervals-icu", { beforeRemove })).resolves.toEqual({
+      slot: "intervals-icu",
+      status: "deleted",
+      cleanupPending: false,
+    });
+
+    expect(seen).toEqual([{ state: "readable", value: signedIn }]);
+    await expect(lstat(join(root, "intervals-icu.bin"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("still removes the vault entry when the scoped read callback fails", async () => {
+    const root = await temporaryRoot();
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      clearCredential: vi.fn(async () => "cleared" as const),
+    });
+    await vault.writeCredential({ slot: "intervals-icu", value: "intervals-oauth:fixture-token" });
+
+    await expect(
+      vault.deleteCredential("intervals-icu", {
+        beforeRemove: async () => {
+          throw new TypeError("offline");
+        },
+      }),
+    ).resolves.toEqual({ slot: "intervals-icu", status: "deleted", cleanupPending: false });
+    await expect(lstat(join(root, "intervals-icu.bin"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  posixIt("passes an unreadable slot to the scoped read without a value", async () => {
+    const root = await temporaryRoot();
+    await mkdir(root, { recursive: true, mode: CREDENTIAL_DIRECTORY_MODE });
+    await writeFile(join(root, "intervals-icu.bin"), Buffer.from("not an envelope"), {
+      mode: CREDENTIAL_FILE_MODE,
+    });
+    const beforeRemove = vi.fn(async (_stored: StoredCredentialRead) => {});
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      platform: "darwin",
+    });
+
+    await expect(vault.deleteCredential("intervals-icu", { beforeRemove })).resolves.toEqual({
+      slot: "intervals-icu",
+      status: "deleted",
+      cleanupPending: false,
+    });
+    expect(beforeRemove.mock.calls).toEqual([[{ state: "unreadable" }]]);
+  });
+
+  it("never runs the scoped read when deletion is refused before removal", async () => {
+    const root = await temporaryRoot();
+    const beforeRemove = vi.fn(async () => {});
+    const managed = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential: vi.fn(async () => {}),
+      clearCredential: vi.fn(async () => "managed-by-environment" as const),
+    });
+    await expect(managed.deleteCredential("intervals-icu", { beforeRemove })).resolves.toEqual({
+      slot: "intervals-icu",
+      status: "refused",
+      reason: "not-found",
+    });
+    await managed.writeCredential({ slot: "intervals-icu", value: "intervals-oauth:fixture" });
+
+    await expect(managed.deleteCredential("intervals-icu", { beforeRemove })).resolves.toEqual({
+      slot: "intervals-icu",
+      status: "refused",
+      reason: "managed-by-environment",
+    });
+    expect(beforeRemove).not.toHaveBeenCalled();
+    expect((await lstat(join(root, "intervals-icu.bin"))).isFile()).toBe(true);
+  });
+
+  it("holds a concurrent sign-in write until the scoped read and removal finish", async () => {
+    const root = await temporaryRoot();
+    const applyCredential = vi.fn(async () => {});
+    const vault = createCredentialVault({
+      root,
+      encryption: encryption(),
+      applyCredential,
+      clearCredential: vi.fn(async () => "cleared" as const),
+    });
+    await vault.writeCredential({ slot: "intervals-icu", value: "intervals-oauth:fixture-old" });
+    applyCredential.mockClear();
+    let releaseRevoke!: () => void;
+    const revokeGate = new Promise<void>((resolve) => {
+      releaseRevoke = resolve;
+    });
+    let revokeStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      revokeStarted = resolve;
+    });
+    const seen: unknown[] = [];
+
+    const deletion = vault.deleteCredential("intervals-icu", {
+      beforeRemove: async (stored) => {
+        seen.push(stored);
+        revokeStarted();
+        await revokeGate;
+      },
+    });
+    await started;
+    const signIn = vault.runExclusiveMutation((mutation) =>
+      mutation.writeCredential({ slot: "intervals-icu", value: "intervals-oauth:fixture-new" }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(applyCredential).not.toHaveBeenCalled();
+
+    releaseRevoke();
+    await expect(deletion).resolves.toMatchObject({ status: "deleted" });
+    await expect(signIn).resolves.toMatchObject({ status: "configured", runtimeReady: true });
+
+    expect(seen).toEqual([{ state: "readable", value: "intervals-oauth:fixture-old" }]);
+    expect(applyCredential).toHaveBeenCalledWith("intervals-icu", "intervals-oauth:fixture-new");
+    await expect(vault.credentialStatuses()).resolves.toContainEqual({
+      slot: "intervals-icu",
+      state: "configured",
+      runtimeState: "active",
+    });
+  });
 
   it("does not clear stale runtime state when the envelope is missing", async () => {
     const root = await temporaryRoot();

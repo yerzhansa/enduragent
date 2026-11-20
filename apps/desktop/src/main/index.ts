@@ -72,7 +72,7 @@ import {
   createDesktopIntervalsCredentialVerifier,
   installDesktopIntervalsIpc,
 } from "./intervals-ipc.js";
-import { intervalsSignInPorts } from "./intervals-sign-in-ports.js";
+import { intervalsRevokePort, intervalsSignInPorts } from "./intervals-sign-in-ports.js";
 import {
   applyExplicitCredentialToRuntime,
   createActiveIntervalsCredentialPreflight,
@@ -323,6 +323,7 @@ async function runDesktop(): Promise<void> {
     controller.signal.addEventListener("abort", cancel, { once: true });
   };
   const environment = { ...process.env };
+  const intervalsPortGate = { app, hidden: desktopAcceptanceHidden, environment };
   const rendererSource = resolveDesktopRendererSource(
     app.isPackaged,
     environment.ELECTRON_RENDERER_URL,
@@ -1258,11 +1259,10 @@ async function runDesktop(): Promise<void> {
               });
             },
             credentialRecoveryStatus,
-            retryCredentialRecovery: async () => {
-              await credentialEncryption.retryKeychain();
-              return await credentialRecoveryStatus();
-            },
+            retryCredentialRecovery: () =>
+              credentialEncryption.retryKeychain().then(() => credentialRecoveryStatus()),
             resetAllCredentials,
+            revokeIntervalsAccess: intervalsRevokePort(intervalsPortGate),
             isTrusted: (event) =>
               isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),
           });
@@ -1435,7 +1435,7 @@ async function runDesktop(): Promise<void> {
     });
     disposeIntervalsIpc = installDesktopIntervalsIpc({
       ipcMain,
-      ...intervalsSignInPorts({ app, hidden: desktopAcceptanceHidden, environment }),
+      ...intervalsSignInPorts(intervalsPortGate),
       vault,
       signal: controller.signal,
       isTrusted: (event) => isTrustedConnectionRequest(event, mainWindow.current() ?? undefined),

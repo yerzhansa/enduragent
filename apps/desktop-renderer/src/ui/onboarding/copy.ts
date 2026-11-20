@@ -180,6 +180,7 @@ export const TRAINING_ROW_TITLE = "Intervals.icu";
 export const TRAINING_ROW_SUBTITLES = {
   connected: msg("setup.training.subtitle.connected"),
   missing: msg("setup.training.subtitle.missing"),
+  rejected: msg("setup.training.subtitle.rejected", { intervals: "Intervals.icu" }),
 } as const;
 
 export function trainingConnectedAsSubtitle(name: string): Message {
@@ -210,6 +211,8 @@ export const INTERVALS_PANEL_HINT = msg("setup.training.hint", {
 });
 
 export const TRAINING_SIGN_IN_LABEL = msg("setup.training.signIn", { intervals: "Intervals.icu" });
+
+export const TRAINING_SIGN_IN_AGAIN_LABEL = msg("setup.training.signInAgain");
 
 export const TRAINING_SIGN_IN_PHASE_COPY = {
   "waiting-for-browser": {

@@ -2,8 +2,10 @@ import { appendFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { shell, type App } from "electron";
 import {
+  revokeIntervalsAccess,
   signInWithIntervals,
   type IntervalsOAuthGrant,
+  type IntervalsRevokeResult,
   type IntervalsSignInOptions,
 } from "@enduragent/core";
 
@@ -11,6 +13,8 @@ export interface IntervalsSignInPorts {
   readonly openExternal: (url: string) => Promise<void>;
   readonly signIn: (options: IntervalsSignInOptions) => Promise<IntervalsOAuthGrant>;
 }
+
+export const INTERVALS_REVOKE_TIMEOUT_MS = 10_000;
 
 const ACCEPTANCE_SCOPE = "ACTIVITY:READ,WELLNESS:READ,CALENDAR:WRITE,SETTINGS:READ";
 
@@ -37,11 +41,42 @@ export function intervalsSignInPorts(input: {
 }): IntervalsSignInPorts {
   const openExternal = input.openExternal ?? ((url: string) => shell.openExternal(url));
   const log = input.environment.ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG;
-  if (input.app.isPackaged || !input.hidden || log === undefined || !isAbsolute(log)) {
+  if (!acceptanceRun(input) || log === undefined) {
     return { openExternal, signIn: signInWithIntervals };
   }
   return {
     openExternal: (url) => appendFile(log, `${url}\n`, { mode: 0o600 }),
     signIn: (options) => signInWithIntervals({ ...options, fetch: acceptanceTokenFetch }),
   };
+}
+
+function acceptanceRun(input: {
+  readonly app: Pick<App, "isPackaged">;
+  readonly hidden: boolean;
+  readonly environment: Readonly<Record<string, string | undefined>>;
+}): boolean {
+  const log = input.environment.ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG;
+  return !input.app.isPackaged && input.hidden && log !== undefined && isAbsolute(log);
+}
+
+export function intervalsRevokePort(input: {
+  readonly app: Pick<App, "isPackaged">;
+  readonly hidden: boolean;
+  readonly environment: Readonly<Record<string, string | undefined>>;
+}): (credential: string) => Promise<IntervalsRevokeResult> {
+  if (!acceptanceRun(input)) {
+    return (credential) =>
+      revokeIntervalsAccess({ credential, timeoutMs: INTERVALS_REVOKE_TIMEOUT_MS });
+  }
+  const result = input.environment.ENDURAGENT_ACCEPTANCE_INTERVALS_REVOKE_RESULT;
+  const acceptanceRevokeFetch = async (): Promise<Response> => {
+    if (result === "failed") throw new TypeError("acceptance network failure");
+    return new Response(null, { status: result === "already-invalid" ? 401 : 204 });
+  };
+  return (credential) =>
+    revokeIntervalsAccess({
+      credential,
+      timeoutMs: INTERVALS_REVOKE_TIMEOUT_MS,
+      fetch: acceptanceRevokeFetch,
+    });
 }
