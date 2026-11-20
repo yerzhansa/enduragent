@@ -8,6 +8,7 @@ import {
   compareCounts,
   countOxlintDiagnostics,
   formatDrift,
+  isGeneratedPath,
   isTestPath,
   main,
   measure,
@@ -346,6 +347,23 @@ describe("scanSource code patterns", () => {
     });
     expect(scanSource("packages/a/src/edge.ts", lines(800))["file-length"]).toBeUndefined();
     expect(scanSource("packages/a/tests/big.test.ts", lines(900))["file-length"]).toBeUndefined();
+  });
+
+  it("leaves generated files out of the line count but not out of other rules", () => {
+    const source = `${"export {};\n".repeat(900)}export const a = value as unknown as number;\n`;
+    const counts = scanSource("packages/a/src/keys.generated.ts", source);
+    expect(counts["file-length"]).toBeUndefined();
+    expect(counts["double-assertion"]).toEqual({ "packages/a/src/keys.generated.ts": 1 });
+  });
+
+  it.each([
+    ["packages/a/src/keys.generated.ts", true],
+    ["packages/a/src/seed.generated.json.ts", true],
+    ["packages/a/src/generated.ts", false],
+    ["packages/a/src/generated-keys.ts", false],
+    ["packages/a.generated.d/src/keys.ts", false],
+  ])("treats %s as generated: %s", (file, expected) => {
+    expect(isGeneratedPath(file)).toBe(expected);
   });
 
   it.each([

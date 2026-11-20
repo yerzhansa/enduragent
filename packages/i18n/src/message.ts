@@ -1,6 +1,6 @@
-import type { CatalogKey } from "./catalog-keys.js";
+import type { CatalogKey } from "./catalog-keys.generated.js";
 
-export type { CatalogKey } from "./catalog-keys.js";
+export type { CatalogKey } from "./catalog-keys.generated.js";
 
 export interface Message {
   readonly key: CatalogKey;
