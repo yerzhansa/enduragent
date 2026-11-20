@@ -63,7 +63,10 @@ describe("Windows parity automation contract", () => {
       join(repositoryRoot, "apps/desktop/src/main/index.ts"),
       "utf8",
     );
-    const packageCommands = workflow.match(/pnpm --filter @enduragent\/desktop package:win/g) ?? [];
+    const packageCommands =
+      workflow.match(/pnpm --filter @enduragent\/desktop package:win$/gmu) ?? [];
+    const storePackageCommands =
+      workflow.match(/pnpm --filter @enduragent\/desktop package:win-store$/gmu) ?? [];
     const installedCommands =
       workflow.match(
         /pnpm --filter @enduragent\/desktop test:windows-installed-self-test --github-hosted --signature-policy unsigned-private/g,
@@ -74,6 +77,11 @@ describe("Windows parity automation contract", () => {
     const linuxCheckJob = workflow.split("  check:")[1]?.split(/\r?\n  [a-z0-9_-]+:/u)[0];
     expect(packageCommands).toHaveLength(1);
     expect(installedCommands).toHaveLength(1);
+    expect(storePackageCommands).toHaveLength(1);
+    expect(windowsJob).toContain(storePackageCommands[0]);
+    expect(workflow.indexOf(installedCommands[0]!)).toBeLessThan(
+      workflow.indexOf(storePackageCommands[0]!),
+    );
     expect(linuxCheckJob).toContain("pnpm exec vitest run --shard=1/2");
     expect(linuxCheckJob).toContain("pnpm exec vitest run --shard=2/2");
     expect(windowsJob).not.toContain("Run Windows package contract tests");
@@ -140,7 +148,10 @@ describe("Windows parity automation contract", () => {
     );
     const evidenceExit = desktopMain.indexOf("app.exit(0);", markerWrite);
     const evidenceFailureExit = desktopMain.indexOf("app.exit(1);", evidenceExit);
-    const singleInstanceLock = desktopMain.indexOf("app.requestSingleInstanceLock()", secondaryExit);
+    const singleInstanceLock = desktopMain.indexOf(
+      "app.requestSingleInstanceLock()",
+      secondaryExit,
+    );
     const loserBranch = desktopMain.indexOf("if (!primaryInstance)", singleInstanceLock);
     const loserCall = desktopMain.indexOf("void exitSecondaryDesktop();", loserBranch);
     expect(secondaryExit).toBeGreaterThanOrEqual(0);
@@ -172,9 +183,9 @@ describe("Windows parity automation contract", () => {
     );
     expect(primaryAcknowledgment).toBeGreaterThanOrEqual(0);
     expect(primaryAcknowledgmentFailure).toBeGreaterThan(primaryAcknowledgment);
-    expect(
-      desktopMain.slice(primaryAcknowledgment, primaryAcknowledgmentFailure),
-    ).not.toContain("app.exit(");
+    expect(desktopMain.slice(primaryAcknowledgment, primaryAcknowledgmentFailure)).not.toContain(
+      "app.exit(",
+    );
     const packagedLaunchArguments = packagedSelfTest.slice(
       packagedSelfTest.indexOf("const launchArguments"),
       packagedSelfTest.indexOf("running = launchApplication"),
@@ -216,9 +227,7 @@ describe("Windows parity automation contract", () => {
     expect(desktopMain.slice(secondaryExit, singleInstanceLock)).not.toContain(
       "desktop-security-control-pipe",
     );
-    expect(desktopMain).toContain(
-      "controlShutdown ?? waitForSecuritySmokeShutdown(process.stdin)",
-    );
+    expect(desktopMain).toContain("controlShutdown ?? waitForSecuritySmokeShutdown(process.stdin)");
     expect(packagedSelfTest).toContain("waitForPackagedSecondLaunchEvidence({");
     expect(packagedSelfTest).toContain(
       "primaryAcknowledgment: running.primarySecondInstance.acknowledgment",
@@ -271,16 +280,15 @@ describe("Windows parity automation contract", () => {
     expect(shutdownAccepted).toBeGreaterThan(daemonClosed);
     expect(shutdownAwaited).toBeGreaterThan(shutdownAccepted);
     expect(exitRequested).toBeGreaterThan(shutdownAwaited);
-    const packagedRun = packagedSelfTest.indexOf("export async function runWindowsPackagedSelfTest");
+    const packagedRun = packagedSelfTest.indexOf(
+      "export async function runWindowsPackagedSelfTest",
+    );
     const packagedCatch = packagedSelfTest.indexOf("  } catch (error) {", packagedRun);
     const exitSettlement = packagedSelfTest.indexOf(
       "running.exited.then(() => true)",
       packagedCatch,
     );
-    const forcedExit = packagedSelfTest.indexOf(
-      'running.child.kill("SIGKILL")',
-      exitSettlement,
-    );
+    const forcedExit = packagedSelfTest.indexOf('running.child.kill("SIGKILL")', exitSettlement);
     const forcedSettlement = packagedSelfTest.indexOf("await running.exited;", forcedExit);
     const scratchCleanup = packagedSelfTest.indexOf(
       "await removeWindowsScratch(scratch);",

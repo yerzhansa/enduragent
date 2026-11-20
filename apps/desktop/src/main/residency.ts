@@ -42,6 +42,7 @@ export interface DesktopResidencyInput {
   readonly trayIconPath: string;
   readonly platform?: NodeJS.Platform;
   readonly loginItemExecutablePath?: string;
+  readonly loginItemAvailable?: boolean;
   readonly persistLoginPreference: (
     enabled: boolean,
   ) => Promise<BackgroundAtLoginPreferenceWriteResult>;
@@ -59,8 +60,18 @@ export interface DesktopResidency {
   close(): Promise<void>;
 }
 
+function durablePreferenceAfterCompensation(
+  compensation: BackgroundAtLoginPreferenceWriteResult,
+  requested: boolean,
+): boolean | undefined {
+  if (compensation.status === "stored") return compensation.enabled;
+  if (compensation.status === "refused") return requested;
+  return undefined;
+}
+
 export function createDesktopResidency(input: DesktopResidencyInput): DesktopResidency {
   const platform = input.platform ?? process.platform;
+  const loginItemAvailable = input.loginItemAvailable ?? process.windowsStore !== true;
   let tray: Tray | undefined;
   let startPromise: Promise<void> | undefined;
   let quitRequested = false;
@@ -103,6 +114,34 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
       return undefined;
     }
   };
+  const applyLoginState = (openAtLogin: boolean): LoginItemResidencyState | undefined => {
+    try {
+      const state = setLoginItemResidency(input.app, openAtLogin, {
+        platform,
+        executablePath: input.loginItemExecutablePath,
+      });
+      return loginItemResidencyMatchesRequest(state, openAtLogin, platform) ? state : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const observeConvergedLoginState = (state: LoginItemResidencyState): boolean => {
+    try {
+      input.observe?.({ type: "login-item-set", state });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const persistCompensation = async (
+    enabled: boolean,
+  ): Promise<BackgroundAtLoginPreferenceWriteResult> => {
+    try {
+      return await input.persistLoginPreference(enabled);
+    } catch {
+      return { status: "uncertain" };
+    }
+  };
   const setLoginState = (openAtLogin: boolean): void => {
     if (closed) return;
     const mutation = loginItemMutation.then(async () => {
@@ -120,58 +159,38 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
         input.reportFailure("set-login-item");
         return;
       }
-      let applied: LoginItemResidencyState | undefined;
-      try {
-        const state = setLoginItemResidency(input.app, openAtLogin, {
-          platform,
-          executablePath: input.loginItemExecutablePath,
-        });
-        if (!loginItemResidencyMatchesRequest(state, openAtLogin, platform)) throw new TypeError();
-        applied = state;
-      } catch {}
+      const applied = applyLoginState(openAtLogin);
       if (applied !== undefined) {
         input.observe?.({ type: "login-item-set", state: applied });
         return;
       }
-      let compensation: BackgroundAtLoginPreferenceWriteResult = { status: "uncertain" };
-      try {
-        compensation = await input.persistLoginPreference(previousEnabled);
-      } catch {}
-      let convergenceTarget: boolean | undefined;
-      if (compensation.status === "stored") {
-        convergenceTarget = compensation.enabled;
-      } else if (compensation.status === "refused") {
-        // The reversible write proved that its prior, the new preference, remains durable.
-        convergenceTarget = openAtLogin;
-      }
-      if (convergenceTarget !== undefined) {
-        let converged = false;
-        try {
-          const state = setLoginItemResidency(input.app, convergenceTarget, {
-            platform,
-            executablePath: input.loginItemExecutablePath,
-          });
-          if (!loginItemResidencyMatchesRequest(state, convergenceTarget, platform)) {
-            throw new TypeError();
-          }
-          input.observe?.({ type: "login-item-set", state });
-          converged = true;
-        } catch {}
-        if (!converged) readLoginState();
-      } else {
-        readLoginState();
-      }
+      const convergenceTarget = durablePreferenceAfterCompensation(
+        await persistCompensation(previousEnabled),
+        openAtLogin,
+      );
+      const converged =
+        convergenceTarget === undefined ? undefined : applyLoginState(convergenceTarget);
+      if (converged === undefined || !observeConvergedLoginState(converged)) readLoginState();
       input.reportFailure("set-login-item");
     });
-    loginItemMutation = mutation.then(
-      () => undefined,
-      () => undefined,
-    );
+    loginItemMutation = Promise.allSettled([mutation]).then(() => undefined);
+  };
+  const startAtLoginItem = (): MenuItemConstructorOptions[] => {
+    if (!loginItemAvailable) return [];
+    const state = readLoginState();
+    return [
+      {
+        label: desktopPhrasebook().say("desktop.tray.startAtLogin"),
+        type: "checkbox",
+        checked: state === undefined ? false : isLoginItemResidencyEnabled(state, platform),
+        enabled: state !== undefined,
+        click: (menuItem) => setLoginState(menuItem.checked),
+      },
+    ];
   };
   const showContextMenu = async (): Promise<void> => {
     await refreshDesktopLanguage();
     if (closed || tray === undefined) return;
-    const state = readLoginState();
     const template: MenuItemConstructorOptions[] = [
       {
         label: desktopPhrasebook().say("desktop.tray.open", {
@@ -184,13 +203,7 @@ export function createDesktopResidency(input: DesktopResidencyInput): DesktopRes
         label: desktopPhrasebook().say("desktop.tray.settings"),
         click: () => void showMainWindow("settings"),
       },
-      {
-        label: desktopPhrasebook().say("desktop.tray.startAtLogin"),
-        type: "checkbox",
-        checked: state === undefined ? false : isLoginItemResidencyEnabled(state, platform),
-        enabled: state !== undefined,
-        click: (menuItem) => setLoginState(menuItem.checked),
-      },
+      ...startAtLoginItem(),
       { type: "separator" },
       {
         label: desktopPhrasebook().say("desktop.tray.quit", {
