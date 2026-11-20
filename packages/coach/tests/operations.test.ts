@@ -10,6 +10,11 @@ import type { LocalStoreRuntime } from "../src/composition.js";
 import { EMPTY_DROPPED_ACTIVITIES, type DroppedActivities } from "@enduragent/coach-contract";
 import type { CoachStoreWriterContext } from "../src/runtime.js";
 import { createCoachOperations } from "../src/operations.js";
+import {
+  recordIntervalsCredentialResponse,
+  resetIntervalsCredentialHealthForTests,
+} from "@enduragent/core";
+import { encodeIntervalsOAuthCredential } from "../../core/src/intervals-credential.js";
 
 const home: AthleteHome = {
   root: "/synthetic/athlete",
@@ -1205,6 +1210,62 @@ describe("coach operations", () => {
       expect(JSON.stringify(result)).not.toContain("private");
     },
   );
+
+  it("reports a rejected intervals.icu sign-in only for the configured credential", async () => {
+    const signedIn = encodeIntervalsOAuthCredential("fixture-rejected-token");
+    const snapshot = (credentialConfigured: boolean) => ({
+      schemaVersion: 3 as const,
+      llm: { provider: "openai" as const, model: "model-a", credential_configured: true },
+      intervals: {
+        athlete_id: "synthetic-athlete",
+        credential_configured: credentialConfigured,
+        managedByEnvironment: { athleteId: false },
+      },
+      session: {
+        historyTokenBudgetRatio: 0.3,
+        idleMinutes: 0,
+        dailyResetHour: 4,
+        resetArchiveRetentionDays: 0,
+        timezone: "UTC",
+        managedByEnvironment: {
+          historyTokenBudgetRatio: false,
+          idleMinutes: false,
+          dailyResetHour: false,
+          resetArchiveRetentionDays: false,
+          timezone: false,
+        },
+      },
+    });
+    const read = (apiKey: string, credentialConfigured = true) =>
+      createCoachOperations({
+        home,
+        context: context(),
+        runtime: operationRuntime(),
+        intervalsCredentials: intervalsCredentials(apiKey),
+        historyNewestDate: () => "1998-07-18",
+        calendarTimeZone: () => "UTC",
+        applyRuntimeConfig: async () => {},
+        readRuntimeConfig: () => snapshot(credentialConfigured),
+      }).getRuntimeConfig({});
+    resetIntervalsCredentialHealthForTests();
+    try {
+      await expect(read(signedIn)).resolves.toEqual(snapshot(true));
+
+      recordIntervalsCredentialResponse(signedIn, 401);
+      const rejected = await read(signedIn);
+      expect(rejected.intervals.credential_rejected).toBe(true);
+      expect(JSON.stringify(rejected)).not.toContain("fixture-rejected-token");
+      await expect(read(encodeIntervalsOAuthCredential("fixture-new-token"))).resolves.toEqual(
+        snapshot(true),
+      );
+      await expect(read(signedIn, false)).resolves.toEqual(snapshot(false));
+
+      recordIntervalsCredentialResponse(signedIn, 200);
+      await expect(read(signedIn)).resolves.toEqual(snapshot(true));
+    } finally {
+      resetIntervalsCredentialHealthForTests();
+    }
+  });
 
   it("reads runtime configuration while a store sync is blocked", async () => {
     const syncStarted = promiseGate();

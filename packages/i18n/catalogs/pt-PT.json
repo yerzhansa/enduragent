@@ -219,12 +219,8 @@
         "action": "Eliminar",
         "aria": "Eliminar a credencial de {{provider}}",
         "confirmAria": "Confirmar a eliminação da credencial de {{provider}}",
-        "connection": "Eliminar ligação",
         "credential": "Eliminar credencial",
         "detail": "Isto remove-a apenas de {{computer}}. {{product}} deixa de a usar se estiver ativa. A tua conta do fornecedor mantém-se.",
-        "intervalsAria": "Eliminar a ligação a {{intervals}}",
-        "intervalsDetail": "A tua sessão guardada ou chave de API e a ligação importada serão removidas. As tuas voltas sincronizadas e conversas anteriores mantêm-se em {{computer}}.",
-        "intervalsTitle": "Eliminar a ligação a {{intervals}}?",
         "title": "Eliminar a credencial de {{provider}}?"
       },
       "feedback": {
@@ -261,7 +257,18 @@
           "stopFailed": "{{product}} não conseguiu parar a utilização de todas as credenciais ativas. Tenta novamente para terminares a remoção das credenciais.",
           "unverified": "Não foi possível verificar a remoção das credenciais porque não foi possível recarregar as Definições. Volta a ligar e a carregar."
         },
-        "unavailable": "As credenciais guardadas não estão disponíveis. Volta a ligar e a carregar."
+        "unavailable": "As credenciais guardadas não estão disponíveis. Volta a ligar e a carregar.",
+        "disconnect": {
+          "apiKeyRemoved": "Desligado. A chave de API foi removida de {{computer}}. Continua a funcionar no {{intervals}} até a eliminares lá.",
+          "cancelled": "Cancelado. A ligação mantém-se.",
+          "cleanupPending": "A limpeza do armazenamento seguro será tentada novamente.",
+          "confirm": "Confirma que queres desligar o {{intervals}}.",
+          "disconnecting": "A desligar o {{intervals}}…",
+          "refreshFailed": "Não foi possível atualizar o estado atual da ligação.",
+          "revoked": "Desligado. O acesso do {{product}} foi revogado no {{intervals}}.",
+          "revokeFailed": "Desligado em {{computer}}, mas o {{product}} não conseguiu contactar o {{intervals}} para revogar o acesso. Podes remover o {{product}} lá em Settings → Apps.",
+          "setupRefreshFailed": "Não foi possível atualizar o estado de prontidão da configuração. Recarrega o estado das credenciais."
+        }
       },
       "kind": {
         "chatgpt": "Perfil {{chatgpt}}",
@@ -285,7 +292,14 @@
         "storedInactive": "Guardada, inativa",
         "verifying": "A verificar…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Desligar",
+        "aria": "Desligar {{intervals}}",
+        "busy": "A desligar…",
+        "detail": "O acesso do {{product}} é revogado no {{intervals}} e a sessão é removida de {{computer}}. As tuas voltas sincronizadas e conversas anteriores mantêm-se em {{computer}}.",
+        "title": "Desligar {{intervals}}?"
+      }
     },
     "language": {
       "automaticDetail": "Automático segue o idioma do {{operatingSystem}}. O treinador responde no idioma em que escreves.",
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Ligado · de onde vêm as tuas voltas",
         "connectedAs": "Ligado como {{name}} · de onde vêm as tuas voltas",
-        "missing": "Liga uma conta ou importa ficheiros de voltas."
+        "missing": "Liga uma conta ou importa ficheiros de voltas.",
+        "rejected": "O {{intervals}} deixou de aceitar a sessão. Inicia sessão novamente para continuar a sincronizar."
       },
       "tooltip": {
         "body": "Um site de treino gratuito onde já estão as tuas voltas. {{product}} lê-as a partir daí em vez de comunicar diretamente com o fornecedor do teu relógio ou ciclocomputador. Precisas de uma conta gratuita com o teu relógio ou ciclocomputador ligado e, depois, de iniciar sessão aqui.",
@@ -784,7 +799,8 @@
         "disconnected": "Ligar {{intervals}}"
       },
       "waiting": "À espera do navegador…",
-      "waitingHint": "Conclui no teu navegador. {{product}} continua sozinho assim que autorizares o acesso."
+      "waitingHint": "Conclui no teu navegador. {{product}} continua sozinho assim que autorizares o acesso.",
+      "signInAgain": "Iniciar sessão novamente"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Sincronizar",
         "now": "Sincronizar agora",
         "retry": "Tentar novamente",
-        "unavailable": "Sincronização indisponível"
+        "unavailable": "Sincronização indisponível",
+        "signInAgain": "Iniciar sessão novamente"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Ainda não sincronizado",
         "synced": "Dados de treino sincronizados",
         "syncing": "A sincronizar",
-        "unavailable": "Dados de treino indisponíveis"
+        "unavailable": "Dados de treino indisponíveis",
+        "signInRejected": "O {{intervals}} precisa que inicies sessão novamente"
       },
       "message": {
         "external": "{{message}}",

@@ -19,6 +19,7 @@ import {
   type CredentialSettingsState,
   type CredentialSettingsView,
 } from "../src/settings/credential-controller";
+import { credentialFeedbackMessages } from "../src/ui/settings/copy";
 
 function runtime(
   llm: RuntimeConfigSnapshot["llm"] = {
@@ -126,13 +127,11 @@ function createSubject(input: {
     if (input.deleteCredential !== undefined) {
       return input.deleteCredential({ credential });
     }
-    const result =
+    const result: CredentialDeleteResult =
       input.deletion ??
-      ({
-        credential,
-        status: "deleted",
-        cleanupPending: false,
-      } satisfies CredentialDeleteResult);
+      (credential === "intervals-icu"
+        ? { credential, status: "deleted", cleanupPending: false, revoke: "revoked" }
+        : { credential, status: "deleted", cleanupPending: false });
     if (result.status === "deleted") {
       statuses = statuses.filter((status) => status.slot !== credential);
       if (credential === activeRuntime.llm.provider) {
@@ -1512,5 +1511,126 @@ describe("credential settings controller", () => {
     subject.confirmDelete();
     await vi.waitFor(() => expect(controller.state().status).toBe("deleted"));
     expect(onDeleted).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["revoked", false, false, "Disconnected. Enduragent’s access was revoked on Intervals.icu."],
+    [
+      "already-invalid",
+      false,
+      false,
+      "Disconnected. Enduragent’s access was revoked on Intervals.icu.",
+    ],
+    [
+      "failed",
+      false,
+      false,
+      "Disconnected on this computer, but Enduragent couldn’t reach Intervals.icu to revoke its access. You can remove Enduragent there under Settings → Apps.",
+    ],
+    [
+      "not-signed-in",
+      false,
+      false,
+      "Disconnected. The API key was removed from this computer. It keeps working on Intervals.icu until you delete it there.",
+    ],
+    [
+      "revoked",
+      true,
+      false,
+      "Disconnected. Enduragent’s access was revoked on Intervals.icu. Secure storage cleanup will be retried.",
+    ],
+    [
+      "failed",
+      false,
+      true,
+      "Disconnected on this computer, but Enduragent couldn’t reach Intervals.icu to revoke its access. You can remove Enduragent there under Settings → Apps. Current connection status couldn’t be refreshed.",
+    ],
+  ] as const)(
+    "announces an Intervals.icu disconnect with the %s revoke outcome",
+    async (revoke, cleanupPending, refreshFails, announcement) => {
+      let failRuntime = false;
+      const { controller, subject } = createSubject({
+        deletion: { credential: "intervals-icu", status: "deleted", cleanupPending, revoke },
+        loadRuntime: async () => {
+          if (failRuntime) throw new Error("synthetic reload failure");
+          return runtime();
+        },
+      });
+      await controller.activate();
+
+      subject.requestDelete("intervals-icu");
+      expect(controller.state()).toMatchObject({
+        status: "confirming",
+        announcement: "Confirm disconnecting Intervals.icu.",
+      });
+      failRuntime = refreshFails;
+      subject.confirmDelete();
+      expect(controller.state()).toMatchObject({
+        status: "deleting",
+        announcement: "Disconnecting Intervals.icu…",
+      });
+      await vi.waitFor(() => expect(controller.state().status).toBe("deleted"));
+
+      expect(controller.state()).toMatchObject({ status: "deleted", announcement });
+      expect(credentialFeedbackMessages(announcement)).not.toBeNull();
+    },
+  );
+
+  it("announces an Intervals.icu disconnect cancel and a setup refresh failure", async () => {
+    const { controller, subject } = createSubject({
+      deletion: {
+        credential: "intervals-icu",
+        status: "deleted",
+        cleanupPending: false,
+        revoke: "failed",
+      },
+      onDeleted: async () => {
+        throw new Error("synthetic readiness failure");
+      },
+    });
+    await controller.activate();
+
+    subject.requestDelete("intervals-icu");
+    subject.cancelDelete();
+    expect(controller.state()).toMatchObject({ announcement: "Disconnect cancelled." });
+
+    subject.requestDelete("intervals-icu");
+    subject.confirmDelete();
+    await vi.waitFor(() => expect(controller.state().status).toBe("error"));
+    const announcement =
+      "Disconnected on this computer, but Enduragent couldn’t reach Intervals.icu to revoke its access. You can remove Enduragent there under Settings → Apps. Setup readiness couldn’t be refreshed. Reload credential status.";
+    expect(controller.state()).toMatchObject({ status: "error", kind: "load", announcement });
+    expect(credentialFeedbackMessages(announcement)).toHaveLength(2);
+    expect(credentialFeedbackMessages("Disconnect cancelled.")).toHaveLength(1);
+  });
+
+  it("keeps model-credential deletion copy unchanged", async () => {
+    const { controller, subject } = createSubject({});
+    await controller.activate();
+
+    subject.requestDelete("openrouter");
+    expect(controller.state()).toMatchObject({
+      announcement: "Confirm deletion of the OpenRouter credential.",
+    });
+    subject.confirmDelete();
+    await vi.waitFor(() => expect(controller.state().status).toBe("deleted"));
+    expect(controller.state()).toMatchObject({ announcement: "Credential deleted locally." });
+  });
+
+  it("maps every disconnect sentence to a catalog message and rejects unknown text", () => {
+    expect(credentialFeedbackMessages("Disconnected. Something else.")).toBeNull();
+    expect(
+      credentialFeedbackMessages(
+        "Disconnected. Enduragent’s access was revoked on Intervals.icu. Unknown suffix.",
+      ),
+    ).toBeNull();
+    expect(
+      credentialFeedbackMessages(
+        "Disconnected. The API key was removed from this computer. It keeps working on Intervals.icu until you delete it there. Secure storage cleanup will be retried.",
+      ),
+    ).toEqual([
+      expect.objectContaining({ key: "settings.credentials.feedback.disconnect.apiKeyRemoved" }),
+      expect.objectContaining({ key: "settings.credentials.feedback.disconnect.cleanupPending" }),
+    ]);
   });
 });

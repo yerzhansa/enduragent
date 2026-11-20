@@ -204,6 +204,7 @@ async function pollCredentialStatuses(vault: CredentialVault): Promise<void> {
     credentialRecoveryStatus: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
     retryCredentialRecovery: async () => ({ state: "ready", unverifiedEnvelopes: 0 }),
     resetAllCredentials: async () => ({ status: "reset", keyCleanupPending: false }),
+    revokeIntervalsAccess: async () => "failed",
     isTrusted: () => true,
     checkIntervalsCredentialOwner,
   });

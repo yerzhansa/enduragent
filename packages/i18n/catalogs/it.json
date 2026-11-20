@@ -204,12 +204,8 @@
         "action": "Elimina",
         "aria": "Elimina la credenziale di {{provider}}",
         "confirmAria": "Conferma l’eliminazione della credenziale di {{provider}}",
-        "connection": "Elimina connessione",
         "credential": "Elimina credenziale",
         "detail": "Verrà rimossa solo da {{computer}}. {{product}} smetterà di usarla se è attiva. Il tuo account del fornitore rimane invariato.",
-        "intervalsAria": "Elimina la connessione a {{intervals}}",
-        "intervalsDetail": "L’accesso salvato o la chiave API e la connessione importata verranno rimossi. Le uscite sincronizzate e le chat passate rimangono su {{computer}}.",
-        "intervalsTitle": "Eliminare la connessione a {{intervals}}?",
         "title": "Eliminare la credenziale di {{provider}}?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} non ha potuto interrompere l’uso di tutte le credenziali attive. Riprova per completare la rimozione delle credenziali.",
           "unverified": "Impossibile verificare la rimozione delle credenziali perché le Impostazioni non sono state ricaricate. Riconnetti e ricarica."
         },
-        "unavailable": "Le credenziali salvate non sono disponibili. Riconnetti e ricarica."
+        "unavailable": "Le credenziali salvate non sono disponibili. Riconnetti e ricarica.",
+        "disconnect": {
+          "apiKeyRemoved": "Disconnesso. La chiave API è stata rimossa da {{computer}}. Continua a funzionare su {{intervals}} finché non la elimini lì.",
+          "cancelled": "Disconnessione annullata.",
+          "cleanupPending": "La pulizia dell’archivio sicuro verrà ritentata.",
+          "confirm": "Conferma la disconnessione da {{intervals}}.",
+          "disconnecting": "Disconnessione da {{intervals}}…",
+          "refreshFailed": "Impossibile aggiornare lo stato attuale della connessione.",
+          "revoked": "Disconnesso. L’autorizzazione di {{product}} su {{intervals}} è stata revocata.",
+          "revokeFailed": "Disconnesso su {{computer}}, ma {{product}} non è riuscito a raggiungere {{intervals}} per revocare la sua autorizzazione. Puoi rimuovere {{product}} lì in Settings → Apps.",
+          "setupRefreshFailed": "Impossibile aggiornare lo stato della configurazione. Ricarica lo stato delle credenziali."
+        }
       },
       "kind": {
         "chatgpt": "Profilo {{chatgpt}}",
@@ -270,7 +277,14 @@
         "storedInactive": "Salvata, non attiva",
         "verifying": "Verifica…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Disconnetti",
+        "aria": "Disconnetti {{intervals}}",
+        "busy": "Disconnessione…",
+        "detail": "L’autorizzazione di {{product}} viene revocata su {{intervals}} e l’accesso viene rimosso da {{computer}}. Le uscite sincronizzate e le chat passate rimangono su {{computer}}.",
+        "title": "Disconnettere {{intervals}}?"
+      }
     },
     "managedByEnvironment": "Gestito da una variabile d’ambiente. Modificalo al di fuori di {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Collegato · la fonte delle tue uscite",
         "connectedAs": "Collegato come {{name}} · la fonte delle tue uscite",
-        "missing": "Collega o importa i file delle uscite."
+        "missing": "Collega o importa i file delle uscite.",
+        "rejected": "{{intervals}} non accetta più l’accesso. Accedi di nuovo per continuare la sincronizzazione."
       },
       "tooltip": {
         "body": "Un sito gratuito per l’allenamento che contiene già le tue uscite. {{product}} le legge da lì anziché comunicare direttamente con il fornitore del tuo orologio o ciclocomputer. Ti serve un account gratuito a cui collegare l’orologio o il ciclocomputer, poi accedi qui.",
@@ -784,7 +799,8 @@
         "disconnected": "Collega {{intervals}}"
       },
       "waiting": "In attesa del browser…",
-      "waitingHint": "Completa la procedura nel browser. {{product}} prosegue da solo appena autorizzi l’accesso."
+      "waitingHint": "Completa la procedura nel browser. {{product}} prosegue da solo appena autorizzi l’accesso.",
+      "signInAgain": "Accedi di nuovo"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Sincronizza",
         "now": "Sincronizza ora",
         "retry": "Riprova",
-        "unavailable": "Sincronizzazione non disponibile"
+        "unavailable": "Sincronizzazione non disponibile",
+        "signInAgain": "Accedi di nuovo"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Sincronizzazione non ancora eseguita",
         "synced": "Dati di allenamento sincronizzati",
         "syncing": "Sincronizzazione",
-        "unavailable": "Dati di allenamento non disponibili"
+        "unavailable": "Dati di allenamento non disponibili",
+        "signInRejected": "{{intervals}} richiede un nuovo accesso"
       },
       "message": {
         "external": "{{message}}",

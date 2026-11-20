@@ -69,7 +69,7 @@ vi.mock("../src/training-context/controller", async (importOriginal) => ({
 }));
 vi.mock("../src/training-sync", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/training-sync")>()),
-  createTrainingSyncCoordinator: mocks.idle,
+  createTrainingSyncCoordinator: () => ({ ...mocks.idle(), subscribe: () => () => undefined }),
 }));
 vi.mock("../src/training-context/manual-sync", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/training-context/manual-sync")>()),
@@ -231,7 +231,7 @@ function controller() {
 
 let dispose: (() => void) | undefined;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   store.setState(store.getInitialState(), true);
   vi.stubGlobal("window", {
@@ -243,6 +243,8 @@ beforeEach(() => {
   vi.stubGlobal("document", { documentElement: { dataset: {} } });
   vi.stubGlobal("requestAnimationFrame", vi.fn());
   dispose = bootRenderer();
+  await vi.waitFor(() => expect(mocks.call).toHaveBeenCalledWith("getRuntimeConfig", {}));
+  mocks.call.mockClear();
 });
 
 afterEach(() => {

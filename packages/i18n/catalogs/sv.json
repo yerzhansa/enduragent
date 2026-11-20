@@ -204,12 +204,8 @@
         "action": "Ta bort",
         "aria": "Ta bort inloggningsuppgifterna för {{provider}}",
         "confirmAria": "Bekräfta borttagning av inloggningsuppgifterna för {{provider}}",
-        "connection": "Ta bort anslutning",
         "credential": "Ta bort inloggningsuppgifter",
         "detail": "Det här tar bara bort dem från {{computer}}. {{product}} slutar använda dem om de är aktiva. Ditt konto hos leverantören ändras inte.",
-        "intervalsAria": "Ta bort anslutningen till {{intervals}}",
-        "intervalsDetail": "Din sparade inloggning eller API-nyckel och importerade anslutning tas bort. Dina synkroniserade cykelturer och tidigare chattar finns kvar på {{computer}}.",
-        "intervalsTitle": "Ta bort anslutningen till {{intervals}}?",
         "title": "Ta bort inloggningsuppgifterna för {{provider}}?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} kunde inte sluta använda alla aktiva inloggningsuppgifter. Försök igen för att slutföra borttagningen.",
           "unverified": "Borttagningen av inloggningsuppgifter kunde inte verifieras eftersom Inställningar inte kunde läsas in igen. Anslut på nytt och läs in igen."
         },
-        "unavailable": "Sparade inloggningsuppgifter är inte tillgängliga. Anslut på nytt och läs in igen."
+        "unavailable": "Sparade inloggningsuppgifter är inte tillgängliga. Anslut på nytt och läs in igen.",
+        "disconnect": {
+          "apiKeyRemoved": "Frånkopplad. API-nyckeln har tagits bort från {{computer}}. Den fortsätter att fungera på {{intervals}} tills du tar bort den där.",
+          "cancelled": "Frånkopplingen avbröts.",
+          "cleanupPending": "Rensningen av den säkra lagringen kommer att försökas igen.",
+          "confirm": "Bekräfta att {{intervals}} ska kopplas från.",
+          "disconnecting": "Kopplar från {{intervals}}…",
+          "refreshFailed": "Anslutningens aktuella status kunde inte uppdateras.",
+          "revoked": "Frånkopplad. {{product}}s åtkomst har återkallats på {{intervals}}.",
+          "revokeFailed": "Frånkopplad på {{computer}}, men {{product}} kunde inte nå {{intervals}} för att återkalla sin åtkomst. Du kan ta bort {{product}} där under Settings → Apps.",
+          "setupRefreshFailed": "Konfigurationens status kunde inte uppdateras. Läs in inloggningsuppgifternas status igen."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-profil",
@@ -270,7 +277,14 @@
         "storedInactive": "Sparade, inte aktiva",
         "verifying": "Verifierar…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Koppla från",
+        "aria": "Koppla från {{intervals}}",
+        "busy": "Kopplar från…",
+        "detail": "{{product}}s åtkomst återkallas på {{intervals}} och inloggningen tas bort från {{computer}}. Dina synkroniserade cykelturer och tidigare chattar finns kvar på {{computer}}.",
+        "title": "Koppla från {{intervals}}?"
+      }
     },
     "managedByEnvironment": "Hanteras av en miljövariabel. Ändra den utanför {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Ansluten · källan till dina cykelturer",
         "connectedAs": "Ansluten som {{name}} · källan till dina cykelturer",
-        "missing": "Anslut eller importera filer från cykelturer."
+        "missing": "Anslut eller importera filer från cykelturer.",
+        "rejected": "{{intervals}} accepterar inte längre inloggningen. Logga in igen för att fortsätta synkronisera."
       },
       "tooltip": {
         "body": "En gratis träningssajt där dina cykelturer redan finns. {{product}} läser dem därifrån i stället för att kontakta leverantören av din klocka eller cykeldator direkt. Du behöver ett gratiskonto med din klocka eller cykeldator ansluten till det. Logga sedan in här.",
@@ -784,7 +799,8 @@
         "disconnected": "Anslut {{intervals}}"
       },
       "waiting": "Väntar på webbläsaren…",
-      "waitingHint": "Slutför i din webbläsare. {{product}} fortsätter av sig själv när du godkänner åtkomsten."
+      "waitingHint": "Slutför i din webbläsare. {{product}} fortsätter av sig själv när du godkänner åtkomsten.",
+      "signInAgain": "Logga in igen"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synkronisera",
         "now": "Synkronisera nu",
         "retry": "Försök igen",
-        "unavailable": "Synkronisering är inte tillgänglig"
+        "unavailable": "Synkronisering är inte tillgänglig",
+        "signInAgain": "Logga in igen"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Inte synkroniserat än",
         "synced": "Träningsdata har synkroniserats",
         "syncing": "Synkroniserar",
-        "unavailable": "Träningsdata är inte tillgängliga"
+        "unavailable": "Träningsdata är inte tillgängliga",
+        "signInRejected": "{{intervals}} behöver att du loggar in igen"
       },
       "message": {
         "external": "{{message}}",

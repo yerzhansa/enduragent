@@ -204,12 +204,8 @@
         "action": "Slett",
         "aria": "Slett tilgangsopplysningene for {{provider}}",
         "confirmAria": "Bekreft sletting av tilgangsopplysningene for {{provider}}",
-        "connection": "Slett tilkobling",
         "credential": "Slett tilgangsopplysninger",
         "detail": "Dette fjerner dem bare fra {{computer}}. {{product}} slutter å bruke dem hvis de er aktive. Kontoen din hos leverandøren forblir uendret.",
-        "intervalsAria": "Slett tilkoblingen til {{intervals}}",
-        "intervalsDetail": "Den lagrede påloggingen eller API-nøkkelen og den importerte tilkoblingen fjernes. Synkroniserte turer og tidligere samtaler beholdes på {{computer}}.",
-        "intervalsTitle": "Slette tilkoblingen til {{intervals}}?",
         "title": "Slette tilgangsopplysningene for {{provider}}?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} kunne ikke stoppe bruken av alle aktive tilgangsopplysninger. Prøv igjen for å fullføre fjerningen.",
           "unverified": "Fjerning av tilgangsopplysninger kunne ikke bekreftes fordi Innstillinger ikke kunne lastes inn på nytt. Koble til og last inn på nytt."
         },
-        "unavailable": "Lagrede tilgangsopplysninger er ikke tilgjengelige. Koble til og last inn på nytt."
+        "unavailable": "Lagrede tilgangsopplysninger er ikke tilgjengelige. Koble til og last inn på nytt.",
+        "disconnect": {
+          "apiKeyRemoved": "Frakoblet. API-nøkkelen er fjernet fra {{computer}}. Den fortsetter å virke på {{intervals}} til du sletter den der.",
+          "cancelled": "Frakobling avbrutt.",
+          "cleanupPending": "Opprydding i sikker lagring forsøkes igjen.",
+          "confirm": "Bekreft at {{intervals}} skal kobles fra.",
+          "disconnecting": "Kobler fra {{intervals}}…",
+          "refreshFailed": "Den nåværende tilkoblingsstatusen kunne ikke oppdateres.",
+          "revoked": "Frakoblet. {{product}}s tilgang er trukket tilbake på {{intervals}}.",
+          "revokeFailed": "Frakoblet på {{computer}}, men {{product}} fikk ikke kontakt med {{intervals}} for å trekke tilbake tilgangen. Du kan fjerne {{product}} der under Settings → Apps.",
+          "setupRefreshFailed": "Oppsettstatusen kunne ikke oppdateres. Last inn statusen for tilgangsopplysninger på nytt."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-profil",
@@ -270,7 +277,14 @@
         "storedInactive": "Lagret, ikke aktiv",
         "verifying": "Bekrefter…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Koble fra",
+        "aria": "Koble fra {{intervals}}",
+        "busy": "Kobler fra…",
+        "detail": "{{product}}s tilgang trekkes tilbake på {{intervals}}, og påloggingen fjernes fra {{computer}}. Synkroniserte turer og tidligere samtaler beholdes på {{computer}}.",
+        "title": "Koble fra {{intervals}}?"
+      }
     },
     "managedByEnvironment": "Administreres av en miljøvariabel. Endre den utenfor {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Tilkoblet · der turene dine kommer fra",
         "connectedAs": "Tilkoblet som {{name}} · der turene dine kommer fra",
-        "missing": "Koble til eller importer turfiler."
+        "missing": "Koble til eller importer turfiler.",
+        "rejected": "{{intervals}} godtar ikke lenger påloggingen. Logg på igjen for å fortsette synkroniseringen."
       },
       "tooltip": {
         "body": "Et gratis treningsnettsted som allerede har turene dine. {{product}} leser dem derfra i stedet for å kommunisere direkte med leverandøren av klokken eller sykkelcomputeren din. Du trenger en gratis konto med klokken eller sykkelcomputeren tilkoblet. Deretter logger du på her.",
@@ -784,7 +799,8 @@
         "disconnected": "Koble til {{intervals}}"
       },
       "waiting": "Venter på nettleseren…",
-      "waitingHint": "Fullfør i nettleseren. {{product}} fortsetter av seg selv når du gir tilgang."
+      "waitingHint": "Fullfør i nettleseren. {{product}} fortsetter av seg selv når du gir tilgang.",
+      "signInAgain": "Logg på igjen"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synkroniser",
         "now": "Synkroniser nå",
         "retry": "Prøv igjen",
-        "unavailable": "Synkronisering er utilgjengelig"
+        "unavailable": "Synkronisering er utilgjengelig",
+        "signInAgain": "Logg på igjen"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Ikke synkronisert ennå",
         "synced": "Treningsdata synkronisert",
         "syncing": "Synkroniserer",
-        "unavailable": "Treningsdata er utilgjengelige"
+        "unavailable": "Treningsdata er utilgjengelige",
+        "signInRejected": "{{intervals}} trenger at du logger på igjen"
       },
       "message": {
         "external": "{{message}}",

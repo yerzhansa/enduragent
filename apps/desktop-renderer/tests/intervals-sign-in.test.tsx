@@ -1,4 +1,4 @@
-import { act, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import type { IntervalsCredentialMutationResult } from "../src/onboarding/bridge";
@@ -476,5 +476,127 @@ describe("Intervals.icu sign-in panel", () => {
 
     expect(bridge.cancelIntervalsSignIn).not.toHaveBeenCalled();
     wizard.controller.dispose();
+  });
+
+  describe("when intervals.icu stops accepting the sign-in", () => {
+    const REJECTED_SUBTITLE =
+      "Intervals.icu stopped accepting the sign-in. Sign in again to keep syncing.";
+    const SIGN_IN_AGAIN = "Sign in again";
+
+    afterEach(() => {
+      useEnduragentStore.getState().setIntervalsSignInRejected(false);
+    });
+
+    function rejectedBridge() {
+      const value = signInBridge();
+      value.bridge.credentialStatuses.mockResolvedValue([ACTIVE]);
+      return value;
+    }
+
+    function trainingRowButtons(): readonly string[] {
+      return Array.from(
+        document.querySelectorAll('[data-setup-row="training"] button'),
+        (entry) => entry.textContent ?? "",
+      );
+    }
+
+    it.each(["gate", "settings"] as const)(
+      "shows the warning, subtitle and only Sign in again (%s)",
+      async (placement) => {
+        const { bridge } = rejectedBridge();
+        const wizard = mountWizard({ bridge, placement });
+        await wizard.open();
+        expect(rowState("training")).toBe("ready");
+
+        act(() => {
+          useEnduragentStore.getState().setIntervalsSignInRejected(true);
+        });
+
+        expect(rowState("training")).toBe("attention");
+        expect(
+          document.querySelector('[data-setup-row="training"] [data-setup-disc="attention"]'),
+        ).toHaveTextContent("!");
+        expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+        expect(trainingRowButtons()).toContain(SIGN_IN_AGAIN);
+        expect(document.querySelector('[data-setup-delete="intervals-icu"]')).toBeNull();
+        expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
+        wizard.controller.dispose();
+      },
+    );
+
+    it("starts the existing sign-in flow from Sign in again", async () => {
+      const user = userEvent.setup();
+      const { bridge, signIn } = rejectedBridge();
+      const wizard = mountWizard({ bridge, placement: "settings" });
+      await wizard.open();
+      act(() => {
+        useEnduragentStore.getState().setIntervalsSignInRejected(true);
+      });
+
+      await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+
+      await waitFor(() => {
+        expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
+      });
+      expect(signInPhase()).toBe("waiting-for-browser");
+      expect(buttonNames()).toEqual([CANCEL_SIGN_IN, WAITING, REOPEN]);
+      expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeDisabled();
+
+      signIn.resolve({ outcome: "applied", current: ACTIVE, athleteName: "Test Athlete" });
+      act(() => {
+        useEnduragentStore.getState().setIntervalsSignInRejected(false);
+      });
+      await waitFor(() => {
+        expect(rowState("training")).toBe("ready");
+      });
+      expect(rowSubtitle("training")).toBe(
+        "Connected as Test Athlete · where your rides come from",
+      );
+      expect(panel("training")).toBeNull();
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Disconnect Intervals.icu" })).toHaveFocus();
+      });
+      wizard.controller.dispose();
+    });
+
+    it("keeps the warning and shows the reason when signing in again fails", async () => {
+      const user = userEvent.setup();
+      const { bridge, signIn } = rejectedBridge();
+      const wizard = mountWizard({ bridge });
+      await wizard.open();
+      act(() => {
+        useEnduragentStore.getState().setIntervalsSignInRejected(true);
+      });
+      await user.click(screen.getByRole("button", { name: SIGN_IN_AGAIN }));
+      await waitFor(() => {
+        expect(signInPhase()).toBe("waiting-for-browser");
+      });
+
+      await settle(wizard, signIn, {
+        outcome: "refused",
+        reason: "training-account-mismatch",
+        current: ACTIVE,
+      });
+
+      expect(rowState("training")).toBe("attention");
+      expect(rowSubtitle("training")).toBe(REJECTED_SUBTITLE);
+      expect(errorText()).not.toBe("");
+      expect(screen.getByRole("button", { name: SIGN_IN_AGAIN })).toBeEnabled();
+      expect(document.querySelectorAll("#onboarding-error")).toHaveLength(1);
+      wizard.controller.dispose();
+    });
+
+    it("ignores a rejected flag when nothing is connected", async () => {
+      const { bridge } = signInBridge();
+      const wizard = mountWizard({ bridge });
+      await wizard.open();
+      act(() => {
+        useEnduragentStore.getState().setIntervalsSignInRejected(true);
+      });
+
+      expect(rowState("training")).toBe("pending");
+      expect(screen.queryByRole("button", { name: SIGN_IN_AGAIN })).toBeNull();
+      wizard.controller.dispose();
+    });
   });
 });

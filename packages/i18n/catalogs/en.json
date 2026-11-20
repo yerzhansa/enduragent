@@ -1741,13 +1741,16 @@
         "action": "Delete",
         "aria": "Delete the {{provider}} credential",
         "confirmAria": "Confirm deletion of the {{provider}} credential",
-        "connection": "Delete connection",
         "credential": "Delete credential",
         "detail": "This removes it from {{computer}} only. {{product}} will stop using it if it is active. Your provider account is unchanged.",
-        "intervalsAria": "Delete the {{intervals}} connection",
-        "intervalsDetail": "Your saved sign-in or API key and imported connection will be removed. Your synced rides and past chats stay on {{computer}}.",
-        "intervalsTitle": "Delete the {{intervals}} connection?",
         "title": "Delete the {{provider}} credential?"
+      },
+      "disconnect": {
+        "action": "Disconnect",
+        "aria": "Disconnect {{intervals}}",
+        "busy": "Disconnecting…",
+        "detail": "{{product}}’s access is revoked on {{intervals}} and the sign-in is removed from {{computer}}. Your synced rides and past chats stay on {{computer}}.",
+        "title": "Disconnect {{intervals}}?"
       },
       "feedback": {
         "delete": {
@@ -1765,6 +1768,17 @@
           "setupRefreshFailed": "Credential deleted locally, but setup readiness couldn’t be refreshed. Reload credential status.",
           "stopFailed": "The coach could not stop using this credential safely. It was not deleted.",
           "unverified": "Credential deletion could not be confirmed because secure storage could not be verified. Restart {{product}} and reload before trying again."
+        },
+        "disconnect": {
+          "apiKeyRemoved": "Disconnected. The API key was removed from {{computer}}. It keeps working on {{intervals}} until you delete it there.",
+          "cancelled": "Disconnect cancelled.",
+          "cleanupPending": "Secure storage cleanup will be retried.",
+          "confirm": "Confirm disconnecting {{intervals}}.",
+          "disconnecting": "Disconnecting {{intervals}}…",
+          "refreshFailed": "Current connection status couldn’t be refreshed.",
+          "revoked": "Disconnected. {{product}}’s access was revoked on {{intervals}}.",
+          "revokeFailed": "Disconnected on {{computer}}, but {{product}} couldn’t reach {{intervals}} to revoke its access. You can remove {{product}} there under Settings → Apps.",
+          "setupRefreshFailed": "Setup readiness couldn’t be refreshed. Reload credential status."
         },
         "recovery": {
           "locked": "Unlock your login Keychain outside {{product}}, then Retry.",
@@ -2293,10 +2307,12 @@
       "importFiles": "Import ride files instead",
       "reopen": "Open the sign-in page again",
       "signIn": "Sign in with {{intervals}}",
+      "signInAgain": "Sign in again",
       "subtitle": {
         "connected": "Connected · where your rides come from",
         "connectedAs": "Connected as {{name}} · where your rides come from",
-        "missing": "Connect or import ride files."
+        "missing": "Connect or import ride files.",
+        "rejected": "{{intervals}} stopped accepting the sign-in. Sign in again to keep syncing."
       },
       "tooltip": {
         "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then sign in here.",
@@ -2339,6 +2355,7 @@
         "again": "Sync",
         "now": "Sync now",
         "retry": "Try again",
+        "signInAgain": "Sign in again",
         "unavailable": "Sync unavailable"
       },
       "ariaLabel": "{{action}} · {{headline}}",
@@ -2347,6 +2364,7 @@
         "attention": "Sync needs attention",
         "loading": "Loading training data",
         "never": "Not synced yet",
+        "signInRejected": "{{intervals}} needs you to sign in again",
         "synced": "Training data synced",
         "syncing": "Syncing",
         "unavailable": "Training data unavailable"

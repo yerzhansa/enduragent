@@ -7,7 +7,11 @@ import type {
   ModelCatalogSnapshot,
   RuntimeConfigSnapshot,
 } from "@enduragent/coach-contract";
-import type { LocalModelCatalogSnapshot, ModelCatalog } from "@enduragent/core";
+import type {
+  IntervalsRevokeResult,
+  LocalModelCatalogSnapshot,
+  ModelCatalog,
+} from "@enduragent/core";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 import {
   CHATGPT_ACTIVATION_TIMEOUT_MS,
@@ -92,6 +96,7 @@ interface RegisterOnboardingIpcOptions {
   readonly credentialRecoveryStatus: () => Promise<DesktopCredentialRecoveryStatus>;
   readonly retryCredentialRecovery: () => Promise<DesktopCredentialRecoveryStatus>;
   readonly resetAllCredentials: () => Promise<DesktopCredentialResetResult>;
+  readonly revokeIntervalsAccess: (credential: string) => Promise<IntervalsRevokeResult>;
 }
 
 export type DesktopCredentialRecoveryStatus =
@@ -204,9 +209,15 @@ export type DesktopCredentialId = DesktopCredentialSlot | typeof CHATGPT_PROFILE
 
 export type DesktopCredentialDeleteResult =
   | {
-      readonly credential: DesktopCredentialId;
+      readonly credential: Exclude<DesktopCredentialId, "intervals-icu">;
       readonly status: "deleted";
       readonly cleanupPending: boolean;
+    }
+  | {
+      readonly credential: "intervals-icu";
+      readonly status: "deleted";
+      readonly cleanupPending: boolean;
+      readonly revoke: IntervalsRevokeResult;
     }
   | {
       readonly credential: DesktopCredentialId;
@@ -243,9 +254,12 @@ function parseDeleteInput(value: unknown): DesktopCredentialId {
 function minimizeDelete(
   credential: DesktopCredentialId,
   value: CredentialDeleteResult | Awaited<ReturnType<ChatGptAuthController["deleteCredential"]>>,
+  revoke: IntervalsRevokeResult = "failed",
 ): DesktopCredentialDeleteResult {
   if (value.status === "deleted") {
-    return { credential, status: "deleted", cleanupPending: value.cleanupPending };
+    return credential === "intervals-icu"
+      ? { credential, status: "deleted", cleanupPending: value.cleanupPending, revoke }
+      : { credential, status: "deleted", cleanupPending: value.cleanupPending };
   }
   if (value.status === "uncertain") {
     return { slot: value.slot, status: "uncertain", reason: "storage-uncertain" };
@@ -334,7 +348,9 @@ async function llmConfiguration(
     if (snapshot.llm.credential_configured) {
       active = { provider: snapshot.llm.provider, model: snapshot.llm.model };
     }
-  } catch {}
+  } catch {
+    active = null;
+  }
   return {
     schemaVersion: 1,
     catalogRevision: catalog.revision,
@@ -471,7 +487,19 @@ export function registerOnboardingIpc(options: RegisterOnboardingIpcOptions): ()
         reason: active ? "managed-by-environment" : "not-found",
       };
     }
-    return minimizeDelete(credential, await options.vault.deleteCredential(credential));
+    if (credential !== "intervals-icu") {
+      return minimizeDelete(credential, await options.vault.deleteCredential(credential));
+    }
+    const disconnect: { revoke: IntervalsRevokeResult } = { revoke: "failed" };
+    const deleted = await options.vault.deleteCredential(credential, {
+      beforeRemove: async (stored) => {
+        if (stored.state !== "readable") return;
+        disconnect.revoke = await options
+          .revokeIntervalsAccess(stored.value)
+          .catch(() => "failed" as const);
+      },
+    });
+    return minimizeDelete(credential, deleted, disconnect.revoke);
   });
   options.ipcMain.handle(DESKTOP_CREDENTIAL_RECOVERY_STATUS_CHANNEL, async (event, ...args) => {
     requireTrusted(event);

@@ -5,6 +5,10 @@ import type {
   AthleteSettingsValidationError,
 } from "../../settings/athlete-controller";
 import type { CredentialSettingsEntry } from "../../settings/credential-controller";
+import {
+  INTERVALS_DISCONNECT_COPY,
+  type IntervalsDisconnectCopy,
+} from "../../settings/credential-delete-copy";
 import type { ProviderModelValidationError } from "../../settings/provider-model-controller";
 import type { SessionSettingField } from "../../settings/session-controller";
 
@@ -348,6 +352,63 @@ export function credentialFeedbackMessage(value: string): Message | null {
     default:
       return null;
   }
+}
+
+function intervalsDisconnectMessage(key: IntervalsDisconnectCopy): Message {
+  const intervals = "Intervals.icu";
+  const product = "Enduragent";
+  const computer = PLATFORM_COPY.computer;
+  switch (key) {
+    case "confirm":
+      return msg("settings.credentials.feedback.disconnect.confirm", { intervals });
+    case "disconnecting":
+      return msg("settings.credentials.feedback.disconnect.disconnecting", { intervals });
+    case "cancelled":
+      return msg("settings.credentials.feedback.disconnect.cancelled");
+    case "revoked":
+      return msg("settings.credentials.feedback.disconnect.revoked", { intervals, product });
+    case "revokeFailed":
+      return msg("settings.credentials.feedback.disconnect.revokeFailed", {
+        intervals,
+        product,
+        computer,
+      });
+    case "apiKeyRemoved":
+      return msg("settings.credentials.feedback.disconnect.apiKeyRemoved", {
+        intervals,
+        computer,
+      });
+    case "cleanupPending":
+      return msg("settings.credentials.feedback.disconnect.cleanupPending");
+    case "refreshFailed":
+      return msg("settings.credentials.feedback.disconnect.refreshFailed");
+    case "setupRefreshFailed":
+      return msg("settings.credentials.feedback.disconnect.setupRefreshFailed");
+  }
+}
+
+const INTERVALS_DISCONNECT_KEYS = Object.keys(
+  INTERVALS_DISCONNECT_COPY,
+) as IntervalsDisconnectCopy[];
+
+function intervalsDisconnectMessages(value: string): readonly Message[] | null {
+  const messages: Message[] = [];
+  let rest = value;
+  while (rest.length > 0) {
+    const key = INTERVALS_DISCONNECT_KEYS.find((candidate) => {
+      const sentence = INTERVALS_DISCONNECT_COPY[candidate];
+      return rest === sentence || rest.startsWith(`${sentence} `);
+    });
+    if (key === undefined) return null;
+    messages.push(intervalsDisconnectMessage(key));
+    rest = rest.slice(INTERVALS_DISCONNECT_COPY[key].length).trimStart();
+  }
+  return messages.length === 0 ? null : messages;
+}
+
+export function credentialFeedbackMessages(value: string): readonly Message[] | null {
+  const message = credentialFeedbackMessage(value);
+  return message === null ? intervalsDisconnectMessages(value) : [message];
 }
 
 export function conversationValidationMessage(field: SessionSettingField): Message {

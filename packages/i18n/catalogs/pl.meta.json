@@ -724,28 +724,12 @@
       "sourceHash": "1a7d4db930e40636ddc038d51d877cf2ac19851174314ca27a33e144e2ee5d48",
       "translatedBy": "model"
     },
-    "settings.credentials.delete.connection": {
-      "sourceHash": "e960651babb1d7478b4be3995517dfe400a637964866472e175a9b71983776b1",
-      "translatedBy": "model"
-    },
     "settings.credentials.delete.credential": {
       "sourceHash": "e63842449e95f084ec7cadd17adbdbd20c51ba00a6f22b7358774d3cfd7d1f0d",
       "translatedBy": "model"
     },
     "settings.credentials.delete.detail": {
       "sourceHash": "29d17ffd8d6f03f82cb5caf83d6ce762e1bdb54578e74e4620a3b67608495746",
-      "translatedBy": "model"
-    },
-    "settings.credentials.delete.intervalsAria": {
-      "sourceHash": "5a8286b0f9b8552ab0faea85046fa5fe4c6167582a09cc0df2d175d458801951",
-      "translatedBy": "model"
-    },
-    "settings.credentials.delete.intervalsDetail": {
-      "sourceHash": "05a4ff6ffd010c4b074d58ec1f87a556fb7a73ebadb1b707ba9cb518086451a9",
-      "translatedBy": "model"
-    },
-    "settings.credentials.delete.intervalsTitle": {
-      "sourceHash": "89d71e0ceae910501b7ff9fc12ccda4a293f1a1a4c75a3f2a579a53d8199bf93",
       "translatedBy": "model"
     },
     "settings.credentials.delete.title": {
@@ -10298,6 +10282,78 @@
     },
     "workouts.review.position": {
       "sourceHash": "487fcaf37ab97ea081523c4981d6f70da23d8e0fbe3d2dfce5a5b3c6927810cb",
+      "translatedBy": "model"
+    },
+    "settings.credentials.disconnect.action": {
+      "sourceHash": "acfc5be785a9bb3da11c9f05adb69bd5633096f09002aa44813a1b3207e912ad",
+      "translatedBy": "model"
+    },
+    "settings.credentials.disconnect.aria": {
+      "sourceHash": "ad897822c3636a53ba8afab83a7e9eaf35d95bbcd42f7d790066a77b2ea04a8c",
+      "translatedBy": "model"
+    },
+    "settings.credentials.disconnect.busy": {
+      "sourceHash": "cb2b6a572a8588d8359787e19b216631439b75cd1691e0aaaf28d0af05400830",
+      "translatedBy": "model"
+    },
+    "settings.credentials.disconnect.detail": {
+      "sourceHash": "f65283be8538bd8974b6d78d9cd3ae68c9e677aa188da7071398104dc86725ef",
+      "translatedBy": "model"
+    },
+    "settings.credentials.disconnect.title": {
+      "sourceHash": "2c715cb31ab3265cdf4a88337ef2af2aaa4a653d8059a13314243feb0e8e69da",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.apiKeyRemoved": {
+      "sourceHash": "c85e120366fa7b2f20c7f5040bba666aba49b9a009e122942ae95a00969cb829",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.cancelled": {
+      "sourceHash": "ce8538a6f1bfd66f9ce16fd9943129d25e5cecb23d06dede369836012a068f26",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.cleanupPending": {
+      "sourceHash": "1a444e0d4c644fc94587357d12cc56237df31b6c42ef9c21f28a649335232582",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.confirm": {
+      "sourceHash": "b6ac5f397cf64ebff2f54cf8d8bd1d7809a9ce55a667796c3c8fb0f4c5dcc4be",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.disconnecting": {
+      "sourceHash": "8522498ad071084e20032c81ac65a9e4324d6156544a036f2dbfd36bdc81d2ca",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.refreshFailed": {
+      "sourceHash": "582ea70b8cde34bc67dd49a52f5eeb2ba7b751661c78eab12e18d360eed8efc6",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.revoked": {
+      "sourceHash": "efdacbcb1ee42cd00ea15ca054a2547dadd340b7a8d4b595ff83babd36222a1d",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.revokeFailed": {
+      "sourceHash": "2b352508814973f63ea66426c6ac3d231407ff42d180e812a5b4c412c1879e3f",
+      "translatedBy": "model"
+    },
+    "settings.credentials.feedback.disconnect.setupRefreshFailed": {
+      "sourceHash": "78749e1c9ec01e0a392d06e82c37ad600fb5e4ee8a180b27b55f35df1afd1e2d",
+      "translatedBy": "model"
+    },
+    "setup.training.signInAgain": {
+      "sourceHash": "51fbe1dc8a7319b7974fb540f157a3ea3edaa985b8f1d970cec9406a20122dc2",
+      "translatedBy": "model"
+    },
+    "setup.training.subtitle.rejected": {
+      "sourceHash": "d1f369142ffc8f1bbef0274436a36ae99cefe20e5e4b25a9c0e577ed56eaad4a",
+      "translatedBy": "model"
+    },
+    "sidebar.sync.action.signInAgain": {
+      "sourceHash": "51fbe1dc8a7319b7974fb540f157a3ea3edaa985b8f1d970cec9406a20122dc2",
+      "translatedBy": "model"
+    },
+    "sidebar.sync.headline.signInRejected": {
+      "sourceHash": "ef5693b67a35f741962ffa928e516b04aaaef3d478356607f80dfb92db7d4627",
       "translatedBy": "model"
     }
   }

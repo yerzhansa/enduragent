@@ -203,12 +203,8 @@
         "action": "删除",
         "aria": "删除 {{provider}} 凭据",
         "confirmAria": "确认删除 {{provider}} 凭据",
-        "connection": "删除连接",
         "credential": "删除凭据",
         "detail": "仅从 {{computer}} 删除此凭据。如果正在使用，{{product}} 将停止使用。服务商账号保持不变。",
-        "intervalsAria": "删除 {{intervals}} 连接",
-        "intervalsDetail": "将移除已保存的登录信息或 API 密钥以及已导入的连接。已同步的骑行和历史聊天会保留在 {{computer}} 上。",
-        "intervalsTitle": "删除 {{intervals}} 连接？",
         "title": "删除 {{provider}} 凭据？"
       },
       "feedback": {
@@ -245,7 +241,18 @@
           "stopFailed": "{{product}} 无法停止使用全部已启用的凭据。请重试以完成移除。",
           "unverified": "无法重新加载设置，因此无法验证凭据是否已移除。请重新连接并加载。"
         },
-        "unavailable": "已保存的凭据不可用。请重新连接并加载。"
+        "unavailable": "已保存的凭据不可用。请重新连接并加载。",
+        "disconnect": {
+          "apiKeyRemoved": "已断开连接。已从 {{computer}} 移除 API 密钥。在 {{intervals}} 上删除之前，它仍可继续使用。",
+          "cancelled": "已取消断开连接。",
+          "cleanupPending": "将重试清理安全存储。",
+          "confirm": "请确认断开 {{intervals}} 连接。",
+          "disconnecting": "正在断开 {{intervals}} 连接…",
+          "refreshFailed": "无法刷新当前连接状态。",
+          "revoked": "已断开连接。已撤销 {{product}} 在 {{intervals}} 上的访问权限。",
+          "revokeFailed": "已在 {{computer}} 上断开连接，但 {{product}} 无法连接 {{intervals}} 来撤销访问权限。可在 {{intervals}} 的 Settings → Apps 中移除 {{product}}。",
+          "setupRefreshFailed": "无法刷新初始设置的就绪状态。请重新加载凭据状态。"
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}} 个人资料",
@@ -269,7 +276,14 @@
         "storedInactive": "已保存，未启用",
         "verifying": "正在验证…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "断开连接",
+        "aria": "断开 {{intervals}} 连接",
+        "busy": "正在断开连接…",
+        "detail": "将撤销 {{product}} 在 {{intervals}} 上的访问权限，并从 {{computer}} 移除登录信息。已同步的骑行和历史聊天会保留在 {{computer}} 上。",
+        "title": "断开 {{intervals}} 连接？"
+      }
     },
     "managedByEnvironment": "由环境变量管理。请在 {{product}} 外更改。",
     "palette": {
@@ -771,7 +785,8 @@
       "subtitle": {
         "connected": "已连接 · 骑行数据来源",
         "connectedAs": "已以 {{name}} 身份连接 · 骑行数据来源",
-        "missing": "请连接或导入骑行文件。"
+        "missing": "请连接或导入骑行文件。",
+        "rejected": "{{intervals}} 不再接受此登录。请重新登录以继续同步。"
       },
       "tooltip": {
         "body": "这是一个存有骑行记录的免费训练网站。{{product}} 从该网站读取记录，无需直接连接手表或码表厂商。需要一个已连接手表或码表的免费账号，然后在此登录。",
@@ -781,7 +796,8 @@
         "disconnected": "连接 {{intervals}}"
       },
       "waiting": "正在等待浏览器…",
-      "waitingHint": "请在浏览器中完成操作。授权访问后，{{product}} 会自动继续。"
+      "waitingHint": "请在浏览器中完成操作。授权访问后，{{product}} 会自动继续。",
+      "signInAgain": "重新登录"
     }
   },
   "shell": {
@@ -813,7 +829,8 @@
         "again": "同步",
         "now": "立即同步",
         "retry": "重试",
-        "unavailable": "同步不可用"
+        "unavailable": "同步不可用",
+        "signInAgain": "重新登录"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -823,7 +840,8 @@
         "never": "尚未同步",
         "synced": "训练数据已同步",
         "syncing": "正在同步",
-        "unavailable": "训练数据不可用"
+        "unavailable": "训练数据不可用",
+        "signInRejected": "{{intervals}} 需要重新登录"
       },
       "message": {
         "external": "{{message}}",

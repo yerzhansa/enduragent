@@ -5,7 +5,7 @@ import type { OnboardingSurfaceState } from "../../onboarding/controller";
 import { errorSection, type SetupErrorSection } from "../../onboarding/lanes";
 import { ERROR_COPY } from "./copy";
 
-export type SetupRowStatus = "ready" | "pending" | "none";
+export type SetupRowStatus = "ready" | "attention" | "pending" | "none";
 
 const TITLE_CLASS = "flex items-center gap-1.5 text-sm font-medium";
 
@@ -18,6 +18,17 @@ function StatusDisc(props: { readonly status: SetupRowStatus }): ReactElement | 
         className="grid size-[18px] shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ok)_18%,transparent)] text-ok"
       >
         <Check size={11} strokeWidth={3.2} aria-hidden="true" />
+      </span>
+    );
+  }
+  if (props.status === "attention") {
+    return (
+      <span
+        data-setup-disc="attention"
+        className="grid size-[18px] shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--warn)_18%,transparent)] text-xs font-semibold text-warn"
+        aria-hidden="true"
+      >
+        !
       </span>
     );
   }
@@ -63,7 +74,14 @@ export function SetupRow(props: {
       <StatusDisc status={props.status} />
       <div className="min-w-0 flex-1">
         {title}
-        <span className="mt-px block text-xs text-ink-2" data-setup-row-subtitle="">
+        <span
+          className={
+            props.status === "attention"
+              ? "mt-px block text-xs text-warn"
+              : "mt-px block text-xs text-ink-2"
+          }
+          data-setup-row-subtitle=""
+        >
           {props.subtitle}
         </span>
         <span className="sr-only" role="status" aria-live="polite" data-setup-announce={props.id}>

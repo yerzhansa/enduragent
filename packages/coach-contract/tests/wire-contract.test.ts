@@ -1040,6 +1040,23 @@ describe("coach request and event projection", () => {
     expect(
       GetRuntimeConfigRpcResultSchema.parse({
         ...snapshot,
+        intervals: { ...snapshot.intervals, credential_rejected: true },
+      }),
+    ).toEqual({
+      ...snapshot,
+      intervals: { ...snapshot.intervals, credential_rejected: true },
+    });
+    for (const credentialRejected of ["true", 1, null]) {
+      expect(
+        GetRuntimeConfigRpcResultSchema.safeParse({
+          ...snapshot,
+          intervals: { ...snapshot.intervals, credential_rejected: credentialRejected },
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      GetRuntimeConfigRpcResultSchema.parse({
+        ...snapshot,
         llm: {
           provider: "openrouter",
           model: "model-a",

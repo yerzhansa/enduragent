@@ -9,6 +9,7 @@ import {
   setManualSyncFocusTarget,
 } from "../../state/manual-sync-focus";
 import { useEnduragentStore } from "../../state/store";
+import { intervalsSignInNeedsRenewal } from "../../state/sync-slice";
 import type { TrainingContextViewState } from "../../training-context/controller";
 import {
   sourceRestrictionSummary,
@@ -50,19 +51,26 @@ const HEADLINE: Readonly<Record<SyncChipStatus, Message>> = {
   unavailable: msg("sidebar.sync.headline.unavailable"),
 };
 
+const SIGN_IN_REJECTED_HEADLINE = msg("sidebar.sync.headline.signInRejected", {
+  intervals: "Intervals.icu",
+});
+
 export function SyncChip(): ReactElement {
   const { say, format } = usePhrasebook();
   const training = useEnduragentStore((store) => store.training);
   const sync = useEnduragentStore((store) => store.sync);
   const actions = useEnduragentStore((store) => store.syncActions);
   const setActiveView = useEnduragentStore((store) => store.setActiveView);
+  const onboardingActions = useEnduragentStore((store) => store.onboardingActions);
+  const signInRejected = useEnduragentStore(intervalsSignInNeedsRenewal) && !sync.busy;
   const chip = useRef<HTMLButtonElement>(null);
   const wrapper = useRef<HTMLDivElement>(null);
-  const status = syncChipStatus(training, sync);
+  const status = signInRejected ? "attention" : syncChipStatus(training, sync);
   const restriction = sourceRestrictionSummary(sync.droppedActivities, "STRAVA");
   const formattedCount = format.number(restriction?.count ?? 0, { useGrouping: false });
   const message = manualSyncStatusMessage(sync, formattedCount);
-  const detail = message === null || sync.message === SYNC_RUNNING_COPY ? null : say(message);
+  const detail =
+    signInRejected || message === null || sync.message === SYNC_RUNNING_COPY ? null : say(message);
   const action = sync.busy
     ? null
     : say(
@@ -70,8 +78,8 @@ export function SyncChip(): ReactElement {
           ? msg("sidebar.sync.action.again")
           : manualSyncActionMessage(sync.label),
       );
-  const headline = say(HEADLINE[status]);
-  const statusAnnouncement = detail ?? (sync.busy ? headline : null);
+  const headline = say(signInRejected ? SIGN_IN_REJECTED_HEADLINE : HEADLINE[status]);
+  const statusAnnouncement = detail ?? (sync.busy || signInRejected ? headline : null);
   const restrictionVars = { count: restriction?.count ?? 0, formattedCount, source: "Strava" };
   const restrictionLabel =
     restriction === null
@@ -197,7 +205,19 @@ export function SyncChip(): ReactElement {
             }
           />
         )}
-        {action === null ? null : (
+        {signInRejected ? (
+          <button
+            type="button"
+            className="pointer-events-auto mt-px block cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-xs text-brand underline-offset-2 hover:underline"
+            data-sync-sign-in-again=""
+            onClick={() => {
+              setActiveView("settings");
+              onboardingActions?.connectTrainingData();
+            }}
+          >
+            {say("sidebar.sync.action.signInAgain")}
+          </button>
+        ) : action === null ? null : (
           <span
             className="mt-px block whitespace-normal text-xs text-ink-3"
             data-sync-action=""

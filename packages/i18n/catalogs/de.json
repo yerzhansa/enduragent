@@ -204,12 +204,8 @@
         "action": "Löschen",
         "aria": "Zugangsdaten für {{provider}} löschen",
         "confirmAria": "Löschen der Zugangsdaten für {{provider}} bestätigen",
-        "connection": "Verbindung löschen",
         "credential": "Zugangsdaten löschen",
         "detail": "Dadurch werden sie nur von {{computer}} entfernt. {{product}} verwendet sie nicht mehr, falls sie aktiv sind. Dein Konto beim Anbieter bleibt unverändert.",
-        "intervalsAria": "Verbindung mit {{intervals}} löschen",
-        "intervalsDetail": "Deine gespeicherte Anmeldung oder dein API-Schlüssel und die importierte Verbindung werden entfernt. Deine synchronisierten Fahrten und bisherigen Chats bleiben auf {{computer}}.",
-        "intervalsTitle": "Verbindung mit {{intervals}} löschen?",
         "title": "Zugangsdaten für {{provider}} löschen?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} konnte nicht alle aktiven Zugangsdaten deaktivieren. Versuche es erneut, um das Entfernen abzuschließen.",
           "unverified": "Das Entfernen der Zugangsdaten konnte nicht überprüft werden, weil die Einstellungen nicht neu geladen werden konnten. Verbinde dich erneut und lade neu."
         },
-        "unavailable": "Gespeicherte Zugangsdaten sind nicht verfügbar. Verbinde dich erneut und lade neu."
+        "unavailable": "Gespeicherte Zugangsdaten sind nicht verfügbar. Verbinde dich erneut und lade neu.",
+        "disconnect": {
+          "apiKeyRemoved": "Getrennt. Der API-Schlüssel wurde von {{computer}} entfernt. Er funktioniert auf {{intervals}} weiter, bis du ihn dort löschst.",
+          "cancelled": "Trennen abgebrochen.",
+          "cleanupPending": "Die Bereinigung des sicheren Speichers wird erneut versucht.",
+          "confirm": "Trennen von {{intervals}} bestätigen.",
+          "disconnecting": "{{intervals}} wird getrennt…",
+          "refreshFailed": "Der aktuelle Verbindungsstatus konnte nicht aktualisiert werden.",
+          "revoked": "Getrennt. Der Zugriff von {{product}} auf {{intervals}} wurde widerrufen.",
+          "revokeFailed": "Auf {{computer}} getrennt, aber {{product}} konnte {{intervals}} nicht erreichen, um den Zugriff zu widerrufen. Du kannst {{product}} dort unter Settings → Apps entfernen.",
+          "setupRefreshFailed": "Der Einrichtungsstatus konnte nicht aktualisiert werden. Lade den Status der Zugangsdaten neu."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-Profil",
@@ -270,7 +277,14 @@
         "storedInactive": "Gespeichert, nicht aktiv",
         "verifying": "Wird überprüft…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Trennen",
+        "aria": "{{intervals}} trennen",
+        "busy": "Wird getrennt…",
+        "detail": "Der Zugriff von {{product}} auf {{intervals}} wird widerrufen und die Anmeldung wird von {{computer}} entfernt. Deine synchronisierten Fahrten und bisherigen Chats bleiben auf {{computer}}.",
+        "title": "{{intervals}} trennen?"
+      }
     },
     "managedByEnvironment": "Wird über eine Umgebungsvariable verwaltet. Ändere sie außerhalb von {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Verbunden · Quelle deiner Fahrten",
         "connectedAs": "Verbunden als {{name}} · Quelle deiner Fahrten",
-        "missing": "Verbinden oder Fahrtdateien importieren."
+        "missing": "Verbinden oder Fahrtdateien importieren.",
+        "rejected": "{{intervals}} akzeptiert die Anmeldung nicht mehr. Melde dich erneut an, damit weiter synchronisiert wird."
       },
       "tooltip": {
         "body": "Eine kostenlose Trainingswebsite, auf der deine Fahrten bereits gespeichert sind. {{product}} liest sie von dort, statt direkt auf den Anbieter deiner Uhr oder deines Radcomputers zuzugreifen. Du benötigst ein kostenloses Konto, mit dem deine Uhr oder dein Radcomputer verbunden ist. Melde dich dann hier an.",
@@ -784,7 +799,8 @@
         "disconnected": "{{intervals}} verbinden"
       },
       "waiting": "Warten auf den Browser…",
-      "waitingHint": "Schließe den Vorgang in deinem Browser ab. {{product}} macht von selbst weiter, sobald du den Zugriff freigibst."
+      "waitingHint": "Schließe den Vorgang in deinem Browser ab. {{product}} macht von selbst weiter, sobald du den Zugriff freigibst.",
+      "signInAgain": "Erneut anmelden"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synchronisieren",
         "now": "Jetzt synchronisieren",
         "retry": "Erneut versuchen",
-        "unavailable": "Synchronisierung nicht verfügbar"
+        "unavailable": "Synchronisierung nicht verfügbar",
+        "signInAgain": "Erneut anmelden"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Noch nicht synchronisiert",
         "synced": "Trainingsdaten synchronisiert",
         "syncing": "Wird synchronisiert",
-        "unavailable": "Trainingsdaten nicht verfügbar"
+        "unavailable": "Trainingsdaten nicht verfügbar",
+        "signInRejected": "{{intervals}} braucht eine erneute Anmeldung"
       },
       "message": {
         "external": "{{message}}",

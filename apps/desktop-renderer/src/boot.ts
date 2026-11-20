@@ -6,6 +6,7 @@ import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
 import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
 import { createFirstSyncController } from "./first-sync";
+import { createIntervalsSignInHealth } from "./intervals-sign-in-health";
 import { readPlanReturnOnLaunch, writePlanReturnOnLaunch } from "./plan-return-storage";
 import { createArchiveViewAdapter } from "./state/adapters/archive";
 import { createChatViewAdapter } from "./state/adapters/chat";
@@ -103,12 +104,11 @@ export function bootRenderer(): Disposer {
   });
   void desktopUpdateController.start();
 
-  const clients = createDesktopCoachClientProvider();
+  const signInHealth = createIntervalsSignInHealth(createDesktopCoachClientProvider(), store);
+  const clients = signInHealth.clients;
   const rideAnalysisController = createRideAnalysisController({
     clients,
-    view: {
-      render: (next) => store.getState().setRideAnalysis(next),
-    },
+    view: { render: (next) => store.getState().setRideAnalysis(next) },
   });
   store.getState().bindRideAnalysisActions({
     start: () => {
@@ -130,8 +130,6 @@ export function bootRenderer(): Disposer {
     selectedAnalysisRide = selected;
     void rideAnalysisController.select(selected);
   });
-  const clientAfterFailure = (failedClient: DesktopCoachClient | undefined) =>
-    clients.reconnect(failedClient);
   const trainingAdapter = createTrainingViewAdapter({
     readUnits: () => store.getState().settings.units,
     publish: (next) => store.getState().setTraining(next),
@@ -170,6 +168,7 @@ export function bootRenderer(): Disposer {
       await Promise.all([trainingContextController.refresh(), planController.refresh()]);
     },
   });
+  const disposeSignInHealth = signInHealth.follow(trainingSyncCoordinator, window);
   const syncAdapter = createManualSyncViewAdapter({
     publish: (next) =>
       flushSync(() => {
@@ -518,7 +517,7 @@ export function bootRenderer(): Disposer {
   let onboardingFailedClient: DesktopCoachClient | undefined;
   const onboardingClient = async () => {
     const client = onboardingNeedsReconnect
-      ? await clientAfterFailure(onboardingFailedClient)
+      ? await clients.reconnect(onboardingFailedClient)
       : await clients.getClient();
     onboardingNeedsReconnect = false;
     onboardingFailedClient = undefined;
@@ -532,7 +531,7 @@ export function bootRenderer(): Disposer {
     credentialStatuses: () => window.enduragentAuth.credentialStatuses(),
     retryFailedCredentials: () => window.enduragentAuth.retryFailedCredentials(),
     writeCredential: (value) => window.enduragentAuth.writeCredential(value),
-    signInWithIntervals: () => window.enduragentAuth.signInWithIntervals(),
+    signInWithIntervals: () => signInHealth.signedIn(window.enduragentAuth.signInWithIntervals()),
     cancelIntervalsSignIn: () => window.enduragentAuth.cancelIntervalsSignIn(),
     reopenIntervalsSignIn: () => window.enduragentAuth.reopenIntervalsSignIn(),
     onIntervalsSignInProgress: (listener) =>
@@ -797,6 +796,7 @@ export function bootRenderer(): Disposer {
     firstSyncController.dispose();
     manualSyncController.dispose();
     trainingSyncCoordinator.dispose();
+    disposeSignInHealth();
     chatController.dispose();
     archiveController.dispose();
     planAdapter.dispose();

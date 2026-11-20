@@ -206,12 +206,8 @@
         "action": "Usuń",
         "aria": "Usuń dane dostępowe {{provider}}",
         "confirmAria": "Potwierdź usunięcie danych dostępowych {{provider}}",
-        "connection": "Usuń połączenie",
         "credential": "Usuń dane dostępowe",
         "detail": "Spowoduje to usunięcie tylko z {{computer}}. {{product}} przestanie z nich korzystać, jeśli są aktywne. Twoje konto u dostawcy pozostanie bez zmian.",
-        "intervalsAria": "Usuń połączenie z {{intervals}}",
-        "intervalsDetail": "Zapisane dane logowania lub klucz API i zaimportowane połączenie zostaną usunięte. Zsynchronizowane przejazdy i wcześniejsze rozmowy pozostaną na {{computer}}.",
-        "intervalsTitle": "Usunąć połączenie z {{intervals}}?",
         "title": "Usunąć dane dostępowe {{provider}}?"
       },
       "feedback": {
@@ -248,7 +244,18 @@
           "stopFailed": "{{product}} nie mógł zatrzymać korzystania ze wszystkich aktywnych danych dostępowych. Spróbuj ponownie, aby dokończyć usuwanie.",
           "unverified": "Nie udało się zweryfikować usunięcia danych dostępowych, ponieważ nie można ponownie wczytać Ustawień. Połącz ponownie i odśwież dane."
         },
-        "unavailable": "Zapisane dane dostępowe są niedostępne. Połącz ponownie i odśwież dane."
+        "unavailable": "Zapisane dane dostępowe są niedostępne. Połącz ponownie i odśwież dane.",
+        "disconnect": {
+          "apiKeyRemoved": "Rozłączono. Klucz API usunięto z {{computer}}. Będzie nadal działać w {{intervals}}, dopóki go tam nie usuniesz.",
+          "cancelled": "Anulowano rozłączanie.",
+          "cleanupPending": "Czyszczenie bezpiecznego magazynu zostanie ponowione.",
+          "confirm": "Potwierdź rozłączenie {{intervals}}.",
+          "disconnecting": "Rozłączanie {{intervals}}…",
+          "refreshFailed": "Nie udało się odświeżyć bieżącego stanu połączenia.",
+          "revoked": "Rozłączono. Dostęp {{product}} do {{intervals}} został cofnięty.",
+          "revokeFailed": "Rozłączono na {{computer}}, ale {{product}} nie może połączyć się z {{intervals}}, aby cofnąć swój dostęp. Możesz tam usunąć {{product}} w Settings → Apps.",
+          "setupRefreshFailed": "Nie udało się odświeżyć gotowości konfiguracji. Wczytaj ponownie status danych dostępowych."
+        }
       },
       "kind": {
         "chatgpt": "Profil {{chatgpt}}",
@@ -272,7 +279,14 @@
         "storedInactive": "Zapisane, nieaktywne",
         "verifying": "Weryfikowanie…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Rozłącz",
+        "aria": "Rozłącz {{intervals}}",
+        "busy": "Rozłączanie…",
+        "detail": "Dostęp {{product}} do {{intervals}} zostanie cofnięty, a logowanie zostanie usunięte z {{computer}}. Zsynchronizowane przejazdy i wcześniejsze rozmowy pozostaną na {{computer}}.",
+        "title": "Rozłączyć {{intervals}}?"
+      }
     },
     "managedByEnvironment": "Zarządzane przez zmienną środowiskową. Zmień ją poza {{product}}.",
     "palette": {
@@ -780,7 +794,8 @@
       "subtitle": {
         "connected": "Połączono · źródło twoich przejazdów",
         "connectedAs": "Połączono jako {{name}} · źródło twoich przejazdów",
-        "missing": "Połącz lub zaimportuj pliki przejazdów."
+        "missing": "Połącz lub zaimportuj pliki przejazdów.",
+        "rejected": "{{intervals}} przestał akceptować logowanie. Zaloguj się ponownie, aby dalej synchronizować."
       },
       "tooltip": {
         "body": "Bezpłatny serwis treningowy, który przechowuje już twoje przejazdy. {{product}} odczytuje je stamtąd zamiast łączyć się bezpośrednio z dostawcą zegarka lub licznika rowerowego. Potrzebujesz bezpłatnego konta z połączonym zegarkiem lub licznikiem rowerowym. Następnie zaloguj się tutaj.",
@@ -790,7 +805,8 @@
         "disconnected": "Połącz {{intervals}}"
       },
       "waiting": "Oczekiwanie na przeglądarkę…",
-      "waitingHint": "Dokończ w przeglądarce. {{product}} przejdzie dalej samodzielnie, gdy zatwierdzisz dostęp."
+      "waitingHint": "Dokończ w przeglądarce. {{product}} przejdzie dalej samodzielnie, gdy zatwierdzisz dostęp.",
+      "signInAgain": "Zaloguj się ponownie"
     }
   },
   "shell": {
@@ -823,7 +839,8 @@
         "again": "Synchronizuj",
         "now": "Synchronizuj teraz",
         "retry": "Spróbuj ponownie",
-        "unavailable": "Synchronizacja niedostępna"
+        "unavailable": "Synchronizacja niedostępna",
+        "signInAgain": "Zaloguj się ponownie"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -833,7 +850,8 @@
         "never": "Jeszcze nie zsynchronizowano",
         "synced": "Dane treningowe zsynchronizowane",
         "syncing": "Synchronizowanie",
-        "unavailable": "Dane treningowe niedostępne"
+        "unavailable": "Dane treningowe niedostępne",
+        "signInRejected": "{{intervals}} wymaga ponownego zalogowania"
       },
       "message": {
         "external": "{{message}}",

@@ -203,12 +203,8 @@
         "action": "刪除",
         "aria": "刪除 {{provider}} 憑證",
         "confirmAria": "確認刪除 {{provider}} 憑證",
-        "connection": "刪除連線",
         "credential": "刪除憑證",
         "detail": "此操作僅會從 {{computer}} 移除此憑證。若憑證已啟用，{{product}} 將停止使用。供應商帳號不會變更。",
-        "intervalsAria": "刪除 {{intervals}} 連線",
-        "intervalsDetail": "已儲存的登入資訊或 API 金鑰與已匯入的連線將被移除。已同步的騎乘與過往聊天會保留在 {{computer}}。",
-        "intervalsTitle": "要刪除 {{intervals}} 連線嗎？",
         "title": "要刪除 {{provider}} 憑證嗎？"
       },
       "feedback": {
@@ -245,7 +241,18 @@
           "stopFailed": "{{product}} 無法停用所有已啟用的憑證。請重試以完成移除。",
           "unverified": "無法重新載入「設定」，因此無法驗證憑證是否已移除。請重新連線並重新載入。"
         },
-        "unavailable": "無法使用已儲存的憑證。請重新連線並重新載入。"
+        "unavailable": "無法使用已儲存的憑證。請重新連線並重新載入。",
+        "disconnect": {
+          "apiKeyRemoved": "已中斷連線。已從 {{computer}} 移除 API 金鑰。在 {{intervals}} 上刪除之前，它仍可繼續使用。",
+          "cancelled": "已取消中斷連線。",
+          "cleanupPending": "將重試清理安全儲存空間。",
+          "confirm": "請確認中斷 {{intervals}} 連線。",
+          "disconnecting": "正在中斷 {{intervals}} 連線…",
+          "refreshFailed": "無法更新目前的連線狀態。",
+          "revoked": "已中斷連線。已撤銷 {{product}} 在 {{intervals}} 上的存取權。",
+          "revokeFailed": "已在 {{computer}} 中斷連線，但 {{product}} 無法連上 {{intervals}} 以撤銷存取權。可在 {{intervals}} 的 Settings → Apps 中移除 {{product}}。",
+          "setupRefreshFailed": "無法更新初始設定的就緒狀態。請重新載入憑證狀態。"
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}} 個人檔案",
@@ -269,7 +276,14 @@
         "storedInactive": "已儲存，未啟用",
         "verifying": "正在驗證…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "中斷連線",
+        "aria": "中斷 {{intervals}} 連線",
+        "busy": "正在中斷連線…",
+        "detail": "將撤銷 {{product}} 在 {{intervals}} 上的存取權，並從 {{computer}} 移除登入資訊。已同步的騎乘與過往聊天會保留在 {{computer}}。",
+        "title": "要中斷 {{intervals}} 連線嗎？"
+      }
     },
     "managedByEnvironment": "由環境變數管理。請在 {{product}} 之外變更。",
     "palette": {
@@ -771,7 +785,8 @@
       "subtitle": {
         "connected": "已連結 · 騎乘資料來源",
         "connectedAs": "已以 {{name}} 身分連結 · 騎乘資料來源",
-        "missing": "連結服務或匯入騎乘檔案。"
+        "missing": "連結服務或匯入騎乘檔案。",
+        "rejected": "{{intervals}} 已不再接受此登入。請重新登入以繼續同步。"
       },
       "tooltip": {
         "body": "這是已儲存騎乘資料的免費訓練網站。{{product}} 會從這裡讀取資料，而非直接連接手錶或自行車碼表供應商。需要一個已連結手錶或自行車碼表的免費帳號，再於此處登入。",
@@ -781,7 +796,8 @@
         "disconnected": "連結 {{intervals}}"
       },
       "waiting": "正在等待瀏覽器…",
-      "waitingHint": "請在瀏覽器中完成操作。授權存取後，{{product}} 會自動繼續。"
+      "waitingHint": "請在瀏覽器中完成操作。授權存取後，{{product}} 會自動繼續。",
+      "signInAgain": "重新登入"
     }
   },
   "shell": {
@@ -813,7 +829,8 @@
         "again": "同步",
         "now": "立即同步",
         "retry": "重試",
-        "unavailable": "無法同步"
+        "unavailable": "無法同步",
+        "signInAgain": "重新登入"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -823,7 +840,8 @@
         "never": "尚未同步",
         "synced": "訓練資料已同步",
         "syncing": "正在同步",
-        "unavailable": "無法取得訓練資料"
+        "unavailable": "無法取得訓練資料",
+        "signInRejected": "{{intervals}} 需要重新登入"
       },
       "message": {
         "external": "{{message}}",

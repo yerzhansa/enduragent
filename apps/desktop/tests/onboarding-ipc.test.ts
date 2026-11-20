@@ -32,10 +32,13 @@ import {
   type OnboardingLlmSelectionResult,
 } from "../src/main/llm-selection.js";
 import type {
+  CredentialDeleteOptions,
   CredentialVault,
   CredentialWriteBehavior,
   CredentialWriteInput,
+  StoredCredentialRead,
 } from "../src/main/credential-vault.js";
+import { revokeIntervalsAccess, type IntervalsRevokeResult } from "@enduragent/core";
 
 const RENDERER_URL = createDesktopRendererUrl("A".repeat(43));
 const CATALOG_REVISION = BUNDLED_MODEL_CATALOG.revision;
@@ -94,6 +97,10 @@ function harness(
     handle: vi.fn((channel: string, handler: Handler) => handlers.set(channel, handler)),
     removeHandler: vi.fn((channel: string) => handlers.delete(channel)),
   };
+  const trace: string[] = [];
+  const deletion: { stored: StoredCredentialRead } = {
+    stored: { state: "readable", value: "intervals-oauth:fixture-disconnect-token" },
+  };
   const vault: CredentialVault = {
     writeCredential: vi.fn(async (input, behavior) => ({
       slot: input.slot,
@@ -118,11 +125,15 @@ function harness(
         runtimeState: "active" as const,
       },
     ]),
-    deleteCredential: vi.fn(async (slot) => ({
-      slot,
-      status: "deleted" as const,
-      cleanupPending: false,
-    })),
+    deleteCredential: vi.fn(async (slot, options?: CredentialDeleteOptions) => {
+      await options?.beforeRemove?.(deletion.stored);
+      trace.push(`remove:${slot}`);
+      return {
+        slot,
+        status: "deleted" as const,
+        cleanupPending: false,
+      };
+    }),
     reapplyConfigured: vi.fn(async () => {}),
     retryFailed: vi.fn(async () => {}),
   };
@@ -194,6 +205,10 @@ function harness(
     status: "reset" as const,
     keyCleanupPending: false,
   }));
+  const revokeIntervals = vi.fn(async (_credential: string): Promise<IntervalsRevokeResult> => {
+    trace.push("revoke");
+    return "revoked";
+  });
   const progressSend = vi.fn();
   const trustedEvent = {
     sender: {
@@ -218,6 +233,7 @@ function harness(
     credentialRecoveryStatus,
     retryCredentialRecovery,
     resetAllCredentials,
+    revokeIntervalsAccess: (credential) => revokeIntervals(credential),
   });
   const invoke = (channel: string, event: IpcMainInvokeEvent, ...args: unknown[]) =>
     handlers.get(channel)!(event, ...args);
@@ -236,6 +252,9 @@ function harness(
     credentialRecoveryStatus,
     retryCredentialRecovery,
     resetAllCredentials,
+    revokeIntervals,
+    deletion,
+    trace,
     trustedEvent,
     dispose,
     invoke,
@@ -491,6 +510,51 @@ describe("desktop onboarding IPC", () => {
       { slot: "intervals-icu", state: "configured", runtimeState: "active" },
     ]);
 
+    const result = await subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+      credential: "intervals-icu",
+    });
+
+    expect(result).toEqual({
+      credential: "intervals-icu",
+      status: "deleted",
+      cleanupPending: false,
+      revoke: "revoked",
+    });
+    expect(Object.keys(result as object)).toEqual([
+      "credential",
+      "status",
+      "cleanupPending",
+      "revoke",
+    ]);
+    expect(JSON.stringify(result)).not.toContain("fixture-disconnect-token");
+    expect(subject.revokeIntervals).toHaveBeenCalledExactlyOnceWith(
+      "intervals-oauth:fixture-disconnect-token",
+    );
+    expect(subject.trace).toEqual(["revoke", "remove:intervals-icu"]);
+    expect(subject.vault.deleteCredential).toHaveBeenCalledWith("intervals-icu", {
+      beforeRemove: expect.any(Function),
+    });
+    expect(subject.getRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "already-invalid",
+      async (): Promise<IntervalsRevokeResult> => "already-invalid",
+      "already-invalid",
+    ],
+    ["failed", async (): Promise<IntervalsRevokeResult> => "failed", "failed"],
+    [
+      "a thrown revoke",
+      async (): Promise<IntervalsRevokeResult> => {
+        throw new TypeError("offline");
+      },
+      "failed",
+    ],
+  ] as const)("still deletes locally after %s", async (_label, revoke, expected) => {
+    const subject = harness();
+    subject.revokeIntervals.mockImplementationOnce(revoke);
+
     await expect(
       subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
         credential: "intervals-icu",
@@ -499,9 +563,93 @@ describe("desktop onboarding IPC", () => {
       credential: "intervals-icu",
       status: "deleted",
       cleanupPending: false,
+      revoke: expected,
     });
-    expect(subject.vault.deleteCredential).toHaveBeenCalledWith("intervals-icu");
-    expect(subject.getRuntimeConfig).not.toHaveBeenCalled();
+    expect(subject.trace).toEqual(["remove:intervals-icu"]);
+  });
+
+  it("reports a legacy API key as not signed in without calling intervals.icu", async () => {
+    const subject = harness();
+    const network = vi.fn(async () => new Response(null, { status: 204 }));
+    subject.deletion.stored = { state: "readable", value: "fixture-api-key" };
+    subject.revokeIntervals.mockImplementationOnce((credential) =>
+      revokeIntervalsAccess({ credential, fetch: network }),
+    );
+
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+        credential: "intervals-icu",
+      }),
+    ).resolves.toEqual({
+      credential: "intervals-icu",
+      status: "deleted",
+      cleanupPending: false,
+      revoke: "not-signed-in",
+    });
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  it("reports an unreadable Intervals.icu slot as a failed revoke and still deletes", async () => {
+    const subject = harness();
+    subject.deletion.stored = { state: "unreadable" };
+
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+        credential: "intervals-icu",
+      }),
+    ).resolves.toEqual({
+      credential: "intervals-icu",
+      status: "deleted",
+      cleanupPending: false,
+      revoke: "failed",
+    });
+    expect(subject.revokeIntervals).not.toHaveBeenCalled();
+    expect(subject.trace).toEqual(["remove:intervals-icu"]);
+  });
+
+  it("keeps Intervals.icu refusals unchanged and never revokes for them", async () => {
+    const subject = harness();
+    vi.mocked(subject.vault.credentialStatuses).mockResolvedValueOnce([
+      { slot: "intervals-icu", state: "missing", runtimeState: null },
+    ]);
+    await expect(
+      subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+        credential: "intervals-icu",
+      }),
+    ).resolves.toEqual({
+      credential: "intervals-icu",
+      status: "refused",
+      reason: "managed-by-environment",
+    });
+    expect(subject.vault.deleteCredential).not.toHaveBeenCalled();
+
+    vi.mocked(subject.vault.deleteCredential).mockResolvedValueOnce({
+      slot: "intervals-icu",
+      status: "refused",
+      reason: "managed-by-environment",
+    });
+    const refused = await subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+      credential: "intervals-icu",
+    });
+    expect(refused).toEqual({
+      credential: "intervals-icu",
+      status: "refused",
+      reason: "managed-by-environment",
+    });
+    expect(Object.keys(refused as object)).toEqual(["credential", "status", "reason"]);
+    expect(subject.revokeIntervals).not.toHaveBeenCalled();
+  });
+
+  it("never revokes when deleting another credential", async () => {
+    const subject = harness();
+
+    const result = await subject.invoke(DESKTOP_CREDENTIAL_DELETE_CHANNEL, subject.trustedEvent, {
+      credential: "anthropic",
+    });
+
+    expect(Object.keys(result as object)).toEqual(["credential", "status", "cleanupPending"]);
+    expect(subject.vault.deleteCredential).toHaveBeenCalledExactlyOnceWith("anthropic");
+    expect(subject.revokeIntervals).not.toHaveBeenCalled();
   });
 
   it("projects Keychain deletion refusal without exposing private storage details", async () => {

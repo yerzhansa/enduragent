@@ -204,12 +204,8 @@
         "action": "Slet",
         "aria": "Slet adgangsoplysningerne til {{provider}}",
         "confirmAria": "Bekræft sletning af adgangsoplysningerne til {{provider}}",
-        "connection": "Slet forbindelse",
         "credential": "Slet adgangsoplysninger",
         "detail": "Dette fjerner dem kun fra {{computer}}. {{product}} holder op med at bruge dem, hvis de er aktive. Din konto hos udbyderen er uændret.",
-        "intervalsAria": "Slet forbindelsen til {{intervals}}",
-        "intervalsDetail": "Dit gemte login eller din API-nøgle og den importerede forbindelse fjernes. Dine synkroniserede ture og tidligere chats bliver på {{computer}}.",
-        "intervalsTitle": "Slet forbindelsen til {{intervals}}?",
         "title": "Slet adgangsoplysningerne til {{provider}}?"
       },
       "feedback": {
@@ -246,7 +242,18 @@
           "stopFailed": "{{product}} kunne ikke stoppe brugen af alle aktive adgangsoplysninger. Prøv igen for at afslutte fjernelsen.",
           "unverified": "Fjernelsen af adgangsoplysninger kunne ikke bekræftes, fordi Indstillinger ikke kunne genindlæses. Opret forbindelse igen, og genindlæs."
         },
-        "unavailable": "Gemte adgangsoplysninger er utilgængelige. Opret forbindelse igen, og genindlæs."
+        "unavailable": "Gemte adgangsoplysninger er utilgængelige. Opret forbindelse igen, og genindlæs.",
+        "disconnect": {
+          "apiKeyRemoved": "Forbindelsen er afbrudt. API-nøglen er fjernet fra {{computer}}. Den virker fortsat på {{intervals}}, indtil du sletter den der.",
+          "cancelled": "Afbrydelse annulleret.",
+          "cleanupPending": "Oprydning i sikker lagring forsøges igen.",
+          "confirm": "Bekræft, at forbindelsen til {{intervals}} skal afbrydes.",
+          "disconnecting": "Afbryder forbindelsen til {{intervals}}…",
+          "refreshFailed": "Forbindelsens aktuelle status kunne ikke opdateres.",
+          "revoked": "Forbindelsen er afbrudt. {{product}}s adgang er tilbagekaldt på {{intervals}}.",
+          "revokeFailed": "Forbindelsen er afbrudt på {{computer}}, men {{product}} kunne ikke nå {{intervals}} for at tilbagekalde sin adgang. Du kan fjerne {{product}} der under Settings → Apps.",
+          "setupRefreshFailed": "Opsætningens status kunne ikke opdateres. Genindlæs adgangsoplysningernes status."
+        }
       },
       "kind": {
         "chatgpt": "{{chatgpt}}-profil",
@@ -270,7 +277,14 @@
         "storedInactive": "Gemt, ikke aktiv",
         "verifying": "Kontrollerer…"
       },
-      "summary": "{{kind}} · {{state}}"
+      "summary": "{{kind}} · {{state}}",
+      "disconnect": {
+        "action": "Afbryd forbindelsen",
+        "aria": "Afbryd forbindelsen til {{intervals}}",
+        "busy": "Afbryder…",
+        "detail": "{{product}}s adgang tilbagekaldes på {{intervals}}, og login fjernes fra {{computer}}. Dine synkroniserede ture og tidligere chats bliver på {{computer}}.",
+        "title": "Afbryd forbindelsen til {{intervals}}?"
+      }
     },
     "managedByEnvironment": "Administreres af en miljøvariabel. Ret den uden for {{product}}.",
     "palette": {
@@ -774,7 +788,8 @@
       "subtitle": {
         "connected": "Forbundet · hvor dine ture kommer fra",
         "connectedAs": "Forbundet som {{name}} · hvor dine ture kommer fra",
-        "missing": "Opret forbindelse, eller importér turfiler."
+        "missing": "Opret forbindelse, eller importér turfiler.",
+        "rejected": "{{intervals}} accepterer ikke længere dit login. Log ind igen for at blive ved med at synkronisere."
       },
       "tooltip": {
         "body": "En gratis træningsside, der allerede har dine ture. {{product}} læser dem derfra i stedet for at kontakte producenten af dit ur eller din cykelcomputer direkte. Du skal bruge en gratis konto med dit ur eller din cykelcomputer tilknyttet og derefter logge ind her.",
@@ -784,7 +799,8 @@
         "disconnected": "Forbind {{intervals}}"
       },
       "waiting": "Venter på browser…",
-      "waitingHint": "Gør det færdigt i din browser. {{product}} fortsætter af sig selv, når du giver adgang."
+      "waitingHint": "Gør det færdigt i din browser. {{product}} fortsætter af sig selv, når du giver adgang.",
+      "signInAgain": "Log ind igen"
     }
   },
   "shell": {
@@ -817,7 +833,8 @@
         "again": "Synkroniser",
         "now": "Synkroniser nu",
         "retry": "Prøv igen",
-        "unavailable": "Synkronisering er utilgængelig"
+        "unavailable": "Synkronisering er utilgængelig",
+        "signInAgain": "Log ind igen"
       },
       "ariaLabel": "{{action}} · {{headline}}",
       "ariaLabelDetail": "{{action}} · {{headline}} · {{detail}}",
@@ -827,7 +844,8 @@
         "never": "Endnu ikke synkroniseret",
         "synced": "Træningsdata synkroniseret",
         "syncing": "Synkroniserer",
-        "unavailable": "Træningsdata er utilgængelige"
+        "unavailable": "Træningsdata er utilgængelige",
+        "signInRejected": "{{intervals}} kræver, at du logger ind igen"
       },
       "message": {
         "external": "{{message}}",

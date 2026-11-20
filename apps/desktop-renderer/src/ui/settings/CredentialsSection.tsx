@@ -19,7 +19,8 @@ import { settingsMutationActive } from "../../state/settings-slice";
 import { useEnduragentStore } from "../../state/store";
 import { SetupRow } from "../onboarding/SetupRow";
 import { InlineConfirmation } from "@enduragent/ui";
-import { credentialRuntimeLabel, credentialFeedbackMessage, credentialKindMessage } from "./copy";
+import { INTERVALS_DISCONNECT_COPY } from "../../settings/credential-delete-copy";
+import { credentialRuntimeLabel, credentialFeedbackMessages, credentialKindMessage } from "./copy";
 
 export const SETUP_CREDENTIAL_EDIT_EVENT = "enduragent:edit-credential";
 
@@ -119,12 +120,14 @@ export function CredentialDeleteButton(props: {
       }
       aria-label={
         props.credential === "intervals-icu"
-          ? say("settings.credentials.delete.intervalsAria", { intervals: "Intervals.icu" })
+          ? say("settings.credentials.disconnect.aria", { intervals: "Intervals.icu" })
           : say("settings.credentials.delete.aria", { provider })
       }
       onClick={() => port?.requestDelete(props.credential)}
     >
-      {say("settings.credentials.delete.action")}
+      {props.credential === "intervals-icu"
+        ? say("settings.credentials.disconnect.action")
+        : say("settings.credentials.delete.action")}
     </Button>
   );
 }
@@ -151,21 +154,27 @@ export function CredentialDeleteConfirmation(props: {
       name={`delete-${entry.credential}`}
       title={
         intervals
-          ? say("settings.credentials.delete.intervalsTitle", { intervals: "Intervals.icu" })
+          ? say("settings.credentials.disconnect.title", { intervals: "Intervals.icu" })
           : say("settings.credentials.delete.title", { provider: entry.provider })
       }
       copy={
         intervals
-          ? say("settings.credentials.delete.intervalsDetail", { computer: PLATFORM_COPY.computer })
+          ? say("settings.credentials.disconnect.detail", {
+              product: "Enduragent",
+              intervals: "Intervals.icu",
+              computer: PLATFORM_COPY.computer,
+            })
           : say("settings.credentials.delete.detail", {
               product: "Enduragent",
               computer: PLATFORM_COPY.computer,
             })
       }
       confirmLabel={
-        intervals
-          ? say("settings.credentials.delete.connection")
-          : say("settings.credentials.delete.credential")
+        !intervals
+          ? say("settings.credentials.delete.credential")
+          : deleting
+            ? say("settings.credentials.disconnect.busy")
+            : say("settings.credentials.disconnect.action")
       }
       {...(intervals
         ? {}
@@ -301,19 +310,22 @@ export function CredentialSettingsFeedback(): ReactElement | null {
   const canReset =
     recovery !== undefined &&
     (repairRequired !== null || recovery.state !== "ready" || recovery.unverifiedEnvelopes > 0);
-  const announcementMessage = credentialFeedbackMessage(
+  const announcementMessages = credentialFeedbackMessages(
     "announcement" in state ? state.announcement : "",
   );
   const announcement =
     "announcement" in state && state.announcement.length > 0
-      ? announcementMessage === null
+      ? announcementMessages === null
         ? state.announcement
-        : say(announcementMessage)
+        : announcementMessages.map((message) => say(message)).join(" ")
       : state.status === "closed" && repairRequired !== null
         ? say("settings.credentials.repairRequired")
         : loading
           ? say("settings.credentials.loading")
           : "";
+  const revokeFailed =
+    "announcement" in state &&
+    state.announcement.startsWith(INTERVALS_DISCONNECT_COPY.revokeFailed);
 
   useEffect(() => {
     if (target?.target === "feedback") {
@@ -342,7 +354,13 @@ export function CredentialSettingsFeedback(): ReactElement | null {
         data-credential-feedback=""
       >
         {announcement.length === 0 ? null : (
-          <p className="m-0 text-xs text-ink-2" role="status" aria-live="polite" aria-atomic="true">
+          <p
+            className={revokeFailed ? "m-0 text-xs text-warn" : "m-0 text-xs text-ink-2"}
+            data-tone={revokeFailed ? "warning" : undefined}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {announcement}
           </p>
         )}
