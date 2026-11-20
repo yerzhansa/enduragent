@@ -12,7 +12,7 @@ function leafKeys(value: unknown, prefix = ""): string[] {
 }
 
 const source = new URL("../catalogs/en.json", import.meta.url);
-const target = new URL("../src/catalog-keys.ts", import.meta.url);
+const target = new URL("../src/catalog-keys.generated.ts", import.meta.url);
 const catalog: unknown = JSON.parse(readFileSync(source, "utf8"));
 const leaves = leafKeys(catalog);
 const pluralBases = leaves
