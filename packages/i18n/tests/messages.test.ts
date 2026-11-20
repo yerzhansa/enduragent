@@ -115,7 +115,10 @@ it.each(LANGUAGE_OPTIONS)("loads the complete $tag catalog", async ({ tag }) => 
 });
 
 it("derives message and phrasebook keys from the English catalog", () => {
-  const generated = readFileSync(new URL("../src/catalog-keys.ts", import.meta.url), "utf8");
+  const generated = readFileSync(
+    new URL("../src/catalog-keys.generated.ts", import.meta.url),
+    "utf8",
+  );
   const generatedKeys = [...generated.matchAll(/^ {2}\| "([^"]+)";?$/gmu)].map(([, key]) => key);
   const leaves = (value: unknown, prefix = ""): string[] =>
     typeof value === "string"
