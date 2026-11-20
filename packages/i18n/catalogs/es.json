@@ -208,7 +208,7 @@
         "credential": "Eliminar credencial",
         "detail": "Esto la elimina solo de {{computer}}. {{product}} dejará de usarla si está activa. Tu cuenta del proveedor no cambia.",
         "intervalsAria": "Eliminar la conexión con {{intervals}}",
-        "intervalsDetail": "Se eliminarán tu clave de API guardada y la conexión importada. Tus salidas sincronizadas y chats anteriores se conservan en {{computer}}.",
+        "intervalsDetail": "Se eliminarán tu inicio de sesión o clave de API guardados y la conexión importada. Tus salidas sincronizadas y chats anteriores se conservan en {{computer}}.",
         "intervalsTitle": "¿Eliminar la conexión con {{intervals}}?",
         "title": "¿Eliminar la credencial de {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Introduce una dirección de servicio HTTPS válida o una dirección HTTP de bucle local.",
       "intakeIncomplete": "Responde a las preguntas de seguridad obligatorias para continuar.",
       "intakeSaveFailed": "No se han podido guardar tus respuestas. Inténtalo de nuevo.",
-      "intervalsClipboardClearFailed": "No se ha guardado la clave de API porque {{product}} no ha podido borrarla del portapapeles de forma segura. Cópiala otra vez e inténtalo de nuevo.",
-      "intervalsClipboardUnavailable": "{{product}} no ha podido leer una clave de API del portapapeles. Cópiala en {{intervals}} e inténtalo de nuevo.",
-      "intervalsKeyRejected": "{{intervals}} no ha aceptado la clave de API copiada. Copia una clave de API vigente e inténtalo de nuevo.",
-      "intervalsOwnerUnavailable": "{{product}} no ha podido confirmar que la clave de API copiada corresponda a los datos de entrenamiento de {{computer}}. Inténtalo de nuevo cuando los datos de entrenamiento estén disponibles.",
-      "intervalsRuntimeUnavailable": "No se ha podido activar la clave de API copiada. Cópiala en {{intervals}} e inténtalo de nuevo.",
-      "intervalsRuntimeUncertain": "{{product}} no ha podido confirmar si la clave de API copiada está activa. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
-      "intervalsStorageUncertain": "{{product}} no ha podido confirmar si se ha guardado la clave de API copiada. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
-      "intervalsValidationUnavailable": "{{product}} no ha podido verificar la clave de API copiada con {{intervals}}. Comprueba tu conexión e inténtalo de nuevo.",
+      "intervalsOwnerUnavailable": "{{product}} no ha podido confirmar que esta cuenta de {{intervals}} corresponda a los datos de entrenamiento de {{computer}}. Inténtalo de nuevo cuando los datos de entrenamiento estén disponibles.",
+      "intervalsRuntimeUnavailable": "No se ha podido activar el inicio de sesión de {{intervals}}. Vuelve a iniciar sesión.",
+      "intervalsRuntimeUncertain": "{{product}} no ha podido confirmar si el inicio de sesión está activo. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
+      "intervalsSignInDenied": "No se ha permitido el acceso en {{intervals}}. Vuelve a iniciar sesión cuando quieras.",
+      "intervalsSignInFailed": "El inicio de sesión con {{intervals}} no se ha completado. Vuelve a iniciar sesión.",
+      "intervalsSignInRejected": "{{intervals}} no ha aceptado el inicio de sesión. Vuelve a iniciar sesión.",
+      "intervalsSignInTimedOut": "Se ha agotado el tiempo de inicio de sesión tras 5 minutos. Vuelve a iniciar sesión cuando quieras.",
+      "intervalsSignInUnreachable": "{{product}} no ha podido conectar con {{intervals}} para terminar de iniciar sesión. Comprueba tu conexión y vuelve a iniciar sesión.",
+      "intervalsStorageUncertain": "{{product}} no ha podido confirmar si el inicio de sesión se ha guardado. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
+      "intervalsValidationUnavailable": "{{product}} no ha podido confirmar el inicio de sesión con {{intervals}}. Comprueba tu conexión y vuelve a iniciar sesión.",
       "invalidInput": "No se ha aceptado esa clave. Compruébala e introdúcela de nuevo.",
       "modelRuntimeUnavailable": "Tu elección de proveedor está guardada, pero aún no está activa. Intenta activarla de nuevo.",
       "modelSelectionRequired": "Elige un modelo o introduce un nombre de modelo personalizado.",
       "runtimeUnavailable": "Se ha guardado esa clave, pero aún no está activa. Elige Reintentar claves guardadas para activarla.",
       "storageFailed": "La aplicación no ha podido confirmar que la clave se haya guardado de forma segura. Comprueba que el almacenamiento seguro esté disponible e inténtalo de nuevo.",
       "storageUncertain": "La aplicación no ha podido determinar qué clave guardada se conservará tras un reinicio. Vuelve a introducir la clave antes de continuar.",
-      "trainingAccountMismatch": "Esa clave de {{intervalsLower}} pertenece a un deportista distinto al del historial de entrenamiento ya guardado. El cambio de cuenta aún no está disponible.",
+      "trainingAccountMismatch": "Esa cuenta de {{intervalsLower}} pertenece a un deportista distinto al del historial de entrenamiento que ya está en {{computer}}. El cambio de cuenta aún no está disponible.",
       "trainingDataRequired": "Conecta {{intervalsLower}} o importa al menos un archivo de salida.",
       "unsafeBackend": "La aplicación no puede guardar esa clave de forma segura con el sistema de almacenamiento actual."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Cancelar configuración de {{intervals}}",
+      "cancelSignIn": "Cancelar inicio de sesión",
+      "completing": "Completando inicio de sesión…",
+      "completingHint": "Autorizado. Guardando la conexión en {{computer}}…",
       "connect": "Conectar",
-      "connecting": "Conectando…",
       "connectTitle": "Conectar {{intervals}}",
-      "hint": "En {{intervals}}, abre Ajustes → Ajustes de desarrollador, copia la clave de API y vuelve aquí. {{product}} la lee sin mostrarla.",
+      "hint": "Abre {{intervals}} en tu navegador. Allí autorizas el acceso y {{product}} nunca ve tu contraseña.",
       "importFiles": "Importar archivos de salidas en su lugar",
+      "reopen": "Volver a abrir la página de inicio de sesión",
+      "signIn": "Iniciar sesión con {{intervals}}",
       "subtitle": {
         "connected": "Conectado · de donde vienen tus salidas",
+        "connectedAs": "Conectado como {{name}} · de donde vienen tus salidas",
         "missing": "Conecta o importa archivos de salidas."
       },
       "tooltip": {
-        "body": "Un sitio de entrenamiento gratuito que ya contiene tus salidas. {{product}} las lee desde allí en lugar de comunicarse directamente con el proveedor de tu reloj o ciclocomputador. Necesitas una cuenta gratuita con tu reloj o ciclocomputador conectado; después, copia su clave de API.",
+        "body": "Un sitio de entrenamiento gratuito que ya contiene tus salidas. {{product}} las lee desde allí en lugar de comunicarse directamente con el proveedor de tu reloj o ciclocomputador. Necesitas una cuenta gratuita con tu reloj o ciclocomputador conectado; después, inicia sesión aquí.",
         "label": "Acerca de {{intervals}}"
       },
       "trigger": {
         "disconnected": "Conectar {{intervals}}"
       },
-      "useCopiedKey": "Usar clave de API copiada"
+      "waiting": "Esperando al navegador…",
+      "waitingHint": "Termina en tu navegador. {{product}} continuará por sí solo cuando autorices el acceso."
     }
   },
   "shell": {

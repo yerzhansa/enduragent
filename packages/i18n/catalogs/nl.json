@@ -208,7 +208,7 @@
         "credential": "Toegangsgegevens verwijderen",
         "detail": "Dit verwijdert ze alleen van {{computer}}. {{product}} stopt met het gebruik ervan als ze actief zijn. Je account bij de aanbieder blijft ongewijzigd.",
         "intervalsAria": "De verbinding met {{intervals}} verwijderen",
-        "intervalsDetail": "Je opgeslagen API-sleutel en geïmporteerde verbinding worden verwijderd. Je gesynchroniseerde ritten en eerdere chats blijven op {{computer}}.",
+        "intervalsDetail": "Je opgeslagen aanmelding of API-sleutel en geïmporteerde verbinding worden verwijderd. Je gesynchroniseerde ritten en eerdere chats blijven op {{computer}}.",
         "intervalsTitle": "De verbinding met {{intervals}} verwijderen?",
         "title": "De toegangsgegevens voor {{provider}} verwijderen?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Voer een geldig HTTPS-eindpunt of een HTTP-loopbackeindpunt in.",
       "intakeIncomplete": "Beantwoord de verplichte veiligheidsvragen om door te gaan.",
       "intakeSaveFailed": "Je antwoorden konden niet worden opgeslagen. Probeer het opnieuw.",
-      "intervalsClipboardClearFailed": "De API-sleutel is niet opgeslagen omdat {{product}} deze niet veilig van het klembord kon wissen. Kopieer de sleutel opnieuw en probeer het nogmaals.",
-      "intervalsClipboardUnavailable": "{{product}} kon geen API-sleutel van het klembord lezen. Kopieer deze in {{intervals}} en probeer het opnieuw.",
-      "intervalsKeyRejected": "{{intervals}} heeft de gekopieerde API-sleutel niet geaccepteerd. Kopieer een actuele API-sleutel en probeer het opnieuw.",
-      "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat de gekopieerde API-sleutel bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
-      "intervalsRuntimeUnavailable": "De gekopieerde API-sleutel kon niet worden geactiveerd. Kopieer deze in {{intervals}} en probeer het opnieuw.",
-      "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de gekopieerde API-sleutel actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
-      "intervalsStorageUncertain": "{{product}} kon niet bevestigen of de gekopieerde API-sleutel is opgeslagen. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
-      "intervalsValidationUnavailable": "{{product}} kon de gekopieerde API-sleutel niet bij {{intervals}} verifiëren. Controleer je verbinding en probeer het opnieuw.",
+      "intervalsOwnerUnavailable": "{{product}} kon niet bevestigen dat dit {{intervals}}-account bij de trainingsgegevens op {{computer}} hoort. Probeer het opnieuw wanneer de trainingsgegevens beschikbaar zijn.",
+      "intervalsRuntimeUnavailable": "De aanmelding bij {{intervals}} kon niet worden geactiveerd. Meld je opnieuw aan.",
+      "intervalsRuntimeUncertain": "{{product}} kon niet bevestigen of de aanmelding actief is. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsSignInDenied": "Toegang is niet toegestaan op {{intervals}}. Meld je opnieuw aan wanneer je zover bent.",
+      "intervalsSignInFailed": "Het aanmelden met {{intervals}} is niet voltooid. Meld je opnieuw aan.",
+      "intervalsSignInRejected": "{{intervals}} heeft de aanmelding niet geaccepteerd. Meld je opnieuw aan.",
+      "intervalsSignInTimedOut": "Het aanmelden is na 5 minuten verlopen. Meld je opnieuw aan wanneer je zover bent.",
+      "intervalsSignInUnreachable": "{{product}} kon {{intervals}} niet bereiken om het aanmelden af te ronden. Controleer je verbinding en meld je daarna opnieuw aan.",
+      "intervalsStorageUncertain": "{{product}} kon niet bevestigen of de aanmelding is opgeslagen. Laad de status van de toegangsgegevens opnieuw voordat je het nogmaals probeert.",
+      "intervalsValidationUnavailable": "{{product}} kon de aanmelding niet bij {{intervals}} bevestigen. Controleer je verbinding en meld je daarna opnieuw aan.",
       "invalidInput": "Die sleutel is niet geaccepteerd. Controleer deze en voer hem opnieuw in.",
       "modelRuntimeUnavailable": "Je aanbiederkeuze is opgeslagen, maar nog niet actief. Probeer deze opnieuw te activeren.",
       "modelSelectionRequired": "Kies een model of voer een aangepaste modelnaam in.",
       "runtimeUnavailable": "Die sleutel is opgeslagen, maar nog niet actief. Kies Opgeslagen sleutels opnieuw proberen om deze te activeren.",
       "storageFailed": "De app kon niet bevestigen dat die sleutel veilig is opgeslagen. Controleer of beveiligde opslag beschikbaar is en probeer het opnieuw.",
       "storageUncertain": "De app kon niet vaststellen welke opgeslagen sleutel na opnieuw opstarten behouden blijft. Voer de sleutel opnieuw in voordat je doorgaat.",
-      "trainingAccountMismatch": "Die {{intervalsLower}}-sleutel hoort bij een andere atleet dan de al opgeslagen trainingsgeschiedenis. Wisselen van account wordt nog niet ondersteund.",
+      "trainingAccountMismatch": "Dat {{intervalsLower}}-account hoort bij een andere atleet dan de trainingsgeschiedenis die al op {{computer}} staat. Wisselen van account wordt nog niet ondersteund.",
       "trainingDataRequired": "Koppel {{intervalsLower}} of importeer minstens één ritbestand.",
       "unsafeBackend": "De app kan die sleutel niet veilig opslaan met de huidige opslagvoorziening."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "{{intervals}}-configuratie annuleren",
+      "cancelSignIn": "Aanmelden annuleren",
+      "completing": "Aanmelden afronden…",
+      "completingHint": "Toegang gegeven. Verbinding wordt op {{computer}} opgeslagen…",
       "connect": "Verbinden",
-      "connecting": "Verbinden…",
       "connectTitle": "{{intervals}} verbinden",
-      "hint": "Open in {{intervals}} Instellingen → Ontwikkelaarsinstellingen, kopieer de API-sleutel en keer hier terug. {{product}} leest de sleutel zonder deze te tonen.",
+      "hint": "Opent {{intervals}} in je browser. Daar geef je toegang, en {{product}} ziet je wachtwoord nooit.",
       "importFiles": "In plaats daarvan ritbestanden importeren",
+      "reopen": "Aanmeldpagina opnieuw openen",
+      "signIn": "Aanmelden met {{intervals}}",
       "subtitle": {
         "connected": "Verbonden · de bron van je ritten",
+        "connectedAs": "Verbonden als {{name}} · de bron van je ritten",
         "missing": "Verbind of importeer ritbestanden."
       },
       "tooltip": {
-        "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Kopieer daarna de API-sleutel van dat account.",
+        "body": "Een gratis trainingssite waar je ritten al staan. {{product}} leest ze daar in plaats van rechtstreeks verbinding te maken met de fabrikant van je horloge of fietscomputer. Je hebt een gratis account nodig waaraan je horloge of fietscomputer is gekoppeld. Meld je daarna hier aan.",
         "label": "Over {{intervals}}"
       },
       "trigger": {
         "disconnected": "{{intervals}} verbinden"
       },
-      "useCopiedKey": "Gekopieerde API-sleutel gebruiken"
+      "waiting": "Wachten op browser…",
+      "waitingHint": "Rond het af in je browser. {{product}} gaat vanzelf verder zodra je toegang geeft."
     }
   },
   "shell": {

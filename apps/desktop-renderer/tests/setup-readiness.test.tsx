@@ -538,7 +538,7 @@ describe("authoritative setup readiness", () => {
 
     await act(async () => Promise.resolve());
     expect(bridge.writeCredential).not.toHaveBeenCalled();
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).not.toHaveBeenCalled();
+    expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
     expect(bridge.retryFailedCredentials).not.toHaveBeenCalled();
     expect(bridge.chatGptLogin).not.toHaveBeenCalled();
     expect(bridge.applyLlmSelection).not.toHaveBeenCalled();

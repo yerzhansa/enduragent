@@ -208,7 +208,7 @@
         "credential": "Poista tunnistautumistieto",
         "detail": "Tämä poistaa sen vain tietokoneelta {{computer}}. {{product}} lopettaa sen käytön, jos se on käytössä. Palveluntarjoajan tilisi säilyy ennallaan.",
         "intervalsAria": "Poista {{intervals}}-yhteys",
-        "intervalsDetail": "Tallennettu API-avaimesi ja tuotu yhteys poistetaan. Synkronoidut lenkkisi ja aiemmat keskustelusi säilyvät tietokoneella {{computer}}.",
+        "intervalsDetail": "Tallennettu kirjautumisesi tai API-avaimesi ja tuotu yhteys poistetaan. Synkronoidut lenkkisi ja aiemmat keskustelusi säilyvät tietokoneella {{computer}}.",
         "intervalsTitle": "Poistetaanko {{intervals}}-yhteys?",
         "title": "Poistetaanko palveluntarjoajan {{provider}} tunnistautumistieto?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Anna kelvollinen HTTPS-yhteysosoite tai loopback-osoitetta käyttävä HTTP-yhteysosoite.",
       "intakeIncomplete": "Vastaa pakollisiin turvallisuuskysymyksiin jatkaaksesi.",
       "intakeSaveFailed": "Vastauksiasi ei voitu tallentaa. Yritä uudelleen.",
-      "intervalsClipboardClearFailed": "API-avainta ei tallennettu, koska {{product}} ei voinut poistaa sitä turvallisesti leikepöydältä. Kopioi se uudelleen ja yritä sitten uudelleen.",
-      "intervalsClipboardUnavailable": "{{product}} ei voinut lukea API-avainta leikepöydältä. Kopioi se palvelussa {{intervals}} ja yritä sitten uudelleen.",
-      "intervalsKeyRejected": "{{intervals}} ei hyväksynyt kopioitua API-avainta. Kopioi voimassa oleva API-avain ja yritä sitten uudelleen.",
-      "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että kopioitu API-avain vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
-      "intervalsRuntimeUnavailable": "Kopioitua API-avainta ei voitu ottaa käyttöön. Kopioi se palvelussa {{intervals}} ja yritä sitten uudelleen.",
-      "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kopioitu API-avain käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
-      "intervalsStorageUncertain": "{{product}} ei voinut vahvistaa, tallennettiinko kopioitu API-avain. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
-      "intervalsValidationUnavailable": "{{product}} ei voinut vahvistaa kopioitua API-avainta palvelussa {{intervals}}. Tarkista yhteytesi ja yritä sitten uudelleen.",
+      "intervalsOwnerUnavailable": "{{product}} ei voinut vahvistaa, että tämä {{intervals}}-tili vastaa tietokoneella {{computer}} olevia harjoitustietoja. Yritä uudelleen, kun harjoitustiedot ovat käytettävissä.",
+      "intervalsRuntimeUnavailable": "{{intervals}}-kirjautumista ei voitu ottaa käyttöön. Kirjaudu uudelleen.",
+      "intervalsRuntimeUncertain": "{{product}} ei voinut vahvistaa, onko kirjautuminen käytössä. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsSignInDenied": "Käyttöoikeutta ei myönnetty palvelussa {{intervals}}. Kirjaudu uudelleen, kun olet valmis.",
+      "intervalsSignInFailed": "Kirjautuminen palvelulla {{intervals}} jäi kesken. Kirjaudu uudelleen.",
+      "intervalsSignInRejected": "{{intervals}} ei hyväksynyt kirjautumista. Kirjaudu uudelleen.",
+      "intervalsSignInTimedOut": "Kirjautuminen aikakatkaistiin 5 minuutin jälkeen. Kirjaudu uudelleen, kun olet valmis.",
+      "intervalsSignInUnreachable": "{{product}} ei saanut yhteyttä palveluun {{intervals}} kirjautumisen viimeistelemiseksi. Tarkista yhteytesi ja kirjaudu sitten uudelleen.",
+      "intervalsStorageUncertain": "{{product}} ei voinut vahvistaa, tallennettiinko kirjautuminen. Lataa tunnistautumistietojen tila uudelleen ennen uutta yritystä.",
+      "intervalsValidationUnavailable": "{{product}} ei voinut vahvistaa kirjautumista palvelussa {{intervals}}. Tarkista yhteytesi ja kirjaudu sitten uudelleen.",
       "invalidInput": "Avainta ei hyväksytty. Tarkista se ja anna se uudelleen.",
       "modelRuntimeUnavailable": "Palveluntarjoajan valinta on tallennettu, mutta se ei ole vielä käytössä. Yritä ottaa se käyttöön uudelleen.",
       "modelSelectionRequired": "Valitse malli tai anna mukautetun mallin nimi.",
       "runtimeUnavailable": "Avain tallennettiin, mutta se ei ole vielä käytössä. Ota se käyttöön valitsemalla Yritä tallennettuja avaimia uudelleen.",
       "storageFailed": "Sovellus ei voinut vahvistaa, että avain tallennettiin turvallisesti. Tarkista, että suojattu tallennustila on käytettävissä, ja yritä uudelleen.",
       "storageUncertain": "Sovellus ei voinut varmistaa, mikä tallennettu avain säilyy uudelleenkäynnistyksen jälkeen. Anna avain uudelleen ennen jatkamista.",
-      "trainingAccountMismatch": "Tämä {{intervalsLower}}-avain kuuluu eri urheilijalle kuin jo tallennettu harjoitushistoria. Tilien vaihtamista ei vielä tueta.",
+      "trainingAccountMismatch": "Tämä {{intervalsLower}}-tili kuuluu eri urheilijalle kuin tietokoneella {{computer}} jo oleva harjoitushistoria. Tilien vaihtamista ei vielä tueta.",
       "trainingDataRequired": "Yhdistä {{intervalsLower}} tai tuo vähintään yksi lenkkitiedosto.",
       "unsafeBackend": "Sovellus ei voi tallentaa tätä avainta turvallisesti nykyisellä tallennusjärjestelmällä."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Peruuta palvelun {{intervals}} käyttöönotto",
+      "cancelSignIn": "Peruuta kirjautuminen",
+      "completing": "Viimeistellään kirjautumista…",
+      "completingHint": "Hyväksytty. Tallennetaan yhteyttä tietokoneelle {{computer}}…",
       "connect": "Yhdistä",
-      "connecting": "Yhdistetään…",
       "connectTitle": "Yhdistä {{intervals}}",
-      "hint": "Avaa palvelussa {{intervals}} Asetukset → Kehittäjäasetukset, kopioi API-avain ja palaa sitten tänne. {{product}} lukee sen näyttämättä sitä.",
+      "hint": "Avaa palvelun {{intervals}} selaimessasi. Hyväksyt käyttöoikeuden siellä, eikä {{product}} koskaan näe salasanaasi.",
       "importFiles": "Tuo lenkkitiedostoja sen sijaan",
+      "reopen": "Avaa kirjautumissivu uudelleen",
+      "signIn": "Kirjaudu palvelulla {{intervals}}",
       "subtitle": {
         "connected": "Yhdistetty · lenkkiesi lähde",
+        "connectedAs": "Yhdistetty käyttäjänä {{name}} · lenkkiesi lähde",
         "missing": "Yhdistä tai tuo lenkkitiedostoja."
       },
       "tooltip": {
-        "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kopioi sitten tilin API-avain.",
+        "body": "Maksuton harjoittelusivusto, johon lenkkisi on jo tallennettu. {{product}} lukee ne sieltä sen sijaan, että ottaisi suoraan yhteyttä kellosi tai pyörätietokoneesi valmistajaan. Tarvitset maksuttoman tilin, johon kellosi tai pyörätietokoneesi on yhdistetty. Kirjaudu sitten sisään täällä.",
         "label": "Tietoa palvelusta {{intervals}}"
       },
       "trigger": {
         "disconnected": "Yhdistä {{intervals}}"
       },
-      "useCopiedKey": "Käytä kopioitua API-avainta"
+      "waiting": "Odotetaan selainta…",
+      "waitingHint": "Viimeistele selaimessasi. {{product}} jatkaa itsestään, kun hyväksyt käyttöoikeuden."
     }
   },
   "shell": {

@@ -46,6 +46,7 @@ type ExpectedIntervalsCredentialMutationResult =
   | {
       readonly outcome: "applied";
       readonly current: ExpectedIntervalsCredentialStatus;
+      readonly athleteName?: string;
     }
   | {
       readonly outcome: "refused";
@@ -196,7 +197,7 @@ describe("mounted onboarding secret boundary", () => {
     wizard.controller.dispose();
   });
 
-  it("uses only the closed Intervals clipboard metadata envelope", async () => {
+  it("uses only the closed Intervals sign-in metadata envelope", async () => {
     const user = userEvent.setup();
     const gate = deferred();
     const rpc: unknown[] = [];
@@ -206,7 +207,7 @@ describe("mounted onboarding secret boundary", () => {
     bridge.credentialStatuses.mockResolvedValue([
       { slot: "anthropic", state: "configured", runtimeState: "active" },
     ]);
-    bridge.pasteIntervalsApiKeyFromClipboard.mockImplementation(async (...args) => {
+    bridge.signInWithIntervals.mockImplementation(async (...args) => {
       rpc.push(args);
       await gate.promise;
       const result: IntervalsCredentialMutationResult = {
@@ -221,12 +222,12 @@ describe("mounted onboarding secret boundary", () => {
     await openTrainingPanel(user);
     const trainingPanel = panel("training");
     expect(trainingPanel?.querySelector('input[data-slot="intervals-icu"]')).toBeNull();
-    await user.click(panelButton("training", "Use copied API key"));
+    await user.click(panelButton("training", "Sign in with Intervals.icu"));
 
     await waitFor(() => {
-      expect(bridge.pasteIntervalsApiKeyFromClipboard).toHaveBeenCalledOnce();
+      expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     });
-    expect(bridge.pasteIntervalsApiKeyFromClipboard.mock.calls[0]).toEqual([]);
+    expect(bridge.signInWithIntervals.mock.calls[0]).toEqual([]);
     expect(bridge.writeCredential).not.toHaveBeenCalled();
     expect(rpc).toStrictEqual([[]]);
 
@@ -295,12 +296,12 @@ describe("mounted onboarding secret boundary", () => {
       expect(bridge.writeCredential).toHaveBeenCalledOnce();
     });
     expect(bridge.writeCredential.mock.calls[0]?.[0]?.slot).toBe("anthropic");
-    expect(bridge.pasteIntervalsApiKeyFromClipboard).not.toHaveBeenCalled();
+    expect(bridge.signInWithIntervals).not.toHaveBeenCalled();
     expect(document.querySelector('input[data-slot="intervals-icu"]')).toBeNull();
     wizard.controller.dispose();
   });
 
-  it("uses only the zero-argument clipboard port for Intervals and preserves the AI draft", async () => {
+  it("uses only the zero-argument sign-in port for Intervals and preserves the AI draft", async () => {
     const user = userEvent.setup();
     const modelSecret = "synthetic-scoped-model-secret-2";
     const bridge = testBridge(async () => ({ status: "refused", reason: "cancelled" }));
@@ -311,12 +312,12 @@ describe("mounted onboarding secret boundary", () => {
     await openTrainingPanel(user);
     seedSecret("anthropic", modelSecret);
 
-    await user.click(panelButton("training", "Use copied API key"));
+    await user.click(panelButton("training", "Sign in with Intervals.icu"));
 
     await waitFor(() => {
-      expect(bridge.pasteIntervalsApiKeyFromClipboard).toHaveBeenCalledOnce();
+      expect(bridge.signInWithIntervals).toHaveBeenCalledOnce();
     });
-    expect(bridge.pasteIntervalsApiKeyFromClipboard.mock.calls[0]).toEqual([]);
+    expect(bridge.signInWithIntervals.mock.calls[0]).toEqual([]);
     expect(bridge.writeCredential).not.toHaveBeenCalled();
     expect(document.querySelector('input[data-slot="intervals-icu"]')).toBeNull();
     expect(passwordInput("anthropic").value).toBe(modelSecret);

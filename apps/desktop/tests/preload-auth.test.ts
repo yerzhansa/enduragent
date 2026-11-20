@@ -98,7 +98,10 @@ interface AuthBridge {
   claudeCliRecheck(): Promise<unknown>;
   telegramStatus(): Promise<unknown>;
   setAppearance(appearance: "system" | "light" | "dark"): void;
-  pasteIntervalsApiKeyFromClipboard(): Promise<unknown>;
+  signInWithIntervals(): Promise<unknown>;
+  cancelIntervalsSignIn(): Promise<unknown>;
+  reopenIntervalsSignIn(): Promise<unknown>;
+  onIntervalsSignInProgress(listener: (phase: unknown) => void): () => void;
   pasteTelegramTokenFromClipboard(): Promise<unknown>;
   enableTelegram(): Promise<unknown>;
   disableTelegram(): Promise<unknown>;
@@ -242,6 +245,16 @@ function documentNavigationToken(): string {
   return (mocks.sendSync.mock.calls[0]![1] as { readonly navigationToken: string }).navigationToken;
 }
 
+function ipcListener(channel: string): (event: unknown, value: unknown) => void {
+  const registered: unknown = mocks.on.mock.calls.find(([name]) => name === channel)?.[1];
+  if (typeof registered !== "function") throw new Error(`${channel} listener missing`);
+  return registered as (event: unknown, value: unknown) => void;
+}
+
+function settleMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 beforeAll(async () => {
   Object.assign(globalThis, {
     window: mocks.fakeWindow,
@@ -370,6 +383,7 @@ describe("desktop preload ChatGPT auth", () => {
         "beginTelegramPairing",
         "cancelTelegramPairing",
         "cancelChatgptLogin",
+        "cancelIntervalsSignIn",
         "chatgptLogin",
         "chatgptStatus",
         "chooseChatAttachments",
@@ -399,22 +413,24 @@ describe("desktop preload ChatGPT auth", () => {
         "onChatgptLoginProgress",
         "onDroppedChatAttachments",
         "onDroppedImportFiles",
+        "onIntervalsSignInProgress",
         "onPlanProgress",
         "onOpenSettings",
         "onUpdateState",
         "pasteChatAttachment",
-        "pasteIntervalsApiKeyFromClipboard",
         "pasteTelegramTokenFromClipboard",
         "platform",
         "reconcileTelegram",
         "removeTelegram",
         "removeTelegramAllowedSender",
         "removeTelegramWebhook",
+        "reopenIntervalsSignIn",
         "restartToUpdate",
         "resetAllCredentials",
         "retryCredentialRecovery",
         "retryFailedCredentials",
         "setAppearance",
+        "signInWithIntervals",
         "submitAthleteFeedback",
         "telegramStatus",
         "writeCredential",
@@ -751,37 +767,105 @@ describe("desktop preload ChatGPT auth", () => {
     }
   });
 
-  it("exposes a zero-argument Intervals.icu clipboard lane with a copied result", async () => {
+  it("exposes zero-argument Intervals.icu sign-in controls on their own channels", async () => {
     const current = {
       slot: "intervals-icu",
       state: "configured",
       runtimeState: "active",
     };
-    const result = { outcome: "applied", current };
-    mocks.invoke.mockResolvedValueOnce(result);
+    const result = { outcome: "applied", current, athleteName: "Test Athlete" };
+    mocks.invoke
+      .mockResolvedValueOnce(result)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
-    const copied = (await bridge.pasteIntervalsApiKeyFromClipboard()) as typeof result;
+    const copied = (await bridge.signInWithIntervals()) as typeof result;
+    await expect(bridge.cancelIntervalsSignIn()).resolves.toBe(true);
+    await expect(bridge.reopenIntervalsSignIn()).resolves.toBe(false);
 
     expect(copied).toEqual(result);
     expect(copied).not.toBe(result);
     expect(copied.current).not.toBe(current);
-    expect(mocks.invoke).toHaveBeenCalledWith("desktop:intervals:paste-credential");
+    expect(mocks.invoke.mock.calls).toEqual([
+      ["desktop:intervals:sign-in"],
+      ["desktop:intervals:sign-in-cancel"],
+      ["desktop:intervals:sign-in-reopen"],
+    ]);
 
     mocks.invoke.mockClear();
-    await expect(
-      (
-        bridge.pasteIntervalsApiKeyFromClipboard as unknown as (
-          ...args: unknown[]
-        ) => Promise<unknown>
-      )("must-not-cross"),
-    ).rejects.toBeInstanceOf(TypeError);
+    for (const operation of [
+      bridge.signInWithIntervals,
+      bridge.cancelIntervalsSignIn,
+      bridge.reopenIntervalsSignIn,
+    ]) {
+      await expect(
+        (operation as (...args: unknown[]) => Promise<unknown>)("must-not-cross"),
+      ).rejects.toBeInstanceOf(TypeError);
+    }
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
+  it("accepts an applied Intervals.icu sign-in without an athlete name", async () => {
+    const result = {
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "stored-inactive" },
+    };
+    mocks.invoke.mockResolvedValueOnce(result);
+
+    const copied = await bridge.signInWithIntervals();
+
+    expect(copied).toEqual(result);
+    expect(copied).not.toHaveProperty("athleteName");
+  });
+
   it.each([
-    "clipboard-unavailable",
-    "clipboard-clear-failed",
-    "invalid-key-format",
+    ["Test Athlete", "Test Athlete"],
+    ["  Test Athlete  ", "Test Athlete"],
+    ["a".repeat(200), "a".repeat(200)],
+  ])("copies the Intervals.icu athlete name %j as %j", async (athleteName, expected) => {
+    mocks.invoke.mockResolvedValueOnce({
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      athleteName,
+    });
+
+    await expect(bridge.signInWithIntervals()).resolves.toEqual({
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      athleteName: expected,
+    });
+  });
+
+  it.each([
+    ["an empty name", ""],
+    ["a blank name", "   "],
+    ["a name over 200 characters", "a".repeat(201)],
+    ["a NUL character", "Test\u0000Athlete"],
+    ["a line break", "Test\nAthlete"],
+    ["a DEL character", "Test\u007fAthlete"],
+    ["a C1 control character", "Test\u0085Athlete"],
+    ["a number", 101],
+    ["an explicit undefined", undefined],
+    ["an object", { name: "Test Athlete" }],
+  ])("rejects an Intervals.icu athlete name with %s", async (_label, athleteName) => {
+    mocks.invoke.mockResolvedValueOnce({
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+      athleteName,
+    });
+
+    const failure = await bridge.signInWithIntervals().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(TypeError);
+    expect((failure as TypeError).message).toBe("");
+  });
+
+  it.each([
+    "sign-in-denied",
+    "sign-in-failed",
+    "sign-in-timed-out",
+    "sign-in-cancelled",
+    "sign-in-unreachable",
     "credential-rejected",
     "malformed-athlete-response",
     "validation-timeout",
@@ -802,19 +886,19 @@ describe("desktop preload ChatGPT auth", () => {
     };
     mocks.invoke.mockResolvedValueOnce(result);
 
-    const copied = (await bridge.pasteIntervalsApiKeyFromClipboard()) as typeof result;
+    const copied = (await bridge.signInWithIntervals()) as typeof result;
 
     expect(copied).toEqual(result);
     expect(copied).not.toBe(result);
     expect(copied.current).not.toBe(result.current);
   });
 
-  it("accepts only exact secret-safe Intervals.icu clipboard envelopes", async () => {
+  it("accepts only exact secret-safe Intervals.icu sign-in envelopes", async () => {
     const current = { slot: "intervals-icu", state: "re-prompt", runtimeState: null };
     const uncertain = { outcome: "uncertain", reason: "storage-uncertain", current };
     mocks.invoke.mockResolvedValueOnce(uncertain);
 
-    const copied = (await bridge.pasteIntervalsApiKeyFromClipboard()) as typeof uncertain;
+    const copied = (await bridge.signInWithIntervals()) as typeof uncertain;
 
     expect(copied).toEqual(uncertain);
     expect(copied).not.toBe(uncertain);
@@ -822,53 +906,134 @@ describe("desktop preload ChatGPT auth", () => {
 
     const runtimeUncertain = { ...uncertain, reason: "runtime-uncertain" };
     mocks.invoke.mockResolvedValueOnce(runtimeUncertain);
-    const copiedRuntimeUncertain =
-      (await bridge.pasteIntervalsApiKeyFromClipboard()) as typeof runtimeUncertain;
+    const copiedRuntimeUncertain = (await bridge.signInWithIntervals()) as typeof runtimeUncertain;
     expect(copiedRuntimeUncertain).toEqual(runtimeUncertain);
     expect(copiedRuntimeUncertain).not.toBe(runtimeUncertain);
     expect(copiedRuntimeUncertain.current).not.toBe(current);
 
     for (const malformed of [
-      { ...uncertain, apiKey: "must-not-cross" },
+      { ...uncertain, credential: "intervals-oauth:fixture-token" },
       { ...uncertain, reason: "storage-failed" },
+      { ...uncertain, athleteName: "Test Athlete" },
       { ...uncertain, current: { ...current, owner: "private" } },
       {
         outcome: "applied",
         current: { slot: "intervals-icu", state: "configured", runtimeState: null },
       },
       {
-        outcome: "refused",
-        reason: "private-network-detail",
-        current,
+        outcome: "applied",
+        current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+        athleteName: "Test Athlete",
+        athleteId: "101",
       },
+      { outcome: "refused", reason: "credential-rejected", current, athleteName: "Test Athlete" },
+      { outcome: "refused", reason: "private-network-detail", current },
+      { outcome: "refused", reason: "clipboard-unavailable", current },
+      { outcome: "refused", reason: "clipboard-clear-failed", current },
+      { outcome: "refused", reason: "invalid-key-format", current },
       {
         outcome: "refused",
         reason: "credential-rejected",
         current: { slot: "other", state: "missing", runtimeState: null },
       },
+      { outcome: "pending", current },
+      null,
+      "applied",
     ]) {
       mocks.invoke.mockResolvedValueOnce(malformed);
-      const failure = await bridge
-        .pasteIntervalsApiKeyFromClipboard()
-        .catch((error: unknown) => error);
+      const failure = await bridge.signInWithIntervals().catch((error: unknown) => error);
       expect(failure).toBeInstanceOf(TypeError);
       expect((failure as TypeError).message).toBe("");
     }
   });
 
-  it("redacts Intervals.icu clipboard invocation failures", async () => {
+  it("accepts only boolean Intervals.icu cancel and reopen results", async () => {
+    for (const value of [true, false]) {
+      mocks.invoke.mockResolvedValueOnce(value).mockResolvedValueOnce(value);
+      await expect(bridge.cancelIntervalsSignIn()).resolves.toBe(value);
+      await expect(bridge.reopenIntervalsSignIn()).resolves.toBe(value);
+    }
+
+    for (const malformed of ["true", 1, 0, null, undefined, {}, [true]]) {
+      for (const operation of [bridge.cancelIntervalsSignIn, bridge.reopenIntervalsSignIn]) {
+        mocks.invoke.mockResolvedValueOnce(malformed);
+        const failure = await operation().catch((error: unknown) => error);
+        expect(failure).toBeInstanceOf(TypeError);
+        expect((failure as TypeError).message).toBe("");
+      }
+    }
+  });
+
+  it("redacts Intervals.icu sign-in invocation failures", async () => {
     const privateDetail =
-      "private-api-key at /Users/private/intervals-key and athlete-response-body";
-    mocks.invoke.mockRejectedValueOnce(new Error(privateDetail));
+      "intervals-oauth:fixture-token at /Users/private/intervals-token and athlete-response-body";
 
-    const failure = await bridge
-      .pasteIntervalsApiKeyFromClipboard()
-      .catch((error: unknown) => error);
+    for (const operation of [
+      () => bridge.signInWithIntervals(),
+      () => bridge.cancelIntervalsSignIn(),
+      () => bridge.reopenIntervalsSignIn(),
+    ]) {
+      mocks.invoke.mockRejectedValueOnce(new Error(privateDetail));
+      const failure = await operation().catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(TypeError);
+      expect((failure as TypeError).message).toBe("");
+      expect(String(failure)).not.toContain(privateDetail);
+      expect(String(failure)).not.toContain("fixture-token");
+    }
+  });
 
-    expect(failure).toBeInstanceOf(TypeError);
-    expect((failure as TypeError).message).toBe("");
-    expect(String(failure)).not.toContain(privateDetail);
-    expect(String(failure)).not.toContain("/Users/private/intervals-key");
+  it("forwards only closed Intervals.icu sign-in progress phases", async () => {
+    const onProgress = ipcListener("desktop:intervals:sign-in-progress");
+    const received: unknown[] = [];
+    const dispose = bridge.onIntervalsSignInProgress((phase) => received.push(phase));
+
+    onProgress(undefined, { phase: "waiting-for-browser" });
+    onProgress(undefined, { phase: "completing-sign-in" });
+    onProgress(undefined, { phase: "unknown" });
+    onProgress(undefined, { phase: "waiting-for-browser", url: "https://intervals.icu/oauth" });
+    onProgress(undefined, { phase: "completing-sign-in", credential: "fixture-token" });
+    onProgress(undefined, "waiting-for-browser");
+    onProgress(undefined, ["waiting-for-browser"]);
+    onProgress(undefined, null);
+    onProgress(undefined, undefined);
+    await settleMicrotasks();
+
+    expect(received).toEqual(["waiting-for-browser", "completing-sign-in"]);
+
+    dispose();
+    dispose();
+    onProgress(undefined, { phase: "completing-sign-in" });
+    await settleMicrotasks();
+    expect(received).toHaveLength(2);
+    expect(() => bridge.onIntervalsSignInProgress("listener" as never)).toThrow(TypeError);
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it("delivers Intervals.icu progress to every listener and rethrows a listener failure", () => {
+    const onProgress = ipcListener("desktop:intervals:sign-in-progress");
+    const failure = new Error("synthetic listener failure");
+    const received: unknown[] = [];
+    const queued: Array<() => void> = [];
+    const disposeThrowing = bridge.onIntervalsSignInProgress(() => {
+      throw failure;
+    });
+    const disposeReceiving = bridge.onIntervalsSignInProgress((phase) => received.push(phase));
+    vi.stubGlobal("queueMicrotask", (callback: () => void) => {
+      queued.push(callback);
+    });
+    try {
+      onProgress(undefined, { phase: "waiting-for-browser" });
+    } finally {
+      vi.unstubAllGlobals();
+      disposeThrowing();
+      disposeReceiving();
+    }
+
+    expect(queued).toHaveLength(2);
+    const [throwing, receiving] = queued;
+    expect(() => throwing?.()).toThrow(failure);
+    receiving?.();
+    expect(received).toEqual(["waiting-for-browser"]);
   });
 
   it("accepts only closed secret-safe Telegram mutation envelopes", async () => {
@@ -1504,6 +1669,31 @@ describe("desktop preload ChatGPT auth", () => {
     dispose();
     onState(undefined, { status: "current" });
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("rethrows an update listener failure without starving the next listener", () => {
+    const onState = ipcListener("desktop:update:state");
+    const failure = new Error("synthetic listener failure");
+    const receiving = vi.fn();
+    const queued: Array<() => void> = [];
+    const disposeThrowing = bridge.onUpdateState(() => {
+      throw failure;
+    });
+    const disposeReceiving = bridge.onUpdateState(receiving);
+    vi.stubGlobal("queueMicrotask", (callback: () => void) => {
+      queued.push(callback);
+    });
+    try {
+      onState(undefined, { status: "current" });
+    } finally {
+      vi.unstubAllGlobals();
+      disposeThrowing();
+      disposeReceiving();
+    }
+
+    expect(receiving).toHaveBeenCalledExactlyOnceWith({ status: "current" });
+    expect(queued).toHaveLength(1);
+    expect(() => queued[0]?.()).toThrow(failure);
   });
 
   it("rejects malformed update state unions without exposing raw fields", async () => {

@@ -24,15 +24,22 @@ export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "model-runtime-unavailable": msg("setup.error.modelRuntimeUnavailable"),
   "training-account-mismatch": msg("setup.error.trainingAccountMismatch", {
     intervalsLower: "intervals.icu",
+    computer: PLATFORM_COPY.computer,
   }),
-  "intervals-clipboard-unavailable": msg("setup.error.intervalsClipboardUnavailable", {
+  "intervals-sign-in-denied": msg("setup.error.intervalsSignInDenied", {
+    intervals: "Intervals.icu",
+  }),
+  "intervals-sign-in-timed-out": msg("setup.error.intervalsSignInTimedOut"),
+  "intervals-sign-in-unreachable": msg("setup.error.intervalsSignInUnreachable", {
     product: "Enduragent",
     intervals: "Intervals.icu",
   }),
-  "intervals-clipboard-clear-failed": msg("setup.error.intervalsClipboardClearFailed", {
-    product: "Enduragent",
+  "intervals-sign-in-failed": msg("setup.error.intervalsSignInFailed", {
+    intervals: "Intervals.icu",
   }),
-  "intervals-key-rejected": msg("setup.error.intervalsKeyRejected", { intervals: "Intervals.icu" }),
+  "intervals-sign-in-rejected": msg("setup.error.intervalsSignInRejected", {
+    intervals: "Intervals.icu",
+  }),
   "intervals-validation-unavailable": msg("setup.error.intervalsValidationUnavailable", {
     product: "Enduragent",
     intervals: "Intervals.icu",
@@ -40,6 +47,7 @@ export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "intervals-owner-unavailable": msg("setup.error.intervalsOwnerUnavailable", {
     computer: PLATFORM_COPY.computer,
     product: "Enduragent",
+    intervals: "Intervals.icu",
   }),
   "intervals-storage-uncertain": msg("setup.error.intervalsStorageUncertain", {
     product: "Enduragent",
@@ -174,6 +182,10 @@ export const TRAINING_ROW_SUBTITLES = {
   missing: msg("setup.training.subtitle.missing"),
 } as const;
 
+export function trainingConnectedAsSubtitle(name: string): Message {
+  return msg("setup.training.subtitle.connectedAs", { name });
+}
+
 export const TRAINING_ROW_TOOLTIP = {
   label: msg("setup.training.tooltip.label", { intervals: "Intervals.icu" }),
   lead: "Intervals.icu",
@@ -197,7 +209,22 @@ export const INTERVALS_PANEL_HINT = msg("setup.training.hint", {
   intervals: "Intervals.icu",
 });
 
-export const TRAINING_USE_COPIED_KEY_LABEL = msg("setup.training.useCopiedKey");
+export const TRAINING_SIGN_IN_LABEL = msg("setup.training.signIn", { intervals: "Intervals.icu" });
+
+export const TRAINING_SIGN_IN_PHASE_COPY = {
+  "waiting-for-browser": {
+    hint: msg("setup.training.waitingHint", { product: "Enduragent" }),
+    status: msg("setup.training.waiting"),
+  },
+  "completing-sign-in": {
+    hint: msg("setup.training.completingHint", { computer: PLATFORM_COPY.computer }),
+    status: msg("setup.training.completing"),
+  },
+} as const;
+
+export const TRAINING_CANCEL_SIGN_IN_LABEL = msg("setup.training.cancelSignIn");
+
+export const TRAINING_REOPEN_SIGN_IN_LABEL = msg("setup.training.reopen");
 
 export const IMPORT_FILES_LABEL = msg("setup.training.importFiles");
 

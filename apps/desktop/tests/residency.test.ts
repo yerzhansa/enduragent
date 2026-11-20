@@ -6,14 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   class Emitter {
-    private readonly listeners = new Map<string, Set<(...args: any[]) => void>>();
-    on(name: string, listener: (...args: any[]) => void) {
+    private readonly listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+    on(name: string, listener: (...args: unknown[]) => void) {
       const listeners = this.listeners.get(name) ?? new Set();
       listeners.add(listener);
       this.listeners.set(name, listeners);
       return this;
     }
-    async emit(name: string, ...args: any[]) {
+    async emit(name: string, ...args: unknown[]) {
       await Promise.all([...(this.listeners.get(name) ?? [])].map((listener) => listener(...args)));
     }
     removeAllListeners() {
@@ -631,7 +631,7 @@ describe("desktop residency", () => {
   it("presents the initial window only after its renderer URL loads", async () => {
     const source = await readFile(resolve(import.meta.dirname, "../src/main/index.ts"), "utf8");
     const creationStart = source.indexOf("windowCreation = (async () => {");
-    const prepare = source.indexOf("connectionIpc!.prepareDocumentNavigation", creationStart);
+    const prepare = source.indexOf("connectionIpc.prepareDocumentNavigation", creationStart);
     const load = source.indexOf(
       "const initialNavigation = startRendererNavigation(created, navigationUrl);",
       prepare,

@@ -3,6 +3,7 @@ import { act, screen, waitFor, within, type RenderResult } from "@testing-librar
 import type userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import type {
+  IntervalsSignInPhase,
   OnboardingBridge,
   OnboardingLlmConfiguration,
   OnboardingLlmSelection,
@@ -363,14 +364,22 @@ export type TestBridge = OnboardingBridge & {
   readonly claudeCliStatus: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliStatus"]>>;
   readonly claudeCliRecheck: ReturnType<typeof vi.fn<OnboardingBridge["claudeCliRecheck"]>>;
   readonly writeCredential: ReturnType<typeof vi.fn<OnboardingBridge["writeCredential"]>>;
-  readonly pasteIntervalsApiKeyFromClipboard: ReturnType<
-    typeof vi.fn<OnboardingBridge["pasteIntervalsApiKeyFromClipboard"]>
+  readonly signInWithIntervals: ReturnType<typeof vi.fn<OnboardingBridge["signInWithIntervals"]>>;
+  readonly cancelIntervalsSignIn: ReturnType<
+    typeof vi.fn<OnboardingBridge["cancelIntervalsSignIn"]>
+  >;
+  readonly reopenIntervalsSignIn: ReturnType<
+    typeof vi.fn<OnboardingBridge["reopenIntervalsSignIn"]>
+  >;
+  readonly onIntervalsSignInProgress: ReturnType<
+    typeof vi.fn<OnboardingBridge["onIntervalsSignInProgress"]>
   >;
   readonly importFiles: ReturnType<typeof vi.fn<OnboardingBridge["importFiles"]>>;
   readonly chooseImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["chooseImportFiles"]>>;
   readonly onDroppedImportFiles: ReturnType<typeof vi.fn<OnboardingBridge["onDroppedImportFiles"]>>;
   readonly saveIntake: ReturnType<typeof vi.fn<OnboardingBridge["saveIntake"]>>;
   emitChatGptProgress(progress: ChatGptLoginProgress): void;
+  emitIntervalsSignInProgress(phase: IntervalsSignInPhase): void;
 };
 
 type LegacyChatGptLoginResult =
@@ -383,6 +392,7 @@ type LegacyChatGptLoginResult =
 
 export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): TestBridge {
   const progressListeners = new Set<(progress: ChatGptLoginProgress) => void>();
+  const intervalsProgressListeners = new Set<(phase: IntervalsSignInPhase) => void>();
   return {
     credentialStatuses: vi.fn<OnboardingBridge["credentialStatuses"]>(async () => []),
     retryFailedCredentials: vi.fn<OnboardingBridge["retryFailedCredentials"]>(async () => []),
@@ -391,12 +401,16 @@ export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): Test
       status: "configured",
       runtimeReady: true,
     })),
-    pasteIntervalsApiKeyFromClipboard: vi.fn<OnboardingBridge["pasteIntervalsApiKeyFromClipboard"]>(
-      async () => ({
-        outcome: "applied",
-        current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
-      }),
-    ),
+    signInWithIntervals: vi.fn<OnboardingBridge["signInWithIntervals"]>(async () => ({
+      outcome: "applied",
+      current: { slot: "intervals-icu", state: "configured", runtimeState: "active" },
+    })),
+    cancelIntervalsSignIn: vi.fn<OnboardingBridge["cancelIntervalsSignIn"]>(async () => true),
+    reopenIntervalsSignIn: vi.fn<OnboardingBridge["reopenIntervalsSignIn"]>(async () => true),
+    onIntervalsSignInProgress: vi.fn<OnboardingBridge["onIntervalsSignInProgress"]>((listener) => {
+      intervalsProgressListeners.add(listener);
+      return () => intervalsProgressListeners.delete(listener);
+    }),
     llmConfiguration: vi.fn<OnboardingBridge["llmConfiguration"]>(
       async () => TEST_LLM_CONFIGURATION,
     ),
@@ -450,6 +464,9 @@ export function testBridge(login: () => Promise<LegacyChatGptLoginResult>): Test
     saveIntake: vi.fn<OnboardingBridge["saveIntake"]>(async () => {}),
     emitChatGptProgress(progress) {
       for (const listener of progressListeners) listener(progress);
+    },
+    emitIntervalsSignInProgress(phase) {
+      for (const listener of intervalsProgressListeners) listener(phase);
     },
   };
 }

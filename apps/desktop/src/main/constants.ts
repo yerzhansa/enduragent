@@ -29,8 +29,11 @@ export const DESKTOP_UPDATE_GET_CHANNEL = "desktop:update:get" as const;
 export const DESKTOP_UPDATE_CHECK_CHANNEL = "desktop:update:check" as const;
 export const DESKTOP_UPDATE_RESTART_CHANNEL = "desktop:update:restart" as const;
 export const DESKTOP_UPDATE_STATE_CHANNEL = "desktop:update:state" as const;
-export const DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL =
-  "desktop:intervals:paste-credential" as const;
+export const DESKTOP_INTERVALS_SIGN_IN_CHANNEL = "desktop:intervals:sign-in" as const;
+export const DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL = "desktop:intervals:sign-in-cancel" as const;
+export const DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL = "desktop:intervals:sign-in-reopen" as const;
+export const DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL =
+  "desktop:intervals:sign-in-progress" as const;
 export const DESKTOP_TELEGRAM_STATUS_CHANNEL = "desktop:telegram:status" as const;
 export const DESKTOP_TELEGRAM_PASTE_CREDENTIAL_CHANNEL =
   "desktop:telegram:paste-credential" as const;

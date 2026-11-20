@@ -223,7 +223,7 @@
         "credential": "Excluir credencial",
         "detail": "Esta ação remove a credencial apenas de {{computer}}. {{product}} deixará de usá-la se estiver ativa. Sua conta no provedor permanece inalterada.",
         "intervalsAria": "Excluir a conexão com {{intervals}}",
-        "intervalsDetail": "Sua chave de API salva e a conexão importada serão removidas. Suas pedaladas sincronizadas e conversas anteriores ficam em {{computer}}.",
+        "intervalsDetail": "Seu acesso salvo ou chave de API e a conexão importada serão removidos. Suas pedaladas sincronizadas e conversas anteriores ficam em {{computer}}.",
         "intervalsTitle": "Excluir a conexão com {{intervals}}?",
         "title": "Excluir a credencial de {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Insira um endpoint HTTPS válido ou um endpoint HTTP de loopback.",
       "intakeIncomplete": "Responda às perguntas de segurança obrigatórias para continuar.",
       "intakeSaveFailed": "Não foi possível salvar suas respostas. Tente novamente.",
-      "intervalsClipboardClearFailed": "A chave de API não foi salva porque {{product}} não conseguiu removê-la da área de transferência com segurança. Copie-a novamente e tente outra vez.",
-      "intervalsClipboardUnavailable": "{{product}} não conseguiu ler uma chave de API da área de transferência. Copie-a em {{intervals}} e tente novamente.",
-      "intervalsKeyRejected": "{{intervals}} não aceitou a chave de API copiada. Copie uma chave de API atual e tente novamente.",
-      "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar se a chave de API copiada corresponde aos dados de treinamento em {{computer}}. Tente novamente quando os dados de treinamento estiverem disponíveis.",
-      "intervalsRuntimeUnavailable": "Não foi possível ativar a chave de API copiada. Copie-a em {{intervals}} e tente novamente.",
-      "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se a chave de API copiada está ativa. Recarregue o status das credenciais antes de tentar novamente.",
-      "intervalsStorageUncertain": "{{product}} não conseguiu confirmar se a chave de API copiada foi salva. Recarregue o status das credenciais antes de tentar novamente.",
-      "intervalsValidationUnavailable": "{{product}} não conseguiu verificar a chave de API copiada com {{intervals}}. Confira sua conexão e tente novamente.",
+      "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar se esta conta de {{intervals}} corresponde aos dados de treinamento em {{computer}}. Tente novamente quando os dados de treinamento estiverem disponíveis.",
+      "intervalsRuntimeUnavailable": "Não foi possível ativar a entrada com {{intervals}}. Entre novamente.",
+      "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se a entrada está ativa. Recarregue o status das credenciais antes de tentar novamente.",
+      "intervalsSignInDenied": "O acesso não foi permitido em {{intervals}}. Entre novamente quando quiser.",
+      "intervalsSignInFailed": "A entrada com {{intervals}} não foi concluída. Entre novamente.",
+      "intervalsSignInRejected": "{{intervals}} não aceitou a entrada. Entre novamente.",
+      "intervalsSignInTimedOut": "O tempo para entrar esgotou após 5 minutos. Entre novamente quando quiser.",
+      "intervalsSignInUnreachable": "{{product}} não conseguiu se conectar a {{intervals}} para concluir a entrada. Confira sua conexão e entre novamente.",
+      "intervalsStorageUncertain": "{{product}} não conseguiu confirmar se a entrada foi salva. Recarregue o status das credenciais antes de tentar novamente.",
+      "intervalsValidationUnavailable": "{{product}} não conseguiu confirmar a entrada com {{intervals}}. Confira sua conexão e entre novamente.",
       "invalidInput": "Essa chave não foi aceita. Confira e insira novamente.",
       "modelRuntimeUnavailable": "Sua escolha de provedor está salva, mas ainda não está ativa. Tente ativá-la novamente.",
       "modelSelectionRequired": "Escolha um modelo ou insira um nome de modelo personalizado.",
       "runtimeUnavailable": "Essa chave foi salva, mas ainda não está ativa. Selecione Tentar chaves salvas novamente para ativá-la.",
       "storageFailed": "O aplicativo não conseguiu confirmar se essa chave foi salva com segurança. Verifique se o armazenamento seguro está disponível e tente novamente.",
       "storageUncertain": "O aplicativo não conseguiu comprovar qual chave salva será mantida após uma reinicialização. Insira a chave novamente antes de continuar.",
-      "trainingAccountMismatch": "Essa chave de {{intervalsLower}} pertence a um atleta diferente do histórico de treinamento já armazenado. A troca de contas ainda não é compatível.",
+      "trainingAccountMismatch": "Essa conta de {{intervalsLower}} pertence a um atleta diferente do histórico de treinamento que já está em {{computer}}. A troca de contas ainda não é compatível.",
       "trainingDataRequired": "Conecte {{intervalsLower}} ou importe pelo menos um arquivo de pedalada.",
       "unsafeBackend": "O aplicativo não consegue armazenar essa chave com segurança no sistema de armazenamento atual."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Cancelar configuração de {{intervals}}",
+      "cancelSignIn": "Cancelar entrada",
+      "completing": "Concluindo entrada…",
+      "completingHint": "Autorizado. Salvando a conexão em {{computer}}…",
       "connect": "Conectar",
       "connectTitle": "Conectar {{intervals}}",
-      "connecting": "Conectando…",
-      "hint": "Em {{intervals}}, abra Configurações → Configurações de desenvolvedor, copie a chave de API e volte aqui. {{product}} lê a chave sem exibi-la.",
+      "hint": "Abre {{intervals}} no navegador. Você autoriza o acesso lá, e {{product}} nunca vê sua senha.",
       "importFiles": "Importar arquivos de pedalada como alternativa",
+      "reopen": "Abrir a página de entrada novamente",
+      "signIn": "Entrar com {{intervals}}",
       "subtitle": {
         "connected": "Conectado · de onde vêm suas pedaladas",
+        "connectedAs": "Conectado como {{name}} · de onde vêm suas pedaladas",
         "missing": "Conecte ou importe arquivos de pedalada."
       },
       "tooltip": {
-        "body": "Um site gratuito de treinamento que já armazena suas pedaladas. {{product}} lê as pedaladas de lá em vez de se comunicar diretamente com o fabricante do seu relógio ou ciclocomputador. Você precisa de uma conta gratuita com seu relógio ou ciclocomputador conectado e, depois, copiar a chave de API da conta.",
+        "body": "Um site gratuito de treinamento que já armazena suas pedaladas. {{product}} lê as pedaladas de lá em vez de se comunicar diretamente com o fabricante do seu relógio ou ciclocomputador. Você precisa de uma conta gratuita com seu relógio ou ciclocomputador conectado e, depois, entrar aqui.",
         "label": "Sobre {{intervals}}"
       },
       "trigger": {
         "disconnected": "Conectar {{intervals}}"
       },
-      "useCopiedKey": "Usar chave de API copiada"
+      "waiting": "Aguardando navegador…",
+      "waitingHint": "Conclua no navegador. {{product}} continua sozinho assim que você autorizar o acesso."
     }
   },
   "shell": {

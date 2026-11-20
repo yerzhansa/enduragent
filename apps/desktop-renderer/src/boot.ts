@@ -6,6 +6,7 @@ import { createRideAnalysisController } from "./activity-analysis/controller";
 import { createChatController } from "./chat/controller";
 import { createDesktopCoachClientProvider, type DesktopCoachClient } from "./coach-client";
 import { createFirstSyncController } from "./first-sync";
+import { readPlanReturnOnLaunch, writePlanReturnOnLaunch } from "./plan-return-storage";
 import { createArchiveViewAdapter } from "./state/adapters/archive";
 import { createChatViewAdapter } from "./state/adapters/chat";
 import { createFirstSyncViewAdapter } from "./state/adapters/first-sync";
@@ -79,18 +80,11 @@ export function onboardingCredentialMutationsBlocked(
 
 export function bootRenderer(): Disposer {
   const store = useEnduragentStore;
-  const planReturnStorageKey = "enduragent.plan.return-on-launch";
-  try {
-    if (window.localStorage.getItem(planReturnStorageKey) === "true") {
-      store.getState().setActiveView("plan");
-    }
-  } catch {}
+  if (readPlanReturnOnLaunch()) store.getState().setActiveView("plan");
   const disposePlanReturn = store.subscribe((state, previousState) => {
-    if (state.activeView === previousState.activeView) return;
-    try {
-      if (state.activeView === "plan") window.localStorage.setItem(planReturnStorageKey, "true");
-      else window.localStorage.removeItem(planReturnStorageKey);
-    } catch {}
+    if (state.activeView !== previousState.activeView) {
+      writePlanReturnOnLaunch(state.activeView === "plan");
+    }
   });
   const platform = rendererPlatformProjection(window.enduragentAuth.platform);
   store.getState().setOnboardingStartupSettled(false);
@@ -538,8 +532,11 @@ export function bootRenderer(): Disposer {
     credentialStatuses: () => window.enduragentAuth.credentialStatuses(),
     retryFailedCredentials: () => window.enduragentAuth.retryFailedCredentials(),
     writeCredential: (value) => window.enduragentAuth.writeCredential(value),
-    pasteIntervalsApiKeyFromClipboard: () =>
-      window.enduragentAuth.pasteIntervalsApiKeyFromClipboard(),
+    signInWithIntervals: () => window.enduragentAuth.signInWithIntervals(),
+    cancelIntervalsSignIn: () => window.enduragentAuth.cancelIntervalsSignIn(),
+    reopenIntervalsSignIn: () => window.enduragentAuth.reopenIntervalsSignIn(),
+    onIntervalsSignInProgress: (listener) =>
+      window.enduragentAuth.onIntervalsSignInProgress(listener),
     llmConfiguration: () => window.enduragentAuth.llmConfiguration(),
     applyLlmSelection: (value) => window.enduragentAuth.applyLlmSelection(value),
     chatGptStatus: () => window.enduragentAuth.chatgptStatus(),
@@ -607,7 +604,6 @@ export function bootRenderer(): Disposer {
     rideImports,
     onRideImportPresentationChange: (presenting) =>
       store.getState().setRideImportSuppressed(presenting),
-    focusOpener: () => {},
     onComplete: (completion) => onboardingCompletion.complete(completion),
     ownsDroppedImportFiles: () => setupSurfaceOnScreen(store.getState()),
     credentialMutationsBlocked: () => onboardingCredentialMutationsBlocked(store.getState()),

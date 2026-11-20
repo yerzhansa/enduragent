@@ -29,7 +29,12 @@ interface EnduragentAuth {
     readonly value: string;
     readonly selection?: OnboardingLlmSelection;
   }): Promise<CredentialWriteResult>;
-  pasteIntervalsApiKeyFromClipboard(): Promise<DesktopIntervalsCredentialMutationResult>;
+  signInWithIntervals(): Promise<DesktopIntervalsCredentialMutationResult>;
+  cancelIntervalsSignIn(): Promise<boolean>;
+  reopenIntervalsSignIn(): Promise<boolean>;
+  onIntervalsSignInProgress(
+    listener: (phase: "waiting-for-browser" | "completing-sign-in") => void,
+  ): () => void;
   deleteCredential(input: {
     readonly credential: DesktopCredentialId;
   }): Promise<CredentialDeleteResult>;
@@ -513,9 +518,11 @@ interface DesktopIntervalsCredentialStatus {
 }
 
 type DesktopIntervalsCredentialMutationRefusalReason =
-  | "clipboard-unavailable"
-  | "clipboard-clear-failed"
-  | "invalid-key-format"
+  | "sign-in-denied"
+  | "sign-in-failed"
+  | "sign-in-timed-out"
+  | "sign-in-cancelled"
+  | "sign-in-unreachable"
   | "credential-rejected"
   | "malformed-athlete-response"
   | "validation-timeout"
@@ -533,6 +540,7 @@ type DesktopIntervalsCredentialMutationResult =
   | {
       readonly outcome: "applied";
       readonly current: DesktopIntervalsCredentialStatus;
+      readonly athleteName?: string;
     }
   | {
       readonly outcome: "refused";

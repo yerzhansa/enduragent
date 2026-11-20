@@ -4,26 +4,26 @@
     {
       "id": "training.setup.intervals-clipboard-connect",
       "surface": "training-setup",
-      "expected": "Intervals.icu setup has no secret field, reads and clears the copied API key before privileged work, verifies the key and training-history owner, and becomes connected only after an authoritative active result.",
+      "expected": "Intervals.icu setup has no secret field, signs in through the browser, verifies the signed-in credential and training-history owner before storing it, and becomes connected only after an authoritative active result.",
       "automation": "deterministic",
       "tests": [
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu from copied metadata without rendering a secret field",
-        "apps/desktop/tests/intervals-ipc.test.ts > clears the clipboard before verification or vault work",
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu through browser sign-in without rendering a secret field",
+        "apps/desktop/tests/intervals-ipc.test.ts > verifies and stores the signed-in credential and returns the athlete name",
         "apps/desktop/tests/intervals-ipc.test.ts > verifies a valid key before accepting a matching or ownerless store",
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > uses a copied Intervals API key, closes the panel, and focuses Delete"
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > signs in with Intervals.icu, closes the panel, and focuses Delete"
       ]
     },
     {
       "id": "training.setup.intervals-verification",
       "surface": "training-setup",
-      "expected": "Invalid clipboard content, a clipboard-clear failure, timed-out or malformed verification, and training-account mismatch fail closed without writing a candidate over an existing encrypted key or exposing secret details.",
+      "expected": "A denied, timed-out, cancelled, unreachable, or failed sign-in, timed-out or malformed verification, and training-account mismatch fail closed without writing a candidate over an existing encrypted credential or exposing secret details.",
       "automation": "deterministic",
       "tests": [
-        "apps/desktop/tests/intervals-ipc.test.ts > refuses the invalid key shape without verification: %j",
-        "apps/desktop/tests/intervals-ipc.test.ts > gives clear failure precedence over a captured credential",
+        "apps/desktop/tests/intervals-ipc.test.ts > maps the %s sign-in failure to %s without touching the vault",
+        "apps/desktop/tests/intervals-ipc.test.ts > maps an unexpected sign-in failure to sign-in-failed without private details",
         "apps/desktop/tests/intervals-ipc.test.ts > bounds the complete verification callback with the production overall deadline",
         "apps/desktop/tests/intervals-ipc.test.ts > closes thrown and malformed verification failures without private details",
-        "apps/desktop/tests/intervals-ipc.test.ts > keeps an existing encrypted key and runtime state unchanged after verification refusal"
+        "apps/desktop/tests/intervals-ipc.test.ts > keeps an existing encrypted credential and runtime state unchanged after verification refusal"
       ]
     },
     {
@@ -66,7 +66,7 @@
       "expected": "Intervals.icu setup offers Import ride files instead, and a successful local ride import can satisfy training-data readiness without connecting or hiding the still-connectable Intervals.icu row.",
       "automation": "deterministic",
       "tests": [
-        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu from copied metadata without rendering a secret field",
+        "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu through browser sign-in without rendering a secret field",
         "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > keeps the first-time Intervals row after a ride import makes training ready"
       ]
     },

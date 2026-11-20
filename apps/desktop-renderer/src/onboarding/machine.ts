@@ -96,9 +96,11 @@ export type OnboardingErrorCode =
   | "endpoint-invalid"
   | "model-runtime-unavailable"
   | "training-account-mismatch"
-  | "intervals-clipboard-unavailable"
-  | "intervals-clipboard-clear-failed"
-  | "intervals-key-rejected"
+  | "intervals-sign-in-denied"
+  | "intervals-sign-in-timed-out"
+  | "intervals-sign-in-unreachable"
+  | "intervals-sign-in-failed"
+  | "intervals-sign-in-rejected"
   | "intervals-validation-unavailable"
   | "intervals-owner-unavailable"
   | "intervals-storage-uncertain"
@@ -402,13 +404,16 @@ export function nextStep(
       return { ...state, fixedError: "intake-incomplete" };
     }
   }
-  return { ...state, step: ONBOARDING_STEP_IDS[index + 1]!, fixedError: null };
+  const next = ONBOARDING_STEP_IDS[index + 1];
+  return next === undefined ? state : { ...state, step: next, fixedError: null };
 }
 
 export function previousStep(state: OnboardingState): OnboardingState {
   const index = ONBOARDING_STEP_IDS.indexOf(state.step);
-  if (index <= 0) return state;
-  return { ...state, step: ONBOARDING_STEP_IDS[index - 1]!, fixedError: null };
+  const previous = ONBOARDING_STEP_IDS[index - 1];
+  return index <= 0 || previous === undefined
+    ? state
+    : { ...state, step: previous, fixedError: null };
 }
 
 export function withIntake(

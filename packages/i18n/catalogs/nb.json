@@ -208,7 +208,7 @@
         "credential": "Slett tilgangsopplysninger",
         "detail": "Dette fjerner dem bare fra {{computer}}. {{product}} slutter å bruke dem hvis de er aktive. Kontoen din hos leverandøren forblir uendret.",
         "intervalsAria": "Slett tilkoblingen til {{intervals}}",
-        "intervalsDetail": "Den lagrede API-nøkkelen og den importerte tilkoblingen fjernes. Synkroniserte turer og tidligere samtaler beholdes på {{computer}}.",
+        "intervalsDetail": "Den lagrede påloggingen eller API-nøkkelen og den importerte tilkoblingen fjernes. Synkroniserte turer og tidligere samtaler beholdes på {{computer}}.",
         "intervalsTitle": "Slette tilkoblingen til {{intervals}}?",
         "title": "Slette tilgangsopplysningene for {{provider}}?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Skriv inn et gyldig HTTPS-endepunkt eller et lokalt HTTP-endepunkt med loopback-adresse.",
       "intakeIncomplete": "Svar på de obligatoriske sikkerhetsspørsmålene for å fortsette.",
       "intakeSaveFailed": "Svarene dine kunne ikke lagres. Prøv igjen.",
-      "intervalsClipboardClearFailed": "API-nøkkelen ble ikke lagret fordi {{product}} ikke kunne fjerne den fra utklippstavlen på en trygg måte. Kopier den på nytt og prøv igjen.",
-      "intervalsClipboardUnavailable": "{{product}} kunne ikke lese en API-nøkkel fra utklippstavlen. Kopier den i {{intervals}} og prøv igjen.",
-      "intervalsKeyRejected": "{{intervals}} godtok ikke den kopierte API-nøkkelen. Kopier en gjeldende API-nøkkel og prøv igjen.",
-      "intervalsOwnerUnavailable": "{{product}} kunne ikke bekrefte at den kopierte API-nøkkelen samsvarer med treningsdataene på {{computer}}. Prøv igjen når treningsdata er tilgjengelige.",
-      "intervalsRuntimeUnavailable": "Den kopierte API-nøkkelen kunne ikke aktiveres. Kopier den i {{intervals}} og prøv igjen.",
-      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekrefte om den kopierte API-nøkkelen er aktiv. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
-      "intervalsStorageUncertain": "{{product}} kunne ikke bekrefte om den kopierte API-nøkkelen ble lagret. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
-      "intervalsValidationUnavailable": "{{product}} kunne ikke bekrefte den kopierte API-nøkkelen hos {{intervals}}. Sjekk tilkoblingen og prøv igjen.",
+      "intervalsOwnerUnavailable": "{{product}} kunne ikke bekrefte at denne {{intervals}}-kontoen samsvarer med treningsdataene på {{computer}}. Prøv igjen når treningsdata er tilgjengelige.",
+      "intervalsRuntimeUnavailable": "Påloggingen til {{intervals}} kunne ikke aktiveres. Logg på igjen.",
+      "intervalsRuntimeUncertain": "{{product}} kunne ikke bekrefte om påloggingen er aktiv. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
+      "intervalsSignInDenied": "Tilgang ble ikke tillatt på {{intervals}}. Logg på igjen når du er klar.",
+      "intervalsSignInFailed": "Påloggingen med {{intervals}} ble ikke fullført. Logg på igjen.",
+      "intervalsSignInRejected": "{{intervals}} godtok ikke påloggingen. Logg på igjen.",
+      "intervalsSignInTimedOut": "Påloggingen ble tidsavbrutt etter 5 minutter. Logg på igjen når du er klar.",
+      "intervalsSignInUnreachable": "{{product}} kunne ikke nå {{intervals}} for å fullføre påloggingen. Sjekk tilkoblingen, og logg deretter på igjen.",
+      "intervalsStorageUncertain": "{{product}} kunne ikke bekrefte om påloggingen ble lagret. Last inn statusen for tilgangsopplysninger på nytt før du prøver igjen.",
+      "intervalsValidationUnavailable": "{{product}} kunne ikke bekrefte påloggingen hos {{intervals}}. Sjekk tilkoblingen, og logg deretter på igjen.",
       "invalidInput": "Nøkkelen ble ikke godtatt. Sjekk den og skriv den inn på nytt.",
       "modelRuntimeUnavailable": "Leverandørvalget ditt er lagret, men er ikke aktivt ennå. Prøv å aktivere det igjen.",
       "modelSelectionRequired": "Velg en modell eller skriv inn et egendefinert modellnavn.",
       "runtimeUnavailable": "Nøkkelen ble lagret, men er ikke aktiv ennå. Velg Prøv lagrede nøkler igjen for å aktivere den.",
       "storageFailed": "Appen kunne ikke bekrefte at nøkkelen ble lagret sikkert. Sjekk at sikker lagring er tilgjengelig og prøv igjen.",
       "storageUncertain": "Appen kunne ikke fastslå hvilken lagret nøkkel som vil beholdes etter en omstart. Skriv inn nøkkelen på nytt før du fortsetter.",
-      "trainingAccountMismatch": "Denne {{intervalsLower}}-nøkkelen tilhører en annen utøver enn den som har treningshistorikken som allerede er lagret. Kontobytte støttes ikke ennå.",
+      "trainingAccountMismatch": "Denne {{intervalsLower}}-kontoen tilhører en annen utøver enn treningshistorikken som allerede ligger på {{computer}}. Kontobytte støttes ikke ennå.",
       "trainingDataRequired": "Koble til {{intervalsLower}} eller importer minst én turfil.",
       "unsafeBackend": "Appen kan ikke lagre nøkkelen sikkert med den nåværende lagringsløsningen."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Avbryt {{intervals}}-oppsett",
+      "cancelSignIn": "Avbryt pålogging",
+      "completing": "Fullfører pålogging…",
+      "completingHint": "Tilgang gitt. Lagrer tilkoblingen på {{computer}}…",
       "connect": "Koble til",
-      "connecting": "Kobler til…",
       "connectTitle": "Koble til {{intervals}}",
-      "hint": "I {{intervals}} åpner du Innstillinger → Utviklerinnstillinger, kopierer API-nøkkelen og kommer tilbake hit. {{product}} leser den uten å vise den.",
+      "hint": "Åpner {{intervals}} i nettleseren. Der gir du tilgang, og {{product}} ser aldri passordet ditt.",
       "importFiles": "Importer turfiler i stedet",
+      "reopen": "Åpne påloggingssiden igjen",
+      "signIn": "Logg på med {{intervals}}",
       "subtitle": {
         "connected": "Tilkoblet · der turene dine kommer fra",
+        "connectedAs": "Tilkoblet som {{name}} · der turene dine kommer fra",
         "missing": "Koble til eller importer turfiler."
       },
       "tooltip": {
-        "body": "Et gratis treningsnettsted som allerede har turene dine. {{product}} leser dem derfra i stedet for å kommunisere direkte med leverandøren av klokken eller sykkelcomputeren din. Du trenger en gratis konto med klokken eller sykkelcomputeren tilkoblet. Deretter kopierer du API-nøkkelen.",
+        "body": "Et gratis treningsnettsted som allerede har turene dine. {{product}} leser dem derfra i stedet for å kommunisere direkte med leverandøren av klokken eller sykkelcomputeren din. Du trenger en gratis konto med klokken eller sykkelcomputeren tilkoblet. Deretter logger du på her.",
         "label": "Om {{intervals}}"
       },
       "trigger": {
         "disconnected": "Koble til {{intervals}}"
       },
-      "useCopiedKey": "Bruk kopiert API-nøkkel"
+      "waiting": "Venter på nettleseren…",
+      "waitingHint": "Fullfør i nettleseren. {{product}} fortsetter av seg selv når du gir tilgang."
     }
   },
   "shell": {

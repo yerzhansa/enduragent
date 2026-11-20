@@ -8,14 +8,28 @@ import type {
   RuntimeConfigSnapshot,
   VerifyIntervalsCredentialRpcResult,
 } from "@enduragent/coach-contract";
-import type { Clipboard, IpcMain, IpcMainInvokeEvent } from "electron";
-import { DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL } from "./constants.js";
+import {
+  IntervalsSignInError,
+  type IntervalsOAuthGrant,
+  type IntervalsSignInFailure,
+  type IntervalsSignInOptions,
+  type IntervalsSignInPhase,
+} from "@enduragent/core";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import {
+  DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL,
+} from "./constants.js";
 import { intervalsAthleteIdForOwnership } from "./credential-runtime.js";
 import type {
   CredentialRuntimeState,
   CredentialState,
   CredentialVault,
 } from "./credential-vault.js";
+import { displayableAthleteName } from "./intervals-athlete-name.js";
+import { isDesktopRendererUrl } from "./renderer-navigation.js";
 
 const VERIFICATION_REFUSAL_REASONS = new Set<IntervalsCredentialVerificationRefusalReason>([
   "credential-rejected",
@@ -33,7 +47,15 @@ const STORAGE_REFUSAL_REASONS = new Set([
   "storage-failed",
   "runtime-unavailable",
 ]);
-const INTERVALS_API_KEY_MAX_LENGTH = 256;
+const SIGN_IN_REFUSAL_REASONS = {
+  "access-denied": "sign-in-denied",
+  "authorization-failed": "sign-in-failed",
+  "timed-out": "sign-in-timed-out",
+  cancelled: "sign-in-cancelled",
+  "callback-unavailable": "sign-in-failed",
+  "exchange-failed": "sign-in-failed",
+  unreachable: "sign-in-unreachable",
+} as const satisfies Readonly<Record<IntervalsSignInFailure, string>>;
 const INTERVALS_VERIFICATION_APPROVAL_PATTERN = /^[0-9a-f]{64}$/;
 
 export type DesktopIntervalsCredentialVerificationResult =
@@ -49,10 +71,10 @@ export interface DesktopIntervalsCredentialStatus {
   readonly runtimeState: CredentialRuntimeState | null;
 }
 
+type DesktopIntervalsSignInRefusalReason = (typeof SIGN_IN_REFUSAL_REASONS)[IntervalsSignInFailure];
+
 type DesktopIntervalsMutationRefusalReason =
-  | "clipboard-unavailable"
-  | "clipboard-clear-failed"
-  | "invalid-key-format"
+  | DesktopIntervalsSignInRefusalReason
   | IntervalsCredentialVerificationRefusalReason
   | "encryption-unavailable"
   | "unsafe-backend"
@@ -66,10 +88,7 @@ export function createDesktopIntervalsCredentialVerifier(input: {
     apiKey: string,
     signal: AbortSignal,
   ) => Promise<VerifyIntervalsCredentialRpcResult | undefined>;
-}): (
-  apiKey: string,
-  signal: AbortSignal,
-) => Promise<DesktopIntervalsCredentialVerificationResult> {
+}): (apiKey: string, signal: AbortSignal) => Promise<DesktopIntervalsCredentialVerificationResult> {
   return async (apiKey, signal) => {
     if (input.verifyWithDaemon !== undefined) {
       let result: unknown;
@@ -132,6 +151,9 @@ type DesktopIntervalsMutationCore =
 type DesktopIntervalsMutationResult = DesktopIntervalsMutationCore &
   Readonly<{ current: DesktopIntervalsCredentialStatus }>;
 
+type DesktopIntervalsSignInResult = DesktopIntervalsMutationResult &
+  Readonly<{ athleteName?: string }>;
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -140,14 +162,6 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
-}
-
-function hasControlCharacter(value: string): boolean {
-  for (const character of value) {
-    const codePoint = character.codePointAt(0)!;
-    if (codePoint <= 31 || (codePoint >= 127 && codePoint <= 159)) return true;
-  }
-  return false;
 }
 
 function copyStatus(value: unknown): DesktopIntervalsCredentialStatus | undefined {
@@ -266,42 +280,16 @@ function mutationFromWrite(value: unknown): DesktopIntervalsMutationCore {
   throw new TypeError();
 }
 
-async function captureClipboard(clipboard: Pick<Clipboard, "readText" | "clear">): Promise<
-  | { readonly status: "captured"; readonly apiKey: string }
-  | {
-      readonly status: "refused";
-      readonly reason: "clipboard-unavailable" | "clipboard-clear-failed" | "invalid-key-format";
-    }
-> {
-  let value: unknown;
-  let cleared = false;
-  try {
-    value = await clipboard.readText();
-  } catch {
-  } finally {
-    try {
-      clipboard.clear();
-      cleared = true;
-    } catch {}
-  }
-  if (!cleared) return { status: "refused", reason: "clipboard-clear-failed" };
-  if (typeof value !== "string") {
-    return { status: "refused", reason: "clipboard-unavailable" };
-  }
-  const apiKey = value.trim();
-  if (
-    apiKey.length === 0 ||
-    apiKey.length > INTERVALS_API_KEY_MAX_LENGTH ||
-    hasControlCharacter(apiKey)
-  ) {
-    return { status: "refused", reason: "invalid-key-format" };
-  }
-  return { status: "captured", apiKey };
+function signInRefusal(error: unknown): DesktopIntervalsSignInRefusalReason {
+  return error instanceof IntervalsSignInError
+    ? SIGN_IN_REFUSAL_REASONS[error.reason]
+    : "sign-in-failed";
 }
 
 export function installDesktopIntervalsIpc(input: {
   readonly ipcMain: Pick<IpcMain, "handle" | "removeHandler">;
-  readonly clipboard: Pick<Clipboard, "readText" | "clear">;
+  readonly openExternal: (url: string) => Promise<void>;
+  readonly signIn: (options: IntervalsSignInOptions) => Promise<IntervalsOAuthGrant>;
   readonly isTrusted: (event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">) => boolean;
   readonly signal: AbortSignal;
   readonly vault: Pick<CredentialVault, "credentialStatuses" | "runExclusiveMutation">;
@@ -316,12 +304,17 @@ export function installDesktopIntervalsIpc(input: {
   const pendingVerifications = new Set<Promise<DesktopIntervalsCredentialVerificationResult>>();
   const closeController = new AbortController();
   const verificationSignal = AbortSignal.any([input.signal, closeController.signal]);
+  type SignInSession = {
+    readonly controller: AbortController;
+    authorizeUrl?: string;
+    approved?: boolean;
+    browserFailed?: boolean;
+  };
+  let activeSignIn: SignInSession | undefined;
+  const pendingSignIns = new Set<Promise<unknown>>();
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = operationQueue.then(operation, operation);
-    operationQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
+    operationQueue = Promise.allSettled([result]).then(() => undefined);
     return result;
   };
   const trustedZeroArgument = (
@@ -358,10 +351,7 @@ export function installDesktopIntervalsIpc(input: {
       try {
         const operation = input.verifyCredential(apiKey, signal);
         pendingVerifications.add(operation);
-        void operation.then(
-          () => pendingVerifications.delete(operation),
-          () => pendingVerifications.delete(operation),
-        );
+        void Promise.allSettled([operation]).then(() => pendingVerifications.delete(operation));
         signal.throwIfAborted();
         const verification = copyVerification(await awaitWithSignal(operation, signal));
         if (verificationSignal.aborted) {
@@ -431,18 +421,87 @@ export function installDesktopIntervalsIpc(input: {
       }
     });
   const localRefusal = (
-    reason: "clipboard-unavailable" | "clipboard-clear-failed" | "invalid-key-format",
+    reason: DesktopIntervalsSignInRefusalReason,
   ): Promise<DesktopIntervalsMutationResult> =>
     serialize(async () => ({ outcome: "refused", reason, current: await readStatus() }));
+  const publishProgress = (
+    sender: IpcMainInvokeEvent["sender"],
+    phase: IntervalsSignInPhase,
+  ): void => {
+    if (!accepting || sender.isDestroyed() || !isDesktopRendererUrl(sender.mainFrame.url)) return;
+    sender.send(DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL, { phase });
+  };
+  const signIn = async (
+    sender: IpcMainInvokeEvent["sender"],
+  ): Promise<DesktopIntervalsSignInResult> => {
+    if (activeSignIn !== undefined)
+      throw new TypeError("desktop Intervals sign-in already running");
+    const session: SignInSession = {
+      controller: new AbortController(),
+    };
+    activeSignIn = session;
+    try {
+      let grant: IntervalsOAuthGrant;
+      try {
+        grant = await input.signIn({
+          openExternal: input.openExternal,
+          onAuthorizeUrl: (url) => {
+            session.authorizeUrl = url;
+          },
+          onBrowserOpenFailed: () => {
+            session.browserFailed = true;
+            session.controller.abort();
+          },
+          onPhase: (phase) => {
+            if (phase === "completing-sign-in") session.approved = true;
+            publishProgress(sender, phase);
+          },
+          signal: AbortSignal.any([verificationSignal, session.controller.signal]),
+        });
+      } catch (error) {
+        return await localRefusal(
+          session.browserFailed === true ? "sign-in-failed" : signInRefusal(error),
+        );
+      }
+      const result = await runCapturedCredential(grant.credential);
+      const athleteName = displayableAthleteName(grant.athleteName);
+      return result.outcome === "applied" && athleteName !== undefined
+        ? { ...result, athleteName }
+        : result;
+    } finally {
+      if (activeSignIn === session) activeSignIn = undefined;
+    }
+  };
   const handlers = [
     [
-      DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL,
+      DESKTOP_INTERVALS_SIGN_IN_CHANNEL,
       (event: IpcMainInvokeEvent, ...args: unknown[]) => {
         trustedZeroArgument(event, args);
-        return captureClipboard(input.clipboard).then((captured) => {
-          if (captured.status === "refused") return localRefusal(captured.reason);
-          return runCapturedCredential(captured.apiKey);
-        });
+        const running = signIn(event.sender);
+        pendingSignIns.add(running);
+        void Promise.allSettled([running]).then(() => pendingSignIns.delete(running));
+        return running;
+      },
+    ],
+    [
+      DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL,
+      (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+        trustedZeroArgument(event, args);
+        if (activeSignIn === undefined || activeSignIn.approved === true) return false;
+        activeSignIn.controller.abort();
+        return true;
+      },
+    ],
+    [
+      DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL,
+      (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+        trustedZeroArgument(event, args);
+        const url = activeSignIn?.approved === true ? undefined : activeSignIn?.authorizeUrl;
+        if (url === undefined) return Promise.resolve(false);
+        return input.openExternal(url).then(
+          () => true,
+          () => false,
+        );
       },
     ],
   ] as const;
@@ -452,14 +511,10 @@ export function installDesktopIntervalsIpc(input: {
     accepting = false;
     for (const [channel] of handlers) input.ipcMain.removeHandler(channel);
     closeController.abort();
-    closePromise = Promise.all([
+    closePromise = Promise.allSettled([
       operationQueue,
-      ...[...pendingVerifications].map((operation) =>
-        operation.then(
-          () => undefined,
-          () => undefined,
-        ),
-      ),
+      ...pendingVerifications,
+      ...pendingSignIns,
     ]).then(() => undefined);
     return closePromise;
   };

@@ -712,7 +712,7 @@ describe("settings setup inventory", () => {
     ]);
     const bridge = testBridge(async () => ({ status: "configured", runtimeReady: true }));
     bridge.credentialStatuses.mockImplementation(loadCredentialStatuses);
-    bridge.pasteIntervalsApiKeyFromClipboard.mockImplementation(async () => {
+    bridge.signInWithIntervals.mockImplementation(async () => {
       intervalsConnected = true;
       return {
         outcome: "applied",
@@ -754,7 +754,7 @@ describe("settings setup inventory", () => {
       expect(loadCredentialStatuses).toHaveBeenCalledTimes(2);
 
       await user.click(screen.getByRole("button", { name: "Connect Intervals.icu" }));
-      await user.click(screen.getByRole("button", { name: "Use copied API key" }));
+      await user.click(screen.getByRole("button", { name: "Sign in with Intervals.icu" }));
       const remove = await screen.findByRole("button", {
         name: "Delete the Intervals.icu connection",
       });
@@ -1990,7 +1990,7 @@ describe("credential deletion", () => {
     expect(screen.getByText("Delete the Intervals.icu connection?")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Your saved API key and imported connection will be removed. Your synced rides and past chats stay on this Mac.",
+        "Your saved sign-in or API key and imported connection will be removed. Your synced rides and past chats stay on this Mac.",
       ),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Delete connection" }));

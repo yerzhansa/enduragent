@@ -207,7 +207,7 @@
         "credential": "인증 정보 삭제",
         "detail": "{{computer}}에서만 삭제합니다. 사용 중인 경우 {{product}}에서 사용을 중단합니다. 제공업체 계정은 변경되지 않습니다.",
         "intervalsAria": "{{intervals}} 연결 삭제",
-        "intervalsDetail": "저장된 API 키와 가져온 연결이 삭제됩니다. 동기화된 라이딩과 이전 채팅은 {{computer}}에 유지됩니다.",
+        "intervalsDetail": "저장된 로그인 정보 또는 API 키와 가져온 연결이 삭제됩니다. 동기화된 라이딩과 이전 채팅은 {{computer}}에 유지됩니다.",
         "intervalsTitle": "{{intervals}} 연결을 삭제할까요?",
         "title": "{{provider}} 인증 정보를 삭제할까요?"
       },
@@ -686,21 +686,23 @@
       "endpointInvalid": "유효한 HTTPS 엔드포인트 또는 루프백 HTTP 엔드포인트를 입력하세요.",
       "intakeIncomplete": "계속하려면 필수 안전 질문에 답하세요.",
       "intakeSaveFailed": "답변을 저장하지 못했습니다. 다시 시도하세요.",
-      "intervalsClipboardClearFailed": "{{product}}에서 API 키를 클립보드에서 안전하게 지우지 못해 저장하지 않았습니다. 다시 복사한 후 재시도하세요.",
-      "intervalsClipboardUnavailable": "{{product}}에서 클립보드의 API 키를 읽지 못했습니다. {{intervals}}에서 복사한 후 다시 시도하세요.",
-      "intervalsKeyRejected": "{{intervals}}에서 복사한 API 키를 허용하지 않았습니다. 현재 유효한 API 키를 복사한 후 다시 시도하세요.",
-      "intervalsOwnerUnavailable": "{{product}}에서 복사한 API 키가 {{computer}}의 훈련 데이터와 일치하는지 확인하지 못했습니다. 훈련 데이터를 사용할 수 있을 때 다시 시도하세요.",
-      "intervalsRuntimeUnavailable": "복사한 API 키를 활성화하지 못했습니다. {{intervals}}에서 복사한 후 다시 시도하세요.",
-      "intervalsRuntimeUncertain": "{{product}}에서 복사한 API 키의 활성 여부를 확인하지 못했습니다. 인증 정보 상태를 새로고침한 후 다시 시도하세요.",
-      "intervalsStorageUncertain": "{{product}}에서 복사한 API 키의 저장 여부를 확인하지 못했습니다. 인증 정보 상태를 새로고침한 후 다시 시도하세요.",
-      "intervalsValidationUnavailable": "{{product}}에서 {{intervals}}을(를) 통해 복사한 API 키를 확인하지 못했습니다. 연결을 확인한 후 다시 시도하세요.",
+      "intervalsOwnerUnavailable": "{{product}}에서 이 {{intervals}} 계정이 {{computer}}의 훈련 데이터와 일치하는지 확인하지 못했습니다. 훈련 데이터를 사용할 수 있을 때 다시 시도하세요.",
+      "intervalsRuntimeUnavailable": "{{intervals}} 로그인을 활성화하지 못했습니다. 다시 로그인하세요.",
+      "intervalsRuntimeUncertain": "{{product}}에서 로그인이 활성 상태인지 확인하지 못했습니다. 인증 정보 상태를 새로고침한 후 다시 시도하세요.",
+      "intervalsSignInDenied": "{{intervals}}에서 액세스가 허용되지 않았습니다. 준비되면 다시 로그인하세요.",
+      "intervalsSignInFailed": "{{intervals}}(으)로 로그인을 완료하지 못했습니다. 다시 로그인하세요.",
+      "intervalsSignInRejected": "{{intervals}}에서 로그인을 수락하지 않았습니다. 다시 로그인하세요.",
+      "intervalsSignInTimedOut": "5분이 지나 로그인 시간이 초과되었습니다. 준비되면 다시 로그인하세요.",
+      "intervalsSignInUnreachable": "{{product}}에서 로그인을 완료하기 위해 {{intervals}}에 연결하지 못했습니다. 연결을 확인한 후 다시 로그인하세요.",
+      "intervalsStorageUncertain": "{{product}}에서 로그인이 저장되었는지 확인하지 못했습니다. 인증 정보 상태를 새로고침한 후 다시 시도하세요.",
+      "intervalsValidationUnavailable": "{{product}}에서 {{intervals}} 로그인을 확인하지 못했습니다. 연결을 확인한 후 다시 로그인하세요.",
       "invalidInput": "키가 허용되지 않았습니다. 확인한 후 다시 입력하세요.",
       "modelRuntimeUnavailable": "선택한 제공업체가 저장되었지만 아직 활성화되지 않았습니다. 다시 활성화하세요.",
       "modelSelectionRequired": "모델을 선택하거나 사용자 지정 모델 이름을 입력하세요.",
       "runtimeUnavailable": "키가 저장되었지만 아직 활성화되지 않았습니다. 저장된 키 다시 시도를 선택하여 활성화하세요.",
       "storageFailed": "앱에서 키가 안전하게 저장되었는지 확인하지 못했습니다. 보안 저장소를 사용할 수 있는지 확인하고 다시 시도하세요.",
       "storageUncertain": "앱에서 다시 시작한 후 어떤 저장된 키가 유지될지 확인하지 못했습니다. 계속하기 전에 키를 다시 입력하세요.",
-      "trainingAccountMismatch": "해당 {{intervalsLower}} 키는 이미 저장된 훈련 기록과 다른 선수의 키입니다. 아직 계정 전환을 지원하지 않습니다.",
+      "trainingAccountMismatch": "해당 {{intervalsLower}} 계정은 {{computer}}에 이미 있는 훈련 기록과 다른 선수의 계정입니다. 아직 계정 전환을 지원하지 않습니다.",
       "trainingDataRequired": "{{intervalsLower}}을(를) 연결하거나 라이딩 파일을 하나 이상 가져오세요.",
       "unsafeBackend": "앱에서 현재 저장소를 사용해 키를 안전하게 저장할 수 없습니다."
     },
@@ -757,23 +759,29 @@
     },
     "training": {
       "cancelLabel": "{{intervals}} 설정 취소",
+      "cancelSignIn": "로그인 취소",
+      "completing": "로그인 마무리 중…",
+      "completingHint": "승인되었습니다. {{computer}}에 연결 정보를 저장하는 중…",
       "connect": "연결",
-      "connecting": "연결 중…",
       "connectTitle": "{{intervals}} 연결",
-      "hint": "{{intervals}}에서 설정 → 개발자 설정을 열어 API 키를 복사한 후 여기로 돌아오세요. {{product}}에서 키를 표시하지 않고 읽습니다.",
+      "hint": "브라우저에서 {{intervals}}이(가) 열립니다. 액세스는 해당 페이지에서 승인하며, {{product}}에서는 비밀번호를 볼 수 없습니다.",
       "importFiles": "대신 라이딩 파일 가져오기",
+      "reopen": "로그인 페이지 다시 열기",
+      "signIn": "{{intervals}}(으)로 로그인",
       "subtitle": {
         "connected": "연결됨 · 라이딩을 가져오는 곳",
+        "connectedAs": "{{name}}(으)로 연결됨 · 라이딩을 가져오는 곳",
         "missing": "연결하거나 라이딩 파일을 가져오세요."
       },
       "tooltip": {
-        "body": "라이딩 기록이 이미 저장되어 있는 무료 훈련 사이트입니다. {{product}}은(는) 시계나 사이클링 컴퓨터 제조업체에 직접 연결하는 대신 이 사이트에서 기록을 읽습니다. 시계나 사이클링 컴퓨터가 연결된 무료 계정이 필요하며, 해당 계정의 API 키를 복사하면 됩니다.",
+        "body": "라이딩 기록이 이미 저장되어 있는 무료 훈련 사이트입니다. {{product}}은(는) 시계나 사이클링 컴퓨터 제조업체에 직접 연결하는 대신 이 사이트에서 기록을 읽습니다. 시계나 사이클링 컴퓨터가 연결된 무료 계정이 필요하며, 그런 다음 여기에서 로그인하면 됩니다.",
         "label": "{{intervals}} 정보"
       },
       "trigger": {
         "disconnected": "{{intervals}} 연결"
       },
-      "useCopiedKey": "복사한 API 키 사용"
+      "waiting": "브라우저 대기 중…",
+      "waitingHint": "브라우저에서 완료하세요. 액세스를 승인하면 {{product}}에서 자동으로 계속 진행합니다."
     }
   },
   "shell": {

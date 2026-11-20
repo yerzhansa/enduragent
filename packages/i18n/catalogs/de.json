@@ -208,7 +208,7 @@
         "credential": "Zugangsdaten löschen",
         "detail": "Dadurch werden sie nur von {{computer}} entfernt. {{product}} verwendet sie nicht mehr, falls sie aktiv sind. Dein Konto beim Anbieter bleibt unverändert.",
         "intervalsAria": "Verbindung mit {{intervals}} löschen",
-        "intervalsDetail": "Dein gespeicherter API-Schlüssel und die importierte Verbindung werden entfernt. Deine synchronisierten Fahrten und bisherigen Chats bleiben auf {{computer}}.",
+        "intervalsDetail": "Deine gespeicherte Anmeldung oder dein API-Schlüssel und die importierte Verbindung werden entfernt. Deine synchronisierten Fahrten und bisherigen Chats bleiben auf {{computer}}.",
         "intervalsTitle": "Verbindung mit {{intervals}} löschen?",
         "title": "Zugangsdaten für {{provider}} löschen?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Gib einen gültigen HTTPS-Endpunkt oder einen HTTP-Endpunkt mit Loopback-Adresse ein.",
       "intakeIncomplete": "Beantworte die erforderlichen Sicherheitsfragen, um fortzufahren.",
       "intakeSaveFailed": "Deine Antworten konnten nicht gespeichert werden. Bitte versuche es erneut.",
-      "intervalsClipboardClearFailed": "Der API-Schlüssel wurde nicht gespeichert, weil {{product}} ihn nicht sicher aus der Zwischenablage entfernen konnte. Kopiere ihn nochmals und versuche es dann erneut.",
-      "intervalsClipboardUnavailable": "{{product}} konnte keinen API-Schlüssel aus der Zwischenablage lesen. Kopiere ihn in {{intervals}} und versuche es dann erneut.",
-      "intervalsKeyRejected": "{{intervals}} hat den kopierten API-Schlüssel nicht akzeptiert. Kopiere einen aktuellen API-Schlüssel und versuche es dann erneut.",
-      "intervalsOwnerUnavailable": "{{product}} konnte nicht bestätigen, dass der kopierte API-Schlüssel zu den Trainingsdaten auf {{computer}} gehört. Versuche es erneut, wenn Trainingsdaten verfügbar sind.",
-      "intervalsRuntimeUnavailable": "Der kopierte API-Schlüssel konnte nicht aktiviert werden. Kopiere ihn in {{intervals}} und versuche es dann erneut.",
-      "intervalsRuntimeUncertain": "{{product}} konnte nicht bestätigen, ob der kopierte API-Schlüssel aktiv ist. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
-      "intervalsStorageUncertain": "{{product}} konnte nicht bestätigen, ob der kopierte API-Schlüssel gespeichert wurde. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
-      "intervalsValidationUnavailable": "{{product}} konnte den kopierten API-Schlüssel nicht bei {{intervals}} überprüfen. Prüfe deine Verbindung und versuche es dann erneut.",
+      "intervalsOwnerUnavailable": "{{product}} konnte nicht bestätigen, dass dieses {{intervals}}-Konto zu den Trainingsdaten auf {{computer}} gehört. Versuche es erneut, wenn Trainingsdaten verfügbar sind.",
+      "intervalsRuntimeUnavailable": "Die {{intervals}}-Anmeldung konnte nicht aktiviert werden. Melde dich erneut an.",
+      "intervalsRuntimeUncertain": "{{product}} konnte nicht bestätigen, ob die Anmeldung aktiv ist. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
+      "intervalsSignInDenied": "Auf {{intervals}} wurde der Zugriff nicht erlaubt. Melde dich erneut an, wenn du bereit bist.",
+      "intervalsSignInFailed": "Die Anmeldung mit {{intervals}} wurde nicht abgeschlossen. Melde dich erneut an.",
+      "intervalsSignInRejected": "{{intervals}} hat die Anmeldung nicht akzeptiert. Melde dich erneut an.",
+      "intervalsSignInTimedOut": "Die Anmeldung wurde nach 5 Minuten wegen Zeitüberschreitung abgebrochen. Melde dich erneut an, wenn du bereit bist.",
+      "intervalsSignInUnreachable": "{{product}} konnte {{intervals}} nicht erreichen, um die Anmeldung abzuschließen. Prüfe deine Verbindung und melde dich dann erneut an.",
+      "intervalsStorageUncertain": "{{product}} konnte nicht bestätigen, ob die Anmeldung gespeichert wurde. Lade den Status der Zugangsdaten neu, bevor du es noch einmal versuchst.",
+      "intervalsValidationUnavailable": "{{product}} konnte die Anmeldung bei {{intervals}} nicht bestätigen. Prüfe deine Verbindung und melde dich dann erneut an.",
       "invalidInput": "Dieser Schlüssel wurde nicht akzeptiert. Prüfe ihn und gib ihn erneut ein.",
       "modelRuntimeUnavailable": "Deine Anbieterauswahl ist gespeichert, aber noch nicht aktiv. Versuche erneut, sie zu aktivieren.",
       "modelSelectionRequired": "Wähle ein Modell oder gib einen eigenen Modellnamen ein.",
       "runtimeUnavailable": "Dieser Schlüssel wurde gespeichert, ist aber noch nicht aktiv. Wähle „Gespeicherte Schlüssel erneut versuchen“, um ihn zu aktivieren.",
       "storageFailed": "Die App konnte nicht bestätigen, dass der Schlüssel sicher gespeichert wurde. Prüfe, ob der sichere Speicher verfügbar ist, und versuche es erneut.",
       "storageUncertain": "Die App konnte nicht feststellen, welcher gespeicherte Schlüssel nach einem Neustart erhalten bleibt. Gib den Schlüssel erneut ein, bevor du fortfährst.",
-      "trainingAccountMismatch": "Dieser {{intervalsLower}}-Schlüssel gehört zu einer anderen Person als der bereits gespeicherte Trainingsverlauf. Ein Kontowechsel wird noch nicht unterstützt.",
+      "trainingAccountMismatch": "Dieses {{intervalsLower}}-Konto gehört zu einer anderen Person als der Trainingsverlauf, der bereits auf {{computer}} gespeichert ist. Ein Kontowechsel wird noch nicht unterstützt.",
       "trainingDataRequired": "Verbinde {{intervalsLower}} oder importiere mindestens eine Fahrtdatei.",
       "unsafeBackend": "Die App kann diesen Schlüssel mit dem aktuellen Speichersystem nicht sicher speichern."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "{{intervals}}-Einrichtung abbrechen",
+      "cancelSignIn": "Anmeldung abbrechen",
+      "completing": "Anmeldung wird abgeschlossen…",
+      "completingHint": "Freigegeben. Die Verbindung wird auf {{computer}} gespeichert…",
       "connect": "Verbinden",
-      "connecting": "Verbindung wird hergestellt…",
       "connectTitle": "{{intervals}} verbinden",
-      "hint": "Öffne in {{intervals}} Einstellungen → Entwicklereinstellungen, kopiere den API-Schlüssel und kehre dann hierher zurück. {{product}} liest ihn, ohne ihn anzuzeigen.",
+      "hint": "Öffnet {{intervals}} in deinem Browser. Dort gibst du den Zugriff frei, und {{product}} sieht dein Passwort nie.",
       "importFiles": "Stattdessen Fahrtdateien importieren",
+      "reopen": "Anmeldeseite erneut öffnen",
+      "signIn": "Mit {{intervals}} anmelden",
       "subtitle": {
         "connected": "Verbunden · Quelle deiner Fahrten",
+        "connectedAs": "Verbunden als {{name}} · Quelle deiner Fahrten",
         "missing": "Verbinden oder Fahrtdateien importieren."
       },
       "tooltip": {
-        "body": "Eine kostenlose Trainingswebsite, auf der deine Fahrten bereits gespeichert sind. {{product}} liest sie von dort, statt direkt auf den Anbieter deiner Uhr oder deines Radcomputers zuzugreifen. Du benötigst ein kostenloses Konto, mit dem deine Uhr oder dein Radcomputer verbunden ist. Kopiere dann den API-Schlüssel des Kontos.",
+        "body": "Eine kostenlose Trainingswebsite, auf der deine Fahrten bereits gespeichert sind. {{product}} liest sie von dort, statt direkt auf den Anbieter deiner Uhr oder deines Radcomputers zuzugreifen. Du benötigst ein kostenloses Konto, mit dem deine Uhr oder dein Radcomputer verbunden ist. Melde dich dann hier an.",
         "label": "Über {{intervals}}"
       },
       "trigger": {
         "disconnected": "{{intervals}} verbinden"
       },
-      "useCopiedKey": "Kopierten API-Schlüssel verwenden"
+      "waiting": "Warten auf den Browser…",
+      "waitingHint": "Schließe den Vorgang in deinem Browser ab. {{product}} macht von selbst weiter, sobald du den Zugriff freigibst."
     }
   },
   "shell": {

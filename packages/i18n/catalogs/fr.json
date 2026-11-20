@@ -208,7 +208,7 @@
         "credential": "Supprimer la donnée d’authentification",
         "detail": "Cette action la supprime uniquement de {{computer}}. {{product}} cessera de l’utiliser si elle est active. Ton compte chez le fournisseur reste inchangé.",
         "intervalsAria": "Supprimer la connexion {{intervals}}",
-        "intervalsDetail": "Ta clé API enregistrée et ta connexion importée seront supprimées. Tes sorties synchronisées et tes conversations passées restent sur {{computer}}.",
+        "intervalsDetail": "Ta session enregistrée ou ta clé API, ainsi que la connexion importée, seront supprimées. Tes sorties synchronisées et tes conversations passées restent sur {{computer}}.",
         "intervalsTitle": "Supprimer la connexion {{intervals}} ?",
         "title": "Supprimer la donnée d’authentification {{provider}} ?"
       },
@@ -688,21 +688,23 @@
       "endpointInvalid": "Saisis un point de terminaison HTTPS valide, ou un point de terminaison HTTP de bouclage local.",
       "intakeIncomplete": "Réponds aux questions de sécurité obligatoires pour continuer.",
       "intakeSaveFailed": "Tes réponses n’ont pas pu être enregistrées. Réessaie.",
-      "intervalsClipboardClearFailed": "La clé API n’a pas été enregistrée, car {{product}} n’a pas pu l’effacer du presse-papiers en toute sécurité. Copie-la à nouveau, puis réessaie.",
-      "intervalsClipboardUnavailable": "{{product}} n’a pas pu lire de clé API dans le presse-papiers. Copie-la dans {{intervals}}, puis réessaie.",
-      "intervalsKeyRejected": "{{intervals}} n’a pas accepté la clé API copiée. Copie une clé API actuelle, puis réessaie.",
-      "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que la clé API copiée correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
-      "intervalsRuntimeUnavailable": "La clé API copiée n’a pas pu être activée. Copie-la dans {{intervals}}, puis réessaie.",
-      "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la clé API copiée est active. Recharge l’état des données d’authentification avant de réessayer.",
-      "intervalsStorageUncertain": "{{product}} n’a pas pu confirmer si la clé API copiée a été enregistrée. Recharge l’état des données d’authentification avant de réessayer.",
-      "intervalsValidationUnavailable": "{{product}} n’a pas pu vérifier la clé API copiée auprès de {{intervals}}. Vérifie ta connexion, puis réessaie.",
+      "intervalsOwnerUnavailable": "{{product}} n’a pas pu confirmer que ce compte {{intervals}} correspond aux données d’entraînement sur {{computer}}. Réessaie quand les données d’entraînement seront disponibles.",
+      "intervalsRuntimeUnavailable": "La connexion à {{intervals}} n’a pas pu être activée. Reconnecte-toi.",
+      "intervalsRuntimeUncertain": "{{product}} n’a pas pu confirmer si la connexion est active. Recharge l’état des données d’authentification avant de réessayer.",
+      "intervalsSignInDenied": "L’accès n’a pas été autorisé sur {{intervals}}. Reconnecte-toi quand tu le souhaites.",
+      "intervalsSignInFailed": "La connexion avec {{intervals}} n’a pas abouti. Reconnecte-toi.",
+      "intervalsSignInRejected": "{{intervals}} n’a pas accepté la connexion. Reconnecte-toi.",
+      "intervalsSignInTimedOut": "La connexion a expiré au bout de 5 minutes. Reconnecte-toi quand tu le souhaites.",
+      "intervalsSignInUnreachable": "{{product}} n’a pas pu joindre {{intervals}} pour terminer la connexion. Vérifie ta connexion Internet, puis reconnecte-toi.",
+      "intervalsStorageUncertain": "{{product}} n’a pas pu confirmer si la connexion a été enregistrée. Recharge l’état des données d’authentification avant de réessayer.",
+      "intervalsValidationUnavailable": "{{product}} n’a pas pu confirmer la connexion auprès de {{intervals}}. Vérifie ta connexion Internet, puis reconnecte-toi.",
       "invalidInput": "Cette clé n’a pas été acceptée. Vérifie-la et saisis-la à nouveau.",
       "modelRuntimeUnavailable": "Ton choix de fournisseur est enregistré, mais il n’est pas encore actif. Réessaie de l’activer.",
       "modelSelectionRequired": "Choisis un modèle ou saisis un nom de modèle personnalisé.",
       "runtimeUnavailable": "Cette clé a été enregistrée, mais elle n’est pas encore active. Choisis Réessayer les clés enregistrées pour l’activer.",
       "storageFailed": "L’application n’a pas pu confirmer que cette clé a été enregistrée en toute sécurité. Vérifie que le stockage sécurisé est disponible et réessaie.",
       "storageUncertain": "L’application n’a pas pu déterminer quelle clé enregistrée sera conservée après un redémarrage. Saisis à nouveau la clé avant de continuer.",
-      "trainingAccountMismatch": "Cette clé {{intervalsLower}} appartient à un autre athlète que celui de l’historique d’entraînement déjà enregistré. Le changement de compte n’est pas encore pris en charge.",
+      "trainingAccountMismatch": "Ce compte {{intervalsLower}} appartient à un autre athlète que celui de l’historique d’entraînement déjà présent sur {{computer}}. Le changement de compte n’est pas encore pris en charge.",
       "trainingDataRequired": "Connecte {{intervalsLower}} ou importe au moins un fichier de sortie.",
       "unsafeBackend": "L’application ne peut pas enregistrer cette clé en toute sécurité avec le système de stockage actuel."
     },
@@ -760,23 +762,29 @@
     },
     "training": {
       "cancelLabel": "Annuler la configuration de {{intervals}}",
+      "cancelSignIn": "Annuler la connexion",
+      "completing": "Finalisation de la connexion…",
+      "completingHint": "Accès autorisé. Enregistrement de la connexion sur {{computer}}…",
       "connect": "Connecter",
-      "connecting": "Connexion…",
       "connectTitle": "Connecter {{intervals}}",
-      "hint": "Dans {{intervals}}, ouvre Paramètres → Paramètres développeur, copie la clé API, puis reviens ici. {{product}} la lit sans l’afficher.",
+      "hint": "Ouvre {{intervals}} dans ton navigateur. Tu y autorises l’accès, et {{product}} ne voit jamais ton mot de passe.",
       "importFiles": "Importer plutôt des fichiers de sortie",
+      "reopen": "Rouvrir la page de connexion",
+      "signIn": "Se connecter avec {{intervals}}",
       "subtitle": {
         "connected": "Connecté · source de tes sorties",
+        "connectedAs": "Connecté en tant que {{name}} · source de tes sorties",
         "missing": "Connecte un compte ou importe des fichiers de sortie."
       },
       "tooltip": {
-        "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu dois copier sa clé API.",
+        "body": "Un site d’entraînement gratuit qui contient déjà tes sorties. {{product}} les lit depuis ce site au lieu de communiquer directement avec le fabricant de ta montre ou de ton compteur vélo. Tu as besoin d’un compte gratuit auquel ta montre ou ton compteur est connecté, puis tu te connectes ici.",
         "label": "À propos de {{intervals}}"
       },
       "trigger": {
         "disconnected": "Connecter {{intervals}}"
       },
-      "useCopiedKey": "Utiliser la clé API copiée"
+      "waiting": "En attente du navigateur…",
+      "waitingHint": "Termine dans ton navigateur. {{product}} poursuit tout seul dès que tu autorises l’accès."
     }
   },
   "shell": {

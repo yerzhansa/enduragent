@@ -207,7 +207,7 @@
         "credential": "刪除憑證",
         "detail": "此操作僅會從 {{computer}} 移除此憑證。若憑證已啟用，{{product}} 將停止使用。供應商帳號不會變更。",
         "intervalsAria": "刪除 {{intervals}} 連線",
-        "intervalsDetail": "已儲存的 API 金鑰與已匯入的連線將被移除。已同步的騎乘與過往聊天會保留在 {{computer}}。",
+        "intervalsDetail": "已儲存的登入資訊或 API 金鑰與已匯入的連線將被移除。已同步的騎乘與過往聊天會保留在 {{computer}}。",
         "intervalsTitle": "要刪除 {{intervals}} 連線嗎？",
         "title": "要刪除 {{provider}} 憑證嗎？"
       },
@@ -686,21 +686,23 @@
       "endpointInvalid": "請輸入有效的 HTTPS 端點，或本機回環 HTTP 端點。",
       "intakeIncomplete": "請回答必填的安全問題以繼續。",
       "intakeSaveFailed": "無法儲存回答。請重試。",
-      "intervalsClipboardClearFailed": "{{product}} 無法安全地從剪貼簿清除 API 金鑰，因此未儲存。請再次複製後重試。",
-      "intervalsClipboardUnavailable": "{{product}} 無法從剪貼簿讀取 API 金鑰。請在 {{intervals}} 中複製後重試。",
-      "intervalsKeyRejected": "{{intervals}} 未接受複製的 API 金鑰。請複製目前有效的 API 金鑰後重試。",
-      "intervalsOwnerUnavailable": "{{product}} 無法確認複製的 API 金鑰是否與 {{computer}} 上的訓練資料相符。請待訓練資料可用時再試。",
-      "intervalsRuntimeUnavailable": "無法啟用複製的 API 金鑰。請在 {{intervals}} 中複製後重試。",
-      "intervalsRuntimeUncertain": "{{product}} 無法確認複製的 API 金鑰是否已啟用。請重新載入憑證狀態後再試。",
-      "intervalsStorageUncertain": "{{product}} 無法確認複製的 API 金鑰是否已儲存。請重新載入憑證狀態後再試。",
-      "intervalsValidationUnavailable": "{{product}} 無法向 {{intervals}} 驗證複製的 API 金鑰。請檢查連線後重試。",
+      "intervalsOwnerUnavailable": "{{product}} 無法確認此 {{intervals}} 帳號是否與 {{computer}} 上的訓練資料相符。請待訓練資料可用時再試。",
+      "intervalsRuntimeUnavailable": "無法啟用 {{intervals}} 登入。請重新登入。",
+      "intervalsRuntimeUncertain": "{{product}} 無法確認登入是否有效。請重新載入憑證狀態後再試。",
+      "intervalsSignInDenied": "未在 {{intervals}} 上允許存取。準備好後請重新登入。",
+      "intervalsSignInFailed": "使用 {{intervals}} 登入未完成。請重新登入。",
+      "intervalsSignInRejected": "{{intervals}} 未接受此次登入。請重新登入。",
+      "intervalsSignInTimedOut": "登入在 5 分鐘後逾時。準備好後請重新登入。",
+      "intervalsSignInUnreachable": "{{product}} 無法連線至 {{intervals}} 以完成登入。請檢查連線後重新登入。",
+      "intervalsStorageUncertain": "{{product}} 無法確認登入資訊是否已儲存。請重新載入憑證狀態後再試。",
+      "intervalsValidationUnavailable": "{{product}} 無法向 {{intervals}} 確認登入。請檢查連線後重新登入。",
       "invalidInput": "未接受此金鑰。請檢查後重新輸入。",
       "modelRuntimeUnavailable": "已儲存選擇的供應商，但尚未啟用。請再次嘗試啟用。",
       "modelSelectionRequired": "請選擇模型或輸入自訂模型名稱。",
       "runtimeUnavailable": "已儲存此金鑰，但尚未啟用。請選擇「重試已儲存的金鑰」以啟用。",
       "storageFailed": "應用程式無法確認此金鑰是否已安全儲存。請確認安全儲存空間可用後重試。",
       "storageUncertain": "應用程式無法確認哪組已儲存的金鑰會在重新啟動後保留。請重新輸入金鑰後再繼續。",
-      "trainingAccountMismatch": "此 {{intervalsLower}} 金鑰所屬的運動員與已儲存的訓練記錄不同。目前尚不支援切換帳號。",
+      "trainingAccountMismatch": "此 {{intervalsLower}} 帳號所屬的運動員與 {{computer}} 上已有的訓練記錄不同。目前尚不支援切換帳號。",
       "trainingDataRequired": "請連結 {{intervalsLower}}，或至少匯入一個騎乘檔案。",
       "unsafeBackend": "應用程式無法使用目前的儲存後端安全地儲存此金鑰。"
     },
@@ -757,23 +759,29 @@
     },
     "training": {
       "cancelLabel": "取消 {{intervals}} 設定",
+      "cancelSignIn": "取消登入",
+      "completing": "正在完成登入…",
+      "completingHint": "已授權。正在將連結儲存至 {{computer}}…",
       "connect": "連結",
-      "connecting": "正在連線…",
       "connectTitle": "連結 {{intervals}}",
-      "hint": "在 {{intervals}} 中開啟「設定」→「開發者設定」，複製 API 金鑰後返回這裡。{{product}} 會讀取金鑰，但不會顯示。",
+      "hint": "在瀏覽器中開啟 {{intervals}}。請在該頁授權存取，{{product}} 永遠不會看到密碼。",
       "importFiles": "改為匯入騎乘檔案",
+      "reopen": "重新開啟登入頁面",
+      "signIn": "使用 {{intervals}} 登入",
       "subtitle": {
         "connected": "已連結 · 騎乘資料來源",
+        "connectedAs": "已以 {{name}} 身分連結 · 騎乘資料來源",
         "missing": "連結服務或匯入騎乘檔案。"
       },
       "tooltip": {
-        "body": "這是已儲存騎乘資料的免費訓練網站。{{product}} 會從這裡讀取資料，而非直接連接手錶或自行車碼表供應商。需要一個已連結手錶或自行車碼表的免費帳號，再複製該帳號的 API 金鑰。",
+        "body": "這是已儲存騎乘資料的免費訓練網站。{{product}} 會從這裡讀取資料，而非直接連接手錶或自行車碼表供應商。需要一個已連結手錶或自行車碼表的免費帳號，再於此處登入。",
         "label": "關於 {{intervals}}"
       },
       "trigger": {
         "disconnected": "連結 {{intervals}}"
       },
-      "useCopiedKey": "使用複製的 API 金鑰"
+      "waiting": "正在等待瀏覽器…",
+      "waitingHint": "請在瀏覽器中完成操作。授權存取後，{{product}} 會自動繼續。"
     }
   },
   "shell": {

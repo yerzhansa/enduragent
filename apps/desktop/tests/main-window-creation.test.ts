@@ -16,10 +16,7 @@ describe("desktop main window creation", () => {
 
   it("requires a ready daemon connection before constructing the window", () => {
     const creationStart = source.indexOf("windowCreation = (async () => {");
-    const connectionResolved = source.indexOf(
-      "daemonLifecycle!.connection().generation",
-      creationStart,
-    );
+    const connectionResolved = source.indexOf("lifecycle.connection().generation", creationStart);
     const windowConstructed = source.indexOf("new BrowserWindow(windowOptions)", creationStart);
     const preparedWithResolvedGeneration = source.indexOf(
       "navigationGeneration,",

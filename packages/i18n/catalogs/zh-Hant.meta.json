@@ -733,7 +733,7 @@
       "translatedBy": "model"
     },
     "settings.credentials.delete.intervalsDetail": {
-      "sourceHash": "92fac09e22f5a40c5c696b86a1c30aadcc859e1e0e8c35b34d00047c1f68b997",
+      "sourceHash": "05a4ff6ffd010c4b074d58ec1f87a556fb7a73ebadb1b707ba9cb518086451a9",
       "translatedBy": "model"
     },
     "settings.credentials.delete.intervalsTitle": {
@@ -2128,36 +2128,44 @@
       "sourceHash": "ac3742efddd8598f18537f0fd7226d48a338e31203283a9cb0c01265dec8fd90",
       "translatedBy": "model"
     },
-    "setup.error.intervalsClipboardClearFailed": {
-      "sourceHash": "995064395751d92a1aca9b89a9f1a0a5cc47b91645884958000d12389be24e02",
-      "translatedBy": "model"
-    },
-    "setup.error.intervalsClipboardUnavailable": {
-      "sourceHash": "c730c3a9e7236bc5724da7b76a0e7d39d23abef52287fcc450dc8b06d46ccfc4",
-      "translatedBy": "model"
-    },
-    "setup.error.intervalsKeyRejected": {
-      "sourceHash": "d8fdcfb2fafe69f45f9453d2decb4e86a5ea2d40e9725709c4bdf3f16e9abb4f",
-      "translatedBy": "model"
-    },
     "setup.error.intervalsOwnerUnavailable": {
-      "sourceHash": "18edefed99d9c6ceb1e254c195f006fac566b3b03a418b69d7c7bdb63ed4a6e9",
+      "sourceHash": "4d2c4a67c154e181bf1449df9516051180b1a503a5d7f657b31fb1cab6d2c5c7",
       "translatedBy": "model"
     },
     "setup.error.intervalsRuntimeUnavailable": {
-      "sourceHash": "3308d25fb8c5d21134cd9806157093a834d1e06675efd702963dfffdeac22b80",
+      "sourceHash": "d356d27fd77eb200fa4d7dd3e34e7c09a0afa29996028abe796a67b07a15d9ef",
       "translatedBy": "model"
     },
     "setup.error.intervalsRuntimeUncertain": {
-      "sourceHash": "057bfd09ff1580f516fa69ca280e3702644ffb948d139e3c88826c8f470c2899",
+      "sourceHash": "b3ac912978e43c4e97b3b81c2ce36c2485de3ea42f8084db23a91f1eeecfbb2d",
+      "translatedBy": "model"
+    },
+    "setup.error.intervalsSignInDenied": {
+      "sourceHash": "49bb7a5ca091b1f07aacffaf584ce4d7ab59aa102e27256bfc1b9c9b3ff76615",
+      "translatedBy": "model"
+    },
+    "setup.error.intervalsSignInFailed": {
+      "sourceHash": "690b9c3b100468d64916bd5e5b04281cb7afbf042d8d5467707933d517947e1e",
+      "translatedBy": "model"
+    },
+    "setup.error.intervalsSignInRejected": {
+      "sourceHash": "6c5ee4924a9904e588a3d3950fd3b9b035373ca0ff80897c452390c60f6b19fc",
+      "translatedBy": "model"
+    },
+    "setup.error.intervalsSignInTimedOut": {
+      "sourceHash": "80eea5e5bfd84caa1dd6c2adb9b63eb5683c471b6ef30bb3b5038d0e55b1e6a3",
+      "translatedBy": "model"
+    },
+    "setup.error.intervalsSignInUnreachable": {
+      "sourceHash": "5e0061e40d850594954b50fb084c284cacb422bceca32c870bce2c189d57b894",
       "translatedBy": "model"
     },
     "setup.error.intervalsStorageUncertain": {
-      "sourceHash": "5183503974d1e8c85eb84070723b79629726a4e2ac4dcf6f08b57f0f60868f4d",
+      "sourceHash": "e3ad123861c2de7017cc025c09d2e70ac54dc8393a465273a429ca00ec07ceb0",
       "translatedBy": "model"
     },
     "setup.error.intervalsValidationUnavailable": {
-      "sourceHash": "5a97071f0428594e4593db66ac92f90016e5d500a4c2562d0d9111d7d48e8011",
+      "sourceHash": "67b8522e0f183a8836e67bd7dfded5e50d7afc6db399b640bba4f2cd530a74c4",
       "translatedBy": "model"
     },
     "setup.error.invalidInput": {
@@ -2185,7 +2193,7 @@
       "translatedBy": "model"
     },
     "setup.error.trainingAccountMismatch": {
-      "sourceHash": "cd700da1a4ff2086326b39bae5bd0092cbf6ed06a6174ff62619eb60c8ba6c73",
+      "sourceHash": "d13de1cb124fc268c2561d9fbdeb4ec65ae78792077c546750a8119dc48dc6ed",
       "translatedBy": "model"
     },
     "setup.error.trainingDataRequired": {
@@ -2380,12 +2388,20 @@
       "sourceHash": "dc38585a8de589c3e53eb5ef006b2a543c3b4d7828ac3b39904c3a6923de7436",
       "translatedBy": "model"
     },
-    "setup.training.connect": {
-      "sourceHash": "1a2303ede07493acc7caaa7c737f3c52bcc9cf04372be19ed1b0af6b9f2c791e",
+    "setup.training.cancelSignIn": {
+      "sourceHash": "9effa0b7488496eeaed3bf526cf18bab53952e8a502008e7889eaf9840c012c7",
       "translatedBy": "model"
     },
-    "setup.training.connecting": {
-      "sourceHash": "72021eb70e91b4d58254586a8519393a281eb830c165bf1ec42a5057d425bcaf",
+    "setup.training.completing": {
+      "sourceHash": "fc379aff800289d362cd66708e4eb6688226e1931faa0d669fea98df8fb262c4",
+      "translatedBy": "model"
+    },
+    "setup.training.completingHint": {
+      "sourceHash": "0a00deb38082ee15904471873a0b704970daa6bbe0075d5ceb59048554763947",
+      "translatedBy": "model"
+    },
+    "setup.training.connect": {
+      "sourceHash": "1a2303ede07493acc7caaa7c737f3c52bcc9cf04372be19ed1b0af6b9f2c791e",
       "translatedBy": "model"
     },
     "setup.training.connectTitle": {
@@ -2393,15 +2409,27 @@
       "translatedBy": "model"
     },
     "setup.training.hint": {
-      "sourceHash": "678f6a0197600b617f6253dc785b17f81070377630f38ca0d3f458866b501974",
+      "sourceHash": "d5ced00b5b2051ab03497a62d021c5984dd963d4d4629e8b0be69fd6c1551c61",
       "translatedBy": "model"
     },
     "setup.training.importFiles": {
       "sourceHash": "ba960509716c9a4c2265bb71c48da3d80f95155bec66370b9a3294ea9c55dc9a",
       "translatedBy": "model"
     },
+    "setup.training.reopen": {
+      "sourceHash": "27aad21def11d6d6a32d3e5c8889a1fc54560603417112f9ec2586917178f544",
+      "translatedBy": "model"
+    },
+    "setup.training.signIn": {
+      "sourceHash": "2180d123daf13911320e5377893dc9e4e33fe22adad04333ff1d021e984303f6",
+      "translatedBy": "model"
+    },
     "setup.training.subtitle.connected": {
       "sourceHash": "b9b416731ea2dafd556edae381dc2741b000958e809d50a5d9cfa1cebe7ff869",
+      "translatedBy": "model"
+    },
+    "setup.training.subtitle.connectedAs": {
+      "sourceHash": "5a2a1902313b1604966410ae5c6bf95ad8cedb332dbfe4b436056dc20fd99ff6",
       "translatedBy": "model"
     },
     "setup.training.subtitle.missing": {
@@ -2409,7 +2437,7 @@
       "translatedBy": "model"
     },
     "setup.training.tooltip.body": {
-      "sourceHash": "89063dfd611ab117123587b6b9a52d21923b9fc290ab621cb09c0f5fadb73cbe",
+      "sourceHash": "3da852b5e7ce10480b2951ab9ffede7193efb6559d780d1f4d000bf019572afc",
       "translatedBy": "model"
     },
     "setup.training.tooltip.label": {
@@ -2420,8 +2448,12 @@
       "sourceHash": "7e9721f46e74a67cc63eb0043925ce81d98b1e2e59e511a5840dc79b27601248",
       "translatedBy": "model"
     },
-    "setup.training.useCopiedKey": {
-      "sourceHash": "7bbc376e9d3c6bc5617c73d90e3f465ab3a1b6b25802dccbac101822fbdfd37c",
+    "setup.training.waiting": {
+      "sourceHash": "9422512c289675d063ef1a0946a222611f83b7f8655e0e63ac27aaa79ad20844",
+      "translatedBy": "model"
+    },
+    "setup.training.waitingHint": {
+      "sourceHash": "9ce46d012721baf0b9cb8c93f213cc0cb14a01d7d6940a27297b8f601bc7d5f8",
       "translatedBy": "model"
     },
     "shell.checkingSetup": {

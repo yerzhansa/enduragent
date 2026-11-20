@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect } from "@playwright/test";
 import {
   launchDesktopFixture,
@@ -6,7 +9,7 @@ import {
 } from "../../helpers/desktop-fixture.js";
 
 const FIXTURE_TOKEN = "u".repeat(43);
-const FIXTURE_INTERVALS_KEY = "synthetic-intervals-key-for-application-state";
+const FIXTURE_INTERVALS_TOKEN = "acceptance-token";
 const FIXTURE_APPROVAL = "a".repeat(64);
 
 interface ScriptRequest {
@@ -279,6 +282,22 @@ class ApplicationStateBackend {
   }
 }
 
+async function approveIntervalsSignIn(authorizeLog: string): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  let logged = "";
+  while (logged === "" && Date.now() < deadline) {
+    logged = (await readFile(authorizeLog, "utf8").catch(() => "")).trim();
+    if (logged === "") await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  if (logged === "") throw new Error("The Intervals.icu sign-in page was never requested");
+  const authorize = new URL(logged.split("\n")[0] ?? "");
+  const callback = new URL(authorize.searchParams.get("redirect_uri") ?? "");
+  callback.searchParams.set("code", "acceptance-code");
+  callback.searchParams.set("state", authorize.searchParams.get("state") ?? "");
+  const reply = await fetch(callback);
+  if (!reply.ok) throw new Error(`The sign-in callback answered ${reply.status}`);
+}
+
 export interface ApplicationUiHarness {
   readonly fixture: RunningDesktopFixture;
   readonly backend: ApplicationStateBackend;
@@ -291,6 +310,8 @@ export async function launchApplicationUiHarness(input: {
   readonly colorScheme: "light" | "dark";
 }): Promise<ApplicationUiHarness> {
   const backend = new ApplicationStateBackend();
+  const authorizeDirectory = await mkdtemp(join(tmpdir(), "ui-states-intervals-"));
+  const authorizeLog = join(authorizeDirectory, "authorize.log");
   const fixture = await launchDesktopFixture({
     script: backend.script,
     token: FIXTURE_TOKEN,
@@ -301,19 +322,13 @@ export async function launchApplicationUiHarness(input: {
     hidden: true,
     inspectMain: true,
     routeChatAttachmentComposer: true,
-    extraEnv: { LANG: "en_US.UTF-8", TZ: "UTC" },
+    extraEnv: {
+      LANG: "en_US.UTF-8",
+      TZ: "UTC",
+      ENDURAGENT_ACCEPTANCE_INTERVALS_AUTHORIZE_LOG: authorizeLog,
+    },
   });
   try {
-    const clipboardValue = await fixture.evaluateMain<string>(`
-      const { createRequire } = process.getBuiltinModule("module");
-      const require = createRequire(process.cwd() + "/package.json");
-      const { clipboard } = require("electron");
-      clipboard.readText = () => ${JSON.stringify(FIXTURE_INTERVALS_KEY)};
-      clipboard.clear = () => {};
-      return clipboard.readText();
-    `);
-    if (clipboardValue !== FIXTURE_INTERVALS_KEY)
-      throw new Error("Fixture clipboard was not installed");
     await evaluateWhen<boolean>(
       fixture,
       `(() => {
@@ -325,7 +340,8 @@ export async function launchApplicationUiHarness(input: {
       "the setup gate",
     );
     await clickSelector(fixture, '[data-setup-trigger="training"]', "the training setup action");
-    await clickExactText(fixture, "button", "Use copied API key");
+    await clickExactText(fixture, "button", "Sign in with Intervals.icu");
+    await approveIntervalsSignIn(authorizeLog);
     await evaluateWhen<boolean>(
       fixture,
       `document.querySelector('[data-setup-row="training"] [data-setup-disc="ready"]') !== null`,
@@ -359,6 +375,7 @@ export async function launchApplicationUiHarness(input: {
       .catch((diagnosticError: unknown) => ({ diagnosticError: String(diagnosticError) }));
     backend.releasePendingRequests();
     const outcome = await fixture.close();
+    await rm(authorizeDirectory, { recursive: true, force: true });
     if (outcome.livePids.length > 0 || outcome.listenerCount !== 0) {
       throw new AggregateError(
         [
@@ -387,6 +404,7 @@ export async function launchApplicationUiHarness(input: {
     async close() {
       backend.releasePendingRequests();
       const outcome = await fixture.close();
+      await rm(authorizeDirectory, { recursive: true, force: true });
       expect(outcome.livePids).toEqual([]);
       expect(outcome.listenerCount).toBe(0);
     },
@@ -396,6 +414,6 @@ export async function launchApplicationUiHarness(input: {
 
 export const privateFixtureValues = [
   FIXTURE_TOKEN,
-  FIXTURE_INTERVALS_KEY,
+  FIXTURE_INTERVALS_TOKEN,
   FIXTURE_APPROVAL,
 ] as const;

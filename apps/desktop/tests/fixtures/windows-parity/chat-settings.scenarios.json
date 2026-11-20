@@ -220,9 +220,9 @@
     {
       "id": "settings.intervals.connect",
       "surface": "settings",
-      "expected": "Intervals.icu setup reads a copied API key without rendering the secret, validates ownership, and activates the connection only after an authoritative applied result.",
+      "expected": "Intervals.icu setup signs in through the browser without rendering a secret, validates ownership, and activates the connection only after an authoritative applied result.",
       "automation": "deterministic",
-      "test": "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu from copied metadata without rendering a secret field"
+      "test": "apps/desktop-renderer/tests/onboarding-setup-card.test.tsx > connects Intervals.icu through browser sign-in without rendering a secret field"
     },
     {
       "id": "settings.intervals.delete-only",

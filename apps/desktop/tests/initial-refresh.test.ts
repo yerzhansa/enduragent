@@ -92,28 +92,29 @@ describe("desktop initial refresh coordinator", () => {
     );
     const backgroundWindowGuard = source.indexOf("mainWindow.current() === null", residencyReady);
     const initialShow = source.indexOf("await mainWindow.show()", backgroundRelease);
+    const reloadHelper = source.indexOf("const reloadRenderer = (");
+    const reloadPrepare = source.indexOf(
+      "connectionIpc.prepareDocumentNavigation(target, generation)",
+      reloadHelper,
+    );
+    const reloadLoad = source.indexOf(
+      "startRendererNavigation(target, navigationUrl)",
+      reloadPrepare,
+    );
     const serviceManagedRecovery = source.indexOf('if (current.owner !== "app-supervised") {');
-    const serviceManagedPrepare = source.indexOf(
-      "connectionIpc!.prepareDocumentNavigation",
+    const serviceManagedReload = source.indexOf(
+      "if (!advanced) reloadRenderer(visibleWindow, current.generation);",
       serviceManagedRecovery,
     );
-    const serviceManagedLoad = source.indexOf(
-      "startRendererNavigation(visibleWindow, navigationUrl)",
-      serviceManagedPrepare,
-    );
-    const serviceManagedReturn = source.indexOf("return;", serviceManagedLoad);
+    const serviceManagedReturn = source.indexOf("return;", serviceManagedReload);
     const recoveryArm = source.indexOf("initialRefreshCoordinator.prepareRecovery({");
-    const recoveryPrepare = source.indexOf(
-      "connectionIpc!.prepareDocumentNavigation",
+    const recoveryReload = source.indexOf(
+      'recovery === "reload-required" && !reloadRenderer(visibleWindow, current.generation)',
       recoveryArm,
-    );
-    const recoveryLoad = source.indexOf(
-      "startRendererNavigation(visibleWindow!, navigationUrl)",
-      recoveryPrepare,
     );
     const recoveryFallbackRelease = source.indexOf(
       "void initialRefreshCoordinator.releaseCurrent()",
-      recoveryLoad,
+      recoveryReload,
     );
     const windowClose = source.indexOf('created.once("closed"');
     const closeRelease = source.indexOf(
@@ -152,13 +153,15 @@ describe("desktop initial refresh coordinator", () => {
     expect(initialShow).toBeGreaterThan(backgroundRelease);
     expect(source).not.toContain(".reload()");
     expect(source).toContain("shouldReleaseInitialRefreshAfterLoadRejection(error)");
-    expect(serviceManagedPrepare).toBeGreaterThan(serviceManagedRecovery);
-    expect(serviceManagedLoad).toBeGreaterThan(serviceManagedPrepare);
-    expect(serviceManagedReturn).toBeGreaterThan(serviceManagedLoad);
+    expect(reloadHelper).toBeGreaterThan(-1);
+    expect(reloadPrepare).toBeGreaterThan(reloadHelper);
+    expect(reloadLoad).toBeGreaterThan(reloadPrepare);
+    expect(serviceManagedRecovery).toBeGreaterThan(-1);
+    expect(serviceManagedReload).toBeGreaterThan(serviceManagedRecovery);
+    expect(serviceManagedReturn).toBeGreaterThan(serviceManagedReload);
     expect(recoveryArm).toBeGreaterThan(serviceManagedReturn);
-    expect(recoveryPrepare).toBeGreaterThan(recoveryArm);
-    expect(recoveryLoad).toBeGreaterThan(recoveryPrepare);
-    expect(recoveryFallbackRelease).toBeGreaterThan(recoveryLoad);
+    expect(recoveryReload).toBeGreaterThan(recoveryArm);
+    expect(recoveryFallbackRelease).toBeGreaterThan(recoveryReload);
     expect(source).toContain("scheduleWatchdog: (operation) =>");
     expect(source).toContain("INITIAL_REFRESH_SETTLE_WATCHDOG_MS = 30_000");
     expect(closeWindowGuard).toBeGreaterThan(windowClose);

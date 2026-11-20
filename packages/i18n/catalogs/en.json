@@ -1745,7 +1745,7 @@
         "credential": "Delete credential",
         "detail": "This removes it from {{computer}} only. {{product}} will stop using it if it is active. Your provider account is unchanged.",
         "intervalsAria": "Delete the {{intervals}} connection",
-        "intervalsDetail": "Your saved API key and imported connection will be removed. Your synced rides and past chats stay on {{computer}}.",
+        "intervalsDetail": "Your saved sign-in or API key and imported connection will be removed. Your synced rides and past chats stay on {{computer}}.",
         "intervalsTitle": "Delete the {{intervals}} connection?",
         "title": "Delete the {{provider}} credential?"
       },
@@ -2210,21 +2210,23 @@
       "endpointInvalid": "Enter a valid HTTPS endpoint, or a loopback HTTP endpoint.",
       "intakeIncomplete": "Answer the required safety questions to continue.",
       "intakeSaveFailed": "Your answers could not be saved. Please try again.",
-      "intervalsClipboardClearFailed": "The API key wasn’t saved because {{product}} couldn’t safely clear it from the clipboard. Copy it again, then try again.",
-      "intervalsClipboardUnavailable": "{{product}} couldn’t read an API key from the clipboard. Copy it in {{intervals}}, then try again.",
-      "intervalsKeyRejected": "{{intervals}} didn’t accept the copied API key. Copy a current API key, then try again.",
-      "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that the copied API key matches the training data on {{computer}}. Try again when training data is available.",
-      "intervalsRuntimeUnavailable": "The copied API key couldn’t be activated. Copy it in {{intervals}}, then try again.",
-      "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the copied API key is active. Reload credential status before trying again.",
-      "intervalsStorageUncertain": "{{product}} couldn’t confirm whether the copied API key was saved. Reload credential status before trying again.",
-      "intervalsValidationUnavailable": "{{product}} couldn’t verify the copied API key with {{intervals}}. Check your connection, then try again.",
+      "intervalsOwnerUnavailable": "{{product}} couldn’t confirm that this {{intervals}} account matches the training data on {{computer}}. Try again when training data is available.",
+      "intervalsRuntimeUnavailable": "The {{intervals}} sign-in couldn’t be activated. Sign in again.",
+      "intervalsRuntimeUncertain": "{{product}} couldn’t confirm whether the sign-in is active. Reload credential status before trying again.",
+      "intervalsSignInDenied": "Access wasn’t allowed on {{intervals}}. Sign in again when you’re ready.",
+      "intervalsSignInFailed": "Signing in with {{intervals}} didn’t finish. Sign in again.",
+      "intervalsSignInRejected": "{{intervals}} didn’t accept the sign-in. Sign in again.",
+      "intervalsSignInTimedOut": "Sign-in timed out after 5 minutes. Sign in again when you’re ready.",
+      "intervalsSignInUnreachable": "{{product}} couldn’t reach {{intervals}} to finish signing in. Check your connection, then sign in again.",
+      "intervalsStorageUncertain": "{{product}} couldn’t confirm whether the sign-in was saved. Reload credential status before trying again.",
+      "intervalsValidationUnavailable": "{{product}} couldn’t confirm the sign-in with {{intervals}}. Check your connection, then sign in again.",
       "invalidInput": "That key was not accepted. Check it and enter it again.",
       "modelRuntimeUnavailable": "Your provider choice is saved, but it is not active yet. Try activating it again.",
       "modelSelectionRequired": "Choose a model or enter a custom model name.",
       "runtimeUnavailable": "That key was saved, but it is not active yet. Choose Retry saved keys to activate it.",
       "storageFailed": "The app could not confirm that key was saved securely. Check that secure storage is available and try again.",
       "storageUncertain": "The app could not prove which saved key will survive a restart. Re-enter the key before continuing.",
-      "trainingAccountMismatch": "That {{intervalsLower}} key belongs to a different athlete than the training history already stored. Switching accounts is not supported yet.",
+      "trainingAccountMismatch": "That {{intervalsLower}} account belongs to a different athlete than the training history already on {{computer}}. Switching accounts isn’t supported yet.",
       "trainingDataRequired": "Connect {{intervalsLower}} or import at least one ride file.",
       "unsafeBackend": "The app cannot safely store that key with the current storage backend."
     },
@@ -2282,23 +2284,29 @@
     },
     "training": {
       "cancelLabel": "Cancel {{intervals}} setup",
+      "cancelSignIn": "Cancel sign-in",
+      "completing": "Completing sign-in…",
+      "completingHint": "Approved. Saving the connection on {{computer}}…",
       "connect": "Connect",
-      "connecting": "Connecting…",
       "connectTitle": "Connect {{intervals}}",
-      "hint": "In {{intervals}}, open Settings → Developer Settings, copy the API key, then return here. {{product}} reads it without showing it.",
+      "hint": "Opens {{intervals}} in your browser. You approve access there, and {{product}} never sees your password.",
       "importFiles": "Import ride files instead",
+      "reopen": "Open the sign-in page again",
+      "signIn": "Sign in with {{intervals}}",
       "subtitle": {
         "connected": "Connected · where your rides come from",
+        "connectedAs": "Connected as {{name}} · where your rides come from",
         "missing": "Connect or import ride files."
       },
       "tooltip": {
-        "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then copy its API key.",
+        "body": "A free training site that already holds your rides. {{product}} reads them from there instead of talking to your watch or head-unit vendor directly. You need a free account with your watch or head unit connected to it, then sign in here.",
         "label": "About {{intervals}}"
       },
       "trigger": {
         "disconnected": "Connect {{intervals}}"
       },
-      "useCopiedKey": "Use copied API key"
+      "waiting": "Waiting for browser…",
+      "waitingHint": "Finish in your browser. {{product}} carries on by itself once you approve."
     }
   },
   "shell": {

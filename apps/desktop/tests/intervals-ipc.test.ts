@@ -9,12 +9,23 @@ import {
   CoachRpcRemoteError,
 } from "@enduragent/coach-client";
 import type { RuntimeConfigSnapshot } from "@enduragent/coach-contract";
+import {
+  IntervalsSignInError,
+  type IntervalsOAuthGrant,
+  type IntervalsSignInFailure,
+  type IntervalsSignInOptions,
+} from "@enduragent/core";
 import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it, vi } from "vitest";
-import { DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL } from "../src/main/constants.js";
+import {
+  DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL,
+} from "../src/main/constants.js";
 import { createActiveIntervalsCredentialPreflight } from "../src/main/credential-runtime.js";
 import {
   CredentialRuntimeRefusal,
@@ -29,18 +40,45 @@ import {
   type DesktopIntervalsCredentialVerificationResult,
   type DesktopIntervalsCredentialStatus,
 } from "../src/main/intervals-ipc.js";
+import { createDesktopRendererUrl } from "../src/main/renderer-navigation.js";
 
 const API_KEY = "synthetic-intervals-api-key";
-const EXISTING_API_KEY = "synthetic-existing-intervals-key";
+const CREDENTIAL = "intervals-oauth:fixture-token";
+const EXISTING_CREDENTIAL = "intervals-oauth:fixture-existing-token";
+const ATHLETE_NAME = "Test Athlete";
+const AUTHORIZE_URL = "https://intervals.icu/oauth/authorize?client_id=fixture&state=fixture";
+const RENDERER_URL = createDesktopRendererUrl("n".repeat(43));
 const APPROVAL = "a".repeat(64);
-const PRIVATE_DETAIL = `${API_KEY} at /Users/private/id_ed25519 PRIVATE_KEY`;
+const PRIVATE_DETAIL = `${CREDENTIAL} at /Users/private/id_ed25519 PRIVATE_KEY`;
+const SIGN_IN_CHANNELS = [
+  DESKTOP_INTERVALS_SIGN_IN_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL,
+  DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL,
+] as const;
+
+type SignIn = (options: IntervalsSignInOptions) => Promise<IntervalsOAuthGrant>;
 
 function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
+  const settle: { resolve?: (value: T) => void; reject?: (error: unknown) => void } = {};
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    settle.resolve = resolvePromise;
+    settle.reject = rejectPromise;
   });
-  return { promise, resolve };
+  return {
+    promise,
+    resolve: (value: T) => settle.resolve?.(value),
+    reject: (error: unknown) => settle.reject?.(error),
+  };
+}
+
+function grant(overrides: Partial<IntervalsOAuthGrant> = {}): IntervalsOAuthGrant {
+  return {
+    credential: CREDENTIAL,
+    scope: "ACTIVITY:READ,WELLNESS:READ,CALENDAR:WRITE,SETTINGS:READ",
+    athleteId: "101",
+    athleteName: ATHLETE_NAME,
+    ...overrides,
+  };
 }
 
 function status(
@@ -48,6 +86,10 @@ function status(
   runtimeState: DesktopIntervalsCredentialStatus["runtimeState"] = null,
 ): DesktopIntervalsCredentialStatus {
   return { slot: "intervals-icu", state, runtimeState };
+}
+
+function applied(current = status("configured", "active")) {
+  return { outcome: "applied", current, athleteName: ATHLETE_NAME };
 }
 
 function runtimeSnapshot(athleteId = "synthetic-athlete"): RuntimeConfigSnapshot {
@@ -80,10 +122,47 @@ function runtimeSnapshot(athleteId = "synthetic-athlete"): RuntimeConfigSnapshot
   };
 }
 
+function rendererSender(url = RENDERER_URL) {
+  const state = { destroyed: false, url };
+  const send = vi.fn((_channel: string, _payload: unknown) => undefined);
+  const sender = {
+    send,
+    isDestroyed: () => state.destroyed,
+    get mainFrame() {
+      if (state.destroyed) throw new TypeError("Object has been destroyed");
+      return { url: state.url };
+    },
+  };
+  return { send, sender, state };
+}
+
+function controlledSignIn() {
+  const outcome = deferred<IntervalsOAuthGrant>();
+  const calls: IntervalsSignInOptions[] = [];
+  const signIn: SignIn = (input) => {
+    calls.push(input);
+    return new Promise<IntervalsOAuthGrant>((resolve, reject) => {
+      input.signal?.addEventListener("abort", () => reject(new IntervalsSignInError("cancelled")), {
+        once: true,
+      });
+      outcome.promise.then(resolve, reject);
+    });
+  };
+  const options = (): IntervalsSignInOptions => {
+    const latest = calls.at(-1);
+    if (latest === undefined) throw new Error("sign-in was not started");
+    return latest;
+  };
+  return { calls, options, outcome, signIn };
+}
+
 function setup(
   options: {
     readonly trusted?: boolean;
     readonly current?: DesktopIntervalsCredentialStatus;
+    readonly grant?: IntervalsOAuthGrant;
+    readonly signIn?: SignIn;
+    readonly sender?: ReturnType<typeof rendererSender>["sender"];
     readonly verification?: DesktopIntervalsCredentialVerificationResult;
     readonly verifyCredential?: (
       apiKey: string,
@@ -91,12 +170,12 @@ function setup(
     ) => Promise<DesktopIntervalsCredentialVerificationResult>;
     readonly writeResult?: CredentialWriteResult;
     readonly vault?: Pick<CredentialVault, "credentialStatuses" | "runExclusiveMutation">;
-    readonly clipboardValue?: string;
   } = {},
 ) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
   const removed: string[] = [];
   const trace: string[] = [];
+  const trust = { value: options.trusted ?? true };
   let current = options.current ?? status();
   const writeCredential = vi.fn(
     async (input: { readonly value: string }, _behavior?: CredentialWriteBehavior) => {
@@ -131,15 +210,14 @@ function setup(
     ),
   };
   const vault = options.vault ?? defaultVault;
-  const clipboard = {
-    readText: vi.fn(() => {
-      trace.push("read");
-      return Promise.resolve(options.clipboardValue ?? `  ${API_KEY}  `);
-    }),
-    clear: vi.fn(() => {
-      trace.push("clear");
-    }),
-  };
+  const signIn = vi.fn(
+    options.signIn ??
+      (async (_input: IntervalsSignInOptions) => {
+        trace.push("sign-in");
+        return options.grant ?? grant();
+      }),
+  );
+  const openExternal = vi.fn(async (_url: string) => undefined);
   const verifyCredential = vi.fn(
     options.verifyCredential ??
       (async (apiKey: string) => {
@@ -153,26 +231,33 @@ function setup(
       handle: (channel, handler) => handlers.set(channel, handler as never),
       removeHandler: (channel) => removed.push(channel),
     },
-    clipboard,
-    isTrusted: () => options.trusted ?? true,
+    openExternal,
+    signIn,
+    isTrusted: () => trust.value,
     signal: appController.signal,
     vault: vault as never,
     verifyCredential,
   });
-  const invoke = (...args: unknown[]) =>
-    handlers.get(DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL)!(
-      { sender: {}, senderFrame: {} },
-      ...args,
-    );
+  const sender = options.sender ?? rendererSender().sender;
+  const invoke = async (channel: string, ...args: unknown[]): Promise<unknown> => {
+    const handler = handlers.get(channel);
+    if (handler === undefined) throw new Error(`no handler for ${channel}`);
+    return handler({ sender, senderFrame: {} }, ...args);
+  };
   return {
     appController,
-    clipboard,
+    cancel: (...args: unknown[]) => invoke(DESKTOP_INTERVALS_SIGN_IN_CANCEL_CHANNEL, ...args),
     defaultVault,
     dispose,
     handlers,
     invoke,
+    openExternal,
     removed,
+    reopen: (...args: unknown[]) => invoke(DESKTOP_INTERVALS_SIGN_IN_REOPEN_CHANNEL, ...args),
+    signIn: (...args: unknown[]) => invoke(DESKTOP_INTERVALS_SIGN_IN_CHANNEL, ...args),
+    signInStub: signIn,
     trace,
+    trust,
     vault,
     verifyCredential,
     writeCredential,
@@ -264,14 +349,434 @@ function verificationOptions(input: {
   };
 }
 
-describe("Desktop Intervals.icu clipboard IPC", () => {
-  it("registers one semantic handler and removes it", () => {
+function expectNoSecrets(result: unknown): void {
+  const serialized = JSON.stringify(result);
+  expect(serialized).not.toContain("fixture-token");
+  expect(serialized).not.toContain("PRIVATE_KEY");
+  expect(serialized).not.toContain(APPROVAL);
+}
+
+describe("Desktop Intervals.icu sign-in IPC", () => {
+  it("registers the three sign-in handlers and removes them once", async () => {
     const runtime = setup();
 
-    expect([...runtime.handlers.keys()]).toEqual([DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL]);
+    expect([...runtime.handlers.keys()]).toEqual([...SIGN_IN_CHANNELS]);
     const close = runtime.dispose();
-    expect(runtime.removed).toEqual([DESKTOP_INTERVALS_PASTE_CREDENTIAL_CHANNEL]);
-    return close;
+    expect(runtime.dispose()).toBe(close);
+    expect(runtime.removed).toEqual([...SIGN_IN_CHANNELS]);
+    await close;
+    for (const channel of SIGN_IN_CHANNELS) {
+      await expect(runtime.invoke(channel)).rejects.toBeInstanceOf(TypeError);
+    }
+    expect(runtime.signInStub).not.toHaveBeenCalled();
+  });
+
+  it("verifies and stores the signed-in credential and returns the athlete name", async () => {
+    const runtime = setup();
+
+    const result = await runtime.signIn();
+
+    expect(result).toEqual(applied());
+    expect(runtime.trace).toEqual(["sign-in", `verify:${CREDENTIAL}`, `write:${CREDENTIAL}`]);
+    expect(runtime.signInStub).toHaveBeenCalledOnce();
+    const options = runtime.signInStub.mock.calls[0]?.[0];
+    expect(options?.openExternal).toBe(runtime.openExternal);
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+    expect(options?.signal?.aborted).toBe(false);
+    expect(runtime.verifyCredential).toHaveBeenCalledWith(CREDENTIAL, expect.any(AbortSignal));
+    expect(runtime.writeCredential).toHaveBeenCalledWith(
+      { slot: "intervals-icu", value: CREDENTIAL },
+      { rollbackOnRuntimeRefusal: true },
+    );
+    expect(runtime.openExternal).not.toHaveBeenCalled();
+    expectNoSecrets(result);
+    expect(JSON.stringify(result)).not.toContain('"101"');
+  });
+
+  it("omits the athlete name when the grant carries none", async () => {
+    const runtime = setup({ grant: grant({ athleteName: "" }) });
+
+    const result = await runtime.signIn();
+
+    expect(result).toEqual({ outcome: "applied", current: status("configured", "active") });
+    expect(result).not.toHaveProperty("athleteName");
+    expect(runtime.writeCredential).toHaveBeenCalledOnce();
+  });
+
+  it("forwards a daemon approval only to activation and never returns it to the renderer", async () => {
+    const runtime = setup({
+      verifyCredential: async (apiKey) => {
+        runtime.trace.push(`preflight:${apiKey}`);
+        return { status: "verified", verificationApproval: APPROVAL };
+      },
+    });
+
+    const result = await runtime.signIn();
+
+    expect(runtime.trace).toEqual(["sign-in", `preflight:${CREDENTIAL}`, `write:${CREDENTIAL}`]);
+    expect(runtime.writeCredential).toHaveBeenCalledWith(
+      { slot: "intervals-icu", value: CREDENTIAL },
+      { rollbackOnRuntimeRefusal: true, verificationApproval: APPROVAL },
+    );
+    expect(result).toEqual(applied());
+    expectNoSecrets(result);
+  });
+
+  it.each([
+    ["access-denied", "sign-in-denied"],
+    ["timed-out", "sign-in-timed-out"],
+    ["cancelled", "sign-in-cancelled"],
+    ["unreachable", "sign-in-unreachable"],
+    ["authorization-failed", "sign-in-failed"],
+    ["exchange-failed", "sign-in-failed"],
+    ["callback-unavailable", "sign-in-failed"],
+  ] as const satisfies ReadonlyArray<readonly [IntervalsSignInFailure, string]>)(
+    "maps the %s sign-in failure to %s without touching the vault",
+    async (failure, reason) => {
+      const runtime = setup({
+        current: status("configured", "active"),
+        signIn: async () => {
+          throw new IntervalsSignInError(failure);
+        },
+      });
+
+      const result = await runtime.signIn();
+
+      expect(result).toEqual({
+        outcome: "refused",
+        reason,
+        current: status("configured", "active"),
+      });
+      expect(runtime.verifyCredential).not.toHaveBeenCalled();
+      expect(runtime.defaultVault.runExclusiveMutation).not.toHaveBeenCalled();
+      expect(runtime.writeCredential).not.toHaveBeenCalled();
+    },
+  );
+
+  it("maps an unexpected sign-in failure to sign-in-failed without private details", async () => {
+    for (const thrown of [
+      new Error(PRIVATE_DETAIL),
+      { name: "IntervalsSignInError", reason: "access-denied", message: PRIVATE_DETAIL },
+    ]) {
+      const runtime = setup({
+        signIn: async () => {
+          throw thrown;
+        },
+      });
+
+      const result = await runtime.signIn();
+
+      expect(result).toEqual({ outcome: "refused", reason: "sign-in-failed", current: status() });
+      expect(runtime.writeCredential).not.toHaveBeenCalled();
+      expectNoSecrets(result);
+    }
+  });
+
+  it("reports the closed status when the status read fails after a sign-in refusal", async () => {
+    const runtime = setup({
+      signIn: async () => {
+        throw new IntervalsSignInError("access-denied");
+      },
+    });
+    runtime.defaultVault.credentialStatuses.mockRejectedValueOnce(new Error(PRIVATE_DETAIL));
+
+    const result = await runtime.signIn();
+
+    expect(result).toEqual({
+      outcome: "refused",
+      reason: "sign-in-denied",
+      current: status("re-prompt", null),
+    });
+    expectNoSecrets(result);
+  });
+
+  it("cancels a waiting sign-in by aborting the signal it was given", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+
+    await expect(runtime.cancel()).resolves.toBe(false);
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    const signal = control.options().signal;
+    expect(signal?.aborted).toBe(false);
+
+    await expect(runtime.cancel()).resolves.toBe(true);
+
+    expect(signal?.aborted).toBe(true);
+    await expect(pending).resolves.toEqual({
+      outcome: "refused",
+      reason: "sign-in-cancelled",
+      current: status(),
+    });
+    await expect(runtime.cancel()).resolves.toBe(false);
+    expect(runtime.verifyCredential).not.toHaveBeenCalled();
+    expect(runtime.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it("reopens the last authorize URL only while a sign-in is waiting for it", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+
+    await expect(runtime.reopen()).resolves.toBe(false);
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    await expect(runtime.reopen()).resolves.toBe(false);
+    expect(runtime.openExternal).not.toHaveBeenCalled();
+
+    control.options().onAuthorizeUrl?.(AUTHORIZE_URL);
+    await expect(runtime.reopen()).resolves.toBe(true);
+    expect(runtime.openExternal).toHaveBeenCalledExactlyOnceWith(AUTHORIZE_URL);
+
+    runtime.openExternal.mockRejectedValueOnce(new Error(PRIVATE_DETAIL));
+    await expect(runtime.reopen()).resolves.toBe(false);
+    expect(runtime.openExternal).toHaveBeenCalledTimes(2);
+
+    control.outcome.resolve(grant());
+    await expect(pending).resolves.toEqual(applied());
+    await expect(runtime.reopen()).resolves.toBe(false);
+    expect(runtime.openExternal).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses cancel and reopen once the browser approved the sign-in", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    control.options().onAuthorizeUrl?.(AUTHORIZE_URL);
+    control.options().onPhase?.("completing-sign-in");
+    const signal = control.options().signal;
+
+    await expect(runtime.cancel()).resolves.toBe(false);
+    await expect(runtime.reopen()).resolves.toBe(false);
+    expect(signal?.aborted).toBe(false);
+    expect(runtime.openExternal).not.toHaveBeenCalled();
+
+    control.outcome.resolve(grant());
+    await expect(pending).resolves.toEqual(applied());
+    expect(runtime.writeCredential).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a second sign-in while one is running", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+
+    const first = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+
+    await expect(runtime.signIn()).rejects.toThrow("desktop Intervals sign-in already running");
+    expect(control.calls).toHaveLength(1);
+    expect(control.options().signal?.aborted).toBe(false);
+
+    control.outcome.resolve(grant());
+    await expect(first).resolves.toEqual(applied());
+    expect(runtime.writeCredential).toHaveBeenCalledOnce();
+
+    await expect(runtime.signIn()).resolves.toEqual(applied());
+    expect(control.calls).toHaveLength(2);
+  });
+
+  it("accepts a new sign-in after a refused one", async () => {
+    const failures = [new IntervalsSignInError("access-denied")];
+    const runtime = setup({
+      signIn: async () => {
+        const failure = failures.shift();
+        if (failure !== undefined) throw failure;
+        return grant();
+      },
+    });
+
+    await expect(runtime.signIn()).resolves.toMatchObject({ reason: "sign-in-denied" });
+    await expect(runtime.signIn()).resolves.toEqual(applied());
+    expect(runtime.signInStub).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes progress phases to the live desktop renderer that started the sign-in", async () => {
+    const renderer = rendererSender();
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn, sender: renderer.sender });
+
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    control.options().onPhase?.("waiting-for-browser");
+    control.options().onPhase?.("completing-sign-in");
+
+    expect(renderer.send.mock.calls).toEqual([
+      [DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL, { phase: "waiting-for-browser" }],
+      [DESKTOP_INTERVALS_SIGN_IN_PROGRESS_CHANNEL, { phase: "completing-sign-in" }],
+    ]);
+
+    renderer.state.destroyed = true;
+    expect(() => control.options().onPhase?.("completing-sign-in")).not.toThrow();
+    expect(renderer.send).toHaveBeenCalledTimes(2);
+
+    control.outcome.resolve(grant());
+    await expect(pending).resolves.toEqual(applied());
+  });
+
+  it.each([
+    ["a foreign page", "https://intervals.icu/oauth/authorize"],
+    ["a renderer URL with an extra parameter", `${RENDERER_URL}&extra=1`],
+    ["a renderer URL without a navigation token", "enduragent://app/index.html"],
+  ])("does not publish progress to %s", async (_label, url) => {
+    const renderer = rendererSender(url);
+    const runtime = setup({
+      sender: renderer.sender,
+      signIn: async (input) => {
+        input.onPhase?.("waiting-for-browser");
+        input.onPhase?.("completing-sign-in");
+        return grant();
+      },
+    });
+
+    await expect(runtime.signIn()).resolves.toEqual(applied());
+    expect(renderer.send).not.toHaveBeenCalled();
+  });
+
+  it("does not publish progress to a renderer destroyed before the first phase", async () => {
+    const renderer = rendererSender();
+    renderer.state.destroyed = true;
+    const runtime = setup({
+      sender: renderer.sender,
+      signIn: async (input) => {
+        input.onPhase?.("waiting-for-browser");
+        return grant();
+      },
+    });
+
+    await expect(runtime.signIn()).resolves.toEqual(applied());
+    expect(renderer.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects untrusted and extra-argument calls on every sign-in channel", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    control.options().onAuthorizeUrl?.(AUTHORIZE_URL);
+
+    runtime.trust.value = false;
+    for (const channel of SIGN_IN_CHANNELS) {
+      await expect(runtime.invoke(channel)).rejects.toThrow("untrusted desktop Intervals request");
+    }
+    runtime.trust.value = true;
+    for (const channel of SIGN_IN_CHANNELS) {
+      await expect(runtime.invoke(channel, "extra")).rejects.toThrow(
+        "invalid desktop Intervals request",
+      );
+    }
+
+    expect(control.calls).toHaveLength(1);
+    expect(control.options().signal?.aborted).toBe(false);
+    expect(runtime.openExternal).not.toHaveBeenCalled();
+
+    const untrusted = setup({ trusted: false });
+    await expect(untrusted.signIn()).rejects.toThrow("untrusted desktop Intervals request");
+    expect(untrusted.signInStub).not.toHaveBeenCalled();
+    expect(untrusted.defaultVault.credentialStatuses).not.toHaveBeenCalled();
+
+    control.outcome.resolve(grant());
+    await expect(pending).resolves.toEqual(applied());
+  });
+
+  it.each([
+    ["   ", undefined],
+    ["Test\tAthlete", undefined],
+    ["x".repeat(201), undefined],
+    ["  Test Athlete  ", "Test Athlete"],
+  ])("sends only a displayable athlete name for %j", async (name, expected) => {
+    const runtime = setup({ grant: grant({ athleteName: name }) });
+
+    const result = await runtime.signIn();
+
+    expect(result).toEqual(
+      expected === undefined
+        ? { outcome: "applied", current: status("configured", "active") }
+        : { outcome: "applied", current: status("configured", "active"), athleteName: expected },
+    );
+    expect(runtime.writeCredential).toHaveBeenCalledOnce();
+  });
+
+  it("ends the sign-in as failed when the browser cannot open", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+
+    control.options().onBrowserOpenFailed?.();
+
+    expect(control.options().signal?.aborted).toBe(true);
+    await expect(pending).resolves.toEqual({
+      outcome: "refused",
+      reason: "sign-in-failed",
+      current: status(),
+    });
+    expect(runtime.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it("waits for an active sign-in to settle before dispose resolves", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
+
+    await runtime.dispose();
+
+    expect(settled).toBe(true);
+  });
+
+  it("aborts an active sign-in on dispose and removes every handler", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    const signal = control.options().signal;
+
+    const close = runtime.dispose();
+
+    expect(signal?.aborted).toBe(true);
+    expect(runtime.removed).toEqual([...SIGN_IN_CHANNELS]);
+    await expect(pending).resolves.toEqual({
+      outcome: "refused",
+      reason: "sign-in-cancelled",
+      current: status(),
+    });
+    await close;
+    expect(runtime.verifyCredential).not.toHaveBeenCalled();
+    expect(runtime.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it("aborts an active sign-in when the application signal aborts", async () => {
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+
+    runtime.appController.abort();
+
+    expect(control.options().signal?.aborted).toBe(true);
+    await expect(pending).resolves.toMatchObject({ reason: "sign-in-cancelled" });
+    await runtime.dispose();
+  });
+
+  it("stops publishing progress after dispose", async () => {
+    const renderer = rendererSender();
+    const control = controlledSignIn();
+    const runtime = setup({ signIn: control.signIn, sender: renderer.sender });
+    const pending = runtime.signIn();
+    await vi.waitFor(() => expect(control.calls).toHaveLength(1));
+    const options = control.options();
+
+    const close = runtime.dispose();
+    options.onPhase?.("completing-sign-in");
+
+    expect(renderer.send).not.toHaveBeenCalled();
+    await pending;
+    await close;
   });
 
   it("fences new requests, aborts verification, and drains accepted work", async () => {
@@ -284,14 +789,14 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       },
     });
 
-    const accepted = Promise.resolve(runtime.invoke());
+    const accepted = runtime.signIn();
     await vi.waitFor(() => expect(runtime.verifyCredential).toHaveBeenCalledOnce());
     const firstClose = runtime.dispose();
     const secondClose = runtime.dispose();
 
     expect(secondClose).toBe(firstClose);
     expect(acceptedSignal?.aborted).toBe(true);
-    expect(() => runtime.invoke()).toThrow(TypeError);
+    await expect(runtime.signIn()).rejects.toBeInstanceOf(TypeError);
     await expect(accepted).resolves.toEqual({
       outcome: "refused",
       reason: "validation-aborted",
@@ -314,7 +819,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     const verification = deferred<IntervalsCredentialVerificationResult>();
     const runtime = setup({ verifyCredential: async () => verification.promise });
     try {
-      const pending = Promise.resolve(runtime.invoke());
+      const pending = runtime.signIn();
       await vi.advanceTimersByTimeAsync(0);
       expect(runtime.verifyCredential).toHaveBeenCalledOnce();
 
@@ -335,105 +840,13 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     }
   });
 
-  it("clears the clipboard before verification or vault work", async () => {
-    const runtime = setup();
-
-    const pending = runtime.invoke();
-    await Promise.resolve();
-    expect(runtime.trace).toEqual(["read", "clear"]);
-    expect(runtime.verifyCredential).not.toHaveBeenCalled();
-    expect(runtime.defaultVault.runExclusiveMutation).not.toHaveBeenCalled();
-
-    await expect(pending).resolves.toEqual({
-      outcome: "applied",
-      current: status("configured", "active"),
-    });
-    expect(runtime.trace).toEqual(["read", "clear", `verify:${API_KEY}`, `write:${API_KEY}`]);
-    expect(runtime.verifyCredential).toHaveBeenCalledWith(API_KEY, expect.any(AbortSignal));
-    expect(runtime.writeCredential).toHaveBeenCalledWith(
-      { slot: "intervals-icu", value: API_KEY },
-      { rollbackOnRuntimeRefusal: true },
-    );
-  });
-
-  it("forwards a daemon approval only to activation and never returns it to the renderer", async () => {
-    const runtime = setup({
-      verifyCredential: async (apiKey) => {
-        runtime.trace.push(`preflight:${apiKey}`);
-        return { status: "verified", verificationApproval: APPROVAL };
-      },
-    });
-
-    const result = await runtime.invoke();
-
-    expect(runtime.trace).toEqual(["read", "clear", `preflight:${API_KEY}`, `write:${API_KEY}`]);
-    expect(runtime.writeCredential).toHaveBeenCalledWith(
-      { slot: "intervals-icu", value: API_KEY },
-      { rollbackOnRuntimeRefusal: true, verificationApproval: APPROVAL },
-    );
-    expect(result).toEqual({ outcome: "applied", current: status("configured", "active") });
-    expect(JSON.stringify(result)).not.toContain(APPROVAL);
-  });
-
-  it.each(["", "   ", "a\u0000b", "a\nb", "a\u007fb", "a\u0085b", "x".repeat(257)])(
-    "refuses the invalid key shape without verification: %j",
-    async (candidate) => {
-      const runtime = setup({ clipboardValue: candidate, current: status("configured", "active") });
-
-      await expect(runtime.invoke()).resolves.toEqual({
-        outcome: "refused",
-        reason: "invalid-key-format",
-        current: status("configured", "active"),
-      });
-      expect(runtime.clipboard.clear).toHaveBeenCalledOnce();
-      expect(runtime.verifyCredential).not.toHaveBeenCalled();
-      expect(runtime.writeCredential).not.toHaveBeenCalled();
-    },
-  );
-
-  it("attempts clear after read failure and refuses the unavailable clipboard", async () => {
-    const runtime = setup();
-    runtime.clipboard.readText.mockImplementationOnce(() => {
-      runtime.trace.push("read-failed");
-      throw new Error(PRIVATE_DETAIL);
-    });
-
-    const result = await runtime.invoke();
-
-    expect(result).toEqual({
-      outcome: "refused",
-      reason: "clipboard-unavailable",
-      current: status(),
-    });
-    expect(runtime.clipboard.clear).toHaveBeenCalledOnce();
-    expect(runtime.verifyCredential).not.toHaveBeenCalled();
-    expect(JSON.stringify(result)).not.toContain(API_KEY);
-    expect(JSON.stringify(result)).not.toContain("PRIVATE_KEY");
-  });
-
-  it("gives clear failure precedence over a captured credential", async () => {
-    const runtime = setup();
-    runtime.clipboard.clear.mockImplementationOnce(() => {
-      runtime.trace.push("clear-failed");
-      throw new Error(PRIVATE_DETAIL);
-    });
-
-    await expect(runtime.invoke()).resolves.toEqual({
-      outcome: "refused",
-      reason: "clipboard-clear-failed",
-      current: status(),
-    });
-    expect(runtime.verifyCredential).not.toHaveBeenCalled();
-    expect(runtime.writeCredential).not.toHaveBeenCalled();
-  });
-
   it("closes thrown and malformed verification failures without private details", async () => {
     const thrown = setup({
       verifyCredential: async () => {
         throw new Error(PRIVATE_DETAIL);
       },
     });
-    const thrownResult = await thrown.invoke();
+    const thrownResult = await thrown.signIn();
     expect(thrownResult).toEqual({
       outcome: "refused",
       reason: "validation-unavailable",
@@ -445,20 +858,17 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
         ({
           status: "refused",
           reason: "credential-rejected",
-          apiKey: API_KEY,
+          apiKey: CREDENTIAL,
         }) as never,
     });
-    const malformedResult = await malformed.invoke();
+    const malformedResult = await malformed.signIn();
     expect(malformedResult).toEqual({
       outcome: "refused",
       reason: "validation-unavailable",
       current: status(),
     });
 
-    for (const result of [thrownResult, malformedResult]) {
-      expect(JSON.stringify(result)).not.toContain(API_KEY);
-      expect(JSON.stringify(result)).not.toContain("PRIVATE_KEY");
-    }
+    for (const result of [thrownResult, malformedResult]) expectNoSecrets(result);
     expect(thrown.writeCredential).not.toHaveBeenCalled();
     expect(malformed.writeCredential).not.toHaveBeenCalled();
   });
@@ -472,11 +882,11 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       });
       try {
         const runtime = setup({ vault: value.vault });
-        const result = await runtime.invoke();
+        const result = await runtime.signIn();
 
         expect(result).toEqual({ outcome: "refused", reason, current: status() });
         expect(value.applyCredential).not.toHaveBeenCalled();
-        expect(JSON.stringify(result)).not.toContain(API_KEY);
+        expectNoSecrets(result);
       } finally {
         await rm(value.base, { recursive: true, force: true });
       }
@@ -494,13 +904,12 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     try {
       const runtime = setup({ vault: value.vault });
 
-      const result = await runtime.invoke();
+      const result = await runtime.signIn();
 
       expect(runtime.verifyCredential).toHaveBeenCalledOnce();
-      expect(runtime.clipboard.clear).toHaveBeenCalledOnce();
       expect(result).toEqual({ outcome: "refused", reason: "storage-failed", current: status() });
       expect(value.applyCredential).not.toHaveBeenCalled();
-      expect(JSON.stringify(result)).not.toContain(API_KEY);
+      expectNoSecrets(result);
       expect(JSON.stringify(result)).not.toContain("credential-rejected");
     } finally {
       await rm(value.base, { recursive: true, force: true });
@@ -510,7 +919,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
   it
     .skipIf(process.platform === "win32")
     .each(["encryption-unavailable", "unsafe-backend"] as const)(
-    "preserves an existing key across the %s storage refusal",
+    "preserves an existing credential across the %s storage refusal",
     async (reason) => {
       const security = { available: true, backend: "keychain" };
       const encryption = {
@@ -521,14 +930,14 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       };
       const value = await temporaryVault({ encryption });
       try {
-        await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY });
+        await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
         const before = await readFile(join(value.root, "intervals-icu.bin"));
         value.applyCredential.mockClear();
         if (reason === "encryption-unavailable") security.available = false;
         else security.backend = "basic_text";
         const runtime = setup({ vault: value.vault });
 
-        await expect(runtime.invoke()).resolves.toEqual({
+        await expect(runtime.signIn()).resolves.toEqual({
           outcome: "refused",
           reason,
           current: status("configured", "active"),
@@ -547,19 +956,18 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
         slot: "intervals-icu",
         status: "configured",
         runtimeReady: true,
-        apiKey: API_KEY,
+        apiKey: CREDENTIAL,
       } as never,
     });
 
-    const result = await runtime.invoke();
+    const result = await runtime.signIn();
 
     expect(result).toEqual({
       outcome: "uncertain",
       reason: "storage-uncertain",
       current: status("re-prompt", null),
     });
-    expect(JSON.stringify(result)).not.toContain(API_KEY);
-    expect(JSON.stringify(result)).not.toContain("PRIVATE_KEY");
+    expectNoSecrets(result);
     expect(runtime.defaultVault.credentialStatuses).not.toHaveBeenCalled();
   });
 
@@ -569,7 +977,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       { ...status("configured", "active"), privateDetail: PRIVATE_DETAIL },
     ] as never);
 
-    const result = await runtime.invoke();
+    const result = await runtime.signIn();
 
     expect(result).toEqual({
       outcome: "uncertain",
@@ -578,21 +986,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     });
     expect(runtime.writeCredential).toHaveBeenCalledOnce();
     expect(runtime.defaultVault.credentialStatuses).toHaveBeenCalledOnce();
-    expect(JSON.stringify(result)).not.toContain(API_KEY);
-    expect(JSON.stringify(result)).not.toContain("PRIVATE_KEY");
-  });
-
-  it("rejects untrusted and extra-argument calls before clipboard access", () => {
-    const untrusted = setup({ trusted: false });
-    expect(() => untrusted.invoke()).toThrow("untrusted desktop Intervals request");
-    expect(untrusted.clipboard.readText).not.toHaveBeenCalled();
-    expect(untrusted.clipboard.clear).not.toHaveBeenCalled();
-
-    const extra = setup();
-    expect(() => extra.invoke(API_KEY)).toThrow(TypeError);
-    expect(extra.clipboard.readText).not.toHaveBeenCalled();
-    expect(extra.clipboard.clear).not.toHaveBeenCalled();
-    expect(extra.verifyCredential).not.toHaveBeenCalled();
+    expectNoSecrets(result);
   });
 
   it.each([
@@ -610,36 +1004,37 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       verification: { status: "refused", reason },
     });
 
-    const result = await runtime.invoke();
+    const result = await runtime.signIn();
 
     expect(result).toEqual({
       outcome: "refused",
       reason,
       current: status("configured", "active"),
     });
+    expect(result).not.toHaveProperty("athleteName");
     expect(runtime.writeCredential).not.toHaveBeenCalled();
-    expect(JSON.stringify(result)).not.toContain(API_KEY);
+    expectNoSecrets(result);
   });
 
   for (const { platform, expectedCiphertext } of [
     {
       platform: "darwin",
-      expectedCiphertext: Buffer.from(`sealed:${EXISTING_API_KEY}`, "utf8"),
+      expectedCiphertext: Buffer.from(`sealed:${EXISTING_CREDENTIAL}`, "utf8"),
     },
     {
       platform: "win32",
       expectedCiphertext: Buffer.from(
-        Buffer.from(EXISTING_API_KEY, "utf8").map((byte) => byte ^ 0xa5),
+        Buffer.from(EXISTING_CREDENTIAL, "utf8").map((byte) => byte ^ 0xa5),
       ),
     },
   ] as const) {
     it.skipIf(process.platform === "win32" && platform === "darwin")(
-      "keeps an existing encrypted key and runtime state unchanged after verification refusal",
+      "keeps an existing encrypted credential and runtime state unchanged after verification refusal",
       async () => {
         const value = await temporaryVault({ platform });
         try {
           await expect(
-            value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY }),
+            value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL }),
           ).resolves.toMatchObject({ status: "configured", runtimeReady: true });
           const before = await readFile(join(value.root, "intervals-icu.bin"));
           expect(before).toEqual(expectedCiphertext);
@@ -649,7 +1044,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
             verification: { status: "refused", reason: "training-account-mismatch" },
           });
 
-          await expect(runtime.invoke()).resolves.toEqual({
+          await expect(runtime.signIn()).resolves.toEqual({
             outcome: "refused",
             reason: "training-account-mismatch",
             current: status("configured", "active"),
@@ -671,18 +1066,18 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     const value = await temporaryVault({});
     try {
       await expect(
-        value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY }),
+        value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL }),
       ).resolves.toMatchObject({ status: "configured", runtimeReady: true });
       const before = await readFile(join(value.root, "intervals-icu.bin"));
-      let appliedRuntimeKey = EXISTING_API_KEY;
+      let appliedRuntimeCredential = EXISTING_CREDENTIAL;
       value.applyCredential.mockReset();
       value.applyCredential.mockImplementationOnce(async (_slot, candidate) => {
-        appliedRuntimeKey = candidate;
+        appliedRuntimeCredential = candidate;
         throw new Error(PRIVATE_DETAIL);
       });
       const runtime = setup({ vault: value.vault });
 
-      const result = await runtime.invoke();
+      const result = await runtime.signIn();
 
       expect(result).toEqual({
         outcome: "uncertain",
@@ -692,17 +1087,16 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       expect(await readFile(join(value.root, "intervals-icu.bin"))).not.toEqual(before);
       const ciphertext = await readFile(join(value.root, "intervals-icu.bin"));
       if (value.platform === "win32") {
-        expect(ciphertext.includes(Buffer.from(API_KEY, "utf8"))).toBe(false);
+        expect(ciphertext.includes(Buffer.from(CREDENTIAL, "utf8"))).toBe(false);
       } else {
-        expect(ciphertext).toEqual(Buffer.from(`sealed:${API_KEY}`, "utf8"));
+        expect(ciphertext).toEqual(Buffer.from(`sealed:${CREDENTIAL}`, "utf8"));
       }
-      expect(appliedRuntimeKey).toBe(API_KEY);
+      expect(appliedRuntimeCredential).toBe(CREDENTIAL);
       expect(value.applyCredential).toHaveBeenCalledOnce();
       await expect(value.vault.credentialStatuses()).resolves.toContainEqual(
         status("configured", "failed"),
       );
-      expect(JSON.stringify(result)).not.toContain(API_KEY);
-      expect(JSON.stringify(result)).not.toContain(PRIVATE_DETAIL);
+      expectNoSecrets(result);
     } finally {
       await rm(value.base, { recursive: true, force: true });
     }
@@ -718,16 +1112,16 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       });
       const runtime = setup({ vault: value.vault });
 
-      await expect(runtime.invoke()).resolves.toEqual({
+      await expect(runtime.signIn()).resolves.toEqual({
         outcome: "uncertain",
         reason: "runtime-uncertain",
         current: status("configured", "failed"),
       });
       const ciphertext = await readFile(join(value.root, "intervals-icu.bin"));
       if (value.platform === "win32") {
-        expect(ciphertext.includes(Buffer.from(API_KEY, "utf8"))).toBe(false);
+        expect(ciphertext.includes(Buffer.from(CREDENTIAL, "utf8"))).toBe(false);
       } else {
-        expect(ciphertext).toEqual(Buffer.from(`sealed:${API_KEY}`, "utf8"));
+        expect(ciphertext).toEqual(Buffer.from(`sealed:${CREDENTIAL}`, "utf8"));
       }
       expect(ownerClaimed).toBe(true);
       expect(value.clearCredential).not.toHaveBeenCalled();
@@ -742,7 +1136,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
   it("rolls back a known late training-account mismatch", async () => {
     const value = await temporaryVault({});
     try {
-      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY });
+      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
       const before = await readFile(join(value.root, "intervals-icu.bin"));
       value.applyCredential.mockReset();
       value.applyCredential.mockRejectedValueOnce(
@@ -750,7 +1144,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       );
       const runtime = setup({ vault: value.vault });
 
-      await expect(runtime.invoke()).resolves.toEqual({
+      await expect(runtime.signIn()).resolves.toEqual({
         outcome: "refused",
         reason: "training-account-mismatch",
         current: status("configured", "active"),
@@ -773,7 +1167,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       );
       const runtime = setup({ vault: value.vault });
 
-      await expect(runtime.invoke()).resolves.toEqual({
+      await expect(runtime.signIn()).resolves.toEqual({
         outcome: "refused",
         reason: "training-account-mismatch",
         current: status(),
@@ -792,7 +1186,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
   it("reports storage uncertainty when restoring the previous ciphertext fails", async () => {
     const value = await temporaryVault({});
     try {
-      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY });
+      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
       const before = await readFile(join(value.root, "intervals-icu.bin"));
       let createIdCalls = 0;
       const applyCredential = vi.fn(async () => {
@@ -810,7 +1204,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       });
       const runtime = setup({ vault });
 
-      const result = await runtime.invoke();
+      const result = await runtime.signIn();
 
       expect(result).toEqual({
         outcome: "uncertain",
@@ -820,8 +1214,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       expect(await readFile(join(value.root, "intervals-icu.bin"))).not.toEqual(before);
       expect(createIdCalls).toBe(2);
       expect(applyCredential).toHaveBeenCalledOnce();
-      expect(JSON.stringify(result)).not.toContain(API_KEY);
-      expect(JSON.stringify(result)).not.toContain("PRIVATE_KEY");
+      expectNoSecrets(result);
     } finally {
       await rm(value.base, { recursive: true, force: true });
     }
@@ -835,7 +1228,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       );
       const runtime = setup({ vault: value.vault });
 
-      const result = await runtime.invoke();
+      const result = await runtime.signIn();
 
       expect(result).toEqual({
         outcome: "refused",
@@ -845,7 +1238,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       await expect(readFile(join(value.root, "intervals-icu.bin"))).rejects.toMatchObject({
         code: "ENOENT",
       });
-      expect(JSON.stringify(result)).not.toContain(API_KEY);
+      expectNoSecrets(result);
     } finally {
       await rm(value.base, { recursive: true, force: true });
     }
@@ -855,7 +1248,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
     const trace: string[] = [];
     const value = await temporaryVault({ trace });
     try {
-      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_API_KEY });
+      await value.vault.writeCredential({ slot: "intervals-icu", value: EXISTING_CREDENTIAL });
       trace.splice(0);
       const verification = deferred<IntervalsCredentialVerificationResult>();
       const runtime = setup({
@@ -866,7 +1259,7 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
         },
       });
 
-      const paste = Promise.resolve(runtime.invoke());
+      const signIn = runtime.signIn();
       await vi.waitFor(() => expect(trace).toEqual(["verify"]));
       const genericWrite = value.vault.writeCredential({
         slot: "anthropic",
@@ -881,13 +1274,10 @@ describe("Desktop Intervals.icu clipboard IPC", () => {
       verification.resolve({ status: "verified" });
       await expect(genericWrite).resolves.toMatchObject({ status: "configured" });
       await expect(genericDelete).resolves.toMatchObject({ status: "deleted" });
-      await expect(paste).resolves.toEqual({
-        outcome: "applied",
-        current: status("configured", "active"),
-      });
+      await expect(signIn).resolves.toEqual(applied());
       expect(trace).toEqual([
         "verify",
-        `apply:intervals-icu:${API_KEY}`,
+        `apply:intervals-icu:${CREDENTIAL}`,
         "apply:anthropic:synthetic-model-key",
         "clear-runtime",
       ]);
@@ -988,12 +1378,9 @@ describe("Intervals.icu credential verification", () => {
       });
       const runtime = setup({ verifyCredential });
 
-      await expect(runtime.invoke()).resolves.toEqual({
-        outcome: "applied",
-        current: status("configured", "active"),
-      });
+      await expect(runtime.signIn()).resolves.toEqual(applied());
       expect(verifyWithDaemon).toHaveBeenCalledOnce();
-      expect(verifyWithDaemon).toHaveBeenCalledWith(API_KEY, expect.any(AbortSignal));
+      expect(verifyWithDaemon).toHaveBeenCalledWith(CREDENTIAL, expect.any(AbortSignal));
       expect(verifyIntervalsCredential).toHaveBeenCalledOnce();
       expect(readRuntimeConfig).toHaveBeenCalledOnce();
       expect(readRuntimeConfig).toHaveBeenCalledWith(expect.any(AbortSignal));
@@ -1031,7 +1418,7 @@ describe("Intervals.icu credential verification", () => {
       });
       const runtime = setup({ verifyCredential });
 
-      await expect(runtime.invoke()).resolves.toEqual({
+      await expect(runtime.signIn()).resolves.toEqual({
         outcome: "refused",
         reason: "validation-unavailable",
         current: status(),
@@ -1071,7 +1458,7 @@ describe("Intervals.icu credential verification", () => {
       });
       const runtime = setup({ verifyCredential });
 
-      await expect(runtime.invoke()).resolves.toEqual({
+      await expect(runtime.signIn()).resolves.toEqual({
         outcome: "refused",
         reason: "validation-unavailable",
         current: status(),
