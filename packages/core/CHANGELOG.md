@@ -1,5 +1,27 @@
 # @enduragent/core
 
+## 0.1.10
+
+### Patch Changes
+
+- edd9d10: Add intervals.icu OAuth support to Core, ahead of the desktop sign-in button. `signInWithIntervals` runs the authorization-code flow with PKCE (S256) as a public client: a loopback listener on `127.0.0.1` with an OS-chosen port, a state check, a five-minute wait and the code exchange, with no client secret. It returns the token only as a stored intervals credential string with an `intervals-oauth:` prefix, and `revokeIntervalsAccess` takes that stored credential and calls intervals.icu's disconnect endpoint. The three request builders in the intervals client factory now send `Authorization: Bearer` for a signed-in credential and Basic auth for a plain API key.
+- 29e7393: User-facing: Disconnecting Intervals.icu now also removes Enduragent's access on Intervals.icu, and the app asks you to sign in again if Intervals.icu stops accepting your sign-in.
+
+  Disconnect in Settings now revokes the signed-in token on intervals.icu (`disconnect-app`) through a scoped vault read, then deletes it locally even when the revoke fails, and the result line says which happened. A plain API key is only removed locally. Core tracks bearer credentials that intervals.icu rejects: a 401 marks the credential, a 403 is confirmed with one probe of the athlete endpoint, and any successful response clears it. The runtime config snapshot reports this as `intervals.credential_rejected`, and the renderer shows "Sign in again" on the Intervals.icu row and in the sidebar footer.
+
+- 4346aa2: User-facing: Telegram now works through the network proxy in your `HTTPS_PROXY` setting, including during bot setup and pairing. `NO_PROXY` exclusions are respected.
+
+  User-facing: cycling-coach now needs Node.js 22.21 or newer.
+
+  The Telegram client passes `proxyEnv` to Node's built-in HTTPS agent, which reads `HTTPS_PROXY` and `NO_PROXY` in upper or lower case for Telegram's HTTPS endpoint. Node added `proxyEnv` in 22.21.0 and 24.5.0, so the engine floor rises to match.
+
+- Updated dependencies [29e7393]
+- Updated dependencies [2f95252]
+- Updated dependencies [12d83db]
+  - @enduragent/i18n@0.2.4
+  - @enduragent/coach-contract@0.1.6
+  - @enduragent/engine@0.0.8
+
 ## 0.1.9
 
 ### Patch Changes

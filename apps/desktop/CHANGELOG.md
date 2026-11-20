@@ -1,5 +1,36 @@
 # @enduragent/desktop
 
+## 0.6.0
+
+### Minor Changes
+
+- 2f95252: User-facing: Connect intervals.icu by signing in with your browser instead of copying an API key.
+
+  The intervals.icu row in onboarding and Settings now offers "Sign in with Intervals.icu". It opens the intervals.icu consent page, shows "Waiting for browser…" with "Cancel sign-in" and "Open the sign-in page again", then "Completing sign-in…" while the main process verifies the account against the training history on this Mac and stores the token in the encrypted vault, and finally "Connected as <name>". The clipboard paste channel is removed. API keys saved before this change keep working. Closing the setup surface cancels a sign-in that is still waiting for the browser.
+
+### Patch Changes
+
+- 4cdb8f3: User-facing: The Mac app has a new icon, three riders in an echelon, in the Dock and the menu bar.
+
+  Replaces the teal "e" app icon with the E0 mark on Asphalt. `app-icon.png` and `app-icon.svg` now follow the macOS icon grid (an 824 px rounded square with a shadow on a 1024 px canvas), and the menu-bar templates are drawn on whole pixels at 16 and 32 px. Windows icons now come from the full-bleed `app-icon-windows.png`, so the 16 px tray frame is not shrunk by the macOS padding. The README header shows the horizontal lockup, with a light and a dark version.
+
+- 8798eb3: Bump Electron from 44.4.3 to 44.9.1 to fix a pointer-lock permission request that could be attributed to the wrong frame. Bump Vite from 7.3.6 to 7.3.7 in `apps/desktop` and `apps/desktop-renderer` to pick up the patched `launch-editor`, which fixes three Windows advisories in the dev server's open-in-editor route. Vite runs only during development and builds, so the Vite bump does not change the shipped app.
+- 29e7393: User-facing: Disconnecting Intervals.icu now also removes Enduragent's access on Intervals.icu, and the app asks you to sign in again if Intervals.icu stops accepting your sign-in.
+
+  Disconnect in Settings now revokes the signed-in token on intervals.icu (`disconnect-app`) through a scoped vault read, then deletes it locally even when the revoke fails, and the result line says which happened. A plain API key is only removed locally. Core tracks bearer credentials that intervals.icu rejects: a 401 marks the credential, a 403 is confirmed with one probe of the athlete endpoint, and any successful response clears it. The runtime config snapshot reports this as `intervals.credential_rejected`, and the renderer shows "Sign in again" on the Intervals.icu row and in the sidebar footer.
+
+- 0f98543: Correct the two `@resvg/resvg-js` 2.6.2 Windows integrity hashes in `pnpm-lock.yaml` so pnpm installs `@resvg/resvg-js-win32-x64-msvc` on Windows, and let the Windows package verifier accept that one native module, which electron-builder unpacks to `app.asar.unpacked`. The verifier accepts it only at `node_modules/@resvg/resvg-js-win32-x64-msvc/resvgjs.win32-x64-msvc.node`, in the ASAR index and on disk, only as an x64 PE binary, and only when a runtime package declares `@resvg/resvg-js`. Every other native module is still rejected. Without the binary, the Telegram workout review could not render its chart on Windows.
+- 9cc7ea2: Add `package:win-store`, which builds an unsigned x64 AppX for Microsoft Store submission from the Partner Center identity in `ENDURAGENT_STORE_IDENTITY_NAME`, `ENDURAGENT_STORE_PUBLISHER`, and `ENDURAGENT_STORE_PUBLISHER_DISPLAY_NAME`, with tile images generated from the Windows app icon. When the app runs from a Store package (`process.windowsStore`), it never becomes update-eligible, keeps the package's own AppUserModelID, and leaves the start-at-login item out of the tray menu. The Windows CI job builds the package with a synthetic identity and checks its manifest. Nothing ships to the Store from this change.
+- Updated dependencies [edd9d10]
+- Updated dependencies [29e7393]
+- Updated dependencies [2f95252]
+- Updated dependencies [4346aa2]
+  - @enduragent/core@0.1.10
+  - @enduragent/i18n@0.2.4
+  - @enduragent/coach@0.1.7
+  - @enduragent/coach-contract@0.1.6
+  - @enduragent/coach-client@0.1.6
+
 ## 0.5.9
 
 ### Patch Changes
