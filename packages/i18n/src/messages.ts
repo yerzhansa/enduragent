@@ -1,10 +1,10 @@
 import { createInstance } from "i18next";
 import type { LanguageTag } from "@enduragent/coach-contract";
-import type { CatalogKey } from "./catalog-keys.js";
+import type { CatalogKey } from "./catalog-keys.generated.js";
 import type { Message } from "./message.js";
 import englishCatalog from "../catalogs/en.json" with { type: "json" };
 
-export type { CatalogKey } from "./catalog-keys.js";
+export type { CatalogKey } from "./catalog-keys.generated.js";
 export type Catalog = { readonly [key: string]: string | Catalog };
 
 function catalogContains(catalog: Catalog, key: string): key is CatalogKey {

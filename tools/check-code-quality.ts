@@ -41,7 +41,7 @@ export type RuleId = (typeof RULE_IDS)[number];
 
 const CHANGED_FILE_RULES: readonly RuleId[] = RULE_IDS.filter((rule) => rule !== "file-length");
 
-type Scope = "all" | "non-test" | "renderer-ui";
+type Scope = "all" | "non-test" | "hand-written-source" | "renderer-ui";
 
 interface RuleSpec {
   readonly scope: Scope;
@@ -59,7 +59,7 @@ const RULES: Readonly<Record<RuleId, RuleSpec>> = {
   },
   "disguised-swallow": { scope: "all", guidance: HANDLE_THE_ERROR },
   "double-assertion": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
-  "file-length": { scope: "non-test", guidance: "split the file before adding to it" },
+  "file-length": { scope: "hand-written-source", guidance: "split the file before adding to it" },
   "lint-suppression": { scope: "non-test", guidance: FIX_INSTEAD_OF_SUPPRESSING },
   "no-empty": { scope: "all", guidance: HANDLE_THE_ERROR },
   "no-empty-function": { scope: "non-test", guidance: "remove the no-op or give it behavior" },
@@ -140,12 +140,18 @@ export function isTestPath(file: string): boolean {
   return /\.(?:test|spec)\./u.test(name) || segments.some((segment) => TEST_DIRS.has(segment));
 }
 
+export function isGeneratedPath(file: string): boolean {
+  return /\.generated\.[^/]+$/u.test(file);
+}
+
 function appliesTo(rule: RuleId, file: string): boolean {
   switch (RULES[rule].scope) {
     case "all":
       return true;
     case "non-test":
       return !isTestPath(file);
+    case "hand-written-source":
+      return !isTestPath(file) && !isGeneratedPath(file);
     case "renderer-ui":
       return file.startsWith(RENDERER_UI_DIR);
   }
