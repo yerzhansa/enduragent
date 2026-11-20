@@ -92,6 +92,38 @@ describe("desktop update release eligibility", () => {
     ).toBe(false);
   });
 
+  it("leaves updates to the Microsoft Store for a Store package", () => {
+    const platformActivation = { darwin: true, win32: true };
+    const readPackageJson = vi.fn(() => {
+      throw new Error("must not read");
+    });
+    expect(
+      eligibility({
+        platform: "win32",
+        platformActivation,
+        storeOwnsUpdates: true,
+        readPackageJson,
+      }),
+    ).toBe(false);
+    expect(readPackageJson).not.toHaveBeenCalled();
+    expect(eligibility({ platform: "win32", platformActivation, storeOwnsUpdates: false })).toBe(
+      true,
+    );
+    expect(eligibility({ platform: "win32", platformActivation })).toBe(true);
+    Object.defineProperty(process, "windowsStore", { value: true, configurable: true });
+    try {
+      expect(eligibility({ platform: "win32", platformActivation })).toBe(false);
+    } finally {
+      Reflect.deleteProperty(process, "windowsStore");
+    }
+    expect(
+      officialEligibility({
+        platform: "win32",
+        readPackageJson: () => JSON.stringify({ version: "0.1.0", enduragentDesktopRelease: true }),
+      }),
+    ).toBe(true);
+  });
+
   it("rejects an unsupported platform even when activation claims it", () => {
     const platformActivation = { darwin: true, win32: false, linux: true } as unknown as Readonly<
       Record<DesktopUpdatePlatform, boolean>

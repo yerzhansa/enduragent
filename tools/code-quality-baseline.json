@@ -1,7 +1,6 @@
 {
   "comment": {
     "apps/desktop-renderer/src/onboarding/controller.ts": 5,
-    "apps/desktop/src/main/residency.ts": 1,
     "apps/desktop/tests/e2e/desktop-launch.spec.ts": 1,
     "packages/coach-contract/src/athlete-state.ts": 5,
     "packages/coach-contract/src/engine.ts": 3,
@@ -548,7 +547,6 @@
     "apps/desktop/src/main/language.ts": 1,
     "apps/desktop/src/main/onboarding-ipc.ts": 1,
     "apps/desktop/src/main/quit-coordinator.ts": 2,
-    "apps/desktop/src/main/residency.ts": 3,
     "apps/desktop/src/main/safe-log.ts": 1,
     "apps/desktop/src/main/supervisor.ts": 2,
     "apps/desktop/src/main/telegram-control.ts": 1,
@@ -681,7 +679,6 @@
     "apps/desktop/src/main/intervals-ipc.ts": 2,
     "apps/desktop/src/main/login-item.ts": 3,
     "apps/desktop/src/main/renderer-navigation-load.ts": 1,
-    "apps/desktop/src/main/residency.ts": 1,
     "apps/desktop/src/main/telegram-control.ts": 2,
     "apps/desktop/src/main/telegram-credential-vault.ts": 3,
     "apps/desktop/src/main/telegram-ipc.ts": 1,
@@ -729,7 +726,6 @@
   },
   "typescript/no-explicit-any": {
     "apps/desktop/tests/crash-telemetry.test.ts": 1,
-    "apps/desktop/tests/residency.test.ts": 3,
     "apps/desktop/tests/startup-catch.test.ts": 2,
     "apps/desktop/tests/tray-popover.test.ts": 4,
     "packages/core/tests/setup-merge.test.ts": 3,

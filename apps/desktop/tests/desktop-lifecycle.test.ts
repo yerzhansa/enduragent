@@ -24,6 +24,20 @@ describe("desktop platform lifecycle", () => {
     expect(setAppUserModelId).not.toHaveBeenCalled();
   });
 
+  it("keeps the Store package's own AppUserModelID", () => {
+    const setAppUserModelId = vi.fn();
+
+    bindDesktopAppUserModelId({ setAppUserModelId } as never, "win32", true);
+    Object.defineProperty(process, "windowsStore", { value: true, configurable: true });
+    try {
+      bindDesktopAppUserModelId({ setAppUserModelId } as never, "win32");
+    } finally {
+      Reflect.deleteProperty(process, "windowsStore");
+    }
+
+    expect(setAppUserModelId).not.toHaveBeenCalled();
+  });
+
   it("fails closed when Windows rejects the AppUserModelID", () => {
     const sensitiveDetail = String.raw`C:\Users\Private Athlete\identity failure`;
     let failure: unknown;

@@ -6,14 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   class Emitter {
-    private readonly listeners = new Map<string, Set<(...args: any[]) => void>>();
-    on(name: string, listener: (...args: any[]) => void) {
+    private readonly listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+    on(name: string, listener: (...args: unknown[]) => void) {
       const listeners = this.listeners.get(name) ?? new Set();
       listeners.add(listener);
       this.listeners.set(name, listeners);
       return this;
     }
-    async emit(name: string, ...args: any[]) {
+    async emit(name: string, ...args: unknown[]) {
       await Promise.all([...(this.listeners.get(name) ?? [])].map((listener) => listener(...args)));
     }
     removeAllListeners() {
@@ -146,6 +146,7 @@ function setup(
   options: {
     readonly platform?: NodeJS.Platform;
     readonly loginItemExecutablePath?: string;
+    readonly loginItemAvailable?: boolean;
   } = {},
 ) {
   const events: unknown[] = [];
@@ -168,6 +169,7 @@ function setup(
     trayIconPath: "/synthetic/trayTemplate.png",
     platform: options.platform ?? "darwin",
     loginItemExecutablePath: options.loginItemExecutablePath,
+    loginItemAvailable: options.loginItemAvailable,
     persistLoginPreference,
     reportFailure,
     observe: (event) => events.push(event),
@@ -274,6 +276,32 @@ describe("desktop residency", () => {
       path: executablePath,
       args: [WINDOWS_BACKGROUND_AT_LOGIN_ARGUMENT],
     });
+  });
+
+  it("leaves Start at login out of the menu when login items are unavailable", async () => {
+    const { residency, events, mainWindow } = setup({
+      platform: "win32",
+      loginItemAvailable: false,
+    });
+
+    await residency.start();
+    await mocks.FakeTray.instances[0]!.emit("right-click");
+
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+    expect(menu.map((item) => item.label ?? item.type)).toEqual([
+      "Open Enduragent",
+      "separator",
+      "Settings…",
+      "separator",
+      "Quit Enduragent",
+    ]);
+    expect(mocks.app.getLoginItemSettings).not.toHaveBeenCalled();
+    expect(mocks.app.setLoginItemSettings).not.toHaveBeenCalled();
+    expect(events.some((event) => (event as { type: string }).type === "login-item-read")).toBe(
+      false,
+    );
+    (menu[0]!.click as () => void)();
+    await vi.waitFor(() => expect(mainWindow.show).toHaveBeenCalledOnce());
   });
 
   it("builds a fresh exact native menu and uses current checkbox truth", async () => {
@@ -538,6 +566,76 @@ describe("desktop residency", () => {
       [{ openAtLogin: true }],
     ]);
     expect(openAtLogin).toBe(true);
+  });
+
+  it("re-reads and reports when observing the converged state fails", async () => {
+    const reportFailure = vi.fn();
+    const persistLoginPreference = vi
+      .fn<(enabled: boolean) => Promise<BackgroundAtLoginPreferenceWriteResult>>()
+      .mockResolvedValueOnce({ status: "stored", enabled: true })
+      .mockResolvedValueOnce({ status: "refused" });
+    const readStates: unknown[] = [];
+    const residency = createDesktopResidency({
+      app: mocks.app as never,
+      mainWindow: { current: vi.fn(() => null), show: vi.fn() } as never,
+      trayIconPath: "/synthetic/trayTemplate.png",
+      platform: "darwin",
+      persistLoginPreference,
+      reportFailure,
+      observe: (event) => {
+        if (event.type === "login-item-set") throw new TypeError("observer failed");
+        if (event.type === "login-item-read") readStates.push(event.state);
+      },
+    });
+    let openAtLogin = false;
+    mocks.app.getLoginItemSettings.mockImplementation(
+      () => loginState(openAtLogin ? "enabled" : "not-registered", openAtLogin) as never,
+    );
+    mocks.app.setLoginItemSettings
+      .mockImplementationOnce(() => {
+        throw new TypeError();
+      })
+      .mockImplementationOnce(({ openAtLogin: requested }) => {
+        openAtLogin = requested;
+      });
+    await residency.start();
+    await mocks.FakeTray.instances[0]!.emit("right-click");
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+
+    (menu[3]!.click as (item: { checked: boolean }) => void)({ checked: true });
+    await vi.waitFor(() => expect(reportFailure).toHaveBeenCalledWith("set-login-item"));
+    await residency.close();
+
+    expect(reportFailure.mock.calls).toEqual([["set-login-item"]]);
+    expect(readStates).toEqual([
+      loginState("not-registered", false),
+      loginState("not-registered", false),
+      loginState("enabled", true),
+    ]);
+  });
+
+  it("omits Start at login by default inside a Store package", async () => {
+    Object.defineProperty(process, "windowsStore", { value: true, configurable: true });
+    try {
+      const residency = createDesktopResidency({
+        app: mocks.app as never,
+        mainWindow: { current: vi.fn(() => null), show: vi.fn() } as never,
+        trayIconPath: "/synthetic/tray.ico",
+        platform: "win32",
+        persistLoginPreference: vi.fn(),
+        reportFailure: vi.fn(),
+      });
+      await residency.start();
+      await mocks.FakeTray.instances[0]!.emit("right-click");
+    } finally {
+      Reflect.deleteProperty(process, "windowsStore");
+    }
+
+    const menu = mocks.buildFromTemplate.mock.calls[0]![0] as Array<Record<string, unknown>>;
+    expect(menu.map((item) => item.label ?? item.type)).not.toContain(
+      "Start in background at login",
+    );
+    expect(mocks.app.getLoginItemSettings).not.toHaveBeenCalled();
   });
 
   it.skipIf(process.platform === "win32")(

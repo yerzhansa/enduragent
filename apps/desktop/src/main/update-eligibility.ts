@@ -50,8 +50,10 @@ export function isOfficialDesktopRelease(input: OfficialDesktopReleaseInput): bo
 export function isDesktopUpdateReleaseEligible(
   input: OfficialDesktopReleaseInput & {
     readonly platformActivation?: Readonly<Record<DesktopUpdatePlatform, boolean>>;
+    readonly storeOwnsUpdates?: boolean;
   },
 ): boolean {
+  if (input.storeOwnsUpdates ?? process.windowsStore === true) return false;
   const platformActivation = input.platformActivation ?? DESKTOP_UPDATE_PLATFORM_ACTIVATION;
   if (
     !DESKTOP_UPDATE_SUPPORTED_PLATFORMS.includes(input.platform as DesktopUpdatePlatform) ||

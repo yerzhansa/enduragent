@@ -22,8 +22,9 @@ export class DesktopIdentityBindingError extends Error {
 export function bindDesktopAppUserModelId(
   app: DesktopIdentityAppPort,
   platform: NodeJS.Platform = process.platform,
+  packageOwnsAppUserModelId: boolean = process.windowsStore === true,
 ): void {
-  if (platform !== "win32") return;
+  if (platform !== "win32" || packageOwnsAppUserModelId) return;
   try {
     app.setAppUserModelId(DESKTOP_APP_USER_MODEL_ID);
   } catch {
