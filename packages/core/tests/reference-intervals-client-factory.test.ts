@@ -10,6 +10,7 @@ import {
   wrapFetchWithSharedBucket,
   wrapFetchWithSignal,
 } from "../src/reference/sync/intervals-client-factory.js";
+import { encodeIntervalsOAuthCredential } from "../src/intervals-credential.js";
 
 beforeEach(() => {
   resetSharedRequestBucketForTests();
@@ -20,11 +21,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/**
- * `AbortSignal.timeout` uses Node's internal timer scheduler — `vi.useFakeTimers()`
- * cannot intercept it directly. Replace it with a `setTimeout`-driven controller
- * for tests that need deterministic per-request-timeout firing.
- */
 function mockAbortSignalTimeout(): ReturnType<typeof vi.spyOn> {
   return vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
     const controller = new AbortController();
@@ -43,7 +39,6 @@ function stub500(): ReturnType<typeof vi.fn> {
   return vi.fn(async () => new Response("boom", { status: 500 }));
 }
 
-/** A fetch that never resolves on its own; rejects only when its signal aborts. */
 function hungFetch(): typeof globalThis.fetch {
   return (_input, init) =>
     new Promise((_resolve, reject) => {
@@ -181,7 +176,6 @@ describe("shared request bucket", () => {
       name: "Test workout",
     };
 
-    // Burst: 15 requests on each client drain the single 30-token bucket.
     await Promise.all([
       ...Array.from({ length: 15 }, () => clientA.events.create(event)),
       ...Array.from({ length: 15 }, () => clientB.events.create(event)),
@@ -189,7 +183,6 @@ describe("shared request bucket", () => {
     expect(stubA).toHaveBeenCalledTimes(15);
     expect(stubB).toHaveBeenCalledTimes(15);
 
-    // The 31st request (on either client) must queue until the bucket refills.
     let resolved = false;
     const p = clientA.events.create(event).then(() => {
       resolved = true;
@@ -198,7 +191,6 @@ describe("shared request bucket", () => {
     expect(resolved).toBe(false);
     expect(stubA).toHaveBeenCalledTimes(15);
 
-    // 10 req/s refill: one token becomes available after 100 ms.
     await vi.advanceTimersByTimeAsync(100);
     await p;
     expect(resolved).toBe(true);
@@ -211,7 +203,6 @@ describe("shared request bucket", () => {
     const base = vi.fn(async () => new Response("ok"));
     const wrapped = wrapFetchWithSharedBucket(base as unknown as typeof globalThis.fetch);
 
-    // Drain the burst.
     await Promise.all(Array.from({ length: 30 }, () => wrapped("https://example.test/")));
     expect(base).toHaveBeenCalledTimes(30);
 
@@ -409,6 +400,19 @@ describe("makeIntervalsHttpFactory raw adapter", () => {
     expect(baseFetch).toHaveBeenCalledTimes(1);
   });
 
+  it("injects Bearer credentials for a signed-in OAuth credential", async () => {
+    const baseFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer fixture-token");
+      return new Response(new Uint8Array([1]), { status: 200 });
+    });
+    const port = makeIntervalsHttpFactory({
+      apiKey: encodeIntervalsOAuthCredential("fixture-token"),
+      baseFetch: baseFetch as typeof globalThis.fetch,
+    })({ outer: new AbortController().signal, perRequestTimeoutMs: 30_000 });
+    await port.fetch({ method: "GET", url: "https://example.test/raw" });
+    expect(baseFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects empty keys and caller-supplied authorization", async () => {
     expect(() => makeIntervalsHttpFactory({ apiKey: String() })).toThrow("API key is required");
     const port = makeIntervalsHttpFactory({ apiKey: "dummy", baseFetch: vi.fn() as never })({
@@ -444,5 +448,68 @@ describe("makeIntervalsHttpFactory raw adapter", () => {
     first.abort();
     expect(signals[0]?.aborted).toBe(true);
     expect(signals[1]?.aborted).toBe(false);
+  });
+});
+
+describe("IntervalsClient auth for each credential kind", () => {
+  const basicUser = ["API", "KEY"].join("_");
+  const athleteBody = () =>
+    new Response(JSON.stringify({ id: "i1", name: "Fixture" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  it.each([
+    ["an API key", "plain-key", `Basic ${btoa(`${basicUser}:plain-key`)}`],
+    [
+      "an OAuth credential",
+      encodeIntervalsOAuthCredential("fixture-token"),
+      "Bearer fixture-token",
+    ],
+  ])("the chat client sends the right header for %s", async (_label, apiKey, expected) => {
+    const seen: (string | null)[] = [];
+    const stub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(
+        new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get(
+          "authorization",
+        ),
+      );
+      return athleteBody();
+    });
+    const client = makeChatClient({
+      apiKey,
+      athleteId: "i1",
+      fetch: stub as unknown as typeof globalThis.fetch,
+    });
+    await client.athlete.get();
+    expect(seen).toEqual([expected]);
+  });
+
+  it.each([
+    ["an API key", "plain-key", `Basic ${btoa(`${basicUser}:plain-key`)}`],
+    [
+      "an OAuth credential",
+      encodeIntervalsOAuthCredential("fixture-token"),
+      "Bearer fixture-token",
+    ],
+  ])("the sync client sends the right header for %s", async (_label, apiKey, expected) => {
+    const seen: (string | null)[] = [];
+    const stub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(
+        new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get(
+          "authorization",
+        ),
+      );
+      return athleteBody();
+    });
+    const client = makeAbortableClient({
+      apiKey,
+      athleteId: "i1",
+      signal: new AbortController().signal,
+      perRequestMs: 30_000,
+      baseFetch: stub as unknown as typeof globalThis.fetch,
+    });
+    await client.athlete.get();
+    expect(seen).toEqual([expected]);
   });
 });

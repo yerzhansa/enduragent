@@ -1,16 +1,12 @@
-// ─── Binary deployment shell ──────────────────────────────────────────
 export type { BinaryConfig } from "./binary.js";
 export { getCoachHome } from "./coach-home.js";
 
-// ─── Setup wizard ─────────────────────────────────────────────────────
 export { runSetup } from "./setup.js";
 
-// ─── Binary entry point ───────────────────────────────────────────────
 export { runBinary } from "./run-binary.js";
 export type { PreparedCoachComposition, RunBinaryHooks } from "./run-binary.js";
 export { reportFatal } from "./process-guard.js";
 
-// ─── Sport contract ───────────────────────────────────────────────────
 export type {
   CoreDeps,
   DerivedPreserveTokens,
@@ -35,11 +31,6 @@ export {
   mergeSportSkills,
 } from "./sport.js";
 
-// ─── Reference layer (see NOTICE.md for upstream attribution) ────────
-// Per-sport seam types, freshness/timing constants, path resolver, I/O
-// helpers, strict Zod cache schemas with per-file SCHEMA_VERSION
-// constants, REFERENCE_PRESERVE_TOKENS, and downstream submodules
-// (sync, metrics, validation, curator, units, audit) as they come online.
 export * from "./reference/index.js";
 export { bootstrapReference } from "./reference/runtime.js";
 export type { BootstrapReferenceDeps, ReferenceRuntime } from "./reference/runtime.js";
@@ -100,7 +91,6 @@ export type {
   ModelCatalogRefreshRetainedReason,
 } from "./model-catalog-owner.js";
 
-// ─── Logging substrate ────────────────────────────────────────────────
 export {
   createSubsystemLogger,
   createSubsystemLoggers,
@@ -112,12 +102,10 @@ export {
 } from "./logging/index.js";
 export type { LogLine, LogLevel, SubsystemLogger, Subsystem } from "./logging/index.js";
 
-// ─── Memory ───────────────────────────────────────────────────────────
 export type { MemorySnapshot, MemoryStore, MemoryWriteSource } from "./memory.js";
 export { Memory, type MemoryOptions } from "./memory/store.js";
 export type { MemoryJournalEntry } from "./memory/journal.js";
 
-// ─── Secrets ──────────────────────────────────────────────────────────
 export type { EnvSecretRef, ExecSecretRef, SecretRef, SecretsResolver } from "./secrets/types.js";
 export { SecretResolutionError, isSecretRef } from "./secrets/types.js";
 export { resolveSecretRef, _resolveSecretRefWithOverrides } from "./secrets/resolve.js";
@@ -150,10 +138,8 @@ export {
   redactTemplateForLog,
 } from "./secrets/backends/op.js";
 
-// ─── Intervals ────────────────────────────────────────────────────────
 export type { IntervalsClient } from "./intervals.js";
 
-// ─── Agent ────────────────────────────────────────────────────────────
 export { CoachAgent } from "./agent/coach-agent.js";
 export { createCoachEngine } from "./agent/coach-engine.js";
 export type { LegacyEngineOverrides, LocalCoachEngine } from "./agent/coach-engine.js";
@@ -230,7 +216,6 @@ export {
   isCoachOwnedEvent,
 } from "./agent/event-provenance.js";
 
-// ─── Auth ─────────────────────────────────────────────────────────────
 export {
   RefreshTokenReusedError,
   getFreshToken,
@@ -261,8 +246,21 @@ export type {
   CodexLoginOptions,
   CodexLoginProgressPhase,
 } from "./agent/codex/oauth.js";
+export {
+  INTERVALS_OAUTH_CLIENT_ID,
+  IntervalsSignInError,
+  revokeIntervalsAccess,
+  signInWithIntervals,
+} from "./auth/intervals-oauth.js";
+export type {
+  IntervalsOAuthGrant,
+  IntervalsRevokeResult,
+  IntervalsSignInFailure,
+  IntervalsSignInOptions,
+  IntervalsSignInPhase,
+} from "./auth/intervals-oauth.js";
+export { intervalsCredentialKind } from "./intervals-credential.js";
 
-// ─── Channels ─────────────────────────────────────────────────────────
 export { createTelegramBot } from "./channels/telegram.js";
 export type {
   CreateTelegramChannelInput,
@@ -293,7 +291,6 @@ export type {
   TelegramReleaseCapabilities,
 } from "./channels/telegram-host.js";
 
-// ─── Config ───────────────────────────────────────────────────────────
 export {
   CONFIG_DIR,
   CONFIG_FILE,
@@ -401,7 +398,6 @@ export { createAuthMiddleware } from "./channels/telegram-access.js";
 export { escapeHtmlText } from "./channels/html-escape.js";
 export type { CreateAuthMiddlewareOpts } from "./channels/telegram-access.js";
 
-// ─── Updater ──────────────────────────────────────────────────────────
 export {
   buildCheckUrl,
   checkForUpdate,
@@ -418,7 +414,6 @@ export {
 } from "./updater.js";
 export type { UpdateInfo } from "./updater.js";
 
-// ─── Release notes ───────────────────────────────────────────────────
 export { fetchLatestReleaseNotes } from "./release-notes.js";
 export type {
   FetchLatestReleaseNotesOptions,
