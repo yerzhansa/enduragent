@@ -1,6 +1,6 @@
 {
   "name": "@enduragent/desktop-renderer",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
