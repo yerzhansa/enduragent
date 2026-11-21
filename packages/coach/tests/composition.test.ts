@@ -1958,7 +1958,10 @@ describe("local coach composition", () => {
         const requests: string[] = [];
         const refusingFetch: typeof globalThis.fetch = async (input) => {
           requests.push(new URL(input instanceof Request ? input.url : input.toString()).pathname);
-          return new Response("{}", { status: 401, headers: { "content-type": "application/json" } });
+          return new Response("{}", {
+            status: 401,
+            headers: { "content-type": "application/json" },
+          });
         };
         const lifecycle = await compose(
           home,
@@ -1990,8 +1993,20 @@ describe("local coach composition", () => {
         expect(firstAttempt).toBeGreaterThan(0);
 
         await vi.advanceTimersByTimeAsync(600_000);
-        if (retries) expect(requests.length).toBeGreaterThan(firstAttempt);
-        else expect(requests).toHaveLength(firstAttempt);
+        const failures = (await readFile(join(home.root, "logs", "log.jsonl"), "utf8"))
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as { event?: string; failure?: { transient?: boolean } })
+          .filter((line) => line.event === "initial_store_refresh_failed")
+          .map((line) => line.failure?.transient);
+        if (retries) {
+          expect(requests.length).toBeGreaterThan(firstAttempt);
+          expect(failures.length).toBeGreaterThan(2);
+          expect(new Set(failures)).toEqual(new Set([true]));
+        } else {
+          expect(requests).toHaveLength(firstAttempt);
+          expect(failures).toEqual([true, false]);
+        }
         await lifecycle.close();
       } finally {
         vi.useRealTimers();
