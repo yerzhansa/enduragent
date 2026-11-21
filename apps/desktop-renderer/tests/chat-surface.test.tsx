@@ -735,6 +735,21 @@ describe("chat surface", () => {
       expect(screen.getByRole("button", { name: /Something else/u })).toHaveFocus();
     });
 
+    it("brings the message box back when the decision closes while its custom editor is open", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      setChat({ decision: unansweredDecision(), sendDisabled: true, inputDisabled: false });
+
+      await user.click(screen.getByRole("button", { name: /Something else/u }));
+      expect(screen.getByLabelText("What would work better?")).toBeVisible();
+      expect(document.querySelector("textarea#message")).toBeNull();
+
+      setChat({ decision: null, sendDisabled: false });
+
+      expect(screen.queryByLabelText("What would work better?")).toBeNull();
+      expect(composer()).toBeVisible();
+    });
+
     it("shows continuing and relaunch recovery states", () => {
       const pending: CoachDecisionReadModel = {
         ...unansweredDecision(),
