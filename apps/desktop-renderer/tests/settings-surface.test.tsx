@@ -2253,20 +2253,45 @@ describe("credential deletion", () => {
 describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
   const REJECTED_HEADLINE = "Intervals.icu needs you to sign in again";
 
-  function intervalsRuntime(signedIn: () => boolean) {
+  type IntervalsRuntimeState = "rejected" | "accepted" | "removed";
+
+  function intervalsRuntime(state: () => IntervalsRuntimeState) {
     return () =>
       snapshot({
         intervals: {
           athlete_id: "i1",
-          credential_configured: signedIn(),
-          ...(signedIn() ? { credential_rejected: true } : {}),
+          credential_configured: state() !== "removed",
+          ...(state() === "rejected" ? { credential_rejected: true } : {}),
           managedByEnvironment: { athleteId: false },
         },
       });
   }
 
-  function watchSignInHealth(clients: DesktopCoachClientProvider): DesktopCoachClientProvider {
-    return createIntervalsSignInHealth(clients, useEnduragentStore).clients;
+  function signInHealth() {
+    const wired: { health?: IntervalsSignInHealth } = {};
+    return {
+      wrapClients(clients: DesktopCoachClientProvider): DesktopCoachClientProvider {
+        wired.health = createIntervalsSignInHealth(clients, useEnduragentStore);
+        return wired.health.clients;
+      },
+      async refresh(): Promise<void> {
+        const health = wired.health;
+        if (health === undefined) throw new Error("Sign-in health is not wired");
+        await act(async () => {
+          await health.refresh();
+        });
+      },
+    };
+  }
+
+  async function confirmDisconnect(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await user.click(
+      within(trainingRow()).getByRole("button", { name: "Disconnect Intervals.icu" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Disconnecting…" })).toBeInTheDocument();
+    });
   }
 
   function markIntervalsMissing(): void {
@@ -2298,11 +2323,11 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
 
   it("offers Disconnect, revokes, and clears the warning in Settings and the sidebar", async () => {
     const user = userEvent.setup();
-    let signedIn = true;
+    let runtimeState: IntervalsRuntimeState = "rejected";
     const deleting = deferred<CredentialDeleteResult>();
     const subject = await renderSettings({
-      wrapClients: watchSignInHealth,
-      runtime: intervalsRuntime(() => signedIn),
+      wrapClients: signInHealth().wrapClients,
+      runtime: intervalsRuntime(() => runtimeState),
       deleteCredential: () => deleting.promise,
       onDeleted: markIntervalsMissing,
     });
@@ -2348,7 +2373,7 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     expect(signInAgain).toBeDisabled();
     expect(subject.deleteCredential).toHaveBeenCalledWith({ credential: "intervals-icu" });
 
-    signedIn = false;
+    runtimeState = "removed";
     await act(async () => {
       deleting.resolve({
         credential: "intervals-icu",
@@ -2379,16 +2404,13 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
 
   it("keeps the warning, never Connected, until the disconnect finishes", async () => {
     const user = userEvent.setup();
-    let signedIn = true;
-    let health: IntervalsSignInHealth | undefined;
+    let runtimeState: IntervalsRuntimeState = "rejected";
+    const health = signInHealth();
     const deleting = deferred<CredentialDeleteResult>();
     const setupRefresh = deferred<void>();
     await renderSettings({
-      wrapClients: (clients) => {
-        health = createIntervalsSignInHealth(clients, useEnduragentStore);
-        return health.clients;
-      },
-      runtime: intervalsRuntime(() => signedIn),
+      wrapClients: health.wrapClients,
+      runtime: intervalsRuntime(() => runtimeState),
       deleteCredential: () => deleting.promise,
       onDeleted: async () => {
         await setupRefresh.promise;
@@ -2400,18 +2422,11 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
       expect(trainingRow()).toHaveAttribute("data-state", "attention");
     });
 
-    await user.click(
-      within(trainingRow()).getByRole("button", { name: "Disconnect Intervals.icu" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Disconnect" }));
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Disconnecting…" })).toBeInTheDocument();
-    });
+    await confirmDisconnect(user);
 
-    signedIn = false;
-    await act(async () => {
-      await health?.refresh();
-    });
+    runtimeState = "removed";
+    await health.refresh();
+    expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
     expect(trainingRow()).toHaveAttribute("data-state", "attention");
     expect(trainingRow()).not.toHaveTextContent("Connected");
 
@@ -2434,6 +2449,46 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     });
     expect(syncNotice()).not.toHaveTextContent(REJECTED_HEADLINE);
     expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
+  });
+
+  it("follows intervals.icu again once a refused disconnect ends", async () => {
+    const user = userEvent.setup();
+    let runtimeState: IntervalsRuntimeState = "rejected";
+    const health = signInHealth();
+    const deleting = deferred<CredentialDeleteResult>();
+    await renderSettings({
+      wrapClients: health.wrapClients,
+      runtime: intervalsRuntime(() => runtimeState),
+      deleteCredential: () => deleting.promise,
+    });
+    await waitFor(() => {
+      expect(trainingRow()).toHaveAttribute("data-state", "attention");
+    });
+
+    await confirmDisconnect(user);
+
+    runtimeState = "accepted";
+    await health.refresh();
+    expect(useEnduragentStore.getState().intervalsSignInRejected).toBe(false);
+    expect(trainingRow()).toHaveAttribute("data-state", "attention");
+
+    await act(async () => {
+      deleting.resolve({
+        credential: "intervals-icu",
+        status: "refused",
+        reason: "storage-failed",
+      });
+    });
+
+    expect(
+      await screen.findByText(
+        "The credential remains stored. No deletion was completed. Try again.",
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(trainingRow()).toHaveAttribute("data-state", "ready");
+    });
+    expect(within(trainingRow()).queryByRole("button", { name: "Sign in again" })).toBeNull();
   });
 
   it("keeps Disconnect unavailable while signing in again", async () => {
@@ -2461,8 +2516,8 @@ describe("disconnecting a sign-in Intervals.icu stopped accepting", () => {
     try {
       await act(async () => onboarding.open());
       await renderSettings({
-        wrapClients: watchSignInHealth,
-        runtime: intervalsRuntime(() => true),
+        wrapClients: signInHealth().wrapClients,
+        runtime: intervalsRuntime(() => "rejected"),
       });
       await waitFor(() => {
         expect(trainingRow()).toHaveAttribute("data-state", "attention");
