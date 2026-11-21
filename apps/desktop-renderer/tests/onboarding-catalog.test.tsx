@@ -12,7 +12,7 @@ it("reads setup headings, actions, and accessible labels from the selected catal
   resetOnboardingStore();
   useEnduragentStore.setState((state) => ({
     onboarding: READY_ONBOARDING,
-    settings: { ...state.settings, language: { ...state.settings.language, value: "it" } },
+    settings: { ...state.settings, language: { status: "ready", value: "it" } },
   }));
   await renderWithCatalog(<SetupPanel placement="gate" />, {
     setup: {
