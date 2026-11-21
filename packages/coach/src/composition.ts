@@ -623,25 +623,24 @@ function readLatestReference(dataDir: string) {
   }
 }
 
+function isOAuthCredential(value: unknown): value is OAuthCredential {
+  return (
+    isRecord(value) &&
+    value.type === "oauth" &&
+    typeof value.access === "string" &&
+    value.access.length > 0 &&
+    typeof value.refresh === "string" &&
+    value.refresh.length > 0 &&
+    typeof value.expires === "number" &&
+    Number.isFinite(value.expires) &&
+    (value.accountId === undefined || typeof value.accountId === "string") &&
+    (value.email === undefined || typeof value.email === "string")
+  );
+}
+
 function credential(value: unknown): OAuthCredential {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TypeError("OAuth profile is invalid.");
-  }
-  const candidate = value as Record<string, unknown>;
-  if (
-    candidate.type !== "oauth" ||
-    typeof candidate.access !== "string" ||
-    candidate.access.length === 0 ||
-    typeof candidate.refresh !== "string" ||
-    candidate.refresh.length === 0 ||
-    typeof candidate.expires !== "number" ||
-    !Number.isFinite(candidate.expires) ||
-    (candidate.accountId !== undefined && typeof candidate.accountId !== "string") ||
-    (candidate.email !== undefined && typeof candidate.email !== "string")
-  ) {
-    throw new TypeError("OAuth profile is invalid.");
-  }
-  return candidate as unknown as OAuthCredential;
+  if (!isOAuthCredential(value)) throw new TypeError("OAuth profile is invalid.");
+  return value;
 }
 
 function createAccessTokenReader(configDir: string): EngineHostPorts["getAccessToken"] {
