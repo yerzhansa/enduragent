@@ -914,8 +914,8 @@ export async function createLocalCoachComposition(
       }),
     };
   };
-  let runtime: LocalStoreRuntime | undefined;
-  let reference: LocalReferenceRuntime | undefined;
+  let startedRuntime: LocalStoreRuntime | undefined;
+  let startedReference: LocalReferenceRuntime | undefined;
   let catalogSession = CatalogSession.live(input.catalog);
   let currentEngineConfig: EngineConfig | undefined;
   const catalogForRebuild = (): AcceptedModelCatalogRecord =>
@@ -944,7 +944,7 @@ export async function createLocalCoachComposition(
       await startupOwnerClaim?.claim();
       intervalsOwnerReady = true;
     }
-    reference = await (dependencies.bootstrap ?? bootstrapReference)({
+    const reference = await (dependencies.bootstrap ?? bootstrapReference)({
       dataDir: input.home.root,
       intervals: approvedConfig().intervals,
       readIntervals: () => approvedConfig().intervals,
@@ -952,11 +952,12 @@ export async function createLocalCoachComposition(
       sport: cyclingSport,
       startScheduler: false,
       attemptLedgerForRun: () => {
-        if (runtime === undefined)
+        if (startedRuntime === undefined)
           throw new Error("Store runtime has not started its paired window.");
-        return runtime.attemptLedgerForRun();
+        return startedRuntime.attemptLedgerForRun();
       },
     });
+    startedReference = reference;
     const runtimeOptions: LocalStoreRuntimeOptions = {
       env: input.env,
       config: approvedConfig(),
@@ -967,13 +968,14 @@ export async function createLocalCoachComposition(
       dependencies: dependencies.runtimeDependencies,
       ...(dependencies.platform === undefined ? {} : { platform: dependencies.platform }),
     };
-    runtime =
+    const runtime =
       dependencies.createRuntime === undefined
         ? createStoreRuntime({
             ...runtimeOptions,
             reference: reference as ReferenceRuntime,
           })
         : dependencies.createRuntime(runtimeOptions);
+    startedRuntime = runtime;
     if (!input.deferInitialRefresh) {
       await runtime.runWindow();
       if (unapprovedConfig.intervals.apiKey.length > 0) {
@@ -997,8 +999,8 @@ export async function createLocalCoachComposition(
     const coachLanguage = createCoachLanguage({
       phrasebooks: createPhrasebook,
       store: asLanguagePreferenceStore({
-        get: () => runtime!.runExclusive(() => languagePreference.get()),
-        set: (value) => runtime!.runExclusive(() => languagePreference.set(value)),
+        get: () => runtime.runExclusive(() => languagePreference.get()),
+        set: (value) => runtime.runExclusive(() => languagePreference.set(value)),
       }),
       surface: {
         language:
@@ -1034,7 +1036,7 @@ export async function createLocalCoachComposition(
         store: input.context.store,
       }),
       store: input.context.store,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const workoutLimits = {
@@ -1058,7 +1060,7 @@ export async function createLocalCoachComposition(
         },
       }),
       limits: workoutLimits,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const documentMediaAttachmentOperations = createDocumentMediaAttachmentOperations({
@@ -1096,13 +1098,13 @@ export async function createLocalCoachComposition(
           parserOldGenerationMiB: CHAT_ATTACHMENT_LIMITS.parserOldGenerationMiB,
         },
       }),
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
     });
     const attachmentOperations = createManagedChatAttachmentOperations({
       repository: attachmentRepository,
       objects: attachmentObjects,
-      runExclusive: (work) => runtime!.runExclusive(work),
+      runExclusive: (work) => runtime.runExclusive(work),
       now,
       observe: observeAttachment,
       beforeConversationCleanup: async (conversationId) => {
@@ -1214,7 +1216,7 @@ export async function createLocalCoachComposition(
       trainingHistorySource: trainingHistory,
       sourceOwner: () => approvedConfig().intervals.athleteId,
       calendarTimeZone: () => resolveUserTimezone(approvedConfig().session.timezone),
-      droppedActivitiesSource: () => runtime!.currentDroppedActivities(),
+      droppedActivitiesSource: () => runtime.currentDroppedActivities(),
     });
     const buildBundle = async (
       config: Config,
@@ -1370,7 +1372,7 @@ export async function createLocalCoachComposition(
         secrets: { resolve: resolveSecretRef },
         platform: {
           legacyClient,
-          athleteData: runtime!.athleteData,
+          athleteData: runtime.athleteData,
           calendarMutations:
             legacyClient === null
               ? createMissingPlatformCalendarMutations()
@@ -1430,7 +1432,7 @@ export async function createLocalCoachComposition(
     const persistConfig = dependencies.persistRuntimeConfig ?? persistRuntimeConfig;
     const ensureSchedulerStarted = (): void => {
       if (schedulerStarted || closing) return;
-      runtime!.startScheduler();
+      runtime.startScheduler();
       schedulerStarted = true;
     };
     const applyRuntimeConfig = async (
@@ -1656,7 +1658,7 @@ export async function createLocalCoachComposition(
         if (initialRefreshStarted && initialRefreshConfigCaptured && intervalsOwnerReady) {
           ensureSchedulerStarted();
           const refreshRevision = intervalsConfigRevision;
-          void runtime!
+          void runtime
             .runWindowAfter(() => Promise.resolve())
             .catch((error) =>
               logger.error("runtime_intervals_refresh_failed", undefined, {
@@ -1710,7 +1712,7 @@ export async function createLocalCoachComposition(
       let ownerSucceeded = false;
       initialRefreshPromise = initialPlanCompletion
         .then(() =>
-          runtime!.runWindowAfter(async (signal) => {
+          runtime.runWindowAfter(async (signal) => {
             const initializationSignal = AbortSignal.any([signal, initialRefreshController.signal]);
             initializationSignal.throwIfAborted();
             initialRefreshConfigCaptured = true;
@@ -1797,7 +1799,7 @@ export async function createLocalCoachComposition(
       archive: analysisImport.archive,
       store: input.context.store,
       sources: analysisSources,
-      runExclusive: <T>(work: () => Promise<T>) => runtime!.runExclusive(work),
+      runExclusive: <T>(work: () => Promise<T>) => runtime.runExclusive(work),
       now,
     };
     const providerStreams = createProviderActivityStreamReader({
@@ -1840,7 +1842,7 @@ export async function createLocalCoachComposition(
         }),
         powerHeartRate: createPowerHeartRateAnalyzer({ provider: providerPowerHeartRate }),
       },
-      runCacheWrite: (work) => runtime!.runExclusive(work),
+      runCacheWrite: (work) => runtime.runExclusive(work),
       now,
     });
     const trainingExport = createTrainingExportService({
@@ -2325,10 +2327,10 @@ export async function createLocalCoachComposition(
             }
           };
           await attempt(() => dependencies.closeHostAdapters?.());
-          await attempt(() => reference!.scheduler.stop());
+          await attempt(() => reference.scheduler.stop());
           await attempt(() => drain.idle());
           await attempt(async () => reconfigurable.engine.settle?.());
-          await attempt(() => runtime!.close());
+          await attempt(() => runtime.close());
           await initialRefreshPromise?.catch(() => {});
           if (failure !== undefined) throw failure.error;
         })();
@@ -2336,8 +2338,8 @@ export async function createLocalCoachComposition(
       },
     };
   } catch (error) {
-    reference?.scheduler.stop();
-    if (runtime !== undefined) await runtime.close();
+    startedReference?.scheduler.stop();
+    if (startedRuntime !== undefined) await startedRuntime.close();
     throw error;
   }
 }
