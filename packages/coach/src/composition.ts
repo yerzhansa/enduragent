@@ -103,8 +103,14 @@ import {
 } from "@enduragent/kernel-node/planning";
 import {
   createLegacyWriterFence,
+  createPlanConversationRepository,
+  createPlanCreationRepository,
   createPlanDraftBuildRepository,
   createPlanIntakeRepository,
+  createPlanLifecycleRepository,
+  createPlanningRequestIntakeRepository,
+  createPlanningRequestRepository,
+  createPlanRepository,
 } from "@enduragent/kernel/planning";
 import type { CoachStoreWriterContext } from "./runtime.js";
 import { CatalogSession } from "./catalog-session.js";
@@ -152,6 +158,7 @@ import {
   digestIntervalsCredential,
   normalizeIntervalsAthleteSelector,
 } from "./intervals-credential-approval.js";
+import { isIntervalsCredentialUsable } from "./intervals-credential-usable.js";
 import { createCoachEngineAdapter } from "./coach-engine-adapter.js";
 import { createPlanChangeOperations } from "./plan-change-operations.js";
 import { createPlanChangeEventSourceReader } from "./plan-change-event-source-reader.js";
@@ -212,14 +219,6 @@ import { createAttachmentComposerOperations } from "./attachment-composer-operat
 import { createPlanningReadService } from "./planning-read-service.js";
 import { createPlanningRequestDeliveryService } from "./planning-request-delivery.js";
 import { createPlanningRequestSourceCleanup } from "./planning-request-source-cleanup.js";
-import {
-  createPlanConversationRepository,
-  createPlanCreationRepository,
-  createPlanLifecycleRepository,
-  createPlanningRequestIntakeRepository,
-  createPlanningRequestRepository,
-  createPlanRepository,
-} from "@enduragent/kernel/planning";
 import {
   createPlanningRequestIntakeService,
   createPlanningRequestPremiseReader,
@@ -1662,6 +1661,7 @@ export async function createLocalCoachComposition(
       if (request.intervals !== undefined && candidate.intervals.apiKey.length > 0) {
         if (initialRefreshStarted && initialRefreshConfigCaptured && intervalsOwnerReady) {
           ensureSchedulerStarted();
+          if (!isIntervalsCredentialUsable(approvedConfig().intervals.apiKey)) return;
           const refreshRevision = intervalsConfigRevision;
           void runtime
             .runWindowAfter(() => Promise.resolve())
@@ -2008,7 +2008,7 @@ export async function createLocalCoachComposition(
     const drain = createPlanCalendarDrain({
       store: input.context.store,
       calendar: planCalendar,
-      calendarConnected: () => approvedConfig().intervals.apiKey.length > 0,
+      calendarConnected: () => isIntervalsCredentialUsable(approvedConfig().intervals.apiKey),
       identity: planningIdentity,
       todayDateKey: planningDateKey,
       now,
