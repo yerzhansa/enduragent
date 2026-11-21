@@ -700,8 +700,6 @@
       "credentialSaveFailed": "No se ha podido guardar esa clave. Intenta introducirla de nuevo.",
       "credentialStatusUnavailable": "Se ha guardado esa clave, pero no se ha podido actualizar su estado. Comprueba de nuevo el área de configuración.",
       "endpointInvalid": "Introduce una dirección de servicio HTTPS válida o una dirección HTTP de bucle local.",
-      "intakeIncomplete": "Responde a las preguntas de seguridad obligatorias para continuar.",
-      "intakeSaveFailed": "No se han podido guardar tus respuestas. Inténtalo de nuevo.",
       "intervalsOwnerUnavailable": "{{product}} no ha podido confirmar que esta cuenta de {{intervals}} corresponda a los datos de entrenamiento de {{computer}}. Inténtalo de nuevo cuando los datos de entrenamiento estén disponibles.",
       "intervalsRuntimeUnavailable": "No se ha podido activar el inicio de sesión de {{intervals}}. Vuelve a iniciar sesión.",
       "intervalsRuntimeUncertain": "{{product}} no ha podido confirmar si el inicio de sesión está activo. Recarga el estado de las credenciales antes de intentarlo de nuevo.",
@@ -733,15 +731,6 @@
       "importing": "Importando archivos de salidas…",
       "unavailable": "Importación a la biblioteca local: {{imported}} importados. {{quarantined}} en cuarentena. El acceso del entrenador a las actividades y a sus series de datos no está disponible temporalmente; reintenta la importación.",
       "unconfirmed": "La importación a la biblioteca local ha fallado. No se ha podido confirmar el resultado; comprueba la biblioteca antes de intentarlo de nuevo."
-    },
-    "intake": {
-      "managing": "Con una lesión",
-      "none": "Sin lesiones actuales",
-      "retrySave": "Reintentar guardar respuestas",
-      "returning": "Retomando el entrenamiento tras una lesión",
-      "select": "Seleccionar…",
-      "subtitle": "Registra tu situación actual de lesión o de vuelta al entrenamiento.",
-      "title": "Estado de lesiones actual"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos listos",
     "retrySavedKeys": "Reintentar claves guardadas",

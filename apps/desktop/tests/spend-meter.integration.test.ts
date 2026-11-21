@@ -24,14 +24,6 @@ const scratch: string[] = [];
 
 const readySetupStatus = {
   schemaVersion: 1,
-  intake: {
-    swim_skill_floor: null,
-    continuous_distance_capable: null,
-    open_water_comfort: null,
-    prior_bsi: false,
-    clinician_cleared: null,
-    injury_status: "none",
-  },
   durableTrainingData: true,
 } as const;
 
@@ -232,7 +224,6 @@ function script(calls: ScriptRequest[], initial: "reached" | "complete") {
           publication: { scope: "activities-and-streams", status: "available" },
         });
       }
-      if (request.method === "saveIntake") return response({ schemaVersion: 1, saved: true });
       if (request.method === "configureRuntime") {
         return response({
           schemaVersion: 3,

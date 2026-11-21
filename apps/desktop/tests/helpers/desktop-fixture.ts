@@ -419,11 +419,6 @@ export async function launchDesktopFixture(input: {
       for (const event of eventFrames(frames)) onEvent?.(event as OperationProgressEvent);
       return finalFrame(frames) as Awaited<ReturnType<CoachOperations["sync"]>>;
     },
-    async saveIntake(request) {
-      return finalFrame(await invoke("saveIntake", request)) as Awaited<
-        ReturnType<CoachOperations["saveIntake"]>
-      >;
-    },
     async getSetupStatus(request) {
       return finalFrame(await invoke("getSetupStatus", request)) as Awaited<
         ReturnType<NonNullable<CoachOperations["getSetupStatus"]>>
@@ -792,6 +787,7 @@ export async function launchDesktopFixture(input: {
     if (mainDebuggerPort !== undefined) {
       const deadline = Date.now() + DESKTOP_FIXTURE_LAUNCH_TIMEOUT_MS;
       let mainDebuggerUrl: string | undefined;
+      let lastProbeError: unknown;
       while (Date.now() < deadline && mainDebuggerUrl === undefined) {
         try {
           const response = await fetch(`http://127.0.0.1:${mainDebuggerPort}/json/list`, {
@@ -804,12 +800,16 @@ export async function launchDesktopFixture(input: {
             const target = entries.find((entry) => typeof entry.webSocketDebuggerUrl === "string");
             if (target !== undefined) mainDebuggerUrl = target.webSocketDebuggerUrl as string;
           }
-        } catch {}
+        } catch (error) {
+          lastProbeError = error;
+        }
         if (mainDebuggerUrl === undefined) {
           await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
         }
       }
-      if (mainDebuggerUrl === undefined) throw new Error("timed out waiting for desktop main");
+      if (mainDebuggerUrl === undefined) {
+        throw new Error("timed out waiting for desktop main", { cause: lastProbeError });
+      }
       mainCdp = await connectCdp(mainDebuggerUrl, () => {});
       await mainCdp.call("Runtime.enable");
     }

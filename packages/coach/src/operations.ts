@@ -20,8 +20,6 @@ import {
   ImportFilesRpcParamsSchema,
   ImportFilesRpcResultSchema,
   OperationProgressEventSchema,
-  SaveIntakeRpcParamsSchema,
-  SaveIntakeRpcResultSchema,
   SetLanguagePreferenceRpcParamsSchema,
   SetUnitsPreferenceRpcParamsSchema,
   SetLanguagePreferenceRpcResultSchema,
@@ -53,8 +51,6 @@ import {
   type ImportFilesRpcParams,
   type ImportFilesRpcResult,
   type OperationProgressEvent,
-  type SaveIntakeRpcParams,
-  type SaveIntakeRpcResult,
   type SetLanguagePreferenceRpcParams,
   type SetUnitsPreferenceRpcParams,
   type SetLanguagePreferenceRpcResult,
@@ -65,15 +61,10 @@ import {
   type VerifyIntervalsCredentialRpcResult,
 } from "@enduragent/coach-contract";
 import {
-  createIntakeRepository,
   createLanguagePreferenceRepository,
   createUnitsPreferenceRepository,
 } from "@enduragent/kernel/store";
-import {
-  createAuthoredIdentity,
-  type AthleteHome,
-  type AuthoredIdentity,
-} from "@enduragent/kernel-node/home";
+import type { AthleteHome } from "@enduragent/kernel-node/home";
 import { importFilesWithReport } from "@enduragent/kernel-node/ingest";
 import { isIntervalsCredentialRejected } from "@enduragent/core";
 import type { ImportReport } from "@enduragent/kernel/ingest";
@@ -124,8 +115,6 @@ export interface CreateCoachOperationsInput {
 export interface CoachOperationsDependencies {
   readonly importFiles?: typeof importFilesWithReport;
   readonly backfill?: typeof runIntervalsBackfillInWriter;
-  readonly createIdentity?: (configDir: string) => AuthoredIdentity;
-  readonly createIntakeRepository?: typeof createIntakeRepository;
   readonly runtimeConfigurationDeadlineMs?: number;
 }
 
@@ -184,8 +173,6 @@ export function createCoachOperations(
   }
   const store = input.context.store;
   const archiveDir = input.home.archiveDir;
-  const identity = (dependencies.createIdentity ?? createAuthoredIdentity)(input.home.configDir);
-  const intake = (dependencies.createIntakeRepository ?? createIntakeRepository)(store);
   const languagePreference =
     input.languagePreference ??
     createLanguagePreferenceService(createLanguagePreferenceRepository(store));
@@ -296,49 +283,15 @@ export function createCoachOperations(
     getSetupStatus(request: GetSetupStatusRpcParams): Promise<GetSetupStatusRpcResult> {
       GetSetupStatusRpcParamsSchema.parse(request);
       return input.runtime.runExclusive(async () => {
-        const [savedIntake, activity] = await Promise.all([
-          intake.read(),
-          store.get("SELECT 1 AS present FROM workout LIMIT 1"),
-        ]);
+        const activity = await store.get("SELECT 1 AS present FROM workout LIMIT 1");
         const present = activity?.present;
         if (present !== undefined && present !== 1) {
           throw new TypeError("setup activity evidence is invalid");
         }
         return GetSetupStatusRpcResultSchema.parse({
           schemaVersion: 1,
-          intake:
-            savedIntake === undefined
-              ? null
-              : {
-                  swim_skill_floor: null,
-                  continuous_distance_capable: null,
-                  open_water_comfort: null,
-                  prior_bsi: false,
-                  clinician_cleared: savedIntake.clinician_cleared,
-                  injury_status: savedIntake.injury_status,
-                },
           durableTrainingData: present === 1,
         });
-      });
-    },
-    saveIntake(request: SaveIntakeRpcParams): Promise<SaveIntakeRpcResult> {
-      const parsedRequest = SaveIntakeRpcParamsSchema.parse(request);
-      return input.runtime.runExclusive(async () => {
-        const deviceId = await identity.deviceId();
-        const stamp = identity.hlcStamp();
-        await intake.replace({
-          id: identity.newUlid(),
-          swim_skill_floor: parsedRequest.swim_skill_floor,
-          continuous_distance_capable: parsedRequest.continuous_distance_capable,
-          open_water_comfort: parsedRequest.open_water_comfort,
-          clinician_cleared:
-            parsedRequest.injury_status === "none" ? null : parsedRequest.clinician_cleared,
-          injury_status: parsedRequest.injury_status,
-          device_id: deviceId,
-          hlc_physical_ms: stamp.physicalMs,
-          hlc_counter: stamp.counter,
-        });
-        return SaveIntakeRpcResultSchema.parse({ schemaVersion: 1, saved: true });
       });
     },
     getTranscriptPage(request: GetTranscriptPageRpcParams): Promise<GetTranscriptPageRpcResult> {

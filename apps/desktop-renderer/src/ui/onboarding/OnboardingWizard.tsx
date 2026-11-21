@@ -20,10 +20,9 @@ import {
   SETUP_STATUS_CHECKING_COPY,
   SETUP_STATUS_UNAVAILABLE_COPY,
 } from "./copy";
-import { IntakeRows } from "./IntakeRows";
 import { setupStatusKnown } from "../../onboarding/controller";
 import { idleAiProvider } from "../../onboarding/lanes";
-import { chatGptReady, intakeComplete } from "../../onboarding/machine";
+import { chatGptReady } from "../../onboarding/machine";
 import {
   credentialChangesBlocked,
   repairRequiredCredential,
@@ -39,6 +38,8 @@ import { TrainingRow } from "./TrainingRow";
 import { settingsStyles } from "../settings/styles";
 
 export type SetupPlacement = "gate" | "settings";
+
+const REQUIRED_SETUP_ITEMS = 2;
 
 export function SetupPanel(props: { readonly placement: SetupPlacement }): ReactElement {
   const { say, format } = usePhrasebook();
@@ -73,11 +74,8 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
   const readiness = surface.readiness;
   const statusKnown = setupStatusKnown(surface);
   const gateUnavailable = props.placement === "gate" && surface.loadUnavailable;
-  const intakeAnswered = readiness.intake || intakeComplete(wizard.intake);
-  const requiredReadyCount = [readiness.provider, readiness.trainingData, intakeAnswered].filter(
-    Boolean,
-  ).length;
-  const requiredSetupReady = requiredReadyCount === 3;
+  const requiredReadyCount = [readiness.provider, readiness.trainingData].filter(Boolean).length;
+  const requiredSetupReady = requiredReadyCount === REQUIRED_SETUP_ITEMS;
   const readinessState = !statusKnown ? "checking" : requiredSetupReady ? "ready" : "pending";
   const primaryAiProvider = idleAiProvider({
     activeProvider: surface.configuration?.active?.provider,
@@ -108,8 +106,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
     wizard.busy ||
     surface.rideImport.status === "running" ||
     !readiness.provider ||
-    !readiness.trainingData ||
-    !intakeComplete(wizard.intake);
+    !readiness.trainingData;
   return (
     <section
       ref={panel}
@@ -145,7 +142,7 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
               {statusKnown
                 ? say("setup.requiredReady", {
                     ready: format.number(requiredReadyCount),
-                    total: format.number(3),
+                    total: format.number(REQUIRED_SETUP_ITEMS),
                   })
                 : say(SETUP_STATUS_CHECKING_COPY)}
             </span>
@@ -188,7 +185,6 @@ export function SetupPanel(props: { readonly placement: SetupPlacement }): React
               primaryAiProvider={primaryAiProvider}
             />
           ) : null}
-          <IntakeRows surface={surface} actions={actions} placement={props.placement} />
           {credentialFeedbackVisible ? <CredentialSettingsFeedback /> : null}
         </SetupCard>
       )}

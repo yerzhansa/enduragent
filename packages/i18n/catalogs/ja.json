@@ -698,8 +698,6 @@
       "credentialSaveFailed": "キーを保存できませんでした。もう一度入力してください。",
       "credentialStatusUnavailable": "キーは保存されましたが、状態を更新できませんでした。セットアップ欄をもう一度確認してください。",
       "endpointInvalid": "有効なHTTPSエンドポイント、またはループバックHTTPエンドポイントを入力してください。",
-      "intakeIncomplete": "続けるには、安全に関する必須の質問に回答してください。",
-      "intakeSaveFailed": "回答を保存できませんでした。もう一度お試しください。",
       "intervalsOwnerUnavailable": "{{product}}は、この{{intervals}}アカウントが{{computer}}のトレーニングデータと一致するか確認できませんでした。トレーニングデータを利用できるようになったら再試行してください。",
       "intervalsRuntimeUnavailable": "{{intervals}}のサインインを有効にできませんでした。もう一度サインインしてください。",
       "intervalsRuntimeUncertain": "{{product}}は、サインインが有効か確認できませんでした。認証情報の状態を再読み込みしてから、もう一度お試しください。",
@@ -730,15 +728,6 @@
       "importing": "ライドファイルをインポート中…",
       "unavailable": "ローカルライブラリへのインポート: {{imported}}件をインポート、{{quarantined}}件を隔離しました。コーチはアクティビティと時系列データを一時的に利用できません。インポートを再試行してください。",
       "unconfirmed": "ローカルライブラリへのインポートに失敗しました。結果を確認できませんでした。再試行する前にライブラリを確認してください。"
-    },
-    "intake": {
-      "managing": "けがに対処中",
-      "none": "現在けがはありません",
-      "retrySave": "回答の保存を再試行",
-      "returning": "けがからの復帰中",
-      "select": "選択…",
-      "subtitle": "現在のけがや復帰の状況を記録します。",
-      "title": "現在のけがの状況"
     },
     "requiredReady": "必須{{total}}項目中{{ready}}項目の準備完了",
     "retrySavedKeys": "保存済みのキーを再試行",

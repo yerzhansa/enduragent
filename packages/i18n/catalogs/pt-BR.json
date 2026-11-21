@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Não foi possível salvar essa chave. Tente inseri-la novamente.",
       "credentialStatusUnavailable": "Essa chave foi salva, mas não foi possível atualizar seu status. Verifique a área de configuração novamente.",
       "endpointInvalid": "Insira um endpoint HTTPS válido ou um endpoint HTTP de loopback.",
-      "intakeIncomplete": "Responda às perguntas de segurança obrigatórias para continuar.",
-      "intakeSaveFailed": "Não foi possível salvar suas respostas. Tente novamente.",
       "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar se esta conta de {{intervals}} corresponde aos dados de treinamento em {{computer}}. Tente novamente quando os dados de treinamento estiverem disponíveis.",
       "intervalsRuntimeUnavailable": "Não foi possível ativar a entrada com {{intervals}}. Entre novamente.",
       "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se a entrada está ativa. Recarregue o status das credenciais antes de tentar novamente.",
@@ -733,15 +731,6 @@
       "importing": "Importando arquivos de pedalada…",
       "unavailable": "Importação da biblioteca local: {{imported}} importados. {{quarantined}} em quarentena. O acesso do treinador às atividades e às séries de dados está temporariamente indisponível; tente importar novamente.",
       "unconfirmed": "Falha na importação da biblioteca local. Não foi possível confirmar o resultado; verifique a biblioteca antes de tentar novamente."
-    },
-    "intake": {
-      "managing": "Cuidando de uma lesão",
-      "none": "Sem lesão no momento",
-      "retrySave": "Tentar salvar respostas novamente",
-      "returning": "Retornando após uma lesão",
-      "select": "Selecione…",
-      "subtitle": "Registra o contexto da sua lesão atual ou do seu retorno.",
-      "title": "Situação de lesões no momento"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos prontos",
     "retrySavedKeys": "Tentar chaves salvas novamente",

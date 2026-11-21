@@ -1,9 +1,4 @@
-import {
-  KEYLESS_LLM_PROVIDERS,
-  SaveIntakeRpcParamsSchema,
-  isKeylessProvider,
-  type SaveIntakeRpcParams,
-} from "@enduragent/coach-contract";
+import { KEYLESS_LLM_PROVIDERS, isKeylessProvider } from "@enduragent/coach-contract";
 import {
   DESKTOP_CREDENTIAL_SLOTS,
   ONBOARDING_STEP_IDS,
@@ -76,10 +71,6 @@ export type ChatGptCancelLoginResult = {
   readonly operationId: string;
 };
 
-export interface DesktopIntakeDraft {
-  readonly injuryStatus: "none" | "managing" | "returning" | null;
-}
-
 export type OnboardingErrorCode =
   | "credential-required"
   | "credential-save-failed"
@@ -106,9 +97,7 @@ export type OnboardingErrorCode =
   | "intervals-storage-uncertain"
   | "intervals-runtime-unavailable"
   | "intervals-runtime-uncertain"
-  | "training-data-required"
-  | "intake-incomplete"
-  | "intake-save-failed";
+  | "training-data-required";
 
 export interface OnboardingState {
   readonly step: OnboardingStepId;
@@ -124,7 +113,6 @@ export interface OnboardingState {
   readonly claudeCliState: ClaudeCliState | null;
   readonly claudeCliIdentity: string | null;
   readonly importedRideFileCount: number;
-  readonly intake: DesktopIntakeDraft;
   readonly busy: boolean;
   readonly fixedError: OnboardingErrorCode | null;
 }
@@ -132,7 +120,6 @@ export interface OnboardingState {
 export interface OnboardingCompletion {
   readonly providerConfigured: true;
   readonly trainingDataConfigured: true;
-  readonly intakeSaved: true;
   readonly requiresProviderSync: boolean;
 }
 
@@ -167,7 +154,6 @@ export function createOnboardingState(
     claudeCliState: claudeCliStatus === null ? null : claudeCliStatus.state,
     claudeCliIdentity: claudeCliStatus === null ? null : claudeCliIdentityLine(claudeCliStatus),
     importedRideFileCount: 0,
-    intake: { injuryStatus: null },
     busy: false,
     fixedError: null,
   };
@@ -364,27 +350,6 @@ export function hasTrainingData(state: OnboardingState): boolean {
   );
 }
 
-export function toDesktopIntakeFlags(draft: DesktopIntakeDraft): SaveIntakeRpcParams {
-  if (draft.injuryStatus === null) throw new TypeError();
-  return SaveIntakeRpcParamsSchema.parse({
-    swim_skill_floor: null,
-    continuous_distance_capable: null,
-    open_water_comfort: null,
-    prior_bsi: false,
-    clinician_cleared: null,
-    injury_status: draft.injuryStatus,
-  });
-}
-
-export function intakeComplete(draft: DesktopIntakeDraft): boolean {
-  try {
-    toDesktopIntakeFlags(draft);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function nextStep(
   state: OnboardingState,
   runtimeModelConfigured = hasConfiguredModel(state),
@@ -397,13 +362,6 @@ export function nextStep(
   if (state.step === "training-data" && !hasTrainingData(state)) {
     return { ...state, fixedError: "training-data-required" };
   }
-  if (state.step === "safety-intake") {
-    try {
-      toDesktopIntakeFlags(state.intake);
-    } catch {
-      return { ...state, fixedError: "intake-incomplete" };
-    }
-  }
   const next = ONBOARDING_STEP_IDS[index + 1];
   return next === undefined ? state : { ...state, step: next, fixedError: null };
 }
@@ -414,27 +372,6 @@ export function previousStep(state: OnboardingState): OnboardingState {
   return index <= 0 || previous === undefined
     ? state
     : { ...state, step: previous, fixedError: null };
-}
-
-export function withIntake(
-  state: OnboardingState,
-  update: Partial<DesktopIntakeDraft>,
-): OnboardingState {
-  const intake = { ...state.intake, ...update };
-  return {
-    ...state,
-    intake,
-    fixedError: null,
-  };
-}
-
-export function withPersistedIntake(
-  state: OnboardingState,
-  intake: SaveIntakeRpcParams | null,
-): OnboardingState {
-  if (intake === null) return state;
-  const parsed = SaveIntakeRpcParamsSchema.parse(intake);
-  return withIntake(state, { injuryStatus: parsed.injury_status });
 }
 
 export function withBusy(state: OnboardingState, busy: boolean): OnboardingState {
@@ -465,7 +402,6 @@ export function toOnboardingCompletion(state: OnboardingState): OnboardingComple
   return {
     providerConfigured: true,
     trainingDataConfigured: true,
-    intakeSaved: true,
     requiresProviderSync:
       state.credentialStatus["intervals-icu"] === "configured" &&
       state.credentialRuntimeStatus["intervals-icu"] === "active",

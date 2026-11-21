@@ -61,8 +61,6 @@ export const ERROR_COPY: Readonly<Record<OnboardingErrorCode, Message>> = {
   "training-data-required": msg("setup.error.trainingDataRequired", {
     intervalsLower: "intervals.icu",
   }),
-  "intake-incomplete": msg("setup.error.intakeIncomplete"),
-  "intake-save-failed": msg("setup.error.intakeSaveFailed"),
 };
 
 export const CLAUDE_CLI_LANE_COPY = msg("setup.ai.claude.detail", {
@@ -262,8 +260,6 @@ export const TELEGRAM_DELETE_COPY = msg("setup.telegram.deleteCopy", {
 });
 
 export const RETRY_SAVED_KEYS_LABEL = msg("setup.retrySavedKeys");
-
-export const RETRY_INTAKE_SAVE_LABEL = msg("setup.intake.retrySave");
 
 export const FOOTER_NOTE = msg("setup.footerNote", { computer: PLATFORM_COPY.computer });
 

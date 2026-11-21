@@ -1,11 +1,6 @@
 import type { LlmProvider } from "@enduragent/coach-contract";
 
-export const ONBOARDING_STEP_IDS = [
-  "coach-keys",
-  "training-data",
-  "safety-intake",
-  "ready",
-] as const;
+export const ONBOARDING_STEP_IDS = ["coach-keys", "training-data", "ready"] as const;
 
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
 

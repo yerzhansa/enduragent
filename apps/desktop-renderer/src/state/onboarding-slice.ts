@@ -18,7 +18,7 @@ export const CLOSED_ONBOARDING: OnboardingSurfaceState = Object.freeze({
   draft: null,
   rideImport: IDLE_RIDE_IMPORT,
   focusSeq: 0,
-  readiness: Object.freeze({ provider: false, trainingData: false, intake: false }),
+  readiness: Object.freeze({ provider: false, trainingData: false }),
   lastCommit: null,
   actionStatus: null,
   intervalsSignIn: Object.freeze({ phase: "idle", athleteName: null }),
@@ -29,7 +29,7 @@ export const READY_ONBOARDING: OnboardingSurfaceState = Object.freeze({
   initialized: true,
   loading: false,
   hasSuccessfulLoad: true,
-  readiness: Object.freeze({ provider: true, trainingData: true, intake: true }),
+  readiness: Object.freeze({ provider: true, trainingData: true }),
 });
 
 export interface OnboardingSlice {

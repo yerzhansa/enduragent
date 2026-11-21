@@ -2104,14 +2104,6 @@
       "sourceHash": "4ff35219de041cfb4e0bde37862c4a7344281d2038e2040e255ecd502f7156ae",
       "translatedBy": "model"
     },
-    "setup.error.intakeIncomplete": {
-      "sourceHash": "8eef5b86f6562f8a2fa17b3e17d15a49aa5f6c92b3dfb9c058a5dba6f2f33a7e",
-      "translatedBy": "model"
-    },
-    "setup.error.intakeSaveFailed": {
-      "sourceHash": "ac3742efddd8598f18537f0fd7226d48a338e31203283a9cb0c01265dec8fd90",
-      "translatedBy": "model"
-    },
     "setup.error.intervalsOwnerUnavailable": {
       "sourceHash": "4d2c4a67c154e181bf1449df9516051180b1a503a5d7f657b31fb1cab6d2c5c7",
       "translatedBy": "model"
@@ -2222,34 +2214,6 @@
     },
     "setup.import.unconfirmed": {
       "sourceHash": "d75574bb1ff3b2462dcdad5022f87eae18c8e5d15c23508e39385a894f6ec877",
-      "translatedBy": "model"
-    },
-    "setup.intake.managing": {
-      "sourceHash": "8d0f537df3b8c2c3f4102dc4b63d81edd2003971399eb98aa60f4032ae78fe91",
-      "translatedBy": "model"
-    },
-    "setup.intake.none": {
-      "sourceHash": "1b846db9cee05524c6166f79bcab13ee7a7138a28b19a0f97ac599e43c28f711",
-      "translatedBy": "model"
-    },
-    "setup.intake.retrySave": {
-      "sourceHash": "d41214c2be67917c9bc5c14e07bcf4af66e63e680a673ef7e5a8c139525971ec",
-      "translatedBy": "model"
-    },
-    "setup.intake.returning": {
-      "sourceHash": "edff279d813f08e9886d550c7755e7aeaff55e7bf74c226999d1b244d72d827d",
-      "translatedBy": "model"
-    },
-    "setup.intake.select": {
-      "sourceHash": "731fe041ce28da1ba4db11261c0800621008583d171ed41a7ca2177053fe1424",
-      "translatedBy": "model"
-    },
-    "setup.intake.subtitle": {
-      "sourceHash": "b890cb8a22a0a25e6199609b3d958f7afc6a9b117870a6fc63b04668f8560da8",
-      "translatedBy": "model"
-    },
-    "setup.intake.title": {
-      "sourceHash": "4801715f7a4e07782eedaa6b7948d0e62201066f0e938ef9834241761205a440",
       "translatedBy": "model"
     },
     "setup.requiredReady": {

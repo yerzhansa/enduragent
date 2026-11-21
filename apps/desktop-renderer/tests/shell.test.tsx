@@ -676,10 +676,6 @@ describe("shell", () => {
           ...READY_ONBOARDING,
           open: true,
           completionRequired: true,
-          wizard: {
-            ...READY_ONBOARDING.wizard,
-            intake: { injuryStatus: "none" },
-          },
         },
         onboardingActions: { finish } as unknown as OnboardingController,
       });

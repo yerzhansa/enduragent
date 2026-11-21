@@ -3,12 +3,10 @@ import { CoachClientDisconnectedError, connectCoachClient } from "@enduragent/co
 import {
   ImportFilesRpcParamsSchema,
   PlatformAbsolutePathSchema,
-  SaveIntakeRpcParamsSchema,
   type GetSetupStatusRpcResult,
   type CoachOperationProgressNotificationEnvelope,
   type ImportFilesRpcResult,
   type LlmProvider,
-  type SaveIntakeRpcParams,
 } from "@enduragent/coach-contract";
 import { validateRendererDaemonConnection } from "../daemon-connection";
 import { SUPPORTED_IMPORT_EXTENSIONS, type DesktopCredentialSlot } from "./constants";
@@ -216,7 +214,6 @@ export interface OnboardingBridge {
     paths: readonly string[],
     onProgress: (event: CoachOperationProgressNotificationEnvelope) => void,
   ): Promise<ImportFilesRpcResult>;
-  saveIntake(input: SaveIntakeRpcParams): Promise<void>;
 }
 
 export interface DesktopOnboardingAuth {
@@ -313,16 +310,6 @@ export function createOnboardingBridge(
           { paths: [...parsedPaths] },
           { onNotificationEnvelope: onProgress },
         );
-      } catch (error) {
-        if (error instanceof CoachClientDisconnectedError) clientPromise = undefined;
-        throw error;
-      }
-    },
-    async saveIntake(input) {
-      const connected = await client();
-      try {
-        const result = await connected.call("saveIntake", SaveIntakeRpcParamsSchema.parse(input));
-        if (!result.saved) throw new TypeError();
       } catch (error) {
         if (error instanceof CoachClientDisconnectedError) clientPromise = undefined;
         throw error;

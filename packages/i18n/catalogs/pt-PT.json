@@ -700,8 +700,6 @@
       "credentialSaveFailed": "Não foi possível guardar essa chave. Tenta introduzi-la novamente.",
       "credentialStatusUnavailable": "Essa chave foi guardada, mas não foi possível atualizar o respetivo estado. Verifica novamente a área de configuração.",
       "endpointInvalid": "Introduz um endpoint HTTPS válido ou um endpoint HTTP de loopback.",
-      "intakeIncomplete": "Responde às perguntas de segurança obrigatórias para continuar.",
-      "intakeSaveFailed": "Não foi possível guardar as tuas respostas. Tenta novamente.",
       "intervalsOwnerUnavailable": "{{product}} não conseguiu confirmar que esta conta de {{intervals}} corresponde aos dados de treino em {{computer}}. Tenta novamente quando os dados de treino estiverem disponíveis.",
       "intervalsRuntimeUnavailable": "Não foi possível ativar o início de sessão em {{intervals}}. Inicia sessão novamente.",
       "intervalsRuntimeUncertain": "{{product}} não conseguiu confirmar se o início de sessão está ativo. Recarrega o estado das credenciais antes de tentares novamente.",
@@ -733,15 +731,6 @@
       "importing": "A importar ficheiros de voltas…",
       "unavailable": "Importação da biblioteca local: {{imported}} importados. {{quarantined}} em quarentena. O acesso do treinador às atividades e séries de dados está temporariamente indisponível. Tenta importar novamente.",
       "unconfirmed": "A importação da biblioteca local falhou. Não foi possível confirmar o resultado. Verifica a biblioteca antes de tentares novamente."
-    },
-    "intake": {
-      "managing": "A lidar com uma lesão",
-      "none": "Sem lesões atuais",
-      "retrySave": "Tentar guardar respostas novamente",
-      "returning": "A regressar após uma lesão",
-      "select": "Seleciona…",
-      "subtitle": "Regista a tua situação atual de lesão ou regresso ao treino.",
-      "title": "Situação atual de lesões"
     },
     "requiredReady": "{{ready}} de {{total}} requisitos prontos",
     "retrySavedKeys": "Tentar novamente as chaves guardadas",

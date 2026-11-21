@@ -86,7 +86,6 @@ const operations: CoachOperations & PlanCreationOperations & PlanChangeOperation
       recent7Days: { total: 0, visible: 0, restrictions: [], other: 0 },
     },
   }),
-  saveIntake: async () => ({ schemaVersion: 1, saved: true }),
   getTranscriptPage: async () => ({
     schemaVersion: 1,
     status: "page",
@@ -310,7 +309,7 @@ afterEach(async () => {
 
 describe("enduragent executable composition", () => {
   it("starts initial refresh through one authenticated control socket and closes it", async () => {
-    expect(PROTOCOL_VERSION).toBe(36);
+    expect(PROTOCOL_VERSION).toBe(37);
     const startInitialRefresh = vi.fn(async () => ({ status: "accepted" as const }));
     const close = vi.fn(async () => {});
     const openControl = vi.fn(async () => ({ startInitialRefresh, close }));

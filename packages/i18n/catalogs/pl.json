@@ -704,8 +704,6 @@
       "credentialSaveFailed": "Nie udało się zapisać tego klucza. Spróbuj wpisać go ponownie.",
       "credentialStatusUnavailable": "Klucz zapisano, ale nie udało się odświeżyć jego statusu. Sprawdź ponownie sekcję konfiguracji.",
       "endpointInvalid": "Wpisz prawidłowy punkt końcowy HTTPS lub punkt końcowy HTTP na adresie pętli zwrotnej.",
-      "intakeIncomplete": "Odpowiedz na wymagane pytania dotyczące bezpieczeństwa, aby kontynuować.",
-      "intakeSaveFailed": "Nie udało się zapisać twoich odpowiedzi. Spróbuj ponownie.",
       "intervalsOwnerUnavailable": "{{product}} nie mógł potwierdzić, że to konto {{intervals}} odpowiada danym treningowym na {{computer}}. Spróbuj ponownie, gdy dane treningowe będą dostępne.",
       "intervalsRuntimeUnavailable": "Nie udało się aktywować logowania do {{intervals}}. Zaloguj się ponownie.",
       "intervalsRuntimeUncertain": "{{product}} nie mógł potwierdzić, czy logowanie jest aktywne. Wczytaj ponownie status danych dostępowych przed kolejną próbą.",
@@ -739,15 +737,6 @@
       "unconfirmed": "Import do lokalnej biblioteki nie powiódł się. Nie udało się potwierdzić wyniku; sprawdź bibliotekę przed kolejną próbą.",
       "fileCount_few": "{{formattedCount}} pliki przejazdów",
       "fileCount_many": "{{formattedCount}} plików przejazdów"
-    },
-    "intake": {
-      "managing": "Leczę kontuzję",
-      "none": "Obecnie bez kontuzji",
-      "retrySave": "Ponów zapis odpowiedzi",
-      "returning": "Wracam po kontuzji",
-      "select": "Wybierz…",
-      "subtitle": "Zapisuje informacje o obecnej kontuzji lub powrocie po niej.",
-      "title": "Obecny stan kontuzji"
     },
     "requiredReady": "Gotowe: {{ready}} z {{total}} wymaganych",
     "retrySavedKeys": "Ponów zapisane klucze",

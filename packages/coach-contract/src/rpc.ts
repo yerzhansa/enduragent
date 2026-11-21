@@ -300,7 +300,6 @@ export const COACH_RPC_METHOD_NAMES = [
   "importFiles",
   "sync",
   "getSetupStatus",
-  "saveIntake",
   "configureRuntime",
   "verify_intervals_credential",
   "getRuntimeConfig",
@@ -859,50 +858,16 @@ export const SyncRpcResultSchema = z
   });
 export type SyncRpcResult = z.infer<typeof SyncRpcResultSchema>;
 
-export const InjuryStatusSchema = z.enum(["none", "managing", "returning"]);
-export type InjuryStatus = z.infer<typeof InjuryStatusSchema>;
-
-export const SaveIntakeRpcParamsSchema = z
-  .object({
-    swim_skill_floor: z.null(),
-    continuous_distance_capable: z.null(),
-    open_water_comfort: z.null(),
-    prior_bsi: z.boolean(),
-    clinician_cleared: z.boolean().nullable(),
-    injury_status: InjuryStatusSchema,
-  })
-  .strict()
-  .superRefine((value, context) => {
-    const couldBeAsked = value.prior_bsi || value.injury_status !== "none";
-    if (!couldBeAsked && value.clinician_cleared !== null) {
-      context.addIssue({
-        code: "custom",
-        path: ["clinician_cleared"],
-        message: "clinician clearance must be null",
-      });
-    }
-  });
-export type SaveIntakeRpcParams = z.infer<typeof SaveIntakeRpcParamsSchema>;
-
 export const GetSetupStatusRpcParamsSchema = EmptyRpcParamsSchema;
 export type GetSetupStatusRpcParams = z.infer<typeof GetSetupStatusRpcParamsSchema>;
 
 export const GetSetupStatusRpcResultSchema = z
   .object({
     schemaVersion: z.literal(1),
-    intake: SaveIntakeRpcParamsSchema.nullable(),
     durableTrainingData: z.boolean(),
   })
   .strict();
 export type GetSetupStatusRpcResult = z.infer<typeof GetSetupStatusRpcResultSchema>;
-
-export const SaveIntakeRpcResultSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    saved: z.literal(true),
-  })
-  .strict();
-export type SaveIntakeRpcResult = z.infer<typeof SaveIntakeRpcResultSchema>;
 
 export { LlmProviderSchema };
 export type { LlmProvider };
@@ -1283,7 +1248,6 @@ export interface CoachOperations {
     onEvent?: (event: OperationProgressEvent) => void,
   ): Promise<SyncRpcResult>;
   getSetupStatus?(request: GetSetupStatusRpcParams): Promise<GetSetupStatusRpcResult>;
-  saveIntake(request: SaveIntakeRpcParams): Promise<SaveIntakeRpcResult>;
   getCoachDecision?(request: GetCoachDecisionRpcParams): Promise<GetCoachDecisionRpcResult>;
   answerCoachDecision?(
     request: AnswerCoachDecisionRpcParams,
@@ -1654,14 +1618,6 @@ export const CoachRpcRequestEnvelopeSchema = z.discriminatedUnion("method", [
       id: JsonRpcIdSchema,
       method: z.literal("getSetupStatus"),
       params: GetSetupStatusRpcParamsSchema,
-    })
-    .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      id: JsonRpcIdSchema,
-      method: z.literal("saveIntake"),
-      params: SaveIntakeRpcParamsSchema,
     })
     .strict(),
   z
@@ -2350,12 +2306,6 @@ export const COACH_RPC_METHOD_REGISTRY = {
     wireName: "getSetupStatus",
     requestSchema: GetSetupStatusRpcParamsSchema,
     responseSchema: GetSetupStatusRpcResultSchema,
-    eventSchema: NoRpcEventSchema,
-  },
-  saveIntake: {
-    wireName: "saveIntake",
-    requestSchema: SaveIntakeRpcParamsSchema,
-    responseSchema: SaveIntakeRpcResultSchema,
     eventSchema: NoRpcEventSchema,
   },
   configureRuntime: {

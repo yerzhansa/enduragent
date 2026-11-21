@@ -310,7 +310,7 @@
     {
       "id": "uninstall.durable.athlete-config",
       "surface": "windows-reinstall",
-      "expected": "After seed, uninstall, and same-user reinstall, athlete configuration, selected provider and model, intake, training account identity, and stored subscription profile reopen byte-for-byte or semantically unchanged. This remains VM-only because it crosses the real NSIS boundary and reopens the owning user's athlete-home configuration.",
+      "expected": "After seed, uninstall, and same-user reinstall, athlete configuration, selected provider and model, training account identity, and stored subscription profile reopen byte-for-byte or semantically unchanged. This remains VM-only because it crosses the real NSIS boundary and reopens the owning user's athlete-home configuration.",
       "automation": "vm-only"
     },
     {
