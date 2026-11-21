@@ -669,7 +669,6 @@
     "apps/desktop/src/main/telegram-secure-storage-diagnostics.ts": 1,
     "apps/desktop/src/main/update-version-floor.ts": 1,
     "apps/desktop/src/main/windows-private-file.ts": 2,
-    "packages/coach/src/account-identity.ts": 5,
     "packages/coach/src/activity-analysis-service.ts": 1,
     "packages/coach/src/athlete-state-reader.ts": 1,
     "packages/coach/src/attachment-operations.ts": 5,

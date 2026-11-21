@@ -1,7 +1,11 @@
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Config, ReferenceRuntime } from "@enduragent/core";
+import {
+  recordIntervalsCredentialResponse,
+  type Config,
+  type ReferenceRuntime,
+} from "@enduragent/core";
 import type { ReferenceCaptureManifest } from "@enduragent/kernel/reference/capture";
 import type { ProducedLocalBundle } from "@enduragent/kernel/reference/local-bundle";
 import type { SqlReadStore } from "@enduragent/kernel/store";
@@ -145,7 +149,16 @@ async function makeRuntime(
       openReadonlyStore,
     },
   });
-  return { root, runtime, capture, refreshCurves, produce, reference, readonlyStore, openReadonlyStore };
+  return {
+    root,
+    runtime,
+    capture,
+    refreshCurves,
+    produce,
+    reference,
+    readonlyStore,
+    openReadonlyStore,
+  };
 }
 
 describe("StoreRuntime read-only store", () => {
@@ -162,21 +175,36 @@ describe("StoreRuntime read-only store", () => {
     const { runtime, openReadonlyStore } = await makeRuntime();
     await runtime.close();
 
-    await expect(runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" }))
-      .resolves.toMatchObject({ ok: false, error: "store_read_unavailable" });
+    await expect(
+      runtime.athleteData.listActivities({ start: "1998-07-01", end: "1998-07-18" }),
+    ).resolves.toMatchObject({ ok: false, error: "store_read_unavailable" });
     expect(openReadonlyStore).not.toHaveBeenCalled();
   });
 });
 
 describe("StoreRuntime capture health", () => {
   const CLEAN: LaneReport = { fetched: 1, landed: 1, drops: [], unfetched: [] };
-  const rejectedDay = (payloadIndex: number): RowDrop => ({ lane: "wellness", payloadIndex,
-    externalId: `1998-07-1${payloadIndex}`, localDate: `1998-07-1${payloadIndex}`, phase: "landing", reason: "landing",
-    field: "restingHR", errorName: null });
-  const reportWith = (wellness: LaneReport): CaptureReport =>
-    ({ settings: CLEAN, activities: CLEAN, wellness, streams: CLEAN });
+  const rejectedDay = (payloadIndex: number): RowDrop => ({
+    lane: "wellness",
+    payloadIndex,
+    externalId: `1998-07-1${payloadIndex}`,
+    localDate: `1998-07-1${payloadIndex}`,
+    phase: "landing",
+    reason: "landing",
+    field: "restingHR",
+    errorName: null,
+  });
+  const reportWith = (wellness: LaneReport): CaptureReport => ({
+    settings: CLEAN,
+    activities: CLEAN,
+    wellness,
+    streams: CLEAN,
+  });
 
-  async function windowFor(report: CaptureReport | undefined, bundle: ProducedLocalBundle = produced) {
+  async function windowFor(
+    report: CaptureReport | undefined,
+    bundle: ProducedLocalBundle = produced,
+  ) {
     const made = await makeRuntime();
     made.produce.mockResolvedValue(bundle);
     made.capture.mockImplementation(async (options) => {
@@ -185,18 +213,28 @@ describe("StoreRuntime capture health", () => {
     });
     const window = await made.runtime.runWindow();
     const logs = async (): Promise<Record<string, unknown>[]> => {
-      const raw = await readFile(join(made.root, "logs", "log.jsonl"), "utf8").catch((error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") return "";
-        throw error;
-      });
-      return raw.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line) as Record<string, unknown>);
+      const raw = await readFile(join(made.root, "logs", "log.jsonl"), "utf8").catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return "";
+          throw error;
+        },
+      );
+      return raw
+        .split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
     };
     return { ...made, window, logs };
   }
 
   it("logs a lost wellness lane with its counts, still publishes, and tells the coach the sync failed", async () => {
     const { runtime, window, logs } = await windowFor(
-      reportWith({ fetched: 3, landed: 0, drops: [rejectedDay(5), rejectedDay(6), rejectedDay(7)], unfetched: [] }),
+      reportWith({
+        fetched: 3,
+        landed: 0,
+        drops: [rejectedDay(5), rejectedDay(6), rejectedDay(7)],
+        unfetched: [],
+      }),
     );
 
     expect(window.published).toBe(true);
@@ -224,63 +262,134 @@ describe("StoreRuntime capture health", () => {
   });
 
   it("warns about a lane that kept some rows, logs at most five drops, and tells the coach which days of a read are missing", async () => {
-    const kept: ProducedLocalBundle["bundle"]["wellness"] = ["1998-07-17", "1998-07-18"].map((id) => (
-      { id, weight: 70, restingHR: 50, hrv: 60, sleepSecs: 28_800, sleepQuality: 3 }));
+    const kept: ProducedLocalBundle["bundle"]["wellness"] = ["1998-07-17", "1998-07-18"].map(
+      (id) => ({ id, weight: 70, restingHR: 50, hrv: 60, sleepSecs: 28_800, sleepQuality: 3 }),
+    );
     const { runtime, window, logs } = await windowFor(
-      reportWith({ fetched: 9, landed: 2, drops: [0, 1, 2, 3, 4, 5, 6].map(rejectedDay), unfetched: [] }),
+      reportWith({
+        fetched: 9,
+        landed: 2,
+        drops: [0, 1, 2, 3, 4, 5, 6].map(rejectedDay),
+        unfetched: [],
+      }),
       { ...produced, bundle: { ...produced.bundle, wellness: kept } },
     );
 
     expect(window.published).toBe(true);
     const records = await logs();
-    expect(records).toEqual([expect.objectContaining({ level: "warn", event: "capture_lane_partial", lane: "wellness", fetched: 9, landed: 2 })]);
+    expect(records).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        event: "capture_lane_partial",
+        lane: "wellness",
+        fetched: 9,
+        landed: 2,
+      }),
+    ]);
     expect(records[0]?.drops).toHaveLength(5);
-    await expect(runtime.athleteData.listWellness({ start: "1998-07-15", end: "1998-07-18" })).resolves.toMatchObject({
+    await expect(
+      runtime.athleteData.listWellness({ start: "1998-07-15", end: "1998-07-18" }),
+    ).resolves.toMatchObject({
       ok: true,
       value: kept,
       notice: "Wellness is incomplete: 2 of 4 days failed to sync and are missing here.",
     });
-    const complete = await runtime.athleteData.listWellness({ start: "1998-07-17", end: "1998-07-18" });
+    const complete = await runtime.athleteData.listWellness({
+      start: "1998-07-17",
+      end: "1998-07-18",
+    });
     expect(complete).toMatchObject({ ok: true, value: kept });
     expect(complete).not.toHaveProperty("notice");
   });
 
   it("logs the rows that lost a lane, not the rows the provider withheld before them", async () => {
-    const withheld = (payloadIndex: number): RowDrop => ({ lane: "activities", payloadIndex, externalId: null, localDate: null,
-      phase: "decode", reason: "source-restricted", field: null, errorName: null });
-    const broken: RowDrop = { lane: "activities", payloadIndex: 6, externalId: null, localDate: null, phase: "decode",
-      reason: "unclassified", field: null, errorName: "TypeError" };
-    const { logs } = await windowFor({ ...reportWith(CLEAN),
-      activities: { fetched: 7, landed: 0, drops: [...[0, 1, 2, 3, 4, 5].map(withheld), broken], unfetched: [] } });
+    const withheld = (payloadIndex: number): RowDrop => ({
+      lane: "activities",
+      payloadIndex,
+      externalId: null,
+      localDate: null,
+      phase: "decode",
+      reason: "source-restricted",
+      field: null,
+      errorName: null,
+    });
+    const broken: RowDrop = {
+      lane: "activities",
+      payloadIndex: 6,
+      externalId: null,
+      localDate: null,
+      phase: "decode",
+      reason: "unclassified",
+      field: null,
+      errorName: "TypeError",
+    };
+    const { logs } = await windowFor({
+      ...reportWith(CLEAN),
+      activities: {
+        fetched: 7,
+        landed: 0,
+        drops: [...[0, 1, 2, 3, 4, 5].map(withheld), broken],
+        unfetched: [],
+      },
+    });
 
-    expect(await logs()).toEqual([expect.objectContaining({ event: "capture_lane_lost", lane: "activities", fetched: 7, landed: 0,
-      drops: ["activities[6] decode: unclassified (TypeError)"] })]);
+    expect(await logs()).toEqual([
+      expect.objectContaining({
+        event: "capture_lane_lost",
+        lane: "activities",
+        fetched: 7,
+        landed: 0,
+        drops: ["activities[6] decode: unclassified (TypeError)"],
+      }),
+    ]);
   });
 
   it("keeps the published capture and its standing when the next capture cannot be turned into a bundle", async () => {
     const { runtime, capture, produce } = await windowFor(reportWith(CLEAN));
     capture.mockImplementation(async (options) => {
       options.attemptLedger!.charge("store", "store:settings");
-      return { manifest, report: reportWith({ fetched: 3, landed: 0, drops: [5, 6, 7].map(rejectedDay), unfetched: [] }) };
+      return {
+        manifest,
+        report: reportWith({
+          fetched: 3,
+          landed: 0,
+          drops: [5, 6, 7].map(rejectedDay),
+          unfetched: [],
+        }),
+      };
     });
     produce.mockRejectedValueOnce(new Error("synthetic produce failure"));
 
     await expect(runtime.runWindow()).rejects.toThrow("synthetic produce failure");
 
     expect(runtime.currentSnapshot()).toBe(produced);
-    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
   });
 
   it("logs a refused replacement under its own event with the capture it could not replace", async () => {
     const { runtime, capture, logs } = await windowFor(reportWith(CLEAN));
-    capture.mockRejectedValueOnce(new ReferenceCaptureRunError("capture",
-      { cause: new ReplacedCaptureNotReplayableError(manifest.capture_id, { cause: new Error("private detail") }) }));
+    capture.mockRejectedValueOnce(
+      new ReferenceCaptureRunError("capture", {
+        cause: new ReplacedCaptureNotReplayableError(manifest.capture_id, {
+          cause: new Error("private detail"),
+        }),
+      }),
+    );
 
     await expect(runtime.runWindow()).rejects.toBeInstanceOf(ReferenceCaptureRunError);
 
     const records = await logs();
-    expect(records).toEqual([expect.objectContaining({ level: "error", component: "sync",
-      event: "capture_replacement_refused", replacesCaptureId: manifest.capture_id })]);
+    expect(records).toEqual([
+      expect.objectContaining({
+        level: "error",
+        component: "sync",
+        event: "capture_replacement_refused",
+        replacesCaptureId: manifest.capture_id,
+      }),
+    ]);
     expect(JSON.stringify(records)).not.toContain("private detail");
     expect(runtime.currentSnapshot()).toBe(produced);
   });
@@ -299,7 +408,10 @@ describe("StoreRuntime capture health", () => {
 
     expect(window.published).toBe(true);
     expect(await logs()).toEqual([]);
-    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({ ok: true, value: [] });
+    await expect(runtime.athleteData.listWellness({ start: "1998-07-01" })).resolves.toMatchObject({
+      ok: true,
+      value: [],
+    });
   });
 });
 
@@ -455,6 +567,89 @@ describe("StoreRuntime", () => {
     expect(produce).not.toHaveBeenCalled();
     expect(reference.runScheduledOnce).not.toHaveBeenCalled();
     expect(runtime.currentSnapshot()).toBeUndefined();
+    await runtime.close();
+  });
+
+  it("skips scheduled refreshes while intervals.icu rejects the sign-in and resumes after a new one", async () => {
+    vi.useFakeTimers();
+    try {
+      const rejected = "intervals-oauth:fixture-rejected-before-schedule";
+      const replacement = "intervals-oauth:fixture-replacement-sign-in";
+      recordIntervalsCredentialResponse(rejected, 401);
+      let active: Config = { ...config, intervals: { apiKey: rejected, athleteId: "0" } };
+      const { root, runtime, capture, refreshCurves, produce, reference } = await makeRuntime(
+        active,
+        () => active,
+      );
+      runtime.startScheduler();
+
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).not.toHaveBeenCalled();
+      expect(refreshCurves).not.toHaveBeenCalled();
+      expect(produce).not.toHaveBeenCalled();
+      expect(reference.runScheduledOnce).not.toHaveBeenCalled();
+      const lines = (await readFile(join(root, "logs", "log.jsonl"), "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      expect(lines).toEqual([
+        expect.objectContaining({
+          level: "info",
+          component: "sync",
+          event: "scheduled_store_refresh_skipped",
+          reason: "credential-rejected",
+        }),
+        expect.objectContaining({ event: "scheduled_store_refresh_skipped" }),
+      ]);
+      expect(lines.map((line) => JSON.stringify(line)).join("\n")).not.toContain(
+        "fixture-rejected-before-schedule",
+      );
+
+      active = { ...active, intervals: { apiKey: replacement, athleteId: "0" } };
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).toHaveBeenCalledOnce();
+      expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey: replacement }));
+      expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+      await runtime.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps scheduled refreshes for an API key that intervals.icu refused", async () => {
+    vi.useFakeTimers();
+    try {
+      const apiKey = "fixture-refused-scheduled-api-key";
+      recordIntervalsCredentialResponse(apiKey, 401);
+      const { runtime, capture, reference } = await makeRuntime({
+        ...config,
+        intervals: { apiKey, athleteId: "0" },
+      });
+      runtime.startScheduler();
+
+      await vi.advanceTimersByTimeAsync(STORE_REFRESH_INTERVAL_MS);
+      expect(capture).toHaveBeenCalledOnce();
+      expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey }));
+      expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+      await runtime.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still refreshes on request while intervals.icu rejects the sign-in", async () => {
+    const rejected = "intervals-oauth:fixture-rejected-before-sync-now";
+    recordIntervalsCredentialResponse(rejected, 401);
+    const { runtime, capture, reference } = await makeRuntime({
+      ...config,
+      intervals: { apiKey: rejected, athleteId: "0" },
+    });
+
+    const result = await runtime.runWindowAfter(async () => {});
+    expect(capture).toHaveBeenCalledWith(expect.objectContaining({ apiKey: rejected }));
+    expect(reference.runScheduledOnce).toHaveBeenCalledOnce();
+    expect(result.counts.totalRequests).toBeGreaterThan(0);
     await runtime.close();
   });
 
