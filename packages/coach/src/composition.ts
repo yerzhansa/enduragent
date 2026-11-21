@@ -650,6 +650,9 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       }
     }
   };
+  const queueUnavailable = (): never => {
+    throw new TypeError("Durable chat queue is unavailable.");
+  };
 
   return {
     intentTranslator: {
@@ -662,16 +665,18 @@ function createReconfigurableRuntimeBundle(initial: RuntimeBundle): {
       chat: (request, onEvent) => run((bundle) => bundle.engine.chat(request, onEvent)),
       stopChat: (request) =>
         run(async (bundle) => bundle.engine.stopChat?.(request) ?? { stopped: false }),
-      enqueueChatMessage: (request) => run((bundle) => bundle.engine.enqueueChatMessage!(request)),
-      getChatQueue: (request) => run((bundle) => bundle.engine.getChatQueue!(request)),
+      enqueueChatMessage: (request) =>
+        run((bundle) => bundle.engine.enqueueChatMessage?.(request) ?? queueUnavailable()),
+      getChatQueue: (request) =>
+        run((bundle) => bundle.engine.getChatQueue?.(request) ?? queueUnavailable()),
       removeQueuedChatMessage: (request) =>
-        run((bundle) => bundle.engine.removeQueuedChatMessage!(request)),
+        run((bundle) => bundle.engine.removeQueuedChatMessage?.(request) ?? queueUnavailable()),
       resumeChatQueue: (request, onEvent) =>
-        run((bundle) => bundle.engine.resumeChatQueue!(request, onEvent)),
+        run((bundle) => bundle.engine.resumeChatQueue?.(request, onEvent) ?? queueUnavailable()),
       runQueuedCommand: (request, onEvent) =>
-        run((bundle) => bundle.engine.runQueuedCommand!(request, onEvent)),
+        run((bundle) => bundle.engine.runQueuedCommand?.(request, onEvent) ?? queueUnavailable()),
       retryQueuedTurn: (request, onEvent) =>
-        run((bundle) => bundle.engine.retryQueuedTurn!(request, onEvent)),
+        run((bundle) => bundle.engine.retryQueuedTurn?.(request, onEvent) ?? queueUnavailable()),
       getCoachDecision: (request) => run((bundle) => bundle.engine.getCoachDecision(request)),
       answerCoachDecision: (request, onEvent) =>
         run((bundle) => bundle.engine.answerCoachDecision(request, onEvent)),
