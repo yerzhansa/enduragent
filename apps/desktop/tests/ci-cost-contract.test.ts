@@ -95,6 +95,19 @@ describe("CI cost contract", () => {
     expect(windows).not.toContain("vitest run");
   });
 
+  it("self-tests the built Store package below Windows 11 without rebuilding it", () => {
+    expect(job(ci, "windows-desktop-package")).toContain("name: windows-store-package");
+    const store = job(ci, "windows-store-package-before-windows-11");
+    expect(store).toContain("needs: windows-desktop-package");
+    expect(store).toContain("runs-on: windows-2022");
+    expect(store).toContain("if ($build -ge 22000)");
+    expect(store).toContain("name: windows-store-package");
+    expect(store).toContain("verify-windows-packaged-self-test.mjs --executable");
+    expect(store).toContain('pnpm --filter "@enduragent/coach..." build');
+    expect(store).toContain("Import-Module Appx -UseWindowsPowerShell");
+    expect(store).not.toContain("package:win");
+  });
+
   it("caches Docker layers and cancels obsolete image builds", () => {
     expect(image).toContain("cancel-in-progress: true");
     expect(image).toContain("cache-from: type=gha,scope=cycling-coach");

@@ -88,7 +88,7 @@ describe("Windows Store package plan", () => {
             capabilities: ["runFullTrust"],
             electronUpdaterAware: false,
             setBuildNumber: false,
-            minVersion: "10.0.22000.0",
+            minVersion: "10.0.19041.0",
             maxVersionTested: "10.0.26100.0",
           },
         },
